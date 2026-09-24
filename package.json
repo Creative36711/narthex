@@ -7,16 +7,23 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@types/seedrandom": "^3.0.8",
     "inkjs": "^2.4.0",
+    "jszip": "^3.10.2",
+    "konva": "^10.7.0",
+    "monaco-editor": "^0.56.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-konva": "^19.3.0",
     "seedrandom": "^3.0.5"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.5",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",

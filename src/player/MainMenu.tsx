@@ -5,9 +5,10 @@ interface Props {
   canContinue: boolean
   onNewGame: () => void
   onContinue: () => void
+  onEditor?: () => void
 }
 
-export function MainMenu({ campaign, canContinue, onNewGame, onContinue }: Props) {
+export function MainMenu({ campaign, canContinue, onNewGame, onContinue, onEditor }: Props) {
   const m = campaign.meta
   return (
     <div className="main-menu">
@@ -22,6 +23,11 @@ export function MainMenu({ campaign, canContinue, onNewGame, onContinue }: Props
           {canContinue && (
             <button className="btn" onClick={onContinue}>
               Продолжить
+            </button>
+          )}
+          {onEditor && (
+            <button className="btn" onClick={onEditor}>
+              🛠 Редактор
             </button>
           )}
         </div>

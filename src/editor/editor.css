@@ -1,0 +1,229 @@
+/* ─────────── Chronicle Forge · Editor Mode (Фаза 4) ─────────── */
+
+.editor-root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.editor-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.editor-brand { color: var(--gold); letter-spacing: 2px; font-size: 12px; }
+.editor-title { color: var(--muted); font-size: 13px; }
+.editor-spacer { flex: 1; }
+.editor-dirty { font-size: 12px; color: var(--muted); }
+.editor-dirty.on { color: var(--gold-bright); }
+
+.editor-body { flex: 1; display: flex; min-height: 0; }
+
+.editor-nav {
+  width: 150px;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+.editor-nav-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  padding: 9px 14px;
+  font-size: 14px;
+  border-left: 3px solid transparent;
+}
+.editor-nav-btn:hover { color: var(--gold-bright); }
+.editor-nav-btn.on { border-left-color: var(--gold); color: var(--gold-bright); background: var(--panel-2); }
+
+.editor-list {
+  width: 220px;
+  border-right: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  gap: 2px;
+}
+.editor-list-item {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text);
+  text-align: left;
+  padding: 6px 9px;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editor-list-item:hover { border-color: var(--border); }
+.editor-list-item.on { background: var(--panel-2); border-color: var(--gold); color: var(--gold-bright); }
+.editor-list-item.dirty::after { content: ' •'; color: var(--gold-bright); }
+.editor-list-tools { display: flex; gap: 6px; margin-top: 8px; }
+
+.editor-main { flex: 1; overflow: auto; padding: 14px; min-width: 0; }
+
+/* ─────────── формы ─────────── */
+
+.fld { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; font-size: 13px; }
+.fld > span { color: var(--muted); font-size: 12px; }
+.fld input[type='text'],
+.fld input[type='number'],
+.fld input:not([type]),
+.fld select,
+.fld textarea {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.fld textarea { font-family: monospace; font-size: 12px; resize: vertical; }
+.fld input:focus, .fld select:focus, .fld textarea:focus { outline: none; border-color: var(--gold); }
+.fld-check { flex-direction: row; align-items: center; gap: 8px; }
+.fld-inline { flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0; }
+.fld-row { display: flex; gap: 10px; }
+.fld-row .fld { flex: 1; }
+.fld-block { }
+.fld-err { color: var(--red); font-style: normal; }
+
+.props-group {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.props-group h4 { margin: 0 0 10px; color: var(--gold); font-size: 14px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.chip input { display: none; }
+.chip-on { border-color: var(--gold); color: var(--gold-bright); background: var(--panel-2); }
+
+/* ─────────── конструктор условий/эффектов ─────────── */
+
+.ce-list { display: flex; flex-direction: column; gap: 6px; }
+.ce-item { border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); }
+.ce-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.ce-head:hover { background: rgba(201, 164, 92, 0.06); }
+.ce-summary { flex: 1; font-size: 13px; }
+.ce-effect { color: #b8cba0; }
+.ce-tools { display: flex; gap: 4px; }
+.ce-del { color: var(--red); }
+.ce-body { padding: 10px; border-top: 1px solid var(--border); }
+.schema-form { margin-top: 6px; }
+
+/* ─────────── редактор сцен ─────────── */
+
+.scene-editor, .arena-editor { display: flex; gap: 14px; align-items: flex-start; }
+.scene-canvas-col { flex: 0 0 auto; }
+.scene-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.scene-stage { border: 1px solid var(--border); border-radius: 4px; background: #000; }
+.scene-props { flex: 1; min-width: 260px; max-width: 380px; }
+
+/* ─────────── редактор арен ─────────── */
+
+.arena-stage {
+  position: relative;
+  width: 840px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+}
+.arena-stage .combat-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+.arena-stage .combat-grid { position: absolute; inset: 0; width: 100%; height: 100%; }
+.brush-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+.brush-on { color: var(--gold-bright); }
+
+/* ─────────── квесты ─────────── */
+
+.stage-card {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--panel-2);
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.stage-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.stage-id {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--gold-bright);
+  padding: 4px 8px;
+  font-size: 14px;
+}
+.stage-card details { margin-top: 6px; }
+.stage-card summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.transition-card {
+  border: 1px dashed var(--border);
+  border-radius: 5px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.journal-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: flex-start; }
+.journal-key {
+  width: 160px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--gold-bright);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.journal-row textarea {
+  flex: 1;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* ─────────── monaco ─────────── */
+
+.mono-editor { display: flex; flex-direction: column; height: 100%; min-height: 480px; }
+.mono-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.mono-status { flex: 1; font-size: 12px; color: var(--muted); }
+.mono-body { flex: 1; min-height: 420px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.ink-status {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow: auto;
+}
+.ink-ok { background: rgba(90, 125, 67, 0.2); color: #b8cba0; border: 1px solid var(--green); }
+.ink-bad { background: rgba(176, 58, 46, 0.15); color: #e0a8a0; border: 1px solid var(--red); }
