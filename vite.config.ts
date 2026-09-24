@@ -44,6 +44,35 @@ function editorSavePlugin(): Plugin {
         res.end(req.method === 'HEAD' ? undefined : fs.readFileSync(target))
       })
 
+      // удаление тестовых/ненужных кампаний (используется смоуками для уборки)
+      server.middlewares.use('/__editor/delete', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end('method not allowed')
+          return
+        }
+        let body = ''
+        req.on('data', (c) => (body += c))
+        req.on('end', () => {
+          try {
+            const { path: rel } = JSON.parse(body) as { path: string }
+            const campaignsDir = path.resolve(server.config.root, 'public/campaigns')
+            const target = path.resolve(campaignsDir, rel)
+            if (!target.startsWith(campaignsDir + path.sep) || target === campaignsDir) {
+              res.statusCode = 400
+              res.end('path outside campaigns dir')
+              return
+            }
+            fs.rmSync(target, { recursive: true, force: true })
+            res.setHeader('content-type', 'application/json')
+            res.end(JSON.stringify({ ok: true }))
+          } catch (e) {
+            res.statusCode = 500
+            res.end(String(e))
+          }
+        })
+      })
+
       server.middlewares.use('/__editor/save', (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405

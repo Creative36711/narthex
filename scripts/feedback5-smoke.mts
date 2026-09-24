@@ -129,6 +129,19 @@ console.log(`Кампания: ${campaign.meta.title}`)
   await st.load()
   check('№5 созданная кампания открывается в редакторе', st.meta.title === 'Дымовая проверка')
   check('№5 в новой кампании есть стартовая сцена', st.scenePaths().length === 1)
+  // уборка: удалить тестовую кампанию с диска и из реестра
+  await origFetch('http://localhost:5173/__editor/delete', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: id }),
+  })
+  const idxRes = await origFetch(`http://localhost:5173/campaigns/index.json?t=${Date.now()}`)
+  const idx = ((await idxRes.json()) as Array<{ id: string }>).filter((c) => c.id !== id)
+  await origFetch('http://localhost:5173/__editor/save', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: 'campaigns/index.json', text: JSON.stringify(idx, null, 2) }),
+  })
   globalThis.fetch = origFetch
 }
 
