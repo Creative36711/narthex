@@ -96,7 +96,8 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
   const p = engine.state.player
   const def = engine.campaign.entities[p.entity]
   const statNames: Array<keyof typeof p.stats> = ['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA']
-  const factions = engine.campaign.meta.factions ?? []
+  // скрытые (служебные) фракции игроку не показываем — фидбек №2 седьмого раунда
+  const factions = (engine.campaign.meta.factions ?? []).filter((f) => !f.hidden)
   const load = engine.currentLoad()
   const maxLoad = engine.maxLoad()
   const weapon = engine.playerWeapon()

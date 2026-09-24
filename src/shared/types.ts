@@ -5,6 +5,18 @@
 
 // ───────────────────────── campaign.json ─────────────────────────
 
+/**
+ * Условие для потребности (фидбек №1/№3 седьмого раунда): когда она убывает
+ * и когда восстанавливается. Пример «Тепло»: убывает ночью, если нет тёплой
+ * одежды и герой не в таверне; в таверне — восстанавливается.
+ */
+export type NeedCondition =
+  | { type: 'time_of_day'; values: TimeOfDay[] }
+  | { type: 'flag'; flag: string; not?: boolean }
+  | { type: 'in_location'; location: string; not?: boolean }
+  | { type: 'has_item'; item: string; not?: boolean }
+  | { type: 'equipped'; item: string; not?: boolean }
+
 export interface NeedDef {
   id: string
   label: string
@@ -12,6 +24,11 @@ export interface NeedDef {
   decay_per_tick: number
   critical_threshold: number
   on_zero_effect?: string // id правила-эффекта либо встроенный: "death"
+  /** убывает, только когда ВСЕ условия выполнены (пусто — всегда) */
+  decay_when?: NeedCondition[]
+  /** восстановление за тик, когда выполнены условия restore_when */
+  restore_per_tick?: number
+  restore_when?: NeedCondition[]
 }
 
 export interface CurrencyDef {
@@ -42,6 +59,8 @@ export interface FactionDef {
   id: string
   label: string
   base_disposition: number
+  /** служебная фракция: отношение не меняется, игроку не показывается */
+  hidden?: boolean
 }
 
 /** Категория предметов: задаёт, какие свойства доступны предмету (фидбек №8). */

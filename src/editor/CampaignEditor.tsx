@@ -3,10 +3,118 @@ import type { EditorStore } from './store'
 import { JsonField } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
+import { FlagSelect } from './Fields'
+import type { NeedCondition, TimeOfDay } from '../shared/types'
 import { BUILTIN_SLOT_TYPES } from './slotTypes'
 import { askText } from './prompt'
 
 /** Редактор campaign.json формой: мета, время, старт, потребности, фракции. */
+const NEED_COND_TYPES: Array<{ id: string; label: string }> = [
+  { id: 'time_of_day', label: 'Время суток' },
+  { id: 'flag', label: 'Флаг установлен' },
+  { id: 'flag!', label: 'Флага НЕТ' },
+  { id: 'in_location', label: 'Герой в локации' },
+  { id: 'in_location!', label: 'Герой НЕ в локации' },
+  { id: 'has_item', label: 'Есть предмет' },
+  { id: 'has_item!', label: 'Нет предмета' },
+  { id: 'equipped', label: 'Надет предмет' },
+  { id: 'equipped!', label: 'НЕ надет предмет' },
+]
+
+function blankNeedCond(key: string): NeedCondition {
+  const not = key.endsWith('!') || undefined
+  const type = key.replace(/!$/, '') as NeedCondition['type']
+  switch (type) {
+    case 'time_of_day': return { type, values: ['night'] }
+    case 'flag': return { type, flag: '', not }
+    case 'in_location': return { type, location: '', not }
+    case 'has_item': return { type, item: '', not }
+    case 'equipped': return { type, item: '', not }
+  }
+}
+
+const TOD_RU: Array<{ id: TimeOfDay; label: string }> = [
+  { id: 'morning', label: 'утро' },
+  { id: 'day', label: 'день' },
+  { id: 'evening', label: 'вечер' },
+  { id: 'night', label: 'ночь' },
+]
+
+/** конструктор условий потребности («когда убывает» / «когда восстанавливается») */
+function NeedCondEditor({
+  conds,
+  store,
+  commit,
+  onChange,
+}: {
+  conds: NeedCondition[]
+  store: EditorStore
+  commit: () => void
+  onChange: (c: NeedCondition[]) => void
+}) {
+  return (
+    <div className="dlg-conds">
+      {conds.map((c, i) => (
+        <div key={i} className="journal-row" style={{ flexWrap: 'wrap' }}>
+          <select
+            className="journal-key"
+            value={c.type === 'time_of_day' ? 'time_of_day' : (c as { not?: boolean }).not ? `${c.type}!` : c.type}
+            onChange={(e) => {
+              conds[i] = blankNeedCond(e.target.value)
+              commit()
+            }}
+          >
+            {NEED_COND_TYPES.map((t) => (
+              <option key={t.id} value={t.id}>{t.label}</option>
+            ))}
+          </select>
+          {c.type === 'time_of_day' && (
+            <div className="chips">
+              {TOD_RU.map((t) => (
+                <label key={t.id} className={`chip ${c.values.includes(t.id) ? 'chip-on' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={c.values.includes(t.id)}
+                    onChange={(e) => {
+                      c.values = e.target.checked ? [...c.values, t.id] : c.values.filter((x) => x !== t.id)
+                      if (c.values.length === 0) c.values = ['night']
+                      commit()
+                    }}
+                  />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+          )}
+          {c.type === 'flag' && (
+            <FlagSelect label="" store={store} value={c.flag} onChange={(f) => ((c.flag = f ?? ''), commit())} />
+          )}
+          {c.type === 'in_location' && (
+            <select className="journal-key" value={c.location} onChange={(e) => ((c.location = e.target.value), commit())}>
+              {!store.options('location').some((o) => o.id === c.location) && <option value={c.location}>{c.location || '— локация —'}</option>}
+              {store.options('location').map((o) => (
+                <option key={o.id} value={o.id}>{store.labelFor('location', o.id)}</option>
+              ))}
+            </select>
+          )}
+          {(c.type === 'has_item' || c.type === 'equipped') && (
+            <select className="journal-key" value={c.item} onChange={(e) => ((c.item = e.target.value), commit())}>
+              {!store.options('item').some((o) => o.id === c.item) && <option value={c.item}>{c.item || '— предмет —'}</option>}
+              {store.options('item').map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+          )}
+          <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}>✕</button>
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={() => onChange([...conds, blankNeedCond('time_of_day')])}>
+        + условие
+      </button>
+    </div>
+  )
+}
+
 export function CampaignEditor({ store }: { store: EditorStore }) {
   const m = store.meta
   // дефолты для необязательных полей (без touch — просто нормализация)
@@ -126,6 +234,62 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}>✕</button>
           </div>
         ))}
+        {m.needs.map((n, i) => (
+          <details key={`cond_${i}`} className="need-conds">
+            <summary>
+              {n.label}: условия убывания и восстановление
+              {n.decay_when?.length ? ` · убывает при ${n.decay_when.length} усл.` : ' · убывает всегда'}
+              {n.restore_per_tick ? ` · восстанавливается +${n.restore_per_tick}/тик` : ''}
+            </summary>
+            <div className="fld-block">
+              <span className="fld-caption">Убывает, только когда выполнены ВСЕ условия (пусто — убывает всегда)</span>
+              <NeedCondEditor
+                conds={n.decay_when ?? []}
+                store={store}
+                commit={commit}
+                onChange={(c) => {
+                  if (c.length) n.decay_when = c
+                  else delete n.decay_when
+                  commit()
+                }}
+              />
+            </div>
+            <div className="fld-block" style={{ marginTop: 10 }}>
+              <label className="fld fld-inline">
+                <span>Восстановление за тик (0 — нет)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={n.restore_per_tick ?? 0}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    if (v > 0) n.restore_per_tick = v
+                    else {
+                      delete n.restore_per_tick
+                      delete n.restore_when
+                    }
+                    commit()
+                  }}
+                />
+              </label>
+              {!!n.restore_per_tick && (
+                <>
+                  <span className="fld-caption">…когда выполнены ВСЕ условия (пусто — всегда)</span>
+                  <NeedCondEditor
+                    conds={n.restore_when ?? []}
+                    store={store}
+                    commit={commit}
+                    onChange={(c) => {
+                      if (c.length) n.restore_when = c
+                      else delete n.restore_when
+                      commit()
+                    }}
+                  />
+                </>
+              )}
+            </div>
+          </details>
+        ))}
         <button
           className="btn btn-small"
           onClick={async () => {
@@ -150,6 +314,18 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             <label className="fld">
               <span>Отношение к игроку</span>
               <input type="number" value={f.base_disposition} onChange={(e) => ((f.base_disposition = Number(e.target.value)), commit())} />
+            </label>
+            <label className="fld fld-check" title="Для служебных фракций (дикие твари и т.п.): отношение не имеет смысла, игрок её не увидит">
+              <input
+                type="checkbox"
+                checked={!!f.hidden}
+                onChange={(e) => {
+                  if (e.target.checked) f.hidden = true
+                  else delete f.hidden
+                  commit()
+                }}
+              />
+              <span>Скрытая (не показывать в игре)</span>
             </label>
             <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.factions!.splice(i, 1), commit())}>✕</button>
           </div>

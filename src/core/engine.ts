@@ -13,6 +13,7 @@ import type {
   SceneStateDef,
   SlotDef,
   TravelConnection,
+  NeedCondition,
   PresenceOverride,
   WeaponData,
 } from '../shared/types'
@@ -21,7 +22,7 @@ import { PRNG } from './prng'
 import { derivedHP, derivedMP, skillCheck } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
-import { hourOfDay, inTimeRange } from './time'
+import { hourOfDay, inTimeRange, timeOfDay } from './time'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
@@ -150,6 +151,22 @@ export class GameEngine {
 
   // ─────────────── время и потребности ───────────────
 
+  /** условие потребности (когда убывает / когда восстанавливается) */
+  private needCondOk(c: NeedCondition): boolean {
+    switch (c.type) {
+      case 'time_of_day':
+        return c.values.includes(timeOfDay(this.state.tick, this.campaign.meta))
+      case 'flag':
+        return !!this.state.flags[c.flag] !== !!c.not
+      case 'in_location':
+        return (this.state.location === c.location) !== !!c.not
+      case 'has_item':
+        return this.hasItem(c.item) !== !!c.not
+      case 'equipped':
+        return Object.values(this.state.player.equipment ?? {}).includes(c.item) !== !!c.not
+    }
+  }
+
   advanceTicks(ticks: number): void {
     const meta = this.campaign.meta
     for (let i = 0; i < ticks; i++) {
@@ -157,8 +174,19 @@ export class GameEngine {
       this.state.tick += 1
       this.state.stats_run.ticks_survived += 1
       for (const need of meta.needs) {
-        const cur = this.state.player.needs[need.id] ?? 0
-        const next = Math.max(0, cur - need.decay_per_tick)
+        // старые сохранения могут не знать новую потребность — считаем её полной
+        const cur = this.state.player.needs[need.id] ?? need.max
+        let next = cur
+        // убыль — только когда все условия выполнены (пусто = всегда)
+        const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
+        if (decays) next = Math.max(0, next - need.decay_per_tick)
+        // восстановление — когда выполнены условия restore_when
+        if (
+          need.restore_per_tick &&
+          (!need.restore_when?.length || need.restore_when.every((c) => this.needCondOk(c)))
+        ) {
+          next = Math.min(need.max, next + need.restore_per_tick)
+        }
         this.state.player.needs[need.id] = next
         if (next <= 0 && cur > 0) this.onNeedZero(need.id)
       }

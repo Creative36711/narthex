@@ -506,3 +506,13 @@
 .fld-check.small { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; }
 
 .chip-static { opacity: 0.75; cursor: default; }
+
+.need-conds {
+  margin: 4px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.12);
+}
+.need-conds > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+.need-conds .fld-block { margin-top: 8px; }

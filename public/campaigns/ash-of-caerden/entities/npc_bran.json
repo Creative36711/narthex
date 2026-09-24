@@ -53,6 +53,9 @@
       },
       {
         "item": "item_short_sword"
+      },
+      {
+        "item": "item_wool_cloak"
       }
     ],
     "buys": true,

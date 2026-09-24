@@ -42,6 +42,40 @@
       "decay_per_tick": 0.7,
       "critical_threshold": 10,
       "on_zero_effect": "effect_collapse"
+    },
+    {
+      "id": "warmth",
+      "label": "Тепло",
+      "max": 100,
+      "decay_per_tick": 3,
+      "critical_threshold": 25,
+      "on_zero_effect": "death",
+      "decay_when": [
+        {
+          "type": "time_of_day",
+          "values": [
+            "evening",
+            "night"
+          ]
+        },
+        {
+          "type": "has_item",
+          "item": "item_wool_cloak",
+          "not": true
+        },
+        {
+          "type": "in_location",
+          "location": "loc_tavern",
+          "not": true
+        }
+      ],
+      "restore_per_tick": 8,
+      "restore_when": [
+        {
+          "type": "in_location",
+          "location": "loc_tavern"
+        }
+      ]
     }
   ],
   "currencies": [
@@ -97,7 +131,8 @@
       "id": "faction_vermin",
       "label": "Дикие твари",
       "base_disposition": -100,
-      "description": "Крысы, хищники и прочие создания, с которыми не договориться."
+      "description": "Крысы, хищники и прочие создания, с которыми не договориться.",
+      "hidden": true
     }
   ],
   "max_companions": 1,
