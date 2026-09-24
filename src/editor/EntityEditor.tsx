@@ -133,7 +133,7 @@ function ItemForm({
             <input type="number" step="0.1" value={item.weight} onChange={(e) => ((item.weight = Number(e.target.value)), commit())} />
           </label>
           <label className="fld">
-            <span>Цена ({currency?.label ?? 'серебро'})</span>
+            <span>Цена</span>
             <input
               type="number"
               value={price}
@@ -205,10 +205,7 @@ function ItemForm({
               value={item.weapon_data.skill}
               onChange={(v) => ((item.weapon_data!.skill = v), commit())}
             />
-            <label className="fld">
-              <span>Урон (кости)</span>
-              <input value={item.weapon_data.damage} onChange={(e) => ((item.weapon_data!.damage = e.target.value), commit())} />
-            </label>
+            <DamageInput label="Урон" value={item.weapon_data.damage} onChange={(v) => ((item.weapon_data!.damage = v), commit())} />
             <label className="fld fld-check">
               <input type="checkbox" checked={item.weapon_data.damage_bonus} onChange={(e) => ((item.weapon_data!.damage_bonus = e.target.checked), commit())} />
               <span>+ бонус силы</span>
@@ -558,6 +555,101 @@ function NpcForm({
       </div>
 
       <div className="props-group">
+        <h4>Торговля</h4>
+        <label className="fld fld-check">
+          <input
+            type="checkbox"
+            checked={!!npc.trader}
+            onChange={(e) => {
+              if (e.target.checked) npc.trader = { sells: [], buys: true, buy_rate: 0.4 }
+              else npc.trader = null
+              commit()
+            }}
+          />
+          <span>Персонаж торгует</span>
+        </label>
+        {npc.trader && (
+          <>
+            <div className="muted small" style={{ margin: '8px 0' }}>
+              Прилавок торговца. Цена — по предмету (можно переопределить), запас пустой — неограниченный.
+            </div>
+            {npc.trader.sells.map((s, i) => (
+              <div key={i} className="journal-row">
+                <select
+                  className="journal-key"
+                  value={s.item}
+                  onChange={(e) => ((s.item = e.target.value), commit())}
+                >
+                  {!allItems.some((o) => o.id === s.item) && <option value={s.item}>{s.item || '— предмет —'}</option>}
+                  {allItems.map((o) => (
+                    <option key={o.id} value={o.id}>{o.label}</option>
+                  ))}
+                </select>
+                <label className="fld fld-inline" title="Пусто — цена берётся из карточки предмета">
+                  <span>цена</span>
+                  <input
+                    type="number"
+                    value={s.price ?? ''}
+                    placeholder="авто"
+                    onChange={(e) => {
+                      if (e.target.value === '') delete s.price
+                      else s.price = Number(e.target.value)
+                      commit()
+                    }}
+                  />
+                </label>
+                <label className="fld fld-inline" title="Пусто — запас не ограничен">
+                  <span>запас</span>
+                  <input
+                    type="number"
+                    value={s.stock ?? ''}
+                    placeholder="∞"
+                    onChange={(e) => {
+                      if (e.target.value === '') delete s.stock
+                      else s.stock = Number(e.target.value)
+                      commit()
+                    }}
+                  />
+                </label>
+                <button className="btn btn-small ce-del" onClick={() => (npc.trader!.sells.splice(i, 1), commit())}>✕</button>
+              </div>
+            ))}
+            <button
+              className="btn btn-small"
+              onClick={() => {
+                npc.trader!.sells.push({ item: allItems[0]?.id ?? '' })
+                commit()
+              }}
+            >
+              + товар
+            </button>
+            <div className="fld-row" style={{ marginTop: 8 }}>
+              <label className="fld fld-check">
+                <input
+                  type="checkbox"
+                  checked={npc.trader.buys}
+                  onChange={(e) => ((npc.trader!.buys = e.target.checked), commit())}
+                />
+                <span>Скупает вещи игрока</span>
+              </label>
+              {npc.trader.buys && (
+                <label className="fld fld-inline" title="Какую долю стоимости предмета торговец платит при скупке">
+                  <span>доля закупки, %</span>
+                  <input
+                    type="number"
+                    min={5}
+                    max={100}
+                    value={Math.round((npc.trader.buy_rate ?? 0.4) * 100)}
+                    onChange={(e) => ((npc.trader!.buy_rate = Math.min(100, Math.max(5, Number(e.target.value))) / 100), commit())}
+                  />
+                </label>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="props-group">
         <h4>Добыча с противника</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Что может выпасть с этого персонажа после победы в бою.
@@ -617,9 +709,38 @@ function NpcForm({
 
       <AdvancedJson store={store} path={path} commit={commit} />
       <div className="muted small">
-        Торговля, расписание и природное оружие — в «Расширенном JSON».
+        Расписание и природное оружие (когти, укус) — в «Расширенном JSON».
       </div>
     </div>
+  )
+}
+
+/** Структурный ввод урона: N кубиков dX + модификатор (фидбек №9). */
+function DamageInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const m = /^(\d+)d(\d+)([+-]\d+)?$/.exec(value.trim()) ?? ['', '1', '6', '']
+  const count = Number(m[1] || 1)
+  const die = Number(m[2] || 6)
+  const mod = Number(m[3] || 0)
+  const emit = (c: number, d: number, mo: number) => onChange(`${c}d${d}${mo > 0 ? `+${mo}` : mo < 0 ? String(mo) : ''}`)
+  return (
+    <label className="fld">
+      <span>{label}</span>
+      <div className="dmg-row">
+        <select value={count} onChange={(e) => emit(Number(e.target.value), die, mod)}>
+          {[1, 2, 3, 4].map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+        <span className="muted">×</span>
+        <select value={die} onChange={(e) => emit(count, Number(e.target.value), mod)}>
+          {[4, 6, 8, 10, 12, 20].map((n) => (
+            <option key={n} value={n}>d{n}</option>
+          ))}
+        </select>
+        <span className="muted">+</span>
+        <input type="number" value={mod} onChange={(e) => emit(count, die, Number(e.target.value) || 0)} title="Модификатор (может быть отрицательным)" />
+      </div>
+    </label>
   )
 }
 

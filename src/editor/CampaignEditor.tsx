@@ -198,6 +198,77 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       </div>
 
       <div className="props-group">
+        <h4>Флаги</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Флаги — «память мира»: отметки о событиях (что сделано, о чём узнали).
+          Здесь их реестр с понятными названиями; в правилах, сценах и диалогах флаг
+          выбирается из списка (или создаётся на месте).
+        </div>
+        {(m.flags ?? []).map((f, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
+            </label>
+            <label className="fld" style={{ flex: 2 }}>
+              <span>Для чего нужен</span>
+              <input
+                value={f.description ?? ''}
+                placeholder="необязательно"
+                onChange={(e) => {
+                  if (e.target.value) f.description = e.target.value
+                  else delete f.description
+                  commit()
+                }}
+              />
+            </label>
+            <button className="btn btn-small ce-del" title="Удалить из реестра (контент, где флаг используется, не меняется)" onClick={() => (m.flags!.splice(i, 1), commit())}>✕</button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название нового флага', 'например «Мост разрушен»')
+            if (!label) return
+            if (!m.flags) m.flags = []
+            m.flags.push({ id: makeId('', label, m.flags.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + флаг
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Типы слотов сцены</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Что можно ставить в слоты на сценах. Встроенные: Персонаж, Предмет, Контейнер,
+          Мебель, Животное. Добавьте свои — например «Робот» или «Дух».
+        </div>
+        {(m.slot_types ?? []).map((t, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={t.label} onChange={(e) => ((t.label = e.target.value), commit())} />
+            </label>
+            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.slot_types!.splice(i, 1), commit())}>✕</button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название типа слота', 'например «Робот»')
+            if (!label) return
+            if (!m.slot_types) m.slot_types = []
+            m.slot_types.push({ id: makeId('slot_', label, m.slot_types.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + тип слота
+        </button>
+      </div>
+
+      <div className="props-group">
         <h4>Категории предметов</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Категория определяет, что умеет предмет: восстанавливать здоровье или потребности,

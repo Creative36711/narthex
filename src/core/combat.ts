@@ -509,6 +509,8 @@ export class CombatController {
       this.result = 'victory'
       this.rollLoot()
       this.log.push('🏆 Победа! Противники повержены.')
+      // сообщения и флаги победы — сразу, пока игрок видит экран победы
+      this.engine.onCombatVictory(this.def.on_victory ?? [])
     }
   }
 

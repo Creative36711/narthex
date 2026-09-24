@@ -868,6 +868,21 @@ export class GameEngine {
 
   // ─────────────── бой (Фаза 1) ───────────────
 
+  /** эффекты on_victory, требующие закрытия экрана боя (диалог, телепорт и т.п.) */
+  private postCombatEffects: Effect[] = []
+
+  /**
+   * Вызывается боем в момент победы (фидбек: сообщения должны быть видны
+   * ещё на экране победы, до «Продолжить»). Безопасные эффекты применяются
+   * сразу; смена экрана (диалог, телепорт, новый бой, финал) — после закрытия.
+   */
+  onCombatVictory(effects: Effect[]): void {
+    const defer = new Set(['start_dialogue', 'start_combat', 'teleport_player', 'game_over_victory', 'game_over_death'])
+    this.postCombatEffects = effects.filter((e) => defer.has(e.type))
+    this.applyEffects(effects.filter((e) => !defer.has(e.type)))
+    this.notify()
+  }
+
   startCombat(def: Extract<Effect, { type: 'start_combat' }>): void {
     // бой прерывает диалог
     this.dialogue = null
@@ -883,7 +898,10 @@ export class GameEngine {
     if (!combat) return
     this.combat = null
     if (combat.result === 'victory') {
-      if (combat.def.on_victory) this.applyEffects(combat.def.on_victory)
+      // основная часть on_victory уже применена в момент победы (onCombatVictory)
+      const deferred = this.postCombatEffects
+      this.postCombatEffects = []
+      this.applyEffects(deferred)
       this.advanceTicks(1) // бой занимает время (ТЗ 4.1)
       this.pushLog(`Бой «${combat.arena.label}» выигран за ${combat.round} раунд(ов).`)
       this.state.stats_run.kills += combat.combatants.filter((c) => c.side === 'enemy' && c.dead).length

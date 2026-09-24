@@ -457,3 +457,50 @@
   font-size: 13px;
   line-height: 1.5;
 }
+
+.dmg-row { display: flex; align-items: center; gap: 6px; }
+.dmg-row select { width: auto; }
+.dmg-row input { width: 64px; }
+
+/* ─── конструктор диалогов v2: условия, блоки, проверки ─── */
+.dlg-warn { color: #d9a441; font-size: 12.5px; margin-bottom: 8px; }
+.dlg-sections { display: flex; flex-direction: column; gap: 8px; }
+.dlg-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.12);
+}
+.dlg-section-cond { border-left: 3px solid var(--blue); }
+.dlg-section-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.dlg-section-head .fld-check { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; }
+.dlg-conds { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.dlg-conds .journal-row { align-items: center; flex-wrap: wrap; }
+.dlg-conds .fld { margin: 0; }
+.dlg-steps { display: flex; flex-direction: column; gap: 4px; }
+.dlg-step-tools { display: flex; gap: 8px; margin-top: 4px; }
+.dlg-else {
+  margin: 8px 0;
+  border-left: 3px solid var(--red);
+  padding-left: 10px;
+}
+.dlg-else > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+.dlg-goto-opt { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.dlg-goto-opt select { width: auto; }
+.dlg-check {
+  border: 1px dashed var(--gold);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+.dlg-check-mod {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+.dlg-branch { margin-top: 10px; padding: 8px 10px; border-radius: 8px; }
+.dlg-branch-ok { background: rgba(90, 125, 67, 0.12); border: 1px solid rgba(90, 125, 67, 0.5); }
+.dlg-branch-fail { background: rgba(176, 58, 46, 0.10); border: 1px solid rgba(176, 58, 46, 0.45); }
+.dlg-branch .fld-caption { display: block; margin-bottom: 6px; }
+.dlg-choice-tools { margin-top: 8px; }
+.fld-check.small { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; }

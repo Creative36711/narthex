@@ -77,6 +77,10 @@ export interface CampaignMeta {
   skills?: Array<{ id: string; label: string }>
   /** реестр категорий предметов: категория определяет, что предмет умеет */
   item_categories?: ItemCategoryDef[]
+  /** реестр типов слотов сцены (что можно ставить в слот); по умолчанию — встроенные */
+  slot_types?: Array<{ id: string; label: string }>
+  /** реестр флагов: русское название и назначение (редактор показывает названия, движку важен только id) */
+  flags?: Array<{ id: string; label: string; description?: string }>
   currencies: CurrencyDef[]
   factions?: FactionDef[]
   /** максимальный груз в кг: STR + SIZ (по умолчанию) */
@@ -146,7 +150,8 @@ export interface SceneStateDef {
   condition: SceneCondition | null
 }
 
-export type SlotType = 'person' | 'item' | 'container' | 'furniture' | 'animal'
+/** тип слота — id из реестра кампании slot_types (мастер может добавлять свои) */
+export type SlotType = string
 
 export interface SlotDef {
   id: string

@@ -1,6 +1,8 @@
 import { useId, useState } from 'react'
 import type { Condition, Effect } from '../shared/types'
+import { makeId } from './ids'
 import type { EditorStore } from './store'
+import { askText, showAlert } from '../shared/modals'
 import {
   CONDITION_SCHEMAS,
   EFFECT_SCHEMAS,
@@ -90,6 +92,29 @@ export function Field({
   if (spec.kind === 'rewardItems') {
     return <ItemListField label={spec.label} store={store} value={value} optional={spec.optional} onChange={onChange} />
   }
+  if (spec.kind === 'flagRef') {
+    return (
+      <FlagSelect
+        label={spec.label}
+        store={store}
+        value={value === undefined ? '' : String(value)}
+        optional={spec.optional}
+        onChange={onChange}
+      />
+    )
+  }
+  if (spec.kind === 'dialogueNodeRef') {
+    return (
+      <DialogueNodeRef
+        label={spec.label}
+        store={store}
+        npcId={typeof ctx?.entity === 'string' ? ctx.entity : ''}
+        value={value === undefined ? '' : String(value)}
+        optional={spec.optional}
+        onChange={onChange}
+      />
+    )
+  }
   if (spec.kind === 'questStageRef' || spec.kind === 'journalKeyRef') {
     return (
       <QuestSubRef
@@ -158,6 +183,48 @@ export function Field({
   )
 }
 
+
+/** Селект узла диалога выбранного NPC (фидбек: никакого ручного knot). */
+function DialogueNodeRef({
+  label,
+  store,
+  npcId,
+  value,
+  optional,
+  onChange,
+}: {
+  label: string
+  store: EditorStore
+  npcId: string
+  value: string
+  optional?: boolean
+  onChange: (v: unknown) => void
+}) {
+  let nodes: Array<{ id: string; label: string }> = []
+  for (const p of store.entityPaths()) {
+    const e = store.entity(p)
+    if (e?.type !== 'npc' || e.id !== npcId || !e.dialogue) continue
+    const doc = store.jsonFiles.get(e.dialogue.replace(/\.ink$/, '.dlg.json')) as
+      | { nodes?: Array<{ id: string; label?: string }> }
+      | undefined
+    nodes = (doc?.nodes ?? []).map((n) => ({ id: n.id, label: n.label ?? n.id }))
+  }
+  return (
+    <label className="fld">
+      <span>{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value === '' ? (optional ? undefined : '') : e.target.value)}
+      >
+        <option value="">— с начала разговора —</option>
+        {value !== '' && !nodes.some((n) => n.id === value) && <option value={value}>{value}</option>}
+        {nodes.map((n) => (
+          <option key={n.id} value={n.id}>{n.label}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
 
 /** Селект стадии или журнальной записи выбранного квеста (фидбек №12). */
 function QuestSubRef({
@@ -348,6 +415,55 @@ function ItemListField({
   )
 }
 
+/**
+ * Выбор флага: русские названия из реестра кампании («Кампания → Флаги»)
+ * + создание нового флага на месте (фидбек №4).
+ */
+export function FlagSelect({
+  label,
+  store,
+  value,
+  optional,
+  onChange,
+}: {
+  label: string
+  store: EditorStore
+  value: string
+  optional?: boolean
+  onChange: (v: string | undefined) => void
+}) {
+  const options = store.options('flag')
+  const known = options.some((o) => o.id === value)
+  return (
+    <label className="fld">
+      <span>{label}</span>
+      <select
+        value={value}
+        onChange={async (e) => {
+          if (e.target.value === '__new__') {
+            const name = await askText('Название нового флага', 'например «Мост разрушен»')
+            if (!name) return
+            const id = makeId('', name, options.map((o) => o.id))
+            if (!store.meta.flags) store.meta.flags = []
+            store.meta.flags.push({ id, label: name })
+            store.touch('campaign.json')
+            onChange(id)
+            return
+          }
+          onChange(e.target.value === '' ? (optional ? undefined : '') : e.target.value)
+        }}
+      >
+        {(optional || value === '') && <option value="">{optional ? '— не задано —' : '— выбрать флаг —'}</option>}
+        {!known && value !== '' && <option value={value}>{value}</option>}
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.label}</option>
+        ))}
+        <option value="__new__">➕ Создать новый флаг…</option>
+      </select>
+    </label>
+  )
+}
+
 /** Выпадающий список ссылок: показывает названия, хранит id. */
 export function RefSelect({
   label,
@@ -407,7 +523,7 @@ export function ImageUpload({
       await store.saveBinary(rel, file)
       onChange(rel)
     } catch (e) {
-      alert(`Не удалось загрузить файл: ${e}\n(Загрузка работает в dev-режиме vite / Tauri.)`)
+      void showAlert('Не удалось загрузить файл', `${e}\n(Загрузка работает в dev-режиме vite / Tauri.)`)
     } finally {
       setBusy(false)
     }

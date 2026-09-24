@@ -8,9 +8,19 @@
   "stackable": false,
   "on_interact": {
     "effects": [
-      { "type": "add_item", "item": "item_bread", "quantity": 1 },
-      { "type": "set_flag", "flag": "guard_ration_taken" }
+      {
+        "type": "add_item",
+        "item": "item_bread",
+        "quantity": 1
+      },
+      {
+        "type": "set_flag",
+        "flag": "guard_ration_taken"
+      }
     ],
     "message": "Вы прибрали к рукам паёк стражи. Хлеб добавлен в инвентарь."
+  },
+  "value": {
+    "silver": 2
   }
 }

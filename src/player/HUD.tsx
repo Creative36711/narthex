@@ -1,3 +1,4 @@
+import { askConfirm } from '../shared/modals'
 import type { GameEngine } from '../core/engine'
 import { formatTime, timeOfDay, TIME_OF_DAY_LABEL } from '../core/time'
 
@@ -49,8 +50,8 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         <button
           className="hud-btn"
           title="Выйти в главное меню (прогресс сохранён)"
-          onClick={() => {
-            if (confirm('Выйти в главное меню? Прогресс сохранён автоматически.')) onExitToMenu()
+          onClick={async () => {
+            if (await askConfirm('Выйти в главное меню?', 'Выйти')) onExitToMenu()
           }}
         >
           ⏻

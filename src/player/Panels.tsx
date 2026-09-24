@@ -1,3 +1,4 @@
+import { askConfirm } from '../shared/modals'
 import type { GameEngine } from '../core/engine'
 import type { Effect, ItemDef } from '../shared/types'
 import { damageBonus, movement } from '../core/brp'
@@ -74,8 +75,8 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                 <button
                   className="btn btn-small btn-drop"
                   title="Выбросить 1 шт."
-                  onClick={() => {
-                    if (confirm(`Выбросить ${entry.quantity > 1 ? '1 шт. — ' : ''}«${def!.label}»?`)) engine.removeItem(entry.item, 1)
+                  onClick={async () => {
+                    if (await askConfirm(`Выбросить ${entry.quantity > 1 ? '1 шт. — ' : ''}«${def!.label}»?`, 'Выбросить')) engine.removeItem(entry.item, 1)
                   }}
                 >
                   🗑

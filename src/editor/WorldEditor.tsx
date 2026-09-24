@@ -3,7 +3,7 @@ import type { LocationDef, RegionDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { ImageUpload, RefSelect } from './Fields'
 import { makeId } from './ids'
-import { askText } from './prompt'
+import { askText, askConfirm } from './prompt'
 
 /**
  * Редактор мира (фидбек №13): дерево регионов (с вложенностью),
@@ -52,8 +52,8 @@ export function WorldEditor({ store }: { store: EditorStore }) {
     commit()
   }
 
-  const removeRegion = (target: RegionDef) => {
-    if (!confirm(`Удалить регион «${target.label}» со всеми его локациями?`)) return
+  const removeRegion = async (target: RegionDef) => {
+    if (!(await askConfirm(`Удалить регион «${target.label}» со всеми его локациями?`, 'Удалить'))) return
     const walk = (list: RegionDef[]): boolean => {
       const i = list.indexOf(target)
       if (i >= 0) {
@@ -237,8 +237,8 @@ function RegionPanel({
         </div>
       </div>
 
-      {sel && <LocationProps key={sel.id} loc={sel} region={r} store={store} commit={commit} onRemove={() => {
-        if (!confirm(`Удалить локацию «${sel.label}»?`)) return
+      {sel && <LocationProps key={sel.id} loc={sel} region={r} store={store} commit={commit} onRemove={async () => {
+        if (!(await askConfirm(`Удалить локацию «${sel.label}»?`, 'Удалить'))) return
         r.locations.splice(r.locations.indexOf(sel), 1)
         setSelLoc(null)
         commit()

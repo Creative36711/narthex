@@ -2,18 +2,36 @@
   "id": "npc_guard",
   "type": "npc",
   "label": "Городской стражник",
-  "portrait": { "neutral": "assets/img/npc/aldric_neutral.jpg" },
-  "stats": { "STR": 12, "CON": 11, "SIZ": 12, "DEX": 10, "INT": 9, "POW": 9, "CHA": 8 },
-  "skills": { "spear": 40, "dodge": 30, "spot": 35 },
-  "natural_weapon": {
-    "skill": "spear",
-    "damage": "1d6+1",
-    "damage_bonus": true,
-    "range": 1,
-    "attacks_per_round": 1,
-    "parry_capable": true,
-    "label": "Копьё стражи"
+  "portrait": {
+    "neutral": "assets/img/npc/aldric_neutral.jpg"
   },
-  "armor": 1,
-  "faction": "faction_town_guard"
+  "stats": {
+    "STR": 12,
+    "CON": 11,
+    "SIZ": 12,
+    "DEX": 10,
+    "INT": 9,
+    "POW": 9,
+    "CHA": 8
+  },
+  "skills": {
+    "spear": 40,
+    "dodge": 30,
+    "spot": 35
+  },
+  "faction": "faction_town_guard",
+  "equipment": {
+    "weapon": "item_guard_spear",
+    "armor": "item_gambeson"
+  },
+  "inventory": [
+    {
+      "item": "item_guard_spear",
+      "quantity": 1
+    },
+    {
+      "item": "item_gambeson",
+      "quantity": 1
+    }
+  ]
 }

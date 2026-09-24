@@ -27,8 +27,10 @@ export type FieldKind =
   | 'timeOfDay' // мультивыбор периодов суток
   | 'units' // список {entity, count} — отряды для боя
   | 'rewardItems' // список {item, quantity}
+  | 'flagRef' // флаг из реестра кампании (с созданием нового)
   | 'questStageRef' // стадия квеста из соседнего поля quest
   | 'journalKeyRef' // ключ журнальной записи квеста из соседнего поля quest
+  | 'dialogueNodeRef' // узел диалога NPC из соседнего поля entity
 
 export interface FieldSpec {
   key: string
@@ -61,12 +63,12 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   },
   flag_set: {
     label: 'Флаг установлен',
-    fields: [{ key: 'flag', label: 'Флаг', kind: 'string' }],
+    fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],
     blank: { flag: '' },
   },
   flag_not_set: {
     label: 'Флаг НЕ установлен',
-    fields: [{ key: 'flag', label: 'Флаг', kind: 'string' }],
+    fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],
     blank: { flag: '' },
   },
   variable_compare: {
@@ -186,12 +188,12 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
 export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   set_flag: {
     label: 'Установить флаг',
-    fields: [{ key: 'flag', label: 'Флаг', kind: 'string' }],
+    fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],
     blank: { flag: '' },
   },
   clear_flag: {
     label: 'Снять флаг',
-    fields: [{ key: 'flag', label: 'Флаг', kind: 'string' }],
+    fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],
     blank: { flag: '' },
   },
   set_variable: {
@@ -214,7 +216,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Начать диалог',
     fields: [
       { key: 'entity', label: 'NPC', kind: 'npcRef' },
-      { key: 'dialogue_knot', label: 'Узел (knot)', kind: 'string', optional: true },
+      { key: 'dialogue_knot', label: 'С какого узла начать', kind: 'dialogueNodeRef', optional: true },
     ],
     blank: { entity: '' },
   },
@@ -404,6 +406,8 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
 /** Источник русских названий по id (реализуется EditorStore). */
 export interface LabelSource {
   labelFor(kind: string, id: string): string
+  /** название стадии/журнальной записи квеста */
+  questStageLabel?(questId: string, key: string): string
 }
 
 export const TIME_OF_DAY_LABELS: Record<string, string> = {
@@ -425,11 +429,16 @@ const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
   needRef: 'need',
   skillRef: 'skill',
   dispRef: 'disposition',
+  flagRef: 'flag',
 }
 
 /** Человекочитаемое значение одного поля (русские названия вместо id). */
-function fieldValueText(f: FieldSpec, v: unknown, labels?: LabelSource): string | null {
+function fieldValueText(f: FieldSpec, v: unknown, labels?: LabelSource, obj?: Record<string, unknown>): string | null {
   if (v === undefined || v === null || v === '') return null
+  if (f.kind === 'questStageRef' || f.kind === 'journalKeyRef') {
+    const q = typeof obj?.quest === 'string' ? obj.quest : ''
+    return labels?.questStageLabel?.(q, String(v)) ?? String(v)
+  }
   const refKind = REF_KIND_MAP[f.kind]
   if (refKind && typeof v === 'string') return labels ? labels.labelFor(refKind, v) : v
   if (f.kind === 'timeOfDay') {
@@ -460,7 +469,7 @@ export function conditionSummary(c: Condition, labels?: LabelSource): string {
   const vals = s
     ? s.fields
         .filter((f) => f.kind !== 'conditions' && f.kind !== 'effects')
-        .map((f) => fieldValueText(f, (c as unknown as Record<string, unknown>)[f.key], labels))
+        .map((f) => fieldValueText(f, (c as unknown as Record<string, unknown>)[f.key], labels, c as unknown as Record<string, unknown>))
         .filter((v): v is string => v !== null)
         .join(', ')
     : ''
@@ -472,7 +481,7 @@ export function effectSummary(e: Effect, labels?: LabelSource): string {
   const vals = s
     ? s.fields
         .filter((f) => f.kind !== 'conditions' && f.kind !== 'effects' && f.kind !== 'json')
-        .map((f) => fieldValueText(f, (e as unknown as Record<string, unknown>)[f.key], labels))
+        .map((f) => fieldValueText(f, (e as unknown as Record<string, unknown>)[f.key], labels, e as unknown as Record<string, unknown>))
         .filter((v): v is string => v !== null)
         .join(', ')
     : ''

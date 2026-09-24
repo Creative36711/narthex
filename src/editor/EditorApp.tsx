@@ -6,7 +6,7 @@ import { RuleEditor, newRule } from './RuleEditor'
 import { QuestEditor, newQuest } from './QuestEditor'
 import { InkEditor } from './MonacoEditors'
 import { EntityEditor } from './EntityEditor'
-import { DialogueBuilder, hasDlgDoc } from './DialogueBuilder'
+import { DialogueBuilder, hasDlgDoc, dialogueTitle } from './DialogueBuilder'
 import { generateInk, newDlgDoc } from './dialogueDoc'
 import { CampaignEditor } from './CampaignEditor'
 import { WorldEditor } from './WorldEditor'
@@ -14,7 +14,7 @@ import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { makeId, slugify } from './ids'
 import './editor.css'
-import { askText, PromptHost } from './prompt'
+import { askText, askConfirm, showAlert } from './prompt'
 
 /**
  * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
@@ -93,7 +93,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       setSelected(null)
       setBase(`/campaigns/${id}`)
     } catch (e) {
-      alert(`Не удалось создать кампанию: ${e}\n(Создание работает в dev-режиме vite / Tauri.)`)
+      void showAlert('Не удалось создать кампанию', `${e}\n(Создание работает в dev-режиме vite / Tauri.)`)
     } finally {
       setBusy(null)
     }
@@ -120,7 +120,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       case 'quests':
         return store.questPaths().map((p) => ({ path: p, title: store.quest(p)?.label ?? p }))
       case 'dialogues':
-        return store.dialoguePaths().map((p) => ({ path: p, title: p.replace('dialogues/', '') }))
+        return store.dialoguePaths().map((p) => ({ path: p, title: dialogueTitle(store, p) }))
       case 'arenas':
         return store.arenaPaths().map((p) => ({ path: p, title: store.arena(p)?.label ?? p }))
       default:
@@ -171,7 +171,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       path = store.createFile('arenas', `${id}.json`, { ...newArena(id), label })
     } else if (section === 'dialogues') {
       const fn = slugify(label)
-      const doc = newDlgDoc()
+      const doc = newDlgDoc(label)
       path = store.createFile('dialogues', `${fn}.ink`, generateInk(doc))
       store.jsonFiles.set(`dialogues/${fn}.dlg.json`, doc)
       store.touch(`dialogues/${fn}.dlg.json`)
@@ -179,9 +179,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     if (path) setSelected(path)
   }
 
-  const removeSelected = () => {
+  const removeSelected = async () => {
     if (!selected) return
-    if (!confirm(`Удалить ${selected} из манифеста? (файл на диске останется)`)) return
+    const title = listFor(section).find((i) => i.path === selected)?.title ?? selected
+    if (!(await askConfirm(`Удалить «${title}»? (файл на диске останется)`, 'Удалить'))) return
     const fn = selected.split('/').pop()!
     const sectionKey = (section === 'dialogues' ? 'dialogues' : section) as keyof ManifestDef
     store.deleteFile(sectionKey, fn)
@@ -201,7 +202,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       setBusy(null)
     } catch (e) {
       setBusy(null)
-      alert(`Ошибка сохранения: ${e}\n(Сохранение на диск работает в dev-режиме vite / Tauri.)`)
+      void showAlert('Ошибка сохранения', `${e}\n(Сохранение на диск работает в dev-режиме vite / Tauri.)`)
     }
   }
 
@@ -224,9 +225,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     setBusy('Импорт…')
     try {
       const warns = await importChronicle(store, file)
-      alert(`Импортировано. ${warns.length ? `Предупреждения:\n${warns.join('\n')}` : 'Нажмите «Сохранить», чтобы записать файлы на диск.'}`)
+      void showAlert('Импортировано', warns.length ? `Предупреждения:\n${warns.join('\n')}` : 'Нажмите «Сохранить», чтобы записать файлы на диск.')
     } catch (e) {
-      alert(`Ошибка импорта: ${e}`)
+      void showAlert('Ошибка импорта', String(e))
     } finally {
       setBusy(null)
     }
@@ -240,16 +241,16 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
   return (
     <div className="editor-root">
-      <PromptHost />
       <header className="editor-topbar">
         <span className="editor-brand">CHRONICLE FORGE · РЕДАКТОР</span>
         {campaigns.length > 0 ? (
           <select
             className="campaign-select"
             value={base}
-            onChange={(e) => {
-              if (store.dirty.size && !confirm('Есть несохранённые изменения. Сменить кампанию без сохранения?')) return
-              setBase(e.target.value)
+            onChange={async (e) => {
+              const v = e.target.value
+              if (store.dirty.size && !(await askConfirm('Есть несохранённые изменения. Сменить кампанию без сохранения?', 'Сменить'))) return
+              setBase(v)
             }}
             title="Кампания"
           >

@@ -141,6 +141,14 @@
     {
       "id": "bite",
       "label": "Укус"
+    },
+    {
+      "id": "club",
+      "label": "Дубины"
+    },
+    {
+      "id": "shield",
+      "label": "Щиты"
     }
   ],
   "item_categories": [
@@ -189,6 +197,122 @@
     {
       "id": "misc",
       "label": "Разное"
+    }
+  ],
+  "flags": [
+    {
+      "id": "gates_greeting_done",
+      "label": "Приветствие у ворот показано",
+      "description": "Первый разговор с Алдриком у ворот состоялся."
+    },
+    {
+      "id": "heard_about_bandits",
+      "label": "Слышал о банде",
+      "description": "Герой узнал о банде с холмов."
+    },
+    {
+      "id": "aldric_gave_ration",
+      "label": "Алдрик поделился пайком",
+      "description": "Убеждение сработало — хлеб получен."
+    },
+    {
+      "id": "aldric_ration_refused",
+      "label": "Алдрик отказал в пайке",
+      "description": "Провал убеждения: больше не просить."
+    },
+    {
+      "id": "met_maeva",
+      "label": "Знаком с Маэвой"
+    },
+    {
+      "id": "met_bran",
+      "label": "Знаком с Браном"
+    },
+    {
+      "id": "bran_bargained",
+      "label": "Торговался с Браном",
+      "description": "Попытка сбить цены использована."
+    },
+    {
+      "id": "guard_ration_taken",
+      "label": "Паёк из караулки взят"
+    },
+    {
+      "id": "herbs_gathered",
+      "label": "Травы собраны"
+    },
+    {
+      "id": "rats_started",
+      "label": "Крысы: дело принято",
+      "description": "Маэва попросила зачистить подвал."
+    },
+    {
+      "id": "rats_done",
+      "label": "Крысы перебиты",
+      "description": "Подвал таверны зачищен."
+    },
+    {
+      "id": "rats_rewarded",
+      "label": "Маэва отблагодарила",
+      "description": "Награда за крыс получена."
+    },
+    {
+      "id": "forest_ambush_cleared",
+      "label": "Засада в лесу отбита"
+    },
+    {
+      "id": "bran_told_about_bandits",
+      "label": "Бран рассказал о банде",
+      "description": "Лагерь Йорека отмечен на карте."
+    },
+    {
+      "id": "bandit_deal_made",
+      "label": "С Йореком договорились",
+      "description": "Банда уходит без боя."
+    },
+    {
+      "id": "camp_cleared",
+      "label": "Лагерь банды зачищен"
+    },
+    {
+      "id": "yorek_met",
+      "label": "Знаком с Йореком"
+    },
+    {
+      "id": "met_corvin",
+      "label": "Знаком с Корвином"
+    },
+    {
+      "id": "relic_returned",
+      "label": "Медальон возвращён",
+      "description": "Реликвия вернулась в храм."
+    },
+    {
+      "id": "medallion_taken",
+      "label": "Медальон найден",
+      "description": "Найден на скелете в шахте."
+    },
+    {
+      "id": "skeleton_looted",
+      "label": "Скелет обыскан"
+    },
+    {
+      "id": "met_lena",
+      "label": "Знаком с Леной"
+    },
+    {
+      "id": "lena_told",
+      "label": "Лена рассказала про лаз",
+      "description": "Тайный путь в Волчью балку известен."
+    },
+    {
+      "id": "secret_path_used",
+      "label": "Тайный ход использован",
+      "description": "Герой прошёл штольней в тыл лагеря."
+    },
+    {
+      "id": "market_raid_repelled",
+      "label": "Налёт на рынок отбит"
     }
   ]
 }

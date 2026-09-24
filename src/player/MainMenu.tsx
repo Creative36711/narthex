@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { CampaignData } from '../shared/types'
+import { showAlert } from '../shared/modals'
 import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
 
 interface Props {
@@ -33,7 +34,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
       onImported(entry.id)
       setShowList(false)
     } catch (e) {
-      alert(`Не удалось импортировать кампанию: ${e}`)
+      void showAlert('Не удалось импортировать кампанию', String(e))
     } finally {
       setImportBusy(false)
     }

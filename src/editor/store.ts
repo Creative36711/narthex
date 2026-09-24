@@ -52,6 +52,8 @@ export class EditorStore {
   private undoStack: Array<{ path: string; text: string }> = []
   /** текущая сериализация файлов — чтобы снять снимок «до» в момент touch */
   private snapshots = new Map<string, string>()
+  /** содержимое файлов на диске (на момент загрузки/сохранения) — для точного счётчика «несохранено» */
+  private saved = new Map<string, string>()
   private lastTouch = { path: '', at: 0 }
 
   constructor(basePath: string) {
@@ -104,8 +106,11 @@ export class EditorStore {
       )
     }
     await Promise.all(jobs)
-    // базовые снимки для undo
-    for (const p of this.allPaths()) this.snapshots.set(p, this.fileText(p))
+    // базовые снимки для undo + состояние диска
+    for (const p of this.allPaths()) {
+      this.snapshots.set(p, this.fileText(p))
+      this.saved.set(p, this.fileText(p))
+    }
   }
 
   // ─────────────── доступ с типами ───────────────
@@ -166,7 +171,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -203,7 +208,10 @@ export class EditorStore {
       }
       walk(this.world.regions)
     } else if (kind === 'dialogue') {
-      for (const p of this.dialoguePaths()) out.push({ id: p, label: p.replace('dialogues/', '').replace(/\.ink$/, '') })
+      for (const p of this.dialoguePaths()) {
+        const doc = this.jsonFiles.get(p.replace(/\.ink$/, '.dlg.json')) as { label?: string } | undefined
+        out.push({ id: p, label: doc?.label || p.replace('dialogues/', '').replace(/\.ink$/, '') })
+      }
     } else if (kind === 'faction') {
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: f.label || f.id })
     } else if (kind === 'skill') {
@@ -216,8 +224,27 @@ export class EditorStore {
       for (const o of this.options('npc')) out.push({ id: o.id, label: `${o.label} (NPC)` })
     } else if (kind === 'itemCategory') {
       for (const c of this.meta.item_categories ?? []) out.push({ id: c.id, label: c.label || c.id })
+    } else if (kind === 'flag') {
+      const seen = new Set<string>()
+      for (const f of this.meta.flags ?? []) {
+        out.push({ id: f.id, label: f.label || f.id })
+        seen.add(f.id)
+      }
+      // флаги, встречающиеся в контенте, но не описанные в реестре
+      for (const f of this.knownFlags()) if (!seen.has(f)) out.push({ id: f, label: f })
     }
     return out.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  }
+
+  /** название стадии или журнальной записи квеста (для сводок правил) */
+  questStageLabel(questId: string, key: string): string {
+    for (const p of this.questPaths()) {
+      const q = this.quest(p)
+      if (q?.id !== questId) continue
+      const st = q.stages.find((s) => s.id === key)
+      return st?.label ?? key
+    }
+    return key
   }
 
   /** название по id (для сводок) */
@@ -282,7 +309,8 @@ export class EditorStore {
     }
     this.lastTouch = { path, at: now }
     this.snapshots.set(path, this.fileText(path))
-    this.dirty.add(path)
+    if (this.saved.get(path) === this.fileText(path)) this.dirty.delete(path)
+    else this.dirty.add(path)
     this.notify()
   }
 
@@ -301,7 +329,9 @@ export class EditorStore {
     else if (this.textFiles.has(path)) this.textFiles.set(path, text)
     else this.jsonFiles.set(path, JSON.parse(text))
     this.snapshots.set(path, text)
-    this.dirty.add(path)
+    // если откат вернул файл к состоянию на диске — он больше не «несохранён»
+    if (this.saved.get(path) === text) this.dirty.delete(path)
+    else this.dirty.add(path)
     this.lastTouch = { path: '', at: 0 }
     this.notify()
     return path
@@ -398,6 +428,7 @@ export class EditorStore {
         body: JSON.stringify({ path: `${campaignRel}/${p}`, text: this.fileText(p) }),
       })
       if (!res.ok) throw new Error(`Сохранение ${p}: ${res.status} ${await res.text()}`)
+      this.saved.set(p, this.fileText(p))
       this.dirty.delete(p)
     }
     this.notify()

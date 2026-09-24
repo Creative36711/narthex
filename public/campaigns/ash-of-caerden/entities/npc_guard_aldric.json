@@ -56,5 +56,23 @@
   ],
   "faction": "faction_town_guard",
   "base_disposition": 0,
-  "combat_ai": "defensive"
+  "combat_ai": "defensive",
+  "equipment": {
+    "weapon": "item_short_sword",
+    "armor": "item_gambeson"
+  },
+  "inventory": [
+    {
+      "item": "item_short_sword",
+      "quantity": 1
+    },
+    {
+      "item": "item_gambeson",
+      "quantity": 1
+    },
+    {
+      "item": "item_bread",
+      "quantity": 1
+    }
+  ]
 }

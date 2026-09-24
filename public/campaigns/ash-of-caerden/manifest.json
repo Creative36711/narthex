@@ -35,7 +35,12 @@
     "item_medallion.json",
     "item_skeleton.json",
     "item_secret_passage.json",
-    "npc_guard.json"
+    "npc_guard.json",
+    "item_club.json",
+    "item_guard_spear.json",
+    "item_claymore.json",
+    "item_gambeson.json",
+    "item_chain_shirt.json"
   ],
   "rules": [
     "rule_gates_greeting.json",

@@ -50,6 +50,7 @@ export const BUILTIN_SKILL_LABELS: Record<string, string> = {
   sleight: 'Ловкость рук',
   lockpick: 'Взлом',
   bite: 'Укус',
+  club: 'Дубины',
   claw: 'Когти',
 }
 

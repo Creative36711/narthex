@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Rect, Text, Transformer, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { NavigationZone, SceneCondition, SceneDef, SlotDef, SlotType, TimeOfDay } from '../shared/types'
+import type { NavigationZone, SceneCondition, SceneDef, SlotDef, TimeOfDay } from '../shared/types'
 import type { EditorStore } from './store'
-import { ImageUpload, RefSelect } from './Fields'
+import { ImageUpload, RefSelect, FlagSelect } from './Fields'
 import { makeId } from './ids'
 
 /**
@@ -12,13 +12,19 @@ import { makeId } from './ids'
  * перетаскиваемые/масштабируемые прямоугольники.
  */
 
-const SLOT_TYPES: SlotType[] = ['person', 'item', 'container', 'furniture', 'animal']
-const SLOT_TYPE_RU: Record<SlotType, string> = {
-  person: 'Персонаж',
-  item: 'Предмет',
-  container: 'Контейнер',
-  furniture: 'Мебель',
-  animal: 'Животное',
+export const BUILTIN_SLOT_TYPES: Array<{ id: string; label: string }> = [
+  { id: 'person', label: 'Персонаж' },
+  { id: 'item', label: 'Предмет' },
+  { id: 'container', label: 'Контейнер' },
+  { id: 'furniture', label: 'Мебель' },
+  { id: 'animal', label: 'Животное' },
+]
+
+/** реестр типов слотов кампании (+ свои типы мастера — «Кампания → Типы слотов») */
+function slotTypesFor(store: EditorStore): Array<{ id: string; label: string }> {
+  const custom = store.meta.slot_types ?? []
+  const out = [...BUILTIN_SLOT_TYPES.filter((b) => !custom.some((c) => c.id === b.id)), ...custom]
+  return out
 }
 
 /** Конструктор простого условия сцены/слота (№15): по-русски, без JSON */
@@ -46,7 +52,6 @@ export function SceneConditionEditor({
     if (next.not_flag) clean.not_flag = next.not_flag
     onChange(Object.keys(clean).length ? clean : null)
   }
-  const flags = store.knownFlags()
   return (
     <div className="fld fld-block scene-cond">
       <span>Показывать только когда…</span>
@@ -66,28 +71,9 @@ export function SceneConditionEditor({
         ))}
       </div>
       <div className="fld-row">
-        <label className="fld">
-          <span>…установлен флаг</span>
-          <input
-            list="known-flags"
-            value={v.flag ?? ''}
-            placeholder="(не важно)"
-            onChange={(e) => apply({ ...v, flag: e.target.value || undefined })}
-          />
-        </label>
-        <label className="fld">
-          <span>…НЕ установлен флаг</span>
-          <input
-            list="known-flags"
-            value={v.not_flag ?? ''}
-            placeholder="(не важно)"
-            onChange={(e) => apply({ ...v, not_flag: e.target.value || undefined })}
-          />
-        </label>
+        <FlagSelect label="…установлен флаг" store={store} value={v.flag ?? ''} optional onChange={(f) => apply({ ...v, flag: f || undefined })} />
+        <FlagSelect label="…НЕ установлен флаг" store={store} value={v.not_flag ?? ''} optional onChange={(f) => apply({ ...v, not_flag: f || undefined })} />
       </div>
-      <datalist id="known-flags">
-        {flags.map((f) => <option key={f} value={f} />)}
-      </datalist>
       <div className="muted small">Пусто = показывается всегда.</div>
     </div>
   )
@@ -382,17 +368,17 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
       <div className="fld fld-block">
         <span>Что можно ставить в слот</span>
         <div className="chips">
-          {SLOT_TYPES.map((t) => (
-            <label key={t} className={`chip ${slot.type.includes(t) ? 'chip-on' : ''}`}>
+          {slotTypesFor(store).map((t) => (
+            <label key={t.id} className={`chip ${slot.type.includes(t.id) ? 'chip-on' : ''}`}>
               <input
                 type="checkbox"
-                checked={slot.type.includes(t)}
+                checked={slot.type.includes(t.id)}
                 onChange={(e) => {
-                  slot.type = e.target.checked ? [...slot.type, t] : slot.type.filter((x) => x !== t)
+                  slot.type = e.target.checked ? [...slot.type, t.id] : slot.type.filter((x) => x !== t.id)
                   commit()
                 }}
               />
-              {SLOT_TYPE_RU[t]}
+              {t.label}
             </label>
           ))}
         </div>
