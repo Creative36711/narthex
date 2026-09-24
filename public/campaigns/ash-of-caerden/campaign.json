@@ -1,0 +1,358 @@
+{
+  "id": "ash-of-caerden",
+  "title": "Пепел Каэрдена",
+  "version": "0.1.0",
+  "engine_version": "0.1.0",
+  "author": "Chronicle Forge",
+  "description": "Низкое фэнтези, позднее средневековье. Вы — наёмник, прибывший в приграничный город Каэрден в поисках работы. Караваны не доходят до города: на дорогах хозяйничает банда с холмов. Голод и жажда не ждут — как и бандиты.",
+  "tick_label": "ч",
+  "ticks_per_day": 24,
+  "time_of_day": {
+    "morning": 6,
+    "day": 11,
+    "evening": 18,
+    "night": 22
+  },
+  "starting_region": "region_caerden",
+  "starting_location": "loc_gates",
+  "starting_scene": "scene_gates_front",
+  "starting_tick": 8,
+  "default_player": "player_mercenary",
+  "needs": [
+    {
+      "id": "hunger",
+      "label": "Голод",
+      "max": 100,
+      "decay_per_tick": 1.2,
+      "critical_threshold": 15,
+      "on_zero_effect": "death"
+    },
+    {
+      "id": "thirst",
+      "label": "Жажда",
+      "max": 100,
+      "decay_per_tick": 1.8,
+      "critical_threshold": 15,
+      "on_zero_effect": "death"
+    },
+    {
+      "id": "energy",
+      "label": "Энергия",
+      "max": 100,
+      "decay_per_tick": 0.7,
+      "critical_threshold": 10,
+      "on_zero_effect": "effect_collapse"
+    },
+    {
+      "id": "warmth",
+      "label": "Тепло",
+      "max": 100,
+      "decay_per_tick": 3,
+      "critical_threshold": 25,
+      "on_zero_effect": "death",
+      "decay_when": [
+        {
+          "type": "time_of_day",
+          "values": [
+            "evening",
+            "night"
+          ]
+        },
+        {
+          "type": "has_item",
+          "item": "item_wool_cloak",
+          "not": true
+        },
+        {
+          "type": "in_location",
+          "location": "loc_tavern",
+          "not": true
+        }
+      ],
+      "restore_per_tick": 8,
+      "restore_when": [
+        {
+          "type": "in_location",
+          "location": "loc_tavern"
+        }
+      ]
+    }
+  ],
+  "currencies": [
+    {
+      "id": "silver",
+      "label": "Серебряная марка",
+      "symbol": "SM"
+    }
+  ],
+  "char_creation": {
+    "total_points": 250,
+    "stat_limits": {
+      "min": 3,
+      "max": 18
+    },
+    "skill_cap": 75,
+    "mandatory_skills": [
+      "dodge",
+      "first_aid"
+    ],
+    "forbidden_skills": [],
+    "allowed_professions": [
+      "profession_soldier"
+    ]
+  },
+  "roguelike": {
+    "permadeath": true,
+    "meta_progress": [
+      "completion_percentage"
+    ],
+    "randomize_on_restart": [
+      "loot_tables",
+      "random_encounters"
+    ]
+  },
+  "factions": [
+    {
+      "id": "faction_town_guard",
+      "label": "Стража Каэрдена",
+      "base_disposition": 0
+    },
+    {
+      "id": "faction_town",
+      "label": "Горожане",
+      "base_disposition": 10
+    },
+    {
+      "id": "faction_bandits",
+      "label": "Банда с холмов",
+      "base_disposition": -60
+    },
+    {
+      "id": "faction_vermin",
+      "label": "Дикие твари",
+      "base_disposition": -100,
+      "description": "Крысы, хищники и прочие создания, с которыми не договориться.",
+      "hidden": true
+    }
+  ],
+  "max_companions": 1,
+  "skills": [
+    {
+      "id": "sword",
+      "label": "Мечи"
+    },
+    {
+      "id": "spear",
+      "label": "Копья"
+    },
+    {
+      "id": "brawl",
+      "label": "Кулачный бой"
+    },
+    {
+      "id": "dodge",
+      "label": "Уклонение"
+    },
+    {
+      "id": "stealth",
+      "label": "Скрытность"
+    },
+    {
+      "id": "spot",
+      "label": "Наблюдательность"
+    },
+    {
+      "id": "persuade",
+      "label": "Убеждение"
+    },
+    {
+      "id": "bargain",
+      "label": "Торговля"
+    },
+    {
+      "id": "first_aid",
+      "label": "Первая помощь"
+    },
+    {
+      "id": "bite",
+      "label": "Укус"
+    },
+    {
+      "id": "club",
+      "label": "Дубины"
+    },
+    {
+      "id": "shield",
+      "label": "Щиты"
+    }
+  ],
+  "item_categories": [
+    {
+      "id": "food",
+      "label": "Еда",
+      "restores_hp": false,
+      "restores_needs": [
+        "hunger"
+      ]
+    },
+    {
+      "id": "drink",
+      "label": "Питьё",
+      "restores_needs": [
+        "thirst"
+      ]
+    },
+    {
+      "id": "medicine",
+      "label": "Лекарства",
+      "restores_hp": true
+    },
+    {
+      "id": "weapon",
+      "label": "Оружие",
+      "is_weapon": true
+    },
+    {
+      "id": "armor",
+      "label": "Броня",
+      "is_armor": true
+    },
+    {
+      "id": "quest",
+      "label": "Квестовые предметы"
+    },
+    {
+      "id": "currency",
+      "label": "Валюта"
+    },
+    {
+      "id": "container",
+      "label": "Интерактивные объекты"
+    },
+    {
+      "id": "misc",
+      "label": "Разное"
+    }
+  ],
+  "flags": [
+    {
+      "id": "gates_greeting_done",
+      "label": "Приветствие у ворот показано",
+      "description": "Первый разговор с Алдриком у ворот состоялся."
+    },
+    {
+      "id": "heard_about_bandits",
+      "label": "Слышал о банде",
+      "description": "Герой узнал о банде с холмов."
+    },
+    {
+      "id": "aldric_gave_ration",
+      "label": "Алдрик поделился пайком",
+      "description": "Убеждение сработало — хлеб получен."
+    },
+    {
+      "id": "aldric_ration_refused",
+      "label": "Алдрик отказал в пайке",
+      "description": "Провал убеждения: больше не просить."
+    },
+    {
+      "id": "met_maeva",
+      "label": "Знаком с Маэвой"
+    },
+    {
+      "id": "met_bran",
+      "label": "Знаком с Браном"
+    },
+    {
+      "id": "bran_bargained",
+      "label": "Торговался с Браном",
+      "description": "Попытка сбить цены использована."
+    },
+    {
+      "id": "guard_ration_taken",
+      "label": "Паёк из караулки взят"
+    },
+    {
+      "id": "herbs_gathered",
+      "label": "Травы собраны"
+    },
+    {
+      "id": "rats_started",
+      "label": "Крысы: дело принято",
+      "description": "Маэва попросила зачистить подвал."
+    },
+    {
+      "id": "rats_done",
+      "label": "Крысы перебиты",
+      "description": "Подвал таверны зачищен."
+    },
+    {
+      "id": "rats_rewarded",
+      "label": "Маэва отблагодарила",
+      "description": "Награда за крыс получена."
+    },
+    {
+      "id": "forest_ambush_cleared",
+      "label": "Засада в лесу отбита"
+    },
+    {
+      "id": "bran_told_about_bandits",
+      "label": "Бран рассказал о банде",
+      "description": "Лагерь Йорека отмечен на карте."
+    },
+    {
+      "id": "bandit_deal_made",
+      "label": "С Йореком договорились",
+      "description": "Банда уходит без боя."
+    },
+    {
+      "id": "camp_cleared",
+      "label": "Лагерь банды зачищен"
+    },
+    {
+      "id": "yorek_met",
+      "label": "Знаком с Йореком"
+    },
+    {
+      "id": "met_corvin",
+      "label": "Знаком с Корвином"
+    },
+    {
+      "id": "relic_returned",
+      "label": "Медальон возвращён",
+      "description": "Реликвия вернулась в храм."
+    },
+    {
+      "id": "medallion_taken",
+      "label": "Медальон найден",
+      "description": "Найден на скелете в шахте."
+    },
+    {
+      "id": "skeleton_looted",
+      "label": "Скелет обыскан"
+    },
+    {
+      "id": "met_lena",
+      "label": "Знаком с Леной"
+    },
+    {
+      "id": "lena_told",
+      "label": "Лена рассказала про лаз",
+      "description": "Тайный путь в Волчью балку известен."
+    },
+    {
+      "id": "secret_path_used",
+      "label": "Тайный ход использован",
+      "description": "Герой прошёл штольней в тыл лагеря."
+    },
+    {
+      "id": "market_raid_repelled",
+      "label": "Налёт на рынок отбит"
+    },
+    {
+      "id": "raid_rumors",
+      "label": "Слухи о налёте",
+      "description": "Город гудит: банда готовит удар. Лена дежурит в таверне круглосуточно."
+    }
+  ]
+}

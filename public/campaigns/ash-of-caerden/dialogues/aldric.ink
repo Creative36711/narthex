@@ -1,0 +1,81 @@
+EXTERNAL get_flag(f)
+EXTERNAL set_flag(f)
+EXTERNAL add_item(id, n)
+EXTERNAL skill_check(s, d)
+EXTERNAL get_disposition(t)
+EXTERNAL in_party(id)
+EXTERNAL join_party(id)
+EXTERNAL quest_stage(q)
+
+=== main ===
+{ get_flag("heard_about_bandits"):
+    А, это снова ты.
+    Про бандитов новостей нет. Караван из Вельдена так и не пришёл.
+- else:
+    Стой... а, это ты. Проходи.
+}
+-> main_hub
+
+=== main_hub ===
+* [Расскажи о городе.]
+    Каэрден — перекрёсток трёх трактов. Был богат, пока дороги были чисты.
+    Рынок — прямо за воротами. Таверна «Дубовый щит» — дальше по улице. В лес на западе без нужды не ходи.
+    -> main_hub
+* { not get_flag("heard_about_bandits") } [Что тут у вас происходит?]
+    Банда с холмов душит торговлю. Третью неделю ни один караван не дошёл. # emotion: angry
+    ~ set_flag("heard_about_bandits")
+    Поговори с Браном на рынке, если хочешь заработать на этом мечом.
+    -> main_hub
+* { quest_stage("quest_bandit_threat") != "" && quest_stage("quest_bandit_threat") != "completed_fight" && quest_stage("quest_bandit_threat") != "completed_deal" && not in_party("npc_guard_aldric") } [Пойдёшь со мной против банды Йорека?]
+    { get_disposition("faction_town_guard") >= 10:
+        Алдрик долго смотрит на вас, потом сплёвывает и снимает щит со спины. # emotion: happy # action
+        А, пропади оно всё. Капитан всё равно носа за стены не кажет. Идём — только чур, махать мечом в полную силу.
+        ~ join_party("npc_guard_aldric")
+        -> DONE
+    - else:
+        Я тебя второй день знаю, а ты меня — в самое пекло зовёшь.
+        Докажи, что ты не пустозвон: помоги городу — тогда и поговорим. Стража ценит дела, не слова.
+    }
+    -> main_hub
+* { not get_flag("aldric_gave_ration") && not get_flag("aldric_ration_refused") } [Поделишься едой, служивый? (Убеждение)]
+    ~ temp d = 40
+    ~ temp r = skill_check("persuade", d)
+    { r == "fail" || r == "fumble":
+        ~ set_flag("aldric_ration_refused")
+        Я тебе не богадельня. Иди к Маэве, у неё похлёбка за пять марок. # emotion: angry
+        И не заводи эту песню снова — сказал нет, значит нет.
+        -> main_hub
+    - else:
+        Эх... ладно. Держи, у меня в караулке ещё остался паёк. # emotion: happy
+        ~ set_flag("aldric_gave_ration")
+        ~ add_item("item_bread", 1)
+        Только не болтай, а то вся голытьба сбежится.
+        -> main_hub
+    }
++ [Бывай.]
+    Смотри в оба на дорогах.
+    -> DONE
+- -> main_hub
+
+=== first_meeting ===
+Стой, путник.
+Немногие нынче добираются до Каэрдена по тракту. Дороги кишат бандитами. С чем пожаловал?
+-> first_meeting_hub
+
+=== first_meeting_hub ===
++ [Ищу работу. Слышал, у вас неспокойно.]
+    Неспокойно — мягко сказано. # emotion: angry
+    Банда с холмов грабит караваны уже третью неделю. Торговцы воют, склады пустеют.
+    ~ set_flag("heard_about_bandits")
+    Если ищешь монету за работу мечом — поговори с торговцем Браном на рынке. Он пострадал больше всех.
+    -> first_meeting_tail
++ [Просто путник. Переночую и дальше.]
+    Тогда тебе в «Дубовый щит», это за рынком.
+    Хозяйка Маэва дерёт недорого, а похлёбка у неё лучшая в долине.
+    -> first_meeting_tail
+- -> first_meeting_hub
+
+=== first_meeting_tail ===
+Ворота открыты до заката. Ночью в город не пускаем — приказ капитана.
+Да, и вот ещё: вода в бочке у стены — бесплатная. Пей, сколько влезет.
+-> DONE

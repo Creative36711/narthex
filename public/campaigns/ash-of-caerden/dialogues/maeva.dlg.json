@@ -1,0 +1,445 @@
+{
+ "version": 2,
+ "label": "Маэва, хозяйка «Дубового щита»",
+ "nodes": [
+  {
+   "id": "main",
+   "label": "Начало разговора",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "rats_rewarded"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Ты разобрался с крысами?! Дай расцелую!",
+        "emotion": "happy"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "add_item",
+        "item": "item_bread",
+        "qty": 3
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "add_item",
+        "item": "item_waterskin",
+        "qty": 2
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Держи: хлеб и вода в дорогу — за мой счёт. И считай, что похлёбка для тебя теперь всегда горячая."
+       }
+      }
+     ],
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "rats_done"
+      },
+      {
+       "type": "flag",
+       "flag": "rats_rewarded",
+       "not": true
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "С возвращением. Похлёбка горячая, комната свободна."
+       }
+      }
+     ],
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "met_maeva"
+      }
+     ],
+     "else_steps": [
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "met_maeva"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Добро пожаловать в «Дубовый щит», путник.",
+        "emotion": "happy"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Я Маэва, хозяйка. Кормлю, пою, даю кров. Серебро вперёд — времена нынче худые."
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "У тебя {item_count(\"item_silver\")} марок серебром."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "Похлёбку и кружку эля. (5 марок, 1 ч)",
+     "conds": [
+      {
+       "type": "item_ge",
+       "item": "item_silver",
+       "count": 5
+      }
+     ],
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_item",
+          "item": "item_silver",
+          "qty": 5
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_need",
+          "need": "hunger",
+          "delta": 50
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_need",
+          "need": "thirst",
+          "delta": 30
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "advance_time",
+          "ticks": 1
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Садись к огню.",
+          "emotion": "happy"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Похлёбка густая, эль тёмный. Час пролетает незаметно, и жизнь кажется чуть добрее.",
+          "action": true
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Комнату на ночь. (10 марок, сон 8 ч)",
+     "conds": [
+      {
+       "type": "item_ge",
+       "item": "item_silver",
+       "count": 10
+      }
+     ],
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_item",
+          "item": "item_silver",
+          "qty": 10
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "sleep",
+          "ticks": 8
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_need",
+          "need": "energy",
+          "delta": 100
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Вторая дверь наверху. Бельё чистое, клопов нет — не таверна, а сказка.",
+          "emotion": "happy"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Вы просыпаетесь отдохнувшим. Правда, желудок успел проголодаться, а во рту пересохло.",
+          "action": true
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Слышал, у тебя какая-то беда в подвале?",
+     "once": true,
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "rats_started",
+       "not": true
+      }
+     ],
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Беда? Погибель! Крысы. Да какие — с собаку ростом!"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Прогрызли бочку с элем, тащат припасы. Спуститься сама боюсь, а стража за крыс браться не желает."
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Разберёшься — накормлю до отвала и в дороге не оставлю. Ну что, возьмёшься?"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "rats_offer"
+    },
+    {
+     "text": "Про крыс помню, ещё вернусь к ним.",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "rats_started"
+      },
+      {
+       "type": "flag",
+       "flag": "rats_done",
+       "not": true
+      }
+     ],
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Уж пожалуйста. Они там эль пьют, между прочим. Мой эль!"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "rats_remind"
+    },
+    {
+     "text": "Какие слухи ходят?",
+     "once": true,
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Все только о банде с холмов и говорят."
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Бран на рынке потерял два каравана. Стража носа за ворота не кажет. А по вечерам сюда заходит Алдрик — стражник с ворот. Спроси его, если хочешь подробностей."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Мне пора.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Заглядывай. Очаг тут не гаснет.",
+          "emotion": "happy"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "end"
+    },
+    {
+     "text": "У меня нет и пяти марок...",
+     "conds": [
+      {
+       "type": "item_ge",
+       "item": "item_silver",
+       "count": 5,
+       "not": true
+      }
+     ],
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Сочувствую, но в долг не наливаю."
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Заработай — говорят, Бран ищет крепких людей."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    }
+   ]
+  },
+  {
+   "id": "rats_offer",
+   "label": "Крысы: браться или нет",
+   "sections": [],
+   "choices": [
+    {
+     "text": "Веди в подвал. (бой)",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "rats_started"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Вот люк, вот лестница. Осторожнее там!",
+          "emotion": "happy"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "fire_rule",
+          "rule": "encounter_cellar_rats"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "end"
+    },
+    {
+     "text": "Крысы? Нет уж, уволь.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Эх... А с виду такой храбрец."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "main"
+    }
+   ]
+  },
+  {
+   "id": "rats_remind",
+   "label": "Крысы: напоминание",
+   "sections": [],
+   "choices": [
+    {
+     "text": "Спускаюсь в подвал прямо сейчас. (бой)",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "fire_rule",
+          "rule": "encounter_cellar_rats"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "end"
+    },
+    {
+     "text": "Позже.",
+     "sections": [],
+     "goto": "main"
+    }
+   ]
+  }
+ ]
+}

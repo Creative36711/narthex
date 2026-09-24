@@ -1,0 +1,78 @@
+{
+  "id": "scene_market",
+  "label": "Площадь",
+  "location": "loc_market",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_day",
+      "label": "День",
+      "image": "assets/img/scenes/market_day.jpg",
+      "condition": {
+        "time_of_day": [
+          "morning",
+          "day",
+          "evening"
+        ]
+      }
+    },
+    {
+      "id": "state_night",
+      "label": "Ночь",
+      "image": "assets/img/scenes/market_night.jpg",
+      "condition": {
+        "time_of_day": "night"
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_stall_bran",
+      "label": "Прилавок Брана",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 450,
+      "y": 270,
+      "w": 155,
+      "h": 265,
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 900,
+        "y": 270,
+        "w": 130,
+        "h": 170
+      },
+      "go_to_location": "loc_gates",
+      "label": "К воротам →"
+    },
+    {
+      "area": {
+        "x": 20,
+        "y": 250,
+        "w": 130,
+        "h": 350
+      },
+      "go_to_location": "loc_tavern",
+      "label": "← В таверну"
+    },
+    {
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 260,
+        "h": 80
+      },
+      "open_map": true,
+      "label": "🗺 Карта долины"
+    }
+  ]
+}

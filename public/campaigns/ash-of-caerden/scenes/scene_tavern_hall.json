@@ -1,0 +1,80 @@
+{
+  "id": "scene_tavern_hall",
+  "label": "Зал таверны",
+  "location": "loc_tavern",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Зал",
+      "image": "assets/img/scenes/tavern_hall.jpg",
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_bar_maeva",
+      "label": "Стойка Маэвы",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 800,
+      "y": 245,
+      "w": 150,
+      "h": 255,
+      "condition": null
+    },
+    {
+      "id": "slot_table_2",
+      "label": "Стол у очага",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 395,
+      "y": 330,
+      "w": 140,
+      "h": 235,
+      "condition": null
+    },
+    {
+      "id": "slot_corner",
+      "label": "Тёмный угол",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 585,
+      "y": 380,
+      "w": 130,
+      "h": 220,
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 555,
+        "y": 300,
+        "w": 130,
+        "h": 200
+      },
+      "go_to_location": "loc_market",
+      "label": "← На площадь"
+    },
+    {
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 260,
+        "h": 80
+      },
+      "open_map": true,
+      "label": "🗺 Карта долины"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "id": "scene_gates_guardroom",
+  "label": "Караулка",
+  "location": "loc_gates",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Интерьер",
+      "image": "assets/img/scenes/guardroom.jpg",
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_table_bread",
+      "label": "Стол с пайком",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 495,
+      "y": 408,
+      "w": 180,
+      "h": 95,
+      "default_entity": "item_guard_ration",
+      "condition": {
+        "not_flag": "guard_ration_taken"
+      }
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 50,
+        "y": 175,
+        "w": 185,
+        "h": 360
+      },
+      "go_to_scene": "scene_gates_front",
+      "label": "← Наружу, к воротам"
+    }
+  ]
+}

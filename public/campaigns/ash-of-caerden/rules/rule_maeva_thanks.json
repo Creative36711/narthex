@@ -1,0 +1,25 @@
+{
+  "id": "rule_maeva_thanks",
+  "label": "Маэва благодарит за крыс",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_tavern_hall"
+    },
+    {
+      "type": "flag_set",
+      "flag": "rats_done"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "rats_rewarded"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_dialogue",
+      "entity": "npc_maeva"
+    }
+  ]
+}

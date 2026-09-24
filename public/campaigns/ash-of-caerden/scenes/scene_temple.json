@@ -1,0 +1,54 @@
+{
+  "id": "scene_temple",
+  "label": "Храм Вечного Света",
+  "location": "loc_temple",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Неф",
+      "image": "assets/img/scenes/temple.jpg",
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_altar_corvin",
+      "label": "Алтарь",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 270,
+      "w": 180,
+      "h": 280,
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 20,
+        "y": 300,
+        "w": 150,
+        "h": 320
+      },
+      "go_to_location": "loc_market",
+      "label": "← На площадь"
+    },
+    {
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 260,
+        "h": 80
+      },
+      "open_map": true,
+      "label": "🗺 Карта долины"
+    }
+  ]
+}

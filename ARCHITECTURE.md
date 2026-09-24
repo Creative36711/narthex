@@ -1,0 +1,321 @@
+# Архитектура Chronicle Forge
+
+Документ описывает, как устроен проект: слои, формат данных, движок, рантайм
+игрока, редактор и инструменты разработки. Аудитория — разработчики движка и
+авторы кампаний, которым нужно понять «что где лежит и почему».
+
+---
+
+## 1. Главные принципы
+
+1. **Контент отделён от движка.** Движок (`src/core`) не знает ни одного id из
+   демо-кампании. Всё поведение мира — данные пакета кампании: правила, сцены,
+   сущности, диалоги. Если для фичи хочется написать `if (id === 'npc_x')` —
+   это ошибка дизайна: нужен новый декларативный механизм.
+2. **Редактор — без кода и без ручных id.** Мастер вводит русские названия,
+   id генерируются транслитерацией (`src/editor/ids.ts`). Всё ссылочное
+   (сущности, сцены, флаги, навыки, стадии квестов…) выбирается из выпадающих
+   списков, которые питаются реестрами кампании.
+3. **Логика тестируется headless.** Движок и стор редактора не зависят от DOM:
+   смоук-тесты (`scripts/*.mts`) гоняют бой, диалоги, квесты и потребности в
+   Node (нужен только dev-сервер как файловый хост и заглушка `localStorage`).
+4. **Один рендер-слой на подсистему.** Боевая логика (`core/combat.ts`) не
+   знает про React; сцены редактора рисует Konva; ink-код показывает Monaco;
+   всё остальное — обычный React + CSS.
+
+## 2. Карта каталогов
+
+```
+src/
+  shared/                 общие для всех слоёв вещи
+    types.ts              ЕДИНЫЙ источник правды: формат кампании, сейва, эффектов
+    modals.tsx            askText / askConfirm / showAlert + ModalHost (замена браузерных окон)
+    skills.ts             встроенный словарь названий навыков (fallback к реестру кампании)
+
+  core/                   движок (без React)
+    engine.ts             GameEngine: состояние, тики, эффекты, диалоги, торговля, сейвы
+    combat.ts             CombatController: гекс-бой (инициатива, движение, атаки, AI, лут)
+    dialogue.ts           компиляция ink (кэш), bindExternals, drainStory
+    conditions.ts         evalCondition / evalSceneCondition (декларативные условия)
+    brp.ts                d100-проверки, производные характеристики (HP/MP/damage bonus/MOV)
+    dice.ts               парсер и броски "NdX+M"
+    hex.ts                offset odd-r ↔ кубические координаты, соседи, дистанции, A*, Дейкстра
+    prng.ts               seedrandom-обёртка (детерминизм внутри забега)
+    time.ts               тик → час/день/время суток
+    loader.ts             loadCampaign(basePath): чтение пакета по manifest.json
+
+  player/                 Player Mode (React)
+    GameView.tsx          корневой экран игры: композиция HUD/сцены/оверлеев
+    SceneScreen.tsx       сцена: фон, слоты, зоны навигации
+    DialogueOverlay.tsx   диалог: портреты-настроения, реплики, варианты
+    CombatScreen.tsx      бой: гекс-сетка (SVG), лог, панель действий, экран победы
+    MapScreen.tsx         карта региона и путешествия
+    TradePanel.tsx        торговля (цены от репутации и навыка)
+    Panels.tsx            герой / инвентарь / журнал / отношения
+    HUD.tsx               время, потребности, HP, кнопки панелей, выход в меню
+    MainMenu.tsx          меню: забег, кампании (выбор/импорт/удаление), обучение
+    EndScreen.tsx         финал забега (победа/смерть) и статистика
+    HelpPanel.tsx         справка «Как играть» (уровень 1 обучения)
+    tips.ts               одноразовые интерактивные подсказки (уровень 2), localStorage
+
+  editor/                 Editor Mode (React, ленивый чанк)
+    EditorApp.tsx         каркас: разделы, списки, тулбар, кампании (создать/удалить)
+    store.ts              EditorStore: файлы кампании в памяти, dirty/undo, сохранение
+    schemas.ts            декларативные схемы ВСЕХ условий и эффектов + русские сводки
+    Fields.tsx            универсальные поля форм по FieldKind (RefSelect, FlagSelect…)
+    CampaignEditor.tsx    реестры кампании (потребности+условия, флаги, фракции, типы слотов…)
+    WorldEditor.tsx       карта мира, регионы, локации
+    SceneEditor.tsx       Konva: слоты/зоны перетаскиванием, условия видимости
+    EntityEditor.tsx      формы НПС и предметов (снаряжение, торговля, расписание, дроп…)
+    RuleEditor.tsx        конструктор правил
+    QuestEditor.tsx       конструктор квестов
+    DialogueBuilder.tsx   визуальный конструктор диалогов (v2)
+    dialogueDoc.ts        формат .dlg.json + generateInk() + миграция v1→v2
+    ArenaEditor.tsx       кисти для гекс-арен
+    MonacoEditors.tsx     JSON/ink редакторы «расширенного» режима
+    slotTypes.ts          встроенные типы слотов + effectiveSlotType(entity)
+    ids.ts                slugify/makeId (транслитерация, уникальность)
+    newCampaign.ts        скаффолд новой кампании, реестр public/campaigns/index.json
+    chronicle.ts          экспорт/импорт .chronicle (zip Campaign Package)
+    prompt.tsx            реэкспорт модалок (совместимость)
+
+scripts/                  headless-проверки (см. §8)
+src-tauri/                десктоп-оболочка Tauri v2
+public/campaigns/         кампании: index.json + <id>/ (Campaign Package)
+```
+
+## 3. Формат кампании (Campaign Package)
+
+Кампания — каталог `public/campaigns/<id>/` (или его zip — `.chronicle`).
+Все типы описаны в `src/shared/types.ts`.
+
+```
+campaign.json    метаданные и РЕЕСТРЫ (см. ниже)
+world.json       регионы → локации (позиции на карте, связи путешествий, сцены)
+manifest.json    списки файлов по разделам — только их загружает loader
+scenes/*.json    сцены: states (фон по условиям), slots, navigation
+entities/*.json  НПС и предметы
+rules/*.json     правила: conditions[] + effects[] (+once, +manual)
+dialogues/*.ink  диалоги для движка (генерируются конструктором)
+dialogues/*.dlg.json  исходники визуального конструктора (движок их не читает)
+quests/*.json    квесты: стадии, переходы, журнал, финалы
+arenas/*.json    гекс-арены боя
+assets/          изображения (сцены, портреты, карта)
+```
+
+### 3.1 Реестры в `campaign.json`
+
+Реестры — источник выпадающих списков редактора и русских названий в игре:
+
+- `needs` — потребности: `max`, `decay_per_tick`, `critical_threshold`,
+  `on_zero_effect` (`death` или id правила), **условная убыль** `decay_when[]`
+  и **восстановление** `restore_per_tick` + `restore_when[]`
+  (условия: время суток / флаг / в локации / есть предмет / надет предмет);
+- `skills` — навыки игры (id + русское название);
+- `flags` — реестр флагов: `{ id, label, description? }` — «память мира» по-русски;
+- `factions` — фракции: `base_disposition`, `hidden` (служебные, скрыты от игрока);
+- `item_categories` — категории предметов: что умеет предмет
+  (`restores_hp`, `restores_needs`, `is_weapon`, `is_armor`);
+- `slot_types` — свои типы слотов сцены (встроенные: персонаж/предмет/контейнер/животное);
+- `currencies` — валюты (первая — основная, в ней считаются цены);
+- `time_of_day`, `ticks_per_day`, `tick_label` — календарь;
+- `roguelike` — permadeath, мета-прогресс;
+- стартовые `starting_region/location/scene/tick`, `default_player`, `max_companions`.
+
+### 3.2 Сущности
+
+`NpcDef`: характеристики BRP (`STR…CHA`), навыки, снаряжение **предметами**
+(`equipment.weapon/armor` → у предметов `weapon_data`/`armor_data`),
+`natural_weapon` (укус/когти — когда снаряжение не нужно), `loot_table`,
+`trader` (прилавок: товары, цены-переопределения, запас, скупка с `buy_rate`),
+`dialogue` (путь к .ink), `schedule[]` (часы → сцена/слот),
+`presence_overrides[]` («особые места по событиям»: пока флаг активен —
+персонаж здесь, расписание не действует), `slot_type`, `portrait`
+(настроение → изображение), `token` (изображение в бою), `faction`,
+`base_disposition` (личная поправка к отношению фракции).
+
+`ItemDef`: `category` (поведение — из реестра категорий), `value` (цена в
+основной валюте), `weight`, `stackable`, `weapon_data`, `armor_data`,
+`on_use` (эффекты применения), `slot_type`.
+
+### 3.3 Правила: условия и эффекты
+
+Правило = `conditions[]` (все должны выполниться) + `effects[]`, флаги
+`once` (один раз за забег) и `manual` (запускается только `fire_rule`, не
+проверяется автоматически — обязательно для правил-«функций», иначе пустые
+условия сработают на каждом тике).
+
+Условия (~20): `player_enters_location/scene`, `flag_set/not_set`,
+`time_of_day`, `tick_elapsed`, `quest_at_stage`, `has_item`, `skill_ge`,
+`need_le/ge`, `entity_alive/dead`, `disposition_ge/le`, `in_party`,
+`random_chance`, `variable_compare`, `and/or/not`.
+
+Эффекты (~28): `start_dialogue` (+ узел), `start_combat` (враги, арена,
+временные `allies`, `on_victory[]`), `teleport_player`, `add/remove_item`,
+`change_need/hp/skill/disposition`, `set/clear_flag`, `start_quest`,
+`advance_quest`, `journal_update`, `give_reward`, `show_message`,
+`reveal_location`, `change_scene_state`, `skill_check_gate` (проверка с
+ветками), `spawn_entity`, `advance_time`, `join_party`, `game_over_*` и др.
+Полный список — `schemas.ts` (редактор) и `applyEffects` в `engine.ts`.
+
+**Порядок применения `on_victory`:** безопасные эффекты (сообщения, флаги,
+предметы, отношение) применяются в момент победы — игрок видит их на экране
+победы; эффекты смены экрана (диалог, телепорт, новый бой, финал) откладываются
+до кнопки «Продолжить» (`engine.onCombatVictory` → `postCombatEffects`).
+
+### 3.4 Диалоги: два файла на диалог
+
+- **`*.dlg.json`** — исходник визуального конструктора (`dialogueDoc.ts`, v2):
+  узлы → блоки (`DlgSection`: шаги-реплики и шаги-эффекты, условия, «иначе»,
+  переходы) → варианты ответа (`DlgChoice`: условия показа, одноразовость,
+  `DlgCheck` — проверка навыка с ветками успех/провал и модификаторами
+  сложности). Формат v1 мигрируется на лету (`migrateDlgDoc`).
+- **`*.ink`** — то, что исполняет движок. Генерируется `generateInk()`:
+  hub-паттерн (`узел` → `узел_hub` с вариантами), EXTERNAL-декларации только
+  для использованных функций, защита от зависания (автовариант «Закончить
+  разговор», принудительный `-> DONE` после `open_trade`/`fire_rule`).
+
+Движок биндит external-функции в `dialogue.ts`: `get/set_flag`, `add/remove_item`,
+`item_count`, `has_item`, `skill_check`, `get/change_need`, `get/change_hp`,
+`advance_time`, `sleep`, `fire_rule`, `open_trade`, `join_party`, `in_party`,
+`get/change_disposition`, `start_quest`, `quest_stage`, `get_stat`, `get_skill`.
+Каждый разговор — свежая Ink-история: `*`-варианты «одноразовы» в рамках
+разговора, долговременная память — только флаги.
+
+## 4. Движок (`src/core`)
+
+### 4.1 GameEngine (`engine.ts`)
+
+Владеет `GameState` (сейв целиком) и `CampaignData`. Ключевые зоны:
+
+- **Время:** `advanceTicks(n)` — тик за тиком: потребности (условная убыль
+  `decay_when`, восстановление `restore_when`, `onNeedZero` → смерть или
+  правило), затем `checkRules()`.
+- **Правила:** `checkRules()` перебирает не-`manual` правила; `tryFireRule`
+  проверяет `once`/условия и применяет эффекты; `fireRule(id)` — принудительно
+  (из ink), но тоже с условиями; для форс-запуска боя в тестах —
+  `engine.startCombat(effect)` напрямую.
+- **Сцены и мир:** `goToScene(sceneId, costTicks)`, `travelTo(locationId)`
+  (стоимость, случайные встречи), `slotOccupants(scene)` — заполнение слотов:
+  1) заспавненные эффектами, 2) НПС с активным `presence_override` (только в
+  его месте), иначе по `schedule`, 3) `default_entity` (если НПС не «занят»
+  расписанием/событием и не в отряде/не мёртв).
+- **Диалоги:** `startDialogue(entityId, knot?)` — компиляция ink (кэш),
+  выбор узла, `drainStory`; guard: не стартует поверх боя/торговли.
+- **Торговля:** `openTrade`, цены `buyPrice/sellPrice` от
+  `value[основная валюта]` × модификатор репутации и навыка торговли.
+- **Партия:** `joinParty`, HP напарников сохраняется между боями, гибель
+  перманентна.
+- **Квесты:** `startQuest`, переходы стадий по условиям
+  (`checkQuestTransitions` внутри `checkRules`), `journalUpdate`, финалы.
+- **Рост:** «галочки» опыта за успешные проверки; `restAndGrow()` во сне —
+  d100 > навык → +1d6.
+- **Сейвы:** автосейв в `localStorage` (`chronicle-forge:save:<campaignId>`,
+  `SAVE_VERSION = 3`); `gameOver()` всегда стирает сейв (permadeath);
+  `hasSave/loadSave/deleteSave` — экспортируемые помощники.
+
+### 4.2 Бой (`combat.ts`)
+
+`CombatController` создаётся эффектом `start_combat`: юниты игрока, напарников,
+временных союзников и врагов (`c_player`, `c_ally_*`, `c_tally_*`).
+Раунд: инициатива по DEX; у юнита — движение (`movLeft`, Дейкстра с ценой
+сложной местности ×2) и одно действие (атака/предмет). Атака: проверка навыка
+оружия d100 → защита целью (уклонение/парирование, повторные −30%) → урон
+кости + damage bonus − броня (крит: макс. урон, игнор брони).
+**Атака игрока автоматически завершает ход** (`playerAttack` → `nextTurn` +
+`processUntilPlayer`); кнопка в UI — «Пропустить ход». AI (враги и напарники):
+A* к ближайшей цели, атака в радиусе. `checkEnd()` при победе зовёт
+`engine.onCombatVictory(on_victory)` (см. §3.3) и `rollLoot()`; `endCombat()`
+(по «Продолжить») применяет отложенные эффекты, двигает время и сохраняет.
+Перегруз (вес > STR+SIZ) режет MOV и уклонение.
+
+### 4.3 Детерминизм
+
+`prng.ts` (seedrandom): seed создаётся на забег и лежит в сейве; рестарт —
+новый seed. Игроку seed не показывается.
+
+## 5. Player Mode (`src/player`)
+
+`App.tsx` грузит кампанию (`loadCampaign`), показывает `MainMenu` (выбор/импорт/
+удаление кампаний, «Обучение заново») и создаёт `GameEngine` на «Новый забег»/
+«Продолжить». `GameView` подписан на `engine.notify()` и композитит экраны:
+сцена → карта → бой → диалог → торговля → панели → сообщения (`show_message`
+поверх всего, включая бой) → финал. Обучение: уровень 1 — `HelpPanel` (справка,
+включая кнопку «Обучение заново»), уровень 2 — `tips.ts` (одноразовые подсказки
+в бою/диалоге/росте; сброс — `resetTips()`).
+
+## 6. Editor Mode (`src/editor`)
+
+### 6.1 EditorStore
+
+Загружает пакет по `manifest.json` в память (`jsonFiles`/`textFiles`), даёт
+типизированный доступ (`scene(path)`, `entity(path)`…), реестры для селектов
+(`options(kind)` — всегда отсортированы по-русски; `labelFor`, `questStageLabel`),
+следит за изменениями: `touch(path)` → `dirty` + снапшоты для **undo** (серии
+быстрых правок группируются), счётчик «несохранено» сверяется с состоянием
+диска (`saved`-карта) — откат к сохранённому убирает файл из dirty.
+До `load()` стор отдаёт безопасные пустые значения — рендер между сменой
+кампаний не падает; готовность в `EditorApp` привязана к конкретному стору.
+
+### 6.2 Формы: schemas + Fields
+
+`schemas.ts` — декларативные описания всех условий/эффектов: список полей
+(`FieldSpec { key, label, kind }`) + `blank`-заготовка + русские сводки
+(`conditionSummary`/`effectSummary` через `LabelSource`). `Fields.tsx` рендерит
+поле по `kind`: `entityRef/npcRef/itemRef/sceneRef/…` (селекты по реестрам),
+`flagRef` (FlagSelect с «создать новый флаг»), `questStageRef/journalKeyRef`
+(зависят от выбранного квеста), `dialogueNodeRef` (узлы диалога выбранного НПС),
+`timeOfDay` (чипы), `rewardItems`, `enemies` и т.д. Новые эффекты добавляются
+описанием схемы — UI получается автоматически.
+
+### 6.3 Конструктор диалогов
+
+`DialogueBuilder.tsx` редактирует `.dlg.json` и на каждый commit перегенерирует
+`.ink` (`generateInk`). Слово «ink» пользователю не показывается; названия
+диалогов — из `DlgDoc.label`. Настроения реплик = базовые + ключи `portrait`
+НПС, говорящего этим диалогом.
+
+### 6.4 Dev-инфраструктура (vite.config.ts)
+
+- `POST /__editor/save { path, text|base64 }` — запись файла кампании
+  (с защитой от выхода из `public/campaigns`);
+- `POST /__editor/delete { path }` — удаление кампании (кнопки в редакторе и меню);
+- `GET /campaigns/*` — **собственный middleware** отдаёт файлы кампаний прямо с
+  диска. Причина: vite перезагружал страницу при любой записи в `public/`
+  (ломая создание кампаний), поэтому `server.watch.ignored` исключает
+  `public/campaigns`, а раздачу берёт на себя middleware (иначе кэш публичных
+  файлов vite не видит новые кампании и отдаёт index.html).
+
+В прод-сборке и Tauri этих эндпоинтов нет — обмен контентом через `.chronicle`
+(экспорт/импорт zip, `chronicle.ts`); запись через Tauri fs — задача Фазы 5.
+
+## 7. Хранилища браузера
+
+| Ключ | Что |
+|------|-----|
+| `chronicle-forge:save:<campaignId>` | автосейв забега (`GameState`, `SAVE_VERSION=3`) |
+| `cf_tips_seen` | просмотренные интерактивные подсказки |
+| последняя кампания | ключ в `App.tsx` (выбор в меню) |
+
+## 8. Тестирование
+
+`scripts/feedbackN-smoke.mts` (N=1…7) — headless-прогоны против dev-сервера
+`:5173`: движок (бой с настоящими атаками, диалоги через inkjs, квесты,
+потребности с условиями, расписания и события НПС), стор редактора (undo,
+ошибки загрузки, гонки), генерация ink (компиляция всех диалогов),
+согласованность контента демо (флаги в реестре, типы слотов, снаряжение).
+`scripts/regen-ink.mts` — перегенерация всех `.ink` из `.dlg.json` с проверкой
+компиляции. Соглашения для headless: заглушка `localStorage`; победа в бою —
+обнулить врагов и позвать `(combat as any).checkEnd()`; флаги ставить напрямую
+`engine.state.flags[...] = true`.
+
+## 9. Соглашения проекта
+
+- Весь UI — по-русски; сырые id, английские ключи и JSON пользователю не
+  показываются (сводки — через `LabelSource`).
+- Никаких `prompt/confirm/alert` — только `shared/modals.tsx` (единственный
+  `ModalHost` монтируется в `main.tsx`).
+- Все списки редактора отсортированы по алфавиту (ru).
+- id — только автогенерация из названий (`ids.ts`).
+- Изображения — загрузкой с компьютера (пишутся в `assets/` кампании).
+- Контент кампании в движке не хардкодится (см. §1.1).

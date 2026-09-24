@@ -1,0 +1,11 @@
+{
+  "id": "rule_forest_intro",
+  "label": "Первый визит в лес",
+  "once": true,
+  "conditions": [
+    { "type": "player_enters_location", "location": "loc_forest" }
+  ],
+  "effects": [
+    { "type": "show_message", "text": "Опушка снова тиха. У края леса пахнет горной травой — знахари дорого дают за такую. Дальше по тракту лучше не соваться: там земли банды с холмов." }
+  ]
+}

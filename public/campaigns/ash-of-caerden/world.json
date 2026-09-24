@@ -1,0 +1,205 @@
+{
+  "regions": [
+    {
+      "id": "region_caerden",
+      "label": "Долина Каэрден",
+      "map_image": "assets/img/maps/caerden_valley.jpg",
+      "map_size": {
+        "w": 1280,
+        "h": 720
+      },
+      "parent_region": null,
+      "locations": [
+        {
+          "id": "loc_gates",
+          "label": "Городские ворота",
+          "position": {
+            "x": 778,
+            "y": 412
+          },
+          "travel_connections": [
+            {
+              "to": "loc_market",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_tavern",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_forest",
+              "cost_ticks": 4,
+              "random_encounter_table": "enc_road_forest"
+            },
+            {
+              "to": "loc_temple",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_barracks",
+              "cost_ticks": 1
+            }
+          ],
+          "scenes": [
+            "scene_gates_front",
+            "scene_gates_guardroom"
+          ],
+          "on_enter_rules": [
+            "rule_gates_greeting"
+          ]
+        },
+        {
+          "id": "loc_market",
+          "label": "Рыночная площадь",
+          "position": {
+            "x": 848,
+            "y": 338
+          },
+          "travel_connections": [
+            {
+              "to": "loc_gates",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_tavern",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_temple",
+              "cost_ticks": 1
+            }
+          ],
+          "scenes": [
+            "scene_market"
+          ]
+        },
+        {
+          "id": "loc_tavern",
+          "label": "Таверна «Дубовый щит»",
+          "position": {
+            "x": 908,
+            "y": 292
+          },
+          "travel_connections": [
+            {
+              "to": "loc_market",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_gates",
+              "cost_ticks": 1
+            }
+          ],
+          "scenes": [
+            "scene_tavern_hall"
+          ]
+        },
+        {
+          "id": "loc_forest",
+          "label": "Лесная опушка",
+          "position": {
+            "x": 230,
+            "y": 300
+          },
+          "travel_connections": [
+            {
+              "to": "loc_gates",
+              "cost_ticks": 4,
+              "random_encounter_table": "enc_road_forest"
+            },
+            {
+              "to": "loc_ravine",
+              "cost_ticks": 2
+            },
+            {
+              "to": "loc_mine",
+              "cost_ticks": 3
+            }
+          ],
+          "scenes": [
+            "scene_forest_edge"
+          ],
+          "on_enter_rules": [
+            "rule_forest_intro"
+          ]
+        },
+        {
+          "id": "loc_ravine",
+          "label": "Волчья балка",
+          "position": {
+            "x": 150,
+            "y": 118
+          },
+          "hidden": true,
+          "travel_connections": [
+            {
+              "to": "loc_forest",
+              "cost_ticks": 2
+            }
+          ],
+          "scenes": [
+            "scene_ravine_camp"
+          ]
+        },
+        {
+          "id": "loc_temple",
+          "label": "Храм",
+          "position": {
+            "x": 800,
+            "y": 306
+          },
+          "travel_connections": [
+            {
+              "to": "loc_market",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_gates",
+              "cost_ticks": 1
+            }
+          ],
+          "scenes": [
+            "scene_temple"
+          ]
+        },
+        {
+          "id": "loc_barracks",
+          "label": "Казармы стражи",
+          "position": {
+            "x": 742,
+            "y": 372
+          },
+          "travel_connections": [
+            {
+              "to": "loc_gates",
+              "cost_ticks": 1
+            }
+          ],
+          "scenes": [
+            "scene_barracks"
+          ]
+        },
+        {
+          "id": "loc_mine",
+          "label": "Заброшенная шахта",
+          "position": {
+            "x": 292,
+            "y": 568
+          },
+          "hidden": true,
+          "travel_connections": [
+            {
+              "to": "loc_forest",
+              "cost_ticks": 3
+            }
+          ],
+          "scenes": [
+            "scene_mine_entrance",
+            "scene_mine_deep"
+          ]
+        }
+      ],
+      "sub_regions": []
+    }
+  ]
+}
