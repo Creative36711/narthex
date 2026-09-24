@@ -201,6 +201,17 @@ export interface StatBlock {
   MP?: number
 }
 
+/** «при событии — в этом месте»: активная запись важнее расписания */
+export interface PresenceOverride {
+  /** активен, когда флаг установлен */
+  flag?: string
+  /** …и (опционально) когда этот флаг НЕ установлен */
+  not_flag?: string
+  location: string
+  scene: string
+  slot: string
+}
+
 export interface ScheduleEntry {
   /** [от, до) в тиках суток; поддерживает переход через полночь */
   time_range: [number, number]
@@ -238,6 +249,8 @@ export interface NpcDef {
   /** тип в слотах сцены (id из реестра slot_types); по умолчанию «Персонаж» */
   slot_type?: string
   schedule?: ScheduleEntry[]
+  /** особые места по событиям: пока активен флаг — персонаж здесь, расписание не действует */
+  presence_overrides?: PresenceOverride[]
   faction?: string
   base_disposition?: number
   trader?: TraderDef | null

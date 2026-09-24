@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { CampaignData } from '../shared/types'
-import { showAlert } from '../shared/modals'
+import { askConfirm, showAlert } from '../shared/modals'
 import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
 
 interface Props {
@@ -87,18 +87,50 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
             </div>
             <div className="campaign-list">
               {campaigns.map((c) => (
-                <button
-                  key={c.id}
-                  className={`campaign-card ${c.id === m.id ? 'on' : ''}`}
-                  onClick={() => {
-                    onSelectCampaign(c.id)
-                    setShowList(false)
-                  }}
-                >
-                  <span className="campaign-card-title">{c.title}</span>
-                  {c.author && <span className="campaign-card-author">{c.author}</span>}
-                  {c.description && <span className="campaign-card-desc">{c.description}</span>}
-                </button>
+                <div key={c.id} className="campaign-row">
+                  <button
+                    className={`campaign-card ${c.id === m.id ? 'on' : ''}`}
+                    onClick={() => {
+                      onSelectCampaign(c.id)
+                      setShowList(false)
+                    }}
+                  >
+                    <span className="campaign-card-title">{c.title}</span>
+                    {c.author && <span className="campaign-card-author">{c.author}</span>}
+                    {c.description && <span className="campaign-card-desc">{c.description}</span>}
+                  </button>
+                  <button
+                    className="btn btn-small campaign-del"
+                    title="Удалить кампанию с диска"
+                    onClick={async () => {
+                      if (campaigns.length <= 1) {
+                        void showAlert('Нельзя удалить последнюю кампанию', 'Сначала создайте или импортируйте другую.')
+                        return
+                      }
+                      if (!(await askConfirm(`Удалить кампанию «${c.title}» безвозвратно?`, 'Удалить навсегда'))) return
+                      try {
+                        const res = await fetch('/__editor/delete', {
+                          method: 'POST',
+                          headers: { 'content-type': 'application/json' },
+                          body: JSON.stringify({ path: c.id }),
+                        })
+                        if (!res.ok) throw new Error(`${res.status} ${await res.text()}`)
+                        const next = campaigns.filter((x) => x.id !== c.id)
+                        await fetch('/__editor/save', {
+                          method: 'POST',
+                          headers: { 'content-type': 'application/json' },
+                          body: JSON.stringify({ path: 'campaigns/index.json', text: JSON.stringify(next, null, 2) }),
+                        })
+                        // обновить реестр; если удалили открытую кампанию — переключиться
+                        onImported(c.id === m.id && next[0] ? next[0].id : m.id)
+                      } catch (err) {
+                        void showAlert('Не удалось удалить кампанию', `${err}\n(Удаление работает в dev-режиме vite / Tauri.)`)
+                      }
+                    }}
+                  >
+                    🗑
+                  </button>
+                </div>
               ))}
             </div>
             <div className="campaigns-foot">

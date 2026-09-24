@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Effect, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
 import type { EditorStore } from './store'
-import { ImageUpload, JsonField, RefSelect } from './Fields'
+import { FlagSelect, ImageUpload, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { askText } from './prompt'
 import { slugify } from './ids'
@@ -593,7 +593,7 @@ function NpcForm({
                   <input
                     type="number"
                     value={s.price ?? ''}
-                    placeholder="авто"
+                    placeholder="по карточке"
                     onChange={(e) => {
                       if (e.target.value === '') delete s.price
                       else s.price = Number(e.target.value)
@@ -737,6 +737,89 @@ function NpcForm({
       </div>
 
       <div className="props-group">
+        <h4>Особые места (по событиям)</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Пока флаг события установлен, персонаж находится здесь — расписание и
+          обычное место не действуют. Пример: «после налёта — прячется в храме».
+        </div>
+        {(npc.presence_overrides ?? []).map((ov, i) => {
+          const scenes = store.scenePaths().map((p) => store.scene(p)).filter((x): x is NonNullable<typeof x> => !!x)
+          const scene = scenes.find((sc) => sc.id === ov.scene)
+          return (
+            <div key={i} className="journal-row" style={{ flexWrap: 'wrap' }}>
+              <FlagSelect
+                label="если флаг"
+                store={store}
+                value={ov.flag ?? ''}
+                onChange={(f) => ((ov.flag = f ?? ''), commit())}
+              />
+              <FlagSelect
+                label="и НЕ установлен"
+                store={store}
+                value={ov.not_flag ?? ''}
+                optional
+                onChange={(f) => {
+                  if (f) ov.not_flag = f
+                  else delete ov.not_flag
+                  commit()
+                }}
+              />
+              <span className="muted small">→</span>
+              <select
+                className="journal-key"
+                value={ov.scene}
+                onChange={(e) => {
+                  ov.scene = e.target.value
+                  const sc = scenes.find((x) => x.id === ov.scene)
+                  ov.location = sc?.location ?? ''
+                  ov.slot = sc?.slots[0]?.id ?? ''
+                  commit()
+                }}
+              >
+                {!scene && <option value={ov.scene}>{ov.scene || '— сцена —'}</option>}
+                {scenes.map((sc) => (
+                  <option key={sc.id} value={sc.id}>{sc.label}</option>
+                ))}
+              </select>
+              <select
+                className="journal-key"
+                value={ov.slot}
+                onChange={(e) => ((ov.slot = e.target.value), commit())}
+              >
+                {!scene?.slots.some((sl) => sl.id === ov.slot) && <option value={ov.slot}>{ov.slot || '— слот —'}</option>}
+                {(scene?.slots ?? []).map((sl) => (
+                  <option key={sl.id} value={sl.id}>
+                    {sl.label ?? (sl.default_entity ? store.labelFor('entity', sl.default_entity) : sl.id)}
+                  </option>
+                ))}
+              </select>
+              <button className="btn btn-small ce-del" onClick={() => {
+                npc.presence_overrides!.splice(i, 1)
+                if (npc.presence_overrides!.length === 0) delete npc.presence_overrides
+                commit()
+              }}>✕</button>
+            </div>
+          )
+        })}
+        <button
+          className="btn btn-small"
+          onClick={() => {
+            const sc = store.scenePaths().map((p) => store.scene(p)).find((x) => !!x)
+            if (!npc.presence_overrides) npc.presence_overrides = []
+            npc.presence_overrides.push({
+              flag: '',
+              location: sc?.location ?? '',
+              scene: sc?.id ?? '',
+              slot: sc?.slots[0]?.id ?? '',
+            })
+            commit()
+          }}
+        >
+          + место по событию
+        </button>
+      </div>
+
+      <div className="props-group">
         <h4>Добыча с противника</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Что может выпасть с этого персонажа после победы в бою.
@@ -805,19 +888,18 @@ function NpcForm({
 /** Тип сущности в слотах сцены (фидбек №3 пятого раунда). */
 function SlotTypeField({ e, store, commit }: { e: EntityDef; store: EditorStore; commit: () => void }) {
   const types = slotTypesFor(store)
-  const auto = defaultSlotType(e)
+  const current = e.slot_type ?? defaultSlotType(e)
   return (
     <label className="fld" title="По типу фильтруется, в какие слоты сцены можно ставить эту сущность">
       <span>Тип в слотах сцены</span>
       <select
-        value={e.slot_type ?? ''}
+        value={current}
         onChange={(ev) => {
-          if (ev.target.value) e.slot_type = ev.target.value
-          else delete e.slot_type
+          e.slot_type = ev.target.value
           commit()
         }}
       >
-        <option value="">авто: {types.find((t) => t.id === auto)?.label ?? auto}</option>
+        {!types.some((t) => t.id === current) && <option value={current}>{current}</option>}
         {types.map((t) => (
           <option key={t.id} value={t.id}>{t.label}</option>
         ))}

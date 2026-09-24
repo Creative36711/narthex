@@ -245,7 +245,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         <div className="muted small" style={{ marginBottom: 8 }}>
           Что можно ставить в слоты на сценах. Каждой сущности назначается тип
           в её карточке — по нему фильтруется выбор «кто/что стоит в слоте».
-          Встроенные типы удалить нельзя; добавьте свои — например «Робот» или «Дух».
+          Встроенные типы удалить нельзя; добавьте свои — например «Мебель», «Робот» или «Дух».
         </div>
         <div className="chips" style={{ marginBottom: 8 }}>
           {BUILTIN_SLOT_TYPES.map((t) => (

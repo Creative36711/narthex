@@ -909,3 +909,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .modal-box input:focus { outline: none; border-color: var(--gold); }
 .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+
+.campaign-row { display: flex; gap: 8px; align-items: stretch; }
+.campaign-row .campaign-card { flex: 1; }
+.campaign-del { align-self: center; flex: 0 0 auto; }

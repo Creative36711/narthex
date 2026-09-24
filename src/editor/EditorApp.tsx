@@ -34,7 +34,9 @@ const SECTIONS: Array<{ id: EditorSection; label: string }> = [
 
 export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onExit: () => void }) {
   const [base, setBase] = useState(campaignPath)
-  const [loaded, setLoaded] = useState(false)
+  // готовность привязана к конкретному стору: при смене кампании первый же
+  // рендер видит loaded=false (иначе — краш на пустом манифесте)
+  const [readyStore, setReadyStore] = useState<EditorStore | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [section, setSection] = useState<EditorSection>('scenes')
   const [selected, setSelected] = useState<string | null>(null)
@@ -45,13 +47,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
   const store = useMemo(() => new EditorStore(base), [base])
 
+  const loaded = readyStore === store
+
   useEffect(() => {
-    setLoaded(false)
     setError(null)
     setSelected(null)
     store
       .load()
-      .then(() => setLoaded(true))
+      .then(() => setReadyStore(store))
       .catch((e) => setError(String(e)))
   }, [store])
 
@@ -99,6 +102,41 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  const deleteCampaign = async () => {
+    const cur = campaigns.find((c) => `/campaigns/${c.id}` === base)
+    if (!cur) {
+      void showAlert('Кампания не найдена в реестре', 'Обновите страницу и попробуйте ещё раз.')
+      return
+    }
+    if (campaigns.length <= 1) {
+      void showAlert('Нельзя удалить последнюю кампанию', 'Сначала создайте или импортируйте другую.')
+      return
+    }
+    if (!(await askConfirm(`Удалить кампанию «${cur.title}» безвозвратно? Все её файлы будут стёрты с диска.`, 'Удалить навсегда'))) return
+    setBusy('Удаление кампании…')
+    try {
+      const res = await fetch('/__editor/delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path: cur.id }),
+      })
+      if (!res.ok) throw new Error(`${res.status} ${await res.text()}`)
+      const next = campaigns.filter((c) => c.id !== cur.id)
+      const saveRes = await fetch('/__editor/save', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path: 'campaigns/index.json', text: JSON.stringify(next, null, 2) }),
+      })
+      if (!saveRes.ok) throw new Error(`${saveRes.status} ${await saveRes.text()}`)
+      setCampaigns(next)
+      setBase(`/campaigns/${next[0].id}`)
+    } catch (e) {
+      void showAlert('Не удалось удалить кампанию', `${e}\n(Удаление работает в dev-режиме vite / Tauri.)`)
+    } finally {
+      setBusy(null)
+    }
+  }
+
   if (error)
     return (
       <div className="screen-center">
@@ -110,8 +148,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               className="btn"
               onClick={() => {
                 setError(null)
-                setLoaded(false)
-                store.load().then(() => setLoaded(true)).catch((e2) => setError(String(e2)))
+                store.load().then(() => setReadyStore(store)).catch((e2) => setError(String(e2)))
               }}
             >
               Попробовать снова
@@ -292,6 +329,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           <span className="editor-title">{store.meta.title}</span>
         )}
         <button className="btn btn-small" onClick={newCampaign} title="Создать новую кампанию">＋ Кампания</button>
+        <button className="btn btn-small ce-del" onClick={deleteCampaign} title="Удалить текущую кампанию с диска">🗑 Удалить</button>
         <span className="editor-spacer" />
         <button
           className="btn btn-small"

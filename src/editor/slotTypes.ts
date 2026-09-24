@@ -11,7 +11,6 @@ export const BUILTIN_SLOT_TYPES: Array<{ id: string; label: string }> = [
   { id: 'person', label: 'Персонаж' },
   { id: 'item', label: 'Предмет' },
   { id: 'container', label: 'Контейнер' },
-  { id: 'furniture', label: 'Мебель' },
   { id: 'animal', label: 'Животное' },
 ]
 

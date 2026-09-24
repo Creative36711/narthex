@@ -13,6 +13,7 @@ import type {
   SceneStateDef,
   SlotDef,
   TravelConnection,
+  PresenceOverride,
   WeaponData,
 } from '../shared/types'
 import { SAVE_VERSION } from '../shared/types'
@@ -608,6 +609,14 @@ export class GameEngine {
     return scene.states[0]
   }
 
+  /** Активное «особое место» НПС: первый оверрайд, чей флаг-условие выполнено. */
+  private activePresenceOverride(def: EntityDef): PresenceOverride | undefined {
+    if (def.type !== 'npc' || !def.presence_overrides) return undefined
+    return def.presence_overrides.find(
+      (o) => (!o.flag || !!this.state.flags[o.flag]) && (!o.not_flag || !this.state.flags[o.not_flag]),
+    )
+  }
+
   /** Занятость слотов с учётом расписаний NPC (ТЗ 4.1: обновление расписания). */
   slotOccupants(scene: SceneDef): SlotOccupant[] {
     const hour = hourOfDay(this.state.tick, this.campaign.meta)
@@ -620,14 +629,23 @@ export class GameEngine {
       const spawned = this.state.spawned.find((s) => s.scene === scene.id && s.slot === slot.id)
       if (spawned) entity = this.campaign.entities[spawned.entity] ?? null
 
-      // 2. NPC по расписанию
+      // 2. NPC по событиям (важнее расписания) и по расписанию
       if (!entity) {
         for (const def of Object.values(this.campaign.entities)) {
-          if (def.type !== 'npc' || !def.schedule) continue
+          if (def.type !== 'npc' || (!def.schedule && !def.presence_overrides)) continue
           if (this.state.dead_entities.includes(def.id)) continue
           if (this.state.removed_entities.includes(def.id)) continue
           if (this.isInParty(def.id)) continue // напарник ходит с игроком
-          const entry = def.schedule.find(
+          const ov = this.activePresenceOverride(def)
+          if (ov) {
+            // пока активен флаг события — персонаж только в этом месте
+            if (ov.scene === scene.id && ov.slot === slot.id) {
+              entity = def
+              break
+            }
+            continue
+          }
+          const entry = def.schedule?.find(
             (e) => e.scene === scene.id && e.slot === slot.id && inTimeRange(hour, e.time_range),
           )
           if (entry) {
@@ -637,15 +655,16 @@ export class GameEngine {
         }
       }
 
-      // 3. default_entity (сущности без расписания)
+      // 3. default_entity (сущности без расписания и активных событий)
       if (!entity && slot.default_entity) {
         const def = this.campaign.entities[slot.default_entity]
-        const isScheduledNpc = def?.type === 'npc' && !!def.schedule
+        const busyElsewhere =
+          def?.type === 'npc' && (!!def.schedule || !!this.activePresenceOverride(def))
         const gone =
           this.state.dead_entities.includes(slot.default_entity) ||
           this.state.removed_entities.includes(slot.default_entity) ||
           this.isInParty(slot.default_entity)
-        if (def && !isScheduledNpc && !gone) entity = def
+        if (def && !busyElsewhere && !gone) entity = def
       }
 
       out.push({ slot, entity })

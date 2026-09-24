@@ -53,7 +53,7 @@ console.log(`Кампания: ${campaign.meta.title}`)
 
 // ── №2/№3: типы слотов — фильтрация и согласованность контента ──
 {
-  check('№2 встроенных типов пять', BUILTIN_SLOT_TYPES.length === 5)
+  check('№2 встроенные типы без неиспользуемых', BUILTIN_SLOT_TYPES.length === 4)
   const rat = campaign.entities['npc_rat_giant'] as any
   check('№3 крыса — «животное» в слотах', effectiveSlotType(rat) === 'animal')
   check('№3 НПС по умолчанию — «персонаж»', effectiveSlotType(campaign.entities['npc_bran'] as any) === 'person')

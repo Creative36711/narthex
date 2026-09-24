@@ -36,9 +36,11 @@ export type EditorSection =
 
 export class EditorStore {
   basePath: string // "/campaigns/ash-of-caerden"
-  meta!: CampaignMeta
-  world!: WorldDef
-  manifest!: ManifestDef
+  // до load() — безопасные пустые значения: рендер между сменой кампании
+  // и загрузкой не должен падать (фидбек №4–5 шестого раунда)
+  meta: CampaignMeta = { id: '', title: '' } as CampaignMeta
+  world: WorldDef = { regions: [] } as unknown as WorldDef
+  manifest: ManifestDef = { scenes: [], entities: [], rules: [], arenas: [], quests: [], encounters: [], dialogues: [] }
 
   /** JSON-документы по путям пакета */
   jsonFiles = new Map<string, unknown>()

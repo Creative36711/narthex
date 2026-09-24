@@ -6,12 +6,40 @@
     "neutral": "assets/img/npc/lena_neutral.jpg",
     "happy": "assets/img/npc/lena_neutral.jpg"
   },
-  "stats": { "STR": 8, "CON": 10, "SIZ": 9, "DEX": 14, "INT": 13, "POW": 12, "CHA": 14 },
-  "skills": { "stealth": 55, "spot": 50 },
+  "stats": {
+    "STR": 8,
+    "CON": 10,
+    "SIZ": 9,
+    "DEX": 14,
+    "INT": 13,
+    "POW": 12,
+    "CHA": 14
+  },
+  "skills": {
+    "stealth": 55,
+    "spot": 50
+  },
   "dialogue": "dialogues/lena.ink",
   "schedule": [
-    { "time_range": [20, 2], "location": "loc_tavern", "scene": "scene_tavern_hall", "slot": "slot_corner" }
+    {
+      "time_range": [
+        20,
+        2
+      ],
+      "location": "loc_tavern",
+      "scene": "scene_tavern_hall",
+      "slot": "slot_corner"
+    }
   ],
   "faction": "faction_town",
-  "base_disposition": 0
+  "base_disposition": 0,
+  "presence_overrides": [
+    {
+      "flag": "raid_rumors",
+      "not_flag": "camp_cleared",
+      "location": "loc_tavern",
+      "scene": "scene_tavern_hall",
+      "slot": "slot_corner"
+    }
+  ]
 }
