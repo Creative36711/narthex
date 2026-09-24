@@ -1,0 +1,91 @@
+{
+  "id": "scene_gates_front",
+  "label": "Ворота — вид снаружи",
+  "location": "loc_gates",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_day",
+      "label": "День",
+      "image": "assets/img/scenes/gates_front_day.jpg",
+      "condition": {
+        "time_of_day": [
+          "morning",
+          "day",
+          "evening"
+        ]
+      }
+    },
+    {
+      "id": "state_night",
+      "label": "Ночь",
+      "image": "assets/img/scenes/gates_front_night.jpg",
+      "condition": {
+        "time_of_day": "night"
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_guard_left",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 285,
+      "y": 340,
+      "w": 130,
+      "h": 280,
+      "condition": null
+    },
+    {
+      "id": "slot_barrel",
+      "type": [
+        "container",
+        "item"
+      ],
+      "shape": "rect",
+      "x": 862,
+      "y": 448,
+      "w": 110,
+      "h": 150,
+      "default_entity": "item_water_barrel",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 505,
+        "y": 300,
+        "w": 255,
+        "h": 290
+      },
+      "go_to_location": "loc_market",
+      "label": "Пройти в город → Рынок"
+    },
+    {
+      "area": {
+        "x": 1130,
+        "y": 395,
+        "w": 120,
+        "h": 235
+      },
+      "go_to_scene": "scene_gates_guardroom",
+      "label": "В караулку →"
+    },
+    {
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 260,
+        "h": 80
+      },
+      "open_map": true,
+      "label": "🗺 Карта долины"
+    }
+  ]
+}

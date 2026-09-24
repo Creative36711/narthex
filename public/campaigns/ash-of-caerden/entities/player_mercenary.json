@@ -1,0 +1,22 @@
+{
+  "id": "player_mercenary",
+  "type": "npc",
+  "label": "Наёмник",
+  "portrait": {},
+  "stats": { "STR": 13, "CON": 12, "SIZ": 12, "DEX": 13, "INT": 11, "POW": 10, "CHA": 10 },
+  "skills": {
+    "sword": 50,
+    "shield": 35,
+    "dodge": 40,
+    "spot": 35,
+    "first_aid": 30,
+    "persuade": 30,
+    "bargain": 25,
+    "stealth": 25
+  },
+  "inventory": [
+    { "item": "item_bread", "quantity": 2 },
+    { "item": "item_waterskin", "quantity": 1 },
+    { "item": "item_silver", "quantity": 20 }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "item_guard_ration",
+  "type": "item",
+  "category": "food",
+  "label": "Паёк стражи",
+  "description": "Свёрток с хлебом и сыром, оставленный на столе.",
+  "weight": 0.5,
+  "stackable": false,
+  "on_interact": {
+    "effects": [
+      { "type": "add_item", "item": "item_bread", "quantity": 1 },
+      { "type": "set_flag", "flag": "guard_ration_taken" }
+    ],
+    "message": "Вы прибрали к рукам паёк стражи. Хлеб добавлен в инвентарь."
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "item_waterskin",
+  "type": "item",
+  "category": "drink",
+  "label": "Бурдюк с водой",
+  "description": "Кожаный бурдюк. Хватает на один хороший глоток.",
+  "weight": 1.0,
+  "value": { "silver": 2 },
+  "stackable": true,
+  "on_use": {
+    "effects": [{ "type": "change_need", "need": "thirst", "delta": 35 }],
+    "consume": true,
+    "message": "Вы напились из бурдюка."
+  }
+}

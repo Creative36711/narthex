@@ -1,0 +1,41 @@
+{
+  "id": "ash-of-caerden",
+  "title": "Пепел Каэрдена",
+  "version": "0.1.0",
+  "engine_version": "0.1.0",
+  "author": "Chronicle Forge",
+  "description": "Низкое фэнтези, позднее средневековье. Вы — наёмник, прибывший в приграничный город Каэрден в поисках работы. Караваны не доходят до города: на дорогах хозяйничает банда с холмов. Голод и жажда не ждут — как и бандиты.",
+  "tick_label": "ч",
+  "ticks_per_day": 24,
+  "time_of_day": { "morning": 6, "day": 11, "evening": 18, "night": 22 },
+  "starting_region": "region_caerden",
+  "starting_location": "loc_gates",
+  "starting_scene": "scene_gates_front",
+  "starting_tick": 8,
+  "default_player": "player_mercenary",
+
+  "needs": [
+    { "id": "hunger", "label": "Голод", "max": 100, "decay_per_tick": 1.2, "critical_threshold": 15, "on_zero_effect": "death" },
+    { "id": "thirst", "label": "Жажда", "max": 100, "decay_per_tick": 1.8, "critical_threshold": 15, "on_zero_effect": "death" },
+    { "id": "energy", "label": "Энергия", "max": 100, "decay_per_tick": 0.7, "critical_threshold": 10, "on_zero_effect": "effect_collapse" }
+  ],
+
+  "currencies": [
+    { "id": "silver", "label": "Серебряная марка", "symbol": "SM" }
+  ],
+
+  "char_creation": {
+    "total_points": 250,
+    "stat_limits": { "min": 3, "max": 18 },
+    "skill_cap": 75,
+    "mandatory_skills": ["dodge", "first_aid"],
+    "forbidden_skills": [],
+    "allowed_professions": ["profession_soldier"]
+  },
+
+  "roguelike": {
+    "permadeath": true,
+    "meta_progress": ["completion_percentage"],
+    "randomize_on_restart": ["loot_tables", "random_encounters"]
+  }
+}

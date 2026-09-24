@@ -1,0 +1,33 @@
+{
+  "scenes": [
+    "scene_gates_front.json",
+    "scene_gates_guardroom.json",
+    "scene_market.json",
+    "scene_tavern_hall.json",
+    "scene_forest_edge.json"
+  ],
+  "entities": [
+    "player_mercenary.json",
+    "npc_guard_aldric.json",
+    "npc_bran.json",
+    "npc_maeva.json",
+    "item_bread.json",
+    "item_waterskin.json",
+    "item_silver.json",
+    "item_dried_meat.json",
+    "item_herb.json",
+    "item_water_barrel.json",
+    "item_guard_ration.json",
+    "item_herb_bush.json"
+  ],
+  "rules": [
+    "rule_gates_greeting.json",
+    "rule_forest_intro.json",
+    "effect_collapse.json"
+  ],
+  "dialogues": [
+    "aldric.ink",
+    "maeva.ink",
+    "bran.ink"
+  ]
+}

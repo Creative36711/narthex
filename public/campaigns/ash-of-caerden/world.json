@@ -1,0 +1,108 @@
+{
+  "regions": [
+    {
+      "id": "region_caerden",
+      "label": "Долина Каэрден",
+      "map_image": "assets/img/maps/caerden_valley.jpg",
+      "map_size": {
+        "w": 1280,
+        "h": 720
+      },
+      "parent_region": null,
+      "locations": [
+        {
+          "id": "loc_gates",
+          "label": "Городские ворота",
+          "position": {
+            "x": 778,
+            "y": 412
+          },
+          "travel_connections": [
+            {
+              "to": "loc_market",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_tavern",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_forest",
+              "cost_ticks": 4
+            }
+          ],
+          "scenes": [
+            "scene_gates_front",
+            "scene_gates_guardroom"
+          ],
+          "on_enter_rules": [
+            "rule_gates_greeting"
+          ]
+        },
+        {
+          "id": "loc_market",
+          "label": "Рыночная площадь",
+          "position": {
+            "x": 848,
+            "y": 338
+          },
+          "travel_connections": [
+            {
+              "to": "loc_gates",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_tavern",
+              "cost_ticks": 1
+            }
+          ],
+          "scenes": [
+            "scene_market"
+          ]
+        },
+        {
+          "id": "loc_tavern",
+          "label": "Таверна «Дубовый щит»",
+          "position": {
+            "x": 908,
+            "y": 292
+          },
+          "travel_connections": [
+            {
+              "to": "loc_market",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_gates",
+              "cost_ticks": 1
+            }
+          ],
+          "scenes": [
+            "scene_tavern_hall"
+          ]
+        },
+        {
+          "id": "loc_forest",
+          "label": "Лесная опушка",
+          "position": {
+            "x": 230,
+            "y": 300
+          },
+          "travel_connections": [
+            {
+              "to": "loc_gates",
+              "cost_ticks": 4
+            }
+          ],
+          "scenes": [
+            "scene_forest_edge"
+          ],
+          "on_enter_rules": [
+            "rule_forest_intro"
+          ]
+        }
+      ],
+      "sub_regions": []
+    }
+  ]
+}

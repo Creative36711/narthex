@@ -1,0 +1,18 @@
+{
+  "id": "item_herb",
+  "type": "item",
+  "category": "medicine",
+  "label": "Горная трава",
+  "description": "Пахучая трава. Знахари заваривают её от усталости.",
+  "weight": 0.1,
+  "value": { "silver": 2 },
+  "stackable": true,
+  "on_use": {
+    "effects": [
+      { "type": "change_need", "need": "energy", "delta": 25 },
+      { "type": "change_hp", "delta": 1 }
+    ],
+    "consume": true,
+    "message": "Горький настой бодрит и затягивает ссадины."
+  }
+}

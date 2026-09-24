@@ -1,0 +1,9 @@
+{
+  "id": "item_silver",
+  "type": "item",
+  "category": "currency",
+  "label": "Серебряная марка",
+  "description": "Монета Каэрденской чеканки.",
+  "weight": 0.01,
+  "stackable": true
+}

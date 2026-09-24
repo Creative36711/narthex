@@ -1,0 +1,11 @@
+{
+  "id": "rule_forest_intro",
+  "label": "Первый визит в лес",
+  "once": true,
+  "conditions": [
+    { "type": "player_enters_location", "location": "loc_forest" }
+  ],
+  "effects": [
+    { "type": "show_message", "text": "Опушка тиха, но в глубине леса хрустят ветки. Говорят, дальше по тракту хозяйничают бандиты — туда лучше не соваться без оружия. У края опушки пахнет горной травой." }
+  ]
+}
