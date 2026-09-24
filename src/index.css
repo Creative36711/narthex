@@ -913,3 +913,5 @@ button { font-family: inherit; cursor: pointer; }
 .campaign-row { display: flex; gap: 8px; align-items: stretch; }
 .campaign-row .campaign-card { flex: 1; }
 .campaign-del { align-self: center; flex: 0 0 auto; }
+
+.help-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); text-align: right; }

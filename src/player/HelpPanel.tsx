@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { resetTips } from './tips'
+import { showAlert } from '../shared/modals'
 
 /**
  * Встроенная справка Chronicle Forge (Уровень 1 обучения).
@@ -147,6 +149,21 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
             {open === s.id && <div className="help-body">{s.body}</div>}
           </div>
         ))}
+        <div className="help-foot">
+          <button
+            className="btn btn-small"
+            title="Игровые подсказки показываются один раз; эта кнопка включает их снова"
+            onClick={async () => {
+              resetTips()
+              await showAlert(
+                '🎓 Обучение включено заново',
+                'Интерактивные подсказки (первый бой, проверки в диалогах, рост навыков) снова появятся по ходу игры.',
+              )
+            }}
+          >
+            🎓 Обучение заново
+          </button>
+        </div>
       </div>
     </div>
   )
