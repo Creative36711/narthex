@@ -18,6 +18,7 @@ import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange } from './time'
 import type { Story } from 'inkjs'
 import { bindExternals, compileDialogue, drainStory, type DialogueUI } from './dialogue'
+import { CombatController } from './combat'
 
 /**
  * Game State Machine — ядро рантайма (ТЗ 2, 4).
@@ -37,6 +38,7 @@ export class GameEngine {
   private activeStory: Story | null = null
   private activeNpc: NpcDef | null = null
   dialogue: DialogueUI | null = null
+  combat: CombatController | null = null
   /** всплывающие сообщения (show_message) */
   messages: { text: string; portrait?: string }[] = []
 
@@ -110,7 +112,7 @@ export class GameEngine {
       player,
       log: [],
       game_over: null,
-      stats_run: { travels: 0, dialogues: 0, ticks_survived: 0 },
+      stats_run: { travels: 0, dialogues: 0, ticks_survived: 0, kills: 0 },
     }
   }
 
@@ -386,6 +388,9 @@ export class GameEngine {
       case 'start_dialogue':
         this.startDialogue(e.entity, e.dialogue_knot)
         break
+      case 'start_combat':
+        this.startCombat(e)
+        break
       case 'teleport_player': {
         const target = this.findLocation(e.location)
         if (target) {
@@ -446,6 +451,38 @@ export class GameEngine {
     }
   }
 
+  // ─────────────── бой (Фаза 1) ───────────────
+
+  startCombat(def: Extract<Effect, { type: 'start_combat' }>): void {
+    // бой прерывает диалог
+    this.dialogue = null
+    this.activeStory = null
+    this.activeNpc = null
+    this.combat = new CombatController(this, def)
+    this.notify()
+  }
+
+  /** Вызывается UI после экрана победы. */
+  endCombat(): void {
+    const combat = this.combat
+    if (!combat) return
+    this.combat = null
+    if (combat.result === 'victory') {
+      if (combat.def.on_victory) this.applyEffects(combat.def.on_victory)
+      this.advanceTicks(1) // бой занимает время (ТЗ 4.1)
+      this.pushLog(`Бой «${combat.arena.label}» выигран за ${combat.round} раунд(ов).`)
+      this.state.stats_run.kills += combat.combatants.filter((c) => c.side === 'enemy' && c.dead).length
+      this.checkRules()
+      this.autosave()
+    }
+    this.notify()
+  }
+
+  /** Публичный запуск manual-правила (для Ink external fire_rule). */
+  fireRule(ruleId: string): void {
+    this.tryFireRule(ruleId)
+  }
+
   // ─────────────── диалоги ───────────────
 
   startDialogue(entityId: string, knot?: string): void {
@@ -464,16 +501,33 @@ export class GameEngine {
     this.activeNpc = npc
     this.state.stats_run.dialogues += 1
     const drained = drainStory(story)
-    this.dialogue = { npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
+    if (this.combat) {
+      // диалог сразу запустил бой — не показываем окно
+      this.dialogue = null
+      this.activeStory = null
+      this.activeNpc = null
+    } else {
+      this.dialogue = { npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
+    }
     this.notify()
   }
 
   chooseDialogueOption(index: number): void {
-    if (!this.activeStory || !this.activeNpc) return
-    this.activeStory.ChooseChoiceIndex(index)
-    const drained = drainStory(this.activeStory)
+    const story = this.activeStory
+    const npc = this.activeNpc
+    if (!story || !npc) return
+    story.ChooseChoiceIndex(index)
+    const drained = drainStory(story)
+    if (this.combat) {
+      // external fire_rule запустил бой — диалог закрыт, не восстанавливаем
+      this.dialogue = null
+      this.activeStory = null
+      this.activeNpc = null
+      this.notify()
+      return
+    }
     this.dialogue = {
-      npc: this.activeNpc,
+      npc,
       lines: drained.lines,
       choices: drained.choices,
       finished: drained.finished,

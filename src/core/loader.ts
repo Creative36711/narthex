@@ -1,4 +1,5 @@
 import type {
+  ArenaDef,
   CampaignData,
   CampaignMeta,
   EntityDef,
@@ -19,6 +20,7 @@ interface Manifest {
   scenes: string[]
   entities: string[]
   rules: string[]
+  arenas?: string[]
   dialogues: string[]
 }
 
@@ -44,9 +46,14 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   const scenes: Record<string, SceneDef> = {}
   const entities: Record<string, EntityDef> = {}
   const rules: Record<string, RuleDef> = {}
+  const arenas: Record<string, ArenaDef> = {}
   const dialogues: Record<string, string> = {}
 
   await Promise.all([
+    ...(manifest.arenas ?? []).map(async (f) => {
+      const a = await getJSON<ArenaDef>(`${basePath}/arenas/${f}`)
+      arenas[a.id] = a
+    }),
     ...manifest.scenes.map(async (f) => {
       const s = await getJSON<SceneDef>(`${basePath}/scenes/${f}`)
       scenes[s.id] = s
@@ -64,7 +71,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
     }),
   ])
 
-  return { meta, world, scenes, entities, rules, dialogues, basePath }
+  return { meta, world, scenes, entities, rules, arenas, dialogues, basePath }
 }
 
 export function assetUrl(campaign: CampaignData, path: string): string {

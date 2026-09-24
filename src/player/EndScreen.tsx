@@ -23,6 +23,7 @@ export function EndScreen({ engine, onRestart, onExitToMenu }: Props) {
           <div><span>Прожито</span><b>{dayNumber(s.tick, engine.campaign.meta)} дн. ({s.stats_run.ticks_survived} {engine.campaign.meta.tick_label}.)</b></div>
           <div><span>Переходов</span><b>{s.stats_run.travels}</b></div>
           <div><span>Диалогов</span><b>{s.stats_run.dialogues}</b></div>
+          <div><span>Врагов убито</span><b>{s.stats_run.kills ?? 0}</b></div>
           <div><span>Seed забега</span><b>{s.seed}</b></div>
         </div>
         {isDeath && <p className="muted">Автосохранение удалено. Permadeath — таковы правила.</p>}

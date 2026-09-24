@@ -6,6 +6,7 @@ import { MapScreen } from './MapScreen'
 import { DialogueOverlay } from './DialogueOverlay'
 import { InventoryPanel, CharacterPanel, LogPanel } from './Panels'
 import { EndScreen } from './EndScreen'
+import { CombatScreen } from './CombatScreen'
 import { assetUrl } from '../core/loader'
 
 interface Props {
@@ -36,9 +37,11 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
       {panel === 'character' && <CharacterPanel engine={engine} onClose={() => setPanel(null)} />}
       {panel === 'log' && <LogPanel engine={engine} onClose={() => setPanel(null)} />}
 
-      {engine.dialogue && <DialogueOverlay engine={engine} />}
+      {engine.combat && <CombatScreen engine={engine} />}
 
-      {message && !engine.dialogue && (
+      {engine.dialogue && !engine.combat && <DialogueOverlay engine={engine} />}
+
+      {message && !engine.dialogue && !engine.combat && (
         <div className="overlay message-overlay" onClick={() => engine.dismissMessage()}>
           <div className="message-box" onClick={(e) => e.stopPropagation()}>
             {message.portrait && (

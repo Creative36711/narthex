@@ -1,0 +1,20 @@
+{
+  "id": "rule_forest_ambush",
+  "label": "Засада на опушке",
+  "once": true,
+  "conditions": [
+    { "type": "player_enters_location", "location": "loc_forest" }
+  ],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [{ "entity": "npc_bandit", "count": 2 }],
+      "arena": "arena_forest_road",
+      "intro": "Из кустов с гиканьем выскакивают двое оборванцев с дубинами. Засада!",
+      "on_victory": [
+        { "type": "set_flag", "flag": "forest_ambush_cleared" },
+        { "type": "show_message", "text": "Разбойники мертвы. Похоже, это дозорные той самой банды с холмов — у них при себе краденое серебро." }
+      ]
+    }
+  ]
+}

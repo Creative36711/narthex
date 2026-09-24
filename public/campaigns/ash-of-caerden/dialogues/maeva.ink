@@ -5,8 +5,16 @@ EXTERNAL remove_item(id, n)
 EXTERNAL add_item(id, n)
 EXTERNAL change_need(id, d)
 EXTERNAL advance_time(t)
+EXTERNAL fire_rule(id)
 
 === main ===
+{ get_flag("rats_done") && not get_flag("rats_rewarded"):
+    ~ set_flag("rats_rewarded")
+    Ты разобрался с крысами?! Дай расцелую! # emotion: happy
+    ~ add_item("item_bread", 3)
+    ~ add_item("item_waterskin", 2)
+    Держи: хлеб и вода в дорогу — за мой счёт. И считай, что похлёбка для тебя теперь всегда горячая.
+}
 { get_flag("met_maeva"):
     С возвращением. Похлёбка горячая, комната свободна. # emotion: neutral
 - else:
@@ -30,11 +38,30 @@ EXTERNAL advance_time(t)
     Вторая дверь наверху. Бельё чистое, клопов нет — не таверна, а сказка. # emotion: happy
     Вы просыпаетесь отдохнувшим. Правда, желудок успел проголодаться, а во рту пересохло.
     -> main
++ { not get_flag("rats_started") } [Слышал, у тебя какая-то беда в подвале?]
+    Беда? Погибель! Крысы. Да какие — с собаку ростом! # emotion: neutral
+    Прогрызли бочку с элем, тащат припасы. Спуститься сама боюсь, а стража за крыс браться не желает.
+    Разберёшься — накормлю до отвала и в дороге не оставлю. Ну что, возьмёшься?
+    + + [Веди в подвал. (бой)]
+        ~ set_flag("rats_started")
+        Вот люк, вот лестница. Осторожнее там! # emotion: happy
+        ~ fire_rule("encounter_cellar_rats")
+        -> DONE
+    + + [Крысы? Нет уж, уволь.]
+        Эх... А с виду такой храбрец. # emotion: neutral
+        -> main
++ { get_flag("rats_started") && not get_flag("rats_done") } [Про крыс помню, ещё вернусь к ним.]
+    Уж пожалуйста. Они там эль пьют, между прочим. Мой эль! # emotion: neutral
+    + + [Спускаюсь в подвал прямо сейчас. (бой)]
+        ~ fire_rule("encounter_cellar_rats")
+        -> DONE
+    + + [Позже.]
+        -> main
 * [Какие слухи ходят?]
     Все только о банде с холмов и говорят. # emotion: neutral
     Бран на рынке потерял два каравана. Стража носа за ворота не кажет. А по вечерам сюда заходит Алдрик — стражник с ворот. Спроси его, если хочешь подробностей.
     -> main
-* [Мне пора.]
++ [Мне пора.]
     Заглядывай. Очаг тут не гаснет. # emotion: happy
     -> DONE
 + { item_count("item_silver") < 5 } [У меня нет и пяти марок...]

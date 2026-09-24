@@ -196,6 +196,10 @@ export interface NpcDef {
   base_disposition?: number
   trader?: unknown
   combat_ai?: string
+  /** броня в очках (если нет предмета-брони) */
+  armor?: number
+  /** природное оружие (когти, укус) — если нет equipment.weapon */
+  natural_weapon?: WeaponData
 }
 
 export interface WeaponData {
@@ -205,6 +209,7 @@ export interface WeaponData {
   range: number
   attacks_per_round: number
   parry_capable: boolean
+  label?: string
 }
 
 export interface UseEffectDef {
@@ -224,6 +229,8 @@ export interface ItemDef {
   value?: Record<string, number>
   stackable: boolean
   weapon_data?: WeaponData
+  /** броня: очки поглощения урона */
+  armor_data?: { points: number }
   /** взаимодействие в сцене (бочка с водой и т.п.) */
   on_interact?: UseEffectDef
   /** использование из инвентаря */
@@ -231,6 +238,33 @@ export interface ItemDef {
 }
 
 export type EntityDef = NpcDef | ItemDef
+
+// ───────────────────────── арены (ТЗ 3.9) ─────────────────────────
+
+export type HexCoord = [number, number] // [col, row]
+
+export interface ArenaDef {
+  id: string
+  label: string
+  image: string
+  canvas?: { w: number; h: number }
+  hex_grid: {
+    cols: number
+    rows: number
+    hex_size: number
+    offset: 'odd-r'
+    /** пиксельный сдвиг центра гекса (0,0); по умолчанию сетка центрируется */
+    origin?: { x: number; y: number }
+    blocked_hexes: HexCoord[]
+    difficult_terrain: HexCoord[]
+  }
+  spawn_zones: {
+    player: { hexes: HexCoord[] }
+    enemy: { hexes: HexCoord[] }
+  }
+  ambient_audio?: string
+  music?: string
+}
 
 // ───────────────────────── условия и эффекты ─────────────────────────
 
@@ -260,6 +294,13 @@ export type Effect =
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
+  | {
+      type: 'start_combat'
+      enemies: Array<{ entity: string; count: number }>
+      arena: string
+      intro?: string
+      on_victory?: Effect[]
+    }
   | { type: 'teleport_player'; location: string; scene?: string }
   | { type: 'change_scene_state'; scene: string; state: string }
   | { type: 'add_item'; item: string; quantity?: number }
@@ -316,7 +357,7 @@ export interface GameState {
   player: PlayerState
   log: string[]
   game_over: null | { type: 'death' | 'victory'; reason: string }
-  stats_run: { travels: number; dialogues: number; ticks_survived: number }
+  stats_run: { travels: number; dialogues: number; ticks_survived: number; kills: number }
 }
 
 // ───────────────────────── загруженная кампания ─────────────────────────
@@ -327,6 +368,7 @@ export interface CampaignData {
   scenes: Record<string, SceneDef>
   entities: Record<string, EntityDef>
   rules: Record<string, RuleDef>
+  arenas: Record<string, ArenaDef>
   dialogues: Record<string, string> // путь -> исходник .ink
   basePath: string
 }

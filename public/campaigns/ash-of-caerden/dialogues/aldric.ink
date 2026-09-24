@@ -42,7 +42,7 @@ EXTERNAL skill_check(s, d)
         ~ add_item("item_bread", 1)
         Только не болтай, а то вся голытьба сбежится.
     }
-* [Бывай.]
++ [Бывай.]
     Смотри в оба на дорогах. # emotion: neutral
     -> DONE
 - -> main

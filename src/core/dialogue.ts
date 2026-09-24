@@ -66,6 +66,7 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('get_hp', () => engine.state.player.hp)
   bind('change_hp', (d: number) => { engine.changeHp(d); return 0 })
   bind('advance_time', (ticks: number) => { engine.advanceTicks(ticks); return 0 })
+  bind('fire_rule', (ruleId: string) => { engine.fireRule(ruleId); return 0 })
 }
 
 /** Прочитать все доступные строки до выбора/конца. */

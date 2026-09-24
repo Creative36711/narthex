@@ -18,16 +18,26 @@
     "item_herb.json",
     "item_water_barrel.json",
     "item_guard_ration.json",
-    "item_herb_bush.json"
+    "item_herb_bush.json",
+    "npc_bandit.json",
+    "npc_rat_giant.json",
+    "item_short_sword.json",
+    "item_leather_jerkin.json"
   ],
   "rules": [
     "rule_gates_greeting.json",
     "rule_forest_intro.json",
-    "effect_collapse.json"
+    "effect_collapse.json",
+    "rule_forest_ambush.json",
+    "encounter_cellar_rats.json"
   ],
   "dialogues": [
     "aldric.ink",
     "maeva.ink",
     "bran.ink"
+  ],
+  "arenas": [
+    "arena_cellar.json",
+    "arena_forest_road.json"
   ]
 }

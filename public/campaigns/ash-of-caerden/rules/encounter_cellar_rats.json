@@ -1,0 +1,30 @@
+{
+  "id": "encounter_cellar_rats",
+  "label": "Крысы в подвале",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_rat_giant",
+          "count": 2
+        }
+      ],
+      "arena": "arena_cellar",
+      "intro": "В темноте подвала блестят глаза. Две крысы размером с собаку скалят жёлтые резцы.",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "rats_done"
+        },
+        {
+          "type": "show_message",
+          "text": "Подвал очищен. Маэва будет довольна — самое время подняться за наградой."
+        }
+      ]
+    }
+  ]
+}

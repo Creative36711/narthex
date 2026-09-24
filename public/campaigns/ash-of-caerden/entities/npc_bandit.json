@@ -1,0 +1,51 @@
+{
+  "id": "npc_bandit",
+  "type": "npc",
+  "label": "Бандит",
+  "portrait": {
+    "neutral": "assets/img/npc/bandit_neutral.jpg"
+  },
+  "stats": {
+    "STR": 11,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 11,
+    "INT": 9,
+    "POW": 9,
+    "CHA": 8
+  },
+  "skills": {
+    "club": 35,
+    "dodge": 25,
+    "spot": 30
+  },
+  "natural_weapon": {
+    "skill": "club",
+    "damage": "1d6",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true,
+    "label": "Дубина"
+  },
+  "armor": 0,
+  "loot_table": [
+    {
+      "item": "item_silver",
+      "min": 4,
+      "max": 12,
+      "chance": 1.0
+    },
+    {
+      "item": "item_bread",
+      "chance": 0.5
+    },
+    {
+      "item": "item_waterskin",
+      "chance": 0.35
+    }
+  ],
+  "faction": "faction_bandits",
+  "base_disposition": -60,
+  "combat_ai": "aggressive"
+}
