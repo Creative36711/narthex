@@ -264,3 +264,125 @@
 .loc-details { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; background: var(--panel-2); }
 .loc-details > summary { cursor: pointer; font-size: 13px; padding: 4px 0; }
 .loc-details[open] > summary { color: var(--gold-bright); margin-bottom: 8px; }
+
+/* ─────────── загрузка изображений ─────────── */
+
+.img-upload-row { display: flex; gap: 12px; align-items: center; }
+.img-upload-preview {
+  width: 120px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0d0a07;
+}
+.img-upload-empty {
+  width: 120px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  text-align: center;
+}
+.img-upload-btns { display: flex; flex-direction: column; gap: 6px; }
+.img-upload-btns .btn { cursor: pointer; }
+
+/* ─────────── редактор мира с картой ─────────── */
+
+.world-editor { display: flex; gap: 16px; height: 100%; min-height: 0; }
+.world-tree { flex: 0 0 220px; overflow-y: auto; }
+.world-main { flex: 1; overflow-y: auto; min-width: 0; }
+.world-map-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.world-map {
+  position: relative;
+  width: 100%;
+  max-width: 860px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0d0a07;
+  user-select: none;
+  touch-action: none;
+}
+.world-map.placing { cursor: crosshair; outline: 2px dashed var(--gold); }
+.world-map img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
+.world-map-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+.map-marker {
+  position: absolute;
+  transform: translate(-50%, -90%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: grab;
+  z-index: 2;
+}
+.map-marker:active { cursor: grabbing; }
+.map-marker-dot { font-size: 22px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8)); }
+.map-marker-label {
+  font-size: 11px;
+  background: rgba(20, 16, 12, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  color: var(--text);
+}
+.map-marker.on .map-marker-label { border-color: var(--gold); color: var(--gold-bright); }
+.map-marker.hidden-loc { opacity: 0.55; }
+
+/* ─────────── конструктор условий сцены ─────────── */
+
+.scene-cond { border: 1px dashed var(--border); border-radius: 6px; padding: 8px 10px; }
+
+/* ─────────── конструктор диалогов ─────────── */
+
+.dlg-builder { display: flex; gap: 16px; height: 100%; min-height: 0; }
+.dlg-nodes { flex: 0 0 220px; overflow-y: auto; }
+.dlg-node-form { flex: 1; overflow-y: auto; min-width: 0; }
+.dlg-line-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: flex-start; }
+.dlg-line-row textarea {
+  flex: 1;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-width: 0;
+}
+.dlg-line-opts { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
+.dlg-line-opts select {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: inherit;
+}
+.dlg-line-opts .fld-check { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); }
+.dlg-choice {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--panel-2);
+}
+.dlg-choice > summary { cursor: pointer; font-size: 13.5px; color: var(--gold-bright); padding: 2px 0; }
+.dlg-effect-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; flex-wrap: wrap; }
+.dlg-effect-row select, .dlg-effect-row input {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 12.5px;
+  font-family: inherit;
+  min-width: 0;
+}
+.dlg-qty { width: 64px; }

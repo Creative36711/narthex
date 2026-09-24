@@ -115,7 +115,10 @@ console.log(`Кампания загружена: ${campaign.meta.title}`)
     check('№5 после зачистки — победа', e.combat.result === 'victory')
     e.endCombat()
     check('№5 rats_done после боя', !!e.state.flags['rats_done'])
-    check('№5 квест выполнен после боя', e.state.quests['quest_rats']?.stage === 'completed', `stage=${e.state.quests['quest_rats']?.stage}`)
+    // со 2-го раунда фидбека квест завершается после разговора с Маэвой, не сразу после боя
+    e.goToScene('scene_tavern_hall')
+    if (e.dialogue) e.endDialogue()
+    check('№5 квест выполнен после благодарности Маэвы', e.state.quests['quest_rats']?.stage === 'completed', `stage=${e.state.quests['quest_rats']?.stage}`)
   }
 }
 

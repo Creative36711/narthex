@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { EditorStore } from './store'
 import { JsonField } from './Fields'
+import { BUILTIN_SKILL_LABELS } from '../shared/skills'
+import { makeId } from './ids'
 
 /** Редактор campaign.json формой: мета, время, старт, потребности, фракции. */
 export function CampaignEditor({ store }: { store: EditorStore }) {
@@ -18,10 +20,10 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
   }
   const [gen, setGen] = useState(0)
 
-  const sceneIds = store.ids('scene')
-  const locIds = store.world.regions.flatMap((r) => r.locations.map((l) => l.id))
-  const regionIds = store.world.regions.map((r) => r.id)
-  const npcIds = store.ids('npc')
+  const sceneOpts = store.options('scene')
+  const locOpts = store.options('location')
+  const regionOpts = store.world.regions.map((r) => ({ id: r.id, label: r.label }))
+  const npcOpts = store.options('npc')
 
   return (
     <div className="rule-editor">
@@ -70,12 +72,12 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <div className="props-group">
         <h4>Старт игры</h4>
         <div className="fld-row">
-          <SelectFld label="Регион" value={m.starting_region} options={regionIds} onChange={(v) => ((m.starting_region = v), commit())} />
-          <SelectFld label="Локация" value={m.starting_location} options={locIds} onChange={(v) => ((m.starting_location = v), commit())} />
-          <SelectFld label="Сцена" value={m.starting_scene} options={sceneIds} onChange={(v) => ((m.starting_scene = v), commit())} />
+          <SelectFld label="Регион" value={m.starting_region} options={regionOpts} onChange={(v) => ((m.starting_region = v), commit())} />
+          <SelectFld label="Локация" value={m.starting_location} options={locOpts} onChange={(v) => ((m.starting_location = v), commit())} />
+          <SelectFld label="Сцена" value={m.starting_scene} options={sceneOpts} onChange={(v) => ((m.starting_scene = v), commit())} />
         </div>
         <div className="fld-row">
-          <SelectFld label="Персонаж игрока" value={m.default_player} options={npcIds} onChange={(v) => ((m.default_player = v), commit())} />
+          <SelectFld label="Персонаж игрока" value={m.default_player} options={npcOpts} onChange={(v) => ((m.default_player = v), commit())} />
           <label className="fld">
             <span>Стартовый тик</span>
             <input type="number" value={m.starting_tick ?? 0} onChange={(e) => ((m.starting_tick = Number(e.target.value)), commit())} />
@@ -103,16 +105,33 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Убыль за тик</span>
               <input type="number" step="0.1" value={n.decay_per_tick} onChange={(e) => ((n.decay_per_tick = Number(e.target.value)), commit())} />
             </label>
-            <label className="fld">
-              <span>Критично при</span>
+            <label className="fld" title="Ниже этого значения полоска подсвечивается красным — предупреждение игроку">
+              <span>Тревога ниже</span>
               <input type="number" value={n.critical_threshold} onChange={(e) => ((n.critical_threshold = Number(e.target.value)), commit())} />
+            </label>
+            <label className="fld" title="Что случится, когда потребность упадёт до нуля">
+              <span>При нуле</span>
+              <select
+                value={n.on_zero_effect ?? 'death'}
+                onChange={(e) => ((n.on_zero_effect = e.target.value), commit())}
+              >
+                <option value="death">Смерть героя</option>
+                {store.options('rule').map((r) => (
+                  <option key={r.id} value={r.id}>Правило: {r.label}</option>
+                ))}
+              </select>
             </label>
             <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}>✕</button>
           </div>
         ))}
         <button
           className="btn btn-small"
-          onClick={() => (m.needs.push({ id: `need_${m.needs.length + 1}`, label: 'Новая потребность', max: 100, decay_per_tick: 1, critical_threshold: 25 }), commit())}
+          onClick={() => {
+            const label = prompt('Название потребности (например «Тепло»):')
+            if (!label) return
+            m.needs.push({ id: makeId('need_', label, m.needs.map((x) => x.id)), label, max: 100, decay_per_tick: 1, critical_threshold: 25, on_zero_effect: 'death' })
+            commit()
+          }}
         >
           + потребность
         </button>
@@ -135,9 +154,45 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         ))}
         <button
           className="btn btn-small"
-          onClick={() => (m.factions!.push({ id: `faction_${m.factions!.length + 1}`, label: 'Новая фракция', base_disposition: 0 }), commit())}
+          onClick={() => {
+            const label = prompt('Название фракции:')
+            if (!label) return
+            m.factions!.push({ id: makeId('faction_', label, m.factions!.map((x) => x.id)), label, base_disposition: 0 })
+            commit()
+          }}
         >
           + фракция
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Навыки игры</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Единый список навыков кампании: он используется в листе персонажа, в проверках,
+          в бою и во всех выпадающих списках редактора.
+        </div>
+        {(m.skills ?? []).map((sk, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={sk.label} onChange={(e) => ((sk.label = e.target.value), commit())} />
+            </label>
+            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}>✕</button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={() => {
+            const label = prompt('Название навыка (например «Стрельба из лука»):')
+            if (!label) return
+            if (!m.skills) m.skills = []
+            // если название совпадает со стандартным — используем стандартный id (у него есть встроенный перевод)
+            const builtin = Object.entries(BUILTIN_SKILL_LABELS).find(([, l]) => l.toLowerCase() === label.toLowerCase())?.[0]
+            m.skills.push({ id: builtin ?? makeId('skill_', label, m.skills.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + навык
         </button>
       </div>
 
@@ -169,14 +224,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
   )
 }
 
-function SelectFld({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) {
+function SelectFld({ label, value, options, onChange }: { label: string; value: string; options: Array<{ id: string; label: string }>; onChange: (v: string) => void }) {
   return (
     <label className="fld">
       <span>{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
-        {!options.includes(value) && <option value={value}>{value}</option>}
+        {!options.some((o) => o.id === value) && <option value={value}>{value}</option>}
         {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
+          <option key={o.id} value={o.id}>{o.label}</option>
         ))}
       </select>
     </label>

@@ -3,6 +3,7 @@ import type { ArenaDef, HexCoord } from '../shared/types'
 import type { Hex } from '../core/hex'
 import { hexCorners, hexToPixel, gridPixelSize } from '../core/hex'
 import type { EditorStore } from './store'
+import { ImageUpload, RefSelect } from './Fields'
 
 /**
  * Редактор арены (ТЗ 5.2.6): фон + гекс-сетка, раскраска кистью —
@@ -124,17 +125,17 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
         <div className="props-group">
           <h4>Арена</h4>
           <label className="fld">
-            <span>id</span>
-            <input value={arena.id} onChange={(e) => ((arena.id = e.target.value), commit())} />
-          </label>
-          <label className="fld">
             <span>Название</span>
             <input value={arena.label} onChange={(e) => ((arena.label = e.target.value), commit())} />
           </label>
-          <label className="fld">
-            <span>Фон (путь)</span>
-            <input value={arena.image} onChange={(e) => ((arena.image = e.target.value), commit())} />
-          </label>
+          <ImageUpload
+            label="Фон арены (вид сверху)"
+            value={arena.image}
+            dir="assets/img/arenas"
+            store={store}
+            onChange={(p) => ((arena.image = p), commit())}
+          />
+          <ArenaLocationBinding arena={arena} store={store} commit={commit} />
           <div className="fld-row">
             <label className="fld">
               <span>Колонок</span>
@@ -176,4 +177,53 @@ export function newArena(id: string): ArenaDef {
     },
     spawn_zones: { player: { hexes: [] }, enemy: { hexes: [] } },
   }
+}
+
+
+/** Привязка арены к локации (фидбек №21): выбирается локация, у которой эта арена — «домашняя». */
+function ArenaLocationBinding({
+  arena,
+  store,
+  commit,
+}: {
+  arena: { id: string }
+  store: EditorStore
+  commit: () => void
+}) {
+  // локация, у которой loc.arena === arena.id
+  const findBound = (): string => {
+    let bound = ''
+    const walk = (regions: typeof store.world.regions) => {
+      for (const r of regions) {
+        for (const l of r.locations) if (l.arena === arena.id) bound = l.id
+        if (r.sub_regions) walk(r.sub_regions)
+      }
+    }
+    walk(store.world.regions)
+    return bound
+  }
+  const setBound = (locId: string | undefined) => {
+    const walk = (regions: typeof store.world.regions) => {
+      for (const r of regions) {
+        for (const l of r.locations) {
+          if (l.arena === arena.id && l.id !== locId) delete l.arena
+          if (locId && l.id === locId) l.arena = arena.id
+        }
+        if (r.sub_regions) walk(r.sub_regions)
+      }
+    }
+    walk(store.world.regions)
+    store.touch('world.json')
+    commit()
+  }
+  return (
+    <RefSelect
+      label="Локация этой арены"
+      kind="location"
+      store={store}
+      value={findBound()}
+      optional
+      onChange={(v) => setBound(v)}
+    />
+  )
 }

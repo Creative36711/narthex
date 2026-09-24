@@ -6,6 +6,8 @@ import { RuleEditor, newRule } from './RuleEditor'
 import { QuestEditor, newQuest } from './QuestEditor'
 import { InkEditor } from './MonacoEditors'
 import { EntityEditor } from './EntityEditor'
+import { DialogueBuilder, hasDlgDoc } from './DialogueBuilder'
+import { generateInk, newDlgDoc } from './dialogueDoc'
 import { CampaignEditor } from './CampaignEditor'
 import { WorldEditor } from './WorldEditor'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
@@ -96,7 +98,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       case 'scenes':
         return store.scenePaths().map((p) => ({ path: p, title: store.scene(p)?.label ?? p }))
       case 'entities':
-        return store.entityPaths().map((p) => ({ path: p, title: store.entity(p)?.id ?? p }))
+        return store.entityPaths().map((p) => ({ path: p, title: store.entity(p)?.label ?? p }))
       case 'rules':
         return store.rulePaths().map((p) => ({ path: p, title: store.rule(p)?.label ?? p }))
       case 'quests':
@@ -153,11 +155,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       path = store.createFile('arenas', `${id}.json`, { ...newArena(id), label })
     } else if (section === 'dialogues') {
       const fn = slugify(label)
-      path = store.createFile(
-        'dialogues',
-        `${fn}.ink`,
-        `EXTERNAL get_flag(f)\nEXTERNAL set_flag(f)\n\n=== main ===\nПривет, путник.\n+ [Уйти] -> END\n`,
-      )
+      const doc = newDlgDoc()
+      path = store.createFile('dialogues', `${fn}.ink`, generateInk(doc))
+      store.jsonFiles.set(`dialogues/${fn}.dlg.json`, doc)
+      store.touch(`dialogues/${fn}.dlg.json`)
     }
     if (path) setSelected(path)
   }
@@ -168,6 +169,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     const fn = selected.split('/').pop()!
     const sectionKey = (section === 'dialogues' ? 'dialogues' : section) as keyof ManifestDef
     store.deleteFile(sectionKey, fn)
+    if (section === 'dialogues') {
+      // вместе с .ink убираем визуальный исходник конструктора
+      const dlg = `dialogues/${fn.replace(/\.ink$/, '.dlg.json')}`
+      store.jsonFiles.delete(dlg)
+      store.dirty.delete(dlg)
+    }
     setSelected(null)
   }
 
@@ -253,7 +260,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           💾 Сохранить
         </button>
         <button className="btn btn-small" onClick={playtest}>▶ Плейтест</button>
-        <button className="btn btn-small" onClick={doExport}>⬇ .chronicle</button>
+        <button className="btn btn-small" onClick={doExport} title="Скачать кампанию одним файлом .chronicle">⬇ Экспорт</button>
         <button className="btn btn-small" onClick={() => fileInput.current?.click()}>⬆ Импорт</button>
         <input
           ref={fileInput}
@@ -320,7 +327,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           {section === 'entities' && sel && <EntityEditor key={sel} store={store} path={sel} />}
           {section === 'rules' && sel && <RuleEditor key={sel} store={store} path={sel} />}
           {section === 'quests' && sel && <QuestEditor key={sel} store={store} path={sel} />}
-          {section === 'dialogues' && sel && <InkEditor key={sel} store={store} path={sel} />}
+          {section === 'dialogues' && sel && (hasDlgDoc(store, sel)
+            ? <DialogueBuilder key={sel} store={store} path={sel} />
+            : <InkEditor key={sel} store={store} path={sel} />)}
           {section === 'arenas' && sel && <ArenaEditor key={sel} store={store} path={sel} />}
           {hasList && !sel && (
             <div className="screen-center muted">Выберите элемент слева или создайте новый.</div>

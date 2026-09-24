@@ -51,7 +51,8 @@
     "rule_raid_warning.json",
     "rule_market_raid.json",
     "rule_city_assault.json",
-    "encounter_camp_fight_surprise.json"
+    "encounter_camp_fight_surprise.json",
+    "rule_maeva_thanks.json"
   ],
   "dialogues": [
     "aldric.ink",

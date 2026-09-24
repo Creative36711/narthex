@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { ItemDef, NpcDef, StatBlock } from '../shared/types'
 import type { EditorStore } from './store'
-import { JsonField } from './Fields'
+import { ImageUpload, JsonField, RefSelect } from './Fields'
+import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 
 /**
  * Редактор сущностей формами (предмет / NPC) + «расширенный JSON» для
@@ -62,7 +63,7 @@ function ItemForm({
   return (
     <div className="rule-editor">
       <div className="props-group">
-        <h4>Предмет · <code>{item.id}</code></h4>
+        <h4>Предмет</h4>
         <div className="fld-row">
           <label className="fld">
             <span>Название</span>
@@ -99,14 +100,17 @@ function ItemForm({
             <span>Стакается</span>
           </label>
         </div>
-        <label className="fld">
-          <span>Изображение (путь)</span>
-          <input value={item.image ?? ''} onChange={(e) => {
-            if (e.target.value) item.image = e.target.value
+        <ImageUpload
+          label="Изображение предмета"
+          value={item.image ?? ''}
+          dir="assets/img/items"
+          store={store}
+          onChange={(p) => {
+            if (p) item.image = p
             else delete item.image
             commit()
-          }} />
-        </label>
+          }}
+        />
       </div>
 
       <div className="props-group">
@@ -140,10 +144,12 @@ function ItemForm({
         </div>
         {item.weapon_data && (
           <div className="fld-row">
-            <label className="fld">
-              <span>Навык</span>
-              <input value={item.weapon_data.skill} onChange={(e) => ((item.weapon_data!.skill = e.target.value), commit())} />
-            </label>
+            <SkillSelect
+              label="Навык владения"
+              store={store}
+              value={item.weapon_data.skill}
+              onChange={(v) => ((item.weapon_data!.skill = v), commit())}
+            />
             <label className="fld">
               <span>Урон (кости)</span>
               <input value={item.weapon_data.damage} onChange={(e) => ((item.weapon_data!.damage = e.target.value), commit())} />
@@ -185,45 +191,75 @@ function NpcForm({
   return (
     <div className="rule-editor">
       <div className="props-group">
-        <h4>NPC · <code>{npc.id}</code></h4>
+        <h4>Персонаж (NPC)</h4>
         <div className="fld-row">
           <label className="fld">
             <span>Имя</span>
             <input value={npc.label} onChange={(e) => ((npc.label = e.target.value), commit())} />
           </label>
-          <label className="fld">
-            <span>Фракция</span>
-            <input value={npc.faction ?? ''} onChange={(e) => {
-              if (e.target.value) npc.faction = e.target.value
+          <RefSelect
+            label="Фракция"
+            kind="faction"
+            store={store}
+            value={npc.faction ?? ''}
+            optional
+            onChange={(v) => {
+              if (v) npc.faction = v
               else delete npc.faction
               commit()
-            }} />
-          </label>
-          <label className="fld">
-            <span>Личная поправка</span>
+            }}
+          />
+          <label className="fld" title="Прибавка к отношению фракции лично для этого персонажа: +20 — дружелюбнее прочих, −20 — недолюбливает героя">
+            <span>Личное отношение к герою (±)</span>
             <input type="number" value={npc.base_disposition ?? 0} onChange={(e) => ((npc.base_disposition = Number(e.target.value)), commit())} />
           </label>
         </div>
+        <RefSelect
+          label="Диалог"
+          kind="dialogue"
+          store={store}
+          value={npc.dialogue ?? ''}
+          optional
+          onChange={(v) => {
+            if (v) npc.dialogue = v
+            else delete npc.dialogue
+            commit()
+          }}
+        />
+        <ImageUpload
+          label="Портрет (обычный)"
+          value={npc.portrait?.neutral ?? ''}
+          dir="assets/img/npc"
+          store={store}
+          onChange={(p) => {
+            npc.portrait = { ...(npc.portrait ?? {}), neutral: p }
+            if (!p) delete npc.portrait.neutral
+            commit()
+          }}
+        />
         <div className="fld-row">
-          <label className="fld">
-            <span>Диалог (.ink)</span>
-            <input list="dlg-paths" value={npc.dialogue ?? ''} onChange={(e) => {
-              if (e.target.value) npc.dialogue = e.target.value
-              else delete npc.dialogue
+          <ImageUpload
+            label="Портрет (радость)"
+            value={npc.portrait?.happy ?? ''}
+            dir="assets/img/npc"
+            store={store}
+            onChange={(p) => {
+              npc.portrait = { ...(npc.portrait ?? {}), happy: p }
+              if (!p) delete npc.portrait.happy
               commit()
-            }} />
-            <datalist id="dlg-paths">
-              {store.dialoguePaths().map((p) => <option key={p} value={p} />)}
-            </datalist>
-          </label>
-          <label className="fld">
-            <span>Портрет neutral (путь)</span>
-            <input value={npc.portrait?.neutral ?? ''} onChange={(e) => {
-              npc.portrait = { ...(npc.portrait ?? {}), neutral: e.target.value }
-              if (!e.target.value) delete npc.portrait.neutral
+            }}
+          />
+          <ImageUpload
+            label="Портрет (гнев)"
+            value={npc.portrait?.angry ?? ''}
+            dir="assets/img/npc"
+            store={store}
+            onChange={(p) => {
+              npc.portrait = { ...(npc.portrait ?? {}), angry: p }
+              if (!p) delete npc.portrait.angry
               commit()
-            }} />
-          </label>
+            }}
+          />
         </div>
       </div>
 
@@ -250,9 +286,12 @@ function NpcForm({
 
       <div className="props-group">
         <h4>Навыки</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Список навыков игры задаётся в разделе «Кампания» → «Навыки игры».
+        </div>
         {Object.entries(npc.skills).map(([k, v]) => (
           <div key={k} className="journal-row">
-            <input
+            <select
               className="journal-key"
               value={k}
               onChange={(e) => {
@@ -260,17 +299,30 @@ function NpcForm({
                 npc.skills = Object.fromEntries(entries.map(([kk, vv]) => (kk === k ? [e.target.value, vv] : [kk, vv])))
                 commit()
               }}
-            />
+            >
+              {!store.options('skill').some((o) => o.id === k) && <option value={k}>{BUILTIN_SKILL_LABELS[k] ?? k}</option>}
+              {store.options('skill').map((o) => (
+                <option key={o.id} value={o.id} disabled={o.id !== k && npc.skills[o.id] !== undefined}>{o.label}</option>
+              ))}
+            </select>
             <input
               type="number"
               className="journal-key"
               value={v}
               onChange={(e) => ((npc.skills[k] = Number(e.target.value)), commit())}
             />
+            <span className="muted small">%</span>
             <button className="btn btn-small ce-del" onClick={() => (delete npc.skills[k], commit())}>✕</button>
           </div>
         ))}
-        <button className="btn btn-small" onClick={() => ((npc.skills[`skill_${Object.keys(npc.skills).length + 1}`] = 30), commit())}>
+        <button
+          className="btn btn-small"
+          onClick={() => {
+            const free = store.options('skill').find((o) => npc.skills[o.id] === undefined)
+            npc.skills[free?.id ?? `skill_${Object.keys(npc.skills).length + 1}`] = 30
+            commit()
+          }}
+        >
           + навык
         </button>
       </div>
@@ -280,5 +332,32 @@ function NpcForm({
         Торговля, расписание, лут, инвентарь и природное оружие — в «Расширенном JSON».
       </div>
     </div>
+  )
+}
+
+
+/** Выпадающий список навыков из реестра кампании (по-русски). */
+function SkillSelect({
+  label,
+  store,
+  value,
+  onChange,
+}: {
+  label: string
+  store: EditorStore
+  value: string
+  onChange: (v: string) => void
+}) {
+  const options = store.options('skill')
+  return (
+    <label className="fld">
+      <span>{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {!options.some((o) => o.id === value) && <option value={value}>{BUILTIN_SKILL_LABELS[value] ?? value}</option>}
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.label}</option>
+        ))}
+      </select>
+    </label>
   )
 }

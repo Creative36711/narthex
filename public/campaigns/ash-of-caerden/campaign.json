@@ -94,5 +94,47 @@
       "base_disposition": -60
     }
   ],
-  "max_companions": 1
+  "max_companions": 1,
+  "skills": [
+    {
+      "id": "sword",
+      "label": "Мечи"
+    },
+    {
+      "id": "spear",
+      "label": "Копья"
+    },
+    {
+      "id": "brawl",
+      "label": "Кулачный бой"
+    },
+    {
+      "id": "dodge",
+      "label": "Уклонение"
+    },
+    {
+      "id": "stealth",
+      "label": "Скрытность"
+    },
+    {
+      "id": "spot",
+      "label": "Наблюдательность"
+    },
+    {
+      "id": "persuade",
+      "label": "Убеждение"
+    },
+    {
+      "id": "bargain",
+      "label": "Торговля"
+    },
+    {
+      "id": "first_aid",
+      "label": "Первая помощь"
+    },
+    {
+      "id": "bite",
+      "label": "Укус"
+    }
+  ]
 }

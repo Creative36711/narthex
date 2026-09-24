@@ -1,6 +1,20 @@
 import type { GameEngine } from '../core/engine'
-import type { ItemDef } from '../shared/types'
+import type { Effect, ItemDef } from '../shared/types'
 import { damageBonus, movement } from '../core/brp'
+
+/** человекочитаемое описание эффектов on_use (фидбек №7: «сколько HP лечит мазь») */
+function useEffectText(engine: GameEngine, effects: Effect[]): string {
+  const parts: string[] = []
+  for (const e of effects) {
+    if (e.type === 'change_hp') parts.push(e.delta > 0 ? `восстанавливает ${e.delta} HP` : `отнимает ${-e.delta} HP`)
+    else if (e.type === 'change_need') {
+      const need = engine.campaign.meta.needs.find((n) => n.id === e.need || `need_${e.need}` === n.id)
+      const label = (need?.label ?? e.need).toLowerCase()
+      parts.push(e.delta > 0 ? `+${e.delta} к «${label}»` : `−${-e.delta} к «${label}»`)
+    } else if (e.type === 'advance_time') parts.push(`занимает ${e.ticks} ${engine.campaign.meta.tick_label}.`)
+  }
+  return parts.length ? `При использовании: ${parts.join(', ')}.` : ''
+}
 
 /** Инвентарь (ТЗ 4.6 — базовая часть Фазы 0: список, вес, использование). */
 export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
@@ -26,10 +40,13 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                 {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
                 {engine.isEquipped(entry.item) && <span className="equipped-badge">✓ надето</span>}
                 <div className="muted small">{def!.description}</div>
+                {def!.on_use && useEffectText(engine, def!.on_use.effects) && (
+                  <div className="muted small use-effect">{useEffectText(engine, def!.on_use.effects)}</div>
+                )}
                 {def!.weapon_data && (
                   <div className="muted small">
                     Оружие: {def!.weapon_data.damage}
-                    {def!.weapon_data.damage_bonus ? ' + бонус силы' : ''} · навык «{def!.weapon_data.skill}»
+                    {def!.weapon_data.damage_bonus ? ' + бонус силы' : ''} · навык «{engine.skillLabel(def!.weapon_data.skill)}»
                   </div>
                 )}
                 {def!.armor_data && <div className="muted small">Броня: −{def!.armor_data.points} к урону</div>}
@@ -54,6 +71,15 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                       Надеть
                     </button>
                   ))}
+                <button
+                  className="btn btn-small btn-drop"
+                  title="Выбросить"
+                  onClick={() => {
+                    if (confirm(`Выбросить ${entry.quantity > 1 ? '1 шт. — ' : ''}«${def!.label}»?`)) engine.removeItem(entry.item, 1)
+                  }}
+                >
+                  🗑 Выбросить
+                </button>
               </div>
             </li>
           ))}

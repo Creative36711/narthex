@@ -10,10 +10,22 @@
     {
       "id": "started",
       "on_enter_effects": [
-        { "type": "journal_update", "quest": "quest_rats", "text_key": "started" }
+        {
+          "type": "journal_update",
+          "quest": "quest_rats",
+          "text_key": "started"
+        }
       ],
       "transitions": [
-        { "to": "completed", "conditions": [{ "type": "flag_set", "flag": "rats_done" }] }
+        {
+          "to": "completed",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "rats_rewarded"
+            }
+          ]
+        }
       ]
     },
     {
@@ -21,8 +33,16 @@
       "final": true,
       "outcome": "success",
       "on_enter_effects": [
-        { "type": "journal_update", "quest": "quest_rats", "text_key": "completed" },
-        { "type": "change_disposition", "target": "faction_town", "delta": 10 }
+        {
+          "type": "journal_update",
+          "quest": "quest_rats",
+          "text_key": "completed"
+        },
+        {
+          "type": "change_disposition",
+          "target": "faction_town",
+          "delta": 10
+        }
       ]
     }
   ]

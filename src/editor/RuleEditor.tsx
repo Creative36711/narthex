@@ -16,16 +16,10 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
     <div className="rule-editor">
       <div className="props-group">
         <h4>Правило</h4>
-        <div className="fld-row">
-          <label className="fld">
-            <span>id</span>
-            <input value={rule.id} onChange={(e) => ((rule.id = e.target.value), commit())} />
-          </label>
-          <label className="fld">
-            <span>Название</span>
-            <input value={rule.label} onChange={(e) => ((rule.label = e.target.value), commit())} />
-          </label>
-        </div>
+        <label className="fld">
+          <span>Название</span>
+          <input value={rule.label} onChange={(e) => ((rule.label = e.target.value), commit())} />
+        </label>
         <div className="fld-row">
           <label className="fld fld-check">
             <input type="checkbox" checked={rule.once} onChange={(e) => ((rule.once = e.target.checked), commit())} />

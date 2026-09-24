@@ -23,6 +23,7 @@ import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange } from './time'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
+import { skillLabel } from '../shared/skills'
 import { CombatController } from './combat'
 
 /**
@@ -43,7 +44,6 @@ export class GameEngine {
   private activeStory: Story | null = null
   private activeNpc: NpcDef | null = null
   /** Ink-истории этого забега (состояние once-выборов живёт в пределах забега) */
-  private stories = new Map<string, Story>()
   dialogue: DialogueUI | null = null
   combat: CombatController | null = null
   /** открытая торговля: id NPC-торговца */
@@ -425,12 +425,18 @@ export class GameEngine {
   playerSkillCheck(skill: string, difficulty = 50): ReturnType<typeof skillCheck> {
     const value = this.state.player.skills[skill] ?? 0
     const out = skillCheck(value, this.rng, 50 - difficulty)
-    this.pushLog(`Проверка «${skill}» (d100=${out.roll} против ${out.target}): ${out.result}`)
+    const rus = { critical: 'критический успех', hard: 'уверенный успех', success: 'успех', fail: 'провал', fumble: 'критический провал' } as Record<string, string>
+    this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${rus[out.result] ?? out.result}`)
     if (out.success) this.markSkill(skill)
     return out
   }
 
   /** Отдых: броски роста отмеченных навыков (d100 > навык → +1d6). */
+  /** русское название навыка (реестр кампании → встроенный словарь → id) */
+  skillLabel(id: string): string {
+    return skillLabel(id, this.campaign.meta.skills)
+  }
+
   restAndGrow(): string[] {
     const grown: string[] = []
     for (const skill of Object.keys(this.state.player.skill_marks)) {
@@ -439,8 +445,8 @@ export class GameEngine {
       if (roll > cur) {
         const gain = rollDice('1d6', this.rng)
         this.state.player.skills[skill] = cur + gain
-        grown.push(`${skill} +${gain} (${cur} → ${cur + gain})`)
-        this.pushLog(`Навык «${skill}» вырос на ${gain} (${cur} → ${cur + gain}).`)
+        grown.push(`${this.skillLabel(skill)} +${gain} (${cur} → ${cur + gain})`)
+        this.pushLog(`Навык «${this.skillLabel(skill)}» вырос на ${gain} (${cur} → ${cur + gain}).`)
       }
     }
     this.state.player.skill_marks = {}
@@ -894,21 +900,11 @@ export class GameEngine {
     if (!npc || npc.type !== 'npc' || !npc.dialogue) return
     const source = this.campaign.dialogues[npc.dialogue]
     if (!source) return
-    let story = this.stories.get(npc.dialogue)
-    if (!story) {
-      story = createStory(source, npc.dialogue)
-      bindExternals(story, this)
-      // восстановление состояния Ink из сейва
-      const saved = this.state.ink_states?.[npc.dialogue]
-      if (saved) {
-        try {
-          story.state.LoadJson(saved)
-        } catch {
-          /* несовместимое состояние — начинаем заново */
-        }
-      }
-      this.stories.set(npc.dialogue, story)
-    }
+    // Каждый разговор — свежая Story (компиляция кэширована в dialogue.ts):
+    // однократные `*`-ветки исчезают до конца разговора и возвращаются в новом,
+    // а «навсегда» вещи хранятся только во флагах. (фидбек №3)
+    const story = createStory(source, npc.dialogue)
+    bindExternals(story, this)
     try {
       story.ChoosePathString(knot ?? 'main')
     } catch {
@@ -972,9 +968,12 @@ export class GameEngine {
   gameOver(type: 'death' | 'victory', reason: string): void {
     if (this.state.game_over) return
     this.state.game_over = { type, reason }
-    this.dialogue = null
-    this.activeStory = null
-    if (type === 'death') deleteSave(this.campaign.meta.id) // permadeath — ТЗ 4.12
+    if (type === 'death') {
+      this.dialogue = null
+      this.activeStory = null
+    }
+    // забег завершён в любом исходе — сейв стирается, «Продолжить» исчезает (фидбек №10)
+    deleteSave(this.campaign.meta.id)
     this.notify()
   }
 
@@ -991,12 +990,6 @@ export class GameEngine {
   autosave(): void {
     if (this.state.game_over) return
     try {
-      // состояние Ink-историй — в сейв (once-выборы, seen counts)
-      const inkStates: Record<string, string> = { ...this.state.ink_states }
-      for (const [path, story] of this.stories) {
-        inkStates[path] = story.state.ToJson()
-      }
-      this.state.ink_states = inkStates
       localStorage.setItem(saveKey(this.campaign.meta.id), JSON.stringify(this.state))
     } catch {
       /* приватный режим и т.п. */

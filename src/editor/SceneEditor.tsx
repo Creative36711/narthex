@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Rect, Text, Transformer, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { NavigationZone, SceneDef, SlotDef, SlotType } from '../shared/types'
+import type { NavigationZone, SceneCondition, SceneDef, SlotDef, SlotType, TimeOfDay } from '../shared/types'
 import type { EditorStore } from './store'
-import { JsonField } from './Fields'
+import { ImageUpload, RefSelect } from './Fields'
+import { makeId } from './ids'
 
 /**
  * Визуальный редактор сцены (ТЗ 5.2.2) на Konva:
@@ -12,6 +13,85 @@ import { JsonField } from './Fields'
  */
 
 const SLOT_TYPES: SlotType[] = ['person', 'item', 'container', 'furniture', 'animal']
+const SLOT_TYPE_RU: Record<SlotType, string> = {
+  person: 'Персонаж',
+  item: 'Предмет',
+  container: 'Контейнер',
+  furniture: 'Мебель',
+  animal: 'Животное',
+}
+
+/** Конструктор простого условия сцены/слота (№15): по-русски, без JSON */
+export function SceneConditionEditor({
+  value,
+  store,
+  onChange,
+}: {
+  value: SceneCondition | null
+  store: EditorStore
+  onChange: (v: SceneCondition | null) => void
+}) {
+  const TOD: Array<{ id: TimeOfDay; label: string }> = [
+    { id: 'morning', label: 'утро' },
+    { id: 'day', label: 'день' },
+    { id: 'evening', label: 'вечер' },
+    { id: 'night', label: 'ночь' },
+  ]
+  const v = value ?? {}
+  const tods = Array.isArray(v.time_of_day) ? v.time_of_day : v.time_of_day ? [v.time_of_day] : []
+  const apply = (next: SceneCondition) => {
+    const clean: SceneCondition = {}
+    if (next.time_of_day && (!Array.isArray(next.time_of_day) || next.time_of_day.length)) clean.time_of_day = next.time_of_day
+    if (next.flag) clean.flag = next.flag
+    if (next.not_flag) clean.not_flag = next.not_flag
+    onChange(Object.keys(clean).length ? clean : null)
+  }
+  const flags = store.knownFlags()
+  return (
+    <div className="fld fld-block scene-cond">
+      <span>Показывать только когда…</span>
+      <div className="chips">
+        {TOD.map((t) => (
+          <label key={t.id} className={`chip ${tods.includes(t.id) ? 'chip-on' : ''}`}>
+            <input
+              type="checkbox"
+              checked={tods.includes(t.id)}
+              onChange={(e) => {
+                const next = e.target.checked ? [...tods, t.id] : tods.filter((x) => x !== t.id)
+                apply({ ...v, time_of_day: next.length ? next : undefined })
+              }}
+            />
+            {t.label}
+          </label>
+        ))}
+      </div>
+      <div className="fld-row">
+        <label className="fld">
+          <span>…установлен флаг</span>
+          <input
+            list="known-flags"
+            value={v.flag ?? ''}
+            placeholder="(не важно)"
+            onChange={(e) => apply({ ...v, flag: e.target.value || undefined })}
+          />
+        </label>
+        <label className="fld">
+          <span>…НЕ установлен флаг</span>
+          <input
+            list="known-flags"
+            value={v.not_flag ?? ''}
+            placeholder="(не важно)"
+            onChange={(e) => apply({ ...v, not_flag: e.target.value || undefined })}
+          />
+        </label>
+      </div>
+      <datalist id="known-flags">
+        {flags.map((f) => <option key={f} value={f} />)}
+      </datalist>
+      <div className="muted small">Пусто = показывается всегда.</div>
+    </div>
+  )
+}
 
 function useImage(src: string | null): HTMLImageElement | null {
   const [img, setImg] = useState<HTMLImageElement | null>(null)
@@ -109,7 +189,7 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
             <select value={stateIdx} onChange={(e) => setStateIdx(Number(e.target.value))}>
               {scene.states.map((s, i) => (
                 <option key={s.id} value={i}>
-                  {s.label} ({s.id})
+                  {s.label}
                 </option>
               ))}
             </select>
@@ -118,7 +198,7 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
             className="btn btn-small"
             onClick={() => {
               scene.slots.push({
-                id: `slot_new_${scene.slots.length + 1}`,
+                id: makeId('slot_', `${scene.id}_${scene.slots.length + 1}`, scene.slots.map((x) => x.id)),
                 type: ['item'],
                 shape: 'rect',
                 x: Math.round(canvas.w / 2 - 60),
@@ -198,7 +278,7 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
                 <Text
                   x={s.x * k + 4}
                   y={s.y * k + 4}
-                  text={s.id}
+                  text={s.default_entity ? store.labelFor('entity', s.default_entity) : 'пустой слот'}
                   fontSize={12}
                   fill="#e8c987"
                   listening={false}
@@ -224,65 +304,68 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
       </div>
 
       <div className="scene-props">
-        <SceneMeta scene={scene} commit={commit} />
+        <SceneMeta scene={scene} store={store} commit={commit} />
         {selSlot && <SlotProps slot={selSlot} store={store} commit={commit} />}
         {selNav && <NavProps nav={selNav} store={store} commit={commit} />}
-        {!sel && <StatesProps scene={scene} commit={commit} />}
+        {!sel && <StatesProps scene={scene} store={store} commit={commit} />}
       </div>
     </div>
   )
 }
 
-function SceneMeta({ scene, commit }: { scene: SceneDef; commit: () => void }) {
+function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorStore; commit: () => void }) {
   return (
     <div className="props-group">
       <h4>Сцена</h4>
       <label className="fld">
-        <span>id</span>
-        <input value={scene.id} onChange={(e) => ((scene.id = e.target.value), commit())} />
-      </label>
-      <label className="fld">
         <span>Название</span>
         <input value={scene.label} onChange={(e) => ((scene.label = e.target.value), commit())} />
       </label>
-      <label className="fld">
-        <span>Локация</span>
-        <input value={scene.location} onChange={(e) => ((scene.location = e.target.value), commit())} />
-      </label>
+      <RefSelect
+        label="Локация"
+        kind="location"
+        store={store}
+        value={scene.location}
+        onChange={(v) => ((scene.location = v ?? ''), commit())}
+      />
     </div>
   )
 }
 
-function StatesProps({ scene, commit }: { scene: SceneDef; commit: () => void }) {
+function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorStore; commit: () => void }) {
   return (
     <div className="props-group">
       <h4>Состояния сцены</h4>
       {scene.states.map((s, i) => (
         <div key={i} className="ce-item ce-body">
           <label className="fld">
-            <span>id</span>
-            <input value={s.id} onChange={(e) => ((s.id = e.target.value), commit())} />
-          </label>
-          <label className="fld">
             <span>Название</span>
             <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
           </label>
-          <label className="fld">
-            <span>Изображение</span>
-            <input value={s.image} onChange={(e) => ((s.image = e.target.value), commit())} />
-          </label>
-          <JsonField
-            label="Условие (SceneCondition)"
-            value={s.condition}
-            placeholder='{"time_of_day":"night"} / {"flag":"x"} / null'
-            onChange={(v) => ((s.condition = (v as SceneDef['states'][0]['condition']) ?? null), commit())}
+          <ImageUpload
+            label="Фон сцены"
+            value={s.image}
+            dir="assets/img/scenes"
+            store={store}
+            onChange={(p) => ((s.image = p), commit())}
           />
+          <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
+          {scene.states.length > 1 && (
+            <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>
+              ✕ удалить состояние
+            </button>
+          )}
         </div>
       ))}
       <button
         className="btn btn-small"
         onClick={() => {
-          scene.states.push({ id: `state_${scene.states.length + 1}`, label: 'Новое', image: '', condition: null })
+          scene.states.push({
+            id: makeId('state_', `${scene.id}_${scene.states.length + 1}`, scene.states.map((x) => x.id)),
+            label: 'Новое состояние',
+            image: '',
+            condition: null,
+          })
           commit()
         }}
       >
@@ -295,13 +378,9 @@ function StatesProps({ scene, commit }: { scene: SceneDef; commit: () => void })
 function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore; commit: () => void }) {
   return (
     <div className="props-group">
-      <h4>Слот: {slot.id}</h4>
-      <label className="fld">
-        <span>id</span>
-        <input value={slot.id} onChange={(e) => ((slot.id = e.target.value), commit())} />
-      </label>
+      <h4>Слот{slot.default_entity ? `: ${store.labelFor('entity', slot.default_entity)}` : ''}</h4>
       <div className="fld fld-block">
-        <span>Типы</span>
+        <span>Что можно ставить в слот</span>
         <div className="chips">
           {SLOT_TYPES.map((t) => (
             <label key={t} className={`chip ${slot.type.includes(t) ? 'chip-on' : ''}`}>
@@ -313,36 +392,26 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
                   commit()
                 }}
               />
-              {t}
+              {SLOT_TYPE_RU[t]}
             </label>
           ))}
         </div>
       </div>
-      <label className="fld">
-        <span>Сущность по умолчанию</span>
-        <input
-          list="ent-ids"
-          value={slot.default_entity ?? ''}
-          onChange={(e) => {
-            if (e.target.value) slot.default_entity = e.target.value
-            else delete slot.default_entity
-            commit()
-          }}
-        />
-        <datalist id="ent-ids">
-          {store.ids('entity').map((o) => (
-            <option key={o} value={o} />
-          ))}
-        </datalist>
-      </label>
-      <JsonField
-        label="Условие видимости"
-        value={slot.condition}
-        placeholder='{"flag":"x"} / {"not_flag":"y"} / null'
-        onChange={(v) => ((slot.condition = (v as SlotDef['condition']) ?? null), commit())}
+      <RefSelect
+        label="Кто/что стоит в слоте"
+        kind="entity"
+        store={store}
+        value={slot.default_entity ?? ''}
+        optional
+        onChange={(v) => {
+          if (v) slot.default_entity = v
+          else delete slot.default_entity
+          commit()
+        }}
       />
+      <SceneConditionEditor value={slot.condition} store={store} onChange={(v) => ((slot.condition = v), commit())} />
       <div className="muted small">
-        x {slot.x} · y {slot.y} · {slot.w}×{slot.h}
+        Положение: x {slot.x} · y {slot.y} · размер {slot.w}×{slot.h}
       </div>
     </div>
   )
@@ -377,34 +446,22 @@ function NavProps({ nav, store, commit }: { nav: NavigationZone; store: EditorSt
         </select>
       </label>
       {mode === 'scene' && (
-        <label className="fld">
-          <span>Сцена</span>
-          <input
-            list="nav-scenes"
-            value={nav.go_to_scene ?? ''}
-            onChange={(e) => ((nav.go_to_scene = e.target.value), commit())}
-          />
-          <datalist id="nav-scenes">
-            {store.ids('scene').map((o) => (
-              <option key={o} value={o} />
-            ))}
-          </datalist>
-        </label>
+        <RefSelect
+          label="Сцена"
+          kind="scene"
+          store={store}
+          value={nav.go_to_scene ?? ''}
+          onChange={(v) => ((nav.go_to_scene = v ?? ''), commit())}
+        />
       )}
       {mode === 'location' && (
-        <label className="fld">
-          <span>Локация</span>
-          <input
-            list="nav-locs"
-            value={nav.go_to_location ?? ''}
-            onChange={(e) => ((nav.go_to_location = e.target.value), commit())}
-          />
-          <datalist id="nav-locs">
-            {store.ids('location').map((o) => (
-              <option key={o} value={o} />
-            ))}
-          </datalist>
-        </label>
+        <RefSelect
+          label="Локация"
+          kind="location"
+          store={store}
+          value={nav.go_to_location ?? ''}
+          onChange={(v) => ((nav.go_to_location = v ?? ''), commit())}
+        />
       )}
       <label className="fld">
         <span>Стоимость (тиков)</span>

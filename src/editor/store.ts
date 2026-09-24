@@ -90,6 +90,19 @@ export class EditorStore {
     for (const f of this.manifest.quests ?? []) loadJson(`quests/${f}`)
     for (const f of this.manifest.encounters ?? []) loadJson(`rules/${f}`)
     for (const f of this.manifest.dialogues) loadText(`dialogues/${f}`)
+    // визуальные исходники конструктора диалогов (могут отсутствовать)
+    for (const f of this.manifest.dialogues) {
+      const rel = `dialogues/${f.replace(/\.ink$/, '.dlg.json')}`
+      jobs.push(
+        fetch(`${this.basePath}/${rel}?t=${Date.now()}`)
+          .then(async (r) => {
+            if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) {
+              this.jsonFiles.set(rel, await r.json())
+            }
+          })
+          .catch(() => undefined),
+      )
+    }
     await Promise.all(jobs)
     // базовые снимки для undo
     for (const p of this.allPaths()) this.snapshots.set(p, this.fileText(p))
@@ -133,6 +146,95 @@ export class EditorStore {
   }
 
   /** списки id для подсказок в полях */
+  /** все флаги, упомянутые в правилах/квестах/ink — для подсказок в конструкторах */
+  knownFlags(): string[] {
+    const flags = new Set<string>()
+    const scan = (o: unknown): void => {
+      if (Array.isArray(o)) { o.forEach(scan); return }
+      if (o && typeof o === 'object') {
+        const r = o as Record<string, unknown>
+        if (typeof r.flag === 'string') flags.add(r.flag)
+        for (const v of Object.values(r)) scan(v)
+      }
+    }
+    for (const p of this.rulePaths()) scan(this.rule(p))
+    for (const p of this.questPaths()) scan(this.quest(p))
+    for (const [, text] of this.textFiles) {
+      for (const m of text.matchAll(/(?:get_flag|set_flag)\("([^"]+)"\)/g)) flags.add(m[1])
+    }
+    return [...flags].sort()
+  }
+
+  /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need'): Array<{ id: string; label: string }> {
+    const out: Array<{ id: string; label: string }> = []
+    if (kind === 'entity' || kind === 'item' || kind === 'npc') {
+      for (const p of this.entityPaths()) {
+        const e = this.entity(p)
+        if (!e) continue
+        if (kind === 'entity' || e.type === kind) out.push({ id: e.id, label: e.label || e.id })
+      }
+    } else if (kind === 'scene') {
+      for (const p of this.scenePaths()) {
+        const sc = this.scene(p)
+        if (sc) out.push({ id: sc.id, label: sc.label || sc.id })
+      }
+    } else if (kind === 'quest') {
+      for (const p of this.questPaths()) {
+        const q = this.quest(p)
+        if (q) out.push({ id: q.id, label: q.label || q.id })
+      }
+    } else if (kind === 'arena') {
+      for (const p of this.arenaPaths()) {
+        const a = this.arena(p)
+        if (a) out.push({ id: a.id, label: a.label || a.id })
+      }
+    } else if (kind === 'rule') {
+      for (const p of this.rulePaths()) {
+        const r = this.rule(p)
+        if (r) out.push({ id: r.id, label: r.label || r.id })
+      }
+    } else if (kind === 'location') {
+      const walk = (regions: typeof this.world.regions) => {
+        for (const r of regions) {
+          for (const l of r.locations) out.push({ id: l.id, label: l.label || l.id })
+          if (r.sub_regions) walk(r.sub_regions)
+        }
+      }
+      walk(this.world.regions)
+    } else if (kind === 'dialogue') {
+      for (const p of this.dialoguePaths()) out.push({ id: p, label: p.replace('dialogues/', '').replace(/\.ink$/, '') })
+    } else if (kind === 'faction') {
+      for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: f.label || f.id })
+    } else if (kind === 'skill') {
+      for (const sk of this.meta.skills ?? []) out.push({ id: sk.id, label: sk.label || sk.id })
+    } else if (kind === 'need') {
+      for (const n of this.meta.needs) out.push({ id: n.id, label: n.label || n.id })
+    }
+    return out
+  }
+
+  /** название по id (для сводок) */
+  labelFor(kind: Parameters<EditorStore['options']>[0], id: string): string {
+    return this.options(kind).find((o) => o.id === id)?.label ?? id
+  }
+
+  /** сохранить бинарный файл (картинку) в кампанию; возвращает путь внутри кампании */
+  async saveBinary(relPath: string, file: File): Promise<string> {
+    const buf = await file.arrayBuffer()
+    let bin = ''
+    const bytes = new Uint8Array(buf)
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+    const b64 = btoa(bin)
+    const res = await fetch(this.saveEndpoint(), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: `${this.campaignRel()}/${relPath}`, base64: b64 }),
+    })
+    if (!res.ok) throw new Error(`${relPath}: ${res.status} ${await res.text()}`)
+    return relPath
+  }
+
   ids(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc'): string[] {
     const out: string[] = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {

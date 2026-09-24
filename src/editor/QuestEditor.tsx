@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { QuestDef } from '../shared/types'
 import type { EditorStore } from './store'
+import { makeId } from './ids'
 import { ConditionListEditor, EffectListEditor } from './Fields'
 
 /** Визуальный конструктор квестов (ТЗ 5.2.5): стадии, переходы, журнал. */
@@ -17,10 +18,6 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
       <div className="props-group">
         <h4>Квест</h4>
         <div className="fld-row">
-          <label className="fld">
-            <span>id</span>
-            <input value={quest.id} onChange={(e) => ((quest.id = e.target.value), commit())} />
-          </label>
           <label className="fld">
             <span>Название</span>
             <input value={quest.label} onChange={(e) => ((quest.label = e.target.value), commit())} />
@@ -139,11 +136,12 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
                   <div className="fld-row">
                     <label className="fld">
                       <span>→ стадия</span>
-                      <input
-                        list={`stages-${quest.id}`}
-                        value={tr.to}
-                        onChange={(e) => ((tr.to = e.target.value), commit())}
-                      />
+                      <select value={tr.to} onChange={(e) => ((tr.to = e.target.value), commit())}>
+                        {!quest.stages.some((st) => st.id === tr.to) && <option value={tr.to}>{tr.to || '— выбрать —'}</option>}
+                        {quest.stages.map((st) => (
+                          <option key={st.id} value={st.id}>{st.id}</option>
+                        ))}
+                      </select>
                     </label>
                     <button
                       className="btn btn-small ce-del"
@@ -182,7 +180,9 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
         <button
           className="btn btn-small"
           onClick={() => {
-            quest.stages.push({ id: `stage_${quest.stages.length + 1}` })
+            const label = prompt('Название стадии (например «Поговорить с торговцем»):')
+            if (!label) return
+            quest.stages.push({ id: makeId('', label, quest.stages.map((st) => st.id)) })
             commit()
           }}
         >

@@ -38,6 +38,16 @@ function scaffold(id: string, title: string, author: string) {
     starting_location: 'loc_start',
     starting_scene: 'scene_start',
     starting_tick: 8,
+    skills: [
+      { id: 'sword', label: 'Мечи' },
+      { id: 'brawl', label: 'Кулачный бой' },
+      { id: 'dodge', label: 'Уклонение' },
+      { id: 'stealth', label: 'Скрытность' },
+      { id: 'spot', label: 'Наблюдательность' },
+      { id: 'persuade', label: 'Убеждение' },
+      { id: 'bargain', label: 'Торговля' },
+      { id: 'first_aid', label: 'Первая помощь' },
+    ],
     needs: [
       { id: 'need_hunger', label: 'Голод', max: 100, decay_per_tick: 1.2, critical_threshold: 25 },
       { id: 'need_thirst', label: 'Жажда', max: 100, decay_per_tick: 1.8, critical_threshold: 25 },

@@ -47,7 +47,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
 
       {engine.dialogue && !engine.combat && !engine.trade && <DialogueOverlay engine={engine} />}
 
-      {message && !engine.dialogue && !engine.combat && (
+      {message && !engine.combat && (
         <div className="overlay message-overlay" onClick={() => engine.dismissMessage()}>
           <div className="message-box" onClick={(e) => e.stopPropagation()}>
             {message.portrait && (
@@ -59,7 +59,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
         </div>
       )}
 
-      {engine.state.game_over && (
+      {engine.state.game_over && !engine.dialogue && (
         <EndScreen engine={engine} onRestart={onRestart} onExitToMenu={onExitToMenu} />
       )}
     </div>

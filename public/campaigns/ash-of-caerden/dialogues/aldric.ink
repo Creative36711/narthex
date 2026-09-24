@@ -39,11 +39,12 @@ EXTERNAL quest_stage(q)
     Банда с холмов душит торговлю. Третью неделю ни один караван не дошёл. # emotion: angry
     ~ set_flag("heard_about_bandits")
     Поговори с Браном на рынке, если хочешь заработать на этом мечом.
-+ { quest_stage("quest_bandit_threat") != "" && quest_stage("quest_bandit_threat") != "completed_fight" && quest_stage("quest_bandit_threat") != "completed_deal" && not in_party("npc_guard_aldric") } [Пойдёшь со мной против банды Йорека?]
+* { quest_stage("quest_bandit_threat") != "" && quest_stage("quest_bandit_threat") != "completed_fight" && quest_stage("quest_bandit_threat") != "completed_deal" && not in_party("npc_guard_aldric") } [Пойдёшь со мной против банды Йорека?]
     { get_disposition("faction_town_guard") >= 10:
         Алдрик долго смотрит на вас, потом сплёвывает и снимает щит со спины. # emotion: happy # action
         А, пропади оно всё. Капитан всё равно носа за стены не кажет. Идём — только чур, махать мечом в полную силу.
         ~ join_party("npc_guard_aldric")
+        -> DONE
     - else:
         Я тебя второй день знаю, а ты меня — в самое пекло зовёшь. # emotion: neutral
         Докажи, что ты не пустозвон: помоги городу — тогда и поговорим. Стража ценит дела, не слова.

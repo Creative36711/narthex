@@ -80,7 +80,9 @@ button { font-family: inherit; cursor: pointer; }
     var(--bg);
 }
 
-.main-menu-inner { text-align: center; max-width: 640px; padding: 40px; }
+.main-menu-inner { text-align: center; max-width: 640px; padding: 40px; width: 100%; box-sizing: border-box; }
+/* с списком кампаний меню шире, колонки не ломаются (фидбек №23) */
+.main-menu-inner.with-list { max-width: 1020px; }
 
 .brand {
   letter-spacing: 8px;
@@ -90,7 +92,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .campaign-title {
-  font-size: 52px;
+  font-size: clamp(30px, 5vw, 52px);
+  overflow-wrap: break-word;
   margin: 0 0 16px;
   color: var(--gold-bright);
   text-shadow: 0 2px 12px rgba(201, 164, 92, 0.3);
@@ -105,8 +108,16 @@ button { font-family: inherit; cursor: pointer; }
 
 /* платформа кампаний в главном меню */
 .brand-sub { color: var(--muted); font-size: 13px; letter-spacing: 2px; margin: 4px 0 26px; text-transform: uppercase; }
-.menu-columns { display: flex; gap: 32px; justify-content: center; align-items: flex-start; }
-.campaign-list { min-width: 240px; max-width: 280px; text-align: left; }
+.menu-columns { display: flex; gap: 32px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }
+.campaign-list {
+  flex: 0 0 260px;
+  min-width: 220px;
+  max-width: 280px;
+  text-align: left;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
 .campaign-list-title { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
 .campaign-card {
   display: flex;
@@ -125,9 +136,9 @@ button { font-family: inherit; cursor: pointer; }
 }
 .campaign-card:hover { border-color: var(--gold); }
 .campaign-card.on { border-color: var(--gold); background: rgba(200, 160, 90, 0.08); }
-.campaign-card-title { font-size: 15px; color: var(--gold-bright); }
+.campaign-card-title { font-size: 15px; color: var(--gold-bright); overflow-wrap: break-word; }
 .campaign-card-author { font-size: 12px; color: var(--muted); }
-.campaign-current { max-width: 560px; }
+.campaign-current { flex: 1 1 380px; min-width: 320px; max-width: 620px; }
 
 /* ─────────── игровой вид ─────────── */
 
@@ -420,9 +431,10 @@ button { font-family: inherit; cursor: pointer; }
 
 .dialogue-content { flex: 1; padding: 16px 20px; display: flex; flex-direction: column; min-height: 260px; }
 .dialogue-lines { flex: 1; overflow-y: auto; max-height: 240px; }
-.dialogue-lines p { margin: 0 0 10px; line-height: 1.55; }
-.dialogue-lines p.past { color: var(--muted); font-size: 14px; }
-.dialogue-lines p.current { color: var(--text); font-size: 16px; }
+.dialogue-lines p { margin: 0 0 10px; line-height: 1.6; }
+/* контраст мягкий: прошлые реплики читабельны, текущая лишь немного ярче (фидбек №2) */
+.dialogue-lines p.past { color: #c9bda6; font-size: 15px; }
+.dialogue-lines p.current { color: var(--text); font-size: 15.5px; }
 
 .dialogue-choices { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .choice-btn {
@@ -531,15 +543,19 @@ button { font-family: inherit; cursor: pointer; }
 .dialogue-tip {
   background: rgba(201, 164, 92, 0.08);
   border: 1px solid var(--gold);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 12.5px;
-  margin-bottom: 8px;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
-.dialogue-tip .btn { flex: 0 0 auto; }
+.dialogue-tip-text { flex: 1; }
+.dialogue-tip-text p { margin: 0 0 6px; }
+.dialogue-tip-text p:last-child { margin-bottom: 0; }
+.dialogue-tip .btn { flex: 0 0 auto; align-self: center; }
 
 .help-panel { max-width: 640px; }
 .help-section { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; background: var(--panel-2); }
@@ -570,6 +586,7 @@ button { font-family: inherit; cursor: pointer; }
 .combat-overlay { background: #0a0705; z-index: 60; padding: 0; }
 
 .end-overlay { z-index: 200 !important; }
+.message-overlay { z-index: 150; }
 
 .combat-panel {
   width: 100%;

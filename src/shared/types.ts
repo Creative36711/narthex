@@ -59,6 +59,8 @@ export interface CampaignMeta {
   starting_scene: string
   starting_tick?: number
   needs: NeedDef[]
+  /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
+  skills?: Array<{ id: string; label: string }>
   currencies: CurrencyDef[]
   factions?: FactionDef[]
   /** максимальный груз в кг: STR + SIZ (по умолчанию) */

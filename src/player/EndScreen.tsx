@@ -24,11 +24,14 @@ export function EndScreen({ engine, onRestart, onExitToMenu }: Props) {
           <div><span>Переходов</span><b>{s.stats_run.travels}</b></div>
           <div><span>Диалогов</span><b>{s.stats_run.dialogues}</b></div>
           <div><span>Врагов убито</span><b>{s.stats_run.kills ?? 0}</b></div>
-          <div><span>Seed забега</span><b>{s.seed}</b></div>
         </div>
-        {isDeath && <p className="muted">Автосохранение удалено. Permadeath — таковы правила.</p>}
+        {isDeath ? (
+          <p className="muted">Погибший герой не возвращается — запись забега стёрта. Следующая попытка начнётся с чистого листа.</p>
+        ) : (
+          <p className="muted">Забег завершён и вписан в хронику. Новый забег сложится иначе — мир каждый раз собирается заново.</p>
+        )}
         <div className="row-buttons">
-          <button className="btn btn-primary" onClick={onRestart}>Заново (новый seed)</button>
+          <button className="btn btn-primary" onClick={onRestart}>Начать новый забег</button>
           <button className="btn" onClick={onExitToMenu}>В меню</button>
         </div>
       </div>
