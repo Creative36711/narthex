@@ -17,6 +17,7 @@
   "slots": [
     {
       "id": "slot_table_bread",
+      "label": "Стол с пайком",
       "type": [
         "item"
       ],

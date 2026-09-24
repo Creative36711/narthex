@@ -1,0 +1,19 @@
+{
+  "id": "scene_start",
+  "label": "Первая сцена",
+  "location": "loc_start",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Обычное",
+      "image": "",
+      "condition": null
+    }
+  ],
+  "slots": [],
+  "navigation": []
+}

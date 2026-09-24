@@ -1,0 +1,28 @@
+{
+  "regions": [
+    {
+      "id": "region_start",
+      "label": "Стартовый регион",
+      "map_image": "",
+      "map_size": {
+        "w": 1280,
+        "h": 720
+      },
+      "parent_region": null,
+      "locations": [
+        {
+          "id": "loc_start",
+          "label": "Первая локация",
+          "position": {
+            "x": 640,
+            "y": 360
+          },
+          "travel_connections": [],
+          "scenes": [
+            "scene_start"
+          ]
+        }
+      ]
+    }
+  ]
+}

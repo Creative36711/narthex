@@ -3,6 +3,7 @@ import type { EditorStore } from './store'
 import { JsonField } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
+import { BUILTIN_SLOT_TYPES } from './slotTypes'
 import { askText } from './prompt'
 
 /** Редактор campaign.json формой: мета, время, старт, потребности, фракции. */
@@ -242,8 +243,16 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <div className="props-group">
         <h4>Типы слотов сцены</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
-          Что можно ставить в слоты на сценах. Встроенные: Персонаж, Предмет, Контейнер,
-          Мебель, Животное. Добавьте свои — например «Робот» или «Дух».
+          Что можно ставить в слоты на сценах. Каждой сущности назначается тип
+          в её карточке — по нему фильтруется выбор «кто/что стоит в слоте».
+          Встроенные типы удалить нельзя; добавьте свои — например «Робот» или «Дух».
+        </div>
+        <div className="chips" style={{ marginBottom: 8 }}>
+          {BUILTIN_SLOT_TYPES.map((t) => (
+            <span key={t.id} className="chip chip-static" title="Встроенный тип — удалить нельзя">
+              {t.label}
+            </span>
+          ))}
         </div>
         {(m.slot_types ?? []).map((t, i) => (
           <div key={i} className="fld-row need-row">

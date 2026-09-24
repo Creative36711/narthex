@@ -99,7 +99,36 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  if (error) return <div className="screen-center"><div className="panel error-panel">{error}</div></div>
+  if (error)
+    return (
+      <div className="screen-center">
+        <div className="panel error-panel">
+          <h2>Не удалось открыть кампанию</h2>
+          <p>{error}</p>
+          <div className="fld-row" style={{ marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn"
+              onClick={() => {
+                setError(null)
+                setLoaded(false)
+                store.load().then(() => setLoaded(true)).catch((e2) => setError(String(e2)))
+              }}
+            >
+              Попробовать снова
+            </button>
+            {campaigns
+              .filter((c) => `/campaigns/${c.id}` !== base)
+              .slice(0, 3)
+              .map((c) => (
+                <button key={c.id} className="btn" onClick={() => setBase(`/campaigns/${c.id}`)}>
+                  Открыть «{c.title}»
+                </button>
+              ))}
+            <button className="btn" onClick={onExit}>В главное меню</button>
+          </div>
+        </div>
+      </div>
+    )
   if (!loaded) return <div className="screen-center"><div className="loading">Загрузка кампании в редактор…</div></div>
 
   const listFor = (s: EditorSection): Array<{ path: string; title: string; group?: string; groupOrder?: string }> => {

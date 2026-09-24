@@ -2,14 +2,18 @@
   "id": "scene_ravine_camp",
   "label": "Лагерь в ущелье",
   "location": "loc_ravine",
-  "canvas": { "w": 1280, "h": 720 },
-
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
   "states": [
     {
       "id": "state_camp",
       "label": "Лагерь банды",
       "image": "assets/img/scenes/ravine_camp.jpg",
-      "condition": { "not_flag": "camp_cleared" }
+      "condition": {
+        "not_flag": "camp_cleared"
+      }
     },
     {
       "id": "state_empty",
@@ -18,20 +22,44 @@
       "condition": null
     }
   ],
-
   "slots": [
     {
       "id": "slot_yorek",
-      "type": ["person"],
+      "label": "Костёр Йорека",
+      "type": [
+        "person"
+      ],
       "shape": "rect",
-      "x": 560, "y": 260, "w": 160, "h": 300,
+      "x": 560,
+      "y": 260,
+      "w": 160,
+      "h": 300,
       "default_entity": "npc_yorek",
-      "condition": { "not_flag": "camp_cleared" }
+      "condition": {
+        "not_flag": "camp_cleared"
+      }
     }
   ],
-
   "navigation": [
-    { "area": { "x": 20, "y": 300, "w": 180, "h": 320 }, "go_to_location": "loc_forest", "label": "← Уйти к лесу (2 ч)" },
-    { "area": { "x": 20, "y": 620, "w": 260, "h": 80 }, "open_map": true, "label": "🗺 Карта долины" }
+    {
+      "area": {
+        "x": 20,
+        "y": 300,
+        "w": 180,
+        "h": 320
+      },
+      "go_to_location": "loc_forest",
+      "label": "← Уйти к лесу (2 ч)"
+    },
+    {
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 260,
+        "h": 80
+      },
+      "open_map": true,
+      "label": "🗺 Карта долины"
+    }
   ]
 }

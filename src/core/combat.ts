@@ -328,6 +328,12 @@ export class CombatController {
     if (!target || !this.canAttack(this.active, target)) return
     this.resolveAttack(this.active, target)
     this.checkEnd()
+    // атака завершает ход автоматически (фидбек №1 пятого раунда):
+    // кнопка «Пропустить ход» нужна только чтобы закончить ход без атаки
+    if (!this.result) {
+      this.nextTurn()
+      this.processUntilPlayer()
+    }
     this.engine.notify()
   }
 

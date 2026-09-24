@@ -75,9 +75,19 @@ export class EditorStore {
       if (!res.ok) throw new Error(`Не удалось загрузить ${rel}: ${res.status}`)
       return res
     }
-    this.meta = (await (await get('campaign.json')).json()) as CampaignMeta
-    this.world = (await (await get('world.json')).json()) as WorldDef
-    this.manifest = (await (await get('manifest.json')).json()) as ManifestDef
+    // json с понятной ошибкой: при отсутствии файла dev-сервер отдаёт html —
+    // сообщаем «файл отсутствует/повреждён», а не «unexpected token <»
+    const getJson = async <T>(rel: string): Promise<T> => {
+      const text = await (await get(rel)).text()
+      try {
+        return JSON.parse(text) as T
+      } catch {
+        throw new Error(`Файл ${rel} отсутствует или повреждён (кампания записана не полностью?)`)
+      }
+    }
+    this.meta = await getJson<CampaignMeta>('campaign.json')
+    this.world = await getJson<WorldDef>('world.json')
+    this.manifest = await getJson<ManifestDef>('manifest.json')
 
     const jobs: Promise<void>[] = []
     const loadJson = (rel: string) =>

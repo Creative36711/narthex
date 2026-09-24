@@ -1,0 +1,13 @@
+{
+  "scenes": [
+    "scene_start.json"
+  ],
+  "entities": [
+    "player_hero.json"
+  ],
+  "rules": [],
+  "arenas": [],
+  "quests": [],
+  "encounters": [],
+  "dialogues": []
+}

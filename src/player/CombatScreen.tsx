@@ -194,8 +194,12 @@ export function CombatScreen({ engine }: Props) {
                       ))}
                     </details>
                   )}
-                  <button className="btn btn-primary" onClick={() => combat.playerEndTurn()}>
-                    Завершить ход
+                  <button
+                    className="btn btn-primary"
+                    title="Закончить ход без атаки (после атаки ход завершается сам)"
+                    onClick={() => combat.playerEndTurn()}
+                  >
+                    Пропустить ход
                   </button>
                 </>
               ) : combat.result === 'victory' ? (

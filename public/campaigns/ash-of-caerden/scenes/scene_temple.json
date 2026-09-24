@@ -17,6 +17,7 @@
   "slots": [
     {
       "id": "slot_altar_corvin",
+      "label": "Алтарь",
       "type": [
         "person"
       ],

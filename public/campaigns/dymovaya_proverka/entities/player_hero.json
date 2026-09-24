@@ -1,0 +1,23 @@
+{
+  "id": "player_hero",
+  "type": "npc",
+  "label": "Герой",
+  "portrait": {},
+  "stats": {
+    "STR": 11,
+    "CON": 11,
+    "SIZ": 11,
+    "DEX": 11,
+    "INT": 11,
+    "POW": 11,
+    "CHA": 11
+  },
+  "skills": {
+    "dodge": 30,
+    "spot": 30,
+    "persuade": 30,
+    "brawl": 30
+  },
+  "inventory": [],
+  "equipment": {}
+}

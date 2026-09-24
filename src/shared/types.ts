@@ -155,6 +155,8 @@ export type SlotType = string
 
 export interface SlotDef {
   id: string
+  /** название слота для мастера (в списках вместо id) */
+  label?: string
   type: SlotType[]
   shape: 'rect'
   x: number
@@ -233,6 +235,8 @@ export interface NpcDef {
   inventory?: InventoryEntry[]
   loot_table?: Array<{ item: string; chance: number; min?: number; max?: number }>
   dialogue?: string // путь к .ink
+  /** тип в слотах сцены (id из реестра slot_types); по умолчанию «Персонаж» */
+  slot_type?: string
   schedule?: ScheduleEntry[]
   faction?: string
   base_disposition?: number
@@ -264,6 +268,8 @@ export interface ItemDef {
   id: string
   type: 'item'
   category: string
+  /** тип в слотах сцены (id из реестра slot_types); по умолчанию «Предмет»/«Контейнер» */
+  slot_type?: string
   label: string
   description: string
   image?: string

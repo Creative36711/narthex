@@ -38,5 +38,6 @@
   ],
   "faction": "faction_vermin",
   "base_disposition": -100,
-  "combat_ai": "aggressive"
+  "combat_ai": "aggressive",
+  "slot_type": "animal"
 }

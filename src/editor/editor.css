@@ -504,3 +504,5 @@
 .dlg-branch .fld-caption { display: block; margin-bottom: 6px; }
 .dlg-choice-tools { margin-top: 8px; }
 .fld-check.small { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; }
+
+.chip-static { opacity: 0.75; cursor: default; }

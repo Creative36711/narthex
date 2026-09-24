@@ -17,6 +17,7 @@
   "slots": [
     {
       "id": "slot_bar_maeva",
+      "label": "Стойка Маэвы",
       "type": [
         "person"
       ],
@@ -29,6 +30,7 @@
     },
     {
       "id": "slot_table_2",
+      "label": "Стол у очага",
       "type": [
         "person"
       ],
@@ -41,6 +43,7 @@
     },
     {
       "id": "slot_corner",
+      "label": "Тёмный угол",
       "type": [
         "person"
       ],

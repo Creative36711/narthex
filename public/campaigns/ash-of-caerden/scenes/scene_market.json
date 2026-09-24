@@ -31,6 +31,7 @@
   "slots": [
     {
       "id": "slot_stall_bran",
+      "label": "Прилавок Брана",
       "type": [
         "person"
       ],

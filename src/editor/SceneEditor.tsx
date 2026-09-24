@@ -4,6 +4,7 @@ import type Konva from 'konva'
 import type { NavigationZone, SceneCondition, SceneDef, SlotDef, TimeOfDay } from '../shared/types'
 import type { EditorStore } from './store'
 import { ImageUpload, RefSelect, FlagSelect } from './Fields'
+import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 
 /**
@@ -12,20 +13,7 @@ import { makeId } from './ids'
  * перетаскиваемые/масштабируемые прямоугольники.
  */
 
-export const BUILTIN_SLOT_TYPES: Array<{ id: string; label: string }> = [
-  { id: 'person', label: 'Персонаж' },
-  { id: 'item', label: 'Предмет' },
-  { id: 'container', label: 'Контейнер' },
-  { id: 'furniture', label: 'Мебель' },
-  { id: 'animal', label: 'Животное' },
-]
 
-/** реестр типов слотов кампании (+ свои типы мастера — «Кампания → Типы слотов») */
-function slotTypesFor(store: EditorStore): Array<{ id: string; label: string }> {
-  const custom = store.meta.slot_types ?? []
-  const out = [...BUILTIN_SLOT_TYPES.filter((b) => !custom.some((c) => c.id === b.id)), ...custom]
-  return out
-}
 
 /** Конструктор простого условия сцены/слота (№15): по-русски, без JSON */
 export function SceneConditionEditor({
@@ -362,9 +350,29 @@ function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorS
 }
 
 function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore; commit: () => void }) {
+  // кандидаты в слот: тип сущности должен входить в допустимые типы слота
+  const candidates = store
+    .entityPaths()
+    .map((p) => store.entity(p))
+    .filter((e): e is NonNullable<typeof e> => !!e)
+    .filter((e) => slot.type.length === 0 || slot.type.includes(effectiveSlotType(e)))
+    .map((e) => ({ id: e.id, label: e.label || e.id }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
   return (
     <div className="props-group">
-      <h4>Слот{slot.default_entity ? `: ${store.labelFor('entity', slot.default_entity)}` : ''}</h4>
+      <h4>Слот{slot.label ? `: ${slot.label}` : slot.default_entity ? `: ${store.labelFor('entity', slot.default_entity)}` : ''}</h4>
+      <label className="fld">
+        <span>Название слота (видно мастеру: в расписаниях НПС)</span>
+        <input
+          value={slot.label ?? ''}
+          placeholder="например «Пост у ворот»"
+          onChange={(e) => {
+            if (e.target.value) slot.label = e.target.value
+            else delete slot.label
+            commit()
+          }}
+        />
+      </label>
       <div className="fld fld-block">
         <span>Что можно ставить в слот</span>
         <div className="chips">
@@ -383,18 +391,31 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
           ))}
         </div>
       </div>
-      <RefSelect
-        label="Кто/что стоит в слоте"
-        kind="entity"
-        store={store}
-        value={slot.default_entity ?? ''}
-        optional
-        onChange={(v) => {
-          if (v) slot.default_entity = v
-          else delete slot.default_entity
-          commit()
-        }}
-      />
+      <label className="fld">
+        <span>Кто/что стоит в слоте</span>
+        <select
+          value={slot.default_entity ?? ''}
+          onChange={(e) => {
+            if (e.target.value) slot.default_entity = e.target.value
+            else delete slot.default_entity
+            commit()
+          }}
+        >
+          <option value="">— пусто —</option>
+          {slot.default_entity && !candidates.some((c) => c.id === slot.default_entity) && (
+            <option value={slot.default_entity}>
+              {store.labelFor('entity', slot.default_entity)} (не подходит по типу)
+            </option>
+          )}
+          {candidates.map((c) => (
+            <option key={c.id} value={c.id}>{c.label}</option>
+          ))}
+        </select>
+      </label>
+      <div className="muted small" style={{ marginBottom: 8 }}>
+        Список отфильтрован по типам слота. Тип сущности задаётся в её карточке
+        («Тип в слотах сцены»).
+      </div>
       <SceneConditionEditor value={slot.condition} store={store} onChange={(v) => ((slot.condition = v), commit())} />
       <div className="muted small">
         Положение: x {slot.x} · y {slot.y} · размер {slot.w}×{slot.h}

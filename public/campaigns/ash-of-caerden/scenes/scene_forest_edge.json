@@ -17,7 +17,9 @@
   "slots": [
     {
       "id": "slot_herbs",
+      "label": "Заросли трав",
       "type": [
+        "container",
         "item"
       ],
       "shape": "rect",

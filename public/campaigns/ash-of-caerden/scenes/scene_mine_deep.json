@@ -17,6 +17,7 @@
   "slots": [
     {
       "id": "slot_skeleton",
+      "label": "Скелет рудокопа",
       "type": [
         "container"
       ],
@@ -32,6 +33,7 @@
     },
     {
       "id": "slot_medallion",
+      "label": "Медальон на камнях",
       "type": [
         "item"
       ],
@@ -47,6 +49,7 @@
     },
     {
       "id": "slot_secret_passage",
+      "label": "Тайный лаз",
       "type": [
         "container"
       ],
