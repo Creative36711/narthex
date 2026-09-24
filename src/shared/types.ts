@@ -38,6 +38,12 @@ export interface TimeOfDayThresholds {
   night: number
 }
 
+export interface FactionDef {
+  id: string
+  label: string
+  base_disposition: number
+}
+
 export interface CampaignMeta {
   id: string
   title: string
@@ -54,6 +60,10 @@ export interface CampaignMeta {
   starting_tick?: number
   needs: NeedDef[]
   currencies: CurrencyDef[]
+  factions?: FactionDef[]
+  /** максимальный груз в кг: STR + SIZ (по умолчанию) */
+  max_load_formula?: 'str_plus_siz'
+  max_companions?: number
   char_creation?: CharCreationDef
   /** id сущности-шаблона игрока (Фаза 0: предсозданный персонаж) */
   default_player: string
@@ -179,6 +189,15 @@ export interface InventoryEntry {
   quantity: number
 }
 
+export interface TraderDef {
+  /** товары: id предмета и цена в серебре (переопределяет value) */
+  sells: Array<{ item: string; price?: number; stock?: number }>
+  /** скупает ли торговец предметы игрока */
+  buys: boolean
+  /** множитель закупки (доля от стоимости) */
+  buy_rate?: number
+}
+
 export interface NpcDef {
   id: string
   type: 'npc'
@@ -194,7 +213,7 @@ export interface NpcDef {
   schedule?: ScheduleEntry[]
   faction?: string
   base_disposition?: number
-  trader?: unknown
+  trader?: TraderDef | null
   combat_ai?: string
   /** броня в очках (если нет предмета-брони) */
   armor?: number
@@ -266,6 +285,53 @@ export interface ArenaDef {
   music?: string
 }
 
+// ───────────────────────── квесты (ТЗ 3.7) ─────────────────────────
+
+export interface QuestStageDef {
+  id: string
+  final?: boolean
+  outcome?: 'success' | 'failure'
+  on_enter_effects?: Effect[]
+  transitions?: Array<{ to: string; conditions: Condition[] }>
+}
+
+export interface QuestDef {
+  id: string
+  label: string
+  description: string
+  journal_entries: Record<string, string>
+  stages: QuestStageDef[]
+}
+
+// ───────────────────────── случайные встречи (ТЗ 3.8) ─────────────────────────
+
+export type EncounterEntry =
+  | { weight: number; type: 'nothing' }
+  | {
+      weight: number
+      type: 'combat'
+      enemies: Array<{ entity: string; count_min: number; count_max: number }>
+      arena: string
+      intro?: string
+    }
+  | { weight: number; type: 'dialogue'; entity: string; knot?: string }
+  | {
+      weight: number
+      type: 'skill_check'
+      skill: string
+      difficulty: number
+      message?: string
+      success_effects: Effect[]
+      fail_effects: Effect[]
+    }
+  | { weight: number; type: 'event'; effects: Effect[]; message?: string }
+
+export interface EncounterTableDef {
+  id: string
+  rolls: number
+  entries: EncounterEntry[]
+}
+
 // ───────────────────────── условия и эффекты ─────────────────────────
 
 export type Condition =
@@ -283,6 +349,9 @@ export type Condition =
   | { type: 'need_ge'; need: string; threshold: number }
   | { type: 'entity_alive'; entity: string }
   | { type: 'entity_dead'; entity: string }
+  | { type: 'disposition_ge'; target: string; threshold: number }
+  | { type: 'disposition_le'; target: string; threshold: number }
+  | { type: 'in_party'; entity: string }
   | { type: 'random_chance'; probability: number }
   | { type: 'and'; conditions: Condition[] }
   | { type: 'or'; conditions: Condition[] }
@@ -307,6 +376,16 @@ export type Effect =
   | { type: 'remove_item'; item: string; quantity?: number }
   | { type: 'change_need'; need: string; delta: number }
   | { type: 'change_hp'; delta: number }
+  | { type: 'change_disposition'; target: string; delta: number }
+  | { type: 'start_quest'; quest: string }
+  | { type: 'advance_quest'; quest: string; stage: string }
+  | { type: 'fail_quest'; quest: string }
+  | { type: 'journal_update'; quest: string; text_key: string }
+  | { type: 'give_reward'; items?: Array<{ item: string; quantity: number }> }
+  | { type: 'join_party'; entity: string }
+  | { type: 'leave_party'; entity: string }
+  | { type: 'block_path'; from: string; to: string }
+  | { type: 'unblock_path'; from: string; to: string }
   | { type: 'show_message'; text: string; portrait?: string }
   | { type: 'reveal_location'; location: string }
   | { type: 'advance_time'; ticks: number }
@@ -331,6 +410,8 @@ export interface PlayerState {
   entity: string
   stats: StatBlock
   skills: Record<string, number>
+  /** «галочки» роста навыков (experience checks, ТЗ 4.3) */
+  skill_marks: Record<string, boolean>
   hp: number
   max_hp: number
   mp: number
@@ -340,7 +421,22 @@ export interface PlayerState {
   currencies: Record<string, number>
 }
 
+export interface QuestState {
+  stage: string
+  status: 'active' | 'completed' | 'failed'
+  journal: string[]
+}
+
+export interface CompanionState {
+  entity: string
+  hp: number
+  max_hp: number
+}
+
+export const SAVE_VERSION = 2
+
 export interface GameState {
+  save_version?: number
   campaign_id: string
   seed: string
   tick: number
@@ -354,10 +450,16 @@ export interface GameState {
   dead_entities: string[]
   removed_entities: string[]
   spawned: Array<{ entity: string; scene: string; slot: string }>
+  /** сериализованное состояние Ink-историй (путь → state JSON) */
+  ink_states?: Record<string, string>
   player: PlayerState
+  quests: Record<string, QuestState>
+  dispositions: Record<string, number>
+  party: CompanionState[]
+  blocked_paths: string[]
   log: string[]
   game_over: null | { type: 'death' | 'victory'; reason: string }
-  stats_run: { travels: number; dialogues: number; ticks_survived: number; kills: number }
+  stats_run: { travels: number; dialogues: number; ticks_survived: number; kills: number; quests_completed: number }
 }
 
 // ───────────────────────── загруженная кампания ─────────────────────────
@@ -369,6 +471,8 @@ export interface CampaignData {
   entities: Record<string, EntityDef>
   rules: Record<string, RuleDef>
   arenas: Record<string, ArenaDef>
+  quests: Record<string, QuestDef>
+  encounters: Record<string, EncounterTableDef>
   dialogues: Record<string, string> // путь -> исходник .ink
   basePath: string
 }

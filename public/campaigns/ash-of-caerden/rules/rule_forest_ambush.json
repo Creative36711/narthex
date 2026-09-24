@@ -3,17 +3,36 @@
   "label": "Засада на опушке",
   "once": true,
   "conditions": [
-    { "type": "player_enters_location", "location": "loc_forest" }
+    {
+      "type": "player_enters_location",
+      "location": "loc_forest"
+    }
   ],
   "effects": [
     {
       "type": "start_combat",
-      "enemies": [{ "entity": "npc_bandit", "count": 2 }],
+      "enemies": [
+        {
+          "entity": "npc_bandit",
+          "count": 2
+        }
+      ],
       "arena": "arena_forest_road",
       "intro": "Из кустов с гиканьем выскакивают двое оборванцев с дубинами. Засада!",
       "on_victory": [
-        { "type": "set_flag", "flag": "forest_ambush_cleared" },
-        { "type": "show_message", "text": "Разбойники мертвы. Похоже, это дозорные той самой банды с холмов — у них при себе краденое серебро." }
+        {
+          "type": "set_flag",
+          "flag": "forest_ambush_cleared"
+        },
+        {
+          "type": "change_disposition",
+          "target": "faction_town_guard",
+          "delta": 10
+        },
+        {
+          "type": "show_message",
+          "text": "Разбойники мертвы — это дозорные банды с холмов, при них краденое серебро. Стража Каэрдена оценит такую работу (+10 к отношению)."
+        }
       ]
     }
   ]

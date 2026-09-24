@@ -1,0 +1,22 @@
+{
+  "id": "encounter_camp_fight",
+  "label": "Бой в лагере бандитов",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        { "entity": "npc_yorek", "count": 1 },
+        { "entity": "npc_bandit", "count": 2 }
+      ],
+      "arena": "arena_camp",
+      "intro": "«Взять его!» — рявкает Йорек и обнажает клеймору. Лагерь взрывается криками.",
+      "on_victory": [
+        { "type": "set_flag", "flag": "camp_cleared" },
+        { "type": "remove_entity", "entity": "npc_yorek" }
+      ]
+    }
+  ]
+}

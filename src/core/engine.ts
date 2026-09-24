@@ -1,6 +1,7 @@
 import type {
   CampaignData,
   Effect,
+  EncounterEntry,
   EntityDef,
   GameState,
   ItemDef,
@@ -11,13 +12,16 @@ import type {
   SceneDef,
   SceneStateDef,
   SlotDef,
+  TravelConnection,
 } from '../shared/types'
+import { SAVE_VERSION } from '../shared/types'
 import { PRNG } from './prng'
-import { derivedHP, derivedMP } from './brp'
+import { derivedHP, derivedMP, skillCheck } from './brp'
+import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange } from './time'
 import type { Story } from 'inkjs'
-import { bindExternals, compileDialogue, drainStory, type DialogueUI } from './dialogue'
+import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
 import { CombatController } from './combat'
 
 /**
@@ -37,8 +41,12 @@ export class GameEngine {
   private listeners = new Set<() => void>()
   private activeStory: Story | null = null
   private activeNpc: NpcDef | null = null
+  /** Ink-истории этого забега (состояние once-выборов живёт в пределах забега) */
+  private stories = new Map<string, Story>()
   dialogue: DialogueUI | null = null
   combat: CombatController | null = null
+  /** открытая торговля: id NPC-торговца */
+  trade: NpcDef | null = null
   /** всплывающие сообщения (show_message) */
   messages: { text: string; portrait?: string }[] = []
 
@@ -86,6 +94,7 @@ export class GameEngine {
       entity: playerDef.id,
       stats,
       skills: { ...playerDef.skills },
+      skill_marks: {},
       hp,
       max_hp: hp,
       mp,
@@ -95,7 +104,11 @@ export class GameEngine {
       currencies,
     }
 
+    const dispositions: Record<string, number> = {}
+    for (const f of meta.factions ?? []) dispositions[f.id] = f.base_disposition
+
     return {
+      save_version: SAVE_VERSION,
       campaign_id: meta.id,
       seed: this.rng.seed,
       tick: meta.starting_tick ?? 8,
@@ -110,9 +123,13 @@ export class GameEngine {
       removed_entities: [],
       spawned: [],
       player,
+      quests: {},
+      dispositions,
+      party: [],
+      blocked_paths: [],
       log: [],
       game_over: null,
-      stats_run: { travels: 0, dialogues: 0, ticks_survived: 0, kills: 0 },
+      stats_run: { travels: 0, dialogues: 0, ticks_survived: 0, kills: 0, quests_completed: 0 },
     }
   }
 
@@ -201,6 +218,274 @@ export class GameEngine {
     this.notify()
   }
 
+  // ─────────────── груз и перегруз (ТЗ 4.6) ───────────────
+
+  currentLoad(): number {
+    let sum = 0
+    for (const e of this.state.player.inventory) {
+      const def = this.campaign.entities[e.item] as ItemDef | undefined
+      if (def?.type === 'item') sum += (def.weight ?? 0) * e.quantity
+    }
+    return sum
+  }
+
+  maxLoad(): number {
+    const s = this.state.player.stats
+    return s.STR + s.SIZ
+  }
+
+  isOverloaded(): boolean {
+    return this.currentLoad() > this.maxLoad()
+  }
+
+  // ─────────────── репутация и фракции (ТЗ 4.8) ───────────────
+
+  /** target: id фракции или id NPC (у NPC — фракция + личный сдвиг). */
+  getDisposition(target: string): number {
+    const npc = this.campaign.entities[target] as NpcDef | undefined
+    if (npc && npc.type === 'npc') {
+      const factionValue = npc.faction ? (this.state.dispositions[npc.faction] ?? 0) : 0
+      return factionValue + (npc.base_disposition ?? 0)
+    }
+    return this.state.dispositions[target] ?? 0
+  }
+
+  changeDisposition(target: string, delta: number): void {
+    const npc = this.campaign.entities[target] as NpcDef | undefined
+    const faction = npc && npc.type === 'npc' ? npc.faction : target
+    if (!faction) return
+    const cur = this.state.dispositions[faction] ?? 0
+    this.state.dispositions[faction] = Math.max(-100, Math.min(100, cur + delta))
+    const label = this.campaign.meta.factions?.find((f) => f.id === faction)?.label ?? faction
+    this.pushLog(`Отношение «${label}»: ${delta > 0 ? '+' : ''}${delta} (теперь ${this.state.dispositions[faction]}).`)
+  }
+
+  // ─────────────── квесты (ТЗ 3.7) ───────────────
+
+  startQuest(questId: string): void {
+    const quest = this.campaign.quests[questId]
+    if (!quest || this.state.quests[questId]) return
+    const first = quest.stages[0]
+    this.state.quests[questId] = { stage: first.id, status: 'active', journal: [] }
+    this.pushLog(`Новый квест: «${quest.label}»`)
+    this.messages.push({ text: `Новый квест: «${quest.label}»` })
+    if (first.on_enter_effects) this.applyEffects(first.on_enter_effects)
+  }
+
+  advanceQuestTo(questId: string, stageId: string): void {
+    const quest = this.campaign.quests[questId]
+    const qs = this.state.quests[questId]
+    if (!quest || !qs || qs.status !== 'active' || qs.stage === stageId) return
+    const stage = quest.stages.find((s) => s.id === stageId)
+    if (!stage) return
+    qs.stage = stageId
+    if (stage.final) {
+      qs.status = stage.outcome === 'failure' ? 'failed' : 'completed'
+      if (qs.status === 'completed') {
+        this.state.stats_run.quests_completed += 1
+        this.messages.push({ text: `Квест завершён: «${quest.label}»` })
+      } else {
+        this.messages.push({ text: `Квест провален: «${quest.label}»` })
+      }
+      this.pushLog(`Квест «${quest.label}»: ${qs.status === 'completed' ? 'завершён' : 'провален'}.`)
+    }
+    if (stage.on_enter_effects) this.applyEffects(stage.on_enter_effects)
+  }
+
+  journalUpdate(questId: string, textKey: string): void {
+    const quest = this.campaign.quests[questId]
+    const qs = this.state.quests[questId]
+    if (!quest || !qs) return
+    const text = quest.journal_entries[textKey]
+    if (text && !qs.journal.includes(text)) {
+      qs.journal.push(text)
+      this.pushLog(`Журнал: ${text}`)
+    }
+  }
+
+  /** Переходы стадий активных квестов (вызывается из checkRules). */
+  private checkQuestTransitions(): void {
+    for (const [questId, qs] of Object.entries(this.state.quests)) {
+      if (qs.status !== 'active') continue
+      const quest = this.campaign.quests[questId]
+      const stage = quest?.stages.find((s) => s.id === qs.stage)
+      if (!stage?.transitions) continue
+      for (const t of stage.transitions) {
+        if (t.conditions.every((c) => evalCondition(c, this))) {
+          this.advanceQuestTo(questId, t.to)
+          break
+        }
+      }
+    }
+  }
+
+  // ─────────────── напарники (ТЗ 4.11) ───────────────
+
+  joinParty(entityId: string): void {
+    const max = this.campaign.meta.max_companions ?? 1
+    if (this.state.party.length >= max) return
+    if (this.state.party.some((c) => c.entity === entityId)) return
+    const def = this.campaign.entities[entityId] as NpcDef | undefined
+    if (!def || def.type !== 'npc') return
+    const hp = def.stats.HP ?? derivedHP(def.stats)
+    this.state.party.push({ entity: entityId, hp, max_hp: hp })
+    this.pushLog(`${def.label} присоединяется к вам.`)
+    this.messages.push({ text: `${def.label} присоединяется к отряду.` })
+  }
+
+  leaveParty(entityId: string): void {
+    const i = this.state.party.findIndex((c) => c.entity === entityId)
+    if (i >= 0) this.state.party.splice(i, 1)
+  }
+
+  isInParty(entityId: string): boolean {
+    return this.state.party.some((c) => c.entity === entityId)
+  }
+
+  // ─────────────── рост навыков (ТЗ 4.3) ───────────────
+
+  markSkill(skill: string): void {
+    if (this.state.player.skills[skill] != null) this.state.player.skill_marks[skill] = true
+  }
+
+  /** Проверка навыка игрока с «галочкой» опыта при успехе. */
+  playerSkillCheck(skill: string, difficulty = 50): ReturnType<typeof skillCheck> {
+    const value = this.state.player.skills[skill] ?? 0
+    const out = skillCheck(value, this.rng, 50 - difficulty)
+    this.pushLog(`Проверка «${skill}» (d100=${out.roll} против ${out.target}): ${out.result}`)
+    if (out.success) this.markSkill(skill)
+    return out
+  }
+
+  /** Отдых: броски роста отмеченных навыков (d100 > навык → +1d6). */
+  restAndGrow(): string[] {
+    const grown: string[] = []
+    for (const skill of Object.keys(this.state.player.skill_marks)) {
+      const cur = this.state.player.skills[skill] ?? 0
+      const roll = this.rng.int(1, 100)
+      if (roll > cur) {
+        const gain = rollDice('1d6', this.rng)
+        this.state.player.skills[skill] = cur + gain
+        grown.push(`${skill} +${gain} (${cur} → ${cur + gain})`)
+        this.pushLog(`Навык «${skill}» вырос на ${gain} (${cur} → ${cur + gain}).`)
+      }
+    }
+    this.state.player.skill_marks = {}
+    if (grown.length) this.messages.push({ text: `Во сне приходит опыт. Рост навыков: ${grown.join(', ')}.` })
+    return grown
+  }
+
+  // ─────────────── торговля (ТЗ 4.7) ───────────────
+
+  openTrade(entityId: string): void {
+    const npc = this.campaign.entities[entityId] as NpcDef | undefined
+    if (!npc || npc.type !== 'npc' || !npc.trader) return
+    this.dialogue = null
+    this.trade = npc
+    this.notify()
+  }
+
+  closeTrade(): void {
+    this.trade = null
+    this.autosave()
+    this.notify()
+  }
+
+  /** Модификатор цены: репутация и навык торговли (ТЗ 4.7). */
+  priceModifier(npc: NpcDef): number {
+    const disp = this.getDisposition(npc.id)
+    const bargain = this.state.player.skills['bargain'] ?? 0
+    const mod = 1.25 - disp * 0.003 - bargain * 0.004
+    return Math.min(1.6, Math.max(0.7, mod))
+  }
+
+  buyPrice(npc: NpcDef, itemId: string, basePrice?: number): number {
+    const item = this.campaign.entities[itemId] as ItemDef | undefined
+    const base = basePrice ?? item?.value?.silver ?? 1
+    return Math.max(1, Math.round(base * this.priceModifier(npc)))
+  }
+
+  sellPrice(npc: NpcDef, itemId: string): number {
+    const item = this.campaign.entities[itemId] as ItemDef | undefined
+    const base = item?.value?.silver ?? 0
+    const rate = npc.trader?.buy_rate ?? 0.4
+    return Math.max(0, Math.floor((base * rate) / this.priceModifier(npc)))
+  }
+
+  buyItem(itemId: string, price: number): boolean {
+    if (this.itemCount('item_silver') < price) return false
+    this.removeItem('item_silver', price)
+    this.addItem(itemId, 1)
+    this.markSkill('bargain')
+    this.notify()
+    return true
+  }
+
+  sellItem(itemId: string, price: number): boolean {
+    if (this.itemCount(itemId) < 1) return false
+    this.removeItem(itemId, 1)
+    this.addItem('item_silver', price)
+    this.markSkill('bargain')
+    this.notify()
+    return true
+  }
+
+  // ─────────────── случайные встречи (ТЗ 4.9) ───────────────
+
+  private rollEncounter(conn: TravelConnection): void {
+    if (!conn.random_encounter_table) return
+    const table = this.campaign.encounters[conn.random_encounter_table]
+    if (!table) return
+    for (let roll = 0; roll < (table.rolls ?? 1); roll++) {
+      const total = table.entries.reduce((s, e) => s + e.weight, 0)
+      let pick = this.rng.next() * total
+      let entry: EncounterEntry | null = null
+      for (const e of table.entries) {
+        pick -= e.weight
+        if (pick <= 0) {
+          entry = e
+          break
+        }
+      }
+      if (!entry) continue
+      this.resolveEncounter(entry)
+      if (this.combat || this.state.game_over) return
+    }
+  }
+
+  private resolveEncounter(entry: EncounterEntry): void {
+    switch (entry.type) {
+      case 'nothing':
+        return
+      case 'combat': {
+        const enemies = entry.enemies.map((e) => ({
+          entity: e.entity,
+          count: this.rng.int(e.count_min, e.count_max),
+        }))
+        this.startCombat({
+          type: 'start_combat',
+          enemies,
+          arena: entry.arena,
+          intro: entry.intro ?? 'В дороге на вас нападают!',
+        })
+        return
+      }
+      case 'dialogue':
+        this.startDialogue(entry.entity, entry.knot)
+        return
+      case 'skill_check': {
+        const out = this.playerSkillCheck(entry.skill, entry.difficulty)
+        if (entry.message) this.messages.push({ text: entry.message })
+        this.applyEffects(out.success ? entry.success_effects : entry.fail_effects)
+        return
+      }
+      case 'event':
+        this.applyEffects(entry.effects)
+        if (entry.message) this.messages.push({ text: entry.message })
+        return
+    }
+  }
+
   // ─────────────── мир: регионы, локации, сцены ───────────────
 
   allRegions(): RegionDef[] {
@@ -257,6 +542,7 @@ export class GameEngine {
           if (def.type !== 'npc' || !def.schedule) continue
           if (this.state.dead_entities.includes(def.id)) continue
           if (this.state.removed_entities.includes(def.id)) continue
+          if (this.isInParty(def.id)) continue // напарник ходит с игроком
           const entry = def.schedule.find(
             (e) => e.scene === scene.id && e.slot === slot.id && inTimeRange(hour, e.time_range),
           )
@@ -273,7 +559,8 @@ export class GameEngine {
         const isScheduledNpc = def?.type === 'npc' && !!def.schedule
         const gone =
           this.state.dead_entities.includes(slot.default_entity) ||
-          this.state.removed_entities.includes(slot.default_entity)
+          this.state.removed_entities.includes(slot.default_entity) ||
+          this.isInParty(slot.default_entity)
         if (def && !isScheduledNpc && !gone) entity = def
       }
 
@@ -304,6 +591,11 @@ export class GameEngine {
     const from = this.findLocation(this.state.location)
     const conn = from?.location.travel_connections.find((c) => c.to === locationId)
     const cost = conn?.cost_ticks ?? 1
+    if (this.state.blocked_paths.includes(`${this.state.location}->${locationId}`)) {
+      this.messages.push({ text: 'Путь закрыт.' })
+      this.notify()
+      return
+    }
     if (conn?.requirements && !conn.requirements.every((c) => evalCondition(c, this))) {
       this.messages.push({ text: 'Путь закрыт.' })
       this.notify()
@@ -320,6 +612,8 @@ export class GameEngine {
     const firstScene = target.location.scenes[0]
     if (firstScene) this.state.scene = firstScene
     this.onEnterLocation(locationId)
+    // случайная встреча в пути (после прибытия)
+    if (conn && !this.state.game_over && !this.combat) this.rollEncounter(conn)
     this.notify()
   }
 
@@ -359,6 +653,7 @@ export class GameEngine {
       if (rule.manual) continue
       this.tryFireRule(rule.id)
     }
+    this.checkQuestTransitions()
   }
 
   private tryFireRule(ruleId: string): void {
@@ -408,6 +703,31 @@ export class GameEngine {
       case 'remove_item': this.removeItem(e.item, e.quantity ?? 1); break
       case 'change_need': this.changeNeed(e.need, e.delta); break
       case 'change_hp': this.changeHp(e.delta); break
+      case 'change_disposition': this.changeDisposition(e.target, e.delta); break
+      case 'start_quest': this.startQuest(e.quest); break
+      case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break
+      case 'fail_quest': {
+        const qs = s.quests[e.quest]
+        if (qs && qs.status === 'active') {
+          qs.status = 'failed'
+          this.messages.push({ text: `Квест провален: «${this.campaign.quests[e.quest]?.label ?? e.quest}»` })
+        }
+        break
+      }
+      case 'journal_update': this.journalUpdate(e.quest, e.text_key); break
+      case 'give_reward':
+        for (const it of e.items ?? []) this.addItem(it.item, it.quantity)
+        break
+      case 'join_party': this.joinParty(e.entity); break
+      case 'leave_party': this.leaveParty(e.entity); break
+      case 'block_path':
+        if (!s.blocked_paths.includes(`${e.from}->${e.to}`)) s.blocked_paths.push(`${e.from}->${e.to}`)
+        break
+      case 'unblock_path': {
+        const i = s.blocked_paths.indexOf(`${e.from}->${e.to}`)
+        if (i >= 0) s.blocked_paths.splice(i, 1)
+        break
+      }
       case 'show_message': this.messages.push({ text: e.text, portrait: e.portrait }); break
       case 'reveal_location':
         if (!s.revealed_locations.includes(e.location)) s.revealed_locations.push(e.location)
@@ -490,8 +810,21 @@ export class GameEngine {
     if (!npc || npc.type !== 'npc' || !npc.dialogue) return
     const source = this.campaign.dialogues[npc.dialogue]
     if (!source) return
-    const story = compileDialogue(source, npc.dialogue)
-    bindExternals(story, this)
+    let story = this.stories.get(npc.dialogue)
+    if (!story) {
+      story = createStory(source, npc.dialogue)
+      bindExternals(story, this)
+      // восстановление состояния Ink из сейва
+      const saved = this.state.ink_states?.[npc.dialogue]
+      if (saved) {
+        try {
+          story.state.LoadJson(saved)
+        } catch {
+          /* несовместимое состояние — начинаем заново */
+        }
+      }
+      this.stories.set(npc.dialogue, story)
+    }
     try {
       story.ChoosePathString(knot ?? 'main')
     } catch {
@@ -518,8 +851,8 @@ export class GameEngine {
     if (!story || !npc) return
     story.ChooseChoiceIndex(index)
     const drained = drainStory(story)
-    if (this.combat) {
-      // external fire_rule запустил бой — диалог закрыт, не восстанавливаем
+    if (this.combat || this.trade) {
+      // external запустил бой или торговлю — диалог закрыт, не восстанавливаем
       this.dialogue = null
       this.activeStory = null
       this.activeNpc = null
@@ -574,6 +907,12 @@ export class GameEngine {
   autosave(): void {
     if (this.state.game_over) return
     try {
+      // состояние Ink-историй — в сейв (once-выборы, seen counts)
+      const inkStates: Record<string, string> = { ...this.state.ink_states }
+      for (const [path, story] of this.stories) {
+        inkStates[path] = story.state.ToJson()
+      }
+      this.state.ink_states = inkStates
       localStorage.setItem(saveKey(this.campaign.meta.id), JSON.stringify(this.state))
     } catch {
       /* приватный режим и т.п. */
@@ -590,7 +929,11 @@ function saveKey(campaignId: string): string {
 export function loadSave(campaignId: string): GameState | null {
   try {
     const raw = localStorage.getItem(saveKey(campaignId))
-    return raw ? (JSON.parse(raw) as GameState) : null
+    if (!raw) return null
+    const state = JSON.parse(raw) as GameState
+    // несовместимые старые сейвы отбрасываем
+    if ((state.save_version ?? 1) !== SAVE_VERSION) return null
+    return state
   } catch {
     return null
   }

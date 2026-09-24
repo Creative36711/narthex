@@ -114,6 +114,7 @@ export class CombatController {
     const enemySpawns = [...this.arena.spawn_zones.enemy.hexes]
 
     const { weapon, weaponLabel } = this.resolveWeapon(playerDef, p.skills)
+    const overloaded = e.isOverloaded()
     this.combatants.push({
       id: 'c_player',
       entityId: p.entity,
@@ -121,19 +122,47 @@ export class CombatController {
       side: 'player',
       portrait: playerDef.portrait?.neutral,
       stats: p.stats,
-      skills: p.skills,
+      skills: overloaded ? { ...p.skills, dodge: Math.max(0, (p.skills.dodge ?? 0) - 10) } : p.skills,
       weapon,
       weaponLabel,
       armor: this.resolveArmor(playerDef),
       hp: p.hp,
       maxHp: p.max_hp,
       pos: this.takeSpawn(playerSpawns),
-      mov: movement(p.stats),
+      mov: Math.max(2, movement(p.stats) - (overloaded ? 2 : 0)),
       movLeft: 0,
       attacked: false,
       defensesUsed: 0,
       dead: false,
     })
+    if (overloaded) this.log.push('Вы перегружены: движение −2, уклонение −10.')
+
+    // напарники (ТЗ 4.11)
+    for (const comp of e.state.party) {
+      const def = e.campaign.entities[comp.entity] as NpcDef | undefined
+      if (!def || def.type !== 'npc') continue
+      const w = this.resolveWeapon(def, def.skills)
+      this.combatants.push({
+        id: `c_ally_${comp.entity}`,
+        entityId: comp.entity,
+        label: def.label,
+        side: 'player',
+        portrait: def.portrait?.neutral,
+        stats: def.stats,
+        skills: def.skills,
+        weapon: w.weapon,
+        weaponLabel: w.weaponLabel,
+        armor: this.resolveArmor(def),
+        hp: comp.hp,
+        maxHp: comp.max_hp,
+        pos: this.takeSpawn(playerSpawns),
+        mov: movement(def.stats),
+        movLeft: 0,
+        attacked: false,
+        defensesUsed: 0,
+        dead: false,
+      })
+    }
 
     let n = 0
     for (const grp of this.def.enemies) {
@@ -206,7 +235,7 @@ export class CombatController {
   }
 
   isPlayerTurn(): boolean {
-    return !this.result && this.active.side === 'player'
+    return !this.result && this.active.id === 'c_player'
   }
 
   occupantAt(h: Hex): Combatant | undefined {
@@ -267,6 +296,29 @@ export class CombatController {
     this.engine.notify()
   }
 
+  /** Использование предмета в бою — тратит действие атаки (ТЗ 6.1). */
+  playerUseItem(itemId: string): void {
+    if (!this.isPlayerTurn() || this.active.attacked) return
+    const item = this.engine.campaign.entities[itemId] as ItemDef | undefined
+    if (!item || item.type !== 'item' || !item.on_use) return
+    this.active.attacked = true
+    this.engine.applyEffects(item.on_use.effects)
+    if (item.on_use.consume !== false) this.engine.removeItem(itemId, 1)
+    // синхронизация HP игрока (эффект мог лечить)
+    const pc = this.combatants.find((x) => x.id === 'c_player')!
+    pc.hp = Math.min(pc.maxHp, this.engine.state.player.hp)
+    this.log.push(`${this.active.label} использует «${item.label}».`)
+    this.engine.notify()
+  }
+
+  /** Предметы игрока, применимые в бою. */
+  usableItems(): Array<{ id: string; label: string; quantity: number }> {
+    return this.engine.state.player.inventory
+      .map((e) => ({ e, def: this.engine.campaign.entities[e.item] as ItemDef | undefined }))
+      .filter((x) => x.def?.type === 'item' && x.def.on_use)
+      .map((x) => ({ id: x.e.item, label: x.def!.label, quantity: x.e.quantity }))
+  }
+
   playerEndTurn(): void {
     if (!this.isPlayerTurn()) return
     this.nextTurn()
@@ -300,7 +352,8 @@ export class CombatController {
 
   private processUntilPlayer(): void {
     let guard = 0
-    while (!this.result && this.active.side === 'enemy' && guard < 100) {
+    // AI играет за врагов и за напарников (ТЗ 4.11)
+    while (!this.result && this.active.id !== 'c_player' && guard < 200) {
       this.aiTurn(this.active)
       this.checkEnd()
       if (this.result) break
@@ -348,6 +401,7 @@ export class CombatController {
     this.log.push(
       `${attacker.label}: атака «${attacker.weaponLabel}» — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
     )
+    if (attacker.id === 'c_player' && atk.success) this.engine.markSkill(attacker.weapon.skill)
     if (RANK[atk.result] < 2) return
 
     // защита: уклонение или парирование, повторные со штрафом −30
@@ -364,6 +418,7 @@ export class CombatController {
       )
       if (RANK[def.result] >= 2 && RANK[def.result] >= RANK[atk.result]) {
         this.log.push(`${defender.label} ${useParry ? 'отбивает удар' : 'уходит от удара'}.`)
+        if (defender.id === 'c_player') this.engine.markSkill(useParry ? defender.weapon.skill : 'dodge')
         return
       }
     }
@@ -387,12 +442,21 @@ export class CombatController {
       this.log.push(`☠ ${defender.label} погибает.`)
       if (defender.side === 'enemy') {
         this.engine.state.dead_entities.push(defender.entityId)
+      } else if (defender.id.startsWith('c_ally_')) {
+        // напарник гибнет перманентно (ТЗ 4.11)
+        this.engine.leaveParty(defender.entityId)
+        this.engine.state.dead_entities.push(defender.entityId)
+        this.engine.pushLog(`${defender.label} погибает в бою. Навсегда.`)
       }
     }
 
-    // синхронизация HP игрока
-    const pc = this.combatants.find((x) => x.side === 'player' && x.entityId === this.engine.state.player.entity)
+    // синхронизация HP игрока и напарников
+    const pc = this.combatants.find((x) => x.id === 'c_player')
     if (pc) this.engine.state.player.hp = Math.max(0, pc.hp)
+    for (const ally of this.combatants.filter((x) => x.id.startsWith('c_ally_') && !x.dead)) {
+      const comp = this.engine.state.party.find((c) => c.entity === ally.entityId)
+      if (comp) comp.hp = Math.max(0, ally.hp)
+    }
   }
 
   // ─────────────── завершение ───────────────
@@ -400,7 +464,7 @@ export class CombatController {
   private checkEnd(): void {
     if (this.result) return
     const enemiesAlive = this.combatants.some((c) => c.side === 'enemy' && !c.dead)
-    const playerAlive = this.combatants.some((c) => c.side === 'player' && !c.dead)
+    const playerAlive = this.combatants.some((c) => c.id === 'c_player' && !c.dead)
     if (!playerAlive) {
       this.result = 'defeat'
       this.engine.gameOver('death', 'Вы пали в бою.')

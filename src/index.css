@@ -624,6 +624,35 @@ button { font-family: inherit; cursor: pointer; }
 .roster-row.side-enemy { color: #d9927f; }
 .roster-row.dead { opacity: 0.4; text-decoration: line-through; }
 
+.combat-items summary { cursor: pointer; font-size: 13px; color: var(--gold); margin-bottom: 6px; }
+.combat-items button { display: block; width: 100%; margin-bottom: 4px; text-align: left; }
+
+/* торговля */
+
+.gold { color: var(--gold-bright); }
+.trade-info { display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0; }
+.trade-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.inv-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; float: left; margin-right: 8px; }
+
+/* квесты в журнале */
+
+.quest-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--panel-2);
+}
+.quest-title { color: var(--gold-bright); margin-bottom: 4px; }
+.quest-completed .quest-title { color: #8fb573; }
+.quest-failed .quest-title { color: #d9705f; }
+.quest-journal { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.5; }
+
+.skill-mark { color: #8fb573; }
+.overload { color: #d9705f; }
+.disp-pos { color: #8fb573; }
+.disp-neg { color: #d9705f; }
+
 /* экран конца */
 
 .end-overlay { background: rgba(0, 0, 0, 0.85); }

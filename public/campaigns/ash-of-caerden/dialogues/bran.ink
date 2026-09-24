@@ -4,6 +4,7 @@ EXTERNAL item_count(id)
 EXTERNAL remove_item(id, n)
 EXTERNAL add_item(id, n)
 EXTERNAL skill_check(s, d)
+EXTERNAL open_trade(id)
 
 === main ===
 { get_flag("met_bran"):
@@ -14,16 +15,10 @@ EXTERNAL skill_check(s, d)
     ...точнее, то, что от них осталось. Два моих каравана взяла банда с холмов. Ещё месяц такой торговли — и я пойду по миру.
 }
 У тебя {item_count("item_silver")} марок серебром.
-+ { item_count("item_silver") >= 3 } [Вяленое мясо. (3 марки)]
-    ~ remove_item("item_silver", 3)
-    ~ add_item("item_dried_meat", 1)
-    Добрая солонина, до Вельдена дотянешь. # emotion: happy
-    -> main
-+ { item_count("item_silver") >= 2 } [Бурдюк с водой. (2 марки)]
-    ~ remove_item("item_silver", 2)
-    ~ add_item("item_waterskin", 1)
-    Полный, только с колодца. # emotion: neutral
-    -> main
++ [Показывай товар. (торговля)]
+    Выбирай, всё лучшее — на прилавке. # emotion: happy
+    ~ open_trade("npc_bran")
+    -> DONE
 * { not get_flag("bran_bargained") } [Цены у тебя грабительские. (Торговля)]
     ~ set_flag("bran_bargained")
     ~ temp r = skill_check("bargain", 50)
@@ -37,7 +32,9 @@ EXTERNAL skill_check(s, d)
     -> main
 * [Что за банда вас грабит?]
     Организованные, со своим главарём — Серым Йореком. # emotion: angry
-    Прячутся где-то в Волчьей балке. Стража туда не суётся, а я бы заплатил сотню марок тому, кто избавит долину от этой заразы. Но в одиночку туда идти — верная смерть.
+    Прячутся в Волчьей балке — это за лесом, к северо-западу. Я отмечу тебе место.
+    ~ set_flag("bran_told_about_bandits")
+    Сотня марок тому, кто избавит долину от этой заразы — моё слово твёрдое. Но в одиночку туда идти — верная смерть. Поговори с Алдриком: стража тоже точит зуб на Йорека.
     -> main
 + [Удачи в торговле.]
     И тебе дорог без разбойников. # emotion: neutral

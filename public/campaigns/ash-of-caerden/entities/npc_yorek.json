@@ -1,0 +1,29 @@
+{
+  "id": "npc_yorek",
+  "type": "npc",
+  "label": "Серый Йорек",
+  "portrait": {
+    "neutral": "assets/img/npc/yorek_neutral.jpg",
+    "angry": "assets/img/npc/yorek_neutral.jpg"
+  },
+  "stats": { "STR": 15, "CON": 13, "SIZ": 14, "DEX": 12, "INT": 12, "POW": 11, "CHA": 12 },
+  "skills": { "sword": 55, "dodge": 35, "persuade": 45, "spot": 40 },
+  "natural_weapon": {
+    "skill": "sword",
+    "damage": "1d8+1",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true,
+    "label": "Клеймора"
+  },
+  "armor": 2,
+  "loot_table": [
+    { "item": "item_silver", "min": 30, "max": 60, "chance": 1.0 },
+    { "item": "item_healing_salve", "chance": 0.6 }
+  ],
+  "dialogue": "dialogues/yorek.ink",
+  "faction": "faction_bandits",
+  "base_disposition": 0,
+  "combat_ai": "aggressive"
+}

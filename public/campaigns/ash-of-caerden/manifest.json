@@ -4,7 +4,8 @@
     "scene_gates_guardroom.json",
     "scene_market.json",
     "scene_tavern_hall.json",
-    "scene_forest_edge.json"
+    "scene_forest_edge.json",
+    "scene_ravine_camp.json"
   ],
   "entities": [
     "player_mercenary.json",
@@ -22,22 +23,34 @@
     "npc_bandit.json",
     "npc_rat_giant.json",
     "item_short_sword.json",
-    "item_leather_jerkin.json"
+    "item_leather_jerkin.json",
+    "npc_yorek.json",
+    "item_healing_salve.json"
   ],
   "rules": [
     "rule_gates_greeting.json",
     "rule_forest_intro.json",
     "effect_collapse.json",
     "rule_forest_ambush.json",
-    "encounter_cellar_rats.json"
+    "encounter_cellar_rats.json",
+    "rule_start_bandit_quest.json",
+    "encounter_camp_fight.json"
   ],
   "dialogues": [
     "aldric.ink",
     "maeva.ink",
-    "bran.ink"
+    "bran.ink",
+    "yorek.ink"
   ],
   "arenas": [
     "arena_cellar.json",
-    "arena_forest_road.json"
+    "arena_forest_road.json",
+    "arena_camp.json"
+  ],
+  "quests": [
+    "quest_bandit_threat.json"
+  ],
+  "encounters": [
+    "encounters.json"
   ]
 }

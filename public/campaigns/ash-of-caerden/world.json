@@ -28,7 +28,8 @@
             },
             {
               "to": "loc_forest",
-              "cost_ticks": 4
+              "cost_ticks": 4,
+              "random_encounter_table": "enc_road_forest"
             }
           ],
           "scenes": [
@@ -91,7 +92,12 @@
           "travel_connections": [
             {
               "to": "loc_gates",
-              "cost_ticks": 4
+              "cost_ticks": 4,
+              "random_encounter_table": "enc_road_forest"
+            },
+            {
+              "to": "loc_ravine",
+              "cost_ticks": 2
             }
           ],
           "scenes": [
@@ -99,6 +105,24 @@
           ],
           "on_enter_rules": [
             "rule_forest_intro"
+          ]
+        },
+        {
+          "id": "loc_ravine",
+          "label": "Волчья балка",
+          "position": {
+            "x": 150,
+            "y": 118
+          },
+          "hidden": true,
+          "travel_connections": [
+            {
+              "to": "loc_forest",
+              "cost_ticks": 2
+            }
+          ],
+          "scenes": [
+            "scene_ravine_camp"
           ]
         }
       ],

@@ -1,8 +1,6 @@
-import { Compiler } from 'inkjs/full'
-import type { Story } from 'inkjs'
+import { Compiler, Story } from 'inkjs/full'
 import type { GameEngine } from './engine'
 import type { NpcDef } from '../shared/types'
-import { skillCheck } from './brp'
 
 /**
  * Dialogue Engine — Ink runtime (ТЗ 4.5).
@@ -22,18 +20,25 @@ export interface DialogueUI {
   finished: boolean
 }
 
-const storyCache = new Map<string, Story>()
+/**
+ * Кэшируется только РЕЗУЛЬТАТ КОМПИЛЯЦИИ (JSON).
+ * Экземпляр Story создаётся на каждый забег отдельно — иначе состояние
+ * once-выборов протекало бы между рестартами (рогалик!).
+ */
+const jsonCache = new Map<string, string>()
 
-export function compileDialogue(source: string, cacheKey: string): Story {
-  const cached = storyCache.get(cacheKey)
-  if (cached) return cached
-  const story = new Compiler(source).Compile() as unknown as Story
-  storyCache.set(cacheKey, story)
-  return story
+export function createStory(source: string, cacheKey: string): Story {
+  let json = jsonCache.get(cacheKey)
+  if (!json) {
+    const compiled = new Compiler(source).Compile()
+    json = compiled.ToJson() ?? ''
+    jsonCache.set(cacheKey, json)
+  }
+  return new Story(json)
 }
 
 export function clearDialogueCache(): void {
-  storyCache.clear()
+  jsonCache.clear()
 }
 
 export function bindExternals(story: Story, engine: GameEngine): void {
@@ -50,12 +55,9 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('add_item', (id: string, n: number) => { engine.addItem(id, n); return 0 })
   bind('remove_item', (id: string, n: number) => { engine.removeItem(id, n); return 0 })
   bind('skill_check', (skill: string, difficulty: number) => {
-    // порог = навык игрока; сложность смещает порог (50 — нейтральная)
-    const value = engine.state.player.skills[skill] ?? 0
-    const modifier = 50 - (difficulty ?? 50)
-    const out = skillCheck(value, engine.rng, modifier)
-    engine.pushLog(`Проверка «${skill}» (d100=${out.roll} против ${out.target}): ${out.result}`)
-    return out.result
+    // порог = навык игрока; сложность смещает порог (50 — нейтральная);
+    // успех ставит «галочку» опыта (ТЗ 4.3)
+    return engine.playerSkillCheck(skill, difficulty ?? 50).result
   })
   bind('get_need', (id: string) => engine.state.player.needs[id] ?? 0)
   bind('change_need', (id: string, delta: number) => { engine.changeNeed(id, delta); return 0 })
@@ -67,6 +69,18 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('change_hp', (d: number) => { engine.changeHp(d); return 0 })
   bind('advance_time', (ticks: number) => { engine.advanceTicks(ticks); return 0 })
   bind('fire_rule', (ruleId: string) => { engine.fireRule(ruleId); return 0 })
+  bind('get_disposition', (target: string) => engine.getDisposition(target))
+  bind('change_disposition', (target: string, delta: number) => { engine.changeDisposition(target, delta); return 0 })
+  bind('open_trade', (entityId: string) => { engine.openTrade(entityId); return 0 })
+  bind('join_party', (entityId: string) => { engine.joinParty(entityId); return 0 })
+  bind('in_party', (entityId: string) => engine.isInParty(entityId))
+  bind('start_quest', (questId: string) => { engine.startQuest(questId); return 0 })
+  bind('quest_stage', (questId: string) => engine.state.quests[questId]?.stage ?? '')
+  bind('sleep', (ticks: number) => {
+    engine.advanceTicks(ticks)
+    engine.restAndGrow()
+    return 0
+  })
 }
 
 /** Прочитать все доступные строки до выбора/конца. */

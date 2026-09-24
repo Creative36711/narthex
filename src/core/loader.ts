@@ -2,7 +2,9 @@ import type {
   ArenaDef,
   CampaignData,
   CampaignMeta,
+  EncounterTableDef,
   EntityDef,
+  QuestDef,
   RuleDef,
   SceneDef,
   WorldDef,
@@ -21,6 +23,8 @@ interface Manifest {
   entities: string[]
   rules: string[]
   arenas?: string[]
+  quests?: string[]
+  encounters?: string[]
   dialogues: string[]
 }
 
@@ -47,12 +51,22 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   const entities: Record<string, EntityDef> = {}
   const rules: Record<string, RuleDef> = {}
   const arenas: Record<string, ArenaDef> = {}
+  const quests: Record<string, QuestDef> = {}
+  const encounters: Record<string, EncounterTableDef> = {}
   const dialogues: Record<string, string> = {}
 
   await Promise.all([
     ...(manifest.arenas ?? []).map(async (f) => {
       const a = await getJSON<ArenaDef>(`${basePath}/arenas/${f}`)
       arenas[a.id] = a
+    }),
+    ...(manifest.quests ?? []).map(async (f) => {
+      const q = await getJSON<QuestDef>(`${basePath}/quests/${f}`)
+      quests[q.id] = q
+    }),
+    ...(manifest.encounters ?? []).map(async (f) => {
+      const tables = await getJSON<{ encounter_tables: EncounterTableDef[] }>(`${basePath}/rules/${f}`)
+      for (const t of tables.encounter_tables) encounters[t.id] = t
     }),
     ...manifest.scenes.map(async (f) => {
       const s = await getJSON<SceneDef>(`${basePath}/scenes/${f}`)
@@ -71,7 +85,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
     }),
   ])
 
-  return { meta, world, scenes, entities, rules, arenas, dialogues, basePath }
+  return { meta, world, scenes, entities, rules, arenas, quests, encounters, dialogues, basePath }
 }
 
 export function assetUrl(campaign: CampaignData, path: string): string {

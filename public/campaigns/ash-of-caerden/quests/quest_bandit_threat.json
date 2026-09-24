@@ -1,0 +1,80 @@
+{
+  "id": "quest_bandit_threat",
+  "label": "Угроза с холмов",
+  "description": "Разберитесь с бандитами, терроризирующими торговые караваны Каэрдена.",
+  "journal_entries": {
+    "started": "Стражник Алдрик рассказал о банде с холмов, грабящей караваны. Подробности знает торговец Бран на рынке.",
+    "talked_to_merchant": "Бран потерял два каравана. Банда Серого Йорека прячется в Волчьей балке — она отмечена на карте, путь лежит через лес.",
+    "found_camp": "Я в лагере бандитов. Их главарь — Серый Йорек. Можно решить дело сталью… или языком.",
+    "completed_fight": "Банда разбита, Йорек мёртв. Дороги долины свободны. Бран заплатил обещанную сотню марок.",
+    "completed_deal": "Я договорился с Йореком — банда уходит из долины. Стража недовольна тем, что убийцы ушли безнаказанными."
+  },
+  "stages": [
+    {
+      "id": "started",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_bandit_threat", "text_key": "started" }
+      ],
+      "transitions": [
+        {
+          "to": "talked_to_merchant",
+          "conditions": [{ "type": "flag_set", "flag": "bran_told_about_bandits" }]
+        }
+      ]
+    },
+    {
+      "id": "talked_to_merchant",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_bandit_threat", "text_key": "talked_to_merchant" },
+        { "type": "reveal_location", "location": "loc_ravine" },
+        { "type": "show_message", "text": "Волчья балка отмечена на карте долины. Путь туда лежит через лес." }
+      ],
+      "transitions": [
+        {
+          "to": "found_camp",
+          "conditions": [{ "type": "player_enters_location", "location": "loc_ravine" }]
+        }
+      ]
+    },
+    {
+      "id": "found_camp",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_bandit_threat", "text_key": "found_camp" }
+      ],
+      "transitions": [
+        {
+          "to": "completed_fight",
+          "conditions": [{ "type": "flag_set", "flag": "camp_cleared" }]
+        },
+        {
+          "to": "completed_deal",
+          "conditions": [{ "type": "flag_set", "flag": "bandit_deal_made" }]
+        }
+      ]
+    },
+    {
+      "id": "completed_fight",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_bandit_threat", "text_key": "completed_fight" },
+        { "type": "change_disposition", "target": "faction_town_guard", "delta": 20 },
+        { "type": "give_reward", "items": [{ "item": "item_silver", "quantity": 100 }] },
+        { "type": "show_message", "text": "Долина свободна. Бран сдержал слово: сто серебряных марок ваши. Слух о наёмнике, разбившем банду Йорека, разлетится далеко." },
+        { "type": "game_over_victory" }
+      ]
+    },
+    {
+      "id": "completed_deal",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_bandit_threat", "text_key": "completed_deal" },
+        { "type": "change_disposition", "target": "faction_bandits", "delta": 30 },
+        { "type": "change_disposition", "target": "faction_town_guard", "delta": -10 },
+        { "type": "show_message", "text": "Банда Йорека снимается с лагеря и уходит за холмы. Караваны снова пойдут в Каэрден — хотя стража смотрит на вас косо." },
+        { "type": "game_over_victory" }
+      ]
+    }
+  ]
+}

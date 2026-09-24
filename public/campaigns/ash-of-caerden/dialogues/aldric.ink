@@ -2,6 +2,10 @@ EXTERNAL get_flag(f)
 EXTERNAL set_flag(f)
 EXTERNAL add_item(id, n)
 EXTERNAL skill_check(s, d)
+EXTERNAL get_disposition(t)
+EXTERNAL join_party(id)
+EXTERNAL in_party(id)
+EXTERNAL quest_stage(q)
 
 === first_meeting ===
 Стой, путник. # emotion: neutral
@@ -32,6 +36,15 @@ EXTERNAL skill_check(s, d)
     Банда с холмов душит торговлю. Третью неделю ни один караван не дошёл. # emotion: angry
     ~ set_flag("heard_about_bandits")
     Поговори с Браном на рынке, если хочешь заработать на этом мечом.
++ { quest_stage("quest_bandit_threat") != "" && quest_stage("quest_bandit_threat") != "completed_fight" && quest_stage("quest_bandit_threat") != "completed_deal" && not in_party("npc_guard_aldric") } [Пойдёшь со мной против банды Йорека?]
+    { get_disposition("faction_town_guard") >= 10:
+        Алдрик долго смотрит на вас, потом сплёвывает и снимает щит со спины. # emotion: happy
+        А, пропади оно всё. Капитан всё равно носа за стены не кажет. Идём — только чур, махать мечом в полную силу.
+        ~ join_party("npc_guard_aldric")
+    - else:
+        Я тебя второй день знаю, а ты меня — в самое пекло зовёшь. # emotion: neutral
+        Докажи, что ты не пустозвон: помоги городу — тогда и поговорим. Стража ценит дела, не слова.
+    }
 * { not get_flag("aldric_gave_ration") } [Поделишься едой, служивый? (Убеждение)]
     ~ temp r = skill_check("persuade", 40)
     { r == "fail" || r == "fumble":

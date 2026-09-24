@@ -5,6 +5,7 @@ import { SceneScreen } from './SceneScreen'
 import { MapScreen } from './MapScreen'
 import { DialogueOverlay } from './DialogueOverlay'
 import { InventoryPanel, CharacterPanel, LogPanel } from './Panels'
+import { TradePanel } from './TradePanel'
 import { EndScreen } from './EndScreen'
 import { CombatScreen } from './CombatScreen'
 import { assetUrl } from '../core/loader'
@@ -39,7 +40,9 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
 
       {engine.combat && <CombatScreen engine={engine} />}
 
-      {engine.dialogue && !engine.combat && <DialogueOverlay engine={engine} />}
+      {engine.trade && !engine.combat && <TradePanel engine={engine} />}
+
+      {engine.dialogue && !engine.combat && !engine.trade && <DialogueOverlay engine={engine} />}
 
       {message && !engine.dialogue && !engine.combat && (
         <div className="overlay message-overlay" onClick={() => engine.dismissMessage()}>

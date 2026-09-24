@@ -6,6 +6,7 @@ EXTERNAL add_item(id, n)
 EXTERNAL change_need(id, d)
 EXTERNAL advance_time(t)
 EXTERNAL fire_rule(id)
+EXTERNAL sleep(t)
 
 === main ===
 { get_flag("rats_done") && not get_flag("rats_rewarded"):
@@ -33,7 +34,7 @@ EXTERNAL fire_rule(id)
     -> main
 + { item_count("item_silver") >= 10 } [Комнату на ночь. (10 марок, сон 8 ч)]
     ~ remove_item("item_silver", 10)
-    ~ advance_time(8)
+    ~ sleep(8)
     ~ change_need("energy", 100)
     Вторая дверь наверху. Бельё чистое, клопов нет — не таверна, а сказка. # emotion: happy
     Вы просыпаетесь отдохнувшим. Правда, желудок успел проголодаться, а во рту пересохло.

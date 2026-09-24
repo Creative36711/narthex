@@ -136,11 +136,21 @@ export function CombatScreen({ engine }: Props) {
                 <>
                   <div className="combat-hint">
                     Движение: <b>{activePlayer.movLeft}</b> гекс. ·{' '}
-                    {activePlayer.attacked ? 'атака израсходована' : `атака: «${activePlayer.weaponLabel}»`}
+                    {activePlayer.attacked ? 'действие израсходовано' : `атака: «${activePlayer.weaponLabel}»`}
                   </div>
                   <div className="combat-hint muted">
                     Клик по подсвеченному гексу — движение, по врагу в досягаемости — атака.
                   </div>
+                  {!activePlayer.attacked && combat.usableItems().length > 0 && (
+                    <details className="combat-items">
+                      <summary>Использовать предмет (действие)</summary>
+                      {combat.usableItems().map((it) => (
+                        <button key={it.id} className="btn btn-small" onClick={() => combat.playerUseItem(it.id)}>
+                          {it.label} ×{it.quantity}
+                        </button>
+                      ))}
+                    </details>
+                  )}
                   <button className="btn btn-primary" onClick={() => combat.playerEndTurn()}>
                     Завершить ход
                   </button>

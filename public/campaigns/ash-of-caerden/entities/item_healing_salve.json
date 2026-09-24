@@ -1,0 +1,15 @@
+{
+  "id": "item_healing_salve",
+  "type": "item",
+  "category": "medicine",
+  "label": "Целебная мазь",
+  "description": "Вязкая мазь на медвежьем жиру и горной траве. Затягивает раны.",
+  "weight": 0.3,
+  "value": { "silver": 12 },
+  "stackable": true,
+  "on_use": {
+    "effects": [{ "type": "change_hp", "delta": 5 }],
+    "consume": true,
+    "message": "Мазь жжётся, но раны затягиваются на глазах."
+  }
+}
