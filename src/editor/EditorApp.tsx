@@ -14,6 +14,7 @@ import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { makeId, slugify } from './ids'
 import './editor.css'
+import { askText, PromptHost } from './prompt'
 
 /**
  * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
@@ -77,11 +78,19 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }, [store])
 
   const newCampaign = async () => {
-    const title = prompt('Название новой кампании:')
+    const title = await askText('Название новой кампании', 'например «Тени Северного тракта»')
     if (!title) return
     setBusy('Создание кампании…')
     try {
       const id = await createCampaign(title)
+      // подождать, пока dev-сервер начнёт отдавать новые файлы (иначе пустой экран)
+      for (let i = 0; i < 10; i++) {
+        const ok = await fetch(`/campaigns/${id}/campaign.json?t=${Date.now()}`).then((r) => r.ok).catch(() => false)
+        if (ok) break
+        await new Promise((r) => setTimeout(r, 250))
+      }
+      setSection('campaign')
+      setSelected(null)
       setBase(`/campaigns/${id}`)
     } catch (e) {
       alert(`Не удалось создать кампанию: ${e}\n(Создание работает в dev-режиме vite / Tauri.)`)
@@ -93,12 +102,19 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   if (error) return <div className="screen-center"><div className="panel error-panel">{error}</div></div>
   if (!loaded) return <div className="screen-center"><div className="loading">Загрузка кампании в редактор…</div></div>
 
-  const listFor = (s: EditorSection): Array<{ path: string; title: string }> => {
+  const listFor = (s: EditorSection): Array<{ path: string; title: string; group?: string; groupOrder?: string }> => {
     switch (s) {
       case 'scenes':
         return store.scenePaths().map((p) => ({ path: p, title: store.scene(p)?.label ?? p }))
       case 'entities':
-        return store.entityPaths().map((p) => ({ path: p, title: store.entity(p)?.label ?? p }))
+        // группировка: персонажи, затем предметы по категориям (фидбек №8)
+        return store.entityPaths().map((p) => {
+          const e = store.entity(p)
+          if (!e) return { path: p, title: p }
+          if (e.type === 'npc') return { path: p, title: e.label || p, group: '👤 Персонажи', groupOrder: '0' }
+          const cat = store.labelFor('itemCategory', e.category)
+          return { path: p, title: e.label || p, group: `🎒 ${cat}`, groupOrder: `1${cat}` }
+        })
       case 'rules':
         return store.rulePaths().map((p) => ({ path: p, title: store.rule(p)?.label ?? p }))
       case 'quests':
@@ -113,8 +129,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }
 
   /** создать элемент: мастер вводит название, id и имя файла генерируются сами */
-  const createNew = (entityType?: 'item' | 'npc') => {
-    const label = prompt('Название (id будет создан автоматически):')
+  const createNew = async (entityType?: 'item' | 'npc') => {
+    const label = await askText('Название нового элемента', 'внутреннее имя создастся автоматически')
     if (!label) return
     let path = ''
     if (section === 'scenes') {
@@ -216,12 +232,15 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  const items = listFor(section)
+  const items = listFor(section).sort(
+    (a, b) => (a.groupOrder ?? '').localeCompare(b.groupOrder ?? '', 'ru') || a.title.localeCompare(b.title, 'ru'),
+  )
   const hasList = !['campaign', 'world'].includes(section)
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
 
   return (
     <div className="editor-root">
+      <PromptHost />
       <header className="editor-topbar">
         <span className="editor-brand">CHRONICLE FORGE · РЕДАКТОР</span>
         {campaigns.length > 0 ? (
@@ -294,15 +313,17 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
         {hasList && (
           <aside className="editor-list">
-            {items.map((it) => (
-              <button
-                key={it.path}
-                className={`editor-list-item ${sel === it.path ? 'on' : ''} ${store.dirty.has(it.path) ? 'dirty' : ''}`}
-                onClick={() => setSelected(it.path)}
-                title={it.path}
-              >
-                {it.title}
-              </button>
+            {items.map((it, i) => (
+              <div key={it.path}>
+                {it.group && it.group !== items[i - 1]?.group && <div className="editor-list-group">{it.group}</div>}
+                <button
+                  className={`editor-list-item ${sel === it.path ? 'on' : ''} ${store.dirty.has(it.path) ? 'dirty' : ''}`}
+                  onClick={() => setSelected(it.path)}
+                  title={it.path}
+                >
+                  {it.title}
+                </button>
+              </div>
             ))}
             <div className="editor-list-tools">
               {section === 'entities' ? (
@@ -329,7 +350,16 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           {section === 'quests' && sel && <QuestEditor key={sel} store={store} path={sel} />}
           {section === 'dialogues' && sel && (hasDlgDoc(store, sel)
             ? <DialogueBuilder key={sel} store={store} path={sel} />
-            : <InkEditor key={sel} store={store} path={sel} />)}
+            : (
+              <>
+                <div className="ink-legacy-note">
+                  ℹ️ Этот диалог написан вручную на языке Ink, поэтому открыт как код.
+                  Новые диалоги (кнопка «+ создать») открываются в визуальном конструкторе —
+                  без кода: узлы, реплики и ответы собираются формами.
+                </div>
+                <InkEditor key={sel} store={store} path={sel} />
+              </>
+            ))}
           {section === 'arenas' && sel && <ArenaEditor key={sel} store={store} path={sel} />}
           {hasList && !sel && (
             <div className="screen-center muted">Выберите элемент слева или создайте новый.</div>

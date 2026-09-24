@@ -23,7 +23,7 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
         <div className="fld-row">
           <label className="fld fld-check">
             <input type="checkbox" checked={rule.once} onChange={(e) => ((rule.once = e.target.checked), commit())} />
-            <span>Однократное (once)</span>
+            <span>Срабатывает один раз</span>
           </label>
           <label className="fld fld-check">
             <input
@@ -35,12 +35,12 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
                 commit()
               }}
             />
-            <span>Ручной запуск (manual — только fire_rule)</span>
+            <span title="Правило не проверяется само — его запускает эффект «Запустить правило» или диалог">Только ручной запуск</span>
           </label>
         </div>
         {!rule.manual && rule.conditions.length === 0 && !rule.once && (
           <div className="fld-err small">
-            ⚠ Правило без условий и без once/manual сработает при каждой проверке!
+            ⚠ Правило без условий, не однократное и не ручное — сработает при каждой проверке!
           </div>
         )}
       </div>

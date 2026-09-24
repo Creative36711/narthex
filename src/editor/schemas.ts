@@ -21,6 +21,14 @@ export type FieldKind =
   | 'questRef'
   | 'arenaRef'
   | 'ruleRef'
+  | 'needRef' // потребность из реестра кампании
+  | 'skillRef' // навык из реестра кампании
+  | 'dispRef' // фракция или NPC
+  | 'timeOfDay' // мультивыбор периодов суток
+  | 'units' // список {entity, count} — отряды для боя
+  | 'rewardItems' // список {item, quantity}
+  | 'questStageRef' // стадия квеста из соседнего поля quest
+  | 'journalKeyRef' // ключ журнальной записи квеста из соседнего поля quest
 
 export interface FieldSpec {
   key: string
@@ -72,8 +80,8 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   },
   time_of_day: {
     label: 'Время суток',
-    fields: [{ key: 'value', label: 'Период(ы)', kind: 'json', placeholder: '"night" или ["evening","night"]' }],
-    blank: { value: 'day' },
+    fields: [{ key: 'value', label: 'Период(ы)', kind: 'timeOfDay' }],
+    blank: { value: ['day'] },
   },
   tick_elapsed: {
     label: 'Прошло тиков (глобально)',
@@ -84,7 +92,7 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     label: 'Квест на стадии',
     fields: [
       { key: 'quest', label: 'Квест', kind: 'questRef' },
-      { key: 'stage', label: 'Стадия', kind: 'string' },
+      { key: 'stage', label: 'Стадия', kind: 'questStageRef' },
     ],
     blank: { quest: '', stage: '' },
   },
@@ -99,7 +107,7 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   skill_ge: {
     label: 'Навык ≥',
     fields: [
-      { key: 'skill', label: 'Навык', kind: 'string' },
+      { key: 'skill', label: 'Навык', kind: 'skillRef' },
       { key: 'threshold', label: 'Порог', kind: 'number' },
     ],
     blank: { skill: '', threshold: 50 },
@@ -107,7 +115,7 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   need_le: {
     label: 'Потребность ≤',
     fields: [
-      { key: 'need', label: 'Потребность', kind: 'string' },
+      { key: 'need', label: 'Потребность', kind: 'needRef' },
       { key: 'threshold', label: 'Порог', kind: 'number' },
     ],
     blank: { need: '', threshold: 20 },
@@ -115,7 +123,7 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   need_ge: {
     label: 'Потребность ≥',
     fields: [
-      { key: 'need', label: 'Потребность', kind: 'string' },
+      { key: 'need', label: 'Потребность', kind: 'needRef' },
       { key: 'threshold', label: 'Порог', kind: 'number' },
     ],
     blank: { need: '', threshold: 50 },
@@ -131,17 +139,17 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     blank: { entity: '' },
   },
   disposition_ge: {
-    label: 'Репутация ≥',
+    label: 'Отношение ≥',
     fields: [
-      { key: 'target', label: 'Фракция/NPC', kind: 'string' },
+      { key: 'target', label: 'Фракция или NPC', kind: 'dispRef' },
       { key: 'threshold', label: 'Порог', kind: 'number' },
     ],
     blank: { target: '', threshold: 0 },
   },
   disposition_le: {
-    label: 'Репутация ≤',
+    label: 'Отношение ≤',
     fields: [
-      { key: 'target', label: 'Фракция/NPC', kind: 'string' },
+      { key: 'target', label: 'Фракция или NPC', kind: 'dispRef' },
       { key: 'threshold', label: 'Порог', kind: 'number' },
     ],
     blank: { target: '', threshold: 0 },
@@ -213,8 +221,8 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   start_combat: {
     label: 'Начать бой',
     fields: [
-      { key: 'enemies', label: 'Враги', kind: 'json', placeholder: '[{"entity":"npc_bandit","count":2}]' },
-      { key: 'allies', label: 'Союзники (временные)', kind: 'json', optional: true, placeholder: '[{"entity":"npc_guard","count":2}]' },
+      { key: 'enemies', label: 'Враги', kind: 'units' },
+      { key: 'allies', label: 'Союзники (временные)', kind: 'units', optional: true },
       { key: 'arena', label: 'Арена', kind: 'arenaRef' },
       { key: 'intro', label: 'Вступление', kind: 'string', optional: true },
       { key: 'on_victory', label: 'При победе', kind: 'effects', optional: true },
@@ -256,7 +264,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   change_need: {
     label: 'Изменить потребность',
     fields: [
-      { key: 'need', label: 'Потребность', kind: 'string' },
+      { key: 'need', label: 'Потребность', kind: 'needRef' },
       { key: 'delta', label: 'Дельта', kind: 'number' },
     ],
     blank: { need: '', delta: 10 },
@@ -269,7 +277,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   change_skill: {
     label: 'Изменить навык',
     fields: [
-      { key: 'skill', label: 'Навык', kind: 'string' },
+      { key: 'skill', label: 'Навык', kind: 'skillRef' },
       { key: 'delta', label: 'Дельта', kind: 'number' },
     ],
     blank: { skill: '', delta: 5 },
@@ -277,7 +285,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   skill_check_gate: {
     label: 'Проверка навыка (ветвление)',
     fields: [
-      { key: 'skill', label: 'Навык', kind: 'string' },
+      { key: 'skill', label: 'Навык', kind: 'skillRef' },
       { key: 'difficulty', label: 'Сложность', kind: 'number' },
       { key: 'success_effects', label: 'При успехе', kind: 'effects' },
       { key: 'fail_effects', label: 'При провале', kind: 'effects' },
@@ -285,9 +293,9 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     blank: { skill: 'spot', difficulty: 50, success_effects: [], fail_effects: [] },
   },
   change_disposition: {
-    label: 'Изменить репутацию',
+    label: 'Изменить отношение',
     fields: [
-      { key: 'target', label: 'Фракция/NPC', kind: 'string' },
+      { key: 'target', label: 'Фракция или NPC', kind: 'dispRef' },
       { key: 'delta', label: 'Дельта', kind: 'number' },
     ],
     blank: { target: '', delta: 10 },
@@ -301,7 +309,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Продвинуть квест',
     fields: [
       { key: 'quest', label: 'Квест', kind: 'questRef' },
-      { key: 'stage', label: 'Стадия', kind: 'string' },
+      { key: 'stage', label: 'Стадия', kind: 'questStageRef' },
     ],
     blank: { quest: '', stage: '' },
   },
@@ -314,13 +322,13 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Запись в журнал квеста',
     fields: [
       { key: 'quest', label: 'Квест', kind: 'questRef' },
-      { key: 'text_key', label: 'Ключ текста', kind: 'string' },
+      { key: 'text_key', label: 'Журнальная запись', kind: 'journalKeyRef' },
     ],
     blank: { quest: '', text_key: '' },
   },
   give_reward: {
     label: 'Награда',
-    fields: [{ key: 'items', label: 'Предметы', kind: 'json', optional: true, placeholder: '[{"item":"item_silver","quantity":100}]' }],
+    fields: [{ key: 'items', label: 'Предметы', kind: 'rewardItems', optional: true }],
     blank: { items: [] },
   },
   join_party: {
@@ -393,27 +401,79 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   },
 }
 
-export function conditionSummary(c: Condition): string {
+/** Источник русских названий по id (реализуется EditorStore). */
+export interface LabelSource {
+  labelFor(kind: string, id: string): string
+}
+
+export const TIME_OF_DAY_LABELS: Record<string, string> = {
+  morning: 'Утро',
+  day: 'День',
+  evening: 'Вечер',
+  night: 'Ночь',
+}
+
+const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
+  entityRef: 'entity',
+  npcRef: 'npc',
+  itemRef: 'item',
+  locationRef: 'location',
+  sceneRef: 'scene',
+  questRef: 'quest',
+  arenaRef: 'arena',
+  ruleRef: 'rule',
+  needRef: 'need',
+  skillRef: 'skill',
+  dispRef: 'disposition',
+}
+
+/** Человекочитаемое значение одного поля (русские названия вместо id). */
+function fieldValueText(f: FieldSpec, v: unknown, labels?: LabelSource): string | null {
+  if (v === undefined || v === null || v === '') return null
+  const refKind = REF_KIND_MAP[f.kind]
+  if (refKind && typeof v === 'string') return labels ? labels.labelFor(refKind, v) : v
+  if (f.kind === 'timeOfDay') {
+    const arr = Array.isArray(v) ? v : [v]
+    if (arr.length === 0) return null
+    return arr.map((t) => TIME_OF_DAY_LABELS[String(t)] ?? String(t)).join(', ')
+  }
+  if (f.kind === 'units') {
+    const arr = Array.isArray(v) ? (v as Array<{ entity?: string; count?: number }>) : []
+    if (arr.length === 0) return null
+    return arr
+      .map((u) => `${labels && u.entity ? labels.labelFor('npc', u.entity) : u.entity ?? '?'} ×${u.count ?? 1}`)
+      .join(', ')
+  }
+  if (f.kind === 'rewardItems') {
+    const arr = Array.isArray(v) ? (v as Array<{ item?: string; quantity?: number }>) : []
+    if (arr.length === 0) return null
+    return arr
+      .map((u) => `${labels && u.item ? labels.labelFor('item', u.item) : u.item ?? '?'} ×${u.quantity ?? 1}`)
+      .join(', ')
+  }
+  if (typeof v === 'object') return JSON.stringify(v)
+  return String(v)
+}
+
+export function conditionSummary(c: Condition, labels?: LabelSource): string {
   const s = CONDITION_SCHEMAS[c.type]
   const vals = s
     ? s.fields
         .filter((f) => f.kind !== 'conditions' && f.kind !== 'effects')
-        .map((f) => (c as unknown as Record<string, unknown>)[f.key])
-        .filter((v) => v !== undefined && v !== '')
-        .map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v)))
+        .map((f) => fieldValueText(f, (c as unknown as Record<string, unknown>)[f.key], labels))
+        .filter((v): v is string => v !== null)
         .join(', ')
     : ''
   return `${s?.label ?? c.type}${vals ? `: ${vals}` : ''}`
 }
 
-export function effectSummary(e: Effect): string {
+export function effectSummary(e: Effect, labels?: LabelSource): string {
   const s = EFFECT_SCHEMAS[e.type]
   const vals = s
     ? s.fields
         .filter((f) => f.kind !== 'conditions' && f.kind !== 'effects' && f.kind !== 'json')
-        .map((f) => (e as unknown as Record<string, unknown>)[f.key])
-        .filter((v) => v !== undefined && v !== '')
-        .map((v) => String(v))
+        .map((f) => fieldValueText(f, (e as unknown as Record<string, unknown>)[f.key], labels))
+        .filter((v): v is string => v !== null)
         .join(', ')
     : ''
   return `${s?.label ?? e.type}${vals ? `: ${vals}` : ''}`

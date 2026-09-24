@@ -3,6 +3,7 @@ import type { QuestDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
 import { ConditionListEditor, EffectListEditor } from './Fields'
+import { askText } from './prompt'
 
 /** Визуальный конструктор квестов (ТЗ 5.2.5): стадии, переходы, журнал. */
 export function QuestEditor({ store, path }: { store: EditorStore; path: string }) {
@@ -35,9 +36,13 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
 
       <div className="props-group">
         <h4>Журнальные записи</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Каждая запись привязана к стадии: когда квест доходит до стадии, текст появляется
+          в журнале игрока.
+        </div>
         {Object.entries(quest.journal_entries).map(([key, text]) => (
           <div key={key} className="journal-row">
-            <input
+            <select
               className="journal-key"
               value={key}
               onChange={(e) => {
@@ -47,7 +52,14 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
                 )
                 commit()
               }}
-            />
+            >
+              {!quest.stages.some((st) => st.id === key) && <option value={key}>{key}</option>}
+              {quest.stages.map((st) => (
+                <option key={st.id} value={st.id} disabled={st.id !== key && quest.journal_entries[st.id] !== undefined}>
+                  {st.label ?? st.id}
+                </option>
+              ))}
+            </select>
             <textarea
               rows={1}
               value={text}
@@ -67,7 +79,8 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
         <button
           className="btn btn-small"
           onClick={() => {
-            quest.journal_entries[`entry_${Object.keys(quest.journal_entries).length + 1}`] = ''
+            const free = quest.stages.find((st) => quest.journal_entries[st.id] === undefined)
+            quest.journal_entries[free?.id ?? `entry_${Object.keys(quest.journal_entries).length + 1}`] = ''
             commit()
           }}
         >
@@ -82,8 +95,9 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
             <div className="stage-head">
               <input
                 className="stage-id"
-                value={stage.id}
-                onChange={(e) => ((stage.id = e.target.value), commit())}
+                value={stage.label ?? stage.id}
+                placeholder="Название стадии"
+                onChange={(e) => ((stage.label = e.target.value), commit())}
               />
               <label className="fld fld-check">
                 <input
@@ -139,7 +153,7 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
                       <select value={tr.to} onChange={(e) => ((tr.to = e.target.value), commit())}>
                         {!quest.stages.some((st) => st.id === tr.to) && <option value={tr.to}>{tr.to || '— выбрать —'}</option>}
                         {quest.stages.map((st) => (
-                          <option key={st.id} value={st.id}>{st.id}</option>
+                          <option key={st.id} value={st.id}>{st.label ?? st.id}</option>
                         ))}
                       </select>
                     </label>
@@ -179,10 +193,10 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
         </datalist>
         <button
           className="btn btn-small"
-          onClick={() => {
-            const label = prompt('Название стадии (например «Поговорить с торговцем»):')
+          onClick={async () => {
+            const label = await askText('Название стадии', 'например «Поговорить с торговцем»')
             if (!label) return
-            quest.stages.push({ id: makeId('', label, quest.stages.map((st) => st.id)) })
+            quest.stages.push({ id: makeId('', label, quest.stages.map((st) => st.id)), label })
             commit()
           }}
         >

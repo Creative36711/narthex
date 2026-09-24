@@ -3,6 +3,7 @@ import type { LocationDef, RegionDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { ImageUpload, RefSelect } from './Fields'
 import { makeId } from './ids'
+import { askText } from './prompt'
 
 /**
  * Редактор мира (фидбек №13): дерево регионов (с вложенностью),
@@ -29,8 +30,8 @@ export function WorldEditor({ store }: { store: EditorStore }) {
   const [selId, setSelId] = useState<string>(all[0]?.region.id ?? '')
   const active = all.find((r) => r.region.id === selId)?.region ?? all[0]?.region
 
-  const addRegion = (parent?: RegionDef) => {
-    const label = prompt(parent ? `Название вложенного региона (внутри «${parent.label}»):` : 'Название нового региона:')
+  const addRegion = async (parent?: RegionDef) => {
+    const label = await askText(parent ? `Вложенный регион внутри «${parent.label}»` : 'Название нового региона')
     if (!label) return
     const ids = flatRegions(store.world.regions).map((x) => x.region.id)
     const region: RegionDef = {
@@ -130,8 +131,8 @@ function RegionPanel({
     return { x: Math.round(Math.max(0, Math.min(size.w, x))), y: Math.round(Math.max(0, Math.min(size.h, y))) }
   }
 
-  const addLocation = (x: number, y: number) => {
-    const label = prompt('Название локации:')
+  const addLocation = async (x: number, y: number) => {
+    const label = await askText('Название локации', 'например «Старая мельница»')
     if (!label) return
     const loc: LocationDef = {
       id: makeId('loc_', label, store.options('location').map((o) => o.id)),

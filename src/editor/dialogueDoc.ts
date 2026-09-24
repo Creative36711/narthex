@@ -4,7 +4,8 @@
  * Исходник хранится рядом: dialogues/<имя>.dlg.json (движок его не читает).
  */
 
-export type DlgEmotion = 'neutral' | 'happy' | 'angry'
+/** настроение (состояние портрета): базовые + свои состояния из формы NPC */
+export type DlgEmotion = string
 
 export interface DlgLine {
   text: string

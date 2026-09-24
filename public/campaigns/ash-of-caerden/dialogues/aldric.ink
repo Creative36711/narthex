@@ -49,10 +49,12 @@ EXTERNAL quest_stage(q)
         Я тебя второй день знаю, а ты меня — в самое пекло зовёшь. # emotion: neutral
         Докажи, что ты не пустозвон: помоги городу — тогда и поговорим. Стража ценит дела, не слова.
     }
-* { not get_flag("aldric_gave_ration") } [Поделишься едой, служивый? (Убеждение)]
+* { not get_flag("aldric_gave_ration") && not get_flag("aldric_ration_refused") } [Поделишься едой, служивый? (Убеждение)]
     ~ temp r = skill_check("persuade", 40)
     { r == "fail" || r == "fumble":
+        ~ set_flag("aldric_ration_refused")
         Я тебе не богадельня. Иди к Маэве, у неё похлёбка за пять марок. # emotion: angry
+        И не заводи эту песню снова — сказал нет, значит нет.
     - else:
         Эх... ладно. Держи, у меня в караулке ещё остался паёк. # emotion: happy
         ~ set_flag("aldric_gave_ration")

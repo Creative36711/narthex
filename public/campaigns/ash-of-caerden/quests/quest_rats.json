@@ -26,7 +26,8 @@
             }
           ]
         }
-      ]
+      ],
+      "label": "Начало"
     },
     {
       "id": "completed",
@@ -43,7 +44,8 @@
           "target": "faction_town",
           "delta": 10
         }
-      ]
+      ],
+      "label": "Завершение"
     }
   ]
 }

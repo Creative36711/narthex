@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import type { ItemDef, NpcDef, StatBlock } from '../shared/types'
+import type { Effect, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
 import type { EditorStore } from './store'
 import { ImageUpload, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
+import { askText } from './prompt'
+import { slugify } from './ids'
 
 /**
  * Редактор сущностей формами (предмет / NPC) + «расширенный JSON» для
@@ -48,6 +50,27 @@ function AdvancedJson({ store, path, commit }: { store: EditorStore; path: strin
   )
 }
 
+// ─────────────── предмет ───────────────
+
+/** Сколько HP/потребности восстанавливает предмет (читаем из on_use). */
+function getUseDelta(item: ItemDef, need?: string): number {
+  for (const e of item.on_use?.effects ?? []) {
+    if (!need && e.type === 'change_hp') return e.delta
+    if (need && e.type === 'change_need' && e.need === need) return e.delta
+  }
+  return 0
+}
+
+/** Записать восстановление HP/потребности в on_use (0 — убрать эффект). */
+function setUseDelta(item: ItemDef, need: string | undefined, delta: number): void {
+  const effects: Effect[] = (item.on_use?.effects ?? []).filter((e) =>
+    need ? !(e.type === 'change_need' && e.need === need) : e.type !== 'change_hp',
+  )
+  if (delta) effects.push(need ? { type: 'change_need', need, delta } : { type: 'change_hp', delta })
+  if (effects.length === 0) delete item.on_use
+  else item.on_use = { consume: true, ...(item.on_use ?? {}), effects }
+}
+
 function ItemForm({
   item,
   store,
@@ -59,7 +82,25 @@ function ItemForm({
   path: string
   commit: () => void
 }) {
-  const silver = item.value?.item_silver ?? ''
+  const currency = store.meta.currencies[0]
+  const curId = currency?.id ?? 'silver'
+  const price = item.value?.[curId] ?? ''
+  const categories = store.meta.item_categories ?? []
+  const cat: ItemCategoryDef | undefined = categories.find((c) => c.id === item.category)
+  const needLabel = (id: string) => store.labelFor('need', id)
+
+  const applyCategory = (id: string) => {
+    item.category = id
+    const c = categories.find((k) => k.id === id)
+    // категория управляет боевыми свойствами: оружие/броня получают заготовки
+    if (c?.is_weapon && !item.weapon_data)
+      item.weapon_data = { skill: 'sword', damage: '1d6', damage_bonus: true, range: 1, attacks_per_round: 1, parry_capable: true }
+    if (!c?.is_weapon) delete item.weapon_data
+    if (c?.is_armor && !item.armor_data) item.armor_data = { points: 1 }
+    if (!c?.is_armor) delete item.armor_data
+    commit()
+  }
+
   return (
     <div className="rule-editor">
       <div className="props-group">
@@ -71,8 +112,16 @@ function ItemForm({
           </label>
           <label className="fld">
             <span>Категория</span>
-            <input value={item.category} onChange={(e) => ((item.category = e.target.value), commit())} />
+            <select value={item.category} onChange={(e) => applyCategory(e.target.value)}>
+              {!categories.some((c) => c.id === item.category) && <option value={item.category}>{item.category || '— не выбрана —'}</option>}
+              {store.options('itemCategory').map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
           </label>
+        </div>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Категории и их свойства настраиваются в разделе «Кампания» → «Категории предметов».
         </div>
         <label className="fld fld-block">
           <span>Описание</span>
@@ -84,13 +133,17 @@ function ItemForm({
             <input type="number" step="0.1" value={item.weight} onChange={(e) => ((item.weight = Number(e.target.value)), commit())} />
           </label>
           <label className="fld">
-            <span>Цена (серебро)</span>
+            <span>Цена ({currency?.label ?? 'серебро'})</span>
             <input
               type="number"
-              value={silver}
+              value={price}
               onChange={(e) => {
-                if (e.target.value === '') delete item.value
-                else item.value = { ...(item.value ?? {}), item_silver: Number(e.target.value) }
+                if (e.target.value === '') {
+                  if (item.value) {
+                    delete item.value[curId]
+                    if (Object.keys(item.value).length === 0) delete item.value
+                  }
+                } else item.value = { ...(item.value ?? {}), [curId]: Number(e.target.value) }
                 commit()
               }}
             />
@@ -113,36 +166,38 @@ function ItemForm({
         />
       </div>
 
-      <div className="props-group">
-        <h4>Боевые свойства</h4>
-        <div className="fld-row">
-          <label className="fld fld-check">
-            <input
-              type="checkbox"
-              checked={!!item.weapon_data}
-              onChange={(e) => {
-                if (e.target.checked)
-                  item.weapon_data = { skill: 'sword', damage: '1d6', damage_bonus: true, range: 1, attacks_per_round: 1, parry_capable: true }
-                else delete item.weapon_data
-                commit()
-              }}
-            />
-            <span>Это оружие</span>
-          </label>
-          <label className="fld fld-check">
-            <input
-              type="checkbox"
-              checked={!!item.armor_data}
-              onChange={(e) => {
-                if (e.target.checked) item.armor_data = { points: 1 }
-                else delete item.armor_data
-                commit()
-              }}
-            />
-            <span>Это броня</span>
-          </label>
+      {(cat?.restores_hp || (cat?.restores_needs?.length ?? 0) > 0) && (
+        <div className="props-group">
+          <h4>Действие при использовании</h4>
+          <div className="fld-row">
+            {cat?.restores_hp && (
+              <label className="fld">
+                <span>Восстанавливает здоровье (HP)</span>
+                <input
+                  type="number"
+                  value={getUseDelta(item) || ''}
+                  onChange={(e) => (setUseDelta(item, undefined, Number(e.target.value) || 0), commit())}
+                />
+              </label>
+            )}
+            {(cat?.restores_needs ?? []).map((n) => (
+              <label key={n} className="fld">
+                <span>Восстанавливает «{needLabel(n)}»</span>
+                <input
+                  type="number"
+                  value={getUseDelta(item, n) || ''}
+                  onChange={(e) => (setUseDelta(item, n, Number(e.target.value) || 0), commit())}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="muted small">Предмет расходуется при использовании из инвентаря.</div>
         </div>
-        {item.weapon_data && (
+      )}
+
+      {cat?.is_weapon && item.weapon_data && (
+        <div className="props-group">
+          <h4>Свойства оружия</h4>
           <div className="fld-row">
             <SkillSelect
               label="Навык владения"
@@ -163,18 +218,42 @@ function ItemForm({
               <span>Парирует</span>
             </label>
           </div>
-        )}
-        {item.armor_data && (
+        </div>
+      )}
+      {cat?.is_armor && item.armor_data && (
+        <div className="props-group">
+          <h4>Свойства брони</h4>
           <label className="fld">
             <span>Очки брони (−к урону)</span>
             <input type="number" value={item.armor_data.points} onChange={(e) => ((item.armor_data!.points = Number(e.target.value)), commit())} />
           </label>
-        )}
-      </div>
+        </div>
+      )}
 
       <AdvancedJson store={store} path={path} commit={commit} />
     </div>
   )
+}
+
+// ─────────────── NPC ───────────────
+
+/** русские названия стандартных состояний портрета */
+const PORTRAIT_LABELS: Record<string, string> = {
+  neutral: 'Обычный',
+  happy: 'Радость',
+  angry: 'Гнев',
+  sad: 'Печаль',
+  fear: 'Страх',
+}
+
+/** предметы, подходящие под слот снаряжения */
+function itemsWhere(store: EditorStore, pred: (i: ItemDef) => boolean): Array<{ id: string; label: string }> {
+  const out: Array<{ id: string; label: string }> = []
+  for (const p of store.entityPaths()) {
+    const e = store.entity(p)
+    if (e?.type === 'item' && pred(e)) out.push({ id: e.id, label: e.label || e.id })
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
 }
 
 function NpcForm({
@@ -188,6 +267,11 @@ function NpcForm({
   path: string
   commit: () => void
 }) {
+  const weapons = itemsWhere(store, (i) => !!i.weapon_data)
+  const armors = itemsWhere(store, (i) => !!i.armor_data)
+  const allItems = store.options('item')
+  const portraitKeys = Object.keys(npc.portrait ?? {})
+
   return (
     <div className="rule-editor">
       <div className="props-group">
@@ -226,41 +310,98 @@ function NpcForm({
             commit()
           }}
         />
+      </div>
+
+      <div className="props-group">
+        <h4>Портреты (состояния)</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          «Обычный» показывается по умолчанию; остальные состояния включаются в репликах диалога
+          (в конструкторе диалогов — поле «настроение»).
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          {portraitKeys.map((k) => (
+            <div key={k} style={{ position: 'relative' }}>
+              <ImageUpload
+                label={PORTRAIT_LABELS[k] ?? `Состояние «${k}»`}
+                value={npc.portrait?.[k] ?? ''}
+                dir="assets/img/npc"
+                store={store}
+                onChange={(p) => {
+                  npc.portrait = { ...(npc.portrait ?? {}) }
+                  if (p) npc.portrait[k] = p
+                  else if (k !== 'neutral') delete npc.portrait[k]
+                  else npc.portrait[k] = ''
+                  commit()
+                }}
+              />
+              {k !== 'neutral' && (
+                <button
+                  className="btn btn-small ce-del"
+                  title="Убрать состояние"
+                  style={{ position: 'absolute', top: 0, right: 0 }}
+                  onClick={() => {
+                    delete npc.portrait?.[k]
+                    commit()
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        {!portraitKeys.includes('neutral') && (
+          <ImageUpload
+            label="Обычный"
+            value=""
+            dir="assets/img/npc"
+            store={store}
+            onChange={(p) => {
+              npc.portrait = { ...(npc.portrait ?? {}), neutral: p }
+              commit()
+            }}
+          />
+        )}
+        <div className="fld-row">
+          {Object.keys(PORTRAIT_LABELS)
+            .filter((k) => !portraitKeys.includes(k))
+            .map((k) => (
+              <button
+                key={k}
+                className="btn btn-small"
+                onClick={() => {
+                  npc.portrait = { ...(npc.portrait ?? {}), [k]: '' }
+                  commit()
+                }}
+              >
+                + {PORTRAIT_LABELS[k]}
+              </button>
+            ))}
+          <button
+            className="btn btn-small"
+            onClick={async () => {
+              const name = await askText('Название нового состояния', 'например «Задумчивость»')
+              if (!name) return
+              const key = slugify(name) || `state_${portraitKeys.length + 1}`
+              npc.portrait = { ...(npc.portrait ?? {}), [key]: '' }
+              commit()
+            }}
+          >
+            + своё состояние…
+          </button>
+        </div>
         <ImageUpload
-          label="Портрет (обычный)"
-          value={npc.portrait?.neutral ?? ''}
+          label="Изображение в бою (жетон на арене)"
+          value={npc.token ?? ''}
           dir="assets/img/npc"
           store={store}
           onChange={(p) => {
-            npc.portrait = { ...(npc.portrait ?? {}), neutral: p }
-            if (!p) delete npc.portrait.neutral
+            if (p) npc.token = p
+            else delete npc.token
             commit()
           }}
         />
-        <div className="fld-row">
-          <ImageUpload
-            label="Портрет (радость)"
-            value={npc.portrait?.happy ?? ''}
-            dir="assets/img/npc"
-            store={store}
-            onChange={(p) => {
-              npc.portrait = { ...(npc.portrait ?? {}), happy: p }
-              if (!p) delete npc.portrait.happy
-              commit()
-            }}
-          />
-          <ImageUpload
-            label="Портрет (гнев)"
-            value={npc.portrait?.angry ?? ''}
-            dir="assets/img/npc"
-            store={store}
-            onChange={(p) => {
-              npc.portrait = { ...(npc.portrait ?? {}), angry: p }
-              if (!p) delete npc.portrait.angry
-              commit()
-            }}
-          />
-        </div>
+        <div className="muted small">Если жетон не задан, в бою используется обычный портрет.</div>
       </div>
 
       <div className="props-group">
@@ -272,8 +413,10 @@ function NpcForm({
               <input type="number" value={npc.stats[k] ?? 10} onChange={(e) => (((npc.stats as unknown as Record<string, number>)[k] = Number(e.target.value)), commit())} />
             </label>
           ))}
-          <label className="fld stat-fld">
-            <span>Броня</span>
+        </div>
+        <div className="fld-row" style={{ marginTop: 8 }}>
+          <label className="fld" title="Шкура, панцирь, чешуя — снижает получаемый урон. Не путать с надетой бронёй: предмет-броня из снаряжения даёт свои очки поверх природной защиты.">
+            <span>Природная защита (очки)</span>
             <input type="number" value={npc.armor ?? 0} onChange={(e) => {
               const v = Number(e.target.value)
               if (v) npc.armor = v
@@ -281,6 +424,9 @@ function NpcForm({
               commit()
             }} />
           </label>
+        </div>
+        <div className="muted small">
+          Природная защита — свойство существа (шкура, панцирь). Надетая броня из снаряжения ниже добавляет свои очки отдельно.
         </div>
       </div>
 
@@ -327,14 +473,155 @@ function NpcForm({
         </button>
       </div>
 
+      <div className="props-group">
+        <h4>Снаряжение и инвентарь</h4>
+        <div className="fld-row">
+          <label className="fld">
+            <span>Оружие в руках</span>
+            <select
+              value={npc.equipment?.weapon ?? ''}
+              onChange={(e) => {
+                npc.equipment = { ...(npc.equipment ?? {}) }
+                if (e.target.value) npc.equipment.weapon = e.target.value
+                else delete npc.equipment.weapon
+                if (Object.keys(npc.equipment).length === 0) delete npc.equipment
+                commit()
+              }}
+            >
+              <option value="">— без оружия (кулаки / природное) —</option>
+              {weapons.map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="fld">
+            <span>Надетая броня</span>
+            <select
+              value={npc.equipment?.armor ?? ''}
+              onChange={(e) => {
+                npc.equipment = { ...(npc.equipment ?? {}) }
+                if (e.target.value) npc.equipment.armor = e.target.value
+                else delete npc.equipment.armor
+                if (Object.keys(npc.equipment).length === 0) delete npc.equipment
+                commit()
+              }}
+            >
+              <option value="">— без брони —</option>
+              {armors.map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="muted small" style={{ marginBottom: 8 }}>Прочее имущество (для торговли и сюжета):</div>
+        {(npc.inventory ?? []).map((entry, i) => (
+          <div key={i} className="journal-row">
+            <select
+              className="journal-key"
+              value={entry.item}
+              onChange={(e) => ((entry.item = e.target.value), commit())}
+            >
+              {!allItems.some((o) => o.id === entry.item) && <option value={entry.item}>{entry.item || '— предмет —'}</option>}
+              {allItems.map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              className="journal-key"
+              min={1}
+              value={entry.quantity}
+              onChange={(e) => ((entry.quantity = Math.max(1, Number(e.target.value))), commit())}
+            />
+            <span className="muted small">шт.</span>
+            <button
+              className="btn btn-small ce-del"
+              onClick={() => {
+                npc.inventory!.splice(i, 1)
+                if (npc.inventory!.length === 0) delete npc.inventory
+                commit()
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={() => {
+            npc.inventory = [...(npc.inventory ?? []), { item: allItems[0]?.id ?? '', quantity: 1 }]
+            commit()
+          }}
+        >
+          + предмет
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Добыча с противника</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Что может выпасть с этого персонажа после победы в бою.
+        </div>
+        {(npc.loot_table ?? []).map((entry, i) => (
+          <div key={i} className="journal-row">
+            <select
+              className="journal-key"
+              value={entry.item}
+              onChange={(e) => ((entry.item = e.target.value), commit())}
+            >
+              {!allItems.some((o) => o.id === entry.item) && <option value={entry.item}>{entry.item || '— предмет —'}</option>}
+              {allItems.map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+            <label className="fld fld-inline">
+              <span>шанс, %</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={Math.round(entry.chance * 100)}
+                onChange={(e) => ((entry.chance = Math.min(100, Math.max(1, Number(e.target.value))) / 100), commit())}
+              />
+            </label>
+            <label className="fld fld-inline">
+              <span>от</span>
+              <input type="number" min={1} value={entry.min ?? 1} onChange={(e) => ((entry.min = Math.max(1, Number(e.target.value))), commit())} />
+            </label>
+            <label className="fld fld-inline">
+              <span>до</span>
+              <input type="number" min={1} value={entry.max ?? entry.min ?? 1} onChange={(e) => ((entry.max = Math.max(1, Number(e.target.value))), commit())} />
+            </label>
+            <button
+              className="btn btn-small ce-del"
+              onClick={() => {
+                npc.loot_table!.splice(i, 1)
+                if (npc.loot_table!.length === 0) delete npc.loot_table
+                commit()
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={() => {
+            npc.loot_table = [...(npc.loot_table ?? []), { item: allItems[0]?.id ?? '', chance: 0.5, min: 1, max: 1 }]
+            commit()
+          }}
+        >
+          + добыча
+        </button>
+      </div>
+
       <AdvancedJson store={store} path={path} commit={commit} />
       <div className="muted small">
-        Торговля, расписание, лут, инвентарь и природное оружие — в «Расширенном JSON».
+        Торговля, расписание и природное оружие — в «Расширенном JSON».
       </div>
     </div>
   )
 }
-
 
 /** Выпадающий список навыков из реестра кампании (по-русски). */
 function SkillSelect({

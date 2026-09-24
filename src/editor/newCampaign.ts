@@ -53,6 +53,15 @@ function scaffold(id: string, title: string, author: string) {
       { id: 'need_thirst', label: 'Жажда', max: 100, decay_per_tick: 1.8, critical_threshold: 25 },
       { id: 'need_energy', label: 'Энергия', max: 100, decay_per_tick: 1.0, critical_threshold: 20 },
     ],
+    item_categories: [
+      { id: 'food', label: 'Еда', restores_needs: ['need_hunger'] },
+      { id: 'drink', label: 'Питьё', restores_needs: ['need_thirst'] },
+      { id: 'medicine', label: 'Лекарства', restores_hp: true },
+      { id: 'weapon', label: 'Оружие', is_weapon: true },
+      { id: 'armor', label: 'Броня', is_armor: true },
+      { id: 'quest', label: 'Квестовые предметы' },
+      { id: 'misc', label: 'Разное' },
+    ],
     currencies: [{ id: 'item_silver', label: 'Серебро', symbol: 'SM' }],
     factions: [],
     default_player: 'player_hero',
@@ -146,4 +155,39 @@ export async function createCampaign(title: string, author = ''): Promise<string
   index.push({ id, title, author })
   await saveFile('campaigns/index.json', JSON.stringify(index, null, 2))
   return id
+}
+
+/**
+ * Импорт пакета .chronicle из главного меню: распаковывает архив прямо
+ * в public/campaigns/<id>/ через dev-эндпоинт и регистрирует кампанию
+ * в index.json. Если кампания с таким id уже есть — файлы обновляются.
+ */
+export async function importChroniclePackage(file: File): Promise<CampaignIndexEntry> {
+  const JSZip = (await import('jszip')).default
+  const zip = await JSZip.loadAsync(file)
+  const metaFile = zip.files['campaign.json']
+  if (!metaFile) throw new Error('в архиве нет campaign.json — это не пакет кампании')
+  const meta = JSON.parse(await metaFile.async('text')) as { id: string; title: string; author?: string; description?: string }
+  const id = meta.id
+  for (const [p, f] of Object.entries(zip.files)) {
+    if (f.dir) continue
+    if (p.endsWith('.json') || p.endsWith('.ink')) {
+      await saveFile(`campaigns/${id}/${p}`, await f.async('text'))
+    } else {
+      const b64 = await f.async('base64')
+      const res = await fetch('/__editor/save', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path: `campaigns/${id}/${p}`, base64: b64 }),
+      })
+      if (!res.ok) throw new Error(`${p}: ${res.status}`)
+    }
+  }
+  const index = await fetchCampaignIndex()
+  const entry: CampaignIndexEntry = { id, title: meta.title || id, author: meta.author, description: meta.description }
+  const i = index.findIndex((c) => c.id === id)
+  if (i >= 0) index[i] = entry
+  else index.push(entry)
+  await saveFile('campaigns/index.json', JSON.stringify(index, null, 2))
+  return entry
 }

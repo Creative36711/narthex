@@ -166,7 +166,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -210,13 +210,19 @@ export class EditorStore {
       for (const sk of this.meta.skills ?? []) out.push({ id: sk.id, label: sk.label || sk.id })
     } else if (kind === 'need') {
       for (const n of this.meta.needs) out.push({ id: n.id, label: n.label || n.id })
+    } else if (kind === 'disposition') {
+      // отношение можно менять и к фракции, и к отдельному NPC
+      for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: `${f.label || f.id} (фракция)` })
+      for (const o of this.options('npc')) out.push({ id: o.id, label: `${o.label} (NPC)` })
+    } else if (kind === 'itemCategory') {
+      for (const c of this.meta.item_categories ?? []) out.push({ id: c.id, label: c.label || c.id })
     }
-    return out
+    return out.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
   }
 
   /** название по id (для сводок) */
-  labelFor(kind: Parameters<EditorStore['options']>[0], id: string): string {
-    return this.options(kind).find((o) => o.id === id)?.label ?? id
+  labelFor(kind: string, id: string): string {
+    return this.options(kind as Parameters<EditorStore['options']>[0]).find((o) => o.id === id)?.label ?? id
   }
 
   /** сохранить бинарный файл (картинку) в кампанию; возвращает путь внутри кампании */

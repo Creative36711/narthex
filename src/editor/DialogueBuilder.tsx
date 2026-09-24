@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
+import { askText } from './prompt'
 import {
   generateInk,
   type DlgChoice,
@@ -16,11 +17,32 @@ import {
  * формами; .ink генерируется автоматически при каждом изменении.
  */
 
-const EMOTIONS: Array<{ id: DlgEmotion; label: string }> = [
+const BASE_EMOTIONS: Array<{ id: DlgEmotion; label: string }> = [
   { id: 'neutral', label: 'спокойно' },
   { id: 'happy', label: 'радость' },
   { id: 'angry', label: 'гнев' },
 ]
+
+const EMOTION_LABELS: Record<string, string> = {
+  neutral: 'спокойно',
+  happy: 'радость',
+  angry: 'гнев',
+  sad: 'печаль',
+  fear: 'страх',
+}
+
+/** настроения для диалога: базовые + состояния портретов NPC, говорящего этим диалогом */
+function emotionsFor(store: EditorStore, inkPath: string): Array<{ id: DlgEmotion; label: string }> {
+  const out = [...BASE_EMOTIONS]
+  for (const p of store.entityPaths()) {
+    const e = store.entity(p)
+    if (e?.type !== 'npc' || e.dialogue !== inkPath) continue
+    for (const key of Object.keys(e.portrait ?? {})) {
+      if (!out.some((em) => em.id === key)) out.push({ id: key, label: EMOTION_LABELS[key] ?? key })
+    }
+  }
+  return out
+}
 
 const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'set_flag', label: 'Поставить флаг' },
@@ -63,8 +85,8 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
 
   const node = doc.nodes[Math.min(nodeIdx, doc.nodes.length - 1)]
 
-  const addNode = () => {
-    const label = prompt('Название узла (например «Расспросить о банде»):')
+  const addNode = async () => {
+    const label = await askText('Название узла разговора', 'например «Расспросить о банде»')
     if (!label) return
     doc.nodes.push({
       id: makeId('node_', label, doc.nodes.map((n) => n.id)),
@@ -111,7 +133,7 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       </div>
 
       <div className="dlg-node-form">
-        {node && <NodeForm key={node.id} node={node} doc={doc} store={store} commit={commit} />}
+        {node && <NodeForm key={node.id} node={node} doc={doc} store={store} commit={commit} emotions={emotionsFor(store, path)} />}
       </div>
     </div>
   )
@@ -122,11 +144,13 @@ function NodeForm({
   doc,
   store,
   commit,
+  emotions,
 }: {
   node: DlgNode
   doc: DlgDoc
   store: EditorStore
   commit: () => void
+  emotions: Array<{ id: DlgEmotion; label: string }>
 }) {
   return (
     <div className="rule-editor">
@@ -141,7 +165,7 @@ function NodeForm({
       <div className="props-group">
         <h4>Реплики НПС</h4>
         {node.lines.map((l, i) => (
-          <LineRow key={i} line={l} onRemove={node.lines.length > 1 ? () => (node.lines.splice(i, 1), commit()) : undefined} commit={commit} />
+          <LineRow key={i} line={l} onRemove={node.lines.length > 1 ? () => (node.lines.splice(i, 1), commit()) : undefined} commit={commit} emotions={emotions} />
         ))}
         <button className="btn btn-small" onClick={() => (node.lines.push({ text: '' }), commit())}>+ реплика</button>
       </div>
@@ -157,6 +181,7 @@ function NodeForm({
             node={node}
             store={store}
             commit={commit}
+            emotions={emotions}
             onRemove={() => (node.choices.splice(i, 1), commit())}
           />
         ))}
@@ -176,7 +201,7 @@ function NodeForm({
   )
 }
 
-function LineRow({ line, onRemove, commit }: { line: DlgLine; onRemove?: () => void; commit: () => void }) {
+function LineRow({ line, onRemove, commit, emotions = BASE_EMOTIONS }: { line: DlgLine; onRemove?: () => void; commit: () => void; emotions?: Array<{ id: DlgEmotion; label: string }> }) {
   return (
     <div className="dlg-line-row">
       <textarea
@@ -196,7 +221,8 @@ function LineRow({ line, onRemove, commit }: { line: DlgLine; onRemove?: () => v
             commit()
           }}
         >
-          {EMOTIONS.map((em) => (
+          {!emotions.some((em) => em.id === (line.emotion ?? 'neutral')) && <option value={line.emotion}>{line.emotion}</option>}
+          {emotions.map((em) => (
             <option key={em.id} value={em.id}>{em.label}</option>
           ))}
         </select>
@@ -225,6 +251,7 @@ function ChoiceForm({
   node,
   store,
   commit,
+  emotions,
   onRemove,
 }: {
   choice: DlgChoice
@@ -233,6 +260,7 @@ function ChoiceForm({
   node: DlgNode
   store: EditorStore
   commit: () => void
+  emotions: Array<{ id: DlgEmotion; label: string }>
   onRemove: () => void
 }) {
   const flags = store.knownFlags()
@@ -292,7 +320,7 @@ function ChoiceForm({
       <div className="fld-block">
         <span className="fld-caption">Ответ НПС</span>
         {c.lines.map((l, i) => (
-          <LineRow key={i} line={l} onRemove={() => (c.lines.splice(i, 1), commit())} commit={commit} />
+          <LineRow key={i} line={l} onRemove={() => (c.lines.splice(i, 1), commit())} commit={commit} emotions={emotions} />
         ))}
         <button className="btn btn-small" onClick={() => (c.lines.push({ text: '' }), commit())}>+ реплика</button>
       </div>

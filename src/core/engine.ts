@@ -478,15 +478,20 @@ export class GameEngine {
     return Math.min(1.6, Math.max(0.7, mod))
   }
 
+  /** id основной валюты кампании (первая в реестре) */
+  get mainCurrency(): string {
+    return this.campaign.meta.currencies[0]?.id ?? 'silver'
+  }
+
   buyPrice(npc: NpcDef, itemId: string, basePrice?: number): number {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
-    const base = basePrice ?? item?.value?.silver ?? 1
+    const base = basePrice ?? item?.value?.[this.mainCurrency] ?? 1
     return Math.max(1, Math.round(base * this.priceModifier(npc)))
   }
 
   sellPrice(npc: NpcDef, itemId: string): number {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
-    const base = item?.value?.silver ?? 0
+    const base = item?.value?.[this.mainCurrency] ?? 0
     const rate = npc.trader?.buy_rate ?? 0.4
     return Math.max(0, Math.floor((base * rate) / this.priceModifier(npc)))
   }

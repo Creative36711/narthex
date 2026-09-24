@@ -11,33 +11,81 @@
     {
       "id": "started",
       "on_enter_effects": [
-        { "type": "journal_update", "quest": "quest_relic", "text_key": "started" },
-        { "type": "reveal_location", "location": "loc_mine" },
-        { "type": "show_message", "text": "Заброшенная шахта отмечена на карте долины. Путь лежит через лес, на юго-запад." }
+        {
+          "type": "journal_update",
+          "quest": "quest_relic",
+          "text_key": "started"
+        },
+        {
+          "type": "reveal_location",
+          "location": "loc_mine"
+        },
+        {
+          "type": "show_message",
+          "text": "Заброшенная шахта отмечена на карте долины. Путь лежит через лес, на юго-запад."
+        }
       ],
       "transitions": [
-        { "to": "found", "conditions": [{ "type": "has_item", "item": "item_medallion" }] }
-      ]
+        {
+          "to": "found",
+          "conditions": [
+            {
+              "type": "has_item",
+              "item": "item_medallion"
+            }
+          ]
+        }
+      ],
+      "label": "Начало"
     },
     {
       "id": "found",
       "on_enter_effects": [
-        { "type": "journal_update", "quest": "quest_relic", "text_key": "found" }
+        {
+          "type": "journal_update",
+          "quest": "quest_relic",
+          "text_key": "found"
+        }
       ],
       "transitions": [
-        { "to": "completed", "conditions": [{ "type": "flag_set", "flag": "relic_returned" }] }
-      ]
+        {
+          "to": "completed",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "relic_returned"
+            }
+          ]
+        }
+      ],
+      "label": "Реликвия найдена"
     },
     {
       "id": "completed",
       "final": true,
       "outcome": "success",
       "on_enter_effects": [
-        { "type": "journal_update", "quest": "quest_relic", "text_key": "completed" },
-        { "type": "change_disposition", "target": "faction_town", "delta": 10 },
-        { "type": "change_skill", "skill": "dodge", "delta": 5 },
-        { "type": "show_message", "text": "Благословение Вечного Света: уклонение +5. Отец Корвин отныне лечит вас бесплатно и без лишних вопросов." }
-      ]
+        {
+          "type": "journal_update",
+          "quest": "quest_relic",
+          "text_key": "completed"
+        },
+        {
+          "type": "change_disposition",
+          "target": "faction_town",
+          "delta": 10
+        },
+        {
+          "type": "change_skill",
+          "skill": "dodge",
+          "delta": 5
+        },
+        {
+          "type": "show_message",
+          "text": "Благословение Вечного Света: уклонение +5. Отец Корвин отныне лечит вас бесплатно и без лишних вопросов."
+        }
+      ],
+      "label": "Завершение"
     }
   ]
 }

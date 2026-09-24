@@ -92,6 +92,12 @@
       "id": "faction_bandits",
       "label": "Банда с холмов",
       "base_disposition": -60
+    },
+    {
+      "id": "faction_vermin",
+      "label": "Дикие твари",
+      "base_disposition": -100,
+      "description": "Крысы, хищники и прочие создания, с которыми не договориться."
     }
   ],
   "max_companions": 1,
@@ -135,6 +141,54 @@
     {
       "id": "bite",
       "label": "Укус"
+    }
+  ],
+  "item_categories": [
+    {
+      "id": "food",
+      "label": "Еда",
+      "restores_hp": false,
+      "restores_needs": [
+        "hunger"
+      ]
+    },
+    {
+      "id": "drink",
+      "label": "Питьё",
+      "restores_needs": [
+        "thirst"
+      ]
+    },
+    {
+      "id": "medicine",
+      "label": "Лекарства",
+      "restores_hp": true
+    },
+    {
+      "id": "weapon",
+      "label": "Оружие",
+      "is_weapon": true
+    },
+    {
+      "id": "armor",
+      "label": "Броня",
+      "is_armor": true
+    },
+    {
+      "id": "quest",
+      "label": "Квестовые предметы"
+    },
+    {
+      "id": "currency",
+      "label": "Валюта"
+    },
+    {
+      "id": "container",
+      "label": "Интерактивные объекты"
+    },
+    {
+      "id": "misc",
+      "label": "Разное"
     }
   ]
 }

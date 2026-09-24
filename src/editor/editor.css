@@ -386,3 +386,74 @@
   min-width: 0;
 }
 .dlg-qty { width: 64px; }
+
+/* ─────────── стилизованный prompt ─────────── */
+
+.prompt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 7, 5, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+}
+.prompt-box {
+  background: var(--panel);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 20px 24px;
+  min-width: 380px;
+  max-width: 90vw;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+.prompt-title { color: var(--gold-bright); font-size: 16px; margin-bottom: 12px; }
+.prompt-box input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  margin-bottom: 14px;
+}
+.prompt-box input:focus { outline: none; border-color: var(--gold); }
+.prompt-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* чипы мультивыбора (время суток) */
+.chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--muted);
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.chip:hover { border-color: var(--gold); color: var(--text); }
+.chip-on { background: rgba(212, 175, 55, 0.18); border-color: var(--gold); color: var(--gold-bright); }
+
+.editor-list-group {
+  padding: 10px 12px 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  opacity: 0.85;
+}
+
+.ink-legacy-note {
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}

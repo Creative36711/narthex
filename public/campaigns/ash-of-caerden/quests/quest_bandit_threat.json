@@ -38,7 +38,8 @@
             }
           ]
         }
-      ]
+      ],
+      "label": "Начало"
     },
     {
       "id": "talked_to_merchant",
@@ -76,7 +77,8 @@
             }
           ]
         }
-      ]
+      ],
+      "label": "Разговор с торговцем"
     },
     {
       "id": "found_camp",
@@ -106,7 +108,8 @@
             }
           ]
         }
-      ]
+      ],
+      "label": "Лагерь найден"
     },
     {
       "id": "completed_fight",
@@ -139,7 +142,8 @@
         {
           "type": "game_over_victory"
         }
-      ]
+      ],
+      "label": "Развязка: бой"
     },
     {
       "id": "completed_deal",
@@ -168,7 +172,8 @@
         {
           "type": "game_over_victory"
         }
-      ]
+      ],
+      "label": "Развязка: сделка"
     }
   ]
 }

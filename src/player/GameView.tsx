@@ -32,6 +32,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
         onOpenCharacter={() => setPanel('character')}
         onOpenLog={() => setPanel('log')}
         onOpenHelp={() => setPanel('help')}
+        onExitToMenu={onExitToMenu}
       />
       <SceneScreen engine={engine} onOpenMap={() => setPanel('map')} />
 
@@ -47,7 +48,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
 
       {engine.dialogue && !engine.combat && !engine.trade && <DialogueOverlay engine={engine} />}
 
-      {message && !engine.combat && (
+      {message && (
         <div className="overlay message-overlay" onClick={() => engine.dismissMessage()}>
           <div className="message-box" onClick={(e) => e.stopPropagation()}>
             {message.portrait && (

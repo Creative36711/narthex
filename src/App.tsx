@@ -99,6 +99,16 @@ export default function App() {
             localStorage.setItem(LAST_KEY, id)
             setCampaignId(id)
           }}
+          onImported={(id) => {
+            fetchCampaignIndex().then((idx) => {
+              setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: 'Пепел Каэрдена' }])
+              localStorage.setItem(LAST_KEY, id)
+              setCampaignId(id)
+              setCampaign(null)
+              // если импортировали ту же кампанию, что открыта — перечитать файлы
+              loadCampaign(`/campaigns/${id}`).then(setCampaign).catch((e) => setError(String(e)))
+            })
+          }}
           canContinue={hasSave(campaign.meta.id)}
           onNewGame={() => {
             const e = new GameEngine(campaign)

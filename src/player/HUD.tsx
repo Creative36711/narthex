@@ -8,9 +8,10 @@ interface Props {
   onOpenCharacter: () => void
   onOpenLog: () => void
   onOpenHelp: () => void
+  onExitToMenu: () => void
 }
 
-export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenHelp }: Props) {
+export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenHelp, onExitToMenu }: Props) {
   const s = engine.state
   const meta = engine.campaign.meta
   const tod = timeOfDay(s.tick, meta)
@@ -45,6 +46,15 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         <button className="hud-btn" onClick={onOpenCharacter} title="Лист персонажа">👤 Герой</button>
         <button className="hud-btn" onClick={onOpenLog} title="Журнал">📜 Журнал</button>
         <button className="hud-btn" onClick={onOpenHelp} title="Справка">❓</button>
+        <button
+          className="hud-btn"
+          title="Выйти в главное меню (прогресс сохранён)"
+          onClick={() => {
+            if (confirm('Выйти в главное меню? Прогресс сохранён автоматически.')) onExitToMenu()
+          }}
+        >
+          ⏻
+        </button>
       </div>
     </div>
   )

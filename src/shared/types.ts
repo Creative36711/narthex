@@ -44,6 +44,20 @@ export interface FactionDef {
   base_disposition: number
 }
 
+/** Категория предметов: задаёт, какие свойства доступны предмету (фидбек №8). */
+export interface ItemCategoryDef {
+  id: string
+  label: string
+  /** предметы категории можно использовать для восстановления здоровья */
+  restores_hp?: boolean
+  /** какие потребности восстанавливают предметы категории (id из реестра needs) */
+  restores_needs?: string[]
+  /** предметы категории — оружие (навык, урон и т.д.) */
+  is_weapon?: boolean
+  /** предметы категории — броня (очки поглощения урона) */
+  is_armor?: boolean
+}
+
 export interface CampaignMeta {
   id: string
   title: string
@@ -61,6 +75,8 @@ export interface CampaignMeta {
   needs: NeedDef[]
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
   skills?: Array<{ id: string; label: string }>
+  /** реестр категорий предметов: категория определяет, что предмет умеет */
+  item_categories?: ItemCategoryDef[]
   currencies: CurrencyDef[]
   factions?: FactionDef[]
   /** максимальный груз в кг: STR + SIZ (по умолчанию) */
@@ -291,6 +307,8 @@ export interface ArenaDef {
 
 export interface QuestStageDef {
   id: string
+  /** название стадии для мастера (в редакторе) */
+  label?: string
   final?: boolean
   outcome?: 'success' | 'failure'
   on_enter_effects?: Effect[]

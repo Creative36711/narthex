@@ -3,6 +3,7 @@ import type { EditorStore } from './store'
 import { JsonField } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
+import { askText } from './prompt'
 
 /** Редактор campaign.json формой: мета, время, старт, потребности, фракции. */
 export function CampaignEditor({ store }: { store: EditorStore }) {
@@ -126,8 +127,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         ))}
         <button
           className="btn btn-small"
-          onClick={() => {
-            const label = prompt('Название потребности (например «Тепло»):')
+          onClick={async () => {
+            const label = await askText('Название потребности', 'например «Тепло»')
             if (!label) return
             m.needs.push({ id: makeId('need_', label, m.needs.map((x) => x.id)), label, max: 100, decay_per_tick: 1, critical_threshold: 25, on_zero_effect: 'death' })
             commit()
@@ -154,8 +155,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         ))}
         <button
           className="btn btn-small"
-          onClick={() => {
-            const label = prompt('Название фракции:')
+          onClick={async () => {
+            const label = await askText('Название фракции', 'например «Гильдия воров»')
             if (!label) return
             m.factions!.push({ id: makeId('faction_', label, m.factions!.map((x) => x.id)), label, base_disposition: 0 })
             commit()
@@ -182,8 +183,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         ))}
         <button
           className="btn btn-small"
-          onClick={() => {
-            const label = prompt('Название навыка (например «Стрельба из лука»):')
+          onClick={async () => {
+            const label = await askText('Название навыка', 'например «Стрельба из лука»')
             if (!label) return
             if (!m.skills) m.skills = []
             // если название совпадает со стандартным — используем стандартный id (у него есть встроенный перевод)
@@ -193,6 +194,76 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           }}
         >
           + навык
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Категории предметов</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Категория определяет, что умеет предмет: восстанавливать здоровье или потребности,
+          быть оружием или бронёй. Поля в форме предмета появляются по его категории.
+        </div>
+        {(m.item_categories ?? []).map((c, i) => (
+          <div key={i} className="fld-row need-row" style={{ flexWrap: 'wrap' }}>
+            <label className="fld">
+              <span>Название</span>
+              <input value={c.label} onChange={(e) => ((c.label = e.target.value), commit())} />
+            </label>
+            <label className="fld fld-check" title="Предметы категории можно использовать для лечения">
+              <input type="checkbox" checked={!!c.restores_hp} onChange={(e) => {
+                if (e.target.checked) c.restores_hp = true
+                else delete c.restores_hp
+                commit()
+              }} />
+              <span>Лечит (HP)</span>
+            </label>
+            {m.needs.map((n) => (
+              <label key={n.id} className="fld fld-check" title={`Предметы категории восстанавливают «${n.label}»`}>
+                <input
+                  type="checkbox"
+                  checked={(c.restores_needs ?? []).includes(n.id)}
+                  onChange={(e) => {
+                    const set = new Set(c.restores_needs ?? [])
+                    if (e.target.checked) set.add(n.id)
+                    else set.delete(n.id)
+                    if (set.size) c.restores_needs = [...set]
+                    else delete c.restores_needs
+                    commit()
+                  }}
+                />
+                <span>{n.label}</span>
+              </label>
+            ))}
+            <label className="fld fld-check">
+              <input type="checkbox" checked={!!c.is_weapon} onChange={(e) => {
+                if (e.target.checked) c.is_weapon = true
+                else delete c.is_weapon
+                commit()
+              }} />
+              <span>Оружие</span>
+            </label>
+            <label className="fld fld-check">
+              <input type="checkbox" checked={!!c.is_armor} onChange={(e) => {
+                if (e.target.checked) c.is_armor = true
+                else delete c.is_armor
+                commit()
+              }} />
+              <span>Броня</span>
+            </label>
+            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.item_categories!.splice(i, 1), commit())}>✕</button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название категории предметов', 'например «Зелья»')
+            if (!label) return
+            if (!m.item_categories) m.item_categories = []
+            m.item_categories.push({ id: makeId('cat_', label, m.item_categories.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + категория
         </button>
       </div>
 

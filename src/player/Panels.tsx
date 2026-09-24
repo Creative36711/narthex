@@ -73,12 +73,12 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                   ))}
                 <button
                   className="btn btn-small btn-drop"
-                  title="Выбросить"
+                  title="Выбросить 1 шт."
                   onClick={() => {
                     if (confirm(`Выбросить ${entry.quantity > 1 ? '1 шт. — ' : ''}«${def!.label}»?`)) engine.removeItem(entry.item, 1)
                   }}
                 >
-                  🗑 Выбросить
+                  🗑
                 </button>
               </div>
             </li>
@@ -154,7 +154,7 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
           {Object.entries(p.skills).sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (
             <li key={id}>
               <span>
-                {SKILL_LABELS[id] ?? id}
+                {engine.skillLabel(id)}
                 {p.skill_marks?.[id] && <span className="skill-mark"> ✓</span>}
               </span>
               <span className="skill-val">{val}%</span>
@@ -194,18 +194,6 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
       </div>
     </div>
   )
-}
-
-const SKILL_LABELS: Record<string, string> = {
-  sword: 'Меч',
-  shield: 'Щит',
-  dodge: 'Уклонение',
-  spot: 'Наблюдательность',
-  first_aid: 'Первая помощь',
-  persuade: 'Убеждение',
-  bargain: 'Торговля',
-  lockpicking: 'Взлом замков',
-  stealth: 'Скрытность',
 }
 
 /** Журнал: квесты (стадии, записи) + события (ТЗ 6.1). */
