@@ -7,6 +7,7 @@ import { DialogueOverlay } from './DialogueOverlay'
 import { InventoryPanel, CharacterPanel, LogPanel } from './Panels'
 import { TradePanel } from './TradePanel'
 import { EndScreen } from './EndScreen'
+import { HelpPanel } from './HelpPanel'
 import { CombatScreen } from './CombatScreen'
 import { assetUrl } from '../core/loader'
 
@@ -16,7 +17,7 @@ interface Props {
   onExitToMenu: () => void
 }
 
-type PanelId = 'map' | 'inventory' | 'character' | 'log' | null
+type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | null
 
 export function GameView({ engine, onRestart, onExitToMenu }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
@@ -30,6 +31,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
         onOpenInventory={() => setPanel('inventory')}
         onOpenCharacter={() => setPanel('character')}
         onOpenLog={() => setPanel('log')}
+        onOpenHelp={() => setPanel('help')}
       />
       <SceneScreen engine={engine} onOpenMap={() => setPanel('map')} />
 
@@ -37,6 +39,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
       {panel === 'inventory' && <InventoryPanel engine={engine} onClose={() => setPanel(null)} />}
       {panel === 'character' && <CharacterPanel engine={engine} onClose={() => setPanel(null)} />}
       {panel === 'log' && <LogPanel engine={engine} onClose={() => setPanel(null)} />}
+      {panel === 'help' && <HelpPanel onClose={() => setPanel(null)} />}
 
       {engine.combat && <CombatScreen engine={engine} />}
 

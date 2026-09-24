@@ -11,6 +11,8 @@ import type { NpcDef } from '../shared/types'
 export interface DialogueLine {
   text: string
   emotion: string
+  /** повествование/действие (тег # action) — рендерится курсивом */
+  action?: boolean
 }
 
 export interface DialogueUI {
@@ -61,7 +63,13 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   })
   bind('get_need', (id: string) => engine.state.player.needs[id] ?? 0)
   bind('change_need', (id: string, delta: number) => { engine.changeNeed(id, delta); return 0 })
-  bind('set_flag', (f: string) => { engine.state.flags[f] = true; return 0 })
+  bind('set_flag', (f: string) => {
+    engine.state.flags[f] = true
+    // квесты/правила реагируют на флаг сразу (пока не начался бой/торговля),
+    // иначе «квест начат» приходил бы только после боя
+    if (!engine.combat && !engine.trade) engine.checkRules()
+    return 0
+  })
   bind('get_flag', (f: string) => !!engine.state.flags[f])
   bind('get_stat', (s: string) => (engine.state.player.stats as unknown as Record<string, number>)[s] ?? 0)
   bind('get_skill', (s: string) => engine.state.player.skills[s] ?? 0)
@@ -90,11 +98,13 @@ export function drainStory(story: Story): { lines: DialogueLine[]; choices: { in
     const text = (story.Continue() ?? '').trim()
     const tags = story.currentTags ?? []
     let emotion = 'neutral'
+    let action = false
     for (const t of tags) {
       const m = t.match(/^emotion:\s*(\w+)/)
       if (m) emotion = m[1]
+      if (t.trim() === 'action') action = true
     }
-    if (text) lines.push({ text, emotion })
+    if (text) lines.push({ text, emotion, action })
   }
   const choices = story.currentChoices.map((c, i) => ({ index: i, text: c.text }))
   return { lines, choices, finished: choices.length === 0 && !story.canContinue }

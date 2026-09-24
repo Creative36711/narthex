@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
-import type { CampaignMeta, WorldDef } from '../shared/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorStore, type EditorSection, type ManifestDef } from './store'
 import { SceneEditor } from './SceneEditor'
 import { ArenaEditor, newArena } from './ArenaEditor'
 import { RuleEditor, newRule } from './RuleEditor'
 import { QuestEditor, newQuest } from './QuestEditor'
-import { JsonDocEditor, InkEditor } from './MonacoEditors'
+import { InkEditor } from './MonacoEditors'
+import { EntityEditor } from './EntityEditor'
+import { CampaignEditor } from './CampaignEditor'
+import { WorldEditor } from './WorldEditor'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
+import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
+import { makeId, slugify } from './ids'
 import './editor.css'
 
 /**
@@ -26,19 +30,22 @@ const SECTIONS: Array<{ id: EditorSection; label: string }> = [
 ]
 
 export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onExit: () => void }) {
-  const storeRef = useRef<EditorStore | null>(null)
+  const [base, setBase] = useState(campaignPath)
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [section, setSection] = useState<EditorSection>('scenes')
   const [selected, setSelected] = useState<string | null>(null)
   const [, force] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
+  const [campaigns, setCampaigns] = useState<CampaignIndexEntry[]>([])
   const fileInput = useRef<HTMLInputElement>(null)
 
-  if (!storeRef.current) storeRef.current = new EditorStore(campaignPath)
-  const store = storeRef.current
+  const store = useMemo(() => new EditorStore(base), [base])
 
   useEffect(() => {
+    setLoaded(false)
+    setError(null)
+    setSelected(null)
     store
       .load()
       .then(() => setLoaded(true))
@@ -46,6 +53,40 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }, [store])
 
   useEffect(() => store.subscribe(() => force((n) => n + 1)), [store])
+
+  useEffect(() => {
+    fetchCampaignIndex().then(setCampaigns)
+  }, [base])
+
+  // undo: Ctrl+Z вне текстовых полей (в полях работает свой откат браузера/Monaco)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
+      const t = e.target as HTMLElement
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
+      if (t.closest('.monaco-editor')) return
+      if (store.canUndo()) {
+        e.preventDefault()
+        store.undo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [store])
+
+  const newCampaign = async () => {
+    const title = prompt('Название новой кампании:')
+    if (!title) return
+    setBusy('Создание кампании…')
+    try {
+      const id = await createCampaign(title)
+      setBase(`/campaigns/${id}`)
+    } catch (e) {
+      alert(`Не удалось создать кампанию: ${e}\n(Создание работает в dev-режиме vite / Tauri.)`)
+    } finally {
+      setBusy(null)
+    }
+  }
 
   if (error) return <div className="screen-center"><div className="panel error-panel">{error}</div></div>
   if (!loaded) return <div className="screen-center"><div className="loading">Загрузка кампании в редактор…</div></div>
@@ -69,40 +110,55 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  const createNew = () => {
-    const name = prompt('Имя файла (без расширения), напр. rule_my_event:')
-    if (!name) return
-    const fn = name.replace(/[^\w-]/g, '_')
+  /** создать элемент: мастер вводит название, id и имя файла генерируются сами */
+  const createNew = (entityType?: 'item' | 'npc') => {
+    const label = prompt('Название (id будет создан автоматически):')
+    if (!label) return
     let path = ''
-    if (section === 'scenes')
-      path = store.createFile('scenes', `${fn}.json`, {
-        id: fn,
-        label: 'Новая сцена',
-        location: '',
+    if (section === 'scenes') {
+      const id = makeId('scene_', label, store.ids('scene'))
+      path = store.createFile('scenes', `${id}.json`, {
+        id,
+        label,
+        location: store.ids('location')[0] ?? '',
         canvas: { w: 1280, h: 720 },
         states: [{ id: 'state_default', label: 'Обычное', image: '', condition: null }],
         slots: [],
         navigation: [],
       })
-    else if (section === 'entities')
-      path = store.createFile('entities', `${fn}.json`, {
-        id: fn,
-        type: 'item',
-        category: 'misc',
-        label: 'Новый предмет',
-        description: '',
-        weight: 0.1,
-        stackable: true,
-      })
-    else if (section === 'rules') path = store.createFile('rules', `${fn}.json`, newRule(fn))
-    else if (section === 'quests') path = store.createFile('quests', `${fn}.json`, newQuest(fn))
-    else if (section === 'arenas') path = store.createFile('arenas', `${fn}.json`, newArena(fn))
-    else if (section === 'dialogues')
+    } else if (section === 'entities') {
+      const id = makeId(entityType === 'npc' ? 'npc_' : 'item_', label, store.ids('entity'))
+      path = store.createFile(
+        'entities',
+        `${id}.json`,
+        entityType === 'npc'
+          ? {
+              id,
+              type: 'npc',
+              label,
+              portrait: {},
+              stats: { STR: 10, CON: 10, SIZ: 10, DEX: 10, INT: 10, POW: 10, CHA: 10 },
+              skills: { dodge: 30, spot: 30 },
+            }
+          : { id, type: 'item', category: 'misc', label, description: '', weight: 0.1, stackable: true },
+      )
+    } else if (section === 'rules') {
+      const id = makeId('rule_', label, store.ids('rule'))
+      path = store.createFile('rules', `${id}.json`, { ...newRule(id), label })
+    } else if (section === 'quests') {
+      const id = makeId('quest_', label, store.ids('quest'))
+      path = store.createFile('quests', `${id}.json`, { ...newQuest(id), label })
+    } else if (section === 'arenas') {
+      const id = makeId('arena_', label, store.ids('arena'))
+      path = store.createFile('arenas', `${id}.json`, { ...newArena(id), label })
+    } else if (section === 'dialogues') {
+      const fn = slugify(label)
       path = store.createFile(
         'dialogues',
         `${fn}.ink`,
         `EXTERNAL get_flag(f)\nEXTERNAL set_flag(f)\n\n=== main ===\nПривет, путник.\n+ [Уйти] -> END\n`,
       )
+    }
     if (path) setSelected(path)
   }
 
@@ -161,8 +217,34 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     <div className="editor-root">
       <header className="editor-topbar">
         <span className="editor-brand">CHRONICLE FORGE · РЕДАКТОР</span>
-        <span className="editor-title">{store.meta.title}</span>
+        {campaigns.length > 0 ? (
+          <select
+            className="campaign-select"
+            value={base}
+            onChange={(e) => {
+              if (store.dirty.size && !confirm('Есть несохранённые изменения. Сменить кампанию без сохранения?')) return
+              setBase(e.target.value)
+            }}
+            title="Кампания"
+          >
+            {campaigns.map((c) => (
+              <option key={c.id} value={`/campaigns/${c.id}`}>{c.title}</option>
+            ))}
+            {!campaigns.some((c) => `/campaigns/${c.id}` === base) && <option value={base}>{store.meta.title}</option>}
+          </select>
+        ) : (
+          <span className="editor-title">{store.meta.title}</span>
+        )}
+        <button className="btn btn-small" onClick={newCampaign} title="Создать новую кампанию">＋ Кампания</button>
         <span className="editor-spacer" />
+        <button
+          className="btn btn-small"
+          onClick={() => store.undo()}
+          disabled={!store.canUndo()}
+          title="Откатить последнее изменение (Ctrl+Z)"
+        >
+          ↩ Откат
+        </button>
         {busy && <span className="muted small">{busy}</span>}
         <span className={`editor-dirty ${store.dirty.size ? 'on' : ''}`}>
           {store.dirty.size ? `несохранено: ${store.dirty.size}` : 'все сохранено'}
@@ -216,7 +298,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               </button>
             ))}
             <div className="editor-list-tools">
-              <button className="btn btn-small" onClick={createNew}>+ создать</button>
+              {section === 'entities' ? (
+                <>
+                  <button className="btn btn-small" onClick={() => createNew('item')}>+ предмет</button>
+                  <button className="btn btn-small" onClick={() => createNew('npc')}>+ NPC</button>
+                </>
+              ) : (
+                <button className="btn btn-small" onClick={() => createNew()}>+ создать</button>
+              )}
               {sel && (
                 <button className="btn btn-small ce-del" onClick={removeSelected}>✕</button>
               )}
@@ -225,31 +314,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         )}
 
         <main className="editor-main">
-          {section === 'campaign' && (
-            <JsonDocEditor
-              key="campaign"
-              title="campaign.json — мета кампании"
-              getValue={() => JSON.stringify(store.meta, null, 2)}
-              apply={(v) => store.setMeta(v as CampaignMeta)}
-            />
-          )}
-          {section === 'world' && (
-            <JsonDocEditor
-              key="world"
-              title="world.json — регионы и локации"
-              getValue={() => JSON.stringify(store.world, null, 2)}
-              apply={(v) => store.setWorld(v as WorldDef)}
-            />
-          )}
+          {section === 'campaign' && <CampaignEditor key={`c-${base}`} store={store} />}
+          {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
           {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} />}
-          {section === 'entities' && sel && (
-            <JsonDocEditor
-              key={sel}
-              title={sel}
-              getValue={() => JSON.stringify(store.jsonFiles.get(sel), null, 2)}
-              apply={(v) => store.setJson(sel, v)}
-            />
-          )}
+          {section === 'entities' && sel && <EntityEditor key={sel} store={store} path={sel} />}
           {section === 'rules' && sel && <RuleEditor key={sel} store={store} path={sel} />}
           {section === 'quests' && sel && <QuestEditor key={sel} store={store} path={sel} />}
           {section === 'dialogues' && sel && <InkEditor key={sel} store={store} path={sel} />}

@@ -93,8 +93,20 @@
 .fld input:focus, .fld select:focus, .fld textarea:focus { outline: none; border-color: var(--gold); }
 .fld-check { flex-direction: row; align-items: center; gap: 8px; }
 .fld-inline { flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0; }
-.fld-row { display: flex; gap: 10px; }
-.fld-row .fld { flex: 1; }
+.fld-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.fld-row .fld { flex: 1; min-width: 0; }
+/* фикс переполнения (арены: «Гекс, px» вылезал за форму) — инпуты сжимаются вместе с колонкой */
+.fld input[type='text'],
+.fld input[type='number'],
+.fld input:not([type]):not([type='checkbox']),
+.fld select,
+.fld textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.fld-check input, .fld-inline input { width: auto; }
+.fld-inline input { flex: 1; min-width: 60px; }
 .fld-block { }
 .fld-err { color: var(--red); font-style: normal; }
 
@@ -227,3 +239,28 @@
 }
 .ink-ok { background: rgba(90, 125, 67, 0.2); color: #b8cba0; border: 1px solid var(--green); }
 .ink-bad { background: rgba(176, 58, 46, 0.15); color: #e0a8a0; border: 1px solid var(--red); }
+
+
+/* ─────────── новые формы (кампания / мир / сущности) ─────────── */
+
+.campaign-select {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  max-width: 260px;
+}
+.advanced-json { margin-top: 14px; border: 1px dashed var(--border); border-radius: 6px; padding: 8px 12px; }
+.advanced-json > summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.advanced-json textarea { width: 100%; box-sizing: border-box; }
+.stats-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.stat-fld { width: 64px; flex: 0 0 auto; }
+.fld-caption { display: block; color: var(--muted); font-size: 12px; margin: 6px 0 4px; }
+.need-row { align-items: flex-end; }
+.need-row .ce-del { margin-bottom: 8px; }
+.loc-details { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; background: var(--panel-2); }
+.loc-details > summary { cursor: pointer; font-size: 13px; padding: 4px 0; }
+.loc-details[open] > summary { color: var(--gold-bright); margin-bottom: 8px; }

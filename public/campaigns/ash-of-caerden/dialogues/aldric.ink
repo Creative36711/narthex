@@ -29,6 +29,9 @@ EXTERNAL quest_stage(q)
 - else:
     Стой... а, это ты. Проходи. # emotion: neutral
 }
+-> hub
+
+=== hub ===
 * [Расскажи о городе.]
     Каэрден — перекрёсток трёх трактов. Был богат, пока дороги были чисты. # emotion: neutral
     Рынок — прямо за воротами. Таверна «Дубовый щит» — дальше по улице. В лес на западе без нужды не ходи.
@@ -38,7 +41,7 @@ EXTERNAL quest_stage(q)
     Поговори с Браном на рынке, если хочешь заработать на этом мечом.
 + { quest_stage("quest_bandit_threat") != "" && quest_stage("quest_bandit_threat") != "completed_fight" && quest_stage("quest_bandit_threat") != "completed_deal" && not in_party("npc_guard_aldric") } [Пойдёшь со мной против банды Йорека?]
     { get_disposition("faction_town_guard") >= 10:
-        Алдрик долго смотрит на вас, потом сплёвывает и снимает щит со спины. # emotion: happy
+        Алдрик долго смотрит на вас, потом сплёвывает и снимает щит со спины. # emotion: happy # action
         А, пропади оно всё. Капитан всё равно носа за стены не кажет. Идём — только чур, махать мечом в полную силу.
         ~ join_party("npc_guard_aldric")
     - else:
@@ -58,4 +61,4 @@ EXTERNAL quest_stage(q)
 + [Бывай.]
     Смотри в оба на дорогах. # emotion: neutral
     -> DONE
-- -> main
+- -> hub

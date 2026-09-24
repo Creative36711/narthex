@@ -125,14 +125,16 @@ export function JsonField({
   onChange,
   placeholder,
   rows = 2,
+  pretty = false,
 }: {
   label: string
   value: unknown
   onChange: (v: unknown) => void
   placeholder?: string
   rows?: number
+  pretty?: boolean
 }) {
-  const [text, setText] = useState(() => (value === undefined ? '' : JSON.stringify(value)))
+  const [text, setText] = useState(() => (value === undefined ? '' : JSON.stringify(value, null, pretty ? 2 : undefined)))
   const [err, setErr] = useState(false)
   return (
     <label className="fld fld-block">

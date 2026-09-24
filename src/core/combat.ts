@@ -113,7 +113,10 @@ export class CombatController {
     const playerSpawns = [...this.arena.spawn_zones.player.hexes]
     const enemySpawns = [...this.arena.spawn_zones.enemy.hexes]
 
-    const { weapon, weaponLabel } = this.resolveWeapon(playerDef, p.skills)
+    const pw = e.playerWeapon()
+    const pa = e.playerArmor()
+    const weapon = pw.weapon
+    const weaponLabel = pw.label
     const overloaded = e.isOverloaded()
     this.combatants.push({
       id: 'c_player',
@@ -125,7 +128,7 @@ export class CombatController {
       skills: overloaded ? { ...p.skills, dodge: Math.max(0, (p.skills.dodge ?? 0) - 10) } : p.skills,
       weapon,
       weaponLabel,
-      armor: this.resolveArmor(playerDef),
+      armor: pa.points,
       hp: p.hp,
       maxHp: p.max_hp,
       pos: this.takeSpawn(playerSpawns),

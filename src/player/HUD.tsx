@@ -7,9 +7,10 @@ interface Props {
   onOpenInventory: () => void
   onOpenCharacter: () => void
   onOpenLog: () => void
+  onOpenHelp: () => void
 }
 
-export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog }: Props) {
+export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenHelp }: Props) {
   const s = engine.state
   const meta = engine.campaign.meta
   const tod = timeOfDay(s.tick, meta)
@@ -43,6 +44,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         <button className="hud-btn" onClick={onOpenInventory} title="Инвентарь">🎒 Вещи</button>
         <button className="hud-btn" onClick={onOpenCharacter} title="Лист персонажа">👤 Герой</button>
         <button className="hud-btn" onClick={onOpenLog} title="Журнал">📜 Журнал</button>
+        <button className="hud-btn" onClick={onOpenHelp} title="Справка">❓</button>
       </div>
     </div>
   )

@@ -24,7 +24,15 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
               <div className="inv-item-main">
                 <b>{def!.label}</b>
                 {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
+                {engine.isEquipped(entry.item) && <span className="equipped-badge">✓ надето</span>}
                 <div className="muted small">{def!.description}</div>
+                {def!.weapon_data && (
+                  <div className="muted small">
+                    Оружие: {def!.weapon_data.damage}
+                    {def!.weapon_data.damage_bonus ? ' + бонус силы' : ''} · навык «{def!.weapon_data.skill}»
+                  </div>
+                )}
+                {def!.armor_data && <div className="muted small">Броня: −{def!.armor_data.points} к урону</div>}
               </div>
               <div className="inv-item-side">
                 <span className="muted small">{(def!.weight * entry.quantity).toFixed(1)} кг</span>
@@ -33,6 +41,19 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                     Использовать
                   </button>
                 )}
+                {(def!.weapon_data || def!.armor_data) &&
+                  (engine.isEquipped(entry.item) ? (
+                    <button
+                      className="btn btn-small"
+                      onClick={() => engine.unequipItem(def!.weapon_data ? 'weapon' : 'armor')}
+                    >
+                      Снять
+                    </button>
+                  ) : (
+                    <button className="btn btn-small" onClick={() => engine.equipItem(entry.item)}>
+                      Надеть
+                    </button>
+                  ))}
               </div>
             </li>
           ))}
@@ -51,6 +72,8 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
   const factions = engine.campaign.meta.factions ?? []
   const load = engine.currentLoad()
   const maxLoad = engine.maxLoad()
+  const weapon = engine.playerWeapon()
+  const armor = engine.playerArmor()
 
   return (
     <div className="overlay panel-overlay" onClick={onClose}>
@@ -79,6 +102,27 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
             Груз {load.toFixed(1)}/{maxLoad} кг{load > maxLoad ? ' — перегруз!' : ''}
           </span>
         </div>
+        <h3>Снаряжение</h3>
+        <ul className="skill-list equip-list">
+          <li>
+            <span>⚔ В руках</span>
+            <span className="skill-val">
+              {weapon.label}
+              {weapon.itemId && ` (${weapon.weapon.damage}${weapon.weapon.damage_bonus ? '+бонус' : ''})`}
+            </span>
+          </li>
+          <li>
+            <span>🛡 Броня</span>
+            <span className="skill-val">
+              {armor.label}
+              {armor.itemId && ` (−${armor.points} к урону)`}
+            </span>
+          </li>
+        </ul>
+        <div className="muted small" style={{ marginBottom: 10 }}>
+          Надеть и снять снаряжение можно в инвентаре (🎒).
+        </div>
+
         <h3>Навыки <span className="muted small">(✓ — готов к росту после сна)</span></h3>
         <ul className="skill-list">
           {Object.entries(p.skills).sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (

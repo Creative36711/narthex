@@ -13,6 +13,7 @@ import type {
   SceneStateDef,
   SlotDef,
   TravelConnection,
+  WeaponData,
 } from '../shared/types'
 import { SAVE_VERSION } from '../shared/types'
 import { PRNG } from './prng'
@@ -55,6 +56,11 @@ export class GameEngine {
     if (state) {
       this.state = state
       this.rng = new PRNG(state.seed)
+      // миграция сейвов ≤ v2: экипировка из шаблона персонажа
+      if (!this.state.player.equipment) {
+        const def = this.campaign.entities[this.state.player.entity] as NpcDef | undefined
+        this.state.player.equipment = { ...(def?.equipment ?? {}) }
+      }
     } else {
       this.rng = new PRNG()
       this.state = this.newState()
@@ -102,6 +108,7 @@ export class GameEngine {
       needs,
       inventory: (playerDef.inventory ?? []).map((i) => ({ ...i })),
       currencies,
+      equipment: { ...(playerDef.equipment ?? {}) },
     }
 
     const dispositions: Record<string, number> = {}
@@ -206,6 +213,72 @@ export class GameEngine {
     if (!entry) return
     entry.quantity -= quantity
     if (entry.quantity <= 0) inv.splice(inv.indexOf(entry), 1)
+    // предмет закончился — снимаем с персонажа
+    const eq = this.state.player.equipment
+    if (!this.hasItem(id)) {
+      if (eq.weapon === id) delete eq.weapon
+      if (eq.armor === id) delete eq.armor
+    }
+  }
+
+  // ─────────────── экипировка ───────────────
+
+  /** предмет надет? */
+  isEquipped(id: string): boolean {
+    const eq = this.state.player.equipment
+    return eq.weapon === id || eq.armor === id
+  }
+
+  /** надеть оружие/броню из инвентаря */
+  equipItem(id: string): void {
+    if (!this.hasItem(id)) return
+    const def = this.campaign.entities[id] as ItemDef | undefined
+    if (!def || def.type !== 'item') return
+    if (def.weapon_data) {
+      this.state.player.equipment.weapon = id
+      this.pushLog(`Взято в руки: ${def.label}.`)
+    } else if (def.armor_data) {
+      this.state.player.equipment.armor = id
+      this.pushLog(`Надето: ${def.label}.`)
+    } else return
+    this.autosave()
+    this.notify()
+  }
+
+  /** снять оружие/броню */
+  unequipItem(slot: 'weapon' | 'armor'): void {
+    const eq = this.state.player.equipment
+    const id = eq[slot]
+    if (!id) return
+    const def = this.campaign.entities[id] as ItemDef | undefined
+    delete eq[slot]
+    this.pushLog(`Снято: ${def?.label ?? id}.`)
+    this.autosave()
+    this.notify()
+  }
+
+  /** текущее оружие игрока (для UI и боя): экипированное или кулаки */
+  playerWeapon(): { itemId: string | null; weapon: WeaponData; label: string } {
+    const id = this.state.player.equipment.weapon
+    if (id && this.hasItem(id)) {
+      const def = this.campaign.entities[id] as ItemDef | undefined
+      if (def?.weapon_data) return { itemId: id, weapon: def.weapon_data, label: def.label }
+    }
+    return {
+      itemId: null,
+      weapon: { skill: 'brawl', damage: '1d3', damage_bonus: true, range: 1, attacks_per_round: 1, parry_capable: false, label: 'Кулаки' },
+      label: 'Кулаки',
+    }
+  }
+
+  /** текущая броня игрока (очки поглощения) */
+  playerArmor(): { itemId: string | null; points: number; label: string } {
+    const id = this.state.player.equipment.armor
+    if (id && this.hasItem(id)) {
+      const def = this.campaign.entities[id] as ItemDef | undefined
+      if (def?.armor_data) return { itemId: id, points: def.armor_data.points, label: def.label }
+    }
+    return { itemId: null, points: 0, label: 'Без брони' }
   }
 
   useItem(id: string): void {

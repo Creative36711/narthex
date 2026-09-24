@@ -1,11 +1,23 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { Hex } from '../core/hex'
 import { hexKey, hexToPixel, hexCorners, gridPixelSize, hexDistance } from '../core/hex'
 import { assetUrl } from '../core/loader'
+import { tipSeen, markTip } from './tips'
 
 interface Props {
   engine: GameEngine
+}
+
+/** класс строки лога по содержимому — для читаемости */
+function logLineClass(l: string): string {
+  if (l.startsWith('— Раунд')) return 'log-round'
+  if (l.startsWith('☠')) return 'log-death'
+  if (l.startsWith('🏆')) return 'log-win'
+  if (l.includes('Промах') || l.includes('промах') || l.includes('уклоняется') || l.includes('парирует'))
+    return 'log-miss'
+  if (l.includes('урона') || l.includes('Крит')) return 'log-hit'
+  return ''
 }
 
 /** Экран тактического боя: арена + гекс-сетка + токены (ТЗ 6.1 «Бой»). */
@@ -15,6 +27,8 @@ export function CombatScreen({ engine }: Props) {
   const canvas = arena.canvas ?? { w: 1280, h: 720 }
   const size = arena.hex_grid.hex_size
   const [hoverHex, setHoverHex] = useState<string | null>(null)
+  const [showTutorial, setShowTutorial] = useState(() => !tipSeen('combat'))
+  const logRef = useRef<HTMLDivElement>(null)
 
   const origin = useMemo(() => {
     if (arena.hex_grid.origin) return arena.hex_grid.origin
@@ -32,6 +46,12 @@ export function CombatScreen({ engine }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [playerTurn, combat.active.movLeft, combat.active.pos.col, combat.active.pos.row, combat.round],
   )
+
+  // автопрокрутка лога вниз
+  useEffect(() => {
+    const el = logRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [combat.log.length])
 
   const hexes: Hex[] = []
   for (let row = 0; row < arena.hex_grid.rows; row++) {
@@ -57,7 +77,7 @@ export function CombatScreen({ engine }: Props) {
       <div className="combat-panel">
         <div className="combat-header">
           <div>
-            <b>{arena.label}</b> · Раунд {combat.round}
+            ⚔ <b>{arena.label}</b> · Раунд {combat.round}
           </div>
           <div className="combat-turn">
             Ход: <b className={playerTurn ? 'gold' : ''}>{combat.active.label}</b>
@@ -128,6 +148,29 @@ export function CombatScreen({ engine }: Props) {
                 </div>
               )
             })}
+
+            {showTutorial && !combat.result && (
+              <div className="combat-tutorial">
+                <h4>💡 Первый бой — как это работает</h4>
+                <ol>
+                  <li><b>Инициатива.</b> Порядок ходов определяет Ловкость (DEX) — очередь видна справа внизу.</li>
+                  <li><b>Движение.</b> В свой ход кликайте по <i>подсвеченным</i> гексам — столько шагов, сколько позволяет Движение.</li>
+                  <li><b>Атака.</b> Подойдите к врагу вплотную и кликните по нему (красная подсветка). Шанс попадания = навык оружия (d100).</li>
+                  <li><b>Защита.</b> От ударов по вам персонаж сам уклоняется или парирует; каждая повторная защита за раунд слабее на 30%.</li>
+                  <li><b>Предметы.</b> Лечебная мазь и еда — через «Использовать предмет» (тратит действие).</li>
+                </ol>
+                <p className="muted small">Каждая успешная атака и защита «отмечает» навык — во сне он сможет вырасти. Подробнее — кнопка «?» в игре.</p>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    markTip('combat')
+                    setShowTutorial(false)
+                  }}
+                >
+                  Понятно, в бой!
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="combat-side">
@@ -168,17 +211,35 @@ export function CombatScreen({ engine }: Props) {
                       </ul>
                     </div>
                   )}
-                  <button className="btn btn-primary" onClick={() => engine.endCombat()}>
+                  {!tipSeen('growth') && (
+                    <p className="combat-growth-tip">
+                      💡 Навыки, которые вы применяли в бою, получили отметку. Отдохните
+                      (кнопка «Отдых» в сцене) — по каждому отмеченному навыку пройдёт бросок
+                      d100: выпало больше навыка — навык вырастет на 1d6.
+                    </p>
+                  )}
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      markTip('growth')
+                      engine.endCombat()
+                    }}
+                  >
                     Продолжить
                   </button>
+                </div>
+              ) : combat.result === 'defeat' ? (
+                <div className="combat-defeat">
+                  <h3>☠ Вы пали в бою</h3>
+                  <p className="muted small">Забег окончен…</p>
                 </div>
               ) : (
                 <div className="combat-hint">Ход противника…</div>
               )}
             </div>
-            <div className="combat-log">
-              {combat.log.slice(-14).map((l, i) => (
-                <div key={i} className="combat-log-line">{l}</div>
+            <div className="combat-log" ref={logRef}>
+              {combat.log.map((l, i) => (
+                <div key={i} className={`combat-log-line ${logLineClass(l)}`}>{l}</div>
               ))}
             </div>
             <div className="combat-roster">

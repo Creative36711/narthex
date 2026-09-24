@@ -429,6 +429,8 @@ export interface PlayerState {
   needs: Record<string, number>
   inventory: InventoryEntry[]
   currencies: Record<string, number>
+  /** экипировка игрока: id предметов из инвентаря */
+  equipment: { weapon?: string; armor?: string }
 }
 
 export interface QuestState {
@@ -443,7 +445,7 @@ export interface CompanionState {
   max_hp: number
 }
 
-export const SAVE_VERSION = 2
+export const SAVE_VERSION = 3
 
 export interface GameState {
   save_version?: number

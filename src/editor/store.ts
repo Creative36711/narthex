@@ -48,6 +48,12 @@ export class EditorStore {
   dirty = new Set<string>()
   private listeners = new Set<() => void>()
 
+  /** undo: снимки «до изменения» (path + сериализация), максимум 100 шагов */
+  private undoStack: Array<{ path: string; text: string }> = []
+  /** текущая сериализация файлов — чтобы снять снимок «до» в момент touch */
+  private snapshots = new Map<string, string>()
+  private lastTouch = { path: '', at: 0 }
+
   constructor(basePath: string) {
     this.basePath = basePath
   }
@@ -85,6 +91,8 @@ export class EditorStore {
     for (const f of this.manifest.encounters ?? []) loadJson(`rules/${f}`)
     for (const f of this.manifest.dialogues) loadText(`dialogues/${f}`)
     await Promise.all(jobs)
+    // базовые снимки для undo
+    for (const p of this.allPaths()) this.snapshots.set(p, this.fileText(p))
   }
 
   // ─────────────── доступ с типами ───────────────
@@ -156,8 +164,39 @@ export class EditorStore {
   // ─────────────── правки ───────────────
 
   touch(path: string): void {
+    const now = Date.now()
+    const prev = this.snapshots.get(path)
+    // группируем серию быстрых правок одного файла (набор текста) в один шаг undo
+    const sameBurst = this.lastTouch.path === path && now - this.lastTouch.at < 900
+    if (prev !== undefined && !sameBurst) {
+      this.undoStack.push({ path, text: prev })
+      if (this.undoStack.length > 100) this.undoStack.shift()
+    }
+    this.lastTouch = { path, at: now }
+    this.snapshots.set(path, this.fileText(path))
     this.dirty.add(path)
     this.notify()
+  }
+
+  canUndo(): boolean {
+    return this.undoStack.length > 0
+  }
+
+  /** откат последнего изменения */
+  undo(): string | null {
+    const step = this.undoStack.pop()
+    if (!step) return null
+    const { path, text } = step
+    if (path === 'campaign.json') this.meta = JSON.parse(text)
+    else if (path === 'world.json') this.world = JSON.parse(text)
+    else if (path === 'manifest.json') this.manifest = JSON.parse(text)
+    else if (this.textFiles.has(path)) this.textFiles.set(path, text)
+    else this.jsonFiles.set(path, JSON.parse(text))
+    this.snapshots.set(path, text)
+    this.dirty.add(path)
+    this.lastTouch = { path: '', at: 0 }
+    this.notify()
+    return path
   }
 
   setJson(path: string, data: unknown): void {

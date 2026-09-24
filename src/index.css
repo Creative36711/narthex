@@ -103,6 +103,32 @@ button { font-family: inherit; cursor: pointer; }
 
 .menu-meta { margin-top: 40px; color: var(--muted); font-size: 13px; }
 
+/* платформа кампаний в главном меню */
+.brand-sub { color: var(--muted); font-size: 13px; letter-spacing: 2px; margin: 4px 0 26px; text-transform: uppercase; }
+.menu-columns { display: flex; gap: 32px; justify-content: center; align-items: flex-start; }
+.campaign-list { min-width: 240px; max-width: 280px; text-align: left; }
+.campaign-list-title { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+.campaign-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.campaign-card:hover { border-color: var(--gold); }
+.campaign-card.on { border-color: var(--gold); background: rgba(200, 160, 90, 0.08); }
+.campaign-card-title { font-size: 15px; color: var(--gold-bright); }
+.campaign-card-author { font-size: 12px; color: var(--muted); }
+.campaign-current { max-width: 560px; }
+
 /* ─────────── игровой вид ─────────── */
 
 .game-view {
@@ -485,20 +511,75 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--muted);
 }
 
+.equipped-badge {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--green);
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  padding: 1px 7px;
+  vertical-align: middle;
+}
+
+.dialogue-lines p.action {
+  font-style: italic;
+  color: var(--muted);
+  border-left: 2px solid var(--border);
+  padding-left: 10px;
+}
+
+.dialogue-tip {
+  background: rgba(201, 164, 92, 0.08);
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dialogue-tip .btn { flex: 0 0 auto; }
+
+.help-panel { max-width: 640px; }
+.help-section { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; background: var(--panel-2); }
+.help-title {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--gold-bright);
+  text-align: left;
+  font-size: 15px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  font-family: inherit;
+}
+.help-body { padding: 0 14px 12px; font-size: 14px; line-height: 1.55; }
+.help-body pre {
+  background: #0d0a07;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  overflow-x: auto;
+}
+
 /* ─────────── бой ─────────── */
 
-.combat-overlay { background: rgba(0, 0, 0, 0.8); z-index: 60; }
+.combat-overlay { background: #0a0705; z-index: 60; padding: 0; }
+
+.end-overlay { z-index: 200 !important; }
 
 .combat-panel {
-  width: min(1240px, 97vw);
-  max-height: 96vh;
+  width: 100%;
+  height: 100%;
   background: var(--panel);
-  border: 2px solid var(--red);
-  border-radius: 10px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow: hidden;
 }
 
 .combat-header {
@@ -510,12 +591,14 @@ button { font-family: inherit; cursor: pointer; }
 .combat-header .gold { color: var(--gold-bright); }
 .combat-turn { font-size: 15px; }
 
-.combat-main { display: flex; gap: 12px; min-height: 0; }
+.combat-main { display: flex; gap: 12px; min-height: 0; flex: 1; align-items: stretch; }
 
 .combat-stage {
   position: relative;
   flex: 1;
   min-width: 0;
+  align-self: center;
+  max-height: 100%;
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
@@ -596,21 +679,65 @@ button { font-family: inherit; cursor: pointer; }
 .combat-hint { font-size: 13px; }
 
 .combat-victory h3 { margin: 0 0 8px; color: var(--gold-bright); }
+.combat-growth-tip {
+  max-width: 460px;
+  margin: 10px auto;
+  font-size: 13px;
+  color: var(--muted);
+  background: rgba(200, 160, 90, 0.07);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: left;
+}
 .combat-loot ul { margin: 4px 0 10px; padding-left: 18px; font-size: 14px; }
 
 .combat-log {
   flex: 1;
-  min-height: 120px;
+  min-height: 140px;
   overflow-y: auto;
   background: #0d0a07;
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 8px 10px;
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--muted);
+  scrollbar-width: thin;
 }
+.combat-log-line { padding: 1px 0; }
+.combat-log-line.log-round {
+  margin: 6px 0 3px;
+  padding: 2px 0;
+  text-align: center;
+  color: var(--gold);
+  border-top: 1px solid var(--border);
+  letter-spacing: 1px;
+  font-size: 11.5px;
+}
+.combat-log-line.log-hit { color: #d9a79b; }
+.combat-log-line.log-miss { color: #7d94a8; }
+.combat-log-line.log-death { color: var(--red); font-weight: bold; }
+.combat-log-line.log-win { color: var(--gold-bright); font-weight: bold; }
 .combat-log-line:last-child { color: var(--text); }
+
+.combat-defeat h3 { margin: 0 0 6px; color: var(--red); }
+
+.combat-tutorial {
+  position: absolute;
+  inset: auto 12px 12px 12px;
+  max-width: 640px;
+  margin: 0 auto;
+  background: rgba(20, 16, 12, 0.96);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 14px 18px;
+  z-index: 10;
+  font-size: 13.5px;
+}
+.combat-tutorial h4 { margin: 0 0 8px; color: var(--gold-bright); }
+.combat-tutorial ol { margin: 0 0 8px; padding-left: 20px; }
+.combat-tutorial li { margin-bottom: 4px; }
 
 .combat-roster {
   background: var(--panel-2);
