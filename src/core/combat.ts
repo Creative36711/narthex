@@ -164,6 +164,38 @@ export class CombatController {
       })
     }
 
+    // временные союзники боя (напр. городская стража при штурме)
+    let a = 0
+    for (const grp of this.def.allies ?? []) {
+      const def = e.campaign.entities[grp.entity] as NpcDef | undefined
+      if (!def || def.type !== 'npc') continue
+      for (let i = 0; i < grp.count; i++) {
+        a++
+        const hp = def.stats.HP ?? derivedHP(def.stats)
+        const w = this.resolveWeapon(def, def.skills)
+        this.combatants.push({
+          id: `c_tally_${grp.entity}_${a}`,
+          entityId: grp.entity,
+          label: grp.count > 1 ? `${def.label} ${a}` : def.label,
+          side: 'player',
+          portrait: def.portrait?.neutral,
+          stats: def.stats,
+          skills: def.skills,
+          weapon: w.weapon,
+          weaponLabel: w.weaponLabel,
+          armor: this.resolveArmor(def),
+          hp,
+          maxHp: hp,
+          pos: this.takeSpawn(playerSpawns),
+          mov: movement(def.stats),
+          movLeft: 0,
+          attacked: false,
+          defensesUsed: 0,
+          dead: false,
+        })
+      }
+    }
+
     let n = 0
     for (const grp of this.def.enemies) {
       const def = e.campaign.entities[grp.entity] as NpcDef

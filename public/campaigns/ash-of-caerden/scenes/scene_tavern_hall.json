@@ -38,6 +38,18 @@
       "w": 140,
       "h": 235,
       "condition": null
+    },
+    {
+      "id": "slot_corner",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 585,
+      "y": 380,
+      "w": 130,
+      "h": 220,
+      "condition": null
     }
   ],
   "navigation": [

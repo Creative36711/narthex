@@ -16,7 +16,12 @@ EXTERNAL in_party(id)
     Я Йорек. Эта долина кормит моих людей. Говори, зачем пришёл, — и, может быть, уйдёшь на своих ногах.
 }
 + [«Уходите из долины — или ляжете в неё». (Убеждение)]
-    ~ temp r = skill_check("persuade", 60)
+    ~ temp d = 60
+    { get_flag("secret_path_used"):
+        ~ d = 40
+        Йорек мрачно оглядывается: вы пришли из его собственного тыла, и он это понимает. Лагерь не так неприступен, как он думал.
+    }
+    ~ temp r = skill_check("persuade", d)
     { r == "fail" || r == "fumble":
         Йорек долго смотрит на вас… и сплёвывает. # emotion: angry
         Языкатых я вешаю на осинах вдоль тракта.
@@ -44,5 +49,9 @@ EXTERNAL in_party(id)
     -> DONE
 
 === fight_starts ===
-~ fire_rule("encounter_camp_fight")
+{ get_flag("secret_path_used"):
+    ~ fire_rule("encounter_camp_fight_surprise")
+- else:
+    ~ fire_rule("encounter_camp_fight")
+}
 -> DONE

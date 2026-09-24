@@ -30,6 +30,14 @@
               "to": "loc_forest",
               "cost_ticks": 4,
               "random_encounter_table": "enc_road_forest"
+            },
+            {
+              "to": "loc_temple",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_barracks",
+              "cost_ticks": 1
             }
           ],
           "scenes": [
@@ -54,6 +62,10 @@
             },
             {
               "to": "loc_tavern",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_temple",
               "cost_ticks": 1
             }
           ],
@@ -98,6 +110,10 @@
             {
               "to": "loc_ravine",
               "cost_ticks": 2
+            },
+            {
+              "to": "loc_mine",
+              "cost_ticks": 3
             }
           ],
           "scenes": [
@@ -123,6 +139,63 @@
           ],
           "scenes": [
             "scene_ravine_camp"
+          ]
+        },
+        {
+          "id": "loc_temple",
+          "label": "Храм",
+          "position": {
+            "x": 800,
+            "y": 306
+          },
+          "travel_connections": [
+            {
+              "to": "loc_market",
+              "cost_ticks": 1
+            },
+            {
+              "to": "loc_gates",
+              "cost_ticks": 1
+            }
+          ],
+          "scenes": [
+            "scene_temple"
+          ]
+        },
+        {
+          "id": "loc_barracks",
+          "label": "Казармы стражи",
+          "position": {
+            "x": 742,
+            "y": 372
+          },
+          "travel_connections": [
+            {
+              "to": "loc_gates",
+              "cost_ticks": 1
+            }
+          ],
+          "scenes": [
+            "scene_barracks"
+          ]
+        },
+        {
+          "id": "loc_mine",
+          "label": "Заброшенная шахта",
+          "position": {
+            "x": 292,
+            "y": 568
+          },
+          "hidden": true,
+          "travel_connections": [
+            {
+              "to": "loc_forest",
+              "cost_ticks": 3
+            }
+          ],
+          "scenes": [
+            "scene_mine_entrance",
+            "scene_mine_deep"
           ]
         }
       ],

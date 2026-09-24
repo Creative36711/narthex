@@ -1,0 +1,30 @@
+{
+  "id": "scene_barracks",
+  "label": "Казармы стражи",
+  "location": "loc_barracks",
+  "canvas": { "w": 1280, "h": 720 },
+
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Спальный зал",
+      "image": "assets/img/scenes/barracks.jpg",
+      "condition": null
+    }
+  ],
+
+  "slots": [
+    {
+      "id": "slot_bed_3",
+      "type": ["person"],
+      "shape": "rect",
+      "x": 480, "y": 350, "w": 220, "h": 180,
+      "condition": null
+    }
+  ],
+
+  "navigation": [
+    { "area": { "x": 20, "y": 300, "w": 150, "h": 320 }, "go_to_location": "loc_gates", "label": "← К воротам" },
+    { "area": { "x": 20, "y": 620, "w": 260, "h": 80 }, "open_map": true, "label": "🗺 Карта долины" }
+  ]
+}

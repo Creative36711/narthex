@@ -5,7 +5,11 @@
     "scene_market.json",
     "scene_tavern_hall.json",
     "scene_forest_edge.json",
-    "scene_ravine_camp.json"
+    "scene_ravine_camp.json",
+    "scene_temple.json",
+    "scene_barracks.json",
+    "scene_mine_entrance.json",
+    "scene_mine_deep.json"
   ],
   "entities": [
     "player_mercenary.json",
@@ -25,7 +29,13 @@
     "item_short_sword.json",
     "item_leather_jerkin.json",
     "npc_yorek.json",
-    "item_healing_salve.json"
+    "item_healing_salve.json",
+    "npc_corvin.json",
+    "npc_lena.json",
+    "item_medallion.json",
+    "item_skeleton.json",
+    "item_secret_passage.json",
+    "npc_guard.json"
   ],
   "rules": [
     "rule_gates_greeting.json",
@@ -34,21 +44,35 @@
     "rule_forest_ambush.json",
     "encounter_cellar_rats.json",
     "rule_start_bandit_quest.json",
-    "encounter_camp_fight.json"
+    "encounter_camp_fight.json",
+    "rule_start_rats_quest.json",
+    "rule_start_secret_path.json",
+    "rule_mine_trap.json",
+    "rule_raid_warning.json",
+    "rule_market_raid.json",
+    "rule_city_assault.json",
+    "encounter_camp_fight_surprise.json"
   ],
   "dialogues": [
     "aldric.ink",
     "maeva.ink",
     "bran.ink",
-    "yorek.ink"
+    "yorek.ink",
+    "corvin.ink",
+    "lena.ink"
   ],
   "arenas": [
     "arena_cellar.json",
     "arena_forest_road.json",
-    "arena_camp.json"
+    "arena_camp.json",
+    "arena_market.json",
+    "arena_gates_battle.json"
   ],
   "quests": [
-    "quest_bandit_threat.json"
+    "quest_bandit_threat.json",
+    "quest_rats.json",
+    "quest_relic.json",
+    "quest_secret_path.json"
   ],
   "encounters": [
     "encounters.json"

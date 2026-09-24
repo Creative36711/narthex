@@ -7,12 +7,52 @@
     "happy": "assets/img/npc/aldric_neutral.jpg",
     "angry": "assets/img/npc/aldric_neutral.jpg"
   },
-  "stats": { "STR": 14, "CON": 12, "SIZ": 13, "DEX": 11, "INT": 10, "POW": 10, "CHA": 9 },
-  "skills": { "sword": 55, "shield": 45, "dodge": 35, "spot": 40, "first_aid": 30, "persuade": 25 },
+  "stats": {
+    "STR": 14,
+    "CON": 12,
+    "SIZ": 13,
+    "DEX": 11,
+    "INT": 10,
+    "POW": 10,
+    "CHA": 9
+  },
+  "skills": {
+    "sword": 55,
+    "shield": 45,
+    "dodge": 35,
+    "spot": 40,
+    "first_aid": 30,
+    "persuade": 25
+  },
   "dialogue": "dialogues/aldric.ink",
   "schedule": [
-    { "time_range": [6, 18], "location": "loc_gates", "scene": "scene_gates_front", "slot": "slot_guard_left" },
-    { "time_range": [18, 22], "location": "loc_tavern", "scene": "scene_tavern_hall", "slot": "slot_table_2" }
+    {
+      "time_range": [
+        6,
+        18
+      ],
+      "location": "loc_gates",
+      "scene": "scene_gates_front",
+      "slot": "slot_guard_left"
+    },
+    {
+      "time_range": [
+        18,
+        22
+      ],
+      "location": "loc_tavern",
+      "scene": "scene_tavern_hall",
+      "slot": "slot_table_2"
+    },
+    {
+      "time_range": [
+        22,
+        6
+      ],
+      "location": "loc_barracks",
+      "scene": "scene_barracks",
+      "slot": "slot_bed_3"
+    }
   ],
   "faction": "faction_town_guard",
   "base_disposition": 0,

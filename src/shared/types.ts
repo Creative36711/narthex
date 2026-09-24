@@ -366,6 +366,8 @@ export type Effect =
   | {
       type: 'start_combat'
       enemies: Array<{ entity: string; count: number }>
+      /** временные союзники только на этот бой (не входят в партию) */
+      allies?: Array<{ entity: string; count: number }>
       arena: string
       intro?: string
       on_victory?: Effect[]
@@ -376,6 +378,14 @@ export type Effect =
   | { type: 'remove_item'; item: string; quantity?: number }
   | { type: 'change_need'; need: string; delta: number }
   | { type: 'change_hp'; delta: number }
+  | { type: 'change_skill'; skill: string; delta: number }
+  | {
+      type: 'skill_check_gate'
+      skill: string
+      difficulty: number
+      success_effects: Effect[]
+      fail_effects: Effect[]
+    }
   | { type: 'change_disposition'; target: string; delta: number }
   | { type: 'start_quest'; quest: string }
   | { type: 'advance_quest'; quest: string; stage: string }

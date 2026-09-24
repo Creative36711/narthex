@@ -703,6 +703,17 @@ export class GameEngine {
       case 'remove_item': this.removeItem(e.item, e.quantity ?? 1); break
       case 'change_need': this.changeNeed(e.need, e.delta); break
       case 'change_hp': this.changeHp(e.delta); break
+      case 'change_skill': {
+        const cur = s.player.skills[e.skill] ?? 0
+        s.player.skills[e.skill] = Math.max(0, cur + e.delta)
+        this.pushLog(`Навык «${e.skill}»: ${e.delta > 0 ? '+' : ''}${e.delta} (теперь ${s.player.skills[e.skill]}).`)
+        break
+      }
+      case 'skill_check_gate': {
+        const out = this.playerSkillCheck(e.skill, e.difficulty)
+        this.applyEffects(out.success ? e.success_effects : e.fail_effects)
+        break
+      }
       case 'change_disposition': this.changeDisposition(e.target, e.delta); break
       case 'start_quest': this.startQuest(e.quest); break
       case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break
