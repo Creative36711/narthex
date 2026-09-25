@@ -360,6 +360,14 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     ],
     blank: { from: '', to: '' },
   },
+  set_description: {
+    label: 'Изменить описание',
+    fields: [
+      { key: 'entity', label: 'Сущность', kind: 'entityRef' },
+      { key: 'text', label: 'Новое описание', kind: 'string' },
+    ],
+    blank: { entity: '', text: '' },
+  },
   show_message: {
     label: 'Показать сообщение',
     fields: [

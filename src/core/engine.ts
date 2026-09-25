@@ -880,6 +880,18 @@ export class GameEngine {
 
   // ─────────────── эффекты ───────────────
 
+  /** актуальное описание сущности (с учётом динамических изменений set_description) */
+  descOf(entityId: string): string {
+    const def = this.campaign.entities[entityId] as { description?: string } | undefined
+    return this.state.desc_overrides?.[entityId] ?? def?.description ?? ''
+  }
+
+  /** динамически изменить описание сущности (правила/диалоги, действие set_description) */
+  setEntityDescription(entityId: string, text: string): void {
+    const s = this.state
+    s.desc_overrides = { ...(s.desc_overrides ?? {}), [entityId]: text }
+  }
+
   applyEffects(effects: Effect[]): void {
     for (const e of effects) this.applyEffect(e)
   }
@@ -888,6 +900,9 @@ export class GameEngine {
     const s = this.state
     switch (e.type) {
       case 'set_flag': s.flags[e.flag] = true; break
+      case 'set_description':
+        this.setEntityDescription(e.entity, e.text)
+        break
       case 'clear_flag': delete s.flags[e.flag]; break
       case 'set_variable': s.variables[e.var] = e.value; break
       case 'change_variable':

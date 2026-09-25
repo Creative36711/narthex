@@ -2,6 +2,7 @@
   "id": "npc_maeva",
   "type": "npc",
   "label": "Маэва",
+  "description": "Маэва — хозяйка таверны «У тракта». Держит порядок, кормит путников и слышит каждую сплетню в округе.",
   "portrait": {
     "neutral": "assets/img/npc/maeva_neutral.jpg"
   },

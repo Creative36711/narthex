@@ -58,6 +58,7 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'start_quest', label: 'Начать квест' },
   { id: 'join_party', label: 'Взять в отряд' },
   { id: 'play_cutscene', label: 'Показать катсцену' },
+  { id: 'set_description', label: 'Изменить описание' },
   { id: 'open_trade', label: 'Открыть торговлю (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
 ]
@@ -77,6 +78,7 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'sleep': return { type, ticks: 8 }
     case 'change_disposition': return { type, target: '', delta: 5 }
     case 'play_cutscene': return { type, cutscene: '' }
+    case 'set_description': return { type, entity: '', text: '' }
   }
 }
 
@@ -827,6 +829,12 @@ function EffectRow({
       </select>
       {e.type === 'set_flag' && (
         <FlagSelect label="" store={store} value={e.flag} onChange={(f) => ((e.flag = f ?? ''), commit())} />
+      )}
+      {e.type === 'set_description' && (
+        <>
+          <InlineRef kind="entity" store={store} value={e.entity} onChange={(v) => ((e.entity = v), commit())} />
+          <input value={e.text} placeholder="Новое описание" onChange={(ev) => ((e.text = ev.target.value), commit())} />
+        </>
       )}
       {(e.type === 'add_item' || e.type === 'remove_item') && (
         <>

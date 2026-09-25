@@ -251,6 +251,7 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'sleep': return `${indent}~ sleep(${e.ticks})`
     case 'change_disposition': return `${indent}~ change_disposition(${q(e.target)}, ${e.delta})`
     case 'play_cutscene': return `${indent}~ play_cutscene(${q(e.cutscene)})`
+    case 'set_description': return `${indent}~ set_description(${q(e.entity)}, ${q(e.text)})`
   }
 }
 

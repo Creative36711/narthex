@@ -2,6 +2,7 @@
   "id": "npc_corvin",
   "type": "npc",
   "label": "Отец Корвин",
+  "description": "Отец Корвин — хранитель местных обычаев и могил. Говорит тихо, но слушают его все.",
   "portrait": {
     "neutral": "assets/img/npc/corvin_neutral.jpg"
   },

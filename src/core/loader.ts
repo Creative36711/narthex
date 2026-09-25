@@ -1,4 +1,4 @@
-import { migrateCampaign } from '../shared/migrate'
+import { migrateCampaign, migrateEntity } from '../shared/migrate'
 import type {
   ArenaDef,
   CampaignData,
@@ -83,7 +83,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
     }),
     ...manifest.entities.map(async (f) => {
       const e = await getJSON<EntityDef>(`${basePath}/entities/${f}`)
-      entities[e.id] = e
+      entities[e.id] = migrateEntity(e)
     }),
     ...manifest.rules.map(async (f) => {
       const r = await getJSON<RuleDef>(`${basePath}/rules/${f}`)

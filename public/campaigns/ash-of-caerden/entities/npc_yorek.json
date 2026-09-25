@@ -2,6 +2,7 @@
   "id": "npc_yorek",
   "type": "npc",
   "label": "Серый Йорек",
+  "description": "Серый Йорек — горец из-за перевала. Молчаливый боец с двуручным мечом; за слово в ответе.",
   "portrait": {
     "neutral": "assets/img/npc/yorek_neutral.jpg"
   },

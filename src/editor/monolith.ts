@@ -163,6 +163,7 @@ function stubNpc(id: string): NpcDef {
     id,
     type: 'npc',
     label: `Заглушка: ${id}`,
+    description: '',
     portrait: {},
     stats: { ...DEFAULT_STATS },
     skills: {},
@@ -760,6 +761,9 @@ function fixEffect(ctx: RepairCtx, e: Effect, where: string, keep: (e: Effect | 
       entityReferenced(e.item, 'item', ctx)
       ensureEntity(ctx, e.item, 'item')
       break
+    case 'set_description':
+      ensureEntity(ctx, e.entity, e.entity.startsWith('item') ? 'item' : 'npc')
+      break
     case 'change_need':
       if (!ctx.doc.campaign.needs.some((n) => n.id === e.need)) {
         ctx.warn(`${where}: действие ссылается на несуществующую потребность «${e.need}» — действие удалено`)
@@ -1167,6 +1171,9 @@ function fixDlgGotos(ctx: RepairCtx, nodes: DlgNode[], where: string): void {
         return e
       case 'play_cutscene':
         ensureCutscene(ctx, e.cutscene)
+        return e
+      case 'set_description':
+        ensureEntity(ctx, e.entity, e.entity.startsWith('item') ? 'item' : 'npc')
         return e
       default:
         return e

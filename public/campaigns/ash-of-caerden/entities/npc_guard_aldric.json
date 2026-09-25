@@ -2,6 +2,7 @@
   "id": "npc_guard_aldric",
   "type": "npc",
   "label": "Страж Алдрик",
+  "description": "Страж Алдрик — из старой городской стражи Каэрдена. Прямой и упрямый; если дал слово — держит.",
   "portrait": {
     "neutral": "assets/img/npc/aldric_neutral.jpg"
   },

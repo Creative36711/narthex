@@ -39,6 +39,18 @@ export function migrateNeedConditions(list: NeedCondition[] | undefined): NeedCo
   return list.map(migrateNeedCondition)
 }
 
+/**
+ * Фидбек 16: у NPC появилось описание (как у предметов) — показывается
+ * при наведении и может меняться динамически (set_description).
+ * Старые данные получают пустое описание на лету.
+ */
+export function migrateEntity<T extends { type?: string }>(e: T): T {
+  if (e && e.type === 'npc' && typeof (e as { description?: string }).description !== 'string') {
+    return { ...e, description: '' }
+  }
+  return e
+}
+
 export function migrateMeta(meta: CampaignMeta): CampaignMeta {
   for (const need of meta.needs ?? []) {
     if (need.decay_when) need.decay_when = migrateNeedConditions(need.decay_when)

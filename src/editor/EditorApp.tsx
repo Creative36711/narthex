@@ -272,6 +272,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               id,
               type: 'npc',
               label,
+              description: '',
               portrait: {},
               stats: { STR: 10, CON: 10, SIZ: 10, DEX: 10, INT: 10, POW: 10, CHA: 10 },
               skills: { dodge: 30, spot: 30 },

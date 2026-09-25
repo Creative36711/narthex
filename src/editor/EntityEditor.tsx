@@ -289,6 +289,14 @@ function NpcForm({
           </label>
           <SlotTypeField e={npc} store={store} commit={commit} />
         </div>
+        <label className="fld fld-block">
+          <span>Описание</span>
+          <textarea
+            rows={2}
+            value={npc.description ?? ''}
+            onChange={(e) => ((npc.description = e.target.value), commit())}
+          />
+        </label>
         <RefSelect
           label="Диалог"
           kind="dialogue"

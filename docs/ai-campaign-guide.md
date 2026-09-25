@@ -191,6 +191,7 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
 ```json
 "npc_barkeep": {
   "id": "npc_barkeep", "type": "npc", "label": "Хозяйка Марта",
+  "description": "Хозяйка таверны. Знает все новости города и ценит порядок.",
   "portrait": { "neutral": "" },
   "stats": { "STR": 11, "CON": 12, "SIZ": 13, "DEX": 10, "INT": 13, "POW": 11, "CHA": 14 },
   "skills": { "persuade": 45, "bargain": 50 },
@@ -203,6 +204,13 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   "trader": { "sells": [ { "item": "item_bread", "price": 2 } ], "buys": true, "buy_rate": 0.5 }
 }
 ```
+
+У каждой сущности (NPC и предмета) есть поле `description` — **обязательное**
+краткое описание в стиле мира: игрок видит его при наведении на сущность в
+игре (имя + описание). Описание может **меняться в ходе игры** действием
+`set_description` (в правилах, диалогах и квестах): укажите `entity` (id
+сущности) и `text` (новый текст). Так описание отражает состояние мира —
+например, «Маэва благодарна после задания с крысами».
 
 ```json
 "item_bread": {
@@ -258,7 +266,8 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   `skill_check_gate`, `change_disposition`, `start_quest`/`advance_quest`/
   `fail_quest`, `journal_update`, `give_reward`, `join_party`/`leave_party`,
   `block_path`/`unblock_path`, `show_message`, `reveal_location`,
-  `advance_time`, `remove_entity`, `spawn_entity`, `play_cutscene`,
+  `advance_time`, `remove_entity`, `spawn_entity`, `set_description`
+  (динамически меняет описание сущности: `entity`, `text`), `play_cutscene`,
   `game_over_victory`, `game_over_death`.
 - `once: true` — срабатывает один раз за забег; `manual: true` — не
   проверяется само, вызывается из диалога (`fire_rule`) или потребностью
@@ -348,7 +357,8 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
 - Эффекты реплик: `set_flag`, `add_item`/`remove_item` (`qty`), `fire_rule`,
   `join_party`, `open_trade` (открывает торговлю и закрывает диалог),
   `start_quest`, `advance_time`, `change_need`, `change_hp`, `sleep`,
-  `change_disposition`, `play_cutscene`.
+  `change_disposition`, `play_cutscene`, `set_description` (`entity`, `text` —
+  динамически меняет описание сущности при наведении).
 
 ### 13.1 Текст реплики: токены и озвучка
 
@@ -510,19 +520,22 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   },
   "entities": {
     "player_hero": {
-      "id": "player_hero", "type": "npc", "label": "Странник", "portrait": {},
+      "id": "player_hero", "type": "npc", "label": "Странник",
+      "description": "Странник без дома и имени. Ищет работу и ночлег.", "portrait": {},
       "stats": { "STR": 11, "CON": 11, "SIZ": 11, "DEX": 11, "INT": 11, "POW": 11, "CHA": 11 },
       "skills": { "persuade": 35, "brawl": 30 }, "inventory": [ { "item": "item_silver", "quantity": 10 } ],
       "equipment": {}
     },
     "npc_keeper": {
-      "id": "npc_keeper", "type": "npc", "label": "Хуторянин", "portrait": {},
+      "id": "npc_keeper", "type": "npc", "label": "Хуторянин",
+      "description": "Крепкий хозяин двора у большой дороги. Подозрителен к чужим.", "portrait": {},
       "stats": { "STR": 12, "CON": 12, "SIZ": 12, "DEX": 10, "INT": 10, "POW": 10, "CHA": 10 },
       "skills": { "persuade": 25 }, "inventory": [], "equipment": {},
       "dialogue": "dialogues/keeper.ink"
     },
     "npc_bandit": {
-      "id": "npc_bandit", "type": "npc", "label": "Разбойник", "portrait": {},
+      "id": "npc_bandit", "type": "npc", "label": "Разбойник",
+      "description": "Грязный боец с тяжёлой палицей. Дорога — его кормилица.", "portrait": {},
       "stats": { "STR": 12, "CON": 11, "SIZ": 12, "DEX": 12, "INT": 9, "POW": 9, "CHA": 8 },
       "skills": { "brawl": 40 }, "inventory": [], "equipment": {},
       "natural_weapon": { "skill": "brawl", "damage": "1d6", "damage_bonus": true, "range": 1, "attacks_per_round": 1, "parry_capable": false }

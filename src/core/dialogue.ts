@@ -97,6 +97,7 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('get_disposition', (target: string) => engine.getDisposition(target))
   bind('change_disposition', (target: string, delta: number) => { engine.changeDisposition(target, delta); return 0 })
   bind('open_trade', (entityId: string) => { engine.openTrade(entityId); return 0 })
+  bind('set_description', (entityId: string, text: string) => { engine.setEntityDescription(entityId, text); return 0 })
   bind('join_party', (entityId: string) => { engine.joinParty(entityId); return 0 })
   bind('in_party', (entityId: string) => engine.isInParty(entityId))
   bind('start_quest', (questId: string) => { engine.startQuest(questId); return 0 })

@@ -430,6 +430,8 @@ export interface NpcDef {
   id: string
   type: 'npc'
   label: string
+  /** описание сущности (при наведении); можно менять динамически (set_description) */
+  description: string
   portrait: Record<string, string> // emotion -> image
   token?: string
   stats: StatBlock
@@ -678,6 +680,7 @@ export type DlgEffect =
   | { type: 'sleep'; ticks: number }
   | { type: 'change_disposition'; target: string; delta: number }
   | { type: 'play_cutscene'; cutscene: string }
+  | { type: 'set_description'; entity: string; text: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -883,6 +886,7 @@ export type Effect =
   | { type: 'advance_time'; ticks: number }
   | { type: 'remove_entity'; entity: string }
   | { type: 'spawn_entity'; entity: string; scene: string; slot: string }
+  | { type: 'set_description'; entity: string; text: string } // динамическое описание сущности
   | { type: 'game_over_victory' }
   | { type: 'game_over_death'; reason?: string }
   | { type: 'play_cutscene'; cutscene: string }
@@ -940,6 +944,8 @@ export interface GameState {
   scene: string
   flags: Record<string, boolean>
   variables: Record<string, number | string>
+  /** динамические описания сущностей (действие set_description) */
+  desc_overrides?: Record<string, string>
   fired_rules: string[]
   revealed_locations: string[]
   dead_entities: string[]

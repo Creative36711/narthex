@@ -163,7 +163,12 @@ export class EditorStore {
     return this.jsonFiles.get(path) as SceneDef
   }
   entity(path: string): EntityDef {
-    return this.jsonFiles.get(path) as EntityDef
+    const e = this.jsonFiles.get(path) as EntityDef
+    // мягкая миграция: у старых NPC нет описания — подставляем пустое
+    if (e && e.type === 'npc' && typeof (e as { description?: string }).description !== 'string') {
+      ;(e as { description?: string }).description = ''
+    }
+    return e
   }
   rule(path: string): RuleDef {
     return this.jsonFiles.get(path) as RuleDef

@@ -285,7 +285,7 @@ div.scene-bg svg { width: 100%; height: 100%; display: block; }
   transition: opacity 0.15s;
   pointer-events: none;
 }
-.slot-hotspot:hover .slot-label { opacity: 1; }
+/* имя сущности по наведению показывает тултип (имя + описание) — подпись не дублируем */
 
 .slot-portrait {
   position: absolute;
@@ -1148,7 +1148,7 @@ input[type='range'] {
   border-radius: 6px;
   font-size: 12px;
   line-height: 1.4;
-  white-space: normal;
+  white-space: pre-line; /* имя\nописание — переносы строк */
   pointer-events: none;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
 }
