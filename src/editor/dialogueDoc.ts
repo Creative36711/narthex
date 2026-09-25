@@ -122,6 +122,7 @@ export type DlgEffect =
   | { type: 'change_hp'; delta: number }
   | { type: 'sleep'; ticks: number }
   | { type: 'change_disposition'; target: string; delta: number }
+  | { type: 'play_cutscene'; cutscene: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -324,6 +325,7 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'change_hp': return `${indent}~ change_hp(${e.delta})`
     case 'sleep': return `${indent}~ sleep(${e.ticks})`
     case 'change_disposition': return `${indent}~ change_disposition(${q(e.target)}, ${e.delta})`
+    case 'play_cutscene': return `${indent}~ play_cutscene(${q(e.cutscene)})`
   }
 }
 
@@ -421,6 +423,7 @@ export function generateInk(docRaw: DlgDoc): string {
     'skill_check', 'get_disposition', 'change_disposition', 'in_party', 'join_party',
     'open_trade', 'fire_rule', 'start_quest', 'quest_stage', 'advance_time',
     'change_need', 'change_hp', 'get_hp', 'sleep', 'get_need', 'get_stat', 'get_skill',
+    'play_cutscene',
   ]
   const SIG: Record<string, string> = {
     get_flag: '(f)', set_flag: '(f)', add_item: '(id, n)', remove_item: '(id, n)',
@@ -429,6 +432,7 @@ export function generateInk(docRaw: DlgDoc): string {
     fire_rule: '(id)', start_quest: '(q)', quest_stage: '(q)', advance_time: '(t)',
     change_need: '(id, d)', change_hp: '(d)', get_hp: '()', sleep: '(t)',
     get_need: '(id)', get_stat: '(s)', get_skill: '(s)',
+    play_cutscene: '(id)',
   }
   const externals = FNS.filter((f) => body.includes(`${f}(`)).map((f) => `EXTERNAL ${f}${SIG[f]}`)
   return `${externals.join('\n')}\n\n${body}`

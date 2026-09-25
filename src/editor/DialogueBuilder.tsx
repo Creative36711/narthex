@@ -65,6 +65,7 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'sleep', label: 'Сон (время + отдых)' },
   { id: 'start_quest', label: 'Начать квест' },
   { id: 'join_party', label: 'Взять в отряд' },
+  { id: 'play_cutscene', label: 'Показать катсцену' },
   { id: 'open_trade', label: 'Открыть торговлю (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
 ]
@@ -83,6 +84,7 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'change_hp': return { type, delta: 5 }
     case 'sleep': return { type, ticks: 8 }
     case 'change_disposition': return { type, target: '', delta: 5 }
+    case 'play_cutscene': return { type, cutscene: '' }
   }
 }
 
@@ -812,6 +814,9 @@ function EffectRow({
         <InlineRef kind="npc" store={store} value={e.npc} onChange={(v) => ((e.npc = v), commit())} />
       )}
       {e.type === 'start_quest' && <InlineRef kind="quest" store={store} value={e.quest} onChange={(v) => ((e.quest = v), commit())} />}
+      {e.type === 'play_cutscene' && (
+        <InlineRef kind="cutscene" store={store} value={e.cutscene} onChange={(v) => ((e.cutscene = v), commit())} />
+      )}
       {(e.type === 'advance_time' || e.type === 'sleep') && (
         <>
           <input type="number" min={1} value={e.ticks} onChange={(ev) => ((e.ticks = Math.max(1, Number(ev.target.value))), commit())} />

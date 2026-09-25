@@ -1,5 +1,6 @@
 import type {
   CampaignData,
+  CutsceneDef,
   DiceRules,
   Effect,
   EncounterEntry,
@@ -54,9 +55,20 @@ export class GameEngine {
   trade: NpcDef | null = null
   /** всплывающие сообщения (show_message) */
   messages: { text: string; portrait?: string }[] = []
+  /**
+   * Очередь катсцен (итерация 8, блок E). Эффект play_cutscene ставит
+   * катсцену в очередь; остальные эффекты применяются сразу, но их экраны
+   * (диалог, бой, торговля, сообщения) UI показывает только после ролика —
+   * для игрока поток эффектов «продолжается по окончании катсцены».
+   */
+  cutsceneQueue: Array<{ def: CutsceneDef; serial: number }> = []
+  private cutsceneSerial = 0
+  /** забег создан с нуля (а не загружен из сейва) — для правил «на старте» */
+  private freshRun: boolean
 
   constructor(campaign: CampaignData, state?: GameState) {
     this.campaign = campaign
+    this.freshRun = !state
     if (state) {
       this.state = state
       this.rng = new PRNG(state.seed)
@@ -146,8 +158,45 @@ export class GameEngine {
 
   /** Вызывается один раз после создания/загрузки. */
   start(): void {
+    // новый забег: правила, чьи условия выполнены с самого начала
+    // (вступительная катсцена и т.п. — once + tick_elapsed 0)
+    if (this.freshRun) {
+      this.freshRun = false
+      this.checkRules()
+    }
     this.runLocationRules(this.state.location)
     this.autosave()
+    this.notify()
+  }
+
+  // ─────────────── катсцены (итерация 8, блок E) ───────────────
+
+  /** текущая катсцена (первая в очереди) */
+  get cutscene(): CutsceneDef | null {
+    return this.cutsceneQueue[0]?.def ?? null
+  }
+
+  /** уникальный номер показа текущей катсцены (ключ для UI) */
+  get cutsceneKey(): number {
+    return this.cutsceneQueue[0]?.serial ?? 0
+  }
+
+  playCutscene(id: string): void {
+    const def = this.campaign.cutscenes?.[id]
+    if (!def || !def.slides?.length) return
+    this.cutsceneQueue.push({ def, serial: ++this.cutsceneSerial })
+    this.pushLog(`Катсцена: «${def.label}»`)
+    this.notify()
+  }
+
+  /** катсцена досмотрена или пропущена */
+  endCutscene(): void {
+    if (!this.cutsceneQueue.length) return
+    this.cutsceneQueue.shift()
+    if (!this.cutsceneQueue.length) {
+      this.checkRules()
+      this.autosave()
+    }
     this.notify()
   }
 
@@ -908,6 +957,9 @@ export class GameEngine {
       case 'game_over_death':
         this.gameOver('death', e.reason ?? 'Вы погибли.')
         break
+      case 'play_cutscene':
+        this.playCutscene(e.cutscene)
+        break
     }
   }
 
@@ -945,7 +997,7 @@ export class GameEngine {
    * сразу; смена экрана (диалог, телепорт, новый бой, финал) — после закрытия.
    */
   onCombatVictory(effects: Effect[]): void {
-    const defer = new Set(['start_dialogue', 'start_combat', 'teleport_player', 'game_over_victory', 'game_over_death'])
+    const defer = new Set(['start_dialogue', 'start_combat', 'teleport_player', 'game_over_victory', 'game_over_death', 'play_cutscene'])
     this.postCombatEffects = effects.filter((e) => defer.has(e.type))
     this.applyEffects(effects.filter((e) => !defer.has(e.type)))
     this.notify()

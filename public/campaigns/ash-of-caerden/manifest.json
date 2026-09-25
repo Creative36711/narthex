@@ -45,6 +45,7 @@
     "item_fur_coat.json"
   ],
   "rules": [
+    "rule_intro_cutscene.json",
     "rule_gates_greeting.json",
     "rule_forest_intro.json",
     "effect_collapse.json",
@@ -84,5 +85,8 @@
   ],
   "encounters": [
     "encounters.json"
+  ],
+  "cutscenes": [
+    "cutscene_intro.json"
   ]
 }

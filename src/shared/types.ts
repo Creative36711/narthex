@@ -467,6 +467,42 @@ export interface ItemDef {
 
 export type EntityDef = NpcDef | ItemDef
 
+// ───────────────────────── катсцены (итерация 8, блок E) ─────────────────────────
+
+/** переход к слайду: резкая смена, затемнение, сдвиг, медленный наезд */
+export type CutsceneTransition = 'cut' | 'fade' | 'slide' | 'panzoom'
+
+/**
+ * Слайд катсцены. Кадр — ОДНО из: `art` (ArtDoc, рисуется примитивами),
+ * `image` (файл пакета или ссылка), `video` (mp4-ссылка или YouTube —
+ * работает только онлайн). Без кадра — подпись на чёрном фоне.
+ */
+export interface CutsceneSlide {
+  art?: ArtDoc
+  image?: string
+  video?: string
+  /** подпись: печатается поверх кадра, снизу */
+  text?: string
+  /** озвучка слайда: файл пакета (assets/voice/…) или ссылка */
+  voice?: string
+  /** длительность в секундах; по умолчанию — по длине текста или озвучки */
+  duration?: number
+  transition: CutsceneTransition
+}
+
+/**
+ * Слайд-катсцена: запускается эффектом `play_cutscene` из правила или
+ * диалога, показывается оверлеем поверх всего. Целиком описывается JSON'ом
+ * (слайды — ArtDoc), поэтому её можно сгенерировать без единого файла.
+ */
+export interface CutsceneDef {
+  id: string
+  label: string
+  /** музыка на всю катсцену: файл пакета или ссылка */
+  music?: string
+  slides: CutsceneSlide[]
+}
+
 // ───────────────────────── арены (ТЗ 3.9) ─────────────────────────
 
 export type HexCoord = [number, number] // [col, row]
@@ -614,6 +650,7 @@ export type Effect =
   | { type: 'spawn_entity'; entity: string; scene: string; slot: string }
   | { type: 'game_over_victory' }
   | { type: 'game_over_death'; reason?: string }
+  | { type: 'play_cutscene'; cutscene: string }
 
 export interface RuleDef {
   id: string
@@ -696,6 +733,8 @@ export interface CampaignData {
   arenas: Record<string, ArenaDef>
   quests: Record<string, QuestDef>
   encounters: Record<string, EncounterTableDef>
+  /** катсцены по id (итерация 8, блок E) */
+  cutscenes: Record<string, CutsceneDef>
   dialogues: Record<string, string> // путь -> исходник .ink
   basePath: string
 }

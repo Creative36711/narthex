@@ -2,6 +2,7 @@ import { migrateCampaign } from '../shared/migrate'
 import type {
   ArenaDef,
   CampaignData,
+  CutsceneDef,
   CampaignMeta,
   EncounterTableDef,
   EntityDef,
@@ -26,6 +27,8 @@ interface Manifest {
   arenas?: string[]
   quests?: string[]
   encounters?: string[]
+  /** катсцены: файлы в cutscenes/ (итерация 8, блок E) */
+  cutscenes?: string[]
   dialogues: string[]
 }
 
@@ -54,6 +57,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   const arenas: Record<string, ArenaDef> = {}
   const quests: Record<string, QuestDef> = {}
   const encounters: Record<string, EncounterTableDef> = {}
+  const cutscenes: Record<string, CutsceneDef> = {}
   const dialogues: Record<string, string> = {}
 
   await Promise.all([
@@ -68,6 +72,10 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
     ...(manifest.encounters ?? []).map(async (f) => {
       const tables = await getJSON<{ encounter_tables: EncounterTableDef[] }>(`${basePath}/rules/${f}`)
       for (const t of tables.encounter_tables) encounters[t.id] = t
+    }),
+    ...(manifest.cutscenes ?? []).map(async (f) => {
+      const c = await getJSON<CutsceneDef>(`${basePath}/cutscenes/${f}`)
+      cutscenes[c.id] = c
     }),
     ...manifest.scenes.map(async (f) => {
       const s = await getJSON<SceneDef>(`${basePath}/scenes/${f}`)
@@ -90,7 +98,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   // переходы «в локацию» из сцен и т.п.
   migrateCampaign(meta, world, scenes)
 
-  return { meta, world, scenes, entities, rules, arenas, quests, encounters, dialogues, basePath }
+  return { meta, world, scenes, entities, rules, arenas, quests, encounters, cutscenes, dialogues, basePath }
 }
 
 /**

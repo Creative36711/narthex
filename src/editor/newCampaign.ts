@@ -118,6 +118,7 @@ function scaffold(id: string, title: string, author: string) {
     arenas: [],
     quests: [],
     encounters: [],
+    cutscenes: [],
     dialogues: [],
   }
 

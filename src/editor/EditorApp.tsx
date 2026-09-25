@@ -10,6 +10,7 @@ import { DialogueBuilder, hasDlgDoc, dialogueTitle } from './DialogueBuilder'
 import { generateInk, newDlgDoc } from './dialogueDoc'
 import { CampaignEditor } from './CampaignEditor'
 import { WorldEditor } from './WorldEditor'
+import { CutsceneEditor, newCutscene } from './CutsceneEditor'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { makeId, slugify } from './ids'
@@ -30,6 +31,7 @@ const SECTIONS: Array<{ id: EditorSection; label: string }> = [
   { id: 'rules', label: '⚡ Правила' },
   { id: 'quests', label: '📜 Квесты' },
   { id: 'dialogues', label: '💬 Диалоги' },
+  { id: 'cutscenes', label: '🎬 Катсцены' },
   { id: 'arenas', label: '⚔ Арены' },
 ]
 
@@ -190,6 +192,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         return store.dialoguePaths().map((p) => ({ path: p, title: dialogueTitle(store, p) }))
       case 'arenas':
         return store.arenaPaths().map((p) => ({ path: p, title: store.arena(p)?.label ?? p }))
+      case 'cutscenes':
+        return store.cutscenePaths().map((p) => ({ path: p, title: store.cutscene(p)?.label ?? p }))
       default:
         return []
     }
@@ -236,6 +240,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     } else if (section === 'arenas') {
       const id = makeId('arena_', label, store.ids('arena'))
       path = store.createFile('arenas', `${id}.json`, { ...newArena(id), label })
+    } else if (section === 'cutscenes') {
+      const id = makeId('cutscene_', label, store.ids('cutscene'))
+      path = store.createFile('cutscenes', `${id}.json`, newCutscene(id, label))
     } else if (section === 'dialogues') {
       const fn = slugify(label)
       const doc = newDlgDoc(label)
@@ -467,6 +474,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               </>
             ))}
           {section === 'arenas' && sel && <ArenaEditor key={sel} store={store} path={sel} />}
+          {section === 'cutscenes' && sel && <CutsceneEditor key={sel} store={store} path={sel} />}
           {hasList && !sel && (
             <div className="screen-center muted">Выберите элемент слева или создайте новый.</div>
           )}

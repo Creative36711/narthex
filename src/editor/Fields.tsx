@@ -46,6 +46,7 @@ export function Field({
     needRef: 'need',
     skillRef: 'skill',
     dispRef: 'disposition',
+    cutsceneRef: 'cutscene',
   }
 
   if (spec.kind === 'number') {

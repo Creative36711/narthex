@@ -5,6 +5,7 @@
  * катсцен. Чистый SVG без дополнительных библиотек: координаты задаются
  * в системе холста (1280×720) и масштабируются через viewBox.
  */
+import { useId, useMemo } from 'react'
 import type { ArtDoc } from './types'
 
 export interface ArtViewProps {
@@ -134,6 +135,11 @@ export function artToSvg(art: ArtDoc | null | undefined, uid = 'art'): string {
  * и в редакторе, и в превью катсцен.
  */
 export function ArtView({ art, width = '100%', height = '100%', className, style }: ArtViewProps) {
+  // id градиентов глобальны в документе: у каждого экземпляра — свой префикс,
+  // иначе два рисунка на одной странице (переход слайдов, миниатюры в
+  // редакторе) «одалживали» бы друг у друга заливки
+  const uid = 'art' + useId().replace(/[^a-zA-Z0-9]/g, '')
+  const html = useMemo(() => artToSvg(art, uid), [art, uid])
   if (!art || !Array.isArray(art.layers) || art.layers.length === 0) {
     return <div className={`art-view art-empty ${className ?? ''}`} style={{ width, height, ...style }} />
   }
@@ -142,7 +148,7 @@ export function ArtView({ art, width = '100%', height = '100%', className, style
     <div
       className={`art-view ${className ?? ''}`}
       style={{ width, height, ...style }}
-      dangerouslySetInnerHTML={{ __html: artToSvg(art) }}
+      dangerouslySetInnerHTML={{ __html: html }}
       data-canvas={`${canvas.w}x${canvas.h}`}
     />
   )

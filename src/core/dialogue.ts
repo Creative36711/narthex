@@ -84,6 +84,7 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('in_party', (entityId: string) => engine.isInParty(entityId))
   bind('start_quest', (questId: string) => { engine.startQuest(questId); return 0 })
   bind('quest_stage', (questId: string) => engine.state.quests[questId]?.stage ?? '')
+  bind('play_cutscene', (id: string) => { engine.playCutscene(id); return 0 })
   bind('sleep', (ticks: number) => {
     engine.advanceTicks(ticks)
     engine.restAndGrow()

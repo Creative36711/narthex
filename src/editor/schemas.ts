@@ -31,6 +31,7 @@ export type FieldKind =
   | 'questStageRef' // стадия квеста из соседнего поля quest
   | 'journalKeyRef' // ключ журнальной записи квеста из соседнего поля quest
   | 'dialogueNodeRef' // узел диалога NPC из соседнего поля entity
+  | 'cutsceneRef' // катсцена кампании (итерация 8, блок E)
 
 export interface FieldSpec {
   key: string
@@ -401,6 +402,11 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     fields: [{ key: 'reason', label: 'Причина', kind: 'string', optional: true }],
     blank: {},
   },
+  play_cutscene: {
+    label: 'Показать катсцену',
+    fields: [{ key: 'cutscene', label: 'Катсцена', kind: 'cutsceneRef' }],
+    blank: { cutscene: '' },
+  },
 }
 
 /** Источник русских названий по id (реализуется EditorStore). */
@@ -430,6 +436,7 @@ const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
   skillRef: 'skill',
   dispRef: 'disposition',
   flagRef: 'flag',
+  cutsceneRef: 'cutscene',
 }
 
 /** Человекочитаемое значение одного поля (русские названия вместо id). */

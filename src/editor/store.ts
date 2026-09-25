@@ -3,6 +3,7 @@ import { isExternalUrl } from '../core/loader'
 import type {
   ArenaDef,
   CampaignMeta,
+  CutsceneDef,
   EntityDef,
   QuestDef,
   RuleDef,
@@ -23,6 +24,8 @@ export interface ManifestDef {
   arenas?: string[]
   quests?: string[]
   encounters?: string[]
+  /** катсцены (итерация 8, блок E) */
+  cutscenes?: string[]
   dialogues: string[]
 }
 
@@ -35,6 +38,7 @@ export type EditorSection =
   | 'quests'
   | 'dialogues'
   | 'arenas'
+  | 'cutscenes'
 
 export class EditorStore {
   basePath: string // "/campaigns/ash-of-caerden"
@@ -42,7 +46,7 @@ export class EditorStore {
   // и загрузкой не должен падать (фидбек №4–5 шестого раунда)
   meta: CampaignMeta = { id: '', title: '' } as CampaignMeta
   world: WorldDef = { regions: [] } as unknown as WorldDef
-  manifest: ManifestDef = { scenes: [], entities: [], rules: [], arenas: [], quests: [], encounters: [], dialogues: [] }
+  manifest: ManifestDef = { scenes: [], entities: [], rules: [], arenas: [], quests: [], encounters: [], cutscenes: [], dialogues: [] }
 
   /** JSON-документы по путям пакета */
   jsonFiles = new Map<string, unknown>()
@@ -105,6 +109,7 @@ export class EditorStore {
     for (const f of this.manifest.arenas ?? []) loadJson(`arenas/${f}`)
     for (const f of this.manifest.quests ?? []) loadJson(`quests/${f}`)
     for (const f of this.manifest.encounters ?? []) loadJson(`rules/${f}`)
+    for (const f of this.manifest.cutscenes ?? []) loadJson(`cutscenes/${f}`)
     for (const f of this.manifest.dialogues) loadText(`dialogues/${f}`)
     // визуальные исходники конструктора диалогов (могут отсутствовать)
     for (const f of this.manifest.dialogues) {
@@ -150,6 +155,9 @@ export class EditorStore {
   dialoguePaths(): string[] {
     return this.manifest.dialogues.map((f) => `dialogues/${f}`)
   }
+  cutscenePaths(): string[] {
+    return (this.manifest.cutscenes ?? []).map((f) => `cutscenes/${f}`)
+  }
 
   scene(path: string): SceneDef {
     return this.jsonFiles.get(path) as SceneDef
@@ -165,6 +173,9 @@ export class EditorStore {
   }
   quest(path: string): QuestDef {
     return this.jsonFiles.get(path) as QuestDef
+  }
+  cutscene(path: string): CutsceneDef {
+    return this.jsonFiles.get(path) as CutsceneDef
   }
 
   /** списки id для подсказок в полях */
@@ -188,7 +199,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -215,6 +226,11 @@ export class EditorStore {
       for (const p of this.rulePaths()) {
         const r = this.rule(p)
         if (r) out.push({ id: r.id, label: r.label || r.id })
+      }
+    } else if (kind === 'cutscene') {
+      for (const p of this.cutscenePaths()) {
+        const c = this.cutscene(p)
+        if (c) out.push({ id: c.id, label: c.label || c.id })
       }
     } else if (kind === 'location') {
       const walk = (regions: typeof this.world.regions) => {
@@ -292,7 +308,7 @@ export class EditorStore {
     return relPath
   }
 
-  ids(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc'): string[] {
+  ids(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'cutscene'): string[] {
     const out: string[] = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -308,6 +324,8 @@ export class EditorStore {
       for (const p of this.arenaPaths()) out.push(this.arena(p)?.id ?? '')
     } else if (kind === 'rule') {
       for (const p of this.rulePaths()) out.push(this.rule(p)?.id ?? '')
+    } else if (kind === 'cutscene') {
+      for (const p of this.cutscenePaths()) out.push(this.cutscene(p)?.id ?? '')
     } else if (kind === 'location') {
       const walk = (regions: typeof this.world.regions) => {
         for (const r of regions) {
@@ -360,6 +378,14 @@ export class EditorStore {
     const questIds = new Set(this.ids('quest'))
     const arenaIds = new Set(this.ids('arena'))
     const ruleIds = new Set(this.ids('rule'))
+    const cutsceneIds = new Set(this.ids('cutscene'))
+
+    // катсцены: слайды
+    for (const p of this.cutscenePaths()) {
+      const c = this.cutscene(p)
+      if (!c) continue
+      if (!c.slides?.length) issues.push(`Катсцена «${c.label}»: нет ни одного слайда`)
+    }
 
     // мировая карта
     for (const loc of allLocations(this.world)) {
@@ -442,6 +468,9 @@ export class EditorStore {
       for (const ef of r.effects ?? []) {
         if (ef.type === 'start_quest' && !questIds.has(ef.quest)) {
           issues.push(`Правило «${r.label}»: квест «${ef.quest}» не найден`)
+        }
+        if (ef.type === 'play_cutscene' && !cutsceneIds.has(ef.cutscene)) {
+          issues.push(`Правило «${r.label}»: катсцена «${ef.cutscene}» не найдена`)
         }
       }
     }
