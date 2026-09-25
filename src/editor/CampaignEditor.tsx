@@ -9,6 +9,7 @@ import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { BUILTIN_SLOT_TYPES } from './slotTypes'
 import { askText } from './prompt'
 import { migrateNeedCondition } from '../shared/migrate'
+import { AudioRegistries, SoundHookMapEditor } from './AudioSection'
 
 /** Редактор campaign.json формой: мета, время, старт, потребности, фракции. */
 const NEED_COND_TYPES: Array<{ id: string; label: string }> = [
@@ -602,6 +603,15 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Название</span>
               <input value={t.label} onChange={(e) => ((t.label = e.target.value), commit())} />
             </label>
+            <details style={{ flex: '1 1 100%' }}>
+              <summary>🔊 Звуки действий предметов в этом типе слота</summary>
+              <SoundHookMapEditor
+                store={store}
+                value={t.sounds ?? (t.sounds = {})}
+                onChange={commit}
+                title="Звуки действий (для этого типа слота)"
+              />
+            </details>
             <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.slot_types!.splice(i, 1), commit())}>✕</button>
           </div>
         ))}
@@ -672,6 +682,15 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               }} />
               <span>Броня</span>
             </label>
+            <details style={{ flex: '1 1 100%' }}>
+              <summary>🔊 Звуки действий предметов этой категории</summary>
+              <SoundHookMapEditor
+                store={store}
+                value={c.sounds ?? (c.sounds = {})}
+                onChange={commit}
+                title="Звуки действий (для категории)"
+              />
+            </details>
             <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.item_categories!.splice(i, 1), commit())}>✕</button>
           </div>
         ))}
@@ -688,6 +707,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           + категория
         </button>
       </div>
+
+      <AudioRegistries store={store} />
 
       <div className="props-group">
         <h4>Рогалик</h4>

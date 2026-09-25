@@ -7,6 +7,7 @@ import type { EditorStore } from './store'
 import { ImageUpload, JsonField, RefSelect, FlagSelect } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
+import { MusicRulesEditor } from './AudioSection'
 
 /**
  * Визуальный редактор сцены (ТЗ 5.2.2) на Konva:
@@ -308,6 +309,12 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
         store={store}
         value={scene.location}
         onChange={(v) => ((scene.location = v ?? ''), commit())}
+      />
+      <MusicRulesEditor
+        store={store}
+        value={scene.music ?? (scene.music = [])}
+        onChange={commit}
+        title="🎵 Музыка сцены (перекрывает музыку локации)"
       />
     </div>
   )

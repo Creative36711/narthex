@@ -3,6 +3,7 @@ import type { Effect, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } f
 import type { EditorStore } from './store'
 import { FlagSelect, ImageUpload, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
+import { SoundHookMapEditor } from './AudioSection'
 import { askText } from './prompt'
 import { slugify } from './ids'
 import { slotTypesFor, defaultSlotType } from './slotTypes'
@@ -228,6 +229,15 @@ function ItemForm({
           </label>
         </div>
       )}
+
+      <div className="props-group">
+        <SoundHookMapEditor
+          store={store}
+          value={item.sounds ?? (item.sounds = {})}
+          onChange={commit}
+          title="🔊 Звуки действий предмета"
+        />
+      </div>
 
       <AdvancedJson store={store} path={path} commit={commit} />
     </div>
@@ -875,6 +885,15 @@ function NpcForm({
         >
           + добыча
         </button>
+      </div>
+
+      <div className="props-group">
+        <SoundHookMapEditor
+          store={store}
+          value={npc.sounds ?? (npc.sounds = {})}
+          onChange={commit}
+          title="🔊 Звуки действий персонажа"
+        />
       </div>
 
       <AdvancedJson store={store} path={path} commit={commit} />

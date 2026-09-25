@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
-import type { ArtDoc, LocationDef, RegionDef } from '../shared/types'
+import type { ArtDoc, LocationDef, MusicRule, RegionDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { ImageUpload, JsonField, RefSelect } from './Fields'
 import { ArtView } from '../shared/ArtView'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
+import { MusicRulesEditor } from './AudioSection'
 
 /**
  * Редактор мира (фидбек №13): дерево регионов (с вложенностью),
@@ -378,6 +379,14 @@ function LocationProps({
           ))}
         </select>
       </label>
+
+      {typeof loc.music === 'string' ? (loc.music = loc.music ? [{ tracks: [loc.music] }] : []) && null : null}
+      <MusicRulesEditor
+        store={store}
+        value={(loc.music ?? (loc.music = [])) as MusicRule[]}
+        onChange={commit}
+        title="🎵 Музыка локации (условия → треки)"
+      />
 
       <div className="fld-block">
         <span className="fld-caption">Дороги (куда можно дойти отсюда)</span>

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import type { ArtDoc, CutsceneDef, CutsceneSlide, CutsceneTransition } from '../shared/types'
 import type { EditorStore } from './store'
 import { AudioUpload, ImageUpload, JsonField } from './Fields'
+import { MusicTrackSelect } from './AudioSection'
 import { ArtView } from '../shared/ArtView'
 import { CutscenePlayer, autoDurationMs, youtubeId } from '../shared/CutscenePlayer'
 import { askConfirm } from './prompt'
@@ -83,17 +84,32 @@ export function CutsceneEditor({ store, path }: { store: EditorStore; path: stri
           <span>Название</span>
           <input value={cs.label} onChange={(e) => ((cs.label = e.target.value), commit())} />
         </label>
-        <AudioUpload
-          label="Музыка на всю катсцену (необязательно)"
-          value={cs.music ?? ''}
-          dir="assets/audio/music"
-          store={store}
-          onChange={(p) => {
-            if (p) cs.music = p
-            else delete cs.music
-            commit()
-          }}
-        />
+        <div className="fld fld-block">
+          <span>Музыка на всю катсцену (необязательно)</span>
+          <div className="muted small" style={{ marginBottom: 4 }}>
+            Выберите трек из реестра кампании (в том числе синтез-треки) или укажите свой файл/ссылку.
+          </div>
+          <MusicTrackSelect
+            store={store}
+            value={store.meta.music_tracks?.some((t) => t.id === cs.music) ? cs.music : undefined}
+            onChange={(id) => {
+              if (id) cs.music = id
+              else delete cs.music
+              commit()
+            }}
+          />
+          <AudioUpload
+            label="Или файл/ссылка"
+            value={cs.music && !store.meta.music_tracks?.some((t) => t.id === cs.music) ? cs.music : ''}
+            dir="assets/audio/music"
+            store={store}
+            onChange={(p) => {
+              if (p) cs.music = p
+              else delete cs.music
+              commit()
+            }}
+          />
+        </div>
         <div className="fld-row" style={{ alignItems: 'center', gap: 10 }}>
           <button className="btn btn-small btn-primary" disabled={!cs.slides.length} onClick={() => setTestFrom(0)}>
             ▶ Тест-прогон
@@ -154,7 +170,14 @@ export function CutsceneEditor({ store, path }: { store: EditorStore; path: stri
       </details>
 
       {testFrom !== null && cs.slides.length > 0 && (
-        <CutscenePlayer cutscene={cs} resolve={resolve} onEnd={closeTest} startAt={testFrom} testMode />
+        <CutscenePlayer
+          cutscene={cs}
+          resolve={resolve}
+          resolveTrack={(id) => store.meta.music_tracks?.find((t) => t.id === id) ?? null}
+          onEnd={closeTest}
+          startAt={testFrom}
+          testMode
+        />
       )}
     </div>
   )
