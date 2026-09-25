@@ -1124,3 +1124,6 @@ input, textarea, [contenteditable] {
   width: 1.05em; height: 1.05em; display: inline-block; vertical-align: -0.18em;
   flex: 0 0 auto;
 }
+
+.ai-wizard { width: min(640px, 94vw); max-height: 78vh; overflow-y: auto; }
+.ai-wizard .chips { flex-wrap: wrap; }

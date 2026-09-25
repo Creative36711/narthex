@@ -19,7 +19,15 @@ type ModalRequest =
     }
   | { kind: 'confirm'; title: string; ok: string; cancel: string; checkLabel?: string; resolve: (v: boolean) => void }
   | { kind: 'alert'; title: string; body?: string; resolve: () => void }
-  | { kind: 'list'; title: string; body?: string; items: string[]; resolve: () => void }
+  | {
+      kind: 'list'
+      title: string
+      body?: string
+      items: string[]
+      /** кнопка «скопировать» (например, отчёт для ИИ-генератора, фидбек 9.14) */
+      copy?: { label: string; text: string }
+      resolve: () => void
+    }
 
 let pushRequest: ((r: ModalRequest) => void) | null = null
 const queue: ModalRequest[] = []
@@ -94,14 +102,20 @@ export function showAlert(title: string, body?: string): Promise<void> {
  * Сообщение со списком (отчёт валидации/импорта): длинные перечни удобнее
  * читать построчно, а не в сплошном тексте.
  */
-export function showList(title: string, items: string[], body?: string): Promise<void> {
-  return new Promise((resolve) => submit({ kind: 'list', title, body, items, resolve }))
+export function showList(
+  title: string,
+  items: string[],
+  body?: string,
+  copy?: { label: string; text: string },
+): Promise<void> {
+  return new Promise((resolve) => submit({ kind: 'list', title, body, items, copy, resolve }))
 }
 
 export function ModalHost() {
   const [req, setReq] = useState<ModalRequest | null>(null)
   const [value, setValue] = useState('')
   const [checked, setChecked] = useState(false)
+  const [copied, setCopied] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const areaRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -180,6 +194,24 @@ export function ModalHost() {
                 <li key={i}>{it}</li>
               ))}
             </ul>
+            {req.copy && (
+              <div className="modal-file-row">
+                <button
+                  className="btn btn-small"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(req.copy!.text)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 1500)
+                    } catch {
+                      setCopied(false)
+                    }
+                  }}
+                >
+                  {copied ? 'Скопировано!' : req.copy.label}
+                </button>
+              </div>
+            )}
           </>
         )}
         {req.kind === 'confirm' && req.checkLabel && (

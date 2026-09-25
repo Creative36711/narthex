@@ -15,6 +15,7 @@ import { CutsceneEditor, newCutscene } from './CutsceneEditor'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { stopMusic } from '../shared/music'
+import { AiWizard, aiFixReport } from './AiWizard'
 import { makeId, slugify } from './ids'
 import './editor.css'
 import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from './prompt'
@@ -76,6 +77,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [error, setError] = useState<string | null>(null)
   const [section, setSection] = useState<EditorSection>('scenes')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [aiWizard, setAiWizard] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [, force] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
@@ -365,7 +367,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     setBusy('Импорт…')
     try {
       const warns = await importChronicle(store, file)
-      void showAlert('Импортировано', warns.length ? `Предупреждения:\n${warns.join('\n')}` : 'Нажмите «Сохранить», чтобы записать файлы на диск.')
+      if (warns.length) {
+        void showList('Импортировано с предупреждениями', warns, 'Нажмите «Сохранить», чтобы записать файлы на диск.', {
+          label: 'Скопировать отчёт для ИИ',
+          text: aiFixReport(warns),
+        })
+      } else {
+        void showAlert('Импортировано', 'Нажмите «Сохранить», чтобы записать файлы на диск.')
+      }
     } catch (e) {
       void showAlert('Ошибка импорта', String(e))
     } finally {
@@ -406,6 +415,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         warns.length ? `Импортировано с ${warns.length} предупреждениями` : 'Импортировано без предупреждений',
         warns,
         'Нажмите «Сохранить», чтобы записать файлы кампании на диск.',
+        warns.length ? { label: 'Скопировать отчёт для ИИ', text: aiFixReport(warns) } : undefined,
       )
     } catch (e) {
       void showAlert('Ошибка импорта', String(e))
@@ -469,11 +479,21 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             if (!issues.length) {
               void showAlert('Проблем не найдено', 'Все ссылки кампании указывают на существующие объекты.')
             } else {
-              void showList(`Найдено проблем: ${issues.length}`, issues, 'Кампания загружается и так, но эти ссылки никуда не ведут:')
+              void showList(`Найдено проблем: ${issues.length}`, issues, 'Кампания загружается и так, но эти ссылки никуда не ведут:', {
+                label: 'Скопировать отчёт для ИИ',
+                text: aiFixReport(issues),
+              })
             }
           }}
         >
           <Ico n="check" /> Проверить
+        </button>
+        <button
+          className="btn btn-small"
+          onClick={() => setAiWizard(true)}
+          data-tip="Мастер: собрать бриф и скопировать промпт для ИИ-генератора кампаний"
+        >
+          <Ico n="sparkle" />  Кампания с ИИ
         </button>
         <button className="btn btn-small" onClick={playtest}><Ico n="play" />  Плейтест</button>
         <button className="btn btn-small" onClick={doExport} data-tip="Скачать кампанию одним файлом .chronicle"><Ico n="download" />  Экспорт</button>
@@ -598,6 +618,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           )}
         </main>
       </div>
-    </div>
+          {aiWizard && <AiWizard onClose={() => setAiWizard(false)} />}
+</div>
   )
 }
