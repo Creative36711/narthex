@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { setSettings, useSettings, type PlayerSettings } from './settings'
 import { speak, ttsSupported, useTtsVoices } from './speech'
+import { applyMusicVolume } from './music'
 
 interface Props {
   open: boolean
@@ -51,7 +52,7 @@ export function SettingsPanel({ open, onClose }: Props) {
         <div className="modal-title">⚙ Настройки</div>
 
         <VolumeSlider label="Общая громкость" value={s.volume} onChange={(v) => patch({ volume: v })} />
-        <VolumeSlider label="Музыка" value={s.music_volume} onChange={(v) => patch({ music_volume: v })} />
+        <VolumeSlider label="Музыка" value={s.music_volume} onChange={(v) => { patch({ music_volume: v }); applyMusicVolume() }} />
         <VolumeSlider label="Звуковые эффекты" value={s.sfx_volume} onChange={(v) => patch({ sfx_volume: v })} />
         <VolumeSlider label="Голос (озвучка реплик)" value={s.voice_volume} onChange={(v) => patch({ voice_volume: v })} />
 

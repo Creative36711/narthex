@@ -9,15 +9,18 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CutsceneDef, CutsceneSlide } from './types'
+import type { CutsceneDef, CutsceneSlide, MusicTrackDef, MusicSource } from './types'
 import { ArtView } from './ArtView'
 import { getSettings, musicVolume, useSettings, voiceVolume } from './settings'
 import { speak } from './speech'
+import { startTrackSource, type TrackHandle } from './music'
 
 interface Props {
   cutscene: CutsceneDef
   /** путь ассета → URL (игра: assetUrl, редактор: store.assetSrc) */
   resolve: (path: string) => string
+  /** резолвер трека кампании по id (музыка катсцены: файл/ссылка/MusicDoc) */
+  resolveTrack?: (id: string) => MusicTrackDef | null
   onEnd: () => void
   /** начать с этого слайда (тест-прогон в редакторе) */
   startAt?: number
@@ -90,7 +93,7 @@ function SlideMedia({
   return <div className="cs-media cs-black" />
 }
 
-export function CutscenePlayer({ cutscene, resolve, onEnd, startAt = 0, testMode = false }: Props) {
+export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt = 0, testMode = false }: Props) {
   const slides = cutscene.slides
   const settings = useSettings()
   const [index, setIndex] = useState(Math.min(Math.max(0, startAt), Math.max(0, slides.length - 1)))
@@ -146,22 +149,25 @@ export function CutscenePlayer({ cutscene, resolve, onEnd, startAt = 0, testMode
     return () => clearInterval(t)
   }, [index, text])
 
-  // музыка на всю катсцену
-  const musicRef = useRef<HTMLAudioElement | null>(null)
+  // музыка на всю катсцену (блок H: id трека — файл/ссылка/MusicDoc из реестра)
+  const musicRef = useRef<TrackHandle | null>(null)
+  const resolveTrackRef = useRef(resolveTrack)
+  resolveTrackRef.current = resolveTrack
   useEffect(() => {
-    if (!cutscene.music) return
-    const a = new Audio(resolveRef.current(cutscene.music))
-    a.loop = true
-    a.volume = musicVolume(getSettings())
-    musicRef.current = a
-    void a.play().catch(() => undefined)
+    const m = cutscene.music
+    if (!m) return
+    const track = resolveTrackRef.current?.(m)
+    const src: MusicSource = track ? track.src : resolveRef.current(m)
+    const vol = musicVolume(getSettings()) * (track?.volume ?? 1)
+    const h = startTrackSource(src, vol, true)
+    musicRef.current = h
     return () => {
-      a.pause()
+      h.stop(0.4)
       musicRef.current = null
     }
   }, [cutscene.music])
   useEffect(() => {
-    if (musicRef.current) musicRef.current.volume = musicVolume(settings)
+    musicRef.current?.setVolume(musicVolume(settings))
   }, [settings])
 
   // таймер/озвучка слайда: когда переходить к следующему

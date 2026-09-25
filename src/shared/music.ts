@@ -52,7 +52,7 @@ export function startTrackSource(src: MusicSource, volume: number, loop: boolean
     return { stop: (f = FADE) => h.stop(f), setVolume: (v) => h.setVolume(v) }
   }
   const url = typeof src === 'string' ? src : ''
-  if (!url) return { stop: () => undefined, setVolume: () => undefined }
+  if (!url || typeof Audio === 'undefined') return { stop: () => undefined, setVolume: () => undefined }
   const a = new Audio(url)
   a.loop = loop
   a.volume = 0
@@ -178,10 +178,10 @@ function findLoc(id: string): LocationDef | undefined {
   return currentCampaign ? walk(currentCampaign.world.regions) : undefined
 }
 
-function stopCurrent(): void {
+function stopCurrent(fade = FADE): void {
   if (!cur) return
   if (cur.advanceTimer) clearTimeout(cur.advanceTimer)
-  cur.handle?.stop(FADE)
+  cur.handle?.stop(fade)
   cur = null
 }
 
@@ -252,6 +252,6 @@ export function applyMusicVolume(): void {
   cur.handle.setVolume(musicVolume(getSettings()) * (t?.volume ?? 1))
 }
 
-export function stopMusic(): void {
-  stopCurrent()
+export function stopMusic(fade = 0.5): void {
+  stopCurrent(fade)
 }

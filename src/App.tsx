@@ -6,6 +6,7 @@ import { MainMenu } from './player/MainMenu'
 import { GameView } from './player/GameView'
 import { HelpPanel } from './player/HelpPanel'
 import { fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
+import { setAudioCampaign, playUi, unlockAudio } from './shared/audio'
 
 /** встроенная кампания-пример; выбор запоминается между сессиями */
 const DEFAULT_CAMPAIGN = 'ash-of-caerden'
@@ -34,7 +35,10 @@ export default function App() {
     setCampaign(null)
     setError(null)
     loadCampaign(`/campaigns/${campaignId}`)
-      .then(setCampaign)
+      .then((c) => {
+        setCampaign(c)
+        setAudioCampaign(c)
+      })
       .catch((e) => {
         // выбранная кампания могла исчезнуть — откат на встроенную
         if (campaignId !== DEFAULT_CAMPAIGN) {
@@ -43,6 +47,18 @@ export default function App() {
         } else setError(String(e))
       })
   }, [campaignId])
+
+  // аудио: разблокировка WebAudio по первому жесту + общий «клик» по кнопкам (блок H)
+  useEffect(() => {
+    const unlock = () => unlockAudio()
+    const onClick = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t?.closest('button')) playUi('click', 0.55)
+    }
+    window.addEventListener('pointerdown', unlock, { once: true })
+    window.addEventListener('click', onClick)
+    return () => window.removeEventListener('click', onClick)
+  }, [])
 
   useEffect(() => {
     if (!engine) return

@@ -28,6 +28,7 @@ import { hourOfDay, inTimeRange, timeOfDay } from './time'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
+import { playUi, playInteraction } from '../shared/audio'
 import { migrateNeedCondition } from '../shared/migrate'
 import { CombatController } from './combat'
 
@@ -369,6 +370,7 @@ export class GameEngine {
   useItem(id: string): void {
     const def = this.campaign.entities[id] as ItemDef | undefined
     if (!def || def.type !== 'item' || !def.on_use) return
+    playInteraction('use', { entity: def })
     this.applyEffects(def.on_use.effects)
     if (def.on_use.consume !== false) this.removeItem(id, 1)
     if (def.on_use.message) this.messages.push({ text: def.on_use.message })
@@ -427,6 +429,7 @@ export class GameEngine {
     this.state.quests[questId] = { stage: first.id, status: 'active', journal: [] }
     this.pushLog(`Новый квест: «${quest.label}»`)
     this.messages.push({ text: `Новый квест: «${quest.label}»` })
+    playUi('quest_started')
     if (first.on_enter_effects) this.applyEffects(first.on_enter_effects)
   }
 
@@ -442,6 +445,7 @@ export class GameEngine {
       if (qs.status === 'completed') {
         this.state.stats_run.quests_completed += 1
         this.messages.push({ text: `Квест завершён: «${quest.label}»` })
+        playUi('quest_completed')
       } else {
         this.messages.push({ text: `Квест провален: «${quest.label}»` })
       }
@@ -534,7 +538,10 @@ export class GameEngine {
       }
     }
     this.state.player.skill_marks = {}
-    if (grown.length) this.messages.push({ text: `Во сне приходит опыт. Рост навыков: ${grown.join(', ')}.` })
+    if (grown.length) {
+      this.messages.push({ text: `Во сне приходит опыт. Рост навыков: ${grown.join(', ')}.` })
+      playUi('skill_up')
+    }
     return grown
   }
 
@@ -585,6 +592,7 @@ export class GameEngine {
     this.removeItem('item_silver', price)
     this.addItem(itemId, 1)
     this.markSkill('bargain')
+    playUi('coin')
     this.notify()
     return true
   }
@@ -594,6 +602,7 @@ export class GameEngine {
     this.removeItem(itemId, 1)
     this.addItem('item_silver', price)
     this.markSkill('bargain')
+    playUi('coin')
     this.notify()
     return true
   }
@@ -776,6 +785,7 @@ export class GameEngine {
     if (!scene) return
     if (costTicks > 0) this.advanceTicks(costTicks)
     if (this.state.game_over) return this.notify()
+    playInteraction('travel') // «переход по зоне» (H3); тема — ui_sounds travel/scene_transition
     const prevLocation = this.state.location
     this.state.scene = sceneId
     this.state.location = scene.location
@@ -802,6 +812,7 @@ export class GameEngine {
       this.notify()
       return
     }
+    playUi('travel_depart')
     this.advanceTicks(cost)
     this.state.stats_run.travels += 1
     if (this.state.game_over) return this.notify()
@@ -812,6 +823,7 @@ export class GameEngine {
     this.state.location = locationId
     const firstScene = this.arrivalSceneOf(target.location)
     if (firstScene) this.state.scene = firstScene
+    playUi('travel_arrive')
     this.onEnterLocation(locationId)
     // случайная встреча в пути (после прибытия)
     if (conn && !this.state.game_over && !this.combat) this.rollEncounter(conn)
@@ -972,7 +984,11 @@ export class GameEngine {
       return
     }
     const item = occ.entity as ItemDef
+    const slotType = occ.slot.type[0]
     if (item.on_interact) {
+      // «открыть контейнер» vs «использовать»: по типу слота/категории
+      const isOpen = occ.slot.type.includes('container') || item.category === 'container'
+      playInteraction(isOpen ? 'open' : 'use', { entity: item, slotType })
       this.applyEffects(item.on_interact.effects)
       if (item.on_interact.message) this.messages.push({ text: item.on_interact.message })
       if (item.on_interact.consume) {
@@ -1009,6 +1025,7 @@ export class GameEngine {
     this.activeStory = null
     this.activeNpc = null
     this.combat = new CombatController(this, def)
+    playUi('combat_start')
     this.notify()
   }
 
@@ -1043,6 +1060,7 @@ export class GameEngine {
     if (!npc || npc.type !== 'npc' || !npc.dialogue) return
     const source = this.campaign.dialogues[npc.dialogue]
     if (!source) return
+    playInteraction('talk', { entity: npc })
     // Каждый разговор — свежая Story (компиляция кэширована в dialogue.ts):
     // однократные `*`-ветки исчезают до конца разговора и возвращаются в новом,
     // а «навсегда» вещи хранятся только во флагах. (фидбек №3)

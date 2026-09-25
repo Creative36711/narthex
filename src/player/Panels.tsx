@@ -2,6 +2,7 @@ import { askConfirm } from '../shared/modals'
 import type { GameEngine } from '../core/engine'
 import type { Effect, ItemDef } from '../shared/types'
 import { damageBonus, movement } from '../core/brp'
+import { playInteraction } from '../shared/audio'
 
 /** человекочитаемое описание эффектов on_use (фидбек №7: «сколько HP лечит мазь») */
 function useEffectText(engine: GameEngine, effects: Effect[]): string {
@@ -76,7 +77,10 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                   className="btn btn-small btn-drop"
                   title="Выбросить 1 шт."
                   onClick={async () => {
-                    if (await askConfirm(`Выбросить ${entry.quantity > 1 ? '1 шт. — ' : ''}«${def!.label}»?`, 'Выбросить')) engine.removeItem(entry.item, 1)
+                    if (await askConfirm(`Выбросить ${entry.quantity > 1 ? '1 шт. — ' : ''}«${def!.label}»?`, 'Выбросить')) {
+                      engine.removeItem(entry.item, 1)
+                      playInteraction('drop', { entity: def })
+                    }
                   }}
                 >
                   🗑

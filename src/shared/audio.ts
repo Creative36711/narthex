@@ -13,6 +13,8 @@ import type { CampaignData, EntityDef, SoundDef, SoundDoc, SoundHook, SoundSourc
 import { audioCtx, renderSoundDoc, unlockAudio } from './synth'
 import { getSettings, sfxVolume } from './settings'
 
+export { unlockAudio, audioCtx } from './synth'
+
 let campaign: CampaignData | null = null
 
 /** вызывается при выборе/загрузке кампании (и при выходе в меню) */
@@ -66,6 +68,7 @@ export function playSource(src: SoundSource, volume = 1): void {
     return
   }
   // файл пакета или внешняя ссылка
+  if (typeof Audio === 'undefined') return // headless
   const url = campaign && !/^https?:|^data:|^blob:/i.test(src) ? `${campaign.basePath}/${src}` : src
   const a = new Audio(url)
   a.volume = vol
@@ -83,8 +86,13 @@ export function playUi(hook: string, volume = 1): void {
 
 /**
  * Звук взаимодействия (H3): сущность → категория предмета → тип слота →
- * тема кампании → тишина.
+ * тема кампании → тишина. У хуков есть тематические алиасы в теме
+ * (`travel` → `scene_transition`): звучит максимум один раз.
  */
+const HOOK_FALLBACK: Record<string, string[]> = {
+  travel: ['travel', 'scene_transition'],
+}
+
 export function playInteraction(
   hook: SoundHook,
   info: { entity?: EntityDef; slotType?: string } = {},
@@ -105,5 +113,8 @@ export function playInteraction(
     const fromSlot = st?.sounds?.[hook]
     if (fromSlot) return playSoundId(fromSlot, volume)
   }
-  playUi(hook, volume)
+  for (const name of HOOK_FALLBACK[hook] ?? [hook]) {
+    const id = meta.ui_sounds?.[name]
+    if (id) return playSoundId(id, volume)
+  }
 }

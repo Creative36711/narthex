@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import type { CampaignData } from '../shared/types'
 import { askConfirm, showAlert } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
 import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
+import { setAudioCampaign } from '../shared/audio'
+import { refreshMusic, setMenuMode } from '../shared/music'
 
 interface Props {
   campaign: CampaignData
@@ -28,6 +30,14 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   const [showSettings, setShowSettings] = useState(false)
   const [importBusy, setImportBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // музыка меню (блок H): menu_music темы (или default_music)
+  useEffect(() => {
+    setAudioCampaign(campaign)
+    setMenuMode(true)
+    refreshMusic(null)
+    return () => setMenuMode(false)
+  }, [campaign])
 
   const doImport = async (file: File) => {
     setImportBusy(true)
