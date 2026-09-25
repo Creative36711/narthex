@@ -86,18 +86,33 @@ export function DialogueOverlay({ engine }: Props) {
     return () => clearTimeout(t)
   }, [current, typed, full.length])
 
-  // строка дописана — пауза и следующая
+  // строка дописана — пауза и следующая; typed обязательно сбрасываем —
+  // иначе следующая строка либо проскакивает целиком, либо печатается с середины
   useEffect(() => {
     if (!current || typed < full.length) return
-    const t = setTimeout(() => setRevealed((n) => n + 1), LINE_PAUSE_MS)
+    const t = setTimeout(() => {
+      setTyped(0)
+      setRevealed((n) => n + 1)
+    }, LINE_PAUSE_MS)
     return () => clearTimeout(t)
   }, [current, typed, full.length])
 
   if (!d) return null
 
-  /** клик по окну: печать не закончена — показать строку целиком */
+  /**
+   * Клик мыши по окну: пока текст ещё печатается — показать ВЕСЬ оставшийся
+   * текст сразу, без ожидания; любой клик прерывает текущую озвучку
+   * (файл или синтезатор). Кнопка пропуска не нужна.
+   */
   const skip = () => {
-    if (current && typed < full.length) setTyped(full.length)
+    if (revealed < lines.length) {
+      setTyped(0)
+      setRevealed(lines.length)
+    }
+    audioRef.current?.pause()
+    audioRef.current = null
+    stopTtsRef.current?.()
+    stopTtsRef.current = null
   }
 
   const emotion = activeLine?.emotion ?? 'neutral'
