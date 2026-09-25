@@ -233,6 +233,13 @@
       "additionalProperties": false,
       "description": "Настройки бросков d100 (итерация 8, А7). Хранятся в campaign.json —\nу каждой кампании могут быть свои пороги, движок ничего не хардкодит."
     },
+    "SoundHookMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "карта «хук → id звука реестра»"
+    },
     "ItemCategoryDef": {
       "type": "object",
       "properties": {
@@ -260,6 +267,10 @@
         "is_armor": {
           "type": "boolean",
           "description": "предметы категории — броня (очки поглощения урона)"
+        },
+        "sounds": {
+          "$ref": "#/$defs/SoundHookMap",
+          "description": "звуки взаимодействий категории предметов (хук → id звука)"
         }
       },
       "required": [
@@ -316,6 +327,177 @@
         "id",
         "label",
         "base_disposition"
+      ],
+      "additionalProperties": false
+    },
+    "MusicMood": {
+      "type": "string",
+      "enum": [
+        "тревожная",
+        "спокойная",
+        "боевая",
+        "торжественная",
+        "таинственная"
+      ],
+      "description": "настроение генеративного трека"
+    },
+    "MusicScale": {
+      "type": "string",
+      "enum": [
+        "минор",
+        "мажор",
+        "дорийский",
+        "фригийский",
+        "пентатоника"
+      ],
+      "description": "лад генеративного трека"
+    },
+    "MusicLayer": {
+      "type": "string",
+      "enum": [
+        "пад-аккорды",
+        "арпеджио",
+        "бас",
+        "перкуссия"
+      ],
+      "description": "слои аранжировки"
+    },
+    "MusicDoc": {
+      "type": "object",
+      "properties": {
+        "mood": {
+          "$ref": "#/$defs/MusicMood"
+        },
+        "tempo": {
+          "type": "number",
+          "description": "ударов в минуту (по умолчанию зависит от настроения)"
+        },
+        "key": {
+          "type": "string",
+          "description": "тональность: \"C\", \"D#\", \"Fis\"… (по умолчанию — от настроения)"
+        },
+        "scale": {
+          "$ref": "#/$defs/MusicScale"
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MusicLayer"
+          }
+        },
+        "progression": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "аккордовая последовательность ступенями гаммы: [\"i\",\"VI\",\"III\",\"VII\"]"
+        },
+        "seed": {
+          "type": "number",
+          "description": "зерно случайности (одинаковый seed — одна и та же музыка)"
+        }
+      },
+      "required": [
+        "mood",
+        "scale",
+        "layers"
+      ],
+      "additionalProperties": false,
+      "description": "Высокоуровневый генеративный формат музыки (НЕ ноты вручную).\nРантайм-генератор собирает бесшовный эмбиент-луп по гамме — «мимо»\nсыграть не может; детерминизм от `seed`."
+    },
+    "MusicSource": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/MusicDoc"
+        }
+      ],
+      "description": "источник музыки: файл/ссылка ИЛИ генеративный MusicDoc"
+    },
+    "MusicTrackDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "src": {
+          "$ref": "#/$defs/MusicSource"
+        },
+        "volume": {
+          "type": "number",
+          "description": "громкость трека 0…1 (поверх настроек игрока)"
+        },
+        "loop": {
+          "type": "boolean",
+          "description": "зацикливать (один трек) или играть как плейлист"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "src"
+      ],
+      "additionalProperties": false
+    },
+    "SoundDoc": {
+      "type": "object",
+      "properties": {
+        "zzfx": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "zzfx"
+      ],
+      "additionalProperties": false,
+      "description": "Параметрический SFX в духе ZzFX/jsfxr: числа в порядке параметров zzfx\n(громкость, случайность, частота, атака/сустейн/декей, форма волны…).\nРендерится Web Audio на лету (с кэшем буфера). Ретро-характер приемлем."
+    },
+    "SoundSource": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/SoundDoc"
+        }
+      ],
+      "description": "источник звука: файл/ссылка ИЛИ синтез из JSON; массив — случайный вариант"
+    },
+    "SoundDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SoundSource"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SoundSource"
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "src"
       ],
       "additionalProperties": false
     },
@@ -462,6 +644,9 @@
               },
               "label": {
                 "type": "string"
+              },
+              "sounds": {
+                "$ref": "#/$defs/SoundHookMap"
               }
             },
             "required": [
@@ -506,6 +691,41 @@
           "items": {
             "$ref": "#/$defs/FactionDef"
           }
+        },
+        "music_tracks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MusicTrackDef"
+          },
+          "description": "реестр музыкальных треков (итерация 8, блок H): файл/ссылка ИЛИ синтез MusicDoc"
+        },
+        "sounds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SoundDef"
+          },
+          "description": "реестр звуков: файл/ссылка ИЛИ синтез SoundDoc (массив — случайный вариант)"
+        },
+        "ui_sounds": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "звуковая тема кампании: хук → id звука из реестра (пустой хук — тишина)"
+        },
+        "default_music": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "трек(и) кампании по умолчанию, когда у локации/сцены своей музыки нет"
+        },
+        "combat_music": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "трек(и) боя по умолчанию (если у арены нет своего arena.music)"
         },
         "max_load_formula": {
           "const": "str_plus_siz",
@@ -1337,6 +1557,57 @@
       ],
       "additionalProperties": false
     },
+    "MusicCondition": {
+      "type": "object",
+      "properties": {
+        "time_of_day": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeOfDay"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TimeOfDay"
+              }
+            }
+          ]
+        },
+        "flag": {
+          "type": "string"
+        },
+        "not_flag": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "условие музыкальной записи (паттерн состояния; все условия — по «И»)"
+    },
+    "MusicRule": {
+      "type": "object",
+      "properties": {
+        "tracks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "shuffle": {
+          "type": "boolean"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MusicCondition"
+          }
+        }
+      },
+      "required": [
+        "tracks"
+      ],
+      "additionalProperties": false,
+      "description": "Запись «условия → музыка» (у локации/сцены): `tracks` — ВСЕГДА список\n(один трек — луп, несколько — плейлист со сменой и кроссфейдом,\n`shuffle` — в случайном порядке без повтора подряд); побеждает первая\nистинная запись."
+    },
     "LocationDef": {
       "type": "object",
       "properties": {
@@ -1394,7 +1665,18 @@
           "type": "string"
         },
         "music": {
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MusicRule"
+              }
+            }
+          ],
+          "description": "музыка локации: список записей «условия → треки» (побеждает первая\nистинная). Старый формат — строка (id трека или ссылка) — мигрируется\nв `[{ tracks: [s] }]` при загрузке."
         }
       },
       "required": [
@@ -1700,6 +1982,13 @@
           "items": {
             "$ref": "#/$defs/NavigationZone"
           }
+        },
+        "music": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MusicRule"
+          },
+          "description": "переопределение музыки сцены (тот же формат, что у локации)"
         }
       },
       "required": [
@@ -2022,6 +2311,10 @@
         "natural_weapon": {
           "$ref": "#/$defs/WeaponData",
           "description": "природное оружие (когти, укус) — если нет equipment.weapon"
+        },
+        "sounds": {
+          "$ref": "#/$defs/SoundHookMap",
+          "description": "звуки взаимодействий (хук → id звука реестра кампании)"
         }
       },
       "required": [
@@ -2778,6 +3071,10 @@
         "on_use": {
           "$ref": "#/$defs/UseEffectDef",
           "description": "использование из инвентаря"
+        },
+        "sounds": {
+          "$ref": "#/$defs/SoundHookMap",
+          "description": "звуки взаимодействий (хук → id звука реестра кампании)"
         }
       },
       "required": [
@@ -3067,7 +3364,8 @@
           "type": "string"
         },
         "music": {
-          "type": "string"
+          "type": "string",
+          "description": "id трека реестра music_tracks (если нет — трек боя кампании по умолчанию)"
         }
       },
       "required": [
@@ -3134,7 +3432,7 @@
         },
         "music": {
           "type": "string",
-          "description": "музыка на всю катсцену: файл пакета или ссылка"
+          "description": "музыка на всю катсцену: id трека реестра, файл пакета или ссылка"
         },
         "slides": {
           "type": "array",

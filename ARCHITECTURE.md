@@ -441,6 +441,51 @@ TypeScript; перегенерировать после правок типов)
 синтезом (см. §3.9) — кампания приходит вообще без бинарников и сразу
 работает.
 
+### 3.9 Звук и музыка (`music_tracks` / `sounds` / `ui_sounds`, блок H)
+
+Реестры кампании (в `campaign.json`, монолит — синхронно):
+
+- `music_tracks: MusicTrackDef[]` — `{id, label, src: MusicSource, volume?, loop?}`;
+  `src` — файл пакета, внешняя ссылка ИЛИ `MusicDoc` (генеративный луп:
+  `mood: тревожная|спокойная|боевая|торжественная|таинственная`, `tempo?`,
+  `key?`, `scale: минор|мажор|дорийский|фригийский|пентатоника`,
+  `layers: [пад-аккорды|арпеджио|бас|перкуссия]`, `progression?: ["i","VI",…]`,
+  `seed?`; всё играет по гамме, детерминизм от seed — `src/shared/synth.ts`).
+- `sounds: SoundDef[]` — `{id, label, src: SoundSource | SoundSource[]}`;
+  `SoundDoc {zzfx: [≤20 чисел]}` — параметрический SFX в порядке параметров
+  ZzFX (см. комментарий в `synth.ts:renderSoundDoc`); **массив** источников —
+  случайный вариант при каждом воспроизведении (три скрипа двери).
+- `ui_sounds: Record<SoundHookName, id>` — звуковая тема кампании:
+  `menu_music` (id **трека**), `click`, `panel_open`, `panel_close`, `message`,
+  `travel_depart`, `travel_arrive`, `scene_transition`, `combat_start`, `hit`,
+  `miss`, `crit`, `parry`, `death`, `victory`, `defeat`, `quest_started`,
+  `quest_completed`, `skill_up`, `coin`; пустой хук — тишина.
+- `default_music: string[]`, `combat_music: string[]` — плейлисты по умолчанию.
+
+Музыка (`src/shared/music.ts`, плеер-синглтон): у `LocationDef.music`
+(`string | MusicRule[]`, строка мигрируется в правила) и `SceneDef.music`
+(`MusicRule[]`) — записи `{tracks: string[], shuffle?, conditions?:
+[{time_of_day?, flag?, not_flag?}]}` (условия по «И», побеждает первая
+истинная запись). Стек приоритетов: катсцена (`cutscene.music`) → бой
+(`arena.music` → `combat_music`) → сцена → локация → `default_music` →
+тишина. Один трек — луп; несколько — плейлист (файлы до конца, синтез-треки
+кусками по 48 с), `shuffle` без повтора подряд; смена трека/слоя —
+кроссфейд ≈1.75 с; тот же результат — no-op.
+
+Звуки (`src/shared/audio.ts`): `playUi(hook)` — тема кампании;
+`playInteraction(hook, {entity?, slotType?})` — цепочка сущность → категория
+предмета → тип слота → `ui_sounds` → тишина (у `travel` алиас
+`scene_transition` — звучит один раз). Хуки взаимодействий: `pickup`, `use`,
+`open`, `talk`, `drop`, `travel`; у `NpcDef`/`ItemDef`/`ItemCategoryDef`/
+`slot_types[i]` — `sounds: SoundHookMap`. Громкости — настройки игрока
+(`shared/settings.ts`: общая/музыка/эффекты/голос). Headless (смоуки) —
+все вызовы безопасные no-op.
+
+Редактор (`src/editor/AudioSection.tsx`): реестры треков/звуков с
+конструкторами MusicDoc/SoundDoc и предпрослушиванием ▶, вариативность
+источников, тема интерфейса, `SoundHookMapEditor` (сущности/категории/типы
+слотов), `MusicRulesEditor` (локации/сцены), выбор трека в катсценах.
+
 ## 7. Хранилища браузера
 
 | Ключ | Что |
