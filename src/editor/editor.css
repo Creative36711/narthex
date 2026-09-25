@@ -706,3 +706,35 @@
 }
 .chip-play:hover { color: var(--gold-bright); }
 .chip > button { border: none; background: none; color: inherit; cursor: pointer; font: inherit; padding: 0; }
+
+/* ── под-вкладки «Кампании» (фидбек 5) ── */
+
+.ce-tabs {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bg, #1c1a22);
+}
+.ce-tab {
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--panel-2); color: var(--muted);
+  padding: 5px 14px; font-size: 13px; cursor: pointer;
+}
+.ce-tab:hover { color: var(--text); border-color: var(--gold); }
+.ce-tab.on { background: var(--gold); border-color: var(--gold); color: #231c10; font-weight: 600; }
+
+/* ── выпадающие категории верхней навигации (фидбек 4) ── */
+
+.editor-nav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.editor-nav-menu { position: relative; }
+.editor-nav-menu > .editor-nav-btn { display: inline-flex; align-items: center; gap: 6px; }
+.editor-nav-caret { font-size: 10px; opacity: 0.7; }
+.editor-nav-popup {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 40;
+  min-width: 190px; padding: 6px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.editor-nav-popup .editor-nav-btn { width: 100%; text-align: left; justify-content: flex-start; }

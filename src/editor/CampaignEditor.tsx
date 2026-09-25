@@ -294,6 +294,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
     force((n) => n + 1)
   }
   const [gen, setGen] = useState(0)
+  type CeTab = 'main' | 'people' | 'items' | 'flags' | 'audio' | 'json'
+  const [tab, setTab] = useState<CeTab>('main')
 
   const sceneOpts = store.options('scene')
   const locOpts = store.options('location')
@@ -302,6 +304,16 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
 
   return (
     <div className="rule-editor">
+      <div className="ce-tabs">
+        {([['main', 'Основное'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
+          <button key={id} type="button" className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
+            {lab}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'main' && (
+        <>
       <div className="props-group">
         <h4>О кампании</h4>
         <div className="fld-row">
@@ -366,6 +378,19 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
       </div>
 
+      <div className="props-group">
+        <h4>Рогалик</h4>
+        <label className="fld fld-check">
+          <input type="checkbox" checked={m.roguelike!.permadeath} onChange={(e) => ((m.roguelike!.permadeath = e.target.checked), commit())} />
+          <span>Перманентная смерть (сейв удаляется при гибели)</span>
+        </label>
+      </div>
+
+
+        </>
+      )}
+      {tab === 'people' && (
+        <>
       <div className="props-group">
         <h4>Потребности</h4>
         {m.needs.map((n, i) => (
@@ -541,48 +566,11 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </button>
       </div>
 
-      <div className="props-group">
-        <h4>Флаги</h4>
-        <div className="muted small" style={{ marginBottom: 8 }}>
-          Флаги — «память мира»: отметки о событиях (что сделано, о чём узнали).
-          Здесь их реестр с понятными названиями; в правилах, сценах и диалогах флаг
-          выбирается из списка (или создаётся на месте).
-        </div>
-        {(m.flags ?? []).map((f, i) => (
-          <div key={i} className="fld-row need-row">
-            <label className="fld">
-              <span>Название</span>
-              <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
-            </label>
-            <label className="fld" style={{ flex: 2 }}>
-              <span>Для чего нужен</span>
-              <input
-                value={f.description ?? ''}
-                placeholder="необязательно"
-                onChange={(e) => {
-                  if (e.target.value) f.description = e.target.value
-                  else delete f.description
-                  commit()
-                }}
-              />
-            </label>
-            <button className="btn btn-small ce-del" title="Удалить из реестра (контент, где флаг используется, не меняется)" onClick={() => (m.flags!.splice(i, 1), commit())}>✕</button>
-          </div>
-        ))}
-        <button
-          className="btn btn-small"
-          onClick={async () => {
-            const label = await askText('Название нового флага', 'например «Мост разрушен»')
-            if (!label) return
-            if (!m.flags) m.flags = []
-            m.flags.push({ id: makeId('', label, m.flags.map((x) => x.id)), label })
-            commit()
-          }}
-        >
-          + флаг
-        </button>
-      </div>
 
+        </>
+      )}
+      {tab === 'items' && (
+        <>
       <div className="props-group">
         <h4>Типы слотов сцены</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
@@ -708,16 +696,65 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </button>
       </div>
 
-      <AudioRegistries store={store} />
 
+        </>
+      )}
+      {tab === 'flags' && (
+        <>
       <div className="props-group">
-        <h4>Рогалик</h4>
-        <label className="fld fld-check">
-          <input type="checkbox" checked={m.roguelike!.permadeath} onChange={(e) => ((m.roguelike!.permadeath = e.target.checked), commit())} />
-          <span>Перманентная смерть (сейв удаляется при гибели)</span>
-        </label>
+        <h4>Флаги</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Флаги — «память мира»: отметки о событиях (что сделано, о чём узнали).
+          Здесь их реестр с понятными названиями; в правилах, сценах и диалогах флаг
+          выбирается из списка (или создаётся на месте).
+        </div>
+        {(m.flags ?? []).map((f, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
+            </label>
+            <label className="fld" style={{ flex: 2 }}>
+              <span>Для чего нужен</span>
+              <input
+                value={f.description ?? ''}
+                placeholder="необязательно"
+                onChange={(e) => {
+                  if (e.target.value) f.description = e.target.value
+                  else delete f.description
+                  commit()
+                }}
+              />
+            </label>
+            <button className="btn btn-small ce-del" title="Удалить из реестра (контент, где флаг используется, не меняется)" onClick={() => (m.flags!.splice(i, 1), commit())}>✕</button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название нового флага', 'например «Мост разрушен»')
+            if (!label) return
+            if (!m.flags) m.flags = []
+            m.flags.push({ id: makeId('', label, m.flags.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + флаг
+        </button>
       </div>
 
+
+        </>
+      )}
+      {tab === 'audio' && (
+        <>
+      <AudioRegistries store={store} />
+
+
+        </>
+      )}
+      {tab === 'json' && (
+        <>
       <details className="advanced-json" onToggle={(e) => (e.target as HTMLDetailsElement).open && setGen((n) => n + 1)}>
         <summary>Расширенный JSON (валюты, мета-прогресс, отношения фракций)</summary>
         <JsonField
@@ -734,6 +771,9 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           }}
         />
       </details>
+    
+        </>
+      )}
     </div>
   )
 }

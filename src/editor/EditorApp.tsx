@@ -25,17 +25,47 @@ import { exportMonolith, importMonolithText } from './monolith'
  * Работает поверх dev-сервера vite: сохранение пишет файлы кампании на диск.
  */
 
-const SECTIONS: Array<{ id: EditorSection; label: string }> = [
-  { id: 'campaign', label: '⚙ Кампания' },
-  { id: 'world', label: '🗺 Мир' },
-  { id: 'scenes', label: '🖼 Сцены' },
-  { id: 'entities', label: '👤 Сущности' },
-  { id: 'rules', label: '⚡ Правила' },
-  { id: 'quests', label: '📜 Квесты' },
-  { id: 'dialogues', label: '💬 Диалоги' },
-  { id: 'cutscenes', label: '🎬 Катсцены' },
-  { id: 'arenas', label: '⚔ Арены' },
+type SectionItem = { id: EditorSection; label: string }
+
+/** верхнее меню — категории (фидбек 4): плоский список из 9 кнопок захламлял шапку */
+const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
+  {
+    id: 'project',
+    label: '🎛 Проект',
+    items: [{ id: 'campaign', label: '⚙ Кампания и реестры' }],
+  },
+  {
+    id: 'world',
+    label: '🌍 Мир',
+    items: [
+      { id: 'world', label: '🗺 Регионы и локации' },
+      { id: 'scenes', label: '🖼 Сцены' },
+      { id: 'arenas', label: '⚔ Арены боя' },
+    ],
+  },
+  {
+    id: 'cast',
+    label: '👥 Персонажи',
+    items: [
+      { id: 'entities', label: '👤 Сущности (NPC и предметы)' },
+      { id: 'dialogues', label: '💬 Диалоги' },
+    ],
+  },
+  {
+    id: 'story',
+    label: '📖 История',
+    items: [
+      { id: 'quests', label: '📜 Квесты' },
+      { id: 'cutscenes', label: '🎬 Катсцены' },
+      { id: 'rules', label: '⚡ Правила мира' },
+    ],
+  },
 ]
+
+function navLabelOf(id: EditorSection): string {
+  for (const m of MENUS) for (const it of m.items) if (it.id === id) return it.label
+  return id
+}
 
 export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onExit: () => void }) {
   const [base, setBase] = useState(campaignPath)
@@ -44,6 +74,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [readyStore, setReadyStore] = useState<EditorStore | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [section, setSection] = useState<EditorSection>('scenes')
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [, force] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
@@ -66,6 +97,13 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }, [store])
 
   useEffect(() => store.subscribe(() => force((n) => n + 1)), [store])
+
+  useEffect(() => {
+    if (!openMenu) return
+    const close = () => setOpenMenu(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [openMenu])
 
   useEffect(() => {
     fetchCampaignIndex().then(setCampaigns)
@@ -469,18 +507,38 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
       <div className="editor-body">
         <nav className="editor-nav">
-          {SECTIONS.map((s) => (
-            <button
-              key={s.id}
-              className={`editor-nav-btn ${section === s.id ? 'on' : ''}`}
-              onClick={() => {
-                setSection(s.id)
-                setSelected(null)
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
+          {MENUS.map((menu) => {
+            const active = menu.items.some((it) => it.id === section)
+            return (
+              <div className="editor-nav-menu" key={menu.id}>
+                <button
+                  className={`editor-nav-btn ${active ? 'on' : ''}`}
+                  onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
+                >
+                  {menu.label}
+                  <span className="editor-nav-caret">▾</span>
+                </button>
+                {openMenu === menu.id && (
+                  <div className="editor-nav-popup">
+                    {menu.items.map((it) => (
+                      <button
+                        key={it.id}
+                        className={`editor-nav-btn ${section === it.id ? 'on' : ''}`}
+                        onClick={() => {
+                          setSection(it.id)
+                          setSelected(null)
+                          setOpenMenu(null)
+                        }}
+                      >
+                        {section === it.id ? '▸ ' : ''}{it.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          <span className="muted small" style={{ marginLeft: 6 }}>{navLabelOf(section)}</span>
         </nav>
 
         {hasList && (
