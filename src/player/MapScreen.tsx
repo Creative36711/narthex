@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
@@ -108,23 +109,23 @@ export function MapScreen({ engine, onClose }: Props) {
         <div className="map-header">
           <h2>🗺 {region.label}</h2>
           <div className="map-tools">
-            <label className="fld-check small map-labels-toggle" title="Показывать подписи у всех локаций">
+            <label className="fld-check small map-labels-toggle" data-tip="Показывать подписи у всех локаций">
               <input type="checkbox" checked={labels} onChange={toggleLabels} />
               <span>Названия</span>
             </label>
-            <button className="btn btn-small" onClick={() => zoomBy(1 / 1.25)} title="Уменьшить">−</button>
-            <button className="btn btn-small" onClick={() => zoomBy(1.25)} title="Увеличить">＋</button>
+            <button className="btn btn-small" onClick={() => zoomBy(1 / 1.25)} data-tip="Уменьшить">−</button>
+            <button className="btn btn-small" onClick={() => zoomBy(1.25)} data-tip="Увеличить"><Ico n="plus" /> </button>
             <button
               className="btn btn-small"
               onClick={() => {
                 setZoom(1)
                 setPan({ x: 0, y: 0 })
               }}
-              title="Вписать карту в экран"
+              data-tip="Вписать карту в экран"
             >
               ⤢ Сброс
             </button>
-            <button className="btn btn-small" onClick={onClose}>✕ Закрыть</button>
+            <button className="btn btn-small" onClick={onClose}><Ico n="close" />  Закрыть</button>
           </div>
         </div>
 
@@ -175,7 +176,7 @@ export function MapScreen({ engine, onClose }: Props) {
                   <span className="pin-dot" />
                   <span className="pin-label">
                     {l.label}
-                    {here ? ' (вы здесь)' : reachable ? ` · ${cost} ${meta.tick_label}.` : ''}
+                    {here ? '(вы здесь)' : reachable ? ` · ${cost} ${meta.tick_label}.` : ''}
                   </span>
                 </button>
               )
@@ -189,7 +190,7 @@ export function MapScreen({ engine, onClose }: Props) {
         {pendingLoc && (
           <div className="travel-confirm">
             <p>
-              Отправиться в «{pendingLoc.label}»? Дорога займёт{' '}
+              Отправиться в «{pendingLoc.label}»? Дорога займёт{''}
               <b>{pendingCost} {meta.tick_label}.</b>
             </p>
             <div className="row-buttons">

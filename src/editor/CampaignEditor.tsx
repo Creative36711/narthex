@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { EditorStore } from './store'
 import { JsonField } from './Fields'
@@ -105,20 +106,20 @@ function DiceRulesEditor({
         <button
           className={`btn btn-small ${isGenerous ? 'btn-primary' : ''}`}
           onClick={() => preset('generous')}
-          title="Критический успех ≤ навык/5, особый ≤ навык/2, крит-провал 96–100"
+          data-tip="Критический успех ≤ навык/5, особый ≤ навык/2, крит-провал 96–100"
         >
-          🎲 Щедрые (по умолчанию)
+          <Ico n="dice" />  Щедрые (по умолчанию)
         </button>
         <button
           className={`btn btn-small ${isClassic ? 'btn-primary' : ''}`}
           onClick={() => preset('classic')}
-          title="Критический успех ≤ навык/20, особый ≤ навык/5, крит-провал 00 или 96–100 при навыке ниже 30"
+          data-tip="Критический успех ≤ навык/20, особый ≤ навык/5, крит-провал 00 или 96–100 при навыке ниже 30"
         >
-          📕 Классический BRP
+          <Ico n="book" />  Классический BRP
         </button>
       </div>
       <div className="fld-row">
-        <label className="fld" title="Критический успех: бросок не больше «навык ÷ делитель»">
+        <label className="fld" data-tip="Критический успех: бросок не больше «навык ÷ делитель»">
           <span>Крит: навык ÷</span>
           <input
             type="number"
@@ -128,7 +129,7 @@ function DiceRulesEditor({
             onChange={(e) => set({ critical_divisor: Math.max(1, Number(e.target.value) || 1) })}
           />
         </label>
-        <label className="fld" title="Особый (хороший) успех: бросок не больше «навык ÷ делитель»">
+        <label className="fld" data-tip="Особый (хороший) успех: бросок не больше «навык ÷ делитель»">
           <span>Особый успех: навык ÷</span>
           <input
             type="number"
@@ -138,7 +139,7 @@ function DiceRulesEditor({
             onChange={(e) => set({ special_divisor: Math.max(1, Number(e.target.value) || 1) })}
           />
         </label>
-        <label className="fld" title="Критический провал начинается с этого броска">
+        <label className="fld" data-tip="Критический провал начинается с этого броска">
           <span>Крит-провал с</span>
           <input
             type="number"
@@ -149,7 +150,7 @@ function DiceRulesEditor({
           />
         </label>
       </div>
-      <label className="fld fld-check" title="Классический BRP: при низком навыке весь хвост 96–99 — тоже крит-провал">
+      <label className="fld fld-check" data-tip="Классический BRP: при низком навыке весь хвост 96–99 — тоже крит-провал">
         <input
           type="checkbox"
           checked={value.fumble_low_skill != null}
@@ -160,7 +161,7 @@ function DiceRulesEditor({
           }}
         />
         <span>
-          Весь хвост {value.fumble_from}–99 — провал при навыке ниже{' '}
+          Весь хвост {value.fumble_from}–99 — провал при навыке ниже{''}
           <input
             type="number"
             min={1}
@@ -173,8 +174,8 @@ function DiceRulesEditor({
         </span>
       </label>
       <div className="muted small">
-        Пример при навыке 45: крит ≤ {Math.floor(45 / (value.critical_divisor || 1))}, особый успех ≤{' '}
-        {Math.floor(45 / (value.special_divisor || 1))}, успех ≤ 45, крит-провал{' '}
+        Пример при навыке 45: крит ≤ {Math.floor(45 / (value.critical_divisor || 1))}, особый успех ≤{''}
+        {Math.floor(45 / (value.special_divisor || 1))}, успех ≤ 45, крит-провал{''}
         {value.fumble_low_skill != null && 45 < value.fumble_low_skill
           ? `${value.fumble_from}–100`
           : `100${value.fumble_from < 100 ? ` и ${value.fumble_from}–99 при промахе выше навыка` : ''}`}
@@ -268,7 +269,7 @@ function NeedCondEditor({
               }}
             />
           )}
-          <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}>✕</button>
+          <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}><Ico n="close" /> </button>
         </div>
       ))}
       <button className="btn btn-small" onClick={() => onChange([...conds, blankNeedCond('time_of_day')])}>
@@ -407,11 +408,11 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Убыль за тик</span>
               <input type="number" step="0.1" value={n.decay_per_tick} onChange={(e) => ((n.decay_per_tick = Number(e.target.value)), commit())} />
             </label>
-            <label className="fld" title="Ниже этого значения полоска подсвечивается красным — предупреждение игроку">
+            <label className="fld" data-tip="Ниже этого значения полоска подсвечивается красным — предупреждение игроку">
               <span>Тревога ниже</span>
               <input type="number" value={n.critical_threshold} onChange={(e) => ((n.critical_threshold = Number(e.target.value)), commit())} />
             </label>
-            <label className="fld" title="Что случится, когда потребность упадёт до нуля">
+            <label className="fld" data-tip="Что случится, когда потребность упадёт до нуля">
               <span>При нуле</span>
               <select
                 value={n.on_zero_effect ?? 'death'}
@@ -423,14 +424,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 ))}
               </select>
             </label>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         {m.needs.map((n, i) => (
           <details key={`cond_${i}`} className="need-conds">
             <summary>
               {n.label}: условия убывания и восстановление
-              {n.decay_when?.length ? ` · убывает при ${n.decay_when.length} усл.` : ' · убывает всегда'}
+              {n.decay_when?.length ? ` · убывает при ${n.decay_when.length} усл.` : '· убывает всегда'}
               {n.restore_per_tick ? ` · восстанавливается +${n.restore_per_tick}/тик` : ''}
             </summary>
             <div className="fld-block">
@@ -507,7 +508,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Отношение к игроку</span>
               <input type="number" value={f.base_disposition} onChange={(e) => ((f.base_disposition = Number(e.target.value)), commit())} />
             </label>
-            <label className="fld fld-check" title="Для служебных фракций (дикие твари и т.п.): отношение не имеет смысла, игрок её не увидит">
+            <label className="fld fld-check" data-tip="Для служебных фракций (дикие твари и т.п.): отношение не имеет смысла, игрок её не увидит">
               <input
                 type="checkbox"
                 checked={!!f.hidden}
@@ -519,7 +520,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               />
               <span>Скрытая (не показывать в игре)</span>
             </label>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.factions!.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.factions!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -547,7 +548,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Название</span>
               <input value={sk.label} onChange={(e) => ((sk.label = e.target.value), commit())} />
             </label>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -580,7 +581,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
         <div className="chips" style={{ marginBottom: 8 }}>
           {BUILTIN_SLOT_TYPES.map((t) => (
-            <span key={t.id} className="chip chip-static" title="Встроенный тип — удалить нельзя">
+            <span key={t.id} className="chip chip-static" data-tip="Встроенный тип — удалить нельзя">
               {t.label}
             </span>
           ))}
@@ -592,15 +593,15 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <input value={t.label} onChange={(e) => ((t.label = e.target.value), commit())} />
             </label>
             <details style={{ flex: '1 1 100%' }}>
-              <summary>🔊 Звуки действий предметов в этом типе слота</summary>
+              <summary><Ico n="sound" />  Звуки действий предметов в этом типе слота</summary>
               <SoundHookMapEditor
                 store={store}
                 value={t.sounds ?? (t.sounds = {})}
                 onChange={commit}
-                title="Звуки действий (для этого типа слота)"
+                data-tip="Звуки действий (для этого типа слота)"
               />
             </details>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.slot_types!.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.slot_types!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -629,7 +630,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Название</span>
               <input value={c.label} onChange={(e) => ((c.label = e.target.value), commit())} />
             </label>
-            <label className="fld fld-check" title="Предметы категории можно использовать для лечения">
+            <label className="fld fld-check" data-tip="Предметы категории можно использовать для лечения">
               <input type="checkbox" checked={!!c.restores_hp} onChange={(e) => {
                 if (e.target.checked) c.restores_hp = true
                 else delete c.restores_hp
@@ -671,15 +672,15 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Броня</span>
             </label>
             <details style={{ flex: '1 1 100%' }}>
-              <summary>🔊 Звуки действий предметов этой категории</summary>
+              <summary><Ico n="sound" />  Звуки действий предметов этой категории</summary>
               <SoundHookMapEditor
                 store={store}
                 value={c.sounds ?? (c.sounds = {})}
                 onChange={commit}
-                title="Звуки действий (для категории)"
+                data-tip="Звуки действий (для категории)"
               />
             </details>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.item_categories!.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.item_categories!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -726,7 +727,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 }}
               />
             </label>
-            <button className="btn btn-small ce-del" title="Удалить из реестра (контент, где флаг используется, не меняется)" onClick={() => (m.flags!.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" data-tip="Удалить из реестра (контент, где флаг используется, не меняется)" onClick={() => (m.flags!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button

@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { DiceRules } from '../shared/types'
@@ -52,7 +53,7 @@ ${fumbleLine}`}</pre>
 const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   {
     id: 'checks',
-    title: '🎲 Проверки навыков (d100)',
+    title: 'Проверки навыков (d100)',
     body: <ChecksBody rules={DEFAULT_DICE_RULES} />,
   },
   {
@@ -61,11 +62,11 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
     body: (
       <>
         <p>
-          Каждый <b>успешно применённый</b> навык получает «галочку» (✓ в листе персонажа):
+          Каждый <b>успешно применённый</b> навык получает «галочку» (<Ico n="check" />  в листе персонажа):
           удачная атака, защита, убеждение, торговля…
         </p>
         <p>
-          Во время <b>сна</b> по каждому отмеченному навыку бросается d100: если выпало{' '}
+          Во время <b>сна</b> по каждому отмеченному навыку бросается d100: если выпало{''}
           <b>больше</b> текущего значения — навык растёт на 1d6. Так растут именно те умения,
           которыми вы реально пользуетесь, — и чем выше навык, тем медленнее его рост.
         </p>
@@ -74,7 +75,7 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   },
   {
     id: 'combat',
-    title: '⚔ Бой на гексах',
+    title: 'Бой на гексах',
     body: (
       <>
         <p>
@@ -132,7 +133,7 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   },
   {
     id: 'roguelike',
-    title: '💀 Рогалик: смерть и новый забег',
+    title: 'Рогалик: смерть и новый забег',
     body: (
       <>
         <p>
@@ -160,8 +161,8 @@ export function HelpPanel({ onClose, engine }: { onClose: () => void; engine?: G
     <div className="overlay panel-overlay help-overlay" onClick={onClose}>
       <div className="panel side-panel help-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>📖 Справка</h2>
-          <button className="btn btn-small" onClick={onClose}>✕</button>
+          <h2><Ico n="book" />  Справка</h2>
+          <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         <p className="muted small">
           Chronicle Forge использует классическую процентную систему проверок (d100). Всё, что
@@ -178,16 +179,16 @@ export function HelpPanel({ onClose, engine }: { onClose: () => void; engine?: G
         <div className="help-foot">
           <button
             className="btn btn-small"
-            title="Игровые подсказки показываются один раз; эта кнопка включает их снова"
+            data-tip="Игровые подсказки показываются один раз; эта кнопка включает их снова"
             onClick={async () => {
               resetTips()
               await showAlert(
-                '🎓 Обучение включено заново',
+                'Обучение включено заново',
                 'Интерактивные подсказки (первый бой, проверки в диалогах, рост навыков) снова появятся по ходу игры.',
               )
             }}
           >
-            🎓 Обучение заново
+            <Ico n="book" />  Обучение заново
           </button>
         </div>
       </div>

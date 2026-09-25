@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useRef, useState } from 'react'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
@@ -178,7 +179,7 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
             className={`editor-list-item ${i === nodeIdx ? 'on' : ''}`}
             onClick={() => setNodeIdx(i)}
           >
-            {i === 0 ? '▶ ' : ''}{n.label}
+            {i === 0 ? '' : ''}{n.label}
           </button>
         ))}
         <div className="editor-list-tools">
@@ -193,7 +194,7 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
                 commit()
               }}
             >
-              ✕
+              <Ico n="close" /> 
             </button>
           )}
         </div>
@@ -265,7 +266,7 @@ function NodeForm({
         {node.choices.length > 0 &&
           !node.choices.some((c) => !c.once && (!c.conds || c.conds.length === 0)) && (
             <div className="dlg-warn">
-              ⚠ Нет всегда доступного варианта — конструктор добавит «Закончить разговор» автоматически.
+              <Ico n="warn" />  Нет всегда доступного варианта — конструктор добавит «Закончить разговор» автоматически.
             </div>
           )}
         {node.choices.map((c, i) => (
@@ -312,7 +313,7 @@ function GotoSelect({
       <span>{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         {allowStay && <option value="stay">↩ остаться (те же варианты)</option>}
-        <option value="end">■ конец разговора</option>
+        <option value="end"><Ico n="stop" />  конец разговора</option>
         {doc.nodes.map((n) => (
           <option key={n.id} value={n.id}>→ {n.label}</option>
         ))}
@@ -351,7 +352,7 @@ function CondListEditor({
             ))}
           </select>
           <CondFields cond={c} store={store} commit={commit} />
-          <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}>✕</button>
+          <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}><Ico n="close" /> </button>
         </div>
       ))}
       <button className="btn btn-small" onClick={() => onChange([...conds, blankCond('flag')])}>
@@ -537,7 +538,7 @@ function SectionListEditor({
               </label>
               <span className="editor-spacer" />
               {sections.length > 1 && (
-                <button className="btn btn-small ce-del" title="Удалить блок" onClick={() => (sections.splice(i, 1), commit())}>✕ блок</button>
+                <button className="btn btn-small ce-del" data-tip="Удалить блок" onClick={() => (sections.splice(i, 1), commit())}><Ico n="close" />  блок</button>
               )}
             </div>
             {hasConds && (
@@ -597,7 +598,7 @@ function GotoSelectOptional({
       <span className="muted small">{label}</span>
       <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
         <option value="">— продолжить дальше —</option>
-        <option value="end">■ конец разговора</option>
+        <option value="end"><Ico n="stop" />  конец разговора</option>
         <option value="stay">↩ к вариантам ответа</option>
         {doc.nodes.map((n) => (
           <option key={n.id} value={n.id}>→ {n.label}</option>
@@ -627,7 +628,7 @@ function LinePreview({ text, store }: { text: string; store: EditorStore }) {
       <span className="muted small">В игре: </span>
       {parts.map((p, i) =>
         p.token ? (
-          <b key={i} title={p.text}>
+          <b key={i} data-tip={p.text}>
             {nameOf(p.token.kind, p.token.id)}
           </b>
         ) : (
@@ -653,7 +654,7 @@ function TokenInserter({
   const value = id || options[0]?.id || ''
   if (!open) {
     return (
-      <button className="btn btn-small" title="Вставить в реплику значение из игры (счётчик предмета, здоровье…)" onClick={() => setOpen(true)}>
+      <button className="btn btn-small" data-tip="Вставить в реплику значение из игры (счётчик предмета, здоровье…)" onClick={() => setOpen(true)}>
         {'{ }'} Вставить значение
       </button>
     )
@@ -748,7 +749,7 @@ function LineRow({
         <TokenInserter store={store} onInsert={insert} />
         <select
           value={line.emotion ?? 'neutral'}
-          title="Настроение (состояние портрета)"
+          data-tip="Настроение (состояние портрета)"
           onChange={(e) => {
             const v = e.target.value as DlgEmotion
             if (v === 'neutral') delete line.emotion
@@ -761,7 +762,7 @@ function LineRow({
             <option key={em.id} value={em.id}>{em.label}</option>
           ))}
         </select>
-        <label className="fld-check small" title="Ремарка — описание действия, выводится курсивом">
+        <label className="fld-check small" data-tip="Ремарка — описание действия, выводится курсивом">
           <input
             type="checkbox"
             checked={!!line.action}
@@ -778,10 +779,10 @@ function LineRow({
           title={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики: файл или ссылка'}
           onClick={() => setVoiceOpen(!voiceOpen)}
         >
-          🎙{line.voice ? ' ✓' : ''}
+          🎙{line.voice ? '' : ''}
         </button>
         {onRemove && (
-          <button className="btn btn-small ce-del" onClick={onRemove}>✕</button>
+          <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>
         )}
       </div>
       {voiceOpen && (
@@ -861,7 +862,7 @@ function EffectRow({
           <input type="number" value={e.delta} onChange={(ev) => ((e.delta = Number(ev.target.value)), commit())} />
         </>
       )}
-      <button className="btn btn-small ce-del" onClick={onRemove}>✕</button>
+      <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>
     </div>
   )
 }
@@ -890,7 +891,7 @@ function ChoiceForm({
   const skills = store.options('skill')
   return (
     <details className="dlg-choice" open={index === 0 && node.choices.length <= 2}>
-      <summary>▸ {c.text || '(без текста)'}{c.check ? ' 🎲' : ''}{c.conds?.length ? ' 🔒' : ''}</summary>
+      <summary>▸ {c.text || '(без текста)'}{c.check ? '' : ''}{c.conds?.length ? '' : ''}</summary>
       <label className="fld">
         <span>Текст ответа игрока</span>
         <input value={c.text} onChange={(e) => ((c.text = e.target.value), commit())} />
@@ -936,7 +937,7 @@ function ChoiceForm({
               commit()
             }}
           />
-          <span>проверка навыка 🎲</span>
+          <span>проверка навыка <Ico n="dice" /> </span>
         </label>
       </div>
       {c.conds && (
@@ -961,7 +962,7 @@ function ChoiceForm({
         <GotoSelect label="Куда дальше" doc={doc} value={c.goto} onChange={(v) => ((c.goto = v), commit())} />
       )}
       <div className="dlg-choice-tools">
-        <button className="btn btn-small ce-del" onClick={onRemove}>✕ удалить ответ</button>
+        <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" />  удалить ответ</button>
       </div>
     </details>
   )
@@ -993,7 +994,7 @@ function CheckEditor({
             ))}
           </select>
         </label>
-        <label className="fld" title="Сложность смещает шанс: 50 — нейтральная, больше — сложнее">
+        <label className="fld" data-tip="Сложность смещает шанс: 50 — нейтральная, больше — сложнее">
           <span>Сложность</span>
           <input type="number" value={check.difficulty} onChange={(e) => ((check.difficulty = Number(e.target.value)), commit())} />
         </label>
@@ -1007,7 +1008,7 @@ function CheckEditor({
               <span>Сложность</span>
               <input type="number" value={m.value} onChange={(e) => ((m.value = Number(e.target.value)), commit())} />
             </label>
-            <button className="btn btn-small ce-del" onClick={() => (check.mods!.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" onClick={() => (check.mods!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -1021,12 +1022,12 @@ function CheckEditor({
         </button>
       </details>
       <div className="dlg-branch dlg-branch-ok">
-        <span className="fld-caption">✔ Успех</span>
+        <span className="fld-caption"><Ico n="check" />  Успех</span>
         <SectionListEditor sections={check.success.sections} doc={doc} store={store} commit={commit} emotions={emotions} />
         <GotoSelect label="После успеха" doc={doc} value={check.success.goto} onChange={(v) => ((check.success.goto = v), commit())} />
       </div>
       <div className="dlg-branch dlg-branch-fail">
-        <span className="fld-caption">✘ Провал</span>
+        <span className="fld-caption"><Ico n="close" />  Провал</span>
         <SectionListEditor sections={check.fail.sections} doc={doc} store={store} commit={commit} emotions={emotions} />
         <GotoSelect label="После провала" doc={doc} value={check.fail.goto} onChange={(v) => ((check.fail.goto = v), commit())} />
       </div>

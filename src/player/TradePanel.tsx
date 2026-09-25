@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { ItemDef } from '../shared/types'
@@ -27,11 +28,11 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
       <div className="panel side-panel trade-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
           <h2>Торговля — {npc.label}</h2>
-          <button className="btn btn-small" onClick={() => engine.closeTrade()}>✕</button>
+          <button className="btn btn-small" onClick={() => engine.closeTrade()}><Ico n="close" /> </button>
         </div>
         <div className="trade-info">
           <span>Ваше серебро: <b className="gold">{silver} SM</b></span>
-          <span className="muted small" title="Зависит от репутации и навыка торговли">
+          <span className="muted small" data-tip="Зависит от репутации и навыка торговли">
             наценка ×{mod.toFixed(2)}
           </span>
         </div>

@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { Effect, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
 import type { EditorStore } from './store'
@@ -235,7 +236,7 @@ function ItemForm({
           store={store}
           value={item.sounds ?? (item.sounds = {})}
           onChange={commit}
-          title="🔊 Звуки действий предмета"
+          data-tip="Звуки действий предмета"
         />
       </div>
 
@@ -302,7 +303,7 @@ function NpcForm({
               commit()
             }}
           />
-          <label className="fld" title="Прибавка к отношению фракции лично для этого персонажа: +20 — дружелюбнее прочих, −20 — недолюбливает героя">
+          <label className="fld" data-tip="Прибавка к отношению фракции лично для этого персонажа: +20 — дружелюбнее прочих, −20 — недолюбливает героя">
             <span>Личное отношение к герою (±)</span>
             <input type="number" value={npc.base_disposition ?? 0} onChange={(e) => ((npc.base_disposition = Number(e.target.value)), commit())} />
           </label>
@@ -347,14 +348,14 @@ function NpcForm({
               {k !== 'neutral' && (
                 <button
                   className="btn btn-small ce-del"
-                  title="Убрать состояние"
+                  data-tip="Убрать состояние"
                   style={{ position: 'absolute', top: 0, right: 0 }}
                   onClick={() => {
                     delete npc.portrait?.[k]
                     commit()
                   }}
                 >
-                  ✕
+                  <Ico n="close" /> 
                 </button>
               )}
             </div>
@@ -425,7 +426,7 @@ function NpcForm({
           ))}
         </div>
         <div className="fld-row" style={{ marginTop: 8 }}>
-          <label className="fld" title="Шкура, панцирь, чешуя — снижает получаемый урон. Не путать с надетой бронёй: предмет-броня из снаряжения даёт свои очки поверх природной защиты.">
+          <label className="fld" data-tip="Шкура, панцирь, чешуя — снижает получаемый урон. Не путать с надетой бронёй: предмет-броня из снаряжения даёт свои очки поверх природной защиты.">
             <span>Природная защита (очки)</span>
             <input type="number" value={npc.armor ?? 0} onChange={(e) => {
               const v = Number(e.target.value)
@@ -468,7 +469,7 @@ function NpcForm({
               onChange={(e) => ((npc.skills[k] = Number(e.target.value)), commit())}
             />
             <span className="muted small">%</span>
-            <button className="btn btn-small ce-del" onClick={() => (delete npc.skills[k], commit())}>✕</button>
+            <button className="btn btn-small ce-del" onClick={() => (delete npc.skills[k], commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -552,7 +553,7 @@ function NpcForm({
                 commit()
               }}
             >
-              ✕
+              <Ico n="close" /> 
             </button>
           </div>
         ))}
@@ -598,7 +599,7 @@ function NpcForm({
                     <option key={o.id} value={o.id}>{o.label}</option>
                   ))}
                 </select>
-                <label className="fld fld-inline" title="Пусто — цена берётся из карточки предмета">
+                <label className="fld fld-inline" data-tip="Пусто — цена берётся из карточки предмета">
                   <span>цена</span>
                   <input
                     type="number"
@@ -611,7 +612,7 @@ function NpcForm({
                     }}
                   />
                 </label>
-                <label className="fld fld-inline" title="Пусто — запас не ограничен">
+                <label className="fld fld-inline" data-tip="Пусто — запас не ограничен">
                   <span>запас</span>
                   <input
                     type="number"
@@ -624,7 +625,7 @@ function NpcForm({
                     }}
                   />
                 </label>
-                <button className="btn btn-small ce-del" onClick={() => (npc.trader!.sells.splice(i, 1), commit())}>✕</button>
+                <button className="btn btn-small ce-del" onClick={() => (npc.trader!.sells.splice(i, 1), commit())}><Ico n="close" /> </button>
               </div>
             ))}
             <button
@@ -646,7 +647,7 @@ function NpcForm({
                 <span>Скупает вещи игрока</span>
               </label>
               {npc.trader.buys && (
-                <label className="fld fld-inline" title="Какую долю стоимости предмета торговец платит при скупке">
+                <label className="fld fld-inline" data-tip="Какую долю стоимости предмета торговец платит при скупке">
                   <span>доля закупки, %</span>
                   <input
                     type="number"
@@ -724,7 +725,7 @@ function NpcForm({
                   </option>
                 ))}
               </select>
-              <button className="btn btn-small ce-del" onClick={() => (npc.schedule!.splice(i, 1), commit())}>✕</button>
+              <button className="btn btn-small ce-del" onClick={() => (npc.schedule!.splice(i, 1), commit())}><Ico n="close" /> </button>
             </div>
           )
         })}
@@ -807,7 +808,7 @@ function NpcForm({
                 npc.presence_overrides!.splice(i, 1)
                 if (npc.presence_overrides!.length === 0) delete npc.presence_overrides
                 commit()
-              }}>✕</button>
+              }}><Ico n="close" /> </button>
             </div>
           )
         })}
@@ -872,7 +873,7 @@ function NpcForm({
                 commit()
               }}
             >
-              ✕
+              <Ico n="close" /> 
             </button>
           </div>
         ))}
@@ -892,7 +893,7 @@ function NpcForm({
           store={store}
           value={npc.sounds ?? (npc.sounds = {})}
           onChange={commit}
-          title="🔊 Звуки действий персонажа"
+          data-tip="Звуки действий персонажа"
         />
       </div>
 
@@ -906,7 +907,7 @@ function SlotTypeField({ e, store, commit }: { e: EntityDef; store: EditorStore;
   const types = slotTypesFor(store)
   const current = e.slot_type ?? defaultSlotType(e)
   return (
-    <label className="fld" title="По типу фильтруется, в какие слоты сцены можно ставить эту сущность">
+    <label className="fld" data-tip="По типу фильтруется, в какие слоты сцены можно ставить эту сущность">
       <span>Тип в слотах сцены</span>
       <select
         value={current}
@@ -947,7 +948,7 @@ function DamageInput({ label, value, onChange }: { label: string; value: string;
           ))}
         </select>
         <span className="muted">+</span>
-        <input type="number" value={mod} onChange={(e) => emit(count, die, Number(e.target.value) || 0)} title="Модификатор (может быть отрицательным)" />
+        <input type="number" value={mod} onChange={(e) => emit(count, die, Number(e.target.value) || 0)} data-tip="Модификатор (может быть отрицательным)" />
       </div>
     </label>
   )

@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useRef, useState, useEffect } from 'react'
 import type { CampaignData } from '../shared/types'
 import { askConfirm, showAlert } from '../shared/modals'
@@ -75,11 +76,11 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
             </button>
             {onHelp && (
               <button className="btn" onClick={onHelp}>
-                ❓ Как играть
+                <Ico n="help" />  Как играть
               </button>
             )}
             <button className="btn" onClick={() => setShowSettings(true)}>
-              ⚙ Настройки
+              <Ico n="settings" />  Настройки
             </button>
             {onEditor && (
               <button className="btn" onClick={onEditor}>
@@ -99,7 +100,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
           <div className="campaigns-box" onClick={(e) => e.stopPropagation()}>
             <div className="campaigns-head">
               <h2>Кампании</h2>
-              <button className="btn btn-small" onClick={() => setShowList(false)}>✕</button>
+              <button className="btn btn-small" onClick={() => setShowList(false)}><Ico n="close" /> </button>
             </div>
             <div className="campaign-list">
               {campaigns.map((c) => (
@@ -117,7 +118,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                   </button>
                   <button
                     className="btn btn-small campaign-del"
-                    title="Удалить кампанию с диска"
+                    data-tip="Удалить кампанию с диска"
                     onClick={async () => {
                       if (campaigns.length <= 1) {
                         void showAlert('Нельзя удалить последнюю кампанию', 'Сначала создайте или импортируйте другую.')
@@ -144,7 +145,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                       }
                     }}
                   >
-                    🗑
+                    <Ico n="trash" /> 
                   </button>
                 </div>
               ))}

@@ -48,7 +48,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                 height: pct(slot.h, canvas.h),
               }}
               onClick={() => engine.interactWithSlot({ slot, entity })}
-              title={entity.label}
+              data-tip={entity.label}
             >
               {entity.type === 'npc' && entity.portrait?.neutral && (
                 <img

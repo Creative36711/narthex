@@ -49,7 +49,7 @@ export function askTextArea(
       body: opts.body,
       placeholder: opts.placeholder,
       ok: opts.ok ?? 'Продолжить',
-      fileLabel: opts.fileLabel ?? '📄 Выбрать файл…',
+      fileLabel: opts.fileLabel ?? 'Выбрать файл…',
       resolve,
     }),
   )

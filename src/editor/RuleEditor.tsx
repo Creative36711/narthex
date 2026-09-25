@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { RuleDef } from '../shared/types'
 import type { EditorStore } from './store'
@@ -35,12 +36,12 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
                 commit()
               }}
             />
-            <span title="Правило не проверяется само — его запускает эффект «Запустить правило» или диалог">Только ручной запуск</span>
+            <span data-tip="Правило не проверяется само — его запускает эффект «Запустить правило» или диалог">Только ручной запуск</span>
           </label>
         </div>
         {!rule.manual && rule.conditions.length === 0 && !rule.once && (
           <div className="fld-err small">
-            ⚠ Правило без условий, не однократное и не ручное — сработает при каждой проверке!
+            <Ico n="warn" />  Правило без условий, не однократное и не ручное — сработает при каждой проверке!
           </div>
         )}
       </div>

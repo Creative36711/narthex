@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorStore, type EditorSection, type ManifestDef } from './store'
 import { SceneEditor } from './SceneEditor'
@@ -31,33 +32,33 @@ type SectionItem = { id: EditorSection; label: string }
 const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
   {
     id: 'project',
-    label: '🎛 Проект',
-    items: [{ id: 'campaign', label: '⚙ Кампания и реестры' }],
+    label: 'Проект',
+    items: [{ id: 'campaign', label: 'Кампания и реестры' }],
   },
   {
     id: 'world',
-    label: '🌍 Мир',
+    label: 'Мир',
     items: [
-      { id: 'world', label: '🗺 Регионы и локации' },
-      { id: 'scenes', label: '🖼 Сцены' },
-      { id: 'arenas', label: '⚔ Арены боя' },
+      { id: 'world', label: 'Регионы и локации' },
+      { id: 'scenes', label: 'Сцены' },
+      { id: 'arenas', label: 'Арены боя' },
     ],
   },
   {
     id: 'cast',
-    label: '👥 Персонажи',
+    label: 'Персонажи',
     items: [
-      { id: 'entities', label: '👤 Сущности (NPC и предметы)' },
-      { id: 'dialogues', label: '💬 Диалоги' },
+      { id: 'entities', label: 'Сущности (NPC и предметы)' },
+      { id: 'dialogues', label: 'Диалоги' },
     ],
   },
   {
     id: 'story',
-    label: '📖 История',
+    label: 'История',
     items: [
-      { id: 'quests', label: '📜 Квесты' },
-      { id: 'cutscenes', label: '🎬 Катсцены' },
-      { id: 'rules', label: '⚡ Правила мира' },
+      { id: 'quests', label: 'Квесты' },
+      { id: 'cutscenes', label: 'Катсцены' },
+      { id: 'rules', label: 'Правила мира' },
     ],
   },
 ]
@@ -222,7 +223,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         return store.entityPaths().map((p) => {
           const e = store.entity(p)
           if (!e) return { path: p, title: p }
-          if (e.type === 'npc') return { path: p, title: e.label || p, group: '👤 Персонажи', groupOrder: '0' }
+          if (e.type === 'npc') return { path: p, title: e.label || p, group: 'Персонажи', groupOrder: '0' }
           const cat = store.labelFor('itemCategory', e.category)
           return { path: p, title: e.label || p, group: `🎒 ${cat}`, groupOrder: `1${cat}` }
         })
@@ -395,7 +396,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       body: 'Вставьте текст JSON-кампании целиком или выберите файл.\nИмпорт заменит содержимое текущей кампании; ошибки не прерывают импорт — битое отключается, недостающее достраивается заглушками.',
       placeholder: '{ "campaign": { … }, "world": { … }, "scenes": { … } }',
       ok: 'Импортировать',
-      fileLabel: '📄 Выбрать файл JSON…',
+      fileLabel: 'Выбрать файл JSON…',
     })
     if (text === null) return
     setBusy('Импорт JSON…')
@@ -432,7 +433,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               if (store.dirty.size && !(await askConfirm('Есть несохранённые изменения. Сменить кампанию без сохранения?', 'Сменить'))) return
               setBase(v)
             }}
-            title="Кампания"
+            data-tip="Кампания"
           >
             {campaigns.map((c) => (
               <option key={c.id} value={`/campaigns/${c.id}`}>{c.title}</option>
@@ -442,14 +443,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         ) : (
           <span className="editor-title">{store.meta.title}</span>
         )}
-        <button className="btn btn-small" onClick={newCampaign} title="Создать новую кампанию">＋ Кампания</button>
-        <button className="btn btn-small ce-del" onClick={deleteCampaign} title="Удалить текущую кампанию с диска">🗑 Удалить</button>
+        <button className="btn btn-small" onClick={newCampaign} data-tip="Создать новую кампанию"><Ico n="plus" />  Кампания</button>
+        <button className="btn btn-small ce-del" onClick={deleteCampaign} data-tip="Удалить текущую кампанию с диска"><Ico n="trash" />  Удалить</button>
         <span className="editor-spacer" />
         <button
           className="btn btn-small"
           onClick={() => store.undo()}
           disabled={!store.canUndo()}
-          title="Откатить последнее изменение (Ctrl+Z)"
+          data-tip="Откатить последнее изменение (Ctrl+Z)"
         >
           ↩ Откат
         </button>
@@ -462,7 +463,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         </button>
         <button
           className="btn btn-small"
-          title="Проверить ссылки: сцены, локации, слоты, квесты, правила"
+          data-tip="Проверить ссылки: сцены, локации, слоты, квесты, правила"
           onClick={() => {
             const issues = store.validateContent()
             if (!issues.length) {
@@ -474,22 +475,22 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         >
           🔎 Проверить
         </button>
-        <button className="btn btn-small" onClick={playtest}>▶ Плейтест</button>
-        <button className="btn btn-small" onClick={doExport} title="Скачать кампанию одним файлом .chronicle">⬇ Экспорт</button>
+        <button className="btn btn-small" onClick={playtest}><Ico n="play" />  Плейтест</button>
+        <button className="btn btn-small" onClick={doExport} data-tip="Скачать кампанию одним файлом .chronicle"><Ico n="download" />  Экспорт</button>
         <button
           className="btn btn-small"
           onClick={doExportJson}
-          title="Скачать кампанию одним JSON (формат обмена и ИИ-генерации)"
+          data-tip="Скачать кампанию одним JSON (формат обмена и ИИ-генерации)"
         >
-          ⬇ JSON
+          <Ico n="download" />  JSON
         </button>
-        <button className="btn btn-small" onClick={() => fileInput.current?.click()}>⬆ Импорт</button>
+        <button className="btn btn-small" onClick={() => fileInput.current?.click()}><Ico n="up" />  Импорт</button>
         <button
           className="btn btn-small"
           onClick={doImportJson}
-          title="Импортировать кампанию из JSON: файлом или вставив текст"
+          data-tip="Импортировать кампанию из JSON: файлом или вставив текст"
         >
-          ⬆ Импорт из JSON
+          <Ico n="up" />  Импорт из JSON
         </button>
         <input
           ref={fileInput}
@@ -502,7 +503,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             e.target.value = ''
           }}
         />
-        <button className="btn btn-small" onClick={onExit}>✕ Выйти</button>
+        <button className="btn btn-small" onClick={onExit}><Ico n="close" />  Выйти</button>
       </header>
 
       <div className="editor-body">
@@ -530,7 +531,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                           setOpenMenu(null)
                         }}
                       >
-                        {section === it.id ? '▸ ' : ''}{it.label}
+                        {section === it.id ? '▸' : ''}{it.label}
                       </button>
                     ))}
                   </div>
@@ -549,7 +550,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                 <button
                   className={`editor-list-item ${sel === it.path ? 'on' : ''} ${store.dirty.has(it.path) ? 'dirty' : ''}`}
                   onClick={() => setSelected(it.path)}
-                  title={it.path}
+                  data-tip={it.path}
                 >
                   {it.title}
                 </button>
@@ -565,7 +566,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                 <button className="btn btn-small" onClick={() => createNew()}>+ создать</button>
               )}
               {sel && (
-                <button className="btn btn-small ce-del" onClick={removeSelected}>✕</button>
+                <button className="btn btn-small ce-del" onClick={removeSelected}><Ico n="close" /> </button>
               )}
             </div>
           </aside>
@@ -583,7 +584,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             : (
               <>
                 <div className="ink-legacy-note">
-                  ℹ️ Этот диалог написан вручную на языке Ink, поэтому открыт как код.
+                  <Ico n="info" />  Этот диалог написан вручную на языке Ink, поэтому открыт как код.
                   Новые диалоги (кнопка «+ создать») открываются в визуальном конструкторе —
                   без кода: узлы, реплики и ответы собираются формами.
                 </div>

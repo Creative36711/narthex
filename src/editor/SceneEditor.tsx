@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Rect, Text, Transformer, Group } from 'react-konva'
 import type Konva from 'konva'
@@ -216,7 +217,7 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
                 commit()
               }}
             >
-              ✕ удалить выбранное
+              <Ico n="close" />  удалить выбранное
             </button>
           )}
         </div>
@@ -314,7 +315,7 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
         store={store}
         value={scene.music ?? (scene.music = [])}
         onChange={commit}
-        title="🎵 Музыка сцены (перекрывает музыку локации)"
+        title="Музыка сцены (перекрывает музыку локации)"
       />
     </div>
   )
@@ -343,16 +344,16 @@ function StateBackground({
         <div className="art-preview-tools">
           <button
             className="btn btn-small"
-            title="Убрать векторный фон и загрузить обычное изображение"
+            data-tip="Убрать векторный фон и загрузить обычное изображение"
             onClick={() => {
               delete state.art
               commit()
             }}
           >
-            🖼 Заменить изображением
+            <Ico n="image" />  Заменить изображением
           </button>
           <button className="btn btn-small" onClick={() => setEditJson((v) => !v)}>
-            {editJson ? 'Скрыть JSON' : '✎ Расширенный JSON'}
+            {editJson ? 'Скрыть JSON' : 'Расширенный JSON'}
           </button>
         </div>
         {editJson && (
@@ -382,14 +383,14 @@ function StateBackground({
       <div className="art-preview-tools">
         <button
           className="btn btn-small"
-          title="Нарисовать фон примитивами (формат ArtDoc) — удобно для генерации"
+          data-tip="Нарисовать фон примитивами (формат ArtDoc) — удобно для генерации"
           onClick={() => {
             state.art = { canvas: { w: 1280, h: 720 }, background: '#20242c', layers: [] }
             delete state.image
             commit()
           }}
         >
-          🎨 Сделать векторным (ArtDoc)
+          <Ico n="palette" />  Сделать векторным (ArtDoc)
         </button>
       </div>
       <div className="muted small">
@@ -414,7 +415,7 @@ function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorS
           <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
           {scene.states.length > 1 && (
             <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>
-              ✕ удалить состояние
+              <Ico n="close" />  удалить состояние
             </button>
           )}
         </div>
@@ -589,7 +590,7 @@ function NavProps({
       )}
       {mode === 'scene' && foreign && (
         <div className="warn-note">
-          ⚠ Переход ведёт в сцену другой локации. Так больше нельзя: между локациями —
+          <Ico n="warn" />  Переход ведёт в сцену другой локации. Так больше нельзя: между локациями —
           только через карту. Выберите сцену этой локации или тип «Открыть карту».
         </div>
       )}

@@ -4,6 +4,7 @@
  * Хранение — shared/settings.ts (localStorage); открывается из главного меню
  * и HUD. Никаких prompt/confirm/alert — обычный React-оверлей.
  */
+import { Ico } from './icons'
 import { useState } from 'react'
 import { setSettings, useSettings, type PlayerSettings } from './settings'
 import { speak, ttsSupported, useTtsVoices } from './speech'
@@ -49,7 +50,7 @@ export function SettingsPanel({ open, onClose }: Props) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box settings-box" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-title">⚙ Настройки</div>
+        <div className="modal-title"><Ico n="settings" />  Настройки</div>
 
         <VolumeSlider label="Общая громкость" value={s.volume} onChange={(v) => patch({ volume: v })} />
         <VolumeSlider label="Музыка" value={s.music_volume} onChange={(v) => { patch({ music_volume: v }); applyMusicVolume() }} />
@@ -112,7 +113,7 @@ export function SettingsPanel({ open, onClose }: Props) {
                   })
                 }}
               >
-                🔊 Прослушать
+                <Ico n="sound" />  Прослушать
               </button>
             </Row>
           </>

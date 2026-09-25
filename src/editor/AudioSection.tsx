@@ -7,7 +7,8 @@
  * - правила музыки «условия → треки» у локаций и сцен.
  * Везде выбор из списков и предпрослушивание (▶), сырые id не показываются.
  */
-import { useState } from 'react'
+import { Ico } from '../shared/icons'
+import { useEffect, useRef, useState } from 'react'
 import type {
   MusicCondition,
   MusicDoc,
@@ -221,7 +222,7 @@ function MusicDocEditor({ value, onChange }: { value: MusicDoc; onChange: () => 
       <label className="fld fld-block">
         <span>Аккорды ступенями гаммы (через запятую: i, VI, III, VII)</span>
         <input
-          value={(value.progression ?? []).join(', ')}
+          value={(value.progression ?? []).join(',')}
           onChange={(e) => {
             const arr = e.target.value
               .split(',')
@@ -277,14 +278,14 @@ function SourceEditor({
         <button
           type="button"
           className="chip"
-          title="Прослушать, как звучит сейчас"
+          data-tip="Прослушать, как звучит сейчас"
           onClick={() => {
             if (!value) return
             if (what === 'музыка') previewMusicSource(value as MusicSource)
             else playSource(value as SoundSource)
           }}
         >
-          ▶ Прослушать
+          <Ico n="play" />  Прослушать
         </button>
       </div>
       {synth ? (
@@ -313,6 +314,94 @@ function sorted<T extends { label: string }>(arr: T[] | undefined): T[] {
   return [...(arr ?? [])].sort((a, b) => a.label.localeCompare(b.label, 'ru'))
 }
 
+/** выбор записи из реестра: кнопка → панель с поиском, ▶ и алфавитом (фидбек 8) */
+function RegistryPicker({
+  options,
+  value,
+  onPick,
+  onPlay,
+  placeholder,
+}: {
+  options: Array<{ id: string; label: string }>
+  value: string | undefined
+  onPick: (id: string | undefined) => void
+  onPlay: (id: string) => void
+  placeholder: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    window.addEventListener('mousedown', close)
+    return () => window.removeEventListener('mousedown', close)
+  }, [open])
+  const current = options.find((o) => o.id === value)
+  const ql = q.trim().toLowerCase()
+  const filtered = options.filter((o) => !ql || o.label.toLowerCase().includes(ql))
+  return (
+    <div className="reg-picker" ref={ref}>
+      <button type="button" className="btn btn-small reg-picker-btn" onClick={() => setOpen(!open)}>
+        {current ? current.label : <span className="muted">— {placeholder} —</span>}
+        <span className="editor-nav-caret">▾</span>
+      </button>
+      <button
+        type="button"
+        className="btn btn-small"
+        data-tip="Прослушать"
+        disabled={!current}
+        onClick={() => current && onPlay(current.id)}
+      >
+        <Ico n="play" /> 
+      </button>
+      {open && (
+        <div className="reg-picker-popup">
+          <input
+            className="reg-picker-search"
+            placeholder="Поиск по названию…"
+            value={q}
+            autoFocus
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <button
+            type="button"
+            className={`reg-picker-item ${!value ? 'on' : ''}`}
+            onClick={() => {
+              onPick(undefined)
+              setOpen(false)
+            }}
+          >
+            — {placeholder} —
+          </button>
+          <div className="reg-picker-list">
+            {filtered.map((o) => (
+              <div key={o.id} className={`reg-picker-row ${value === o.id ? 'on' : ''}`}>
+                <button
+                  type="button"
+                  className="reg-picker-item"
+                  onClick={() => {
+                    onPick(o.id)
+                    setOpen(false)
+                  }}
+                >
+                  {o.label}
+                </button>
+                <button type="button" className="chip-play" data-tip="Прослушать" onClick={() => onPlay(o.id)}>
+                  <Ico n="play" /> 
+                </button>
+              </div>
+            ))}
+            {!filtered.length && <div className="muted small" style={{ padding: 6 }}>Ничего не найдено.</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SoundSelect({
   store,
   value,
@@ -324,29 +413,19 @@ export function SoundSelect({
 }) {
   const sounds = sorted(store.meta.sounds)
   return (
-    <span className="sound-select">
-      <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
-        <option value="">— нет —</option>
-        {sounds.map((s) => (
-          <option key={s.id} value={s.id}>{s.label}</option>
-        ))}
-      </select>
-      <button
-        type="button"
-        className="btn btn-small"
-        title="Прослушать"
-        disabled={!value}
-        onClick={() => {
-          const def = store.meta.sounds?.find((s) => s.id === value)
-          if (!def) return
-          const srcs = Array.isArray(def.src) ? def.src : [def.src]
-          const src = srcs[Math.floor(Math.random() * srcs.length)]
-          if (src) playSource(src)
-        }}
-      >
-        ▶
-      </button>
-    </span>
+    <RegistryPicker
+      options={sounds}
+      value={value}
+      onPick={onChange}
+      placeholder="нет звука"
+      onPlay={(id) => {
+        const def = store.meta.sounds?.find((s) => s.id === id)
+        if (!def) return
+        const srcs = Array.isArray(def.src) ? def.src : [def.src]
+        const src = srcs[Math.floor(Math.random() * srcs.length)]
+        if (src) playSource(src)
+      }}
+    />
   )
 }
 
@@ -361,26 +440,16 @@ export function MusicTrackSelect({
 }) {
   const tracks = sorted(store.meta.music_tracks)
   return (
-    <span className="sound-select">
-      <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
-        <option value="">— нет —</option>
-        {tracks.map((t) => (
-          <option key={t.id} value={t.id}>{t.label}</option>
-        ))}
-      </select>
-      <button
-        type="button"
-        className="btn btn-small"
-        title="Прослушать"
-        disabled={!value}
-        onClick={() => {
-          const t = store.meta.music_tracks?.find((x) => x.id === value)
-          if (t) previewMusicSource(t.src, 0.9 * (t.volume ?? 1))
-        }}
-      >
-        ▶
-      </button>
-    </span>
+    <RegistryPicker
+      options={tracks}
+      value={value}
+      onPick={onChange}
+      placeholder="нет трека"
+      onPlay={(id) => {
+        const t = store.meta.music_tracks?.find((x) => x.id === id)
+        if (t) previewMusicSource(t.src, 0.9 * (t.volume ?? 1))
+      }}
+    />
   )
 }
 
@@ -402,13 +471,13 @@ export function MusicTrackMultiSelect({
           <span key={t.id} className={`chip ${on ? 'chip-on' : ''}`}>
             <button
               type="button"
-              title={on ? 'Убрать из списка' : 'Добавить в список'}
+              data-tip={on ? 'Убрать из списка' : 'Добавить в список'}
               onClick={() => (on ? onChange(value.filter((x) => x !== t.id)) : onChange([...value, t.id]))}
             >
               {t.label}
             </button>
-            <button type="button" className="chip-play" title="Прослушать" onClick={() => previewMusicSource(t.src, 0.9 * (t.volume ?? 1))}>
-              ▶
+            <button type="button" className="chip-play" data-tip="Прослушать" onClick={() => previewMusicSource(t.src, 0.9 * (t.volume ?? 1))}>
+              <Ico n="play" /> 
             </button>
           </span>
         )
@@ -465,7 +534,7 @@ function condLabel(c: MusicCondition): string {
   }
   if (c.flag) parts.push(`флаг «${c.flag}»`)
   if (c.not_flag) parts.push(`нет флага «${c.not_flag}»`)
-  return parts.join(', ') || 'всегда'
+  return parts.join(',') || 'всегда'
 }
 
 export function MusicRulesEditor({
@@ -492,7 +561,7 @@ export function MusicRulesEditor({
           <div className="fld-row" style={{ alignItems: 'center' }}>
             <button type="button" className="btn btn-small" onClick={() => setOpen(open === i ? null : i)}>
               {open === i ? '▾' : '▸'} {i + 1}. {rule.tracks.length ? `${rule.tracks.length} трек(ов)` : 'треки не выбраны'}
-              {rule.conditions?.length ? ` — ${rule.conditions.map(condLabel).join('; ')}` : ''}
+              {rule.conditions?.length ? ` — ${rule.conditions.map(condLabel).join(';')}` : ''}
             </button>
             <label className="fld-check small">
               <input
@@ -505,18 +574,18 @@ export function MusicRulesEditor({
               />
               <span>вперемешку</span>
             </label>
-            <button className="btn btn-small" title="Поднять" disabled={i === 0} onClick={() => {
+            <button className="btn btn-small" data-tip="Поднять" disabled={i === 0} onClick={() => {
               ;[value[i - 1], value[i]] = [value[i], value[i - 1]]
               onChange()
             }}>↑</button>
-            <button className="btn btn-small" title="Опустить" disabled={i === value.length - 1} onClick={() => {
+            <button className="btn btn-small" data-tip="Опустить" disabled={i === value.length - 1} onClick={() => {
               ;[value[i + 1], value[i]] = [value[i], value[i + 1]]
               onChange()
             }}>↓</button>
-            <button className="btn btn-small ce-del" title="Удалить правило" onClick={() => {
+            <button className="btn btn-small ce-del" data-tip="Удалить правило" onClick={() => {
               value.splice(i, 1)
               onChange()
-            }}>✕</button>
+            }}><Ico n="close" /> </button>
           </div>
           {open === i && (
             <div style={{ padding: '4px 0 8px' }}>
@@ -569,11 +638,11 @@ export function MusicRulesEditor({
                         onChange()
                       }}
                     />
-                    <button className="btn btn-small ce-del" title="Убрать условие" onClick={() => {
+                    <button className="btn btn-small ce-del" data-tip="Убрать условие" onClick={() => {
                       rule.conditions!.splice(ci, 1)
                       if (!rule.conditions!.length) delete rule.conditions
                       onChange()
-                    }}>✕</button>
+                    }}><Ico n="close" /> </button>
                   </div>
                 ))}
                 <button
@@ -629,7 +698,7 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
   return (
     <>
       <div className="props-group">
-        <h4>🎵 Музыка</h4>
+        <h4><Ico n="music" />  Музыка</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Треки — файлы кампании, внешние ссылки или синтез из описания (звучит без файлов).
           Назначать треки можно у локаций и сцен, в катсценах и для боя.
@@ -640,11 +709,11 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
               <button type="button" className="btn btn-small" onClick={() => setOpenTrack(openTrack === t.id ? null : t.id)}>
                 {openTrack === t.id ? '▾' : '▸'} {t.label || 'Трек без названия'}
               </button>
-              <button type="button" className="btn btn-small" title="Прослушать" onClick={() => previewMusicSource(t.src, 0.9 * (t.volume ?? 1))}>▶</button>
-              <button className="btn btn-small ce-del" title="Удалить трек (назначения станут пустыми)" onClick={() => {
+              <button type="button" className="btn btn-small" data-tip="Прослушать" onClick={() => previewMusicSource(t.src, 0.9 * (t.volume ?? 1))}><Ico n="play" /> </button>
+              <button className="btn btn-small ce-del" data-tip="Удалить трек (назначения станут пустыми)" onClick={() => {
                 m.music_tracks!.splice(i, 1)
                 commit()
-              }}>✕</button>
+              }}><Ico n="close" /> </button>
             </div>
             {openTrack === t.id && (
               <div style={{ padding: '4px 0 10px' }}>
@@ -667,7 +736,7 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
                       }}
                     />
                   </label>
-                  <label className="fld-check" title="Один трек — зациклить; в плейлисте из нескольких треков играют по очереди">
+                  <label className="fld-check" data-tip="Один трек — зациклить; в плейлисте из нескольких треков играют по очереди">
                     <input
                       type="checkbox"
                       checked={t.loop !== false}
@@ -740,7 +809,7 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
       </div>
 
       <div className="props-group">
-        <h4>🔊 Звуки</h4>
+        <h4><Ico n="sound" />  Звуки</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Короткие эффекты: файлы, ссылки или синтез. Под одним названием может быть
           несколько вариантов — каждый раз сыграет случайный (три скрипа двери).
@@ -755,19 +824,19 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
               <button
                 type="button"
                 className="btn btn-small"
-                title="Прослушать случайный вариант"
+                data-tip="Прослушать случайный вариант"
                 onClick={() => {
                   const arr = srcs(s)
                   const src = arr[Math.floor(Math.random() * arr.length)]
                   if (src) playSource(src)
                 }}
               >
-                ▶
+                <Ico n="play" /> 
               </button>
-              <button className="btn btn-small ce-del" title="Удалить звук (назначения станут пустыми)" onClick={() => {
+              <button className="btn btn-small ce-del" data-tip="Удалить звук (назначения станут пустыми)" onClick={() => {
                 m.sounds!.splice(i, 1)
                 commit()
-              }}>✕</button>
+              }}><Ico n="close" /> </button>
             </div>
             {openSound === s.id && (
               <div style={{ padding: '4px 0 10px' }}>
@@ -782,7 +851,7 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
                       {srcs(s).length > 1 && (
                         <button
                           className="btn btn-small ce-del"
-                          title="Убрать вариант"
+                          data-tip="Убрать вариант"
                           onClick={() => {
                             const arr = srcs(s)
                             arr.splice(vi, 1)
@@ -790,7 +859,7 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
                             commit()
                           }}
                         >
-                          ✕ вариант
+                          <Ico n="close" />  вариант
                         </button>
                       )}
                     </div>
@@ -840,7 +909,7 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
       </div>
 
       <div className="props-group">
-        <h4>🎧 Тема интерфейса</h4>
+        <h4><Ico n="sound" />  Тема интерфейса</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Какие звуки сопровождают действия игрока: кнопки, панели, бой, квесты, дорога.
           Не заданные события молчат.

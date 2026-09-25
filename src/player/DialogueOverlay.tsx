@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { DialogueLine } from '../core/dialogue'
@@ -68,7 +69,7 @@ export function DialogueOverlay({ engine }: Props) {
               <p
                 key={i}
                 className={`${l.action ? 'action' : ''} ${i === d.lines.length - 1 ? 'current' : 'past'}`}
-                title={l.action || (!l.voice && !settings.tts_enabled) ? undefined : 'Клик — прослушать ещё раз'}
+                data-tip={l.action || (!l.voice && !settings.tts_enabled) ? undefined : 'Клик — прослушать ещё раз'}
                 onClick={() => {
                   if (i === d.lines.length - 1) playLine(l)
                 }}
@@ -80,8 +81,8 @@ export function DialogueOverlay({ engine }: Props) {
           {showTip && hasCheckChoice && (
             <div className="dialogue-tip">
               <div className="dialogue-tip-text">
-                <p>💡 Ответы с пометкой — например <b>«(Убеждение)»</b> — это проверка навыка.</p>
-                <p>Бросается кость d100: выпало не больше навыка — успех. Чем выше навык, тем лучше шанс. Итог броска записывается в журнал 📜.</p>
+                <p><Ico n="info" />  Ответы с пометкой — например <b>«(Убеждение)»</b> — это проверка навыка.</p>
+                <p>Бросается кость d100: выпало не больше навыка — успех. Чем выше навык, тем лучше шанс. Итог броска записывается в журнал <Ico n="scroll" /> .</p>
               </div>
               <button
                 className="btn btn-small"

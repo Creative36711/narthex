@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useRef, useState } from 'react'
 import type { ArtDoc, LocationDef, MusicRule, RegionDef } from '../shared/types'
 import type { EditorStore } from './store'
@@ -79,13 +80,13 @@ export function WorldEditor({ store }: { store: EditorStore }) {
             style={{ paddingLeft: 12 + depth * 18 }}
             onClick={() => setSelId(region.id)}
           >
-            {depth > 0 ? '↳ ' : '🗺 '}{region.label}
+            {depth > 0 ? '↳' : ''}{region.label}
           </button>
         ))}
         <div className="editor-list-tools">
           <button className="btn btn-small" onClick={() => addRegion()}>+ регион</button>
           {active && (
-            <button className="btn btn-small" onClick={() => addRegion(active)} title="Вложенный регион — например страна внутри карты мира">
+            <button className="btn btn-small" onClick={() => addRegion(active)} data-tip="Вложенный регион — например страна внутри карты мира">
               + вложенный
             </button>
           )}
@@ -160,7 +161,7 @@ function RegionPanel({
             <input value={r.label} onChange={(e) => ((r.label = e.target.value), commit())} />
           </label>
           <button className="btn btn-small ce-del" style={{ alignSelf: 'flex-end', marginBottom: 8 }} onClick={onRemove}>
-            ✕ удалить регион
+            <Ico n="close" />  удалить регион
           </button>
         </div>
         {r.map_art ? (
@@ -174,10 +175,10 @@ function RegionPanel({
                   commit()
                 }}
               >
-                🖼 Заменить изображением
+                <Ico n="image" />  Заменить изображением
               </button>
               <button className="btn btn-small" onClick={() => setArtJson((v) => !v)}>
-                {artJson ? 'Скрыть JSON' : '✎ Расширенный JSON'}
+                {artJson ? 'Скрыть JSON' : 'Расширенный JSON'}
               </button>
             </div>
             {artJson && (
@@ -220,14 +221,14 @@ function RegionPanel({
             <div className="art-preview-tools">
               <button
                 className="btn btn-small"
-                title="Нарисовать карту примитивами (формат ArtDoc) — удобно для генерации"
+                data-tip="Нарисовать карту примитивами (формат ArtDoc) — удобно для генерации"
                 onClick={() => {
                   const size = r.map_size ?? { w: 1280, h: 720 }
                   r.map_art = { canvas: { ...size }, background: '#2d3a2a', layers: [] }
                   commit()
                 }}
               >
-                🎨 Сделать векторной (ArtDoc)
+                <Ico n="palette" />  Сделать векторной (ArtDoc)
               </button>
             </div>
           </>
@@ -285,7 +286,7 @@ function RegionPanel({
                 setSelLoc(loc.id)
               }}
             >
-              <span className="map-marker-dot">📍</span>
+              <span className="map-marker-dot"><Ico n="map" /> </span>
               <span className="map-marker-label">{loc.label}</span>
             </div>
           ))}
@@ -332,7 +333,7 @@ function LocationProps({
           <span>Название</span>
           <input value={loc.label} onChange={(e) => ((loc.label = e.target.value), commit())} />
         </label>
-        <label className="fld fld-check" title="Скрытая локация не видна на карте, пока её не откроет правило (reveal_location)">
+        <label className="fld fld-check" data-tip="Скрытая локация не видна на карте, пока её не откроет правило (reveal_location)">
           <input type="checkbox" checked={!!loc.hidden} onChange={(e) => {
             if (e.target.checked) loc.hidden = true
             else delete loc.hidden
@@ -352,7 +353,7 @@ function LocationProps({
                 <option key={o.id} value={o.id}>{o.label}</option>
               ))}
             </select>
-            <button className="btn btn-small ce-del" onClick={() => (loc.scenes.splice(si, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" onClick={() => (loc.scenes.splice(si, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button className="btn btn-small" onClick={() => (loc.scenes.push(store.options('scene')[0]?.id ?? ''), commit())}>
@@ -360,7 +361,7 @@ function LocationProps({
         </button>
       </div>
 
-      <label className="fld" title="Сюда попадает игрок, придя в локацию с карты; по умолчанию — первая сцена списка выше">
+      <label className="fld" data-tip="Сюда попадает игрок, придя в локацию с карты; по умолчанию — первая сцена списка выше">
         <span>Сцена по прибытии</span>
         <select
           value={loc.arrival_scene ?? ''}
@@ -385,7 +386,7 @@ function LocationProps({
         store={store}
         value={(loc.music ?? (loc.music = [])) as MusicRule[]}
         onChange={commit}
-        title="🎵 Музыка локации (условия → треки)"
+        title="Музыка локации (условия → треки)"
       />
 
       <div className="fld-block">
@@ -402,7 +403,7 @@ function LocationProps({
               <span>в пути</span>
               <input type="number" value={tc.cost_ticks} onChange={(e) => ((tc.cost_ticks = Number(e.target.value)), commit())} />
             </label>
-            <button className="btn btn-small ce-del" onClick={() => (loc.travel_connections.splice(ti, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" onClick={() => (loc.travel_connections.splice(ti, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -433,7 +434,7 @@ function LocationProps({
         Если в локации начнётся бой без явно указанной арены — будет использована эта. Регион: {region.label}.
       </div>
 
-      <button className="btn btn-small ce-del" onClick={onRemove}>✕ удалить локацию</button>
+      <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" />  удалить локацию</button>
     </div>
   )
 }

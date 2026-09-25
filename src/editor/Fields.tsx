@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useId, useState } from 'react'
 import type { Condition, Effect } from '../shared/types'
 import { makeId } from './ids'
@@ -306,10 +307,10 @@ function TimeOfDayField({
 }
 
 const ORDERED_TIMES = [
-  { id: 'morning', label: '🌅 Утро' },
-  { id: 'day', label: '☀️ День' },
-  { id: 'evening', label: '🌆 Вечер' },
-  { id: 'night', label: '🌙 Ночь' },
+  { id: 'morning', label: 'Утро' },
+  { id: 'day', label: 'День' },
+  { id: 'evening', label: 'Вечер' },
+  { id: 'night', label: 'Ночь' },
 ]
 
 /** Визуальный список отрядов {NPC × количество} для start_combat (фидбек №11). */
@@ -353,7 +354,7 @@ function UnitListField({
             value={u.count ?? 1}
             onChange={(e) => set(units.map((x, j) => (j === i ? { ...x, count: Math.max(1, Number(e.target.value)) } : x)))}
           />
-          <button className="btn btn-small ce-del" onClick={() => set(units.filter((_, j) => j !== i))}>✕</button>
+          <button className="btn btn-small ce-del" onClick={() => set(units.filter((_, j) => j !== i))}><Ico n="close" /> </button>
         </div>
       ))}
       <button
@@ -408,7 +409,7 @@ function ItemListField({
             value={u.quantity ?? 1}
             onChange={(e) => set(items.map((x, j) => (j === i ? { ...x, quantity: Math.max(1, Number(e.target.value)) } : x)))}
           />
-          <button className="btn btn-small ce-del" onClick={() => set(items.filter((_, j) => j !== i))}>✕</button>
+          <button className="btn btn-small ce-del" onClick={() => set(items.filter((_, j) => j !== i))}><Ico n="close" /> </button>
         </div>
       ))}
       <button type="button" className="btn btn-small" onClick={() => set([...items, { item: opts[0]?.id ?? '', quantity: 1 }])}>
@@ -461,7 +462,7 @@ export function FlagSelect({
         {options.map((o) => (
           <option key={o.id} value={o.id}>{o.label}</option>
         ))}
-        <option value="__new__">➕ Создать новый флаг…</option>
+        <option value="__new__"><Ico n="plus" />  Создать новый флаг…</option>
       </select>
     </label>
   )
@@ -570,7 +571,7 @@ export function AssetUpload({
         )}
         <div className="img-upload-btns">
           <label className="btn btn-small" htmlFor={inputId}>
-            {busy ? 'Загрузка…' : '📁 Выбрать файл…'}
+            {busy ? 'Загрузка…' : 'Выбрать файл…'}
           </label>
           <input
             id={inputId}
@@ -584,7 +585,7 @@ export function AssetUpload({
             }}
           />
           {value && (
-            <button className="btn btn-small ce-del" onClick={() => { onChange(''); setCheck(null) }}>✕ убрать</button>
+            <button className="btn btn-small ce-del" onClick={() => { onChange(''); setCheck(null) }}><Ico n="close" />  убрать</button>
           )}
         </div>
       </div>
@@ -611,7 +612,7 @@ export function AssetUpload({
       </div>
       {check && (
         <div className={`asset-check ${check.ok ? (check.cors ? 'ok' : 'warn') : 'bad'}`}>
-          {check.ok ? (check.cors ? '✓ ' : '⚠ ') : '✗ '}
+          {check.ok ? (check.cors ? '' : '') : ''}
           {check.message}
         </div>
       )}
@@ -773,7 +774,7 @@ export function ConditionListEditor({
                   onChange(conditions.filter((_, j) => j !== i))
                 }}
               >
-                ✕
+                <Ico n="close" /> 
               </button>
             </div>
             {open === i && (
@@ -849,7 +850,7 @@ export function EffectListEditor({
                 <button
                   className="btn btn-small"
                   disabled={i === 0}
-                  title="Выше"
+                  data-tip="Выше"
                   onClick={() => {
                     const next = [...effects]
                     ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
@@ -862,7 +863,7 @@ export function EffectListEditor({
                   className="btn btn-small ce-del"
                   onClick={() => onChange(effects.filter((_, j) => j !== i))}
                 >
-                  ✕
+                  <Ico n="close" /> 
                 </button>
               </span>
             </div>

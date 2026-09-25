@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { QuestDef } from '../shared/types'
 import type { EditorStore } from './store'
@@ -72,7 +73,7 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
                 commit()
               }}
             >
-              ✕
+              <Ico n="close" /> 
             </button>
           </div>
         ))}
@@ -130,7 +131,7 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
                   commit()
                 }}
               >
-                ✕
+                <Ico n="close" /> 
               </button>
             </div>
 
@@ -164,7 +165,7 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
                         commit()
                       }}
                     >
-                      ✕
+                      <Ico n="close" /> 
                     </button>
                   </div>
                   <ConditionListEditor

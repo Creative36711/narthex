@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import { askConfirm } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
@@ -23,7 +24,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
   return (
     <div className="hud">
       <div className="hud-left">
-        <div className="hud-bar hp" title="Здоровье">
+        <div className="hud-bar hp" data-tip="Здоровье">
           <div className="hud-bar-fill" style={{ width: `${(s.player.hp / s.player.max_hp) * 100}%` }} />
           <span>HP {s.player.hp}/{s.player.max_hp}</span>
         </div>
@@ -31,7 +32,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           const val = s.player.needs[n.id] ?? 0
           const critical = val <= n.critical_threshold
           return (
-            <div key={n.id} className={`hud-bar need ${critical ? 'critical' : ''}`} title={n.label}>
+            <div key={n.id} className={`hud-bar need ${critical ? 'critical' : ''}`} data-tip={n.label}>
               <div className="hud-bar-fill" style={{ width: `${(val / n.max) * 100}%` }} />
               <span>
                 {n.label} {Math.round(val)}
@@ -45,15 +46,15 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         <div className={`hud-tod tod-${tod}`}>{TIME_OF_DAY_LABEL[tod]}</div>
       </div>
       <div className="hud-right">
-        <button className="hud-btn" onClick={onOpenMap} title="Карта">🗺 Карта</button>
-        <button className="hud-btn" onClick={onOpenInventory} title="Инвентарь">🎒 Вещи</button>
-        <button className="hud-btn" onClick={onOpenCharacter} title="Лист персонажа">👤 Герой</button>
-        <button className="hud-btn" onClick={onOpenLog} title="Журнал">📜 Журнал</button>
-        <button className="hud-btn" onClick={onOpenHelp} title="Справка">❓</button>
-        <button className="hud-btn" onClick={() => setShowSettings(true)} title="Настройки (громкость, озвучка)">⚙</button>
+        <button className="hud-btn" onClick={onOpenMap} data-tip="Карта"><Ico n="map" />  Карта</button>
+        <button className="hud-btn" onClick={onOpenInventory} data-tip="Инвентарь"><Ico n="bag" />  Вещи</button>
+        <button className="hud-btn" onClick={onOpenCharacter} data-tip="Лист персонажа"><Ico n="user" />  Герой</button>
+        <button className="hud-btn" onClick={onOpenLog} data-tip="Журнал"><Ico n="scroll" />  Журнал</button>
+        <button className="hud-btn" onClick={onOpenHelp} data-tip="Справка"><Ico n="help" /> </button>
+        <button className="hud-btn" onClick={() => setShowSettings(true)} data-tip="Настройки (громкость, озвучка)"><Ico n="settings" /> </button>
         <button
           className="hud-btn"
-          title="Выйти в главное меню (прогресс сохранён)"
+          data-tip="Выйти в главное меню (прогресс сохранён)"
           onClick={async () => {
             if (await askConfirm('Выйти в главное меню?', 'Выйти')) onExitToMenu()
           }}

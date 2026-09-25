@@ -8,6 +8,7 @@
  * или по длине текста. «Пропустить» появляется после первого слайда.
  */
 
+import { Ico } from './icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CutsceneDef, CutsceneSlide, MusicTrackDef, MusicSource } from './types'
 import { ArtView } from './ArtView'
@@ -75,7 +76,7 @@ function SlideMedia({
           className="cs-media cs-video"
           src={`https://www.youtube.com/embed/${yt}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&cc_load_policy=0&iv_load_policy=3&fs=0&disablekb=1`}
           allow="autoplay; encrypted-media"
-          title="видео"
+          data-tip="видео"
         />
       )
     }
@@ -235,7 +236,7 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
   // клавиатура: пробел/Enter/→ — дальше, Esc — пропустить
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') {
+      if (e.key === '' || e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault()
         if (typed < text.length) setTyped(text.length)
         else next()
@@ -305,7 +306,7 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
           </div>
         )}
         {slide.video && !slide.art && !slide.image && testMode && (
-          <div className="cs-online-badge">🌐 онлайн-видео</div>
+          <div className="cs-online-badge"><Ico n="globe" />  онлайн-видео</div>
         )}
       </div>
       <div className="cs-controls">
@@ -321,7 +322,7 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
         )}
         {canSkip && (
           <button className="btn btn-small" onClick={finish}>
-            {testMode ? '✕ Закрыть' : 'Пропустить ⏭'}
+            {testMode ? 'Закрыть' : 'Пропустить'}
           </button>
         )}
       </div>

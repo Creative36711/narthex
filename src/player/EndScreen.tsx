@@ -17,7 +17,7 @@ export function EndScreen({ engine, onRestart, onExitToMenu }: Props) {
   return (
     <div className={`overlay end-overlay ${isDeath ? 'death' : 'victory'}`}>
       <div className="end-panel">
-        <h1>{isDeath ? '☠ Забег окончен' : '🏆 Победа'}</h1>
+        <h1>{isDeath ? 'Забег окончен' : 'Победа'}</h1>
         <p className="end-reason">{go.reason}</p>
         <div className="end-stats">
           <div><span>Прожито</span><b>{dayNumber(s.tick, engine.campaign.meta)} дн. ({s.stats_run.ticks_survived} {engine.campaign.meta.tick_label}.)</b></div>

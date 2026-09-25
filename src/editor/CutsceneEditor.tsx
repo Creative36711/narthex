@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useCallback, useState } from 'react'
 import type { ArtDoc, CutsceneDef, CutsceneSlide, CutsceneTransition } from '../shared/types'
 import type { EditorStore } from './store'
@@ -23,10 +24,10 @@ const TRANSITIONS: Array<{ id: CutsceneTransition; label: string }> = [
 type FrameKind = 'art' | 'image' | 'video' | 'none'
 
 const FRAME_KINDS: Array<{ id: FrameKind; label: string }> = [
-  { id: 'art', label: '🎨 Векторный рисунок (ArtDoc)' },
-  { id: 'image', label: '🖼 Изображение' },
-  { id: 'video', label: '🌐 Видео' },
-  { id: 'none', label: '⬛ Без кадра (текст на чёрном)' },
+  { id: 'art', label: 'Векторный рисунок (ArtDoc)' },
+  { id: 'image', label: 'Изображение' },
+  { id: 'video', label: 'Видео' },
+  { id: 'none', label: 'Без кадра (текст на чёрном)' },
 ]
 
 function frameKind(s: CutsceneSlide): FrameKind {
@@ -79,7 +80,7 @@ export function CutsceneEditor({ store, path }: { store: EditorStore; path: stri
   return (
     <div className="rule-editor cutscene-editor">
       <div className="props-group">
-        <h4>🎬 Катсцена</h4>
+        <h4><Ico n="film" />  Катсцена</h4>
         <label className="fld">
           <span>Название</span>
           <input value={cs.label} onChange={(e) => ((cs.label = e.target.value), commit())} />
@@ -112,7 +113,7 @@ export function CutsceneEditor({ store, path }: { store: EditorStore; path: stri
         </div>
         <div className="fld-row" style={{ alignItems: 'center', gap: 10 }}>
           <button className="btn btn-small btn-primary" disabled={!cs.slides.length} onClick={() => setTestFrom(0)}>
-            ▶ Тест-прогон
+            <Ico n="play" />  Тест-прогон
           </button>
           <span className="muted small">
             В игре катсцена запускается эффектом «Показать катсцену» — в правиле или действием в диалоге.
@@ -226,10 +227,10 @@ function SlideCard({
       <div className="cs-slide-head">
         <b>Слайд {index + 1}</b>
         <span className="editor-spacer" />
-        <button className="btn btn-small" disabled={index === 0} title="Выше" onClick={onUp}>↑</button>
-        <button className="btn btn-small" disabled={index === total - 1} title="Ниже" onClick={onDown}>↓</button>
-        <button className="btn btn-small" title="Тест-прогон с этого слайда" onClick={onTest}>▶</button>
-        <button className="btn btn-small ce-del" title="Удалить слайд" onClick={onRemove}>✕</button>
+        <button className="btn btn-small" disabled={index === 0} data-tip="Выше" onClick={onUp}>↑</button>
+        <button className="btn btn-small" disabled={index === total - 1} data-tip="Ниже" onClick={onDown}>↓</button>
+        <button className="btn btn-small" data-tip="Тест-прогон с этого слайда" onClick={onTest}><Ico n="play" /> </button>
+        <button className="btn btn-small ce-del" data-tip="Удалить слайд" onClick={onRemove}><Ico n="close" /> </button>
       </div>
       <div className="cs-slide-body">
         <div className="cs-slide-preview">
@@ -242,7 +243,7 @@ function SlideCard({
             ))}
           {kind === 'video' && (
             <div className="cs-thumb cs-thumb-empty">
-              {sl.video ? (youtubeId(sl.video) ? '▶ YouTube' : '▶ mp4-видео') : 'нет ссылки на видео'}
+              {sl.video ? (youtubeId(sl.video) ? 'YouTube' : 'mp4-видео') : 'нет ссылки на видео'}
             </div>
           )}
           {kind === 'none' && <div className="cs-thumb cs-thumb-black" />}
@@ -269,7 +270,7 @@ function SlideCard({
                 ))}
               </select>
             </label>
-            <label className="fld" title="Пусто — по длине подписи или по озвучке">
+            <label className="fld" data-tip="Пусто — по длине подписи или по озвучке">
               <span>Длительность, с</span>
               <input
                 type="number"
@@ -289,7 +290,7 @@ function SlideCard({
           {kind === 'art' && (
             <div className="art-preview-tools">
               <button className="btn btn-small" onClick={() => setShowJson((v) => !v)}>
-                {showJson ? 'Скрыть JSON' : '✎ Расширенный JSON рисунка'}
+                {showJson ? 'Скрыть JSON' : 'Расширенный JSON рисунка'}
               </button>
               <span className="muted small">Рисунок — слои примитивов в координатах 1280×720 (см. гайд для ИИ).</span>
             </div>
@@ -332,7 +333,7 @@ function SlideCard({
                 }}
               />
               <div className="warn-note">
-                ⚠ Лучше загрузить файл — он вшивается в пакет и работает без сети.
+                <Ico n="warn" />  Лучше загрузить файл — он вшивается в пакет и работает без сети.
                 Ссылка на YouTube или внешний mp4 работает только онлайн.
               </div>
             </>
