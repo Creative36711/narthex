@@ -89,98 +89,22 @@ export function inkToTokens(text: string): string {
     .replace(/\{\s*get_skill\(\s*["']([^"']+)["']\s*\)\s*\}/gi, (_m, id: string) => tokenString('skill', id))
 }
 
-/** настроение (состояние портрета): базовые + свои состояния из формы NPC */
-export type DlgEmotion = string
-
-export interface DlgLine {
-  text: string
-  emotion?: DlgEmotion
-  /** авторская ремарка (курсивом, не влияет на портрет) */
-  action?: boolean
-}
-
-/** условие показа/ветвления (все условия списка должны выполниться) */
-export type DlgCond =
-  | { type: 'flag'; flag: string; not?: boolean }
-  | { type: 'item_ge'; item: string; count: number; not?: boolean } // предметов ≥ n (not: < n)
-  | { type: 'has_item'; item: string; not?: boolean }
-  | { type: 'disp_ge'; target: string; value: number; not?: boolean } // отношение ≥ (not: <)
-  | { type: 'quest'; quest: string; stage: string; not?: boolean } // квест на стадии ('' = не начат)
-  | { type: 'in_party'; npc: string; not?: boolean }
-  | { type: 'hp_ge'; value: number; not?: boolean } // здоровье ≥ (not: <)
-
-export type DlgEffect =
-  | { type: 'set_flag'; flag: string }
-  | { type: 'add_item'; item: string; qty: number }
-  | { type: 'remove_item'; item: string; qty: number }
-  | { type: 'fire_rule'; rule: string }
-  | { type: 'join_party'; npc: string }
-  | { type: 'open_trade'; npc: string }
-  | { type: 'start_quest'; quest: string }
-  | { type: 'advance_time'; ticks: number }
-  | { type: 'change_need'; need: string; delta: number }
-  | { type: 'change_hp'; delta: number }
-  | { type: 'sleep'; ticks: number }
-  | { type: 'change_disposition'; target: string; delta: number }
-  | { type: 'play_cutscene'; cutscene: string }
-
-/** шаг: реплика или игровое действие (порядок важен) */
-export type DlgStep =
-  | { kind: 'line'; line: DlgLine }
-  | { kind: 'effect'; effect: DlgEffect }
-
-/**
- * Блок шагов с необязательным условием. Если условие есть — можно задать
- * ветку «иначе». goto ('' — продолжить, 'end', 'stay', id узла) уводит
- * разговор из середины блока.
- */
-export interface DlgSection {
-  conds?: DlgCond[]
-  steps: DlgStep[]
-  goto?: string
-  else_steps?: DlgStep[]
-  else_goto?: string
-}
-
-/** проверка навыка с ветками успеха и провала */
-export interface DlgCheck {
-  skill: string
-  difficulty: number
-  /** изменённая сложность при условиях (например «легче, если пришли с тыла») */
-  mods?: Array<{ conds: DlgCond[]; value: number }>
-  success: { sections: DlgSection[]; goto: string }
-  fail: { sections: DlgSection[]; goto: string }
-}
-
-export interface DlgChoice {
-  text: string
-  /** показывать вариант только при условиях */
-  conds?: DlgCond[]
-  /** одноразовый в рамках одного разговора (в новом разговоре вернётся) */
-  once?: boolean
-  /** ответ НПС (блоки с условиями) */
-  sections: DlgSection[]
-  /** проверка навыка после ответа (ветки успех/провал) */
-  check?: DlgCheck
-  /** куда дальше: id узла, 'stay' (те же варианты) или 'end' (конец разговора) */
-  goto: string
-}
-
-export interface DlgNode {
-  id: string
-  label: string
-  sections: DlgSection[]
-  choices: DlgChoice[]
-  /** узел без вариантов: куда перейти после реплик ('end' по умолчанию) */
-  goto?: string
-}
-
-export interface DlgDoc {
-  version: 2
-  /** название диалога для мастера (в списках вместо имени файла) */
-  label?: string
-  nodes: DlgNode[] // nodes[0] — начало разговора (knot main)
-}
+// Типы формата .dlg.json живут в shared/types.ts (единый источник правды —
+// они же входят в монолитный JSON кампании, итерация 8, блок F).
+// Реэкспорт — чтобы существующие импорты из dialogueDoc не ломались.
+export type {
+  DlgEmotion,
+  DlgLine,
+  DlgCond,
+  DlgEffect,
+  DlgStep,
+  DlgSection,
+  DlgCheck,
+  DlgChoice,
+  DlgNode,
+  DlgDoc,
+} from '../shared/types'
+import type { DlgCond, DlgDoc, DlgEffect, DlgLine, DlgSection, DlgStep } from '../shared/types'
 
 export function newDlgDoc(label?: string): DlgDoc {
   return {
