@@ -13,7 +13,14 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
 
   const sellables = engine.state.player.inventory
     .map((e) => ({ e, def: engine.campaign.entities[e.item] as ItemDef | undefined }))
-    .filter((x) => x.def?.type === 'item' && x.e.item !== 'item_silver' && (x.def.value?.silver ?? 0) > 0)
+    .filter(
+      (x) =>
+        x.def?.type === 'item' &&
+        x.e.item !== 'item_silver' &&
+        (x.def.value?.silver ?? 0) > 0 &&
+        // надетое снаряжение не продаётся (сначала «Снять» в инвентаре)
+        !engine.isEquipped(x.e.item),
+    )
 
   return (
     <div className="overlay panel-overlay">

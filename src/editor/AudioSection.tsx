@@ -25,7 +25,7 @@ import type {
 } from '../shared/types'
 import { isSoundDoc, playSource } from '../shared/audio'
 import { isMusicDoc } from '../shared/synth'
-import { startTrackSource, type TrackHandle } from '../shared/music'
+import { startTrackSource, stopMusic, type TrackHandle } from '../shared/music'
 import type { EditorStore } from './store'
 import { AssetUpload, FlagSelect } from './Fields'
 import { askText } from './prompt'
@@ -80,6 +80,8 @@ const ZZFX_LABELS = [
 /** предпрослушивание музыки (▶): один активный фрагмент за раз */
 let previewTrackHandle: TrackHandle | null = null
 export function previewMusicSource(src: MusicSource, volume = 0.9): void {
+  // в редакторе нет фоновой музыки: превью гасит и её, и предыдущее превью
+  stopMusic(0.15)
   if (previewTrackHandle) {
     previewTrackHandle.stop(0.15)
     previewTrackHandle = null
@@ -436,8 +438,8 @@ export function SoundHookMapEditor({
         Не заданные действия молчат или берут звук из более общего места (категория, тип слота, тема кампании).
       </div>
       {SOUND_HOOK_LABELS.map((h) => (
-        <div key={h.id} className="settings-row" style={{ padding: '2px 0' }}>
-          <span className="settings-label">{h.label}</span>
+        <div key={h.id} className="audio-row" style={{ padding: '2px 0' }}>
+          <span className="audio-label">{h.label}</span>
           <SoundSelect
             store={store}
             value={value[h.id]}
@@ -707,8 +709,8 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
         </button>
 
         <div style={{ marginTop: 12 }}>
-          <div className="settings-row">
-            <span className="settings-label">Музыка в главном меню</span>
+          <div className="audio-row">
+            <span className="audio-label">Музыка в главном меню</span>
             <MusicTrackSelect
               store={store}
               value={m.ui_sounds?.['menu_music']}
@@ -844,8 +846,8 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
           Не заданные события молчат.
         </div>
         {UI_HOOK_LABELS.filter((h) => h.id !== 'menu_music').map((h) => (
-          <div key={h.id} className="settings-row" style={{ padding: '2px 0' }}>
-            <span className="settings-label">{h.label}</span>
+          <div key={h.id} className="audio-row" style={{ padding: '2px 0' }}>
+            <span className="audio-label">{h.label}</span>
             <SoundSelect
               store={store}
               value={m.ui_sounds?.[h.id]}

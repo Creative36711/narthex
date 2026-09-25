@@ -73,7 +73,7 @@ function SlideMedia({
       return (
         <iframe
           className="cs-media cs-video"
-          src={`https://www.youtube.com/embed/${yt}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1`}
+          src={`https://www.youtube.com/embed/${yt}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&cc_load_policy=0&iv_load_policy=3&fs=0&disablekb=1`}
           allow="autoplay; encrypted-media"
           title="видео"
         />
@@ -304,14 +304,16 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
             </p>
           </div>
         )}
-        {slide.video && !slide.art && !slide.image && (
-          <div className="cs-online-badge" title="Видео с внешнего сервера">🌐 онлайн-видео</div>
+        {slide.video && !slide.art && !slide.image && testMode && (
+          <div className="cs-online-badge">🌐 онлайн-видео</div>
         )}
       </div>
       <div className="cs-controls">
-        <span className="cs-counter">
-          {index + 1} / {slides.length}
-        </span>
+        {testMode && (
+          <span className="cs-counter">
+            {index + 1} / {slides.length}
+          </span>
+        )}
         {waitUser && (
           <button className="btn btn-small" onClick={next}>
             Далее ▸

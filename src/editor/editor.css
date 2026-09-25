@@ -661,3 +661,48 @@
   overflow: hidden;
 }
 .cs-slide-fields .fld-row { flex-wrap: wrap; }
+
+/* ── звук и музыка (итерация 8, блок H; чистка стилей — фидбек 9) ── */
+
+.audio-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 8px; margin-bottom: 4px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--panel-2);
+}
+.audio-label { flex: 0 0 240px; font-size: 13.5px; color: var(--text); line-height: 1.35; }
+.audio-row .sound-select { flex: 1; display: flex; gap: 6px; align-items: center; min-width: 0; }
+.audio-row select { flex: 1; min-width: 0; }
+
+.sound-select { display: inline-flex; gap: 6px; align-items: center; }
+.sound-select select {
+  min-width: 0; max-width: 100%; text-overflow: ellipsis;
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 13px;
+}
+.sound-select .btn { flex: 0 0 auto; }
+
+.src-editor {
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--panel-2); padding: 8px 10px;
+}
+.src-variant {
+  border: 1px dashed var(--border); border-radius: 6px;
+  padding: 6px 8px; margin-bottom: 8px;
+}
+.src-variant .fld-row { align-items: center; }
+
+.zzfx-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 6px 10px;
+}
+.zzfx-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.zzfx-cell span { font-size: 11.5px; color: var(--muted); line-height: 1.25; }
+.zzfx-cell input { width: 100%; box-sizing: border-box; padding: 4px 6px; font-size: 12.5px; }
+
+.chip-play {
+  margin-left: 4px; padding: 0 4px; border: none; background: none;
+  color: var(--gold); cursor: pointer; font-size: 12px;
+}
+.chip-play:hover { color: var(--gold-bright); }
+.chip > button { border: none; background: none; color: inherit; cursor: pointer; font: inherit; padding: 0; }

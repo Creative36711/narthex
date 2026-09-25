@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { ArtDoc, CutsceneDef, CutsceneSlide, CutsceneTransition } from '../shared/types'
 import type { EditorStore } from './store'
-import { AudioUpload, ImageUpload, JsonField } from './Fields'
+import { AssetUpload, AudioUpload, ImageUpload, JsonField } from './Fields'
 import { MusicTrackSelect } from './AudioSection'
 import { ArtView } from '../shared/ArtView'
 import { CutscenePlayer, autoDurationMs, youtubeId } from '../shared/CutscenePlayer'
@@ -25,7 +25,7 @@ type FrameKind = 'art' | 'image' | 'video' | 'none'
 const FRAME_KINDS: Array<{ id: FrameKind; label: string }> = [
   { id: 'art', label: '🎨 Векторный рисунок (ArtDoc)' },
   { id: 'image', label: '🖼 Изображение' },
-  { id: 'video', label: '🌐 Видео (только онлайн)' },
+  { id: 'video', label: '🌐 Видео' },
   { id: 'none', label: '⬛ Без кадра (текст на чёрном)' },
 ]
 
@@ -319,18 +319,21 @@ function SlideCard({
           )}
           {kind === 'video' && (
             <>
-              <label className="fld fld-block">
-                <span>Ссылка на видео (mp4 или YouTube)</span>
-                <input
-                  type="url"
-                  value={sl.video ?? ''}
-                  placeholder="https://…/intro.mp4 или https://youtu.be/…"
-                  onChange={(e) => ((sl.video = e.target.value), commit())}
-                />
-              </label>
+              <AssetUpload
+                label="Видео слайда (файл или ссылка mp4 / YouTube)"
+                value={sl.video ?? ''}
+                dir="assets/video/cutscenes"
+                store={store}
+                kind="video"
+                onChange={(p) => {
+                  if (p) sl.video = p
+                  else delete sl.video
+                  commit()
+                }}
+              />
               <div className="warn-note">
-                ⚠ Видео работает только онлайн (и не вшивается в пакет). Это исключение: основа катсцен —
-                рисунки и изображения. Без сети слайд покажет только подпись.
+                ⚠ Лучше загрузить файл — он вшивается в пакет и работает без сети.
+                Ссылка на YouTube или внешний mp4 работает только онлайн.
               </div>
             </>
           )}

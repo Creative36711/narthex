@@ -897,9 +897,6 @@ function NpcForm({
       </div>
 
       <AdvancedJson store={store} path={path} commit={commit} />
-      <div className="muted small">
-        Природное оружие (когти, укус) — в «Расширенном JSON».
-      </div>
     </div>
   )
 }
