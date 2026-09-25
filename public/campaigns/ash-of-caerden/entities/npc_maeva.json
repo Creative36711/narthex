@@ -3,14 +3,33 @@
   "type": "npc",
   "label": "Маэва",
   "portrait": {
-    "neutral": "assets/img/npc/maeva_neutral.jpg",
-    "happy": "assets/img/npc/maeva_neutral.jpg"
+    "neutral": "assets/img/npc/maeva_neutral.jpg"
   },
-  "stats": { "STR": 9, "CON": 12, "SIZ": 10, "DEX": 12, "INT": 13, "POW": 14, "CHA": 15 },
-  "skills": { "bargain": 55, "persuade": 60, "first_aid": 55 },
+  "stats": {
+    "STR": 9,
+    "CON": 12,
+    "SIZ": 10,
+    "DEX": 12,
+    "INT": 13,
+    "POW": 14,
+    "CHA": 15
+  },
+  "skills": {
+    "bargain": 55,
+    "persuade": 60,
+    "first_aid": 55
+  },
   "dialogue": "dialogues/maeva.ink",
   "schedule": [
-    { "time_range": [6, 24], "location": "loc_tavern", "scene": "scene_tavern_hall", "slot": "slot_bar_maeva" }
+    {
+      "time_range": [
+        6,
+        24
+      ],
+      "location": "loc_tavern",
+      "scene": "scene_tavern_hall",
+      "slot": "slot_bar_maeva"
+    }
   ],
   "faction": "faction_town",
   "base_disposition": 15

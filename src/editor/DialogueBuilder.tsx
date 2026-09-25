@@ -197,6 +197,16 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       <div className="dlg-node-form">
         {node && <NodeForm key={node.id} node={node} doc={doc} store={store} commit={commit} emotions={emotions} />}
       </div>
+      <details className="advanced-json">
+        <summary>Ink-исходник (генерируется из конструктора автоматически)</summary>
+        <textarea
+          readOnly
+          rows={14}
+          spellCheck={false}
+          value={store.textFiles.get(path) ?? generateInk(doc)}
+          style={{ width: '100%', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12.5 }}
+        />
+      </details>
     </div>
   )
 }

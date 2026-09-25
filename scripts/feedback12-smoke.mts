@@ -71,7 +71,7 @@ must(hud.includes('n="exit"') && !hud.includes('⏻'),
   '10 «Выход» в HUD — иконка-дверь, не глиф-квадрат')
 
 // 11 — поле урона оружия
-must(css.includes('.dmg-row') && css.includes("width: 72px") && ent.includes('dmg-row'),
+must(css.includes('.dmg-row') && css.includes("width: 96px") && ent.includes('dmg-row'),
   '11 урон оружия: нормальный ряд полей (достаточная ширина)')
 
 console.log(fails ? `ПРОВАЛЕНО: ${fails}` : 'ALL GREEN')

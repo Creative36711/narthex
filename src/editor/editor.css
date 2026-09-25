@@ -76,6 +76,8 @@
 
 .editor-main { flex: 1; overflow: auto; padding: 0; min-width: 0; }
 .rule-editor { padding: 14px; }
+/* вкладки форм — на всю ширину каретки (паддинг компенсируем) */
+.rule-editor > .ce-tabs { margin: 0 -14px 14px; padding: 12px 14px 0; }
 .rule-editor:has(.ce-tabs) { padding-top: 0; }
 
 /* ─────────── формы ─────────── */
@@ -467,9 +469,7 @@
   line-height: 1.5;
 }
 
-.dmg-row { display: flex; align-items: center; gap: 6px; }
-.dmg-row select { width: auto; }
-.dmg-row input { width: 64px; }
+.dmg-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* ─── конструктор диалогов v2: условия, блоки, проверки ─── */
 .dlg-warn { color: #d9a441; font-size: 12.5px; margin-bottom: 8px; }
@@ -713,8 +713,8 @@
 
 /* вкладки форм: индикатор — ТОЛЬКО под выбранной вкладкой */
 .ce-tabs {
-  display: flex; gap: 2px; flex-wrap: nowrap; overflow-x: auto;
-  margin: 0 -14px 14px; padding: 12px 14px 0;
+  display: flex; gap: 2px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
+  margin: 0 0 14px; padding: 12px 2px 0;
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 5;
   background: var(--bg, #1c1a22);

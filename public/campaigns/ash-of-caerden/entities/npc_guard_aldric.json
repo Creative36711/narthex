@@ -3,9 +3,7 @@
   "type": "npc",
   "label": "Страж Алдрик",
   "portrait": {
-    "neutral": "assets/img/npc/aldric_neutral.jpg",
-    "happy": "assets/img/npc/aldric_neutral.jpg",
-    "angry": "assets/img/npc/aldric_neutral.jpg"
+    "neutral": "assets/img/npc/aldric_neutral.jpg"
   },
   "stats": {
     "STR": 14,

@@ -9,7 +9,7 @@ EXTERNAL get_hp()
 
 === main ===
 { get_flag("relic_returned"):
-    Свет хранит тебя, дитя моё. Двери храма всегда открыты. # emotion: happy
+    Свет хранит тебя, дитя моё. Двери храма всегда открыты. # emotion: neutral
 }
 { not get_flag("relic_returned") && get_flag("met_corvin"):
     С возвращением под своды Света.
@@ -40,7 +40,7 @@ EXTERNAL get_hp()
     ~ start_quest("quest_relic")
     -> main_hub
 + { has_item("item_medallion") && not get_flag("relic_returned") } [«Вот ваш медальон, отец». (отдать)]
-    Руки старика дрожат, когда он принимает потемневшее серебро. # emotion: happy # action
+    Руки старика дрожат, когда он принимает потемневшее серебро. # emotion: neutral # action
     ~ remove_item("item_medallion", 1)
     ~ set_flag("relic_returned")
     Тридцать лет... Свет свидетель, я уже не верил.
@@ -52,6 +52,6 @@ EXTERNAL get_hp()
     Стража сидит за стенами, а Йорек наглеет с каждым днём. Если никто не вмешается — быть беде. Свет любит смелых, путник.
     -> main_hub
 + [«Мир вашему храму». (уйти)]
-    Да хранит тебя Свет. # emotion: happy
+    Да хранит тебя Свет. # emotion: neutral
     -> DONE
 - -> main_hub

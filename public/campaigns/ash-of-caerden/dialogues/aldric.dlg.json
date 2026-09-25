@@ -78,7 +78,7 @@
          "kind": "line",
          "line": {
           "text": "Банда с холмов душит торговлю. Третью неделю ни один караван не дошёл.",
-          "emotion": "angry"
+          "emotion": "neutral"
          }
         },
         {
@@ -134,7 +134,7 @@
          "kind": "line",
          "line": {
           "text": "Алдрик долго смотрит на вас, потом сплёвывает и снимает щит со спины.",
-          "emotion": "happy",
+          "emotion": "neutral",
           "action": true
          }
         },
@@ -212,7 +212,7 @@
            "kind": "line",
            "line": {
             "text": "Я тебе не богадельня. Иди к Маэве, у неё похлёбка за пять марок.",
-            "emotion": "angry"
+            "emotion": "neutral"
            }
           },
           {
@@ -234,7 +234,7 @@
            "kind": "line",
            "line": {
             "text": "Эх... ладно. Держи, у меня в караулке ещё остался паёк.",
-            "emotion": "happy"
+            "emotion": "neutral"
            }
           },
           {
@@ -315,7 +315,7 @@
          "kind": "line",
          "line": {
           "text": "Неспокойно — мягко сказано.",
-          "emotion": "angry"
+          "emotion": "neutral"
          }
         },
         {

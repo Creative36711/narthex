@@ -3,8 +3,7 @@
   "type": "npc",
   "label": "Торговец Бран",
   "portrait": {
-    "neutral": "assets/img/npc/bran_neutral.jpg",
-    "happy": "assets/img/npc/bran_neutral.jpg"
+    "neutral": "assets/img/npc/bran_neutral.jpg"
   },
   "stats": {
     "STR": 10,

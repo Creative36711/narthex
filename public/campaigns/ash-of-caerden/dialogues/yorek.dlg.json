@@ -12,7 +12,7 @@
        "kind": "line",
        "line": {
         "text": "Ты испытываешь моё терпение, наёмник.",
-        "emotion": "angry"
+        "emotion": "neutral"
        }
       }
      ],
@@ -97,7 +97,7 @@
            "kind": "line",
            "line": {
             "text": "Йорек долго смотрит на вас… и сплёвывает.",
-            "emotion": "angry",
+            "emotion": "neutral",
             "action": true
            }
           },

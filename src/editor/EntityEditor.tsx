@@ -936,6 +936,8 @@ function DamageInput({ label, value, onChange }: { label: string; value: string;
         </select>
         <span className="muted">+</span>
         <input type="number" value={mod} onChange={(e) => emit(count, die, Number(e.target.value) || 0)} data-tip="Модификатор (может быть отрицательным)" />
+        <span className="muted">=</span>
+        <span className="dmg-summary">{`${count}d${die}${mod > 0 ? `+${mod}` : mod < 0 ? String(mod) : ''}`}</span>
       </div>
     </label>
   )
