@@ -950,7 +950,7 @@ export function FileAdvancedJson({ store, path, commit, label = 'Расшире�
   return (
     <details className="advanced-json" onToggle={(e) => (e.target as HTMLDetailsElement).open && setGen((n) => n + 1)}>
       <summary>{label}</summary>
-      <JsonField key={gen} label="" rows={14} pretty value={store.jsonFiles.get(path)} onChange={apply} />
+      <JsonField key={gen} label="" rows={22} pretty value={store.jsonFiles.get(path)} onChange={apply} />
     </details>
   )
 }

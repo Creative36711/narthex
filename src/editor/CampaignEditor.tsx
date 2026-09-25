@@ -796,9 +796,6 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       )}
       {tab === 'json' && (
         <div className="advanced-json-page">
-          <div className="muted small" style={{ marginBottom: 6 }}>
-            Валюты, мета-прогресс, отношения фракций — весь campaign.json без сворачивания
-          </div>
           <JsonField
             label=""
             rows={26}

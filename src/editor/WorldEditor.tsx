@@ -113,13 +113,7 @@ export function WorldEditor({ store }: { store: EditorStore }) {
             <div className="screen-center muted">Создайте первый регион.</div>
           )
         ) : (
-          <FileAdvancedJson
-            inline
-            store={store}
-            path="world.json"
-            commit={() => store.touch('world.json')}
-            label="Мир целиком: все регионы и локации"
-          />
+          <FileAdvancedJson inline store={store} path="world.json" commit={() => store.touch('world.json')} />
         )}
       </div>
 </div>

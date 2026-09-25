@@ -47,7 +47,7 @@ export function speakableText(text: string): string {
  */
 export function speak(
   text: string,
-  opts: { voice?: string; rate?: number; volume?: number; onEnd?: () => void } = {},
+  opts: { voice?: string; rate?: number; volume?: number; onEnd?: () => void; queue?: boolean } = {},
 ): () => void {
   const clean = speakableText(text)
   if (!ttsSupported() || !clean) {
@@ -55,7 +55,8 @@ export function speak(
     return () => undefined
   }
   const synth = window.speechSynthesis
-  synth.cancel()
+  // queue: фразы диалога идут подряд, не срезая друг друга (фидбек 14)
+  if (!opts.queue) synth.cancel()
   const u = new SpeechSynthesisUtterance(clean)
   const voices = ttsVoices()
   const chosen = voices.find((v) => v.name === opts.voice) ?? voices.find((v) => v.lang.toLowerCase().startsWith('ru'))

@@ -156,20 +156,19 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
             <br />
             Блоков: {arena.hex_grid.blocked_hexes.length} · сложных: {arena.hex_grid.difficult_terrain.length}
           </div>
+          <div className="fld" style={{ marginTop: 10 }}>
+            <span>Музыка боя (перекрывает «Музыка боя» кампании)</span>
+            <MusicTrackSelect
+              store={store}
+              value={arena.music}
+              onChange={(id) => {
+                if (id) arena.music = id
+                else delete arena.music
+                store.touch(path)
+              }}
+            />
+          </div>
         </div>
-      </div>
-    
-      <div className="fld fld-block">
-        <span>Музыка боя (перекрывает «Музыка боя» кампании)</span>
-        <MusicTrackSelect
-          store={store}
-          value={arena.music}
-          onChange={(id) => {
-            if (id) arena.music = id
-            else delete arena.music
-            store.touch(path)
-          }}
-        />
       </div>
       <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} label="Расширенный JSON арены (все поля)" />
 </div>

@@ -1302,7 +1302,7 @@ input::placeholder, textarea::placeholder {
 
 /* JSON на весь экран во вкладках форм */
 .advanced-json-page textarea {
-  height: calc(100vh - 195px);
+  height: calc(100vh - 150px);
   min-height: 320px;
   box-sizing: border-box;
   font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace;
@@ -1350,3 +1350,19 @@ input[type='checkbox'], input[type='radio'] {
 /* сцены/арены: JSON — не правая колонка, а свёрнутый блок внизу, как у сущностей */
 .scene-editor, .arena-editor { flex-wrap: wrap; }
 .scene-editor > .advanced-json, .arena-editor > .advanced-json { flex: 1 1 100%; order: 3; }
+
+/* раскрытый расширенный JSON — нормальной высоты, чтобы править файл целиком */
+.advanced-json textarea {
+  min-height: 62vh;
+  box-sizing: border-box;
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace;
+  font-size: 12.5px;
+}
+
+/* диалоги: ink-исходник внизу на всю ширину, а не правой колонкой */
+.dlg-builder { flex-wrap: wrap; }
+.dlg-builder > .advanced-json { flex: 1 1 100%; order: 3; }
+
+/* жетоны в бою: движение — прицел, живой враг — меч (не «менюшная» рука) */
+.token { cursor: var(--cur-cross); }
+.token-enemy:not(.token-dead) { cursor: var(--cur-sword); }

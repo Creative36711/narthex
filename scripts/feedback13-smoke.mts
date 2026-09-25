@@ -23,7 +23,7 @@ must(/\nselect \{[\s\S]*?background: var\(--panel-2\)/.test(css) && css.includes
   '1 селекты (включая «+ состояние (выбрать из списка)…») стилизованы под формы')
 
 // 2 — JSON во вкладках до самого низа
-must(css.includes('height: calc(100vh - 195px)') && css.includes('.advanced-json-page'),
+must(css.includes('height: calc(100vh - 150px)') && css.includes('.advanced-json-page'),
   '2 JSON во вкладках заполняет окно до низа, без чёрного поля')
 
 // 3 — у вкладок нет лишнего вертикального скролла
