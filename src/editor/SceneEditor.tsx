@@ -1,11 +1,14 @@
+import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Rect, Text, Transformer, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { NavigationZone, SceneCondition, SceneDef, SlotDef, TimeOfDay } from '../shared/types'
+import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
+import { ArtView, artToDataUrl } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { ImageUpload, RefSelect, FlagSelect } from './Fields'
+import { ImageUpload, JsonField, RefSelect, FlagSelect, FileAdvancedJson } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
+import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
 
 /**
  * Визуальный редактор сцены (ТЗ 5.2.2) на Konva:
@@ -98,7 +101,10 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   const VIEW_H = canvas.h * k
 
   const st = scene.states[Math.min(stateIdx, scene.states.length - 1)]
-  const img = useImage(st ? `${store.basePath}/${st.image}` : null)
+  // фон: ArtDoc рисуем как SVG-подложку под прозрачным Konva-холстом,
+  // обычное изображение — внутри Konva (итерация 8, блок D)
+  const artUrl = st?.art ? artToDataUrl(st.art) : ''
+  const img = useImage(!st?.art && st?.image ? store.assetSrc(st.image) : null)
 
   useEffect(() => {
     if (trRef.current && selRef.current) {
@@ -211,13 +217,15 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
                 commit()
               }}
             >
-              ✕ удалить выбранное
+              <Ico n="close" />  удалить выбранное
             </button>
           )}
         </div>
-        <Stage width={VIEW_W} height={VIEW_H} className="scene-stage" onClick={(e) => {
-          if (e.target === e.target.getStage() || e.target.className === 'Image') setSel(null)
-        }}>
+        <div className="scene-stage-wrap" style={{ width: VIEW_W, height: VIEW_H }}>
+          {artUrl && <img className="scene-stage-art" src={artUrl} alt="" draggable={false} />}
+          <Stage width={VIEW_W} height={VIEW_H} className="scene-stage" onClick={(e) => {
+            if (e.target === e.target.getStage() || e.target.className === 'Image') setSel(null)
+          }}>
           <Layer>
             {img && <KImage image={img} width={VIEW_W} height={VIEW_H} />}
             {scene.navigation.map((n, i) => (
@@ -271,7 +279,8 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
               />
             )}
           </Layer>
-        </Stage>
+          </Stage>
+        </div>
         <div className="muted small">
           Клик — выбрать · перетаскивание — двигать · уголки — размер. Пунктир = слот с условием.
         </div>
@@ -280,10 +289,12 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
       <div className="scene-props">
         <SceneMeta scene={scene} store={store} commit={commit} />
         {selSlot && <SlotProps slot={selSlot} store={store} commit={commit} />}
-        {selNav && <NavProps nav={selNav} store={store} commit={commit} />}
+        {selNav && <NavProps nav={selNav} scene={scene} store={store} commit={commit} />}
         {!sel && <StatesProps scene={scene} store={store} commit={commit} />}
       </div>
-    </div>
+    
+      <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} label="Расширенный JSON сцены (все поля)" />
+</div>
   )
 }
 
@@ -302,6 +313,103 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
         value={scene.location}
         onChange={(v) => ((scene.location = v ?? ''), commit())}
       />
+      <MusicRulesEditor
+        store={store}
+        value={scene.music ?? (scene.music = [])}
+        onChange={commit}
+        heading="Музыка сцены (перекрывает музыку локации)"
+      />
+      <div className="fld fld-block">
+        <span>Фоновые звуки сцены (слоями, зацикленно)</span>
+        <SoundMultiSelect
+          store={store}
+          value={scene.ambient ?? (scene.ambient = [])}
+          onChange={(ids) => {
+            scene.ambient = ids
+            commit()
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Фон состояния: изображение ИЛИ векторный ArtDoc (итерация 8, блок D).
+ * ArtDoc — генераторский формат: его рисует ИИ или вставляется JSON'ом,
+ * а мастер в любой момент может заменить его настоящей картинкой.
+ */
+function StateBackground({
+  state,
+  store,
+  commit,
+}: {
+  state: SceneStateDef
+  store: EditorStore
+  commit: () => void
+}) {
+  const [editJson, setEditJson] = useState(false)
+  if (state.art) {
+    return (
+      <div className="fld fld-block">
+        <span>Фон сцены — векторная картинка (ArtDoc)</span>
+        <ArtView className="art-preview" art={state.art} />
+        <div className="art-preview-tools">
+          <button
+            className="btn btn-small"
+            data-tip="Убрать векторный фон и загрузить обычное изображение"
+            onClick={() => {
+              delete state.art
+              commit()
+            }}
+          >
+            <Ico n="image" />  Заменить изображением
+          </button>
+          <button className="btn btn-small" onClick={() => setEditJson((v) => !v)}>
+            {editJson ? 'Скрыть JSON' : 'Расширенный JSON'}
+          </button>
+        </div>
+        {editJson && (
+          <JsonField
+            label="ArtDoc (слои примитивов)"
+            rows={14}
+            pretty
+            value={state.art}
+            onChange={(v) => {
+              if (v) state.art = v as ArtDoc
+              commit()
+            }}
+          />
+        )}
+      </div>
+    )
+  }
+  return (
+    <div className="fld fld-block">
+      <ImageUpload
+        label="Фон сцены"
+        value={state.image ?? ''}
+        dir="assets/img/scenes"
+        store={store}
+        onChange={(p) => ((state.image = p), commit())}
+      />
+      <div className="art-preview-tools">
+        <button
+          className="btn btn-small"
+          data-tip="Нарисовать фон примитивами (формат ArtDoc) — удобно для генерации"
+          onClick={() => {
+            state.art = { canvas: { w: 1280, h: 720 }, background: '#20242c', layers: [] }
+            delete state.image
+            commit()
+          }}
+        >
+          <Ico n="palette" />  Сделать векторным (ArtDoc)
+        </button>
+      </div>
+      <div className="muted small">
+        Векторный фон описывается JSON'ом: прямоугольники, эллипсы, многоугольники, линии и подписи
+        в координатах сцены (1280×720). Слоты потом ставятся точно по этим координатам.
+      </div>
     </div>
   )
 }
@@ -316,17 +424,11 @@ function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorS
             <span>Название</span>
             <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
           </label>
-          <ImageUpload
-            label="Фон сцены"
-            value={s.image}
-            dir="assets/img/scenes"
-            store={store}
-            onChange={(p) => ((s.image = p), commit())}
-          />
+          <StateBackground state={s} store={store} commit={commit} />
           <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
           {scene.states.length > 1 && (
             <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>
-              ✕ удалить состояние
+              <Ico n="close" />  удалить состояние
             </button>
           )}
         </div>
@@ -424,8 +526,37 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
   )
 }
 
-function NavProps({ nav, store, commit }: { nav: NavigationZone; store: EditorStore; commit: () => void }) {
-  const mode = nav.open_map ? 'map' : nav.go_to_location !== undefined ? 'location' : 'scene'
+/**
+ * Итерация 8, А6: из зон навигации убран переход «в локацию» — между
+ * локациями ходим только через карту. «В сцену» — только сцены этой локации.
+ */
+function NavProps({
+  nav,
+  scene,
+  store,
+  commit,
+}: {
+  nav: NavigationZone
+  scene: SceneDef
+  store: EditorStore
+  commit: () => void
+}) {
+  // старый формат (go_to_location) мигрируется хранилищем при загрузке
+  const legacy = (nav as NavigationZone & { go_to_location?: string }).go_to_location
+  if (legacy) {
+    delete (nav as NavigationZone & { go_to_location?: string }).go_to_location
+    nav.open_map = true
+  }
+  const mode = nav.open_map ? 'map' : 'scene'
+  const sameLocation: Array<{ id: string; label: string }> = []
+  for (const p of store.scenePaths()) {
+    const sc = store.scene(p)
+    if (!sc || sc.id === scene.id) continue
+    if (sc.location !== scene.location) continue
+    sameLocation.push({ id: sc.id, label: sc.label || sc.id })
+  }
+  sameLocation.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  const foreign = !!nav.go_to_scene && !sameLocation.some((o) => o.id === nav.go_to_scene)
   return (
     <div className="props-group">
       <h4>Переход: {nav.label}</h4>
@@ -439,36 +570,47 @@ function NavProps({ nav, store, commit }: { nav: NavigationZone; store: EditorSt
           value={mode}
           onChange={(e) => {
             delete nav.go_to_scene
-            delete nav.go_to_location
             delete nav.open_map
             if (e.target.value === 'map') nav.open_map = true
-            else if (e.target.value === 'location') nav.go_to_location = ''
-            else nav.go_to_scene = ''
+            else nav.go_to_scene = sameLocation[0]?.id ?? ''
             commit()
           }}
         >
-          <option value="scene">В сцену</option>
-          <option value="location">В локацию</option>
-          <option value="map">Открыть карту</option>
+          <option value="scene">В сцену этой локации</option>
+          <option value="map">Открыть карту (выход из локации)</option>
         </select>
       </label>
       {mode === 'scene' && (
-        <RefSelect
-          label="Сцена"
-          kind="scene"
-          store={store}
-          value={nav.go_to_scene ?? ''}
-          onChange={(v) => ((nav.go_to_scene = v ?? ''), commit())}
-        />
+        <label className="fld">
+          <span>Сцена</span>
+          <select
+            value={nav.go_to_scene ?? ''}
+            onChange={(e) => ((nav.go_to_scene = e.target.value), commit())}
+          >
+            {!nav.go_to_scene && <option value="">— выбрать сцену —</option>}
+            {foreign && nav.go_to_scene && (
+              <option value={nav.go_to_scene}>
+                {store.labelFor('scene', nav.go_to_scene)} (чужая локация!)
+              </option>
+            )}
+            {sameLocation.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
-      {mode === 'location' && (
-        <RefSelect
-          label="Локация"
-          kind="location"
-          store={store}
-          value={nav.go_to_location ?? ''}
-          onChange={(v) => ((nav.go_to_location = v ?? ''), commit())}
-        />
+      {mode === 'scene' && foreign && (
+        <div className="warn-note">
+          <Ico n="warn" />  Переход ведёт в сцену другой локации. Так больше нельзя: между локациями —
+          только через карту. Выберите сцену этой локации или тип «Открыть карту».
+        </div>
+      )}
+      {mode === 'scene' && sameLocation.length === 0 && (
+        <div className="muted small">
+          У локации пока одна сцена. Создайте вторую (раздел «Сцены») или используйте «Открыть карту».
+        </div>
       )}
       <label className="fld">
         <span>Стоимость (тиков)</span>

@@ -82,8 +82,11 @@ const warmth = campaign.meta.needs.find((n) => n.id === 'warmth')
 
 // ── №4: интерактивное обучение можно включить заново ──
 {
+  // итерация 8, А2: кнопка убрана из главного меню и осталась только в справке
   const menu = readFileSync('src/player/MainMenu.tsx', 'utf8')
-  check('№4 в меню есть «🎓 Обучение заново»', menu.includes('Обучение заново') && menu.includes('resetTips()'))
+  check('№4 в главном меню больше нет «Обучение заново»', !menu.includes('Обучение заново'))
+  const helpSrc = readFileSync('src/player/HelpPanel.tsx', 'utf8')
+  check('№4 в справке «Обучение заново» осталось', helpSrc.includes('Обучение заново') && helpSrc.includes('resetTips()'))
   const tips = await import('../src/player/tips')
   tips.markTip('combat')
   check('№4 подсказка отмечена просмотренной', tips.tipSeen('combat'))

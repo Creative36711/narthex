@@ -9,13 +9,52 @@
  * Условие для потребности (фидбек №1/№3 седьмого раунда): когда она убывает
  * и когда восстанавливается. Пример «Тепло»: убывает ночью, если нет тёплой
  * одежды и герой не в таверне; в таверне — восстанавливается.
+ *
+ * Итерация 8, А3: множественные значения. «Герой в локации» и «есть/надет
+ * предмет» принимают СПИСОК id и означают «любой из» (условия потребности
+ * соединяются по «И», поэтому нескольких локаций одним условием раньше было
+ * не выразить). Одиночные поля старого формата (`location`, `item`)
+ * мигрируются при загрузке (см. shared/migrate.ts).
  */
 export type NeedCondition =
   | { type: 'time_of_day'; values: TimeOfDay[] }
   | { type: 'flag'; flag: string; not?: boolean }
-  | { type: 'in_location'; location: string; not?: boolean }
-  | { type: 'has_item'; item: string; not?: boolean }
-  | { type: 'equipped'; item: string; not?: boolean }
+  | { type: 'in_location'; locations: string[]; not?: boolean; location?: string }
+  | { type: 'has_item'; items: string[]; not?: boolean; item?: string }
+  | { type: 'equipped'; items: string[]; not?: boolean; item?: string }
+
+/**
+ * Настройки бросков d100 (итерация 8, А7). Хранятся в campaign.json —
+ * у каждой кампании могут быть свои пороги, движок ничего не хардкодит.
+ */
+export interface DiceRules {
+  /** критический успех: бросок ≤ навык / critical_divisor */
+  critical_divisor: number
+  /** особый (хороший) успех: бросок ≤ навык / special_divisor */
+  special_divisor: number
+  /** критический провал начинается с этого броска (fumble_from…100) */
+  fumble_from: number
+  /**
+   * Классический BRP: при навыке ниже этого порога крит-провал — весь
+   * диапазон fumble_from…99 (а не только 100). По умолчанию выключено.
+   */
+  fumble_low_skill?: number
+}
+
+/** «Щедрые» пороги (по умолчанию): крит /5, особый /2, провал 96–100. */
+export const DEFAULT_DICE_RULES: DiceRules = {
+  critical_divisor: 5,
+  special_divisor: 2,
+  fumble_from: 96,
+}
+
+/** Классический BRP: крит /20, особый /5, провал — 00 или 96–100 при навыке < 30. */
+export const CLASSIC_DICE_RULES: DiceRules = {
+  critical_divisor: 20,
+  special_divisor: 5,
+  fumble_from: 96,
+  fumble_low_skill: 30,
+}
 
 export interface NeedDef {
   id: string
@@ -75,6 +114,8 @@ export interface ItemCategoryDef {
   is_weapon?: boolean
   /** предметы категории — броня (очки поглощения урона) */
   is_armor?: boolean
+  /** звуки взаимодействий категории предметов (хук → id звука) */
+  sounds?: SoundHookMap
 }
 
 export interface CampaignMeta {
@@ -92,16 +133,30 @@ export interface CampaignMeta {
   starting_scene: string
   starting_tick?: number
   needs: NeedDef[]
+  /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
+  dice_rules?: DiceRules
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
   skills?: Array<{ id: string; label: string }>
   /** реестр категорий предметов: категория определяет, что предмет умеет */
   item_categories?: ItemCategoryDef[]
   /** реестр типов слотов сцены (что можно ставить в слот); по умолчанию — встроенные */
-  slot_types?: Array<{ id: string; label: string }>
+  slot_types?: Array<{ id: string; label: string; sounds?: SoundHookMap }>
   /** реестр флагов: русское название и назначение (редактор показывает названия, движку важен только id) */
   flags?: Array<{ id: string; label: string; description?: string }>
+  /** состояния портретов (встроенные + свои), фидбек 9.14 */
+  emotions?: EmotionDef[]
   currencies: CurrencyDef[]
   factions?: FactionDef[]
+  /** реестр музыкальных треков (итерация 8, блок H): файл/ссылка ИЛИ синтез MusicDoc */
+  music_tracks?: MusicTrackDef[]
+  /** реестр звуков: файл/ссылка ИЛИ синтез SoundDoc (массив — случайный вариант) */
+  sounds?: SoundDef[]
+  /** звуковая тема кампании: хук → id звука из реестра (пустой хук — тишина) */
+  ui_sounds?: Record<string, string>
+  /** трек(и) кампании по умолчанию, когда у локации/сцены своей музыки нет */
+  default_music?: string[]
+  /** трек(и) боя по умолчанию (если у арены нет своего arena.music) */
+  combat_music?: string[]
   /** максимальный груз в кг: STR + SIZ (по умолчанию) */
   max_load_formula?: 'str_plus_siz'
   max_companions?: number
@@ -130,17 +185,31 @@ export interface LocationDef {
   position: { x: number; y: number }
   travel_connections: TravelConnection[]
   scenes: string[]
+  /**
+   * Сцена, в которую попадает игрок, придя в локацию с карты (итерация 8, А5).
+   * По умолчанию — первая сцена локации.
+   */
+  arrival_scene?: string
   arena?: string
   on_enter_rules?: string[]
   hidden?: boolean // скрыта, пока не открыта эффектом reveal_location
-  ambient_audio?: string
-  music?: string
+  ambient_audio?: string // легаси: один звук фона
+  /** фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6 */
+  ambient?: string[]
+  /**
+   * музыка локации: список записей «условия → треки» (побеждает первая
+   * истинная). Старый формат — строка (id трека или ссылка) — мигрируется
+   * в `[{ tracks: [s] }]` при загрузке.
+   */
+  music?: string | MusicRule[]
 }
 
 export interface RegionDef {
   id: string
   label: string
   map_image: string
+  /** фон карты, нарисованный примитивами (вместо map_image) — итерация 8, блок D */
+  map_art?: ArtDoc
   map_size?: { w: number; h: number }
   parent_region: string | null
   locations: LocationDef[]
@@ -162,10 +231,106 @@ export interface SceneCondition {
   not_flag?: string
 }
 
+// ─────────────── декларативная графика (итерация 8, блок D) ───────────────
+
+/**
+ * Заливка примитива: сплошной цвет или линейный градиент.
+ * `angle` — направление градиента в градусах (0 — слева направо).
+ */
+export type ArtFill = string | { color?: string; gradient?: { from: string; to: string; angle?: number } }
+
+interface ArtShapeBase {
+  /** прозрачность 0…1 */
+  opacity?: number
+  /** поворот вокруг своего центра, градусы */
+  rotate?: number
+}
+
+export interface ArtRect extends ArtShapeBase {
+  type: 'rect'
+  x: number
+  y: number
+  w: number
+  h: number
+  fill?: ArtFill
+  stroke?: string
+  stroke_width?: number
+  radius?: number
+}
+
+export interface ArtEllipse extends ArtShapeBase {
+  type: 'ellipse'
+  cx: number
+  cy: number
+  rx: number
+  ry: number
+  fill?: ArtFill
+  stroke?: string
+  stroke_width?: number
+}
+
+export interface ArtPolygon extends ArtShapeBase {
+  type: 'polygon'
+  /** точки в виде [x1, y1, x2, y2, …] в координатах холста */
+  points: number[]
+  fill?: ArtFill
+  stroke?: string
+  stroke_width?: number
+}
+
+export interface ArtLine extends ArtShapeBase {
+  type: 'line'
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  color?: string
+  width?: number
+}
+
+export interface ArtText extends ArtShapeBase {
+  type: 'text'
+  x: number
+  y: number
+  text: string
+  size?: number
+  color?: string
+  /** 'start' | 'middle' | 'end' — как в SVG */
+  align?: 'start' | 'middle' | 'end'
+  bold?: boolean
+  italic?: boolean
+  font?: string
+}
+
+export type ArtShape = ArtRect | ArtEllipse | ArtPolygon | ArtLine | ArtText
+
+export interface ArtLayer {
+  /** подпись слоя для мастера («небо», «гора», «стена») */
+  label?: string
+  shape: ArtShape
+  opacity?: number
+  rotate?: number
+}
+
+/**
+ * Векторная «картинка из JSON»: слои примитивов в координатах холста
+ * (по умолчанию 1280×720 — та же система, что у слотов сцены).
+ * Формат рассчитан на генерацию ИИ: нарисовав сцену примитивами, генератор
+ * сам знает координаты объектов и ставит слоты точно на них.
+ */
+export interface ArtDoc {
+  canvas?: { w: number; h: number }
+  background?: string
+  layers: ArtLayer[]
+}
+
 export interface SceneStateDef {
   id: string
   label: string
-  image: string
+  /** фон-изображение (файл пакета или ссылка) */
+  image?: string
+  /** фон, нарисованный примитивами (вместо image) */
+  art?: ArtDoc
   condition: SceneCondition | null
 }
 
@@ -186,10 +351,14 @@ export interface SlotDef {
   condition: SceneCondition | null
 }
 
+/**
+ * Зона перехода на сцене (итерация 8, А6): только ВНУТРИ локации —
+ * в другую сцену или «открыть карту» (это и есть выход из локации).
+ * Старые `go_to_location` мигрируются при загрузке (shared/migrate.ts).
+ */
 export interface NavigationZone {
   area: { x: number; y: number; w: number; h: number }
   go_to_scene?: string
-  go_to_location?: string
   open_map?: boolean
   label: string
   cost_ticks?: number
@@ -204,6 +373,10 @@ export interface SceneDef {
   states: SceneStateDef[]
   slots: SlotDef[]
   navigation: NavigationZone[]
+  /** переопределение музыки сцены (тот же формат, что у локации) */
+  music?: MusicRule[]
+  /** фоновые зацикленные звуки сцены (слагаются с фоном локации) */
+  ambient?: string[]
 }
 
 // ───────────────────────── сущности ─────────────────────────
@@ -257,6 +430,8 @@ export interface NpcDef {
   id: string
   type: 'npc'
   label: string
+  /** описание сущности (при наведении); можно менять динамически (set_description) */
+  description: string
   portrait: Record<string, string> // emotion -> image
   token?: string
   stats: StatBlock
@@ -278,6 +453,8 @@ export interface NpcDef {
   armor?: number
   /** природное оружие (когти, укус) — если нет equipment.weapon */
   natural_weapon?: WeaponData
+  /** звуки взаимодействий (хук → id звука реестра кампании) */
+  sounds?: SoundHookMap
 }
 
 export interface WeaponData {
@@ -315,9 +492,253 @@ export interface ItemDef {
   on_interact?: UseEffectDef
   /** использование из инвентаря */
   on_use?: UseEffectDef
+  /** звуки взаимодействий (хук → id звука реестра кампании) */
+  sounds?: SoundHookMap
 }
 
 export type EntityDef = NpcDef | ItemDef
+
+// ───────────────────────── катсцены (итерация 8, блок E) ─────────────────────────
+
+/** переход к слайду: резкая смена, затемнение, сдвиг, медленный наезд */
+export type CutsceneTransition = 'cut' | 'fade' | 'slide' | 'panzoom'
+
+/**
+ * Слайд катсцены. Кадр — ОДНО из: `art` (ArtDoc, рисуется примитивами),
+ * `image` (файл пакета или ссылка), `video` (mp4-ссылка или YouTube —
+ * работает только онлайн). Без кадра — подпись на чёрном фоне.
+ */
+export interface CutsceneSlide {
+  art?: ArtDoc
+  image?: string
+  video?: string
+  /** подпись: печатается поверх кадра, снизу */
+  text?: string
+  /** озвучка слайда: файл пакета (assets/voice/…) или ссылка */
+  voice?: string
+  /** длительность в секундах; по умолчанию — по длине текста или озвучки */
+  duration?: number
+  transition: CutsceneTransition
+}
+
+/**
+ * Слайд-катсцена: запускается эффектом `play_cutscene` из правила или
+ * диалога, показывается оверлеем поверх всего. Целиком описывается JSON'ом
+ * (слайды — ArtDoc), поэтому её можно сгенерировать без единого файла.
+ */
+export interface CutsceneDef {
+  id: string
+  label: string
+  /** музыка на всю катсцену: id трека реестра, файл пакета или ссылка */
+  music?: string
+  slides: CutsceneSlide[]
+}
+
+// ─────────────────── аудио: музыка, звуки, синтез (итерация 8, блок H) ───────────────────
+
+/**
+ * Параметрический SFX в духе ZzFX/jsfxr: числа в порядке параметров zzfx
+ * (громкость, случайность, частота, атака/сустейн/декей, форма волны…).
+ * Рендерится Web Audio на лету (с кэшем буфера). Ретро-характер приемлем.
+ */
+export interface SoundDoc {
+  zzfx: number[]
+}
+
+/** настроение генеративного трека */
+export type MusicMood = 'тревожная' | 'спокойная' | 'боевая' | 'торжественная' | 'таинственная'
+
+// ─────────────── состояния портрета (реестр эмоций, фидбек 9.14) ───────────────
+
+/**
+ * Состояние портрета НПС: ключ картинки `npc.portrait[id]` и тег `# emotion:`
+ * в диалоге. Общий реестр кампании — чтобы состояние, заведённое у одного НПС,
+ * предлагалось в диалогах всех остальных, и ИИ-генератору было на что сослаться.
+ */
+export interface EmotionDef {
+  id: string
+  label: string
+}
+
+/**
+ * Дефолтное состояние портрета — существует всегда, в реестр не входит
+ * и в списке состояний не показывается. Картинка, загруженная персонажу,
+ * попадает именно сюда.
+ */
+export const DEFAULT_EMOTION: EmotionDef = { id: 'neutral', label: 'Обычный' }
+/** лад генеративного трека */
+export type MusicScale = 'минор' | 'мажор' | 'дорийский' | 'фригийский' | 'пентатоника'
+/** слои аранжировки */
+export type MusicLayer = 'пад-аккорды' | 'арпеджио' | 'бас' | 'перкуссия'
+
+/**
+ * Высокоуровневый генеративный формат музыки (НЕ ноты вручную).
+ * Рантайм-генератор собирает бесшовный эмбиент-луп по гамме — «мимо»
+ * сыграть не может; детерминизм от `seed`.
+ */
+export interface MusicDoc {
+  mood: MusicMood
+  /** ударов в минуту (по умолчанию зависит от настроения) */
+  tempo?: number
+  /** тональность: "C", "D#", "Fis"… (по умолчанию — от настроения) */
+  key?: string
+  scale: MusicScale
+  layers: MusicLayer[]
+  /** аккордовая последовательность ступенями гаммы: ["i","VI","III","VII"] */
+  progression?: string[]
+  /** зерно случайности (одинаковый seed — одна и та же музыка) */
+  seed?: number
+}
+
+/** источник звука: файл/ссылка ИЛИ синтез из JSON; массив — случайный вариант */
+export type SoundSource = string | SoundDoc
+
+export interface SoundDef {
+  id: string
+  label: string
+  src: SoundSource | SoundSource[]
+  /** зацикленный фон (птицы, гул): играет слоем, пока не остановят (фидбек 9.6) */
+  loop?: boolean
+}
+
+/** источник музыки: файл/ссылка ИЛИ генеративный MusicDoc */
+export type MusicSource = string | MusicDoc
+
+export interface MusicTrackDef {
+  id: string
+  label: string
+  src: MusicSource
+  /** громкость трека 0…1 (поверх настроек игрока) */
+  volume?: number
+  /** зацикливать (один трек) или играть как плейлист */
+  loop?: boolean
+}
+
+/** условие музыкальной записи (паттерн состояния; все условия — по «И») */
+export interface MusicCondition {
+  time_of_day?: TimeOfDay | TimeOfDay[]
+  flag?: string
+  not_flag?: string
+}
+
+/**
+ * Запись «условия → музыка» (у локации/сцены): `tracks` — ВСЕГДА список
+ * (один трек — луп, несколько — плейлист со сменой и кроссфейдом,
+ * `shuffle` — в случайном порядке без повтора подряд); побеждает первая
+ * истинная запись.
+ */
+export interface MusicRule {
+  tracks: string[]
+  shuffle?: boolean
+  conditions?: MusicCondition[]
+}
+
+/** хуки звуков взаимодействий (звук сущности/категории/типа слота) */
+export type SoundHook = 'pickup' | 'use' | 'open' | 'talk' | 'drop' | 'travel'
+
+/** карта «хук → id звука реестра» */
+export type SoundHookMap = Partial<Record<SoundHook, string>>
+
+// ───────────────────────── диалоги (.dlg.json, итерация 8) ─────────────────────────
+
+/** настроение (состояние портрета): базовые + свои состояния из формы NPC */
+export type DlgEmotion = string
+
+export interface DlgLine {
+  text: string
+  emotion?: DlgEmotion
+  /** авторская ремарка (курсивом, не влияет на портрет) */
+  action?: boolean
+  /**
+   * озвучка реплики: файл пакета (assets/voice/…) или ссылка (итерация 8,
+   * блок G). Если нет — при включённом синтезаторе реплику читает браузер.
+   */
+  voice?: string
+}
+
+/** условие показа/ветвления (все условия списка должны выполниться) */
+export type DlgCond =
+  | { type: 'flag'; flag: string; not?: boolean }
+  | { type: 'item_ge'; item: string; count: number; not?: boolean } // предметов ≥ n (not: < n)
+  | { type: 'has_item'; item: string; not?: boolean }
+  | { type: 'disp_ge'; target: string; value: number; not?: boolean } // отношение ≥ (not: <)
+  | { type: 'quest'; quest: string; stage: string; not?: boolean } // квест на стадии ('' = не начат)
+  | { type: 'in_party'; npc: string; not?: boolean }
+  | { type: 'hp_ge'; value: number; not?: boolean } // здоровье ≥ (not: <)
+
+export type DlgEffect =
+  | { type: 'set_flag'; flag: string }
+  | { type: 'add_item'; item: string; qty: number }
+  | { type: 'remove_item'; item: string; qty: number }
+  | { type: 'fire_rule'; rule: string }
+  | { type: 'join_party'; npc: string }
+  | { type: 'open_trade'; npc: string }
+  | { type: 'start_quest'; quest: string }
+  | { type: 'advance_time'; ticks: number }
+  | { type: 'change_need'; need: string; delta: number }
+  | { type: 'change_hp'; delta: number }
+  | { type: 'sleep'; ticks: number }
+  | { type: 'change_disposition'; target: string; delta: number }
+  | { type: 'play_cutscene'; cutscene: string }
+  | { type: 'set_description'; entity: string; text: string }
+
+/** шаг: реплика или игровое действие (порядок важен) */
+export type DlgStep =
+  | { kind: 'line'; line: DlgLine }
+  | { kind: 'effect'; effect: DlgEffect }
+
+/**
+ * Блок шагов с необязательным условием. Если условие есть — можно задать
+ * ветку «иначе». goto ('' — продолжить, 'end', 'stay', id узла) уводит
+ * разговор из середины блока.
+ */
+export interface DlgSection {
+  conds?: DlgCond[]
+  steps: DlgStep[]
+  goto?: string
+  else_steps?: DlgStep[]
+  else_goto?: string
+}
+
+/** проверка навыка с ветками успеха и провала */
+export interface DlgCheck {
+  skill: string
+  difficulty: number
+  /** изменённая сложность при условиях (например «легче, если пришли с тыла») */
+  mods?: Array<{ conds: DlgCond[]; value: number }>
+  success: { sections: DlgSection[]; goto: string }
+  fail: { sections: DlgSection[]; goto: string }
+}
+
+export interface DlgChoice {
+  text: string
+  /** показывать вариант только при условиях */
+  conds?: DlgCond[]
+  /** одноразовый в рамках одного разговора (в новом разговоре вернётся) */
+  once?: boolean
+  /** ответ НПС (блоки с условиями) */
+  sections: DlgSection[]
+  /** проверка навыка после ответа (ветки успех/провал) */
+  check?: DlgCheck
+  /** куда дальше: id узла, 'stay' (те же варианты) или 'end' (конец разговора) */
+  goto: string
+}
+
+export interface DlgNode {
+  id: string
+  label: string
+  sections: DlgSection[]
+  choices: DlgChoice[]
+  /** узел без вариантов: куда перейти после реплик ('end' по умолчанию) */
+  goto?: string
+}
+
+export interface DlgDoc {
+  version: 2
+  /** название диалога для мастера (в списках вместо имени файла) */
+  label?: string
+  nodes: DlgNode[] // nodes[0] — начало разговора (knot main)
+}
 
 // ───────────────────────── арены (ТЗ 3.9) ─────────────────────────
 
@@ -343,6 +764,7 @@ export interface ArenaDef {
     enemy: { hexes: HexCoord[] }
   }
   ambient_audio?: string
+  /** id трека реестра music_tracks (если нет — трек боя кампании по умолчанию) */
   music?: string
 }
 
@@ -464,8 +886,10 @@ export type Effect =
   | { type: 'advance_time'; ticks: number }
   | { type: 'remove_entity'; entity: string }
   | { type: 'spawn_entity'; entity: string; scene: string; slot: string }
+  | { type: 'set_description'; entity: string; text: string } // динамическое описание сущности
   | { type: 'game_over_victory' }
   | { type: 'game_over_death'; reason?: string }
+  | { type: 'play_cutscene'; cutscene: string }
 
 export interface RuleDef {
   id: string
@@ -520,6 +944,8 @@ export interface GameState {
   scene: string
   flags: Record<string, boolean>
   variables: Record<string, number | string>
+  /** динамические описания сущностей (действие set_description) */
+  desc_overrides?: Record<string, string>
   fired_rules: string[]
   revealed_locations: string[]
   dead_entities: string[]
@@ -548,6 +974,45 @@ export interface CampaignData {
   arenas: Record<string, ArenaDef>
   quests: Record<string, QuestDef>
   encounters: Record<string, EncounterTableDef>
+  /** катсцены по id (итерация 8, блок E) */
+  cutscenes: Record<string, CutsceneDef>
   dialogues: Record<string, string> // путь -> исходник .ink
   basePath: string
+}
+
+// ─────────────────── монолитный JSON кампании (итерация 8, блок F) ───────────────────
+
+/**
+ * Диалог в монолитном JSON: обычный формат конструктора (.dlg.json) ИЛИ
+ * «сырой» ink-исходник (запасной вариант для продвинутых генераторов;
+ * .ink из DlgDoc генерируется при импорте).
+ */
+export interface MonolithRawInk {
+  label?: string
+  ink: string
+}
+
+export type MonolithDialogue = DlgDoc | MonolithRawInk
+
+/**
+ * «Кампания одним JSON» — формат обмена и ИИ-генерации (блок F).
+ * Ключи словарей — id объектов (как в самих определениях). При импорте
+ * валидатор чинит ссылки (создаёт заглушки, отключает битое) и раскладывает
+ * документ обратно в Campaign Package; .ink для диалогов генерируется из
+ * DlgDoc. Полный описательный схемы — docs/campaign.schema.json,
+ * гайд для генераторов — docs/ai-campaign-guide.md.
+ */
+export interface MonolithDoc {
+  campaign: CampaignMeta
+  world: WorldDef
+  scenes: Record<string, SceneDef>
+  entities: Record<string, EntityDef>
+  rules: Record<string, RuleDef>
+  quests: Record<string, QuestDef>
+  arenas: Record<string, ArenaDef>
+  cutscenes: Record<string, CutsceneDef>
+  /** таблицы случайных встреч (в Campaign Package лежат в rules/encounters.json) */
+  encounters?: Record<string, EncounterTableDef>
+  /** диалоги по id (имя файла без расширения) */
+  dialogues: Record<string, MonolithDialogue>
 }

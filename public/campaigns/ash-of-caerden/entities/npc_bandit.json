@@ -2,6 +2,7 @@
   "id": "npc_bandit",
   "type": "npc",
   "label": "Бандит",
+  "description": "Грязный боец в стёганой куртке с длинным ножом. Держит в страхе большую дорогу и не гнушается мелким грабежом.",
   "portrait": {
     "neutral": "assets/img/npc/bandit_neutral.jpg"
   },

@@ -41,8 +41,8 @@
         "w": 260,
         "h": 300
       },
-      "go_to_location": "loc_gates",
-      "label": "← Назад к городу (4 ч)"
+      "label": "К городу (4 ч)",
+      "open_map": true
     },
     {
       "area": {

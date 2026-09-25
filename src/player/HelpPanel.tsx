@@ -1,4 +1,8 @@
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
+import type { GameEngine } from '../core/engine'
+import type { DiceRules } from '../shared/types'
+import { DEFAULT_DICE_RULES } from '../shared/types'
 import { resetTips } from './tips'
 import { showAlert } from '../shared/modals'
 
@@ -7,45 +11,62 @@ import { showAlert } from '../shared/modals'
  * Собственное описание механик движка своими словами.
  */
 
+const DEMO_SKILL = 45 // навык для примера в разделе «Проверки»
+
+/** Раздел «Проверки»: пороги берутся из настроек кампании (итерация 8, А7). */
+function ChecksBody({ rules }: { rules: DiceRules }) {
+  const crit = Math.max(1, Math.floor(DEMO_SKILL / (rules.critical_divisor || 1)))
+  const special = Math.max(1, Math.floor(DEMO_SKILL / (rules.special_divisor || 1)))
+  const lowSkill = rules.fumble_low_skill
+  const fumbleLine =
+    rules.fumble_from >= 100 || lowSkill == null
+      ? `     Бросок ${rules.fumble_from}–100         → Критический провал`
+      : `     Бросок ${rules.fumble_from}–100         → Критический провал
+     (при навыке ниже ${lowSkill} — весь хвост ${rules.fumble_from}–99)`
+  return (
+    <>
+      <p>
+        Когда персонаж пытается сделать что-то с неочевидным исходом — убедить стражника,
+        заметить ловушку, ударить мечом, — движок бросает виртуальный d100 (число от 1 до 100)
+        и сравнивает его со значением навыка.
+      </p>
+      <pre>{`  +  Бросок ≤ навыка          → Успех
+     Бросок ≤ навыка ÷ ${String(rules.critical_divisor).padEnd(3)}   → Критический успех!
+  ⭐ Бросок ≤ навыка ÷ ${String(rules.special_divisor).padEnd(3)}   → Особый (хороший) успех
+  −  Бросок > навыка          → Провал
+${fumbleLine}`}</pre>
+      <p>
+        Пример: навык «Убеждение» = {DEMO_SKILL}%.
+        <br />• Бросок 23 → 23 ≤ {DEMO_SKILL} → <b>успех</b>, собеседник согласился.
+        <br />• Бросок 0{crit > 9 ? '' : ''}{crit} → {crit} ≤ {crit} ({DEMO_SKILL}÷{rules.critical_divisor}) → <b>крит</b> —
+        согласился с энтузиазмом.
+        <br />• Бросок 71 → 71 &gt; {DEMO_SKILL} → <b>провал</b>, разговор не задался.
+      </p>
+      <p className="muted">
+        Особый успех при навыке {DEMO_SKILL} — это бросок {special} или меньше. Чем выше навык,
+        тем больше шанс. Результаты всех бросков пишутся в журнал.
+      </p>
+    </>
+  )
+}
+
 const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   {
     id: 'checks',
-    title: '🎲 Проверки навыков (d100)',
-    body: (
-      <>
-        <p>
-          Когда персонаж пытается сделать что-то с неочевидным исходом — убедить стражника,
-          заметить ловушку, ударить мечом, — движок бросает виртуальный d100 (число от 1 до 100)
-          и сравнивает его со значением навыка.
-        </p>
-        <pre>{`  ✅ Бросок ≤ навыка          → Успех
-  🎯 Бросок ≤ навыка ÷ 5     → Критический успех!
-  ⭐ Бросок ≤ навыка ÷ 2     → Особый (хороший) успех
-  ❌ Бросок > навыка          → Провал
-  💀 Бросок 96–100            → Критический провал`}</pre>
-        <p>
-          Пример: навык «Убеждение» = 45%.
-          <br />• Бросок 23 → 23 ≤ 45 → <b>успех</b>, собеседник согласился.
-          <br />• Бросок 08 → 8 ≤ 9 (45÷5) → <b>крит</b> — согласился с энтузиазмом.
-          <br />• Бросок 71 → 71 &gt; 45 → <b>провал</b>, разговор не задался.
-        </p>
-        <p className="muted">
-          💡 Чем выше навык, тем больше шанс. Результаты всех бросков пишутся в журнал (📜).
-        </p>
-      </>
-    ),
+    title: 'Проверки навыков (d100)',
+    body: <ChecksBody rules={DEFAULT_DICE_RULES} />,
   },
   {
     id: 'growth',
-    title: '📈 Рост навыков',
+    title: 'Рост навыков',
     body: (
       <>
         <p>
-          Каждый <b>успешно применённый</b> навык получает «галочку» (✓ в листе персонажа):
+          Каждый <b>успешно применённый</b> навык получает «галочку» (<Ico n="check" />  в листе персонажа):
           удачная атака, защита, убеждение, торговля…
         </p>
         <p>
-          Во время <b>сна</b> по каждому отмеченному навыку бросается d100: если выпало{' '}
+          Во время <b>сна</b> по каждому отмеченному навыку бросается d100: если выпало{''}
           <b>больше</b> текущего значения — навык растёт на 1d6. Так растут именно те умения,
           которыми вы реально пользуетесь, — и чем выше навык, тем медленнее его рост.
         </p>
@@ -54,7 +75,7 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   },
   {
     id: 'combat',
-    title: '⚔ Бой на гексах',
+    title: 'Бой на гексах',
     body: (
       <>
         <p>
@@ -95,7 +116,7 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   },
   {
     id: 'social',
-    title: '🤝 Репутация и торговля',
+    title: 'Репутация и торговля',
     body: (
       <>
         <p>
@@ -112,7 +133,7 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   },
   {
     id: 'roguelike',
-    title: '💀 Рогалик: смерть и новый забег',
+    title: 'Рогалик: смерть и новый забег',
     body: (
       <>
         <p>
@@ -128,20 +149,26 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   },
 ]
 
-export function HelpPanel({ onClose }: { onClose: () => void }) {
+export function HelpPanel({ onClose, engine }: { onClose: () => void; engine?: GameEngine }) {
   const [open, setOpen] = useState<string>('checks')
+  // пороги берём из кампании: у каждой кампании могут быть свои правила (итерация 8, А7)
+  const sections = SECTIONS.map((s) =>
+    s.id === 'checks' && engine
+      ? { ...s, body: <ChecksBody rules={engine.diceRules} /> }
+      : s,
+  )
   return (
     <div className="overlay panel-overlay help-overlay" onClick={onClose}>
       <div className="panel side-panel help-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>📖 Справка</h2>
-          <button className="btn btn-small" onClick={onClose}>✕</button>
+          <h2><Ico n="book" />  Справка</h2>
+          <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         <p className="muted small">
           Chronicle Forge использует классическую процентную систему проверок (d100). Всё, что
           нужно для игры, — на этой странице.
         </p>
-        {SECTIONS.map((s) => (
+        {sections.map((s) => (
           <div key={s.id} className={`help-section ${open === s.id ? 'open' : ''}`}>
             <button className="help-title" onClick={() => setOpen(open === s.id ? '' : s.id)}>
               {s.title} <span className="muted">{open === s.id ? '▾' : '▸'}</span>
@@ -152,16 +179,16 @@ export function HelpPanel({ onClose }: { onClose: () => void }) {
         <div className="help-foot">
           <button
             className="btn btn-small"
-            title="Игровые подсказки показываются один раз; эта кнопка включает их снова"
+            data-tip="Игровые подсказки показываются один раз; эта кнопка включает их снова"
             onClick={async () => {
               resetTips()
               await showAlert(
-                '🎓 Обучение включено заново',
+                'Обучение включено заново',
                 'Интерактивные подсказки (первый бой, проверки в диалогах, рост навыков) снова появятся по ходу игры.',
               )
             }}
           >
-            🎓 Обучение заново
+            <Ico n="book" />  Обучение заново
           </button>
         </div>
       </div>

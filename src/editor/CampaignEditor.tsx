@@ -1,24 +1,29 @@
+import { DEFAULT_EMOTION } from '../shared/types'
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { EditorStore } from './store'
 import { JsonField } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { NeedCondition, TimeOfDay } from '../shared/types'
+import type { DiceRules, NeedCondition, TimeOfDay } from '../shared/types'
+import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { BUILTIN_SLOT_TYPES } from './slotTypes'
 import { askText } from './prompt'
+import { migrateNeedCondition } from '../shared/migrate'
+import { AudioRegistries, SoundHookMapEditor } from './AudioSection'
 
 /** Редактор campaign.json формой: мета, время, старт, потребности, фракции. */
 const NEED_COND_TYPES: Array<{ id: string; label: string }> = [
   { id: 'time_of_day', label: 'Время суток' },
   { id: 'flag', label: 'Флаг установлен' },
   { id: 'flag!', label: 'Флага НЕТ' },
-  { id: 'in_location', label: 'Герой в локации' },
-  { id: 'in_location!', label: 'Герой НЕ в локации' },
-  { id: 'has_item', label: 'Есть предмет' },
-  { id: 'has_item!', label: 'Нет предмета' },
-  { id: 'equipped', label: 'Надет предмет' },
-  { id: 'equipped!', label: 'НЕ надет предмет' },
+  { id: 'in_location', label: 'Герой в любой из локаций' },
+  { id: 'in_location!', label: 'Герой НИ в одной из локаций' },
+  { id: 'has_item', label: 'Есть любой из предметов' },
+  { id: 'has_item!', label: 'Нет ни одного из предметов' },
+  { id: 'equipped', label: 'Надет любой из предметов' },
+  { id: 'equipped!', label: 'Не надет ни один из предметов' },
 ]
 
 function blankNeedCond(key: string): NeedCondition {
@@ -27,10 +32,158 @@ function blankNeedCond(key: string): NeedCondition {
   switch (type) {
     case 'time_of_day': return { type, values: ['night'] }
     case 'flag': return { type, flag: '', not }
-    case 'in_location': return { type, location: '', not }
-    case 'has_item': return { type, item: '', not }
-    case 'equipped': return { type, item: '', not }
+    case 'in_location': return { type, locations: [], not }
+    case 'has_item': return { type, items: [], not }
+    case 'equipped': return { type, items: [], not }
   }
+}
+
+/**
+ * Мультивыбор чипами (итерация 8, А3): несколько локаций/предметов
+ * в одном условии — «любой из» (с «не» — «ни одного из»).
+ */
+function ChipMultiSelect({
+  options,
+  value,
+  onChange,
+  emptyLabel,
+}: {
+  options: Array<{ id: string; label: string }>
+  value: string[]
+  onChange: (v: string[]) => void
+  emptyLabel: string
+}) {
+  const toggle = (id: string) =>
+    onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id])
+  return (
+    <div className="chips chip-multi">
+      {options.length === 0 && <span className="muted small">{emptyLabel}</span>}
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          className={`chip ${value.includes(o.id) ? 'chip-on' : ''}`}
+          onClick={() => toggle(o.id)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Секция «Правила бросков (d100)» (итерация 8, А7): пресеты + ручная подстройка. */
+function DiceRulesEditor({
+  value,
+  commit,
+}: {
+  value: DiceRules
+  commit: () => void
+}) {
+  const set = (patch: Partial<DiceRules>) => {
+    Object.assign(value, patch)
+    commit()
+  }
+  const preset = (p: 'generous' | 'classic') => {
+    const r = p === 'classic' ? CLASSIC_DICE_RULES : DEFAULT_DICE_RULES
+    Object.assign(value, { ...r })
+    commit()
+  }
+  const isClassic =
+    value.critical_divisor === CLASSIC_DICE_RULES.critical_divisor &&
+    value.special_divisor === CLASSIC_DICE_RULES.special_divisor
+  const isGenerous =
+    value.critical_divisor === DEFAULT_DICE_RULES.critical_divisor &&
+    value.special_divisor === DEFAULT_DICE_RULES.special_divisor &&
+    !value.fumble_low_skill
+  return (
+    <div className="props-group">
+      <h4>Правила бросков (d100)</h4>
+      <div className="muted small" style={{ marginBottom: 8 }}>
+        Пороги успеха и провала для проверок навыков. Показываются игроку в справке,
+        поэтому менять их стоит до начала забега.
+      </div>
+      <div className="fld-row">
+        <button
+          className={`btn btn-small ${isGenerous ? 'btn-primary' : ''}`}
+          onClick={() => preset('generous')}
+          data-tip="Критический успех ≤ навык/5, особый ≤ навык/2, крит-провал 96–100"
+        >
+          <Ico n="dice" />  Щедрые (по умолчанию)
+        </button>
+        <button
+          className={`btn btn-small ${isClassic ? 'btn-primary' : ''}`}
+          onClick={() => preset('classic')}
+          data-tip="Критический успех ≤ навык/20, особый ≤ навык/5, крит-провал 00 или 96–100 при навыке ниже 30"
+        >
+          <Ico n="book" />  Классический BRP
+        </button>
+      </div>
+      <div className="fld-row">
+        <label className="fld" data-tip="Критический успех: бросок не больше «навык ÷ делитель»">
+          <span>Крит: навык ÷</span>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={value.critical_divisor}
+            onChange={(e) => set({ critical_divisor: Math.max(1, Number(e.target.value) || 1) })}
+          />
+        </label>
+        <label className="fld" data-tip="Особый (хороший) успех: бросок не больше «навык ÷ делитель»">
+          <span>Особый успех: навык ÷</span>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={value.special_divisor}
+            onChange={(e) => set({ special_divisor: Math.max(1, Number(e.target.value) || 1) })}
+          />
+        </label>
+        <label className="fld" data-tip="Критический провал начинается с этого броска">
+          <span>Крит-провал с</span>
+          <input
+            type="number"
+            min={2}
+            max={100}
+            value={value.fumble_from}
+            onChange={(e) => set({ fumble_from: Math.min(100, Math.max(2, Number(e.target.value) || 96)) })}
+          />
+        </label>
+      </div>
+      <label className="fld fld-check" data-tip="Классический BRP: при низком навыке весь хвост 96–99 — тоже крит-провал">
+        <input
+          type="checkbox"
+          checked={value.fumble_low_skill != null}
+          onChange={(e) => {
+            if (e.target.checked) value.fumble_low_skill = 30
+            else delete value.fumble_low_skill
+            commit()
+          }}
+        />
+        <span>
+          Весь хвост {value.fumble_from}–99 — провал при навыке ниже{''}
+          <input
+            type="number"
+            min={1}
+            max={100}
+            disabled={value.fumble_low_skill == null}
+            value={value.fumble_low_skill ?? 30}
+            onChange={(e) => set({ fumble_low_skill: Number(e.target.value) || 30 })}
+            style={{ width: 64 }}
+          />
+        </span>
+      </label>
+      <div className="muted small">
+        Пример при навыке 45: крит ≤ {Math.floor(45 / (value.critical_divisor || 1))}, особый успех ≤{''}
+        {Math.floor(45 / (value.special_divisor || 1))}, успех ≤ 45, крит-провал{''}
+        {value.fumble_low_skill != null && 45 < value.fumble_low_skill
+          ? `${value.fumble_from}–100`
+          : `100${value.fumble_from < 100 ? ` и ${value.fumble_from}–99 при промахе выше навыка` : ''}`}
+        .
+      </div>
+    </div>
+  )
 }
 
 const TOD_RU: Array<{ id: TimeOfDay; label: string }> = [
@@ -52,9 +205,15 @@ function NeedCondEditor({
   commit: () => void
   onChange: (c: NeedCondition[]) => void
 }) {
+  // старый формат (одиночные location/item) приводим к новому на месте
+  const list = conds.map(migrateNeedCondition)
+  list.forEach((c, i) => {
+    conds[i] = c
+  })
+
   return (
     <div className="dlg-conds">
-      {conds.map((c, i) => (
+      {list.map((c, i) => (
         <div key={i} className="journal-row" style={{ flexWrap: 'wrap' }}>
           <select
             className="journal-key"
@@ -90,22 +249,28 @@ function NeedCondEditor({
             <FlagSelect label="" store={store} value={c.flag} onChange={(f) => ((c.flag = f ?? ''), commit())} />
           )}
           {c.type === 'in_location' && (
-            <select className="journal-key" value={c.location} onChange={(e) => ((c.location = e.target.value), commit())}>
-              {!store.options('location').some((o) => o.id === c.location) && <option value={c.location}>{c.location || '— локация —'}</option>}
-              {store.options('location').map((o) => (
-                <option key={o.id} value={o.id}>{store.labelFor('location', o.id)}</option>
-              ))}
-            </select>
+            <ChipMultiSelect
+              options={store.options('location')}
+              value={c.locations ?? []}
+              emptyLabel="в кампании пока нет локаций"
+              onChange={(v) => {
+                c.locations = v
+                commit()
+              }}
+            />
           )}
           {(c.type === 'has_item' || c.type === 'equipped') && (
-            <select className="journal-key" value={c.item} onChange={(e) => ((c.item = e.target.value), commit())}>
-              {!store.options('item').some((o) => o.id === c.item) && <option value={c.item}>{c.item || '— предмет —'}</option>}
-              {store.options('item').map((o) => (
-                <option key={o.id} value={o.id}>{o.label}</option>
-              ))}
-            </select>
+            <ChipMultiSelect
+              options={store.options('item')}
+              value={c.items ?? []}
+              emptyLabel="в кампании пока нет предметов"
+              onChange={(v) => {
+                c.items = v
+                commit()
+              }}
+            />
           )}
-          <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}>✕</button>
+          <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}><Ico n="close" /> </button>
         </div>
       ))}
       <button className="btn btn-small" onClick={() => onChange([...conds, blankNeedCond('time_of_day')])}>
@@ -123,12 +288,15 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
   if (!m.roguelike) m.roguelike = { permadeath: true, meta_progress: [], randomize_on_restart: [] }
   if (m.starting_tick === undefined) m.starting_tick = 0
   if (m.max_companions === undefined) m.max_companions = 2
+  // правила бросков d100 (итерация 8, А7): по умолчанию — «щедрые»
+  if (!m.dice_rules) m.dice_rules = { ...DEFAULT_DICE_RULES }
   const [, force] = useState(0)
   const commit = () => {
     store.touch('campaign.json')
     force((n) => n + 1)
   }
-  const [gen, setGen] = useState(0)
+  type CeTab = 'main' | 'people' | 'items' | 'flags' | 'audio' | 'json'
+  const [tab, setTab] = useState<CeTab>('main')
 
   const sceneOpts = store.options('scene')
   const locOpts = store.options('location')
@@ -137,6 +305,16 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
 
   return (
     <div className="rule-editor">
+      <div className="ce-tabs">
+        {([['main', 'Основное'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
+          <button key={id} type="button" className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
+            {lab}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'main' && (
+        <>
       <div className="props-group">
         <h4>О кампании</h4>
         <div className="fld-row">
@@ -179,6 +357,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
       </div>
 
+      <DiceRulesEditor value={m.dice_rules!} commit={commit} />
+
       <div className="props-group">
         <h4>Старт игры</h4>
         <div className="fld-row">
@@ -200,6 +380,19 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       </div>
 
       <div className="props-group">
+        <h4>Рогалик</h4>
+        <label className="fld fld-check">
+          <input type="checkbox" checked={m.roguelike!.permadeath} onChange={(e) => ((m.roguelike!.permadeath = e.target.checked), commit())} />
+          <span>Перманентная смерть (сейв удаляется при гибели)</span>
+        </label>
+      </div>
+
+
+        </>
+      )}
+      {tab === 'people' && (
+        <>
+      <div className="props-group">
         <h4>Потребности</h4>
         {m.needs.map((n, i) => (
           <div key={i} className="fld-row need-row">
@@ -215,11 +408,11 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Убыль за тик</span>
               <input type="number" step="0.1" value={n.decay_per_tick} onChange={(e) => ((n.decay_per_tick = Number(e.target.value)), commit())} />
             </label>
-            <label className="fld" title="Ниже этого значения полоска подсвечивается красным — предупреждение игроку">
+            <label className="fld" data-tip="Ниже этого значения полоска подсвечивается красным — предупреждение игроку">
               <span>Тревога ниже</span>
               <input type="number" value={n.critical_threshold} onChange={(e) => ((n.critical_threshold = Number(e.target.value)), commit())} />
             </label>
-            <label className="fld" title="Что случится, когда потребность упадёт до нуля">
+            <label className="fld" data-tip="Что случится, когда потребность упадёт до нуля">
               <span>При нуле</span>
               <select
                 value={n.on_zero_effect ?? 'death'}
@@ -231,14 +424,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 ))}
               </select>
             </label>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         {m.needs.map((n, i) => (
           <details key={`cond_${i}`} className="need-conds">
             <summary>
               {n.label}: условия убывания и восстановление
-              {n.decay_when?.length ? ` · убывает при ${n.decay_when.length} усл.` : ' · убывает всегда'}
+              {n.decay_when?.length ? ` · убывает при ${n.decay_when.length} усл.` : '· убывает всегда'}
               {n.restore_per_tick ? ` · восстанавливается +${n.restore_per_tick}/тик` : ''}
             </summary>
             <div className="fld-block">
@@ -315,7 +508,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Отношение к игроку</span>
               <input type="number" value={f.base_disposition} onChange={(e) => ((f.base_disposition = Number(e.target.value)), commit())} />
             </label>
-            <label className="fld fld-check" title="Для служебных фракций (дикие твари и т.п.): отношение не имеет смысла, игрок её не увидит">
+            <label className="fld fld-check" data-tip="Для служебных фракций (дикие твари и т.п.): отношение не имеет смысла, игрок её не увидит">
               <input
                 type="checkbox"
                 checked={!!f.hidden}
@@ -327,7 +520,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               />
               <span>Скрытая (не показывать в игре)</span>
             </label>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.factions!.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.factions!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -355,7 +548,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Название</span>
               <input value={sk.label} onChange={(e) => ((sk.label = e.target.value), commit())} />
             </label>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -374,48 +567,11 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </button>
       </div>
 
-      <div className="props-group">
-        <h4>Флаги</h4>
-        <div className="muted small" style={{ marginBottom: 8 }}>
-          Флаги — «память мира»: отметки о событиях (что сделано, о чём узнали).
-          Здесь их реестр с понятными названиями; в правилах, сценах и диалогах флаг
-          выбирается из списка (или создаётся на месте).
-        </div>
-        {(m.flags ?? []).map((f, i) => (
-          <div key={i} className="fld-row need-row">
-            <label className="fld">
-              <span>Название</span>
-              <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
-            </label>
-            <label className="fld" style={{ flex: 2 }}>
-              <span>Для чего нужен</span>
-              <input
-                value={f.description ?? ''}
-                placeholder="необязательно"
-                onChange={(e) => {
-                  if (e.target.value) f.description = e.target.value
-                  else delete f.description
-                  commit()
-                }}
-              />
-            </label>
-            <button className="btn btn-small ce-del" title="Удалить из реестра (контент, где флаг используется, не меняется)" onClick={() => (m.flags!.splice(i, 1), commit())}>✕</button>
-          </div>
-        ))}
-        <button
-          className="btn btn-small"
-          onClick={async () => {
-            const label = await askText('Название нового флага', 'например «Мост разрушен»')
-            if (!label) return
-            if (!m.flags) m.flags = []
-            m.flags.push({ id: makeId('', label, m.flags.map((x) => x.id)), label })
-            commit()
-          }}
-        >
-          + флаг
-        </button>
-      </div>
 
+        </>
+      )}
+      {tab === 'items' && (
+        <>
       <div className="props-group">
         <h4>Типы слотов сцены</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
@@ -425,7 +581,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
         <div className="chips" style={{ marginBottom: 8 }}>
           {BUILTIN_SLOT_TYPES.map((t) => (
-            <span key={t.id} className="chip chip-static" title="Встроенный тип — удалить нельзя">
+            <span key={t.id} className="chip chip-static" data-tip="Встроенный тип — удалить нельзя">
               {t.label}
             </span>
           ))}
@@ -436,7 +592,16 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Название</span>
               <input value={t.label} onChange={(e) => ((t.label = e.target.value), commit())} />
             </label>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.slot_types!.splice(i, 1), commit())}>✕</button>
+            <details style={{ flex: '1 1 100%' }}>
+              <summary><Ico n="sound" />  Звуки действий предметов в этом типе слота</summary>
+              <SoundHookMapEditor
+                store={store}
+                value={t.sounds ?? (t.sounds = {})}
+                onChange={commit}
+                heading="Звуки действий (для этого типа слота)"
+              />
+            </details>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.slot_types!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -465,7 +630,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Название</span>
               <input value={c.label} onChange={(e) => ((c.label = e.target.value), commit())} />
             </label>
-            <label className="fld fld-check" title="Предметы категории можно использовать для лечения">
+            <label className="fld fld-check" data-tip="Предметы категории можно использовать для лечения">
               <input type="checkbox" checked={!!c.restores_hp} onChange={(e) => {
                 if (e.target.checked) c.restores_hp = true
                 else delete c.restores_hp
@@ -474,7 +639,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Лечит (HP)</span>
             </label>
             {m.needs.map((n) => (
-              <label key={n.id} className="fld fld-check" title={`Предметы категории восстанавливают «${n.label}»`}>
+              <label key={n.id} className="fld fld-check" data-tip={`Предметы категории восстанавливают «${n.label}»`}>
                 <input
                   type="checkbox"
                   checked={(c.restores_needs ?? []).includes(n.id)}
@@ -506,7 +671,16 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               }} />
               <span>Броня</span>
             </label>
-            <button className="btn btn-small ce-del" title="Удалить" onClick={() => (m.item_categories!.splice(i, 1), commit())}>✕</button>
+            <details style={{ flex: '1 1 100%' }}>
+              <summary><Ico n="sound" />  Звуки действий предметов этой категории</summary>
+              <SoundHookMapEditor
+                store={store}
+                value={c.sounds ?? (c.sounds = {})}
+                onChange={commit}
+                heading="Звуки действий (для категории)"
+              />
+            </details>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.item_categories!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -523,30 +697,119 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </button>
       </div>
 
+
+        </>
+      )}
+      {tab === 'flags' && (
+        <>
       <div className="props-group">
-        <h4>Рогалик</h4>
-        <label className="fld fld-check">
-          <input type="checkbox" checked={m.roguelike!.permadeath} onChange={(e) => ((m.roguelike!.permadeath = e.target.checked), commit())} />
-          <span>Перманентная смерть (сейв удаляется при гибели)</span>
-        </label>
+        <h4>Флаги</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Флаги — «память мира»: отметки о событиях (что сделано, о чём узнали).
+          Здесь их реестр с понятными названиями; в правилах, сценах и диалогах флаг
+          выбирается из списка (или создаётся на месте).
+        </div>
+        {(m.flags ?? []).map((f, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
+            </label>
+            <label className="fld" style={{ flex: 2 }}>
+              <span>Для чего нужен</span>
+              <input
+                value={f.description ?? ''}
+                placeholder="необязательно"
+                onChange={(e) => {
+                  if (e.target.value) f.description = e.target.value
+                  else delete f.description
+                  commit()
+                }}
+              />
+            </label>
+            <button className="btn btn-small ce-del" data-tip="Удалить из реестра (контент, где флаг используется, не меняется)" onClick={() => (m.flags!.splice(i, 1), commit())}><Ico n="close" /> </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название нового флага', 'например «Мост разрушен»')
+            if (!label) return
+            if (!m.flags) m.flags = []
+            m.flags.push({ id: makeId('', label, m.flags.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + флаг
+        </button>
       </div>
 
-      <details className="advanced-json" onToggle={(e) => (e.target as HTMLDetailsElement).open && setGen((n) => n + 1)}>
-        <summary>Расширенный JSON (валюты, мета-прогресс, отношения фракций)</summary>
-        <JsonField
-          key={gen}
-          label=""
-          rows={16}
-          pretty
-          value={m}
-          onChange={(v) => {
-            if (v !== undefined) {
-              Object.assign(store, { meta: v })
-              commit()
-            }
+      <div className="props-group">
+        <h4>Состояния портретов (настроения)</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Свой список состояний для портретов персонажей (ехидство, задумчивость…).
+          Все состояния из списка можно переименовывать и удалять. Дефолтное состояние
+          «{DEFAULT_EMOTION.label}» есть всегда — сюда попадает загруженная картинка, в список оно не входит.
+          Состояния из списка предлагаются в конструкторе диалогов у всех персонажей.
+        </div>
+        {(m.emotions ?? []).map((em, i) => (
+          <div key={em.id} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input
+                value={em.label}
+                onChange={(e) => ((em.label = e.target.value), commit())}
+              />
+            </label>
+            <button
+              className="btn btn-small ce-del"
+              data-tip="Удалить из реестра (картинки у персонажей останутся)"
+              onClick={() => (m.emotions!.splice(i, 1), commit())}
+            >
+              <Ico n="close" /> 
+            </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название нового состояния', 'например «Ехидство»')
+            if (!label) return
+            if (!m.emotions) m.emotions = []
+            m.emotions.push({ id: makeId('', label, m.emotions.map((x) => x.id)), label })
+            commit()
           }}
-        />
-      </details>
+        >
+          + состояние
+        </button>
+      </div>
+
+
+        </>
+      )}
+      {tab === 'audio' && (
+        <>
+      <AudioRegistries store={store} />
+
+
+        </>
+      )}
+      {tab === 'json' && (
+        <div className="advanced-json-page">
+          <JsonField
+            label=""
+            rows={26}
+            pretty
+            value={m}
+            onChange={(v) => {
+              if (v !== undefined) {
+                Object.assign(store, { meta: v })
+                commit()
+              }
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }

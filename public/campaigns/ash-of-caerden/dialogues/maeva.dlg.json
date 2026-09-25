@@ -19,7 +19,7 @@
        "kind": "line",
        "line": {
         "text": "Ты разобрался с крысами?! Дай расцелую!",
-        "emotion": "happy"
+        "emotion": "neutral"
        }
       },
       {
@@ -84,7 +84,7 @@
        "kind": "line",
        "line": {
         "text": "Добро пожаловать в «Дубовый щит», путник.",
-        "emotion": "happy"
+        "emotion": "neutral"
        }
       },
       {
@@ -100,7 +100,7 @@
       {
        "kind": "line",
        "line": {
-        "text": "У тебя {item_count(\"item_silver\")} марок серебром."
+        "text": "У тебя {счёт:item_silver} марок серебром."
        }
       }
      ]
@@ -154,7 +154,7 @@
          "kind": "line",
          "line": {
           "text": "Садись к огню.",
-          "emotion": "happy"
+          "emotion": "neutral"
          }
         },
         {
@@ -208,7 +208,7 @@
          "kind": "line",
          "line": {
           "text": "Вторая дверь наверху. Бельё чистое, клопов нет — не таверна, а сказка.",
-          "emotion": "happy"
+          "emotion": "neutral"
          }
         },
         {
@@ -318,7 +318,7 @@
          "kind": "line",
          "line": {
           "text": "Заглядывай. Очаг тут не гаснет.",
-          "emotion": "happy"
+          "emotion": "neutral"
          }
         }
        ]
@@ -379,7 +379,7 @@
          "kind": "line",
          "line": {
           "text": "Вот люк, вот лестница. Осторожнее там!",
-          "emotion": "happy"
+          "emotion": "neutral"
          }
         },
         {

@@ -24,7 +24,7 @@ html, body, #root {
   color: var(--text);
 }
 
-button { font-family: inherit; cursor: pointer; }
+button { font-family: inherit;  }
 
 .screen-center {
   height: 100%;
@@ -131,7 +131,7 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--text);
   padding: 10px 14px;
   margin-bottom: 8px;
-  cursor: pointer;
+  
   font-family: inherit;
 }
 .campaign-card:hover { border-color: var(--gold); }
@@ -246,6 +246,9 @@ button { font-family: inherit; cursor: pointer; }
   object-fit: fill;
   user-select: none;
 }
+/* векторный фон (ArtDoc) занимает то же место, что и картинка */
+div.scene-bg { display: block; }
+div.scene-bg svg { width: 100%; height: 100%; display: block; }
 
 .tod-tint-night .scene-bg { filter: brightness(0.85) saturate(0.8); }
 .tod-tint-evening .scene-bg { filter: sepia(0.15) brightness(0.95); }
@@ -282,7 +285,7 @@ button { font-family: inherit; cursor: pointer; }
   transition: opacity 0.15s;
   pointer-events: none;
 }
-.slot-hotspot:hover .slot-label { opacity: 1; }
+/* имя сущности по наведению показывает тултип (имя + описание) — подпись не дублируем */
 
 .slot-portrait {
   position: absolute;
@@ -342,21 +345,59 @@ button { font-family: inherit; cursor: pointer; }
 
 /* карта */
 
-.map-panel {
-  width: min(960px, 94vw);
-  background: var(--panel);
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
+/* экран карты — во весь игровой экран (итерация 8, А4) */
+.map-overlay { padding: 0; background: #0e0b08; }
+.map-screen {
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  background: #0e0b08;
+  border: none;
+  border-radius: 0;
+  padding: 12px 16px 16px;
+  box-sizing: border-box;
 }
-.map-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.map-header h2 { margin: 0; color: var(--gold-bright); }
-.map-stage { position: relative; width: 100%; border-radius: 4px; overflow: hidden; }
+.map-header {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.map-header h2 { margin: 0; color: var(--gold-bright); font-size: 20px; }
+.map-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.map-labels-toggle { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; }
+
+.map-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #0b0906;
+  cursor: var(--cur-grab), grab;
+  touch-action: none;
+}
+.map-viewport:active { cursor: var(--cur-grabbing), grabbing; }
+.map-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 4px;
+  overflow: hidden;
+  transform-origin: center center;
+}
 .map-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+div.map-bg svg { width: 100%; height: 100%; display: block; }
+.map-hint {
+  position: absolute; left: 10px; bottom: 8px;
+  background: rgba(12, 10, 7, 0.75); border-radius: 4px; padding: 3px 8px;
+  pointer-events: none;
+}
 
 .map-pin {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -10px);
   background: none;
   border: none;
   padding: 0;
@@ -371,7 +412,7 @@ button { font-family: inherit; cursor: pointer; }
   border: 2px solid #222;
   box-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
 }
-.map-pin.reachable .pin-dot { background: var(--gold); cursor: pointer; }
+.map-pin.reachable .pin-dot { background: var(--gold);  }
 .map-pin.reachable:hover .pin-dot { background: var(--gold-bright); box-shadow: 0 0 14px var(--gold); }
 .map-pin.here .pin-dot { background: #4a90d9; animation: pulse 2s infinite; }
 .pin-label {
@@ -384,7 +425,16 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 12px;
   color: var(--text);
   white-space: nowrap;
+  /* по умолчанию подпись скрыта — показывается при наведении на маркер
+     или галочкой «Названия» (итерация 8, А4) */
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.12s ease;
+  pointer-events: none;
 }
+.map-pin:hover .pin-label,
+.map-pin:focus-visible .pin-label,
+.map-stage.show-labels .pin-label { opacity: 1; transform: none; }
 .map-pin.here .pin-label { color: #9cc7ee; }
 .map-pin.reachable .pin-label { color: var(--gold-bright); }
 
@@ -627,12 +677,12 @@ button { font-family: inherit; cursor: pointer; }
   fill: rgba(255, 255, 255, 0.02);
   stroke: rgba(232, 221, 201, 0.22);
   stroke-width: 1;
-  cursor: default;
+  
 }
 .hex-blocked { fill: rgba(0, 0, 0, 0.55); stroke: rgba(0, 0, 0, 0.6); }
 .hex-difficult { fill: rgba(201, 140, 60, 0.16); stroke: rgba(201, 140, 60, 0.4); }
-.hex-reach { fill: rgba(201, 164, 92, 0.16); stroke: rgba(232, 201, 135, 0.55); cursor: pointer; }
-.hex-attack { fill: rgba(176, 58, 46, 0.28); stroke: rgba(217, 112, 95, 0.8); cursor: crosshair; }
+.hex-reach { fill: rgba(201, 164, 92, 0.16); stroke: rgba(232, 201, 135, 0.55); cursor: var(--cur-cross); }
+.hex-attack { fill: rgba(176, 58, 46, 0.28); stroke: rgba(217, 112, 95, 0.8); cursor: var(--cur-sword); }
 .hex-hover { fill: rgba(232, 201, 135, 0.32); }
 
 .token {
@@ -642,7 +692,7 @@ button { font-family: inherit; cursor: pointer; }
   border-radius: 50%;
   overflow: visible;
   transition: left 0.35s ease, top 0.35s ease;
-  cursor: pointer;
+  
   z-index: 5;
 }
 .token img, .token-fallback {
@@ -662,7 +712,7 @@ button { font-family: inherit; cursor: pointer; }
   border-color: var(--gold-bright);
   box-shadow: 0 0 18px rgba(232, 201, 135, 0.7);
 }
-.token-dead { opacity: 0.25; filter: grayscale(1); z-index: 1; }
+.token-dead { opacity: 0.55; filter: grayscale(1); z-index: 1; }
 
 .token-hp {
   position: absolute;
@@ -768,7 +818,7 @@ button { font-family: inherit; cursor: pointer; }
 .roster-row.side-enemy { color: #d9927f; }
 .roster-row.dead { opacity: 0.4; text-decoration: line-through; }
 
-.combat-items summary { cursor: pointer; font-size: 13px; color: var(--gold); margin-bottom: 6px; }
+.combat-items summary {  font-size: 13px; color: var(--gold); margin-bottom: 6px; }
 .combat-items button { display: block; width: 100%; margin-bottom: 4px; text-align: left; }
 
 /* торговля */
@@ -895,6 +945,15 @@ button { font-family: inherit; cursor: pointer; }
 }
 .modal-title { color: var(--gold-bright); font-size: 17px; margin-bottom: 12px; line-height: 1.4; }
 .modal-body { color: var(--muted); font-size: 14px; white-space: pre-wrap; margin-bottom: 12px; line-height: 1.5; }
+.modal-list { list-style: none; margin: 0 0 14px; padding: 0; max-height: 45vh; overflow: auto; }
+.modal-list li {
+  font-size: 13.5px; line-height: 1.45; color: var(--text);
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 7px 10px; margin-bottom: 6px;
+}
+.modal-list li::before { content: '• '; color: var(--gold); }
+.modal-check { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px; font-size: 13.5px; color: var(--text);  }
+.modal-check input { margin-top: 2px; accent-color: var(--gold); }
 .modal-box input {
   width: 100%;
   box-sizing: border-box;
@@ -908,6 +967,41 @@ button { font-family: inherit; cursor: pointer; }
   margin-bottom: 14px;
 }
 .modal-box input:focus { outline: none; border-color: var(--gold); }
+.modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 230px;
+  resize: vertical;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 9px 12px;
+  font-size: 12.5px;
+  font-family: ui-monospace, 'Cascadia Mono', monospace;
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+.modal-textarea:focus { outline: none; border-color: var(--gold); }
+.modal-file-row { margin-bottom: 14px; }
+.settings-box { min-width: min(480px, 92vw); }
+.settings-box input[type='range'],
+.settings-box input[type='checkbox'] { width: auto; margin-bottom: 0; }
+.settings-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.settings-label { flex: 0 0 220px; font-size: 13.5px; color: var(--text); line-height: 1.35; }
+.settings-control { flex: 1; display: flex; align-items: center; gap: 10px; }
+.settings-control input[type='range'] { flex: 1; accent-color: var(--gold); }
+.settings-control select {
+  flex: 1; min-width: 0; max-width: 100%; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px;
+  text-overflow: ellipsis;
+}
+.settings-control { min-width: 0; }
+.settings-num { font-size: 12.5px; color: var(--muted); min-width: 40px; text-align: right; }
+.settings-divider {
+  margin: 14px 0 10px; padding-top: 10px; border-top: 1px solid var(--border);
+  color: var(--gold-bright); font-size: 13.5px;
+}
 .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
 
 .campaign-row { display: flex; gap: 8px; align-items: stretch; }
@@ -915,3 +1009,360 @@ button { font-family: inherit; cursor: pointer; }
 .campaign-del { align-self: center; flex: 0 0 auto; }
 
 .help-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); text-align: right; }
+
+/* ── слайд-катсцены (итерация 8, блок E) ── */
+
+.cutscene-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 800; /* поверх всех экранов игры, но под модалками */
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: cs-fade-in 0.5s ease both;
+}
+.cs-stage {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  overflow: hidden;
+  
+  background: #000;
+}
+.cs-layer { position: absolute; inset: 0; overflow: hidden; }
+.cs-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; display: block; }
+.cs-media svg { width: 100%; height: 100%; display: block; }
+.cs-black { background: #000; }
+.cs-video { background: #000; object-fit: contain; }
+
+.cs-in-fade { animation: cs-fade-in 0.9s ease both; }
+.cs-in-slide { animation: cs-slide-in 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.cs-out-slide { animation: cs-slide-out 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.cs-panzoom { animation-name: cs-panzoom; animation-timing-function: linear; animation-fill-mode: both; }
+
+@keyframes cs-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cs-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes cs-slide-out { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes cs-panzoom { from { transform: scale(1); } to { transform: scale(1.14); } }
+
+.cs-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 48px 8% 34px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.55) 60%, transparent);
+  pointer-events: none;
+  animation: cs-fade-in 0.6s ease both;
+}
+.cs-caption p {
+  margin: 0 auto;
+  max-width: 980px;
+  color: #f1e6cf;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(16px, 2.2vw, 26px);
+  line-height: 1.5;
+  text-align: center;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+.cs-caption-rest { visibility: hidden; }
+
+.cs-controls {
+  position: fixed;
+  right: 18px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 801;
+}
+.cs-counter { color: rgba(241, 230, 207, 0.6); font-size: 13px; letter-spacing: 0.08em; }
+.cs-online-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 12px;
+  color: #e8d08a;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(232, 208, 138, 0.5);
+  border-radius: 4px;
+  padding: 3px 8px;
+  pointer-events: none;
+}
+
+/* ── кастомные курсоры, тултипы, иконки (фидбек 3/10/11: ничего дефолтного) ── */
+:root {
+  --cur-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'%3E%3Cpath d='M5 2l15 10.5-7 1 3.5 7.5-3 1.5-3.5-7.5L5 20z' fill='%23ffffff' stroke='%23000000' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") 3 2, auto;
+  --cur-pointer: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg stroke='%23000000' stroke-width='2.2' stroke-linejoin='round' fill='%23ffffff'%3E%3Crect x='11' y='3' width='6.5' height='14' rx='3.25'/%3E%3Crect x='8' y='12' width='14.5' height='12' rx='4.5'/%3E%3Crect x='4' y='14' width='5.5' height='8.5' rx='2.75'/%3E%3C/g%3E%3Cg fill='%23ffffff'%3E%3Crect x='11' y='3' width='6.5' height='14' rx='3.25'/%3E%3Crect x='8' y='12' width='14.5' height='12' rx='4.5'/%3E%3Crect x='4' y='14' width='5.5' height='8.5' rx='2.75'/%3E%3C/g%3E%3C/svg%3E") 14 3, pointer;
+  --cur-text: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='24' viewBox='0 0 14 24'%3E%3Cpath d='M7 3v18M3 3h8M3 21h8' fill='none' stroke='%23000000' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M7 3v18M3 3h8M3 21h8' fill='none' stroke='%23ffffff' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E") 7 12, text;
+  --cur-move: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='18' viewBox='0 0 28 18'%3E%3Cg fill='none' stroke='%23000000' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 9h18M9 4L4 9l5 5M19 4l5 5-5 5'/%3E%3C/g%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 9h18M9 4L4 9l5 5M19 4l5 5-5 5'/%3E%3C/g%3E%3C/svg%3E") 14 9, ew-resize;
+  --cur-grab: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg stroke='%23000000' stroke-width='2.2' stroke-linejoin='round' fill='%23ffffff'%3E%3Crect x='8' y='8' width='4' height='9' rx='2'/%3E%3Crect x='12.5' y='6.5' width='4' height='10.5' rx='2'/%3E%3Crect x='17' y='8' width='4' height='9' rx='2'/%3E%3Crect x='7' y='13' width='15' height='10' rx='4'/%3E%3Crect x='3.5' y='14' width='5' height='8' rx='2.5'/%3E%3C/g%3E%3Cg fill='%23ffffff'%3E%3Crect x='8' y='8' width='4' height='9' rx='2'/%3E%3Crect x='12.5' y='6.5' width='4' height='10.5' rx='2'/%3E%3Crect x='17' y='8' width='4' height='9' rx='2'/%3E%3Crect x='7' y='13' width='15' height='10' rx='4'/%3E%3Crect x='3.5' y='14' width='5' height='8' rx='2.5'/%3E%3C/g%3E%3C/svg%3E") 14 14, grab;
+  --cur-cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%23000000' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M14 2v7M14 19v7M2 14h7M19 14h7'/%3E%3Ccircle cx='14' cy='14' r='5.5'/%3E%3C/g%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.1' stroke-linecap='round'%3E%3Cpath d='M14 2v7M14 19v7M2 14h7M19 14h7'/%3E%3Ccircle cx='14' cy='14' r='5.5'/%3E%3C/g%3E%3C/svg%3E") 14 14, crosshair;
+  --cur-sword: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M22 3l3 3L13 18l-4 1 1-4z' fill='%23ffffff' stroke='%23000000' stroke-width='2.2' stroke-linejoin='round'/%3E%3Cpath d='M6.5 16.5l5 5' fill='none' stroke='%23000000' stroke-width='3.2' stroke-linecap='round'/%3E%3Cpath d='M6.5 16.5l5 5' fill='none' stroke='%23ffffff' stroke-width='1.2' stroke-linecap='round'/%3E%3Cpath d='M8 22l-3 3' fill='none' stroke='%23000000' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='4' cy='25' r='2' fill='%23ffffff' stroke='%23000000' stroke-width='2'/%3E%3C/svg%3E") 24 4, crosshair;
+  --cur-grabbing: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg stroke='%23000000' stroke-width='2.2' stroke-linejoin='round' fill='%23ffffff'%3E%3Crect x='8' y='7' width='3.5' height='6' rx='1.75'/%3E%3Crect x='12.75' y='6' width='3.5' height='7' rx='1.75'/%3E%3Crect x='17.5' y='7' width='3.5' height='6' rx='1.75'/%3E%3Crect x='6' y='10' width='17' height='13' rx='5'/%3E%3Crect x='3' y='12' width='5' height='7' rx='2.5'/%3E%3C/g%3E%3Cg fill='%23ffffff'%3E%3Crect x='8' y='7' width='3.5' height='6' rx='1.75'/%3E%3Crect x='12.75' y='6' width='3.5' height='7' rx='1.75'/%3E%3Crect x='17.5' y='7' width='3.5' height='6' rx='1.75'/%3E%3Crect x='6' y='10' width='17' height='13' rx='5'/%3E%3Crect x='3' y='12' width='5' height='7' rx='2.5'/%3E%3C/g%3E%3C/svg%3E") 14 14, grabbing;
+  cursor: var(--cur-arrow);
+}
+
+/* рука-перчатка на всём кликабельном */
+button, .btn, a, summary, select,
+label[for], [role='button'], .chip, .editor-nav-btn,
+.editor-list-item, .reg-picker-item, .ce-tab, .slider-row,
+.wizard-field-head, .hud-chip, .hud-btn, .map-pin, .log-item,
+.slot, .use-btn, .inv-row, .weapon, .target-btn, .prompt-card,
+.modal-close, .backlink {
+  cursor: var(--cur-pointer);
+}
+
+/* I-beam — ТОЛЬКО текстовые поля */
+input[type='text'], input[type='number'], input[type='search'],
+input[type='email'], input[type='url'], input[type='password'],
+textarea, [contenteditable='true'] {
+  cursor: var(--cur-text);
+}
+input[type='checkbox'], input[type='radio'], input[type='file'],
+input[type='button'], input[type='submit'], label, .fld-check, .modal-check {
+  cursor: var(--cur-pointer);
+}
+input[type='range'] {
+  cursor: var(--cur-move);
+}
+
+/* перетаскивание карты */
+.map-viewport {
+  cursor: var(--cur-grab);
+}
+.map-viewport:active {
+  cursor: var(--cur-grabbing);
+}
+
+/* ── адаптивные тултипы: одна плашка .ui-tooltip (shared/tooltip.ts) ── */
+.ui-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 280px;
+  background: #17141d;
+  color: var(--text);
+  border: 1px solid var(--gold);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-line; /* имя\nописание — переносы строк */
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+/* иконки кнопок: размер от шрифта (без него svg раздувается) */
+.ico {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  display: inline-block;
+  vertical-align: -0.14em;
+}
+
+/* ── чипсы-фильтры («Все/Надето/Не надето») ── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  appearance: none;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12.5px;
+  line-height: 1.3;
+}
+.chip:hover {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+.chip-on {
+  background: rgba(201, 164, 92, 0.18);
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+/* ── поля поиска и ввода в панелях/редакторе ── */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+textarea {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 14px;
+}
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+.panel-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.panel-tools input, .editor-list-search {
+  width: 100%;
+  box-sizing: border-box;
+}
+input::placeholder, textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+/* статус копирования ИИ-мастера */
+.copy-status {
+  font-size: 13px;
+  color: var(--muted);
+}
+.copy-status.ok {
+  color: #8fb573;
+}
+.copy-status.fail {
+  color: #d9705f;
+}
+
+/* подписи меток карты: метки у нижнего края — вверх */
+.map-pin .pin-label {
+  pointer-events: none;
+}
+.map-pin.label-up .pin-label {
+  position: absolute;
+  bottom: calc(100% - 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 0;
+}
+
+/* модалка ИИ-мастера */
+.modal-box.ai-wizard {
+  max-width: 760px;
+}
+.modal-box.ai-wizard h2 {
+  margin-bottom: 8px;
+}
+.modal-box.ai-wizard textarea {
+  width: 100%;
+  min-height: 280px;
+  box-sizing: border-box;
+}
+.wizard-field-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  user-select: none;
+  flex-wrap: wrap;
+}
+.wizard-field-head strong {
+  font-family: 'Noto Sans SC', 'PT Sans Caption', sans-serif;
+}
+.wizard-preview {
+  background: #0b090f;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* поле урона оружия — ряд «N × dN + мод» */
+.dmg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 280px;
+}
+.dmg-row select {
+  min-width: 88px;
+}
+.dmg-row input[type='number'] {
+  width: 96px;
+}
+.dmg-summary {
+  color: var(--gold-bright);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* JSON на весь экран во вкладках форм */
+.advanced-json-page textarea {
+  height: calc(100vh - 150px);
+  min-height: 320px;
+  box-sizing: border-box;
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace;
+  font-size: 12.5px;
+}
+
+/* итог этапа квеста: успех — зелёный, провал — красный */
+select.sel-outcome {
+  font-weight: 600;
+}
+select.sel-outcome.success {
+  color: #8fb573;
+  border-color: rgba(143, 181, 115, 0.55);
+}
+select.sel-outcome.failure {
+  color: #d9705f;
+  border-color: rgba(217, 112, 95, 0.55);
+}
+
+/* выбор состояния портрета */
+select.emotion-pick {
+  max-width: 280px;
+}
+
+/* глобальные контролы: селекты в тон формам, чекбоксы золотые */
+select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 14px;
+}
+select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+input[type='checkbox'], input[type='radio'] {
+  accent-color: var(--gold);
+  width: 16px;
+  height: 16px;
+}
+
+/* сцены/арены: JSON — не правая колонка, а свёрнутый блок внизу, как у сущностей */
+.scene-editor, .arena-editor { flex-wrap: wrap; }
+.scene-editor > .advanced-json, .arena-editor > .advanced-json { flex: 1 1 100%; order: 3; }
+
+/* раскрытый расширенный JSON — нормальной высоты, чтобы править файл целиком */
+.advanced-json textarea {
+  min-height: 62vh;
+  box-sizing: border-box;
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace;
+  font-size: 12.5px;
+}
+
+/* диалоги: ink-исходник внизу на всю ширину, а не правой колонкой */
+.dlg-builder { flex-wrap: wrap; }
+.dlg-builder > .advanced-json { flex: 1 1 100%; order: 3; }
+
+/* жетоны в бою: движение — прицел, живой враг — меч (не «менюшная» рука) */
+.token { cursor: var(--cur-cross); }
+.token-enemy:not(.token-dead) { cursor: var(--cur-sword); }

@@ -1,8 +1,11 @@
+import { Ico } from '../shared/icons'
 import { useId, useState } from 'react'
 import type { Condition, Effect } from '../shared/types'
 import { makeId } from './ids'
 import type { EditorStore } from './store'
-import { askText, showAlert } from '../shared/modals'
+import { isExternalUrl } from '../core/loader'
+import { askText } from '../shared/modals'
+import { checkExternalUrl, reportAssetError, type AssetKind, type UrlCheck } from './assets'
 import {
   CONDITION_SCHEMAS,
   EFFECT_SCHEMAS,
@@ -44,6 +47,7 @@ export function Field({
     needRef: 'need',
     skillRef: 'skill',
     dispRef: 'disposition',
+    cutsceneRef: 'cutscene',
   }
 
   if (spec.kind === 'number') {
@@ -303,10 +307,10 @@ function TimeOfDayField({
 }
 
 const ORDERED_TIMES = [
-  { id: 'morning', label: '🌅 Утро' },
-  { id: 'day', label: '☀️ День' },
-  { id: 'evening', label: '🌆 Вечер' },
-  { id: 'night', label: '🌙 Ночь' },
+  { id: 'morning', label: 'Утро' },
+  { id: 'day', label: 'День' },
+  { id: 'evening', label: 'Вечер' },
+  { id: 'night', label: 'Ночь' },
 ]
 
 /** Визуальный список отрядов {NPC × количество} для start_combat (фидбек №11). */
@@ -350,7 +354,7 @@ function UnitListField({
             value={u.count ?? 1}
             onChange={(e) => set(units.map((x, j) => (j === i ? { ...x, count: Math.max(1, Number(e.target.value)) } : x)))}
           />
-          <button className="btn btn-small ce-del" onClick={() => set(units.filter((_, j) => j !== i))}>✕</button>
+          <button className="btn btn-small ce-del" onClick={() => set(units.filter((_, j) => j !== i))}><Ico n="close" /> </button>
         </div>
       ))}
       <button
@@ -405,7 +409,7 @@ function ItemListField({
             value={u.quantity ?? 1}
             onChange={(e) => set(items.map((x, j) => (j === i ? { ...x, quantity: Math.max(1, Number(e.target.value)) } : x)))}
           />
-          <button className="btn btn-small ce-del" onClick={() => set(items.filter((_, j) => j !== i))}>✕</button>
+          <button className="btn btn-small ce-del" onClick={() => set(items.filter((_, j) => j !== i))}><Ico n="close" /> </button>
         </div>
       ))}
       <button type="button" className="btn btn-small" onClick={() => set([...items, { item: opts[0]?.id ?? '', quantity: 1 }])}>
@@ -458,7 +462,7 @@ export function FlagSelect({
         {options.map((o) => (
           <option key={o.id} value={o.id}>{o.label}</option>
         ))}
-        <option value="__new__">➕ Создать новый флаг…</option>
+        <option value="__new__"><Ico n="plus" />  Создать новый флаг…</option>
       </select>
     </label>
   )
@@ -499,7 +503,135 @@ export function RefSelect({
   )
 }
 
-/** Загрузка изображения с компьютера: сохраняет в assets кампании, хранит путь. */
+/**
+ * Загрузка медиафайла: с компьютера или по ссылке (итерация 8, блок C).
+ * Ссылка проверяется сразу: если хостинг запрещает встраивание, мастер
+ * видит предупреждение и понимает, что кампания будет зависеть от сети.
+ */
+export function AssetUpload({
+  label,
+  value,
+  dir,
+  store,
+  kind = 'image',
+  onChange,
+}: {
+  label: string
+  value: string
+  /** подпапка в кампании, напр. "assets/img/maps" */
+  dir: string
+  store: EditorStore
+  kind?: AssetKind
+  onChange: (path: string) => void
+}) {
+  const inputId = useId()
+  const [busy, setBusy] = useState(false)
+  const [url, setUrl] = useState('')
+  const [check, setCheck] = useState<UrlCheck | null>(null)
+  const [checking, setChecking] = useState(false)
+  const accept = kind === 'audio' ? 'audio/*' : kind === 'video' ? 'video/*' : 'image/*'
+
+  const pick = async (file: File) => {
+    setBusy(true)
+    try {
+      const clean = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '_')
+      const rel = `${dir}/${clean}`
+      await store.saveBinary(rel, file)
+      onChange(rel)
+    } catch (e) {
+      void reportAssetError(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const applyUrl = async () => {
+    const u = url.trim()
+    if (!u) return
+    setChecking(true)
+    setCheck(null)
+    const res = await checkExternalUrl(u, kind)
+    setCheck(res)
+    setChecking(false)
+    if (res.ok) onChange(u)
+  }
+
+  return (
+    <div className="fld fld-block img-upload">
+      <span>{label}</span>
+      <div className="img-upload-row">
+        {value ? (
+          kind === 'audio' ? (
+            <audio className="asset-preview-audio" src={assetSrc(store, value)} controls />
+          ) : (
+            <img className="img-upload-preview" src={assetSrc(store, value)} alt="" />
+          )
+        ) : (
+          <div className="img-upload-empty">нет файла</div>
+        )}
+        <div className="img-upload-btns">
+          <label className="btn btn-small" htmlFor={inputId}>
+            {busy ? 'Загрузка…' : 'Выбрать файл…'}
+          </label>
+          <input
+            id={inputId}
+            type="file"
+            accept={accept}
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) pick(f)
+              e.target.value = ''
+            }}
+          />
+          {value && (
+            <button className="btn btn-small ce-del" onClick={() => { onChange(''); setCheck(null) }}><Ico n="close" />  убрать</button>
+          )}
+        </div>
+      </div>
+      <div className="img-upload-url">
+        <input
+          type="url"
+          value={url}
+          placeholder="или вставьте ссылку (https://…)"
+          spellCheck={false}
+          onChange={(e) => {
+            setUrl(e.target.value)
+            setCheck(null)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              void applyUrl()
+            }
+          }}
+        />
+        <button className="btn btn-small" disabled={!url.trim() || checking} onClick={() => void applyUrl()}>
+          {checking ? 'Проверяю…' : 'Вставить ссылку'}
+        </button>
+      </div>
+      {check && (
+        <div className={`asset-check ${check.ok ? (check.cors ? 'ok' : 'warn') : 'bad'}`}>
+          {check.ok ? (check.cors ? '' : '') : ''}
+          {check.message}
+        </div>
+      )}
+      {isExternalUrl(value) && (
+        <div className="muted small">
+          Файл лежит на чужом сервере: без интернета картинка/звук не покажется. Чтобы кампания
+          стала автономной, отметьте «Вшить внешние ссылки в пакет» при экспорте.
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** путь файла → src для предпросмотра (внешние ссылки — как есть) */
+function assetSrc(store: EditorStore, value: string): string {
+  return store.assetSrc(value)
+}
+
+/** Загрузка изображения с компьютера или по ссылке. */
 export function ImageUpload({
   label,
   value,
@@ -509,56 +641,28 @@ export function ImageUpload({
 }: {
   label: string
   value: string
-  dir: string // подпапка в кампании, напр. "assets/img/maps"
+  dir: string
   store: EditorStore
   onChange: (path: string) => void
 }) {
-  const inputId = useId()
-  const [busy, setBusy] = useState(false)
-  const pick = async (file: File) => {
-    setBusy(true)
-    try {
-      const clean = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '_')
-      const rel = `${dir}/${clean}`
-      await store.saveBinary(rel, file)
-      onChange(rel)
-    } catch (e) {
-      void showAlert('Не удалось загрузить файл', `${e}\n(Загрузка работает в dev-режиме vite / Tauri.)`)
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <div className="fld fld-block img-upload">
-      <span>{label}</span>
-      <div className="img-upload-row">
-        {value ? (
-          <img className="img-upload-preview" src={`${store.basePath}/${value}`} alt="" />
-        ) : (
-          <div className="img-upload-empty">нет изображения</div>
-        )}
-        <div className="img-upload-btns">
-          <label className="btn btn-small" htmlFor={inputId}>
-            {busy ? 'Загрузка…' : '📁 Выбрать файл…'}
-          </label>
-          <input
-            id={inputId}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) pick(f)
-              e.target.value = ''
-            }}
-          />
-          {value && (
-            <button className="btn btn-small ce-del" onClick={() => onChange('')}>✕ убрать</button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
+  return <AssetUpload label={label} value={value} dir={dir} store={store} kind="image" onChange={onChange} />
+}
+
+/** Загрузка звука (музыка, озвучка) с компьютера или по ссылке. */
+export function AudioUpload({
+  label,
+  value,
+  dir,
+  store,
+  onChange,
+}: {
+  label: string
+  value: string
+  dir: string
+  store: EditorStore
+  onChange: (path: string) => void
+}) {
+  return <AssetUpload label={label} value={value} dir={dir} store={store} kind="audio" onChange={onChange} />
 }
 
 export function JsonField({
@@ -670,7 +774,7 @@ export function ConditionListEditor({
                   onChange(conditions.filter((_, j) => j !== i))
                 }}
               >
-                ✕
+                <Ico n="close" /> 
               </button>
             </div>
             {open === i && (
@@ -746,7 +850,7 @@ export function EffectListEditor({
                 <button
                   className="btn btn-small"
                   disabled={i === 0}
-                  title="Выше"
+                  data-tip="Выше"
                   onClick={() => {
                     const next = [...effects]
                     ;[next[i - 1], next[i]] = [next[i], next[i - 1]]
@@ -759,7 +863,7 @@ export function EffectListEditor({
                   className="btn btn-small ce-del"
                   onClick={() => onChange(effects.filter((_, j) => j !== i))}
                 >
-                  ✕
+                  <Ico n="close" /> 
                 </button>
               </span>
             </div>
@@ -808,5 +912,45 @@ export function EffectListEditor({
         + эффект
       </button>
     </div>
+  )
+}
+
+
+/**
+ * «Расширенный JSON» — единый паттерн (фидбек 9.12): правка файла целиком
+ * как текста (все поля, включая редкие, которых нет в формах). Хранится в
+ * jsonFiles стора и пишется на диск вместе с формой.
+ */
+export function FileAdvancedJson({ store, path, commit, label = 'Расширенный JSON (все поля)', inline = false }: {
+  store: EditorStore
+  path: string
+  commit: () => void
+  label?: string
+  /** true — показывать сразу на весь экран (для вкладок JSON), без сворачивания */
+  inline?: boolean
+}) {
+  const [gen, setGen] = useState(0)
+  const apply = (v: unknown) => {
+    const text = v as string | undefined
+    if (text !== undefined) {
+      store.jsonFiles.set(path, text)
+      commit()
+    }
+  }
+  if (inline) {
+    return (
+      <div className="advanced-json-page">
+        {label && (
+          <div className="muted small" style={{ marginBottom: 6 }}>{label}</div>
+        )}
+        <JsonField label="" rows={26} pretty value={store.jsonFiles.get(path)} onChange={apply} />
+      </div>
+    )
+  }
+  return (
+    <details className="advanced-json" onToggle={(e) => (e.target as HTMLDetailsElement).open && setGen((n) => n + 1)}>
+      <summary>{label}</summary>
+      <JsonField key={gen} label="" rows={22} pretty value={store.jsonFiles.get(path)} onChange={apply} />
+    </details>
   )
 }

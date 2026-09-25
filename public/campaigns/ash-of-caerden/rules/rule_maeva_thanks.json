@@ -18,6 +18,11 @@
   ],
   "effects": [
     {
+      "type": "set_description",
+      "entity": "npc_maeva",
+      "text": "Маэва — хозяйка таверны «У тракта». После истории с крысами относится к герою с уважением и угощает лучшим."
+    },
+    {
       "type": "start_dialogue",
       "entity": "npc_maeva"
     }

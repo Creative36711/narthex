@@ -48,8 +48,8 @@
         "w": 180,
         "h": 320
       },
-      "go_to_location": "loc_forest",
-      "label": "← Уйти к лесу (2 ч)"
+      "label": "К лесу (2 ч)",
+      "open_map": true
     },
     {
       "area": {

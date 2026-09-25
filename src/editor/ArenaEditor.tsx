@@ -3,7 +3,8 @@ import type { ArenaDef, HexCoord } from '../shared/types'
 import type { Hex } from '../core/hex'
 import { hexCorners, hexToPixel, gridPixelSize } from '../core/hex'
 import type { EditorStore } from './store'
-import { ImageUpload, RefSelect } from './Fields'
+import { ImageUpload, RefSelect, FileAdvancedJson } from './Fields'
+import { MusicTrackSelect } from './AudioSection'
 
 /**
  * Редактор арены (ТЗ 5.2.6): фон + гекс-сетка, раскраска кистью —
@@ -93,7 +94,7 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
           onMouseUp={() => setPainting(false)}
           onMouseLeave={() => setPainting(false)}
         >
-          {arena.image && <img className="combat-bg" src={`${store.basePath}/${arena.image}`} alt="" draggable={false} />}
+          {arena.image && <img className="combat-bg" src={store.assetSrc(arena.image)} alt="" draggable={false} />}
           <svg className="combat-grid" viewBox={`0 0 ${canvas.w} ${canvas.h}`} preserveAspectRatio="none">
             {hexes.map((h) => {
               const c = hexToPixel(h, size, origin)
@@ -155,9 +156,22 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
             <br />
             Блоков: {arena.hex_grid.blocked_hexes.length} · сложных: {arena.hex_grid.difficult_terrain.length}
           </div>
+          <div className="fld" style={{ marginTop: 10 }}>
+            <span>Музыка боя (перекрывает «Музыка боя» кампании)</span>
+            <MusicTrackSelect
+              store={store}
+              value={arena.music}
+              onChange={(id) => {
+                if (id) arena.music = id
+                else delete arena.music
+                store.touch(path)
+              }}
+            />
+          </div>
         </div>
       </div>
-    </div>
+      <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} label="Расширенный JSON арены (все поля)" />
+</div>
   )
 }
 

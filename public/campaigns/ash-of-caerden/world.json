@@ -46,7 +46,8 @@
           ],
           "on_enter_rules": [
             "rule_gates_greeting"
-          ]
+          ],
+          "arrival_scene": "scene_gates_front"
         },
         {
           "id": "loc_market",
@@ -92,6 +93,39 @@
           ],
           "scenes": [
             "scene_tavern_hall"
+          ],
+          "music": [
+            {
+              "tracks": [
+                "track_tavern_day"
+              ],
+              "conditions": [
+                {
+                  "time_of_day": [
+                    "morning",
+                    "day"
+                  ]
+                }
+              ]
+            },
+            {
+              "tracks": [
+                "track_tavern_night"
+              ],
+              "conditions": [
+                {
+                  "time_of_day": [
+                    "evening",
+                    "night"
+                  ]
+                }
+              ]
+            },
+            {
+              "tracks": [
+                "track_tavern_night"
+              ]
+            }
           ]
         },
         {
@@ -121,6 +155,17 @@
           ],
           "on_enter_rules": [
             "rule_forest_intro"
+          ],
+          "music": [
+            {
+              "tracks": [
+                "track_forest"
+              ]
+            }
+          ],
+          "ambient": [
+            "snd_leaves",
+            "snd_birds"
           ]
         },
         {
@@ -196,6 +241,17 @@
           "scenes": [
             "scene_mine_entrance",
             "scene_mine_deep"
+          ],
+          "arrival_scene": "scene_mine_entrance",
+          "music": [
+            {
+              "tracks": [
+                "track_mine"
+              ]
+            }
+          ],
+          "ambient": [
+            "snd_leaves"
           ]
         }
       ],

@@ -1,5 +1,7 @@
 import type {
   CampaignData,
+  CutsceneDef,
+  DiceRules,
   Effect,
   EncounterEntry,
   EntityDef,
@@ -17,15 +19,17 @@ import type {
   PresenceOverride,
   WeaponData,
 } from '../shared/types'
-import { SAVE_VERSION } from '../shared/types'
+import { SAVE_VERSION, DEFAULT_DICE_RULES } from '../shared/types'
 import { PRNG } from './prng'
-import { derivedHP, derivedMP, skillCheck } from './brp'
+import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
+import { playUi, playInteraction } from '../shared/audio'
+import { migrateNeedCondition } from '../shared/migrate'
 import { CombatController } from './combat'
 
 /**
@@ -52,9 +56,20 @@ export class GameEngine {
   trade: NpcDef | null = null
   /** всплывающие сообщения (show_message) */
   messages: { text: string; portrait?: string }[] = []
+  /**
+   * Очередь катсцен (итерация 8, блок E). Эффект play_cutscene ставит
+   * катсцену в очередь; остальные эффекты применяются сразу, но их экраны
+   * (диалог, бой, торговля, сообщения) UI показывает только после ролика —
+   * для игрока поток эффектов «продолжается по окончании катсцены».
+   */
+  cutsceneQueue: Array<{ def: CutsceneDef; serial: number }> = []
+  private cutsceneSerial = 0
+  /** забег создан с нуля (а не загружен из сейва) — для правил «на старте» */
+  private freshRun: boolean
 
   constructor(campaign: CampaignData, state?: GameState) {
     this.campaign = campaign
+    this.freshRun = !state
     if (state) {
       this.state = state
       this.rng = new PRNG(state.seed)
@@ -144,26 +159,68 @@ export class GameEngine {
 
   /** Вызывается один раз после создания/загрузки. */
   start(): void {
+    // новый забег: правила, чьи условия выполнены с самого начала
+    // (вступительная катсцена и т.п. — once + tick_elapsed 0)
+    if (this.freshRun) {
+      this.freshRun = false
+      this.checkRules()
+    }
     this.runLocationRules(this.state.location)
     this.autosave()
     this.notify()
   }
 
+  // ─────────────── катсцены (итерация 8, блок E) ───────────────
+
+  /** текущая катсцена (первая в очереди) */
+  get cutscene(): CutsceneDef | null {
+    return this.cutsceneQueue[0]?.def ?? null
+  }
+
+  /** уникальный номер показа текущей катсцены (ключ для UI) */
+  get cutsceneKey(): number {
+    return this.cutsceneQueue[0]?.serial ?? 0
+  }
+
+  playCutscene(id: string): void {
+    const def = this.campaign.cutscenes?.[id]
+    if (!def || !def.slides?.length) return
+    this.cutsceneQueue.push({ def, serial: ++this.cutsceneSerial })
+    this.pushLog(`Катсцена: «${def.label}»`)
+    this.notify()
+  }
+
+  /** катсцена досмотрена или пропущена */
+  endCutscene(): void {
+    if (!this.cutsceneQueue.length) return
+    this.cutsceneQueue.shift()
+    if (!this.cutsceneQueue.length) {
+      this.checkRules()
+      this.autosave()
+    }
+    this.notify()
+  }
+
   // ─────────────── время и потребности ───────────────
 
-  /** условие потребности (когда убывает / когда восстанавливается) */
-  private needCondOk(c: NeedCondition): boolean {
+  /**
+   * Условие потребности (когда убывает / когда восстанавливается).
+   * Итерация 8, А3: «в локации» и «есть/надет предмет» — СПИСКИ id,
+   * условие истинно, если выполнено хотя бы одно значение («любой из»).
+   */
+  private needCondOk(raw: NeedCondition): boolean {
+    const c = migrateNeedCondition(raw)
     switch (c.type) {
       case 'time_of_day':
         return c.values.includes(timeOfDay(this.state.tick, this.campaign.meta))
       case 'flag':
         return !!this.state.flags[c.flag] !== !!c.not
       case 'in_location':
-        return (this.state.location === c.location) !== !!c.not
+        return (c.locations ?? []).includes(this.state.location) !== !!c.not
       case 'has_item':
-        return this.hasItem(c.item) !== !!c.not
+        return (c.items ?? []).some((id) => this.hasItem(id)) !== !!c.not
       case 'equipped':
-        return Object.values(this.state.player.equipment ?? {}).includes(c.item) !== !!c.not
+        return (c.items ?? []).some((id) => this.isEquipped(id)) !== !!c.not
     }
   }
 
@@ -313,6 +370,7 @@ export class GameEngine {
   useItem(id: string): void {
     const def = this.campaign.entities[id] as ItemDef | undefined
     if (!def || def.type !== 'item' || !def.on_use) return
+    playInteraction('use', { entity: def })
     this.applyEffects(def.on_use.effects)
     if (def.on_use.consume !== false) this.removeItem(id, 1)
     if (def.on_use.message) this.messages.push({ text: def.on_use.message })
@@ -371,6 +429,7 @@ export class GameEngine {
     this.state.quests[questId] = { stage: first.id, status: 'active', journal: [] }
     this.pushLog(`Новый квест: «${quest.label}»`)
     this.messages.push({ text: `Новый квест: «${quest.label}»` })
+    playUi('quest_started')
     if (first.on_enter_effects) this.applyEffects(first.on_enter_effects)
   }
 
@@ -386,6 +445,7 @@ export class GameEngine {
       if (qs.status === 'completed') {
         this.state.stats_run.quests_completed += 1
         this.messages.push({ text: `Квест завершён: «${quest.label}»` })
+        playUi('quest_completed')
       } else {
         this.messages.push({ text: `Квест провален: «${quest.label}»` })
       }
@@ -453,9 +513,8 @@ export class GameEngine {
   /** Проверка навыка игрока с «галочкой» опыта при успехе. */
   playerSkillCheck(skill: string, difficulty = 50): ReturnType<typeof skillCheck> {
     const value = this.state.player.skills[skill] ?? 0
-    const out = skillCheck(value, this.rng, 50 - difficulty)
-    const rus = { critical: 'критический успех', hard: 'уверенный успех', success: 'успех', fail: 'провал', fumble: 'критический провал' } as Record<string, string>
-    this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${rus[out.result] ?? out.result}`)
+    const out = skillCheck(value, this.rng, 50 - difficulty, this.diceRules)
+    this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
     if (out.success) this.markSkill(skill)
     return out
   }
@@ -479,7 +538,10 @@ export class GameEngine {
       }
     }
     this.state.player.skill_marks = {}
-    if (grown.length) this.messages.push({ text: `Во сне приходит опыт. Рост навыков: ${grown.join(', ')}.` })
+    if (grown.length) {
+      this.messages.push({ text: `Во сне приходит опыт. Рост навыков: ${grown.join(', ')}.` })
+      playUi('skill_up')
+    }
     return grown
   }
 
@@ -530,6 +592,7 @@ export class GameEngine {
     this.removeItem('item_silver', price)
     this.addItem(itemId, 1)
     this.markSkill('bargain')
+    playUi('coin')
     this.notify()
     return true
   }
@@ -539,6 +602,7 @@ export class GameEngine {
     this.removeItem(itemId, 1)
     this.addItem('item_silver', price)
     this.markSkill('bargain')
+    playUi('coin')
     this.notify()
     return true
   }
@@ -629,6 +693,21 @@ export class GameEngine {
     return this.campaign.scenes[this.state.scene]
   }
 
+  /**
+   * Сцена, в которую игрок попадает при входе в локацию (итерация 8, А5):
+   * arrival_scene локации, если она есть среди её сцен, иначе первая.
+   */
+  arrivalSceneOf(location: LocationDef): string | undefined {
+    const arrival = location.arrival_scene
+    if (arrival && location.scenes.includes(arrival)) return arrival
+    return location.scenes[0]
+  }
+
+  /** Правила бросков d100 этой кампании (итерация 8, А7). */
+  get diceRules(): DiceRules {
+    return this.campaign.meta.dice_rules ?? DEFAULT_DICE_RULES
+  }
+
   /** Активное состояние сцены: первое, чьё условие истинно; иначе первое. */
   activeSceneState(scene: SceneDef): SceneStateDef {
     for (const st of scene.states) {
@@ -706,6 +785,7 @@ export class GameEngine {
     if (!scene) return
     if (costTicks > 0) this.advanceTicks(costTicks)
     if (this.state.game_over) return this.notify()
+    playInteraction('travel') // «переход по зоне» (H3); тема — ui_sounds travel/scene_transition
     const prevLocation = this.state.location
     this.state.scene = sceneId
     this.state.location = scene.location
@@ -732,6 +812,7 @@ export class GameEngine {
       this.notify()
       return
     }
+    playUi('travel_depart')
     this.advanceTicks(cost)
     this.state.stats_run.travels += 1
     if (this.state.game_over) return this.notify()
@@ -740,8 +821,9 @@ export class GameEngine {
     if (!target) return
     this.state.region = target.region.id
     this.state.location = locationId
-    const firstScene = target.location.scenes[0]
+    const firstScene = this.arrivalSceneOf(target.location)
     if (firstScene) this.state.scene = firstScene
+    playUi('travel_arrive')
     this.onEnterLocation(locationId)
     // случайная встреча в пути (после прибытия)
     if (conn && !this.state.game_over && !this.combat) this.rollEncounter(conn)
@@ -798,6 +880,18 @@ export class GameEngine {
 
   // ─────────────── эффекты ───────────────
 
+  /** актуальное описание сущности (с учётом динамических изменений set_description) */
+  descOf(entityId: string): string {
+    const def = this.campaign.entities[entityId] as { description?: string } | undefined
+    return this.state.desc_overrides?.[entityId] ?? def?.description ?? ''
+  }
+
+  /** динамически изменить описание сущности (правила/диалоги, действие set_description) */
+  setEntityDescription(entityId: string, text: string): void {
+    const s = this.state
+    s.desc_overrides = { ...(s.desc_overrides ?? {}), [entityId]: text }
+  }
+
   applyEffects(effects: Effect[]): void {
     for (const e of effects) this.applyEffect(e)
   }
@@ -806,6 +900,9 @@ export class GameEngine {
     const s = this.state
     switch (e.type) {
       case 'set_flag': s.flags[e.flag] = true; break
+      case 'set_description':
+        this.setEntityDescription(e.entity, e.text)
+        break
       case 'clear_flag': delete s.flags[e.flag]; break
       case 'set_variable': s.variables[e.var] = e.value; break
       case 'change_variable':
@@ -822,7 +919,7 @@ export class GameEngine {
         if (target) {
           s.region = target.region.id
           s.location = e.location
-          s.scene = e.scene ?? target.location.scenes[0]
+          s.scene = e.scene ?? this.arrivalSceneOf(target.location) ?? s.scene
         }
         break
       }
@@ -887,6 +984,9 @@ export class GameEngine {
       case 'game_over_death':
         this.gameOver('death', e.reason ?? 'Вы погибли.')
         break
+      case 'play_cutscene':
+        this.playCutscene(e.cutscene)
+        break
     }
   }
 
@@ -899,7 +999,11 @@ export class GameEngine {
       return
     }
     const item = occ.entity as ItemDef
+    const slotType = occ.slot.type[0]
     if (item.on_interact) {
+      // «открыть контейнер» vs «использовать»: по типу слота/категории
+      const isOpen = occ.slot.type.includes('container') || item.category === 'container'
+      playInteraction(isOpen ? 'open' : 'use', { entity: item, slotType })
       this.applyEffects(item.on_interact.effects)
       if (item.on_interact.message) this.messages.push({ text: item.on_interact.message })
       if (item.on_interact.consume) {
@@ -924,7 +1028,7 @@ export class GameEngine {
    * сразу; смена экрана (диалог, телепорт, новый бой, финал) — после закрытия.
    */
   onCombatVictory(effects: Effect[]): void {
-    const defer = new Set(['start_dialogue', 'start_combat', 'teleport_player', 'game_over_victory', 'game_over_death'])
+    const defer = new Set(['start_dialogue', 'start_combat', 'teleport_player', 'game_over_victory', 'game_over_death', 'play_cutscene'])
     this.postCombatEffects = effects.filter((e) => defer.has(e.type))
     this.applyEffects(effects.filter((e) => !defer.has(e.type)))
     this.notify()
@@ -936,6 +1040,7 @@ export class GameEngine {
     this.activeStory = null
     this.activeNpc = null
     this.combat = new CombatController(this, def)
+    playUi('combat_start')
     this.notify()
   }
 
@@ -970,6 +1075,7 @@ export class GameEngine {
     if (!npc || npc.type !== 'npc' || !npc.dialogue) return
     const source = this.campaign.dialogues[npc.dialogue]
     if (!source) return
+    playInteraction('talk', { entity: npc })
     // Каждый разговор — свежая Story (компиляция кэширована в dialogue.ts):
     // однократные `*`-ветки исчезают до конца разговора и возвращаются в новом,
     // а «навсегда» вещи хранятся только во флагах. (фидбек №3)

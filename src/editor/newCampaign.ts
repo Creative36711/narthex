@@ -104,6 +104,7 @@ function scaffold(id: string, title: string, author: string) {
     id: 'player_hero',
     type: 'npc',
     label: 'Герой',
+    description: '',
     portrait: {},
     stats: { STR: 11, CON: 11, SIZ: 11, DEX: 11, INT: 11, POW: 11, CHA: 11 },
     skills: { dodge: 30, spot: 30, persuade: 30, brawl: 30 },
@@ -118,6 +119,7 @@ function scaffold(id: string, title: string, author: string) {
     arenas: [],
     quests: [],
     encounters: [],
+    cutscenes: [],
     dialogues: [],
   }
 

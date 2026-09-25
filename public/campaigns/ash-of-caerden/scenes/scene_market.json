@@ -51,18 +51,8 @@
         "w": 130,
         "h": 170
       },
-      "go_to_location": "loc_gates",
-      "label": "К воротам →"
-    },
-    {
-      "area": {
-        "x": 20,
-        "y": 250,
-        "w": 130,
-        "h": 350
-      },
-      "go_to_location": "loc_tavern",
-      "label": "← В таверну"
+      "label": "К воротам города",
+      "open_map": true
     },
     {
       "area": {

@@ -1,11 +1,17 @@
-import { useState } from 'react'
+import { DEFAULT_EMOTION } from '../shared/types'
+import { Ico } from '../shared/icons'
+import { useRef, useState } from 'react'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
-import { FlagSelect } from './Fields'
+import { FlagSelect, AudioUpload } from './Fields'
 import {
   generateInk,
   migrateDlgDoc,
+  parseTokens,
+  tokenString,
+  TOKEN_KINDS,
+  type TokenKind,
   type DlgCheck,
   type DlgChoice,
   type DlgCond,
@@ -23,28 +29,18 @@ import {
  * и ответы — формами; .ink генерируется автоматически. Никакого кода.
  */
 
-const BASE_EMOTIONS: Array<{ id: DlgEmotion; label: string }> = [
-  { id: 'neutral', label: 'спокойно' },
-  { id: 'happy', label: 'радость' },
-  { id: 'angry', label: 'гнев' },
-]
-
-const EMOTION_LABELS: Record<string, string> = {
-  neutral: 'спокойно',
-  happy: 'радость',
-  angry: 'гнев',
-  sad: 'печаль',
-  fear: 'страх',
-}
-
-/** настроения для диалога: базовые + состояния портретов NPC, говорящего этим диалогом */
+/** настроения для диалога: общий реестр кампании (фидбек 9.14) + ключи портретов NPC */
 function emotionsFor(store: EditorStore, inkPath: string): Array<{ id: DlgEmotion; label: string }> {
-  const out = [...BASE_EMOTIONS]
+  const reg = store.meta.emotions ?? []
+  const out: Array<{ id: DlgEmotion; label: string }> = [
+    { id: DEFAULT_EMOTION.id, label: DEFAULT_EMOTION.label },
+    ...reg.filter((e) => e.id !== DEFAULT_EMOTION.id).map((e) => ({ id: e.id, label: e.label })),
+  ]
   for (const p of store.entityPaths()) {
     const e = store.entity(p)
     if (e?.type !== 'npc' || e.dialogue !== inkPath) continue
     for (const key of Object.keys(e.portrait ?? {})) {
-      if (!out.some((em) => em.id === key)) out.push({ id: key, label: EMOTION_LABELS[key] ?? key })
+      if (!out.some((em) => em.id === key)) out.push({ id: key, label: key })
     }
   }
   return out
@@ -61,6 +57,8 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'sleep', label: 'Сон (время + отдых)' },
   { id: 'start_quest', label: 'Начать квест' },
   { id: 'join_party', label: 'Взять в отряд' },
+  { id: 'play_cutscene', label: 'Показать катсцену' },
+  { id: 'set_description', label: 'Изменить описание' },
   { id: 'open_trade', label: 'Открыть торговлю (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
 ]
@@ -79,6 +77,8 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'change_hp': return { type, delta: 5 }
     case 'sleep': return { type, ticks: 8 }
     case 'change_disposition': return { type, target: '', delta: 5 }
+    case 'play_cutscene': return { type, cutscene: '' }
+    case 'set_description': return { type, entity: '', text: '' }
   }
 }
 
@@ -172,7 +172,7 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
             className={`editor-list-item ${i === nodeIdx ? 'on' : ''}`}
             onClick={() => setNodeIdx(i)}
           >
-            {i === 0 ? '▶ ' : ''}{n.label}
+            {i === 0 ? '' : ''}{n.label}
           </button>
         ))}
         <div className="editor-list-tools">
@@ -187,7 +187,7 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
                 commit()
               }}
             >
-              ✕
+              <Ico n="close" /> 
             </button>
           )}
         </div>
@@ -199,6 +199,16 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       <div className="dlg-node-form">
         {node && <NodeForm key={node.id} node={node} doc={doc} store={store} commit={commit} emotions={emotions} />}
       </div>
+      <details className="advanced-json">
+        <summary>Ink-исходник (генерируется из конструктора автоматически)</summary>
+        <textarea
+          readOnly
+          rows={14}
+          spellCheck={false}
+          value={store.textFiles.get(path) ?? generateInk(doc)}
+          style={{ width: '100%', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12.5 }}
+        />
+      </details>
     </div>
   )
 }
@@ -259,7 +269,7 @@ function NodeForm({
         {node.choices.length > 0 &&
           !node.choices.some((c) => !c.once && (!c.conds || c.conds.length === 0)) && (
             <div className="dlg-warn">
-              ⚠ Нет всегда доступного варианта — конструктор добавит «Закончить разговор» автоматически.
+              <Ico n="warn" />  Нет всегда доступного варианта — конструктор добавит «Закончить разговор» автоматически.
             </div>
           )}
         {node.choices.map((c, i) => (
@@ -306,7 +316,7 @@ function GotoSelect({
       <span>{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         {allowStay && <option value="stay">↩ остаться (те же варианты)</option>}
-        <option value="end">■ конец разговора</option>
+        <option value="end"><Ico n="stop" />  конец разговора</option>
         {doc.nodes.map((n) => (
           <option key={n.id} value={n.id}>→ {n.label}</option>
         ))}
@@ -345,7 +355,7 @@ function CondListEditor({
             ))}
           </select>
           <CondFields cond={c} store={store} commit={commit} />
-          <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}>✕</button>
+          <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}><Ico n="close" /> </button>
         </div>
       ))}
       <button className="btn btn-small" onClick={() => onChange([...conds, blankCond('flag')])}>
@@ -460,7 +470,13 @@ function StepListEditor({
       {steps.map((st, i) => (
         <div key={i} className="dlg-step">
           {st.kind === 'line' ? (
-            <LineRow line={st.line} emotions={emotions} commit={commit} onRemove={() => onChange(steps.filter((_, j) => j !== i))} />
+            <LineRow
+              line={st.line}
+              store={store}
+              emotions={emotions}
+              commit={commit}
+              onRemove={() => onChange(steps.filter((_, j) => j !== i))}
+            />
           ) : (
             <EffectRow
               effect={st.effect}
@@ -525,7 +541,7 @@ function SectionListEditor({
               </label>
               <span className="editor-spacer" />
               {sections.length > 1 && (
-                <button className="btn btn-small ce-del" title="Удалить блок" onClick={() => (sections.splice(i, 1), commit())}>✕ блок</button>
+                <button className="btn btn-small ce-del" data-tip="Удалить блок" onClick={() => (sections.splice(i, 1), commit())}><Ico n="close" />  блок</button>
               )}
             </div>
             {hasConds && (
@@ -585,7 +601,7 @@ function GotoSelectOptional({
       <span className="muted small">{label}</span>
       <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
         <option value="">— продолжить дальше —</option>
-        <option value="end">■ конец разговора</option>
+        <option value="end"><Ico n="stop" />  конец разговора</option>
         <option value="stay">↩ к вариантам ответа</option>
         {doc.nodes.map((n) => (
           <option key={n.id} value={n.id}>→ {n.label}</option>
@@ -597,29 +613,146 @@ function GotoSelectOptional({
 
 // ─────────────── реплика и действие ───────────────
 
+/**
+ * Предпросмотр реплики: токены заменены русскими названиями
+ * (мастер видит, как фраза будет выглядеть в игре) — итерация 8, блок B.
+ */
+function LinePreview({ text, store }: { text: string; store: EditorStore }) {
+  const parts = parseTokens(text)
+  if (!parts.some((p) => p.token)) return null
+  const nameOf = (kind: TokenKind, id: string): string => {
+    if (kind === 'count') return store.labelFor('item', id)
+    if (kind === 'need') return store.labelFor('need', id)
+    if (kind === 'skill') return store.labelFor('skill', id)
+    return 'здоровье'
+  }
+  return (
+    <div className="dlg-line-preview">
+      <span className="muted small">В игре: </span>
+      {parts.map((p, i) =>
+        p.token ? (
+          <b key={i} data-tip={p.text}>
+            {nameOf(p.token.kind, p.token.id)}
+          </b>
+        ) : (
+          <span key={i}>{p.text}</span>
+        ),
+      )}
+    </div>
+  )
+}
+
+/** Кнопка «{ } Вставить значение»: выбор типа и объекта → токен в позицию курсора. */
+function TokenInserter({
+  store,
+  onInsert,
+}: {
+  store: EditorStore
+  onInsert: (token: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [kind, setKind] = useState<TokenKind>('count')
+  const options = optionsForToken(store, kind)
+  const [id, setId] = useState<string>('')
+  const value = id || options[0]?.id || ''
+  if (!open) {
+    return (
+      <button className="btn btn-small" data-tip="Вставить в реплику значение из игры (счётчик предмета, здоровье…)" onClick={() => setOpen(true)}>
+        {'{ }'} Вставить значение
+      </button>
+    )
+  }
+  return (
+    <div className="token-inserter">
+      <select
+        value={kind}
+        onChange={(e) => {
+          setKind(e.target.value as TokenKind)
+          setId('')
+        }}
+      >
+        {TOKEN_KINDS.map((t) => (
+          <option key={t.id} value={t.id}>{t.label}</option>
+        ))}
+      </select>
+      {options.length > 0 && (
+        <select value={value} onChange={(e) => setId(e.target.value)}>
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>{o.label}</option>
+          ))}
+        </select>
+      )}
+      <button
+        className="btn btn-small btn-primary"
+        onClick={() => {
+          onInsert(tokenString(kind, options.length ? value : undefined))
+          setOpen(false)
+          setId('')
+        }}
+      >
+        Вставить
+      </button>
+      <button className="btn btn-small" onClick={() => setOpen(false)}>Отмена</button>
+      <span className="muted small">{TOKEN_KINDS.find((t) => t.id === kind)?.hint}</span>
+    </div>
+  )
+}
+
+function optionsForToken(store: EditorStore, kind: TokenKind): Array<{ id: string; label: string }> {
+  if (kind === 'count') return store.options('item')
+  if (kind === 'need') return store.options('need')
+  if (kind === 'skill') return store.options('skill')
+  return []
+}
+
 function LineRow({
   line,
+  store,
   onRemove,
   commit,
-  emotions = BASE_EMOTIONS,
+  emotions = [{ id: DEFAULT_EMOTION.id, label: DEFAULT_EMOTION.label }],
 }: {
   line: DlgLine
+  store: EditorStore
   onRemove?: () => void
   commit: () => void
   emotions?: Array<{ id: DlgEmotion; label: string }>
 }) {
+  const areaRef = useRef<HTMLTextAreaElement>(null)
+  const caret = useRef<number | null>(null)
+  const [voiceOpen, setVoiceOpen] = useState(!!line.voice)
+  const insert = (token: string) => {
+    const el = areaRef.current
+    const at = caret.current ?? el?.selectionStart ?? line.text.length
+    line.text = line.text.slice(0, at) + token + line.text.slice(at)
+    commit()
+    requestAnimationFrame(() => {
+      const pos = at + token.length
+      el?.focus()
+      el?.setSelectionRange(pos, pos)
+      caret.current = pos
+    })
+  }
   return (
     <div className="dlg-line-row">
       <textarea
+        ref={areaRef}
         rows={2}
         value={line.text}
         placeholder="Текст реплики…"
-        onChange={(e) => ((line.text = e.target.value), commit())}
+        onChange={(e) => {
+          line.text = e.target.value
+          caret.current = e.target.selectionStart
+          commit()
+        }}
+        onSelect={(e) => (caret.current = (e.target as HTMLTextAreaElement).selectionStart)}
       />
+      <LinePreview text={line.text} store={store} />
       <div className="dlg-line-opts">
+        <TokenInserter store={store} onInsert={insert} />
         <select
           value={line.emotion ?? 'neutral'}
-          title="Настроение (состояние портрета)"
+          data-tip="Настроение (состояние портрета)"
           onChange={(e) => {
             const v = e.target.value as DlgEmotion
             if (v === 'neutral') delete line.emotion
@@ -632,7 +765,7 @@ function LineRow({
             <option key={em.id} value={em.id}>{em.label}</option>
           ))}
         </select>
-        <label className="fld-check small" title="Ремарка — описание действия, выводится курсивом">
+        <label className="fld-check small" data-tip="Ремарка — описание действия, выводится курсивом">
           <input
             type="checkbox"
             checked={!!line.action}
@@ -644,10 +777,32 @@ function LineRow({
           />
           <span>ремарка</span>
         </label>
+        <button
+          className={`btn btn-small ${line.voice ? 'btn-primary' : ''}`}
+          data-tip={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики: файл или ссылка'}
+          onClick={() => setVoiceOpen(!voiceOpen)}
+        >
+          <Ico n="mic" />{line.voice ? '' : ''}
+        </button>
         {onRemove && (
-          <button className="btn btn-small ce-del" onClick={onRemove}>✕</button>
+          <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>
         )}
       </div>
+      {voiceOpen && (
+        <div className="dlg-line-voice">
+          <AudioUpload
+            label="Озвучка реплики (файл или ссылка; без неё возможен синтезатор в настройках игрока)"
+            value={line.voice ?? ''}
+            dir="assets/voice"
+            store={store}
+            onChange={(v) => {
+              if (v) line.voice = v
+              else delete line.voice
+              commit()
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -675,6 +830,12 @@ function EffectRow({
       {e.type === 'set_flag' && (
         <FlagSelect label="" store={store} value={e.flag} onChange={(f) => ((e.flag = f ?? ''), commit())} />
       )}
+      {e.type === 'set_description' && (
+        <>
+          <InlineRef kind="entity" store={store} value={e.entity} onChange={(v) => ((e.entity = v), commit())} />
+          <input value={e.text} placeholder="Новое описание" onChange={(ev) => ((e.text = ev.target.value), commit())} />
+        </>
+      )}
       {(e.type === 'add_item' || e.type === 'remove_item') && (
         <>
           <InlineRef kind="item" store={store} value={e.item} onChange={(v) => ((e.item = v), commit())} />
@@ -686,6 +847,9 @@ function EffectRow({
         <InlineRef kind="npc" store={store} value={e.npc} onChange={(v) => ((e.npc = v), commit())} />
       )}
       {e.type === 'start_quest' && <InlineRef kind="quest" store={store} value={e.quest} onChange={(v) => ((e.quest = v), commit())} />}
+      {e.type === 'play_cutscene' && (
+        <InlineRef kind="cutscene" store={store} value={e.cutscene} onChange={(v) => ((e.cutscene = v), commit())} />
+      )}
       {(e.type === 'advance_time' || e.type === 'sleep') && (
         <>
           <input type="number" min={1} value={e.ticks} onChange={(ev) => ((e.ticks = Math.max(1, Number(ev.target.value))), commit())} />
@@ -707,7 +871,7 @@ function EffectRow({
           <input type="number" value={e.delta} onChange={(ev) => ((e.delta = Number(ev.target.value)), commit())} />
         </>
       )}
-      <button className="btn btn-small ce-del" onClick={onRemove}>✕</button>
+      <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>
     </div>
   )
 }
@@ -736,7 +900,7 @@ function ChoiceForm({
   const skills = store.options('skill')
   return (
     <details className="dlg-choice" open={index === 0 && node.choices.length <= 2}>
-      <summary>▸ {c.text || '(без текста)'}{c.check ? ' 🎲' : ''}{c.conds?.length ? ' 🔒' : ''}</summary>
+      <summary>▸ {c.text || '(без текста)'}{c.check ? '' : ''}{c.conds?.length ? '' : ''}</summary>
       <label className="fld">
         <span>Текст ответа игрока</span>
         <input value={c.text} onChange={(e) => ((c.text = e.target.value), commit())} />
@@ -782,7 +946,7 @@ function ChoiceForm({
               commit()
             }}
           />
-          <span>проверка навыка 🎲</span>
+          <span>проверка навыка <Ico n="dice" /> </span>
         </label>
       </div>
       {c.conds && (
@@ -807,7 +971,7 @@ function ChoiceForm({
         <GotoSelect label="Куда дальше" doc={doc} value={c.goto} onChange={(v) => ((c.goto = v), commit())} />
       )}
       <div className="dlg-choice-tools">
-        <button className="btn btn-small ce-del" onClick={onRemove}>✕ удалить ответ</button>
+        <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" />  удалить ответ</button>
       </div>
     </details>
   )
@@ -839,7 +1003,7 @@ function CheckEditor({
             ))}
           </select>
         </label>
-        <label className="fld" title="Сложность смещает шанс: 50 — нейтральная, больше — сложнее">
+        <label className="fld" data-tip="Сложность смещает шанс: 50 — нейтральная, больше — сложнее">
           <span>Сложность</span>
           <input type="number" value={check.difficulty} onChange={(e) => ((check.difficulty = Number(e.target.value)), commit())} />
         </label>
@@ -853,7 +1017,7 @@ function CheckEditor({
               <span>Сложность</span>
               <input type="number" value={m.value} onChange={(e) => ((m.value = Number(e.target.value)), commit())} />
             </label>
-            <button className="btn btn-small ce-del" onClick={() => (check.mods!.splice(i, 1), commit())}>✕</button>
+            <button className="btn btn-small ce-del" onClick={() => (check.mods!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -867,12 +1031,12 @@ function CheckEditor({
         </button>
       </details>
       <div className="dlg-branch dlg-branch-ok">
-        <span className="fld-caption">✔ Успех</span>
+        <span className="fld-caption"><Ico n="check" />  Успех</span>
         <SectionListEditor sections={check.success.sections} doc={doc} store={store} commit={commit} emotions={emotions} />
         <GotoSelect label="После успеха" doc={doc} value={check.success.goto} onChange={(v) => ((check.success.goto = v), commit())} />
       </div>
       <div className="dlg-branch dlg-branch-fail">
-        <span className="fld-caption">✘ Провал</span>
+        <span className="fld-caption"><Ico n="close" />  Провал</span>
         <SectionListEditor sections={check.fail.sections} doc={doc} store={store} commit={commit} emotions={emotions} />
         <GotoSelect label="После провала" doc={doc} value={check.fail.goto} onChange={(v) => ((check.fail.goto = v), commit())} />
       </div>

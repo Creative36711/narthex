@@ -33,7 +33,7 @@
        "kind": "line",
        "line": {
         "text": "Подходи, не стесняйся! Бран, лучшие товары долины...",
-        "emotion": "happy"
+        "emotion": "neutral"
        }
       },
       {
@@ -49,7 +49,7 @@
       {
        "kind": "line",
        "line": {
-        "text": "У тебя {item_count(\"item_silver\")} марок серебром."
+        "text": "У тебя {счёт:item_silver} марок серебром."
        }
       }
      ]
@@ -65,7 +65,7 @@
          "kind": "line",
          "line": {
           "text": "Выбирай, всё лучшее — на прилавке.",
-          "emotion": "happy"
+          "emotion": "neutral"
          }
         },
         {
@@ -135,7 +135,7 @@
            "kind": "line",
            "line": {
             "text": "Тьфу, язык у тебя подвешен... Ладно. Держи хлеб сверху, только отстань.",
-            "emotion": "happy"
+            "emotion": "neutral"
            }
           },
           {
@@ -164,7 +164,7 @@
          "kind": "line",
          "line": {
           "text": "Организованные, со своим главарём — Серым Йореком.",
-          "emotion": "angry"
+          "emotion": "neutral"
          }
         },
         {

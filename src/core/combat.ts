@@ -10,6 +10,7 @@ import type { GameEngine } from './engine'
 import { type Hex, hexKey, hexDistance, reachable, astar } from './hex'
 import { skillCheck, damageBonus, movement, derivedHP, type CheckResult } from './brp'
 import { rollDice } from './dice'
+import { playUi, playInteraction } from '../shared/audio'
 
 /**
  * Тактический бой на гексах (ТЗ 4.3, Фаза 1).
@@ -349,6 +350,7 @@ export class CombatController {
     const pc = this.combatants.find((x) => x.id === 'c_player')!
     pc.hp = Math.min(pc.maxHp, this.engine.state.player.hp)
     this.log.push(`${this.active.label} использует «${item.label}».`)
+    playInteraction('use', { entity: item })
     this.engine.notify()
   }
 
@@ -438,12 +440,15 @@ export class CombatController {
     attacker.attacked = true
     const rng = this.engine.rng
     const skillVal = attacker.skills[attacker.weapon.skill] ?? 25
-    const atk = skillCheck(skillVal, rng)
+    const atk = skillCheck(skillVal, rng, 0, this.engine.diceRules)
     this.log.push(
       `${attacker.label}: атака «${attacker.weaponLabel}» — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
     )
     if (attacker.id === 'c_player' && atk.success) this.engine.markSkill(attacker.weapon.skill)
-    if (RANK[atk.result] < 2) return
+    if (RANK[atk.result] < 2) {
+      playUi('miss')
+      return
+    }
 
     // защита: уклонение или парирование, повторные со штрафом −30
     const dodgeVal = defender.skills['dodge'] ?? 0
@@ -453,12 +458,13 @@ export class CombatController {
     if (defBase > 0) {
       const penalty = -30 * defender.defensesUsed
       defender.defensesUsed++
-      const def = skillCheck(defBase, rng, penalty)
+      const def = skillCheck(defBase, rng, penalty, this.engine.diceRules)
       this.log.push(
         `${defender.label}: ${useParry ? 'парирование' : 'уклонение'} — d100=${def.roll} против ${def.target} → ${labelResult(def.result)}`,
       )
       if (RANK[def.result] >= 2 && RANK[def.result] >= RANK[atk.result]) {
         this.log.push(`${defender.label} ${useParry ? 'отбивает удар' : 'уходит от удара'}.`)
+        playUi('parry')
         if (defender.id === 'c_player') this.engine.markSkill(useParry ? defender.weapon.skill : 'dodge')
         return
       }
@@ -471,16 +477,19 @@ export class CombatController {
     if (atk.result === 'critical') {
       dmg = maxOf(w.damage) + Math.max(0, maxOf(dbNotation))
       this.log.push(`Критический удар! Броня не спасает.`)
+      playUi('crit')
     } else {
       const raw = rollDice(w.damage, rng) + rollSigned(dbNotation, rng)
       dmg = Math.max(0, raw - defender.armor)
+      playUi('hit')
     }
     defender.hp -= dmg
     this.log.push(`${defender.label} получает ${dmg} урона (HP ${Math.max(0, defender.hp)}/${defender.maxHp}).`)
 
     if (defender.hp <= 0) {
       defender.dead = true
-      this.log.push(`☠ ${defender.label} погибает.`)
+      this.log.push(`† ${defender.label} погибает.`)
+      playUi('death')
       if (defender.side === 'enemy') {
         this.engine.state.dead_entities.push(defender.entityId)
       } else if (defender.id.startsWith('c_ally_')) {
@@ -508,13 +517,15 @@ export class CombatController {
     const playerAlive = this.combatants.some((c) => c.id === 'c_player' && !c.dead)
     if (!playerAlive) {
       this.result = 'defeat'
+      playUi('defeat')
       this.engine.gameOver('death', 'Вы пали в бою.')
       return
     }
     if (!enemiesAlive) {
       this.result = 'victory'
+      playUi('victory')
       this.rollLoot()
-      this.log.push('🏆 Победа! Противники повержены.')
+      this.log.push('Победа! Противники повержены.')
       // сообщения и флаги победы — сразу, пока игрок видит экран победы
       this.engine.onCombatVictory(this.def.on_victory ?? [])
     }
@@ -534,6 +545,8 @@ export class CombatController {
     }
     for (const [item, qty] of counts) {
       this.engine.addItem(item, qty)
+      const def = this.engine.campaign.entities[item] as ItemDef | undefined
+      playInteraction('pickup', { entity: def })
       const label = this.engine.campaign.entities[item]?.label ?? item
       this.loot.push({ label, quantity: qty })
     }

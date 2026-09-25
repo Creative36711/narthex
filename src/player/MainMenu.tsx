@@ -1,8 +1,11 @@
-import { useRef, useState } from 'react'
+import { Ico } from '../shared/icons'
+import { useRef, useState, useEffect } from 'react'
 import type { CampaignData } from '../shared/types'
 import { askConfirm, showAlert } from '../shared/modals'
-import { resetTips } from './tips'
+import { SettingsPanel } from '../shared/SettingsPanel'
 import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
+import { setAudioCampaign } from '../shared/audio'
+import { refreshMusic, setMenuMode } from '../shared/music'
 
 interface Props {
   campaign: CampaignData
@@ -25,8 +28,17 @@ interface Props {
 export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, canContinue, onNewGame, onContinue, onEditor, onHelp }: Props) {
   const m = campaign.meta
   const [showList, setShowList] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [importBusy, setImportBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // музыка меню (блок H): menu_music темы (или default_music)
+  useEffect(() => {
+    setAudioCampaign(campaign)
+    setMenuMode(true)
+    refreshMusic(null)
+    return () => setMenuMode(false)
+  }, [campaign])
 
   const doImport = async (file: File) => {
     setImportBusy(true)
@@ -60,29 +72,19 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
               </button>
             )}
             <button className="btn" onClick={() => setShowList(true)}>
-              📚 Кампании
+              <Ico n="book" /> Кампании
             </button>
             {onHelp && (
               <button className="btn" onClick={onHelp}>
-                ❓ Как играть
+                <Ico n="help" />  Как играть
               </button>
             )}
-            <button
-              className="btn"
-              title="Игровые подсказки показываются один раз; эта кнопка включает их снова"
-              onClick={async () => {
-                resetTips()
-                await showAlert(
-                  '🎓 Обучение включено заново',
-                  'Интерактивные подсказки (первый бой, проверки в диалогах, рост навыков) снова появятся по ходу игры.',
-                )
-              }}
-            >
-              🎓 Обучение заново
+            <button className="btn" onClick={() => setShowSettings(true)}>
+              <Ico n="settings" />  Настройки
             </button>
             {onEditor && (
               <button className="btn" onClick={onEditor}>
-                🛠 Редактор
+                <Ico n="settings" /> Редактор
               </button>
             )}
           </div>
@@ -91,13 +93,14 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
           </div>
         </div>
       </div>
+      <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
 
       {showList && (
         <div className="campaigns-overlay" onClick={() => setShowList(false)}>
           <div className="campaigns-box" onClick={(e) => e.stopPropagation()}>
             <div className="campaigns-head">
               <h2>Кампании</h2>
-              <button className="btn btn-small" onClick={() => setShowList(false)}>✕</button>
+              <button className="btn btn-small" onClick={() => setShowList(false)}><Ico n="close" /> </button>
             </div>
             <div className="campaign-list">
               {campaigns.map((c) => (
@@ -115,7 +118,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                   </button>
                   <button
                     className="btn btn-small campaign-del"
-                    title="Удалить кампанию с диска"
+                    data-tip="Удалить кампанию с диска"
                     onClick={async () => {
                       if (campaigns.length <= 1) {
                         void showAlert('Нельзя удалить последнюю кампанию', 'Сначала создайте или импортируйте другую.')
@@ -142,14 +145,14 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                       }
                     }}
                   >
-                    🗑
+                    <Ico n="trash" /> 
                   </button>
                 </div>
               ))}
             </div>
             <div className="campaigns-foot">
               <button className="btn" disabled={importBusy} onClick={() => fileRef.current?.click()}>
-                {importBusy ? 'Импорт…' : '📦 Импортировать кампанию (.chronicle)'}
+                {importBusy ? 'Импорт…' : <><Ico n="doc" /> Импортировать кампанию (.chronicle)</>}
               </button>
               <input
                 ref={fileRef}

@@ -1,6 +1,8 @@
+import { migrateCampaign, migrateEntity } from '../shared/migrate'
 import type {
   ArenaDef,
   CampaignData,
+  CutsceneDef,
   CampaignMeta,
   EncounterTableDef,
   EntityDef,
@@ -25,6 +27,8 @@ interface Manifest {
   arenas?: string[]
   quests?: string[]
   encounters?: string[]
+  /** катсцены: файлы в cutscenes/ (итерация 8, блок E) */
+  cutscenes?: string[]
   dialogues: string[]
 }
 
@@ -53,6 +57,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   const arenas: Record<string, ArenaDef> = {}
   const quests: Record<string, QuestDef> = {}
   const encounters: Record<string, EncounterTableDef> = {}
+  const cutscenes: Record<string, CutsceneDef> = {}
   const dialogues: Record<string, string> = {}
 
   await Promise.all([
@@ -68,13 +73,17 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
       const tables = await getJSON<{ encounter_tables: EncounterTableDef[] }>(`${basePath}/rules/${f}`)
       for (const t of tables.encounter_tables) encounters[t.id] = t
     }),
+    ...(manifest.cutscenes ?? []).map(async (f) => {
+      const c = await getJSON<CutsceneDef>(`${basePath}/cutscenes/${f}`)
+      cutscenes[c.id] = c
+    }),
     ...manifest.scenes.map(async (f) => {
       const s = await getJSON<SceneDef>(`${basePath}/scenes/${f}`)
       scenes[s.id] = s
     }),
     ...manifest.entities.map(async (f) => {
       const e = await getJSON<EntityDef>(`${basePath}/entities/${f}`)
-      entities[e.id] = e
+      entities[e.id] = migrateEntity(e)
     }),
     ...manifest.rules.map(async (f) => {
       const r = await getJSON<RuleDef>(`${basePath}/rules/${f}`)
@@ -85,9 +94,25 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
     }),
   ])
 
-  return { meta, world, scenes, entities, rules, arenas, quests, encounters, dialogues, basePath }
+  // мягкие миграции старого контента (итерация 8): условия потребностей,
+  // переходы «в локацию» из сцен и т.п.
+  migrateCampaign(meta, world, scenes)
+
+  return { meta, world, scenes, entities, rules, arenas, quests, encounters, cutscenes, dialogues, basePath }
 }
 
+/**
+ * Путь к ассету кампании. Внешние ссылки (http:// и https://) отдаются
+ * как есть — кампания может ссылаться на картинки/звук с любого хостинга
+ * (итерация 8, блок C).
+ */
 export function assetUrl(campaign: CampaignData, path: string): string {
+  if (!path) return path
+  if (/^https?:\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path
   return `${campaign.basePath}/${path}`
+}
+
+/** Это внешняя ссылка, а не файл внутри пакета? */
+export function isExternalUrl(path: string): boolean {
+  return /^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')
 }

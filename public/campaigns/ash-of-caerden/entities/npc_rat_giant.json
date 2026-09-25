@@ -2,6 +2,7 @@
   "id": "npc_rat_giant",
   "type": "npc",
   "label": "Гигантская крыса",
+  "description": "Крыса размером с пса, поднявшаяся наверх из затопленных выработок. Жадная, злая и очень быстрая.",
   "portrait": {
     "neutral": "assets/img/npc/rat_token.jpg"
   },

@@ -2,9 +2,9 @@
   "id": "npc_bran",
   "type": "npc",
   "label": "Торговец Бран",
+  "description": "Торговец Бран. Возит в посёлок товары для шахтёров и охотников; знает цену каждой вещи — и каждому слову.",
   "portrait": {
-    "neutral": "assets/img/npc/bran_neutral.jpg",
-    "happy": "assets/img/npc/bran_neutral.jpg"
+    "neutral": "assets/img/npc/bran_neutral.jpg"
   },
   "stats": {
     "STR": 10,
@@ -56,6 +56,9 @@
       },
       {
         "item": "item_wool_cloak"
+      },
+      {
+        "item": "item_fur_coat"
       }
     ],
     "buys": true,

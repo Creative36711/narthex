@@ -1,6 +1,7 @@
 import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
 import { timeOfDay } from '../core/time'
+import { ArtView } from '../shared/ArtView'
 
 interface Props {
   engine: GameEngine
@@ -27,7 +28,13 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         <span className="scene-name">{scene.label} — {state.label}</span>
       </div>
       <div className={`scene-stage tod-tint-${tod}`} style={{ aspectRatio: `${canvas.w} / ${canvas.h}` }}>
-        <img className="scene-bg" src={assetUrl(engine.campaign, state.image)} alt={state.label} draggable={false} />
+        {state.art ? (
+          <ArtView className="scene-bg" art={state.art} />
+        ) : (
+          state.image && (
+            <img className="scene-bg" src={assetUrl(engine.campaign, state.image)} alt={state.label} draggable={false} />
+          )
+        )}
 
         {occupants.map(({ slot, entity }) =>
           entity ? (
@@ -41,7 +48,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                 height: pct(slot.h, canvas.h),
               }}
               onClick={() => engine.interactWithSlot({ slot, entity })}
-              title={entity.label}
+              data-tip={`${entity.label}${engine.descOf(entity.id) ? `\n${engine.descOf(entity.id)}` : ''}`}
             >
               {entity.type === 'npc' && entity.portrait?.neutral && (
                 <img
@@ -60,7 +67,6 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           const handle = () => {
             if (nav.open_map) return onOpenMap()
             if (nav.go_to_scene) return engine.goToScene(nav.go_to_scene, nav.cost_ticks ?? 0)
-            if (nav.go_to_location) return engine.travelTo(nav.go_to_location)
           }
           return (
             <button

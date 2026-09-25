@@ -38,7 +38,7 @@ export function JsonDocEditor({
       <div className="mono-toolbar">
         <b>{title}</b>
         <span className={`mono-status ${err ? 'fld-err' : ''}`}>
-          {err ? err : dirty ? 'изменено (не применено)' : savedFlash ? 'применено ✓' : ''}
+          {err ? err : dirty ? 'изменено (не применено)' : savedFlash ? 'применено' : ''}
         </span>
         <button
           className="btn btn-small btn-primary"

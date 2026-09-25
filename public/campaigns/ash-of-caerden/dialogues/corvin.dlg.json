@@ -12,7 +12,7 @@
        "kind": "line",
        "line": {
         "text": "Свет хранит тебя, дитя моё. Двери храма всегда открыты.",
-        "emotion": "happy"
+        "emotion": "neutral"
        }
       }
      ],
@@ -202,7 +202,7 @@
          "kind": "line",
          "line": {
           "text": "Руки старика дрожат, когда он принимает потемневшее серебро.",
-          "emotion": "happy",
+          "emotion": "neutral",
           "action": true
          }
         },
@@ -277,7 +277,7 @@
          "kind": "line",
          "line": {
           "text": "Да хранит тебя Свет.",
-          "emotion": "happy"
+          "emotion": "neutral"
          }
         }
        ]

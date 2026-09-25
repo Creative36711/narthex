@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorStore, type EditorSection, type ManifestDef } from './store'
 import { SceneEditor } from './SceneEditor'
@@ -10,27 +11,63 @@ import { DialogueBuilder, hasDlgDoc, dialogueTitle } from './DialogueBuilder'
 import { generateInk, newDlgDoc } from './dialogueDoc'
 import { CampaignEditor } from './CampaignEditor'
 import { WorldEditor } from './WorldEditor'
+import { CutsceneEditor, newCutscene } from './CutsceneEditor'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
+import { stopMusic } from '../shared/music'
+import { AiWizard, aiFixReport } from './AiWizard'
 import { makeId, slugify } from './ids'
 import './editor.css'
-import { askText, askConfirm, showAlert } from './prompt'
+import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from './prompt'
+import { collectExternalUrls, embedExternalAssets } from './assets'
+import { exportMonolith, importMonolithText } from './monolith'
 
 /**
  * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
  * Работает поверх dev-сервера vite: сохранение пишет файлы кампании на диск.
  */
 
-const SECTIONS: Array<{ id: EditorSection; label: string }> = [
-  { id: 'campaign', label: '⚙ Кампания' },
-  { id: 'world', label: '🗺 Мир' },
-  { id: 'scenes', label: '🖼 Сцены' },
-  { id: 'entities', label: '👤 Сущности' },
-  { id: 'rules', label: '⚡ Правила' },
-  { id: 'quests', label: '📜 Квесты' },
-  { id: 'dialogues', label: '💬 Диалоги' },
-  { id: 'arenas', label: '⚔ Арены' },
+type SectionItem = { id: EditorSection; label: string }
+
+/** верхнее меню — категории (фидбек 4): плоский список из 9 кнопок захламлял шапку */
+const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
+  {
+    id: 'project',
+    label: 'Проект',
+    items: [{ id: 'campaign', label: 'Кампания и реестры' }],
+  },
+  {
+    id: 'world',
+    label: 'Мир',
+    items: [
+      { id: 'world', label: 'Регионы и локации' },
+      { id: 'scenes', label: 'Сцены' },
+      { id: 'arenas', label: 'Арены боя' },
+    ],
+  },
+  {
+    id: 'cast',
+    label: 'Персонажи',
+    items: [
+      { id: 'entities', label: 'Сущности (NPC и предметы)' },
+      { id: 'dialogues', label: 'Диалоги' },
+    ],
+  },
+  {
+    id: 'story',
+    label: 'История',
+    items: [
+      { id: 'quests', label: 'Квесты' },
+      { id: 'cutscenes', label: 'Катсцены' },
+      { id: 'rules', label: 'Правила мира' },
+    ],
+  },
 ]
+
+function navLabelOf(id: EditorSection): string {
+  for (const m of MENUS) for (const it of m.items) if (it.id === id) return it.label
+  return id
+}
 
 export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onExit: () => void }) {
   const [base, setBase] = useState(campaignPath)
@@ -39,6 +76,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [readyStore, setReadyStore] = useState<EditorStore | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [section, setSection] = useState<EditorSection>('scenes')
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [aiWizard, setAiWizard] = useState(false)
+  const [q, setQ] = useState('')
+  const [kindF, setKindF] = useState<'all' | 'npc' | 'item'>('all')
   const [selected, setSelected] = useState<string | null>(null)
   const [, force] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
@@ -52,6 +93,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   useEffect(() => {
     setError(null)
     setSelected(null)
+    // в редакторе фоновой музыки нет (фидбек 9): превью звуков — само по себе
+    stopMusic(0.2)
     store
       .load()
       .then(() => setReadyStore(store))
@@ -59,6 +102,13 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }, [store])
 
   useEffect(() => store.subscribe(() => force((n) => n + 1)), [store])
+
+  useEffect(() => {
+    if (!openMenu) return
+    const close = () => setOpenMenu(null)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [openMenu])
 
   useEffect(() => {
     fetchCampaignIndex().then(setCampaigns)
@@ -177,9 +227,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         return store.entityPaths().map((p) => {
           const e = store.entity(p)
           if (!e) return { path: p, title: p }
-          if (e.type === 'npc') return { path: p, title: e.label || p, group: '👤 Персонажи', groupOrder: '0' }
+          if (e.type === 'npc') return { path: p, title: e.label || p, group: 'Персонажи', groupOrder: '0' }
           const cat = store.labelFor('itemCategory', e.category)
-          return { path: p, title: e.label || p, group: `🎒 ${cat}`, groupOrder: `1${cat}` }
+          return { path: p, title: e.label || p, group: `${cat}`, groupOrder: `1${cat}` }
         })
       case 'rules':
         return store.rulePaths().map((p) => ({ path: p, title: store.rule(p)?.label ?? p }))
@@ -189,6 +239,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         return store.dialoguePaths().map((p) => ({ path: p, title: dialogueTitle(store, p) }))
       case 'arenas':
         return store.arenaPaths().map((p) => ({ path: p, title: store.arena(p)?.label ?? p }))
+      case 'cutscenes':
+        return store.cutscenePaths().map((p) => ({ path: p, title: store.cutscene(p)?.label ?? p }))
       default:
         return []
     }
@@ -220,6 +272,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               id,
               type: 'npc',
               label,
+              description: '',
               portrait: {},
               stats: { STR: 10, CON: 10, SIZ: 10, DEX: 10, INT: 10, POW: 10, CHA: 10 },
               skills: { dodge: 30, spot: 30 },
@@ -235,6 +288,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     } else if (section === 'arenas') {
       const id = makeId('arena_', label, store.ids('arena'))
       path = store.createFile('arenas', `${id}.json`, { ...newArena(id), label })
+    } else if (section === 'cutscenes') {
+      const id = makeId('cutscene_', label, store.ids('cutscene'))
+      path = store.createFile('cutscenes', `${id}.json`, newCutscene(id, label))
     } else if (section === 'dialogues') {
       const fn = slugify(label)
       const doc = newDlgDoc(label)
@@ -278,10 +334,33 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }
 
   const doExport = async () => {
+    const external = collectExternalUrls(store)
+    const res = await askChecked(
+      external.length
+        ? `Экспорт «${store.meta.title}». В кампании ${external.length} внешних ссылок (картинки/звук с чужого сервера).`
+        : `Экспорт «${store.meta.title}» одним файлом .chronicle.`,
+      'Вшить внешние ссылки в пакет (кампания станет автономной)',
+      'Экспорт',
+    )
+    if (!res.ok) return
     setBusy('Экспорт .chronicle…')
     try {
+      const notes: string[] = []
+      if (res.checked) {
+        setBusy('Скачиваю внешние файлы…')
+        notes.push(...(await embedExternalAssets(store)))
+      }
       const blob = await exportChronicle(store)
       downloadBlob(blob, `${store.meta.id}.chronicle`)
+      if (notes.length) {
+        void showList(
+          `Пакет собран (${notes.length} внешних файлов)`,
+          notes,
+          'Файлы скачаны в assets/external/ и ссылки переписаны. Сохраните кампанию, чтобы записать изменения на диск.',
+        )
+      }
+    } catch (e) {
+      void showAlert('Не удалось собрать пакет', String(e))
     } finally {
       setBusy(null)
     }
@@ -291,7 +370,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     setBusy('Импорт…')
     try {
       const warns = await importChronicle(store, file)
-      void showAlert('Импортировано', warns.length ? `Предупреждения:\n${warns.join('\n')}` : 'Нажмите «Сохранить», чтобы записать файлы на диск.')
+      if (warns.length) {
+        void showList('Импортировано с предупреждениями', warns, 'Нажмите «Сохранить», чтобы записать файлы на диск.', {
+          label: 'Скопировать отчёт для ИИ',
+          text: aiFixReport(warns),
+        })
+      } else {
+        void showAlert('Импортировано', 'Нажмите «Сохранить», чтобы записать файлы на диск.')
+      }
     } catch (e) {
       void showAlert('Ошибка импорта', String(e))
     } finally {
@@ -299,9 +385,60 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  const items = listFor(section).sort(
+  /** экспорт одним JSON (формат для ИИ-генераторов, блок F) */
+  const doExportJson = async () => {
+    setBusy('Экспорт JSON…')
+    try {
+      const { doc, warnings } = exportMonolith(store)
+      const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' })
+      downloadBlob(blob, `${doc.campaign.id || 'campaign'}.json`)
+      if (warnings.length) {
+        void showList(`JSON собран (${warnings.length} замечаний)`, warnings, 'Файл скачан. Замечания — различия между файлами пакета и JSON-форматом:')
+      }
+    } catch (e) {
+      void showAlert('Не удалось собрать JSON', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /** импорт из JSON: файл ИЛИ вставленный текст (кампания может прийти от ИИ) */
+  const doImportJson = async () => {
+    const text = await askTextArea('Импорт кампании из JSON', {
+      body: 'Вставьте текст JSON-кампании целиком или выберите файл.\nИмпорт заменит содержимое текущей кампании; ошибки не прерывают импорт — битое отключается, недостающее достраивается заглушками.',
+      placeholder: '{ "campaign": { … }, "world": { … }, "scenes": { … } }',
+      ok: 'Импортировать',
+      fileLabel: 'Выбрать файл JSON…',
+    })
+    if (text === null) return
+    setBusy('Импорт JSON…')
+    try {
+      const warns = importMonolithText(store, text)
+      void showList(
+        warns.length ? `Импортировано с ${warns.length} предупреждениями` : 'Импортировано без предупреждений',
+        warns,
+        'Нажмите «Сохранить», чтобы записать файлы кампании на диск.',
+        warns.length ? { label: 'Скопировать отчёт для ИИ', text: aiFixReport(warns) } : undefined,
+      )
+    } catch (e) {
+      void showAlert('Ошибка импорта', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const itemsAll = listFor(section).sort(
     (a, b) => (a.groupOrder ?? '').localeCompare(b.groupOrder ?? '', 'ru') || a.title.localeCompare(b.title, 'ru'),
   )
+  // живой поиск по названию + фильтр «надевается» (п.1 фидбека 9)
+  const items = itemsAll.filter((it) => {
+    if (q.trim() && !it.title.toLowerCase().includes(q.trim().toLowerCase())) return false
+    if (section === 'entities' && kindF !== 'all') {
+      const t = (it as { type?: string }).type
+      return kindF === 'npc' ? t === 'npc' : t === 'item'
+    }
+    return true
+  })
   const hasList = !['campaign', 'world'].includes(section)
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
 
@@ -318,7 +455,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               if (store.dirty.size && !(await askConfirm('Есть несохранённые изменения. Сменить кампанию без сохранения?', 'Сменить'))) return
               setBase(v)
             }}
-            title="Кампания"
+            data-tip="Кампания"
           >
             {campaigns.map((c) => (
               <option key={c.id} value={`/campaigns/${c.id}`}>{c.title}</option>
@@ -328,14 +465,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         ) : (
           <span className="editor-title">{store.meta.title}</span>
         )}
-        <button className="btn btn-small" onClick={newCampaign} title="Создать новую кампанию">＋ Кампания</button>
-        <button className="btn btn-small ce-del" onClick={deleteCampaign} title="Удалить текущую кампанию с диска">🗑 Удалить</button>
+        <button className="btn btn-small" onClick={newCampaign} data-tip="Создать новую кампанию"><Ico n="plus" />  Кампания</button>
+        <button className="btn btn-small ce-del" onClick={deleteCampaign} data-tip="Удалить текущую кампанию с диска"><Ico n="trash" />  Удалить</button>
         <span className="editor-spacer" />
         <button
           className="btn btn-small"
           onClick={() => store.undo()}
           disabled={!store.canUndo()}
-          title="Откатить последнее изменение (Ctrl+Z)"
+          data-tip="Откатить последнее изменение (Ctrl+Z)"
         >
           ↩ Откат
         </button>
@@ -343,12 +480,50 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <span className={`editor-dirty ${store.dirty.size ? 'on' : ''}`}>
           {store.dirty.size ? `несохранено: ${store.dirty.size}` : 'все сохранено'}
         </span>
-        <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size}>
-          💾 Сохранить
+        <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size} data-tip="Записать изменения кампании на диск">
+          <Ico n="download" /> Сохранить
         </button>
-        <button className="btn btn-small" onClick={playtest}>▶ Плейтест</button>
-        <button className="btn btn-small" onClick={doExport} title="Скачать кампанию одним файлом .chronicle">⬇ Экспорт</button>
-        <button className="btn btn-small" onClick={() => fileInput.current?.click()}>⬆ Импорт</button>
+        <button
+          className="btn btn-small"
+          data-tip="Проверить ссылки: сцены, локации, слоты, квесты, правила"
+          onClick={() => {
+            const issues = store.validateContent()
+            if (!issues.length) {
+              void showAlert('Проблем не найдено', 'Все ссылки кампании указывают на существующие объекты.')
+            } else {
+              void showList(`Найдено проблем: ${issues.length}`, issues, 'Кампания загружается и так, но эти ссылки никуда не ведут:', {
+                label: 'Скопировать отчёт для ИИ',
+                text: aiFixReport(issues),
+              })
+            }
+          }}
+        >
+          <Ico n="check" /> Проверить
+        </button>
+        <button
+          className="btn btn-small"
+          onClick={() => setAiWizard(true)}
+          data-tip="Мастер: собрать бриф и скопировать промпт для ИИ-генератора кампаний"
+        >
+          <Ico n="sparkle" />  Кампания с ИИ
+        </button>
+        <button className="btn btn-small" onClick={playtest} data-tip="Сохранить и открыть игру в новой вкладке"><Ico n="play" />  Плейтест</button>
+        <button className="btn btn-small" onClick={doExport} data-tip="Скачать кампанию одним файлом .chronicle"><Ico n="download" />  Экспорт</button>
+        <button
+          className="btn btn-small"
+          onClick={doExportJson}
+          data-tip="Скачать кампанию одним JSON (формат обмена и ИИ-генерации)"
+        >
+          <Ico n="download" />  JSON
+        </button>
+        <button className="btn btn-small" onClick={() => fileInput.current?.click()} data-tip="Импортировать кампанию из файла .chronicle"><Ico n="up" />  Импорт</button>
+        <button
+          className="btn btn-small"
+          onClick={doImportJson}
+          data-tip="Импортировать кампанию из JSON: файлом или вставив текст"
+        >
+          <Ico n="up" />  Импорт из JSON
+        </button>
         <input
           ref={fileInput}
           type="file"
@@ -360,34 +535,75 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             e.target.value = ''
           }}
         />
-        <button className="btn btn-small" onClick={onExit}>✕ Выйти</button>
+        <button className="btn btn-small" onClick={onExit} data-tip="Выйти в главное меню игры"><Ico n="exit" />  Выйти</button>
       </header>
 
       <div className="editor-body">
         <nav className="editor-nav">
-          {SECTIONS.map((s) => (
-            <button
-              key={s.id}
-              className={`editor-nav-btn ${section === s.id ? 'on' : ''}`}
-              onClick={() => {
-                setSection(s.id)
-                setSelected(null)
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
+          {MENUS.map((menu) => {
+            const active = menu.items.some((it) => it.id === section)
+            return (
+              <div className="editor-nav-menu" key={menu.id} onClick={(e) => e.stopPropagation()}>
+                <button
+                  className={`editor-nav-btn ${active ? 'on' : ''}`}
+                  onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
+                >
+                  {menu.label}
+                  <span className="editor-nav-caret">▾</span>
+                </button>
+                {openMenu === menu.id && (
+                  <div className="editor-nav-popup">
+                    {menu.items.map((it) => (
+                      <button
+                        key={it.id}
+                        className={`editor-nav-btn ${section === it.id ? 'on' : ''}`}
+                        onClick={() => {
+                          setSection(it.id)
+                          setSelected(null)
+                          setOpenMenu(null)
+                        }}
+                      >
+                        {section === it.id ? '▸' : ''}{it.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          <span className="muted small" style={{ marginLeft: 6 }}>{navLabelOf(section)}</span>
         </nav>
 
         {hasList && (
           <aside className="editor-list">
+            <input
+              className="editor-list-search"
+              placeholder="Поиск по названию…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            {section === 'entities' && (
+              <div className="chips editor-list-chips">
+                {([['all', 'Все'], ['npc', 'Персонажи'], ['item', 'Предметы']] as const).map(([k, lbl]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className={`chip ${kindF === k ? 'chip-on' : ''}`}
+                    data-tip={k === 'npc' ? 'Только персонажи (NPC)' : k === 'item' ? 'Только предметы' : 'Все сущности подряд'}
+                    onClick={() => setKindF(k)}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            )}
             {items.map((it, i) => (
               <div key={it.path}>
                 {it.group && it.group !== items[i - 1]?.group && <div className="editor-list-group">{it.group}</div>}
                 <button
                   className={`editor-list-item ${sel === it.path ? 'on' : ''} ${store.dirty.has(it.path) ? 'dirty' : ''}`}
                   onClick={() => setSelected(it.path)}
-                  title={it.path}
+                  data-tip={it.path}
                 >
                   {it.title}
                 </button>
@@ -403,7 +619,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                 <button className="btn btn-small" onClick={() => createNew()}>+ создать</button>
               )}
               {sel && (
-                <button className="btn btn-small ce-del" onClick={removeSelected}>✕</button>
+                <button className="btn btn-small ce-del" onClick={removeSelected}><Ico n="close" /> </button>
               )}
             </div>
           </aside>
@@ -421,7 +637,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             : (
               <>
                 <div className="ink-legacy-note">
-                  ℹ️ Этот диалог написан вручную на языке Ink, поэтому открыт как код.
+                  <Ico n="info" />  Этот диалог написан вручную на языке Ink, поэтому открыт как код.
                   Новые диалоги (кнопка «+ создать») открываются в визуальном конструкторе —
                   без кода: узлы, реплики и ответы собираются формами.
                 </div>
@@ -429,11 +645,13 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               </>
             ))}
           {section === 'arenas' && sel && <ArenaEditor key={sel} store={store} path={sel} />}
+          {section === 'cutscenes' && sel && <CutsceneEditor key={sel} store={store} path={sel} />}
           {hasList && !sel && (
             <div className="screen-center muted">Выберите элемент слева или создайте новый.</div>
           )}
         </main>
       </div>
-    </div>
+          {aiWizard && <AiWizard onClose={() => setAiWizard(false)} />}
+</div>
   )
 }

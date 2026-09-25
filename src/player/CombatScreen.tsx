@@ -1,3 +1,4 @@
+import { Ico } from '../shared/icons'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { Hex } from '../core/hex'
@@ -12,8 +13,8 @@ interface Props {
 /** класс строки лога по содержимому — для читаемости */
 function logLineClass(l: string): string {
   if (l.startsWith('— Раунд')) return 'log-round'
-  if (l.startsWith('☠')) return 'log-death'
-  if (l.startsWith('🏆')) return 'log-win'
+  if (l.startsWith('')) return 'log-death'
+  if (l.startsWith('')) return 'log-win'
   if (l.includes('Промах') || l.includes('промах') || l.includes('уклоняется') || l.includes('парирует'))
     return 'log-miss'
   if (l.includes('урона') || l.includes('Крит')) return 'log-hit'
@@ -77,7 +78,7 @@ export function CombatScreen({ engine }: Props) {
       <div className="combat-panel">
         <div className="combat-header">
           <div>
-            ⚔ <b>{arena.label}</b> · Раунд {combat.round}
+            <Ico n="sword" />  <b>{arena.label}</b> · Раунд {combat.round}
           </div>
           <div className="combat-turn">
             Ход: <b className={playerTurn ? 'gold' : ''}>{combat.active.label}</b>
@@ -131,7 +132,7 @@ export function CombatScreen({ engine }: Props) {
                     top: `${(px.y / canvas.h) * 100}%`,
                     width: `${((size * 1.45) / canvas.w) * 100}%`,
                   }}
-                  title={`${c.label} — HP ${Math.max(0, c.hp)}/${c.maxHp}`}
+                  data-tip={`${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}`}
                   onClick={() => onHexClick(c.pos)}
                 >
                   {c.portrait ? (
@@ -151,7 +152,7 @@ export function CombatScreen({ engine }: Props) {
 
             {showTutorial && !combat.result && (
               <div className="combat-tutorial">
-                <h4>💡 Первый бой — как это работает</h4>
+                <h4><Ico n="info" />  Первый бой — как это работает</h4>
                 <ol>
                   <li><b>Инициатива.</b> Порядок ходов определяет Ловкость (DEX) — очередь видна справа внизу.</li>
                   <li><b>Движение.</b> В свой ход кликайте по <i>подсвеченным</i> гексам — столько шагов, сколько позволяет Движение.</li>
@@ -178,7 +179,7 @@ export function CombatScreen({ engine }: Props) {
               {playerTurn ? (
                 <>
                   <div className="combat-hint">
-                    Движение: <b>{activePlayer.movLeft}</b> гекс. ·{' '}
+                    Движение: <b>{activePlayer.movLeft}</b> гекс. ·{''}
                     {activePlayer.attacked ? 'действие израсходовано' : `атака: «${activePlayer.weaponLabel}»`}
                   </div>
                   <div className="combat-hint muted">
@@ -196,7 +197,7 @@ export function CombatScreen({ engine }: Props) {
                   )}
                   <button
                     className="btn btn-primary"
-                    title="Закончить ход без атаки (после атаки ход завершается сам)"
+                    data-tip="Закончить ход без атаки (после атаки ход завершается сам)"
                     onClick={() => combat.playerEndTurn()}
                   >
                     Пропустить ход
@@ -204,7 +205,7 @@ export function CombatScreen({ engine }: Props) {
                 </>
               ) : combat.result === 'victory' ? (
                 <div className="combat-victory">
-                  <h3>🏆 Победа!</h3>
+                  <h3><Ico n="trophy" />  Победа!</h3>
                   {combat.loot.length > 0 && (
                     <div className="combat-loot">
                       <b>Добыча:</b>
@@ -217,7 +218,7 @@ export function CombatScreen({ engine }: Props) {
                   )}
                   {!tipSeen('growth') && (
                     <p className="combat-growth-tip">
-                      💡 Навыки, которые вы применяли в бою, получили отметку. Отдохните
+                      <Ico n="info" />  Навыки, которые вы применяли в бою, получили отметку. Отдохните
                       (кнопка «Отдых» в сцене) — по каждому отмеченному навыку пройдёт бросок
                       d100: выпало больше навыка — навык вырастет на 1d6.
                     </p>
@@ -234,7 +235,7 @@ export function CombatScreen({ engine }: Props) {
                 </div>
               ) : combat.result === 'defeat' ? (
                 <div className="combat-defeat">
-                  <h3>☠ Вы пали в бою</h3>
+                  <h3><Ico n="skull" />  Вы пали в бою</h3>
                   <p className="muted small">Забег окончен…</p>
                 </div>
               ) : (
@@ -252,7 +253,7 @@ export function CombatScreen({ engine }: Props) {
                   <span>{c.label}</span>
                   <span>
                     {Math.max(0, c.hp)}/{c.maxHp}
-                    {!c.dead && combat.active.id !== c.id ? '' : c.dead ? ' ☠' : ' ◂'}
+                    {!c.dead && combat.active.id !== c.id ? '' : c.dead ? '' : '◂'}
                   </span>
                 </div>
               ))}

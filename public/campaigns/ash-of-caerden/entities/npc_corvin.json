@@ -2,15 +2,34 @@
   "id": "npc_corvin",
   "type": "npc",
   "label": "Отец Корвин",
+  "description": "Отец Корвин — хранитель местных обычаев и могил. Говорит тихо, но слушают его все.",
   "portrait": {
-    "neutral": "assets/img/npc/corvin_neutral.jpg",
-    "happy": "assets/img/npc/corvin_neutral.jpg"
+    "neutral": "assets/img/npc/corvin_neutral.jpg"
   },
-  "stats": { "STR": 8, "CON": 10, "SIZ": 11, "DEX": 9, "INT": 15, "POW": 17, "CHA": 14 },
-  "skills": { "first_aid": 70, "persuade": 55 },
+  "stats": {
+    "STR": 8,
+    "CON": 10,
+    "SIZ": 11,
+    "DEX": 9,
+    "INT": 15,
+    "POW": 17,
+    "CHA": 14
+  },
+  "skills": {
+    "first_aid": 70,
+    "persuade": 55
+  },
   "dialogue": "dialogues/corvin.ink",
   "schedule": [
-    { "time_range": [6, 23], "location": "loc_temple", "scene": "scene_temple", "slot": "slot_altar_corvin" }
+    {
+      "time_range": [
+        6,
+        23
+      ],
+      "location": "loc_temple",
+      "scene": "scene_temple",
+      "slot": "slot_altar_corvin"
+    }
   ],
   "faction": "faction_town",
   "base_disposition": 20

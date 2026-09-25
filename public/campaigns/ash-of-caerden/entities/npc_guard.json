@@ -2,6 +2,7 @@
   "id": "npc_guard",
   "type": "npc",
   "label": "Городской стражник",
+  "description": "Стражник в стёганой куртке с уставным копьём. Стоит на посту и знает, кому в посёлке не место.",
   "portrait": {
     "neutral": "assets/img/npc/aldric_neutral.jpg"
   },

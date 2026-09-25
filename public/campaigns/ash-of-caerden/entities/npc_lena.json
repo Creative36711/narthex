@@ -2,9 +2,9 @@
   "id": "npc_lena",
   "type": "npc",
   "label": "Лена",
+  "description": "Лена — молодая жительница посёлка. Видит больше, чем говорит, и знает все новости окрестных дворов.",
   "portrait": {
-    "neutral": "assets/img/npc/lena_neutral.jpg",
-    "happy": "assets/img/npc/lena_neutral.jpg"
+    "neutral": "assets/img/npc/lena_neutral.jpg"
   },
   "stats": {
     "STR": 8,

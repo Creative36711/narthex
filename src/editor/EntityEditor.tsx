@@ -1,8 +1,11 @@
+import { Ico } from '../shared/icons'
 import { useState } from 'react'
-import type { Effect, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
+import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
+import { DEFAULT_EMOTION } from '../shared/types'
 import type { EditorStore } from './store'
-import { FlagSelect, ImageUpload, JsonField, RefSelect } from './Fields'
+import { FlagSelect, ImageUpload, RefSelect, FileAdvancedJson } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
+import { SoundHookMapEditor } from './AudioSection'
 import { askText } from './prompt'
 import { slugify } from './ids'
 import { slotTypesFor, defaultSlotType } from './slotTypes'
@@ -26,28 +29,6 @@ export function EntityEditor({ store, path }: { store: EditorStore; path: string
     <ItemForm item={ent} store={store} path={path} commit={commit} />
   ) : (
     <NpcForm npc={ent} store={store} path={path} commit={commit} />
-  )
-}
-
-function AdvancedJson({ store, path, commit }: { store: EditorStore; path: string; commit: () => void }) {
-  const [gen, setGen] = useState(0)
-  return (
-    <details className="advanced-json" onToggle={(e) => (e.target as HTMLDetailsElement).open && setGen((n) => n + 1)}>
-      <summary>Расширенный JSON (все поля)</summary>
-      <JsonField
-        key={gen}
-        label=""
-        rows={14}
-        pretty
-        value={store.jsonFiles.get(path)}
-        onChange={(v) => {
-          if (v !== undefined) {
-            store.jsonFiles.set(path, v)
-            commit()
-          }
-        }}
-      />
-    </details>
   )
 }
 
@@ -229,20 +210,30 @@ function ItemForm({
         </div>
       )}
 
-      <AdvancedJson store={store} path={path} commit={commit} />
+      <div className="props-group">
+        <SoundHookMapEditor
+          store={store}
+          value={item.sounds ?? (item.sounds = {})}
+          onChange={commit}
+          heading="Звуки действий предмета"
+        />
+      </div>
+
+      <FileAdvancedJson store={store} path={path} commit={commit} />
     </div>
   )
 }
 
 // ─────────────── NPC ───────────────
 
-/** русские названия стандартных состояний портрета */
-const PORTRAIT_LABELS: Record<string, string> = {
-  neutral: 'Обычный',
-  happy: 'Радость',
-  angry: 'Гнев',
-  sad: 'Печаль',
-  fear: 'Страх',
+/** состояния портрета — общий реестр кампании (фидбек 9.14) */
+function emotionsOf(store: EditorStore): EmotionDef[] {
+  return store.meta.emotions ?? []
+}
+
+function emLabelOf(store: EditorStore, id: string): string {
+  if (id === DEFAULT_EMOTION.id) return DEFAULT_EMOTION.label
+  return emotionsOf(store).find((e) => e.id === id)?.label ?? `Состояние «${id}»`
 }
 
 /** предметы, подходящие под слот снаряжения */
@@ -292,12 +283,20 @@ function NpcForm({
               commit()
             }}
           />
-          <label className="fld" title="Прибавка к отношению фракции лично для этого персонажа: +20 — дружелюбнее прочих, −20 — недолюбливает героя">
+          <label className="fld" data-tip="Прибавка к отношению фракции лично для этого персонажа: +20 — дружелюбнее прочих, −20 — недолюбливает героя">
             <span>Личное отношение к герою (±)</span>
             <input type="number" value={npc.base_disposition ?? 0} onChange={(e) => ((npc.base_disposition = Number(e.target.value)), commit())} />
           </label>
           <SlotTypeField e={npc} store={store} commit={commit} />
         </div>
+        <label className="fld fld-block">
+          <span>Описание</span>
+          <textarea
+            rows={2}
+            value={npc.description ?? ''}
+            onChange={(e) => ((npc.description = e.target.value), commit())}
+          />
+        </label>
         <RefSelect
           label="Диалог"
           kind="dialogue"
@@ -322,7 +321,7 @@ function NpcForm({
           {portraitKeys.map((k) => (
             <div key={k} style={{ position: 'relative' }}>
               <ImageUpload
-                label={PORTRAIT_LABELS[k] ?? `Состояние «${k}»`}
+                label={emLabelOf(store, k)}
                 value={npc.portrait?.[k] ?? ''}
                 dir="assets/img/npc"
                 store={store}
@@ -337,14 +336,14 @@ function NpcForm({
               {k !== 'neutral' && (
                 <button
                   className="btn btn-small ce-del"
-                  title="Убрать состояние"
+                  data-tip="Убрать состояние"
                   style={{ position: 'absolute', top: 0, right: 0 }}
                   onClick={() => {
                     delete npc.portrait?.[k]
                     commit()
                   }}
                 >
-                  ✕
+                  <Ico n="close" /> 
                 </button>
               )}
             </div>
@@ -363,32 +362,39 @@ function NpcForm({
           />
         )}
         <div className="fld-row">
-          {Object.keys(PORTRAIT_LABELS)
-            .filter((k) => !portraitKeys.includes(k))
-            .map((k) => (
-              <button
-                key={k}
-                className="btn btn-small"
-                onClick={() => {
-                  npc.portrait = { ...(npc.portrait ?? {}), [k]: '' }
-                  commit()
-                }}
-              >
-                + {PORTRAIT_LABELS[k]}
-              </button>
-            ))}
-          <button
-            className="btn btn-small"
-            onClick={async () => {
-              const name = await askText('Название нового состояния', 'например «Задумчивость»')
-              if (!name) return
-              const key = slugify(name) || `state_${portraitKeys.length + 1}`
-              npc.portrait = { ...(npc.portrait ?? {}), [key]: '' }
+          <select
+            className="emotion-pick"
+            value=""
+            data-tip="Выбрать состояние из списка или создать новое — прямо здесь"
+            onChange={async (e) => {
+              const v = e.target.value
+              if (!v) return
+              if (v === '__new__') {
+                const name = await askText('Название нового состояния', 'например «Задумчивость»')
+                if (!name) return
+                const key = slugify(name) || `state_${portraitKeys.length + 1}`
+                // своё состояние попадает в общий реестр кампании
+                if (!store.meta.emotions?.some((x) => x.id === key)) {
+                  if (!store.meta.emotions) store.meta.emotions = []
+                  store.meta.emotions.push({ id: key, label: name })
+                  store.touch('campaign.json')
+                }
+                npc.portrait = { ...(npc.portrait ?? {}), [key]: '' }
+                commit()
+                return
+              }
+              npc.portrait = { ...(npc.portrait ?? {}), [v]: '' }
               commit()
             }}
           >
-            + своё состояние…
-          </button>
+            <option value="">+ состояние (выбрать из списка)…</option>
+            {emotionsOf(store)
+              .filter((x) => !portraitKeys.includes(x.id))
+              .map((x) => (
+                <option key={x.id} value={x.id}>{x.label}</option>
+              ))}
+            <option value="__new__">+ Создать новое состояние…</option>
+          </select>
         </div>
         <ImageUpload
           label="Изображение в бою (жетон на арене)"
@@ -415,7 +421,7 @@ function NpcForm({
           ))}
         </div>
         <div className="fld-row" style={{ marginTop: 8 }}>
-          <label className="fld" title="Шкура, панцирь, чешуя — снижает получаемый урон. Не путать с надетой бронёй: предмет-броня из снаряжения даёт свои очки поверх природной защиты.">
+          <label className="fld" data-tip="Шкура, панцирь, чешуя — снижает получаемый урон. Не путать с надетой бронёй: предмет-броня из снаряжения даёт свои очки поверх природной защиты.">
             <span>Природная защита (очки)</span>
             <input type="number" value={npc.armor ?? 0} onChange={(e) => {
               const v = Number(e.target.value)
@@ -458,7 +464,7 @@ function NpcForm({
               onChange={(e) => ((npc.skills[k] = Number(e.target.value)), commit())}
             />
             <span className="muted small">%</span>
-            <button className="btn btn-small ce-del" onClick={() => (delete npc.skills[k], commit())}>✕</button>
+            <button className="btn btn-small ce-del" onClick={() => (delete npc.skills[k], commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -542,7 +548,7 @@ function NpcForm({
                 commit()
               }}
             >
-              ✕
+              <Ico n="close" /> 
             </button>
           </div>
         ))}
@@ -588,7 +594,7 @@ function NpcForm({
                     <option key={o.id} value={o.id}>{o.label}</option>
                   ))}
                 </select>
-                <label className="fld fld-inline" title="Пусто — цена берётся из карточки предмета">
+                <label className="fld fld-inline" data-tip="Пусто — цена берётся из карточки предмета">
                   <span>цена</span>
                   <input
                     type="number"
@@ -601,7 +607,7 @@ function NpcForm({
                     }}
                   />
                 </label>
-                <label className="fld fld-inline" title="Пусто — запас не ограничен">
+                <label className="fld fld-inline" data-tip="Пусто — запас не ограничен">
                   <span>запас</span>
                   <input
                     type="number"
@@ -614,7 +620,7 @@ function NpcForm({
                     }}
                   />
                 </label>
-                <button className="btn btn-small ce-del" onClick={() => (npc.trader!.sells.splice(i, 1), commit())}>✕</button>
+                <button className="btn btn-small ce-del" onClick={() => (npc.trader!.sells.splice(i, 1), commit())}><Ico n="close" /> </button>
               </div>
             ))}
             <button
@@ -636,7 +642,7 @@ function NpcForm({
                 <span>Скупает вещи игрока</span>
               </label>
               {npc.trader.buys && (
-                <label className="fld fld-inline" title="Какую долю стоимости предмета торговец платит при скупке">
+                <label className="fld fld-inline" data-tip="Какую долю стоимости предмета торговец платит при скупке">
                   <span>доля закупки, %</span>
                   <input
                     type="number"
@@ -714,7 +720,7 @@ function NpcForm({
                   </option>
                 ))}
               </select>
-              <button className="btn btn-small ce-del" onClick={() => (npc.schedule!.splice(i, 1), commit())}>✕</button>
+              <button className="btn btn-small ce-del" onClick={() => (npc.schedule!.splice(i, 1), commit())}><Ico n="close" /> </button>
             </div>
           )
         })}
@@ -797,7 +803,7 @@ function NpcForm({
                 npc.presence_overrides!.splice(i, 1)
                 if (npc.presence_overrides!.length === 0) delete npc.presence_overrides
                 commit()
-              }}>✕</button>
+              }}><Ico n="close" /> </button>
             </div>
           )
         })}
@@ -862,7 +868,7 @@ function NpcForm({
                 commit()
               }}
             >
-              ✕
+              <Ico n="close" /> 
             </button>
           </div>
         ))}
@@ -877,10 +883,16 @@ function NpcForm({
         </button>
       </div>
 
-      <AdvancedJson store={store} path={path} commit={commit} />
-      <div className="muted small">
-        Природное оружие (когти, укус) — в «Расширенном JSON».
+      <div className="props-group">
+        <SoundHookMapEditor
+          store={store}
+          value={npc.sounds ?? (npc.sounds = {})}
+          onChange={commit}
+          data-tip="Звуки действий персонажа"
+        />
       </div>
+
+      <FileAdvancedJson store={store} path={path} commit={commit} />
     </div>
   )
 }
@@ -890,7 +902,7 @@ function SlotTypeField({ e, store, commit }: { e: EntityDef; store: EditorStore;
   const types = slotTypesFor(store)
   const current = e.slot_type ?? defaultSlotType(e)
   return (
-    <label className="fld" title="По типу фильтруется, в какие слоты сцены можно ставить эту сущность">
+    <label className="fld" data-tip="По типу фильтруется, в какие слоты сцены можно ставить эту сущность">
       <span>Тип в слотах сцены</span>
       <select
         value={current}
@@ -931,7 +943,9 @@ function DamageInput({ label, value, onChange }: { label: string; value: string;
           ))}
         </select>
         <span className="muted">+</span>
-        <input type="number" value={mod} onChange={(e) => emit(count, die, Number(e.target.value) || 0)} title="Модификатор (может быть отрицательным)" />
+        <input type="number" value={mod} onChange={(e) => emit(count, die, Number(e.target.value) || 0)} data-tip="Модификатор (может быть отрицательным)" />
+        <span className="muted">=</span>
+        <span className="dmg-summary">{`${count}d${die}${mod > 0 ? `+${mod}` : mod < 0 ? String(mod) : ''}`}</span>
       </div>
     </label>
   )
