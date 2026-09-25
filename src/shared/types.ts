@@ -114,6 +114,8 @@ export interface ItemCategoryDef {
   is_weapon?: boolean
   /** предметы категории — броня (очки поглощения урона) */
   is_armor?: boolean
+  /** звуки взаимодействий категории предметов (хук → id звука) */
+  sounds?: SoundHookMap
 }
 
 export interface CampaignMeta {
@@ -138,11 +140,21 @@ export interface CampaignMeta {
   /** реестр категорий предметов: категория определяет, что предмет умеет */
   item_categories?: ItemCategoryDef[]
   /** реестр типов слотов сцены (что можно ставить в слот); по умолчанию — встроенные */
-  slot_types?: Array<{ id: string; label: string }>
+  slot_types?: Array<{ id: string; label: string; sounds?: SoundHookMap }>
   /** реестр флагов: русское название и назначение (редактор показывает названия, движку важен только id) */
   flags?: Array<{ id: string; label: string; description?: string }>
   currencies: CurrencyDef[]
   factions?: FactionDef[]
+  /** реестр музыкальных треков (итерация 8, блок H): файл/ссылка ИЛИ синтез MusicDoc */
+  music_tracks?: MusicTrackDef[]
+  /** реестр звуков: файл/ссылка ИЛИ синтез SoundDoc (массив — случайный вариант) */
+  sounds?: SoundDef[]
+  /** звуковая тема кампании: хук → id звука из реестра (пустой хук — тишина) */
+  ui_sounds?: Record<string, string>
+  /** трек(и) кампании по умолчанию, когда у локации/сцены своей музыки нет */
+  default_music?: string[]
+  /** трек(и) боя по умолчанию (если у арены нет своего arena.music) */
+  combat_music?: string[]
   /** максимальный груз в кг: STR + SIZ (по умолчанию) */
   max_load_formula?: 'str_plus_siz'
   max_companions?: number
@@ -180,7 +192,12 @@ export interface LocationDef {
   on_enter_rules?: string[]
   hidden?: boolean // скрыта, пока не открыта эффектом reveal_location
   ambient_audio?: string
-  music?: string
+  /**
+   * музыка локации: список записей «условия → треки» (побеждает первая
+   * истинная). Старый формат — строка (id трека или ссылка) — мигрируется
+   * в `[{ tracks: [s] }]` при загрузке.
+   */
+  music?: string | MusicRule[]
 }
 
 export interface RegionDef {
@@ -352,6 +369,8 @@ export interface SceneDef {
   states: SceneStateDef[]
   slots: SlotDef[]
   navigation: NavigationZone[]
+  /** переопределение музыки сцены (тот же формат, что у локации) */
+  music?: MusicRule[]
 }
 
 // ───────────────────────── сущности ─────────────────────────
@@ -426,6 +445,8 @@ export interface NpcDef {
   armor?: number
   /** природное оружие (когти, укус) — если нет equipment.weapon */
   natural_weapon?: WeaponData
+  /** звуки взаимодействий (хук → id звука реестра кампании) */
+  sounds?: SoundHookMap
 }
 
 export interface WeaponData {
@@ -463,6 +484,8 @@ export interface ItemDef {
   on_interact?: UseEffectDef
   /** использование из инвентаря */
   on_use?: UseEffectDef
+  /** звуки взаимодействий (хук → id звука реестра кампании) */
+  sounds?: SoundHookMap
 }
 
 export type EntityDef = NpcDef | ItemDef
@@ -498,10 +521,94 @@ export interface CutsceneSlide {
 export interface CutsceneDef {
   id: string
   label: string
-  /** музыка на всю катсцену: файл пакета или ссылка */
+  /** музыка на всю катсцену: id трека реестра, файл пакета или ссылка */
   music?: string
   slides: CutsceneSlide[]
 }
+
+// ─────────────────── аудио: музыка, звуки, синтез (итерация 8, блок H) ───────────────────
+
+/**
+ * Параметрический SFX в духе ZzFX/jsfxr: числа в порядке параметров zzfx
+ * (громкость, случайность, частота, атака/сустейн/декей, форма волны…).
+ * Рендерится Web Audio на лету (с кэшем буфера). Ретро-характер приемлем.
+ */
+export interface SoundDoc {
+  zzfx: number[]
+}
+
+/** настроение генеративного трека */
+export type MusicMood = 'тревожная' | 'спокойная' | 'боевая' | 'торжественная' | 'таинственная'
+/** лад генеративного трека */
+export type MusicScale = 'минор' | 'мажор' | 'дорийский' | 'фригийский' | 'пентатоника'
+/** слои аранжировки */
+export type MusicLayer = 'пад-аккорды' | 'арпеджио' | 'бас' | 'перкуссия'
+
+/**
+ * Высокоуровневый генеративный формат музыки (НЕ ноты вручную).
+ * Рантайм-генератор собирает бесшовный эмбиент-луп по гамме — «мимо»
+ * сыграть не может; детерминизм от `seed`.
+ */
+export interface MusicDoc {
+  mood: MusicMood
+  /** ударов в минуту (по умолчанию зависит от настроения) */
+  tempo?: number
+  /** тональность: "C", "D#", "Fis"… (по умолчанию — от настроения) */
+  key?: string
+  scale: MusicScale
+  layers: MusicLayer[]
+  /** аккордовая последовательность ступенями гаммы: ["i","VI","III","VII"] */
+  progression?: string[]
+  /** зерно случайности (одинаковый seed — одна и та же музыка) */
+  seed?: number
+}
+
+/** источник звука: файл/ссылка ИЛИ синтез из JSON; массив — случайный вариант */
+export type SoundSource = string | SoundDoc
+
+export interface SoundDef {
+  id: string
+  label: string
+  src: SoundSource | SoundSource[]
+}
+
+/** источник музыки: файл/ссылка ИЛИ генеративный MusicDoc */
+export type MusicSource = string | MusicDoc
+
+export interface MusicTrackDef {
+  id: string
+  label: string
+  src: MusicSource
+  /** громкость трека 0…1 (поверх настроек игрока) */
+  volume?: number
+  /** зацикливать (один трек) или играть как плейлист */
+  loop?: boolean
+}
+
+/** условие музыкальной записи (паттерн состояния; все условия — по «И») */
+export interface MusicCondition {
+  time_of_day?: TimeOfDay | TimeOfDay[]
+  flag?: string
+  not_flag?: string
+}
+
+/**
+ * Запись «условия → музыка» (у локации/сцены): `tracks` — ВСЕГДА список
+ * (один трек — луп, несколько — плейлист со сменой и кроссфейдом,
+ * `shuffle` — в случайном порядке без повтора подряд); побеждает первая
+ * истинная запись.
+ */
+export interface MusicRule {
+  tracks: string[]
+  shuffle?: boolean
+  conditions?: MusicCondition[]
+}
+
+/** хуки звуков взаимодействий (звук сущности/категории/типа слота) */
+export type SoundHook = 'pickup' | 'use' | 'open' | 'talk' | 'drop' | 'travel'
+
+/** карта «хук → id звука реестра» */
+export type SoundHookMap = Partial<Record<SoundHook, string>>
 
 // ───────────────────────── диалоги (.dlg.json, итерация 8) ─────────────────────────
 
@@ -627,6 +734,7 @@ export interface ArenaDef {
     enemy: { hexes: HexCoord[] }
   }
   ambient_audio?: string
+  /** id трека реестра music_tracks (если нет — трек боя кампании по умолчанию) */
   music?: string
 }
 

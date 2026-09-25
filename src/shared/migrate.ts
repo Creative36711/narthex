@@ -7,7 +7,7 @@
  * пакета движком (`core/loader.ts`) и редактором (`editor/store.ts`).
  */
 
-import type { CampaignMeta, LocationDef, NavigationZone, NeedCondition, SceneDef, WorldDef } from './types'
+import type { CampaignMeta, LocationDef, MusicRule, NavigationZone, NeedCondition, SceneDef, WorldDef } from './types'
 
 /**
  * А3: условия потребностей со множественными значениями.
@@ -45,6 +45,16 @@ export function migrateMeta(meta: CampaignMeta): CampaignMeta {
     if (need.restore_when) need.restore_when = migrateNeedConditions(need.restore_when)
   }
   return meta
+}
+
+/**
+ * Блок H: `location.music` старого формата (строка — id трека или ссылка)
+ * приводится к списку правил `[{ tracks: [s] }]`.
+ */
+export function migrateMusicRules(music: string | MusicRule[] | undefined): MusicRule[] | undefined {
+  if (music === undefined) return undefined
+  if (typeof music === 'string') return music ? [{ tracks: [music] }] : undefined
+  return music
 }
 
 /**
@@ -105,4 +115,9 @@ export function allLocations(world: WorldDef): LocationDef[] {
 export function migrateCampaign(meta: CampaignMeta, world: WorldDef, scenes: Record<string, SceneDef>): void {
   migrateMeta(meta)
   for (const scene of Object.values(scenes)) migrateNavigation(scene, world)
+  for (const loc of allLocations(world)) {
+    const rules = migrateMusicRules(loc.music)
+    if (rules === undefined) delete loc.music
+    else loc.music = rules
+  }
 }
