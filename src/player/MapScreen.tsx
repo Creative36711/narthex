@@ -86,7 +86,7 @@ export function MapScreen({ engine, onClose }: Props) {
 
   const zoomBy = (mul: number, cx?: number, cy?: number) => {
     setZoom((z) => {
-      const next = Math.max(0.5, Math.min(6, z * mul))
+      const next = Math.max(1, Math.min(2.5, z * mul))
       if (cx != null && cy != null) {
         // держим точку под курсором на месте
         const k = next / z
@@ -123,7 +123,7 @@ export function MapScreen({ engine, onClose }: Props) {
               }}
               data-tip="Вписать карту в экран"
             >
-              ⤢ Сброс
+              Сброс
             </button>
             <button className="btn btn-small" onClick={onClose}><Ico n="close" />  Закрыть</button>
           </div>
@@ -169,7 +169,7 @@ export function MapScreen({ engine, onClose }: Props) {
               return (
                 <button
                   key={l.id}
-                  className={`map-pin ${here ? 'here' : ''} ${reachable ? 'reachable' : ''}`}
+                  className={`map-pin ${here ? 'here' : ''} ${reachable ? 'reachable' : ''} ${l.position.y / size.h > 0.72 ? 'label-up' : ''}`}
                   style={{ left: `${(l.position.x / size.w) * 100}%`, top: `${(l.position.y / size.h) * 100}%` }}
                   onClick={() => reachable && setPending(l.id)}
                 >

@@ -103,11 +103,11 @@ export function CombatScreen({ engine }: Props) {
                 const attackable =
                   playerTurn && occ && occ.side === 'enemy' && combat.canAttack(combat.active, occ)
                 let cls = 'hex'
-                if (blocked) cls += 'hex-blocked'
-                else if (attackable) cls += 'hex-attack'
-                else if (inReach) cls += 'hex-reach'
-                else if (difficult) cls += 'hex-difficult'
-                if (hoverHex === k && (inReach || attackable)) cls += 'hex-hover'
+                if (blocked) cls += ' hex-blocked'
+                else if (attackable) cls += ' hex-attack'
+                else if (inReach) cls += ' hex-reach'
+                else if (difficult) cls += ' hex-difficult'
+                if (hoverHex === k && (inReach || attackable)) cls += ' hex-hover'
                 return (
                   <polygon
                     key={k}

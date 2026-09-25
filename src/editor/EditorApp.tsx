@@ -481,7 +481,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <span className={`editor-dirty ${store.dirty.size ? 'on' : ''}`}>
           {store.dirty.size ? `несохранено: ${store.dirty.size}` : 'все сохранено'}
         </span>
-        <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size}>
+        <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size} data-tip="Записать изменения кампании на диск">
           <Ico n="download" /> Сохранить
         </button>
         <button
@@ -508,7 +508,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         >
           <Ico n="sparkle" />  Кампания с ИИ
         </button>
-        <button className="btn btn-small" onClick={playtest}><Ico n="play" />  Плейтест</button>
+        <button className="btn btn-small" onClick={playtest} data-tip="Сохранить и открыть игру в новой вкладке"><Ico n="play" />  Плейтест</button>
         <button className="btn btn-small" onClick={doExport} data-tip="Скачать кампанию одним файлом .chronicle"><Ico n="download" />  Экспорт</button>
         <button
           className="btn btn-small"
@@ -517,7 +517,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         >
           <Ico n="download" />  JSON
         </button>
-        <button className="btn btn-small" onClick={() => fileInput.current?.click()}><Ico n="up" />  Импорт</button>
+        <button className="btn btn-small" onClick={() => fileInput.current?.click()} data-tip="Импортировать кампанию из файла .chronicle"><Ico n="up" />  Импорт</button>
         <button
           className="btn btn-small"
           onClick={doImportJson}
@@ -536,7 +536,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             e.target.value = ''
           }}
         />
-        <button className="btn btn-small" onClick={onExit}><Ico n="close" />  Выйти</button>
+        <button className="btn btn-small" onClick={onExit} data-tip="Выйти в главное меню игры"><Ico n="exit" />  Выйти</button>
       </header>
 
       <div className="editor-body">
@@ -544,7 +544,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           {MENUS.map((menu) => {
             const active = menu.items.some((it) => it.id === section)
             return (
-              <div className="editor-nav-menu" key={menu.id}>
+              <div className="editor-nav-menu" key={menu.id} onClick={(e) => e.stopPropagation()}>
                 <button
                   className={`editor-nav-btn ${active ? 'on' : ''}`}
                   onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}

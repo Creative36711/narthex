@@ -8,7 +8,7 @@ export type IcoName =
   | 'globe' | 'film' | 'book' | 'doc' | 'download' | 'plus' | 'check' | 'warn'
   | 'up' | 'down' | 'left' | 'right' | 'chevron' | 'chevronRight' | 'sparkle'
   | 'coin' | 'mic' | 'star' | 'heart' | 'flame' | 'ghost' | 'lock' | 'help'
-  | 'message' | 'move' | 'flag' | 'clock' | 'skull' | 'trophy' | 'info' | 'panel' | 'shield'
+  | 'message' | 'move' | 'flag' | 'clock' | 'skull' | 'trophy' | 'info' | 'panel' | 'shield' | 'exit'
 
 const P: Record<IcoName, string> = {
   // крестик
@@ -23,7 +23,8 @@ const P: Record<IcoName, string> = {
   // картинка
   image: 'M4 5h16v14H4zM4 15l5-5 4 4 3-3 4 4',
   // шестерёнка
-  settings: 'M12 9a3 3 0 100 6 3 3 0 000-6zM12 2.5l1.2 2.6 2.8-.6 1 2.7 2.7 1-.6 2.8 2.1 1.9-1.7 2.3 1.2 2.6-2.5 1.4.2 2.9-2.9.3-1.2 2.6-2.4-1.5-2.4 1.5-1.2-2.6-2.9-.3.2-2.9-2.5-1.4 1.2-2.6L2.7 12l2.1-1.9-.6-2.8 2.7-1 1-2.7 2.8.6L12 2.5z',
+  // шестерёнка (чистый контур)
+  settings: 'M10.3 4.3c.4-1.8 2.9-1.8 3.4 0a1.7 1.7 0 002.6 1.1c1.5-.9 3.3.8 2.4 2.4a1.7 1.7 0 001 2.6c1.8.4 1.8 2.9 0 3.3a1.7 1.7 0 00-1 2.6c.9 1.5-.8 3.3-2.4 2.4a1.7 1.7 0 00-2.6 1c-.4 1.8-2.9 1.8-3.4 0a1.7 1.7 0 00-2.6-1.1c-1.5.9-3.3-.8-2.4-2.4a1.7 1.7 0 00-1-2.6c-1.8-.4-1.8-2.9 0-3.3a1.7 1.7 0 001-2.6c-.9-1.5.8-3.3 2.4-2.4a1.7 1.7 0 002.6-1zM15 12a3 3 0 11-6 0 3 3 0 016 0z',
   // карта
   map: 'M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2V6zM9 4v14M15 6v14',
   // мечи
@@ -61,7 +62,9 @@ const P: Record<IcoName, string> = {
   flame: 'M12 3c3 4 6 5 6 9a6 6 0 01-12 0c0-2 1-3.5 2.5-5 .2 1.3 1 2 2 2 .5-2 .5-4 1.5-6z',
   ghost: 'M12 3a7 7 0 017 7v11l-2.5-2-2.5 2-2-2-2 2-2.5-2L5 21V10a7 7 0 017-7zM9 10h.01M15 10h.01',
   lock: 'M7 11V8a5 5 0 0110 0v3M5 11h14v9H5v-9zM12 15v2',
-  help: 'M12 3a9 9 0 100 18 9 9 0 000-18zM9.5 9.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1 2.5 2.3c0 1.7-2.5 1.7-2.5 3.7M12 17h.01',
+  help: 'M3.5 12a8.5 8.5 0 1017 0 8.5 8.5 0 10-17 0M9.6 9.5a2.5 2.5 0 014.9.7c0 1.7-2.5 2.3-2.5 4.3M12 17.5h.01',
+  // выход — дверь со стрелкой
+  exit: 'M13 4h6a1 1 0 011 1v14a1 1 0 01-1 1h-6M10 8l-4 4 4 4M6 12h9',
   message: 'M4 5h16v11H9l-5 4V5z',
   move: 'M12 3v18m0 0l-5-5m5 5l5-5M3 12h18m0 0l-5-5m5 5l-5 5',
   flag: 'M6 21V4h12l-3 4 3 4H6',
@@ -81,7 +84,7 @@ export function Ico({ n, className = '' }: { n: IcoName; className?: string }) {
       viewBox="0 0 24 24"
       fill={filled ? 'currentColor' : 'none'}
       stroke={filled ? 'none' : 'currentColor'}
-      strokeWidth={1.8}
+      strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"

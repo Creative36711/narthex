@@ -30,7 +30,7 @@ export function AiWizard({ onClose }: { onClose: () => void }) {
   const [must, setMust] = useState('')
   const [mustNot, setMustNot] = useState('')
   const [idea, setIdea] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [copyState, setCopyState] = useState<'ok' | 'fail' | null>(null)
 
   const buildPrompt = (): string => {
     const accList: string[] = []
@@ -68,13 +68,28 @@ export function AiWizard({ onClose }: { onClose: () => void }) {
   }
 
   const copy = async () => {
+    const text = buildPrompt()
+    let ok = false
     try {
-      await navigator.clipboard.writeText(buildPrompt())
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      await navigator.clipboard.writeText(text)
+      ok = true
     } catch {
-      setCopied(false)
+      // фолбэк без Clipboard API: скрытое поле + execCommand
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        ok = document.execCommand('copy')
+        ta.remove()
+      } catch {
+        ok = false
+      }
     }
+    setCopyState(ok ? 'ok' : 'fail')
+    setTimeout(() => setCopyState(null), 5000)
   }
 
   const toggle = (k: string) => setAccents((a) => ({ ...a, [k]: !a[k] }))
@@ -158,12 +173,17 @@ export function AiWizard({ onClose }: { onClose: () => void }) {
           <span>Опишите идею своими словами (главное поле — хоть три абзаца)</span>
           <textarea className="modal-textarea" rows={6} value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="О чём кампания, кто герой, чем всё кончается, чего боитесь переборщить…" />
         </label>
-      </div>
-      <div className="modal-buttons" style={{ position: 'fixed', bottom: 28, right: 28 }}>
-        <button className="btn" onClick={onClose}>Закрыть</button>
-        <button className="btn btn-primary" onClick={copy}>
-          {copied ? 'Скопировано!' : 'Скопировать промпт'}
-        </button>
+        <div className="modal-buttons" onClick={(e) => e.stopPropagation()}>
+          <span className={`copy-status ${copyState ?? ''}`}>
+            {copyState === 'ok'
+              ? 'Промпт скопирован в буфер обмена — вставьте его в чат с ИИ'
+              : copyState === 'fail'
+                ? 'Не удалось скопировать — выделите текст и скопируйте вручную'
+                : ''}
+          </span>
+          <button className="btn" onClick={onClose}>Закрыть</button>
+          <button className="btn btn-primary" onClick={copy}>Скопировать промпт</button>
+        </div>
       </div>
     </div>
   )

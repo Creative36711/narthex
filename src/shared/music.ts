@@ -120,6 +120,12 @@ function absolute(u: string): string {
 
 let currentCampaign: GameEngine['campaign'] | null = null
 
+/** привязать кампанию при загрузке (иначе меню без движка молчит) */
+export function setMusicCampaign(c: GameEngine['campaign'] | null): void {
+  currentCampaign = c
+  currentCampaignBase = c?.basePath ?? ''
+}
+
 // ─────────────── выбор «что должно звучать» ───────────────
 
 function condOk(cond: MusicCondition | undefined, engine: GameEngine | null): boolean {

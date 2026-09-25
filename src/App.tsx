@@ -7,6 +7,7 @@ import { GameView } from './player/GameView'
 import { HelpPanel } from './player/HelpPanel'
 import { fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
 import { setAudioCampaign, playUi, unlockAudio } from './shared/audio'
+import { setMusicCampaign, refreshMusic } from './shared/music'
 
 /** встроенная кампания-пример; выбор запоминается между сессиями */
 const DEFAULT_CAMPAIGN = 'ash-of-caerden'
@@ -38,6 +39,7 @@ export default function App() {
       .then((c) => {
         setCampaign(c)
         setAudioCampaign(c)
+        setMusicCampaign(c) // фоновая музыка меню звучит ещё до старта забега
       })
       .catch((e) => {
         // выбранная кампания могла исчезнуть — откат на встроенную
@@ -50,15 +52,22 @@ export default function App() {
 
   // аудио: разблокировка WebAudio по первому жесту + общий «клик» по кнопкам (блок H)
   useEffect(() => {
-    const unlock = () => unlockAudio()
+    const unlock = () => {
+      unlockAudio()
+      // первый жест разрешает автоплей — запускаем музыку, которая уже должна звучать
+      refreshMusic(engine)
+    }
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null
       if (t?.closest('button')) playUi('click', 0.55)
     }
     window.addEventListener('pointerdown', unlock, { once: true })
     window.addEventListener('click', onClick)
-    return () => window.removeEventListener('click', onClick)
-  }, [])
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('click', onClick)
+    }
+  }, [engine])
 
   useEffect(() => {
     if (!engine) return
