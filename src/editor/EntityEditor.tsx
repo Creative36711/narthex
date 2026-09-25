@@ -1,7 +1,7 @@
 import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
-import { BUILTIN_EMOTIONS } from '../shared/types'
+import { DEFAULT_EMOTION } from '../shared/types'
 import type { EditorStore } from './store'
 import { FlagSelect, ImageUpload, RefSelect, FileAdvancedJson } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
@@ -228,10 +228,11 @@ function ItemForm({
 
 /** состояния портрета — общий реестр кампании (фидбек 9.14) */
 function emotionsOf(store: EditorStore): EmotionDef[] {
-  return store.meta.emotions?.length ? store.meta.emotions : BUILTIN_EMOTIONS
+  return store.meta.emotions ?? []
 }
 
 function emLabelOf(store: EditorStore, id: string): string {
+  if (id === DEFAULT_EMOTION.id) return DEFAULT_EMOTION.label
   return emotionsOf(store).find((e) => e.id === id)?.label ?? `Состояние «${id}»`
 }
 
@@ -375,7 +376,7 @@ function NpcForm({
               const key = slugify(name) || `state_${portraitKeys.length + 1}`
               // своё состояние попадает в общий реестр кампании
               if (!store.meta.emotions?.some((e) => e.id === key)) {
-                if (!store.meta.emotions) store.meta.emotions = [...BUILTIN_EMOTIONS]
+                if (!store.meta.emotions) store.meta.emotions = []
                 store.meta.emotions.push({ id: key, label: name })
                 store.touch('campaign.json')
               }

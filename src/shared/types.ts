@@ -558,14 +558,12 @@ export interface EmotionDef {
   label: string
 }
 
-/** встроенные состояния — в реестре всегда, удалить нельзя */
-export const BUILTIN_EMOTIONS: EmotionDef[] = [
-  { id: 'neutral', label: 'Обычный' },
-  { id: 'happy', label: 'Радость' },
-  { id: 'angry', label: 'Гнев' },
-  { id: 'sad', label: 'Печаль' },
-  { id: 'fear', label: 'Страх' },
-]
+/**
+ * Дефолтное состояние портрета — существует всегда, в реестр не входит
+ * и в списке состояний не показывается. Картинка, загруженная персонажу,
+ * попадает именно сюда.
+ */
+export const DEFAULT_EMOTION: EmotionDef = { id: 'neutral', label: 'Обычный' }
 /** лад генеративного трека */
 export type MusicScale = 'минор' | 'мажор' | 'дорийский' | 'фригийский' | 'пентатоника'
 /** слои аранжировки */

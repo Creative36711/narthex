@@ -89,7 +89,7 @@ check('9 конец YouTube-ролика (ENDED)', /YoutubeSlide/.test(cutscene)
 // 11 — подсказка убрана
 check('11 подсказка убрана', !/podskazka|подсказка11/i.test(gameView))
 // 14C — реестр состояний портретов
-check('14C EmotionDef + BUILTIN_EMOTIONS', /interface EmotionDef/.test(types) && /BUILTIN_EMOTIONS/.test(types) && /emotionsOf/.test(ent) && /emotionsFor/.test(dialogue))
+check('14C EmotionDef + реестр состояний (DEFAULT_EMOTION)', /interface EmotionDef/.test(types) && /DEFAULT_EMOTION/.test(types) && /emotionsOf/.test(ent) && /emotionsFor/.test(dialogue))
 check('14C «Состояния портретов» в кампании', /Состояния портретов/.test(camp))
 // 14A+B — мастер ИИ
 check('14A AiWizard + промпт из гайда', existsSync(new URL('../src/editor/AiWizard.tsx', import.meta.url)) && /ai-campaign-guide\.md\?raw/.test(aiWiz) && /Скопировать промпт/.test(aiWiz))

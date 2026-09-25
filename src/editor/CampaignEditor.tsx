@@ -1,4 +1,4 @@
-import { BUILTIN_EMOTIONS } from '../shared/types'
+import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { EditorStore } from './store'
@@ -748,42 +748,35 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <div className="props-group">
         <h4>Состояния портретов (настроения)</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
-          Общий список состояний для портретов персонажей: сюда кладутся картинки
-          «Обычный/Радость/Гнев…» и свои (ехидство, задумчивость). Состояние из списка
-          предлагается в конструкторе диалогов у всех персонажей. Встроенные пять удалить нельзя.
+          Свой список состояний для портретов персонажей (ехидство, задумчивость…).
+          Все состояния из списка можно переименовывать и удалять. Дефолтное состояние
+          «{DEFAULT_EMOTION.label}» есть всегда — сюда попадает загруженная картинка, в список оно не входит.
+          Состояния из списка предлагаются в конструкторе диалогов у всех персонажей.
         </div>
-        {(m.emotions ?? []).map((em, i) => {
-          const builtin = BUILTIN_EMOTIONS.some((b) => b.id === em.id)
-          return (
-            <div key={em.id} className="fld-row need-row">
-              <label className="fld">
-                <span>Название</span>
-                <input
-                  value={em.label}
-                  disabled={builtin}
-                  onChange={(e) => ((em.label = e.target.value), commit())}
-                />
-              </label>
-              {builtin ? (
-                <span className="muted small" style={{ alignSelf: 'center' }}>встроенное</span>
-              ) : (
-                <button
-                  className="btn btn-small ce-del"
-                  data-tip="Удалить из реестра (картинки у персонажей останутся)"
-                  onClick={() => (m.emotions!.splice(i, 1), commit())}
-                >
-                  <Ico n="close" /> 
-                </button>
-              )}
-            </div>
-          )
-        })}
+        {(m.emotions ?? []).map((em, i) => (
+          <div key={em.id} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input
+                value={em.label}
+                onChange={(e) => ((em.label = e.target.value), commit())}
+              />
+            </label>
+            <button
+              className="btn btn-small ce-del"
+              data-tip="Удалить из реестра (картинки у персонажей останутся)"
+              onClick={() => (m.emotions!.splice(i, 1), commit())}
+            >
+              <Ico n="close" /> 
+            </button>
+          </div>
+        ))}
         <button
           className="btn btn-small"
           onClick={async () => {
             const label = await askText('Название нового состояния', 'например «Ехидство»')
             if (!label) return
-            if (!m.emotions) m.emotions = [...BUILTIN_EMOTIONS]
+            if (!m.emotions) m.emotions = []
             m.emotions.push({ id: makeId('', label, m.emotions.map((x) => x.id)), label })
             commit()
           }}

@@ -7,7 +7,6 @@
  * пакета движком (`core/loader.ts`) и редактором (`editor/store.ts`).
  */
 
-import { BUILTIN_EMOTIONS } from './types'
 import type { CampaignMeta, LocationDef, MusicRule, NavigationZone, NeedCondition, SceneDef, WorldDef } from './types'
 
 /**
@@ -45,9 +44,19 @@ export function migrateMeta(meta: CampaignMeta): CampaignMeta {
     if (need.decay_when) need.decay_when = migrateNeedConditions(need.decay_when)
     if (need.restore_when) need.restore_when = migrateNeedConditions(need.restore_when)
   }
-  // фидбек 9.14: реестр состояний портрета; встроенные пять — всегда в начале
-  const own = (meta.emotions ?? []).filter((e) => !BUILTIN_EMOTIONS.some((b) => b.id === e.id))
-  meta.emotions = [...BUILTIN_EMOTIONS, ...own]
+  // фидбек 11: встроенных состояний больше нет — вычищаем автоматом добавленные пять
+  // (не трогая состояния с тем же id, но переименованные пользователем).
+  // Дефолтное состояние «Обычный» живёт скрытно и в реестр не входит.
+  const legacyBuiltins = [
+    { id: 'neutral', label: 'Обычный' },
+    { id: 'happy', label: 'Радость' },
+    { id: 'angry', label: 'Гнев' },
+    { id: 'sad', label: 'Печаль' },
+    { id: 'fear', label: 'Страх' },
+  ]
+  meta.emotions = (meta.emotions ?? []).filter(
+    (e) => !legacyBuiltins.some((b) => b.id === e.id && b.label === e.label),
+  )
   return meta
 }
 

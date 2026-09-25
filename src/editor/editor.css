@@ -130,7 +130,7 @@
   padding: 3px 10px;
   font-size: 12px;
   color: var(--muted);
-  cursor: pointer;
+  
   user-select: none;
 }
 .chip input { display: none; }
@@ -145,7 +145,7 @@
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  cursor: pointer;
+  
 }
 .ce-head:hover { background: rgba(201, 164, 92, 0.06); }
 .ce-summary { flex: 1; font-size: 13px; }
@@ -198,7 +198,7 @@
   font-size: 14px;
 }
 .stage-card details { margin-top: 6px; }
-.stage-card summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.stage-card summary {  color: var(--muted); font-size: 13px; margin-bottom: 6px; }
 .transition-card {
   border: 1px dashed var(--border);
   border-radius: 5px;
@@ -258,7 +258,7 @@
   max-width: 260px;
 }
 .advanced-json { margin-top: 14px; border: 1px dashed var(--border); border-radius: 6px; padding: 8px 12px; }
-.advanced-json > summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.advanced-json > summary {  color: var(--muted); font-size: 13px; }
 .advanced-json textarea { width: 100%; box-sizing: border-box; }
 .stats-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .stat-fld { width: 64px; flex: 0 0 auto; }
@@ -266,7 +266,7 @@
 .need-row { align-items: flex-end; }
 .need-row .ce-del { margin-bottom: 8px; }
 .loc-details { border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; background: var(--panel-2); }
-.loc-details > summary { cursor: pointer; font-size: 13px; padding: 4px 0; }
+.loc-details > summary {  font-size: 13px; padding: 4px 0; }
 .loc-details[open] > summary { color: var(--gold-bright); margin-bottom: 8px; }
 
 /* ─────────── загрузка изображений ─────────── */
@@ -292,7 +292,7 @@
   text-align: center;
 }
 .img-upload-btns { display: flex; flex-direction: column; gap: 6px; }
-.img-upload-btns .btn { cursor: pointer; }
+.img-upload-btns .btn {  }
 
 /* ─────────── редактор мира с картой ─────────── */
 
@@ -322,10 +322,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  cursor: grab;
+  cursor: var(--cur-grab), grab;
   z-index: 2;
 }
-.map-marker:active { cursor: grabbing; }
+.map-marker:active { cursor: var(--cur-grabbing), grabbing; }
 .map-marker-dot { font-size: 22px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8)); }
 .map-marker-label {
   font-size: 11px;
@@ -380,7 +380,7 @@
   margin-bottom: 8px;
   background: var(--panel-2);
 }
-.dlg-choice > summary { cursor: pointer; font-size: 13.5px; color: var(--gold-bright); padding: 2px 0; }
+.dlg-choice > summary {  font-size: 13.5px; color: var(--gold-bright); padding: 2px 0; }
 .dlg-effect-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; flex-wrap: wrap; }
 .dlg-effect-row select, .dlg-effect-row input {
   background: var(--panel-2);
@@ -439,7 +439,7 @@
   color: var(--muted);
   padding: 5px 14px;
   font-size: 13px;
-  cursor: pointer;
+  
   font-family: inherit;
 }
 .chip:hover { border-color: var(--gold); color: var(--text); }
@@ -491,7 +491,7 @@
   border-left: 3px solid var(--red);
   padding-left: 10px;
 }
-.dlg-else > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+.dlg-else > summary {  color: var(--muted); font-size: 12.5px; }
 .dlg-goto-opt { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .dlg-goto-opt select { width: auto; }
 .dlg-check {
@@ -512,7 +512,7 @@
 .dlg-choice-tools { margin-top: 8px; }
 .fld-check.small { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; }
 
-.chip-static { opacity: 0.75; cursor: default; }
+.chip-static { opacity: 0.75;  }
 
 .need-conds {
   margin: 4px 0 10px;
@@ -521,7 +521,7 @@
   padding: 6px 10px;
   background: rgba(0, 0, 0, 0.12);
 }
-.need-conds > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
+.need-conds > summary {  color: var(--muted); font-size: 12.5px; }
 .need-conds .fld-block { margin-top: 8px; }
 
 /* ── итерация 8, блок B: токены значений в репликах ── */
@@ -702,27 +702,34 @@
 
 .chip-play {
   margin-left: 4px; padding: 0 4px; border: none; background: none;
-  color: var(--gold); cursor: pointer; font-size: 12px;
+  color: var(--gold);  font-size: 12px;
 }
 .chip-play:hover { color: var(--gold-bright); }
-.chip > button { border: none; background: none; color: inherit; cursor: pointer; font: inherit; padding: 0; }
+.chip > button { border: none; background: none; color: inherit;  font: inherit; padding: 0; }
 
 /* ── под-вкладки «Кампании» (фидбек 5) ── */
 
+/* вкладки форм: индикатор — ТОЛЬКО под выбранной вкладкой */
 .ce-tabs {
-  display: flex; gap: 6px; flex-wrap: wrap;
-  margin-bottom: 14px; padding-bottom: 10px;
+  display: flex; gap: 2px; flex-wrap: nowrap; overflow-x: auto;
+  margin-bottom: 14px; padding-bottom: 0;
   border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 5;
   background: var(--bg, #1c1a22);
+  scrollbar-width: thin;
 }
 .ce-tab {
-  border: 1px solid var(--border); border-radius: 999px;
-  background: var(--panel-2); color: var(--muted);
-  padding: 5px 14px; font-size: 13px; cursor: pointer;
+  border: none; border-radius: 0;
+  background: none; color: var(--muted);
+  padding: 8px 14px; font-size: 13px;
+  position: relative; white-space: nowrap; flex: none;
 }
-.ce-tab:hover { color: var(--text); border-color: var(--gold); }
-.ce-tab.on { background: var(--gold); border-color: var(--gold); color: #231c10; font-weight: 600; }
+.ce-tab:hover { color: var(--text); }
+.ce-tab.on { background: none; color: var(--gold-bright); font-weight: 600; }
+.ce-tab.on::after {
+  content: ''; position: absolute; left: 10px; right: 10px; bottom: -1px;
+  height: 2px; background: var(--gold); border-radius: 2px 2px 0 0;
+}
 
 /* ── выпадающие категории верхней навигации (фидбек 4) ── */
 
@@ -761,7 +768,7 @@
 .reg-picker-row { display: flex; align-items: center; gap: 4px; border-radius: 6px; }
 .reg-picker-item {
   flex: 1; text-align: left; border: none; background: none; color: var(--text);
-  padding: 6px 8px; border-radius: 6px; cursor: pointer; font: inherit; font-size: 13px;
+  padding: 6px 8px; border-radius: 6px;  font: inherit; font-size: 13px;
 }
 .reg-picker-item:hover { background: var(--panel-2); color: var(--gold-bright); }
 .reg-picker-row.on .reg-picker-item { color: var(--gold); font-weight: 600; }

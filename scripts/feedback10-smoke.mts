@@ -25,13 +25,13 @@ must(css.includes('.wizard-field-head') && css.includes(', pointer;'),
   '1 кликабельные заголовки мастера (.wizard-field-head) получают руку-pointer')
 must(!/input, textarea,\s*\[contenteditable/.test(css),
   '1 I-beam больше не цепляется глобально за input/textarea')
-must(css.includes("input[type='checkbox']") && css.includes('14 2, pointer'),
+must(css.includes("input[type='checkbox']") && css.includes('var(--cur-pointer)'),
   '1 чекбоксы/радио/файлы — рука-pointer, не I-beam (нет «двух полосок»)')
 must(css.includes("input[type='range']") && css.includes('ew-resize'),
   '1 ползунки — горизонтальный курсор')
 
 // 2 — тултипы
-must(css.includes('top: calc(100% + 8px)') && css.includes('[data-tip]:hover::after'),
+must(css.includes('top: calc(100% + 8px)') && css.includes(':hover::after'),
   '2 тултипы показываются НИЖЕ элемента — подсказки шапки не уходят за экран')
 must(css.includes('white-space: normal') && css.includes('max-width: 260px'),
   '2 тултипы с переносом строк, max-width 260 — нет нижнего скроллбара')

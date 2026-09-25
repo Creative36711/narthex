@@ -1,4 +1,4 @@
-import { BUILTIN_EMOTIONS } from '../shared/types'
+import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
 import { useRef, useState } from 'react'
 import type { EditorStore } from './store'
@@ -31,8 +31,11 @@ import {
 
 /** настроения для диалога: общий реестр кампании (фидбек 9.14) + ключи портретов NPC */
 function emotionsFor(store: EditorStore, inkPath: string): Array<{ id: DlgEmotion; label: string }> {
-  const reg = store.meta.emotions?.length ? store.meta.emotions : BUILTIN_EMOTIONS
-  const out: Array<{ id: DlgEmotion; label: string }> = reg.map((e) => ({ id: e.id, label: e.label }))
+  const reg = store.meta.emotions ?? []
+  const out: Array<{ id: DlgEmotion; label: string }> = [
+    { id: DEFAULT_EMOTION.id, label: DEFAULT_EMOTION.label },
+    ...reg.filter((e) => e.id !== DEFAULT_EMOTION.id).map((e) => ({ id: e.id, label: e.label })),
+  ]
   for (const p of store.entityPaths()) {
     const e = store.entity(p)
     if (e?.type !== 'npc' || e.dialogue !== inkPath) continue
@@ -695,7 +698,7 @@ function LineRow({
   store,
   onRemove,
   commit,
-  emotions = BUILTIN_EMOTIONS.map((e) => ({ id: e.id, label: e.label })),
+  emotions = [{ id: DEFAULT_EMOTION.id, label: DEFAULT_EMOTION.label }],
 }: {
   line: DlgLine
   store: EditorStore
