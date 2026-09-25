@@ -43,6 +43,8 @@ function extFromUrl(url: string): string {
   return (m?.[1] ?? '').toLowerCase()
 }
 
+import { youtubeId } from '../shared/CutscenePlayer'
+
 /**
  * Проверка доступности ссылки:
  *  • `ok`    — файл грузится тегом <img>/<audio> (встраивание разрешено);
@@ -53,6 +55,16 @@ export function checkExternalUrl(url: string, kind: AssetKind = 'any'): Promise<
   return new Promise((resolve) => {
     if (!isExternalUrl(url)) {
       resolve({ ok: false, cors: false, message: 'Это не внешняя ссылка' })
+      return
+    }
+    // YouTube — особый случай: как <video> его не проверить (это страница),
+    // но в катсцену он встраивается плеером. Проверяем распознавание ссылки.
+    if (kind === 'video' && youtubeId(url)) {
+      resolve({
+        ok: true,
+        cors: false,
+        message: 'YouTube-ссылка распознана — ролик встроится в катсцену; вшить в пакет его нельзя.',
+      })
       return
     }
     let settled = false

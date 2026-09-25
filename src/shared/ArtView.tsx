@@ -119,7 +119,7 @@ export function artToSvg(art: ArtDoc | null | undefined, uid = 'art'): string {
     const markup = shapeMarkup(layer.shape as unknown as Record<string, unknown>, `${uid}_${i}`)
     const withOpacity =
       layer.opacity != null && layer.opacity !== 1 ? `<g opacity="${layer.opacity}">${markup}</g>` : markup
-    body += layer.label ? `<title>${escapeXml(layer.label)}</title>${withOpacity}` : withOpacity
+    body += withOpacity
   })
   // объявления градиентов поднимаем в <defs>
   const gradientDefs = (body.match(/<linearGradient[\s\S]*?<\/linearGradient>/g) ?? []).join('')

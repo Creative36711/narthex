@@ -1134,16 +1134,11 @@ input[type='range'] {
   cursor: var(--cur-grabbing);
 }
 
-/* ── кастомные тултипы: ниже элемента, с переносом строк, без двоения ── */
-[data-tip] {
-  position: relative;
-}
-[data-tip]:not([data-tip='']):hover::after {
-  content: attr(data-tip);
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+/* ── адаптивные тултипы: одна плашка .ui-tooltip (shared/tooltip.ts) ── */
+.ui-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 280px;
   background: #17141d;
   color: var(--text);
   border: 1px solid var(--gold);
@@ -1151,18 +1146,9 @@ input[type='range'] {
   border-radius: 6px;
   font-size: 12px;
   line-height: 1.4;
-  text-align: center;
   white-space: normal;
-  width: max-content;
-  max-width: 260px;
-  z-index: 1000;
   pointer-events: none;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
-}
-/* вложенные подсказки: показываем только самую вложенную — без «двойного описания» */
-[data-tip]:has([data-tip]:hover)::after {
-  content: none;
-  display: none;
 }
 
 /* иконки кнопок: размер от шрифта (без него svg раздувается) */
@@ -1291,4 +1277,42 @@ input::placeholder, textarea::placeholder {
   font-size: 12.5px;
   color: var(--muted);
   margin-bottom: 12px;
+}
+
+/* поле урона оружия — ряд «N × dN + мод» */
+.dmg-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dmg-row select {
+  min-width: 52px;
+}
+.dmg-row input[type='number'] {
+  width: 72px;
+}
+
+/* JSON на весь экран во вкладках форм */
+.advanced-json-page textarea {
+  min-height: 62vh;
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace;
+  font-size: 12.5px;
+}
+
+/* итог этапа квеста: успех — зелёный, провал — красный */
+select.sel-outcome {
+  font-weight: 600;
+}
+select.sel-outcome.success {
+  color: #8fb573;
+  border-color: rgba(143, 181, 115, 0.55);
+}
+select.sel-outcome.failure {
+  color: #d9705f;
+  border-color: rgba(217, 112, 95, 0.55);
+}
+
+/* выбор состояния портрета */
+select.emotion-pick {
+  max-width: 280px;
 }

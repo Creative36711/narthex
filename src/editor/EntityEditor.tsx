@@ -354,38 +354,39 @@ function NpcForm({
           />
         )}
         <div className="fld-row">
-          {emotionsOf(store)
-            .filter((e) => !portraitKeys.includes(e.id))
-            .map((e) => (
-              <button
-                key={e.id}
-                className="btn btn-small"
-                onClick={() => {
-                  npc.portrait = { ...(npc.portrait ?? {}), [e.id]: '' }
-                  commit()
-                }}
-              >
-                + {e.label}
-              </button>
-            ))}
-          <button
-            className="btn btn-small"
-            onClick={async () => {
-              const name = await askText('Название нового состояния', 'например «Задумчивость»')
-              if (!name) return
-              const key = slugify(name) || `state_${portraitKeys.length + 1}`
-              // своё состояние попадает в общий реестр кампании
-              if (!store.meta.emotions?.some((e) => e.id === key)) {
-                if (!store.meta.emotions) store.meta.emotions = []
-                store.meta.emotions.push({ id: key, label: name })
-                store.touch('campaign.json')
+          <select
+            className="emotion-pick"
+            value=""
+            data-tip="Выбрать состояние из списка или создать новое — прямо здесь"
+            onChange={async (e) => {
+              const v = e.target.value
+              if (!v) return
+              if (v === '__new__') {
+                const name = await askText('Название нового состояния', 'например «Задумчивость»')
+                if (!name) return
+                const key = slugify(name) || `state_${portraitKeys.length + 1}`
+                // своё состояние попадает в общий реестр кампании
+                if (!store.meta.emotions?.some((x) => x.id === key)) {
+                  if (!store.meta.emotions) store.meta.emotions = []
+                  store.meta.emotions.push({ id: key, label: name })
+                  store.touch('campaign.json')
+                }
+                npc.portrait = { ...(npc.portrait ?? {}), [key]: '' }
+                commit()
+                return
               }
-              npc.portrait = { ...(npc.portrait ?? {}), [key]: '' }
+              npc.portrait = { ...(npc.portrait ?? {}), [v]: '' }
               commit()
             }}
           >
-            + своё состояние…
-          </button>
+            <option value="">+ состояние (выбрать из списка)…</option>
+            {emotionsOf(store)
+              .filter((x) => !portraitKeys.includes(x.id))
+              .map((x) => (
+                <option key={x.id} value={x.id}>{x.label}</option>
+              ))}
+            <option value="__new__">+ Создать новое состояние…</option>
+          </select>
         </div>
         <ImageUpload
           label="Изображение в бою (жетон на арене)"

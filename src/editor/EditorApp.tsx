@@ -79,7 +79,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [aiWizard, setAiWizard] = useState(false)
   const [q, setQ] = useState('')
-  const [equipF, setEquipF] = useState<'all' | 'equipped' | 'unequipped'>('all')
+  const [kindF, setKindF] = useState<'all' | 'npc' | 'item'>('all')
   const [selected, setSelected] = useState<string | null>(null)
   const [, force] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
@@ -432,11 +432,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   // живой поиск по названию + фильтр «надевается» (п.1 фидбека 9)
   const items = itemsAll.filter((it) => {
     if (q.trim() && !it.title.toLowerCase().includes(q.trim().toLowerCase())) return false
-    if (section === 'entities' && equipF !== 'all') {
-      const e = store.entity(it.path)
-      if (e?.type !== 'item') return true
-      const wears = Boolean((e as { slot?: string }).slot)
-      return equipF === 'equipped' ? wears : !wears
+    if (section === 'entities' && kindF !== 'all') {
+      const t = (it as { type?: string }).type
+      return kindF === 'npc' ? t === 'npc' : t === 'item'
     }
     return true
   })
@@ -585,13 +583,13 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             />
             {section === 'entities' && (
               <div className="chips editor-list-chips">
-                {([['all', 'Все'], ['equipped', 'Надевается'], ['unequipped', 'Без слота']] as const).map(([k, lbl]) => (
+                {([['all', 'Все'], ['npc', 'Персонажи'], ['item', 'Предметы']] as const).map(([k, lbl]) => (
                   <button
                     key={k}
                     type="button"
-                    className={`chip ${equipF === k ? 'chip-on' : ''}`}
-                    data-tip={k === 'equipped' ? 'Предметы со слотом снаряжения (надеваются)' : k === 'unequipped' ? 'Расходники и прочее без слота' : 'Все сущности'}
-                    onClick={() => setEquipF(k)}
+                    className={`chip ${kindF === k ? 'chip-on' : ''}`}
+                    data-tip={k === 'npc' ? 'Только персонажи (NPC)' : k === 'item' ? 'Только предметы' : 'Все сущности подряд'}
+                    onClick={() => setKindF(k)}
                   >
                     {lbl}
                   </button>

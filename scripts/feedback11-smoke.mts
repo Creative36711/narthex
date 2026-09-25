@@ -31,8 +31,8 @@ must(ecss.includes('var(--cur-grab)') && css.includes('--cur-grabbing'),
   '2 grab/grabbing в редакторе тоже кастомные')
 
 // 3 — тултипы: одно описание, без пустых
-must(css.includes(":not([data-tip=''])") && css.includes('[data-tip]:has([data-tip]:hover)::after'),
-  '3 вложенные тултипы не двоятся (только самый вложенный), пустые не показываются')
+must(css.includes('.ui-tooltip') && f('src/shared/tooltip.ts').includes("closest?.('[data-tip]')"),
+  '3 одна общая плашка тултипа — без двоения и обрезки')
 
 // 4 — favicon
 must(existsSync(join(root, 'public/favicon.svg')) && html.includes('/favicon.svg'),

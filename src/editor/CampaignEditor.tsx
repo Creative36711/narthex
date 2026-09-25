@@ -295,7 +295,6 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
     store.touch('campaign.json')
     force((n) => n + 1)
   }
-  const [gen, setGen] = useState(0)
   type CeTab = 'main' | 'people' | 'items' | 'flags' | 'audio' | 'json'
   const [tab, setTab] = useState<CeTab>('main')
 
@@ -796,25 +795,23 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </>
       )}
       {tab === 'json' && (
-        <>
-      <details className="advanced-json" onToggle={(e) => (e.target as HTMLDetailsElement).open && setGen((n) => n + 1)}>
-        <summary>Расширенный JSON (валюты, мета-прогресс, отношения фракций)</summary>
-        <JsonField
-          key={gen}
-          label=""
-          rows={16}
-          pretty
-          value={m}
-          onChange={(v) => {
-            if (v !== undefined) {
-              Object.assign(store, { meta: v })
-              commit()
-            }
-          }}
-        />
-      </details>
-    
-        </>
+        <div className="advanced-json-page">
+          <div className="muted small" style={{ marginBottom: 6 }}>
+            Валюты, мета-прогресс, отношения фракций — весь campaign.json без сворачивания
+          </div>
+          <JsonField
+            label=""
+            rows={26}
+            pretty
+            value={m}
+            onChange={(v) => {
+              if (v !== undefined) {
+                Object.assign(store, { meta: v })
+                commit()
+              }
+            }}
+          />
+        </div>
       )}
     </div>
   )

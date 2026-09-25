@@ -32,6 +32,7 @@ export function WorldEditor({ store }: { store: EditorStore }) {
   const all = flatRegions(store.world.regions)
   const [selId, setSelId] = useState<string>(all[0]?.region.id ?? '')
   const active = all.find((r) => r.region.id === selId)?.region ?? all[0]?.region
+  const [wtab, setWtab] = useState<'map' | 'json'>('map')
 
   const addRegion = async (parent?: RegionDef) => {
     const label = await askText(parent ? `Вложенный регион внутри «${parent.label}»` : 'Название нового региона')
@@ -97,14 +98,30 @@ export function WorldEditor({ store }: { store: EditorStore }) {
       </aside>
 
       <div className="world-main">
-        {active ? (
-          <RegionPanel key={active.id} region={active} store={store} commit={commit} onRemove={() => removeRegion(active)} />
+        <div className="ce-tabs">
+          <button type="button" className={`ce-tab ${wtab === 'map' ? 'on' : ''}`} onClick={() => setWtab('map')}>
+            Мир
+          </button>
+          <button type="button" className={`ce-tab ${wtab === 'json' ? 'on' : ''}`} onClick={() => setWtab('json')}>
+            JSON
+          </button>
+        </div>
+        {wtab === 'map' ? (
+          active ? (
+            <RegionPanel key={active.id} region={active} store={store} commit={commit} onRemove={() => removeRegion(active)} />
+          ) : (
+            <div className="screen-center muted">Создайте первый регион.</div>
+          )
         ) : (
-          <div className="screen-center muted">Создайте первый регион.</div>
+          <FileAdvancedJson
+            inline
+            store={store}
+            path="world.json"
+            commit={() => store.touch('world.json')}
+            label="Мир целиком: все регионы и локации"
+          />
         )}
       </div>
-    
-      <FileAdvancedJson store={store} path="world.json" commit={() => store.touch("world.json")} label="Расширенный JSON мира (все регионы и локации)" />
 </div>
   )
 }

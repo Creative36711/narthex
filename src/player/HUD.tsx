@@ -59,7 +59,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
             if (await askConfirm('Выйти в главное меню?', 'Выйти')) onExitToMenu()
           }}
         >
-          ⏻
+          <Ico n="exit" />
         </button>
       </div>
       <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />

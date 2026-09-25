@@ -31,10 +31,10 @@ must(css.includes("input[type='range']") && css.includes('ew-resize'),
   '1 ползунки — горизонтальный курсор')
 
 // 2 — тултипы
-must(css.includes('top: calc(100% + 8px)') && css.includes(':hover::after'),
-  '2 тултипы показываются НИЖЕ элемента — подсказки шапки не уходят за экран')
-must(css.includes('white-space: normal') && css.includes('max-width: 260px'),
-  '2 тултипы с переносом строк, max-width 260 — нет нижнего скроллбара')
+must(css.includes('.ui-tooltip') && f('src/shared/tooltip.ts').includes('window.innerWidth - b.width'),
+  '2 тултипы адаптивные (fixed + клампы) — подсказки шапки не уходят за экран')
+must(css.includes('white-space: normal') && css.includes('max-width: 280px'),
+  '2 тултипы с переносом строк, max-width 280 — нет нижнего скроллбара')
 must(mapScreen.includes("label-up") && css.includes('.map-pin.label-up .pin-label'),
   '2 метки карты у нижнего края переворачиваются вверх (label-up)')
 

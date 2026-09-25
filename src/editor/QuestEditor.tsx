@@ -117,6 +117,7 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
               </label>
               {stage.final && (
                 <select
+                  className={`sel-outcome ${stage.outcome ?? 'success'}`}
                   value={stage.outcome ?? 'success'}
                   onChange={(e) => ((stage.outcome = e.target.value as 'success' | 'failure'), commit())}
                 >

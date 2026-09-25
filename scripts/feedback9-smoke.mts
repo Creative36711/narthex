@@ -35,7 +35,7 @@ const dialogue = read('src/editor/DialogueBuilder.tsx')
 // 1 — фильтр «надето»
 const panels = read('src/player/Panels.tsx')
 const appFile = app
-check('1 фильтр надетого (инвентарь + редактор)', /EQUIP_FILTERS\s*=\s*\[\s*'all',\s*'equipped',\s*'unequipped'\s*\]/.test(panels) && /Надето/.test(panels) && /Надевается/.test(appFile))
+check('1 фильтры: инвентарь по надетому, список сущностей по типу', /EQUIP_FILTERS\s*=\s*\[\s*'all',\s*'equipped',\s*'unequipped'\s*\]/.test(panels) && /Надето/.test(panels) && /kindF/.test(appFile) && /'item', 'Предметы'/.test(appFile))
 // 2 — голоса напарника
 check('2 голос озвучки: селект + проверка', /ttsVoices/.test(speech) && /tts_voice/.test(settingsPanel) && /Проверка голоса/.test(settingsPanel))
 // 3 — кастомные иконки/курсоры, без эмодзи и нативных title

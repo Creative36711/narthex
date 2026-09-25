@@ -921,29 +921,36 @@ export function EffectListEditor({
  * как текста (все поля, включая редкие, которых нет в формах). Хранится в
  * jsonFiles стора и пишется на диск вместе с формой.
  */
-export function FileAdvancedJson({ store, path, commit, label = 'Расширенный JSON (все поля)' }: {
+export function FileAdvancedJson({ store, path, commit, label = 'Расширенный JSON (все поля)', inline = false }: {
   store: EditorStore
   path: string
   commit: () => void
   label?: string
+  /** true — показывать сразу на весь экран (для вкладок JSON), без сворачивания */
+  inline?: boolean
 }) {
   const [gen, setGen] = useState(0)
+  const apply = (v: unknown) => {
+    const text = v as string | undefined
+    if (text !== undefined) {
+      store.jsonFiles.set(path, text)
+      commit()
+    }
+  }
+  if (inline) {
+    return (
+      <div className="advanced-json-page">
+        {label && (
+          <div className="muted small" style={{ marginBottom: 6 }}>{label}</div>
+        )}
+        <JsonField label="" rows={26} pretty value={store.jsonFiles.get(path)} onChange={apply} />
+      </div>
+    )
+  }
   return (
     <details className="advanced-json" onToggle={(e) => (e.target as HTMLDetailsElement).open && setGen((n) => n + 1)}>
       <summary>{label}</summary>
-      <JsonField
-        key={gen}
-        label=""
-        rows={14}
-        pretty
-        value={store.jsonFiles.get(path)}
-        onChange={(v) => {
-          if (v !== undefined) {
-            store.jsonFiles.set(path, v)
-            commit()
-          }
-        }}
-      />
+      <JsonField key={gen} label="" rows={14} pretty value={store.jsonFiles.get(path)} onChange={apply} />
     </details>
   )
 }

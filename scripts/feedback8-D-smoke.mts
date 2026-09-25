@@ -45,7 +45,7 @@ const art: ArtDoc = {
   check('D svg: линия', svg.includes('<line x1="100" y1="700" x2="640" y2="460" stroke="#b89a6a" stroke-width="6"'))
   check('D svg: поворот вокруг центра', svg.includes('rotate(15 640 600)'))
   check('D svg: текст экранирован', svg.includes('Долина &lt;Каэрден&gt; &amp; «тракт»') && svg.includes('text-anchor="middle"'))
-  check('D svg: подписи слоёв → <title>', svg.includes('<title>горы</title>'))
+  check('D svg: слои без нативных <title> (фидбек 12: без подсказок при наведении)', !svg.includes('<title>'))
   check('D data-URL для Konva/превью', artToDataUrl(art).startsWith('data:image/svg+xml'))
   check('D пустой ArtDoc не падает', artToSvg({ layers: [] }).includes('<svg') && artToSvg(null) === '')
   check(
