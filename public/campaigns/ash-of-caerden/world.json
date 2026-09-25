@@ -162,6 +162,10 @@
                 "track_forest"
               ]
             }
+          ],
+          "ambient": [
+            "snd_leaves",
+            "snd_birds"
           ]
         },
         {
@@ -245,6 +249,9 @@
                 "track_mine"
               ]
             }
+          ],
+          "ambient": [
+            "snd_leaves"
           ]
         }
       ],

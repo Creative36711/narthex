@@ -191,7 +191,9 @@ export interface LocationDef {
   arena?: string
   on_enter_rules?: string[]
   hidden?: boolean // скрыта, пока не открыта эффектом reveal_location
-  ambient_audio?: string
+  ambient_audio?: string // легаси: один звук фона
+  /** фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6 */
+  ambient?: string[]
   /**
    * музыка локации: список записей «условия → треки» (побеждает первая
    * истинная). Старый формат — строка (id трека или ссылка) — мигрируется
@@ -371,6 +373,8 @@ export interface SceneDef {
   navigation: NavigationZone[]
   /** переопределение музыки сцены (тот же формат, что у локации) */
   music?: MusicRule[]
+  /** фоновые зацикленные звуки сцены (слагаются с фоном локации) */
+  ambient?: string[]
 }
 
 // ───────────────────────── сущности ─────────────────────────
@@ -570,6 +574,8 @@ export interface SoundDef {
   id: string
   label: string
   src: SoundSource | SoundSource[]
+  /** зацикленный фон (птицы, гул): играет слоем, пока не остановят (фидбек 9.6) */
+  loop?: boolean
 }
 
 /** источник музыки: файл/ссылка ИЛИ генеративный MusicDoc */

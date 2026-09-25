@@ -487,6 +487,49 @@ export function MusicTrackMultiSelect({
   )
 }
 
+export function SoundMultiSelect({
+  store,
+  value,
+  onChange,
+}: {
+  store: EditorStore
+  value: string[]
+  onChange: (ids: string[]) => void
+}) {
+  const sounds = sorted(store.meta.sounds)
+  return (
+    <div className="chips">
+      {sounds.map((s) => {
+        const on = value.includes(s.id)
+        return (
+          <span key={s.id} className={`chip ${on ? 'chip-on' : ''}`} data-tip={s.loop ? 'зацикленный фон' : 'обычный звук'}>
+            <button
+              type="button"
+              data-tip={on ? 'Убрать из фона' : 'Добавить в фон (играет слоем)'}
+              onClick={() => (on ? onChange(value.filter((x) => x !== s.id)) : onChange([...value, s.id]))}
+            >
+              {s.label}
+            </button>
+            <button
+              type="button"
+              className="chip-play"
+              data-tip="Прослушать"
+              onClick={() => {
+                const srcs = Array.isArray(s.src) ? s.src : [s.src]
+                const src = srcs[Math.floor(Math.random() * srcs.length)]
+                if (src) playSource(src)
+              }}
+            >
+              ▶
+            </button>
+          </span>
+        )
+      })}
+      {!sounds.length && <span className="muted small">Сначала добавьте звуки в разделе «Звук и музыка».</span>}
+    </div>
+  )
+}
+
 // ─────────────── карта звуков взаимодействий ───────────────
 
 export function SoundHookMapEditor({
@@ -840,10 +883,24 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
             </div>
             {openSound === s.id && (
               <div style={{ padding: '4px 0 10px' }}>
-                <label className="fld">
-                  <span>Название</span>
-                  <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
-                </label>
+                <div className="fld-row">
+                  <label className="fld">
+                    <span>Название</span>
+                    <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
+                  </label>
+                  <label className="fld-check" data-tip="Фоновый слой: играет непрерывно, пока не остановят (например, поют птицы)">
+                    <input
+                      type="checkbox"
+                      checked={!!s.loop}
+                      onChange={(e) => {
+                        if (e.target.checked) s.loop = true
+                        else delete s.loop
+                        commit()
+                      }}
+                    />
+                    <span>зациклить (фон)</span>
+                  </label>
+                </div>
                 {srcs(s).map((src, vi) => (
                   <div key={vi} className="src-variant">
                     <div className="fld-row" style={{ alignItems: 'center' }}>

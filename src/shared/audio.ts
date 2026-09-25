@@ -118,3 +118,104 @@ export function playInteraction(
     if (id) return playSoundId(id, volume)
   }
 }
+
+// ─────────────── зацикленные фоны и наложение (фидбек 9.6) ───────────────
+/**
+ * Фоновые звуки («поют птицы») — отдельные каналы по id: один и тот же звук
+ * не наслаивается сам на себя, РАЗНЫЕ звуки играют одновременно слоями,
+ * а короткие звуки действий (playSoundId) звучат поверх.
+ */
+interface LoopChannel {
+  stop(): void
+}
+const loops = new Map<string, LoopChannel>()
+
+/** запустить зацикленный слой (id звука с loop-источником); повторный вызов — no-op */
+export function playLoop(id: string, volume = 1): void {
+  if (!campaign || !id || loops.has(id)) return
+  const def = soundDef(id)
+  if (!def) return
+  const src = pickSource(def.src)
+  const vol = sfxVolume(getSettings()) * volume
+  if (vol <= 0) return
+  unlockAudio()
+  if (isSoundDoc(src)) {
+    const c = audioCtx()
+    if (!c) return
+    if (c.state === 'suspended') void c.resume()
+    const buf = renderSoundDoc(c, src)
+    const node = c.createBufferSource()
+    node.buffer = buf
+    node.loop = true
+    const g = c.createGain()
+    g.gain.value = vol
+    node.connect(g)
+    g.connect(c.destination)
+    node.start()
+    loops.set(id, {
+      stop: () => {
+        try {
+          node.stop()
+        } catch {
+          /* уже остановлен */
+        }
+        try {
+          g.disconnect()
+        } catch {
+          /* нет */
+        }
+      },
+    })
+    return
+  }
+  if (typeof Audio === 'undefined') return
+  const url = campaign && !/^https?:|^data:|^blob:/i.test(src) ? `${campaign.basePath}/${src}` : src
+  const a = new Audio(url)
+  a.loop = true
+  a.volume = vol
+  void a.play().catch(() => undefined)
+  loops.set(id, { stop: () => a.pause() })
+}
+
+export function stopLoop(id: string): void {
+  loops.get(id)?.stop()
+  loops.delete(id)
+}
+
+export function stopAllLoops(): void {
+  for (const id of [...loops.keys()]) stopLoop(id)
+}
+
+/** текущие зацикленные слои (для отладки/смоуков) */
+export function activeLoops(): string[] {
+  return [...loops.keys()]
+}
+
+/**
+ * Пересчитать фон по сцене/локации (вызывать с refreshMusic): слои локации
+ * и сцены складываются, лишние гаснут, новые стартуют. Headless — no-op.
+ */
+export function refreshAmbient(engine: {
+  state: { scene: string; location: string }
+  campaign: CampaignData
+}): void {
+  const desired = new Set<string>()
+  const sc = engine.campaign.scenes[engine.state.scene]
+  let locAmbient: string[] = []
+  let locLegacy = ''
+  for (const r of engine.campaign.world.regions) {
+    const l = r.locations.find((x) => x.id === engine.state.location)
+    if (l) {
+      locAmbient = l.ambient ?? []
+      locLegacy = l.ambient_audio ?? ''
+      break
+    }
+  }
+  for (const id of [...locAmbient, locLegacy, ...(sc?.ambient ?? [])]) {
+    if (id) desired.add(id)
+  }
+  for (const id of [...loops.keys()]) {
+    if (!desired.has(id)) stopLoop(id)
+  }
+  for (const id of desired) playLoop(id)
+}

@@ -6,7 +6,7 @@ import { ImageUpload, JsonField, RefSelect } from './Fields'
 import { ArtView } from '../shared/ArtView'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
-import { MusicRulesEditor } from './AudioSection'
+import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
 
 /**
  * Редактор мира (фидбек №13): дерево регионов (с вложенностью),
@@ -388,6 +388,17 @@ function LocationProps({
         onChange={commit}
         title="Музыка локации (условия → треки)"
       />
+      <div className="fld fld-block">
+        <span>Фоновые звуки локации (слоями, зацикленно)</span>
+        <SoundMultiSelect
+          store={store}
+          value={loc.ambient ?? (loc.ambient = [])}
+          onChange={(ids) => {
+            loc.ambient = ids
+            commit()
+          }}
+        />
+      </div>
 
       <div className="fld-block">
         <span className="fld-caption">Дороги (куда можно дойти отсюда)</span>

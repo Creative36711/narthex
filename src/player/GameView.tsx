@@ -11,7 +11,7 @@ import { HelpPanel } from './HelpPanel'
 import { CombatScreen } from './CombatScreen'
 import { assetUrl } from '../core/loader'
 import { CutscenePlayer } from '../shared/CutscenePlayer'
-import { setAudioCampaign, playUi } from '../shared/audio'
+import { setAudioCampaign, playUi, refreshAmbient, stopAllLoops } from '../shared/audio'
 import { refreshMusic, setMenuMode, stopMusic, applyMusicVolume } from '../shared/music'
 import type { MusicTrackDef } from '../shared/types'
 
@@ -44,6 +44,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
   }, [engine])
   useEffect(() => {
     refreshMusic(engine)
+    refreshAmbient(engine)
   })
   const prevMessage = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -62,7 +63,10 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
   }, [])
 
   useEffect(() => {
-    return () => stopMusic(0.5)
+    return () => {
+      stopMusic(0.5)
+      stopAllLoops()
+    }
   }, [])
 
   return (
