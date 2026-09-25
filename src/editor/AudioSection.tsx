@@ -536,16 +536,16 @@ export function SoundHookMapEditor({
   store,
   value,
   onChange,
-  title = 'Звуки действий',
+  heading = 'Звуки действий',
 }: {
   store: EditorStore
   value: SoundHookMap
   onChange: () => void
-  title?: string
+  heading?: string
 }) {
   return (
     <div className="fld fld-block">
-      <span>{title}</span>
+      <span>{heading}</span>
       <div className="muted small" style={{ marginBottom: 6 }}>
         Не заданные действия молчат или берут звук из более общего места (категория, тип слота, тема кампании).
       </div>
@@ -584,17 +584,17 @@ export function MusicRulesEditor({
   store,
   value,
   onChange,
-  title,
+  heading,
 }: {
   store: EditorStore
   value: MusicRule[]
   onChange: () => void
-  title: string
+  heading: string
 }) {
   const [open, setOpen] = useState<number | null>(null)
   return (
     <div className="fld fld-block">
-      <span>{title}</span>
+      <span>{heading}</span>
       <div className="muted small" style={{ marginBottom: 6 }}>
         Правила сверху вниз: играет первое подходящее под условия (время суток, флаги).
         Несколько треков в записи — плейлист со сменой и кроссфейдом.

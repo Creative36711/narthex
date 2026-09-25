@@ -132,7 +132,7 @@ export function CombatScreen({ engine }: Props) {
                     top: `${(px.y / canvas.h) * 100}%`,
                     width: `${((size * 1.45) / canvas.w) * 100}%`,
                   }}
-                  title={`${c.label} — HP ${Math.max(0, c.hp)}/${c.maxHp}`}
+                  data-tip={`${c.label} — HP ${Math.max(0, c.hp)}/${c.maxHp}`}
                   onClick={() => onHexClick(c.pos)}
                 >
                   {c.portrait ? (

@@ -255,6 +255,11 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
 
   useEffect(() => {
     if (!slide) return
+    // хронометраж слайдов — только при тесте из редактора (фидбек 9.13)
+    if (testMode) {
+      console.count(`slide-${index}`)
+      console.time(`slide-${index}`)
+    }
     setWaitUser(false)
     let cancelled = false
     const timers: ReturnType<typeof setTimeout>[] = []

@@ -350,6 +350,7 @@ export class CombatController {
     const pc = this.combatants.find((x) => x.id === 'c_player')!
     pc.hp = Math.min(pc.maxHp, this.engine.state.player.hp)
     this.log.push(`${this.active.label} использует «${item.label}».`)
+    playInteraction('use', { entity: item })
     this.engine.notify()
   }
 
@@ -487,7 +488,7 @@ export class CombatController {
 
     if (defender.hp <= 0) {
       defender.dead = true
-      this.log.push(`☠ ${defender.label} погибает.`)
+      this.log.push(`† ${defender.label} погибает.`)
       playUi('death')
       if (defender.side === 'enemy') {
         this.engine.state.dead_entities.push(defender.entityId)
@@ -524,7 +525,7 @@ export class CombatController {
       this.result = 'victory'
       playUi('victory')
       this.rollLoot()
-      this.log.push('🏆 Победа! Противники повержены.')
+      this.log.push('Победа! Противники повержены.')
       // сообщения и флаги победы — сразу, пока игрок видит экран победы
       this.engine.onCombatVictory(this.def.on_victory ?? [])
     }

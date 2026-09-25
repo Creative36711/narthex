@@ -764,7 +764,7 @@ function LineRow({
         </label>
         <button
           className={`btn btn-small ${line.voice ? 'btn-primary' : ''}`}
-          title={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики: файл или ссылка'}
+          data-tip={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики: файл или ссылка'}
           onClick={() => setVoiceOpen(!voiceOpen)}
         >
           <Ico n="mic" />{line.voice ? '' : ''}

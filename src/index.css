@@ -1127,3 +1127,7 @@ input, textarea, [contenteditable] {
 
 .ai-wizard { width: min(640px, 94vw); max-height: 78vh; overflow-y: auto; }
 .ai-wizard .chips { flex-wrap: wrap; }
+
+.panel-tools { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.editor-list-search { width: 100%; margin-bottom: 6px; }
+.editor-list-chips { margin-bottom: 6px; }

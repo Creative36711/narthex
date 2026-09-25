@@ -215,7 +215,7 @@ function ItemForm({
           store={store}
           value={item.sounds ?? (item.sounds = {})}
           onChange={commit}
-          data-tip="Звуки действий предмета"
+          heading="Звуки действий предмета"
         />
       </div>
 

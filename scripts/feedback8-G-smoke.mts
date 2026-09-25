@@ -74,14 +74,14 @@ function check(name: string, ok: boolean, extra = '') {
   check('G3 настройки в localStorage', settings.includes('chronicle-forge:settings'))
   const menu = readFileSync('src/player/MainMenu.tsx', 'utf8')
   const hud = readFileSync('src/player/HUD.tsx', 'utf8')
-  check('G3 настройки открываются из меню и из игры', menu.includes('SettingsPanel') && menu.includes('⚙ Настройки') && hud.includes('SettingsPanel'))
+  check('G3 настройки открываются из меню и из игры', menu.includes('SettingsPanel') && menu.includes('Настройки') && hud.includes('SettingsPanel'))
 }
 
 // ── G4: поле озвучки в конструкторе ──
 {
   const builder = readFileSync('src/editor/DialogueBuilder.tsx', 'utf8')
   check('G4 у реплики есть озвучка (файл или ссылка)', builder.includes('AudioUpload') && builder.includes('assets/voice') && builder.includes('line.voice'))
-  check('G4 кнопка 🎙 у реплики', builder.includes('🎙'))
+  check('G4 кнопка 🎙 у реплики', builder.includes('n="mic"'))
   const fields = readFileSync('src/editor/Fields.tsx', 'utf8')
   check('G4 AudioUpload с предпросмотром и ссылкой', fields.includes('AudioUpload') && fields.includes('или вставьте ссылку'))
 }

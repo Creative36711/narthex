@@ -193,7 +193,7 @@ const campaign = await loadCampaign('http://localhost:5173/campaigns/ash-of-caer
   const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
   check('H6 секция звука в редакторе кампании', ce.includes('<AudioRegistries'))
   const we = readFileSync('src/editor/WorldEditor.tsx', 'utf8')
-  check('H6 музыка локации в WorldEditor', we.includes('MusicRulesEditor') && we.includes('🎵 Музыка локации'))
+  check('H6 музыка локации в WorldEditor', we.includes('MusicRulesEditor') && we.includes('Музыка локации'))
   const se = readFileSync('src/editor/SceneEditor.tsx', 'utf8')
   check('H6 музыка сцены в SceneEditor', se.includes('MusicRulesEditor'))
   const ee = readFileSync('src/editor/EntityEditor.tsx', 'utf8')

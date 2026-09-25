@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Ico } from '../shared/icons'
 import { askConfirm } from '../shared/modals'
 import type { GameEngine } from '../core/engine'
@@ -19,12 +20,23 @@ function useEffectText(engine: GameEngine, effects: Effect[]): string {
   return parts.length ? `При использовании: ${parts.join(',')}.` : ''
 }
 
+/** фильтры инвентаря: всё / надетое / не надетое (фидбек 9.1) */
+const EQUIP_FILTERS = ['all', 'equipped', 'unequipped'] as const
+
 /** Инвентарь (ТЗ 4.6 — базовая часть Фазы 0: список, вес, использование). */
 export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
+  const [q, setQ] = useState('')
+  const [equipFilter, setEquipFilter] = useState<(typeof EQUIP_FILTERS)[number]>('all')
   const inv = engine.state.player.inventory
   const items = inv
     .map((e) => ({ entry: e, def: engine.campaign.entities[e.item] as ItemDef | undefined }))
     .filter((x) => x.def?.type === 'item')
+    .filter((x) => {
+      if (q.trim() && !(x.def!.label ?? '').toLowerCase().includes(q.trim().toLowerCase())) return false
+      if (equipFilter === 'all') return true
+      const on = engine.isEquipped(x.entry.item)
+      return equipFilter === 'equipped' ? on : !on
+    })
   const totalWeight = items.reduce((sum, x) => sum + (x.def!.weight ?? 0) * x.entry.quantity, 0)
 
   return (
@@ -33,6 +45,16 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
         <div className="panel-header">
           <h2>Инвентарь</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
+        </div>
+        <div className="panel-tools">
+          <input placeholder="Поиск по названию…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <div className="chips">
+            {([['all', 'Все'], ['equipped', 'Надето'], ['unequipped', 'Не надето']] as const).map(([k, lbl]) => (
+              <button key={k} type="button" className={`chip ${equipFilter === k ? 'chip-on' : ''}`} onClick={() => setEquipFilter(k)}>
+                {lbl}
+              </button>
+            ))}
+          </div>
         </div>
         {items.length === 0 && <p className="muted">Пусто.</p>}
         <ul className="inv-list">
@@ -205,6 +227,7 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
 
 /** Журнал: квесты (стадии, записи) + события (ТЗ 6.1). */
 export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
+  const [qq, setQq] = useState('')
   const log = engine.state.log
   const quests = Object.entries(engine.state.quests)
   const active = quests.filter(([, q]) => q.status === 'active')
@@ -216,7 +239,7 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
     return (
       <div key={id} className={`quest-card quest-${q.status}`}>
         <div className="quest-title">
-          {q.status === 'completed' ? '' : q.status === 'failed' ? '✖' : '◆'}
+          {q.status === 'completed' ? '' : q.status === 'failed' ? '×' : '◆'}
           {def.label}
         </div>
         <div className="muted small">{def.description}</div>
@@ -237,9 +260,16 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         <h3>Квесты</h3>
+        <div className="panel-tools">
+          <input placeholder="Поиск по названию…" value={qq} onChange={(e) => setQq(e.target.value)} />
+        </div>
         {quests.length === 0 && <p className="muted">Заданий пока нет.</p>}
-        {active.map(renderQuest)}
-        {done.map(renderQuest)}
+        {active
+          .filter(([id, q]) => !qq.trim() || `${engine.campaign.quests[id]?.label ?? id} ${q.journal.join(' ')}`.toLowerCase().includes(qq.trim().toLowerCase()))
+          .map(renderQuest)}
+        {done
+          .filter(([id, q]) => !qq.trim() || `${engine.campaign.quests[id]?.label ?? id} ${q.journal.join(' ')}`.toLowerCase().includes(qq.trim().toLowerCase()))
+          .map(renderQuest)}
         <h3>События</h3>
         {log.length === 0 && <p className="muted">Записей пока нет.</p>}
         <ul className="log-list">

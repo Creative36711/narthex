@@ -599,7 +599,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 store={store}
                 value={t.sounds ?? (t.sounds = {})}
                 onChange={commit}
-                data-tip="Звуки действий (для этого типа слота)"
+                heading="Звуки действий (для этого типа слота)"
               />
             </details>
             <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.slot_types!.splice(i, 1), commit())}><Ico n="close" /> </button>
@@ -640,7 +640,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Лечит (HP)</span>
             </label>
             {m.needs.map((n) => (
-              <label key={n.id} className="fld fld-check" title={`Предметы категории восстанавливают «${n.label}»`}>
+              <label key={n.id} className="fld fld-check" data-tip={`Предметы категории восстанавливают «${n.label}»`}>
                 <input
                   type="checkbox"
                   checked={(c.restores_needs ?? []).includes(n.id)}
@@ -678,7 +678,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 store={store}
                 value={c.sounds ?? (c.sounds = {})}
                 onChange={commit}
-                data-tip="Звуки действий (для категории)"
+                heading="Звуки действий (для категории)"
               />
             </details>
             <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.item_categories!.splice(i, 1), commit())}><Ico n="close" /> </button>

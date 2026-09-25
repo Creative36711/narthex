@@ -200,7 +200,7 @@ const warns1 = importMonolith(store2, JSON.parse(JSON.stringify(doc0)))
 // ── UI: кнопки редактора ──
 {
   const app = readFileSync('src/editor/EditorApp.tsx', 'utf8')
-  check('UI кнопка «Импорт из JSON»', app.includes('⬆ Импорт из JSON') && app.includes('doImportJson'))
+  check('UI кнопка «Импорт из JSON»', app.includes('Импорт из JSON') && app.includes('doImportJson'))
   check('UI кнопка JSON-экспорта', app.includes('doExportJson'))
   check('UI отчёт «импортировано с N предупреждениями»', app.includes('Импортировано с'))
   const modals = readFileSync('src/shared/modals.tsx', 'utf8')

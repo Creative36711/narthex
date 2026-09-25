@@ -317,7 +317,7 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
         store={store}
         value={scene.music ?? (scene.music = [])}
         onChange={commit}
-        title="Музыка сцены (перекрывает музыку локации)"
+        heading="Музыка сцены (перекрывает музыку локации)"
       />
       <div className="fld fld-block">
         <span>Фоновые звуки сцены (слоями, зацикленно)</span>

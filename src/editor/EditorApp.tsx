@@ -78,6 +78,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [section, setSection] = useState<EditorSection>('scenes')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [aiWizard, setAiWizard] = useState(false)
+  const [q, setQ] = useState('')
+  const [equipF, setEquipF] = useState<'all' | 'equipped' | 'unequipped'>('all')
   const [selected, setSelected] = useState<string | null>(null)
   const [, force] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
@@ -424,9 +426,20 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  const items = listFor(section).sort(
+  const itemsAll = listFor(section).sort(
     (a, b) => (a.groupOrder ?? '').localeCompare(b.groupOrder ?? '', 'ru') || a.title.localeCompare(b.title, 'ru'),
   )
+  // живой поиск по названию + фильтр «надевается» (п.1 фидбека 9)
+  const items = itemsAll.filter((it) => {
+    if (q.trim() && !it.title.toLowerCase().includes(q.trim().toLowerCase())) return false
+    if (section === 'entities' && equipF !== 'all') {
+      const e = store.entity(it.path)
+      if (e?.type !== 'item') return true
+      const wears = Boolean((e as { slot?: string }).slot)
+      return equipF === 'equipped' ? wears : !wears
+    }
+    return true
+  })
   const hasList = !['campaign', 'world'].includes(section)
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
 
@@ -564,6 +577,27 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
         {hasList && (
           <aside className="editor-list">
+            <input
+              className="editor-list-search"
+              placeholder="Поиск по названию…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            {section === 'entities' && (
+              <div className="chips editor-list-chips">
+                {([['all', 'Все'], ['equipped', 'Надевается'], ['unequipped', 'Без слота']] as const).map(([k, lbl]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className={`chip ${equipF === k ? 'chip-on' : ''}`}
+                    data-tip={k === 'equipped' ? 'Предметы со слотом снаряжения (надеваются)' : k === 'unequipped' ? 'Расходники и прочее без слота' : 'Все сущности'}
+                    onClick={() => setEquipF(k)}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            )}
             {items.map((it, i) => (
               <div key={it.path}>
                 {it.group && it.group !== items[i - 1]?.group && <div className="editor-list-group">{it.group}</div>}

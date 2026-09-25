@@ -74,7 +74,7 @@ export function DialogueOverlay({ engine }: Props) {
                   if (i === d.lines.length - 1) playLine(l)
                 }}
               >
-                {l.action ? <>✦ {l.text}</> : l.text}
+                {l.action ? <>→ {l.text}</> : l.text}
               </p>
             ))}
           </div>

@@ -388,7 +388,7 @@ function LocationProps({
         store={store}
         value={(loc.music ?? (loc.music = [])) as MusicRule[]}
         onChange={commit}
-        title="Музыка локации (условия → треки)"
+        heading="Музыка локации (условия → треки)"
       />
       <div className="fld fld-block">
         <span>Фоновые звуки локации (слоями, зацикленно)</span>
