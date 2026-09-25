@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
 import { BUILTIN_EMOTIONS } from '../shared/types'
 import type { EditorStore } from './store'
-import { FlagSelect, ImageUpload, JsonField, RefSelect } from './Fields'
+import { FlagSelect, ImageUpload, RefSelect, FileAdvancedJson } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { SoundHookMapEditor } from './AudioSection'
 import { askText } from './prompt'
@@ -29,28 +29,6 @@ export function EntityEditor({ store, path }: { store: EditorStore; path: string
     <ItemForm item={ent} store={store} path={path} commit={commit} />
   ) : (
     <NpcForm npc={ent} store={store} path={path} commit={commit} />
-  )
-}
-
-function AdvancedJson({ store, path, commit }: { store: EditorStore; path: string; commit: () => void }) {
-  const [gen, setGen] = useState(0)
-  return (
-    <details className="advanced-json" onToggle={(e) => (e.target as HTMLDetailsElement).open && setGen((n) => n + 1)}>
-      <summary>Расширенный JSON (все поля)</summary>
-      <JsonField
-        key={gen}
-        label=""
-        rows={14}
-        pretty
-        value={store.jsonFiles.get(path)}
-        onChange={(v) => {
-          if (v !== undefined) {
-            store.jsonFiles.set(path, v)
-            commit()
-          }
-        }}
-      />
-    </details>
   )
 }
 
@@ -241,7 +219,7 @@ function ItemForm({
         />
       </div>
 
-      <AdvancedJson store={store} path={path} commit={commit} />
+      <FileAdvancedJson store={store} path={path} commit={commit} />
     </div>
   )
 }
@@ -904,7 +882,7 @@ function NpcForm({
         />
       </div>
 
-      <AdvancedJson store={store} path={path} commit={commit} />
+      <FileAdvancedJson store={store} path={path} commit={commit} />
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { QuestDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
-import { ConditionListEditor, EffectListEditor } from './Fields'
+import { ConditionListEditor, EffectListEditor, FileAdvancedJson } from './Fields'
 import { askText } from './prompt'
 
 /** Визуальный конструктор квестов (ТЗ 5.2.5): стадии, переходы, журнал. */
@@ -204,7 +204,9 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
           + стадия
         </button>
       </div>
-    </div>
+    
+      <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} />
+</div>
   )
 }
 

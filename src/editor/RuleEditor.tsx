@@ -2,7 +2,7 @@ import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { RuleDef } from '../shared/types'
 import type { EditorStore } from './store'
-import { ConditionListEditor, EffectListEditor } from './Fields'
+import { ConditionListEditor, EffectListEditor, FileAdvancedJson } from './Fields'
 
 /** Визуальный конструктор правил (ТЗ 5.2.4): условия + эффекты. */
 export function RuleEditor({ store, path }: { store: EditorStore; path: string }) {
@@ -59,7 +59,9 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
         <h4>Эффекты (по порядку)</h4>
         <EffectListEditor store={store} effects={rule.effects} onChange={(e) => ((rule.effects = e), commit())} />
       </div>
-    </div>
+    
+      <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} />
+</div>
   )
 }
 

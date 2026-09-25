@@ -3,7 +3,8 @@ import type { ArenaDef, HexCoord } from '../shared/types'
 import type { Hex } from '../core/hex'
 import { hexCorners, hexToPixel, gridPixelSize } from '../core/hex'
 import type { EditorStore } from './store'
-import { ImageUpload, RefSelect } from './Fields'
+import { ImageUpload, RefSelect, FileAdvancedJson } from './Fields'
+import { MusicTrackSelect } from './AudioSection'
 
 /**
  * Редактор арены (ТЗ 5.2.6): фон + гекс-сетка, раскраска кистью —
@@ -157,7 +158,21 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
           </div>
         </div>
       </div>
-    </div>
+    
+      <div className="fld fld-block">
+        <span>Музыка боя (перекрывает «Музыка боя» кампании)</span>
+        <MusicTrackSelect
+          store={store}
+          value={arena.music}
+          onChange={(id) => {
+            if (id) arena.music = id
+            else delete arena.music
+            store.touch(path)
+          }}
+        />
+      </div>
+      <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} label="Расширенный JSON арены (все поля)" />
+</div>
   )
 }
 

@@ -5,7 +5,7 @@ import type Konva from 'konva'
 import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
 import { ArtView, artToDataUrl } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { ImageUpload, JsonField, RefSelect, FlagSelect } from './Fields'
+import { ImageUpload, JsonField, RefSelect, FlagSelect, FileAdvancedJson } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
@@ -292,7 +292,9 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
         {selNav && <NavProps nav={selNav} scene={scene} store={store} commit={commit} />}
         {!sel && <StatesProps scene={scene} store={store} commit={commit} />}
       </div>
-    </div>
+    
+      <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} label="Расширенный JSON сцены (все поля)" />
+</div>
   )
 }
 

@@ -2,7 +2,7 @@ import { Ico } from '../shared/icons'
 import { useRef, useState } from 'react'
 import type { ArtDoc, LocationDef, MusicRule, RegionDef } from '../shared/types'
 import type { EditorStore } from './store'
-import { ImageUpload, JsonField, RefSelect } from './Fields'
+import { ImageUpload, JsonField, RefSelect, FileAdvancedJson } from './Fields'
 import { ArtView } from '../shared/ArtView'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
@@ -103,7 +103,9 @@ export function WorldEditor({ store }: { store: EditorStore }) {
           <div className="screen-center muted">Создайте первый регион.</div>
         )}
       </div>
-    </div>
+    
+      <FileAdvancedJson store={store} path="world.json" commit={() => store.touch("world.json")} label="Расширенный JSON мира (все регионы и локации)" />
+</div>
   )
 }
 

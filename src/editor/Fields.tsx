@@ -914,3 +914,36 @@ export function EffectListEditor({
     </div>
   )
 }
+
+
+/**
+ * «Расширенный JSON» — единый паттерн (фидбек 9.12): правка файла целиком
+ * как текста (все поля, включая редкие, которых нет в формах). Хранится в
+ * jsonFiles стора и пишется на диск вместе с формой.
+ */
+export function FileAdvancedJson({ store, path, commit, label = 'Расширенный JSON (все поля)' }: {
+  store: EditorStore
+  path: string
+  commit: () => void
+  label?: string
+}) {
+  const [gen, setGen] = useState(0)
+  return (
+    <details className="advanced-json" onToggle={(e) => (e.target as HTMLDetailsElement).open && setGen((n) => n + 1)}>
+      <summary>{label}</summary>
+      <JsonField
+        key={gen}
+        label=""
+        rows={14}
+        pretty
+        value={store.jsonFiles.get(path)}
+        onChange={(v) => {
+          if (v !== undefined) {
+            store.jsonFiles.set(path, v)
+            commit()
+          }
+        }}
+      />
+    </details>
+  )
+}
