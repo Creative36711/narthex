@@ -7,6 +7,7 @@
  * пакета движком (`core/loader.ts`) и редактором (`editor/store.ts`).
  */
 
+import { BUILTIN_EMOTIONS } from './types'
 import type { CampaignMeta, LocationDef, MusicRule, NavigationZone, NeedCondition, SceneDef, WorldDef } from './types'
 
 /**
@@ -44,6 +45,9 @@ export function migrateMeta(meta: CampaignMeta): CampaignMeta {
     if (need.decay_when) need.decay_when = migrateNeedConditions(need.decay_when)
     if (need.restore_when) need.restore_when = migrateNeedConditions(need.restore_when)
   }
+  // фидбек 9.14: реестр состояний портрета; встроенные пять — всегда в начале
+  const own = (meta.emotions ?? []).filter((e) => !BUILTIN_EMOTIONS.some((b) => b.id === e.id))
+  meta.emotions = [...BUILTIN_EMOTIONS, ...own]
   return meta
 }
 

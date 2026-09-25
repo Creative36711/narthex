@@ -1,3 +1,4 @@
+import { BUILTIN_EMOTIONS } from '../shared/types'
 import { Ico } from '../shared/icons'
 import { useRef, useState } from 'react'
 import type { EditorStore } from './store'
@@ -28,28 +29,15 @@ import {
  * и ответы — формами; .ink генерируется автоматически. Никакого кода.
  */
 
-const BASE_EMOTIONS: Array<{ id: DlgEmotion; label: string }> = [
-  { id: 'neutral', label: 'спокойно' },
-  { id: 'happy', label: 'радость' },
-  { id: 'angry', label: 'гнев' },
-]
-
-const EMOTION_LABELS: Record<string, string> = {
-  neutral: 'спокойно',
-  happy: 'радость',
-  angry: 'гнев',
-  sad: 'печаль',
-  fear: 'страх',
-}
-
-/** настроения для диалога: базовые + состояния портретов NPC, говорящего этим диалогом */
+/** настроения для диалога: общий реестр кампании (фидбек 9.14) + ключи портретов NPC */
 function emotionsFor(store: EditorStore, inkPath: string): Array<{ id: DlgEmotion; label: string }> {
-  const out = [...BASE_EMOTIONS]
+  const reg = store.meta.emotions?.length ? store.meta.emotions : BUILTIN_EMOTIONS
+  const out: Array<{ id: DlgEmotion; label: string }> = reg.map((e) => ({ id: e.id, label: e.label }))
   for (const p of store.entityPaths()) {
     const e = store.entity(p)
     if (e?.type !== 'npc' || e.dialogue !== inkPath) continue
     for (const key of Object.keys(e.portrait ?? {})) {
-      if (!out.some((em) => em.id === key)) out.push({ id: key, label: EMOTION_LABELS[key] ?? key })
+      if (!out.some((em) => em.id === key)) out.push({ id: key, label: key })
     }
   }
   return out
@@ -707,7 +695,7 @@ function LineRow({
   store,
   onRemove,
   commit,
-  emotions = BASE_EMOTIONS,
+  emotions = BUILTIN_EMOTIONS.map((e) => ({ id: e.id, label: e.label })),
 }: {
   line: DlgLine
   store: EditorStore

@@ -1,6 +1,7 @@
 import { Ico } from '../shared/icons'
 import { useState } from 'react'
-import type { Effect, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
+import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
+import { BUILTIN_EMOTIONS } from '../shared/types'
 import type { EditorStore } from './store'
 import { FlagSelect, ImageUpload, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
@@ -247,13 +248,13 @@ function ItemForm({
 
 // ─────────────── NPC ───────────────
 
-/** русские названия стандартных состояний портрета */
-const PORTRAIT_LABELS: Record<string, string> = {
-  neutral: 'Обычный',
-  happy: 'Радость',
-  angry: 'Гнев',
-  sad: 'Печаль',
-  fear: 'Страх',
+/** состояния портрета — общий реестр кампании (фидбек 9.14) */
+function emotionsOf(store: EditorStore): EmotionDef[] {
+  return store.meta.emotions?.length ? store.meta.emotions : BUILTIN_EMOTIONS
+}
+
+function emLabelOf(store: EditorStore, id: string): string {
+  return emotionsOf(store).find((e) => e.id === id)?.label ?? `Состояние «${id}»`
 }
 
 /** предметы, подходящие под слот снаряжения */
@@ -333,7 +334,7 @@ function NpcForm({
           {portraitKeys.map((k) => (
             <div key={k} style={{ position: 'relative' }}>
               <ImageUpload
-                label={PORTRAIT_LABELS[k] ?? `Состояние «${k}»`}
+                label={emLabelOf(store, k)}
                 value={npc.portrait?.[k] ?? ''}
                 dir="assets/img/npc"
                 store={store}
@@ -374,18 +375,18 @@ function NpcForm({
           />
         )}
         <div className="fld-row">
-          {Object.keys(PORTRAIT_LABELS)
-            .filter((k) => !portraitKeys.includes(k))
-            .map((k) => (
+          {emotionsOf(store)
+            .filter((e) => !portraitKeys.includes(e.id))
+            .map((e) => (
               <button
-                key={k}
+                key={e.id}
                 className="btn btn-small"
                 onClick={() => {
-                  npc.portrait = { ...(npc.portrait ?? {}), [k]: '' }
+                  npc.portrait = { ...(npc.portrait ?? {}), [e.id]: '' }
                   commit()
                 }}
               >
-                + {PORTRAIT_LABELS[k]}
+                + {e.label}
               </button>
             ))}
           <button
@@ -394,6 +395,12 @@ function NpcForm({
               const name = await askText('Название нового состояния', 'например «Задумчивость»')
               if (!name) return
               const key = slugify(name) || `state_${portraitKeys.length + 1}`
+              // своё состояние попадает в общий реестр кампании
+              if (!store.meta.emotions?.some((e) => e.id === key)) {
+                if (!store.meta.emotions) store.meta.emotions = [...BUILTIN_EMOTIONS]
+                store.meta.emotions.push({ id: key, label: name })
+                store.touch('campaign.json')
+              }
               npc.portrait = { ...(npc.portrait ?? {}), [key]: '' }
               commit()
             }}

@@ -143,6 +143,8 @@ export interface CampaignMeta {
   slot_types?: Array<{ id: string; label: string; sounds?: SoundHookMap }>
   /** реестр флагов: русское название и назначение (редактор показывает названия, движку важен только id) */
   flags?: Array<{ id: string; label: string; description?: string }>
+  /** состояния портретов (встроенные + свои), фидбек 9.14 */
+  emotions?: EmotionDef[]
   currencies: CurrencyDef[]
   factions?: FactionDef[]
   /** реестр музыкальных треков (итерация 8, блок H): файл/ссылка ИЛИ синтез MusicDoc */
@@ -543,6 +545,27 @@ export interface SoundDoc {
 
 /** настроение генеративного трека */
 export type MusicMood = 'тревожная' | 'спокойная' | 'боевая' | 'торжественная' | 'таинственная'
+
+// ─────────────── состояния портрета (реестр эмоций, фидбек 9.14) ───────────────
+
+/**
+ * Состояние портрета НПС: ключ картинки `npc.portrait[id]` и тег `# emotion:`
+ * в диалоге. Общий реестр кампании — чтобы состояние, заведённое у одного НПС,
+ * предлагалось в диалогах всех остальных, и ИИ-генератору было на что сослаться.
+ */
+export interface EmotionDef {
+  id: string
+  label: string
+}
+
+/** встроенные состояния — в реестре всегда, удалить нельзя */
+export const BUILTIN_EMOTIONS: EmotionDef[] = [
+  { id: 'neutral', label: 'Обычный' },
+  { id: 'happy', label: 'Радость' },
+  { id: 'angry', label: 'Гнев' },
+  { id: 'sad', label: 'Печаль' },
+  { id: 'fear', label: 'Страх' },
+]
 /** лад генеративного трека */
 export type MusicScale = 'минор' | 'мажор' | 'дорийский' | 'фригийский' | 'пентатоника'
 /** слои аранжировки */
