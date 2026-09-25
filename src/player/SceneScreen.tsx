@@ -1,6 +1,7 @@
 import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
 import { timeOfDay } from '../core/time'
+import { ArtView } from '../shared/ArtView'
 
 interface Props {
   engine: GameEngine
@@ -27,7 +28,13 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         <span className="scene-name">{scene.label} — {state.label}</span>
       </div>
       <div className={`scene-stage tod-tint-${tod}`} style={{ aspectRatio: `${canvas.w} / ${canvas.h}` }}>
-        <img className="scene-bg" src={assetUrl(engine.campaign, state.image)} alt={state.label} draggable={false} />
+        {state.art ? (
+          <ArtView className="scene-bg" art={state.art} />
+        ) : (
+          state.image && (
+            <img className="scene-bg" src={assetUrl(engine.campaign, state.image)} alt={state.label} draggable={false} />
+          )
+        )}
 
         {occupants.map(({ slot, entity }) =>
           entity ? (

@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
-import type { LocationDef, RegionDef } from '../shared/types'
+import type { ArtDoc, LocationDef, RegionDef } from '../shared/types'
 import type { EditorStore } from './store'
-import { ImageUpload, RefSelect } from './Fields'
+import { ImageUpload, JsonField, RefSelect } from './Fields'
+import { ArtView } from '../shared/ArtView'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
 
@@ -116,6 +117,7 @@ function RegionPanel({
   onRemove: () => void
 }) {
   const [placing, setPlacing] = useState(false)
+  const [artJson, setArtJson] = useState(false)
   const [selLoc, setSelLoc] = useState<string | null>(null)
   const mapRef = useRef<HTMLDivElement>(null)
   const dragging = useRef<LocationDef | null>(null)
@@ -160,25 +162,75 @@ function RegionPanel({
             ✕ удалить регион
           </button>
         </div>
-        <ImageUpload
-          label="Карта региона (изображение)"
-          value={r.map_image}
-          dir="assets/img/maps"
-          store={store}
-          onChange={(p) => {
-            r.map_image = p
-            if (p) {
-              // подгоняем систему координат под реальный размер изображения
-              const img = new Image()
-              img.onload = () => {
-                r.map_size = { w: img.naturalWidth, h: img.naturalHeight }
+        {r.map_art ? (
+          <div className="fld fld-block">
+            <span>Карта региона — векторная картинка (ArtDoc)</span>
+            <div className="art-preview-tools">
+              <button
+                className="btn btn-small"
+                onClick={() => {
+                  delete r.map_art
+                  commit()
+                }}
+              >
+                🖼 Заменить изображением
+              </button>
+              <button className="btn btn-small" onClick={() => setArtJson((v) => !v)}>
+                {artJson ? 'Скрыть JSON' : '✎ Расширенный JSON'}
+              </button>
+            </div>
+            {artJson && (
+              <JsonField
+                label="ArtDoc карты (слои примитивов)"
+                rows={12}
+                pretty
+                value={r.map_art}
+                onChange={(v) => {
+                  if (v) {
+                    r.map_art = v as ArtDoc
+                    if (r.map_art.canvas) r.map_size = { ...r.map_art.canvas }
+                  }
+                  commit()
+                }}
+              />
+            )}
+          </div>
+        ) : (
+          <>
+            <ImageUpload
+              label="Карта региона (изображение)"
+              value={r.map_image}
+              dir="assets/img/maps"
+              store={store}
+              onChange={(p) => {
+                r.map_image = p
+                if (p) {
+                  // подгоняем систему координат под реальный размер изображения
+                  const img = new Image()
+                  img.onload = () => {
+                    r.map_size = { w: img.naturalWidth, h: img.naturalHeight }
+                    commit()
+                  }
+                  img.src = store.assetSrc(p)
+                }
                 commit()
-              }
-              img.src = `${store.basePath}/${p}`
-            }
-            commit()
-          }}
-        />
+              }}
+            />
+            <div className="art-preview-tools">
+              <button
+                className="btn btn-small"
+                title="Нарисовать карту примитивами (формат ArtDoc) — удобно для генерации"
+                onClick={() => {
+                  const size = r.map_size ?? { w: 1280, h: 720 }
+                  r.map_art = { canvas: { ...size }, background: '#2d3a2a', layers: [] }
+                  commit()
+                }}
+              >
+                🎨 Сделать векторной (ArtDoc)
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="props-group">
@@ -213,8 +265,10 @@ function RegionPanel({
           onPointerUp={() => (dragging.current = null)}
           onPointerLeave={() => (dragging.current = null)}
         >
-          {r.map_image ? (
-            <img src={`${store.basePath}/${r.map_image}`} alt="" draggable={false} />
+          {r.map_art ? (
+            <ArtView className="world-map-art" art={r.map_art} />
+          ) : r.map_image ? (
+            <img src={store.assetSrc(r.map_image)} alt="" draggable={false} />
           ) : (
             <div className="world-map-empty muted">Загрузите изображение карты выше — маркеры расставляются прямо на ней.</div>
           )}

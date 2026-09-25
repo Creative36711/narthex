@@ -1,4 +1,5 @@
 import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
+import { isExternalUrl } from '../core/loader'
 import type {
   ArenaDef,
   CampaignMeta,
@@ -263,6 +264,13 @@ export class EditorStore {
     return key
   }
 
+  /** src для предпросмотра ассета: файл пакета или внешняя ссылка (итерация 8, блок C) */
+  assetSrc(path: string | undefined | null): string {
+    if (!path) return ''
+    if (isExternalUrl(path)) return path
+    return `${this.basePath}/${path}`
+  }
+
   /** название по id (для сводок) */
   labelFor(kind: string, id: string): string {
     return this.options(kind as Parameters<EditorStore['options']>[0]).find((o) => o.id === id)?.label ?? id
@@ -394,6 +402,9 @@ export class EditorStore {
         }
       }
       if (!sc.states.length) issues.push(`Сцена «${sc.label}»: нет ни одного состояния (фона)`)
+      for (const st of sc.states) {
+        if (!st.image && !st.art) issues.push(`Сцена «${sc.label}»: у состояния «${st.label}» нет ни изображения, ни векторного фона`)
+      }
     }
 
     // сущности: диалоги, расписания

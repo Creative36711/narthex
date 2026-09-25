@@ -626,7 +626,7 @@ export function AssetUpload({
 
 /** путь файла → src для предпросмотра (внешние ссылки — как есть) */
 function assetSrc(store: EditorStore, value: string): string {
-  return isExternalUrl(value) ? value : `${store.basePath}/${value}`
+  return store.assetSrc(value)
 }
 
 /** Загрузка изображения с компьютера или по ссылке. */

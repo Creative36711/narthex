@@ -187,6 +187,8 @@ export interface RegionDef {
   id: string
   label: string
   map_image: string
+  /** фон карты, нарисованный примитивами (вместо map_image) — итерация 8, блок D */
+  map_art?: ArtDoc
   map_size?: { w: number; h: number }
   parent_region: string | null
   locations: LocationDef[]
@@ -208,10 +210,106 @@ export interface SceneCondition {
   not_flag?: string
 }
 
+// ─────────────── декларативная графика (итерация 8, блок D) ───────────────
+
+/**
+ * Заливка примитива: сплошной цвет или линейный градиент.
+ * `angle` — направление градиента в градусах (0 — слева направо).
+ */
+export type ArtFill = string | { color?: string; gradient?: { from: string; to: string; angle?: number } }
+
+interface ArtShapeBase {
+  /** прозрачность 0…1 */
+  opacity?: number
+  /** поворот вокруг своего центра, градусы */
+  rotate?: number
+}
+
+export interface ArtRect extends ArtShapeBase {
+  type: 'rect'
+  x: number
+  y: number
+  w: number
+  h: number
+  fill?: ArtFill
+  stroke?: string
+  stroke_width?: number
+  radius?: number
+}
+
+export interface ArtEllipse extends ArtShapeBase {
+  type: 'ellipse'
+  cx: number
+  cy: number
+  rx: number
+  ry: number
+  fill?: ArtFill
+  stroke?: string
+  stroke_width?: number
+}
+
+export interface ArtPolygon extends ArtShapeBase {
+  type: 'polygon'
+  /** точки в виде [x1, y1, x2, y2, …] в координатах холста */
+  points: number[]
+  fill?: ArtFill
+  stroke?: string
+  stroke_width?: number
+}
+
+export interface ArtLine extends ArtShapeBase {
+  type: 'line'
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  color?: string
+  width?: number
+}
+
+export interface ArtText extends ArtShapeBase {
+  type: 'text'
+  x: number
+  y: number
+  text: string
+  size?: number
+  color?: string
+  /** 'start' | 'middle' | 'end' — как в SVG */
+  align?: 'start' | 'middle' | 'end'
+  bold?: boolean
+  italic?: boolean
+  font?: string
+}
+
+export type ArtShape = ArtRect | ArtEllipse | ArtPolygon | ArtLine | ArtText
+
+export interface ArtLayer {
+  /** подпись слоя для мастера («небо», «гора», «стена») */
+  label?: string
+  shape: ArtShape
+  opacity?: number
+  rotate?: number
+}
+
+/**
+ * Векторная «картинка из JSON»: слои примитивов в координатах холста
+ * (по умолчанию 1280×720 — та же система, что у слотов сцены).
+ * Формат рассчитан на генерацию ИИ: нарисовав сцену примитивами, генератор
+ * сам знает координаты объектов и ставит слоты точно на них.
+ */
+export interface ArtDoc {
+  canvas?: { w: number; h: number }
+  background?: string
+  layers: ArtLayer[]
+}
+
 export interface SceneStateDef {
   id: string
   label: string
-  image: string
+  /** фон-изображение (файл пакета или ссылка) */
+  image?: string
+  /** фон, нарисованный примитивами (вместо image) */
+  art?: ArtDoc
   condition: SceneCondition | null
 }
 

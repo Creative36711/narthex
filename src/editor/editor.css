@@ -309,6 +309,8 @@
 }
 .world-map.placing { cursor: crosshair; outline: 2px dashed var(--gold); }
 .world-map img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
+.world-map-art { position: absolute; inset: 0; pointer-events: none; }
+.world-map-art svg { width: 100%; height: 100%; display: block; }
 .world-map-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
 .map-marker {
   position: absolute;
@@ -593,3 +595,27 @@
 .asset-check.warn { color: #e8d08a; border-color: #8a7a3a; }
 .asset-check.bad { color: #e8a890; border-color: #8a4a3a; }
 .asset-preview-audio { width: 100%; max-width: 320px; height: 32px; }
+
+/* ── итерация 8, блок D: ArtDoc в редакторе сцен ── */
+
+.scene-stage-wrap { position: relative; }
+.scene-stage-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.art-preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  background: #14110d;
+}
+.art-preview svg { width: 100%; height: 100%; display: block; }
+.art-preview-tools { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+.art-empty { background: repeating-linear-gradient(45deg, #1a1611, #1a1611 8px, #201b15 8px, #201b15 16px); }

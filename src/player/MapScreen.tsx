@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
+import { ArtView } from '../shared/ArtView'
 
 interface Props {
   engine: GameEngine
@@ -155,7 +156,11 @@ export function MapScreen({ engine, onClose }: Props) {
               transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px)`,
             }}
           >
-            <img className="map-bg" src={assetUrl(engine.campaign, region.map_image)} alt={region.label} draggable={false} />
+            {region.map_art ? (
+              <ArtView className="map-bg" art={region.map_art} />
+            ) : (
+              <img className="map-bg" src={assetUrl(engine.campaign, region.map_image)} alt={region.label} draggable={false} />
+            )}
             {locations.map((l) => {
               const here = l.id === engine.state.location
               const cost = engine.travelCost(l.id)

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Rect, Text, Transformer, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { NavigationZone, SceneCondition, SceneDef, SlotDef, TimeOfDay } from '../shared/types'
+import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
+import { ArtView, artToDataUrl } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { ImageUpload, RefSelect, FlagSelect } from './Fields'
+import { ImageUpload, JsonField, RefSelect, FlagSelect } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 
@@ -98,7 +99,10 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   const VIEW_H = canvas.h * k
 
   const st = scene.states[Math.min(stateIdx, scene.states.length - 1)]
-  const img = useImage(st ? `${store.basePath}/${st.image}` : null)
+  // фон: ArtDoc рисуем как SVG-подложку под прозрачным Konva-холстом,
+  // обычное изображение — внутри Konva (итерация 8, блок D)
+  const artUrl = st?.art ? artToDataUrl(st.art) : ''
+  const img = useImage(!st?.art && st?.image ? store.assetSrc(st.image) : null)
 
   useEffect(() => {
     if (trRef.current && selRef.current) {
@@ -215,9 +219,11 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
             </button>
           )}
         </div>
-        <Stage width={VIEW_W} height={VIEW_H} className="scene-stage" onClick={(e) => {
-          if (e.target === e.target.getStage() || e.target.className === 'Image') setSel(null)
-        }}>
+        <div className="scene-stage-wrap" style={{ width: VIEW_W, height: VIEW_H }}>
+          {artUrl && <img className="scene-stage-art" src={artUrl} alt="" draggable={false} />}
+          <Stage width={VIEW_W} height={VIEW_H} className="scene-stage" onClick={(e) => {
+            if (e.target === e.target.getStage() || e.target.className === 'Image') setSel(null)
+          }}>
           <Layer>
             {img && <KImage image={img} width={VIEW_W} height={VIEW_H} />}
             {scene.navigation.map((n, i) => (
@@ -271,7 +277,8 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
               />
             )}
           </Layer>
-        </Stage>
+          </Stage>
+        </div>
         <div className="muted small">
           Клик — выбрать · перетаскивание — двигать · уголки — размер. Пунктир = слот с условием.
         </div>
@@ -306,6 +313,86 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
   )
 }
 
+/**
+ * Фон состояния: изображение ИЛИ векторный ArtDoc (итерация 8, блок D).
+ * ArtDoc — генераторский формат: его рисует ИИ или вставляется JSON'ом,
+ * а мастер в любой момент может заменить его настоящей картинкой.
+ */
+function StateBackground({
+  state,
+  store,
+  commit,
+}: {
+  state: SceneStateDef
+  store: EditorStore
+  commit: () => void
+}) {
+  const [editJson, setEditJson] = useState(false)
+  if (state.art) {
+    return (
+      <div className="fld fld-block">
+        <span>Фон сцены — векторная картинка (ArtDoc)</span>
+        <ArtView className="art-preview" art={state.art} />
+        <div className="art-preview-tools">
+          <button
+            className="btn btn-small"
+            title="Убрать векторный фон и загрузить обычное изображение"
+            onClick={() => {
+              delete state.art
+              commit()
+            }}
+          >
+            🖼 Заменить изображением
+          </button>
+          <button className="btn btn-small" onClick={() => setEditJson((v) => !v)}>
+            {editJson ? 'Скрыть JSON' : '✎ Расширенный JSON'}
+          </button>
+        </div>
+        {editJson && (
+          <JsonField
+            label="ArtDoc (слои примитивов)"
+            rows={14}
+            pretty
+            value={state.art}
+            onChange={(v) => {
+              if (v) state.art = v as ArtDoc
+              commit()
+            }}
+          />
+        )}
+      </div>
+    )
+  }
+  return (
+    <div className="fld fld-block">
+      <ImageUpload
+        label="Фон сцены"
+        value={state.image ?? ''}
+        dir="assets/img/scenes"
+        store={store}
+        onChange={(p) => ((state.image = p), commit())}
+      />
+      <div className="art-preview-tools">
+        <button
+          className="btn btn-small"
+          title="Нарисовать фон примитивами (формат ArtDoc) — удобно для генерации"
+          onClick={() => {
+            state.art = { canvas: { w: 1280, h: 720 }, background: '#20242c', layers: [] }
+            delete state.image
+            commit()
+          }}
+        >
+          🎨 Сделать векторным (ArtDoc)
+        </button>
+      </div>
+      <div className="muted small">
+        Векторный фон описывается JSON'ом: прямоугольники, эллипсы, многоугольники, линии и подписи
+        в координатах сцены (1280×720). Слоты потом ставятся точно по этим координатам.
+      </div>
+    </div>
+  )
+}
+
 function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorStore; commit: () => void }) {
   return (
     <div className="props-group">
@@ -316,13 +403,7 @@ function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorS
             <span>Название</span>
             <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
           </label>
-          <ImageUpload
-            label="Фон сцены"
-            value={s.image}
-            dir="assets/img/scenes"
-            store={store}
-            onChange={(p) => ((s.image = p), commit())}
-          />
+          <StateBackground state={s} store={store} commit={commit} />
           <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
           {scene.states.length > 1 && (
             <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>

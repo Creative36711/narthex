@@ -93,7 +93,7 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
           onMouseUp={() => setPainting(false)}
           onMouseLeave={() => setPainting(false)}
         >
-          {arena.image && <img className="combat-bg" src={`${store.basePath}/${arena.image}`} alt="" draggable={false} />}
+          {arena.image && <img className="combat-bg" src={store.assetSrc(arena.image)} alt="" draggable={false} />}
           <svg className="combat-grid" viewBox={`0 0 ${canvas.w} ${canvas.h}`} preserveAspectRatio="none">
             {hexes.map((h) => {
               const c = hexToPixel(h, size, origin)
