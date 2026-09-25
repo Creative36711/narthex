@@ -243,7 +243,7 @@ function stubScene(id: string, location: string): SceneDef {
     label: `Заглушка: ${id}`,
     location,
     canvas: { w: 1280, h: 720 },
-    states: [{ id: 'state_default', label: 'Обычное', image: '', condition: null }],
+    states: [{ id: 'state_default', label: 'Обычное', art: { background: '#3d3d3d', layers: [] }, condition: null }],
     slots: [],
     navigation: [],
   }
@@ -419,8 +419,14 @@ function normalizeDefs(ctx: RepairCtx): void {
   fix(ctx.doc.scenes as Record<string, SceneDef & { label: string }>, 'Сцена', 'scene', (sc) => {
     sc.states = Array.isArray(sc.states) ? sc.states.filter(isObj) : []
     if (!sc.states.length) {
-      sc.states.push({ id: 'state_default', label: 'Обычное', image: '', condition: null })
+      sc.states.push({ id: 'state_default', label: 'Обычное', art: { background: '#3d3d3d', layers: [] }, condition: null })
       ctx.warn(`Сцена «${sc.label}»: не было ни одного состояния фона — добавлено «Обычное»`)
+    }
+    for (const st of sc.states) {
+      if (!st.image && !st.art) {
+        st.art = { background: '#3d3d3d', layers: [] }
+        ctx.warn(`Сцена «${sc.label}»: у состояния «${st.label}» не было фона — добавлена заглушка фона`)
+      }
     }
     sc.slots = Array.isArray(sc.slots) ? sc.slots.filter(isObj) : []
     sc.navigation = Array.isArray(sc.navigation) ? sc.navigation.filter(isObj) : []
