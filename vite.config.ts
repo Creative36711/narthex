@@ -73,6 +73,46 @@ function editorSavePlugin(): Plugin {
         })
       })
 
+      // скачивание внешнего ассета по ссылке (итерация 8, блок C):
+      // браузер не может прочитать чужой файл без CORS, а dev-сервер — может
+      server.middlewares.use('/__editor/fetch', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end('method not allowed')
+          return
+        }
+        let body = ''
+        req.on('data', (c) => (body += c))
+        req.on('end', async () => {
+          try {
+            const { url } = JSON.parse(body) as { url: string }
+            if (!/^https?:\/\//i.test(url)) {
+              res.statusCode = 400
+              res.end('only http(s) urls are allowed')
+              return
+            }
+            const remote = await fetch(url)
+            if (!remote.ok) {
+              res.statusCode = 502
+              res.setHeader('content-type', 'application/json')
+              res.end(JSON.stringify({ error: `remote ${remote.status}` }))
+              return
+            }
+            const buf = Buffer.from(await remote.arrayBuffer())
+            res.setHeader('content-type', 'application/json')
+            res.end(
+              JSON.stringify({
+                base64: buf.toString('base64'),
+                mime: remote.headers.get('content-type') ?? '',
+              }),
+            )
+          } catch (e) {
+            res.statusCode = 500
+            res.end(String(e))
+          }
+        })
+      })
+
       server.middlewares.use('/__editor/save', (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405

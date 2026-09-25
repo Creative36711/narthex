@@ -516,3 +516,80 @@
 }
 .need-conds > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
 .need-conds .fld-block { margin-top: 8px; }
+
+/* ── итерация 8, блок B: токены значений в репликах ── */
+
+.dlg-line-preview {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+.dlg-line-preview b { color: var(--gold-bright); font-weight: 600; }
+
+.token-inserter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: var(--panel-2);
+  border: 1px solid var(--gold);
+  border-radius: 5px;
+  padding: 5px 8px;
+  margin: 4px 0;
+  width: 100%;
+}
+.token-inserter select {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 4px 7px;
+  font-size: 13px;
+  font-family: inherit;
+  max-width: 220px;
+}
+
+/* ── итерация 8: предупреждения в формах редактора ── */
+
+.warn-note {
+  background: rgba(180, 80, 60, 0.12);
+  border: 1px solid #a3503c;
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #f0c8b8;
+  margin: 6px 0;
+}
+
+/* ── итерация 8, блок C: загрузка по ссылке ── */
+
+.img-upload-url { display: flex; gap: 6px; margin-top: 6px; }
+.img-upload-url input {
+  flex: 1;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.asset-check {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+}
+.asset-check.ok { color: #a8d8a8; border-color: #4a7a4a; }
+.asset-check.warn { color: #e8d08a; border-color: #8a7a3a; }
+.asset-check.bad { color: #e8a890; border-color: #8a4a3a; }
+.asset-preview-audio { width: 100%; max-width: 320px; height: 32px; }

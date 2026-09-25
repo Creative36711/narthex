@@ -2,7 +2,9 @@ import { useId, useState } from 'react'
 import type { Condition, Effect } from '../shared/types'
 import { makeId } from './ids'
 import type { EditorStore } from './store'
-import { askText, showAlert } from '../shared/modals'
+import { isExternalUrl } from '../core/loader'
+import { askText } from '../shared/modals'
+import { checkExternalUrl, reportAssetError, type AssetKind, type UrlCheck } from './assets'
 import {
   CONDITION_SCHEMAS,
   EFFECT_SCHEMAS,
@@ -499,7 +501,135 @@ export function RefSelect({
   )
 }
 
-/** Загрузка изображения с компьютера: сохраняет в assets кампании, хранит путь. */
+/**
+ * Загрузка медиафайла: с компьютера или по ссылке (итерация 8, блок C).
+ * Ссылка проверяется сразу: если хостинг запрещает встраивание, мастер
+ * видит предупреждение и понимает, что кампания будет зависеть от сети.
+ */
+export function AssetUpload({
+  label,
+  value,
+  dir,
+  store,
+  kind = 'image',
+  onChange,
+}: {
+  label: string
+  value: string
+  /** подпапка в кампании, напр. "assets/img/maps" */
+  dir: string
+  store: EditorStore
+  kind?: AssetKind
+  onChange: (path: string) => void
+}) {
+  const inputId = useId()
+  const [busy, setBusy] = useState(false)
+  const [url, setUrl] = useState('')
+  const [check, setCheck] = useState<UrlCheck | null>(null)
+  const [checking, setChecking] = useState(false)
+  const accept = kind === 'audio' ? 'audio/*' : kind === 'video' ? 'video/*' : 'image/*'
+
+  const pick = async (file: File) => {
+    setBusy(true)
+    try {
+      const clean = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '_')
+      const rel = `${dir}/${clean}`
+      await store.saveBinary(rel, file)
+      onChange(rel)
+    } catch (e) {
+      void reportAssetError(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const applyUrl = async () => {
+    const u = url.trim()
+    if (!u) return
+    setChecking(true)
+    setCheck(null)
+    const res = await checkExternalUrl(u, kind)
+    setCheck(res)
+    setChecking(false)
+    if (res.ok) onChange(u)
+  }
+
+  return (
+    <div className="fld fld-block img-upload">
+      <span>{label}</span>
+      <div className="img-upload-row">
+        {value ? (
+          kind === 'audio' ? (
+            <audio className="asset-preview-audio" src={assetSrc(store, value)} controls />
+          ) : (
+            <img className="img-upload-preview" src={assetSrc(store, value)} alt="" />
+          )
+        ) : (
+          <div className="img-upload-empty">нет файла</div>
+        )}
+        <div className="img-upload-btns">
+          <label className="btn btn-small" htmlFor={inputId}>
+            {busy ? 'Загрузка…' : '📁 Выбрать файл…'}
+          </label>
+          <input
+            id={inputId}
+            type="file"
+            accept={accept}
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) pick(f)
+              e.target.value = ''
+            }}
+          />
+          {value && (
+            <button className="btn btn-small ce-del" onClick={() => { onChange(''); setCheck(null) }}>✕ убрать</button>
+          )}
+        </div>
+      </div>
+      <div className="img-upload-url">
+        <input
+          type="url"
+          value={url}
+          placeholder="или вставьте ссылку (https://…)"
+          spellCheck={false}
+          onChange={(e) => {
+            setUrl(e.target.value)
+            setCheck(null)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              void applyUrl()
+            }
+          }}
+        />
+        <button className="btn btn-small" disabled={!url.trim() || checking} onClick={() => void applyUrl()}>
+          {checking ? 'Проверяю…' : 'Вставить ссылку'}
+        </button>
+      </div>
+      {check && (
+        <div className={`asset-check ${check.ok ? (check.cors ? 'ok' : 'warn') : 'bad'}`}>
+          {check.ok ? (check.cors ? '✓ ' : '⚠ ') : '✗ '}
+          {check.message}
+        </div>
+      )}
+      {isExternalUrl(value) && (
+        <div className="muted small">
+          Файл лежит на чужом сервере: без интернета картинка/звук не покажется. Чтобы кампания
+          стала автономной, отметьте «Вшить внешние ссылки в пакет» при экспорте.
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** путь файла → src для предпросмотра (внешние ссылки — как есть) */
+function assetSrc(store: EditorStore, value: string): string {
+  return isExternalUrl(value) ? value : `${store.basePath}/${value}`
+}
+
+/** Загрузка изображения с компьютера или по ссылке. */
 export function ImageUpload({
   label,
   value,
@@ -509,56 +639,28 @@ export function ImageUpload({
 }: {
   label: string
   value: string
-  dir: string // подпапка в кампании, напр. "assets/img/maps"
+  dir: string
   store: EditorStore
   onChange: (path: string) => void
 }) {
-  const inputId = useId()
-  const [busy, setBusy] = useState(false)
-  const pick = async (file: File) => {
-    setBusy(true)
-    try {
-      const clean = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '_')
-      const rel = `${dir}/${clean}`
-      await store.saveBinary(rel, file)
-      onChange(rel)
-    } catch (e) {
-      void showAlert('Не удалось загрузить файл', `${e}\n(Загрузка работает в dev-режиме vite / Tauri.)`)
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <div className="fld fld-block img-upload">
-      <span>{label}</span>
-      <div className="img-upload-row">
-        {value ? (
-          <img className="img-upload-preview" src={`${store.basePath}/${value}`} alt="" />
-        ) : (
-          <div className="img-upload-empty">нет изображения</div>
-        )}
-        <div className="img-upload-btns">
-          <label className="btn btn-small" htmlFor={inputId}>
-            {busy ? 'Загрузка…' : '📁 Выбрать файл…'}
-          </label>
-          <input
-            id={inputId}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              if (f) pick(f)
-              e.target.value = ''
-            }}
-          />
-          {value && (
-            <button className="btn btn-small ce-del" onClick={() => onChange('')}>✕ убрать</button>
-          )}
-        </div>
-      </div>
-    </div>
-  )
+  return <AssetUpload label={label} value={value} dir={dir} store={store} kind="image" onChange={onChange} />
+}
+
+/** Загрузка звука (музыка, озвучка) с компьютера или по ссылке. */
+export function AudioUpload({
+  label,
+  value,
+  dir,
+  store,
+  onChange,
+}: {
+  label: string
+  value: string
+  dir: string
+  store: EditorStore
+  onChange: (path: string) => void
+}) {
+  return <AssetUpload label={label} value={value} dir={dir} store={store} kind="audio" onChange={onChange} />
 }
 
 export function JsonField({

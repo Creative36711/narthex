@@ -100,7 +100,7 @@
       {
        "kind": "line",
        "line": {
-        "text": "У тебя {item_count(\"item_silver\")} марок серебром."
+        "text": "У тебя {счёт:item_silver} марок серебром."
        }
       }
      ]

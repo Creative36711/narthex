@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
@@ -6,6 +6,10 @@ import { FlagSelect } from './Fields'
 import {
   generateInk,
   migrateDlgDoc,
+  parseTokens,
+  tokenString,
+  TOKEN_KINDS,
+  type TokenKind,
   type DlgCheck,
   type DlgChoice,
   type DlgCond,
@@ -460,7 +464,13 @@ function StepListEditor({
       {steps.map((st, i) => (
         <div key={i} className="dlg-step">
           {st.kind === 'line' ? (
-            <LineRow line={st.line} emotions={emotions} commit={commit} onRemove={() => onChange(steps.filter((_, j) => j !== i))} />
+            <LineRow
+              line={st.line}
+              store={store}
+              emotions={emotions}
+              commit={commit}
+              onRemove={() => onChange(steps.filter((_, j) => j !== i))}
+            />
           ) : (
             <EffectRow
               effect={st.effect}
@@ -597,26 +607,142 @@ function GotoSelectOptional({
 
 // ─────────────── реплика и действие ───────────────
 
+/**
+ * Предпросмотр реплики: токены заменены русскими названиями
+ * (мастер видит, как фраза будет выглядеть в игре) — итерация 8, блок B.
+ */
+function LinePreview({ text, store }: { text: string; store: EditorStore }) {
+  const parts = parseTokens(text)
+  if (!parts.some((p) => p.token)) return null
+  const nameOf = (kind: TokenKind, id: string): string => {
+    if (kind === 'count') return store.labelFor('item', id)
+    if (kind === 'need') return store.labelFor('need', id)
+    if (kind === 'skill') return store.labelFor('skill', id)
+    return 'здоровье'
+  }
+  return (
+    <div className="dlg-line-preview">
+      <span className="muted small">В игре: </span>
+      {parts.map((p, i) =>
+        p.token ? (
+          <b key={i} title={p.text}>
+            {nameOf(p.token.kind, p.token.id)}
+          </b>
+        ) : (
+          <span key={i}>{p.text}</span>
+        ),
+      )}
+    </div>
+  )
+}
+
+/** Кнопка «{ } Вставить значение»: выбор типа и объекта → токен в позицию курсора. */
+function TokenInserter({
+  store,
+  onInsert,
+}: {
+  store: EditorStore
+  onInsert: (token: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [kind, setKind] = useState<TokenKind>('count')
+  const options = optionsForToken(store, kind)
+  const [id, setId] = useState<string>('')
+  const value = id || options[0]?.id || ''
+  if (!open) {
+    return (
+      <button className="btn btn-small" title="Вставить в реплику значение из игры (счётчик предмета, здоровье…)" onClick={() => setOpen(true)}>
+        {'{ }'} Вставить значение
+      </button>
+    )
+  }
+  return (
+    <div className="token-inserter">
+      <select
+        value={kind}
+        onChange={(e) => {
+          setKind(e.target.value as TokenKind)
+          setId('')
+        }}
+      >
+        {TOKEN_KINDS.map((t) => (
+          <option key={t.id} value={t.id}>{t.label}</option>
+        ))}
+      </select>
+      {options.length > 0 && (
+        <select value={value} onChange={(e) => setId(e.target.value)}>
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>{o.label}</option>
+          ))}
+        </select>
+      )}
+      <button
+        className="btn btn-small btn-primary"
+        onClick={() => {
+          onInsert(tokenString(kind, options.length ? value : undefined))
+          setOpen(false)
+          setId('')
+        }}
+      >
+        Вставить
+      </button>
+      <button className="btn btn-small" onClick={() => setOpen(false)}>Отмена</button>
+      <span className="muted small">{TOKEN_KINDS.find((t) => t.id === kind)?.hint}</span>
+    </div>
+  )
+}
+
+function optionsForToken(store: EditorStore, kind: TokenKind): Array<{ id: string; label: string }> {
+  if (kind === 'count') return store.options('item')
+  if (kind === 'need') return store.options('need')
+  if (kind === 'skill') return store.options('skill')
+  return []
+}
+
 function LineRow({
   line,
+  store,
   onRemove,
   commit,
   emotions = BASE_EMOTIONS,
 }: {
   line: DlgLine
+  store: EditorStore
   onRemove?: () => void
   commit: () => void
   emotions?: Array<{ id: DlgEmotion; label: string }>
 }) {
+  const areaRef = useRef<HTMLTextAreaElement>(null)
+  const caret = useRef<number | null>(null)
+  const insert = (token: string) => {
+    const el = areaRef.current
+    const at = caret.current ?? el?.selectionStart ?? line.text.length
+    line.text = line.text.slice(0, at) + token + line.text.slice(at)
+    commit()
+    requestAnimationFrame(() => {
+      const pos = at + token.length
+      el?.focus()
+      el?.setSelectionRange(pos, pos)
+      caret.current = pos
+    })
+  }
   return (
     <div className="dlg-line-row">
       <textarea
+        ref={areaRef}
         rows={2}
         value={line.text}
         placeholder="Текст реплики…"
-        onChange={(e) => ((line.text = e.target.value), commit())}
+        onChange={(e) => {
+          line.text = e.target.value
+          caret.current = e.target.selectionStart
+          commit()
+        }}
+        onSelect={(e) => (caret.current = (e.target as HTMLTextAreaElement).selectionStart)}
       />
+      <LinePreview text={line.text} store={store} />
       <div className="dlg-line-opts">
+        <TokenInserter store={store} onInsert={insert} />
         <select
           value={line.emotion ?? 'neutral'}
           title="Настроение (состояние портрета)"

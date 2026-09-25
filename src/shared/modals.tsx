@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 
 type ModalRequest =
   | { kind: 'text'; title: string; placeholder?: string; initial?: string; ok: string; resolve: (v: string | null) => void }
-  | { kind: 'confirm'; title: string; ok: string; cancel: string; resolve: (v: boolean) => void }
+  | { kind: 'confirm'; title: string; ok: string; cancel: string; checkLabel?: string; resolve: (v: boolean) => void }
   | { kind: 'alert'; title: string; body?: string; resolve: () => void }
   | { kind: 'list'; title: string; body?: string; items: string[]; resolve: () => void }
 
@@ -30,6 +30,31 @@ export function askConfirm(title: string, ok = 'Да', cancel = 'Отмена'):
   return new Promise((resolve) => submit({ kind: 'confirm', title, ok, cancel, resolve }))
 }
 
+let lastChecked = false
+
+/**
+ * Подтверждение с галочкой (например «вшить внешние ссылки в пакет»):
+ * возвращает и ответ, и состояние галочки.
+ */
+export function askChecked(
+  title: string,
+  checkLabel: string,
+  ok = 'Да',
+  cancel = 'Отмена',
+): Promise<{ ok: boolean; checked: boolean }> {
+  lastChecked = false
+  return new Promise((resolve) =>
+    submit({
+      kind: 'confirm',
+      title,
+      ok,
+      cancel,
+      checkLabel,
+      resolve: (v: boolean) => resolve({ ok: v, checked: lastChecked }),
+    }),
+  )
+}
+
 /** Сообщение (замена alert()). */
 export function showAlert(title: string, body?: string): Promise<void> {
   return new Promise((resolve) => submit({ kind: 'alert', title, body, resolve }))
@@ -46,6 +71,7 @@ export function showList(title: string, items: string[], body?: string): Promise
 export function ModalHost() {
   const [req, setReq] = useState<ModalRequest | null>(null)
   const [value, setValue] = useState('')
+  const [checked, setChecked] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const okRef = useRef<HTMLButtonElement>(null)
 
@@ -57,12 +83,14 @@ export function ModalHost() {
           return cur
         }
         if (r.kind === 'text') setValue(r.initial ?? '')
+        if (r.kind === 'confirm') setChecked(false)
         return r
       })
     }
     if (queue.length > 0) {
       const r = queue.shift()!
       if (r.kind === 'text') setValue(r.initial ?? '')
+      if (r.kind === 'confirm') setChecked(false)
       setReq(r)
     }
     return () => {
@@ -84,12 +112,14 @@ export function ModalHost() {
     setReq(next)
   }
   const cancel = () => {
+    lastChecked = checked
     if (req.kind === 'text') req.resolve(null)
     else if (req.kind === 'confirm') req.resolve(false)
     else req.resolve()
     close()
   }
   const confirm = () => {
+    lastChecked = checked
     if (req.kind === 'text') {
       if (!value.trim()) return
       req.resolve(value.trim())
@@ -112,6 +142,12 @@ export function ModalHost() {
               ))}
             </ul>
           </>
+        )}
+        {req.kind === 'confirm' && req.checkLabel && (
+          <label className="modal-check">
+            <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+            <span>{req.checkLabel}</span>
+          </label>
         )}
         {req.kind === 'text' && (
           <input

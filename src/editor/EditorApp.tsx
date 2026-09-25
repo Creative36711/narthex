@@ -14,7 +14,8 @@ import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { makeId, slugify } from './ids'
 import './editor.css'
-import { askText, askConfirm, showAlert, showList } from './prompt'
+import { askText, askConfirm, showAlert, showList, askChecked } from './prompt'
+import { collectExternalUrls, embedExternalAssets } from './assets'
 
 /**
  * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
@@ -278,10 +279,33 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }
 
   const doExport = async () => {
+    const external = collectExternalUrls(store)
+    const res = await askChecked(
+      external.length
+        ? `Экспорт «${store.meta.title}». В кампании ${external.length} внешних ссылок (картинки/звук с чужого сервера).`
+        : `Экспорт «${store.meta.title}» одним файлом .chronicle.`,
+      'Вшить внешние ссылки в пакет (кампания станет автономной)',
+      'Экспорт',
+    )
+    if (!res.ok) return
     setBusy('Экспорт .chronicle…')
     try {
+      const notes: string[] = []
+      if (res.checked) {
+        setBusy('Скачиваю внешние файлы…')
+        notes.push(...(await embedExternalAssets(store)))
+      }
       const blob = await exportChronicle(store)
       downloadBlob(blob, `${store.meta.id}.chronicle`)
+      if (notes.length) {
+        void showList(
+          `Пакет собран (${notes.length} внешних файлов)`,
+          notes,
+          'Файлы скачаны в assets/external/ и ссылки переписаны. Сохраните кампанию, чтобы записать изменения на диск.',
+        )
+      }
+    } catch (e) {
+      void showAlert('Не удалось собрать пакет', String(e))
     } finally {
       setBusy(null)
     }

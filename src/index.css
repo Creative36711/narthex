@@ -948,6 +948,8 @@ button { font-family: inherit; cursor: pointer; }
   padding: 7px 10px; margin-bottom: 6px;
 }
 .modal-list li::before { content: '• '; color: var(--gold); }
+.modal-check { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px; font-size: 13.5px; color: var(--text); cursor: pointer; }
+.modal-check input { margin-top: 2px; accent-color: var(--gold); }
 .modal-box input {
   width: 100%;
   box-sizing: border-box;

@@ -6,7 +6,88 @@
  * v2 (фидбек №12 четвёртого раунда): условия (флаги, предметы, отношение,
  * квесты, отряд, здоровье), проверки навыков с ветками успех/провал,
  * условные блоки реплик, название диалога.
+ *
+ * v2 + токены (итерация 8, блок B): в тексте реплики вместо ink-выражений
+ * вида {item_count("item_silver")} мастер вставляет кнопкой человекочитаемые
+ * токены: {счёт:item_silver}, {здоровье}, {потребность:warmth},
+ * {навык:persuade}. generateInk() переводит их в ink-выражения; старые
+ * тексты с «сырым» ink мигрируются на токены при открытии (inkToTokens).
  */
+
+// ─────────────── токены значений в тексте реплик ───────────────
+
+export type TokenKind = 'count' | 'hp' | 'need' | 'skill'
+
+export const TOKEN_KINDS: Array<{ id: TokenKind; label: string; hint: string }> = [
+  { id: 'count', label: 'Количество предмета', hint: 'сколько штук предмета у героя' },
+  { id: 'hp', label: 'Здоровье', hint: 'текущее здоровье героя' },
+  { id: 'need', label: 'Потребность', hint: 'текущее значение потребности' },
+  { id: 'skill', label: 'Навык', hint: 'текущее значение навыка' },
+]
+
+const TOKEN_WORD: Record<TokenKind, string> = {
+  count: 'счёт',
+  hp: 'здоровье',
+  need: 'потребность',
+  skill: 'навык',
+}
+
+export interface TextPart {
+  text: string
+  /** токен (если часть — подставляемое значение) */
+  token?: { kind: TokenKind; id: string }
+}
+
+export function tokenString(kind: TokenKind, id?: string): string {
+  return id ? `{${TOKEN_WORD[kind]}:${id}}` : `{${TOKEN_WORD[kind]}}`
+}
+
+const TOKEN_RE = /\{\s*(счёт|счет|здоровье|потребность|навык)\s*(?::\s*([^}]*?))?\s*\}/gi
+
+function kindByWord(word: string): TokenKind {
+  const w = word.toLowerCase().replace('ё', 'е')
+  if (w === 'счет') return 'count'
+  if (w === 'здоровье') return 'hp'
+  if (w === 'потребность') return 'need'
+  return 'skill'
+}
+
+/** разобрать текст реплики на обычные куски и токены (для предпросмотра) */
+export function parseTokens(text: string): TextPart[] {
+  const out: TextPart[] = []
+  let last = 0
+  for (const m of text.matchAll(TOKEN_RE)) {
+    const at = m.index ?? 0
+    if (at > last) out.push({ text: text.slice(last, at) })
+    out.push({ text: m[0], token: { kind: kindByWord(m[1]), id: (m[2] ?? '').trim() } })
+    last = at + m[0].length
+  }
+  if (last < text.length) out.push({ text: text.slice(last) })
+  return out
+}
+
+/** токены → ink-выражения (то, что понимает движок) */
+export function tokensToInk(text: string): string {
+  return text.replace(TOKEN_RE, (_m, word: string, id?: string) => {
+    const kind = kindByWord(word)
+    const key = (id ?? '').trim()
+    switch (kind) {
+      case 'count': return `{item_count("${key}")}`
+      case 'hp': return `{get_hp()}`
+      case 'need': return `{get_need("${key}")}`
+      case 'skill': return `{get_skill("${key}")}`
+    }
+  })
+}
+
+/** старые «сырые» ink-выражения в тексте → токены (мягкая миграция) */
+export function inkToTokens(text: string): string {
+  return text
+    .replace(/\{\s*item_count\(\s*["']([^"']+)["']\s*\)\s*\}/gi, (_m, id: string) => tokenString('count', id))
+    .replace(/\{\s*get_hp\(\s*\)\s*\}/gi, () => tokenString('hp'))
+    .replace(/\{\s*get_need\(\s*["']([^"']+)["']\s*\)\s*\}/gi, (_m, id: string) => tokenString('need', id))
+    .replace(/\{\s*get_skill\(\s*["']([^"']+)["']\s*\)\s*\}/gi, (_m, id: string) => tokenString('skill', id))
+}
 
 /** настроение (состояние портрета): базовые + свои состояния из формы NPC */
 export type DlgEmotion = string
@@ -134,11 +215,36 @@ interface DlgNodeV1 {
 }
 
 /** привести документ любой версии к v2 (v1 мигрируется на лету) */
+function migrateLineTexts(doc: DlgDoc): DlgDoc {
+  const fixLine = (l: DlgLine) => {
+    if (l.text) l.text = inkToTokens(l.text)
+  }
+  const fixSections = (sections: DlgSection[]) => {
+    for (const sec of sections) {
+      for (const st of sec.steps) if (st.kind === 'line') fixLine(st.line)
+      for (const st of sec.else_steps ?? []) if (st.kind === 'line') fixLine(st.line)
+    }
+  }
+  for (const node of doc.nodes) {
+    fixSections(node.sections)
+    for (const c of node.choices) {
+      c.text = inkToTokens(c.text ?? '')
+      fixSections(c.sections)
+      if (c.check) {
+        fixSections(c.check.success.sections)
+        fixSections(c.check.fail.sections)
+      }
+    }
+  }
+  return doc
+}
+
 export function migrateDlgDoc(raw: unknown): DlgDoc {
   const doc = raw as { version: number; label?: string; nodes: unknown[] }
-  if (doc.version === 2) return doc as DlgDoc
+  // v2: тексты могли содержать «сырой» ink (item_count(...) и т.п.) — переводим в токены
+  if (doc.version === 2) return migrateLineTexts(doc as DlgDoc)
   const v1nodes = doc.nodes as DlgNodeV1[]
-  return {
+  const migrated: DlgDoc = {
     version: 2,
     label: doc.label,
     nodes: v1nodes.map((n) => ({
@@ -163,6 +269,7 @@ export function migrateDlgDoc(raw: unknown): DlgDoc {
       }),
     })),
   }
+  return migrateLineTexts(migrated)
 }
 
 // ─────────────── генерация ink ───────────────
@@ -194,9 +301,9 @@ function condsInk(conds: DlgCond[]): string {
   return conds.map(condInk).join(' && ')
 }
 
-/** одна реплика → строка ink с тегами */
+/** одна реплика → строка ink с тегами (токены превращаются в ink-выражения) */
 function inkLine(l: DlgLine, indent: string): string {
-  const text = l.text.replace(/\s+/g, ' ').trim()
+  const text = tokensToInk(l.text).replace(/\s+/g, ' ').trim()
   const tags: string[] = []
   if (l.emotion && l.emotion !== 'neutral') tags.push(`# emotion: ${l.emotion}`)
   if (l.action) tags.push('# action')
