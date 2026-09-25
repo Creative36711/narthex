@@ -48,20 +48,107 @@ export function autoDurationMs(slide: CutsceneSlide): number {
   return Math.min(16000, Math.max(3500, len * TYPE_MS + 2600))
 }
 
+
+
+// ── YouTube: IFrame Player API — слайд знает, когда видео кончилось ──
+let ytApiPromise: Promise<any> | null = null
+function loadYtApi(): Promise<any> {
+  const g = window as any
+  if (g.YT?.Player) return Promise.resolve(g.YT)
+  if (!ytApiPromise) {
+    ytApiPromise = new Promise((resolve, reject) => {
+      const prev = g.onYouTubeIframeAPIReady
+      g.onYouTubeIframeAPIReady = () => {
+        if (typeof prev === 'function') prev()
+        resolve(g.YT)
+      }
+      const sc = document.createElement('script')
+      sc.src = 'https://www.youtube.com/iframe_api'
+      sc.async = true
+      sc.onerror = () => reject(new Error('нет доступа к YouTube API'))
+      document.head.appendChild(sc)
+      setTimeout(() => reject(new Error('YouTube API не ответил')), 7000)
+    })
+  }
+  return ytApiPromise
+}
+
+/** слайд с роликом YouTube: авто-переход в конце; если API недоступен — ждём «Далее» */
+function YoutubeSlide({ ytId, onVideoEnd, onFallback }: { ytId: string; onVideoEnd: () => void; onFallback: () => void }) {
+  const hostRef = useRef<HTMLDivElement | null>(null)
+  const endRef = useRef(onVideoEnd)
+  endRef.current = onVideoEnd
+  const [embedOnly, setEmbedOnly] = useState(false)
+  useEffect(() => {
+    let player: any = null
+    let cancelled = false
+    loadYtApi()
+      .then((YT) => {
+        if (cancelled || !hostRef.current) return
+        player = new YT.Player(hostRef.current, {
+          videoId: ytId,
+          playerVars: {
+            autoplay: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1,
+            cc_load_policy: 0, iv_load_policy: 3, fs: 0, disablekb: 1,
+            origin: window.location.origin,
+          },
+          events: {
+            onStateChange: (e: { data: number }) => {
+              if (e.data === 0) endRef.current() // ENDED
+            },
+          },
+        })
+      })
+      .catch(() => {
+        // API недоступен (нет сети у зрителя или у YouTube) — старая схема:
+        // обычный embed, конец видео не слышим, ждём кнопку «Далее»
+        if (!cancelled) {
+          setEmbedOnly(true)
+          onFallback()
+        }
+      })
+    return () => {
+      cancelled = true
+      try {
+        player?.destroy?.()
+      } catch {
+        /* уже убит */
+      }
+    }
+  }, [ytId])
+  if (embedOnly) {
+    return (
+      <iframe
+        className="cs-media cs-video"
+        src={`https://www.youtube.com/embed/${ytId}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&cc_load_policy=0&iv_load_policy=3&fs=0&disablekb=1`}
+        allow="autoplay; encrypted-media"
+      />
+    )
+  }
+  return <div className="cs-media cs-video cs-yt-host" ref={hostRef} />
+}
+
 function SlideMedia({
   slide,
   resolve,
   panzoomMs,
   panzoomOrigin,
   onVideoEnd,
+  onNeedUser,
 }: {
   slide: CutsceneSlide
   resolve: (p: string) => string
   panzoomMs: number | null
   panzoomOrigin: string
   onVideoEnd: () => void
+  /** фолбэк YouTube-слайда (API недоступен): показать кнопку «Далее» */
+  onNeedUser: () => void
 }) {
   const [videoFailed, setVideoFailed] = useState(false)
+  const yt = slide.video ? youtubeId(slide.video) : null
+  if (slide.video && !videoFailed && yt) {
+    return <YoutubeSlide key={yt} ytId={yt} onVideoEnd={onVideoEnd} onFallback={onNeedUser} />
+  }
   const style: React.CSSProperties = panzoomMs
     ? { animationDuration: `${panzoomMs}ms`, transformOrigin: panzoomOrigin }
     : {}
@@ -69,17 +156,6 @@ function SlideMedia({
   if (slide.art) return <ArtView className={cls} art={slide.art} style={style} />
   if (slide.image) return <img className={cls} src={resolve(slide.image)} alt="" draggable={false} style={style} />
   if (slide.video && !videoFailed) {
-    const yt = youtubeId(slide.video)
-    if (yt) {
-      return (
-        <iframe
-          className="cs-media cs-video"
-          src={`https://www.youtube.com/embed/${yt}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&cc_load_policy=0&iv_load_policy=3&fs=0&disablekb=1`}
-          allow="autoplay; encrypted-media"
-          data-tip="видео"
-        />
-      )
-    }
     return (
       <video
         className="cs-media cs-video"
@@ -196,7 +272,6 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
       after(slide.duration * 1000)
     } else if (slide.video && !slide.art && !slide.image) {
       // видео: mp4 — по окончании (onVideoEnd), YouTube — ждём игрока
-      if (youtubeId(slide.video)) setWaitUser(true)
     } else if (slide.voice && vol > 0) {
       const a = new Audio(resolve(slide.voice))
       a.volume = vol
@@ -278,6 +353,9 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
           panzoomOrigin={origins[i % origins.length]}
           onVideoEnd={() => {
             if (role === 'in' && !s.duration) next()
+          }}
+          onNeedUser={() => {
+            if (role === 'in') setWaitUser(true)
           }}
         />
       </div>
