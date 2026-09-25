@@ -13,6 +13,23 @@ export interface DialogueLine {
   emotion: string
   /** повествование/действие (тег # action) — рендерится курсивом */
   action?: boolean
+  /** озвучка реплики: файл пакета или ссылка (тег # voice: …) — итерация 8, блок G */
+  voice?: string
+}
+
+/** разбор тегов реплики: # emotion: … / # action / # voice: … */
+export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string } {
+  let emotion = 'neutral'
+  let action = false
+  let voice: string | undefined
+  for (const t of tags) {
+    const em = t.match(/^emotion:\s*(\w+)/)
+    if (em) emotion = em[1]
+    if (t.trim() === 'action') action = true
+    const vo = t.match(/^voice:\s*(.+)$/)
+    if (vo) voice = vo[1].trim()
+  }
+  return { emotion, action: action || undefined, voice }
 }
 
 export interface DialogueUI {
@@ -98,14 +115,8 @@ export function drainStory(story: Story): { lines: DialogueLine[]; choices: { in
   while (story.canContinue) {
     const text = (story.Continue() ?? '').trim()
     const tags = story.currentTags ?? []
-    let emotion = 'neutral'
-    let action = false
-    for (const t of tags) {
-      const m = t.match(/^emotion:\s*(\w+)/)
-      if (m) emotion = m[1]
-      if (t.trim() === 'action') action = true
-    }
-    if (text) lines.push({ text, emotion, action })
+    const { emotion, action, voice } = parseLineTags(tags)
+    if (text) lines.push({ text, emotion, action, voice })
   }
   const choices = story.currentChoices.map((c, i) => ({ index: i, text: c.text }))
   return { lines, choices, finished: choices.length === 0 && !story.canContinue }

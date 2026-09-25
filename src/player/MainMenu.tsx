@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { CampaignData } from '../shared/types'
 import { askConfirm, showAlert } from '../shared/modals'
+import { SettingsPanel } from '../shared/SettingsPanel'
 import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
 
 interface Props {
@@ -24,6 +25,7 @@ interface Props {
 export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, canContinue, onNewGame, onContinue, onEditor, onHelp }: Props) {
   const m = campaign.meta
   const [showList, setShowList] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [importBusy, setImportBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -66,6 +68,9 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                 ❓ Как играть
               </button>
             )}
+            <button className="btn" onClick={() => setShowSettings(true)}>
+              ⚙ Настройки
+            </button>
             {onEditor && (
               <button className="btn" onClick={onEditor}>
                 🛠 Редактор
@@ -77,6 +82,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
           </div>
         </div>
       </div>
+      <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
 
       {showList && (
         <div className="campaigns-overlay" onClick={() => setShowList(false)}>

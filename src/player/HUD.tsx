@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { askConfirm } from '../shared/modals'
+import { SettingsPanel } from '../shared/SettingsPanel'
 import type { GameEngine } from '../core/engine'
 import { formatTime, timeOfDay, TIME_OF_DAY_LABEL } from '../core/time'
 
@@ -16,6 +18,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
   const s = engine.state
   const meta = engine.campaign.meta
   const tod = timeOfDay(s.tick, meta)
+  const [showSettings, setShowSettings] = useState(false)
 
   return (
     <div className="hud">
@@ -47,6 +50,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         <button className="hud-btn" onClick={onOpenCharacter} title="Лист персонажа">👤 Герой</button>
         <button className="hud-btn" onClick={onOpenLog} title="Журнал">📜 Журнал</button>
         <button className="hud-btn" onClick={onOpenHelp} title="Справка">❓</button>
+        <button className="hud-btn" onClick={() => setShowSettings(true)} title="Настройки (громкость, озвучка)">⚙</button>
         <button
           className="hud-btn"
           title="Выйти в главное меню (прогресс сохранён)"
@@ -57,6 +61,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           ⏻
         </button>
       </div>
+      <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   )
 }

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
-import { FlagSelect } from './Fields'
+import { FlagSelect, AudioUpload } from './Fields'
 import {
   generateInk,
   migrateDlgDoc,
@@ -716,6 +716,7 @@ function LineRow({
 }) {
   const areaRef = useRef<HTMLTextAreaElement>(null)
   const caret = useRef<number | null>(null)
+  const [voiceOpen, setVoiceOpen] = useState(!!line.voice)
   const insert = (token: string) => {
     const el = areaRef.current
     const at = caret.current ?? el?.selectionStart ?? line.text.length
@@ -772,10 +773,32 @@ function LineRow({
           />
           <span>ремарка</span>
         </label>
+        <button
+          className={`btn btn-small ${line.voice ? 'btn-primary' : ''}`}
+          title={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики: файл или ссылка'}
+          onClick={() => setVoiceOpen(!voiceOpen)}
+        >
+          🎙{line.voice ? ' ✓' : ''}
+        </button>
         {onRemove && (
           <button className="btn btn-small ce-del" onClick={onRemove}>✕</button>
         )}
       </div>
+      {voiceOpen && (
+        <div className="dlg-line-voice">
+          <AudioUpload
+            label="Озвучка реплики (файл или ссылка; без неё возможен синтезатор в настройках игрока)"
+            value={line.voice ?? ''}
+            dir="assets/voice"
+            store={store}
+            onChange={(v) => {
+              if (v) line.voice = v
+              else delete line.voice
+              commit()
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -9,8 +9,10 @@ import { useEffect, useState } from 'react'
 export interface PlayerSettings {
   /** общая громкость 0…1 */
   volume: number
-  /** громкость музыки (катсцены) 0…1 */
+  /** громкость музыки (катсцены, треки) 0…1 */
   music_volume: number
+  /** громкость звуковых эффектов (UI, взаимодействия) 0…1 */
+  sfx_volume: number
   /** громкость озвучки реплик и слайдов 0…1 */
   voice_volume: number
   /** озвучка выключена целиком (файлы и синтезатор) */
@@ -26,6 +28,7 @@ export interface PlayerSettings {
 export const DEFAULT_SETTINGS: PlayerSettings = {
   volume: 0.9,
   music_volume: 0.6,
+  sfx_volume: 0.8,
   voice_volume: 1,
   voice_muted: false,
   tts_enabled: false,
@@ -71,9 +74,13 @@ export function useSettings(): PlayerSettings {
   return s
 }
 
-/** итоговая громкость музыки/озвучки с учётом общей */
+/** итоговая громкость музыки/эффектов/озвучки с учётом общей */
 export function musicVolume(s: PlayerSettings): number {
   return clamp01(s.volume * s.music_volume)
+}
+
+export function sfxVolume(s: PlayerSettings): number {
+  return clamp01(s.volume * s.sfx_volume)
 }
 
 export function voiceVolume(s: PlayerSettings): number {
