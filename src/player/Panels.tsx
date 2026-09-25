@@ -145,7 +145,7 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
             </span>
           </li>
           <li>
-            <span>🛡 Броня</span>
+            <span><Ico n="shield" /> Броня</span>
             <span className="skill-val">
               {armor.label}
               {armor.itemId && ` (−${armor.points} к урону)`}

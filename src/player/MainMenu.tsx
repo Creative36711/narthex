@@ -72,7 +72,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
               </button>
             )}
             <button className="btn" onClick={() => setShowList(true)}>
-              📚 Кампании
+              <Ico n="book" /> Кампании
             </button>
             {onHelp && (
               <button className="btn" onClick={onHelp}>
@@ -84,7 +84,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
             </button>
             {onEditor && (
               <button className="btn" onClick={onEditor}>
-                🛠 Редактор
+                <Ico n="settings" /> Редактор
               </button>
             )}
           </div>
@@ -152,7 +152,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
             </div>
             <div className="campaigns-foot">
               <button className="btn" disabled={importBusy} onClick={() => fileRef.current?.click()}>
-                {importBusy ? 'Импорт…' : '📦 Импортировать кампанию (.chronicle)'}
+                {importBusy ? 'Импорт…' : <><Ico n="doc" /> Импортировать кампанию (.chronicle)</>}
               </button>
               <input
                 ref={fileRef}

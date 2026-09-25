@@ -20,8 +20,8 @@ function ChecksBody({ rules }: { rules: DiceRules }) {
   const lowSkill = rules.fumble_low_skill
   const fumbleLine =
     rules.fumble_from >= 100 || lowSkill == null
-      ? `  💀 Бросок ${rules.fumble_from}–100         → Критический провал`
-      : `  💀 Бросок ${rules.fumble_from}–100         → Критический провал
+      ? `     Бросок ${rules.fumble_from}–100         → Критический провал`
+      : `     Бросок ${rules.fumble_from}–100         → Критический провал
      (при навыке ниже ${lowSkill} — весь хвост ${rules.fumble_from}–99)`
   return (
     <>
@@ -31,7 +31,7 @@ function ChecksBody({ rules }: { rules: DiceRules }) {
         и сравнивает его со значением навыка.
       </p>
       <pre>{`  ✅ Бросок ≤ навыка          → Успех
-  🎯 Бросок ≤ навыка ÷ ${String(rules.critical_divisor).padEnd(3)}   → Критический успех!
+     Бросок ≤ навыка ÷ ${String(rules.critical_divisor).padEnd(3)}   → Критический успех!
   ⭐ Бросок ≤ навыка ÷ ${String(rules.special_divisor).padEnd(3)}   → Особый (хороший) успех
   ❌ Бросок > навыка          → Провал
 ${fumbleLine}`}</pre>
@@ -43,8 +43,8 @@ ${fumbleLine}`}</pre>
         <br />• Бросок 71 → 71 &gt; {DEMO_SKILL} → <b>провал</b>, разговор не задался.
       </p>
       <p className="muted">
-        💡 Особый успех при навыке {DEMO_SKILL} — это бросок {special} или меньше. Чем выше навык,
-        тем больше шанс. Результаты всех бросков пишутся в журнал (📜).
+        Особый успех при навыке {DEMO_SKILL} — это бросок {special} или меньше. Чем выше навык,
+        тем больше шанс. Результаты всех бросков пишутся в журнал.
       </p>
     </>
   )
@@ -58,7 +58,7 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   },
   {
     id: 'growth',
-    title: '📈 Рост навыков',
+    title: 'Рост навыков',
     body: (
       <>
         <p>
@@ -116,7 +116,7 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
   },
   {
     id: 'social',
-    title: '🤝 Репутация и торговля',
+    title: 'Репутация и торговля',
     body: (
       <>
         <p>

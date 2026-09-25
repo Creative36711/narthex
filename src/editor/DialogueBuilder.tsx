@@ -779,7 +779,7 @@ function LineRow({
           title={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики: файл или ссылка'}
           onClick={() => setVoiceOpen(!voiceOpen)}
         >
-          🎙{line.voice ? '' : ''}
+          <Ico n="mic" />{line.voice ? '' : ''}
         </button>
         {onRemove && (
           <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>

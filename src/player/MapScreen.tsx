@@ -107,7 +107,7 @@ export function MapScreen({ engine, onClose }: Props) {
     <div className="overlay map-overlay">
       <div className="map-screen">
         <div className="map-header">
-          <h2>🗺 {region.label}</h2>
+          <h2><Ico n="map" /> {region.label}</h2>
           <div className="map-tools">
             <label className="fld-check small map-labels-toggle" data-tip="Показывать подписи у всех локаций">
               <input type="checkbox" checked={labels} onChange={toggleLabels} />

@@ -225,7 +225,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           if (!e) return { path: p, title: p }
           if (e.type === 'npc') return { path: p, title: e.label || p, group: 'Персонажи', groupOrder: '0' }
           const cat = store.labelFor('itemCategory', e.category)
-          return { path: p, title: e.label || p, group: `🎒 ${cat}`, groupOrder: `1${cat}` }
+          return { path: p, title: e.label || p, group: `${cat}`, groupOrder: `1${cat}` }
         })
       case 'rules':
         return store.rulePaths().map((p) => ({ path: p, title: store.rule(p)?.label ?? p }))
@@ -459,7 +459,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           {store.dirty.size ? `несохранено: ${store.dirty.size}` : 'все сохранено'}
         </span>
         <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size}>
-          💾 Сохранить
+          <Ico n="download" /> Сохранить
         </button>
         <button
           className="btn btn-small"
@@ -473,7 +473,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             }
           }}
         >
-          🔎 Проверить
+          <Ico n="check" /> Проверить
         </button>
         <button className="btn btn-small" onClick={playtest}><Ico n="play" />  Плейтест</button>
         <button className="btn btn-small" onClick={doExport} data-tip="Скачать кампанию одним файлом .chronicle"><Ico n="download" />  Экспорт</button>

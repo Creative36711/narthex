@@ -327,7 +327,7 @@ function LocationProps({
     .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
   return (
     <div className="props-group">
-      <h4>📍 {loc.label}</h4>
+      <h4><Ico n="map" /> {loc.label}</h4>
       <div className="fld-row">
         <label className="fld">
           <span>Название</span>

@@ -8,7 +8,7 @@ export type IcoName =
   | 'globe' | 'film' | 'book' | 'doc' | 'download' | 'plus' | 'check' | 'warn'
   | 'up' | 'down' | 'left' | 'right' | 'chevron' | 'chevronRight' | 'sparkle'
   | 'coin' | 'mic' | 'star' | 'heart' | 'flame' | 'ghost' | 'lock' | 'help'
-  | 'message' | 'move' | 'flag' | 'clock' | 'skull' | 'trophy' | 'info' | 'panel'
+  | 'message' | 'move' | 'flag' | 'clock' | 'skull' | 'trophy' | 'info' | 'panel' | 'shield'
 
 const P: Record<IcoName, string> = {
   // крестик
@@ -70,6 +70,7 @@ const P: Record<IcoName, string> = {
   trophy: 'M7 4h10v5a5 5 0 01-10 0V4zM7 6H4v1a4 4 0 004 4M17 6h3v1a4 4 0 01-4 4M9 20h6M12 14v6',
   info: 'M12 3a9 9 0 100 18 9 9 0 000-18zM12 8h.01M12 11v5',
   panel: 'M4 5h16v14H4zM4 9h16M8 9v10',
+  shield: 'M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6l7-3z',
 }
 
 export function Ico({ n, className = '' }: { n: IcoName; className?: string }) {
