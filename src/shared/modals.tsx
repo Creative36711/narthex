@@ -8,6 +8,15 @@ import { useEffect, useRef, useState } from 'react'
 
 type ModalRequest =
   | { kind: 'text'; title: string; placeholder?: string; initial?: string; ok: string; resolve: (v: string | null) => void }
+  | {
+      kind: 'textarea'
+      title: string
+      body?: string
+      placeholder?: string
+      ok: string
+      fileLabel: string
+      resolve: (v: string | null) => void
+    }
   | { kind: 'confirm'; title: string; ok: string; cancel: string; checkLabel?: string; resolve: (v: boolean) => void }
   | { kind: 'alert'; title: string; body?: string; resolve: () => void }
   | { kind: 'list'; title: string; body?: string; items: string[]; resolve: () => void }
@@ -23,6 +32,27 @@ function submit(r: ModalRequest) {
 /** Запрос строки (замена prompt()). ok — подпись кнопки подтверждения. */
 export function askText(title: string, placeholder = '', initial = '', ok = 'Создать'): Promise<string | null> {
   return new Promise((resolve) => submit({ kind: 'text', title, placeholder, initial, ok, resolve }))
+}
+
+/**
+ * Запрос большого текста (замена prompt() для многострочного ввода):
+ * файл ИЛИ вставленный текст. Кнопка «Выбрать файл…» читает файл в поле.
+ */
+export function askTextArea(
+  title: string,
+  opts: { body?: string; placeholder?: string; ok?: string; fileLabel?: string } = {},
+): Promise<string | null> {
+  return new Promise((resolve) =>
+    submit({
+      kind: 'textarea',
+      title,
+      body: opts.body,
+      placeholder: opts.placeholder,
+      ok: opts.ok ?? 'Продолжить',
+      fileLabel: opts.fileLabel ?? '📄 Выбрать файл…',
+      resolve,
+    }),
+  )
 }
 
 /** Запрос подтверждения (замена confirm()). */
@@ -73,6 +103,8 @@ export function ModalHost() {
   const [value, setValue] = useState('')
   const [checked, setChecked] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const areaRef = useRef<HTMLTextAreaElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const okRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -83,6 +115,7 @@ export function ModalHost() {
           return cur
         }
         if (r.kind === 'text') setValue(r.initial ?? '')
+        if (r.kind === 'textarea') setValue('')
         if (r.kind === 'confirm') setChecked(false)
         return r
       })
@@ -90,6 +123,7 @@ export function ModalHost() {
     if (queue.length > 0) {
       const r = queue.shift()!
       if (r.kind === 'text') setValue(r.initial ?? '')
+      if (r.kind === 'textarea') setValue('')
       if (r.kind === 'confirm') setChecked(false)
       setReq(r)
     }
@@ -101,6 +135,7 @@ export function ModalHost() {
   useEffect(() => {
     if (!req) return
     if (req.kind === 'text') inputRef.current?.focus()
+    else if (req.kind === 'textarea') areaRef.current?.focus()
     else okRef.current?.focus()
   }, [req])
 
@@ -109,11 +144,12 @@ export function ModalHost() {
   const close = () => {
     const next = queue.shift() ?? null
     if (next?.kind === 'text') setValue(next.initial ?? '')
+    if (next?.kind === 'textarea') setValue('')
     setReq(next)
   }
   const cancel = () => {
     lastChecked = checked
-    if (req.kind === 'text') req.resolve(null)
+    if (req.kind === 'text' || req.kind === 'textarea') req.resolve(null)
     else if (req.kind === 'confirm') req.resolve(false)
     else req.resolve()
     close()
@@ -123,6 +159,9 @@ export function ModalHost() {
     if (req.kind === 'text') {
       if (!value.trim()) return
       req.resolve(value.trim())
+    } else if (req.kind === 'textarea') {
+      if (!value.trim()) return
+      req.resolve(value)
     } else if (req.kind === 'confirm') req.resolve(true)
     else req.resolve()
     close()
@@ -161,6 +200,38 @@ export function ModalHost() {
             }}
           />
         )}
+        {req.kind === 'textarea' && (
+          <>
+            {req.body && <div className="modal-body">{req.body}</div>}
+            <textarea
+              ref={areaRef}
+              className="modal-textarea"
+              value={value}
+              placeholder={req.placeholder}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') cancel()
+              }}
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json,.txt,.chronicle-json,application/json,text/plain"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (!f) return
+                f.text().then((t) => setValue(t))
+              }}
+            />
+            <div className="modal-file-row">
+              <button className="btn btn-small" onClick={() => fileRef.current?.click()}>
+                {req.fileLabel}
+              </button>
+            </div>
+          </>
+        )}
         <div className="modal-buttons">
           {req.kind !== 'alert' && (
             <button className="btn btn-small" onClick={cancel}>
@@ -170,10 +241,10 @@ export function ModalHost() {
           <button
             ref={okRef}
             className="btn btn-small btn-primary"
-            disabled={req.kind === 'text' && !value.trim()}
+            disabled={(req.kind === 'text' || req.kind === 'textarea') && !value.trim()}
             onClick={confirm}
           >
-            {req.kind === 'text' ? req.ok : req.kind === 'confirm' ? req.ok : 'Понятно'}
+            {req.kind === 'text' || req.kind === 'textarea' ? req.ok : req.kind === 'confirm' ? req.ok : 'Понятно'}
           </button>
         </div>
       </div>

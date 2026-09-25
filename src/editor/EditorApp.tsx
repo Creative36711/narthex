@@ -15,8 +15,9 @@ import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { makeId, slugify } from './ids'
 import './editor.css'
-import { askText, askConfirm, showAlert, showList, askChecked } from './prompt'
+import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from './prompt'
 import { collectExternalUrls, embedExternalAssets } from './assets'
+import { exportMonolith, importMonolithText } from './monolith'
 
 /**
  * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
@@ -330,6 +331,47 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  /** экспорт одним JSON (формат для ИИ-генераторов, блок F) */
+  const doExportJson = async () => {
+    setBusy('Экспорт JSON…')
+    try {
+      const { doc, warnings } = exportMonolith(store)
+      const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' })
+      downloadBlob(blob, `${doc.campaign.id || 'campaign'}.json`)
+      if (warnings.length) {
+        void showList(`JSON собран (${warnings.length} замечаний)`, warnings, 'Файл скачан. Замечания — различия между файлами пакета и JSON-форматом:')
+      }
+    } catch (e) {
+      void showAlert('Не удалось собрать JSON', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  /** импорт из JSON: файл ИЛИ вставленный текст (кампания может прийти от ИИ) */
+  const doImportJson = async () => {
+    const text = await askTextArea('Импорт кампании из JSON', {
+      body: 'Вставьте текст JSON-кампании целиком или выберите файл.\nИмпорт заменит содержимое текущей кампании; ошибки не прерывают импорт — битое отключается, недостающее достраивается заглушками.',
+      placeholder: '{ "campaign": { … }, "world": { … }, "scenes": { … } }',
+      ok: 'Импортировать',
+      fileLabel: '📄 Выбрать файл JSON…',
+    })
+    if (text === null) return
+    setBusy('Импорт JSON…')
+    try {
+      const warns = importMonolithText(store, text)
+      void showList(
+        warns.length ? `Импортировано с ${warns.length} предупреждениями` : 'Импортировано без предупреждений',
+        warns,
+        'Нажмите «Сохранить», чтобы записать файлы кампании на диск.',
+      )
+    } catch (e) {
+      void showAlert('Ошибка импорта', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const items = listFor(section).sort(
     (a, b) => (a.groupOrder ?? '').localeCompare(b.groupOrder ?? '', 'ru') || a.title.localeCompare(b.title, 'ru'),
   )
@@ -393,7 +435,21 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         </button>
         <button className="btn btn-small" onClick={playtest}>▶ Плейтест</button>
         <button className="btn btn-small" onClick={doExport} title="Скачать кампанию одним файлом .chronicle">⬇ Экспорт</button>
+        <button
+          className="btn btn-small"
+          onClick={doExportJson}
+          title="Скачать кампанию одним JSON (формат обмена и ИИ-генерации)"
+        >
+          ⬇ JSON
+        </button>
         <button className="btn btn-small" onClick={() => fileInput.current?.click()}>⬆ Импорт</button>
+        <button
+          className="btn btn-small"
+          onClick={doImportJson}
+          title="Импортировать кампанию из JSON: файлом или вставив текст"
+        >
+          ⬆ Импорт из JSON
+        </button>
         <input
           ref={fileInput}
           type="file"
