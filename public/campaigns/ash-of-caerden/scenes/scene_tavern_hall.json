@@ -63,8 +63,8 @@
         "w": 130,
         "h": 200
       },
-      "go_to_location": "loc_market",
-      "label": "← На площадь"
+      "label": "На площадь",
+      "open_map": true
     },
     {
       "area": {

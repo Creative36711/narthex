@@ -1,3 +1,4 @@
+import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
 import type {
   ArenaDef,
   CampaignMeta,
@@ -118,6 +119,9 @@ export class EditorStore {
       )
     }
     await Promise.all(jobs)
+    // мягкие миграции старого контента (итерация 8): условия потребностей,
+    // переходы «в локацию» из сцен
+    this.migrateContent()
     // базовые снимки для undo + состояние диска
     for (const p of this.allPaths()) {
       this.snapshots.set(p, this.fileText(p))
@@ -306,6 +310,161 @@ export class EditorStore {
       walk(this.world.regions)
     }
     return out.filter(Boolean).sort()
+  }
+
+  // ─────────────── миграции и валидация ───────────────
+
+  /**
+   * Мягкие миграции контента (итерация 8). Старый формат остаётся читаемым:
+   * одиночные location/item в условиях потребностей превращаются в списки,
+   * переходы «в локацию» из сцен — в «открыть карту».
+   */
+  migrateContent(): string[] {
+    const notes: string[] = []
+    migrateMeta(this.meta)
+    for (const p of this.scenePaths()) {
+      const sc = this.scene(p)
+      if (!sc) continue
+      const before = JSON.stringify(sc.navigation)
+      migrateNavigation(sc, this.world)
+      if (JSON.stringify(sc.navigation) !== before) {
+        notes.push(`Сцена «${sc.label}»: переход «в локацию» заменён на «открыть карту»`)
+      }
+    }
+    return notes
+  }
+
+  /**
+   * Проверка целостности кампании (итерация 8, А6/блок F).
+   * Возвращает список проблем по-русски — импорт и загрузка не падают,
+   * мастеру показывается отчёт.
+   */
+  validateContent(): string[] {
+    const issues: string[] = []
+    const scenes: Record<string, SceneDef> = {}
+    for (const p of this.scenePaths()) {
+      const sc = this.scene(p)
+      if (sc) scenes[sc.id] = sc
+    }
+    const locationIds = new Set(this.ids('location'))
+    const sceneIds = new Set(Object.keys(scenes))
+    const entityIds = new Set(this.ids('entity'))
+    const questIds = new Set(this.ids('quest'))
+    const arenaIds = new Set(this.ids('arena'))
+    const ruleIds = new Set(this.ids('rule'))
+
+    // мировая карта
+    for (const loc of allLocations(this.world)) {
+      for (const sc of loc.scenes) {
+        if (!sceneIds.has(sc)) issues.push(`Локация «${loc.label}»: сцены «${sc}» нет в кампании`)
+      }
+      if (loc.arrival_scene && !loc.scenes.includes(loc.arrival_scene)) {
+        issues.push(`Локация «${loc.label}»: сцена по прибытии «${loc.arrival_scene}» не входит в список её сцен`)
+      }
+      if (loc.arena && !arenaIds.has(loc.arena)) {
+        issues.push(`Локация «${loc.label}»: арена «${loc.arena}» не найдена`)
+      }
+      for (const tc of loc.travel_connections) {
+        if (!locationIds.has(tc.to)) issues.push(`Локация «${loc.label}»: дорога ведёт в несуществующую локацию «${tc.to}»`)
+      }
+    }
+
+    // сцены: локация, внутренние переходы, слоты
+    for (const p of this.scenePaths()) {
+      const sc = this.scene(p)
+      if (!sc) continue
+      if (sc.location && !locationIds.has(sc.location)) {
+        issues.push(`Сцена «${sc.label}»: локация «${sc.location}» не найдена`)
+      }
+      for (const nav of sc.navigation) {
+        if (!nav.go_to_scene) continue
+        const target = scenes[nav.go_to_scene]
+        if (!target) {
+          issues.push(`Сцена «${sc.label}»: переход «${nav.label}» ведёт в несуществующую сцену «${nav.go_to_scene}»`)
+        } else if (target.location !== sc.location) {
+          issues.push(
+            `Сцена «${sc.label}»: переход «${nav.label}» ведёт в сцену другой локации «${target.label}» ` +
+              `(между локациями — только через карту)`,
+          )
+        }
+      }
+      for (const slot of sc.slots) {
+        if (slot.default_entity && !entityIds.has(slot.default_entity)) {
+          issues.push(`Сцена «${sc.label}»: в слоте стоит несуществующая сущность «${slot.default_entity}»`)
+        }
+      }
+      if (!sc.states.length) issues.push(`Сцена «${sc.label}»: нет ни одного состояния (фона)`)
+    }
+
+    // сущности: диалоги, расписания
+    for (const p of this.entityPaths()) {
+      const e = this.entity(p)
+      if (!e || e.type !== 'npc') continue
+      if (e.dialogue && !this.textFiles.has(e.dialogue)) {
+        issues.push(`Персонаж «${e.label}»: диалог «${e.dialogue}» не найден`)
+      }
+      for (const s of e.schedule ?? []) {
+        if (!sceneIds.has(s.scene)) issues.push(`Персонаж «${e.label}»: расписание ссылается на несуществующую сцену «${s.scene}»`)
+        else if (scenes[s.scene] && !scenes[s.scene].slots.some((sl) => sl.id === s.slot)) {
+          issues.push(`Персонаж «${e.label}»: в сцене «${scenes[s.scene].label}» нет слота «${s.slot}»`)
+        }
+      }
+      for (const ov of e.presence_overrides ?? []) {
+        if (!sceneIds.has(ov.scene)) {
+          issues.push(`Персонаж «${e.label}»: особое место ссылается на несуществующую сцену «${ov.scene}»`)
+        }
+      }
+      for (const s of e.trader?.sells ?? []) {
+        if (!entityIds.has(s.item)) issues.push(`Персонаж «${e.label}»: в прилавке нет предмета «${s.item}»`)
+      }
+    }
+
+    // правила и квесты
+    for (const p of this.rulePaths()) {
+      const r = this.rule(p)
+      if (!r) continue
+      for (const cond of r.conditions ?? []) {
+        if (cond.type === 'player_enters_scene' && !sceneIds.has(cond.scene)) {
+          issues.push(`Правило «${r.label}»: условие ссылается на несуществующую сцену «${cond.scene}»`)
+        }
+      }
+      for (const ef of r.effects ?? []) {
+        if (ef.type === 'start_quest' && !questIds.has(ef.quest)) {
+          issues.push(`Правило «${r.label}»: квест «${ef.quest}» не найден`)
+        }
+      }
+    }
+    for (const p of this.questPaths()) {
+      const q = this.quest(p)
+      if (!q) continue
+      if (!q.stages.length) issues.push(`Квест «${q.label}»: нет ни одной стадии`)
+      else {
+        const ids = new Set(q.stages.map((s) => s.id))
+        for (const st of q.stages) {
+          for (const t of st.transitions ?? []) {
+            if (!ids.has(t.to)) issues.push(`Квест «${q.label}»: переход стадии «${st.label ?? st.id}» в несуществующую стадию «${t.to}»`)
+          }
+        }
+        // стартовая сцена/сущность игрока
+        if (this.meta.starting_scene && !sceneIds.has(this.meta.starting_scene)) {
+          issues.push(`Кампания: стартовая сцена «${this.meta.starting_scene}» не найдена`)
+        }
+      }
+    }
+
+    // старт кампании
+    if (!locationIds.has(this.meta.starting_location)) {
+      issues.push(`Кампания: стартовая локация «${this.meta.starting_location}» не найдена`)
+    }
+    if (!entityIds.has(this.meta.default_player)) {
+      issues.push(`Кампания: персонаж игрока «${this.meta.default_player}» не найден`)
+    }
+    for (const need of this.meta.needs ?? []) {
+      if (need.on_zero_effect && need.on_zero_effect !== 'death' && !ruleIds.has(need.on_zero_effect)) {
+        issues.push(`Потребность «${need.label}»: правило «${need.on_zero_effect}» не найдено`)
+      }
+    }
+    return issues
   }
 
   // ─────────────── правки ───────────────

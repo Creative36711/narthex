@@ -10,6 +10,7 @@ type ModalRequest =
   | { kind: 'text'; title: string; placeholder?: string; initial?: string; ok: string; resolve: (v: string | null) => void }
   | { kind: 'confirm'; title: string; ok: string; cancel: string; resolve: (v: boolean) => void }
   | { kind: 'alert'; title: string; body?: string; resolve: () => void }
+  | { kind: 'list'; title: string; body?: string; items: string[]; resolve: () => void }
 
 let pushRequest: ((r: ModalRequest) => void) | null = null
 const queue: ModalRequest[] = []
@@ -32,6 +33,14 @@ export function askConfirm(title: string, ok = 'Да', cancel = 'Отмена'):
 /** Сообщение (замена alert()). */
 export function showAlert(title: string, body?: string): Promise<void> {
   return new Promise((resolve) => submit({ kind: 'alert', title, body, resolve }))
+}
+
+/**
+ * Сообщение со списком (отчёт валидации/импорта): длинные перечни удобнее
+ * читать построчно, а не в сплошном тексте.
+ */
+export function showList(title: string, items: string[], body?: string): Promise<void> {
+  return new Promise((resolve) => submit({ kind: 'list', title, body, items, resolve }))
 }
 
 export function ModalHost() {
@@ -94,6 +103,16 @@ export function ModalHost() {
       <div className="modal-box" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === 'Escape' && cancel()}>
         <div className="modal-title">{req.title}</div>
         {req.kind === 'alert' && req.body && <div className="modal-body">{req.body}</div>}
+        {req.kind === 'list' && (
+          <>
+            {req.body && <div className="modal-body">{req.body}</div>}
+            <ul className="modal-list">
+              {req.items.map((it, i) => (
+                <li key={i}>{it}</li>
+              ))}
+            </ul>
+          </>
+        )}
         {req.kind === 'text' && (
           <input
             ref={inputRef}

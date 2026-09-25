@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import type { CampaignData } from '../shared/types'
 import { askConfirm, showAlert } from '../shared/modals'
-import { resetTips } from './tips'
 import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
 
 interface Props {
@@ -67,19 +66,6 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                 ❓ Как играть
               </button>
             )}
-            <button
-              className="btn"
-              title="Игровые подсказки показываются один раз; эта кнопка включает их снова"
-              onClick={async () => {
-                resetTips()
-                await showAlert(
-                  '🎓 Обучение включено заново',
-                  'Интерактивные подсказки (первый бой, проверки в диалогах, рост навыков) снова появятся по ходу игры.',
-                )
-              }}
-            >
-              🎓 Обучение заново
-            </button>
             {onEditor && (
               <button className="btn" onClick={onEditor}>
                 🛠 Редактор

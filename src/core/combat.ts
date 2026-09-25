@@ -438,7 +438,7 @@ export class CombatController {
     attacker.attacked = true
     const rng = this.engine.rng
     const skillVal = attacker.skills[attacker.weapon.skill] ?? 25
-    const atk = skillCheck(skillVal, rng)
+    const atk = skillCheck(skillVal, rng, 0, this.engine.diceRules)
     this.log.push(
       `${attacker.label}: атака «${attacker.weaponLabel}» — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
     )
@@ -453,7 +453,7 @@ export class CombatController {
     if (defBase > 0) {
       const penalty = -30 * defender.defensesUsed
       defender.defensesUsed++
-      const def = skillCheck(defBase, rng, penalty)
+      const def = skillCheck(defBase, rng, penalty, this.engine.diceRules)
       this.log.push(
         `${defender.label}: ${useParry ? 'парирование' : 'уклонение'} — d100=${def.roll} против ${def.target} → ${labelResult(def.result)}`,
       )

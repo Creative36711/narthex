@@ -60,7 +60,6 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           const handle = () => {
             if (nav.open_map) return onOpenMap()
             if (nav.go_to_scene) return engine.goToScene(nav.go_to_scene, nav.cost_ticks ?? 0)
-            if (nav.go_to_location) return engine.travelTo(nav.go_to_location)
           }
           return (
             <button

@@ -1,3 +1,4 @@
+import { migrateCampaign } from '../shared/migrate'
 import type {
   ArenaDef,
   CampaignData,
@@ -85,9 +86,25 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
     }),
   ])
 
+  // мягкие миграции старого контента (итерация 8): условия потребностей,
+  // переходы «в локацию» из сцен и т.п.
+  migrateCampaign(meta, world, scenes)
+
   return { meta, world, scenes, entities, rules, arenas, quests, encounters, dialogues, basePath }
 }
 
+/**
+ * Путь к ассету кампании. Внешние ссылки (http:// и https://) отдаются
+ * как есть — кампания может ссылаться на картинки/звук с любого хостинга
+ * (итерация 8, блок C).
+ */
 export function assetUrl(campaign: CampaignData, path: string): string {
+  if (!path) return path
+  if (/^https?:\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path
   return `${campaign.basePath}/${path}`
+}
+
+/** Это внешняя ссылка, а не файл внутри пакета? */
+export function isExternalUrl(path: string): boolean {
+  return /^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')
 }

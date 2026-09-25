@@ -60,12 +60,19 @@
         },
         {
           "type": "has_item",
-          "item": "item_wool_cloak",
+          "items": [
+            "item_wool_cloak",
+            "item_fur_coat"
+          ],
           "not": true
         },
         {
           "type": "in_location",
-          "location": "loc_tavern",
+          "locations": [
+            "loc_tavern",
+            "loc_barracks",
+            "loc_temple"
+          ],
           "not": true
         }
       ],
@@ -73,11 +80,20 @@
       "restore_when": [
         {
           "type": "in_location",
-          "location": "loc_tavern"
+          "locations": [
+            "loc_tavern",
+            "loc_barracks",
+            "loc_temple"
+          ]
         }
       ]
     }
   ],
+  "dice_rules": {
+    "critical_divisor": 5,
+    "special_divisor": 2,
+    "fumble_from": 96
+  },
   "currencies": [
     {
       "id": "silver",

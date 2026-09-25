@@ -41,7 +41,8 @@
     "item_claymore.json",
     "item_gambeson.json",
     "item_chain_shirt.json",
-    "item_wool_cloak.json"
+    "item_wool_cloak.json",
+    "item_fur_coat.json"
   ],
   "rules": [
     "rule_gates_greeting.json",

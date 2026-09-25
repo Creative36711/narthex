@@ -61,16 +61,6 @@
   "navigation": [
     {
       "area": {
-        "x": 505,
-        "y": 300,
-        "w": 255,
-        "h": 290
-      },
-      "go_to_location": "loc_market",
-      "label": "Пройти в город → Рынок"
-    },
-    {
-      "area": {
         "x": 1130,
         "y": 395,
         "w": 120,
@@ -78,6 +68,16 @@
       },
       "go_to_scene": "scene_gates_guardroom",
       "label": "В караулку →"
+    },
+    {
+      "area": {
+        "x": 505,
+        "y": 300,
+        "w": 255,
+        "h": 290
+      },
+      "label": "Идти в город",
+      "open_map": true
     },
     {
       "area": {

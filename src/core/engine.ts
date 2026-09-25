@@ -1,5 +1,6 @@
 import type {
   CampaignData,
+  DiceRules,
   Effect,
   EncounterEntry,
   EntityDef,
@@ -17,15 +18,16 @@ import type {
   PresenceOverride,
   WeaponData,
 } from '../shared/types'
-import { SAVE_VERSION } from '../shared/types'
+import { SAVE_VERSION, DEFAULT_DICE_RULES } from '../shared/types'
 import { PRNG } from './prng'
-import { derivedHP, derivedMP, skillCheck } from './brp'
+import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
+import { migrateNeedCondition } from '../shared/migrate'
 import { CombatController } from './combat'
 
 /**
@@ -151,19 +153,24 @@ export class GameEngine {
 
   // ─────────────── время и потребности ───────────────
 
-  /** условие потребности (когда убывает / когда восстанавливается) */
-  private needCondOk(c: NeedCondition): boolean {
+  /**
+   * Условие потребности (когда убывает / когда восстанавливается).
+   * Итерация 8, А3: «в локации» и «есть/надет предмет» — СПИСКИ id,
+   * условие истинно, если выполнено хотя бы одно значение («любой из»).
+   */
+  private needCondOk(raw: NeedCondition): boolean {
+    const c = migrateNeedCondition(raw)
     switch (c.type) {
       case 'time_of_day':
         return c.values.includes(timeOfDay(this.state.tick, this.campaign.meta))
       case 'flag':
         return !!this.state.flags[c.flag] !== !!c.not
       case 'in_location':
-        return (this.state.location === c.location) !== !!c.not
+        return (c.locations ?? []).includes(this.state.location) !== !!c.not
       case 'has_item':
-        return this.hasItem(c.item) !== !!c.not
+        return (c.items ?? []).some((id) => this.hasItem(id)) !== !!c.not
       case 'equipped':
-        return Object.values(this.state.player.equipment ?? {}).includes(c.item) !== !!c.not
+        return (c.items ?? []).some((id) => this.isEquipped(id)) !== !!c.not
     }
   }
 
@@ -453,9 +460,8 @@ export class GameEngine {
   /** Проверка навыка игрока с «галочкой» опыта при успехе. */
   playerSkillCheck(skill: string, difficulty = 50): ReturnType<typeof skillCheck> {
     const value = this.state.player.skills[skill] ?? 0
-    const out = skillCheck(value, this.rng, 50 - difficulty)
-    const rus = { critical: 'критический успех', hard: 'уверенный успех', success: 'успех', fail: 'провал', fumble: 'критический провал' } as Record<string, string>
-    this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${rus[out.result] ?? out.result}`)
+    const out = skillCheck(value, this.rng, 50 - difficulty, this.diceRules)
+    this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
     if (out.success) this.markSkill(skill)
     return out
   }
@@ -629,6 +635,21 @@ export class GameEngine {
     return this.campaign.scenes[this.state.scene]
   }
 
+  /**
+   * Сцена, в которую игрок попадает при входе в локацию (итерация 8, А5):
+   * arrival_scene локации, если она есть среди её сцен, иначе первая.
+   */
+  arrivalSceneOf(location: LocationDef): string | undefined {
+    const arrival = location.arrival_scene
+    if (arrival && location.scenes.includes(arrival)) return arrival
+    return location.scenes[0]
+  }
+
+  /** Правила бросков d100 этой кампании (итерация 8, А7). */
+  get diceRules(): DiceRules {
+    return this.campaign.meta.dice_rules ?? DEFAULT_DICE_RULES
+  }
+
   /** Активное состояние сцены: первое, чьё условие истинно; иначе первое. */
   activeSceneState(scene: SceneDef): SceneStateDef {
     for (const st of scene.states) {
@@ -740,7 +761,7 @@ export class GameEngine {
     if (!target) return
     this.state.region = target.region.id
     this.state.location = locationId
-    const firstScene = target.location.scenes[0]
+    const firstScene = this.arrivalSceneOf(target.location)
     if (firstScene) this.state.scene = firstScene
     this.onEnterLocation(locationId)
     // случайная встреча в пути (после прибытия)
@@ -822,7 +843,7 @@ export class GameEngine {
         if (target) {
           s.region = target.region.id
           s.location = e.location
-          s.scene = e.scene ?? target.location.scenes[0]
+          s.scene = e.scene ?? this.arrivalSceneOf(target.location) ?? s.scene
         }
         break
       }

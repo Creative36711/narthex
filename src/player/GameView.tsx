@@ -40,7 +40,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
       {panel === 'inventory' && <InventoryPanel engine={engine} onClose={() => setPanel(null)} />}
       {panel === 'character' && <CharacterPanel engine={engine} onClose={() => setPanel(null)} />}
       {panel === 'log' && <LogPanel engine={engine} onClose={() => setPanel(null)} />}
-      {panel === 'help' && <HelpPanel onClose={() => setPanel(null)} />}
+      {panel === 'help' && <HelpPanel engine={engine} onClose={() => setPanel(null)} />}
 
       {engine.combat && <CombatScreen engine={engine} />}
 

@@ -264,6 +264,11 @@ function LocationProps({
   onRemove: () => void
 }) {
   const allLocs = store.options('location').filter((o) => o.id !== loc.id)
+  // «Сцена по прибытии» — только из сцен этой локации (итерация 8, А5)
+  const locScenes = store
+    .options('scene')
+    .filter((o) => loc.scenes.includes(o.id))
+    .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
   return (
     <div className="props-group">
       <h4>📍 {loc.label}</h4>
@@ -299,6 +304,26 @@ function LocationProps({
           + сцена
         </button>
       </div>
+
+      <label className="fld" title="Сюда попадает игрок, придя в локацию с карты; по умолчанию — первая сцена списка выше">
+        <span>Сцена по прибытии</span>
+        <select
+          value={loc.arrival_scene ?? ''}
+          onChange={(e) => {
+            if (e.target.value) loc.arrival_scene = e.target.value
+            else delete loc.arrival_scene
+            commit()
+          }}
+        >
+          <option value="">— первая сцена локации —</option>
+          {loc.arrival_scene && !locScenes.some((o) => o.id === loc.arrival_scene) && (
+            <option value={loc.arrival_scene}>{store.labelFor('scene', loc.arrival_scene)} (не в списке сцен!)</option>
+          )}
+          {locScenes.map((o) => (
+            <option key={o.id} value={o.id}>{o.label}</option>
+          ))}
+        </select>
+      </label>
 
       <div className="fld-block">
         <span className="fld-caption">Дороги (куда можно дойти отсюда)</span>

@@ -56,6 +56,9 @@
       },
       {
         "item": "item_wool_cloak"
+      },
+      {
+        "item": "item_fur_coat"
       }
     ],
     "buys": true,

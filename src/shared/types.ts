@@ -9,13 +9,52 @@
  * Условие для потребности (фидбек №1/№3 седьмого раунда): когда она убывает
  * и когда восстанавливается. Пример «Тепло»: убывает ночью, если нет тёплой
  * одежды и герой не в таверне; в таверне — восстанавливается.
+ *
+ * Итерация 8, А3: множественные значения. «Герой в локации» и «есть/надет
+ * предмет» принимают СПИСОК id и означают «любой из» (условия потребности
+ * соединяются по «И», поэтому нескольких локаций одним условием раньше было
+ * не выразить). Одиночные поля старого формата (`location`, `item`)
+ * мигрируются при загрузке (см. shared/migrate.ts).
  */
 export type NeedCondition =
   | { type: 'time_of_day'; values: TimeOfDay[] }
   | { type: 'flag'; flag: string; not?: boolean }
-  | { type: 'in_location'; location: string; not?: boolean }
-  | { type: 'has_item'; item: string; not?: boolean }
-  | { type: 'equipped'; item: string; not?: boolean }
+  | { type: 'in_location'; locations: string[]; not?: boolean; location?: string }
+  | { type: 'has_item'; items: string[]; not?: boolean; item?: string }
+  | { type: 'equipped'; items: string[]; not?: boolean; item?: string }
+
+/**
+ * Настройки бросков d100 (итерация 8, А7). Хранятся в campaign.json —
+ * у каждой кампании могут быть свои пороги, движок ничего не хардкодит.
+ */
+export interface DiceRules {
+  /** критический успех: бросок ≤ навык / critical_divisor */
+  critical_divisor: number
+  /** особый (хороший) успех: бросок ≤ навык / special_divisor */
+  special_divisor: number
+  /** критический провал начинается с этого броска (fumble_from…100) */
+  fumble_from: number
+  /**
+   * Классический BRP: при навыке ниже этого порога крит-провал — весь
+   * диапазон fumble_from…99 (а не только 100). По умолчанию выключено.
+   */
+  fumble_low_skill?: number
+}
+
+/** «Щедрые» пороги (по умолчанию): крит /5, особый /2, провал 96–100. */
+export const DEFAULT_DICE_RULES: DiceRules = {
+  critical_divisor: 5,
+  special_divisor: 2,
+  fumble_from: 96,
+}
+
+/** Классический BRP: крит /20, особый /5, провал — 00 или 96–100 при навыке < 30. */
+export const CLASSIC_DICE_RULES: DiceRules = {
+  critical_divisor: 20,
+  special_divisor: 5,
+  fumble_from: 96,
+  fumble_low_skill: 30,
+}
 
 export interface NeedDef {
   id: string
@@ -92,6 +131,8 @@ export interface CampaignMeta {
   starting_scene: string
   starting_tick?: number
   needs: NeedDef[]
+  /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
+  dice_rules?: DiceRules
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
   skills?: Array<{ id: string; label: string }>
   /** реестр категорий предметов: категория определяет, что предмет умеет */
@@ -130,6 +171,11 @@ export interface LocationDef {
   position: { x: number; y: number }
   travel_connections: TravelConnection[]
   scenes: string[]
+  /**
+   * Сцена, в которую попадает игрок, придя в локацию с карты (итерация 8, А5).
+   * По умолчанию — первая сцена локации.
+   */
+  arrival_scene?: string
   arena?: string
   on_enter_rules?: string[]
   hidden?: boolean // скрыта, пока не открыта эффектом reveal_location
@@ -186,10 +232,14 @@ export interface SlotDef {
   condition: SceneCondition | null
 }
 
+/**
+ * Зона перехода на сцене (итерация 8, А6): только ВНУТРИ локации —
+ * в другую сцену или «открыть карту» (это и есть выход из локации).
+ * Старые `go_to_location` мигрируются при загрузке (shared/migrate.ts).
+ */
 export interface NavigationZone {
   area: { x: number; y: number; w: number; h: number }
   go_to_scene?: string
-  go_to_location?: string
   open_map?: boolean
   label: string
   cost_ticks?: number

@@ -14,7 +14,7 @@ import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { makeId, slugify } from './ids'
 import './editor.css'
-import { askText, askConfirm, showAlert } from './prompt'
+import { askText, askConfirm, showAlert, showList } from './prompt'
 
 /**
  * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
@@ -345,6 +345,20 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         </span>
         <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size}>
           💾 Сохранить
+        </button>
+        <button
+          className="btn btn-small"
+          title="Проверить ссылки: сцены, локации, слоты, квесты, правила"
+          onClick={() => {
+            const issues = store.validateContent()
+            if (!issues.length) {
+              void showAlert('Проблем не найдено', 'Все ссылки кампании указывают на существующие объекты.')
+            } else {
+              void showList(`Найдено проблем: ${issues.length}`, issues, 'Кампания загружается и так, но эти ссылки никуда не ведут:')
+            }
+          }}
+        >
+          🔎 Проверить
         </button>
         <button className="btn btn-small" onClick={playtest}>▶ Плейтест</button>
         <button className="btn btn-small" onClick={doExport} title="Скачать кампанию одним файлом .chronicle">⬇ Экспорт</button>

@@ -280,7 +280,7 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
       <div className="scene-props">
         <SceneMeta scene={scene} store={store} commit={commit} />
         {selSlot && <SlotProps slot={selSlot} store={store} commit={commit} />}
-        {selNav && <NavProps nav={selNav} store={store} commit={commit} />}
+        {selNav && <NavProps nav={selNav} scene={scene} store={store} commit={commit} />}
         {!sel && <StatesProps scene={scene} store={store} commit={commit} />}
       </div>
     </div>
@@ -424,8 +424,37 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
   )
 }
 
-function NavProps({ nav, store, commit }: { nav: NavigationZone; store: EditorStore; commit: () => void }) {
-  const mode = nav.open_map ? 'map' : nav.go_to_location !== undefined ? 'location' : 'scene'
+/**
+ * Итерация 8, А6: из зон навигации убран переход «в локацию» — между
+ * локациями ходим только через карту. «В сцену» — только сцены этой локации.
+ */
+function NavProps({
+  nav,
+  scene,
+  store,
+  commit,
+}: {
+  nav: NavigationZone
+  scene: SceneDef
+  store: EditorStore
+  commit: () => void
+}) {
+  // старый формат (go_to_location) мигрируется хранилищем при загрузке
+  const legacy = (nav as NavigationZone & { go_to_location?: string }).go_to_location
+  if (legacy) {
+    delete (nav as NavigationZone & { go_to_location?: string }).go_to_location
+    nav.open_map = true
+  }
+  const mode = nav.open_map ? 'map' : 'scene'
+  const sameLocation: Array<{ id: string; label: string }> = []
+  for (const p of store.scenePaths()) {
+    const sc = store.scene(p)
+    if (!sc || sc.id === scene.id) continue
+    if (sc.location !== scene.location) continue
+    sameLocation.push({ id: sc.id, label: sc.label || sc.id })
+  }
+  sameLocation.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  const foreign = !!nav.go_to_scene && !sameLocation.some((o) => o.id === nav.go_to_scene)
   return (
     <div className="props-group">
       <h4>Переход: {nav.label}</h4>
@@ -439,36 +468,47 @@ function NavProps({ nav, store, commit }: { nav: NavigationZone; store: EditorSt
           value={mode}
           onChange={(e) => {
             delete nav.go_to_scene
-            delete nav.go_to_location
             delete nav.open_map
             if (e.target.value === 'map') nav.open_map = true
-            else if (e.target.value === 'location') nav.go_to_location = ''
-            else nav.go_to_scene = ''
+            else nav.go_to_scene = sameLocation[0]?.id ?? ''
             commit()
           }}
         >
-          <option value="scene">В сцену</option>
-          <option value="location">В локацию</option>
-          <option value="map">Открыть карту</option>
+          <option value="scene">В сцену этой локации</option>
+          <option value="map">Открыть карту (выход из локации)</option>
         </select>
       </label>
       {mode === 'scene' && (
-        <RefSelect
-          label="Сцена"
-          kind="scene"
-          store={store}
-          value={nav.go_to_scene ?? ''}
-          onChange={(v) => ((nav.go_to_scene = v ?? ''), commit())}
-        />
+        <label className="fld">
+          <span>Сцена</span>
+          <select
+            value={nav.go_to_scene ?? ''}
+            onChange={(e) => ((nav.go_to_scene = e.target.value), commit())}
+          >
+            {!nav.go_to_scene && <option value="">— выбрать сцену —</option>}
+            {foreign && nav.go_to_scene && (
+              <option value={nav.go_to_scene}>
+                {store.labelFor('scene', nav.go_to_scene)} (чужая локация!)
+              </option>
+            )}
+            {sameLocation.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
       )}
-      {mode === 'location' && (
-        <RefSelect
-          label="Локация"
-          kind="location"
-          store={store}
-          value={nav.go_to_location ?? ''}
-          onChange={(v) => ((nav.go_to_location = v ?? ''), commit())}
-        />
+      {mode === 'scene' && foreign && (
+        <div className="warn-note">
+          ⚠ Переход ведёт в сцену другой локации. Так больше нельзя: между локациями —
+          только через карту. Выберите сцену этой локации или тип «Открыть карту».
+        </div>
+      )}
+      {mode === 'scene' && sameLocation.length === 0 && (
+        <div className="muted small">
+          У локации пока одна сцена. Создайте вторую (раздел «Сцены») или используйте «Открыть карту».
+        </div>
       )}
       <label className="fld">
         <span>Стоимость (тиков)</span>
