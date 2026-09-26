@@ -2,11 +2,11 @@ import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
 import { useEffect, useState } from 'react'
 import type { EditorStore } from './store'
-import { AssetUpload, JsonField } from './Fields'
+import { AssetUpload, EffectListEditor, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { CampaignFeatures, CampaignMeta, DiceRules, FontDef, NeedCondition, TimeOfDay } from '../shared/types'
+import type { CampaignFeatures, CampaignMeta, DiceRules, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { BUILTIN_SLOT_TYPES } from './slotTypes'
 import { askText } from './prompt'
@@ -558,7 +558,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
     store.touch('campaign.json')
     force((n) => n + 1)
   }
-  type CeTab = 'main' | 'mechanics' | 'look' | 'people' | 'items' | 'flags' | 'audio' | 'json'
+  type CeTab = 'main' | 'mechanics' | 'look' | 'statuses' | 'people' | 'items' | 'flags' | 'audio' | 'json'
   const [tab, setTab] = useState<CeTab>('main')
 
   const sceneOpts = store.options('scene')
@@ -569,7 +569,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
   return (
     <div className="rule-editor">
       <div className="ce-tabs">
-        {([['main', 'Основное'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
+        {([['main', 'Основное'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['statuses', 'Статусы и способности'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
           <button key={id} type="button" className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
             {lab}
           </button>
@@ -606,6 +606,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       )}
 
       {tab === 'look' && <ThemeTab meta={m} store={store} commit={commit} />}
+
+      {tab === 'statuses' && <StatusRegistry m={m} store={store} commit={commit} />}
 
       {tab === 'main' && (
         <>
@@ -1119,5 +1121,182 @@ function SelectFld({ label, value, options, onChange }: { label: string; value: 
         ))}
       </select>
     </label>
+  )
+}
+
+/**
+ * Реестр статусов кампании (блок 5 ТЗ «Гибкий движок»). Вкладка называется
+ * «Статусы и способности» — блок 6 добавит сюда же способности.
+ */
+function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorStore; commit: () => void }) {
+  const list = (m.statuses ??= [])
+  return (
+    <>
+      <div className="props-group">
+        <h4>Статусы (яды, кровотечения, баффы)</h4>
+        <p className="muted small">
+          Длительные состояния. «Мир» живёт в тиках, «Бой» — в раундах, «Везде» — и там и там.
+          Урон за тик не убивает героя (минимум 1 HP); в бою — может добить.
+        </p>
+        {list.map((s, i) => (
+          <details key={s.id} className="need-conds" open>
+            <summary>
+              {s.label || '(без названия)'} · {s.scope === 'world' ? 'мир' : s.scope === 'combat' ? 'бой' : 'везде'} · {s.duration}
+              <button
+                className="btn btn-small ce-del"
+                data-tip="Удалить статус"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  list.splice(i, 1)
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </summary>
+            <div className="fld-row">
+              <label className="fld">
+                <span>Название</span>
+                <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
+              </label>
+              <label className="fld">
+                <span>Где действует</span>
+                <select value={s.scope} onChange={(e) => ((s.scope = e.target.value as StatusDef['scope']), commit())}>
+                  <option value="world">Мир (тики)</option>
+                  <option value="combat">Бой (раунды)</option>
+                  <option value="both">Везде</option>
+                </select>
+              </label>
+              <label className="fld" data-tip="Длительность по умолчанию: тики в мире, раунды в бою">
+                <span>Длительность</span>
+                <input type="number" min={1} value={s.duration} onChange={(e) => ((s.duration = Math.max(1, Number(e.target.value) || 1)), commit())} />
+              </label>
+            </div>
+            <label className="fld">
+              <span>Описание (видно игроку)</span>
+              <input value={s.description ?? ''} onChange={(e) => ((s.description = e.target.value || undefined), commit())} />
+            </label>
+            <div className="fld-row">
+              <label className="fld" data-tip="Урон за тик (мир) / за раунд (бой). Пусто — без урона.">
+                <span>Урон HP за тик</span>
+                <input
+                  type="number" min={0} value={s.dot?.hp ?? ''} placeholder="нет"
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0
+                    s.dot = { ...(s.dot ?? {}) }
+                    if (v > 0) s.dot.hp = v; else delete s.dot.hp
+                    if (!Object.keys(s.dot).length) delete s.dot
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld">
+                <span>Урон MP за тик</span>
+                <input
+                  type="number" min={0} value={s.dot?.mp ?? ''} placeholder="нет"
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0
+                    s.dot = { ...(s.dot ?? {}) }
+                    if (v > 0) s.dot.mp = v; else delete s.dot.mp
+                    if (!Object.keys(s.dot).length) delete s.dot
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld" data-tip="Прибавка к движению (может быть отрицательной; итог не ниже 1)">
+                <span>Движение ±</span>
+                <input
+                  type="number" value={s.mov_mod ?? ''} placeholder="0"
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0
+                    if (v) s.mov_mod = v; else delete s.mov_mod
+                    commit()
+                  }}
+                />
+              </label>
+            </div>
+            <div className="fld-block">
+              <span className="fld-caption">Модификаторы навыков на время статуса</span>
+              {(s.skill_mods ?? []).map((mod, j) => (
+                <div className="fld-row" key={j}>
+                  <RefSelect
+                    label="Навык"
+                    kind="skill"
+                    store={store}
+                    value={mod.skill}
+                    onChange={(v) => ((s.skill_mods![j].skill = v ?? ''), commit())}
+                  />
+                  <label className="fld">
+                    <span>± к навыку</span>
+                    <input
+                      type="number" value={mod.delta}
+                      onChange={(e) => ((s.skill_mods![j].delta = Number(e.target.value) || 0), commit())}
+                    />
+                  </label>
+                  <button className="btn btn-small ce-del" onClick={() => {
+                    s.skill_mods = s.skill_mods!.filter((_, k) => k !== j)
+                    if (!s.skill_mods.length) delete s.skill_mods
+                    commit()
+                  }}><Ico n="close" /></button>
+                </div>
+              ))}
+              <button className="btn btn-small" onClick={() => (((s.skill_mods ??= []).push({ skill: '', delta: -10 })), commit())}>
+                + модификатор навыка
+              </button>
+            </div>
+            <div className="fld-row">
+              <label className="fld">
+                <span>Сообщение при наложении (пусто — стандартное)</span>
+                <input value={s.apply_message ?? ''} onChange={(e) => ((s.apply_message = e.target.value || undefined), commit())} />
+              </label>
+              <label className="fld">
+                <span>Сообщение при истечении</span>
+                <input value={s.expire_message ?? ''} onChange={(e) => ((s.expire_message = e.target.value || undefined), commit())} />
+              </label>
+            </div>
+            <AssetUpload
+              label="Иконка статуса (необязательно)"
+              kind="image"
+              dir="assets/img/status"
+              store={store}
+              value={s.icon ?? ''}
+              onChange={(v) => ((s.icon = v || undefined), commit())}
+            />
+            <div className="fld-block">
+              <span className="fld-caption">Эффекты при наложении</span>
+              <EffectListEditor
+                store={store}
+                effects={s.on_apply ?? []}
+                onChange={(ef) => ((s.on_apply = ef.length ? ef : undefined), commit())}
+              />
+            </div>
+            <div className="fld-block">
+              <span className="fld-caption">Эффекты при истечении</span>
+              <EffectListEditor
+                store={store}
+                effects={s.on_expire ?? []}
+                onChange={(ef) => ((s.on_expire = ef.length ? ef : undefined), commit())}
+              />
+            </div>
+          </details>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название статуса', 'например «Отравление»')
+            if (!label) return
+            list.push({ id: makeId('status_', label, list.map((x) => x.id)), label, scope: 'world', duration: 5 })
+            commit()
+          }}
+        >
+          + статус
+        </button>
+      </div>
+      <div className="props-group">
+        <h4>Способности</h4>
+        <p className="muted small">Появятся в следующем блоке — боевые способности и мораль.</p>
+      </div>
+    </>
   )
 }

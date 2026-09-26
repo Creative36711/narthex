@@ -5,6 +5,7 @@ import { SettingsPanel } from '../shared/SettingsPanel'
 import type { GameEngine } from '../core/engine'
 import { formatTime, timeOfDay, TIME_OF_DAY_LABEL } from '../core/time'
 import { featureOn } from '../shared/types'
+import { assetUrl } from '../core/loader'
 
 interface Props {
   engine: GameEngine
@@ -41,6 +42,20 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
               <span>
                 {n.label} {Math.round(val)}
               </span>
+            </div>
+          )
+        })}
+        {(s.player.statuses ?? []).map((st) => {
+          const def = engine.statusDef(st.id)
+          if (!def) return null
+          return (
+            <div key={st.id} className="hud-status-chip" data-tip={`${def.label} — осталось ${st.left} ${meta.tick_label}${def.description ? `. ${def.description}` : ''}`}>
+              {def.icon ? (
+                <img className="hud-status-icon" src={assetUrl(engine.campaign, def.icon)} alt="" />
+              ) : (
+                def.label
+              )}
+              <span className="hud-status-left">{st.left}</span>
             </div>
           )
         })}

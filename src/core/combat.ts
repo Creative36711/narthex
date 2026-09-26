@@ -443,6 +443,11 @@ export class CombatController {
     return this.engine.campaign.meta.statuses?.find((s) => s.id === id)
   }
 
+  /** название статуса для UI */
+  statusLabel(id: string): string {
+    return this.statusDef(id)?.label ?? id
+  }
+
   /** наложить боевой статус на бойца (блок 6 будет звать из способностей) */
   applyStatusTo(combatantId: string, statusId: string, duration?: number): void {
     const def = this.statusDef(statusId)

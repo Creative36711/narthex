@@ -454,6 +454,37 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
 - Игрок открывает крафт кнопкой «Крафт» в HUD (появляется, только если в
   кампании есть хотя бы один рецепт).
 
+## 14в. statuses — статусы (яд, кровотечение, баффы; блок 5 ТЗ)
+
+Реестр `statuses` в `campaign.json` (как `needs`):
+
+```json
+"statuses": [
+  {
+    "id": "status_poison", "label": "Отравление",
+    "description": "Яд медленно подтачивает силы.",
+    "scope": "world", "duration": 12,
+    "dot": { "hp": 1 },
+    "skill_mods": [ { "skill": "spot", "delta": -10 } ],
+    "mov_mod": -1,
+    "on_expire": [ { "type": "set_flag", "flag": "poison_cured" } ],
+    "apply_message": "Яд разливается по жилам."
+  }
+]
+```
+
+- `scope`: `world` — длительность в **тиках**, `combat` — в **раундах боя**,
+  `both` — действует и там и там.
+- `dot` — урон за тик/раунд. В мире статус **не убивает** героя (минимум 1 HP);
+  в бою — может добить.
+- `skill_mods` — модификаторы навыков (влияют на все проверки игрока, включая
+  диалоги, крафт и бой); `mov_mod` — прибавка к движению в бою (итог ≥ 1).
+- `on_apply` / `on_expire` — обычные эффекты; `apply_message` / `expire_message` —
+  строки в журнале.
+- Эффекты: `apply_status { target: "player", status, duration? }`,
+  `remove_status { target, status }`; условие `has_status { status }`.
+- В диалогах: условие `«Есть статус»` и действия `«Наложить/Снять статус»`.
+
 ## 15. Звук и музыка без файлов (SoundDoc / MusicDoc)
 
 Реестры в `campaign`:

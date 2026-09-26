@@ -205,6 +205,826 @@
       ],
       "additionalProperties": false
     },
+    "Effect": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_flag"
+            },
+            "flag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "clear_flag"
+            },
+            "flag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "apply_status"
+            },
+            "target": {
+              "const": "player"
+            },
+            "status": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "remove_status"
+            },
+            "target": {
+              "const": "player"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_variable"
+            },
+            "var": {
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "var",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_variable"
+            },
+            "var": {
+              "type": "string"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "var",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "start_dialogue"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "dialogue_knot": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "start_combat"
+            },
+            "enemies": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "entity": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "entity",
+                  "count"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "allies": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "entity": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "entity",
+                  "count"
+                ],
+                "additionalProperties": false
+              },
+              "description": "временные союзники только на этот бой (не входят в партию)"
+            },
+            "arena": {
+              "type": "string"
+            },
+            "intro": {
+              "type": "string"
+            },
+            "on_victory": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "enemies",
+            "arena"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "teleport_player"
+            },
+            "location": {
+              "type": "string"
+            },
+            "scene": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "location"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_scene_state"
+            },
+            "scene": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "scene",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "add_item"
+            },
+            "item": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "remove_item"
+            },
+            "item": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_need"
+            },
+            "need": {
+              "type": "string"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "need",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_hp"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_skill"
+            },
+            "skill": {
+              "type": "string"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "skill",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "skill_check_gate"
+            },
+            "skill": {
+              "type": "string"
+            },
+            "difficulty": {
+              "type": "number"
+            },
+            "success_effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            },
+            "fail_effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "skill",
+            "difficulty",
+            "success_effects",
+            "fail_effects"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_disposition"
+            },
+            "target": {
+              "type": "string"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "start_quest"
+            },
+            "quest": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "quest"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "advance_quest"
+            },
+            "quest": {
+              "type": "string"
+            },
+            "stage": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "quest",
+            "stage"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "fail_quest"
+            },
+            "quest": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "quest"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "journal_update"
+            },
+            "quest": {
+              "type": "string"
+            },
+            "text_key": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "quest",
+            "text_key"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "give_reward"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "item",
+                  "quantity"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "join_party"
+            },
+            "entity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "leave_party"
+            },
+            "entity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "block_path"
+            },
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "unblock_path"
+            },
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "show_message"
+            },
+            "text": {
+              "type": "string"
+            },
+            "portrait": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "reveal_location"
+            },
+            "location": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "location"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "advance_time"
+            },
+            "ticks": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "ticks"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "remove_entity"
+            },
+            "entity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "spawn_entity"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "scene": {
+              "type": "string"
+            },
+            "slot": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "scene",
+            "slot"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_description"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "game_over_victory"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "game_over_death"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "play_cutscene"
+            },
+            "cutscene": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "cutscene"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "StatusDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "иконка-файл/ссылка; нет — текстовый чип"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "world",
+            "combat",
+            "both"
+          ],
+          "description": "мир — тики, бой — раунды; 'both' — и там и там"
+        },
+        "duration": {
+          "type": "number",
+          "description": "длительность по умолчанию (мировые тики / боевые раунды)"
+        },
+        "dot": {
+          "type": "object",
+          "properties": {
+            "hp": {
+              "type": "number"
+            },
+            "mp": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "description": "урон за тик (мир) / за раунд (бой)"
+        },
+        "skill_mods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "skill": {
+                "type": "string"
+              },
+              "delta": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "skill",
+              "delta"
+            ],
+            "additionalProperties": false
+          },
+          "description": "модификаторы навыков на время статуса"
+        },
+        "mov_mod": {
+          "type": "number",
+          "description": "аддитив к движению (итог не ниже 1)"
+        },
+        "on_apply": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
+        "on_expire": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
+        "apply_message": {
+          "type": "string"
+        },
+        "expire_message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "scope",
+        "duration"
+      ],
+      "additionalProperties": false,
+      "description": "Длительное изменяющее состояние: яд, кровотечение, бафф. В мире живёт в\nтиках, в бою — в раундах. Реестр статусов — в `campaign.json` (meta.statuses)."
+    },
     "DiceRules": {
       "type": "object",
       "properties": {
@@ -756,6 +1576,13 @@
           "items": {
             "$ref": "#/$defs/NeedDef"
           }
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StatusDef"
+          },
+          "description": "реестр статусов: яды, кровотечения, баффы (блок 5 ТЗ)"
         },
         "dice_rules": {
           "$ref": "#/$defs/DiceRules",
@@ -1656,6 +2483,22 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "has_status"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "and"
             },
             "conditions": {
@@ -2549,689 +3392,6 @@
       ],
       "additionalProperties": false
     },
-    "Effect": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "set_flag"
-            },
-            "flag": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "flag"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "clear_flag"
-            },
-            "flag": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "flag"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "set_variable"
-            },
-            "var": {
-              "type": "string"
-            },
-            "value": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "required": [
-            "type",
-            "var",
-            "value"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "change_variable"
-            },
-            "var": {
-              "type": "string"
-            },
-            "delta": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "var",
-            "delta"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "start_dialogue"
-            },
-            "entity": {
-              "type": "string"
-            },
-            "dialogue_knot": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "start_combat"
-            },
-            "enemies": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "entity": {
-                    "type": "string"
-                  },
-                  "count": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "entity",
-                  "count"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "allies": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "entity": {
-                    "type": "string"
-                  },
-                  "count": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "entity",
-                  "count"
-                ],
-                "additionalProperties": false
-              },
-              "description": "временные союзники только на этот бой (не входят в партию)"
-            },
-            "arena": {
-              "type": "string"
-            },
-            "intro": {
-              "type": "string"
-            },
-            "on_victory": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Effect"
-              }
-            }
-          },
-          "required": [
-            "type",
-            "enemies",
-            "arena"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "teleport_player"
-            },
-            "location": {
-              "type": "string"
-            },
-            "scene": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "location"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "change_scene_state"
-            },
-            "scene": {
-              "type": "string"
-            },
-            "state": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "scene",
-            "state"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "add_item"
-            },
-            "item": {
-              "type": "string"
-            },
-            "quantity": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "item"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "remove_item"
-            },
-            "item": {
-              "type": "string"
-            },
-            "quantity": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "item"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "change_need"
-            },
-            "need": {
-              "type": "string"
-            },
-            "delta": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "need",
-            "delta"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "change_hp"
-            },
-            "delta": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "delta"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "change_skill"
-            },
-            "skill": {
-              "type": "string"
-            },
-            "delta": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "skill",
-            "delta"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "skill_check_gate"
-            },
-            "skill": {
-              "type": "string"
-            },
-            "difficulty": {
-              "type": "number"
-            },
-            "success_effects": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Effect"
-              }
-            },
-            "fail_effects": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Effect"
-              }
-            }
-          },
-          "required": [
-            "type",
-            "skill",
-            "difficulty",
-            "success_effects",
-            "fail_effects"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "change_disposition"
-            },
-            "target": {
-              "type": "string"
-            },
-            "delta": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "target",
-            "delta"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "start_quest"
-            },
-            "quest": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "quest"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "advance_quest"
-            },
-            "quest": {
-              "type": "string"
-            },
-            "stage": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "quest",
-            "stage"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "fail_quest"
-            },
-            "quest": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "quest"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "journal_update"
-            },
-            "quest": {
-              "type": "string"
-            },
-            "text_key": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "quest",
-            "text_key"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "give_reward"
-            },
-            "items": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "item": {
-                    "type": "string"
-                  },
-                  "quantity": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "item",
-                  "quantity"
-                ],
-                "additionalProperties": false
-              }
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "join_party"
-            },
-            "entity": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "leave_party"
-            },
-            "entity": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "block_path"
-            },
-            "from": {
-              "type": "string"
-            },
-            "to": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "from",
-            "to"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "unblock_path"
-            },
-            "from": {
-              "type": "string"
-            },
-            "to": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "from",
-            "to"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "show_message"
-            },
-            "text": {
-              "type": "string"
-            },
-            "portrait": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "text"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "reveal_location"
-            },
-            "location": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "location"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "advance_time"
-            },
-            "ticks": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "ticks"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "remove_entity"
-            },
-            "entity": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "spawn_entity"
-            },
-            "entity": {
-              "type": "string"
-            },
-            "scene": {
-              "type": "string"
-            },
-            "slot": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity",
-            "scene",
-            "slot"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "set_description"
-            },
-            "entity": {
-              "type": "string"
-            },
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity",
-            "text"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "game_over_victory"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "game_over_death"
-            },
-            "reason": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "play_cutscene"
-            },
-            "cutscene": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "cutscene"
-          ],
-          "additionalProperties": false
-        }
-      ]
-    },
     "UseEffectDef": {
       "type": "object",
       "properties": {
@@ -4115,6 +4275,25 @@
             "value"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "has_status"
+            },
+            "status": {
+              "type": "string"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
         }
       ],
       "description": "условие показа/ветвления (все условия списка должны выполниться)"
@@ -4389,6 +4568,41 @@
             "type",
             "entity",
             "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "apply_status"
+            },
+            "status": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "remove_status"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "status"
           ],
           "additionalProperties": false
         }

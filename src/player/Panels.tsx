@@ -150,6 +150,24 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
             </div>
           ))}
         </div>
+        {(p.statuses ?? []).length > 0 && (
+          <>
+            <h3>Состояния</h3>
+            <ul className="status-list">
+              {(p.statuses ?? []).map((s) => {
+                const sd = engine.statusDef(s.id)
+                if (!sd) return null
+                return (
+                  <li key={s.id} className="status-item">
+                    <b>{sd.label}</b>
+                    <span className="muted small"> — ещё {s.left} {meta.tick_label}</span>
+                    {sd.description && <div className="muted small">{sd.description}</div>}
+                  </li>
+                )
+              })}
+            </ul>
+          </>
+        )}
         <div className="derived-row">
           <span>HP {p.hp}/{p.max_hp}</span>
           <span>MP {p.mp}/{p.max_mp}</span>

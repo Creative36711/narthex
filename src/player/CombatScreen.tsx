@@ -129,7 +129,10 @@ export function CombatScreen({ engine }: Props) {
                 top: `${(px.y / canvas.h) * 100}%`,
                 width: `${((size * 1.45) / canvas.w) * 100}%`,
               }
-              const tip = `${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}`
+              const statusText = c.statuses.length
+                ? '\n' + c.statuses.map((s) => `${combat.statusLabel(s.id)}: ещё ${s.left} раунд(а)`).join('\n')
+                : ''
+              const tip = `${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}${statusText}`
               // фигурка боя вместо жетона (блок 3 ТЗ): без круглой маски и
               // рамки стороны; разворот по направлению движения/атаки
               if (c.figure) {
@@ -284,7 +287,14 @@ export function CombatScreen({ engine }: Props) {
             <div className="combat-roster">
               {combat.combatants.map((c) => (
                 <div key={c.id} className={`roster-row ${c.dead ? 'dead' : ''} side-${c.side}`}>
-                  <span>{c.label}</span>
+                  <span>
+                    {c.label}
+                    {c.statuses.map((s) => (
+                      <span key={s.id} className="roster-status" data-tip={combat.statusLabel(s.id)}>
+                        {combat.statusLabel(s.id)} ({s.left})
+                      </span>
+                    ))}
+                  </span>
                   <span>
                     {Math.max(0, c.hp)}/{c.maxHp}
                     {!c.dead && combat.active.id !== c.id ? '' : c.dead ? '' : '◂'}
