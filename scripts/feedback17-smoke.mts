@@ -79,7 +79,7 @@ const demo = await loadCampaign(base)
     return schema.$defs.WeatherDef.properties.overlay.type === 'string'
   })())
   const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('3 редактор погоды принимает свой оверлей мастера', ce.includes('(своё название)') || ce.includes('(свое название)'))
+  check('3 редактор погоды: слои — реестр кампании', ce.includes('Слои погоды (реестр кампании)') && ce.includes('overlay_layers'))
   const player = readFileSync('src/player/SceneScreen.tsx', 'utf8')
   check('3 плеер рисует класс по имени оверлея', player.includes('weather-'))
 }

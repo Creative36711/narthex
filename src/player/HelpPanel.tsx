@@ -31,10 +31,10 @@ function ChecksBody({ rules }: { rules: DiceRules }) {
       {/* таблица исходов — строками с переносом, без горизонтального скролла */}
       <div className="checks-table">
         <div className="checks-row"><span className="checks-mark ok">+</span><span>Бросок ≤ навыка</span><span className="checks-res">Успех</span></div>
-        <div className="checks-row"><span className="checks-mark crit">★</span><span>Бросок ≤ навыка ÷ {rules.critical_divisor}</span><span className="checks-res">Критический успех!</span></div>
-        <div className="checks-row"><span className="checks-mark good">✦</span><span>Бросок ≤ навыка ÷ {rules.special_divisor}</span><span className="checks-res">Особый (хороший) успех</span></div>
+        <div className="checks-row"><span className="checks-mark crit">*</span><span>Бросок ≤ навыка ÷ {rules.critical_divisor}</span><span className="checks-res">Критический успех!</span></div>
+        <div className="checks-row"><span className="checks-mark good">⭐</span><span>Бросок ≤ навыка ÷ {rules.special_divisor}</span><span className="checks-res">Особый (хороший) успех</span></div>
         <div className="checks-row"><span className="checks-mark bad">−</span><span>Бросок &gt; навыка</span><span className="checks-res">Провал</span></div>
-        <div className="checks-row"><span className="checks-mark bad">☠</span><span>Бросок {rules.fumble_from}–100</span><span className="checks-res">Критический провал</span></div>
+        <div className="checks-row"><span className="checks-mark bad">×</span><span>Бросок {rules.fumble_from}–100</span><span className="checks-res">Критический провал</span></div>
       </div>
       {fumbleNote && <p className="muted small">{fumbleNote}</p>}
       <p>

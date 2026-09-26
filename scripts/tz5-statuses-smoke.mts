@@ -127,6 +127,9 @@ function withStatuses(): CampaignData {
   const player = combat.combatants.find((c) => c.id === 'c_player')!
   const bandit = combat.combatants.find((c) => c.side === 'enemy')!
   player.hp = 500
+  // броня гасит любой урон бандита: тест меряет ТОЛЬКО урон кровотечения,
+  // иначе исход вражеских бросков делал проверку недетерминированной
+  player.armor = 99
   combat.applyStatusTo(player.id, 'status_bleed', 2)
   check('4 боевой статус наложен', player.statuses.some((s) => s.id === 'status_bleed'))
   check('4 мир-статус в бою не накладывается', (() => {
