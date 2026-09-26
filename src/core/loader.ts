@@ -1,6 +1,8 @@
 import { migrateCampaign, migrateEntity } from '../shared/migrate'
 import type {
   ArenaDef,
+  CampaignManifest,
+  EncounterFileDef,
   CampaignData,
   CodexEntryDef,
   CutsceneDef,
@@ -22,22 +24,6 @@ import type {
  * загрузить их без листинга директорий.
  */
 
-interface Manifest {
-  scenes: string[]
-  entities: string[]
-  rules: string[]
-  arenas?: string[]
-  quests?: string[]
-  encounters?: string[]
-  /** катсцены: файлы в cutscenes/ (итерация 8, блок E) */
-  cutscenes?: string[]
-  /** рецепты крафта: файлы в recipes/ (блок 4 ТЗ) */
-  recipes?: string[]
-  /** записи кодекса/бестиария: файлы в codex/ (блок 10 ТЗ) */
-  codex?: string[]
-  dialogues: string[]
-}
-
 async function getJSON<T>(url: string): Promise<T> {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Не удалось загрузить ${url}: ${res.status}`)
@@ -54,7 +40,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   const [meta, world, manifest] = await Promise.all([
     getJSON<CampaignMeta>(`${basePath}/campaign.json`),
     getJSON<WorldDef>(`${basePath}/world.json`),
-    getJSON<Manifest>(`${basePath}/manifest.json`),
+    getJSON<CampaignManifest>(`${basePath}/manifest.json`),
   ])
 
   const scenes: Record<string, SceneDef> = {}
@@ -78,7 +64,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
       quests[q.id] = q
     }),
     ...(manifest.encounters ?? []).map(async (f) => {
-      const tables = await getJSON<{ encounter_tables: EncounterTableDef[] }>(`${basePath}/rules/${f}`)
+      const tables = await getJSON<EncounterFileDef>(`${basePath}/rules/${f}`)
       for (const t of tables.encounter_tables) encounters[t.id] = t
     }),
     ...(manifest.cutscenes ?? []).map(async (f) => {

@@ -23,6 +23,7 @@ import type {
   DlgSection,
   DlgStep,
   Effect,
+  EncounterFileDef,
   EncounterTableDef,
   EntityDef,
   ItemDef,
@@ -128,11 +129,9 @@ export function exportMonolith(store: EditorStore): { doc: MonolithDoc; warnings
   const encounters: Record<string, EncounterTableDef> = {}
   for (const p of store.manifest.encounters ?? []) {
     const path = `rules/${p}`
-    const raw = store.jsonFiles.get(path) as { encounter_tables?: EncounterTableDef[] } | EncounterTableDef | undefined
+    const raw = store.jsonFiles.get(path) as EncounterFileDef | EncounterTableDef | undefined
     if (!raw) continue
-    const tables = Array.isArray((raw as { encounter_tables?: unknown }).encounter_tables)
-      ? (raw as { encounter_tables: EncounterTableDef[] }).encounter_tables
-      : [raw as EncounterTableDef]
+    const tables = 'encounter_tables' in raw ? raw.encounter_tables : [raw]
     for (const t of tables) {
       if (t && t.id) encounters[t.id] = t
     }
@@ -409,12 +408,13 @@ function normalizeDefs(ctx: RepairCtx): void {
     kind: string,
     prefix: string,
     extra?: (def: T, key: string) => void,
+    ensureLabel = true,
   ): void => {
     const used = new Set<string>()
     for (const [key, def] of Object.entries(map)) {
       let id = typeof def.id === 'string' && def.id ? def.id : key || ''
       if (!id || typeof id !== 'string') id = `${prefix}_${used.size + 1}`
-      if (!def.label) def.label = labelOf(def as unknown as Record<string, unknown>, id)
+      if (ensureLabel && !def.label) def.label = labelOf(def as unknown as Record<string, unknown>, id)
       if (used.has(id)) {
         let n = 2
         while (used.has(`${id}_${n}`)) n++
@@ -522,7 +522,7 @@ function normalizeDefs(ctx: RepairCtx): void {
       t.entries.push({ weight: 1, type: 'nothing' })
       ctx.warn(`Таблица встреч «${t.id}»: пуста — добавлено «ничего не происходит»`)
     }
-  })
+  }, false)
   // диалоги: ключи приводим к именам файлов
   const dls = ctx.doc.dialogues
   for (const [key, val] of Object.entries(dls)) {

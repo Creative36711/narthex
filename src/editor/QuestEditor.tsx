@@ -188,11 +188,6 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
             </details>
           </div>
         ))}
-        <datalist id={`stages-${quest.id}`}>
-          {quest.stages.map((s) => (
-            <option key={s.id} value={s.id} />
-          ))}
-        </datalist>
         <button
           className="btn btn-small"
           onClick={async () => {

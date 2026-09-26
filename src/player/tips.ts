@@ -4,33 +4,40 @@
  */
 
 const KEY = 'cf_tips_seen'
+const keyFor = (campaignId?: string) => campaignId ? `${KEY}:${campaignId}` : KEY
 
-function load(): Set<string> {
+function load(campaignId?: string): Set<string> {
   try {
-    return new Set(JSON.parse(localStorage.getItem(KEY) ?? '[]') as string[])
+    return new Set(JSON.parse(localStorage.getItem(keyFor(campaignId)) ?? '[]') as string[])
   } catch {
     return new Set()
   }
 }
 
-export function tipSeen(id: string): boolean {
-  return load().has(id)
+/** Подсказки запоминаются отдельно для каждой кампании: новый мир получает свое обучение. */
+export function tipSeen(id: string, campaignId?: string): boolean {
+  return load(campaignId).has(id)
 }
 
-export function markTip(id: string): void {
+export function markTip(id: string, campaignId?: string): void {
   try {
-    const s = load()
+    const s = load(campaignId)
     s.add(id)
-    localStorage.setItem(KEY, JSON.stringify([...s]))
+    localStorage.setItem(keyFor(campaignId), JSON.stringify([...s]))
   } catch {
     /* приватный режим */
   }
 }
 
-/** сброс (для отладки/настроек) */
-export function resetTips(): void {
+/** Сброс подсказок одной кампании; без id — прежний общий API и полный сброс. */
+export function resetTips(campaignId?: string): void {
   try {
-    localStorage.removeItem(KEY)
+    if (campaignId) localStorage.removeItem(keyFor(campaignId))
+    else {
+      localStorage.removeItem(KEY)
+      const keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
+      for (const key of keys) if (key?.startsWith(`${KEY}:`)) localStorage.removeItem(key)
+    }
   } catch {
     /* ignore */
   }

@@ -132,9 +132,12 @@ export interface AbilityDef {
 }
 
 export interface CurrencyDef {
+  /** id валюты для цен и value предметов */
   id: string
   label: string
   symbol: string
+  /** предмет-монета в инвентаре; старые кампании используют соглашение item_<id> */
+  item_id?: string
   exchange_rate?: Record<string, number>
 }
 
@@ -210,6 +213,8 @@ export interface FactionDef {
   id: string
   label: string
   base_disposition: number
+  /** краткая справка о фракции */
+  description?: string
   /** служебная фракция: отношение не меняется, игроку не показывается */
   hidden?: boolean
 }
@@ -1177,6 +1182,33 @@ export interface EncounterTableDef {
   entries: EncounterEntry[]
 }
 
+/** JSON-файл-обёртка для таблиц встреч в rules/ (отдельный формат Campaign Package). */
+export interface EncounterFileDef {
+  encounter_tables: EncounterTableDef[]
+}
+
+/** manifest.json — список модулей Campaign Package, по одному JSON/Ink-файлу на сущность. */
+export interface CampaignManifest {
+  scenes: string[]
+  entities: string[]
+  rules: string[]
+  arenas?: string[]
+  quests?: string[]
+  encounters?: string[]
+  cutscenes?: string[]
+  recipes?: string[]
+  codex?: string[]
+  dialogues: string[]
+}
+
+/** Одна запись общего public/campaigns/index.json. */
+export interface CampaignIndexEntry {
+  id: string
+  title: string
+  description?: string
+  author?: string
+}
+
 // ───────────────────────── условия и эффекты ─────────────────────────
 
 export type Condition =
@@ -1287,7 +1319,8 @@ export interface PlayerState {
   max_mp: number
   needs: Record<string, number>
   inventory: InventoryEntry[]
-  currencies: Record<string, number>
+  /** устаревшее поле сохранений; актуальный баланс валют хранится в inventory как предметы-монеты */
+  currencies?: Record<string, number>
   /** экипировка игрока: слот → предмет из инвентаря (блок 7 ТЗ; слоты задаёт кампания) */
   equipment: Record<string, string>
   /** активные статусы игрока (блок 5 ТЗ); left — мировые тики */
@@ -1423,3 +1456,9 @@ export interface MonolithDoc {
   /** диалоги по id (имя файла без расширения) */
   dialogues: Record<string, MonolithDialogue>
 }
+
+/** Канонический перечень ключей для документации и промпта генерации. */
+export const MONOLITH_REQUIRED_KEYS = [
+  'campaign', 'world', 'scenes', 'entities', 'rules', 'quests', 'arenas', 'cutscenes', 'dialogues',
+] as const satisfies readonly (keyof MonolithDoc)[]
+export const MONOLITH_OPTIONAL_KEYS = ['encounters', 'recipes', 'codex'] as const satisfies readonly (keyof MonolithDoc)[]

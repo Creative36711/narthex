@@ -10,6 +10,7 @@
 import { useState } from 'react'
 import guideRaw from '../../docs/ai-campaign-guide.md?raw'
 import { Ico } from '../shared/icons'
+import { buildAiCampaignPrompt } from './aiPrompt'
 
 const GENRES = ['Фэнтези', 'Киберпанк', 'Хоррор', 'Постапок', 'Детектив', 'Приключение', 'Своя тема']
 const TONES = ['мрачный', 'героический', 'ироничный', 'эпичный', 'спокойный', 'без пафоса']
@@ -42,29 +43,15 @@ export function AiWizard({ onClose }: { onClose: () => void }) {
     if (accents['напарники']) accList.push('есть напарники и отряд')
     const genreLine = [genre && genre !== 'Своя тема' ? genre : '', genreText].filter(Boolean).join(' — ')
     const scaleHint = SCALES.find((s) => s.id === scale)?.hint ?? ''
-    const reqs = [
-      genreLine && `- Сеттинг/жанр: ${genreLine}`,
-      tone && `- Тон: ${tone}`,
-      `- Масштаб: ${scaleHint}`,
-      accList.length && `- Акценты: ${accList.join('; ')}`,
-      must.trim() && `- Обязательно должно быть: ${must.trim()}`,
-      mustNot.trim() && `- Чего быть не должно: ${mustNot.trim()}`,
-    ].filter(Boolean) as string[]
-    return [
-      'Ты генерируешь кампанию для движка Chronicle Forge одним JSON-документом («монолит»: ключи campaign, world, scenes, entities, dialogues, quests, rules, arenas, cutscenes, encounters).',
-      'СТРОГО следуй техническому руководству ниже. Выведи ТОЛЬКО JSON — без markdown-обёрток и пояснений.',
-      '',
-      '=== ТЕХНИЧЕСКОЕ РУКОВОДСТВО (ai-campaign-guide.md) ===',
-      guideRaw.trim(),
-      '',
-      '=== ЖЁСТКИЕ ТРЕБОВАНИЯ МАСТЕРА ===',
-      reqs.length ? reqs.join('\n') : '- (не заданы — действуй по руководству)',
-      '',
-      '=== ТВОРЧЕСКОЕ НАПРАВЛЕНИЕ МАСТЕРА ===',
-      idea.trim() || '(нет — придумай интересную камерную историю сам)',
-      '',
-      'Помни: кампания должна звучать сразу (синтез-музыка и звуки, раздел 15), фоны сцен — ArtDoc, пролог — катсценой. Выведи ТОЛЬКО JSON.',
-    ].join('\n')
+    return buildAiCampaignPrompt({
+      genre: genreLine,
+      tone,
+      scale: scaleHint,
+      accents: accList,
+      must,
+      mustNot,
+      idea,
+    }, guideRaw)
   }
 
   const copy = async () => {

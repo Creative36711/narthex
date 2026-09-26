@@ -29,10 +29,48 @@ export function CombatScreen({ engine }: Props) {
   const canvas = arena.canvas ?? { w: 1280, h: 720 }
   const size = arena.hex_grid.hex_size
   const [hoverHex, setHoverHex] = useState<string | null>(null)
-  const [showTutorial, setShowTutorial] = useState(() => !tipSeen('combat'))
+  const campaignId = engine.campaign.meta.id
+  const [showTutorial, setShowTutorial] = useState(() => !tipSeen('combat', campaignId))
   /** выбранная способность игрока: ждём клик по цели */
   const [pendingAbility, setPendingAbility] = useState<string | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
+  const previousHp = useRef<Map<string, number> | null>(null)
+  const [recentDamage, setRecentDamage] = useState<Set<string>>(() => new Set())
+  const [damagePopups, setDamagePopups] = useState<Array<{ id: string; target: string; amount: number }>>([])
+  const [rollFeedback, setRollFeedback] = useState<{ text: string; actor: string } | null>(null)
+  const latestCombatLog = combat.log.at(-1) ?? ''
+  const hpStamp = combat.combatants.map((c) => `${c.id}:${c.hp}`).join('|')
+
+  useEffect(() => {
+    const current = new Map(combat.combatants.map((c) => [c.id, c.hp]))
+    const before = previousHp.current
+    previousHp.current = current
+    if (!before) return
+    const changed = combat.combatants.flatMap((c) => {
+      const amount = (before.get(c.id) ?? c.hp) - c.hp
+      return amount ? [{ id: `${combat.log.length}-${c.id}`, target: c.id, amount }] : []
+    })
+    if (!changed.length) return
+    const damaged = new Set(changed.filter((p) => p.amount > 0).map((p) => p.target))
+    if (damaged.size) {
+      setRecentDamage(damaged)
+      window.setTimeout(() => setRecentDamage(new Set()), 180)
+    }
+    setDamagePopups((old) => [...old, ...changed])
+    const popupIds = new Set(changed.map((p) => p.id))
+    const timer = window.setTimeout(() => setDamagePopups((old) => old.filter((p) => !popupIds.has(p.id))), 700)
+    return () => window.clearTimeout(timer)
+  }, [hpStamp, combat])
+
+  useEffect(() => {
+    const match = latestCombatLog.match(/^(.+?): атака .*d100=(\d+)/)
+    if (!match) return
+    const actor = combat.combatants.find((c) => c.label === match[1])
+    if (!actor) return
+    setRollFeedback({ actor: actor.id, text: `d100 · ${match[2]}` })
+    const timer = window.setTimeout(() => setRollFeedback(null), 600)
+    return () => window.clearTimeout(timer)
+  }, [latestCombatLog, combat])
 
   const origin = useMemo(() => {
     if (arena.hex_grid.origin) return arena.hex_grid.origin
@@ -168,7 +206,7 @@ export function CombatScreen({ engine }: Props) {
                 return (
                   <div
                     key={c.id}
-                    className={`token-figure figure-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'figure-active' : ''}`}
+                    className={`token-figure figure-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'figure-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
                     style={posStyle}
                     data-tip={tip}
                     onClick={() => onHexClick(c.pos)}
@@ -189,7 +227,7 @@ export function CombatScreen({ engine }: Props) {
               return (
                 <div
                   key={c.id}
-                  className={`token token-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'token-active' : ''}`}
+                  className={`token token-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'token-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
                   style={posStyle}
                   data-tip={tip}
                   onClick={() => onHexClick(c.pos)}
@@ -209,21 +247,29 @@ export function CombatScreen({ engine }: Props) {
               )
             })}
 
+            {rollFeedback && <div className="combat-roll-feedback" aria-live="polite">{rollFeedback.text}</div>}
+            {damagePopups.map((popup) => {
+              const target = combat.combatants.find((c) => c.id === popup.target)
+              if (!target) return null
+              const point = hexToPixel(target.pos, size, origin)
+              return <div key={popup.id} className={`combat-float-number ${popup.amount > 0 ? 'damage' : 'healing'}`} style={{ left: `${(point.x / canvas.w) * 100}%`, top: `${(point.y / canvas.h) * 100}%` }}>{popup.amount > 0 ? `−${popup.amount}` : `+${-popup.amount}`}</div>
+            })}
+
             {showTutorial && !combat.result && (
               <div className="combat-tutorial">
-                <h4><Ico n="info" />  Первый бой — как это работает</h4>
+                <h4><Ico n="info" />  Первый бой — подсказка по правилам движка</h4>
                 <ol>
-                  <li><b>Инициатива.</b> Порядок ходов определяет Ловкость (DEX) — очередь видна справа внизу.</li>
-                  <li><b>Движение.</b> В свой ход кликайте по <i>подсвеченным</i> гексам — столько шагов, сколько позволяет Движение.</li>
-                  <li><b>Атака.</b> Подойдите к врагу вплотную и кликните по нему (красная подсветка). Шанс попадания = навык оружия (d100).</li>
-                  <li><b>Защита.</b> От ударов по вам персонаж сам уклоняется или парирует; каждая повторная защита за раунд слабее на 30%.</li>
-                  <li><b>Предметы.</b> Лечебная мазь и еда — через «Использовать предмет» (тратит действие).</li>
+                  <li><b>Очередь.</b> Порядок ходов определяется Ловкостью (DEX); текущий ход и очередь показаны в интерфейсе боя.</li>
+                  <li><b>Движение.</b> Перемещайтесь по подсвеченным гексам. Доступная дальность учитывает характеристики, эффекты и правила текущего боя.</li>
+                  <li><b>Атака.</b> Выберите противника в пределах досягаемости. Движок проверит навык оружия персонажа броском d100 по правилам этой кампании.</li>
+                  <li><b>Защита.</b> Движок автоматически проверяет уклонение или парирование, если у персонажа есть подходящий навык/оружие. Повторные защиты в раунде получают штраф.</li>
+                  {featureOn(engine.campaign.meta, 'inventory') && combat.usableItems().length > 0 && <li><b>Предметы.</b> Предметы с боевым эффектом доступны в блоке действий; их использование расходует действие.</li>}
                 </ol>
-                <p className="muted small">Каждая успешная атака и защита «отмечает» навык — во сне он сможет вырасти. Подробнее — кнопка «?» в игре.</p>
+                <p className="muted small">Кнопки и доступные действия зависят от кампании. Броски и эффекты рассчитывает движок; подробности — в справке.</p>
                 <button
                   className="btn btn-primary"
                   onClick={() => {
-                    markTip('combat')
+                    markTip('combat', campaignId)
                     setShowTutorial(false)
                   }}
                 >
@@ -292,17 +338,16 @@ export function CombatScreen({ engine }: Props) {
                       </ul>
                     </div>
                   )}
-                  {!tipSeen('growth') && (
+                  {featureOn(engine.campaign.meta, 'skills') && !tipSeen('growth', campaignId) && (
                     <p className="combat-growth-tip">
-                      <Ico n="info" />  Навыки, которые вы применяли в бою, получили отметку. Отдохните
-                      (кнопка «Отдых» в сцене) — по каждому отмеченному навыку пройдёт бросок
-                      d100: выпало больше навыка — навык вырастет на 1d6.
+                      <Ico n="info" /> Успешные атаки и защиты могут отметить использованный навык.
+                      Когда сценарий кампании вызывает сон, движок проверяет отмеченные навыки: бросок d100 выше текущего значения даёт рост на 1d6.
                     </p>
                   )}
                   <button
                     className="btn btn-primary"
                     onClick={() => {
-                      markTip('growth')
+                      markTip('growth', campaignId)
                       engine.endCombat()
                     }}
                   >

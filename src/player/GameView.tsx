@@ -20,12 +20,30 @@ interface Props {
   engine: GameEngine
   onRestart: () => void
   onExitToMenu: () => void
+  debugPanelOpen?: boolean
+  onGamePanelOpen?: () => void
 }
 
 type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | null
 
-export function GameView({ engine, onRestart, onExitToMenu }: Props) {
+export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = false, onGamePanelOpen }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
+  // GameView owns the subscription so embedded playtests update just like the normal player.
+  const [, invalidate] = useState(0)
+  useEffect(() => engine.subscribe(() => invalidate((n) => n + 1)), [engine])
+  // Отладочная панель и игровые боковые меню взаимоисключающие.
+  useEffect(() => { if (debugPanelOpen) setPanel(null) }, [debugPanelOpen])
+  const [damageFlash, setDamageFlash] = useState(false)
+  const previousHp = useRef(engine.state.player.hp)
+  useEffect(() => {
+    const current = engine.state.player.hp
+    const wasHit = current < previousHp.current
+    previousHp.current = current
+    if (!wasHit) return
+    setDamageFlash(true)
+    const timer = window.setTimeout(() => setDamageFlash(false), 220)
+    return () => window.clearTimeout(timer)
+  }, [engine, engine.state.player.hp])
   const message = engine.messages[0]
   // катсцена (итерация 8, блок E): пока идёт ролик, экраны остальных эффектов
   // (диалог, бой, торговля, сообщения, финал) ждут его окончания
@@ -59,10 +77,11 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
       const meta = engine.campaign.meta
       if (id === 'map' && !featureOn(meta, 'map')) return
       if (id === 'inventory' && !featureOn(meta, 'inventory')) return
+      onGamePanelOpen?.()
       playUi('panel_open')
       setPanel(id)
     },
-    [engine],
+    [engine, onGamePanelOpen],
   )
   const closePanel = useCallback(() => {
     playUi('panel_close')
@@ -77,7 +96,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
   }, [])
 
   return (
-    <div className="game-view">
+    <div className={`game-view ${damageFlash ? 'player-damage-flash' : ''}`}>
       <HUD
         engine={engine}
         onOpenMap={() => openPanel('map')}

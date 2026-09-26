@@ -53,7 +53,7 @@ export function CodexPanel({ engine, onClose }: { engine: GameEngine; onClose: (
                 </div>
               ))}
             </div>
-            <div className="codex-view">
+            <div key={sel?.id ?? 'empty'} className="codex-view">
               {sel && (
                 <>
                   <h3 className="codex-title">{sel.label}</h3>

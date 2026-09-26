@@ -64,6 +64,13 @@ export function SettingsPanel({ open, onClose }: Props) {
           </label>
         </Row>
 
+        <Row label="Анимации">
+          <label className="fld-check small">
+            <input type="checkbox" checked={s.animations} onChange={(e) => patch({ animations: e.target.checked })} />
+            <span>движение интерфейса включено</span>
+          </label>
+        </Row>
+
         <Row label="Размер текста">
           <select value={s.text_scale} onChange={(e) => patch({ text_scale: Number(e.target.value) })}>
             <option value={0.9}>Мельче</option>

@@ -23,6 +23,14 @@ import './editor.css'
 import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from './prompt'
 import { collectExternalUrls, embedExternalAssets } from './assets'
 import { exportMonolith, importMonolithText } from './monolith'
+import { campaignFromMonolith } from './playtest'
+import type { CampaignData } from '../shared/types'
+import { GameEngine, deleteSave } from '../core/engine'
+import { GameView } from '../player/GameView'
+import { CharacterCreation } from '../player/CharacterCreation'
+import { PlaytestDebugPanel } from './PlaytestDebugPanel'
+import type { CharChoice } from '../core/charcreate'
+import { EditorBookPanel } from './EditorBookPanel'
 
 /**
  * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
@@ -92,6 +100,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [, force] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignIndexEntry[]>([])
+  const [testCampaign, setTestCampaign] = useState<CampaignData | null>(null)
+  const [testEngine, setTestEngine] = useState<GameEngine | null>(null)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [bookOpen, setBookOpen] = useState(false)
+  const [bookFile, setBookFile] = useState('README.md')
+  const [bookContextual, setBookContextual] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const store = useMemo(() => new EditorStore(base), [base])
@@ -117,6 +131,20 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     window.addEventListener('click', close)
     return () => window.removeEventListener('click', close)
   }, [openMenu])
+
+  // Toolbar menus behave as one dismissible menu: outside click closes them,
+  // and opening one closes any other toolbar menu.
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target
+      const active = target instanceof Element ? target.closest('.editor-toolbar-menu') : null
+      document.querySelectorAll<HTMLElement>('.editor-toolbar-menu[open]').forEach((menu) => {
+        if (menu !== active) menu.removeAttribute('open')
+      })
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [])
 
   useEffect(() => {
     fetchCampaignIndex().then(setCampaigns)
@@ -229,6 +257,35 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       </div>
     )
   if (!loaded) return <div className="screen-center"><div className="loading">Загрузка кампании в редактор…</div></div>
+
+  if (testCampaign) {
+    const leaveTest = () => {
+      deleteSave(testCampaign.meta.id)
+      setTestEngine(null)
+      setTestCampaign(null)
+      setDebugOpen(false)
+    }
+    const startTest = (choice?: CharChoice) => {
+      if (!testCampaign) return
+      const e = new GameEngine(testCampaign)
+      if (choice) e.applyCharCreation(choice)
+      e.start()
+      setTestEngine(e)
+    }
+    return (
+      <div className="playtest-shell">
+        {testEngine ? <GameView engine={testEngine} onRestart={() => setTestEngine(testEngine.restart())} onExitToMenu={leaveTest} debugPanelOpen={debugOpen} onGamePanelOpen={() => setDebugOpen(false)} /> : (
+          <CharacterCreation campaign={testCampaign} onBack={leaveTest} onStart={startTest} />
+        )}
+        <div className="playtest-banner">
+          <b>Режим отладки</b>
+          <button className="btn btn-small" onClick={() => setDebugOpen((v) => !v)}>{debugOpen ? 'Скрыть панель' : 'Отладка'}</button>
+          <button className="btn btn-small" onClick={leaveTest}>Вернуться в редактор</button>
+        </div>
+        {debugOpen && testEngine && <PlaytestDebugPanel engine={testEngine} onClose={() => setDebugOpen(false)} />}
+      </div>
+    )
+  }
 
   const listFor = (s: EditorSection): Array<{ path: string; title: string; group?: string; groupOrder?: string }> => {
     switch (s) {
@@ -351,8 +408,30 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }
 
   const playtest = async () => {
-    await save()
-    window.open('/', '_blank')
+    try {
+      const { doc, warnings } = exportMonolith(store)
+      const problems = [...warnings, ...store.validateContent()]
+      const campaign = campaignFromMonolith(doc)
+      campaign.basePath = base
+      if (!campaign.meta.starting_scene || !campaign.scenes[campaign.meta.starting_scene]) {
+        problems.push(`Стартовая сцена «${campaign.meta.starting_scene || 'не выбрана'}» не найдена.`)
+      }
+      if (problems.length) {
+        void showList('Плейтест: проверьте кампанию', problems, 'Исправьте проблемы в редакторе и запустите проверку снова.')
+        return
+      }
+      // Отдельный id гарантирует изоляцию автосохранений от настоящей кампании.
+      campaign.meta.id = `${campaign.meta.id}__playtest`
+      setTestCampaign(campaign)
+      if (!campaign.meta.char_creation) {
+        const engine = new GameEngine(campaign)
+        engine.start()
+        setTestEngine(engine)
+      } else setTestEngine(null)
+      setDebugOpen(false)
+    } catch (e) {
+      void showAlert('Не удалось подготовить плейтест', String(e))
+    }
   }
 
   const doExport = async () => {
@@ -487,17 +566,39 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         ) : (
           <span className="editor-title">{store.meta.title}</span>
         )}
-        <button className="btn btn-small" onClick={newCampaign} data-tip="Создать новую кампанию"><Ico n="plus" />  Кампания</button>
-        <button className="btn btn-small ce-del" onClick={deleteCampaign} data-tip="Удалить текущую кампанию с диска"><Ico n="trash" />  Удалить</button>
         <span className="editor-spacer" />
-        <button
-          className="btn btn-small"
-          onClick={() => store.undo()}
-          disabled={!store.canUndo()}
-          data-tip="Откатить последнее изменение (Ctrl+Z)"
-        >
-          ↩ Откат
+        <button className="btn btn-small" onClick={() => store.undo()} disabled={!store.canUndo()} data-tip="Отменить последнее изменение в кампании">
+          ↩ Отменить
         </button>
+        <details className="editor-toolbar-menu">
+          <summary className="btn btn-small">Файл <span aria-hidden="true">▾</span></summary>
+          <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
+            <button className="editor-toolbar-item" onClick={newCampaign}><Ico n="plus" /> Новая кампания</button>
+            <button className="editor-toolbar-item danger" onClick={deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
+            <div className="editor-toolbar-divider" />
+            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт .chronicle</button>
+            <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON</button>
+            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle</button>
+            <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
+          </div>
+        </details>
+        <details className="editor-toolbar-menu">
+          <summary className="btn btn-small">Инструменты <span aria-hidden="true">▾</span></summary>
+          <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
+            <button
+              className="editor-toolbar-item"
+              onClick={() => {
+                const issues = store.validateContent()
+                if (!issues.length) void showAlert('Проблем не найдено', 'Все ссылки кампании указывают на существующие объекты.')
+                else void showList(`Найдено проблем: ${issues.length}`, issues, 'Кампания загружается и так, но эти ссылки никуда не ведут:', {
+                  label: 'Скопировать отчёт для ИИ', text: aiFixReport(issues),
+                })
+              }}
+            ><Ico n="check" /> Проверить кампанию</button>
+            <button className="editor-toolbar-item" onClick={() => setAiWizard(true)}><Ico n="sparkle" /> Кампания с ИИ</button>
+            <button className="editor-toolbar-item" onClick={() => { setBookFile('README.md'); setBookContextual(false); setBookOpen(true) }}><Ico n="book" /> Книга мастера</button>
+          </div>
+        </details>
         {busy && <span className="muted small">{busy}</span>}
         <span className={`editor-dirty ${store.dirty.size ? 'on' : ''}`}>
           {store.dirty.size ? `несохранено: ${store.dirty.size}` : 'все сохранено'}
@@ -505,47 +606,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size} data-tip="Записать изменения кампании на диск">
           <Ico n="download" /> Сохранить
         </button>
-        <button
-          className="btn btn-small"
-          data-tip="Проверить ссылки: сцены, локации, слоты, квесты, правила"
-          onClick={() => {
-            const issues = store.validateContent()
-            if (!issues.length) {
-              void showAlert('Проблем не найдено', 'Все ссылки кампании указывают на существующие объекты.')
-            } else {
-              void showList(`Найдено проблем: ${issues.length}`, issues, 'Кампания загружается и так, но эти ссылки никуда не ведут:', {
-                label: 'Скопировать отчёт для ИИ',
-                text: aiFixReport(issues),
-              })
-            }
-          }}
-        >
-          <Ico n="check" /> Проверить
-        </button>
-        <button
-          className="btn btn-small"
-          onClick={() => setAiWizard(true)}
-          data-tip="Мастер: собрать бриф и скопировать промпт для ИИ-генератора кампаний"
-        >
-          <Ico n="sparkle" />  Кампания с ИИ
-        </button>
-        <button className="btn btn-small" onClick={playtest} data-tip="Сохранить и открыть игру в новой вкладке"><Ico n="play" />  Плейтест</button>
-        <button className="btn btn-small" onClick={doExport} data-tip="Скачать кампанию одним файлом .chronicle"><Ico n="download" />  Экспорт</button>
-        <button
-          className="btn btn-small"
-          onClick={doExportJson}
-          data-tip="Скачать кампанию одним JSON (формат обмена и ИИ-генерации)"
-        >
-          <Ico n="download" />  JSON
-        </button>
-        <button className="btn btn-small" onClick={() => fileInput.current?.click()} data-tip="Импортировать кампанию из файла .chronicle"><Ico n="up" />  Импорт</button>
-        <button
-          className="btn btn-small"
-          onClick={doImportJson}
-          data-tip="Импортировать кампанию из JSON: файлом или вставив текст"
-        >
-          <Ico n="up" />  Импорт из JSON
-        </button>
+        <button className="btn btn-small editor-playtest-button" onClick={playtest} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" /> Плейтест</button>
+        <button className="btn btn-small" onClick={onExit} data-tip="Выйти в главное меню игры"><Ico n="exit" /> Выйти</button>
         <input
           ref={fileInput}
           type="file"
@@ -557,7 +619,6 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             e.target.value = ''
           }}
         />
-        <button className="btn btn-small" onClick={onExit} data-tip="Выйти в главное меню игры"><Ico n="exit" />  Выйти</button>
       </header>
 
       <div className="editor-body">
@@ -594,6 +655,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             )
           })}
           <span className="muted small" style={{ marginLeft: 6 }}>{navLabelOf(section)}</span>
+          <button className="editor-help-button" type="button" aria-label="Открыть раздел книги" onClick={() => { setBookFile('02-editor.md'); setBookContextual(true); setBookOpen(true) }}>?</button>
         </nav>
 
         {hasList && (
@@ -675,7 +737,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           )}
         </main>
       </div>
-          {aiWizard && <AiWizard onClose={() => setAiWizard(false)} />}
-</div>
+      {aiWizard && <AiWizard onClose={() => setAiWizard(false)} />}
+      {bookOpen && <EditorBookPanel section={section} sectionLabel={navLabelOf(section)} initialFile={bookFile} contextual={bookContextual} onClose={() => setBookOpen(false)} />}
+    </div>
   )
 }

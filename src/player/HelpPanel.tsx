@@ -17,10 +17,17 @@ function ChecksBody({ rules }: { rules: DiceRules }) {
   const crit = Math.max(1, Math.floor(DEMO_SKILL / (rules.critical_divisor || 1)))
   const special = Math.max(1, Math.floor(DEMO_SKILL / (rules.special_divisor || 1)))
   const lowSkill = rules.fumble_low_skill
+  const fumbleWindow = rules.fumble_from < 100 ? `${rules.fumble_from}–99` : 'дополнительного диапазона нет'
   const fumbleNote =
     rules.fumble_from < 100 && lowSkill != null
-      ? `При навыке ниже ${lowSkill} — весь хвост ${rules.fumble_from}–99 тоже критический провал.`
-      : ''
+      ? `Бросок 100 всегда означает критический провал. В диапазоне ${fumbleWindow} провал становится критическим, если бросок выше итогового навыка; при навыке ниже ${lowSkill} весь диапазон считается критическим провалом.`
+      : rules.fumble_from < 100
+        ? `Бросок 100 всегда означает критический провал. В диапазоне ${fumbleWindow} критический провал наступает, если бросок выше итогового навыка.`
+        : 'Бросок 100 всегда означает критический провал.'
+  const specialStart = Math.max(1, crit + 1)
+  const specialEnd = Math.max(0, Math.floor(DEMO_SKILL / (rules.special_divisor || 1)))
+  const successStart = specialEnd + 1
+  const exampleCritical = String(crit).padStart(2, '0')
   return (
     <>
       <p>
@@ -30,17 +37,18 @@ function ChecksBody({ rules }: { rules: DiceRules }) {
       </p>
       {/* таблица исходов — строками с переносом, без горизонтального скролла */}
       <div className="checks-table">
-        <div className="checks-row"><span className="checks-mark ok">+</span><span>Бросок ≤ навыка</span><span className="checks-res">Успех</span></div>
-        <div className="checks-row"><span className="checks-mark crit">*</span><span>Бросок ≤ навыка ÷ {rules.critical_divisor}</span><span className="checks-res">Критический успех!</span></div>
-        <div className="checks-row"><span className="checks-mark good">⭐</span><span>Бросок ≤ навыка ÷ {rules.special_divisor}</span><span className="checks-res">Особый (хороший) успех</span></div>
-        <div className="checks-row"><span className="checks-mark bad">−</span><span>Бросок &gt; навыка</span><span className="checks-res">Провал</span></div>
-        <div className="checks-row"><span className="checks-mark bad">×</span><span>Бросок {rules.fumble_from}–100</span><span className="checks-res">Критический провал</span></div>
+        <div className="checks-row"><span className="checks-mark ok">d100</span><span>Целевое значение: навык с модификатором</span><span className="checks-res">Основа проверки</span></div>
+        <div className="checks-row"><span className="checks-mark crit">*</span><span>Бросок ≤ {crit} (навык ÷ {rules.critical_divisor})</span><span className="checks-res">Критический успех</span></div>
+        <div className="checks-row"><span className="checks-mark good">⭐</span><span>{specialStart}–{specialEnd} (навык ÷ {rules.special_divisor})</span><span className="checks-res">Уверенный успех</span></div>
+        <div className="checks-row"><span className="checks-mark ok">+</span><span>{successStart}–навык</span><span className="checks-res">Успех</span></div>
+        <div className="checks-row"><span className="checks-mark bad">−</span><span>Бросок выше итогового навыка</span><span className="checks-res">Провал</span></div>
+        <div className="checks-row"><span className="checks-mark bad">×</span><span>100 всегда; {fumbleWindow} — по правилу ниже</span><span className="checks-res">Критический провал</span></div>
       </div>
       {fumbleNote && <p className="muted small">{fumbleNote}</p>}
       <p>
         Пример: навык «Убеждение» = {DEMO_SKILL}%.
         <br />• Бросок 23 → 23 ≤ {DEMO_SKILL} → <b>успех</b>, собеседник согласился.
-        <br />• Бросок 0{crit > 9 ? '' : ''}{crit} → {crit} ≤ {crit} ({DEMO_SKILL}÷{rules.critical_divisor}) → <b>крит</b> —
+        <br />• Бросок {exampleCritical} → {crit} ≤ {crit} ({DEMO_SKILL}÷{rules.critical_divisor}) → <b>крит</b> —
         согласился с энтузиазмом.
         <br />• Бросок 71 → 71 &gt; {DEMO_SKILL} → <b>провал</b>, разговор не задался.
       </p>
@@ -64,13 +72,13 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
     body: (
       <>
         <p>
-          Каждый <b>успешно применённый</b> навык получает «галочку» (<Ico n="check" />  в листе персонажа):
-          удачная атака, защита, убеждение, торговля…
+          Некоторые успешные проверки отмечают использованный навык для последующего роста.
+          Какие действия это делают, определяют механики движка (например, успешные атака и защита в бою).
         </p>
         <p>
-          Во время <b>сна</b> по каждому отмеченному навыку бросается d100: если выпало{''}
-          <b>больше</b> текущего значения — навык растёт на 1d6. Так растут именно те умения,
-          которыми вы реально пользуетесь, — и чем выше навык, тем медленнее его рост.
+          Когда игровая кампания вызывает механику сна, движок бросает d100 по каждому отмеченному
+          навыку. Если результат <b>выше</b> текущего значения, навык растёт на 1d6; после проверки
+          отметки сбрасываются. Способ вызвать сон задаёт сценарий кампании.
         </p>
       </>
     ),
@@ -93,25 +101,26 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
           урон и игнорирует броню.
         </p>
         <p>
-          Здоровье не восстанавливается само — лечитесь мазями, у лекарей или отдыхом. Смерть
-          в бою — <b>конец забега</b> (см. «Рогалик»).
+          Здоровье не восстанавливается само. Лечение зависит от предметов, способностей и
+          эффектов кампании. Смерть в бою завершает забег (см. «Рогалик»).
         </p>
       </>
     ),
   },
   {
     id: 'needs',
-    title: '⏳ Время и потребности',
+    title: 'Время и потребности',
     body: (
       <>
         <p>
-          Время идёт <b>тиками</b> (в «Пепле Каэрдена» 1 тик = 1 час). Путешествия, сон, бой и
-          некоторые разговоры тратят время. Мир живёт по расписанию: NPC ходят по своим делам,
-          а некоторые события привязаны к конкретным дням — не тяните с главной угрозой.
+          Время идёт <b>тиками</b>. Длину тика и стоимость действий задаёт кампания. Путешествие,
+          бой и некоторые эффекты продвигают время. Расписание персонажей и событий зависит от
+          кампании — проверяйте описания сцен и диалоги.
         </p>
         <p>
-          <b>Голод, жажда, усталость</b> убывают со временем. На нуле — смерть. Ешьте, пейте
-          и спите: еда у Маэвы и Брана, вода — в бочке у ворот, комната — в таверне.
+          Потребности и скорость их изменения тоже задаёт кампания. Нулевое значение может
+          привести к смерти или другому эффекту. Способы восстановления ищите в инвентаре,
+          диалогах и описаниях мира.
         </p>
       </>
     ),
@@ -122,13 +131,13 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
     body: (
       <>
         <p>
-          Поступки меняют отношение <b>фракций</b> (город, стража, банда…) от −100 до +100.
-          Репутация открывает ветки диалогов, спутников и снижает цены. Отношение конкретного
-          NPC = отношение его фракции + личная поправка.
+          Отношение к фракции меняется в пределах от −100 до +100. Кампания может использовать
+          его в условиях диалогов, спутников и торговли. Отношение к НПС складывается из отношения
+          к его фракции и личной поправки персонажа.
         </p>
         <p>
-          У торговцев цена зависит от репутации и вашего навыка <b>Торговли</b>. Продать можно
-          дешевле, чем купить, — торговец должен на чём-то жить.
+          Цена у торговца зависит от отношения и навыка <b>Торговли</b>. Условия покупки и продажи
+          задаются кампанией и могут различаться.
         </p>
       </>
     ),
@@ -139,12 +148,12 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
     body: (
       <>
         <p>
-          Сохранение — автоматическое и <b>единственное</b>. Смерть удаляет его насовсем:
-          новый забег начинается с чистого листа, с новым случайным зерном мира.
+          Состояние забега сохраняется автоматически. После смерти сохранение удаляется.
+          Новый забег начинается с начального состояния и новым случайным зерном для бросков.
         </p>
         <p>
-          Зато <b>знание остаётся с вами</b>: вы уже знаете, кто чем дышит в Каэрдене, где
-          прячется банда и какие пути ведут к победе. Каждый забег — быстрее и умнее прошлого.
+          Сами сцены и события кампании не меняются, если автор отдельно не настроил случайные
+          варианты. Ваши знания о мире остаются с вами — используйте их в следующей попытке.
         </p>
       </>
     ),
@@ -193,7 +202,7 @@ export function HelpPanel({ onClose, engine }: { onClose: () => void; engine?: G
             className="btn btn-small"
             data-tip="Игровые подсказки показываются один раз; эта кнопка включает их снова"
             onClick={async () => {
-              resetTips()
+              resetTips(engine?.campaign.meta.id)
               await showAlert(
                 'Обучение включено заново',
                 'Интерактивные подсказки (первый бой, проверки в диалогах, рост навыков) снова появятся по ходу игры.',

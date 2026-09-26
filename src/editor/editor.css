@@ -816,3 +816,98 @@
 .prof-card select { margin-top: 4px; }
 /* запрещённые навыки в редакторе — красноватый акцент */
 .chipset-warn .chip-on { border-color: #b3543f; color: #e69a86; background: rgba(179, 84, 63, 0.16); }
+
+/* Единый тематический список подсказок вместо браузерного datalist. */
+.flag-autocomplete { position: relative; width: 100%; min-width: 0; }
+.flag-autocomplete > input { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--panel-2); color: var(--text); font: inherit; font-size: 13px; }
+.flag-autocomplete > input:focus { outline: none; border-color: var(--gold); }
+.flag-autocomplete-list { position: absolute; z-index: 80; top: calc(100% + 3px); left: 0; right: 0; max-height: 180px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); box-shadow: 0 8px 22px #0009; }
+.flag-autocomplete-option { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 4px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: var(--cur-pointer); }
+.flag-autocomplete-active { color: #9dcc83; font-size: 11px; }
+.flag-autocomplete-inactive { color: var(--muted); font-size: 11px; }
+.flag-autocomplete-option:hover, .flag-autocomplete-option:focus-visible { outline: none; background: var(--panel-2); color: var(--gold-bright); }
+.flag-autocomplete-option.is-selected { color: var(--gold-bright); }
+.flag-autocomplete-empty { padding: 7px 8px; color: var(--muted); font-size: 12px; }
+
+/* Режим плейтеста остаётся внутри смонтированного редактора. */
+.playtest-shell { position: fixed; inset: 0; z-index: 20000; display: flex; flex-direction: column; background: #100d0a; color: #eee; }
+.playtest-shell > .game-view { flex: 1 1 0; min-height: 0; height: auto; width: 100%; }
+.playtest-shell > .char-create { flex: 1 1 auto; min-height: 0; height: auto; overflow: auto; }
+.playtest-banner { position: relative; order: -1; z-index: 45; align-self: flex-end; flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin: 8px 12px 0; padding: 6px 8px; border: 1px solid rgba(214,177,108,.48); border-radius: 8px; background: rgba(22,17,13,.92); box-shadow: 0 3px 14px #0008; font-size: 12px; }
+.pt-debug-panel { position: fixed; z-index: 40; left: 10px; right: auto; top: 54px; bottom: 10px; width: min(390px, calc(100vw - 20px)); overflow: auto; padding: 10px; border: 1px solid var(--border, #57452e); border-radius: 10px; background: rgba(24,20,16,.97); color: #eee; box-shadow: 0 8px 30px #000a; }
+.pt-debug-panel > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pt-debug-feedback { position: sticky; top: -10px; z-index: 8; flex: 1 1 100%; margin: 0 -10px 7px; padding: 8px 10px; border-bottom: 1px solid var(--gold); background: rgba(24,20,16,.98); color: var(--gold-bright); font-size: 12px; box-shadow: 0 4px 10px #0007; }
+.pt-debug-section { border-top: 1px solid #564630; padding: 7px 0; }
+.pt-debug-section summary { cursor: var(--cur-pointer); font-weight: 650; }
+.pt-debug-section > div { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 3px; align-items: center; }
+.pt-debug-section input:not([type='checkbox']), .pt-debug-section select { min-width: 70px; max-width: 100%; }
+.pt-debug-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pt-debug-row label { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 6px; }
+.pt-debug-section > div > .flag-autocomplete { flex: 1 1 100%; }
+.pt-debug-flag-status { flex: 1 1 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid #564630; border-radius: 5px; background: rgba(0, 0, 0, .15); font-size: 12px; }
+.pt-debug-flag-status .is-on { color: #9dcc83; }
+.pt-debug-flag-status .is-off { color: var(--muted); }
+.pt-debug-help { flex: 1 1 100%; width: 100%; margin: 0 0 4px; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.pt-debug-setting { display: flex; flex: 1 1 100%; flex-direction: column; align-items: stretch; gap: 5px; width: 100%; }
+.pt-debug-setting-label { color: var(--gold-bright); font-size: 12px; }
+.pt-debug-control-row { display: flex; align-items: center; gap: 7px; width: 100%; }
+.pt-debug-control-row select { flex: 1 1 auto; min-width: 0; }
+.pt-debug-control-row input { flex: 0 0 82px; width: 82px; min-width: 0; }
+.pt-debug-control-row > span { color: var(--muted); font-size: 13px; }
+.pt-debug-immortality { display: flex !important; flex: 1 1 100%; align-items: center; justify-content: flex-start !important; gap: 8px; width: 100%; color: var(--text); }
+.pt-debug-immortality input[type='checkbox'] { flex: 0 0 16px; width: 16px; min-width: 16px; max-width: 16px; height: 16px; margin: 0; }
+.pt-debug-variable-list { display: flex; flex: 1 1 100%; flex-direction: column; align-items: stretch !important; gap: 5px !important; width: 100%; max-height: 160px; overflow-y: auto; padding: 6px !important; border: 1px solid #564630; border-radius: 5px; }
+.pt-debug-variable-list .pt-debug-row { flex: 0 0 auto; }
+.pt-debug-quest-list { display: flex; flex: 1 1 100%; flex-direction: column; align-items: stretch !important; gap: 5px !important; width: 100%; max-height: 230px; overflow-y: auto; padding: 3px 5px 3px 0 !important; }
+.pt-debug-quest-row { flex: 0 0 auto; width: 100%; padding: 5px 0; border-bottom: 1px solid rgba(86,70,48,.55); }
+.pt-debug-quest-row label { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 100%; }
+.pt-debug-quest-row label > span { font-size: 12px; }
+.pt-debug-codex-list { display: flex; flex: 1 1 100%; flex-direction: column; align-items: stretch !important; gap: 5px !important; width: 100%; max-height: 230px; overflow-y: auto; padding: 3px 5px 3px 0 !important; }
+.pt-debug-codex-list button { flex: 0 0 auto; width: 100%; text-align: left; }
+@media (max-width: 700px) { .playtest-banner { align-self: stretch; justify-content: center; margin-left: 8px; margin-right: 8px; } .playtest-banner b { display: none; } .pt-debug-panel { left: 8px; width: min(390px, calc(100vw - 16px)); } }
+.editor-help-button { margin-left: 8px; width: 24px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: transparent; color: var(--gold-bright); font-weight: 700; cursor: var(--cur-pointer); }
+.editor-book-backdrop { position: fixed; z-index: 12000; inset: 0; display: flex; justify-content: flex-end; background: rgba(0,0,0,.42); }
+.editor-book-panel { display: flex; flex-direction: column; width: min(520px, 94vw); height: 100%; background: #211b15; border-left: 1px solid var(--border); box-shadow: -12px 0 32px #0008; color: var(--text); }
+.editor-book-panel > header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border); }
+.editor-book-panel pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; margin: 0; font: 13px/1.65 inherit; color: var(--text); }
+.editor-book-nav { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 5px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.editor-book-content { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 30px; }
+.book-context-label { color: var(--muted); font-size: 13px; }
+.book-markdown { max-width: 760px; font: 14px/1.65 system-ui, sans-serif; color: var(--text); }
+.book-markdown h1, .book-markdown h2, .book-markdown h3, .book-markdown h4 { color: var(--gold-bright); line-height: 1.25; margin: 1.2em 0 .55em; }
+.book-markdown h1 { font-size: 25px; margin-top: 0; }
+.book-markdown h2 { font-size: 20px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+.book-markdown p { margin: .55em 0 .9em; }
+.book-markdown li { margin: .25em 0; }
+.book-markdown blockquote { margin: .8em 0; padding: 4px 12px; border-left: 3px solid var(--gold); color: var(--muted); }
+.book-markdown code { padding: 1px 4px; border-radius: 3px; background: rgba(0,0,0,.25); font-size: .92em; }
+.book-markdown .book-code { overflow: auto; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,.24); }
+.book-markdown .book-code code { padding: 0; background: transparent; }
+.book-markdown a, .book-inline-link { color: var(--gold-bright); }
+.book-inline-link { padding: 0; border: 0; background: none; text-decoration: underline; cursor: var(--cur-pointer); font: inherit; }
+.book-inline-image { display: block; width: 100%; height: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; }
+.book-table-wrap { max-width: 100%; overflow-x: auto; margin: 10px 0 18px; }
+.book-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.book-table th, .book-table td { min-width: 95px; padding: 7px 8px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+.book-table th { color: var(--gold-bright); background: rgba(0,0,0,.22); }
+/* Группировка редко используемых действий тулбара в раскрывающиеся меню. */
+.editor-toolbar-menu { position: relative; flex: 0 0 auto; }
+.editor-toolbar-menu > summary { display: flex; align-items: center; gap: 7px; list-style: none; cursor: var(--cur-pointer); }
+.editor-toolbar-menu > summary::-webkit-details-marker { display: none; }
+.editor-toolbar-menu[open] > summary { border-color: var(--gold); }
+.editor-toolbar-popup { position: absolute; z-index: 500; top: calc(100% + 6px); right: 0; width: max-content; min-width: 200px; max-width: min(300px, 90vw); padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); box-shadow: 0 10px 28px #0009; }
+.editor-toolbar-item { display: flex; align-items: center; width: 100%; gap: 8px; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: var(--text); text-align: left; white-space: nowrap; cursor: var(--cur-pointer); font: inherit; }
+.editor-toolbar-item:hover:not(:disabled) { background: rgba(212,175,55,.11); color: var(--gold-bright); }
+.editor-toolbar-item:disabled { opacity: .45; cursor: not-allowed; }
+.editor-toolbar-item.danger { color: #e08a7d; }
+.editor-toolbar-divider { height: 1px; margin: 5px 4px; background: var(--border); }
+.editor-playtest-button { border-color: var(--gold); }
+@media (max-width: 760px) {
+  .editor-brand { letter-spacing: 1px; }
+  .campaign-select { max-width: 150px; }
+  .editor-topbar { gap: 6px; padding: 7px; }
+  .editor-topbar .editor-dirty { font-size: 10px; }
+}
+/* Экран создания персонажа в режиме плейтеста — собственный прокручиваемый viewport. */
+.playtest-shell > .char-create { width: 100%; height: auto; min-height: 0; box-sizing: border-box; overflow-y: auto; align-items: flex-start; padding: 12px 12px 24px; }
+.playtest-shell > .char-create .char-create-inner { flex: 0 0 auto; max-height: none; overflow: visible; margin: 0 auto; }

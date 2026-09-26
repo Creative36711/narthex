@@ -84,7 +84,7 @@ console.log(`Кампания: ${campaign.meta.title}`)
   const menu = readFileSync('src/player/MainMenu.tsx', 'utf8')
   check('A2 в главном меню нет «Обучение заново»', !menu.includes('Обучение заново'))
   const help = readFileSync('src/player/HelpPanel.tsx', 'utf8')
-  check('A2 в справке кнопка осталась', help.includes('Обучение заново') && help.includes('resetTips()'))
+  check('A2 в справке кнопка осталась', help.includes('Обучение заново') && help.includes('resetTips('))
 }
 
 // ── A3: множественные значения в условиях потребностей ──
@@ -215,7 +215,7 @@ console.log(`Кампания: ${campaign.meta.title}`)
   check('A7 при /20 крит — бросок ≤ 5', hard.roll <= 5 ? hard.result === 'critical' : true, `${hard.roll} → ${hard.result}`)
 
   const ed = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('A7 в редакторе секция правил бросков с пресетами', ed.includes('Правила бросков (d100)') && ed.includes('Классический BRP') && ed.includes('Щедрые'))
+  check('A7 в редакторе секция правил бросков с пресетами', ed.includes('Правила бросков (d100)') && ed.includes('Классический BRP') && (ed.includes('Хроника (по умолчанию)') || ed.includes('Щедрые')))
   const help = readFileSync('src/player/HelpPanel.tsx', 'utf8')
   check('A7 справка показывает пороги кампании', help.includes('engine.diceRules') && help.includes('rules.critical_divisor'))
   check('A7 в справке нет захардкоженного «навыка ÷ 5»', !help.includes('навыка ÷ 5'))

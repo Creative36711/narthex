@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
 import { timeOfDay } from '../core/time'
 import { ArtView } from '../shared/ArtView'
-import type { SlotDef, SlotUseWith } from '../shared/types'
+import type { SceneStateDef, SlotDef, SlotUseWith } from '../shared/types'
 
 interface Props {
   engine: GameEngine
@@ -11,19 +11,38 @@ interface Props {
 }
 
 type UseModal = { slot: SlotDef; options: Array<{ itemId: string; label: string; use: SlotUseWith }> }
+type SceneBackground = { kind: 'image'; src: string; label: string } | { kind: 'art'; art: NonNullable<SceneStateDef['art']> } | { kind: 'fallback' }
 
 /** Экран сцены: фон (активное состояние) + слоты + зоны навигации (ТЗ 6.1). */
 export function SceneScreen({ engine, onOpenMap }: Props) {
   const [useModal, setUseModal] = useState<UseModal | null>(null)
   /** фон сцены не загрузился — показываем причину прямо на экране */
   const [bgError, setBgError] = useState('')
+  const [outgoingBg, setOutgoingBg] = useState<SceneBackground | null>(null)
+  const previousBg = useRef<{ key: string; background: SceneBackground } | null>(null)
   const scene = engine.currentScene()
   const sceneId = scene?.id
+  const state = scene ? engine.activeSceneState(scene) : null
+  const stateKey = scene && state ? `${scene.id}:${state.id}` : ''
+  const background: SceneBackground = state?.art
+    ? { kind: 'art', art: state.art }
+    : state?.image
+      ? { kind: 'image', src: assetUrl(engine.campaign, state.image), label: state.label }
+      : { kind: 'fallback' }
+
   useEffect(() => setBgError(''), [sceneId])
-  if (!scene) return <div className="scene-missing">Сцена не найдена</div>
+  useEffect(() => {
+    const previous = previousBg.current
+    previousBg.current = { key: stateKey, background }
+    if (!previous || previous.key === stateKey || !stateKey) return
+    setOutgoingBg(previous.background)
+    const timer = window.setTimeout(() => setOutgoingBg(null), 450)
+    return () => window.clearTimeout(timer)
+  }, [stateKey])
+
+  if (!scene || !state) return <div className="scene-missing">Сцена не найдена</div>
 
   const canvas = scene.canvas ?? { w: 1280, h: 720 }
-  const state = engine.activeSceneState(scene)
   const occupants = engine.slotOccupants(scene)
   const tod = timeOfDay(engine.state.tick, engine.campaign.meta)
   const loc = engine.findLocation(engine.state.location)
@@ -42,10 +61,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           от контейнера, картинка растягивается (object-fit: fill) */}
       <div className={`scene-stage tod-tint-${tod}`}>
         {state.art ? (
-          <ArtView className="scene-bg" art={state.art} />
+          <ArtView key={stateKey} className="scene-bg scene-bg-enter" art={state.art} />
         ) : state.image && !bgError ? (
           <img
-            className="scene-bg"
+            key={stateKey}
+            className="scene-bg scene-bg-enter"
             src={assetUrl(engine.campaign, state.image)}
             alt={state.label}
             draggable={false}
@@ -58,8 +78,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           />
         ) : (
           /* сцена без арта (или арт не загрузился) — не «чёрный экран» */
-          <div className="scene-bg scene-bg-fallback" aria-hidden />
+          <div key={stateKey} className="scene-bg scene-bg-fallback scene-bg-enter" aria-hidden />
         )}
+        {outgoingBg?.kind === 'image' && <img className="scene-bg scene-bg-transition-out" src={outgoingBg.src} alt="" draggable={false} />}
+        {outgoingBg?.kind === 'art' && <ArtView className="scene-bg scene-bg-transition-out" art={outgoingBg.art} />}
+        {outgoingBg?.kind === 'fallback' && <div className="scene-bg scene-bg-fallback scene-bg-transition-out" aria-hidden />}
         {bgError && (
           <div className="scene-bg-note">
             Фон сцены не загрузился: {bgError}
@@ -78,8 +101,8 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             const scale = slot.sprite_scale ?? 1
             return (
               <button
-                key={slot.id}
-                className={`slot-hotspot slot-${entity.type} ${sprite ? 'slot-sprited' : ''}`}
+                key={`${stateKey}-${slot.id}`}
+                className={`slot-hotspot slot-${entity.type} scene-slot-enter ${sprite ? 'slot-sprited' : ''}`}
                 style={{
                   left: pct(slot.x, canvas.w),
                   top: pct(slot.y, canvas.h),

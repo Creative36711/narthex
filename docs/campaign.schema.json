@@ -1,8 +1,8 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://chronicle-forge.local/docs/campaign.schema.json",
-  "title": "Chronicle Forge — кампания одним JSON (MonolithDoc)",
-  "description": "Монолитный формат кампании Chronicle Forge: campaign, world, scenes, entities, rules, quests, arenas, cutscenes, encounters, dialogues. Сгенерировано из src/shared/types.ts (scripts/gen-schema.mts). Гайд для ИИ-генераторов: docs/ai-campaign-guide.md.",
+  "title": "Chronicle Forge — монолитная кампания и схемы файлов пакета",
+  "description": "Монолитный JSON Chronicle Forge: обязательные ключи campaign, world, scenes, entities, rules, quests, arenas, cutscenes, dialogues; необязательные encounters, recipes, codex. В $defs также CampaignIndexEntry, CampaignManifest и EncounterFileDef для реестра и отдельных файлов Campaign Package. Сгенерировано из src/shared/types.ts (scripts/gen-schema.mts). Гайд для ИИ-генераторов: docs/ai-campaign-guide.md.",
   "$ref": "#/$defs/MonolithDoc",
   "$defs": {
     "TimeOfDayThresholds": {
@@ -1735,13 +1735,18 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "id валюты для цен и value предметов"
         },
         "label": {
           "type": "string"
         },
         "symbol": {
           "type": "string"
+        },
+        "item_id": {
+          "type": "string",
+          "description": "предмет-монета в инвентаре; старые кампании используют соглашение item_<id>"
         },
         "exchange_rate": {
           "type": "object",
@@ -1768,6 +1773,10 @@
         },
         "base_disposition": {
           "type": "number"
+        },
+        "description": {
+          "type": "string",
+          "description": "краткая справка о фракции"
         },
         "hidden": {
           "type": "boolean",
@@ -2144,6 +2153,34 @@
       "additionalProperties": false,
       "description": "«происхождение» героя при создании персонажа (блок 11 ТЗ)"
     },
+    "CallingDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "skills": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "стартовые значения навыков (абсолютные, ≥ нижнего порога)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "skills"
+      ],
+      "additionalProperties": false,
+      "description": "«Призвание» — второй шаблон создания персонажа (фидбек 19): если\nпроисхождение распределяет характеристики, то призвание — стартовые\nНАВЫКИ. Мастер обязан распределить весь бюджет skill_points (значения —\nабсолютные стартовые проценты, считая от нижнего порога), игрок после\nвыбора может убавлять/прибавлять в рамках бюджета."
+    },
     "CharCreationDef": {
       "type": "object",
       "properties": {
@@ -2199,7 +2236,14 @@
           "items": {
             "$ref": "#/$defs/ProfessionDef"
           },
-          "description": "«происхождения» — шаблоны героя; целиком на усмотрение мастера"
+          "description": "«происхождения» — шаблоны героя (распределяют характеристики)"
+        },
+        "callings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CallingDef"
+          },
+          "description": "«призвания» — шаблоны стартовых навыков (фидбек 19)"
         },
         "choose_name": {
           "type": "boolean",
@@ -5498,6 +5542,118 @@
       ],
       "additionalProperties": false,
       "description": "«Кампания одним JSON» — формат обмена и ИИ-генерации (блок F).\nКлючи словарей — id объектов (как в самих определениях). При импорте\nвалидатор чинит ссылки (создаёт заглушки, отключает битое) и раскладывает\nдокумент обратно в Campaign Package; .ink для диалогов генерируется из\nDlgDoc. Полный описательный схемы — docs/campaign.schema.json,\nгайд для генераторов — docs/ai-campaign-guide.md."
+    },
+    "CampaignManifest": {
+      "type": "object",
+      "properties": {
+        "scenes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "arenas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "quests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encounters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cutscenes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recipes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "codex": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dialogues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "scenes",
+        "entities",
+        "rules",
+        "dialogues"
+      ],
+      "additionalProperties": false,
+      "description": "manifest.json — список модулей Campaign Package, по одному JSON/Ink-файлу на сущность."
+    },
+    "CampaignIndexEntry": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title"
+      ],
+      "additionalProperties": false,
+      "description": "Одна запись общего public/campaigns/index.json."
+    },
+    "EncounterFileDef": {
+      "type": "object",
+      "properties": {
+        "encounter_tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EncounterTableDef"
+          }
+        }
+      },
+      "required": [
+        "encounter_tables"
+      ],
+      "additionalProperties": false,
+      "description": "JSON-файл-обёртка для таблиц встреч в rules/ (отдельный формат Campaign Package)."
     }
   }
 }

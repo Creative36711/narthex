@@ -123,7 +123,7 @@ function DiceRulesEditor({
           onClick={() => preset('generous')}
           data-tip="Критический успех ≤ навык/5, особый ≤ навык/2, крит-провал 96–100"
         >
-          <Ico n="dice" />  Щедрые (по умолчанию)
+          <Ico n="dice" />  Хроника (по умолчанию)
         </button>
         <button
           className={`btn btn-small ${isClassic ? 'btn-primary' : ''}`}
@@ -801,6 +801,10 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             <label className="fld">
               <span>Название</span>
               <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
+            </label>
+            <label className="fld">
+              <span>Описание фракции</span>
+              <input value={f.description ?? ''} onChange={(e) => ((f.description = e.target.value || undefined), commit())} />
             </label>
             <label className="fld">
               <span>Отношение к игроку</span>

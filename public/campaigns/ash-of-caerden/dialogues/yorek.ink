@@ -8,7 +8,7 @@ EXTERNAL fire_rule(id)
 
 === main ===
 { get_flag("yorek_met"):
-    Ты испытываешь моё терпение, наёмник. # emotion: neutral
+    Ты испытываешь моё терпение, наёмник.
 - else:
     ~ set_flag("yorek_met")
     Смелый гость. Или глупый.
@@ -28,7 +28,7 @@ EXTERNAL fire_rule(id)
     }
     ~ temp r = skill_check("persuade", d)
     { r == "fail" || r == "fumble":
-        Йорек долго смотрит на вас… и сплёвывает. # emotion: neutral # action
+        Йорек долго смотрит на вас… и сплёвывает. # action
         Языкатых я вешаю на осинах вдоль тракта.
         -> fight_starts
     - else:

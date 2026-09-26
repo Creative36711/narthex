@@ -38,14 +38,54 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   "quests":     { "<id>": { … } },  // квесты (§9)
   "arenas":     { "<id>": { … } },  // гекс-арены боёв (§10)
   "cutscenes":  { "<id>": { … } },  // слайд-катсцены (§11)
-  "encounters": { "<id>": { … } },  // таблицы случайных встреч (§12)
-  "recipes":    { "<id>": { … } },  // рецепты крафта (§14б)
+  "encounters": { "<id>": { … } },  // необязательно: таблицы случайных встреч (§12)
+  "recipes":    { "<id>": { … } },  // необязательно: рецепты крафта (§14б)
+  "codex":      { "<id>": { … } },  // необязательно: записи кодекса (§14з)
   "dialogues":  { "<id>": { … } }   // диалоги конструктора (§13)
 }
 ```
 
-Все словари — **по id объекта**. Объект внутри словаря обязан иметь то же
-`id`, что и ключ.
+Обязательные ключи: `campaign`, `world`, `scenes`, `entities`, `rules`,
+`quests`, `arenas`, `cutscenes`, `dialogues`. Необязательные: `encounters`,
+`recipes`, `codex`; если они не нужны, их можно опустить или передать пустыми
+объектами. Все словари ресурсов — **по id объекта**; внутреннее поле `id`
+должно совпадать с ключом.
+
+### Campaign Package и монолит — два разных обменных формата
+
+Распакованный Campaign Package хранится несколькими файлами. Архив `.chronicle`
+содержит ту же структуру каталогов; это не монолитный JSON. Отдельная команда
+«Экспорт JSON» создаёт именно MonolithDoc из примера выше.
+
+```text
+campaign.json                 CampaignMeta
+world.json                    WorldDef
+manifest.json                 CampaignManifest
+scenes/<имя>.json             SceneDef
+entities/<имя>.json           EntityDef (NPC или предмет)
+rules/<имя>.json              RuleDef
+rules/<файл-встреч>.json      EncounterFileDef: { "encounter_tables": [...] }
+arenas/<имя>.json             ArenaDef
+quests/<имя>.json             QuestDef
+cutscenes/<имя>.json          CutsceneDef
+recipes/<имя>.json            RecipeDef
+codex/<имя>.json              CodexEntryDef
+dialogues/<имя>.ink           исходник, который читает движок
+```
+
+`manifest.json` обязан содержать массивы `scenes`, `entities`, `rules` и
+`dialogues`; массивы `arenas`, `quests`, `encounters`, `cutscenes`, `recipes`,
+`codex` можно опустить, если раздел пуст. `encounters` ссылается на файлы в
+`rules/`, каждый из которых содержит обёртку `encounter_tables`. Для диалога
+конструктор дополнительно хранит `dialogues/<имя>.dlg.json` (`DlgDoc`); при
+сохранении из конструктора `.ink` генерируется из него. В монолите передаётся
+только `DlgDoc` либо объект `{ "label": "…", "ink": "…" }` для сырого Ink.
+Имена файлов перечислены в манифесте; имена словарей в монолите — это id.
+
+Типы модулей и монолита описаны в `src/shared/types.ts`. Их схема
+`docs/campaign.schema.json` содержит `$defs` для MonolithDoc, `index.json` и
+отдельных модулей; `npm run audit:campaign-formats` сверяет примеры,
+экспорт/импорт и промпт генератора.
 
 ## 3. Соглашения по id
 
@@ -68,11 +108,11 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   "time_of_day": { "morning": 6, "day": 10, "evening": 18, "night": 22 },
   "starting_region": "region_valley", "starting_location": "loc_town",
   "starting_scene": "scene_tavern", "starting_tick": 8,
-  "needs": [ … ], "currencies": [ { "id": "item_silver", "label": "Серебро", "symbol": "SM" } ],
+  "needs": [ … ], "currencies": [ { "id": "silver", "label": "Серебро", "symbol": "SM", "item_id": "item_silver" } ],
   "skills": [ { "id": "persuade", "label": "Убеждение" } ],
-  "item_categories": [ { "id": "food", "label": "Еда", "restores_needs": ["need_hunger"] } ],
+  "item_categories": [ { "id": "food", "label": "Еда", "restores_needs": ["need_hunger"] }, { "id": "currency", "label": "Валюта" } ],
   "slot_types": [], "flags": [ { "id": "met_guard", "label": "Поговорил с караульным" } ],
-  "factions": [ { "id": "faction_guild", "label": "Гильдия", "base_disposition": 0 } ],
+  "factions": [ { "id": "faction_guild", "label": "Гильдия", "base_disposition": 0, "description": "Торговое объединение города." } ],
   "default_player": "player_hero",
   "dice_rules": { "critical_divisor": 5, "special_divisor": 2, "fumble_from": 96 },
   "max_companions": 2
@@ -88,6 +128,11 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   «не в одной из», `{ "type": "has_item", "items": ["item_cloak", "item_fur"],
   "not": true }` — «нет ни одного из». Пример «Тепло»: убывает вечером/ночью,
   если нет плаща ИЛИ шубы и герой не в таверне/казарме/храме.
+- **`currencies`**: `id` — ключ валюты, по нему задаются цены в `value`;
+  `item_id` — id предмета-монеты в `entities`, и именно его количество в
+  инвентаре образует доступный баланс. Если `item_id` опущен в старой кампании,
+  движок использует соглашение `item_<id>`. Например, `id: "silver"` и
+  `item_id: "item_silver"`; не путай идентификатор валюты с предметом-монетой.
 - **`dice_rules`** — пороги d100 («щедрые» по умолчанию: крит ≤ навык/5,
   особый ≤ навык/2, провал 96–100; классика BRP: /20, /5, 96–100 при навыке
   < `fumble_low_skill`).
@@ -101,8 +146,10 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   `title_art` (лого кампании); `theme.end.background` — фон экрана финала;
   `theme.accent` — акцентный цвет интерфейса. Без `theme` всё по умолчанию.
 - **Реестры** (`skills`, `item_categories`, `flags`, `factions`, `slot_types`)
-  нужны редактору для списков. Флаги вне реестра всё равно работают, но
-  добавь их — мастеру будет понятнее.
+  нужны редактору для списков. У фракции обязательны `id`, `label`,
+  `base_disposition`; необязательные `description` и `hidden` задают справку и
+  скрывают служебную фракцию из листа персонажа. Флаги вне реестра всё равно
+  работают, но добавь их — мастеру будет понятнее.
 - `slot_types` — типы слотов сцены (`{ "id": "person", "label": "Персонаж" }`
   и т.п.). Встроенных типов нет: объявляй все, которые используешь в
   `"type"` слотов (обычно персонаж/предмет/контейнер/животное).
@@ -255,7 +302,7 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   "id": "item_bread", "type": "item", "category": "food",
   "label": "Хлеб", "description": "Тёплый каравай.", "image": "",
   "weight": 0.3, "stackable": true,
-  "value": { "item_silver": 2 },
+  "value": { "silver": 2 },
   "on_use": { "effects": [ { "type": "change_need", "need": "need_hunger", "delta": 25 } ], "consume": true }
 }
 ```
@@ -814,9 +861,9 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
     "starting_region": "region_tract", "starting_location": "loc_road",
     "starting_scene": "scene_road", "starting_tick": 10,
     "needs": [ { "id": "need_hunger", "label": "Голод", "max": 100, "decay_per_tick": 1, "critical_threshold": 20 } ],
-    "currencies": [ { "id": "item_silver", "label": "Серебро", "symbol": "SM" } ],
+    "currencies": [ { "id": "silver", "label": "Серебро", "symbol": "SM", "item_id": "item_silver" } ],
     "skills": [ { "id": "persuade", "label": "Убеждение" }, { "id": "brawl", "label": "Кулачный бой" } ],
-    "item_categories": [ { "id": "food", "label": "Еда", "restores_needs": ["need_hunger"] } ],
+    "item_categories": [ { "id": "food", "label": "Еда", "restores_needs": ["need_hunger"] }, { "id": "currency", "label": "Валюта" } ],
     "flags": [ { "id": "bandits_cleared", "label": "Разбойники усмирены" } ],
     "factions": [],
     "default_player": "player_hero",
@@ -886,12 +933,12 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
     "item_bread": {
       "id": "item_bread", "type": "item", "category": "food", "label": "Хлеб",
       "description": "Присыхает, но спасает от голода.", "image": "",
-      "weight": 0.3, "stackable": true, "value": { "item_silver": 2 },
+      "weight": 0.3, "stackable": true, "value": { "silver": 2 },
       "on_use": { "effects": [ { "type": "change_need", "need": "need_hunger", "delta": 30 } ], "consume": true }
     },
     "item_silver": {
-      "id": "item_silver", "type": "item", "category": "quest", "label": "Серебряная марка",
-      "description": "Монета.", "image": "", "weight": 0.01, "stackable": true
+      "id": "item_silver", "type": "item", "category": "currency", "label": "Серебряная марка",
+      "description": "Монета.", "image": "", "weight": 0.01, "stackable": true, "value": { "silver": 1 }
     }
   },
   "rules": {
