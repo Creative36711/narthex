@@ -6,17 +6,30 @@ import {
   charChoiceProblems,
   derivedFromChoice,
   newCharChoice,
+  skillMinVal,
   skillPointsUsed,
   statPointsUsed,
   STAT_KEYS,
+  withProfession,
   type CharChoice,
 } from '../core/charcreate'
 import { skillLabel } from '../shared/skills'
 
+/** русское имя характеристики для подсказок */
+const STAT_LABELS: Record<string, string> = {
+  STR: 'Сила',
+  CON: 'Телосложение',
+  SIZ: 'Размер',
+  DEX: 'Ловкость',
+  INT: 'Интеллект',
+  POW: 'Сила воли',
+  CHA: 'Обаяние',
+}
+
 /**
- * Экран создания персонажа (блок 11 ТЗ «Гибкий движок»):
- * имя, распределение характеристик, профессия, покупка навыков.
- * Показывается перед новым забегом, если задан `meta.char_creation`.
+ * Экран создания персонажа (блок 11 ТЗ «Гибкий движок»).
+ * Происхождения, пороги и бюджеты целиком задаёт мастер кампании;
+ * игрок выбирает происхождение и докручивает очки под себя.
  */
 export function CharacterCreation({
   campaign,
@@ -29,48 +42,29 @@ export function CharacterCreation({
 }) {
   const creation = campaign.meta.char_creation!
   const template = campaign.entities[campaign.meta.default_player] as NpcDef
-  const [choice, setChoice] = useState<CharChoice>(() => newCharChoice(creation, template))
+  const [choice, setChoice] = useState<CharChoice>(() => newCharChoice(creation, template, campaign.meta))
 
   const { min, max } = creation.stat_limits
   const statLeft = creation.total_points - statPointsUsed(creation, choice)
   const skillsOn = creation.skill_points !== undefined
-  const skillLeft = skillsOn ? creation.skill_points! - skillPointsUsed(creation, template, choice) : 0
-  const problems = charChoiceProblems(creation, template, choice)
+  const skillLeft = skillsOn ? creation.skill_points! - skillPointsUsed(creation, choice) : 0
+  const problems = charChoiceProblems(creation, choice, campaign.meta.skills)
   const derived = derivedFromChoice(choice)
   const professions = creation.professions ?? []
 
-  const setProfession = (id: string) => {
-    setChoice((c) => {
-      const oldP = professions.find((p) => p.id === c.profession)
-      const newP = professions.find((p) => p.id === id)
-      const skills = { ...c.skills }
-      for (const s of skillList) {
-        const ob = oldP?.skill_bonus[s.id] ?? 0
-        const nb = newP?.skill_bonus[s.id] ?? 0
-        if (ob || nb) skills[s.id] = Math.max(0, (skills[s.id] ?? 0) - ob + nb)
-      }
-      return { ...c, profession: id, skills }
-    })
-  }
-
-  // навыки: реестр + встроенные + навыки шаблона, по алфавиту
+  // навыки: реестр кампании + навыки шаблона, по алфавиту
   const skillList = (() => {
     const seen = new Set<string>()
     const out: Array<{ id: string; label: string }> = []
     for (const s of [...allSkillIds(campaign.meta), ...Object.keys(template.skills).map((id) => ({ id, label: skillLabel(id, campaign.meta.skills) }))]) {
       if (seen.has(s.id)) continue
       seen.add(s.id)
-      out.push({ id: s.id, label: s.label })
+      out.push(s)
     }
     return out.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
   })()
   const forbidden = new Set(creation.forbidden_skills ?? [])
   const mandatory = new Set(creation.mandatory_skills ?? [])
-
-  const skillFloor = (id: string): number => {
-    const base = template.skills[id] ?? 0
-    return mandatory.has(id) ? Math.max(base, 25) : base
-  }
 
   return (
     <div className="char-create">
@@ -93,15 +87,47 @@ export function CharacterCreation({
           </div>
         )}
 
+        {professions.length > 0 && (
+          <div className="props-group">
+            <h4>Происхождение</h4>
+            <div className="muted small" style={{ marginBottom: 6 }}>
+              Выберите путь героя: происхождение задаёт стартовые характеристики
+              и навыки — потом их можно подстроить под себя.
+            </div>
+            <div className="char-professions">
+              {professions.map((p) => (
+                <button
+                  key={p.id}
+                  className={`char-prof-card ${choice.profession === p.id ? 'sel' : ''}`}
+                  onClick={() => setChoice(withProfession(creation, choice, p.id))}
+                >
+                  <div className="char-prof-label">{p.label}</div>
+                  {p.description && <div className="muted small">{p.description}</div>}
+                  <div className="char-prof-bonus small">
+                    {Object.entries(p.skill_bonus).length
+                      ? Object.entries(p.skill_bonus).map(([id, v]) => `+${v} ${skillLabel(id, campaign.meta.skills)}`).join(' · ')
+                      : 'без бонусов к навыкам'}
+                  </div>
+                  {p.items?.length ? (
+                    <div className="muted small">
+                      Снаряжение: {p.items.map((it) => `${campaign.entities[it.item]?.label ?? it.item}${it.quantity > 1 ? ` ×${it.quantity}` : ''}`).join(', ')}
+                    </div>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="props-group">
           <h4>Характеристики</h4>
           <div className="muted small" style={{ marginBottom: 6 }}>
-            Осталось очков: <b>{statLeft}</b> из {creation.total_points}. Рамки: {min}–{max}.
+            Свободных очков: <b>{statLeft}</b> из {creation.total_points}. Пороги: {min}–{max} (задаёт мастер кампании).
           </div>
           <div className="char-stats">
             {STAT_KEYS.map((k) => (
               <div key={k} className="char-stat-row">
-                <span className="char-stat-key" data-tip={k}>{k}</span>
+                <span className="char-stat-key" data-tip={`${k} — ${STAT_LABELS[k]}`}>{k}</span>
                 <button
                   className="btn btn-small"
                   disabled={(choice.stats[k] ?? min) <= min}
@@ -125,38 +151,18 @@ export function CharacterCreation({
           </div>
         </div>
 
-        {professions.length > 0 && (
-          <div className="props-group">
-            <h4>Происхождение</h4>
-            <div className="char-professions">
-              {professions.map((p) => (
-                <button
-                  key={p.id}
-                  className={`char-prof-card ${choice.profession === p.id ? 'sel' : ''}`}
-                  onClick={() => setProfession(p.id)}
-                >
-                  <div className="char-prof-label">{p.label}</div>
-                  {p.description && <div className="muted small">{p.description}</div>}
-                  <div className="char-prof-bonus small">
-                    {Object.entries(p.skill_bonus).map(([id, v]) => `+${v} ${skillLabel(id, campaign.meta.skills)}`).join(' · ') || 'без бонусов навыков'}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {skillsOn && (
           <div className="props-group">
             <h4>Навыки</h4>
             <div className="muted small" style={{ marginBottom: 6 }}>
-              Осталось очков: <b>{skillLeft}</b> из {creation.skill_points}. Предел на старте: {creation.skill_cap ?? '—'}.
+              Свободных очков: <b>{skillLeft}</b> из {creation.skill_points}.
+              Пороги: {creation.skill_floor ?? 0}–{creation.skill_cap ?? 'без предела'} (задаёт мастер кампании).
             </div>
             <div className="char-skills">
               {skillList.map((s) => {
                 const v = choice.skills[s.id] ?? 0
                 const isForbidden = forbidden.has(s.id)
-                const floor = skillFloor(s.id)
+                const floor = skillMinVal(creation, choice, s.id)
                 const cap = creation.skill_cap
                 return (
                   <div key={s.id} className={`char-skill-row ${isForbidden ? 'char-skill-forbidden' : ''}`} data-tip={isForbidden ? 'Этот навык покупать нельзя' : undefined}>

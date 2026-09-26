@@ -786,3 +786,15 @@
 .font-sample { flex: 1; min-width: 240px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); font-size: 14px; }
 .font-sample-display { font-size: 20px; font-weight: bold; }
 .font-sample-hand { font-size: 16px; font-style: italic; }
+
+/* блок-спойлер в формах (длинные списки, напр. фоновые звуки сцены) */
+.spoiler-block { border: 1px dashed var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; }
+.spoiler-block > summary { cursor: var(--cur-pointer); color: var(--muted); font-size: 13px; }
+.spoiler-block[open] > summary { color: var(--gold-bright); margin-bottom: 8px; }
+
+/* карточка категории предметов: поля и галочки переносятся на новые строки,
+   горизонтальной прокрутки нет при любом количестве галочек */
+.itemcat-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+.itemcat-card > .fld-row { margin-bottom: 4px; }
+.itemcat-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 10px; margin-top: 6px; align-items: center; }
+.itemcat-checks .fld-check { margin-bottom: 0; min-width: 0; }

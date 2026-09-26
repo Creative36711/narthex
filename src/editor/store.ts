@@ -70,7 +70,7 @@ export class EditorStore {
   private snapshots = new Map<string, string>()
   /** содержимое файлов на диске (на момент загрузки/сохранения) — для точного счётчика «несохранено» */
   private saved = new Map<string, string>()
-  private lastTouch = { path: '', at: 0 }
+  private lastTouch = { path: '', group: '', at: 0 }
 
   constructor(basePath: string) {
     this.basePath = basePath
@@ -552,16 +552,18 @@ export class EditorStore {
 
   // ─────────────── правки ───────────────
 
-  touch(path: string): void {
+  touch(path: string, group = ''): void {
     const now = Date.now()
     const prev = this.snapshots.get(path)
-    // группируем серию быстрых правок одного файла (набор текста) в один шаг undo
-    const sameBurst = this.lastTouch.path === path && now - this.lastTouch.at < 900
+    // группируем только СЕРИИ ОДНОТИПНЫХ правок, явно помеченных группой
+    // (например набор текста); структурные изменения (добавил слот, удалил
+    // правило…) всегда дают отдельный шаг отката — без группировки
+    const sameBurst = group !== '' && this.lastTouch.path === path && this.lastTouch.group === group && now - this.lastTouch.at < 900
     if (prev !== undefined && !sameBurst) {
       this.undoStack.push({ path, text: prev })
       if (this.undoStack.length > 100) this.undoStack.shift()
     }
-    this.lastTouch = { path, at: now }
+    this.lastTouch = { path, group, at: now }
     this.snapshots.set(path, this.fileText(path))
     if (this.saved.get(path) === this.fileText(path)) this.dirty.delete(path)
     else this.dirty.add(path)
@@ -586,7 +588,7 @@ export class EditorStore {
     // если откат вернул файл к состоянию на диске — он больше не «несохранён»
     if (this.saved.get(path) === text) this.dirty.delete(path)
     else this.dirty.add(path)
-    this.lastTouch = { path: '', at: 0 }
+    this.lastTouch = { path: '', group: '', at: 0 }
     this.notify()
     return path
   }

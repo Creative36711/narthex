@@ -116,8 +116,13 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   const img = useImage(!st?.art && st?.image ? store.assetSrc(st.image) : null)
 
   useEffect(() => {
-    if (trRef.current && selRef.current) {
-      trRef.current.nodes([selRef.current])
+    // после отката (или удаления) выбранный объект мог исчезнуть — не
+    // оставляем трансформер на несуществующем узле
+    const valid =
+      sel &&
+      (sel.kind === 'slot' ? !!scene.slots[sel.index] : !!scene.navigation[sel.index])
+    if (trRef.current) {
+      trRef.current.nodes(valid && selRef.current ? [selRef.current] : [])
       trRef.current.getLayer()?.batchDraw()
     }
   }, [sel, scene, stateIdx])
@@ -328,8 +333,8 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
         onChange={commit}
         heading="Музыка сцены (перекрывает музыку локации)"
       />
-      <div className="fld fld-block">
-        <span>Фоновые звуки сцены (слоями, зацикленно)</span>
+      <details className="spoiler-block">
+        <summary>Фоновые звуки сцены (слоями, зацикленно){(scene.ambient?.length ?? 0) ? ` — ${scene.ambient!.length}` : ''}</summary>
         <SoundMultiSelect
           store={store}
           value={scene.ambient ?? (scene.ambient = [])}
@@ -338,7 +343,7 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
             commit()
           }}
         />
-      </div>
+      </details>
     </div>
   )
 }

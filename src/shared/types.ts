@@ -143,27 +143,39 @@ export interface ProfessionDef {
   id: string
   label: string
   description?: string
-  /** бонусы к навыкам */
+  /** бонусы к навыкам (бесплатные, не тратят бюджет) */
   skill_bonus: Record<string, number>
   /** стартовое снаряжение */
   items?: Array<{ item: string; quantity: number }>
+  /**
+   * стартовое распределение характеристик, которое задаёт мастер:
+   * абсолютные значения семи характеристик (в рамках stat_limits).
+   * Нет — все характеристики начинают с минимума.
+   */
+  stats?: Record<string, number>
 }
 
-/** создание персонажа (блок 11 ТЗ); нет — забег стартует как раньше */
+/**
+ * Создание персонажа (блок 11 ТЗ). Всё задаёт мастер кампании —
+ * встроенных значений и «происхождений по умолчанию» в движке нет.
+ * Нет самого блока `char_creation` — забег стартует готовым шаблоном.
+ */
 export interface CharCreationDef {
-  /** бюджет характеристик */
+  /** бюджет характеристик (очки сверх минимума) */
   total_points: number
-  /** рамки каждой характеристики */
+  /** пороги каждой характеристики (задаёт мастер) */
   stat_limits: { min: number; max: number }
-  /** бюджет навыков (нет — без бюджета навыков) */
+  /** бюджет навыков (нет — покупки навыков выключены) */
   skill_points?: number
-  /** максимум навыка на старте */
+  /** порог навыка сверху (нет — без верхнего порога) */
   skill_cap?: number
+  /** порог навыка снизу (нет — 0) */
+  skill_floor?: number
   /** обязательные навыки (стартуют с 25%) */
   mandatory_skills?: string[]
   /** нельзя покупать */
   forbidden_skills?: string[]
-  /** выбор «происхождения» (может быть пусто) */
+  /** «происхождения» — шаблоны героя; целиком на усмотрение мастера */
   professions?: ProfessionDef[]
   /** ввод имени героя */
   choose_name?: boolean
@@ -529,8 +541,13 @@ export type SlotType = string
 export interface WeatherDef {
   id: string
   label: string
-  /** визуальный слой поверх сцены (чистый CSS); нет/'none' — без слоя */
-  overlay?: 'rain' | 'snow' | 'fog' | 'ash' | 'none'
+  /**
+   * визуальный слой поверх сцены (чистый CSS), задаётся кампанией.
+   * Движок рисует класс `weather-<overlay>`; встроенные слои движка:
+   * `rain`, `snow`, `fog`, `ash`. Нет/'none' — без слоя. Встроенных
+   * «погод по умолчанию» не существует — реестр целиком создаёт кампания.
+   */
+  overlay?: string
   /** зацикленные звуки (id из реестра звуков) — слои к эмбиенту */
   ambient?: string[]
 }
@@ -1241,18 +1258,13 @@ export const SAVE_VERSION = 4
  * Встроенные слоты экипировки (блок 7 ТЗ): присутствуют всегда, даже если
  * мастер добавил свои (фэнтези-амулеты, киберпанк-импланты…).
  */
-export const BUILTIN_EQUIPMENT_SLOTS: Array<{ id: string; label: string }> = [
-  { id: 'weapon', label: 'Оружие' },
-  { id: 'armor', label: 'Броня' },
-]
-
-/** полный список слотов кампании: встроенные + свои мастера */
+/**
+ * Слоты экипировки задаёт ТОЛЬКО кампания (блок 7 + правка «без хардкода»):
+ * встроенных слотов нет — мастер сам решает, куда персонаж что надевает.
+ * Броня всех надетых слотов по-прежнему суммируется в бою (механика BRP).
+ */
 export function equipmentSlots(meta: { equipment_slots?: Array<{ id: string; label: string }> }): Array<{ id: string; label: string }> {
-  const out = BUILTIN_EQUIPMENT_SLOTS.map((s) => ({ ...s }))
-  for (const s of meta.equipment_slots ?? []) {
-    if (s.id && !out.some((x) => x.id === s.id)) out.push({ id: s.id, label: s.label || s.id })
-  }
-  return out
+  return (meta.equipment_slots ?? []).map((s) => ({ ...s }))
 }
 
 export interface GameState {

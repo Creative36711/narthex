@@ -1302,10 +1302,19 @@ input::placeholder, textarea::placeholder {
   font-weight: 600;
 }
 
-/* JSON на весь экран во вкладках форм */
-.advanced-json-page textarea {
-  height: calc(100vh - 150px);
+/* JSON на весь экран во вкладках форм: растягивается до самого низа,
+   отступы контейнера сохранены */
+.advanced-json-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 118px);
   min-height: 320px;
+}
+.advanced-json-page .fld-fill { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.advanced-json-page textarea {
+  flex: 1;
+  height: auto;
+  min-height: 300px;
   box-sizing: border-box;
   font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace;
   font-size: 12.5px;

@@ -6,9 +6,9 @@ import { AssetUpload, EffectListEditor, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { CampaignFeatures, CampaignMeta, DiceRules, FontDef, NeedCondition, StatusDef, TimeOfDay, WeatherDef } from '../shared/types'
-import { BUILTIN_EQUIPMENT_SLOTS, CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
-import { BUILTIN_SLOT_TYPES } from './slotTypes'
+import type { CampaignFeatures, CampaignMeta, DiceRules, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
+import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
+
 import { askText } from './prompt'
 import { migrateNeedCondition } from '../shared/migrate'
 import { AudioRegistries, SoundHookMapEditor } from './AudioSection'
@@ -873,14 +873,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         <div className="muted small" style={{ marginBottom: 8 }}>
           Что можно ставить в слоты на сценах. Каждой сущности назначается тип
           в её карточке — по нему фильтруется выбор «кто/что стоит в слоте».
-          Встроенные типы удалить нельзя; добавьте свои — например «Мебель», «Робот» или «Дух».
-        </div>
-        <div className="chips" style={{ marginBottom: 8 }}>
-          {BUILTIN_SLOT_TYPES.map((t) => (
-            <span key={t.id} className="chip chip-static" data-tip="Встроенный тип — удалить нельзя">
-              {t.label}
-            </span>
-          ))}
+          Встроенных типов нет — добавьте свои: «Персонаж», «Предмет»,
+          «Мебель», «Робот», «Дух»… любые, какие нужны вашей истории.
         </div>
         {(m.slot_types ?? []).map((t, i) => (
           <div key={i} className="fld-row need-row">
@@ -917,15 +911,9 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <div className="props-group">
         <h4>Слоты экипировки</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
-          Куда персонаж надевает предметы: оружие, броня — и любые свои
-          (амулеты, импланты, рации). Броня всех надетых слотов суммируется в бою.
-        </div>
-        <div className="chips" style={{ marginBottom: 8 }}>
-          {BUILTIN_EQUIPMENT_SLOTS.map((s) => (
-            <span key={s.id} className="chip chip-static" data-tip="Встроенный слот — удалить нельзя">
-              {s.label}
-            </span>
-          ))}
+          Куда персонаж надевает предметы. Встроенных слотов нет — создайте
+          свои: «Оружие», «Броня», «Амулет», «Имплант»… Броня всех надетых
+          слотов суммируется в бою.
         </div>
         {(m.equipment_slots ?? []).map((s, i) => (
           <div key={i} className="fld-row need-row">
@@ -942,7 +930,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             const label = await askText('Название слота экипировки', 'например «Амулет»')
             if (!label) return
             if (!m.equipment_slots) m.equipment_slots = []
-            m.equipment_slots.push({ id: makeId('slot_', label, [...BUILTIN_EQUIPMENT_SLOTS, ...m.equipment_slots].map((x) => x.id)), label })
+            m.equipment_slots.push({ id: makeId('slot_', label, m.equipment_slots.map((x) => x.id)), label })
             commit()
           }}
         >
@@ -1055,12 +1043,15 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 <select
                   value={w.overlay ?? 'none'}
                   onChange={(e) => {
-                    const v = e.target.value as WeatherDef['overlay']
+                    const v = e.target.value
                     if (v && v !== 'none') w.overlay = v
                     else delete w.overlay
                     commit()
                   }}
                 >
+                  {w.overlay && !['rain', 'snow', 'fog', 'ash'].includes(w.overlay) && (
+                    <option value={w.overlay}>{w.overlay} (свое название)</option>
+                  )}
                   <option value="none">Без слоя</option>
                   <option value="rain">Дождь</option>
                   <option value="snow">Снег</option>
@@ -1170,7 +1161,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 />
               </label>
               <label className="fld fld-num">
-                <span>Предел навыка на старте (0 — нет)</span>
+                <span>Предел навыка сверху (0 — нет)</span>
                 <input
                   type="number" min={0}
                   value={m.char_creation.skill_cap ?? 0}
@@ -1178,6 +1169,20 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                     const v = Math.max(0, Number(e.target.value) || 0)
                     if (v > 0) m.char_creation!.skill_cap = v
                     else delete m.char_creation!.skill_cap
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld fld-num">
+                <span>Предел навыка снизу</span>
+                <input
+                  type="number" min={0}
+                  value={m.char_creation.skill_floor ?? 0}
+                  data-tip="Ниже этого значения игрок не сможет опустить навык"
+                  onChange={(e) => {
+                    const v = Math.max(0, Number(e.target.value) || 0)
+                    if (v > 0) m.char_creation!.skill_floor = v
+                    else delete m.char_creation!.skill_floor
                     commit()
                   }}
                 />
@@ -1243,7 +1248,34 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 <label className="fld"><span>Описание</span>
                   <input value={p.description ?? ''} onChange={(e) => ((p.description = e.target.value || undefined), commit())} />
                 </label>
-                <div className="muted small">Бонусы к навыкам:</div>
+                <div className="muted small" style={{ marginTop: 6 }}>Стартовые характеристики (пустое поле = минимум):</div>
+                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                  {(['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const).map((k) => (
+                    <label key={k} className="fld fld-num" style={{ width: 64 }}>
+                      <span>{k}</span>
+                      <input
+                        type="number"
+                        value={p.stats?.[k] ?? ''}
+                        placeholder={String(m.char_creation!.stat_limits.min)}
+                        data-tip={`От ${m.char_creation!.stat_limits.min} до ${m.char_creation!.stat_limits.max}`}
+                        onChange={(e) => {
+                          const raw = e.target.value.trim()
+                          if (raw === '') {
+                            if (p.stats) {
+                              delete p.stats[k]
+                              if (!Object.keys(p.stats).length) delete p.stats
+                            }
+                          } else {
+                            const lim = m.char_creation!.stat_limits
+                            ;(p.stats ??= {})[k] = Math.min(lim.max, Math.max(lim.min, Math.round(Number(raw) || lim.min)))
+                          }
+                          commit()
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+                <div className="muted small" style={{ marginTop: 6 }}>Бонусы к навыкам:</div>
                 {Object.entries(p.skill_bonus).map(([sk, v]) => (
                   <div className="fld-row" key={sk}>
                     <span className="small">{store.labelFor('skill', sk)}</span>
@@ -1295,53 +1327,60 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           быть оружием или бронёй. Поля в форме предмета появляются по его категории.
         </div>
         {(m.item_categories ?? []).map((c, i) => (
-          <div key={i} className="fld-row need-row" style={{ flexWrap: 'wrap' }}>
-            <label className="fld">
-              <span>Название</span>
-              <input value={c.label} onChange={(e) => ((c.label = e.target.value), commit())} />
-            </label>
-            <label className="fld fld-check" data-tip="Предметы категории можно использовать для лечения">
-              <input type="checkbox" checked={!!c.restores_hp} onChange={(e) => {
-                if (e.target.checked) c.restores_hp = true
-                else delete c.restores_hp
-                commit()
-              }} />
-              <span>Лечит (HP)</span>
-            </label>
-            {m.needs.map((n) => (
-              <label key={n.id} className="fld fld-check" data-tip={`Предметы категории восстанавливают «${n.label}»`}>
-                <input
-                  type="checkbox"
-                  checked={(c.restores_needs ?? []).includes(n.id)}
-                  onChange={(e) => {
-                    const set = new Set(c.restores_needs ?? [])
-                    if (e.target.checked) set.add(n.id)
-                    else set.delete(n.id)
-                    if (set.size) c.restores_needs = [...set]
-                    else delete c.restores_needs
-                    commit()
-                  }}
-                />
-                <span>{n.label}</span>
+          <div key={i} className="itemcat-card">
+            <div className="fld-row need-row">
+              <label className="fld">
+                <span>Название</span>
+                <input value={c.label} onChange={(e) => ((c.label = e.target.value), commit())} />
               </label>
-            ))}
-            <label className="fld fld-check">
-              <input type="checkbox" checked={!!c.is_weapon} onChange={(e) => {
-                if (e.target.checked) c.is_weapon = true
-                else delete c.is_weapon
-                commit()
-              }} />
-              <span>Оружие</span>
-            </label>
-            <label className="fld fld-check">
-              <input type="checkbox" checked={!!c.is_armor} onChange={(e) => {
-                if (e.target.checked) c.is_armor = true
-                else delete c.is_armor
-                commit()
-              }} />
-              <span>Броня</span>
-            </label>
-            <details style={{ flex: '1 1 100%' }}>
+              <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.item_categories!.splice(i, 1), commit())}><Ico n="close" /> </button>
+            </div>
+            {/* галочки возможностей категории: сетка с переносом — без
+                горизонтальной прокрутки, сколько бы их ни было */}
+            <div className="itemcat-checks">
+              <label className="fld fld-check" data-tip="Предметы категории можно использовать для лечения">
+                <input type="checkbox" checked={!!c.restores_hp} onChange={(e) => {
+                  if (e.target.checked) c.restores_hp = true
+                  else delete c.restores_hp
+                  commit()
+                }} />
+                <span>Лечит (HP)</span>
+              </label>
+              {m.needs.map((n) => (
+                <label key={n.id} className="fld fld-check" data-tip={`Предметы категории восстанавливают «${n.label}»`}>
+                  <input
+                    type="checkbox"
+                    checked={(c.restores_needs ?? []).includes(n.id)}
+                    onChange={(e) => {
+                      const set = new Set(c.restores_needs ?? [])
+                      if (e.target.checked) set.add(n.id)
+                      else set.delete(n.id)
+                      if (set.size) c.restores_needs = [...set]
+                      else delete c.restores_needs
+                      commit()
+                    }}
+                  />
+                  <span>{n.label}</span>
+                </label>
+              ))}
+              <label className="fld fld-check">
+                <input type="checkbox" checked={!!c.is_weapon} onChange={(e) => {
+                  if (e.target.checked) c.is_weapon = true
+                  else delete c.is_weapon
+                  commit()
+                }} />
+                <span>Оружие</span>
+              </label>
+              <label className="fld fld-check">
+                <input type="checkbox" checked={!!c.is_armor} onChange={(e) => {
+                  if (e.target.checked) c.is_armor = true
+                  else delete c.is_armor
+                  commit()
+                }} />
+                <span>Броня</span>
+              </label>
+            </div>
+            <details>
               <summary><Ico n="sound" />  Звуки действий предметов этой категории</summary>
               <SoundHookMapEditor
                 store={store}
@@ -1350,7 +1389,6 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 heading="Звуки действий (для категории)"
               />
             </details>
-            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.item_categories!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         <button
@@ -1470,6 +1508,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             label=""
             rows={26}
             pretty
+            fill
             value={m}
             onChange={(v) => {
               if (v !== undefined) {

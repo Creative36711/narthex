@@ -684,6 +684,7 @@ export function JsonField({
   placeholder,
   rows = 2,
   pretty = false,
+  fill = false,
 }: {
   label: string
   value: unknown
@@ -691,16 +692,19 @@ export function JsonField({
   placeholder?: string
   rows?: number
   pretty?: boolean
+  /** растянуть текстовое поле на всю доступную высоту (вкладки JSON) */
+  fill?: boolean
 }) {
   const [text, setText] = useState(() => (value === undefined ? '' : JSON.stringify(value, null, pretty ? 2 : undefined)))
   const [err, setErr] = useState(false)
   return (
-    <label className="fld fld-block">
+    <label className={`fld fld-block${fill ? ' fld-fill' : ''}`}>
       <span>
         {label} {err && <em className="fld-err">← некорректный JSON</em>}
       </span>
       <textarea
         rows={rows}
+        className={fill ? 'json-fill' : undefined}
         value={text}
         placeholder={placeholder}
         spellCheck={false}
@@ -955,7 +959,7 @@ export function FileAdvancedJson({ store, path, commit, label = 'Расшире�
         {label && (
           <div className="muted small" style={{ marginBottom: 6 }}>{label}</div>
         )}
-        <JsonField label="" rows={26} pretty value={store.jsonFiles.get(path)} onChange={apply} />
+        <JsonField label="" rows={26} pretty fill value={store.jsonFiles.get(path)} onChange={apply} />
       </div>
     )
   }

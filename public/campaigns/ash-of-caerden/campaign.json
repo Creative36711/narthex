@@ -109,6 +109,7 @@
     },
     "skill_points": 60,
     "skill_cap": 75,
+    "skill_floor": 15,
     "mandatory_skills": [
       "dodge",
       "first_aid"
@@ -121,7 +122,7 @@
       {
         "id": "profession_soldier",
         "label": "Солдат",
-        "description": "Строевая выучка, сталь в руках и стёганка в наследство.",
+        "description": "Строевая выучка и сталь в руках. Крепкий, сильный, немногословный.",
         "skill_bonus": {
           "sword": 10,
           "brawl": 5
@@ -131,12 +132,21 @@
             "item": "item_gambeson",
             "quantity": 1
           }
-        ]
+        ],
+        "stats": {
+          "STR": 11,
+          "CON": 10,
+          "SIZ": 10,
+          "DEX": 9,
+          "INT": 6,
+          "POW": 5,
+          "CHA": 5
+        }
       },
       {
         "id": "profession_scout",
         "label": "Разведчик",
-        "description": "Тихий шаг, зоркий глаз и мазь на всякий случай.",
+        "description": "Тихий шаг и зоркий глаз. Ходит там, где другие боятся.",
         "skill_bonus": {
           "stealth": 10,
           "spot": 10
@@ -146,7 +156,16 @@
             "item": "item_healing_salve",
             "quantity": 1
           }
-        ]
+        ],
+        "stats": {
+          "STR": 8,
+          "CON": 9,
+          "SIZ": 8,
+          "DEX": 13,
+          "INT": 9,
+          "POW": 5,
+          "CHA": 4
+        }
       },
       {
         "id": "profession_envoy",
@@ -161,7 +180,16 @@
             "item": "item_silver",
             "quantity": 10
           }
-        ]
+        ],
+        "stats": {
+          "STR": 6,
+          "CON": 8,
+          "SIZ": 8,
+          "DEX": 9,
+          "INT": 11,
+          "POW": 6,
+          "CHA": 8
+        }
       }
     ]
   },
@@ -1374,6 +1402,34 @@
       "id": "weather_first_snow",
       "label": "Первый снег",
       "overlay": "snow"
+    }
+  ],
+  "slot_types": [
+    {
+      "id": "person",
+      "label": "Персонаж"
+    },
+    {
+      "id": "item",
+      "label": "Предмет"
+    },
+    {
+      "id": "container",
+      "label": "Контейнер"
+    },
+    {
+      "id": "animal",
+      "label": "Животное"
+    }
+  ],
+  "equipment_slots": [
+    {
+      "id": "weapon",
+      "label": "Оружие"
+    },
+    {
+      "id": "armor",
+      "label": "Броня"
     }
   ]
 }

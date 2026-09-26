@@ -2,22 +2,15 @@ import type { EditorStore } from './store'
 import type { EntityDef } from '../shared/types'
 
 /**
- * Типы слотов сцены (фидбек №2–3 пятого раунда): встроенные + свои из
- * реестра кампании. У каждой сущности есть «тип в слотах» — по нему
- * фильтруется, кого можно поставить в слот.
+ * Типы слотов сцены. Встроенных типов НЕТ (правка «без хардкода»):
+ * реестр целиком задаёт кампания — мастер создаёт типы сам. У каждой
+ * сущности есть «тип в слотах» — по нему фильтруется, кого можно
+ * поставить в слот.
  */
 
-export const BUILTIN_SLOT_TYPES: Array<{ id: string; label: string }> = [
-  { id: 'person', label: 'Персонаж' },
-  { id: 'item', label: 'Предмет' },
-  { id: 'container', label: 'Контейнер' },
-  { id: 'animal', label: 'Животное' },
-]
-
-/** полный реестр типов слотов кампании: встроенные + свои */
+/** реестр типов слотов кампании */
 export function slotTypesFor(store: EditorStore): Array<{ id: string; label: string }> {
-  const custom = store.meta.slot_types ?? []
-  return [...BUILTIN_SLOT_TYPES.filter((b) => !custom.some((c) => c.id === b.id)), ...custom]
+  return store.meta.slot_types ?? []
 }
 
 /** русское название типа слота */
