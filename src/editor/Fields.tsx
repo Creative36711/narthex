@@ -49,6 +49,7 @@ export function Field({
     dispRef: 'disposition',
     cutsceneRef: 'cutscene',
     statusRef: 'status',
+    weatherRef: 'weather',
   }
 
   if (spec.kind === 'number') {

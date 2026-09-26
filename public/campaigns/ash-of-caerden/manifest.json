@@ -62,7 +62,9 @@
     "rule_market_raid.json",
     "rule_city_assault.json",
     "encounter_camp_fight_surprise.json",
-    "rule_maeva_thanks.json"
+    "rule_maeva_thanks.json",
+    "rule_weather_ashfall.json",
+    "rule_weather_ravine_rain.json"
   ],
   "dialogues": [
     "aldric.ink",

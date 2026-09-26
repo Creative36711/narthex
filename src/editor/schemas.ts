@@ -33,6 +33,7 @@ export type FieldKind =
   | 'dialogueNodeRef' // узел диалога NPC из соседнего поля entity
   | 'cutsceneRef' // катсцена кампании (итерация 8, блок E)
   | 'statusRef' // статус из реестра кампании (блок 5 ТЗ)
+  | 'weatherRef' // погода из реестра кампании (блок 9 ТЗ)
 
 export interface FieldSpec {
   key: string
@@ -173,6 +174,11 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'status', label: 'Статус', kind: 'statusRef' }],
     blank: { status: '' },
   },
+  weather_is: {
+    label: 'Погода сейчас',
+    fields: [{ key: 'weather', label: 'Погода', kind: 'weatherRef' }],
+    blank: { weather: '' },
+  },
   and: {
     label: 'И (все)',
     fields: [{ key: 'conditions', label: 'Условия', kind: 'conditions' }],
@@ -215,6 +221,11 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Снять статус',
     fields: [{ key: 'status', label: 'Статус', kind: 'statusRef' }],
     blank: { target: 'player', status: '' },
+  },
+  set_weather: {
+    label: 'Сменить погоду',
+    fields: [{ key: 'weather', label: 'Погода (пусто — ясно)', kind: 'weatherRef' }],
+    blank: { weather: '' },
   },
   set_variable: {
     label: 'Установить переменную',
@@ -465,6 +476,7 @@ const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
   flagRef: 'flag',
   cutsceneRef: 'cutscene',
   statusRef: 'status',
+  weatherRef: 'weather',
 }
 
 /** Человекочитаемое значение одного поля (русские названия вместо id). */

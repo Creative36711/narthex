@@ -286,6 +286,22 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "set_weather"
+            },
+            "weather": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "set_variable"
             },
             "var": {
@@ -1086,6 +1102,41 @@
       "additionalProperties": false,
       "description": "Способность бойца: тратит MP, имеет кулдаун, бьёт/лечит/вешает статус.\nРеестр — в `campaign.json` (meta.abilities); НПС получают `abilities: [id…]`."
     },
+    "WeatherDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "overlay": {
+          "type": "string",
+          "enum": [
+            "rain",
+            "snow",
+            "fog",
+            "ash",
+            "none"
+          ],
+          "description": "визуальный слой поверх сцены (чистый CSS); нет/'none' — без слоя"
+        },
+        "ambient": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "зацикленные звуки (id из реестра звуков) — слои к эмбиенту"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "погода (блок 9 ТЗ): визуальный слой + звуковые слои"
+    },
     "DiceRules": {
       "type": "object",
       "properties": {
@@ -1671,6 +1722,46 @@
             "additionalProperties": false
           },
           "description": "реестр слотов экипировки (блок 7 ТЗ); встроенные Оружие/Броня есть всегда"
+        },
+        "calendar": {
+          "type": "object",
+          "properties": {
+            "year_label": {
+              "type": "string",
+              "description": "«Летопись Каэрдена», «г.э.»…"
+            },
+            "start_year": {
+              "type": "number",
+              "description": "default 1"
+            },
+            "days_per_month": {
+              "type": "number",
+              "description": "default 30"
+            },
+            "months": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "названия месяцев (циклы); нет — «Месяц 1»"
+            },
+            "day_names": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "названия дней недели (циклы); нет — без имён"
+            }
+          },
+          "additionalProperties": false,
+          "description": "календарь кампании: свои месяцы и дни недели (блок 9 ТЗ)"
+        },
+        "weathers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WeatherDef"
+          },
+          "description": "реестр погод (блок 9 ТЗ)"
         },
         "dice_rules": {
           "$ref": "#/$defs/DiceRules",
@@ -2587,6 +2678,22 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "weather_is"
+            },
+            "weather": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "and"
             },
             "conditions": {
@@ -2685,6 +2792,10 @@
         },
         "not_flag": {
           "type": "string"
+        },
+        "weather": {
+          "type": "string",
+          "description": "текущая погода (блок 9 ТЗ)"
         }
       },
       "additionalProperties": false,
@@ -2902,6 +3013,10 @@
         },
         "not_flag": {
           "type": "string"
+        },
+        "weather": {
+          "type": "string",
+          "description": "текущая погода (блок 9 ТЗ)"
         }
       },
       "additionalProperties": false,
@@ -4445,6 +4560,25 @@
             "status"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "weather_is"
+            },
+            "weather": {
+              "type": "string"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
+          ],
+          "additionalProperties": false
         }
       ],
       "description": "условие показа/ветвления (все условия списка должны выполниться)"
@@ -4754,6 +4888,22 @@
           "required": [
             "type",
             "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_weather"
+            },
+            "weather": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
           ],
           "additionalProperties": false
         }

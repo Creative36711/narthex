@@ -1092,6 +1092,15 @@ export class GameEngine {
       case 'clear_flag': delete s.flags[e.flag]; break
       case 'apply_status': this.applyStatus(e.target, e.status, e.duration); break
       case 'remove_status': this.removeStatus(e.target, e.status); break
+      case 'set_weather': {
+        const next = e.weather || undefined
+        if (s.weather !== next) {
+          s.weather = next
+          const w = this.campaign.meta.weathers?.find((x) => x.id === next)
+          this.pushLog(next ? `Погода меняется: ${w?.label ?? next}.` : 'Небо проясняется.')
+        }
+        break
+      }
       case 'set_variable': s.variables[e.var] = e.value; break
       case 'change_variable':
         s.variables[e.var] = Number(s.variables[e.var] ?? 0) + e.delta

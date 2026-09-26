@@ -221,6 +221,8 @@ export function condInk(c: DlgCond): string {
       return c.not ? `get_hp() < ${c.value}` : `get_hp() >= ${c.value}`
     case 'has_status':
       return c.not ? `not has_status(${q(c.status)})` : `has_status(${q(c.status)})`
+    case 'weather_is':
+      return c.not ? `not weather_is(${q(c.weather)})` : `weather_is(${q(c.weather)})`
   }
 }
 
@@ -256,6 +258,7 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'set_description': return `${indent}~ set_description(${q(e.entity)}, ${q(e.text)})`
     case 'apply_status': return `${indent}~ apply_status(${q(e.status)}, ${e.duration ?? 0})`
     case 'remove_status': return `${indent}~ remove_status(${q(e.status)})`
+    case 'set_weather': return `${indent}~ set_weather(${q(e.weather)})`
   }
 }
 

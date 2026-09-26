@@ -58,6 +58,8 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.isInParty(c.entity)
     case 'has_status':
       return engine.hasStatus(c.status)
+    case 'weather_is':
+      return (s.weather ?? '') === c.weather
     case 'random_chance':
       return engine.rng.chance(c.probability)
     case 'and':
@@ -81,5 +83,6 @@ export function evalSceneCondition(c: SceneCondition | null | undefined, engine:
   }
   if (c.flag && !engine.state.flags[c.flag]) return false
   if (c.not_flag && engine.state.flags[c.not_flag]) return false
+  if (c.weather !== undefined && (engine.state.weather ?? '') !== c.weather) return false
   return true
 }

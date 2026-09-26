@@ -28,7 +28,7 @@ import { isSoundDoc, playSource } from '../shared/audio'
 import { isMusicDoc } from '../shared/synth'
 import { startTrackSource, stopMusic, type TrackHandle } from '../shared/music'
 import type { EditorStore } from './store'
-import { AssetUpload, FlagSelect } from './Fields'
+import { AssetUpload, FlagSelect, RefSelect } from './Fields'
 import { askText } from './prompt'
 import { makeId } from './ids'
 
@@ -577,6 +577,7 @@ function condLabel(c: MusicCondition): string {
   }
   if (c.flag) parts.push(`флаг «${c.flag}»`)
   if (c.not_flag) parts.push(`нет флага «${c.not_flag}»`)
+  if (c.weather !== undefined) parts.push(c.weather ? `погода «${c.weather}»` : 'ясно')
   return parts.join(',') || 'всегда'
 }
 
@@ -678,6 +679,18 @@ export function MusicRulesEditor({
                       onChange={(f) => {
                         if (f) c.not_flag = f
                         else delete c.not_flag
+                        onChange()
+                      }}
+                    />
+                    <RefSelect
+                      label="Погода"
+                      kind="weather"
+                      store={store}
+                      value={c.weather ?? ''}
+                      optional
+                      onChange={(w) => {
+                        if (w) c.weather = w
+                        else delete c.weather
                         onChange()
                       }}
                     />

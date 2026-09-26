@@ -41,6 +41,7 @@ export function SceneConditionEditor({
     if (next.time_of_day && (!Array.isArray(next.time_of_day) || next.time_of_day.length)) clean.time_of_day = next.time_of_day
     if (next.flag) clean.flag = next.flag
     if (next.not_flag) clean.not_flag = next.not_flag
+    if (next.weather !== undefined) clean.weather = next.weather
     onChange(Object.keys(clean).length ? clean : null)
   }
   return (
@@ -65,6 +66,14 @@ export function SceneConditionEditor({
         <FlagSelect label="…установлен флаг" store={store} value={v.flag ?? ''} optional onChange={(f) => apply({ ...v, flag: f || undefined })} />
         <FlagSelect label="…НЕ установлен флаг" store={store} value={v.not_flag ?? ''} optional onChange={(f) => apply({ ...v, not_flag: f || undefined })} />
       </div>
+      <RefSelect
+        label="…погода"
+        kind="weather"
+        store={store}
+        value={v.weather ?? ''}
+        optional
+        onChange={(w) => apply({ ...v, weather: w === undefined || w === '' ? undefined : w })}
+      />
       <div className="muted small">Пусто = показывается всегда.</div>
     </div>
   )

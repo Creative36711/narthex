@@ -111,6 +111,8 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('has_status', (id: string) => engine.hasStatus(id))
   bind('apply_status', (id: string, duration: number) => { engine.applyStatus('player', id, duration > 0 ? duration : undefined); return 0 })
   bind('remove_status', (id: string) => { engine.removeStatus('player', id); return 0 })
+  bind('weather_is', (id: string) => (engine.state.weather ?? '') === id)
+  bind('set_weather', (id: string) => { engine.applyEffects([{ type: 'set_weather', weather: id }]); return 0 })
 }
 
 /** Прочитать все доступные строки до выбора/конца. */

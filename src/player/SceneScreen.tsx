@@ -23,6 +23,8 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const occupants = engine.slotOccupants(scene)
   const tod = timeOfDay(engine.state.tick, engine.campaign.meta)
   const loc = engine.findLocation(engine.state.location)
+  /** текущая погода (блок 9 ТЗ): слой поверх сцены + эмбиент в audio.ts */
+  const weather = engine.campaign.meta.weathers?.find((w) => w.id === engine.state.weather)
 
   const pct = (v: number, total: number) => `${(v / total) * 100}%`
 
@@ -141,6 +143,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             </button>
           )
         })}
+
+        {/* слой погоды (блок 9 ТЗ): чистый CSS, полупрозрачный, не ловит клики */}
+        {weather?.overlay && weather.overlay !== 'none' && (
+          <div className={`weather-overlay weather-${weather.overlay}`} aria-hidden="true" />
+        )}
       </div>
 
       {/* модалка выбора предмета для слота (блок 8 ТЗ) */}

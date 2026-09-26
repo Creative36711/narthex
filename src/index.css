@@ -194,6 +194,8 @@ button { font-family: inherit;  }
 .hud-center { text-align: center; }
 .hud-time { font-size: 15px; color: var(--gold-bright); }
 .hud-tod { font-size: 12px; color: var(--muted); }
+.hud-date { font-size: 11px; color: var(--muted); opacity: 0.85; }
+.hud-weather { font-size: 11px; color: #9fc1e8; opacity: 0.9; }
 
 .hud-right { display: flex; gap: 8px; }
 .hud-btn {
@@ -1499,3 +1501,75 @@ input[type='checkbox'], input[type='radio'] {
 .slot-usewith:hover { background: rgba(212, 175, 55, 0.18); }
 .usewith-box .usewith-options { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 .usewith-box .usewith-options .btn { width: 100%; }
+
+/* ─────────────── погода (блок 9 ТЗ «Гибкий движок»): слои поверх сцены ─────────────── */
+.weather-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
+
+/* дождь: наклонные штрихи (14°), сдвиг вдоль оси узора — бесшовный цикл */
+.weather-rain {
+  background-image:
+    repeating-linear-gradient(14deg, transparent 0px, transparent 11px, rgba(174, 199, 235, 0.34) 11px, rgba(174, 199, 235, 0.34) 12.5px, transparent 12.5px, transparent 17px),
+    repeating-linear-gradient(11deg, transparent 0px, transparent 19px, rgba(150, 178, 224, 0.2) 19px, rgba(150, 178, 224, 0.2) 21px, transparent 21px, transparent 29px);
+  animation: weather-rain-fall 0.55s linear infinite;
+}
+@keyframes weather-rain-fall {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: -25px 99px, -14px 106px; }
+}
+
+/* снег: несколько слоёв «снежинок» с разной скоростью и сносом */
+.weather-snow {
+  background-image:
+    radial-gradient(2.4px 2.4px at 22% 28%, rgba(255, 255, 255, 0.92) 45%, transparent 60%),
+    radial-gradient(1.7px 1.7px at 68% 62%, rgba(255, 255, 255, 0.75) 45%, transparent 60%),
+    radial-gradient(3px 3px at 44% 84%, rgba(240, 246, 255, 0.85) 45%, transparent 60%),
+    radial-gradient(1.3px 1.3px at 86% 12%, rgba(255, 255, 255, 0.55) 45%, transparent 60%);
+  background-size: 90px 90px, 130px 130px, 110px 110px, 70px 70px;
+  animation: weather-snow-fall 7s linear infinite;
+}
+@keyframes weather-snow-fall {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 24px 90px, -20px 130px, 32px 110px, -10px 70px; }
+}
+
+/* пепел: тёмные хлопья, медленнее снега и с лёгким боковым сносом */
+.weather-ash {
+  background-image:
+    radial-gradient(2.6px 2.6px at 30% 35%, rgba(120, 110, 105, 0.55) 45%, transparent 60%),
+    radial-gradient(1.8px 1.8px at 72% 70%, rgba(90, 84, 80, 0.45) 45%, transparent 60%),
+    radial-gradient(3.2px 3.2px at 52% 12%, rgba(140, 130, 120, 0.4) 45%, transparent 60%);
+  background-size: 120px 120px, 95px 95px, 150px 150px;
+  animation: weather-ash-fall 11s linear infinite;
+}
+@keyframes weather-ash-fall {
+  from { background-position: 0 0, 0 0, 0 0; }
+  to { background-position: 34px 120px, -26px 95px, 44px 150px; }
+}
+
+/* туман: дрейфующие полупрозрачные «облака» */
+.weather-fog {
+  background:
+    radial-gradient(ellipse 62% 46% at 28% 58%, rgba(202, 208, 218, 0.3), transparent 70%),
+    radial-gradient(ellipse 55% 42% at 74% 40%, rgba(192, 200, 212, 0.26), transparent 70%),
+    radial-gradient(ellipse 72% 52% at 52% 78%, rgba(208, 213, 222, 0.22), transparent 72%);
+  animation: weather-fog-drift 13s ease-in-out infinite alternate;
+}
+@keyframes weather-fog-drift {
+  from { transform: translateX(-2.5%); opacity: 0.85; }
+  to { transform: translateX(2.5%); opacity: 1; }
+}
+
+/* кнопка удаления внутри чипа (погода, реестры) */
+.chip-del {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  margin-left: 6px;
+  padding: 0;
+  opacity: 0.7;
+  display: inline-flex;
+  align-items: center;
+}
+.chip-del:hover { opacity: 1; color: #ff9c8a; }
+.chip-del svg { width: 12px; height: 12px; }

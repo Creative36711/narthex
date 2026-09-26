@@ -61,6 +61,7 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'set_description', label: 'Изменить описание' },
   { id: 'apply_status', label: 'Наложить статус' },
   { id: 'remove_status', label: 'Снять статус' },
+  { id: 'set_weather', label: 'Сменить погоду' },
   { id: 'open_trade', label: 'Открыть торговлю (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
 ]
@@ -83,6 +84,7 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'set_description': return { type, entity: '', text: '' }
     case 'apply_status': return { type, status: '' }
     case 'remove_status': return { type, status: '' }
+    case 'set_weather': return { type, weather: '' }
   }
 }
 
@@ -103,6 +105,8 @@ const COND_TYPES: Array<{ id: string; label: string }> = [
   { id: 'hp_ge!', label: 'Здоровье ниже' },
   { id: 'has_status', label: 'Есть статус' },
   { id: 'has_status!', label: 'Статуса НЕТ' },
+  { id: 'weather_is', label: 'Погода сейчас' },
+  { id: 'weather_is!', label: 'Погода НЕ такая' },
 ]
 
 function blankCond(key: string): DlgCond {
@@ -117,6 +121,7 @@ function blankCond(key: string): DlgCond {
     case 'in_party': return { type, npc: '', not }
     case 'hp_ge': return { type, value: 10, not }
     case 'has_status': return { type, status: '', not }
+    case 'weather_is': return { type, weather: '', not }
   }
 }
 
@@ -411,6 +416,8 @@ function CondFields({ cond: c, store, commit }: { cond: DlgCond; store: EditorSt
       )
     case 'has_status':
       return <InlineRef kind="status" store={store} value={c.status} onChange={(v) => ((c.status = v), commit())} />
+    case 'weather_is':
+      return <InlineRef kind="weather" store={store} value={c.weather} onChange={(v) => ((c.weather = v), commit())} />
   }
 }
 
@@ -900,6 +907,9 @@ function EffectRow({
       )}
       {e.type === 'remove_status' && (
         <InlineRef kind="status" store={store} value={e.status} onChange={(v) => ((e.status = v), commit())} />
+      )}
+      {e.type === 'set_weather' && (
+        <InlineRef kind="weather" store={store} value={e.weather} onChange={(v) => ((e.weather = v), commit())} />
       )}
       <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>
     </div>

@@ -1272,5 +1272,55 @@
       "status": "status_rat_poison",
       "status_duration": 3
     }
+  ],
+  "calendar": {
+    "year_label": "год Пепла",
+    "start_year": 137,
+    "days_per_month": 30,
+    "months": [
+      "Углемес",
+      "Гаревей",
+      "Дымолун",
+      "Пеплопад",
+      "Искроткань",
+      "Студень",
+      "Снеговей",
+      "Таловод",
+      "Розжиг",
+      "Зелень",
+      "Высолнце",
+      "Жатвень"
+    ],
+    "day_names": [
+      "Пепельник",
+      "Кузнецов",
+      "Ветровик",
+      "Странник",
+      "Тихий",
+      "Светлый",
+      "Тёмный"
+    ]
+  },
+  "weathers": [
+    {
+      "id": "weather_ashfall",
+      "label": "Пеплопад",
+      "overlay": "ash"
+    },
+    {
+      "id": "weather_cold_rain",
+      "label": "Холодный дождь",
+      "overlay": "rain"
+    },
+    {
+      "id": "weather_thick_fog",
+      "label": "Густой туман",
+      "overlay": "fog"
+    },
+    {
+      "id": "weather_first_snow",
+      "label": "Первый снег",
+      "overlay": "snow"
+    }
   ]
 }

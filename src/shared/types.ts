@@ -274,6 +274,21 @@ export interface CampaignMeta {
   abilities?: AbilityDef[]
   /** реестр слотов экипировки (блок 7 ТЗ); встроенные Оружие/Броня есть всегда */
   equipment_slots?: Array<{ id: string; label: string }>
+  /** календарь кампании: свои месяцы и дни недели (блок 9 ТЗ) */
+  calendar?: {
+    /** «Летопись Каэрдена», «г.э.»… */
+    year_label?: string
+    /** default 1 */
+    start_year?: number
+    /** default 30 */
+    days_per_month?: number
+    /** названия месяцев (циклы); нет — «Месяц 1» */
+    months?: string[]
+    /** названия дней недели (циклы); нет — без имён */
+    day_names?: string[]
+  }
+  /** реестр погод (блок 9 ТЗ) */
+  weathers?: WeatherDef[]
   /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
   dice_rules?: DiceRules
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
@@ -376,6 +391,8 @@ export interface SceneCondition {
   time_of_day?: TimeOfDay | TimeOfDay[]
   flag?: string
   not_flag?: string
+  /** текущая погода (блок 9 ТЗ) */
+  weather?: string
 }
 
 // ─────────────── декларативная графика (итерация 8, блок D) ───────────────
@@ -483,6 +500,16 @@ export interface SceneStateDef {
 
 /** тип слота — id из реестра кампании slot_types (мастер может добавлять свои) */
 export type SlotType = string
+
+/** погода (блок 9 ТЗ): визуальный слой + звуковые слои */
+export interface WeatherDef {
+  id: string
+  label: string
+  /** визуальный слой поверх сцены (чистый CSS); нет/'none' — без слоя */
+  overlay?: 'rain' | 'snow' | 'fog' | 'ash' | 'none'
+  /** зацикленные звуки (id из реестра звуков) — слои к эмбиенту */
+  ambient?: string[]
+}
 
 /** применение предмета инвентаря к слоту сцены — «ключ к двери» (блок 8 ТЗ) */
 export interface SlotUseWith {
@@ -800,6 +827,8 @@ export interface MusicCondition {
   time_of_day?: TimeOfDay | TimeOfDay[]
   flag?: string
   not_flag?: string
+  /** текущая погода (блок 9 ТЗ) */
+  weather?: string
 }
 
 /**
@@ -847,6 +876,7 @@ export type DlgCond =
   | { type: 'in_party'; npc: string; not?: boolean }
   | { type: 'hp_ge'; value: number; not?: boolean } // здоровье ≥ (not: <)
   | { type: 'has_status'; status: string; not?: boolean } // статус активен (блок 5 ТЗ)
+  | { type: 'weather_is'; weather: string; not?: boolean } // текущая погода (блок 9 ТЗ; '' — ясно)
 
 export type DlgEffect =
   | { type: 'set_flag'; flag: string }
@@ -866,6 +896,8 @@ export type DlgEffect =
   /** статусы (блок 5 ТЗ): наложить (0/нет — из реестра) / снять */
   | { type: 'apply_status'; status: string; duration?: number }
   | { type: 'remove_status'; status: string }
+  /** сменить погоду ('' — ясно; блок 9 ТЗ) */
+  | { type: 'set_weather'; weather: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -1050,6 +1082,7 @@ export type Condition =
   | { type: 'in_party'; entity: string }
   | { type: 'random_chance'; probability: number }
   | { type: 'has_status'; status: string }
+  | { type: 'weather_is'; weather: string }
   | { type: 'and'; conditions: Condition[] }
   | { type: 'or'; conditions: Condition[] }
   | { type: 'not'; condition: Condition }
@@ -1061,6 +1094,8 @@ export type Effect =
   | { type: 'apply_status'; target: 'player'; status: string; duration?: number }
   /** снять статус */
   | { type: 'remove_status'; target: 'player'; status: string }
+  /** сменить погоду ('' — ясно; блок 9 ТЗ) */
+  | { type: 'set_weather'; weather: string }
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
@@ -1178,6 +1213,8 @@ export interface GameState {
   region: string
   location: string
   scene: string
+  /** текущая погода (блок 9 ТЗ): id из реестра; нет — ясно */
+  weather?: string
   flags: Record<string, boolean>
   variables: Record<string, number | string>
   /** динамические описания сущностей (действие set_description) */

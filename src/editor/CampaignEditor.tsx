@@ -6,7 +6,7 @@ import { AssetUpload, EffectListEditor, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { CampaignFeatures, CampaignMeta, DiceRules, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
+import type { CampaignFeatures, CampaignMeta, DiceRules, FontDef, NeedCondition, StatusDef, TimeOfDay, WeatherDef } from '../shared/types'
 import { BUILTIN_EQUIPMENT_SLOTS, CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { BUILTIN_SLOT_TYPES } from './slotTypes'
 import { askText } from './prompt'
@@ -947,6 +947,170 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           }}
         >
           + слот экипировки
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Календарь</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Свои месяцы и дни недели: дата появится в игре под часами. Названия
+          пишутся через запятую и циклятся. Без календаря — обычные «День N».
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld">
+            <span>Название летоисчисления</span>
+            <input
+              value={m.calendar?.year_label ?? ''}
+              placeholder="например «Летопись Каэрдена»"
+              onChange={(e) => {
+                if (!m.calendar) m.calendar = {}
+                if (e.target.value) m.calendar.year_label = e.target.value
+                else delete m.calendar.year_label
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld">
+            <span>Начальный год</span>
+            <input
+              type="number"
+              value={m.calendar?.start_year ?? 1}
+              onChange={(e) => {
+                if (!m.calendar) m.calendar = {}
+                m.calendar.start_year = Number(e.target.value) || 1
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld">
+            <span>Дней в месяце</span>
+            <input
+              type="number"
+              value={m.calendar?.days_per_month ?? 30}
+              onChange={(e) => {
+                if (!m.calendar) m.calendar = {}
+                m.calendar.days_per_month = Math.max(1, Number(e.target.value) || 30)
+                commit()
+              }}
+            />
+          </label>
+        </div>
+        <label className="fld">
+          <span>Месяцы (через запятую)</span>
+          <input
+            value={(m.calendar?.months ?? []).join(', ')}
+            placeholder="Верескень, Листопад, Грудень…"
+            onChange={(e) => {
+              if (!m.calendar) m.calendar = {}
+              const months = e.target.value.split(',').map((x) => x.trim()).filter(Boolean)
+              if (months.length) m.calendar.months = months
+              else delete m.calendar.months
+              commit()
+            }}
+          />
+        </label>
+        <label className="fld">
+          <span>Дни недели (через запятую)</span>
+          <input
+            value={(m.calendar?.day_names ?? []).join(', ')}
+            placeholder="Светодень, Ветродень…"
+            onChange={(e) => {
+              if (!m.calendar) m.calendar = {}
+              const names = e.target.value.split(',').map((x) => x.trim()).filter(Boolean)
+              if (names.length) m.calendar.day_names = names
+              else delete m.calendar.day_names
+              commit()
+            }}
+          />
+        </label>
+        {m.calendar && (
+          <button
+            className="btn btn-small"
+            onClick={() => {
+              delete m.calendar
+              commit()
+            }}
+          >
+            Убрать календарь
+          </button>
+        )}
+      </div>
+
+      <div className="props-group">
+        <h4>Погода</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Типы погоды с визуальным слоем (дождь, снег, туман, пепел) и
+          зацикленными звуками. Погоду меняют эффекты «Сменить погоду»;
+          условия «Погода сейчас» доступны правилам, слотам и музыке.
+        </div>
+        {(m.weathers ?? []).map((w, i) => (
+          <div key={i} className="props-group" style={{ border: '1px solid var(--border)', padding: 10, borderRadius: 8, marginBottom: 8 }}>
+            <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+              <label className="fld">
+                <span>Название</span>
+                <input value={w.label} onChange={(e) => ((w.label = e.target.value), commit())} />
+              </label>
+              <label className="fld">
+                <span>Слой</span>
+                <select
+                  value={w.overlay ?? 'none'}
+                  onChange={(e) => {
+                    const v = e.target.value as WeatherDef['overlay']
+                    if (v && v !== 'none') w.overlay = v
+                    else delete w.overlay
+                    commit()
+                  }}
+                >
+                  <option value="none">Без слоя</option>
+                  <option value="rain">Дождь</option>
+                  <option value="snow">Снег</option>
+                  <option value="fog">Туман</option>
+                  <option value="ash">Пепел</option>
+                </select>
+              </label>
+              <button className="btn btn-small ce-del" data-tip="Удалить погоду" onClick={() => (m.weathers!.splice(i, 1), commit())}><Ico n="close" /> </button>
+            </div>
+            <label className="fld">
+              <span>Зацикленные звуки погоды</span>
+              <select
+                value=""
+                onChange={(e) => {
+                  const id = e.target.value
+                  if (!id) return
+                  if (!w.ambient) w.ambient = []
+                  if (!w.ambient.includes(id)) w.ambient.push(id)
+                  commit()
+                }}
+              >
+                <option value="">+ добавить звук…</option>
+                {(m.sounds ?? [])
+                  .filter((s) => !(w.ambient ?? []).includes(s.id))
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>{s.label || s.id}</option>
+                  ))}
+              </select>
+            </label>
+            <div className="chips">
+              {(w.ambient ?? []).map((id) => (
+                <span key={id} className="chip">
+                  {(m.sounds ?? []).find((s) => s.id === id)?.label || id}
+                  <button className="chip-del" data-tip="Убрать звук" onClick={() => ((w.ambient = (w.ambient ?? []).filter((x) => x !== id)), commit())}><Ico n="close" /> </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название погоды', 'например «Моросящий дождь»')
+            if (!label) return
+            if (!m.weathers) m.weathers = []
+            m.weathers.push({ id: makeId('weather_', label, m.weathers.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + погода
         </button>
       </div>
 

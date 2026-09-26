@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { askConfirm } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
 import type { GameEngine } from '../core/engine'
-import { formatTime, timeOfDay, TIME_OF_DAY_LABEL } from '../core/time'
+import { formatDate, formatTime, timeOfDay, TIME_OF_DAY_LABEL } from '../core/time'
 import { featureOn } from '../shared/types'
 import { assetUrl } from '../core/loader'
 
@@ -65,6 +65,11 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           <>
             <div className="hud-time">{formatTime(s.tick, meta)}</div>
             <div className={`hud-tod tod-${tod}`}>{TIME_OF_DAY_LABEL[tod]}</div>
+            {meta.calendar && <div className="hud-date">{formatDate(meta, s.tick)}</div>}
+            {(() => {
+              const w = meta.weathers?.find((x) => x.id === s.weather)
+              return w ? <div className="hud-weather">{w.label}</div> : null
+            })()}
           </>
         )}
       </div>

@@ -196,7 +196,7 @@ export function activeLoops(): string[] {
  * и сцены складываются, лишние гаснут, новые стартуют. Headless — no-op.
  */
 export function refreshAmbient(engine: {
-  state: { scene: string; location: string }
+  state: { scene: string; location: string; weather?: string }
   campaign: CampaignData
 }): void {
   const desired = new Set<string>()
@@ -211,7 +211,9 @@ export function refreshAmbient(engine: {
       break
     }
   }
-  for (const id of [...locAmbient, locLegacy, ...(sc?.ambient ?? [])]) {
+  // слои погоды (блок 9 ТЗ) подмешиваются к эмбиенту локации/сцены
+  const weather = engine.campaign.meta.weathers?.find((w) => w.id === engine.state.weather)
+  for (const id of [...locAmbient, locLegacy, ...(sc?.ambient ?? []), ...(weather?.ambient ?? [])]) {
     if (id) desired.add(id)
   }
   for (const id of [...loops.keys()]) {
