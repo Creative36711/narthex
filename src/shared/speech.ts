@@ -251,7 +251,12 @@ function speakItem(item: QueueItem): void {
     finishItem(item)
   }
   u.onerror = (e) => {
-    console.warn(`[tts] ошибка синтеза (${(e as SpeechSynthesisErrorEvent).error || 'неизвестно'}) — фраза пропущена, повтора не будет`)
+    const err = (e as SpeechSynthesisErrorEvent).error || 'неизвестно'
+    if (item.cancelled || err === 'interrupted' || err === 'canceled') {
+      console.warn(`[tts] фраза остановлена (${err}) — это нормальная отмена, не сбой`)
+    } else {
+      console.warn(`[tts] ошибка синтеза (${err}) — фраза пропущена, повтора не будет`)
+    }
     finishItem(item)
   }
   try {

@@ -44,11 +44,11 @@ must(css.includes('.token-enemy:not(.token-dead) { cursor: var(--cur-sword); }')
   '5 по жетону врага — курсор-меч, по своим — прицел')
 
 // 6 — диалоги: постепенная выдача + озвучка каждой фразы
-// (фидбек 17: очередь стала последовательной — своя в speech.ts, фразы не срезаются)
+// (фидбек 21: диалоги озвучиваются по образцу катсцен — одна фраза, темп по onEnd)
 must(speech.includes('queue?: boolean') && speech.includes('const queue: QueueItem[]'),
   '6 синтезатор: фразы ставятся в очередь, не срезают друг друга')
-must(dlg.includes('TYPE_MS') && dlg.includes('setTyped') && dlg.includes('revealed') && dlg.includes('queue: true'),
-  '6 диалоги печатаются постепенно (как катсцены), каждая фраза озвучивается')
+must(dlg.includes('TYPE_MS') && dlg.includes('setTyped') && dlg.includes('revealed') && dlg.includes('lineDone'),
+  '6 диалоги печатаются постепенно (как катсцены), темп ведёт озвучка (lineDone)')
 must(dlg.includes('allShown') && dlg.includes('dialogue-choices'),
   '6 варианты ответа появляются после полного показа текста')
 
