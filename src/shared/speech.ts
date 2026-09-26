@@ -16,7 +16,11 @@
  *  - повторов нарочно нет (фидбек 19): любые сбои просто двигают очередь
  *    дальше; сторожок 8 с защищает только от ПОЛНОГО зависания синтезатора,
  *    чтобы диалог не молчал вечно;
- *  - прогрев первым жестом пользователя будит «спящий» синтезатор заранее.
+ *  - прогрев первым жестом пользователя будит «спящий» синтезатор заранее;
+ *  - ДО первого жеста очередь НЕ трогает синтезатор вовсе (фидбек 20):
+ *    браузеры запрещают озвучку без действия пользователя, и фразы,
+ *    отправленные «в тишину», молча терялись — диалог начинал звучать
+ *    с середины. Теперь фразы ждут первого клика и звучат по порядку.
  */
 
 import { useEffect, useState } from 'react'
@@ -105,10 +109,23 @@ function clearStallTimer(): void {
 }
 
 // ─────────────── «прогрев» синтезатора первым жестом ───────────────
-// Chrome может молча проглотить первые фразы, пока синтезатор «спит»;
-// короткая служебная фраза на первом жесте пользователя будит его заранее.
+// Браузеры запрещают озвучку до действия пользователя (фидбек 20): фразы,
+// отправленные в синтезатор до первого клика, молча отбрасываются — очередь
+// проскакивает их, и речь «начинается с середины». Поэтому до первого жеста
+// очередь вообще не трогает синтезатор: фразы копятся и звучат по порядку
+// сразу после клика. Плюс короткая служебная фраза будит «спящий» синтезатор.
 
 let primed = false
+/** было ли действие пользователя, разрешающее озвучку */
+let gestureSeen = false
+let gestureLogged = false
+
+function onFirstGesture(): void {
+  gestureSeen = true
+  prime()
+  pump() // фразы, накопленные до жеста, начинают звучать по порядку
+}
+
 function prime(): void {
   if (primed || !ttsSupported()) return
   primed = true
@@ -126,8 +143,8 @@ function prime(): void {
   }
 }
 if (typeof window !== 'undefined') {
-  window.addEventListener('pointerdown', prime, { once: true })
-  window.addEventListener('keydown', prime, { once: true })
+  window.addEventListener('pointerdown', onFirstGesture, { once: true })
+  window.addEventListener('keydown', onFirstGesture, { once: true })
 }
 
 function startKeepalive(): void {
@@ -155,6 +172,14 @@ function pump(): void {
   const item = queue[0]
   if (!item) {
     stopKeepalive()
+    return
+  }
+  // до первого жеста браузер всё равно отбросит озвучку — фразы ждут клика
+  if (!gestureSeen) {
+    if (!gestureLogged) {
+      gestureLogged = true
+      console.warn('[tts] озвучка ждёт первого клика/нажатия — браузер запрещает звук без действия пользователя; фразы не теряются')
+    }
     return
   }
   if (item.cancelled) {
@@ -219,9 +244,16 @@ function speakItem(item: QueueItem): void {
   u.onstart = () => {
     item.started = true
     clearStallTimer()
+    console.warn(`[tts] звучит: «${item.clean.slice(0, 40)}${item.clean.length > 40 ? '…' : ''}»`)
   }
-  u.onend = () => finishItem(item)
-  u.onerror = () => finishItem(item)
+  u.onend = () => {
+    console.warn('[tts] фраза дочитана — очередь идёт дальше')
+    finishItem(item)
+  }
+  u.onerror = (e) => {
+    console.warn(`[tts] ошибка синтеза (${(e as SpeechSynthesisErrorEvent).error || 'неизвестно'}) — фраза пропущена, повтора не будет`)
+    finishItem(item)
+  }
   try {
     synth.speak(u)
     synth.resume() // защита от «застрявшего» пауз-состояния
@@ -233,7 +265,7 @@ function speakItem(item: QueueItem): void {
   stallTimer = setTimeout(() => {
     stallTimer = null
     if (active === item && !item.started) {
-      console.info('[tts] синтезатор молчит 8 с — пропускаем фразу, очередь идёт дальше')
+      console.warn('[tts] синтезатор молчит 8 с — пропускаем фразу, очередь идёт дальше')
       try {
         synth.cancel()
       } catch {
@@ -249,6 +281,7 @@ function speakItem(item: QueueItem): void {
  * состояние; следующий `speak()` выдержит короткую паузу после `cancel()`.
  */
 export function stopSpeaking(): void {
+  if (queue.length || active) console.warn('[tts] остановка: очередь очищена')
   for (const item of queue) item.cancelled = true
   queue.length = 0
   if (active) active.cancelled = true
@@ -279,10 +312,23 @@ export function speak(
   if (!opts.queue) stopSpeaking()
   const item: QueueItem = { clean, opts, started: false, settled: false }
   queue.push(item)
+  console.warn(`[tts] в очередь: «${clean.slice(0, 40)}${clean.length > 40 ? '…' : ''}» (в очереди: ${queue.length})`)
   pump()
   return () => {
     item.cancelled = true
     if (active === item) stopSpeaking()
     else pump()
   }
+}
+/** диагностика озвучки прямо из консоли браузера: вставьте `__cf_tts()` */
+if (typeof window !== 'undefined') {
+  ;(window as unknown as Record<string, unknown>).__cf_tts = () => ({
+    поддерживается: ttsSupported(),
+    был_жест_пользователя: gestureSeen,
+    голосов_в_системе: ttsVoices().length,
+    говорит_сейчас: window.speechSynthesis?.speaking ?? false,
+    на_паузе: window.speechSynthesis?.paused ?? false,
+    фраз_в_очереди: queue.length,
+    активная_фраза: active ? active.clean.slice(0, 60) : null,
+  })
 }

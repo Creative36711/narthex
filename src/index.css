@@ -598,6 +598,28 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   color: var(--muted);
 }
 
+/* экипировка: каждая ячейка — отдельная строка «слот | предмет | кнопка»,
+   ничего не сливается (фидбек 20) */
+.equip-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.equip-slot {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-2, #171310);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.equip-slot .equip-slot-name { white-space: nowrap; }
+.equip-slot b { overflow-wrap: anywhere; }
+.equip-slot .btn { white-space: nowrap; }
+
 .equipped-badge {
   margin-left: 8px;
   font-size: 11px;
@@ -1403,6 +1425,9 @@ input[type='checkbox'], input[type='radio'] {
 
 /* ─── тема кампании (блок 2 ТЗ «Гибкий движок»): только Player Mode ─── */
 .cf-themed {
+  /* без высоты 100% цепочка .game-view → .scene-wrap → .scene-stage
+     схлопывается и сцена становится «чёрным экраном» (фидбек 20) */
+  height: 100%;
   font-family: var(--cf-font-body, Georgia, 'Times New Roman', serif);
   font-size: calc(100% * var(--cf-text-scale, 1));
 }
@@ -1649,9 +1674,12 @@ input[type='checkbox'], input[type='radio'] {
 .char-budget-warn { color: var(--gold-bright); font-size: 12px; margin-top: 3px; }
 .char-prof-label { font-weight: 600; margin-bottom: 4px; }
 .char-prof-bonus { color: var(--gold-bright); margin-top: 6px; }
-.char-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 18px; margin-bottom: 6px; }
-.char-skill-row { display: flex; align-items: center; gap: 8px; }
-.char-skill-name { flex: 1; }
+.char-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 18px; margin-bottom: 6px; }
+/* сетка с фиксированными колонками: длинное название не сдвигает кнопки на соседний столбец */
+.char-skill-row { display: grid; grid-template-columns: minmax(0, 1fr) 28px 48px 28px; align-items: center; gap: 6px; }
+.char-skill-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+.char-skill-row .btn { justify-self: center; }
+.char-skill-row .char-stat-val { text-align: center; }
 .char-skill-forbidden { opacity: 0.45; }
 .char-problems { color: #ff9c8a; margin: 8px 0; padding-left: 20px; }
 .char-create-foot { display: flex; justify-content: space-between; margin-top: 14px; }

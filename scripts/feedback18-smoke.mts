@@ -127,7 +127,7 @@ const f = (p: string) => readFileSync(p, 'utf8')
 // ── 13. озвучка ──
 {
   const sp = f('src/shared/speech.ts')
-  check('13 прогрев синтезатора первым жестом', sp.includes("addEventListener('pointerdown', prime") )
+  check('13 прогрев синтезатора первым жестом', sp.includes("addEventListener('pointerdown', onFirstGesture"))
   check('13 повторы фраз исключены (очередь только вперёд)', !sp.includes('queue.unshift') && !sp.includes('retryItem'))
 }
 

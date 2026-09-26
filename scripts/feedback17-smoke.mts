@@ -144,7 +144,7 @@ const demo = await loadCampaign(base)
   const sp = readFileSync('src/shared/speech.ts', 'utf8')
   check('8 фразы НЕ повторяются при сбоях (очередь только вперёд)', !sp.includes('queue.unshift'))
   check('8 сторожок полного зависания (8 с) двигает очередь', sp.includes('stallTimer') && sp.includes('8000'))
-  check('8 прогрев синтезатора первым жестом', sp.includes("addEventListener('pointerdown', prime"))
+  check('8 прогрев синтезатора первым жестом', sp.includes("addEventListener('pointerdown', onFirstGesture"))
 }
 
 console.log(failed ? `\nПРОВАЛЕНО: ${failed}` : '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')
