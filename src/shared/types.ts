@@ -104,6 +104,33 @@ export interface ActiveStatus {
   left: number
 }
 
+// ───────────────────────── боевые способности (блок 6 ТЗ «Гибкий движок») ─────────────────────────
+
+/**
+ * Способность бойца: тратит MP, имеет кулдаун, бьёт/лечит/вешает статус.
+ * Реестр — в `campaign.json` (meta.abilities); НПС получают `abilities: [id…]`.
+ */
+export interface AbilityDef {
+  id: string
+  label: string
+  description?: string
+  mp_cost: number
+  /** кулдаун в раундах (по умолчанию 0) */
+  cooldown_rounds?: number
+  /** дальность в гексах (1 = вплотную) */
+  range: number
+  /** навык попадания; нет — гарантированное применение */
+  skill?: string
+  kind: 'damage' | 'status' | 'heal'
+  /** для kind 'damage', напр. '1d6+2' (бонус силы НЕ добавляется) */
+  damage?: string
+  /** для kind 'status' */
+  status?: string
+  status_duration?: number
+  /** для kind 'heal', напр. '1d6' */
+  heal?: string
+}
+
 export interface CurrencyDef {
   id: string
   label: string
@@ -243,6 +270,8 @@ export interface CampaignMeta {
   needs: NeedDef[]
   /** реестр статусов: яды, кровотечения, баффы (блок 5 ТЗ) */
   statuses?: StatusDef[]
+  /** реестр боевых способностей (блок 6 ТЗ) */
+  abilities?: AbilityDef[]
   /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
   dice_rules?: DiceRules
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
@@ -584,6 +613,10 @@ export interface NpcDef {
   armor?: number
   /** природное оружие (когти, укус) — если нет equipment.weapon */
   natural_weapon?: WeaponData
+  /** боевые способности (список id из реестра кампании; блок 6 ТЗ) */
+  abilities?: string[]
+  /** мораль: при каком % HP и с каким шансом враг может сбежать (блок 6 ТЗ) */
+  morale?: { below_hp_pct: number; flee_chance: number }
   /** звуки взаимодействий (хук → id звука реестра кампании) */
   sounds?: SoundHookMap
 }
