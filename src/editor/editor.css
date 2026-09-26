@@ -778,3 +778,11 @@
 }
 .reg-picker-item:hover { background: var(--panel-2); color: var(--gold-bright); }
 .reg-picker-row.on .reg-picker-item { color: var(--gold); font-weight: 600; }
+
+/* вкладка «Оформление» (блок 2 ТЗ): шрифты и предпросмотр */
+.theme-font-row { padding: 10px; border: 1px dashed var(--border); }
+.theme-role { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 10px; flex-wrap: wrap; }
+.theme-role .fld { min-width: 260px; }
+.font-sample { flex: 1; min-width: 240px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); font-size: 14px; }
+.font-sample-display { font-size: 20px; font-weight: bold; }
+.font-sample-hand { font-size: 16px; font-style: italic; }

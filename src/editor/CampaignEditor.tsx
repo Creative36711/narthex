@@ -1,12 +1,12 @@
 import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { EditorStore } from './store'
-import { JsonField } from './Fields'
+import { AssetUpload, JsonField } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { CampaignFeatures, DiceRules, NeedCondition, TimeOfDay } from '../shared/types'
+import type { CampaignFeatures, CampaignMeta, DiceRules, FontDef, NeedCondition, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { BUILTIN_SLOT_TYPES } from './slotTypes'
 import { askText } from './prompt'
@@ -292,6 +292,257 @@ function NeedCondEditor({
   )
 }
 
+/** роли шрифтов темы: подпись и образец для предпросмотра */
+const FONT_ROLES: Array<{ key: 'body' | 'display' | 'hand'; label: string; sample: string; cls: string }> = [
+  { key: 'body', label: 'Основной текст', sample: 'Съешь же ещё этих мягких французских булок, да выпей чаю.', cls: 'font-sample-body' },
+  { key: 'display', label: 'Заголовки', sample: 'Пепел Каэрдена', cls: 'font-sample-display' },
+  { key: 'hand', label: 'Рукописный (журнал, записки)', sample: 'День третий. Дождь не утихает…', cls: 'font-sample-hand' },
+]
+
+/** живой предпросмотр шрифта: ставит временный @font-face и показывает образец */
+function FontSample({ store, fontId, meta, role }: { store: EditorStore; fontId: string; meta: CampaignMeta; role: (typeof FONT_ROLES)[number] }) {
+  const [family, setFamily] = useState<string | null>(null)
+  const font = (meta.fonts ?? []).find((f) => f.id === fontId)
+  useEffect(() => {
+    if (!font?.src) {
+      setFamily(null)
+      return
+    }
+    const fam = `cf-preview-${font.id}`
+    const el = document.createElement('style')
+    el.textContent = `@font-face { font-family: '${fam}'; src: url('${store.assetSrc(font.src)}'); font-weight: ${font.weight || '400'}; font-style: ${font.style || 'normal'}; font-display: swap; }`
+    document.head.appendChild(el)
+    setFamily(fam)
+    return () => {
+      document.head.removeChild(el)
+    }
+  }, [font?.src, font?.weight, font?.style, store])
+  const theme = meta.theme ?? {}
+  const assigned = theme.fonts?.[role.key]
+  return (
+    <div className={`font-sample ${role.cls}`}>
+      <span className="muted small">{role.label}: </span>
+      {assigned && family ? (
+        <span style={{ fontFamily: `'${family}', Georgia, serif` }}>{role.sample}</span>
+      ) : assigned ? (
+        <span className="muted">{role.sample}</span>
+      ) : (
+        <span className="muted small">— системный шрифт —</span>
+      )}
+    </div>
+  )
+}
+
+/** вкладка «Оформление»: шрифты, фон меню/финала, акцент (блок 2 ТЗ) */
+function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorStore; commit: () => void }) {
+  const fonts = meta.fonts ?? (meta.fonts = [])
+  const theme = meta.theme ?? (meta.theme = {})
+  const fontOpts = fonts.map((f) => ({ id: f.id, label: f.label || f.id }))
+
+  const setFont = (patch: Partial<NonNullable<CampaignMeta['theme']>['fonts'] & object>) => {
+    theme.fonts = { ...(theme.fonts ?? {}), ...patch }
+    commit()
+  }
+
+  return (
+    <>
+      <div className="props-group">
+        <h4>Шрифты кампании</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Загруженные шрифты применяются ко всей игре: диалогам, панелям, меню. Редактор остаётся
+          в фирменном стиле. Лучше всего подходят форматы <b>woff2/woff</b> — они весят меньше.
+        </div>
+        {fonts.map((f, i) => (
+          <div key={f.id} className="props-group theme-font-row">
+            <div className="fld-row">
+              <label className="fld">
+                <span>Название</span>
+                <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
+              </label>
+              <label className="fld">
+                <span>Начертание</span>
+                <select
+                  value={f.weight || '400'}
+                  onChange={(e) => {
+                    if (e.target.value === '400') delete f.weight
+                    else f.weight = e.target.value
+                    commit()
+                  }}
+                >
+                  <option value="400">Обычное</option>
+                  <option value="700">Жирное</option>
+                  <option value="300">Тонкое</option>
+                </select>
+              </label>
+              <label className="fld">
+                <span>Наклон</span>
+                <select
+                  value={f.style || 'normal'}
+                  onChange={(e) => {
+                    if (e.target.value === 'normal') delete f.style
+                    else f.style = e.target.value as FontDef['style']
+                    commit()
+                  }}
+                >
+                  <option value="normal">Прямой</option>
+                  <option value="italic">Курсив</option>
+                </select>
+              </label>
+            </div>
+            <AssetUpload
+              label="Файл шрифта (.woff2, .woff, .ttf, .otf)"
+              value={f.src}
+              dir="assets/fonts"
+              store={store}
+              kind="font"
+              onChange={(p) => ((f.src = p), commit())}
+            />
+            <button
+              className="btn btn-small ce-del"
+              onClick={() => {
+                fonts.splice(i, 1)
+                // снять роли, что ссылались на удалённый шрифт
+                if (theme.fonts) {
+                  for (const k of ['body', 'display', 'hand'] as const) {
+                    if (theme.fonts[k] === f.id) delete theme.fonts[k]
+                  }
+                }
+                commit()
+              }}
+            >
+              <Ico n="trash" />  Удалить шрифт
+            </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={() => {
+            const id = makeId('font', String(fonts.length + 1), fonts.map((x) => x.id))
+            fonts.push({ id, label: 'Новый шрифт', src: '' })
+            commit()
+          }}
+        >
+          <Ico n="plus" />  Добавить шрифт
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Куда какой шрифт</h4>
+        {FONT_ROLES.map((role) => (
+          <div key={role.key} className="theme-role">
+            <label className="fld">
+              <span>{role.label}</span>
+              <select value={theme.fonts?.[role.key] ?? ''} onChange={(e) => setFont({ [role.key]: e.target.value || undefined })}>
+                <option value="">Системный (по умолчанию)</option>
+                {fontOpts.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <FontSample store={store} fontId={theme.fonts?.[role.key] ?? ''} meta={meta} role={role} />
+          </div>
+        ))}
+      </div>
+
+      <div className="props-group">
+        <h4>Главное меню</h4>
+        <AssetUpload
+          label="Фоновая картинка меню"
+          value={theme.menu?.background ?? ''}
+          dir="assets/img"
+          store={store}
+          onChange={(p) => {
+            theme.menu = { ...(theme.menu ?? {}), background: p || undefined }
+            commit()
+          }}
+        />
+        <div className="fld-row">
+          <label className="fld" data-tip="Чем темнее фон, тем читаемее текст поверх картинки">
+            <span>Затемнение фона</span>
+            <input
+              type="range"
+              min={0}
+              max={0.9}
+              step={0.05}
+              value={theme.menu?.dim ?? 0.5}
+              onChange={(e) => {
+                theme.menu = { ...(theme.menu ?? {}), dim: Number(e.target.value) }
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld fld-check">
+            <input
+              type="checkbox"
+              checked={!!theme.menu?.ken_burns}
+              onChange={(e) => {
+                theme.menu = { ...(theme.menu ?? {}), ken_burns: e.target.checked || undefined }
+                commit()
+              }}
+            />
+            <span>Медленный зум фона («кен-бёрнс»)</span>
+          </label>
+        </div>
+        <AssetUpload
+          label="Арт-заголовок кампании (лого над названием, необязательно)"
+          value={theme.menu?.title_art ?? ''}
+          dir="assets/img"
+          store={store}
+          onChange={(p) => {
+            theme.menu = { ...(theme.menu ?? {}), title_art: p || undefined }
+            commit()
+          }}
+        />
+      </div>
+
+      <div className="props-group">
+        <h4>Экран финала</h4>
+        <AssetUpload
+          label="Фон экрана победы/смерти (нет — возьмётся фон меню)"
+          value={theme.end?.background ?? ''}
+          dir="assets/img"
+          store={store}
+          onChange={(p) => {
+            theme.end = { background: p || undefined }
+            if (!theme.end.background) delete theme.end
+            commit()
+          }}
+        />
+      </div>
+
+      <div className="props-group">
+        <h4>Акцентный цвет</h4>
+        <div className="fld-row">
+          <label className="fld" data-tip="Заменяет золотой акцент интерфейса. Не меняйте на слишком тёмный — пропадёт контраст.">
+            <span>Цвет кнопок, рамок и подсветок</span>
+            <input
+              type="color"
+              value={theme.accent ?? '#c9a45c'}
+              onChange={(e) => {
+                theme.accent = e.target.value
+                commit()
+              }}
+            />
+          </label>
+          {theme.accent && (
+            <button
+              className="btn btn-small"
+              onClick={() => {
+                delete theme.accent
+                commit()
+              }}
+            >
+              Вернуть золото по умолчанию
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 export function CampaignEditor({ store }: { store: EditorStore }) {
   const m = store.meta
   // дефолты для необязательных полей (без touch — просто нормализация)
@@ -307,7 +558,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
     store.touch('campaign.json')
     force((n) => n + 1)
   }
-  type CeTab = 'main' | 'mechanics' | 'people' | 'items' | 'flags' | 'audio' | 'json'
+  type CeTab = 'main' | 'mechanics' | 'look' | 'people' | 'items' | 'flags' | 'audio' | 'json'
   const [tab, setTab] = useState<CeTab>('main')
 
   const sceneOpts = store.options('scene')
@@ -318,7 +569,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
   return (
     <div className="rule-editor">
       <div className="ce-tabs">
-        {([['main', 'Основное'], ['mechanics', 'Механики'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
+        {([['main', 'Основное'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
           <button key={id} type="button" className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
             {lab}
           </button>
@@ -353,6 +604,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           })}
         </div>
       )}
+
+      {tab === 'look' && <ThemeTab meta={m} store={store} commit={commit} />}
 
       {tab === 'main' && (
         <>

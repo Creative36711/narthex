@@ -90,6 +90,15 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
 - **`dice_rules`** — пороги d100 («щедрые» по умолчанию: крит ≤ навык/5,
   особый ≤ навык/2, провал 96–100; классика BRP: /20, /5, 96–100 при навыке
   < `fumble_low_skill`).
+- **Шрифты и оформление** (необязательно). `fonts` — реестр шрифтов кампании:
+  `{ "id": "font_gothic", "label": "Готика", "src": "assets/fonts/gothic.woff2",
+  "weight": "400" }`. `theme` — куда они применяются и как выглядит меню:
+  `"theme": { "fonts": { "body": "font_gothic" },
+  "menu": { "background": "assets/img/menu.jpg", "dim": 0.5, "ken_burns": true } }`.
+  Роли шрифтов: `body` (текст), `display` (заголовки), `hand` (журнал);
+  у меню — фон, затемнение `dim` 0…0.9, медленный зум `ken_burns`,
+  `title_art` (лого кампании); `theme.end.background` — фон экрана финала;
+  `theme.accent` — акцентный цвет интерфейса. Без `theme` всё по умолчанию.
 - **Реестры** (`skills`, `item_categories`, `flags`, `factions`, `slot_types`)
   нужны редактору для списков. Флаги вне реестра всё равно работают, но
   добавь их — мастеру будет понятнее.

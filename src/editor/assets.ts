@@ -11,7 +11,7 @@ import { showAlert } from '../shared/modals'
 import { isExternalUrl } from '../core/loader'
 import type { EditorStore } from './store'
 
-export type AssetKind = 'image' | 'audio' | 'video' | 'any'
+export type AssetKind = 'image' | 'audio' | 'video' | 'font' | 'any'
 
 export interface UrlCheck {
   /** файл вообще открывается (картинка/звук грузится в браузере) */
@@ -55,6 +55,26 @@ export function checkExternalUrl(url: string, kind: AssetKind = 'any'): Promise<
   return new Promise((resolve) => {
     if (!isExternalUrl(url)) {
       resolve({ ok: false, cors: false, message: 'Это не внешняя ссылка' })
+      return
+    }
+    // шрифт как медиа не загрузишь — проверяем обычным fetch (для @font-face
+    // с чужого домена всё равно нужен CORS)
+    if (kind === 'font') {
+      void fetch(url, { mode: 'cors' })
+        .then((res) =>
+          finish(
+            res.ok
+              ? { ok: true, cors: true, message: 'Шрифт доступен, его можно вшить в пакет.' }
+              : { ok: false, cors: false, message: `Сервер ответил ${res.status} — шрифт не загрузится.` },
+          ),
+        )
+        .catch(() =>
+          finish({
+            ok: true,
+            cors: false,
+            message: 'Проверить не удалось (сервер не отдаёт CORS): шрифт может не загрузиться, надёжнее вшить файл в пакет.',
+          }),
+        )
       return
     }
     // YouTube — особый случай: как <video> его не проверить (это страница),

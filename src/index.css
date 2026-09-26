@@ -1366,3 +1366,38 @@ input[type='checkbox'], input[type='radio'] {
 /* жетоны в бою: движение — прицел, живой враг — меч (не «менюшная» рука) */
 .token { cursor: var(--cur-cross); }
 .token-enemy:not(.token-dead) { cursor: var(--cur-sword); }
+
+/* ─── тема кампании (блок 2 ТЗ «Гибкий движок»): только Player Mode ─── */
+.cf-themed {
+  font-family: var(--cf-font-body, Georgia, 'Times New Roman', serif);
+  font-size: calc(100% * var(--cf-text-scale, 1));
+}
+.cf-themed h1, .cf-themed h2, .cf-themed h3, .cf-themed h4,
+.cf-themed .campaign-title, .cf-themed .scene-location, .cf-themed .hud-time {
+  font-family: var(--cf-font-display, var(--cf-font-body, Georgia, 'Times New Roman', serif));
+}
+/* «рукописная» роль — журнал квестов и событий */
+.cf-themed .quest-journal, .cf-themed .log-list, .cf-themed .end-reason {
+  font-family: var(--cf-font-hand, var(--cf-font-body, Georgia, 'Times New Roman', serif));
+}
+
+/* фон главного меню: картинка + затемнение + медленный зум */
+.main-menu { position: relative; overflow: hidden; }
+.menu-bg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; z-index: 0; pointer-events: none;
+}
+.menu-bg.ken-burns { animation: cf-ken-burns 40s ease-in-out infinite alternate; }
+@keyframes cf-ken-burns {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.12) translate(-1.5%, -1%); }
+}
+.menu-dim { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: rgba(8, 6, 4, 0.5); }
+.main-menu.with-bg { background: var(--bg); }
+.main-menu.with-bg > .main-menu-inner, .main-menu.with-bg > .campaigns-overlay { position: relative; z-index: 2; }
+.menu-title-art { max-width: min(420px, 80%); margin: 0 auto 18px; display: block; filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6)); }
+
+/* фон экрана финала — поверх затемнения оверлея */
+.end-overlay { position: relative; }
+.end-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; opacity: 0.5; }
+.end-overlay > .end-panel { position: relative; z-index: 1; }

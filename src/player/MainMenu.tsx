@@ -6,6 +6,8 @@ import { SettingsPanel } from '../shared/SettingsPanel'
 import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
 import { setAudioCampaign } from '../shared/audio'
 import { refreshMusic, setMenuMode } from '../shared/music'
+import { themeBackgroundUrl } from '../shared/theme'
+import { assetUrl } from '../core/loader'
 
 interface Props {
   campaign: CampaignData
@@ -53,13 +55,31 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
     }
   }
 
+  // тема кампании (блок 2 ТЗ): фон меню, затемнение, кен-бёрнс, арт-заголовок
+  const menuBg = themeBackgroundUrl(campaign, 'menu')
+  const menuTheme = m.theme?.menu
+
   return (
-    <div className="main-menu">
+    <div className={`main-menu ${menuBg ? 'with-bg' : ''}`}>
+      {menuBg && (
+        <>
+          <img
+            className={`menu-bg ${menuTheme?.ken_burns ? 'ken-burns' : ''}`}
+            src={menuBg}
+            alt=""
+            draggable={false}
+          />
+          <div className="menu-dim" style={{ background: `rgba(8, 6, 4, ${menuTheme?.dim ?? 0.5})` }} />
+        </>
+      )}
       <div className="main-menu-inner">
         <div className="brand">CHRONICLE FORGE</div>
         <div className="brand-sub">движок тактических визуальных новелл</div>
 
         <div className="campaign-current">
+          {menuTheme?.title_art && (
+            <img className="menu-title-art" src={assetUrl(campaign, menuTheme.title_art)} alt={m.title} draggable={false} />
+          )}
           <h1 className="campaign-title">{m.title}</h1>
           <p className="campaign-desc">{m.description}</p>
           <div className="menu-buttons">

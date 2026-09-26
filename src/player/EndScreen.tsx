@@ -1,5 +1,6 @@
 import type { GameEngine } from '../core/engine'
 import { dayNumber } from '../core/time'
+import { themeBackgroundUrl } from '../shared/theme'
 
 interface Props {
   engine: GameEngine
@@ -13,9 +14,11 @@ export function EndScreen({ engine, onRestart, onExitToMenu }: Props) {
   if (!go) return null
   const s = engine.state
   const isDeath = go.type === 'death'
+  const endBg = themeBackgroundUrl(engine.campaign, 'end')
 
   return (
     <div className={`overlay end-overlay ${isDeath ? 'death' : 'victory'}`}>
+      {endBg && <img className="end-bg" src={endBg} alt="" draggable={false} />}
       <div className="end-panel">
         <h1>{isDeath ? 'Забег окончен' : 'Победа'}</h1>
         <p className="end-reason">{go.reason}</p>

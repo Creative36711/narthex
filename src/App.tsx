@@ -8,6 +8,8 @@ import { HelpPanel } from './player/HelpPanel'
 import { fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
 import { setAudioCampaign, playUi, unlockAudio } from './shared/audio'
 import { setMusicCampaign, refreshMusic } from './shared/music'
+import { injectCampaignFonts, themeVars } from './shared/theme'
+import { useSettings } from './shared/settings'
 
 /** встроенная кампания-пример; выбор запоминается между сессиями */
 const DEFAULT_CAMPAIGN = 'ash-of-caerden'
@@ -25,6 +27,7 @@ export default function App() {
   const [editor, setEditor] = useState(() => window.location.hash === '#editor')
   const [help, setHelp] = useState(false)
   const [, setTickState] = useState(0)
+  const settings = useSettings()
 
   useEffect(() => {
     fetchCampaignIndex().then((idx) => {
@@ -40,6 +43,7 @@ export default function App() {
         setCampaign(c)
         setAudioCampaign(c)
         setMusicCampaign(c) // фоновая музыка меню звучит ещё до старта забега
+        injectCampaignFonts(c) // тема кампании: свои шрифты (блок 2 ТЗ)
       })
       .catch((e) => {
         // выбранная кампания могла исчезнуть — откат на встроенную
@@ -114,9 +118,12 @@ export default function App() {
     )
   }
 
+  // тема кампании (блок 2 ТЗ): шрифтовые роли/акцент — только у Player Mode
+  const themeStyle = themeVars(campaign, settings.text_scale)
+
   if (!engine) {
     return (
-      <>
+      <div className="cf-themed" style={themeStyle}>
         <MainMenu
           campaign={campaign}
           campaigns={campaigns}
@@ -153,15 +160,17 @@ export default function App() {
           onHelp={() => setHelp(true)}
         />
         {help && <HelpPanel onClose={() => setHelp(false)} />}
-      </>
+      </div>
     )
   }
 
   return (
-    <GameView
-      engine={engine}
-      onRestart={() => setEngine(engine.restart())}
-      onExitToMenu={() => setEngine(null)}
-    />
+    <div className="cf-themed" style={themeStyle}>
+      <GameView
+        engine={engine}
+        onRestart={() => setEngine(engine.restart())}
+        onExitToMenu={() => setEngine(null)}
+      />
+    </div>
   )
 }

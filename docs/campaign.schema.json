@@ -561,6 +561,100 @@
       "additionalProperties": false,
       "description": "Профиль механик кампании (блок 1 ТЗ «Гибкий движок»). Каждое поле —\nвыключатель подсистемы; ОТСУТСТВУЮЩЕЕ поле (или весь `features`) означает,\nчто механика ВКЛЮЧЕНА — старые кампании работают без изменений.\nТумблеры скрывают подсистему и в движке, и в интерфейсе игрока."
     },
+    "FontDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "src": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "string",
+          "description": "начертание для"
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "italic"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "src"
+      ],
+      "additionalProperties": false,
+      "description": "Шрифт кампании (блок 2 ТЗ «Гибкий движок»): файл пакета (обычно\n`assets/fonts/…`) или внешняя ссылка. Подключается `@font-face` на лету."
+    },
+    "ThemeDoc": {
+      "type": "object",
+      "properties": {
+        "fonts": {
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "string",
+              "description": "основной текст: диалоги, панели, кнопки"
+            },
+            "display": {
+              "type": "string",
+              "description": "заголовки: названия сцен и панелей, меню"
+            },
+            "hand": {
+              "type": "string",
+              "description": "«рукописный»: журнал, записки, кодекс"
+            }
+          },
+          "additionalProperties": false,
+          "description": "роли шрифтов — id из `meta.fonts`; отсутствует роль — системный шрифт"
+        },
+        "menu": {
+          "type": "object",
+          "properties": {
+            "background": {
+              "type": "string",
+              "description": "фон главного меню (файл пакета или ссылка)"
+            },
+            "dim": {
+              "type": "number",
+              "description": "затемнение фона 0…0.9 для читаемости текста (по умолчанию 0.5)"
+            },
+            "ken_burns": {
+              "type": "boolean",
+              "description": "медленный зум фона («кен-бёрнс»)"
+            },
+            "title_art": {
+              "type": "string",
+              "description": "арт/лого кампании над заголовком"
+            }
+          },
+          "additionalProperties": false
+        },
+        "end": {
+          "type": "object",
+          "properties": {
+            "background": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "фон экрана финала; нет — используется фон меню"
+        },
+        "accent": {
+          "type": "string",
+          "description": "акцентный цвет интерфейса (заменяет золото темы)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Тема оформления кампании (блок 2 ТЗ). Применяется ТОЛЬКО к Player Mode;\nредактор остаётся в фирменном стиле. Палитра переопределяется ограниченно —\nтолько акцентный цвет, чтобы мастер не сломал контрасты."
+    },
     "CharCreationDef": {
       "type": "object",
       "properties": {
@@ -797,6 +891,17 @@
         "features": {
           "$ref": "#/$defs/CampaignFeatures",
           "description": "профиль механик: что включено в этой кампании (нет поля — всё включено)"
+        },
+        "fonts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FontDef"
+          },
+          "description": "реестр шрифтов кампании (блок 2 ТЗ)"
+        },
+        "theme": {
+          "$ref": "#/$defs/ThemeDoc",
+          "description": "тема оформления: шрифтовые роли, фон меню/финала, акцент (блок 2 ТЗ)"
         },
         "max_load_formula": {
           "const": "str_plus_siz",

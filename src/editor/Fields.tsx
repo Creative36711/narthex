@@ -529,7 +529,14 @@ export function AssetUpload({
   const [url, setUrl] = useState('')
   const [check, setCheck] = useState<UrlCheck | null>(null)
   const [checking, setChecking] = useState(false)
-  const accept = kind === 'audio' ? 'audio/*' : kind === 'video' ? 'video/*' : 'image/*'
+  const accept =
+    kind === 'audio'
+      ? 'audio/*'
+      : kind === 'video'
+        ? 'video/*'
+        : kind === 'font'
+          ? '.woff2,.woff,.ttf,.otf'
+          : 'image/*'
 
   const pick = async (file: File) => {
     setBusy(true)
@@ -563,6 +570,8 @@ export function AssetUpload({
         {value ? (
           kind === 'audio' ? (
             <audio className="asset-preview-audio" src={assetSrc(store, value)} controls />
+          ) : kind === 'font' ? (
+            <div className="img-upload-empty">файл шрифта</div>
           ) : (
             <img className="img-upload-preview" src={assetSrc(store, value)} alt="" />
           )

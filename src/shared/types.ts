@@ -148,6 +148,50 @@ export function featureOn(meta: CampaignMeta, key: keyof CampaignFeatures): bool
   return meta.features?.[key] !== false
 }
 
+/**
+ * Шрифт кампании (блок 2 ТЗ «Гибкий движок»): файл пакета (обычно
+ * `assets/fonts/…`) или внешняя ссылка. Подключается `@font-face` на лету.
+ */
+export interface FontDef {
+  id: string
+  label: string
+  src: string // .woff2/.woff/.ttf/.otf
+  /** начертание для @font-face (например '400', '700'); по умолчанию '400' */
+  weight?: string
+  style?: 'normal' | 'italic'
+}
+
+/**
+ * Тема оформления кампании (блок 2 ТЗ). Применяется ТОЛЬКО к Player Mode;
+ * редактор остаётся в фирменном стиле. Палитра переопределяется ограниченно —
+ * только акцентный цвет, чтобы мастер не сломал контрасты.
+ */
+export interface ThemeDoc {
+  /** роли шрифтов — id из `meta.fonts`; отсутствует роль — системный шрифт */
+  fonts?: {
+    /** основной текст: диалоги, панели, кнопки */
+    body?: string
+    /** заголовки: названия сцен и панелей, меню */
+    display?: string
+    /** «рукописный»: журнал, записки, кодекс */
+    hand?: string
+  }
+  menu?: {
+    /** фон главного меню (файл пакета или ссылка) */
+    background?: string
+    /** затемнение фона 0…0.9 для читаемости текста (по умолчанию 0.5) */
+    dim?: number
+    /** медленный зум фона («кен-бёрнс») */
+    ken_burns?: boolean
+    /** арт/лого кампании над заголовком */
+    title_art?: string
+  }
+  /** фон экрана финала; нет — используется фон меню */
+  end?: { background?: string }
+  /** акцентный цвет интерфейса (заменяет золото темы) */
+  accent?: string
+}
+
 export interface CampaignMeta {
   id: string
   title: string
@@ -189,6 +233,10 @@ export interface CampaignMeta {
   combat_music?: string[]
   /** профиль механик: что включено в этой кампании (нет поля — всё включено) */
   features?: CampaignFeatures
+  /** реестр шрифтов кампании (блок 2 ТЗ) */
+  fonts?: FontDef[]
+  /** тема оформления: шрифтовые роли, фон меню/финала, акцент (блок 2 ТЗ) */
+  theme?: ThemeDoc
   /** максимальный груз в кг: STR + SIZ (по умолчанию) */
   max_load_formula?: 'str_plus_siz'
   max_companions?: number
