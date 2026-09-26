@@ -10,7 +10,8 @@
     "audit:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
     "lint": "oxlint",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "smoke:currency": "tsx scripts/currency-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

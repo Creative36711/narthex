@@ -108,9 +108,9 @@ dialogues/<имя>.ink           исходник, который читает �
   "time_of_day": { "morning": 6, "day": 10, "evening": 18, "night": 22 },
   "starting_region": "region_valley", "starting_location": "loc_town",
   "starting_scene": "scene_tavern", "starting_tick": 8,
-  "needs": [ … ], "currencies": [ { "id": "item_silver", "label": "Серебро", "symbol": "SM" } ],
+  "needs": [ … ], "currencies": [ { "id": "silver", "label": "Серебро", "symbol": "SM", "item_id": "item_silver" } ],
   "skills": [ { "id": "persuade", "label": "Убеждение" } ],
-  "item_categories": [ { "id": "food", "label": "Еда", "restores_needs": ["need_hunger"] } ],
+  "item_categories": [ { "id": "food", "label": "Еда", "restores_needs": ["need_hunger"] }, { "id": "currency", "label": "Валюта" } ],
   "slot_types": [], "flags": [ { "id": "met_guard", "label": "Поговорил с караульным" } ],
   "factions": [ { "id": "faction_guild", "label": "Гильдия", "base_disposition": 0, "description": "Торговое объединение города." } ],
   "default_player": "player_hero",
@@ -128,6 +128,11 @@ dialogues/<имя>.ink           исходник, который читает �
   «не в одной из», `{ "type": "has_item", "items": ["item_cloak", "item_fur"],
   "not": true }` — «нет ни одного из». Пример «Тепло»: убывает вечером/ночью,
   если нет плаща ИЛИ шубы и герой не в таверне/казарме/храме.
+- **`currencies`**: `id` — ключ валюты, по нему задаются цены в `value`;
+  `item_id` — id предмета-монеты в `entities`, и именно его количество в
+  инвентаре образует доступный баланс. Если `item_id` опущен в старой кампании,
+  движок использует соглашение `item_<id>`. Например, `id: "silver"` и
+  `item_id: "item_silver"`; не путай идентификатор валюты с предметом-монетой.
 - **`dice_rules`** — пороги d100 («щедрые» по умолчанию: крит ≤ навык/5,
   особый ≤ навык/2, провал 96–100; классика BRP: /20, /5, 96–100 при навыке
   < `fumble_low_skill`).
@@ -297,7 +302,7 @@ dialogues/<имя>.ink           исходник, который читает �
   "id": "item_bread", "type": "item", "category": "food",
   "label": "Хлеб", "description": "Тёплый каравай.", "image": "",
   "weight": 0.3, "stackable": true,
-  "value": { "item_silver": 2 },
+  "value": { "silver": 2 },
   "on_use": { "effects": [ { "type": "change_need", "need": "need_hunger", "delta": 25 } ], "consume": true }
 }
 ```
@@ -856,9 +861,9 @@ dialogues/<имя>.ink           исходник, который читает �
     "starting_region": "region_tract", "starting_location": "loc_road",
     "starting_scene": "scene_road", "starting_tick": 10,
     "needs": [ { "id": "need_hunger", "label": "Голод", "max": 100, "decay_per_tick": 1, "critical_threshold": 20 } ],
-    "currencies": [ { "id": "item_silver", "label": "Серебро", "symbol": "SM" } ],
+    "currencies": [ { "id": "silver", "label": "Серебро", "symbol": "SM", "item_id": "item_silver" } ],
     "skills": [ { "id": "persuade", "label": "Убеждение" }, { "id": "brawl", "label": "Кулачный бой" } ],
-    "item_categories": [ { "id": "food", "label": "Еда", "restores_needs": ["need_hunger"] } ],
+    "item_categories": [ { "id": "food", "label": "Еда", "restores_needs": ["need_hunger"] }, { "id": "currency", "label": "Валюта" } ],
     "flags": [ { "id": "bandits_cleared", "label": "Разбойники усмирены" } ],
     "factions": [],
     "default_player": "player_hero",
@@ -928,12 +933,12 @@ dialogues/<имя>.ink           исходник, который читает �
     "item_bread": {
       "id": "item_bread", "type": "item", "category": "food", "label": "Хлеб",
       "description": "Присыхает, но спасает от голода.", "image": "",
-      "weight": 0.3, "stackable": true, "value": { "item_silver": 2 },
+      "weight": 0.3, "stackable": true, "value": { "silver": 2 },
       "on_use": { "effects": [ { "type": "change_need", "need": "need_hunger", "delta": 30 } ], "consume": true }
     },
     "item_silver": {
-      "id": "item_silver", "type": "item", "category": "quest", "label": "Серебряная марка",
-      "description": "Монета.", "image": "", "weight": 0.01, "stackable": true
+      "id": "item_silver", "type": "item", "category": "currency", "label": "Серебряная марка",
+      "description": "Монета.", "image": "", "weight": 0.01, "stackable": true, "value": { "silver": 1 }
     }
   },
   "rules": {

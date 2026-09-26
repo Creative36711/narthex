@@ -4,7 +4,7 @@ import type { CampaignManifest, MonolithDoc } from '../src/shared/types'
 import { campaignFromMonolith } from '../src/editor/playtest'
 
 const root = 'public/campaigns/ash-of-caerden/'
-const read = <T>(path: string): T => JSON.parse(readFileSync(root + path, 'utf8')) as T
+const read = <T,>(path: string): T => JSON.parse(readFileSync(root + path, 'utf8')) as T
 const manifest = read<CampaignManifest>('manifest.json')
 const collect = <T extends { id: string }>(folder: string, files: string[] = []) => Object.fromEntries(files.map((file) => { const value = read<T>(`${folder}/${file}`); return [value.id, value] }))
 const encounters: Record<string, any> = {}

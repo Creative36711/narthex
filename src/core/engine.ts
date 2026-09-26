@@ -81,6 +81,8 @@ export class GameEngine {
     if (state) {
       this.state = state
       this.rng = new PRNG(state.seed)
+      // Старые сейвы дублировали баланс в currencies; inventory — единственный источник.
+      delete this.state.player.currencies
       // миграция сейвов ≤ v2: экипировка из шаблона персонажа
       if (!this.state.player.equipment) {
         const def = this.campaign.entities[this.state.player.entity] as NpcDef | undefined
@@ -118,8 +120,6 @@ export class GameEngine {
     const mp = stats.MP ?? derivedMP(stats)
     const needs: Record<string, number> = {}
     for (const n of meta.needs) needs[n.id] = n.max
-    const currencies: Record<string, number> = {}
-    for (const c of meta.currencies) currencies[c.id] = 0
 
     const player: PlayerState = {
       entity: playerDef.id,
@@ -132,7 +132,6 @@ export class GameEngine {
       max_mp: mp,
       needs,
       inventory: (playerDef.inventory ?? []).map((i) => ({ ...i })),
-      currencies,
       equipment: { ...(playerDef.equipment ?? {}) },
     }
 
@@ -734,6 +733,17 @@ export class GameEngine {
     return this.campaign.meta.currencies[0]?.id ?? 'silver'
   }
 
+  /** id предмета-монеты, который является единственным источником баланса */
+  currencyItemId(currencyId = this.mainCurrency): string {
+    const currency = this.campaign.meta.currencies.find((c) => c.id === currencyId)
+    return currency?.item_id || `item_${currencyId}`
+  }
+
+  /** Баланс валюты читается из инвентаря, а не из устаревшего поля сохранения. */
+  currencyAmount(currencyId = this.mainCurrency): number {
+    return this.itemCount(this.currencyItemId(currencyId))
+  }
+
   buyPrice(npc: NpcDef, itemId: string, basePrice?: number): number {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
     const base = basePrice ?? item?.value?.[this.mainCurrency] ?? 1
@@ -748,8 +758,9 @@ export class GameEngine {
   }
 
   buyItem(itemId: string, price: number): boolean {
-    if (this.itemCount('item_silver') < price) return false
-    this.removeItem('item_silver', price)
+    const currencyItem = this.currencyItemId()
+    if (this.itemCount(currencyItem) < price) return false
+    this.removeItem(currencyItem, price)
     this.addItem(itemId, 1)
     this.markSkill('bargain')
     playUi('coin')
@@ -760,7 +771,7 @@ export class GameEngine {
   sellItem(itemId: string, price: number): boolean {
     if (this.itemCount(itemId) < 1) return false
     this.removeItem(itemId, 1)
-    this.addItem('item_silver', price)
+    this.addItem(this.currencyItemId(), price)
     this.markSkill('bargain')
     playUi('coin')
     this.notify()

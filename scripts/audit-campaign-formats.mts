@@ -105,6 +105,26 @@ for (const campaignId of dirs) {
       moduleCount++
     }
   }
+
+  // Валюта — это denomination id в ценах, но живой баланс всегда является
+  // количеством одного предмета в инвентаре. Старым кампаниям разрешён fallback item_<id>.
+  const currencyIds = meta.currencies.map((currency: { id: string }) => currency.id)
+  assert.equal(new Set(currencyIds).size, currencyIds.length, `${campaignId}/campaign.json: id валют повторяется`)
+  const currencyItems = meta.currencies.map((currency: { id: string; item_id?: string }) => currency.item_id || `item_${currency.id}`)
+  assert.equal(new Set(currencyItems).size, currencyItems.length, `${campaignId}/campaign.json: несколько валют привязаны к одному предмету`)
+  const entityIds = new Set(moduleFiles(manifest, 'entities').map((file) => file.replace(/\.json$/, '')))
+  for (const [index, currency] of meta.currencies.entries()) {
+    const itemId = currencyItems[index]
+    assert.ok(entityIds.has(itemId), `${campaignId}/campaign.json: валюта ${currency.id} ссылается на отсутствующий предмет ${itemId}`)
+    assert.equal(store.jsonFiles.get(`entities/${itemId}.json`)?.type, 'item', `${campaignId}/campaign.json: ${itemId} должен быть предметом-монетой`)
+  }
+  for (const entityId of entityIds) {
+    const item = store.jsonFiles.get(`entities/${entityId}.json`)
+    for (const valueCurrency of Object.keys(item?.value ?? {})) {
+      assert.ok(currencyIds.includes(valueCurrency), `${campaignId}/entities/${entityId}: value содержит неизвестный id валюты ${valueCurrency}`)
+    }
+  }
+
   for (const file of moduleFiles(manifest, 'encounters')) {
     const rel = `rules/${file}`
     registerJson(rel)

@@ -9,7 +9,11 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
   const npc = engine.trade!
   const trader = npc.trader!
   const [tab, setTab] = useState<'buy' | 'sell'>('buy')
-  const silver = engine.itemCount('item_silver')
+  const currency = engine.campaign.meta.currencies[0]
+  const currencyLabel = currency?.label ?? 'Серебро'
+  const currencySymbol = currency?.symbol ?? 'SM'
+  const currencyItem = engine.currencyItemId()
+  const balance = engine.currencyAmount()
   const mod = engine.priceModifier(npc)
 
   const sellables = engine.state.player.inventory
@@ -17,8 +21,8 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
     .filter(
       (x) =>
         x.def?.type === 'item' &&
-        x.e.item !== 'item_silver' &&
-        (x.def.value?.silver ?? 0) > 0 &&
+        x.e.item !== currencyItem &&
+        (x.def.value?.[engine.mainCurrency] ?? 0) > 0 &&
         // надетое снаряжение не продаётся (сначала «Снять» в инвентаре)
         !engine.isEquipped(x.e.item),
     )
@@ -31,7 +35,7 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
           <button className="btn btn-small" onClick={() => engine.closeTrade()}><Ico n="close" /> </button>
         </div>
         <div className="trade-info">
-          <span>Ваше серебро: <b className="gold">{silver} SM</b></span>
+          <span>Ваш {currencyLabel.toLowerCase()}: <b className="gold">{balance} {currencySymbol}</b></span>
           <span className="muted small" data-tip="Зависит от репутации и навыка торговли">
             наценка ×{mod.toFixed(2)}
           </span>
@@ -53,7 +57,7 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
               const def = engine.campaign.entities[s.item] as ItemDef | undefined
               if (!def) return null
               const price = engine.buyPrice(npc, s.item, s.price)
-              const affordable = silver >= price
+              const affordable = balance >= price
               return (
                 <li key={s.item} className="inv-item">
                   <div className="inv-item-main">
@@ -62,7 +66,7 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
                     <div className="muted small">{def.description}</div>
                   </div>
                   <div className="inv-item-side">
-                    <span className="gold">{price} SM</span>
+                    <span className="gold">{price} {currencySymbol}</span>
                     <button
                       className="btn btn-small"
                       disabled={!affordable}
@@ -89,7 +93,7 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
                     {e.quantity > 1 && <span className="qty">×{e.quantity}</span>}
                   </div>
                   <div className="inv-item-side">
-                    <span className="gold">{price} SM</span>
+                    <span className="gold">{price} {currencySymbol}</span>
                     <button className="btn btn-small" disabled={price <= 0} onClick={() => engine.sellItem(e.item, price)}>
                       Продать
                     </button>

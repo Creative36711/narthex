@@ -7,7 +7,7 @@ import { damageBonus, movement } from '../core/brp'
 import { playInteraction } from '../shared/audio'
 
 /** человекочитаемое описание эффектов on_use (фидбек №7: «сколько HP лечит мазь») */
-function useEffectText(engine: GameEngine, effects: Effect[]): string {
+function describeUseEffects(engine: GameEngine, effects: Effect[]): string {
   const parts: string[] = []
   for (const e of effects) {
     if (e.type === 'change_hp') parts.push(e.delta > 0 ? `восстанавливает ${e.delta} HP` : `отнимает ${-e.delta} HP`)
@@ -54,7 +54,7 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
               {currencies.map((currency) => (
                 <div className="inventory-currency-item" key={currency.id}>
                   <span>{currency.label}</span>
-                  <b>{(engine.state.player.currencies[currency.id] ?? 0).toLocaleString('ru-RU')} {currency.symbol || currency.label}</b>
+                  <b>{engine.currencyAmount(currency.id).toLocaleString('ru-RU')} {currency.symbol || currency.label}</b>
                 </div>
               ))}
             </div>
@@ -99,8 +99,8 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                 {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
                 {engine.isEquipped(entry.item) && <span className="equipped-badge"><Ico n="check" />  надето</span>}
                 <div className="muted small">{def!.description}</div>
-                {def!.on_use && useEffectText(engine, def!.on_use.effects) && (
-                  <div className="muted small use-effect">{useEffectText(engine, def!.on_use.effects)}</div>
+                {def!.on_use && describeUseEffects(engine, def!.on_use.effects) && (
+                  <div className="muted small use-effect">{describeUseEffects(engine, def!.on_use.effects)}</div>
                 )}
                 {def!.weapon_data && (
                   <div className="muted small">

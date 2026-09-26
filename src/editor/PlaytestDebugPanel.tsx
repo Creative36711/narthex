@@ -70,7 +70,7 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
       <button className="btn btn-small" disabled={!item} onClick={() => mutate(() => engine.addItem(item, Math.max(1, amount)))}>Выдать</button>
       <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} aria-label="Количество" />
       <select value={currency} onChange={(e) => setCurrency(e.target.value)}>{engine.campaign.meta.currencies.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
-      <button className="btn btn-small" onClick={() => mutate(() => { engine.state.player.currencies[currency] = (engine.state.player.currencies[currency] ?? 0) + amount })}>Добавить валюту</button>
+      <button className="btn btn-small" onClick={() => mutate(() => engine.addItem(engine.currencyItemId(currency), Math.max(1, amount)))}>Добавить валюту</button>
     </Section>
     <Section label="Герой">
       <button className="btn btn-small" onClick={() => mutate(() => { engine.state.player.hp = engine.state.player.max_hp; engine.state.player.mp = engine.state.player.max_mp; for (const n of engine.campaign.meta.needs) engine.state.player.needs[n.id] = n.max })}>Вылечить и восстановить потребности</button>

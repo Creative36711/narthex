@@ -55,9 +55,10 @@ function scaffold(id: string, title: string, author: string) {
       { id: 'weapon', label: 'Оружие', is_weapon: true },
       { id: 'armor', label: 'Броня', is_armor: true },
       { id: 'quest', label: 'Квестовые предметы' },
+      { id: 'currency', label: 'Валюта' },
       { id: 'misc', label: 'Разное' },
     ],
-    currencies: [{ id: 'item_silver', label: 'Серебро', symbol: 'SM' }],
+    currencies: [{ id: 'silver', label: 'Серебро', symbol: 'SM', item_id: 'item_silver' }],
     factions: [],
     default_player: 'player_hero',
     max_companions: 2,
@@ -107,9 +108,19 @@ function scaffold(id: string, title: string, author: string) {
     equipment: {},
   }
 
+  const currencyItem = {
+    id: 'item_silver',
+    type: 'item',
+    category: 'currency',
+    label: 'Серебро',
+    description: 'Денежная единица кампании.',
+    weight: 0,
+    stackable: true,
+  }
+
   const manifest = {
     scenes: ['scene_start.json'],
-    entities: ['player_hero.json'],
+    entities: ['player_hero.json', 'item_silver.json'],
     rules: [],
     arenas: [],
     quests: [],
@@ -124,6 +135,7 @@ function scaffold(id: string, title: string, author: string) {
     'manifest.json': manifest,
     'scenes/scene_start.json': scene,
     'entities/player_hero.json': player,
+    'entities/item_silver.json': currencyItem,
   } as Record<string, unknown>
 }
 

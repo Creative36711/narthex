@@ -1735,13 +1735,18 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "description": "id валюты для цен и value предметов"
         },
         "label": {
           "type": "string"
         },
         "symbol": {
           "type": "string"
+        },
+        "item_id": {
+          "type": "string",
+          "description": "предмет-монета в инвентаре; старые кампании используют соглашение item_<id>"
         },
         "exchange_rate": {
           "type": "object",

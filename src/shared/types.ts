@@ -132,9 +132,12 @@ export interface AbilityDef {
 }
 
 export interface CurrencyDef {
+  /** id валюты для цен и value предметов */
   id: string
   label: string
   symbol: string
+  /** предмет-монета в инвентаре; старые кампании используют соглашение item_<id> */
+  item_id?: string
   exchange_rate?: Record<string, number>
 }
 
@@ -1316,7 +1319,8 @@ export interface PlayerState {
   max_mp: number
   needs: Record<string, number>
   inventory: InventoryEntry[]
-  currencies: Record<string, number>
+  /** устаревшее поле сохранений; актуальный баланс валют хранится в inventory как предметы-монеты */
+  currencies?: Record<string, number>
   /** экипировка игрока: слот → предмет из инвентаря (блок 7 ТЗ; слоты задаёт кампания) */
   equipment: Record<string, string>
   /** активные статусы игрока (блок 5 ТЗ); left — мировые тики */
