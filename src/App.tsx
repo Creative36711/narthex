@@ -5,6 +5,7 @@ import { GameEngine, loadSave, hasSave } from './core/engine'
 import { MainMenu } from './player/MainMenu'
 import { GameView } from './player/GameView'
 import { HelpPanel } from './player/HelpPanel'
+import { CharacterCreation } from './player/CharacterCreation'
 import { fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
 import { setAudioCampaign, playUi, unlockAudio } from './shared/audio'
 import { setMusicCampaign, refreshMusic } from './shared/music'
@@ -26,6 +27,8 @@ export default function App() {
   const [engine, setEngine] = useState<GameEngine | null>(null)
   const [editor, setEditor] = useState(() => window.location.hash === '#editor')
   const [help, setHelp] = useState(false)
+  // экран создания персонажа перед новым забегом (блок 11 ТЗ)
+  const [creating, setCreating] = useState(false)
   const [, setTickState] = useState(0)
   const settings = useSettings()
 
@@ -121,6 +124,24 @@ export default function App() {
   // тема кампании (блок 2 ТЗ): шрифтовые роли/акцент — только у Player Mode
   const themeStyle = themeVars(campaign, settings.text_scale)
 
+  if (!engine && creating && campaign.meta.char_creation) {
+    return (
+      <div className="cf-themed" style={themeStyle}>
+        <CharacterCreation
+          campaign={campaign}
+          onBack={() => setCreating(false)}
+          onStart={(choice) => {
+            const e = new GameEngine(campaign)
+            e.applyCharCreation(choice)
+            e.start()
+            setCreating(false)
+            setEngine(e)
+          }}
+        />
+      </div>
+    )
+  }
+
   if (!engine) {
     return (
       <div className="cf-themed" style={themeStyle}>
@@ -143,6 +164,10 @@ export default function App() {
           }}
           canContinue={hasSave(campaign.meta.id)}
           onNewGame={() => {
+            if (campaign.meta.char_creation) {
+              setCreating(true)
+              return
+            }
             const e = new GameEngine(campaign)
             e.start()
             setEngine(e)

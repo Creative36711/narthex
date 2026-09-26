@@ -630,6 +630,43 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
 
 Состояние — `state.codex_unlocked` (список id).
 
+## 14и. создание персонажа (блок 11 ТЗ)
+
+Если в `campaign.json` задан `char_creation`, перед новым забегом игрок видит
+экран создания персонажа; без него забег стартует шаблоном `default_player`.
+
+```json
+"char_creation": {
+  "total_points": 35,
+  "stat_limits": { "min": 3, "max": 18 },
+  "skill_points": 60,
+  "skill_cap": 75,
+  "mandatory_skills": ["dodge", "first_aid"],
+  "forbidden_skills": ["bite"],
+  "choose_name": true,
+  "professions": [
+    {
+      "id": "profession_soldier",
+      "label": "Солдат",
+      "description": "Строевая выучка и сталь в руках.",
+      "skill_bonus": { "sword": 10, "brawl": 5 },
+      "items": [{ "item": "item_gambeson", "quantity": 1 }]
+    }
+  ]
+}
+```
+
+- `total_points` — бюджет характеристик: распределяется кнопками ±, нужно
+  потратить весь; `stat_limits` — рамки каждой из семи характеристик.
+- `skill_points` / `skill_cap` — бюджет очков навыков и предел на старте
+  (оба можно опустить). `mandatory_skills` стартуют с 25 %,
+  `forbidden_skills` покупать нельзя.
+- `professions` — карточки «происхождения»: бонусы к навыкам и стартовое
+  снаряжение. Может быть пустым списком или отсутствовать.
+- `choose_name` — поле имени героя (иначе имя шаблона).
+- Кнопка «Начать забег» активна, только когда выбор полностью валиден.
+- Выбор сохраняется в сейве и переживает перезапуск забега.
+
 ## 15. Звук и музыка без файлов (SoundDoc / MusicDoc)
 
 Реестры в `campaign`:

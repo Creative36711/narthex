@@ -102,19 +102,67 @@
     }
   ],
   "char_creation": {
-    "total_points": 250,
+    "total_points": 35,
     "stat_limits": {
       "min": 3,
       "max": 18
     },
+    "skill_points": 60,
     "skill_cap": 75,
     "mandatory_skills": [
       "dodge",
       "first_aid"
     ],
-    "forbidden_skills": [],
-    "allowed_professions": [
-      "profession_soldier"
+    "forbidden_skills": [
+      "bite"
+    ],
+    "choose_name": true,
+    "professions": [
+      {
+        "id": "profession_soldier",
+        "label": "Солдат",
+        "description": "Строевая выучка, сталь в руках и стёганка в наследство.",
+        "skill_bonus": {
+          "sword": 10,
+          "brawl": 5
+        },
+        "items": [
+          {
+            "item": "item_gambeson",
+            "quantity": 1
+          }
+        ]
+      },
+      {
+        "id": "profession_scout",
+        "label": "Разведчик",
+        "description": "Тихий шаг, зоркий глаз и мазь на всякий случай.",
+        "skill_bonus": {
+          "stealth": 10,
+          "spot": 10
+        },
+        "items": [
+          {
+            "item": "item_healing_salve",
+            "quantity": 1
+          }
+        ]
+      },
+      {
+        "id": "profession_envoy",
+        "label": "Посланник",
+        "description": "Слово острее клинка, а серебро открывает двери.",
+        "skill_bonus": {
+          "persuade": 10,
+          "bargain": 10
+        },
+        "items": [
+          {
+            "item": "item_silver",
+            "quantity": 10
+          }
+        ]
+      }
     ]
   },
   "roguelike": {
@@ -369,6 +417,11 @@
       "id": "raid_rumors",
       "label": "Слухи о налёте",
       "description": "Город гудит: банда готовит удар. Лена дежурит в таверне круглосуточно."
+    },
+    {
+      "id": "tavern_chest_opened",
+      "label": "Сундук в таверне открыт",
+      "description": "Запертый сундук в зале таверны отпёрт ключом."
     }
   ],
   "music_tracks": [

@@ -138,13 +138,35 @@ export interface CurrencyDef {
   exchange_rate?: Record<string, number>
 }
 
+/** «происхождение» героя при создании персонажа (блок 11 ТЗ) */
+export interface ProfessionDef {
+  id: string
+  label: string
+  description?: string
+  /** бонусы к навыкам */
+  skill_bonus: Record<string, number>
+  /** стартовое снаряжение */
+  items?: Array<{ item: string; quantity: number }>
+}
+
+/** создание персонажа (блок 11 ТЗ); нет — забег стартует как раньше */
 export interface CharCreationDef {
+  /** бюджет характеристик */
   total_points: number
+  /** рамки каждой характеристики */
   stat_limits: { min: number; max: number }
-  skill_cap: number
-  mandatory_skills: string[]
-  forbidden_skills: string[]
-  allowed_professions: string[]
+  /** бюджет навыков (нет — без бюджета навыков) */
+  skill_points?: number
+  /** максимум навыка на старте */
+  skill_cap?: number
+  /** обязательные навыки (стартуют с 25%) */
+  mandatory_skills?: string[]
+  /** нельзя покупать */
+  forbidden_skills?: string[]
+  /** выбор «происхождения» (может быть пусто) */
+  professions?: ProfessionDef[]
+  /** ввод имени героя */
+  choose_name?: boolean
 }
 
 export interface TimeOfDayThresholds {
@@ -1182,6 +1204,8 @@ export interface RuleDef {
 
 export interface PlayerState {
   entity: string
+  /** имя героя, выбранное при создании персонажа (блок 11 ТЗ) */
+  name?: string
   stats: StatBlock
   skills: Record<string, number>
   /** «галочки» роста навыков (experience checks, ТЗ 4.3) */
@@ -1243,6 +1267,13 @@ export interface GameState {
   weather?: string
   /** разблокированные записи кодекса (блок 10 ТЗ) */
   codex_unlocked?: string[]
+  /** выбор создания персонажа (блок 11 ТЗ): имя, характеристики, навыки, профессия */
+  char_choice?: {
+    name: string
+    stats: Record<string, number>
+    profession: string
+    skills: Record<string, number>
+  }
   flags: Record<string, boolean>
   variables: Record<string, number | string>
   /** динамические описания сущностей (действие set_description) */

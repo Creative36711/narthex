@@ -1603,11 +1603,60 @@
       "additionalProperties": false,
       "description": "Тема оформления кампании (блок 2 ТЗ). Применяется ТОЛЬКО к Player Mode;\nредактор остаётся в фирменном стиле. Палитра переопределяется ограниченно —\nтолько акцентный цвет, чтобы мастер не сломал контрасты."
     },
+    "ProfessionDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "skill_bonus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "бонусы к навыкам"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "item",
+              "quantity"
+            ],
+            "additionalProperties": false
+          },
+          "description": "стартовое снаряжение"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "skill_bonus"
+      ],
+      "additionalProperties": false,
+      "description": "«происхождение» героя при создании персонажа (блок 11 ТЗ)"
+    },
     "CharCreationDef": {
       "type": "object",
       "properties": {
         "total_points": {
-          "type": "number"
+          "type": "number",
+          "description": "бюджет характеристик"
         },
         "stat_limits": {
           "type": "object",
@@ -1623,39 +1672,49 @@
             "min",
             "max"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "рамки каждой характеристики"
+        },
+        "skill_points": {
+          "type": "number",
+          "description": "бюджет навыков (нет — без бюджета навыков)"
         },
         "skill_cap": {
-          "type": "number"
+          "type": "number",
+          "description": "максимум навыка на старте"
         },
         "mandatory_skills": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "обязательные навыки (стартуют с 25%)"
         },
         "forbidden_skills": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "нельзя покупать"
         },
-        "allowed_professions": {
+        "professions": {
           "type": "array",
           "items": {
-            "type": "string"
-          }
+            "$ref": "#/$defs/ProfessionDef"
+          },
+          "description": "выбор «происхождения» (может быть пусто)"
+        },
+        "choose_name": {
+          "type": "boolean",
+          "description": "ввод имени героя"
         }
       },
       "required": [
         "total_points",
-        "stat_limits",
-        "skill_cap",
-        "mandatory_skills",
-        "forbidden_skills",
-        "allowed_professions"
+        "stat_limits"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "description": "создание персонажа (блок 11 ТЗ); нет — забег стартует как раньше"
     },
     "CampaignMeta": {
       "type": "object",

@@ -1564,7 +1564,6 @@ input[type='checkbox'], input[type='radio'] {
   background: none;
   border: none;
   color: inherit;
-  cursor: pointer;
   margin-left: 6px;
   padding: 0;
   opacity: 0.7;
@@ -1583,7 +1582,7 @@ input[type='checkbox'], input[type='radio'] {
 .codex-entry-btn {
   display: block; width: 100%; text-align: left;
   background: none; border: 1px solid transparent; border-radius: 6px;
-  color: var(--text); cursor: pointer; padding: 6px 10px; font-size: 14px;
+  color: var(--text); padding: 6px 10px; font-size: 14px;
 }
 .codex-entry-btn:hover { background: rgba(212, 175, 55, 0.08); }
 .codex-entry-btn.sel { border-color: var(--gold); background: rgba(212, 175, 55, 0.12); }
@@ -1595,3 +1594,29 @@ input[type='checkbox'], input[type='radio'] {
   .codex-body { flex-direction: column; }
   .codex-nav { width: 100%; max-height: 200px; }
 }
+
+/* ─────────────── создание персонажа (блок 11 ТЗ «Гибкий движок») ─────────────── */
+.char-create { min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 12px; }
+.char-create-inner { width: min(860px, 96vw); max-height: none; overflow-y: auto; }
+.char-name { font-size: 18px; width: 100%; }
+.char-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 18px; margin-bottom: 8px; }
+.char-stat-row { display: flex; align-items: center; gap: 8px; }
+.char-stat-key { width: 38px; font-weight: 600; cursor: help; }
+.char-stat-val { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.char-professions { display: flex; gap: 10px; flex-wrap: wrap; }
+.char-prof-card {
+  flex: 1 1 220px; max-width: 320px; text-align: left;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px 12px;
+}
+.char-prof-card:hover { border-color: var(--gold); }
+.char-prof-card.sel { border-color: var(--gold); background: rgba(212, 175, 55, 0.12); }
+.char-prof-label { font-weight: 600; margin-bottom: 4px; }
+.char-prof-bonus { color: var(--gold-bright); margin-top: 6px; }
+.char-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 18px; margin-bottom: 6px; }
+.char-skill-row { display: flex; align-items: center; gap: 8px; }
+.char-skill-name { flex: 1; }
+.char-skill-forbidden { opacity: 0.45; }
+.char-problems { color: #ff9c8a; margin: 8px 0; padding-left: 20px; }
+.char-create-foot { display: flex; justify-content: space-between; margin-top: 14px; }
+.chip-warn { border-color: rgba(255, 156, 138, 0.5); color: #ffb0a0; }

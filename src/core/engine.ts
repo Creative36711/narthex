@@ -17,6 +17,7 @@ import type {
   SceneStateDef,
   SlotDef,
   SlotUseWith,
+  StatBlock,
   StatusDef,
   TravelConnection,
   NeedCondition,
@@ -29,6 +30,7 @@ import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
+import type { CharChoice } from './charcreate'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
@@ -172,6 +174,35 @@ export class GameEngine {
     this.runLocationRules(this.state.location)
     this.autosave()
     this.notify()
+  }
+
+  /**
+   * Применить выбор с экрана создания персонажа (блок 11 ТЗ) к шаблону
+   * `default_player`: имя, характеристики (с пересчётом производных),
+   * навыки, снаряжение профессии. Вызывается ДО `start()` на новом забеге.
+   */
+  applyCharCreation(choice: CharChoice): void {
+    const creation = this.campaign.meta.char_creation
+    if (!creation) return
+    const s = this.state
+    const profession = creation.professions?.find((p) => p.id === choice.profession)
+    const name = choice.name.trim()
+    if (name) s.player.name = name
+    // характеристики: только семь базовых, производные пересчитываются
+    const stats = { ...choice.stats } as unknown as StatBlock
+    delete stats.HP
+    delete stats.MP
+    s.player.stats = stats
+    s.player.max_hp = derivedHP(stats)
+    s.player.hp = s.player.max_hp
+    s.player.max_mp = derivedMP(stats)
+    s.player.mp = s.player.max_mp
+    // навыки: итоговые значения с экрана (база + покупки + бонусы профессии)
+    s.player.skills = { ...choice.skills }
+    // снаряжение профессии
+    for (const it of profession?.items ?? []) this.addItem(it.item, it.quantity)
+    s.char_choice = JSON.parse(JSON.stringify(choice))
+    this.pushLog(`${name || 'Герой'}: забег начинается.`)
   }
 
   // ─────────────── катсцены (итерация 8, блок E) ───────────────
@@ -1426,6 +1457,8 @@ export class GameEngine {
   restart(): GameEngine {
     deleteSave(this.campaign.meta.id)
     const fresh = new GameEngine(this.campaign)
+    // выбор создания персонажа переживает перезапуск забега (блок 11 ТЗ)
+    if (this.state.char_choice) fresh.applyCharCreation(this.state.char_choice)
     fresh.start()
     return fresh
   }

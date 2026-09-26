@@ -58,7 +58,7 @@
       "id": "slot_chest",
       "label": "Запертый сундук",
       "type": [
-        "item"
+        "container"
       ],
       "shape": "rect",
       "x": 950,

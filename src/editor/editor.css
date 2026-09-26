@@ -127,7 +127,7 @@
 }
 .props-group h4 { margin: 0 0 10px; color: var(--gold); font-size: 14px; }
 /* тумблеры профиля механик (блок 1 ТЗ «Гибкий движок») */
-.feature-toggle { flex-direction: row; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); cursor: pointer; }
+.feature-toggle { flex-direction: row; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); }
 .feature-toggle input { margin-top: 3px; flex: none; }
 .feature-toggle b { color: var(--text); font-size: 13px; }
 

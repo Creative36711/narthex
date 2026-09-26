@@ -63,6 +63,14 @@ export function migrateMeta(meta: CampaignMeta): CampaignMeta {
     if (need.decay_when) need.decay_when = migrateNeedConditions(need.decay_when)
     if (need.restore_when) need.restore_when = migrateNeedConditions(need.restore_when)
   }
+  // блок 11 ТЗ: старый формат создания персонажа с `allowed_professions`
+  // (список id) заменяется на встроенный реестр `professions`
+  const cc = meta.char_creation as (CampaignMeta['char_creation'] & { allowed_professions?: string[] }) | undefined
+  if (cc) {
+    if (Array.isArray(cc.allowed_professions)) delete cc.allowed_professions
+    if (!Array.isArray(cc.mandatory_skills)) cc.mandatory_skills = cc.mandatory_skills ? [String(cc.mandatory_skills)] : []
+    if (!Array.isArray(cc.forbidden_skills)) cc.forbidden_skills = cc.forbidden_skills ? [String(cc.forbidden_skills)] : []
+  }
   // фидбек 11: встроенных состояний больше нет — вычищаем автоматом добавленные пять
   // (не трогая состояния с тем же id, но переименованные пользователем).
   // Дефолтное состояние «Обычный» живёт скрытно и в реестр не входит.

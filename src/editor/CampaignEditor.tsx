@@ -1115,6 +1115,180 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       </div>
 
       <div className="props-group">
+        <h4>Создание персонажа</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Экран перед новым забегом: игрок распределяет характеристики,
+          выбирает происхождение и навыки. Выключено — забег стартует
+          готовым персонажем-шаблоном, как раньше.
+        </div>
+        <label className="fld fld-check">
+          <input
+            type="checkbox"
+            checked={!!m.char_creation}
+            onChange={(e) => {
+              if (e.target.checked) {
+                m.char_creation = {
+                  total_points: 30,
+                  stat_limits: { min: 3, max: 18 },
+                  mandatory_skills: [],
+                  forbidden_skills: [],
+                }
+              } else delete m.char_creation
+              commit()
+            }}
+          />
+          <span>Показывать экран создания персонажа</span>
+        </label>
+        {m.char_creation && (
+          <>
+            <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+              <label className="fld fld-num">
+                <span>Бюджет характеристик</span>
+                <input type="number" min={0} value={m.char_creation.total_points} onChange={(e) => ((m.char_creation!.total_points = Math.max(0, Number(e.target.value) || 0)), commit())} />
+              </label>
+              <label className="fld fld-num">
+                <span>Характеристика: минимум</span>
+                <input type="number" min={1} value={m.char_creation.stat_limits.min} onChange={(e) => ((m.char_creation!.stat_limits.min = Math.max(1, Number(e.target.value) || 1)), commit())} />
+              </label>
+              <label className="fld fld-num">
+                <span>Характеристика: максимум</span>
+                <input type="number" min={1} value={m.char_creation.stat_limits.max} onChange={(e) => ((m.char_creation!.stat_limits.max = Math.max(1, Number(e.target.value) || 1)), commit())} />
+              </label>
+            </div>
+            <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+              <label className="fld fld-num">
+                <span>Бюджет навыков (0 — без него)</span>
+                <input
+                  type="number" min={0}
+                  value={m.char_creation.skill_points ?? 0}
+                  onChange={(e) => {
+                    const v = Math.max(0, Number(e.target.value) || 0)
+                    if (v > 0) m.char_creation!.skill_points = v
+                    else delete m.char_creation!.skill_points
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld fld-num">
+                <span>Предел навыка на старте (0 — нет)</span>
+                <input
+                  type="number" min={0}
+                  value={m.char_creation.skill_cap ?? 0}
+                  onChange={(e) => {
+                    const v = Math.max(0, Number(e.target.value) || 0)
+                    if (v > 0) m.char_creation!.skill_cap = v
+                    else delete m.char_creation!.skill_cap
+                    commit()
+                  }}
+                />
+              </label>
+            </div>
+            <label className="fld fld-check">
+              <input type="checkbox" checked={!!m.char_creation.choose_name} onChange={(e) => ((m.char_creation!.choose_name = e.target.checked || undefined), commit())} />
+              <span>Игрок вводит имя героя</span>
+            </label>
+
+            <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+              <label className="fld">
+                <span>Обязательный навык (стартует с 25%)</span>
+                <select value="" onChange={(e) => {
+                  const id = e.target.value
+                  if (!id) return
+                  if (!m.char_creation!.mandatory_skills!.includes(id)) m.char_creation!.mandatory_skills!.push(id)
+                  commit()
+                }}>
+                  <option value="">+ добавить…</option>
+                  {store.options('skill').filter((s) => !m.char_creation!.mandatory_skills!.includes(s.id)).map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="fld">
+                <span>Запрещённый навык</span>
+                <select value="" onChange={(e) => {
+                  const id = e.target.value
+                  if (!id) return
+                  if (!m.char_creation!.forbidden_skills!.includes(id)) m.char_creation!.forbidden_skills!.push(id)
+                  commit()
+                }}>
+                  <option value="">+ добавить…</option>
+                  {store.options('skill').filter((s) => !m.char_creation!.forbidden_skills!.includes(s.id)).map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="chips">
+              {m.char_creation.mandatory_skills!.map((id) => (
+                <span key={id} className="chip">{store.labelFor('skill', id)}
+                  <button className="chip-del" onClick={() => ((m.char_creation!.mandatory_skills = m.char_creation!.mandatory_skills!.filter((x) => x !== id)), commit())}><Ico n="close" /></button>
+                </span>
+              ))}
+              {m.char_creation.forbidden_skills!.map((id) => (
+                <span key={id} className="chip chip-warn">{store.labelFor('skill', id)}
+                  <button className="chip-del" onClick={() => ((m.char_creation!.forbidden_skills = m.char_creation!.forbidden_skills!.filter((x) => x !== id)), commit())}><Ico n="close" /></button>
+                </span>
+              ))}
+            </div>
+
+            <h4 style={{ marginTop: 12 }}>Происхождения</h4>
+            {(m.char_creation.professions ?? []).map((p, i) => (
+              <div key={i} className="props-group" style={{ border: '1px solid var(--border)', padding: 10, borderRadius: 8, marginBottom: 8 }}>
+                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                  <label className="fld"><span>Название</span>
+                    <input value={p.label} onChange={(e) => ((p.label = e.target.value), commit())} />
+                  </label>
+                  <button className="btn btn-small ce-del" data-tip="Удалить происхождение" onClick={() => (m.char_creation!.professions!.splice(i, 1), commit())}><Ico n="close" /></button>
+                </div>
+                <label className="fld"><span>Описание</span>
+                  <input value={p.description ?? ''} onChange={(e) => ((p.description = e.target.value || undefined), commit())} />
+                </label>
+                <div className="muted small">Бонусы к навыкам:</div>
+                {Object.entries(p.skill_bonus).map(([sk, v]) => (
+                  <div className="fld-row" key={sk}>
+                    <span className="small">{store.labelFor('skill', sk)}</span>
+                    <input className="fld-num" type="number" value={v} style={{ width: 70 }}
+                      onChange={(e) => ((p.skill_bonus[sk] = Number(e.target.value) || 0), commit())} />
+                    <button className="btn btn-small ce-del" onClick={() => (delete p.skill_bonus[sk], commit())}><Ico n="close" /></button>
+                  </div>
+                ))}
+                <select value="" onChange={(e) => {
+                  const id = e.target.value
+                  if (id) (p.skill_bonus[id] = p.skill_bonus[id] ?? 5, commit())
+                }}>
+                  <option value="">+ бонус навыку…</option>
+                  {store.options('skill').map((s) => (<option key={s.id} value={s.id}>{s.label}</option>))}
+                </select>
+                <div className="muted small" style={{ marginTop: 6 }}>Стартовое снаряжение:</div>
+                {(p.items ?? []).map((it, j) => (
+                  <div className="fld-row" key={j}>
+                    <span className="small">{store.labelFor('item', it.item)}</span>
+                    <input type="number" min={1} value={it.quantity} style={{ width: 70 }}
+                      onChange={(e) => ((it.quantity = Math.max(1, Number(e.target.value) || 1)), commit())} />
+                    <button className="btn btn-small ce-del" onClick={() => ((p.items = p.items!.filter((_, x) => x !== j)), commit())}><Ico n="close" /></button>
+                  </div>
+                ))}
+                <select value="" onChange={(e) => {
+                  const id = e.target.value
+                  if (id) ((p.items ??= []).push({ item: id, quantity: 1 }), commit())
+                }}>
+                  <option value="">+ предмет…</option>
+                  {store.options('item').map((s) => (<option key={s.id} value={s.id}>{s.label}</option>))}
+                </select>
+              </div>
+            ))}
+            <button className="btn btn-small" onClick={async () => {
+              const label = await askText('Название происхождения', 'например «Солдат»')
+              if (!label) return
+              if (!m.char_creation!.professions) m.char_creation!.professions = []
+              m.char_creation!.professions.push({ id: makeId('profession_', label, m.char_creation!.professions.map((x) => x.id)), label, skill_bonus: {} })
+              commit()
+            }}>+ происхождение</button>
+          </>
+        )}
+      </div>
+
+      <div className="props-group">
         <h4>Категории предметов</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Категория определяет, что умеет предмет: восстанавливать здоровье или потребности,
