@@ -26,6 +26,9 @@ type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'c
 
 export function GameView({ engine, onRestart, onExitToMenu }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
+  // GameView owns the subscription so embedded playtests update just like the normal player.
+  const [, invalidate] = useState(0)
+  useEffect(() => engine.subscribe(() => invalidate((n) => n + 1)), [engine])
   const [damageFlash, setDamageFlash] = useState(false)
   const previousHp = useRef(engine.state.player.hp)
   useEffect(() => {

@@ -822,7 +822,7 @@
 .playtest-shell > .game-view { height: 100%; width: 100%; }
 .playtest-shell > .char-create-screen { height: 100%; }
 .playtest-banner { position: fixed; z-index: 20010; top: 8px; right: 12px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid rgba(214,177,108,.48); border-radius: 8px; background: rgba(22,17,13,.92); box-shadow: 0 3px 14px #0008; font-size: 12px; }
-.pt-debug-panel { position: fixed; z-index: 20020; right: 10px; top: 54px; bottom: 10px; width: min(390px, calc(100vw - 20px)); overflow: auto; padding: 10px; border: 1px solid var(--border, #57452e); border-radius: 10px; background: rgba(24,20,16,.97); color: #eee; box-shadow: 0 8px 30px #000a; }
+.pt-debug-panel { position: fixed; z-index: 40; right: 10px; top: 54px; bottom: 10px; width: min(390px, calc(100vw - 20px)); overflow: auto; padding: 10px; border: 1px solid var(--border, #57452e); border-radius: 10px; background: rgba(24,20,16,.97); color: #eee; box-shadow: 0 8px 30px #000a; }
 .pt-debug-panel > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .pt-debug-section { border-top: 1px solid #564630; padding: 7px 0; }
 .pt-debug-section summary { cursor: var(--cur-pointer); font-weight: 650; }

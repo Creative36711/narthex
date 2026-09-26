@@ -316,7 +316,7 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
   // клавиатура: пробел/Enter/→ — дальше, Esc — пропустить
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === '' || e.key === 'Enter' || e.key === 'ArrowRight') {
+      if (e.key === ' ' || e.code === 'Space' || e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault()
         if (typed < text.length) setTyped(text.length)
         else next()

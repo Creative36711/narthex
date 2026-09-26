@@ -29,7 +29,6 @@ export default function App() {
   const [help, setHelp] = useState(false)
   // экран создания персонажа перед новым забегом (блок 11 ТЗ)
   const [creating, setCreating] = useState(false)
-  const [, setTickState] = useState(0)
   const settings = useSettings()
 
   useEffect(() => {
@@ -78,11 +77,6 @@ export default function App() {
       window.removeEventListener('pointerdown', unlock)
       window.removeEventListener('click', onClick)
     }
-  }, [engine])
-
-  useEffect(() => {
-    if (!engine) return
-    return engine.subscribe(() => setTickState((n) => n + 1))
   }, [engine])
 
   useEffect(() => {

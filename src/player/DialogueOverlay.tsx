@@ -198,12 +198,12 @@ export function DialogueOverlay({ engine }: Props) {
           {allShown && (
             <div className="dialogue-choices">
               {d.choices.map((c) => (
-                <button key={c.index} className="choice-btn" onClick={() => engine.chooseDialogueOption(c.index)}>
+                <button key={c.index} className="choice-btn" onClick={(e) => { e.stopPropagation(); engine.chooseDialogueOption(c.index) }}>
                   ▸ {c.text}
                 </button>
               ))}
               {d.finished && (
-                <button className="choice-btn end" onClick={() => engine.endDialogue()}>
+                <button className="choice-btn end" onClick={(e) => { e.stopPropagation(); engine.endDialogue() }}>
                   [Закончить разговор]
                 </button>
               )}

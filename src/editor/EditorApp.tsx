@@ -132,6 +132,20 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     return () => window.removeEventListener('click', close)
   }, [openMenu])
 
+  // Toolbar menus behave as one dismissible menu: outside click closes them,
+  // and opening one closes any other toolbar menu.
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target
+      const active = target instanceof Element ? target.closest('.editor-toolbar-menu') : null
+      document.querySelectorAll<HTMLElement>('.editor-toolbar-menu[open]').forEach((menu) => {
+        if (menu !== active) menu.removeAttribute('open')
+      })
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [])
+
   useEffect(() => {
     fetchCampaignIndex().then(setCampaigns)
   }, [base])
@@ -553,6 +567,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           <span className="editor-title">{store.meta.title}</span>
         )}
         <span className="editor-spacer" />
+        <button className="btn btn-small" onClick={() => store.undo()} disabled={!store.canUndo()} data-tip="Отменить последнее изменение в кампании">
+          ↩ Отменить
+        </button>
         <details className="editor-toolbar-menu">
           <summary className="btn btn-small">Файл <span aria-hidden="true">▾</span></summary>
           <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
@@ -568,7 +585,6 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <details className="editor-toolbar-menu">
           <summary className="btn btn-small">Инструменты <span aria-hidden="true">▾</span></summary>
           <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
-            <button className="editor-toolbar-item" onClick={() => store.undo()} disabled={!store.canUndo()}><span aria-hidden="true">↩</span> Откатить изменение</button>
             <button
               className="editor-toolbar-item"
               onClick={() => {
