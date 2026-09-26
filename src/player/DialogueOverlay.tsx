@@ -50,15 +50,24 @@ export function DialogueOverlay({ engine }: Props) {
     }
   }
 
-  // новая сессия диалога — сброс прогресса чтения; закрытие — снять звук
-  useEffect(() => {
-    setRevealed(0)
-    setTyped(0)
-    setLineDone(true)
+  // закрытие диалога (размонтирование) — снять звук
+  useEffect(() => () => clearLineAudio(), []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Фидбек 22: `dialogue` заменяется ЦЕЛИКОМ на ответ реплику (новый объект,
+  // только новые строки). Сброс прогресса в useEffect происходил ПОСЛЕ коммита,
+  // и в промежуточном рендере `revealed` указывал в середину нового списка —
+  // озвучка начинала со средней фразы, а первые молча пропускались.
+  // Поэтому сбрасываем состояние СИНХРОННО в фазе рендера (штатный паттерн
+  // «корректировка состояния при рендере»): коммит уже видит revealed=0.
+  const lastDRef = useRef<unknown>(d)
+  if (lastDRef.current !== d) {
+    lastDRef.current = d
     spokenRef.current = -1
-    return () => clearLineAudio()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [d])
+    clearLineAudio()
+    if (revealed !== 0) setRevealed(0)
+    if (typed !== 0) setTyped(0)
+    if (!lineDone) setLineDone(true)
+  }
 
   const lines: DialogueLine[] = d?.lines ?? []
   const current = lines[revealed]
