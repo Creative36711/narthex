@@ -5,7 +5,7 @@ import type { DialogueLine } from '../core/dialogue'
 import { assetUrl } from '../core/loader'
 import { tipSeen, markTip } from './tips'
 import { useSettings, voiceVolume } from '../shared/settings'
-import { speak } from '../shared/speech'
+import { speak, stopSpeaking } from '../shared/speech'
 
 interface Props {
   engine: GameEngine
@@ -45,29 +45,24 @@ export function DialogueOverlay({ engine }: Props) {
   const full = current ? (current.action ? `→ ${current.text}` : current.text) : ''
   const activeLine = current ?? lines[revealed - 1]
 
-  /** озвучка реплики: файл (тег # voice:) или синтезатор; queue — фразы подряд без срезания */
-  const playLine = (line: DialogueLine | undefined, mode: 'auto' | 'replay') => {
-    if (mode === 'replay') {
-      audioRef.current?.pause()
-      audioRef.current = null
-      stopTtsRef.current?.()
-      stopTtsRef.current = null
-    }
+  /** озвучка реплики: файл (тег # voice:) или синтезатор (последовательная очередь) */
+  const playLine = (line: DialogueLine | undefined) => {
     if (!line || line.action) return
     const vol = voiceVolume(settings)
     if (line.voice && vol > 0) {
-      if (mode === 'auto' && audioRef.current) audioRef.current.pause()
+      if (audioRef.current) audioRef.current.pause()
       const a = new Audio(assetUrl(engine.campaign, line.voice))
       a.volume = vol
       void a.play().catch(() => undefined)
       audioRef.current = a
     } else if (settings.tts_enabled && vol > 0) {
-      stopTtsRef.current = speak(line.text, {
+      speak(line.text, {
         voice: settings.tts_voice,
         rate: settings.tts_rate,
         volume: vol,
-        queue: mode === 'auto',
+        queue: true,
       })
+      stopTtsRef.current = stopSpeaking
     }
   }
 
@@ -75,7 +70,7 @@ export function DialogueOverlay({ engine }: Props) {
   useEffect(() => {
     if (!d || !current || spokenRef.current >= revealed) return
     spokenRef.current = revealed
-    playLine(current, 'auto')
+    playLine(current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [d, revealed, current])
 
@@ -102,7 +97,7 @@ export function DialogueOverlay({ engine }: Props) {
   /**
    * Клик мыши по окну: пока текст ещё печатается — показать ВЕСЬ оставшийся
    * текст сразу, без ожидания; любой клик прерывает текущую озвучку
-   * (файл или синтезатор). Кнопка пропуска не нужна.
+   * (файл или синтезатор, включая очередь). Кнопка пропуска не нужна.
    */
   const skip = () => {
     if (revealed < lines.length) {
@@ -129,22 +124,11 @@ export function DialogueOverlay({ engine }: Props) {
         </div>
         <div className="dialogue-content">
           <div className="dialogue-lines">
-            {lines.slice(0, revealed).map((l, i) => {
-              const isLast = i === revealed - 1
-              return (
-                <p
-                  key={i}
-                  className={`${l.action ? 'action ' : ''}past`}
-                  data-tip={isLast && !(l.action || (!l.voice && !settings.tts_enabled)) ? 'Клик — прослушать ещё раз' : undefined}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (isLast) playLine(l, 'replay')
-                  }}
-                >
-                  {l.action ? <>→ {l.text}</> : l.text}
-                </p>
-              )
-            })}
+            {lines.slice(0, revealed).map((l, i) => (
+              <p key={i} className={`${l.action ? 'action ' : ''}past`}>
+                {l.action ? <>→ {l.text}</> : l.text}
+              </p>
+            ))}
             {current && <p className={`${current.action ? 'action ' : ''}current`}>{full.slice(0, typed)}</p>}
           </div>
           {showTip && hasCheckChoice && allShown && (

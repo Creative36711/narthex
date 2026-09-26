@@ -3,6 +3,16 @@
  * (итерация 8, блок G): если у реплики или слайда нет файла озвучки,
  * а игрок включил «Озвучивать диалоги синтезатором», текст читает
  * системный голос. Работает офлайн, если голос установлен в системе.
+ *
+ * ОЧЕРЕДЬ ОЗВУЧКИ (фидбек 17). Фразы диалога читаются ПОДРЯД через
+ * собственную последовательную очередь, а не через внутреннюю очередь
+ * браузера:
+ *  - голоса дожидается до первого произнесения (`voiceschanged`) — иначе
+ *    самые первые фразы диалога молча теряются и речь «начинается с середины»;
+ *  - после `cancel()` выдерживается пауза: в Chrome `speak()`, вызванный
+ *    сразу за асинхронным `cancel()`, молча проглатывается;
+ *  - периодический `pause()/resume()` — обход хронического замирания
+ *    синтезатора в Chrome при долгой речи.
  */
 
 import { useEffect, useState } from 'react'
@@ -36,14 +46,148 @@ export function useTtsVoices(): SpeechSynthesisVoice[] {
 export function speakableText(text: string): string {
   return text
     .replace(/\*[^*]*\*/g, ' ')
-    .replace(/[«»"]/g, '')
+    .replace(/[«»\"]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
+// ─────────────── прогрев списка голосов ───────────────
+
+let voicesReady = false
+const bootTs = Date.now()
+
+function pickVoice(name?: string): SpeechSynthesisVoice | undefined {
+  const voices = ttsVoices()
+  return voices.find((v) => v.name === name) ?? voices.find((v) => v.lang.toLowerCase().startsWith('ru'))
+}
+
+function initVoices(): void {
+  if (!ttsSupported() || voicesReady) return
+  const synth = window.speechSynthesis
+  const check = () => {
+    if (synth.getVoices().length > 0) voicesReady = true
+  }
+  check()
+  synth.addEventListener?.('voiceschanged', check)
+}
+initVoices()
+
+// ─────────────── последовательная очередь фраз ───────────────
+
+interface QueueItem {
+  clean: string
+  opts: { voice?: string; rate?: number; volume?: number; onEnd?: () => void }
+  cancelled?: boolean
+}
+
+const queue: QueueItem[] = []
+let active: QueueItem | null = null
+let pumpTimer: ReturnType<typeof setTimeout> | null = null
+/** до этого момента не зовём speak(): cancel() в Chrome асинхронный */
+let cooldownUntil = 0
+let keepalive: ReturnType<typeof setInterval> | null = null
+
+function startKeepalive(): void {
+  if (keepalive !== null || !ttsSupported()) return
+  // Chrome замолкает на длинной речи; пауза/продолжение раз в 10 с «будит» его
+  keepalive = setInterval(() => {
+    const synth = window.speechSynthesis
+    if (synth.speaking && !synth.paused) {
+      synth.pause()
+      synth.resume()
+    }
+  }, 10000)
+}
+
+function stopKeepalive(): void {
+  if (keepalive !== null) {
+    clearInterval(keepalive)
+    keepalive = null
+  }
+}
+
+function pump(): void {
+  if (pumpTimer !== null) return // уже запланирован следующий шаг
+  if (active) return
+  const item = queue[0]
+  if (!item) {
+    stopKeepalive()
+    return
+  }
+  if (item.cancelled) {
+    queue.shift()
+    pump()
+    return
+  }
+  // список голосов ещё не пришёл (первые секунды после загрузки страницы) —
+  // коротко откладываем, чтобы первая фраза диалога не потерялась
+  if (!voicesReady && Date.now() - bootTs < 4000) {
+    pumpTimer = setTimeout(() => {
+      pumpTimer = null
+      pump()
+    }, 120)
+    return
+  }
+  const wait = Math.max(0, cooldownUntil - Date.now())
+  if (wait > 0) {
+    pumpTimer = setTimeout(() => {
+      pumpTimer = null
+      pump()
+    }, wait)
+    return
+  }
+  queue.shift()
+  active = item
+  startKeepalive()
+  const synth = window.speechSynthesis
+  const u = new SpeechSynthesisUtterance(item.clean)
+  const chosen = pickVoice(item.opts.voice)
+  if (chosen) {
+    u.voice = chosen
+    u.lang = chosen.lang
+  } else {
+    u.lang = 'ru-RU'
+  }
+  u.rate = Math.max(0.5, Math.min(2, item.opts.rate ?? 1))
+  u.volume = Math.max(0, Math.min(1, item.opts.volume ?? 1))
+  let done = false
+  const finish = () => {
+    if (done) return
+    done = true
+    if (active === item) active = null
+    if (!item.cancelled) item.opts.onEnd?.()
+    pump()
+  }
+  u.onend = finish
+  u.onerror = finish
+  try {
+    synth.speak(u)
+    synth.resume() // защита от «застрявшего» пауз-состояния
+  } catch {
+    finish()
+  }
+}
+
+/**
+ * Очистить очередь и остановить синтезатор. Возвращает очередь в согласованное
+ * состояние; следующий `speak()` выдержит короткую паузу после `cancel()`.
+ */
+export function stopSpeaking(): void {
+  for (const item of queue) item.cancelled = true
+  queue.length = 0
+  if (active) active.cancelled = true
+  active = null
+  if (ttsSupported()) window.speechSynthesis.cancel()
+  cooldownUntil = Date.now() + 100
+}
+
 /**
  * Прочитать текст. Возвращает функцию отмены. `onEnd` вызывается и при
- * естественном окончании, и при ошибке синтезатора (чтобы ролик не завис).
+ * естественном окончании, и при ошибке синтезатора (чтобы ролик не завис);
+ * для отменённых фраз `onEnd` не вызывается.
+ *
+ * `queue: true` — фраза встаёт в очередь за уже звучащими (реплики диалога);
+ * иначе очередь очищается и фраза звучит одна (катсцены, повтор не нужен).
  */
 export function speak(
   text: string,
@@ -54,35 +198,14 @@ export function speak(
     opts.onEnd?.()
     return () => undefined
   }
-  const synth = window.speechSynthesis
-  // queue: фразы диалога идут подряд, не срезая друг друга (фидбек 14)
-  if (!opts.queue) synth.cancel()
-  const u = new SpeechSynthesisUtterance(clean)
-  const voices = ttsVoices()
-  const chosen = voices.find((v) => v.name === opts.voice) ?? voices.find((v) => v.lang.toLowerCase().startsWith('ru'))
-  if (chosen) {
-    u.voice = chosen
-    u.lang = chosen.lang
-  } else {
-    u.lang = 'ru-RU'
-  }
-  u.rate = Math.max(0.5, Math.min(2, opts.rate ?? 1))
-  u.volume = Math.max(0, Math.min(1, opts.volume ?? 1))
-  let done = false
-  const finish = () => {
-    if (done) return
-    done = true
-    opts.onEnd?.()
-  }
-  u.onend = finish
-  u.onerror = finish
-  synth.speak(u)
+  initVoices()
+  if (!opts.queue) stopSpeaking()
+  const item: QueueItem = { clean, opts }
+  queue.push(item)
+  pump()
   return () => {
-    done = true
-    synth.cancel()
+    item.cancelled = true
+    if (active === item) stopSpeaking()
+    else pump()
   }
-}
-
-export function stopSpeaking(): void {
-  if (ttsSupported()) window.speechSynthesis.cancel()
 }
