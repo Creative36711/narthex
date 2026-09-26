@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Ico } from '../shared/icons'
 import { askConfirm } from '../shared/modals'
 import type { GameEngine } from '../core/engine'
-import type { Effect, ItemDef } from '../shared/types'
+import { featureOn, type Effect, type ItemDef } from '../shared/types'
 import { damageBonus, movement } from '../core/brp'
 import { playInteraction } from '../shared/audio'
 
@@ -121,6 +121,7 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
 /** Лист персонажа (ТЗ 6.1): характеристики, навыки с «галочками», фракции, партия. */
 export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
   const p = engine.state.player
+  const meta = engine.campaign.meta
   const def = engine.campaign.entities[p.entity]
   const statNames: Array<keyof typeof p.stats> = ['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA']
   // скрытые (служебные) фракции игроку не показываем — фидбек №2 седьмого раунда
@@ -129,6 +130,9 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
   const maxLoad = engine.maxLoad()
   const weapon = engine.playerWeapon()
   const armor = engine.playerArmor()
+  const inventoryOn = featureOn(meta, 'inventory')
+  const skillsOn = featureOn(meta, 'skills')
+  const relationshipsOn = featureOn(meta, 'relationships')
 
   return (
     <div className="overlay panel-overlay" onClick={onClose}>
@@ -174,23 +178,29 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
             </span>
           </li>
         </ul>
-        <div className="muted small" style={{ marginBottom: 10 }}>
-          Надеть и снять снаряжение можно в инвентаре (<Ico n="bag" /> ).
-        </div>
+        {inventoryOn && (
+          <div className="muted small" style={{ marginBottom: 10 }}>
+            Надеть и снять снаряжение можно в инвентаре (<Ico n="bag" /> ).
+          </div>
+        )}
 
-        <h3>Навыки <span className="muted small">(<Ico n="check" />  — готов к росту после сна)</span></h3>
-        <ul className="skill-list">
-          {Object.entries(p.skills).sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (
-            <li key={id}>
-              <span>
-                {engine.skillLabel(id)}
-                {p.skill_marks?.[id] && <span className="skill-mark"> <Ico n="check" /> </span>}
-              </span>
-              <span className="skill-val">{val}%</span>
-            </li>
-          ))}
-        </ul>
-        {factions.length > 0 && (
+        {skillsOn && (
+          <>
+            <h3>Навыки <span className="muted small">(<Ico n="check" />  — готов к росту после сна)</span></h3>
+            <ul className="skill-list">
+              {Object.entries(p.skills).sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (
+                <li key={id}>
+                  <span>
+                    {engine.skillLabel(id)}
+                    {p.skill_marks?.[id] && <span className="skill-mark"> <Ico n="check" /> </span>}
+                  </span>
+                  <span className="skill-val">{val}%</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {relationshipsOn && factions.length > 0 && (
           <>
             <h3>Отношения</h3>
             <ul className="skill-list">

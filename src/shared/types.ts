@@ -118,6 +118,36 @@ export interface ItemCategoryDef {
   sounds?: SoundHookMap
 }
 
+/**
+ * Профиль механик кампании (блок 1 ТЗ «Гибкий движок»). Каждое поле —
+ * выключатель подсистемы; ОТСУТСТВУЮЩЕЕ поле (или весь `features`) означает,
+ * что механика ВКЛЮЧЕНА — старые кампании работают без изменений.
+ * Тумблеры скрывают подсистему и в движке, и в интерфейсе игрока.
+ */
+export interface CampaignFeatures {
+  /** карта мира и путешествия между локациями */
+  map?: boolean
+  /** инвентарь, экипировка, предметы в бою (эффекты предметов продолжают работать) */
+  inventory?: boolean
+  /** потребности и их убывание/восстановление */
+  needs?: boolean
+  /** навыки: проверки резолвятся успехом без броска, рост отключён */
+  skills?: boolean
+  /** панель отношений (сами отношения продолжают меняться — могут гейтить диалоги) */
+  relationships?: boolean
+  /** торговля */
+  trade?: boolean
+  /** тактический бой: конфликты резолвятся немедленной победой */
+  combat?: boolean
+  /** отображение часов и времени суток (ход времени остаётся) */
+  time?: boolean
+}
+
+/** механика включена, если поле отсутствует или истинно */
+export function featureOn(meta: CampaignMeta, key: keyof CampaignFeatures): boolean {
+  return meta.features?.[key] !== false
+}
+
 export interface CampaignMeta {
   id: string
   title: string
@@ -157,6 +187,8 @@ export interface CampaignMeta {
   default_music?: string[]
   /** трек(и) боя по умолчанию (если у арены нет своего arena.music) */
   combat_music?: string[]
+  /** профиль механик: что включено в этой кампании (нет поля — всё включено) */
+  features?: CampaignFeatures
   /** максимальный груз в кг: STR + SIZ (по умолчанию) */
   max_load_formula?: 'str_plus_siz'
   max_companions?: number

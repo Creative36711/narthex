@@ -1,8 +1,7 @@
 import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { GameEngine } from '../core/engine'
-import type { DiceRules } from '../shared/types'
-import { DEFAULT_DICE_RULES } from '../shared/types'
+import { featureOn, DEFAULT_DICE_RULES, type DiceRules } from '../shared/types'
 import { resetTips } from './tips'
 import { showAlert } from '../shared/modals'
 
@@ -150,9 +149,19 @@ const SECTIONS: Array<{ id: string; title: string; body: React.ReactNode }> = [
 ]
 
 export function HelpPanel({ onClose, engine }: { onClose: () => void; engine?: GameEngine }) {
-  const [open, setOpen] = useState<string>('checks')
+  const meta = engine?.campaign.meta
+  // разделы справки по выключенным механикам профиля кампании скрываются
+  const enabled = (id: string): boolean => {
+    if (!meta) return true
+    if ((id === 'checks' || id === 'growth') && !featureOn(meta, 'skills')) return false
+    if (id === 'combat' && !featureOn(meta, 'combat')) return false
+    if (id === 'needs' && !featureOn(meta, 'needs') && !featureOn(meta, 'time')) return false
+    if (id === 'social' && !featureOn(meta, 'trade') && !featureOn(meta, 'relationships')) return false
+    return true
+  }
+  const [open, setOpen] = useState<string>(meta && !featureOn(meta, 'skills') ? '' : 'checks')
   // пороги берём из кампании: у каждой кампании могут быть свои правила (итерация 8, А7)
-  const sections = SECTIONS.map((s) =>
+  const sections = SECTIONS.filter((s) => enabled(s.id)).map((s) =>
     s.id === 'checks' && engine
       ? { ...s, body: <ChecksBody rules={engine.diceRules} /> }
       : s,

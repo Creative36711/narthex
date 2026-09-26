@@ -5,6 +5,7 @@ import type { Hex } from '../core/hex'
 import { hexKey, hexToPixel, hexCorners, gridPixelSize, hexDistance } from '../core/hex'
 import { assetUrl } from '../core/loader'
 import { tipSeen, markTip } from './tips'
+import { featureOn } from '../shared/types'
 
 interface Props {
   engine: GameEngine
@@ -185,7 +186,7 @@ export function CombatScreen({ engine }: Props) {
                   <div className="combat-hint muted">
                     Клик по подсвеченному гексу — движение, по врагу в досягаемости — атака.
                   </div>
-                  {!activePlayer.attacked && combat.usableItems().length > 0 && (
+                  {!activePlayer.attacked && featureOn(engine.campaign.meta, 'inventory') && combat.usableItems().length > 0 && (
                     <details className="combat-items">
                       <summary>Использовать предмет (действие)</summary>
                       {combat.usableItems().map((it) => (

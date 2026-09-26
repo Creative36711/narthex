@@ -280,6 +280,23 @@
       "additionalProperties": false,
       "description": "Категория предметов: задаёт, какие свойства доступны предмету (фидбек №8)."
     },
+    "EmotionDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Состояние портрета НПС: ключ картинки `npc.portrait[id]` и тег `# emotion:`\nв диалоге. Общий реестр кампании — чтобы состояние, заведённое у одного НПС,\nпредлагалось в диалогах всех остальных, и ИИ-генератору было на что сослаться."
+    },
     "CurrencyDef": {
       "type": "object",
       "properties": {
@@ -492,6 +509,10 @@
               }
             }
           ]
+        },
+        "loop": {
+          "type": "boolean",
+          "description": "зацикленный фон (птицы, гул): играет слоем, пока не остановят (фидбек 9.6)"
         }
       },
       "required": [
@@ -500,6 +521,45 @@
         "src"
       ],
       "additionalProperties": false
+    },
+    "CampaignFeatures": {
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "boolean",
+          "description": "карта мира и путешествия между локациями"
+        },
+        "inventory": {
+          "type": "boolean",
+          "description": "инвентарь, экипировка, предметы в бою (эффекты предметов продолжают работать)"
+        },
+        "needs": {
+          "type": "boolean",
+          "description": "потребности и их убывание/восстановление"
+        },
+        "skills": {
+          "type": "boolean",
+          "description": "навыки: проверки резолвятся успехом без броска, рост отключён"
+        },
+        "relationships": {
+          "type": "boolean",
+          "description": "панель отношений (сами отношения продолжают меняться — могут гейтить диалоги)"
+        },
+        "trade": {
+          "type": "boolean",
+          "description": "торговля"
+        },
+        "combat": {
+          "type": "boolean",
+          "description": "тактический бой: конфликты резолвятся немедленной победой"
+        },
+        "time": {
+          "type": "boolean",
+          "description": "отображение часов и времени суток (ход времени остаётся)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Профиль механик кампании (блок 1 ТЗ «Гибкий движок»). Каждое поле —\nвыключатель подсистемы; ОТСУТСТВУЮЩЕЕ поле (или весь `features`) означает,\nчто механика ВКЛЮЧЕНА — старые кампании работают без изменений.\nТумблеры скрывают подсистему и в движке, и в интерфейсе игрока."
     },
     "CharCreationDef": {
       "type": "object",
@@ -680,6 +740,13 @@
           },
           "description": "реестр флагов: русское название и назначение (редактор показывает названия, движку важен только id)"
         },
+        "emotions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EmotionDef"
+          },
+          "description": "состояния портретов (встроенные + свои), фидбек 9.14"
+        },
         "currencies": {
           "type": "array",
           "items": {
@@ -726,6 +793,10 @@
             "type": "string"
           },
           "description": "трек(и) боя по умолчанию (если у арены нет своего arena.music)"
+        },
+        "features": {
+          "$ref": "#/$defs/CampaignFeatures",
+          "description": "профиль механик: что включено в этой кампании (нет поля — всё включено)"
         },
         "max_load_formula": {
           "const": "str_plus_siz",
@@ -1664,6 +1735,13 @@
         "ambient_audio": {
           "type": "string"
         },
+        "ambient": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6"
+        },
         "music": {
           "anyOf": [
             {
@@ -1989,6 +2067,13 @@
             "$ref": "#/$defs/MusicRule"
           },
           "description": "переопределение музыки сцены (тот же формат, что у локации)"
+        },
+        "ambient": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации)"
         }
       },
       "required": [
@@ -2210,6 +2295,10 @@
         "label": {
           "type": "string"
         },
+        "description": {
+          "type": "string",
+          "description": "описание сущности (при наведении); можно менять динамически (set_description)"
+        },
         "portrait": {
           "type": "object",
           "additionalProperties": {
@@ -2321,6 +2410,7 @@
         "id",
         "type",
         "label",
+        "description",
         "portrait",
         "stats",
         "skills"
@@ -2942,6 +3032,26 @@
             "entity",
             "scene",
             "slot"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_description"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "text"
           ],
           "additionalProperties": false
         },
@@ -4029,6 +4139,26 @@
           "required": [
             "type",
             "cutscene"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_description"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "text"
           ],
           "additionalProperties": false
         }

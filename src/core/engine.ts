@@ -19,7 +19,7 @@ import type {
   PresenceOverride,
   WeaponData,
 } from '../shared/types'
-import { SAVE_VERSION, DEFAULT_DICE_RULES } from '../shared/types'
+import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn } from '../shared/types'
 import { PRNG } from './prng'
 import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
 import { rollDice } from './dice'
@@ -226,10 +226,12 @@ export class GameEngine {
 
   advanceTicks(ticks: number): void {
     const meta = this.campaign.meta
+    const needsOn = featureOn(meta, 'needs')
     for (let i = 0; i < ticks; i++) {
       if (this.state.game_over) return
       this.state.tick += 1
       this.state.stats_run.ticks_survived += 1
+      if (!needsOn) continue // потребности выключены профилем кампании
       for (const need of meta.needs) {
         // старые сохранения могут не знать новую потребность — считаем её полной
         const cur = this.state.player.needs[need.id] ?? need.max
@@ -262,6 +264,7 @@ export class GameEngine {
   }
 
   changeNeed(needId: string, delta: number): void {
+    if (!featureOn(this.campaign.meta, 'needs')) return
     const need = this.campaign.meta.needs.find((n) => n.id === needId)
     if (!need) return
     const cur = this.state.player.needs[needId] ?? 0
@@ -507,11 +510,16 @@ export class GameEngine {
   // ─────────────── рост навыков (ТЗ 4.3) ───────────────
 
   markSkill(skill: string): void {
+    if (!featureOn(this.campaign.meta, 'skills')) return
     if (this.state.player.skills[skill] != null) this.state.player.skill_marks[skill] = true
   }
 
   /** Проверка навыка игрока с «галочкой» опыта при успехе. */
   playerSkillCheck(skill: string, difficulty = 50): ReturnType<typeof skillCheck> {
+    // навыки выключены профилем — проверка резолвится успехом без броска
+    if (!featureOn(this.campaign.meta, 'skills')) {
+      return { roll: 0, target: 100, result: 'success', success: true }
+    }
     const value = this.state.player.skills[skill] ?? 0
     const out = skillCheck(value, this.rng, 50 - difficulty, this.diceRules)
     this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
@@ -526,6 +534,7 @@ export class GameEngine {
   }
 
   restAndGrow(): string[] {
+    if (!featureOn(this.campaign.meta, 'skills')) return []
     const grown: string[] = []
     for (const skill of Object.keys(this.state.player.skill_marks)) {
       const cur = this.state.player.skills[skill] ?? 0
@@ -548,6 +557,7 @@ export class GameEngine {
   // ─────────────── торговля (ТЗ 4.7) ───────────────
 
   openTrade(entityId: string): void {
+    if (!featureOn(this.campaign.meta, 'trade')) return
     const npc = this.campaign.entities[entityId] as NpcDef | undefined
     if (!npc || npc.type !== 'npc' || !npc.trader) return
     this.dialogue = null
@@ -635,6 +645,8 @@ export class GameEngine {
       case 'nothing':
         return
       case 'combat': {
+        // бой выключен профилем — встреча в пути проходит мимо
+        if (!featureOn(this.campaign.meta, 'combat')) return
         const enemies = entry.enemies.map((e) => ({
           entity: e.entity,
           count: this.rng.int(e.count_min, e.count_max),
@@ -932,6 +944,7 @@ export class GameEngine {
       case 'change_need': this.changeNeed(e.need, e.delta); break
       case 'change_hp': this.changeHp(e.delta); break
       case 'change_skill': {
+        if (!featureOn(this.campaign.meta, 'skills')) break
         const cur = s.player.skills[e.skill] ?? 0
         s.player.skills[e.skill] = Math.max(0, cur + e.delta)
         this.pushLog(`Навык «${e.skill}»: ${e.delta > 0 ? '+' : ''}${e.delta} (теперь ${s.player.skills[e.skill]}).`)
@@ -1035,6 +1048,14 @@ export class GameEngine {
   }
 
   startCombat(def: Extract<Effect, { type: 'start_combat' }>): void {
+    // бой выключен профилем кампании — конфликт резолвится немедленной победой
+    if (!featureOn(this.campaign.meta, 'combat')) {
+      this.pushLog('Конфликт разрешился без боя.')
+      this.applyEffects(def.on_victory ?? [])
+      this.checkRules()
+      this.notify()
+      return
+    }
     // бой прерывает диалог
     this.dialogue = null
     this.activeStory = null

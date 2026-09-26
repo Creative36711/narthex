@@ -6,12 +6,24 @@ import { JsonField } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { DiceRules, NeedCondition, TimeOfDay } from '../shared/types'
+import type { CampaignFeatures, DiceRules, NeedCondition, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { BUILTIN_SLOT_TYPES } from './slotTypes'
 import { askText } from './prompt'
 import { migrateNeedCondition } from '../shared/migrate'
 import { AudioRegistries, SoundHookMapEditor } from './AudioSection'
+
+/** Тумблеры профиля механик (блок 1 ТЗ «Гибкий движок»): подпись и подсказка. */
+const FEATURE_TOGGLES: Array<{ key: keyof CampaignFeatures; label: string; hint: string }> = [
+  { key: 'map', label: 'Карта мира', hint: 'Путешествия между локациями. Выключите для камерных кампаний в одной локации — переходы останутся через сцены.' },
+  { key: 'inventory', label: 'Инвентарь', hint: 'Вещи, экипировка и предметы в бою. Выдача предметов эффектами продолжит работать «за кадром».' },
+  { key: 'needs', label: 'Потребности', hint: 'Шкалы выживания (голод, жажда…) и их убывание со временем.' },
+  { key: 'skills', label: 'Навыки и проверки', hint: 'Проверки навыков будут заканчиваться успехом без броска, рост навыков отключится.' },
+  { key: 'relationships', label: 'Отношения', hint: 'Панель отношений скроется; сами отношения продолжат меняться и влиять на диалоги.' },
+  { key: 'trade', label: 'Торговля', hint: 'Прилавки торговцев перестанут открываться.' },
+  { key: 'combat', label: 'Тактический бой', hint: 'Конфликты будут разрешаться немедленной победой без арены.' },
+  { key: 'time', label: 'Часы в интерфейсе', hint: 'Скрывает время суток в HUD; само время продолжит идти для расписаний и событий.' },
+]
 
 /** Редактор campaign.json формой: мета, время, старт, потребности, фракции. */
 const NEED_COND_TYPES: Array<{ id: string; label: string }> = [
@@ -295,7 +307,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
     store.touch('campaign.json')
     force((n) => n + 1)
   }
-  type CeTab = 'main' | 'people' | 'items' | 'flags' | 'audio' | 'json'
+  type CeTab = 'main' | 'mechanics' | 'people' | 'items' | 'flags' | 'audio' | 'json'
   const [tab, setTab] = useState<CeTab>('main')
 
   const sceneOpts = store.options('scene')
@@ -306,12 +318,41 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
   return (
     <div className="rule-editor">
       <div className="ce-tabs">
-        {([['main', 'Основное'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
+        {([['main', 'Основное'], ['mechanics', 'Механики'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
           <button key={id} type="button" className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
             {lab}
           </button>
         ))}
       </div>
+
+      {tab === 'mechanics' && (
+        <div className="props-group">
+          <h4>Профиль механик кампании</h4>
+          <p className="muted small">
+            Всё включено по умолчанию. Снимите галочку, чтобы убрать подсистему из этой
+            кампании — и из движка, и из интерфейса игрока.
+          </p>
+          {FEATURE_TOGGLES.map((f) => {
+            const on = m.features?.[f.key] !== false
+            return (
+              <label key={f.key} className="fld feature-toggle">
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={(e) => {
+                    m.features = { ...(m.features ?? {}), [f.key]: e.target.checked }
+                    commit()
+                  }}
+                />
+                <span>
+                  <b>{f.label}</b>
+                  <div className="muted small">{f.hint}</div>
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      )}
 
       {tab === 'main' && (
         <>
