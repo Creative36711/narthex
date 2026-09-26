@@ -1,5 +1,6 @@
 import { Ico } from '../shared/icons'
 import { useId, useState } from 'react'
+import { FlagAutocomplete } from './FlagAutocomplete'
 import type { Condition, Effect, NpcDef } from '../shared/types'
 import { makeId } from './ids'
 import type { EditorStore } from './store'
@@ -34,7 +35,6 @@ export function Field({
   /** весь объект условия/эффекта — для полей, зависящих от соседних (стадия ← квест) */
   ctx?: Record<string, unknown>
 }) {
-  const flagListId = useId()
   const refKinds: Record<string, Parameters<EditorStore['options']>[0]> = {
     entityRef: 'entity',
     npcRef: 'npc',
@@ -180,23 +180,29 @@ export function Field({
     )
   }
   const isFlag = spec.label.toLowerCase().includes('флаг')
+  if (isFlag) {
+    return (
+      <div className="fld">
+        <span>{spec.label}</span>
+        <FlagAutocomplete
+          value={String(value ?? '')}
+          flags={store.knownFlags()}
+          placeholder={spec.placeholder}
+          ariaLabel={spec.label}
+          onChange={(next) => onChange(next === '' && spec.optional ? undefined : next)}
+        />
+      </div>
+    )
+  }
   return (
     <label className="fld">
       <span>{spec.label}</span>
       <input
         type="text"
-        list={isFlag ? flagListId : undefined}
         value={String(value ?? '')}
         placeholder={spec.placeholder}
         onChange={(e) => onChange(e.target.value === '' && spec.optional ? undefined : e.target.value)}
       />
-      {isFlag && (
-        <datalist id={flagListId}>
-          {store.knownFlags().map((f) => (
-            <option key={f} value={f} />
-          ))}
-        </datalist>
-      )}
     </label>
   )
 }

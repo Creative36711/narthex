@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import { derivedHP, derivedMP } from '../core/brp'
+import { FlagAutocomplete } from './FlagAutocomplete'
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return <details className="pt-debug-section" open><summary>{label}</summary><div>{children}</div></details>
@@ -55,8 +56,7 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
       <button className="btn btn-small" disabled={!scene} onClick={() => mutate(() => engine.goToScene(scene))}>Перейти</button>
     </Section>
     <Section label="Флаги">
-      <input list="pt-flags" value={flag} onChange={(e) => setFlag(e.target.value)} placeholder="Выберите или введите флаг" />
-      <datalist id="pt-flags">{allFlags.map((f) => <option key={f} value={f} />)}</datalist>
+      <FlagAutocomplete value={flag} flags={allFlags} onChange={setFlag} />
       <button className="btn btn-small" disabled={!flag} onClick={() => mutate(() => { engine.state.flags[flag] = true })}>Включить</button>
       <button className="btn btn-small" disabled={!flag} onClick={() => mutate(() => { delete engine.state.flags[flag] })}>Снять</button>
     </Section>
