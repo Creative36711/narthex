@@ -1464,7 +1464,9 @@ export class GameEngine {
     deleteSave(this.campaign.meta.id)
     const fresh = new GameEngine(this.campaign)
     // выбор создания персонажа переживает перезапуск забега (блок 11 ТЗ)
-    if (this.state.char_choice) fresh.applyCharCreation(this.state.char_choice)
+    if (this.state.char_choice) {
+      fresh.applyCharCreation({ ...this.state.char_choice, calling: this.state.char_choice.calling ?? '' })
+    }
     fresh.start()
     return fresh
   }

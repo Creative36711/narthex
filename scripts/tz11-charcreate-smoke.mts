@@ -42,12 +42,15 @@ const creation = demo.meta.char_creation!
 const template = demo.entities[demo.meta.default_player] as NpcDef
 const skills = demo.meta.skills
 
-/** корректный выбор: весь бюджет характеристик и навыков потрачен */
+/** корректный выбор: весь бюджет характеристик и навыков потрачен (ручные покупки, без призвания) */
 function validChoice(): CharChoice {
   const c0 = newCharChoice(creation, template, demo.meta)
   c0.name = 'Искра'
   // без профессии — считаем чистые покупки (бонусы корректно снимаются)
   const c = withProfession(creation, c0, '')
+  // без призвания: навыки сбрасываем на нижний порог, дальше — только ручные покупки
+  c.calling = ''
+  for (const id of Object.keys(c.skills)) c.skills[id] = skillMinVal(creation, c, id)
   // +15 +10 +5 +3 +1 +1 +0 = 35 очков сверх минимума
   c.stats = { STR: 18, CON: 13, SIZ: 8, DEX: 6, INT: 4, POW: 4, CHA: 3 }
   // обязательные навыки стартуют с 25: уклонение 25→65 (+40), первая помощь 25→45 (+20) = 60 очков
@@ -62,12 +65,18 @@ function validChoice(): CharChoice {
   check('1 демо: три происхождения', (creation.professions ?? []).length === 3)
 
   const soldier = creation.professions![0]
-  check('1 происхождение распределяет весь бюджет характеристик', statPointsUsed(creation, { stats: soldier.stats!, skills: {}, profession: '', name: '' } as CharChoice) === creation.total_points)
+  check('1 происхождение распределяет весь бюджет характеристик', statPointsUsed(creation, { stats: soldier.stats!, skills: {}, profession: '', calling: '', name: '' } as CharChoice) === creation.total_points)
 
   const fresh = newCharChoice(creation, template, demo.meta)
   check('1 старт: характеристики из распределения мастера', STAT_KEYS.every((k) => fresh.stats[k] === soldier.stats![k]), STAT_KEYS.map((k) => `${k}=${fresh.stats[k]}`).join(' '))
   check('1 старт: обязательные навыки ≥ 25%', (fresh.skills['dodge'] ?? 0) >= 25 && (fresh.skills['first_aid'] ?? 0) >= 25)
-  check('1 старт: навыки на нижнем пороге', skillPointsUsed(creation, fresh) === 0 && (fresh.skills['sword'] ?? 0) === skillMinVal(creation, fresh, 'sword'))
+  // фидбек 19: навыки старта приходят из первого призвания — мастер тратит весь бюджет
+  // (считаем от нижнего порога: бонусы профессии — бесплатные и в бюджет не входят)
+  const call0 = (creation.callings ?? [])[0]
+  const floorOf = (id: string) =>
+    Math.max(creation.skill_floor ?? 0, (creation.mandatory_skills ?? []).includes(id) ? 25 : 0)
+  const callSpent = Object.entries(call0!.skills).reduce((t, [id, v]) => t + Math.max(0, v - floorOf(id)), 0)
+  check('1 старт: призвание распределяет весь бюджет навыков', callSpent === creation.skill_points && fresh.calling === call0!.id)
   check('1 выбор мастера валиден сразу (игрок лишь докручивает)', charChoiceProblems(creation, fresh, skills).length === 0, charChoiceProblems(creation, fresh, skills).join('; '))
 
   const ok = validChoice()

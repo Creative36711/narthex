@@ -231,10 +231,10 @@ button { font-family: inherit;  }
 
 .scene-stage {
   position: relative;
-  /* ширина всегда полная: высота — из пропорции канвы, но не выше окна.
-     Так сцена не может «схлопнуться в чёрную полоску» ни при каком окне */
+  /* заполняет всё оставшееся место окна: ни схлопывания, ни прокрутки */
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  max-height: 100%;
   border: 2px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
@@ -1643,6 +1643,10 @@ input[type='checkbox'], input[type='radio'] {
 }
 .char-prof-card:hover { border-color: var(--gold); }
 .char-prof-card.sel { border-color: var(--gold); background: rgba(212, 175, 55, 0.12); }
+.char-budget { border: 1px solid var(--border); background: var(--panel-2); padding: 7px 10px; border-radius: 6px; font-size: 13px; margin-bottom: 8px; }
+.char-budget b { color: var(--gold-bright); font-size: 15px; }
+.char-budget.warn { border-color: var(--gold); }
+.char-budget-warn { color: var(--gold-bright); font-size: 12px; margin-top: 3px; }
 .char-prof-label { font-weight: 600; margin-bottom: 4px; }
 .char-prof-bonus { color: var(--gold-bright); margin-top: 6px; }
 .char-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 18px; margin-bottom: 6px; }

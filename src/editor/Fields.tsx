@@ -1,6 +1,6 @@
 import { Ico } from '../shared/icons'
 import { useId, useState } from 'react'
-import type { Condition, Effect } from '../shared/types'
+import type { Condition, Effect, NpcDef } from '../shared/types'
 import { makeId } from './ids'
 import type { EditorStore } from './store'
 import { isExternalUrl } from '../core/loader'
@@ -168,6 +168,17 @@ export function Field({
       />
     )
   }
+  if (spec.kind === 'portraitPick') {
+    return (
+      <PortraitPick
+        label={spec.label}
+        store={store}
+        value={value === undefined ? '' : String(value)}
+        optional={spec.optional}
+        onChange={onChange}
+      />
+    )
+  }
   const isFlag = spec.label.toLowerCase().includes('флаг')
   return (
     <label className="fld">
@@ -190,6 +201,65 @@ export function Field({
   )
 }
 
+
+
+/**
+ * Портрет для сообщения (фидбек 19): не ручной путь, а выбор — взять портрет
+ * одного из существующих персонажей или загрузить своё изображение.
+ */
+function PortraitPick({
+  label,
+  store,
+  value,
+  optional,
+  onChange,
+}: {
+  label: string
+  store: EditorStore
+  value: string
+  optional?: boolean
+  onChange: (v: unknown) => void
+}) {
+  const npcs = store
+    .entityPaths()
+    .map((p) => store.entity(p))
+    .filter((e): e is NpcDef => !!e && e.type === 'npc' && Object.values(e.portrait ?? {}).some(Boolean))
+    .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  const portraitOf = (n: (typeof npcs)[number]) => n.portrait!.neutral || Object.values(n.portrait!)[0] || ''
+  const fromNpc = npcs.find((n) => portraitOf(n) === value)
+  return (
+    <div className="fld fld-block">
+      <span>{label}</span>
+      <div className="fld-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <label className="fld" style={{ flex: 1, minWidth: 180 }}>
+          <span>Портрет персонажа</span>
+          <select
+            value={fromNpc?.id ?? ''}
+            onChange={(e) => {
+              const n = npcs.find((x) => x.id === e.target.value)
+              if (!n) return
+              onChange(portraitOf(n))
+            }}
+          >
+            <option value="">— не использовать —</option>
+            {npcs.map((n) => (
+              <option key={n.id} value={n.id}>{n.label}</option>
+            ))}
+          </select>
+        </label>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <ImageUpload
+            label="…или своё изображение"
+            value={value}
+            dir="assets/img/messages"
+            store={store}
+            onChange={(p) => onChange(p === '' && optional ? undefined : p)}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 /** Селект узла диалога выбранного NPC (фидбек: никакого ручного knot). */
 function DialogueNodeRef({
@@ -774,7 +844,7 @@ export function ConditionListEditor({
   onChange: (c: Condition[]) => void
 }) {
   const [open, setOpen] = useState<number | null>(null)
-  const types = Object.keys(CONDITION_SCHEMAS) as Condition['type'][]
+  const types = (Object.keys(CONDITION_SCHEMAS) as Condition['type'][]).sort((a, b) => CONDITION_SCHEMAS[a].label.localeCompare(CONDITION_SCHEMAS[b].label, 'ru'))
   return (
     <div className="ce-list">
       {conditions.map((c, i) => {
@@ -853,7 +923,7 @@ export function EffectListEditor({
   onChange: (e: Effect[]) => void
 }) {
   const [open, setOpen] = useState<number | null>(null)
-  const types = Object.keys(EFFECT_SCHEMAS) as Effect['type'][]
+  const types = (Object.keys(EFFECT_SCHEMAS) as Effect['type'][]).sort((a, b) => EFFECT_SCHEMAS[a].label.localeCompare(EFFECT_SCHEMAS[b].label, 'ru'))
   return (
     <div className="ce-list">
       {effects.map((ef, i) => {

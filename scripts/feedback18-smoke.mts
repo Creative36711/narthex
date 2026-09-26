@@ -128,7 +128,7 @@ const f = (p: string) => readFileSync(p, 'utf8')
 {
   const sp = f('src/shared/speech.ts')
   check('13 прогрев синтезатора первым жестом', sp.includes("addEventListener('pointerdown', prime") )
-  check('13 детект «тихих» фраз по onboundary', sp.includes('onboundary') && sp.includes('silentTimer'))
+  check('13 повторы фраз исключены (очередь только вперёд)', !sp.includes('queue.unshift') && !sp.includes('retryItem'))
 }
 
 console.log(failed ? `\nПРОВАЛЕНО: ${failed}` : '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')

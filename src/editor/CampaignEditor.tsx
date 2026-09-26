@@ -1034,33 +1034,20 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           слотам и музыке. Список слоёв — целиком ваш: движок умеет рисовать
           дождь, снег, туман и пепел, свои id подключаются классом weather-&lt;id&gt;.
         </div>
+        {/* id скрыт от мастера: видно только название, как во всех реестрах */}
         <div className="prof-sec" style={{ marginTop: 0 }}>Слои погоды (реестр кампании):</div>
         {(m.overlay_layers ?? []).map((l, i) => (
           <div className="prof-line" key={i}>
-            <span className="prof-line-label">{l.label} <span className="muted small">({l.id})</span></span>
+            <span className="prof-line-label">{l.label}</span>
             <button className="btn btn-small ce-del" data-tip="Удалить слой" onClick={() => ((m.overlay_layers = m.overlay_layers!.filter((_, x) => x !== i)), commit())}><Ico n="close" /></button>
           </div>
         ))}
-        <select value="" onChange={async (e) => {
-          let id = e.target.value
-          if (!id) return
-          if (id === '__custom__') {
-            const name = await askText('Новый слой погоды', 'id латиницей, например embers — будет класс weather-embers')
-            if (!name) return
-            id = name.trim().replace(/\s+/g, '_')
-            ;(m.overlay_layers ??= []).push({ id, label: id })
-          } else {
-            const label = ({ rain: 'Дождь', snow: 'Снег', fog: 'Туман', ash: 'Пепел' } as Record<string, string>)[id] ?? id
-            ;(m.overlay_layers ??= []).push({ id, label })
-          }
+        <button className="btn btn-small" onClick={async () => {
+          const label = await askText('Название слоя погоды', 'например «Огненный дождь»')
+          if (!label) return
+          ;(m.overlay_layers ??= []).push({ id: makeId('overlay_', label, m.overlay_layers.map((x) => x.id)), label })
           commit()
-        }}>
-          <option value="">+ добавить слой…</option>
-          {['rain', 'snow', 'fog', 'ash'].filter((id) => !(m.overlay_layers ?? []).some((l) => l.id === id)).map((id) => (
-            <option key={id} value={id}>{({ rain: 'Дождь', snow: 'Снег', fog: 'Туман', ash: 'Пепел' } as Record<string, string>)[id]}</option>
-          ))}
-          <option value="__custom__">Свой слой…</option>
-        </select>
+        }}>+ слой погоды</button>
         {(m.overlay_layers ?? []).length === 0 && (
           <div className="muted small" style={{ marginTop: 4 }}>Без реестра селект «Слой» у погоды будет пустым.</div>
         )}
@@ -1291,6 +1278,16 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                   ))}
                 </div>
 
+                <div className={`prof-budget ${(() => {
+                  const spent = (['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const).reduce((t, k) => t + Math.max(0, (p.stats?.[k] ?? m.char_creation!.stat_limits.min) - m.char_creation!.stat_limits.min), 0)
+                  return spent === m.char_creation!.total_points ? 'ok' : 'warn'
+                })()}`}
+                >
+                  Распределено характеристик:{' '}
+                  {(['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const).reduce((t, k) => t + Math.max(0, (p.stats?.[k] ?? m.char_creation!.stat_limits.min) - m.char_creation!.stat_limits.min), 0)}{' '}
+                  из {m.char_creation!.total_points} — мастер обязан распределить весь бюджет
+                </div>
+
                 <div className="prof-sec">Бонусы к навыкам (бесплатно поверх бюджета):</div>
                 {Object.entries(p.skill_bonus).map(([sk, v]) => (
                   <div className="prof-line" key={sk}>
@@ -1333,6 +1330,73 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               m.char_creation!.professions.push({ id: makeId('profession_', label, m.char_creation!.professions.map((x) => x.id)), label, skill_bonus: {} })
               commit()
             }}>+ происхождение</button>
+
+            <h4 style={{ marginTop: 12 }}>Призвания</h4>
+            <div className="muted small" style={{ marginBottom: 8 }}>
+              Второй шаблон создания героя: происхождение распределяет характеристики,
+              призвание — стартовые НАВЫКИ. Мастер обязан распределить ВЕСЬ бюджет
+              навыков; игрок после выбора может убавлять значения под себя.
+            </div>
+            {(m.char_creation.callings ?? []).map((c, i) => {
+              const floorOf = (id: string) =>
+                Math.max(m.char_creation!.skill_floor ?? 0, (m.char_creation!.mandatory_skills ?? []).includes(id) ? 25 : 0)
+              const budget = m.char_creation!.skill_points ?? 0
+              const spent = Object.entries(c.skills).reduce((t, [id, v]) => t + Math.max(0, v - floorOf(id)), 0)
+              const okBudget = budget === 0 || spent === budget
+              return (
+                <div key={i} className="prof-card">
+                  <div className="prof-card-head">
+                    <label className="fld"><span>Название</span>
+                      <input value={c.label} onChange={(e) => ((c.label = e.target.value), commit())} />
+                    </label>
+                    <button className="btn btn-small ce-del" data-tip="Удалить призвание" onClick={() => (m.char_creation!.callings!.splice(i, 1), commit())}><Ico n="close" /></button>
+                  </div>
+                  <label className="fld"><span>Описание</span>
+                    <input value={c.description ?? ''} onChange={(e) => ((c.description = e.target.value || undefined), commit())} />
+                  </label>
+
+                  <div className="prof-sec">Стартовые навыки (абсолютные проценты):</div>
+                  {Object.entries(c.skills).sort((a, b) => store.labelFor('skill', a[0]).localeCompare(store.labelFor('skill', b[0]), 'ru')).map(([sk, v]) => (
+                    <div className="prof-line" key={sk}>
+                      <span className="prof-line-label">{store.labelFor('skill', sk)}</span>
+                      <input
+                        className="fld-num" type="number" min={floorOf(sk)}
+                        max={m.char_creation!.skill_cap}
+                        value={v}
+                        onChange={(e) => {
+                          let nv = Math.round(Number(e.target.value) || 0)
+                          nv = Math.max(floorOf(sk), nv)
+                          const cap = m.char_creation!.skill_cap
+                          if (cap !== undefined) nv = Math.min(nv, cap)
+                          c.skills[sk] = nv
+                          commit()
+                        }}
+                      />
+                      <button className="btn btn-small ce-del" data-tip="Убрать навык" onClick={() => (delete c.skills[sk], commit())}><Ico n="close" /></button>
+                    </div>
+                  ))}
+                  <select value="" onChange={(e) => {
+                    const id = e.target.value
+                    if (id) (c.skills[id] = Math.min(floorOf(id) + 10, m.char_creation!.skill_cap ?? Number.MAX_SAFE_INTEGER), commit())
+                  }}>
+                    <option value="">+ навык…</option>
+                    {store.options('skill').map((x) => (<option key={x.id} value={x.id} disabled={c.skills[x.id] !== undefined}>{x.label}</option>))}
+                  </select>
+
+                  <div className={`prof-budget ${okBudget ? 'ok' : 'warn'}`}>
+                    Распределено навыков: {spent} из {budget || '—'}
+                    {!okBudget && ' — мастер обязан распределить весь бюджет'}
+                  </div>
+                </div>
+              )
+            })}
+            <button className="btn btn-small" onClick={async () => {
+              const label = await askText('Название призвания', 'например «Наёмник»')
+              if (!label) return
+              if (!m.char_creation!.callings) m.char_creation!.callings = []
+              m.char_creation!.callings.push({ id: makeId('calling_', label, m.char_creation!.callings.map((x) => x.id)), label, skills: {} })
+              commit()
+            }}>+ призвание</button>
           </>
         )}
       </div>

@@ -38,7 +38,9 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         <span className="scene-location">{loc?.location.label}</span>
         <span className="scene-name">{scene.label} — {state.label}</span>
       </div>
-      <div className={`scene-stage tod-tint-${tod}`} style={{ aspectRatio: `${canvas.w} / ${canvas.h}` }}>
+      {/* сцена занимает всё оставшееся место без прокрутки: ширина и высота —
+          от контейнера, картинка растягивается (object-fit: fill) */}
+      <div className={`scene-stage tod-tint-${tod}`}>
         {state.art ? (
           <ArtView className="scene-bg" art={state.art} />
         ) : state.image && !bgError ? (

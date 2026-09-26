@@ -804,6 +804,9 @@
 .prof-card-head { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
 .prof-card-head .fld { flex: 1; margin-bottom: 0; min-width: 0; }
 .prof-sec { font-size: 12px; color: var(--muted); margin: 10px 0 5px; }
+.prof-budget { font-size: 12px; margin-top: 8px; padding: 6px 8px; border-radius: 6px; border: 1px dashed var(--border); }
+.prof-budget.ok { color: var(--green, #7da963); border-color: rgba(122,160,90,0.5); }
+.prof-budget.warn { color: var(--warn, #d8a24a); border-color: rgba(216,162,74,0.55); }
 .prof-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 6px 8px; }
 .prof-stat { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
 .prof-stat input { width: 100%; }

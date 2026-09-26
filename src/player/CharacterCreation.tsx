@@ -10,6 +10,7 @@ import {
   skillPointsUsed,
   statPointsUsed,
   STAT_KEYS,
+  withCalling,
   withProfession,
   type CharChoice,
 } from '../core/charcreate'
@@ -28,8 +29,8 @@ const STAT_LABELS: Record<string, string> = {
 
 /**
  * Экран создания персонажа (блок 11 ТЗ «Гибкий движок»).
- * Происхождения, пороги и бюджеты целиком задаёт мастер кампании;
- * игрок выбирает происхождение и докручивает очки под себя.
+ * Происхождения, призвания, пороги и бюджеты целиком настраиваются в редакторе;
+ * игрок выбирает происхождение и призвание и докручивает очки под себя.
  */
 export function CharacterCreation({
   campaign,
@@ -119,10 +120,44 @@ export function CharacterCreation({
           </div>
         )}
 
+        {(creation.callings ?? []).length > 0 && (
+          <div className="props-group">
+            <h4>Призвание</h4>
+            <div className="muted small" style={{ marginBottom: 6 }}>
+              Призвание задаёт стартовые навыки героя — их тоже можно подстроить ниже.
+            </div>
+            <div className="char-professions">
+              {(creation.callings ?? []).map((c) => (
+                <button
+                  key={c.id}
+                  className={`char-prof-card ${choice.calling === c.id ? 'sel' : ''}`}
+                  onClick={() => setChoice(withCalling(creation, choice, c.id))}
+                >
+                  <div className="char-prof-label">{c.label}</div>
+                  {c.description && <div className="muted small">{c.description}</div>}
+                  <div className="char-prof-bonus small">
+                    {Object.entries(c.skills).length
+                      ? Object.entries(c.skills)
+                          .map(([id, v]) => `${skillLabel(id, campaign.meta.skills)} ${v}%`)
+                          .sort((a, b) => a.localeCompare(b, 'ru'))
+                          .join(' · ')
+                      : 'без навыков'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="props-group">
           <h4>Характеристики</h4>
-          <div className="muted small" style={{ marginBottom: 6 }}>
-            Свободных очков: <b>{statLeft}</b> из {creation.total_points}. Пороги: {min}–{max} (задаёт мастер кампании).
+          <div className={`char-budget ${statLeft > 0 ? 'warn' : 'ok'}`}>
+            Свободных очков характеристик: <b>{statLeft}</b> из {creation.total_points} · пороги {min}–{max}
+            {statLeft > 0 && (
+              <div className="char-budget-warn">
+                В бой с {statLeft} нераспределёнными очками? Это хардкор — герой будет заметно слабее.
+              </div>
+            )}
           </div>
           <div className="char-stats">
             {STAT_KEYS.map((k) => (
@@ -154,9 +189,13 @@ export function CharacterCreation({
         {skillsOn && (
           <div className="props-group">
             <h4>Навыки</h4>
-            <div className="muted small" style={{ marginBottom: 6 }}>
-              Свободных очков: <b>{skillLeft}</b> из {creation.skill_points}.
-              Пороги: {creation.skill_floor ?? 0}–{creation.skill_cap ?? 'без предела'} (задаёт мастер кампании).
+            <div className={`char-budget ${skillLeft > 0 ? 'warn' : 'ok'}`}>
+              Свободных очков навыков: <b>{skillLeft}</b> из {creation.skill_points} · пороги {creation.skill_floor ?? 0}–{creation.skill_cap ?? 'без предела'}
+              {skillLeft > 0 && (
+                <div className="char-budget-warn">
+                  {skillLeft} очк. навыков не потрачено — старт будет сложнее (хардкор). Лучше вложить всё.
+                </div>
+              )}
             </div>
             <div className="char-skills">
               {skillList.map((s) => {

@@ -125,7 +125,7 @@ const demo = await loadCampaign(base)
   const bp = charChoiceProblems(creation, banned, skills)
   check('6 запрещённый навык назван по-русски', bp.some((p) => p.includes('Укус') || p.includes('«')), bp.join('; '))
   const ui = readFileSync('src/player/CharacterCreation.tsx', 'utf8')
-  check('6 экран объясняет пороги мастера', ui.includes('задаёт мастер кампании'))
+  check('6 экран без «задаёт мастер», бюджет заметен', !ui.includes('задаёт мастер кампании') && ui.includes('char-budget'))
   const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
   check('6 редактор: распределение характеристик по происхождениям', ce.includes('Стартовые характеристики') && ce.includes('Предел навыка снизу'))
 }
@@ -142,9 +142,9 @@ const demo = await loadCampaign(base)
 // ── 8. озвучка: повтор при сбое/застревании ──
 {
   const sp = readFileSync('src/shared/speech.ts', 'utf8')
-  check('8 фраза повторяется при ошибке синтезатора', sp.includes('retryItem') && sp.includes('onerror'))
-  check('8 сторожок застревания (нет старта за 5 с)', sp.includes('stallTimer') && sp.includes('5000'))
-  check('8 повторов не больше двух', sp.includes('MAX_RETRIES = 2'))
+  check('8 фразы НЕ повторяются при сбоях (очередь только вперёд)', !sp.includes('queue.unshift'))
+  check('8 сторожок полного зависания (8 с) двигает очередь', sp.includes('stallTimer') && sp.includes('8000'))
+  check('8 прогрев синтезатора первым жестом', sp.includes("addEventListener('pointerdown', prime"))
 }
 
 console.log(failed ? `\nПРОВАЛЕНО: ${failed}` : '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')

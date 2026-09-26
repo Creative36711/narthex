@@ -35,6 +35,7 @@ export type FieldKind =
   | 'statusRef' // статус из реестра кампании (блок 5 ТЗ)
   | 'weatherRef' // погода из реестра кампании (блок 9 ТЗ)
   | 'codexRef' // запись кодекса (блок 10 ТЗ)
+  | 'portraitPick' // портрет: из персонажа или своё изображение
 
 export interface FieldSpec {
   key: string
@@ -408,7 +409,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Показать сообщение',
     fields: [
       { key: 'text', label: 'Текст', kind: 'string' },
-      { key: 'portrait', label: 'Портрет (путь)', kind: 'string', optional: true },
+      { key: 'portrait', label: 'Портрет', kind: 'portraitPick', optional: true },
     ],
     blank: { text: '' },
   },

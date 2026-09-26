@@ -191,6 +191,38 @@
           "CHA": 8
         }
       }
+    ],
+    "callings": [
+      {
+        "id": "calling_mercenary",
+        "label": "Наёмник",
+        "description": "Жил клинком: рубка, кулаки и умение увернуться от чужого клинка.",
+        "skills": {
+          "sword": 45,
+          "brawl": 30,
+          "dodge": 40
+        }
+      },
+      {
+        "id": "calling_tracker",
+        "label": "Следопыт",
+        "description": "Ходил глухими тропами: неслышный шаг, зоркий глаз, быстрые ноги.",
+        "skills": {
+          "stealth": 40,
+          "spot": 35,
+          "dodge": 40
+        }
+      },
+      {
+        "id": "calling_trader",
+        "label": "Торговец",
+        "description": "Знает цену слову и товару: торг, убеждение и полевая медицина.",
+        "skills": {
+          "bargain": 40,
+          "persuade": 40,
+          "first_aid": 35
+        }
+      }
     ]
   },
   "roguelike": {

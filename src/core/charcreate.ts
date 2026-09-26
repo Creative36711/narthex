@@ -14,7 +14,7 @@
  * `GameEngine.applyCharCreation`.
  */
 import { derivedHP, derivedMP } from './brp'
-import { BUILTIN_SKILL_LABELS, skillLabel, type SkillDef } from '../shared/skills'
+import { skillLabel, type SkillDef } from '../shared/skills'
 import type { CampaignMeta, CharCreationDef, NpcDef, StatBlock } from '../shared/types'
 
 export const STAT_KEYS: Array<keyof StatBlock> = ['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA']
@@ -23,24 +23,30 @@ export const STAT_KEYS: Array<keyof StatBlock> = ['STR', 'CON', 'SIZ', 'DEX', 'I
 export interface CharChoice {
   name: string
   stats: Record<string, number>
-  /** id профессии или '' */
+  /** id профессии (происхождение → характеристики) или '' */
   profession: string
+  /** id призвания (шаблон навыков) или '' */
+  calling: string
   /** итоговые значения навыков (порог + бонусы происхождения + покупки) */
   skills: Record<string, number>
 }
 
-/** полный список навыков кампании: реестр + встроенные (по алфавиту) */
+/**
+ * Полный список навыков кампании: ТОЛЬКО реестр кампании (фидбек 19 — навыки
+ * это чисто json кампании, никакого хардкода движка). Встроенный словарь
+ * используется только для подписей (skillLabel), но не добавляет навыков.
+ */
 export function allSkillIds(meta: CampaignMeta): Array<{ id: string; label: string }> {
   const reg = (meta.skills ?? []).map((s) => ({ id: s.id, label: s.label || s.id }))
-  const regIds = new Set(reg.map((s) => s.id))
-  for (const [id, label] of Object.entries(BUILTIN_SKILL_LABELS)) {
-    if (!regIds.has(id)) reg.push({ id, label })
-  }
   return reg.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
 }
 
 function prof(creation: CharCreationDef, choice: CharChoice) {
   return creation.professions?.find((p) => p.id === choice.profession)
+}
+
+function calling(creation: CharCreationDef, choice: CharChoice) {
+  return creation.callings?.find((c) => c.id === choice.calling)
 }
 
 /** нижний порог характеристики (мастер) */
@@ -87,6 +93,7 @@ export function skillPointsUsed(creation: CharCreationDef, choice: CharChoice): 
  */
 export function newCharChoice(creation: CharCreationDef, template: NpcDef, meta: CampaignMeta): CharChoice {
   const first = creation.professions?.[0]
+  const firstCall = creation.callings?.[0]
   const stats: Record<string, number> = {}
   for (const k of STAT_KEYS) {
     const fromProf = first?.stats?.[k]
@@ -95,9 +102,28 @@ export function newCharChoice(creation: CharCreationDef, template: NpcDef, meta:
   }
   // список навыков: реестр кампании + навыки шаблона
   const ids = new Set<string>([...allSkillIds(meta).map((s) => s.id), ...Object.keys(template.skills)])
-  const choice: CharChoice = { name: template.label, stats, profession: first?.id ?? '', skills: {} }
+  const choice: CharChoice = { name: template.label, stats, profession: first?.id ?? '', calling: firstCall?.id ?? '', skills: {} }
   for (const id of ids) choice.skills[id] = skillMinVal(creation, choice, id)
-  return choice
+  return withCalling(creation, choice, choice.calling)
+}
+
+/**
+ * Сменить призвание: навыки — из распределения мастера (или на нижнем пороге),
+ * бонусы происхождения сохраняются. Характеристики не трогает.
+ */
+export function withCalling(creation: CharCreationDef, choice: CharChoice, callingId: string): CharChoice {
+  const next: CharChoice = { ...choice, calling: callingId, skills: { ...choice.skills } }
+  const c = calling(creation, next)
+  // все навыки из реестра + из шаблона призвания
+  const ids = new Set<string>([...Object.keys(next.skills), ...Object.keys(c?.skills ?? {})])
+  for (const id of ids) {
+    const fromCall = c?.skills?.[id]
+    const v = fromCall !== undefined ? fromCall : skillBaseFloor(creation, id)
+    next.skills[id] = Math.max(skillMinVal(creation, next, id), Math.round(v))
+    const cap = creation.skill_cap
+    if (cap !== undefined && next.skills[id] > cap) next.skills[id] = cap
+  }
+  return next
 }
 
 /**
