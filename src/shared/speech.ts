@@ -118,7 +118,6 @@ function clearStallTimer(): void {
 let primed = false
 /** было ли действие пользователя, разрешающее озвучку */
 let gestureSeen = false
-let gestureLogged = false
 
 function onFirstGesture(): void {
   gestureSeen = true
@@ -175,13 +174,8 @@ function pump(): void {
     return
   }
   // до первого жеста браузер всё равно отбросит озвучку — фразы ждут клика
-  if (!gestureSeen) {
-    if (!gestureLogged) {
-      gestureLogged = true
-      console.warn('[tts] озвучка ждёт первого клика/нажатия — браузер запрещает звук без действия пользователя; фразы не теряются')
-    }
-    return
-  }
+  // браузер запрещает звук без действия пользователя — фразы ждут клика
+  if (!gestureSeen) return
   if (item.cancelled) {
     queue.shift()
     pump()
@@ -244,21 +238,9 @@ function speakItem(item: QueueItem): void {
   u.onstart = () => {
     item.started = true
     clearStallTimer()
-    console.warn(`[tts] звучит: «${item.clean.slice(0, 40)}${item.clean.length > 40 ? '…' : ''}»`)
   }
-  u.onend = () => {
-    console.warn('[tts] фраза дочитана — очередь идёт дальше')
-    finishItem(item)
-  }
-  u.onerror = (e) => {
-    const err = (e as SpeechSynthesisErrorEvent).error || 'неизвестно'
-    if (item.cancelled || err === 'interrupted' || err === 'canceled') {
-      console.warn(`[tts] фраза остановлена (${err}) — это нормальная отмена, не сбой`)
-    } else {
-      console.warn(`[tts] ошибка синтеза (${err}) — фраза пропущена, повтора не будет`)
-    }
-    finishItem(item)
-  }
+  u.onend = () => finishItem(item)
+  u.onerror = () => finishItem(item)
   try {
     synth.speak(u)
     synth.resume() // защита от «застрявшего» пауз-состояния
@@ -270,7 +252,6 @@ function speakItem(item: QueueItem): void {
   stallTimer = setTimeout(() => {
     stallTimer = null
     if (active === item && !item.started) {
-      console.warn('[tts] синтезатор молчит 8 с — пропускаем фразу, очередь идёт дальше')
       try {
         synth.cancel()
       } catch {
@@ -286,7 +267,6 @@ function speakItem(item: QueueItem): void {
  * состояние; следующий `speak()` выдержит короткую паузу после `cancel()`.
  */
 export function stopSpeaking(): void {
-  if (queue.length || active) console.warn('[tts] остановка: очередь очищена')
   for (const item of queue) item.cancelled = true
   queue.length = 0
   if (active) active.cancelled = true
@@ -317,7 +297,6 @@ export function speak(
   if (!opts.queue) stopSpeaking()
   const item: QueueItem = { clean, opts, started: false, settled: false }
   queue.push(item)
-  console.warn(`[tts] в очередь: «${clean.slice(0, 40)}${clean.length > 40 ? '…' : ''}» (в очереди: ${queue.length})`)
   pump()
   return () => {
     item.cancelled = true

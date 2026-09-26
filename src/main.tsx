@@ -49,8 +49,6 @@ window.addEventListener('error', (e) => {
 /** метка сборки — видна в консоли и в __cf_diag() */
 export const BUILD_STAMP = new Date().toISOString()
 
-console.info(`[chronicle-forge] сборка ${BUILD_STAMP}`)
-
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ModalHost />

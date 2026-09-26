@@ -37,8 +37,8 @@ const f = (p: string) => readFileSync(p, 'utf8')
   check('3 очередь не говорит до первого жеста', sp.includes('gestureSeen') && /if \(!gestureSeen\)/.test(sp))
   check('3 жест запускает накопленные фразы', sp.includes('onFirstGesture'))
   check('3 повторов по-прежнему нет', !sp.includes('queue.unshift'))
-  check('3 логи озвучки видны (уровень warn)', sp.includes("console.warn('[tts]"))
-  check('3 самодиагностика __cf_tts()', sp.includes('__cf_tts'))
+  check('3 консоль чистая — диагностических логов нет', !sp.includes('console.warn') && !sp.includes('console.log'))
+  check('3 самодиагностика __cf_tts() осталась', sp.includes('__cf_tts'))
 }
 
 // ── 4. тёмный экран объясняется ──
