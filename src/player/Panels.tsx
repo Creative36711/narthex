@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Ico } from '../shared/icons'
 import { askConfirm } from '../shared/modals'
 import type { GameEngine } from '../core/engine'
-import { featureOn, type Effect, type ItemDef } from '../shared/types'
+import { featureOn, type Effect, type ItemDef, type RecipeDef } from '../shared/types'
 import { damageBonus, movement } from '../core/brp'
 import { playInteraction } from '../shared/audio'
 
@@ -289,5 +289,65 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
         </ul>
       </div>
     </div>
+  )
+}
+
+/** Крафт (блок 4 ТЗ): список рецептов, недостающие компоненты, изготовление. */
+export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
+  const recipes = engine.allRecipes()
+  return (
+    <div className="overlay panel-overlay" onClick={onClose}>
+      <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="panel-header">
+          <h2>Изготовление</h2>
+          <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
+        </div>
+        {recipes.length === 0 && <p className="muted">Рецептов пока нет.</p>}
+        <ul className="craft-list">
+          {recipes.map((r) => {
+            const missing = engine.recipeMissing(r)
+            return <CraftRow key={r.id} engine={engine} recipe={r} missing={missing} />
+          })}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function CraftRow({ engine, recipe, missing }: { engine: GameEngine; recipe: RecipeDef; missing: string[] }) {
+  const canCraft = missing.length === 0
+  const out = engine.campaign.entities[recipe.output.item] as ItemDef | undefined
+  return (
+    <li className={`craft-row ${canCraft ? '' : 'craft-blocked'}`}>
+      <div className="inv-item-main">
+        <b>{recipe.label}</b>
+        {recipe.description && <div className="muted small">{recipe.description}</div>}
+        {recipe.inputs.length > 0 && (
+          <div className="muted small">
+            Нужно: {recipe.inputs.map((n) => `${engine.campaign.entities[n.item]?.label ?? n.item} ×${n.quantity}`).join(', ')}
+          </div>
+        )}
+        {(recipe.tools ?? []).length > 0 && (
+          <div className="muted small">
+            Инструменты: {recipe.tools!.map((t) => engine.campaign.entities[t]?.label ?? t).join(', ')} (не расходуются)
+          </div>
+        )}
+        {recipe.skill && (
+          <div className="muted small">
+            Проверка навыка «{engine.skillLabel(recipe.skill.id)}» против {recipe.skill.difficulty}
+          </div>
+        )}
+        {recipe.time_ticks ? (
+          <div className="muted small">Занимает {recipe.time_ticks} {engine.campaign.meta.tick_label}</div>
+        ) : null}
+        {!canCraft && <div className="craft-missing small"><Ico n="warn" />  Не хватает: {missing.join('; ')}</div>}
+      </div>
+      <div className="inv-item-side">
+        <div className="muted small craft-out">{out?.label ?? recipe.output.item}{recipe.output.quantity > 1 ? ` ×${recipe.output.quantity}` : ''}</div>
+        <button className="btn btn-small" disabled={!canCraft} onClick={() => engine.craft(recipe.id)}>
+          <Ico n="hammer" />  Изготовить
+        </button>
+      </div>
+    </li>
   )
 }

@@ -7,6 +7,7 @@ import type {
   EncounterTableDef,
   EntityDef,
   QuestDef,
+  RecipeDef,
   RuleDef,
   SceneDef,
   WorldDef,
@@ -29,6 +30,8 @@ interface Manifest {
   encounters?: string[]
   /** катсцены: файлы в cutscenes/ (итерация 8, блок E) */
   cutscenes?: string[]
+  /** рецепты крафта: файлы в recipes/ (блок 4 ТЗ) */
+  recipes?: string[]
   dialogues: string[]
 }
 
@@ -58,6 +61,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   const quests: Record<string, QuestDef> = {}
   const encounters: Record<string, EncounterTableDef> = {}
   const cutscenes: Record<string, CutsceneDef> = {}
+  const recipes: Record<string, RecipeDef> = {}
   const dialogues: Record<string, string> = {}
 
   await Promise.all([
@@ -76,6 +80,10 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
     ...(manifest.cutscenes ?? []).map(async (f) => {
       const c = await getJSON<CutsceneDef>(`${basePath}/cutscenes/${f}`)
       cutscenes[c.id] = c
+    }),
+    ...(manifest.recipes ?? []).map(async (f) => {
+      const r = await getJSON<RecipeDef>(`${basePath}/recipes/${f}`)
+      recipes[r.id] = r
     }),
     ...manifest.scenes.map(async (f) => {
       const s = await getJSON<SceneDef>(`${basePath}/scenes/${f}`)
@@ -98,7 +106,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   // переходы «в локацию» из сцен и т.п.
   migrateCampaign(meta, world, scenes)
 
-  return { meta, world, scenes, entities, rules, arenas, quests, encounters, cutscenes, dialogues, basePath }
+  return { meta, world, scenes, entities, rules, arenas, quests, encounters, cutscenes, recipes, dialogues, basePath }
 }
 
 /**

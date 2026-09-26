@@ -6,6 +6,7 @@ import type {
   CutsceneDef,
   EntityDef,
   QuestDef,
+  RecipeDef,
   RuleDef,
   SceneDef,
   WorldDef,
@@ -26,6 +27,8 @@ export interface ManifestDef {
   encounters?: string[]
   /** катсцены (итерация 8, блок E) */
   cutscenes?: string[]
+  /** рецепты крафта (блок 4 ТЗ) */
+  recipes?: string[]
   dialogues: string[]
 }
 
@@ -39,6 +42,7 @@ export type EditorSection =
   | 'dialogues'
   | 'arenas'
   | 'cutscenes'
+  | 'recipes'
 
 export class EditorStore {
   basePath: string // "/campaigns/ash-of-caerden"
@@ -158,6 +162,9 @@ export class EditorStore {
   cutscenePaths(): string[] {
     return (this.manifest.cutscenes ?? []).map((f) => `cutscenes/${f}`)
   }
+  recipePaths(): string[] {
+    return (this.manifest.recipes ?? []).map((f) => `recipes/${f}`)
+  }
 
   scene(path: string): SceneDef {
     return this.jsonFiles.get(path) as SceneDef
@@ -181,6 +188,9 @@ export class EditorStore {
   }
   cutscene(path: string): CutsceneDef {
     return this.jsonFiles.get(path) as CutsceneDef
+  }
+  recipe(path: string): RecipeDef {
+    return this.jsonFiles.get(path) as RecipeDef
   }
 
   /** списки id для подсказок в полях */
@@ -313,7 +323,7 @@ export class EditorStore {
     return relPath
   }
 
-  ids(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'cutscene'): string[] {
+  ids(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'cutscene' | 'recipe'): string[] {
     const out: string[] = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -331,6 +341,8 @@ export class EditorStore {
       for (const p of this.rulePaths()) out.push(this.rule(p)?.id ?? '')
     } else if (kind === 'cutscene') {
       for (const p of this.cutscenePaths()) out.push(this.cutscene(p)?.id ?? '')
+    } else if (kind === 'recipe') {
+      for (const p of this.recipePaths()) out.push(this.recipe(p)?.id ?? '')
     } else if (kind === 'location') {
       const walk = (regions: typeof this.world.regions) => {
         for (const r of regions) {

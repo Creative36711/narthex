@@ -32,6 +32,7 @@ import type {
   NeedDef,
   NpcDef,
   QuestDef,
+  RecipeDef,
   RegionDef,
   RuleDef,
   SceneDef,
@@ -111,6 +112,11 @@ export function exportMonolith(store: EditorStore): { doc: MonolithDoc; warnings
     'катсцены',
     warnings,
   )
+  const recipes = collectById(
+    store.recipePaths().map((p) => [p, store.recipe(p)] as [string, RecipeDef]),
+    'рецепты',
+    warnings,
+  )
 
   // таблицы встреч: файлы rules/encounters.json с обёрткой { encounter_tables: [...] }
   const encounters: Record<string, EncounterTableDef> = {}
@@ -149,6 +155,7 @@ export function exportMonolith(store: EditorStore): { doc: MonolithDoc; warnings
     arenas,
     cutscenes,
     encounters,
+    recipes,
     dialogues,
   }
   return { doc, warnings }
@@ -354,6 +361,7 @@ export function repairMonolith(raw: unknown): { doc: MonolithDoc; warnings: stri
     arenas: pickMap(src.arenas),
     cutscenes: pickMap(src.cutscenes),
     encounters: pickMap(src.encounters),
+    recipes: pickMap(src.recipes),
     dialogues: pickMap(src.dialogues) as Record<string, MonolithDialogue>,
   }
 
@@ -484,6 +492,15 @@ function normalizeDefs(ctx: RepairCtx): void {
     }
     for (const s of c.slides) {
       if (!s.transition) s.transition = 'fade'
+    }
+  })
+  fix(ctx.doc.recipes as Record<string, RecipeDef & { label: string }>, 'Рецепт', 'recipe', (r) => {
+    r.inputs = Array.isArray(r.inputs) ? r.inputs.filter(isObj) : []
+    r.tools = Array.isArray(r.tools) ? r.tools.filter((t) => typeof t === 'string') : undefined
+    r.requires = Array.isArray(r.requires) ? r.requires.filter(isObj) : undefined
+    if (!isObj(r.output) || typeof (r.output as { item?: unknown }).item !== 'string') {
+      r.output = { item: '', quantity: 1 }
+      ctx.warn(`Рецепт «${r.label}»: не было результата — очищен`)
     }
   })
   const encounters = (ctx.doc.encounters ??= {})
@@ -1372,6 +1389,7 @@ export function importMonolith(store: EditorStore, raw: unknown): string[] {
     quests: [],
     encounters: [],
     cutscenes: [],
+    recipes: [],
     dialogues: [],
   }
 
@@ -1411,6 +1429,12 @@ export function importMonolith(store: EditorStore, raw: unknown): string[] {
     store.jsonFiles.set(`cutscenes/${f}`, c)
     store.dirty.add(`cutscenes/${f}`)
   }
+  for (const r of Object.values(doc.recipes ?? {})) {
+    const f = `${fileSlug(r.id)}.json`
+    manifest.recipes!.push(f)
+    store.jsonFiles.set(`recipes/${f}`, r)
+    store.dirty.add(`recipes/${f}`)
+  }
   const tables = Object.values(doc.encounters ?? {})
   if (tables.length) {
     manifest.encounters!.push('encounters.json')
@@ -1442,6 +1466,7 @@ export function importMonolith(store: EditorStore, raw: unknown): string[] {
   manifest.arenas!.sort()
   manifest.quests!.sort()
   manifest.cutscenes!.sort()
+  manifest.recipes!.sort()
   store.manifest = manifest
   store.dirty.add('manifest.json')
   store.dirty.add('campaign.json')

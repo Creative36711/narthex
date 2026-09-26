@@ -10,6 +10,7 @@ import type {
   LocationDef,
   NpcDef,
   PlayerState,
+  RecipeDef,
   RegionDef,
   SceneDef,
   SceneStateDef,
@@ -613,6 +614,65 @@ export class GameEngine {
     this.addItem('item_silver', price)
     this.markSkill('bargain')
     playUi('coin')
+    this.notify()
+    return true
+  }
+
+  // ─────────────── крафт (блок 4 ТЗ «Гибкий движок») ───────────────
+
+  /** название предмета по id (фолбэк — сам id) */
+  private itemTitle(id: string): string {
+    return (this.campaign.entities[id] as ItemDef | undefined)?.label ?? id
+  }
+
+  /** все рецепты кампании, по алфавиту (русский) */
+  allRecipes(): RecipeDef[] {
+    return Object.values(this.campaign.recipes).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  }
+
+  /** чего не хватает для рецепта: компоненты, инструменты, условия */
+  recipeMissing(r: RecipeDef): string[] {
+    const missing: string[] = []
+    for (const need of r.inputs ?? []) {
+      const have = this.itemCount(need.item)
+      if (have < need.quantity) missing.push(`${this.itemTitle(need.item)} ×${need.quantity} (есть ${have})`)
+    }
+    for (const tool of r.tools ?? []) {
+      if (!this.hasItem(tool)) missing.push(`инструмент: ${this.itemTitle(tool)}`)
+    }
+    let blocked = false
+    for (const c of r.requires ?? []) {
+      if (!evalCondition(c, this)) blocked = true
+    }
+    if (blocked) missing.push('не выполнены условия')
+    return missing
+  }
+
+  /**
+   * Изготовление по рецепту. Если у рецепта есть проверка навыка — бросок
+   * идёт первым: провал сохраняет компоненты. Успех расходует компоненты,
+   * выдаёт результат и проматывает время.
+   */
+  craft(recipeId: string): boolean {
+    const r = this.campaign.recipes[recipeId]
+    if (!r || this.recipeMissing(r).length > 0) return false
+    if (r.skill) {
+      const out = this.playerSkillCheck(r.skill.id, r.skill.difficulty)
+      if (!out.success) {
+        this.messages.push({ text: `Не получилось изготовить «${r.label}». Материалы остались целы.` })
+        this.autosave()
+        this.notify()
+        return false
+      }
+    }
+    for (const need of r.inputs ?? []) this.removeItem(need.item, need.quantity)
+    this.addItem(r.output.item, r.output.quantity ?? 1)
+    if (r.time_ticks) this.advanceTicks(r.time_ticks)
+    const outLabel = this.itemTitle(r.output.item)
+    this.pushLog(`Изготовлено: ${outLabel} (рецепт «${r.label}»).`)
+    this.messages.push({ text: r.message ?? `Изготовлено: ${outLabel}.` })
+    playUi('craft')
+    this.autosave()
     this.notify()
     return true
   }

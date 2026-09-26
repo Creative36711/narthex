@@ -863,6 +863,32 @@ export interface ArenaDef {
   music?: string
 }
 
+// ───────────────────────── рецепты крафта (блок 4 ТЗ «Гибкий движок») ─────────────────────────
+
+/**
+ * Рецепт изготовления: компоненты (+ инструменты) → предмет. Проверка
+ * навыка — родная BRP-механика (успех ставит «галочку» опыта).
+ */
+export interface RecipeDef {
+  id: string
+  label: string
+  description?: string
+  /** расходуемые компоненты */
+  inputs: Array<{ item: string; quantity: number }>
+  /** инструменты: нужны в инвентаре, НЕ расходуются */
+  tools?: string[]
+  /** декларативные условия возможности крафта (локация, флаг, …) */
+  requires?: Condition[]
+  /** проверка навыка при изготовлении; успех = создал, провал = компоненты целы */
+  skill?: { id: string; difficulty: number }
+  /** время изготовления (промотка тиков после успеха) */
+  time_ticks?: number
+  /** результат */
+  output: { item: string; quantity: number }
+  /** сообщение об успехе (нет — стандартное) */
+  message?: string
+}
+
 // ───────────────────────── квесты (ТЗ 3.7) ─────────────────────────
 
 export interface QuestStageDef {
@@ -1071,6 +1097,8 @@ export interface CampaignData {
   encounters: Record<string, EncounterTableDef>
   /** катсцены по id (итерация 8, блок E) */
   cutscenes: Record<string, CutsceneDef>
+  /** рецепты крафта по id (блок 4 ТЗ) */
+  recipes: Record<string, RecipeDef>
   dialogues: Record<string, string> // путь -> исходник .ink
   basePath: string
 }
@@ -1108,6 +1136,8 @@ export interface MonolithDoc {
   cutscenes: Record<string, CutsceneDef>
   /** таблицы случайных встреч (в Campaign Package лежат в rules/encounters.json) */
   encounters?: Record<string, EncounterTableDef>
+  /** рецепты крафта по id (блок 4 ТЗ; файлы в recipes/) */
+  recipes?: Record<string, RecipeDef>
   /** диалоги по id (имя файла без расширения) */
   dialogues: Record<string, MonolithDialogue>
 }

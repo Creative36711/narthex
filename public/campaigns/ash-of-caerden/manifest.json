@@ -88,5 +88,8 @@
   ],
   "cutscenes": [
     "cutscene_intro.json"
+  ],
+  "recipes": [
+    "recipe_healing_salve.json"
   ]
 }

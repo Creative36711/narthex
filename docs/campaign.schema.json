@@ -3871,6 +3871,104 @@
       ],
       "additionalProperties": false
     },
+    "RecipeDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "item",
+              "quantity"
+            ],
+            "additionalProperties": false
+          },
+          "description": "расходуемые компоненты"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "инструменты: нужны в инвентаре, НЕ расходуются"
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "декларативные условия возможности крафта (локация, флаг, …)"
+        },
+        "skill": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "difficulty": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "difficulty"
+          ],
+          "additionalProperties": false,
+          "description": "проверка навыка при изготовлении; успех = создал, провал = компоненты целы"
+        },
+        "time_ticks": {
+          "type": "number",
+          "description": "время изготовления (промотка тиков после успеха)"
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "item",
+            "quantity"
+          ],
+          "additionalProperties": false,
+          "description": "результат"
+        },
+        "message": {
+          "type": "string",
+          "description": "сообщение об успехе (нет — стандартное)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "inputs",
+        "output"
+      ],
+      "additionalProperties": false,
+      "description": "Рецепт изготовления: компоненты (+ инструменты) → предмет. Проверка\nнавыка — родная BRP-механика (успех ставит «галочку» опыта)."
+    },
     "DlgCond": {
       "anyOf": [
         {
@@ -4621,6 +4719,13 @@
             "$ref": "#/$defs/EncounterTableDef"
           },
           "description": "таблицы случайных встреч (в Campaign Package лежат в rules/encounters.json)"
+        },
+        "recipes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/RecipeDef"
+          },
+          "description": "рецепты крафта по id (блок 4 ТЗ; файлы в recipes/)"
         },
         "dialogues": {
           "type": "object",

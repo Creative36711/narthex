@@ -12,11 +12,12 @@ interface Props {
   onOpenInventory: () => void
   onOpenCharacter: () => void
   onOpenLog: () => void
+  onOpenCraft: () => void
   onOpenHelp: () => void
   onExitToMenu: () => void
 }
 
-export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenHelp, onExitToMenu }: Props) {
+export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenCraft, onOpenHelp, onExitToMenu }: Props) {
   const s = engine.state
   const meta = engine.campaign.meta
   const tod = timeOfDay(s.tick, meta)
@@ -58,6 +59,11 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         )}
         {featureOn(meta, 'inventory') && (
           <button className="hud-btn" onClick={onOpenInventory} data-tip="Инвентарь"><Ico n="bag" />  Вещи</button>
+        )}
+        {featureOn(meta, 'inventory') && Object.keys(engine.campaign.recipes).length > 0 && (
+          <button className="hud-btn" onClick={onOpenCraft} data-tip="Изготовление предметов по рецептам">
+            <Ico n="hammer" />  Крафт
+          </button>
         )}
         <button className="hud-btn" onClick={onOpenCharacter} data-tip="Лист персонажа"><Ico n="user" />  Герой</button>
         <button className="hud-btn" onClick={onOpenLog} data-tip="Журнал"><Ico n="scroll" />  Журнал</button>
