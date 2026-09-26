@@ -50,6 +50,7 @@ export function Field({
     cutsceneRef: 'cutscene',
     statusRef: 'status',
     weatherRef: 'weather',
+    codexRef: 'codex',
   }
 
   if (spec.kind === 'number') {

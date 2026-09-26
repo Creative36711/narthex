@@ -302,6 +302,22 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "unlock_codex"
+            },
+            "entry": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entry"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "set_variable"
             },
             "var": {
@@ -1762,6 +1778,26 @@
             "$ref": "#/$defs/WeatherDef"
           },
           "description": "реестр погод (блок 9 ТЗ)"
+        },
+        "codex_categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "категории кодекса (блок 10 ТЗ); нет — встроенные три"
         },
         "dice_rules": {
           "$ref": "#/$defs/DiceRules",
@@ -4395,6 +4431,37 @@
       "additionalProperties": false,
       "description": "Рецепт изготовления: компоненты (+ инструменты) → предмет. Проверка\nнавыка — родная BRP-механика (успех ставит «галочку» опыта)."
     },
+    "CodexEntryDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string",
+          "description": "название записи"
+        },
+        "category": {
+          "type": "string",
+          "description": "id из meta.codex_categories (нет — встроенные «Хроники»)"
+        },
+        "text": {
+          "type": "string",
+          "description": "основной текст"
+        },
+        "image": {
+          "type": "string",
+          "description": "файл/ссылка (нет — без картинки)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "запись кодекса/бестиария — разблокируемый лор (блок 10 ТЗ)"
+    },
     "DlgCond": {
       "anyOf": [
         {
@@ -4906,6 +4973,22 @@
             "weather"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "unlock_codex"
+            },
+            "entry": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entry"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -5241,6 +5324,13 @@
             "$ref": "#/$defs/RecipeDef"
           },
           "description": "рецепты крафта по id (блок 4 ТЗ; файлы в recipes/)"
+        },
+        "codex": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/CodexEntryDef"
+          },
+          "description": "записи кодекса/бестиария по id (блок 10 ТЗ; файлы в codex/)"
         },
         "dialogues": {
           "type": "object",

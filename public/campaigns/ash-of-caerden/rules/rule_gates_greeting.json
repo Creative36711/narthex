@@ -3,12 +3,35 @@
   "label": "Приветствие у ворот",
   "once": true,
   "conditions": [
-    { "type": "player_enters_location", "location": "loc_gates" },
-    { "type": "flag_not_set", "flag": "gates_greeting_done" },
-    { "type": "time_of_day", "value": ["morning", "day"] }
+    {
+      "type": "player_enters_location",
+      "location": "loc_gates"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "gates_greeting_done"
+    },
+    {
+      "type": "time_of_day",
+      "value": [
+        "morning",
+        "day"
+      ]
+    }
   ],
   "effects": [
-    { "type": "set_flag", "flag": "gates_greeting_done" },
-    { "type": "start_dialogue", "entity": "npc_guard_aldric", "dialogue_knot": "first_meeting" }
+    {
+      "type": "unlock_codex",
+      "entry": "codex_kaerden_valley"
+    },
+    {
+      "type": "set_flag",
+      "flag": "gates_greeting_done"
+    },
+    {
+      "type": "start_dialogue",
+      "entity": "npc_guard_aldric",
+      "dialogue_knot": "first_meeting"
+    }
   ]
 }

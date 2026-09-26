@@ -113,6 +113,7 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('remove_status', (id: string) => { engine.removeStatus('player', id); return 0 })
   bind('weather_is', (id: string) => (engine.state.weather ?? '') === id)
   bind('set_weather', (id: string) => { engine.applyEffects([{ type: 'set_weather', weather: id }]); return 0 })
+  bind('unlock_codex', (id: string) => { engine.applyEffects([{ type: 'unlock_codex', entry: id }]); return 0 })
 }
 
 /** Прочитать все доступные строки до выбора/конца. */

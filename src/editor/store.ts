@@ -3,6 +3,7 @@ import { isExternalUrl } from '../core/loader'
 import type {
   ArenaDef,
   CampaignMeta,
+  CodexEntryDef,
   CutsceneDef,
   EntityDef,
   QuestDef,
@@ -29,6 +30,8 @@ export interface ManifestDef {
   cutscenes?: string[]
   /** рецепты крафта (блок 4 ТЗ) */
   recipes?: string[]
+  /** записи кодекса/бестиария (блок 10 ТЗ) */
+  codex?: string[]
   dialogues: string[]
 }
 
@@ -43,6 +46,7 @@ export type EditorSection =
   | 'arenas'
   | 'cutscenes'
   | 'recipes'
+  | 'codex'
 
 export class EditorStore {
   basePath: string // "/campaigns/ash-of-caerden"
@@ -115,6 +119,7 @@ export class EditorStore {
     for (const f of this.manifest.encounters ?? []) loadJson(`rules/${f}`)
     for (const f of this.manifest.cutscenes ?? []) loadJson(`cutscenes/${f}`)
     for (const f of this.manifest.recipes ?? []) loadJson(`recipes/${f}`)
+    for (const f of this.manifest.codex ?? []) loadJson(`codex/${f}`)
     for (const f of this.manifest.dialogues) loadText(`dialogues/${f}`)
     // визуальные исходники конструктора диалогов (могут отсутствовать)
     for (const f of this.manifest.dialogues) {
@@ -166,6 +171,9 @@ export class EditorStore {
   recipePaths(): string[] {
     return (this.manifest.recipes ?? []).map((f) => `recipes/${f}`)
   }
+  codexPaths(): string[] {
+    return (this.manifest.codex ?? []).map((f) => `codex/${f}`)
+  }
 
   scene(path: string): SceneDef {
     return this.jsonFiles.get(path) as SceneDef
@@ -193,6 +201,9 @@ export class EditorStore {
   recipe(path: string): RecipeDef {
     return this.jsonFiles.get(path) as RecipeDef
   }
+  codexEntry(path: string): CodexEntryDef {
+    return this.jsonFiles.get(path) as CodexEntryDef
+  }
 
   /** списки id для подсказок в полях */
   /** все флаги, упомянутые в правилах/квестах/ink — для подсказок в конструкторах */
@@ -215,7 +226,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -274,6 +285,11 @@ export class EditorStore {
     } else if (kind === 'weather') {
       out.push({ id: '', label: 'Ясно' })
       for (const w of this.meta.weathers ?? []) out.push({ id: w.id, label: w.label || w.id })
+    } else if (kind === 'codex') {
+      for (const p of this.codexPaths()) {
+        const c = this.codexEntry(p)
+        if (c) out.push({ id: c.id, label: c.label || c.id })
+      }
     } else if (kind === 'disposition') {
       // отношение можно менять и к фракции, и к отдельному NPC
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: `${f.label || f.id} (фракция)` })
@@ -331,7 +347,7 @@ export class EditorStore {
     return relPath
   }
 
-  ids(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'cutscene' | 'recipe'): string[] {
+  ids(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'cutscene' | 'recipe' | 'codex'): string[] {
     const out: string[] = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -351,6 +367,8 @@ export class EditorStore {
       for (const p of this.cutscenePaths()) out.push(this.cutscene(p)?.id ?? '')
     } else if (kind === 'recipe') {
       for (const p of this.recipePaths()) out.push(this.recipe(p)?.id ?? '')
+    } else if (kind === 'codex') {
+      for (const p of this.codexPaths()) out.push(this.codexEntry(p)?.id ?? '')
     } else if (kind === 'location') {
       const walk = (regions: typeof this.world.regions) => {
         for (const r of regions) {

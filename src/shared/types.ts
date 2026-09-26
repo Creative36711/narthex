@@ -289,6 +289,8 @@ export interface CampaignMeta {
   }
   /** реестр погод (блок 9 ТЗ) */
   weathers?: WeatherDef[]
+  /** категории кодекса (блок 10 ТЗ); нет — встроенные три */
+  codex_categories?: Array<{ id: string; label: string }>
   /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
   dice_rules?: DiceRules
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
@@ -510,6 +512,26 @@ export interface WeatherDef {
   /** зацикленные звуки (id из реестра звуков) — слои к эмбиенту */
   ambient?: string[]
 }
+
+/** запись кодекса/бестиария — разблокируемый лор (блок 10 ТЗ) */
+export interface CodexEntryDef {
+  id: string
+  /** название записи */
+  label: string
+  /** id из meta.codex_categories (нет — встроенные «Хроники») */
+  category?: string
+  /** основной текст */
+  text: string
+  /** файл/ссылка (нет — без картинки) */
+  image?: string
+}
+
+/** встроенные категории кодекса (блок 10 ТЗ) */
+export const BUILTIN_CODEX_CATEGORIES: Array<{ id: string; label: string }> = [
+  { id: 'creatures', label: 'Существа' },
+  { id: 'places', label: 'Места' },
+  { id: 'chronicles', label: 'Хроники' },
+]
 
 /** применение предмета инвентаря к слоту сцены — «ключ к двери» (блок 8 ТЗ) */
 export interface SlotUseWith {
@@ -898,6 +920,8 @@ export type DlgEffect =
   | { type: 'remove_status'; status: string }
   /** сменить погоду ('' — ясно; блок 9 ТЗ) */
   | { type: 'set_weather'; weather: string }
+  /** разблокировать запись кодекса (повтор — no-op; блок 10 ТЗ) */
+  | { type: 'unlock_codex'; entry: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -1096,6 +1120,8 @@ export type Effect =
   | { type: 'remove_status'; target: 'player'; status: string }
   /** сменить погоду ('' — ясно; блок 9 ТЗ) */
   | { type: 'set_weather'; weather: string }
+  /** разблокировать запись кодекса (повтор — no-op; блок 10 ТЗ) */
+  | { type: 'unlock_codex'; entry: string }
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
@@ -1215,6 +1241,8 @@ export interface GameState {
   scene: string
   /** текущая погода (блок 9 ТЗ): id из реестра; нет — ясно */
   weather?: string
+  /** разблокированные записи кодекса (блок 10 ТЗ) */
+  codex_unlocked?: string[]
   flags: Record<string, boolean>
   variables: Record<string, number | string>
   /** динамические описания сущностей (действие set_description) */
@@ -1251,6 +1279,8 @@ export interface CampaignData {
   cutscenes: Record<string, CutsceneDef>
   /** рецепты крафта по id (блок 4 ТЗ) */
   recipes: Record<string, RecipeDef>
+  /** записи кодекса/бестиария по id (блок 10 ТЗ) */
+  codex: Record<string, CodexEntryDef>
   dialogues: Record<string, string> // путь -> исходник .ink
   basePath: string
 }
@@ -1290,6 +1320,8 @@ export interface MonolithDoc {
   encounters?: Record<string, EncounterTableDef>
   /** рецепты крафта по id (блок 4 ТЗ; файлы в recipes/) */
   recipes?: Record<string, RecipeDef>
+  /** записи кодекса/бестиария по id (блок 10 ТЗ; файлы в codex/) */
+  codex?: Record<string, CodexEntryDef>
   /** диалоги по id (имя файла без расширения) */
   dialogues: Record<string, MonolithDialogue>
 }

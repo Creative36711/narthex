@@ -14,11 +14,12 @@ interface Props {
   onOpenCharacter: () => void
   onOpenLog: () => void
   onOpenCraft: () => void
+  onOpenCodex: () => void
   onOpenHelp: () => void
   onExitToMenu: () => void
 }
 
-export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenCraft, onOpenHelp, onExitToMenu }: Props) {
+export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenCraft, onOpenCodex, onOpenHelp, onExitToMenu }: Props) {
   const s = engine.state
   const meta = engine.campaign.meta
   const tod = timeOfDay(s.tick, meta)
@@ -87,6 +88,9 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         )}
         <button className="hud-btn" onClick={onOpenCharacter} data-tip="Лист персонажа"><Ico n="user" />  Герой</button>
         <button className="hud-btn" onClick={onOpenLog} data-tip="Журнал"><Ico n="scroll" />  Журнал</button>
+        {(s.codex_unlocked ?? []).length > 0 && (
+          <button className="hud-btn" onClick={onOpenCodex} data-tip="Разблокированные записи о мире"><Ico n="book" />  Кодекс</button>
+        )}
         <button className="hud-btn" onClick={onOpenHelp} data-tip="Справка"><Ico n="help" /> </button>
         <button className="hud-btn" onClick={() => setShowSettings(true)} data-tip="Настройки (громкость, озвучка)"><Ico n="settings" /> </button>
         <button

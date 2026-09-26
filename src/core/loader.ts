@@ -2,6 +2,7 @@ import { migrateCampaign, migrateEntity } from '../shared/migrate'
 import type {
   ArenaDef,
   CampaignData,
+  CodexEntryDef,
   CutsceneDef,
   CampaignMeta,
   EncounterTableDef,
@@ -32,6 +33,8 @@ interface Manifest {
   cutscenes?: string[]
   /** рецепты крафта: файлы в recipes/ (блок 4 ТЗ) */
   recipes?: string[]
+  /** записи кодекса/бестиария: файлы в codex/ (блок 10 ТЗ) */
+  codex?: string[]
   dialogues: string[]
 }
 
@@ -62,6 +65,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   const encounters: Record<string, EncounterTableDef> = {}
   const cutscenes: Record<string, CutsceneDef> = {}
   const recipes: Record<string, RecipeDef> = {}
+  const codex: Record<string, CodexEntryDef> = {}
   const dialogues: Record<string, string> = {}
 
   await Promise.all([
@@ -85,6 +89,10 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
       const r = await getJSON<RecipeDef>(`${basePath}/recipes/${f}`)
       recipes[r.id] = r
     }),
+    ...(manifest.codex ?? []).map(async (f) => {
+      const c = await getJSON<CodexEntryDef>(`${basePath}/codex/${f}`)
+      codex[c.id] = c
+    }),
     ...manifest.scenes.map(async (f) => {
       const s = await getJSON<SceneDef>(`${basePath}/scenes/${f}`)
       scenes[s.id] = s
@@ -106,7 +114,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   // переходы «в локацию» из сцен и т.п.
   migrateCampaign(meta, world, scenes)
 
-  return { meta, world, scenes, entities, rules, arenas, quests, encounters, cutscenes, recipes, dialogues, basePath }
+  return { meta, world, scenes, entities, rules, arenas, quests, encounters, cutscenes, recipes, codex, dialogues, basePath }
 }
 
 /**

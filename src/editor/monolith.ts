@@ -12,6 +12,7 @@
 
 import type {
   ArenaDef,
+  CodexEntryDef,
   Condition,
   CutsceneDef,
   DlgCheck,
@@ -117,6 +118,11 @@ export function exportMonolith(store: EditorStore): { doc: MonolithDoc; warnings
     'рецепты',
     warnings,
   )
+  const codex = collectById(
+    store.codexPaths().map((p) => [p, store.codexEntry(p)] as [string, CodexEntryDef]),
+    'кодекс',
+    warnings,
+  )
 
   // таблицы встреч: файлы rules/encounters.json с обёрткой { encounter_tables: [...] }
   const encounters: Record<string, EncounterTableDef> = {}
@@ -156,6 +162,7 @@ export function exportMonolith(store: EditorStore): { doc: MonolithDoc; warnings
     cutscenes,
     encounters,
     recipes,
+    codex,
     dialogues,
   }
   return { doc, warnings }
@@ -362,6 +369,7 @@ export function repairMonolith(raw: unknown): { doc: MonolithDoc; warnings: stri
     cutscenes: pickMap(src.cutscenes),
     encounters: pickMap(src.encounters),
     recipes: pickMap(src.recipes),
+    codex: pickMap(src.codex),
     dialogues: pickMap(src.dialogues) as Record<string, MonolithDialogue>,
   }
 
@@ -1393,6 +1401,7 @@ export function importMonolith(store: EditorStore, raw: unknown): string[] {
     encounters: [],
     cutscenes: [],
     recipes: [],
+    codex: [],
     dialogues: [],
   }
 
@@ -1438,6 +1447,12 @@ export function importMonolith(store: EditorStore, raw: unknown): string[] {
     store.jsonFiles.set(`recipes/${f}`, r)
     store.dirty.add(`recipes/${f}`)
   }
+  for (const c of Object.values(doc.codex ?? {})) {
+    const f = `${fileSlug(c.id)}.json`
+    manifest.codex!.push(f)
+    store.jsonFiles.set(`codex/${f}`, c)
+    store.dirty.add(`codex/${f}`)
+  }
   const tables = Object.values(doc.encounters ?? {})
   if (tables.length) {
     manifest.encounters!.push('encounters.json')
@@ -1470,6 +1485,7 @@ export function importMonolith(store: EditorStore, raw: unknown): string[] {
   manifest.quests!.sort()
   manifest.cutscenes!.sort()
   manifest.recipes!.sort()
+  manifest.codex!.sort()
   store.manifest = manifest
   store.dirty.add('manifest.json')
   store.dirty.add('campaign.json')

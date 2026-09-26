@@ -1,5 +1,6 @@
 import type {
   CampaignData,
+  CodexEntryDef,
   CutsceneDef,
   DiceRules,
   Effect,
@@ -22,7 +23,7 @@ import type {
   PresenceOverride,
   WeaponData,
 } from '../shared/types'
-import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots } from '../shared/types'
+import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { PRNG } from './prng'
 import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
 import { rollDice } from './dice'
@@ -1101,6 +1102,7 @@ export class GameEngine {
         }
         break
       }
+      case 'unlock_codex': this.unlockCodex(e.entry); break
       case 'set_variable': s.variables[e.var] = e.value; break
       case 'change_variable':
         s.variables[e.var] = Number(s.variables[e.var] ?? 0) + e.delta
@@ -1219,6 +1221,36 @@ export class GameEngine {
     this.autosave()
     this.notify()
     return true
+  }
+
+  /**
+   * Разблокировать запись кодекса (блок 10 ТЗ): повтор — no-op.
+   * При первой разблокировке — сообщение «Новая запись в кодексе: …».
+   */
+  unlockCodex(entryId: string): void {
+    const entry = this.campaign.codex[entryId]
+    if (!entry) return
+    const s = this.state
+    if (!s.codex_unlocked) s.codex_unlocked = []
+    if (s.codex_unlocked.includes(entryId)) return
+    s.codex_unlocked.push(entryId)
+    this.messages.push({ text: `Новая запись в кодексе: ${entry.label}.` })
+    this.pushLog(`Кодекс пополнен: ${entry.label}.`)
+    playInteraction('pickup', {})
+    this.notify()
+    this.autosave()
+  }
+
+  /** разблокированные записи кодекса (блок 10 ТЗ) */
+  unlockedCodexEntries(): CodexEntryDef[] {
+    return (this.state.codex_unlocked ?? [])
+      .map((id) => this.campaign.codex[id])
+      .filter((e): e is CodexEntryDef => !!e)
+  }
+
+  /** категории кодекса: свои из меты, иначе встроенные три (блок 10 ТЗ) */
+  codexCategories(): Array<{ id: string; label: string }> {
+    return this.campaign.meta.codex_categories ?? BUILTIN_CODEX_CATEGORIES
   }
 
   interactWithSlot(occ: SlotOccupant): void {

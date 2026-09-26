@@ -34,6 +34,7 @@ export type FieldKind =
   | 'cutsceneRef' // катсцена кампании (итерация 8, блок E)
   | 'statusRef' // статус из реестра кампании (блок 5 ТЗ)
   | 'weatherRef' // погода из реестра кампании (блок 9 ТЗ)
+  | 'codexRef' // запись кодекса (блок 10 ТЗ)
 
 export interface FieldSpec {
   key: string
@@ -226,6 +227,11 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Сменить погоду',
     fields: [{ key: 'weather', label: 'Погода (пусто — ясно)', kind: 'weatherRef' }],
     blank: { weather: '' },
+  },
+  unlock_codex: {
+    label: 'Открыть запись кодекса',
+    fields: [{ key: 'entry', label: 'Запись', kind: 'codexRef' }],
+    blank: { entry: '' },
   },
   set_variable: {
     label: 'Установить переменную',
@@ -477,6 +483,7 @@ const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
   cutsceneRef: 'cutscene',
   statusRef: 'status',
   weatherRef: 'weather',
+  codexRef: 'codex',
 }
 
 /** Человекочитаемое значение одного поля (русские названия вместо id). */

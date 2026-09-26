@@ -95,5 +95,10 @@
   ],
   "recipes": [
     "recipe_healing_salve.json"
+  ],
+  "codex": [
+    "codex_kaerden_valley.json",
+    "codex_oaken_shield.json",
+    "codex_rat_giant.json"
   ]
 }
