@@ -40,7 +40,11 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
   const selectedRegion = allRegions.find((r) => r.id === region)
   const allLocations = selectedRegion?.locations ?? []
   const locationScenes = Object.values(engine.campaign.scenes).filter((s) => s.location === location)
-  const allFlags = [...new Set([...Object.keys(engine.state.flags), ...(engine.campaign.meta.flags ?? []).map((f) => f.id), ...contentFlags(engine.campaign)])]
+  const flagOptions = new Map((engine.campaign.meta.flags ?? []).map((f) => [f.id, { id: f.id, label: f.label || f.id }]))
+  for (const id of [...Object.keys(engine.state.flags), ...contentFlags(engine.campaign)]) {
+    if (!flagOptions.has(id)) flagOptions.set(id, { id, label: id })
+  }
+  const allFlags = [...flagOptions.values()]
   const quests = Object.entries(engine.campaign.quests)
   const entries = Object.values(engine.campaign.codex)
   return <aside className="pt-debug-panel" role="dialog" aria-label="Панель отладки">

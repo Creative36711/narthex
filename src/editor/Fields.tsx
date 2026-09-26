@@ -186,7 +186,7 @@ export function Field({
         <span>{spec.label}</span>
         <FlagAutocomplete
           value={String(value ?? '')}
-          flags={store.knownFlags()}
+          flags={store.options('flag')}
           placeholder={spec.placeholder}
           ariaLabel={spec.label}
           onChange={(next) => onChange(next === '' && spec.optional ? undefined : next)}
