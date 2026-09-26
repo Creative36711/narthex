@@ -205,2128 +205,6 @@
       ],
       "additionalProperties": false
     },
-    "DiceRules": {
-      "type": "object",
-      "properties": {
-        "critical_divisor": {
-          "type": "number",
-          "description": "критический успех: бросок ≤ навык / critical_divisor"
-        },
-        "special_divisor": {
-          "type": "number",
-          "description": "особый (хороший) успех: бросок ≤ навык / special_divisor"
-        },
-        "fumble_from": {
-          "type": "number",
-          "description": "критический провал начинается с этого броска (fumble_from…100)"
-        },
-        "fumble_low_skill": {
-          "type": "number",
-          "description": "Классический BRP: при навыке ниже этого порога крит-провал — весь\nдиапазон fumble_from…99 (а не только 100). По умолчанию выключено."
-        }
-      },
-      "required": [
-        "critical_divisor",
-        "special_divisor",
-        "fumble_from"
-      ],
-      "additionalProperties": false,
-      "description": "Настройки бросков d100 (итерация 8, А7). Хранятся в campaign.json —\nу каждой кампании могут быть свои пороги, движок ничего не хардкодит."
-    },
-    "SoundHookMap": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      },
-      "description": "карта «хук → id звука реестра»"
-    },
-    "ItemCategoryDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "restores_hp": {
-          "type": "boolean",
-          "description": "предметы категории можно использовать для восстановления здоровья"
-        },
-        "restores_needs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "какие потребности восстанавливают предметы категории (id из реестра needs)"
-        },
-        "is_weapon": {
-          "type": "boolean",
-          "description": "предметы категории — оружие (навык, урон и т.д.)"
-        },
-        "is_armor": {
-          "type": "boolean",
-          "description": "предметы категории — броня (очки поглощения урона)"
-        },
-        "sounds": {
-          "$ref": "#/$defs/SoundHookMap",
-          "description": "звуки взаимодействий категории предметов (хук → id звука)"
-        }
-      },
-      "required": [
-        "id",
-        "label"
-      ],
-      "additionalProperties": false,
-      "description": "Категория предметов: задаёт, какие свойства доступны предмету (фидбек №8)."
-    },
-    "CurrencyDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "symbol": {
-          "type": "string"
-        },
-        "exchange_rate": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "number"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "label",
-        "symbol"
-      ],
-      "additionalProperties": false
-    },
-    "FactionDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "base_disposition": {
-          "type": "number"
-        },
-        "hidden": {
-          "type": "boolean",
-          "description": "служебная фракция: отношение не меняется, игроку не показывается"
-        }
-      },
-      "required": [
-        "id",
-        "label",
-        "base_disposition"
-      ],
-      "additionalProperties": false
-    },
-    "MusicMood": {
-      "type": "string",
-      "enum": [
-        "тревожная",
-        "спокойная",
-        "боевая",
-        "торжественная",
-        "таинственная"
-      ],
-      "description": "настроение генеративного трека"
-    },
-    "MusicScale": {
-      "type": "string",
-      "enum": [
-        "минор",
-        "мажор",
-        "дорийский",
-        "фригийский",
-        "пентатоника"
-      ],
-      "description": "лад генеративного трека"
-    },
-    "MusicLayer": {
-      "type": "string",
-      "enum": [
-        "пад-аккорды",
-        "арпеджио",
-        "бас",
-        "перкуссия"
-      ],
-      "description": "слои аранжировки"
-    },
-    "MusicDoc": {
-      "type": "object",
-      "properties": {
-        "mood": {
-          "$ref": "#/$defs/MusicMood"
-        },
-        "tempo": {
-          "type": "number",
-          "description": "ударов в минуту (по умолчанию зависит от настроения)"
-        },
-        "key": {
-          "type": "string",
-          "description": "тональность: \"C\", \"D#\", \"Fis\"… (по умолчанию — от настроения)"
-        },
-        "scale": {
-          "$ref": "#/$defs/MusicScale"
-        },
-        "layers": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/MusicLayer"
-          }
-        },
-        "progression": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "аккордовая последовательность ступенями гаммы: [\"i\",\"VI\",\"III\",\"VII\"]"
-        },
-        "seed": {
-          "type": "number",
-          "description": "зерно случайности (одинаковый seed — одна и та же музыка)"
-        }
-      },
-      "required": [
-        "mood",
-        "scale",
-        "layers"
-      ],
-      "additionalProperties": false,
-      "description": "Высокоуровневый генеративный формат музыки (НЕ ноты вручную).\nРантайм-генератор собирает бесшовный эмбиент-луп по гамме — «мимо»\nсыграть не может; детерминизм от `seed`."
-    },
-    "MusicSource": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "$ref": "#/$defs/MusicDoc"
-        }
-      ],
-      "description": "источник музыки: файл/ссылка ИЛИ генеративный MusicDoc"
-    },
-    "MusicTrackDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "src": {
-          "$ref": "#/$defs/MusicSource"
-        },
-        "volume": {
-          "type": "number",
-          "description": "громкость трека 0…1 (поверх настроек игрока)"
-        },
-        "loop": {
-          "type": "boolean",
-          "description": "зацикливать (один трек) или играть как плейлист"
-        }
-      },
-      "required": [
-        "id",
-        "label",
-        "src"
-      ],
-      "additionalProperties": false
-    },
-    "SoundDoc": {
-      "type": "object",
-      "properties": {
-        "zzfx": {
-          "type": "array",
-          "items": {
-            "type": "number"
-          }
-        }
-      },
-      "required": [
-        "zzfx"
-      ],
-      "additionalProperties": false,
-      "description": "Параметрический SFX в духе ZzFX/jsfxr: числа в порядке параметров zzfx\n(громкость, случайность, частота, атака/сустейн/декей, форма волны…).\nРендерится Web Audio на лету (с кэшем буфера). Ретро-характер приемлем."
-    },
-    "SoundSource": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "$ref": "#/$defs/SoundDoc"
-        }
-      ],
-      "description": "источник звука: файл/ссылка ИЛИ синтез из JSON; массив — случайный вариант"
-    },
-    "SoundDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "src": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SoundSource"
-            },
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/SoundSource"
-              }
-            }
-          ]
-        }
-      },
-      "required": [
-        "id",
-        "label",
-        "src"
-      ],
-      "additionalProperties": false
-    },
-    "CharCreationDef": {
-      "type": "object",
-      "properties": {
-        "total_points": {
-          "type": "number"
-        },
-        "stat_limits": {
-          "type": "object",
-          "properties": {
-            "min": {
-              "type": "number"
-            },
-            "max": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "min",
-            "max"
-          ],
-          "additionalProperties": false
-        },
-        "skill_cap": {
-          "type": "number"
-        },
-        "mandatory_skills": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "forbidden_skills": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "allowed_professions": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "total_points",
-        "stat_limits",
-        "skill_cap",
-        "mandatory_skills",
-        "forbidden_skills",
-        "allowed_professions"
-      ],
-      "additionalProperties": false
-    },
-    "CampaignMeta": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "version": {
-          "type": "string"
-        },
-        "engine_version": {
-          "type": "string"
-        },
-        "author": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "tick_label": {
-          "type": "string"
-        },
-        "ticks_per_day": {
-          "type": "number"
-        },
-        "time_of_day": {
-          "$ref": "#/$defs/TimeOfDayThresholds"
-        },
-        "starting_region": {
-          "type": "string"
-        },
-        "starting_location": {
-          "type": "string"
-        },
-        "starting_scene": {
-          "type": "string"
-        },
-        "starting_tick": {
-          "type": "number"
-        },
-        "needs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/NeedDef"
-          }
-        },
-        "dice_rules": {
-          "$ref": "#/$defs/DiceRules",
-          "description": "правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES"
-        },
-        "skills": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "label": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "label"
-            ],
-            "additionalProperties": false
-          },
-          "description": "реестр навыков кампании (id + русское название); см. shared/skills.ts"
-        },
-        "item_categories": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ItemCategoryDef"
-          },
-          "description": "реестр категорий предметов: категория определяет, что предмет умеет"
-        },
-        "slot_types": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "label": {
-                "type": "string"
-              },
-              "sounds": {
-                "$ref": "#/$defs/SoundHookMap"
-              }
-            },
-            "required": [
-              "id",
-              "label"
-            ],
-            "additionalProperties": false
-          },
-          "description": "реестр типов слотов сцены (что можно ставить в слот); по умолчанию — встроенные"
-        },
-        "flags": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "label": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "label"
-            ],
-            "additionalProperties": false
-          },
-          "description": "реестр флагов: русское название и назначение (редактор показывает названия, движку важен только id)"
-        },
-        "currencies": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/CurrencyDef"
-          }
-        },
-        "factions": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/FactionDef"
-          }
-        },
-        "music_tracks": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/MusicTrackDef"
-          },
-          "description": "реестр музыкальных треков (итерация 8, блок H): файл/ссылка ИЛИ синтез MusicDoc"
-        },
-        "sounds": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SoundDef"
-          },
-          "description": "реестр звуков: файл/ссылка ИЛИ синтез SoundDoc (массив — случайный вариант)"
-        },
-        "ui_sounds": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "description": "звуковая тема кампании: хук → id звука из реестра (пустой хук — тишина)"
-        },
-        "default_music": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "трек(и) кампании по умолчанию, когда у локации/сцены своей музыки нет"
-        },
-        "combat_music": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "трек(и) боя по умолчанию (если у арены нет своего arena.music)"
-        },
-        "max_load_formula": {
-          "const": "str_plus_siz",
-          "description": "максимальный груз в кг: STR + SIZ (по умолчанию)"
-        },
-        "max_companions": {
-          "type": "number"
-        },
-        "char_creation": {
-          "$ref": "#/$defs/CharCreationDef"
-        },
-        "default_player": {
-          "type": "string",
-          "description": "id сущности-шаблона игрока (Фаза 0: предсозданный персонаж)"
-        },
-        "roguelike": {
-          "type": "object",
-          "properties": {
-            "permadeath": {
-              "type": "boolean"
-            },
-            "meta_progress": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "randomize_on_restart": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          },
-          "required": [
-            "permadeath",
-            "meta_progress",
-            "randomize_on_restart"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "id",
-        "title",
-        "version",
-        "engine_version",
-        "author",
-        "description",
-        "tick_label",
-        "ticks_per_day",
-        "starting_region",
-        "starting_location",
-        "starting_scene",
-        "needs",
-        "currencies",
-        "default_player"
-      ],
-      "additionalProperties": false
-    },
-    "ArtFill": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "color": {
-              "type": "string"
-            },
-            "gradient": {
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "string"
-                },
-                "to": {
-                  "type": "string"
-                },
-                "angle": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "from",
-                "to"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        }
-      ],
-      "description": "Заливка примитива: сплошной цвет или линейный градиент.\n`angle` — направление градиента в градусах (0 — слева направо)."
-    },
-    "ArtRect": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "rect"
-        },
-        "x": {
-          "type": "number"
-        },
-        "y": {
-          "type": "number"
-        },
-        "w": {
-          "type": "number"
-        },
-        "h": {
-          "type": "number"
-        },
-        "fill": {
-          "$ref": "#/$defs/ArtFill"
-        },
-        "stroke": {
-          "type": "string"
-        },
-        "stroke_width": {
-          "type": "number"
-        },
-        "radius": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "type",
-        "x",
-        "y",
-        "w",
-        "h"
-      ],
-      "additionalProperties": false
-    },
-    "ArtEllipse": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "ellipse"
-        },
-        "cx": {
-          "type": "number"
-        },
-        "cy": {
-          "type": "number"
-        },
-        "rx": {
-          "type": "number"
-        },
-        "ry": {
-          "type": "number"
-        },
-        "fill": {
-          "$ref": "#/$defs/ArtFill"
-        },
-        "stroke": {
-          "type": "string"
-        },
-        "stroke_width": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "type",
-        "cx",
-        "cy",
-        "rx",
-        "ry"
-      ],
-      "additionalProperties": false
-    },
-    "ArtPolygon": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "polygon"
-        },
-        "points": {
-          "type": "array",
-          "items": {
-            "type": "number"
-          },
-          "description": "точки в виде [x1, y1, x2, y2, …] в координатах холста"
-        },
-        "fill": {
-          "$ref": "#/$defs/ArtFill"
-        },
-        "stroke": {
-          "type": "string"
-        },
-        "stroke_width": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "type",
-        "points"
-      ],
-      "additionalProperties": false
-    },
-    "ArtLine": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "line"
-        },
-        "x1": {
-          "type": "number"
-        },
-        "y1": {
-          "type": "number"
-        },
-        "x2": {
-          "type": "number"
-        },
-        "y2": {
-          "type": "number"
-        },
-        "color": {
-          "type": "string"
-        },
-        "width": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "type",
-        "x1",
-        "y1",
-        "x2",
-        "y2"
-      ],
-      "additionalProperties": false
-    },
-    "ArtText": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "text"
-        },
-        "x": {
-          "type": "number"
-        },
-        "y": {
-          "type": "number"
-        },
-        "text": {
-          "type": "string"
-        },
-        "size": {
-          "type": "number"
-        },
-        "color": {
-          "type": "string"
-        },
-        "align": {
-          "type": "string",
-          "enum": [
-            "start",
-            "middle",
-            "end"
-          ],
-          "description": "'start' | 'middle' | 'end' — как в SVG"
-        },
-        "bold": {
-          "type": "boolean"
-        },
-        "italic": {
-          "type": "boolean"
-        },
-        "font": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "type",
-        "x",
-        "y",
-        "text"
-      ],
-      "additionalProperties": false
-    },
-    "ArtShape": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/ArtRect"
-        },
-        {
-          "$ref": "#/$defs/ArtEllipse"
-        },
-        {
-          "$ref": "#/$defs/ArtPolygon"
-        },
-        {
-          "$ref": "#/$defs/ArtLine"
-        },
-        {
-          "$ref": "#/$defs/ArtText"
-        }
-      ]
-    },
-    "ArtLayer": {
-      "type": "object",
-      "properties": {
-        "label": {
-          "type": "string",
-          "description": "подпись слоя для мастера («небо», «гора», «стена»)"
-        },
-        "shape": {
-          "$ref": "#/$defs/ArtShape"
-        },
-        "opacity": {
-          "type": "number"
-        },
-        "rotate": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "shape"
-      ],
-      "additionalProperties": false
-    },
-    "ArtDoc": {
-      "type": "object",
-      "properties": {
-        "canvas": {
-          "type": "object",
-          "properties": {
-            "w": {
-              "type": "number"
-            },
-            "h": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "w",
-            "h"
-          ],
-          "additionalProperties": false
-        },
-        "background": {
-          "type": "string"
-        },
-        "layers": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ArtLayer"
-          }
-        }
-      },
-      "required": [
-        "layers"
-      ],
-      "additionalProperties": false,
-      "description": "Векторная «картинка из JSON»: слои примитивов в координатах холста\n(по умолчанию 1280×720 — та же система, что у слотов сцены).\nФормат рассчитан на генерацию ИИ: нарисовав сцену примитивами, генератор\nсам знает координаты объектов и ставит слоты точно на них."
-    },
-    "Condition": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "player_enters_location"
-            },
-            "location": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "location"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "player_enters_scene"
-            },
-            "scene": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "scene"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "flag_set"
-            },
-            "flag": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "flag"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "flag_not_set"
-            },
-            "flag": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "flag"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "variable_compare"
-            },
-            "var": {
-              "type": "string"
-            },
-            "operator": {
-              "type": "string",
-              "enum": [
-                "==",
-                "!=",
-                "<",
-                ">",
-                "<=",
-                ">="
-              ]
-            },
-            "value": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "required": [
-            "type",
-            "var",
-            "operator",
-            "value"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "time_of_day"
-            },
-            "value": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/TimeOfDay"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/TimeOfDay"
-                  }
-                }
-              ]
-            }
-          },
-          "required": [
-            "type",
-            "value"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "tick_elapsed"
-            },
-            "min_tick": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "min_tick"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "quest_at_stage"
-            },
-            "quest": {
-              "type": "string"
-            },
-            "stage": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "quest",
-            "stage"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "has_item"
-            },
-            "item": {
-              "type": "string"
-            },
-            "min_quantity": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "item"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "skill_ge"
-            },
-            "skill": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "skill",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "need_le"
-            },
-            "need": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "need",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "need_ge"
-            },
-            "need": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "need",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "entity_alive"
-            },
-            "entity": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "entity_dead"
-            },
-            "entity": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "disposition_ge"
-            },
-            "target": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "target",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "disposition_le"
-            },
-            "target": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "target",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "in_party"
-            },
-            "entity": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "random_chance"
-            },
-            "probability": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "probability"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "and"
-            },
-            "conditions": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Condition"
-              }
-            }
-          },
-          "required": [
-            "type",
-            "conditions"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "or"
-            },
-            "conditions": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Condition"
-              }
-            }
-          },
-          "required": [
-            "type",
-            "conditions"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "not"
-            },
-            "condition": {
-              "$ref": "#/$defs/Condition"
-            }
-          },
-          "required": [
-            "type",
-            "condition"
-          ],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "TravelConnection": {
-      "type": "object",
-      "properties": {
-        "to": {
-          "type": "string"
-        },
-        "cost_ticks": {
-          "type": "number"
-        },
-        "requirements": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Condition"
-          }
-        },
-        "random_encounter_table": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "to",
-        "cost_ticks"
-      ],
-      "additionalProperties": false
-    },
-    "MusicCondition": {
-      "type": "object",
-      "properties": {
-        "time_of_day": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TimeOfDay"
-            },
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/TimeOfDay"
-              }
-            }
-          ]
-        },
-        "flag": {
-          "type": "string"
-        },
-        "not_flag": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "description": "условие музыкальной записи (паттерн состояния; все условия — по «И»)"
-    },
-    "MusicRule": {
-      "type": "object",
-      "properties": {
-        "tracks": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "shuffle": {
-          "type": "boolean"
-        },
-        "conditions": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/MusicCondition"
-          }
-        }
-      },
-      "required": [
-        "tracks"
-      ],
-      "additionalProperties": false,
-      "description": "Запись «условия → музыка» (у локации/сцены): `tracks` — ВСЕГДА список\n(один трек — луп, несколько — плейлист со сменой и кроссфейдом,\n`shuffle` — в случайном порядке без повтора подряд); побеждает первая\nистинная запись."
-    },
-    "LocationDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "position": {
-          "type": "object",
-          "properties": {
-            "x": {
-              "type": "number"
-            },
-            "y": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "x",
-            "y"
-          ],
-          "additionalProperties": false
-        },
-        "travel_connections": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/TravelConnection"
-          }
-        },
-        "scenes": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "arrival_scene": {
-          "type": "string",
-          "description": "Сцена, в которую попадает игрок, придя в локацию с карты (итерация 8, А5).\nПо умолчанию — первая сцена локации."
-        },
-        "arena": {
-          "type": "string"
-        },
-        "on_enter_rules": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "hidden": {
-          "type": "boolean"
-        },
-        "ambient_audio": {
-          "type": "string"
-        },
-        "music": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/MusicRule"
-              }
-            }
-          ],
-          "description": "музыка локации: список записей «условия → треки» (побеждает первая\nистинная). Старый формат — строка (id трека или ссылка) — мигрируется\nв `[{ tracks: [s] }]` при загрузке."
-        }
-      },
-      "required": [
-        "id",
-        "label",
-        "position",
-        "travel_connections",
-        "scenes"
-      ],
-      "additionalProperties": false
-    },
-    "RegionDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "map_image": {
-          "type": "string"
-        },
-        "map_art": {
-          "$ref": "#/$defs/ArtDoc",
-          "description": "фон карты, нарисованный примитивами (вместо map_image) — итерация 8, блок D"
-        },
-        "map_size": {
-          "type": "object",
-          "properties": {
-            "w": {
-              "type": "number"
-            },
-            "h": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "w",
-            "h"
-          ],
-          "additionalProperties": false
-        },
-        "parent_region": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "const": null
-            }
-          ]
-        },
-        "locations": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/LocationDef"
-          }
-        },
-        "sub_regions": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/RegionDef"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "label",
-        "map_image",
-        "parent_region",
-        "locations"
-      ],
-      "additionalProperties": false
-    },
-    "WorldDef": {
-      "type": "object",
-      "properties": {
-        "regions": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/RegionDef"
-          }
-        }
-      },
-      "required": [
-        "regions"
-      ],
-      "additionalProperties": false
-    },
-    "SceneCondition": {
-      "type": "object",
-      "properties": {
-        "time_of_day": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TimeOfDay"
-            },
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/TimeOfDay"
-              }
-            }
-          ]
-        },
-        "flag": {
-          "type": "string"
-        },
-        "not_flag": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "description": "Простое декларативное условие для состояний сцены / слотов"
-    },
-    "SceneStateDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "image": {
-          "type": "string",
-          "description": "фон-изображение (файл пакета или ссылка)"
-        },
-        "art": {
-          "$ref": "#/$defs/ArtDoc",
-          "description": "фон, нарисованный примитивами (вместо image)"
-        },
-        "condition": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SceneCondition"
-            },
-            {
-              "const": null
-            }
-          ]
-        }
-      },
-      "required": [
-        "id",
-        "label",
-        "condition"
-      ],
-      "additionalProperties": false
-    },
-    "SlotType": {
-      "type": "string",
-      "description": "тип слота — id из реестра кампании slot_types (мастер может добавлять свои)"
-    },
-    "SlotDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string",
-          "description": "название слота для мастера (в списках вместо id)"
-        },
-        "type": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SlotType"
-          }
-        },
-        "shape": {
-          "const": "rect"
-        },
-        "x": {
-          "type": "number"
-        },
-        "y": {
-          "type": "number"
-        },
-        "w": {
-          "type": "number"
-        },
-        "h": {
-          "type": "number"
-        },
-        "default_entity": {
-          "type": "string"
-        },
-        "condition": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SceneCondition"
-            },
-            {
-              "const": null
-            }
-          ]
-        }
-      },
-      "required": [
-        "id",
-        "type",
-        "shape",
-        "x",
-        "y",
-        "w",
-        "h",
-        "condition"
-      ],
-      "additionalProperties": false
-    },
-    "NavigationZone": {
-      "type": "object",
-      "properties": {
-        "area": {
-          "type": "object",
-          "properties": {
-            "x": {
-              "type": "number"
-            },
-            "y": {
-              "type": "number"
-            },
-            "w": {
-              "type": "number"
-            },
-            "h": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "x",
-            "y",
-            "w",
-            "h"
-          ],
-          "additionalProperties": false
-        },
-        "go_to_scene": {
-          "type": "string"
-        },
-        "open_map": {
-          "type": "boolean"
-        },
-        "label": {
-          "type": "string"
-        },
-        "cost_ticks": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "area",
-        "label"
-      ],
-      "additionalProperties": false,
-      "description": "Зона перехода на сцене (итерация 8, А6): только ВНУТРИ локации —\nв другую сцену или «открыть карту» (это и есть выход из локации).\nСтарые `go_to_location` мигрируются при загрузке (shared/migrate.ts)."
-    },
-    "SceneDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "location": {
-          "type": "string"
-        },
-        "canvas": {
-          "type": "object",
-          "properties": {
-            "w": {
-              "type": "number"
-            },
-            "h": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "w",
-            "h"
-          ],
-          "additionalProperties": false,
-          "description": "размер, в координатах которого размечены слоты/зоны"
-        },
-        "states": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SceneStateDef"
-          }
-        },
-        "slots": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SlotDef"
-          }
-        },
-        "navigation": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/NavigationZone"
-          }
-        },
-        "music": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/MusicRule"
-          },
-          "description": "переопределение музыки сцены (тот же формат, что у локации)"
-        }
-      },
-      "required": [
-        "id",
-        "label",
-        "location",
-        "states",
-        "slots",
-        "navigation"
-      ],
-      "additionalProperties": false
-    },
-    "StatBlock": {
-      "type": "object",
-      "properties": {
-        "STR": {
-          "type": "number"
-        },
-        "CON": {
-          "type": "number"
-        },
-        "SIZ": {
-          "type": "number"
-        },
-        "DEX": {
-          "type": "number"
-        },
-        "INT": {
-          "type": "number"
-        },
-        "POW": {
-          "type": "number"
-        },
-        "CHA": {
-          "type": "number"
-        },
-        "HP": {
-          "type": "number"
-        },
-        "MP": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "STR",
-        "CON",
-        "SIZ",
-        "DEX",
-        "INT",
-        "POW",
-        "CHA"
-      ],
-      "additionalProperties": false
-    },
-    "InventoryEntry": {
-      "type": "object",
-      "properties": {
-        "item": {
-          "type": "string"
-        },
-        "quantity": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "item",
-        "quantity"
-      ],
-      "additionalProperties": false
-    },
-    "ScheduleEntry": {
-      "type": "object",
-      "properties": {
-        "time_range": {
-          "type": "array",
-          "prefixItems": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "number"
-            }
-          ],
-          "minItems": 2,
-          "maxItems": 2,
-          "description": "[от, до) в тиках суток; поддерживает переход через полночь"
-        },
-        "location": {
-          "type": "string"
-        },
-        "scene": {
-          "type": "string"
-        },
-        "slot": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "time_range",
-        "location",
-        "scene",
-        "slot"
-      ],
-      "additionalProperties": false
-    },
-    "PresenceOverride": {
-      "type": "object",
-      "properties": {
-        "flag": {
-          "type": "string",
-          "description": "активен, когда флаг установлен"
-        },
-        "not_flag": {
-          "type": "string",
-          "description": "…и (опционально) когда этот флаг НЕ установлен"
-        },
-        "location": {
-          "type": "string"
-        },
-        "scene": {
-          "type": "string"
-        },
-        "slot": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "location",
-        "scene",
-        "slot"
-      ],
-      "additionalProperties": false,
-      "description": "«при событии — в этом месте»: активная запись важнее расписания"
-    },
-    "TraderDef": {
-      "type": "object",
-      "properties": {
-        "sells": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "item": {
-                "type": "string"
-              },
-              "price": {
-                "type": "number"
-              },
-              "stock": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "item"
-            ],
-            "additionalProperties": false
-          },
-          "description": "товары: id предмета и цена в серебре (переопределяет value)"
-        },
-        "buys": {
-          "type": "boolean",
-          "description": "скупает ли торговец предметы игрока"
-        },
-        "buy_rate": {
-          "type": "number",
-          "description": "множитель закупки (доля от стоимости)"
-        }
-      },
-      "required": [
-        "sells",
-        "buys"
-      ],
-      "additionalProperties": false
-    },
-    "WeaponData": {
-      "type": "object",
-      "properties": {
-        "skill": {
-          "type": "string"
-        },
-        "damage": {
-          "type": "string"
-        },
-        "damage_bonus": {
-          "type": "boolean"
-        },
-        "range": {
-          "type": "number"
-        },
-        "attacks_per_round": {
-          "type": "number"
-        },
-        "parry_capable": {
-          "type": "boolean"
-        },
-        "label": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "skill",
-        "damage",
-        "damage_bonus",
-        "range",
-        "attacks_per_round",
-        "parry_capable"
-      ],
-      "additionalProperties": false
-    },
-    "NpcDef": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "type": {
-          "const": "npc"
-        },
-        "label": {
-          "type": "string"
-        },
-        "portrait": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "token": {
-          "type": "string"
-        },
-        "stats": {
-          "$ref": "#/$defs/StatBlock"
-        },
-        "skills": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "number"
-          }
-        },
-        "equipment": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "inventory": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/InventoryEntry"
-          }
-        },
-        "loot_table": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "item": {
-                "type": "string"
-              },
-              "chance": {
-                "type": "number"
-              },
-              "min": {
-                "type": "number"
-              },
-              "max": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "item",
-              "chance"
-            ],
-            "additionalProperties": false
-          }
-        },
-        "dialogue": {
-          "type": "string"
-        },
-        "slot_type": {
-          "type": "string",
-          "description": "тип в слотах сцены (id из реестра slot_types); по умолчанию «Персонаж»"
-        },
-        "schedule": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ScheduleEntry"
-          }
-        },
-        "presence_overrides": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/PresenceOverride"
-          },
-          "description": "особые места по событиям: пока активен флаг — персонаж здесь, расписание не действует"
-        },
-        "faction": {
-          "type": "string"
-        },
-        "base_disposition": {
-          "type": "number"
-        },
-        "trader": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TraderDef"
-            },
-            {
-              "const": null
-            }
-          ]
-        },
-        "combat_ai": {
-          "type": "string"
-        },
-        "armor": {
-          "type": "number",
-          "description": "броня в очках (если нет предмета-брони)"
-        },
-        "natural_weapon": {
-          "$ref": "#/$defs/WeaponData",
-          "description": "природное оружие (когти, укус) — если нет equipment.weapon"
-        },
-        "sounds": {
-          "$ref": "#/$defs/SoundHookMap",
-          "description": "звуки взаимодействий (хук → id звука реестра кампании)"
-        }
-      },
-      "required": [
-        "id",
-        "type",
-        "label",
-        "portrait",
-        "stats",
-        "skills"
-      ],
-      "additionalProperties": false
-    },
     "Effect": {
       "anyOf": [
         {
@@ -2358,6 +236,81 @@
           "required": [
             "type",
             "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "apply_status"
+            },
+            "target": {
+              "const": "player"
+            },
+            "status": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "remove_status"
+            },
+            "target": {
+              "const": "player"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_weather"
+            },
+            "weather": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "unlock_codex"
+            },
+            "entry": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entry"
           ],
           "additionalProperties": false
         },
@@ -2949,6 +902,26 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "set_description"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "game_over_victory"
             }
           },
@@ -2989,6 +962,2878 @@
           "additionalProperties": false
         }
       ]
+    },
+    "StatusDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string",
+          "description": "иконка-файл/ссылка; нет — текстовый чип"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "world",
+            "combat",
+            "both"
+          ],
+          "description": "мир — тики, бой — раунды; 'both' — и там и там"
+        },
+        "duration": {
+          "type": "number",
+          "description": "длительность по умолчанию (мировые тики / боевые раунды)"
+        },
+        "dot": {
+          "type": "object",
+          "properties": {
+            "hp": {
+              "type": "number"
+            },
+            "mp": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "description": "урон за тик (мир) / за раунд (бой)"
+        },
+        "skill_mods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "skill": {
+                "type": "string"
+              },
+              "delta": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "skill",
+              "delta"
+            ],
+            "additionalProperties": false
+          },
+          "description": "модификаторы навыков на время статуса"
+        },
+        "mov_mod": {
+          "type": "number",
+          "description": "аддитив к движению (итог не ниже 1)"
+        },
+        "on_apply": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
+        "on_expire": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
+        "apply_message": {
+          "type": "string"
+        },
+        "expire_message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "scope",
+        "duration"
+      ],
+      "additionalProperties": false,
+      "description": "Длительное изменяющее состояние: яд, кровотечение, бафф. В мире живёт в\nтиках, в бою — в раундах. Реестр статусов — в `campaign.json` (meta.statuses)."
+    },
+    "AbilityDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "mp_cost": {
+          "type": "number"
+        },
+        "cooldown_rounds": {
+          "type": "number",
+          "description": "кулдаун в раундах (по умолчанию 0)"
+        },
+        "range": {
+          "type": "number",
+          "description": "дальность в гексах (1 = вплотную)"
+        },
+        "skill": {
+          "type": "string",
+          "description": "навык попадания; нет — гарантированное применение"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "damage",
+            "status",
+            "heal"
+          ]
+        },
+        "damage": {
+          "type": "string",
+          "description": "для kind 'damage', напр. '1d6+2' (бонус силы НЕ добавляется)"
+        },
+        "status": {
+          "type": "string",
+          "description": "для kind 'status'"
+        },
+        "status_duration": {
+          "type": "number"
+        },
+        "heal": {
+          "type": "string",
+          "description": "для kind 'heal', напр. '1d6'"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "mp_cost",
+        "range",
+        "kind"
+      ],
+      "additionalProperties": false,
+      "description": "Способность бойца: тратит MP, имеет кулдаун, бьёт/лечит/вешает статус.\nРеестр — в `campaign.json` (meta.abilities); НПС получают `abilities: [id…]`."
+    },
+    "WeatherDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "overlay": {
+          "type": "string",
+          "description": "визуальный слой поверх сцены (чистый CSS), задаётся кампанией.\nДвижок рисует класс `weather-<overlay>`; встроенные слои движка:\n`rain`, `snow`, `fog`, `ash`. Нет/'none' — без слоя. Встроенных\n«погод по умолчанию» не существует — реестр целиком создаёт кампания."
+        },
+        "ambient": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "зацикленные звуки (id из реестра звуков) — слои к эмбиенту"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "погода (блок 9 ТЗ): визуальный слой + звуковые слои"
+    },
+    "Condition": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "player_enters_location"
+            },
+            "location": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "location"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "player_enters_scene"
+            },
+            "scene": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "scene"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "flag_set"
+            },
+            "flag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "flag_not_set"
+            },
+            "flag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "variable_compare"
+            },
+            "var": {
+              "type": "string"
+            },
+            "operator": {
+              "type": "string",
+              "enum": [
+                "==",
+                "!=",
+                "<",
+                ">",
+                "<=",
+                ">="
+              ]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "var",
+            "operator",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "time_of_day"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TimeOfDay"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/TimeOfDay"
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "tick_elapsed"
+            },
+            "min_tick": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "min_tick"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "quest_at_stage"
+            },
+            "quest": {
+              "type": "string"
+            },
+            "stage": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "quest",
+            "stage"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "has_item"
+            },
+            "item": {
+              "type": "string"
+            },
+            "min_quantity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "skill_ge"
+            },
+            "skill": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "skill",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "need_le"
+            },
+            "need": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "need",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "need_ge"
+            },
+            "need": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "need",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "entity_alive"
+            },
+            "entity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "entity_dead"
+            },
+            "entity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "disposition_ge"
+            },
+            "target": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "disposition_le"
+            },
+            "target": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "in_party"
+            },
+            "entity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "random_chance"
+            },
+            "probability": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "probability"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "has_status"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "weather_is"
+            },
+            "weather": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "and"
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "conditions"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "or"
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "conditions"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "not"
+            },
+            "condition": {
+              "$ref": "#/$defs/Condition"
+            }
+          },
+          "required": [
+            "type",
+            "condition"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "EndingDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string",
+          "description": "название в редакторе"
+        },
+        "title": {
+          "type": "string",
+          "description": "заголовок финального экрана"
+        },
+        "text": {
+          "type": "string",
+          "description": "текст концовки"
+        },
+        "tone": {
+          "type": "string",
+          "enum": [
+            "death",
+            "victory",
+            "neutral"
+          ],
+          "description": "тон экрана: гибель / победа / нейтральный"
+        },
+        "on": {
+          "type": "string",
+          "enum": [
+            "death",
+            "victory"
+          ],
+          "description": "к какому исходу применима концовка (нет — к любому)"
+        },
+        "image": {
+          "type": "string",
+          "description": "фон финала (файл пакета или ссылка); нет — фон темы"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия, при которых эта концовка показывается (все сразу)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "title"
+      ],
+      "additionalProperties": false,
+      "description": "Финальный экран (концовка). Мастер задаёт столько концовок, сколько хочет;\nпри завершении забега движок выбирает ПЕРВУЮ, у которой совпадает исход\n(`on`) и выполнены все `conditions`. Если ни одна не подошла — стандартный\nэкран исхода («Забег окончен» / «Победа»)."
+    },
+    "DiceRules": {
+      "type": "object",
+      "properties": {
+        "critical_divisor": {
+          "type": "number",
+          "description": "критический успех: бросок ≤ навык / critical_divisor"
+        },
+        "special_divisor": {
+          "type": "number",
+          "description": "особый (хороший) успех: бросок ≤ навык / special_divisor"
+        },
+        "fumble_from": {
+          "type": "number",
+          "description": "критический провал начинается с этого броска (fumble_from…100)"
+        },
+        "fumble_low_skill": {
+          "type": "number",
+          "description": "Классический BRP: при навыке ниже этого порога крит-провал — весь\nдиапазон fumble_from…99 (а не только 100). По умолчанию выключено."
+        }
+      },
+      "required": [
+        "critical_divisor",
+        "special_divisor",
+        "fumble_from"
+      ],
+      "additionalProperties": false,
+      "description": "Настройки бросков d100 (итерация 8, А7). Хранятся в campaign.json —\nу каждой кампании могут быть свои пороги, движок ничего не хардкодит."
+    },
+    "SoundHookMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "карта «хук → id звука реестра»"
+    },
+    "ItemCategoryDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "restores_hp": {
+          "type": "boolean",
+          "description": "предметы категории можно использовать для восстановления здоровья"
+        },
+        "restores_needs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "какие потребности восстанавливают предметы категории (id из реестра needs)"
+        },
+        "is_weapon": {
+          "type": "boolean",
+          "description": "предметы категории — оружие (навык, урон и т.д.)"
+        },
+        "is_armor": {
+          "type": "boolean",
+          "description": "предметы категории — броня (очки поглощения урона)"
+        },
+        "sounds": {
+          "$ref": "#/$defs/SoundHookMap",
+          "description": "звуки взаимодействий категории предметов (хук → id звука)"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Категория предметов: задаёт, какие свойства доступны предмету (фидбек №8)."
+    },
+    "EmotionDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Состояние портрета НПС: ключ картинки `npc.portrait[id]` и тег `# emotion:`\nв диалоге. Общий реестр кампании — чтобы состояние, заведённое у одного НПС,\nпредлагалось в диалогах всех остальных, и ИИ-генератору было на что сослаться."
+    },
+    "CurrencyDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "exchange_rate": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "symbol"
+      ],
+      "additionalProperties": false
+    },
+    "FactionDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "base_disposition": {
+          "type": "number"
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "служебная фракция: отношение не меняется, игроку не показывается"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "base_disposition"
+      ],
+      "additionalProperties": false
+    },
+    "MusicMood": {
+      "type": "string",
+      "enum": [
+        "тревожная",
+        "спокойная",
+        "боевая",
+        "торжественная",
+        "таинственная"
+      ],
+      "description": "настроение генеративного трека"
+    },
+    "MusicScale": {
+      "type": "string",
+      "enum": [
+        "минор",
+        "мажор",
+        "дорийский",
+        "фригийский",
+        "пентатоника"
+      ],
+      "description": "лад генеративного трека"
+    },
+    "MusicLayer": {
+      "type": "string",
+      "enum": [
+        "пад-аккорды",
+        "арпеджио",
+        "бас",
+        "перкуссия"
+      ],
+      "description": "слои аранжировки"
+    },
+    "MusicDoc": {
+      "type": "object",
+      "properties": {
+        "mood": {
+          "$ref": "#/$defs/MusicMood"
+        },
+        "tempo": {
+          "type": "number",
+          "description": "ударов в минуту (по умолчанию зависит от настроения)"
+        },
+        "key": {
+          "type": "string",
+          "description": "тональность: \"C\", \"D#\", \"Fis\"… (по умолчанию — от настроения)"
+        },
+        "scale": {
+          "$ref": "#/$defs/MusicScale"
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MusicLayer"
+          }
+        },
+        "progression": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "аккордовая последовательность ступенями гаммы: [\"i\",\"VI\",\"III\",\"VII\"]"
+        },
+        "seed": {
+          "type": "number",
+          "description": "зерно случайности (одинаковый seed — одна и та же музыка)"
+        }
+      },
+      "required": [
+        "mood",
+        "scale",
+        "layers"
+      ],
+      "additionalProperties": false,
+      "description": "Высокоуровневый генеративный формат музыки (НЕ ноты вручную).\nРантайм-генератор собирает бесшовный эмбиент-луп по гамме — «мимо»\nсыграть не может; детерминизм от `seed`."
+    },
+    "MusicSource": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/MusicDoc"
+        }
+      ],
+      "description": "источник музыки: файл/ссылка ИЛИ генеративный MusicDoc"
+    },
+    "MusicTrackDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "src": {
+          "$ref": "#/$defs/MusicSource"
+        },
+        "volume": {
+          "type": "number",
+          "description": "громкость трека 0…1 (поверх настроек игрока)"
+        },
+        "loop": {
+          "type": "boolean",
+          "description": "зацикливать (один трек) или играть как плейлист"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "src"
+      ],
+      "additionalProperties": false
+    },
+    "SoundDoc": {
+      "type": "object",
+      "properties": {
+        "zzfx": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          }
+        }
+      },
+      "required": [
+        "zzfx"
+      ],
+      "additionalProperties": false,
+      "description": "Параметрический SFX в духе ZzFX/jsfxr: числа в порядке параметров zzfx\n(громкость, случайность, частота, атака/сустейн/декей, форма волны…).\nРендерится Web Audio на лету (с кэшем буфера). Ретро-характер приемлем."
+    },
+    "SoundSource": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/SoundDoc"
+        }
+      ],
+      "description": "источник звука: файл/ссылка ИЛИ синтез из JSON; массив — случайный вариант"
+    },
+    "SoundDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "src": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SoundSource"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/SoundSource"
+              }
+            }
+          ]
+        },
+        "loop": {
+          "type": "boolean",
+          "description": "зацикленный фон (птицы, гул): играет слоем, пока не остановят (фидбек 9.6)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "src"
+      ],
+      "additionalProperties": false
+    },
+    "CampaignFeatures": {
+      "type": "object",
+      "properties": {
+        "map": {
+          "type": "boolean",
+          "description": "карта мира и путешествия между локациями"
+        },
+        "inventory": {
+          "type": "boolean",
+          "description": "инвентарь, экипировка, предметы в бою (эффекты предметов продолжают работать)"
+        },
+        "needs": {
+          "type": "boolean",
+          "description": "потребности и их убывание/восстановление"
+        },
+        "skills": {
+          "type": "boolean",
+          "description": "навыки: проверки резолвятся успехом без броска, рост отключён"
+        },
+        "relationships": {
+          "type": "boolean",
+          "description": "панель отношений (сами отношения продолжают меняться — могут гейтить диалоги)"
+        },
+        "trade": {
+          "type": "boolean",
+          "description": "торговля"
+        },
+        "combat": {
+          "type": "boolean",
+          "description": "тактический бой: конфликты резолвятся немедленной победой"
+        },
+        "time": {
+          "type": "boolean",
+          "description": "отображение часов и времени суток (ход времени остаётся)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Профиль механик кампании (блок 1 ТЗ «Гибкий движок»). Каждое поле —\nвыключатель подсистемы; ОТСУТСТВУЮЩЕЕ поле (или весь `features`) означает,\nчто механика ВКЛЮЧЕНА — старые кампании работают без изменений.\nТумблеры скрывают подсистему и в движке, и в интерфейсе игрока."
+    },
+    "FontDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "src": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "string",
+          "description": "начертание для"
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "italic"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "src"
+      ],
+      "additionalProperties": false,
+      "description": "Шрифт кампании (блок 2 ТЗ «Гибкий движок»): файл пакета (обычно\n`assets/fonts/…`) или внешняя ссылка. Подключается `@font-face` на лету."
+    },
+    "ThemeDoc": {
+      "type": "object",
+      "properties": {
+        "fonts": {
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "string",
+              "description": "основной текст: диалоги, панели, кнопки"
+            },
+            "display": {
+              "type": "string",
+              "description": "заголовки: названия сцен и панелей, меню"
+            },
+            "hand": {
+              "type": "string",
+              "description": "«рукописный»: журнал, записки, кодекс"
+            }
+          },
+          "additionalProperties": false,
+          "description": "роли шрифтов — id из `meta.fonts`; отсутствует роль — системный шрифт"
+        },
+        "menu": {
+          "type": "object",
+          "properties": {
+            "background": {
+              "type": "string",
+              "description": "фон главного меню (файл пакета или ссылка)"
+            },
+            "dim": {
+              "type": "number",
+              "description": "затемнение фона 0…0.9 для читаемости текста (по умолчанию 0.5)"
+            },
+            "ken_burns": {
+              "type": "boolean",
+              "description": "медленный зум фона («кен-бёрнс»)"
+            },
+            "title_art": {
+              "type": "string",
+              "description": "арт/лого кампании над заголовком"
+            }
+          },
+          "additionalProperties": false
+        },
+        "end": {
+          "type": "object",
+          "properties": {
+            "background": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "фон экрана финала; нет — используется фон меню"
+        },
+        "accent": {
+          "type": "string",
+          "description": "акцентный цвет интерфейса (заменяет золото темы)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Тема оформления кампании (блок 2 ТЗ). Применяется ТОЛЬКО к Player Mode;\nредактор остаётся в фирменном стиле. Палитра переопределяется ограниченно —\nтолько акцентный цвет, чтобы мастер не сломал контрасты."
+    },
+    "ProfessionDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "skill_bonus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "бонусы к навыкам (бесплатные, не тратят бюджет)"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "item",
+              "quantity"
+            ],
+            "additionalProperties": false
+          },
+          "description": "стартовое снаряжение"
+        },
+        "stats": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "стартовое распределение характеристик, которое задаёт мастер:\nабсолютные значения семи характеристик (в рамках stat_limits).\nНет — все характеристики начинают с минимума."
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "skill_bonus"
+      ],
+      "additionalProperties": false,
+      "description": "«происхождение» героя при создании персонажа (блок 11 ТЗ)"
+    },
+    "CharCreationDef": {
+      "type": "object",
+      "properties": {
+        "total_points": {
+          "type": "number",
+          "description": "бюджет характеристик (очки сверх минимума)"
+        },
+        "stat_limits": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ],
+          "additionalProperties": false,
+          "description": "пороги каждой характеристики (задаёт мастер)"
+        },
+        "skill_points": {
+          "type": "number",
+          "description": "бюджет навыков (нет — покупки навыков выключены)"
+        },
+        "skill_cap": {
+          "type": "number",
+          "description": "порог навыка сверху (нет — без верхнего порога)"
+        },
+        "skill_floor": {
+          "type": "number",
+          "description": "порог навыка снизу (нет — 0)"
+        },
+        "mandatory_skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "обязательные навыки (стартуют с 25%)"
+        },
+        "forbidden_skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "нельзя покупать"
+        },
+        "professions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProfessionDef"
+          },
+          "description": "«происхождения» — шаблоны героя; целиком на усмотрение мастера"
+        },
+        "choose_name": {
+          "type": "boolean",
+          "description": "ввод имени героя"
+        }
+      },
+      "required": [
+        "total_points",
+        "stat_limits"
+      ],
+      "additionalProperties": false,
+      "description": "Создание персонажа (блок 11 ТЗ). Всё задаёт мастер кампании —\nвстроенных значений и «происхождений по умолчанию» в движке нет.\nНет самого блока `char_creation` — забег стартует готовым шаблоном."
+    },
+    "CampaignMeta": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "engine_version": {
+          "type": "string"
+        },
+        "author": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "tick_label": {
+          "type": "string"
+        },
+        "ticks_per_day": {
+          "type": "number"
+        },
+        "time_of_day": {
+          "$ref": "#/$defs/TimeOfDayThresholds"
+        },
+        "starting_region": {
+          "type": "string"
+        },
+        "starting_location": {
+          "type": "string"
+        },
+        "starting_scene": {
+          "type": "string"
+        },
+        "starting_tick": {
+          "type": "number"
+        },
+        "needs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NeedDef"
+          }
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StatusDef"
+          },
+          "description": "реестр статусов: яды, кровотечения, баффы (блок 5 ТЗ)"
+        },
+        "abilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AbilityDef"
+          },
+          "description": "реестр боевых способностей (блок 6 ТЗ)"
+        },
+        "equipment_slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр слотов экипировки (блок 7 ТЗ); встроенные Оружие/Броня есть всегда"
+        },
+        "calendar": {
+          "type": "object",
+          "properties": {
+            "year_label": {
+              "type": "string",
+              "description": "«Летопись Каэрдена», «г.э.»…"
+            },
+            "start_year": {
+              "type": "number",
+              "description": "default 1"
+            },
+            "days_per_month": {
+              "type": "number",
+              "description": "default 30"
+            },
+            "months": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "названия месяцев (циклы); нет — «Месяц 1»"
+            },
+            "day_names": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "названия дней недели (циклы); нет — без имён"
+            }
+          },
+          "additionalProperties": false,
+          "description": "календарь кампании: свои месяцы и дни недели (блок 9 ТЗ)"
+        },
+        "weathers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WeatherDef"
+          },
+          "description": "реестр погод (блок 9 ТЗ)"
+        },
+        "endings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EndingDef"
+          },
+          "description": "финальные экраны (концовки): мастер задаёт сколько угодно; при завершении\nзабега движок берёт ПЕРВУЮ концовку, чьи условия выполнены (и чей `on`\nсовпадает с исходом). Нет подходящей — стандартный экран исхода."
+        },
+        "overlay_layers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр визуальных слоёв погоды (id + название) — «без хардкода»: список\nдля селекта «Слой» целиком задаёт кампания. Движок умеет рисовать слои\n`rain`, `snow`, `fog`, `ash`; свои id рисуются классом `weather-<id>`\n(стили мастер может добавить в тему оформления)."
+        },
+        "codex_categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "категории кодекса (блок 10 ТЗ); нет — встроенные три"
+        },
+        "dice_rules": {
+          "$ref": "#/$defs/DiceRules",
+          "description": "правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES"
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр навыков кампании (id + русское название); см. shared/skills.ts"
+        },
+        "item_categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ItemCategoryDef"
+          },
+          "description": "реестр категорий предметов: категория определяет, что предмет умеет"
+        },
+        "slot_types": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "sounds": {
+                "$ref": "#/$defs/SoundHookMap"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр типов слотов сцены (что можно ставить в слот); по умолчанию — встроенные"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр флагов: русское название и назначение (редактор показывает названия, движку важен только id)"
+        },
+        "emotions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EmotionDef"
+          },
+          "description": "состояния портретов (встроенные + свои), фидбек 9.14"
+        },
+        "currencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CurrencyDef"
+          }
+        },
+        "factions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FactionDef"
+          }
+        },
+        "music_tracks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MusicTrackDef"
+          },
+          "description": "реестр музыкальных треков (итерация 8, блок H): файл/ссылка ИЛИ синтез MusicDoc"
+        },
+        "sounds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SoundDef"
+          },
+          "description": "реестр звуков: файл/ссылка ИЛИ синтез SoundDoc (массив — случайный вариант)"
+        },
+        "ui_sounds": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "звуковая тема кампании: хук → id звука из реестра (пустой хук — тишина)"
+        },
+        "default_music": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "трек(и) кампании по умолчанию, когда у локации/сцены своей музыки нет"
+        },
+        "combat_music": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "трек(и) боя по умолчанию (если у арены нет своего arena.music)"
+        },
+        "features": {
+          "$ref": "#/$defs/CampaignFeatures",
+          "description": "профиль механик: что включено в этой кампании (нет поля — всё включено)"
+        },
+        "fonts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FontDef"
+          },
+          "description": "реестр шрифтов кампании (блок 2 ТЗ)"
+        },
+        "theme": {
+          "$ref": "#/$defs/ThemeDoc",
+          "description": "тема оформления: шрифтовые роли, фон меню/финала, акцент (блок 2 ТЗ)"
+        },
+        "max_load_formula": {
+          "const": "str_plus_siz",
+          "description": "максимальный груз в кг: STR + SIZ (по умолчанию)"
+        },
+        "max_companions": {
+          "type": "number"
+        },
+        "char_creation": {
+          "$ref": "#/$defs/CharCreationDef"
+        },
+        "default_player": {
+          "type": "string",
+          "description": "id сущности-шаблона игрока (Фаза 0: предсозданный персонаж)"
+        },
+        "roguelike": {
+          "type": "object",
+          "properties": {
+            "permadeath": {
+              "type": "boolean"
+            },
+            "meta_progress": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "randomize_on_restart": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "permadeath",
+            "meta_progress",
+            "randomize_on_restart"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "version",
+        "engine_version",
+        "author",
+        "description",
+        "tick_label",
+        "ticks_per_day",
+        "starting_region",
+        "starting_location",
+        "starting_scene",
+        "needs",
+        "currencies",
+        "default_player"
+      ],
+      "additionalProperties": false
+    },
+    "ArtFill": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "color": {
+              "type": "string"
+            },
+            "gradient": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "angle": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "description": "Заливка примитива: сплошной цвет или линейный градиент.\n`angle` — направление градиента в градусах (0 — слева направо)."
+    },
+    "ArtRect": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "rect"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        },
+        "h": {
+          "type": "number"
+        },
+        "fill": {
+          "$ref": "#/$defs/ArtFill"
+        },
+        "stroke": {
+          "type": "string"
+        },
+        "stroke_width": {
+          "type": "number"
+        },
+        "radius": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "additionalProperties": false
+    },
+    "ArtEllipse": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "ellipse"
+        },
+        "cx": {
+          "type": "number"
+        },
+        "cy": {
+          "type": "number"
+        },
+        "rx": {
+          "type": "number"
+        },
+        "ry": {
+          "type": "number"
+        },
+        "fill": {
+          "$ref": "#/$defs/ArtFill"
+        },
+        "stroke": {
+          "type": "string"
+        },
+        "stroke_width": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "cx",
+        "cy",
+        "rx",
+        "ry"
+      ],
+      "additionalProperties": false
+    },
+    "ArtPolygon": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "polygon"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "точки в виде [x1, y1, x2, y2, …] в координатах холста"
+        },
+        "fill": {
+          "$ref": "#/$defs/ArtFill"
+        },
+        "stroke": {
+          "type": "string"
+        },
+        "stroke_width": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "points"
+      ],
+      "additionalProperties": false
+    },
+    "ArtLine": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "line"
+        },
+        "x1": {
+          "type": "number"
+        },
+        "y1": {
+          "type": "number"
+        },
+        "x2": {
+          "type": "number"
+        },
+        "y2": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "x1",
+        "y1",
+        "x2",
+        "y2"
+      ],
+      "additionalProperties": false
+    },
+    "ArtText": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "text"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "text": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string"
+        },
+        "align": {
+          "type": "string",
+          "enum": [
+            "start",
+            "middle",
+            "end"
+          ],
+          "description": "'start' | 'middle' | 'end' — как в SVG"
+        },
+        "bold": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "font": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "x",
+        "y",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "ArtShape": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtRect"
+        },
+        {
+          "$ref": "#/$defs/ArtEllipse"
+        },
+        {
+          "$ref": "#/$defs/ArtPolygon"
+        },
+        {
+          "$ref": "#/$defs/ArtLine"
+        },
+        {
+          "$ref": "#/$defs/ArtText"
+        }
+      ]
+    },
+    "ArtLayer": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "подпись слоя для мастера («небо», «гора», «стена»)"
+        },
+        "shape": {
+          "$ref": "#/$defs/ArtShape"
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "rotate": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "shape"
+      ],
+      "additionalProperties": false
+    },
+    "ArtDoc": {
+      "type": "object",
+      "properties": {
+        "canvas": {
+          "type": "object",
+          "properties": {
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "w",
+            "h"
+          ],
+          "additionalProperties": false
+        },
+        "background": {
+          "type": "string"
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArtLayer"
+          }
+        }
+      },
+      "required": [
+        "layers"
+      ],
+      "additionalProperties": false,
+      "description": "Векторная «картинка из JSON»: слои примитивов в координатах холста\n(по умолчанию 1280×720 — та же система, что у слотов сцены).\nФормат рассчитан на генерацию ИИ: нарисовав сцену примитивами, генератор\nсам знает координаты объектов и ставит слоты точно на них."
+    },
+    "TravelConnection": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "type": "string"
+        },
+        "cost_ticks": {
+          "type": "number"
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          }
+        },
+        "random_encounter_table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "to",
+        "cost_ticks"
+      ],
+      "additionalProperties": false
+    },
+    "MusicCondition": {
+      "type": "object",
+      "properties": {
+        "time_of_day": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeOfDay"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TimeOfDay"
+              }
+            }
+          ]
+        },
+        "flag": {
+          "type": "string"
+        },
+        "not_flag": {
+          "type": "string"
+        },
+        "weather": {
+          "type": "string",
+          "description": "текущая погода (блок 9 ТЗ)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "условие музыкальной записи (паттерн состояния; все условия — по «И»)"
+    },
+    "MusicRule": {
+      "type": "object",
+      "properties": {
+        "tracks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "shuffle": {
+          "type": "boolean"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MusicCondition"
+          }
+        }
+      },
+      "required": [
+        "tracks"
+      ],
+      "additionalProperties": false,
+      "description": "Запись «условия → музыка» (у локации/сцены): `tracks` — ВСЕГДА список\n(один трек — луп, несколько — плейлист со сменой и кроссфейдом,\n`shuffle` — в случайном порядке без повтора подряд); побеждает первая\nистинная запись."
+    },
+    "LocationDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "position": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y"
+          ],
+          "additionalProperties": false
+        },
+        "travel_connections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TravelConnection"
+          }
+        },
+        "scenes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "arrival_scene": {
+          "type": "string",
+          "description": "Сцена, в которую попадает игрок, придя в локацию с карты (итерация 8, А5).\nПо умолчанию — первая сцена локации."
+        },
+        "arena": {
+          "type": "string"
+        },
+        "on_enter_rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hidden": {
+          "type": "boolean"
+        },
+        "ambient_audio": {
+          "type": "string"
+        },
+        "ambient": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6"
+        },
+        "music": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/MusicRule"
+              }
+            }
+          ],
+          "description": "музыка локации: список записей «условия → треки» (побеждает первая\nистинная). Старый формат — строка (id трека или ссылка) — мигрируется\nв `[{ tracks: [s] }]` при загрузке."
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "position",
+        "travel_connections",
+        "scenes"
+      ],
+      "additionalProperties": false
+    },
+    "RegionDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "map_image": {
+          "type": "string"
+        },
+        "map_art": {
+          "$ref": "#/$defs/ArtDoc",
+          "description": "фон карты, нарисованный примитивами (вместо map_image) — итерация 8, блок D"
+        },
+        "map_size": {
+          "type": "object",
+          "properties": {
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "w",
+            "h"
+          ],
+          "additionalProperties": false
+        },
+        "parent_region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "const": null
+            }
+          ]
+        },
+        "locations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LocationDef"
+          }
+        },
+        "sub_regions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RegionDef"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "map_image",
+        "parent_region",
+        "locations"
+      ],
+      "additionalProperties": false
+    },
+    "WorldDef": {
+      "type": "object",
+      "properties": {
+        "regions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RegionDef"
+          }
+        }
+      },
+      "required": [
+        "regions"
+      ],
+      "additionalProperties": false
+    },
+    "SceneCondition": {
+      "type": "object",
+      "properties": {
+        "time_of_day": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeOfDay"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TimeOfDay"
+              }
+            }
+          ]
+        },
+        "flag": {
+          "type": "string"
+        },
+        "not_flag": {
+          "type": "string"
+        },
+        "weather": {
+          "type": "string",
+          "description": "текущая погода (блок 9 ТЗ)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Простое декларативное условие для состояний сцены / слотов"
+    },
+    "SceneStateDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string",
+          "description": "фон-изображение (файл пакета или ссылка)"
+        },
+        "art": {
+          "$ref": "#/$defs/ArtDoc",
+          "description": "фон, нарисованный примитивами (вместо image)"
+        },
+        "condition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SceneCondition"
+            },
+            {
+              "const": null
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "condition"
+      ],
+      "additionalProperties": false
+    },
+    "SlotType": {
+      "type": "string",
+      "description": "тип слота — id из реестра кампании slot_types (мастер может добавлять свои)"
+    },
+    "SlotUseWith": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "type": "string",
+          "description": "предмет из инвентаря игрока"
+        },
+        "consume": {
+          "type": "boolean",
+          "description": "израсходовать предмет (по умолчанию нет)"
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "item",
+        "effects"
+      ],
+      "additionalProperties": false,
+      "description": "применение предмета инвентаря к слоту сцены — «ключ к двери» (блок 8 ТЗ)"
+    },
+    "SlotDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string",
+          "description": "название слота для мастера (в списках вместо id)"
+        },
+        "type": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SlotType"
+          }
+        },
+        "shape": {
+          "const": "rect"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        },
+        "h": {
+          "type": "number"
+        },
+        "default_entity": {
+          "type": "string"
+        },
+        "condition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SceneCondition"
+            },
+            {
+              "const": null
+            }
+          ]
+        },
+        "sprite_scale": {
+          "type": "number",
+          "description": "множитель размера спрайта сцены в этом слоте (1 = по высоте слота)"
+        },
+        "use_with": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SlotUseWith"
+          },
+          "description": "предметы, которыми можно воздействовать на слот (блок 8 ТЗ)"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "shape",
+        "x",
+        "y",
+        "w",
+        "h",
+        "condition"
+      ],
+      "additionalProperties": false
+    },
+    "NavigationZone": {
+      "type": "object",
+      "properties": {
+        "area": {
+          "type": "object",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "additionalProperties": false
+        },
+        "go_to_scene": {
+          "type": "string"
+        },
+        "open_map": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        },
+        "cost_ticks": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "area",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Зона перехода на сцене (итерация 8, А6): только ВНУТРИ локации —\nв другую сцену или «открыть карту» (это и есть выход из локации).\nСтарые `go_to_location` мигрируются при загрузке (shared/migrate.ts)."
+    },
+    "SceneDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "canvas": {
+          "type": "object",
+          "properties": {
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "w",
+            "h"
+          ],
+          "additionalProperties": false,
+          "description": "размер, в координатах которого размечены слоты/зоны"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SceneStateDef"
+          }
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SlotDef"
+          }
+        },
+        "navigation": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NavigationZone"
+          }
+        },
+        "music": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MusicRule"
+          },
+          "description": "переопределение музыки сцены (тот же формат, что у локации)"
+        },
+        "ambient": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "location",
+        "states",
+        "slots",
+        "navigation"
+      ],
+      "additionalProperties": false
+    },
+    "StatBlock": {
+      "type": "object",
+      "properties": {
+        "STR": {
+          "type": "number"
+        },
+        "CON": {
+          "type": "number"
+        },
+        "SIZ": {
+          "type": "number"
+        },
+        "DEX": {
+          "type": "number"
+        },
+        "INT": {
+          "type": "number"
+        },
+        "POW": {
+          "type": "number"
+        },
+        "CHA": {
+          "type": "number"
+        },
+        "HP": {
+          "type": "number"
+        },
+        "MP": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "STR",
+        "CON",
+        "SIZ",
+        "DEX",
+        "INT",
+        "POW",
+        "CHA"
+      ],
+      "additionalProperties": false
+    },
+    "InventoryEntry": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "item",
+        "quantity"
+      ],
+      "additionalProperties": false
+    },
+    "ScheduleEntry": {
+      "type": "object",
+      "properties": {
+        "time_range": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "[от, до) в тиках суток; поддерживает переход через полночь"
+        },
+        "location": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        },
+        "slot": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "time_range",
+        "location",
+        "scene",
+        "slot"
+      ],
+      "additionalProperties": false
+    },
+    "PresenceOverride": {
+      "type": "object",
+      "properties": {
+        "flag": {
+          "type": "string",
+          "description": "активен, когда флаг установлен"
+        },
+        "not_flag": {
+          "type": "string",
+          "description": "…и (опционально) когда этот флаг НЕ установлен"
+        },
+        "location": {
+          "type": "string"
+        },
+        "scene": {
+          "type": "string"
+        },
+        "slot": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "location",
+        "scene",
+        "slot"
+      ],
+      "additionalProperties": false,
+      "description": "«при событии — в этом месте»: активная запись важнее расписания"
+    },
+    "TraderDef": {
+      "type": "object",
+      "properties": {
+        "sells": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "price": {
+                "type": "number"
+              },
+              "stock": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "item"
+            ],
+            "additionalProperties": false
+          },
+          "description": "товары: id предмета и цена в серебре (переопределяет value)"
+        },
+        "buys": {
+          "type": "boolean",
+          "description": "скупает ли торговец предметы игрока"
+        },
+        "buy_rate": {
+          "type": "number",
+          "description": "множитель закупки (доля от стоимости)"
+        }
+      },
+      "required": [
+        "sells",
+        "buys"
+      ],
+      "additionalProperties": false
+    },
+    "WeaponData": {
+      "type": "object",
+      "properties": {
+        "skill": {
+          "type": "string"
+        },
+        "damage": {
+          "type": "string"
+        },
+        "damage_bonus": {
+          "type": "boolean"
+        },
+        "range": {
+          "type": "number"
+        },
+        "attacks_per_round": {
+          "type": "number"
+        },
+        "parry_capable": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill",
+        "damage",
+        "damage_bonus",
+        "range",
+        "attacks_per_round",
+        "parry_capable"
+      ],
+      "additionalProperties": false
+    },
+    "NpcDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "const": "npc"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "описание сущности (при наведении); можно менять динамически (set_description)"
+        },
+        "portrait": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "ПОРТРЕТ (диалог): состояние → изображение (блок 3 ТЗ «Гибкий движок»)"
+        },
+        "scene_sprite": {
+          "type": "string",
+          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);\nнет — в сцене используется портрет (состояние «Обычный»)"
+        },
+        "combat_figure": {
+          "type": "string",
+          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`"
+        },
+        "figure_mode": {
+          "type": "string",
+          "enum": [
+            "topdown",
+            "side",
+            "static"
+          ],
+          "description": "как разворачивать фигурку: вид сверху (поворот), вид сбоку (зеркало),\nне разворачивать; по умолчанию 'topdown'"
+        },
+        "shadow": {
+          "type": "boolean",
+          "description": "мягкая тень под спрайтом/фигуркой (по умолчанию включена)"
+        },
+        "token": {
+          "type": "string",
+          "description": "изображение жетона в бою (когда фигурка не задана)"
+        },
+        "stats": {
+          "$ref": "#/$defs/StatBlock"
+        },
+        "skills": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "equipment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "inventory": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InventoryEntry"
+          }
+        },
+        "loot_table": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "chance": {
+                "type": "number"
+              },
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "item",
+              "chance"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "dialogue": {
+          "type": "string"
+        },
+        "slot_type": {
+          "type": "string",
+          "description": "тип в слотах сцены (id из реестра slot_types); по умолчанию «Персонаж»"
+        },
+        "schedule": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ScheduleEntry"
+          }
+        },
+        "presence_overrides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PresenceOverride"
+          },
+          "description": "особые места по событиям: пока активен флаг — персонаж здесь, расписание не действует"
+        },
+        "faction": {
+          "type": "string"
+        },
+        "base_disposition": {
+          "type": "number"
+        },
+        "trader": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TraderDef"
+            },
+            {
+              "const": null
+            }
+          ]
+        },
+        "combat_ai": {
+          "type": "string"
+        },
+        "armor": {
+          "type": "number",
+          "description": "броня в очках (если нет предмета-брони)"
+        },
+        "natural_weapon": {
+          "$ref": "#/$defs/WeaponData",
+          "description": "природное оружие (когти, укус) — если нет equipment.weapon"
+        },
+        "abilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "боевые способности (список id из реестра кампании; блок 6 ТЗ)"
+        },
+        "morale": {
+          "type": "object",
+          "properties": {
+            "below_hp_pct": {
+              "type": "number"
+            },
+            "flee_chance": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "below_hp_pct",
+            "flee_chance"
+          ],
+          "additionalProperties": false,
+          "description": "мораль: при каком % HP и с каким шансом враг может сбежать (блок 6 ТЗ)"
+        },
+        "sounds": {
+          "$ref": "#/$defs/SoundHookMap",
+          "description": "звуки взаимодействий (хук → id звука реестра кампании)"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "label",
+        "description",
+        "portrait",
+        "stats",
+        "skills"
+      ],
+      "additionalProperties": false
     },
     "UseEffectDef": {
       "type": "object",
@@ -3063,6 +3908,10 @@
           ],
           "additionalProperties": false,
           "description": "броня: очки поглощения урона"
+        },
+        "equip_slot": {
+          "type": "string",
+          "description": "слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;\nнет — не экипируется. Старым предметам выставляется миграцией."
         },
         "on_interact": {
           "$ref": "#/$defs/UseEffectDef",
@@ -3629,6 +4478,135 @@
       ],
       "additionalProperties": false
     },
+    "RecipeDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "item",
+              "quantity"
+            ],
+            "additionalProperties": false
+          },
+          "description": "расходуемые компоненты"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "инструменты: нужны в инвентаре, НЕ расходуются"
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "декларативные условия возможности крафта (локация, флаг, …)"
+        },
+        "skill": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "difficulty": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "difficulty"
+          ],
+          "additionalProperties": false,
+          "description": "проверка навыка при изготовлении; успех = создал, провал = компоненты целы"
+        },
+        "time_ticks": {
+          "type": "number",
+          "description": "время изготовления (промотка тиков после успеха)"
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "item",
+            "quantity"
+          ],
+          "additionalProperties": false,
+          "description": "результат"
+        },
+        "message": {
+          "type": "string",
+          "description": "сообщение об успехе (нет — стандартное)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "inputs",
+        "output"
+      ],
+      "additionalProperties": false,
+      "description": "Рецепт изготовления: компоненты (+ инструменты) → предмет. Проверка\nнавыка — родная BRP-механика (успех ставит «галочку» опыта)."
+    },
+    "CodexEntryDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string",
+          "description": "название записи"
+        },
+        "category": {
+          "type": "string",
+          "description": "id из meta.codex_categories (нет — встроенные «Хроники»)"
+        },
+        "text": {
+          "type": "string",
+          "description": "основной текст"
+        },
+        "image": {
+          "type": "string",
+          "description": "файл/ссылка (нет — без картинки)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "запись кодекса/бестиария — разблокируемый лор (блок 10 ТЗ)"
+    },
     "DlgCond": {
       "anyOf": [
         {
@@ -3773,6 +4751,44 @@
           "required": [
             "type",
             "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "has_status"
+            },
+            "status": {
+              "type": "string"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "weather_is"
+            },
+            "weather": {
+              "type": "string"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
           ],
           "additionalProperties": false
         }
@@ -4029,6 +5045,93 @@
           "required": [
             "type",
             "cutscene"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_description"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "apply_status"
+            },
+            "status": {
+              "type": "string"
+            },
+            "duration": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "remove_status"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_weather"
+            },
+            "weather": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "unlock_codex"
+            },
+            "entry": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entry"
           ],
           "additionalProperties": false
         }
@@ -4359,6 +5462,20 @@
             "$ref": "#/$defs/EncounterTableDef"
           },
           "description": "таблицы случайных встреч (в Campaign Package лежат в rules/encounters.json)"
+        },
+        "recipes": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/RecipeDef"
+          },
+          "description": "рецепты крафта по id (блок 4 ТЗ; файлы в recipes/)"
+        },
+        "codex": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/CodexEntryDef"
+          },
+          "description": "записи кодекса/бестиария по id (блок 10 ТЗ; файлы в codex/)"
         },
         "dialogues": {
           "type": "object",

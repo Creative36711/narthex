@@ -17,6 +17,10 @@
       "intro": "В темноте подвала блестят глаза. Две крысы размером с собаку скалят жёлтые резцы.",
       "on_victory": [
         {
+          "type": "unlock_codex",
+          "entry": "codex_rat_giant"
+        },
+        {
           "type": "set_flag",
           "flag": "rats_done"
         },

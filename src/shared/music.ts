@@ -138,6 +138,7 @@ function condOk(cond: MusicCondition | undefined, engine: GameEngine | null): bo
   }
   if (cond.flag !== undefined && !engine?.state.flags[cond.flag]) return false
   if (cond.not_flag !== undefined && engine?.state.flags[cond.not_flag]) return false
+  if (cond.weather !== undefined && (engine?.state.weather ?? '') !== cond.weather) return false
   return true
 }
 

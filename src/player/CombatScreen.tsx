@@ -5,6 +5,7 @@ import type { Hex } from '../core/hex'
 import { hexKey, hexToPixel, hexCorners, gridPixelSize, hexDistance } from '../core/hex'
 import { assetUrl } from '../core/loader'
 import { tipSeen, markTip } from './tips'
+import { featureOn } from '../shared/types'
 
 interface Props {
   engine: GameEngine
@@ -29,6 +30,8 @@ export function CombatScreen({ engine }: Props) {
   const size = arena.hex_grid.hex_size
   const [hoverHex, setHoverHex] = useState<string | null>(null)
   const [showTutorial, setShowTutorial] = useState(() => !tipSeen('combat'))
+  /** выбранная способность игрока: ждём клик по цели */
+  const [pendingAbility, setPendingAbility] = useState<string | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
 
   const origin = useMemo(() => {
@@ -54,6 +57,11 @@ export function CombatScreen({ engine }: Props) {
     if (el) el.scrollTop = el.scrollHeight
   }, [combat.log.length])
 
+  // вне хода игрока выбор способности сбрасывается
+  useEffect(() => {
+    if (!playerTurn) setPendingAbility(null)
+  }, [playerTurn])
+
   const hexes: Hex[] = []
   for (let row = 0; row < arena.hex_grid.rows; row++) {
     for (let col = 0; col < arena.hex_grid.cols; col++) {
@@ -63,9 +71,22 @@ export function CombatScreen({ engine }: Props) {
 
   const activePlayer = combat.active
 
+  // цели выбранной способности (блок 6 ТЗ): подсвечиваются вместо дальности хода
+  const abilityTargetIds = useMemo(() => {
+    if (!pendingAbility || !playerTurn) return new Set<string>()
+    return new Set(combat.abilityTargets(pendingAbility).map((t) => t.id))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAbility, playerTurn, combat.round, combat.active.pos.col, combat.active.pos.row])
+
   const onHexClick = (h: Hex) => {
     if (!playerTurn) return
     const occ = combat.occupantAt(h)
+    if (pendingAbility && occ && abilityTargetIds.has(occ.id)) {
+      combat.useAbility(pendingAbility, occ.id)
+      setPendingAbility(null)
+      return
+    }
+    if (pendingAbility) setPendingAbility(null) // клик мимо цели отменяет выбор
     if (occ && occ.side === 'enemy') {
       if (combat.canAttack(combat.active, occ)) combat.playerAttack(occ.id)
       return
@@ -100,14 +121,16 @@ export function CombatScreen({ engine }: Props) {
                 const difficult = combat.isDifficult(h)
                 const inReach = reach.has(k)
                 const occ = combat.occupantAt(h)
+                const abilityTarget = !!pendingAbility && !!occ && abilityTargetIds.has(occ.id)
                 const attackable =
                   playerTurn && occ && occ.side === 'enemy' && combat.canAttack(combat.active, occ)
                 let cls = 'hex'
                 if (blocked) cls += ' hex-blocked'
+                else if (abilityTarget) cls += ' hex-ability'
                 else if (attackable) cls += ' hex-attack'
                 else if (inReach) cls += ' hex-reach'
                 else if (difficult) cls += ' hex-difficult'
-                if (hoverHex === k && (inReach || attackable)) cls += ' hex-hover'
+                if (hoverHex === k && (inReach || attackable || abilityTarget)) cls += ' hex-hover'
                 return (
                   <polygon
                     key={k}
@@ -123,16 +146,52 @@ export function CombatScreen({ engine }: Props) {
 
             {combat.combatants.map((c) => {
               const px = hexToPixel(c.pos, size, origin)
+              const posStyle = {
+                left: `${(px.x / canvas.w) * 100}%`,
+                top: `${(px.y / canvas.h) * 100}%`,
+                width: `${((size * 1.45) / canvas.w) * 100}%`,
+              }
+              const statusText = c.statuses.length
+                ? '\n' + c.statuses.map((s) => `${combat.statusLabel(s.id)}: ещё ${s.left} раунд(а)`).join('\n')
+                : ''
+              const tip = `${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}${statusText}`
+              // фигурка боя вместо жетона (блок 3 ТЗ): без круглой маски и
+              // рамки стороны; разворот по направлению движения/атаки
+              if (c.figure) {
+                const mode = c.figure_mode ?? 'topdown'
+                const transform =
+                  mode === 'topdown'
+                    ? `rotate(${c.facing}deg)`
+                    : mode === 'side'
+                      ? `scaleX(${c.flip ? -1 : 1})`
+                      : undefined
+                return (
+                  <div
+                    key={c.id}
+                    className={`token-figure figure-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'figure-active' : ''}`}
+                    style={posStyle}
+                    data-tip={tip}
+                    onClick={() => onHexClick(c.pos)}
+                  >
+                    {c.figure_shadow !== false && !c.dead && <span className="figure-shadow" />}
+                    <img
+                      src={assetUrl(engine.campaign, c.figure)}
+                      alt={c.label}
+                      draggable={false}
+                      style={transform ? { transform } : undefined}
+                    />
+                    <div className="token-hp">
+                      <div className="token-hp-fill" style={{ width: `${Math.max(0, (c.hp / c.maxHp) * 100)}%` }} />
+                    </div>
+                  </div>
+                )
+              }
               return (
                 <div
                   key={c.id}
                   className={`token token-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'token-active' : ''}`}
-                  style={{
-                    left: `${(px.x / canvas.w) * 100}%`,
-                    top: `${(px.y / canvas.h) * 100}%`,
-                    width: `${((size * 1.45) / canvas.w) * 100}%`,
-                  }}
-                  data-tip={`${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}`}
+                  style={posStyle}
+                  data-tip={tip}
                   onClick={() => onHexClick(c.pos)}
                 >
                   {c.portrait ? (
@@ -179,13 +238,30 @@ export function CombatScreen({ engine }: Props) {
               {playerTurn ? (
                 <>
                   <div className="combat-hint">
-                    Движение: <b>{activePlayer.movLeft}</b> гекс. ·{''}
-                    {activePlayer.attacked ? 'действие израсходовано' : `атака: «${activePlayer.weaponLabel}»`}
+                    Движение: <b>{activePlayer.movLeft}</b> гекс. · MP: <b>{activePlayer.mp}</b> ·{''}
+                    {activePlayer.attacked ? ' действие израсходовано' : ` атака: «${activePlayer.weaponLabel}»`}
                   </div>
                   <div className="combat-hint muted">
-                    Клик по подсвеченному гексу — движение, по врагу в досягаемости — атака.
+                    {pendingAbility
+                      ? 'Кликните по подсвеченной цели, чтобы применить способность (клик мимо — отмена).'
+                      : 'Клик по подсвеченному гексу — движение, по врагу в досягаемости — атака.'}
                   </div>
-                  {!activePlayer.attacked && combat.usableItems().length > 0 && (
+                  {combat.playerAbilities().length > 0 && (
+                    <div className="combat-abilities">
+                      {combat.playerAbilities().map(({ def, usable, reason }) => (
+                        <button
+                          key={def.id}
+                          className={`btn btn-small ability-btn ${pendingAbility === def.id ? 'ability-pending' : ''}`}
+                          disabled={!usable && pendingAbility !== def.id}
+                          data-tip={`${def.description ?? def.label}\nСтоимость: ${def.mp_cost} MP · дальность ${def.range} гекс.${def.cooldown_rounds ? ` · кулдаун ${def.cooldown_rounds} раунд.` : ''}${reason ? `\nНедоступно: ${reason}` : ''}`}
+                          onClick={() => setPendingAbility(pendingAbility === def.id ? null : def.id)}
+                        >
+                          <Ico n="sparkle" />  {def.label} ({def.mp_cost} MP)
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!activePlayer.attacked && featureOn(engine.campaign.meta, 'inventory') && combat.usableItems().length > 0 && (
                     <details className="combat-items">
                       <summary>Использовать предмет (действие)</summary>
                       {combat.usableItems().map((it) => (
@@ -250,7 +326,14 @@ export function CombatScreen({ engine }: Props) {
             <div className="combat-roster">
               {combat.combatants.map((c) => (
                 <div key={c.id} className={`roster-row ${c.dead ? 'dead' : ''} side-${c.side}`}>
-                  <span>{c.label}</span>
+                  <span>
+                    {c.label}
+                    {c.statuses.map((s) => (
+                      <span key={s.id} className="roster-status" data-tip={combat.statusLabel(s.id)}>
+                        {combat.statusLabel(s.id)} ({s.left})
+                      </span>
+                    ))}
+                  </span>
                   <span>
                     {Math.max(0, c.hp)}/{c.maxHp}
                     {!c.dead && combat.active.id !== c.id ? '' : c.dead ? '' : '◂'}

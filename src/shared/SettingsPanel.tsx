@@ -64,6 +64,14 @@ export function SettingsPanel({ open, onClose }: Props) {
           </label>
         </Row>
 
+        <Row label="Размер текста">
+          <select value={s.text_scale} onChange={(e) => patch({ text_scale: Number(e.target.value) })}>
+            <option value={0.9}>Мельче</option>
+            <option value={1}>Обычный</option>
+            <option value={1.15}>Крупнее</option>
+          </select>
+        </Row>
+
         <div className="settings-divider">Синтезатор речи (Web Speech)</div>
 
         {ttsSupported() ? (

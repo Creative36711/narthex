@@ -4,7 +4,8 @@ import { HUD } from './HUD'
 import { SceneScreen } from './SceneScreen'
 import { MapScreen } from './MapScreen'
 import { DialogueOverlay } from './DialogueOverlay'
-import { InventoryPanel, CharacterPanel, LogPanel } from './Panels'
+import { InventoryPanel, CharacterPanel, LogPanel, CraftingPanel } from './Panels'
+import { CodexPanel } from './CodexPanel'
 import { TradePanel } from './TradePanel'
 import { EndScreen } from './EndScreen'
 import { HelpPanel } from './HelpPanel'
@@ -13,7 +14,7 @@ import { assetUrl } from '../core/loader'
 import { CutscenePlayer } from '../shared/CutscenePlayer'
 import { setAudioCampaign, playUi, refreshAmbient, stopAllLoops } from '../shared/audio'
 import { refreshMusic, setMenuMode, stopMusic, applyMusicVolume } from '../shared/music'
-import type { MusicTrackDef } from '../shared/types'
+import { featureOn, type MusicTrackDef } from '../shared/types'
 
 interface Props {
   engine: GameEngine
@@ -21,7 +22,7 @@ interface Props {
   onExitToMenu: () => void
 }
 
-type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | null
+type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | null
 
 export function GameView({ engine, onRestart, onExitToMenu }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
@@ -52,11 +53,17 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
     prevMessage.current = message?.text
   }, [message])
 
-  // звуки панелей (H4)
-  const openPanel = useCallback((id: Exclude<PanelId, null>) => {
-    playUi('panel_open')
-    setPanel(id)
-  }, [])
+  // звуки панелей (H4); панели выключенных механик профиля не открываются
+  const openPanel = useCallback(
+    (id: Exclude<PanelId, null>) => {
+      const meta = engine.campaign.meta
+      if (id === 'map' && !featureOn(meta, 'map')) return
+      if (id === 'inventory' && !featureOn(meta, 'inventory')) return
+      playUi('panel_open')
+      setPanel(id)
+    },
+    [engine],
+  )
   const closePanel = useCallback(() => {
     playUi('panel_close')
     setPanel(null)
@@ -77,15 +84,23 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
         onOpenInventory={() => openPanel('inventory')}
         onOpenCharacter={() => openPanel('character')}
         onOpenLog={() => openPanel('log')}
+        onOpenCraft={() => openPanel('craft')}
+        onOpenCodex={() => openPanel('codex')}
         onOpenHelp={() => openPanel('help')}
         onExitToMenu={onExitToMenu}
       />
       <SceneScreen engine={engine} onOpenMap={() => openPanel('map')} />
 
-      {panel === 'map' && <MapScreen engine={engine} onClose={closePanel} />}
-      {panel === 'inventory' && <InventoryPanel engine={engine} onClose={closePanel} />}
+      {panel === 'map' && featureOn(engine.campaign.meta, 'map') && <MapScreen engine={engine} onClose={closePanel} />}
+      {panel === 'inventory' && featureOn(engine.campaign.meta, 'inventory') && (
+        <InventoryPanel engine={engine} onClose={closePanel} />
+      )}
       {panel === 'character' && <CharacterPanel engine={engine} onClose={closePanel} />}
+      {panel === 'craft' && featureOn(engine.campaign.meta, 'inventory') && (
+        <CraftingPanel engine={engine} onClose={closePanel} />
+      )}
       {panel === 'log' && <LogPanel engine={engine} onClose={closePanel} />}
+      {panel === 'codex' && <CodexPanel engine={engine} onClose={closePanel} />}
       {panel === 'help' && <HelpPanel engine={engine} onClose={closePanel} />}
 
       {!cutscene && engine.combat && <CombatScreen engine={engine} />}

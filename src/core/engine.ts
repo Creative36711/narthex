@@ -1,5 +1,6 @@
 import type {
   CampaignData,
+  CodexEntryDef,
   CutsceneDef,
   DiceRules,
   Effect,
@@ -10,21 +11,26 @@ import type {
   LocationDef,
   NpcDef,
   PlayerState,
+  RecipeDef,
   RegionDef,
   SceneDef,
   SceneStateDef,
   SlotDef,
+  SlotUseWith,
+  StatBlock,
+  StatusDef,
   TravelConnection,
   NeedCondition,
   PresenceOverride,
   WeaponData,
 } from '../shared/types'
-import { SAVE_VERSION, DEFAULT_DICE_RULES } from '../shared/types'
+import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { PRNG } from './prng'
 import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
+import type { CharChoice } from './charcreate'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
@@ -170,6 +176,35 @@ export class GameEngine {
     this.notify()
   }
 
+  /**
+   * Применить выбор с экрана создания персонажа (блок 11 ТЗ) к шаблону
+   * `default_player`: имя, характеристики (с пересчётом производных),
+   * навыки, снаряжение профессии. Вызывается ДО `start()` на новом забеге.
+   */
+  applyCharCreation(choice: CharChoice): void {
+    const creation = this.campaign.meta.char_creation
+    if (!creation) return
+    const s = this.state
+    const profession = creation.professions?.find((p) => p.id === choice.profession)
+    const name = choice.name.trim()
+    if (name) s.player.name = name
+    // характеристики: только семь базовых, производные пересчитываются
+    const stats = { ...choice.stats } as unknown as StatBlock
+    delete stats.HP
+    delete stats.MP
+    s.player.stats = stats
+    s.player.max_hp = derivedHP(stats)
+    s.player.hp = s.player.max_hp
+    s.player.max_mp = derivedMP(stats)
+    s.player.mp = s.player.max_mp
+    // навыки: итоговые значения с экрана (база + покупки + бонусы профессии)
+    s.player.skills = { ...choice.skills }
+    // снаряжение профессии
+    for (const it of profession?.items ?? []) this.addItem(it.item, it.quantity)
+    s.char_choice = JSON.parse(JSON.stringify(choice))
+    this.pushLog(`${name || 'Герой'}: забег начинается.`)
+  }
+
   // ─────────────── катсцены (итерация 8, блок E) ───────────────
 
   /** текущая катсцена (первая в очереди) */
@@ -226,27 +261,56 @@ export class GameEngine {
 
   advanceTicks(ticks: number): void {
     const meta = this.campaign.meta
+    const needsOn = featureOn(meta, 'needs')
     for (let i = 0; i < ticks; i++) {
       if (this.state.game_over) return
       this.state.tick += 1
       this.state.stats_run.ticks_survived += 1
-      for (const need of meta.needs) {
-        // старые сохранения могут не знать новую потребность — считаем её полной
-        const cur = this.state.player.needs[need.id] ?? need.max
-        let next = cur
-        // убыль — только когда все условия выполнены (пусто = всегда)
-        const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
-        if (decays) next = Math.max(0, next - need.decay_per_tick)
-        // восстановление — когда выполнены условия restore_when
-        if (
-          need.restore_per_tick &&
-          (!need.restore_when?.length || need.restore_when.every((c) => this.needCondOk(c)))
-        ) {
-          next = Math.min(need.max, next + need.restore_per_tick)
+      if (needsOn) {
+        for (const need of meta.needs) {
+          // старые сохранения могут не знать новую потребность — считаем её полной
+          const cur = this.state.player.needs[need.id] ?? need.max
+          let next = cur
+          // убыль — только когда все условия выполнены (пусто = всегда)
+          const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
+          if (decays) next = Math.max(0, next - need.decay_per_tick)
+          // восстановление — когда выполнены условия restore_when
+          if (
+            need.restore_per_tick &&
+            (!need.restore_when?.length || need.restore_when.every((c) => this.needCondOk(c)))
+          ) {
+            next = Math.min(need.max, next + need.restore_per_tick)
+          }
+          this.state.player.needs[need.id] = next
+          if (next <= 0 && cur > 0) this.onNeedZero(need.id)
         }
-        this.state.player.needs[need.id] = next
-        if (next <= 0 && cur > 0) this.onNeedZero(need.id)
       }
+      // статусы игрока (блок 5 ТЗ): DoT, декремент, истечение
+      this.tickStatuses()
+    }
+  }
+
+  /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
+  private tickStatuses(): void {
+    const list = this.state.player.statuses
+    if (!list?.length) return
+    const expired: StatusDef[] = []
+    for (const s of list) {
+      const def = this.statusDef(s.id)
+      if (!def) continue
+      if (def.dot?.hp) this.state.player.hp = Math.max(1, this.state.player.hp - def.dot.hp)
+      if (def.dot?.mp) this.state.player.mp = Math.max(0, this.state.player.mp - def.dot.mp)
+      if (def.dot?.hp) this.pushLog(`${def.label}: −${def.dot.hp} HP.`)
+      s.left -= 1
+      if (s.left <= 0) expired.push(def)
+    }
+    if (expired.length) {
+      this.state.player.statuses = list.filter((s) => s.left > 0)
+      for (const def of expired) {
+        this.pushLog(def.expire_message ?? `${def.label}: эффект закончился.`)
+        if (def.on_expire?.length) this.applyEffects(def.on_expire)
+      }
+      this.notify()
     }
   }
 
@@ -262,6 +326,7 @@ export class GameEngine {
   }
 
   changeNeed(needId: string, delta: number): void {
+    if (!featureOn(this.campaign.meta, 'needs')) return
     const need = this.campaign.meta.needs.find((n) => n.id === needId)
     if (!need) return
     const cur = this.state.player.needs[needId] ?? 0
@@ -274,6 +339,59 @@ export class GameEngine {
     const p = this.state.player
     p.hp = Math.min(p.max_hp, p.hp + delta)
     if (p.hp <= 0) this.gameOver('death', 'Ваши раны оказались смертельными.')
+  }
+
+  // ─────────────── статусы (блок 5 ТЗ «Гибкий движок») ───────────────
+
+  /** определение статуса из реестра кампании */
+  statusDef(id: string): StatusDef | undefined {
+    return this.campaign.meta.statuses?.find((s) => s.id === id)
+  }
+
+  /** активен ли статус у игрока */
+  hasStatus(id: string): boolean {
+    return !!this.state.player.statuses?.some((s) => s.id === id)
+  }
+
+  /**
+   * Наложить статус на игрока (в мире — только игрок, v1). Повторное
+   * наложение обновляет длительность по максимуму.
+   */
+  applyStatus(_target: 'player', id: string, duration?: number): void {
+    const def = this.statusDef(id)
+    if (!def || def.scope === 'combat') return // чисто боевые — через бой (блок 6)
+    const left = duration ?? def.duration
+    if (left <= 0) return
+    const list = (this.state.player.statuses ??= [])
+    const existing = list.find((s) => s.id === id)
+    if (existing) {
+      existing.left = Math.max(existing.left, left)
+      return
+    }
+    list.push({ id, left })
+    this.pushLog(def.apply_message ?? `${def.label}: эффект наложен.`)
+    if (def.on_apply?.length) this.applyEffects(def.on_apply)
+    this.notify()
+  }
+
+  /** снять статус (без срабатывания on_expire) */
+  removeStatus(_target: 'player', id: string): void {
+    const list = this.state.player.statuses
+    if (!list?.some((s) => s.id === id)) return
+    this.state.player.statuses = list.filter((s) => s.id !== id)
+    const def = this.statusDef(id)
+    if (def) this.pushLog(`${def.label}: эффект снят.`)
+    this.notify()
+  }
+
+  /** суммарный модификатор навыка от активных статусов */
+  statusSkillMod(skill: string): number {
+    let mod = 0
+    for (const s of this.state.player.statuses ?? []) {
+      const def = this.statusDef(s.id)
+      for (const m of def?.skill_mods ?? []) if (m.skill === skill) mod += m.delta
+    }
+    return mod
   }
 
   // ─────────────── инвентарь ───────────────
@@ -299,40 +417,63 @@ export class GameEngine {
     if (!entry) return
     entry.quantity -= quantity
     if (entry.quantity <= 0) inv.splice(inv.indexOf(entry), 1)
-    // предмет закончился — снимаем с персонажа
-    const eq = this.state.player.equipment
+    // предмет закончился — снимаем со всех слотов
     if (!this.hasItem(id)) {
-      if (eq.weapon === id) delete eq.weapon
-      if (eq.armor === id) delete eq.armor
+      const eq = this.state.player.equipment
+      for (const slot of Object.keys(eq)) {
+        if (eq[slot] === id) delete eq[slot]
+      }
     }
   }
 
-  // ─────────────── экипировка ───────────────
+  // ─────────────── экипировка (блок 7 ТЗ: слоты задаёт кампания) ───────────────
+
+  /** список слотов экипировки кампании (встроенные + свои) */
+  equipmentSlots(): Array<{ id: string; label: string }> {
+    return equipmentSlots(this.campaign.meta)
+  }
+
+  slotLabel(slotId: string): string {
+    return this.equipmentSlots().find((s) => s.id === slotId)?.label ?? slotId
+  }
+
+  /** слот, в который экипируется предмет (нет — не экипируется) */
+  itemSlot(id: string): string | undefined {
+    const def = this.campaign.entities[id] as ItemDef | undefined
+    if (!def || def.type !== 'item') return undefined
+    if (def.equip_slot) return def.equip_slot
+    if (def.weapon_data) return 'weapon' // мягкая миграция старых предметов
+    if (def.armor_data) return 'armor'
+    return undefined
+  }
 
   /** предмет надет? */
   isEquipped(id: string): boolean {
-    const eq = this.state.player.equipment
-    return eq.weapon === id || eq.armor === id
+    return Object.values(this.state.player.equipment).includes(id)
   }
 
-  /** надеть оружие/броню из инвентаря */
+  /** в каком слоте надет предмет (нет — '') */
+  equippedSlotOf(id: string): string {
+    const eq = this.state.player.equipment
+    for (const slot of Object.keys(eq)) if (eq[slot] === id) return slot
+    return ''
+  }
+
+  /** надеть предмет из инвентаря в его слот */
   equipItem(id: string): void {
     if (!this.hasItem(id)) return
     const def = this.campaign.entities[id] as ItemDef | undefined
     if (!def || def.type !== 'item') return
-    if (def.weapon_data) {
-      this.state.player.equipment.weapon = id
-      this.pushLog(`Взято в руки: ${def.label}.`)
-    } else if (def.armor_data) {
-      this.state.player.equipment.armor = id
-      this.pushLog(`Надето: ${def.label}.`)
-    } else return
+    const slot = this.itemSlot(id)
+    if (!slot) return
+    this.state.player.equipment[slot] = id
+    this.pushLog(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`)
     this.autosave()
     this.notify()
   }
 
-  /** снять оружие/броню */
-  unequipItem(slot: 'weapon' | 'armor'): void {
+  /** снять предмет из слота */
+  unequipItem(slot: string): void {
     const eq = this.state.player.equipment
     const id = eq[slot]
     if (!id) return
@@ -345,7 +486,7 @@ export class GameEngine {
 
   /** текущее оружие игрока (для UI и боя): экипированное или кулаки */
   playerWeapon(): { itemId: string | null; weapon: WeaponData; label: string } {
-    const id = this.state.player.equipment.weapon
+    const id = this.state.player.equipment['weapon']
     if (id && this.hasItem(id)) {
       const def = this.campaign.entities[id] as ItemDef | undefined
       if (def?.weapon_data) return { itemId: id, weapon: def.weapon_data, label: def.label }
@@ -357,14 +498,23 @@ export class GameEngine {
     }
   }
 
-  /** текущая броня игрока (очки поглощения) */
+  /** броня игрока: сумма очков ВСЕХ надетых предметов с бронёй (шлем+кираса) */
   playerArmor(): { itemId: string | null; points: number; label: string } {
-    const id = this.state.player.equipment.armor
-    if (id && this.hasItem(id)) {
+    let points = 0
+    let first: string | null = null
+    const labels: string[] = []
+    for (const slot of Object.keys(this.state.player.equipment)) {
+      const id = this.state.player.equipment[slot]
+      if (!id || !this.hasItem(id)) continue
       const def = this.campaign.entities[id] as ItemDef | undefined
-      if (def?.armor_data) return { itemId: id, points: def.armor_data.points, label: def.label }
+      if (def?.armor_data) {
+        points += def.armor_data.points
+        labels.push(def.label)
+        if (!first) first = id
+      }
     }
-    return { itemId: null, points: 0, label: 'Без брони' }
+    if (!points) return { itemId: null, points: 0, label: 'Без брони' }
+    return { itemId: first, points, label: labels.join(' + ') }
   }
 
   useItem(id: string): void {
@@ -507,12 +657,17 @@ export class GameEngine {
   // ─────────────── рост навыков (ТЗ 4.3) ───────────────
 
   markSkill(skill: string): void {
+    if (!featureOn(this.campaign.meta, 'skills')) return
     if (this.state.player.skills[skill] != null) this.state.player.skill_marks[skill] = true
   }
 
   /** Проверка навыка игрока с «галочкой» опыта при успехе. */
   playerSkillCheck(skill: string, difficulty = 50): ReturnType<typeof skillCheck> {
-    const value = this.state.player.skills[skill] ?? 0
+    // навыки выключены профилем — проверка резолвится успехом без броска
+    if (!featureOn(this.campaign.meta, 'skills')) {
+      return { roll: 0, target: 100, result: 'success', success: true }
+    }
+    const value = Math.max(0, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
     const out = skillCheck(value, this.rng, 50 - difficulty, this.diceRules)
     this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
     if (out.success) this.markSkill(skill)
@@ -526,6 +681,7 @@ export class GameEngine {
   }
 
   restAndGrow(): string[] {
+    if (!featureOn(this.campaign.meta, 'skills')) return []
     const grown: string[] = []
     for (const skill of Object.keys(this.state.player.skill_marks)) {
       const cur = this.state.player.skills[skill] ?? 0
@@ -548,6 +704,7 @@ export class GameEngine {
   // ─────────────── торговля (ТЗ 4.7) ───────────────
 
   openTrade(entityId: string): void {
+    if (!featureOn(this.campaign.meta, 'trade')) return
     const npc = this.campaign.entities[entityId] as NpcDef | undefined
     if (!npc || npc.type !== 'npc' || !npc.trader) return
     this.dialogue = null
@@ -607,6 +764,65 @@ export class GameEngine {
     return true
   }
 
+  // ─────────────── крафт (блок 4 ТЗ «Гибкий движок») ───────────────
+
+  /** название предмета по id (фолбэк — сам id) */
+  private itemTitle(id: string): string {
+    return (this.campaign.entities[id] as ItemDef | undefined)?.label ?? id
+  }
+
+  /** все рецепты кампании, по алфавиту (русский) */
+  allRecipes(): RecipeDef[] {
+    return Object.values(this.campaign.recipes).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  }
+
+  /** чего не хватает для рецепта: компоненты, инструменты, условия */
+  recipeMissing(r: RecipeDef): string[] {
+    const missing: string[] = []
+    for (const need of r.inputs ?? []) {
+      const have = this.itemCount(need.item)
+      if (have < need.quantity) missing.push(`${this.itemTitle(need.item)} ×${need.quantity} (есть ${have})`)
+    }
+    for (const tool of r.tools ?? []) {
+      if (!this.hasItem(tool)) missing.push(`инструмент: ${this.itemTitle(tool)}`)
+    }
+    let blocked = false
+    for (const c of r.requires ?? []) {
+      if (!evalCondition(c, this)) blocked = true
+    }
+    if (blocked) missing.push('не выполнены условия')
+    return missing
+  }
+
+  /**
+   * Изготовление по рецепту. Если у рецепта есть проверка навыка — бросок
+   * идёт первым: провал сохраняет компоненты. Успех расходует компоненты,
+   * выдаёт результат и проматывает время.
+   */
+  craft(recipeId: string): boolean {
+    const r = this.campaign.recipes[recipeId]
+    if (!r || this.recipeMissing(r).length > 0) return false
+    if (r.skill) {
+      const out = this.playerSkillCheck(r.skill.id, r.skill.difficulty)
+      if (!out.success) {
+        this.messages.push({ text: `Не получилось изготовить «${r.label}». Материалы остались целы.` })
+        this.autosave()
+        this.notify()
+        return false
+      }
+    }
+    for (const need of r.inputs ?? []) this.removeItem(need.item, need.quantity)
+    this.addItem(r.output.item, r.output.quantity ?? 1)
+    if (r.time_ticks) this.advanceTicks(r.time_ticks)
+    const outLabel = this.itemTitle(r.output.item)
+    this.pushLog(`Изготовлено: ${outLabel} (рецепт «${r.label}»).`)
+    this.messages.push({ text: r.message ?? `Изготовлено: ${outLabel}.` })
+    playUi('craft')
+    this.autosave()
+    this.notify()
+    return true
+  }
+
   // ─────────────── случайные встречи (ТЗ 4.9) ───────────────
 
   private rollEncounter(conn: TravelConnection): void {
@@ -635,6 +851,8 @@ export class GameEngine {
       case 'nothing':
         return
       case 'combat': {
+        // бой выключен профилем — встреча в пути проходит мимо
+        if (!featureOn(this.campaign.meta, 'combat')) return
         const enemies = entry.enemies.map((e) => ({
           entity: e.entity,
           count: this.rng.int(e.count_min, e.count_max),
@@ -904,6 +1122,18 @@ export class GameEngine {
         this.setEntityDescription(e.entity, e.text)
         break
       case 'clear_flag': delete s.flags[e.flag]; break
+      case 'apply_status': this.applyStatus(e.target, e.status, e.duration); break
+      case 'remove_status': this.removeStatus(e.target, e.status); break
+      case 'set_weather': {
+        const next = e.weather || undefined
+        if (s.weather !== next) {
+          s.weather = next
+          const w = this.campaign.meta.weathers?.find((x) => x.id === next)
+          this.pushLog(next ? `Погода меняется: ${w?.label ?? next}.` : 'Небо проясняется.')
+        }
+        break
+      }
+      case 'unlock_codex': this.unlockCodex(e.entry); break
       case 'set_variable': s.variables[e.var] = e.value; break
       case 'change_variable':
         s.variables[e.var] = Number(s.variables[e.var] ?? 0) + e.delta
@@ -932,6 +1162,7 @@ export class GameEngine {
       case 'change_need': this.changeNeed(e.need, e.delta); break
       case 'change_hp': this.changeHp(e.delta); break
       case 'change_skill': {
+        if (!featureOn(this.campaign.meta, 'skills')) break
         const cur = s.player.skills[e.skill] ?? 0
         s.player.skills[e.skill] = Math.max(0, cur + e.delta)
         this.pushLog(`Навык «${e.skill}»: ${e.delta > 0 ? '+' : ''}${e.delta} (теперь ${s.player.skills[e.skill]}).`)
@@ -992,6 +1223,67 @@ export class GameEngine {
 
   // ─────────────── взаимодействие со слотами ───────────────
 
+  // ─────────────── предмет → слот сцены (блок 8 ТЗ «Гибкий движок») ───────────────
+
+  /** предметы игрока, применимые к слоту (для модалки выбора) */
+  slotUseOptions(slot: SlotDef): Array<{ itemId: string; label: string; use: SlotUseWith }> {
+    return (slot.use_with ?? [])
+      .filter((u) => u.item && this.hasItem(u.item))
+      .map((u) => ({
+        itemId: u.item,
+        label: (this.campaign.entities[u.item] as ItemDef | undefined)?.label ?? u.item,
+        use: u,
+      }))
+  }
+
+  /** применить предмет к слоту сцены; ложь — предмет/слот не подходят */
+  useItemOnSlot(slotId: string, itemId: string): boolean {
+    const scene = this.currentScene()
+    const slot = scene?.slots.find((s) => s.id === slotId)
+    const use = slot?.use_with?.find((u) => u.item === itemId)
+    if (!slot || !use || !this.hasItem(itemId)) return false
+    const def = this.campaign.entities[itemId] as ItemDef | undefined
+    if (use.consume) this.removeItem(itemId, 1)
+    this.applyEffects(use.effects)
+    if (use.message) this.messages.push({ text: use.message })
+    this.pushLog(`${def?.label ?? itemId}: использовано на «${slot.label ?? slotId}».`)
+    playInteraction('use', { entity: def })
+    this.checkRules()
+    this.autosave()
+    this.notify()
+    return true
+  }
+
+  /**
+   * Разблокировать запись кодекса (блок 10 ТЗ): повтор — no-op.
+   * При первой разблокировке — сообщение «Новая запись в кодексе: …».
+   */
+  unlockCodex(entryId: string): void {
+    const entry = this.campaign.codex[entryId]
+    if (!entry) return
+    const s = this.state
+    if (!s.codex_unlocked) s.codex_unlocked = []
+    if (s.codex_unlocked.includes(entryId)) return
+    s.codex_unlocked.push(entryId)
+    this.messages.push({ text: `Новая запись в кодексе: ${entry.label}.` })
+    this.pushLog(`Кодекс пополнен: ${entry.label}.`)
+    playInteraction('pickup', {})
+    this.notify()
+    this.autosave()
+  }
+
+  /** разблокированные записи кодекса (блок 10 ТЗ) */
+  unlockedCodexEntries(): CodexEntryDef[] {
+    return (this.state.codex_unlocked ?? [])
+      .map((id) => this.campaign.codex[id])
+      .filter((e): e is CodexEntryDef => !!e)
+  }
+
+  /** категории кодекса: свои из меты, иначе встроенные три (блок 10 ТЗ) */
+  codexCategories(): Array<{ id: string; label: string }> {
+    return this.campaign.meta.codex_categories ?? BUILTIN_CODEX_CATEGORIES
+  }
+
   interactWithSlot(occ: SlotOccupant): void {
     if (!occ.entity) return
     if (occ.entity.type === 'npc') {
@@ -1035,6 +1327,14 @@ export class GameEngine {
   }
 
   startCombat(def: Extract<Effect, { type: 'start_combat' }>): void {
+    // бой выключен профилем кампании — конфликт резолвится немедленной победой
+    if (!featureOn(this.campaign.meta, 'combat')) {
+      this.pushLog('Конфликт разрешился без боя.')
+      this.applyEffects(def.on_victory ?? [])
+      this.checkRules()
+      this.notify()
+      return
+    }
     // бой прерывает диалог
     this.dialogue = null
     this.activeStory = null
@@ -1143,7 +1443,13 @@ export class GameEngine {
 
   gameOver(type: 'death' | 'victory', reason: string): void {
     if (this.state.game_over) return
-    this.state.game_over = { type, reason }
+    // концовки кампании: первая подходящая по исходу и условиям (мастер задаёт сам)
+    const ending = (this.campaign.meta.endings ?? []).find(
+      (en) =>
+        (!en.on || en.on === type) &&
+        (en.conditions ?? []).every((c) => evalCondition(c, this)),
+    )
+    this.state.game_over = { type, reason, ending: ending?.id }
     if (type === 'death') {
       this.dialogue = null
       this.activeStory = null
@@ -1157,6 +1463,10 @@ export class GameEngine {
   restart(): GameEngine {
     deleteSave(this.campaign.meta.id)
     const fresh = new GameEngine(this.campaign)
+    // выбор создания персонажа переживает перезапуск забега (блок 11 ТЗ)
+    if (this.state.char_choice) {
+      fresh.applyCharCreation({ ...this.state.char_choice, calling: this.state.char_choice.calling ?? '' })
+    }
     fresh.start()
     return fresh
   }
@@ -1184,8 +1494,16 @@ export function loadSave(campaignId: string): GameState | null {
     const raw = localStorage.getItem(saveKey(campaignId))
     if (!raw) return null
     const state = JSON.parse(raw) as GameState
-    // несовместимые старые сейвы отбрасываем
-    if ((state.save_version ?? 1) !== SAVE_VERSION) return null
+    const v = state.save_version ?? 1
+    // старше в3 — слишком древние, отбрасываем
+    if (v < 3) return null
+    // в3 → в4 (блок 7 ТЗ): equipment {weapon?, armor?} уже ложится в
+    // модель «слот → предмет» — только поднимаем версию
+    if (v === 3) {
+      if (!state.player || typeof state.player.equipment !== 'object' || state.player.equipment === null) return null
+      state.save_version = SAVE_VERSION
+    }
+    if (state.save_version !== SAVE_VERSION) return null
     return state
   } catch {
     return null

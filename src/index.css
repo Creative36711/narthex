@@ -194,6 +194,8 @@ button { font-family: inherit;  }
 .hud-center { text-align: center; }
 .hud-time { font-size: 15px; color: var(--gold-bright); }
 .hud-tod { font-size: 12px; color: var(--muted); }
+.hud-date { font-size: 11px; color: var(--muted); opacity: 0.85; }
+.hud-weather { font-size: 11px; color: #9fc1e8; opacity: 0.9; }
 
 .hud-right { display: flex; gap: 8px; }
 .hud-btn {
@@ -229,13 +231,30 @@ button { font-family: inherit;  }
 
 .scene-stage {
   position: relative;
-  max-width: 100%;
-  max-height: 100%;
-  height: 100%;
+  /* заполняет всё оставшееся место окна: ни схлопывания, ни прокрутки */
+  flex: 1;
+  min-height: 0;
+  width: 100%;
   border: 2px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+.scene-bg-note {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 40;
+  background: rgba(20, 16, 12, 0.92);
+  border: 1px solid var(--gold);
+  color: var(--gold-bright);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 6px 10px;
+  border-radius: 6px;
+  text-align: center;
+  max-width: 90%;
 }
 
 .scene-bg {
@@ -249,6 +268,12 @@ button { font-family: inherit;  }
 /* векторный фон (ArtDoc) занимает то же место, что и картинка */
 div.scene-bg { display: block; }
 div.scene-bg svg { width: 100%; height: 100%; display: block; }
+/* сцена без арта: нейтральный градиент вместо «чёрного экрана» */
+.scene-bg-fallback {
+  background:
+    radial-gradient(130% 100% at 50% 18%, rgba(120, 130, 160, 0.28) 0%, rgba(40, 44, 60, 0) 55%),
+    linear-gradient(180deg, #2b3040 0%, #1c2030 62%, #141724 100%);
+}
 
 .tod-tint-night .scene-bg { filter: brightness(0.85) saturate(0.8); }
 .tod-tint-evening .scene-bg { filter: sepia(0.15) brightness(0.95); }
@@ -572,6 +597,28 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   font-size: 14px;
   color: var(--muted);
 }
+
+/* экипировка: каждая ячейка — отдельная строка «слот | предмет | кнопка»,
+   ничего не сливается (фидбек 20) */
+.equip-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.equip-slot {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-2, #171310);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.equip-slot .equip-slot-name { white-space: nowrap; }
+.equip-slot b { overflow-wrap: anywhere; }
+.equip-slot .btn { white-space: nowrap; }
 
 .equipped-badge {
   margin-left: 8px;
@@ -1300,10 +1347,19 @@ input::placeholder, textarea::placeholder {
   font-weight: 600;
 }
 
-/* JSON на весь экран во вкладках форм */
-.advanced-json-page textarea {
-  height: calc(100vh - 150px);
+/* JSON на весь экран во вкладках форм: растягивается до самого низа,
+   отступы контейнера сохранены */
+.advanced-json-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 118px);
   min-height: 320px;
+}
+.advanced-json-page .fld-fill { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.advanced-json-page textarea {
+  flex: 1;
+  height: auto;
+  min-height: 300px;
   box-sizing: border-box;
   font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace;
   font-size: 12.5px;
@@ -1366,3 +1422,279 @@ input[type='checkbox'], input[type='radio'] {
 /* жетоны в бою: движение — прицел, живой враг — меч (не «менюшная» рука) */
 .token { cursor: var(--cur-cross); }
 .token-enemy:not(.token-dead) { cursor: var(--cur-sword); }
+
+/* ─── тема кампании (блок 2 ТЗ «Гибкий движок»): только Player Mode ─── */
+.cf-themed {
+  /* без высоты 100% цепочка .game-view → .scene-wrap → .scene-stage
+     схлопывается и сцена становится «чёрным экраном» (фидбек 20) */
+  height: 100%;
+  font-family: var(--cf-font-body, Georgia, 'Times New Roman', serif);
+  font-size: calc(100% * var(--cf-text-scale, 1));
+}
+.cf-themed h1, .cf-themed h2, .cf-themed h3, .cf-themed h4,
+.cf-themed .campaign-title, .cf-themed .scene-location, .cf-themed .hud-time {
+  font-family: var(--cf-font-display, var(--cf-font-body, Georgia, 'Times New Roman', serif));
+}
+/* «рукописная» роль — журнал квестов и событий, записи кодекса */
+.cf-themed .quest-journal, .cf-themed .log-list, .cf-themed .end-reason, .cf-themed .codex-text {
+  font-family: var(--cf-font-hand, var(--cf-font-body, Georgia, 'Times New Roman', serif));
+}
+
+/* фон главного меню: картинка + затемнение + медленный зум */
+.main-menu { position: relative; overflow: hidden; }
+.menu-bg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; z-index: 0; pointer-events: none;
+}
+.menu-bg.ken-burns { animation: cf-ken-burns 40s ease-in-out infinite alternate; }
+@keyframes cf-ken-burns {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.12) translate(-1.5%, -1%); }
+}
+.menu-dim { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: rgba(8, 6, 4, 0.5); }
+.main-menu.with-bg { background: var(--bg); }
+.main-menu.with-bg > .main-menu-inner, .main-menu.with-bg > .campaigns-overlay { position: relative; z-index: 2; }
+.menu-title-art { max-width: min(420px, 80%); margin: 0 auto 18px; display: block; filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6)); }
+
+/* фон экрана финала — поверх затемнения оверлея */
+.end-overlay { position: relative; }
+.end-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; opacity: 0.5; }
+.end-overlay > .end-panel { position: relative; z-index: 1; }
+
+/* фигурка боя вместо жетона (блок 3 ТЗ): без круглой маски и рамки стороны */
+.token-figure {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  aspect-ratio: 1;
+  z-index: 5;
+  transition: left 0.35s ease, top 0.35s ease;
+}
+.token-figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.25s ease;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.55));
+}
+.token-figure .figure-shadow {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 2%;
+  height: 16%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), transparent 70%);
+  z-index: -1;
+}
+.token-figure .token-hp { position: absolute; left: 6%; right: 6%; bottom: -12%; }
+.token-figure.token-dead { opacity: 0.55; filter: grayscale(1); z-index: 1; }
+.token-figure.token-dead img { transform: rotate(90deg); }
+.figure-active img { filter: drop-shadow(0 0 8px rgba(232, 201, 135, 0.9)); }
+/* курсоры как у жетонов: по живому врагу — меч, по своим — прицел */
+.token-figure { cursor: var(--cur-cross); }
+.token-figure.figure-enemy:not(.token-dead) { cursor: var(--cur-sword); }
+
+/* спрайт сцены: вырезанный фон, привязка к нижнему краю слота (блок 3 ТЗ) */
+.slot-hotspot.slot-sprited { background: none; border: none; overflow: visible; }
+.slot-sprite {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: auto;
+  max-width: none;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+.slot-hotspot.slot-sprited .sprite-shadow {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: -2%;
+  height: 8%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5), transparent 70%);
+}
+
+/* ─────────────── статусы (блок 5 ТЗ «Гибкий движок») ─────────────── */
+.hud-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 2px 10px;
+  margin-top: 4px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: 999px;
+  background: rgba(40, 20, 20, 0.55);
+  color: #e8cfa0;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+.hud-status-icon { width: 1.2em; height: 1.2em; object-fit: contain; }
+.hud-status-left { color: var(--gold, #d4af37); font-weight: 700; }
+.status-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.status-item { padding: 6px 10px; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 6px; }
+.roster-status {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  font-size: 0.7rem;
+  color: #e8cfa0;
+  white-space: nowrap;
+}
+
+/* ─────────────── способности (блок 6 ТЗ «Гибкий движок») ─────────────── */
+.hex-ability { fill: rgba(150, 90, 220, 0.35); stroke: #b98ae8; stroke-width: 2; }
+.combat-abilities { display: flex; flex-direction: column; gap: 4px; }
+.ability-btn { justify-content: flex-start; }
+.ability-btn.ability-pending { border-color: #b98ae8; box-shadow: 0 0 8px rgba(185, 138, 232, 0.6); }
+
+/* ─────────────── предмет → слот сцены (блок 8 ТЗ «Гибкий движок») ─────────────── */
+.slot-usewith { background: rgba(212, 175, 55, 0.08); border: 1px dashed rgba(212, 175, 55, 0.4); }
+.slot-usewith:hover { background: rgba(212, 175, 55, 0.18); }
+.usewith-box .usewith-options { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.usewith-box .usewith-options .btn { width: 100%; }
+
+/* ─────────────── погода (блок 9 ТЗ «Гибкий движок»): слои поверх сцены ─────────────── */
+.weather-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
+
+/* дождь: наклонные штрихи (14°), сдвиг вдоль оси узора — бесшовный цикл */
+.weather-rain {
+  background-image:
+    repeating-linear-gradient(14deg, transparent 0px, transparent 11px, rgba(174, 199, 235, 0.34) 11px, rgba(174, 199, 235, 0.34) 12.5px, transparent 12.5px, transparent 17px),
+    repeating-linear-gradient(11deg, transparent 0px, transparent 19px, rgba(150, 178, 224, 0.2) 19px, rgba(150, 178, 224, 0.2) 21px, transparent 21px, transparent 29px);
+  animation: weather-rain-fall 0.55s linear infinite;
+}
+@keyframes weather-rain-fall {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: -25px 99px, -14px 106px; }
+}
+
+/* снег: несколько слоёв «снежинок» с разной скоростью и сносом */
+.weather-snow {
+  background-image:
+    radial-gradient(2.4px 2.4px at 22% 28%, rgba(255, 255, 255, 0.92) 45%, transparent 60%),
+    radial-gradient(1.7px 1.7px at 68% 62%, rgba(255, 255, 255, 0.75) 45%, transparent 60%),
+    radial-gradient(3px 3px at 44% 84%, rgba(240, 246, 255, 0.85) 45%, transparent 60%),
+    radial-gradient(1.3px 1.3px at 86% 12%, rgba(255, 255, 255, 0.55) 45%, transparent 60%);
+  background-size: 90px 90px, 130px 130px, 110px 110px, 70px 70px;
+  animation: weather-snow-fall 7s linear infinite;
+}
+@keyframes weather-snow-fall {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 24px 90px, -20px 130px, 32px 110px, -10px 70px; }
+}
+
+/* пепел: тёмные хлопья, медленнее снега и с лёгким боковым сносом */
+.weather-ash {
+  background-image:
+    radial-gradient(2.6px 2.6px at 30% 35%, rgba(120, 110, 105, 0.55) 45%, transparent 60%),
+    radial-gradient(1.8px 1.8px at 72% 70%, rgba(90, 84, 80, 0.45) 45%, transparent 60%),
+    radial-gradient(3.2px 3.2px at 52% 12%, rgba(140, 130, 120, 0.4) 45%, transparent 60%);
+  background-size: 120px 120px, 95px 95px, 150px 150px;
+  animation: weather-ash-fall 11s linear infinite;
+}
+@keyframes weather-ash-fall {
+  from { background-position: 0 0, 0 0, 0 0; }
+  to { background-position: 34px 120px, -26px 95px, 44px 150px; }
+}
+
+/* туман: дрейфующие полупрозрачные «облака» */
+.weather-fog {
+  background:
+    radial-gradient(ellipse 62% 46% at 28% 58%, rgba(202, 208, 218, 0.3), transparent 70%),
+    radial-gradient(ellipse 55% 42% at 74% 40%, rgba(192, 200, 212, 0.26), transparent 70%),
+    radial-gradient(ellipse 72% 52% at 52% 78%, rgba(208, 213, 222, 0.22), transparent 72%);
+  animation: weather-fog-drift 13s ease-in-out infinite alternate;
+}
+@keyframes weather-fog-drift {
+  from { transform: translateX(-2.5%); opacity: 0.85; }
+  to { transform: translateX(2.5%); opacity: 1; }
+}
+
+/* кнопка удаления внутри чипа (погода, реестры) */
+.chip-del {
+  background: none;
+  border: none;
+  color: inherit;
+  margin-left: 6px;
+  padding: 0;
+  opacity: 0.7;
+  display: inline-flex;
+  align-items: center;
+}
+.chip-del:hover { opacity: 1; color: #ff9c8a; }
+.chip-del svg { width: 12px; height: 12px; }
+
+/* ─────────────── кодекс/бестиарий (блок 10 ТЗ «Гибкий движок») ─────────────── */
+.codex-panel { max-width: 900px; width: min(94vw, 900px); }
+.codex-body { display: flex; gap: 16px; min-height: 340px; }
+.codex-nav { width: 240px; flex-shrink: 0; overflow-y: auto; max-height: 62vh; }
+.codex-cat-group { margin-bottom: 12px; }
+.codex-cat { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 8px 0 4px; }
+.codex-entry-btn {
+  display: block; width: 100%; text-align: left;
+  background: none; border: 1px solid transparent; border-radius: 6px;
+  color: var(--text); padding: 6px 10px; font-size: 14px;
+}
+.codex-entry-btn:hover { background: rgba(212, 175, 55, 0.08); }
+.codex-entry-btn.sel { border-color: var(--gold); background: rgba(212, 175, 55, 0.12); }
+.codex-view { flex: 1; overflow-y: auto; max-height: 62vh; }
+.codex-title { margin-top: 0; }
+.codex-image { max-width: 100%; max-height: 280px; border-radius: 8px; margin-bottom: 12px; display: block; }
+.codex-text { white-space: pre-wrap; line-height: 1.55; }
+@media (max-width: 720px) {
+  .codex-body { flex-direction: column; }
+  .codex-nav { width: 100%; max-height: 200px; }
+}
+
+/* ─────────────── создание персонажа (блок 11 ТЗ «Гибкий движок») ─────────────── */
+.char-create { min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 12px; }
+.char-create-inner { width: min(860px, 96vw); max-height: none; overflow-y: auto; }
+.char-name { font-size: 18px; width: 100%; }
+.char-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 18px; margin-bottom: 8px; }
+.char-stat-row { display: flex; align-items: center; gap: 8px; }
+.char-stat-key { width: 38px; font-weight: 600; cursor: help; }
+.char-stat-val { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.char-professions { display: flex; gap: 10px; flex-wrap: wrap; }
+.char-prof-card {
+  flex: 1 1 220px; max-width: 320px; text-align: left;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px 12px;
+}
+.char-prof-card:hover { border-color: var(--gold); }
+.char-prof-card.sel { border-color: var(--gold); background: rgba(212, 175, 55, 0.12); }
+.char-budget { border: 1px solid var(--border); background: var(--panel-2); padding: 7px 10px; border-radius: 6px; font-size: 13px; margin-bottom: 8px; }
+.char-budget b { color: var(--gold-bright); font-size: 15px; }
+.char-budget.warn { border-color: var(--gold); }
+.char-budget-warn { color: var(--gold-bright); font-size: 12px; margin-top: 3px; }
+.char-prof-label { font-weight: 600; margin-bottom: 4px; }
+.char-prof-bonus { color: var(--gold-bright); margin-top: 6px; }
+.char-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 18px; margin-bottom: 6px; }
+/* сетка с фиксированными колонками: длинное название не сдвигает кнопки на соседний столбец */
+.char-skill-row { display: grid; grid-template-columns: minmax(0, 1fr) 28px 48px 28px; align-items: center; gap: 6px; }
+.char-skill-name { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; }
+.char-skill-row .btn { justify-self: center; }
+.char-skill-row .char-stat-val { text-align: center; }
+.char-skill-forbidden { opacity: 0.45; }
+.char-problems { color: #ff9c8a; margin: 8px 0; padding-left: 20px; }
+.char-create-foot { display: flex; justify-content: space-between; margin-top: 14px; }
+.chip-warn { border-color: rgba(255, 156, 138, 0.5); color: #ffb0a0; }
+
+/* таблица исходов d100 в справке: строки с переносом, без гориз. скролла */
+.checks-table { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.checks-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; background: var(--panel-2, #171310); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+.checks-row .checks-mark { flex: 0 0 auto; width: 1.2em; text-align: center; }
+.checks-mark.ok { color: #9dc284; } .checks-mark.crit { color: #e8c987; } .checks-mark.good { color: #b7c9a0; } .checks-mark.bad { color: #c96f5a; }
+.checks-row > span:nth-child(2) { flex: 1; min-width: 140px; }
+.checks-res { color: var(--gold-bright); white-space: nowrap; }
+
+/* карта: переключатель «Названия» как кнопка с состоянием */
+.map-labels-on { border-color: var(--gold); color: var(--gold-bright); background: rgba(232, 201, 135, 0.08); }
+/* нейтральный тон финального экрана (концовки от мастера) */
+.end-overlay.neutral .end-panel { border-color: var(--border); }
+.end-overlay.neutral h1 { color: var(--text); }

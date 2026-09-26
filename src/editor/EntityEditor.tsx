@@ -1,7 +1,7 @@
 import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
-import { DEFAULT_EMOTION } from '../shared/types'
+import { DEFAULT_EMOTION, equipmentSlots } from '../shared/types'
 import type { EditorStore } from './store'
 import { FlagSelect, ImageUpload, RefSelect, FileAdvancedJson } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
@@ -211,6 +211,31 @@ function ItemForm({
       )}
 
       <div className="props-group">
+        <h4>Экипировка</h4>
+        <label className="fld">
+          <span>Слот экипировки</span>
+          <select
+            value={item.equip_slot ?? ''}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v) item.equip_slot = v
+              else delete item.equip_slot
+              commit()
+            }}
+          >
+            <option value="">Не экипируется</option>
+            {equipmentSlots(store.meta).map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        </label>
+        <div className="muted small">
+          Старым предметам со свойствами оружия/брони слот определяется по этим
+          свойствам (Оружие/Броня), пока мастер не выберет свой.
+        </div>
+      </div>
+
+      <div className="props-group">
         <SoundHookMapEditor
           store={store}
           value={item.sounds ?? (item.sounds = {})}
@@ -261,6 +286,12 @@ function NpcForm({
   const armors = itemsWhere(store, (i) => !!i.armor_data)
   const allItems = store.options('item')
   const portraitKeys = Object.keys(npc.portrait ?? {})
+  /** есть ли у НПС хоть одно изображение — тогда спойлер «Изображения» открыт */
+  const hasArt =
+    Object.values(npc.portrait ?? {}).some(Boolean) ||
+    !!npc.scene_sprite ||
+    !!npc.combat_figure ||
+    !!npc.token
 
   return (
     <div className="rule-editor">
@@ -311,6 +342,10 @@ function NpcForm({
         />
       </div>
 
+      {/* изображения НПС занимают много места — держим их под спойлером;
+          открыт, если изображения уже есть */}
+      <details className="spoiler-block" {...(hasArt ? { open: true } : {})}>
+        <summary>Изображения: портреты, спрайт, фигурка</summary>
       <div className="props-group">
         <h4>Портреты (состояния)</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
@@ -396,8 +431,74 @@ function NpcForm({
             <option value="__new__">+ Создать новое состояние…</option>
           </select>
         </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Спрайт в сцене</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Изображение с вырезанным фоном (прозрачный PNG), которым персонаж стоит в сцене.
+          Если не задано — в сцене используется портрет «Обычный».
+        </div>
         <ImageUpload
-          label="Изображение в бою (жетон на арене)"
+          label="Спрайт в сцене"
+          value={npc.scene_sprite ?? ''}
+          dir="assets/img/npc"
+          store={store}
+          onChange={(p) => {
+            if (p) npc.scene_sprite = p
+            else delete npc.scene_sprite
+            commit()
+          }}
+        />
+        <label className="fld fld-check">
+          <input
+            type="checkbox"
+            checked={npc.shadow !== false}
+            onChange={(e) => {
+              if (e.target.checked) delete npc.shadow
+              else npc.shadow = false
+              commit()
+            }}
+          />
+          <span>Мягкая тень под персонажем (в сцене и в бою)</span>
+        </label>
+      </div>
+
+      <div className="props-group">
+        <h4>В бою</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Фигурка показывается на арене вместо жетона (без круглой рамки) и разворачивается
+          при движении и атаке. Если фигурки нет — рисуется круглый жетон.
+        </div>
+        <ImageUpload
+          label="Фигурка боя"
+          value={npc.combat_figure ?? ''}
+          dir="assets/img/npc"
+          store={store}
+          onChange={(p) => {
+            if (p) npc.combat_figure = p
+            else delete npc.combat_figure
+            commit()
+          }}
+        />
+        <label className="fld">
+          <span>Как разворачивать фигурку</span>
+          <select
+            value={npc.figure_mode ?? 'topdown'}
+            onChange={(e) => {
+              const v = e.target.value as NpcDef['figure_mode']
+              if (v === 'topdown') delete npc.figure_mode
+              else npc.figure_mode = v
+              commit()
+            }}
+          >
+            <option value="topdown">Вид сверху — поворот по направлению</option>
+            <option value="side">Вид сбоку — зеркало влево/вправо</option>
+            <option value="static">Не разворачивать</option>
+          </select>
+        </label>
+        <ImageUpload
+          label="Изображение жетона (используется, только если фигурка не задана)"
           value={npc.token ?? ''}
           dir="assets/img/npc"
           store={store}
@@ -407,8 +508,68 @@ function NpcForm({
             commit()
           }}
         />
-        <div className="muted small">Если жетон не задан, в бою используется обычный портрет.</div>
+        <div className="muted small">Если и жетон не задан, в бою используется обычный портрет.</div>
       </div>
+
+      </details>
+
+      <details className="spoiler-block" {...((npc.abilities?.length ?? 0) > 0 || !!npc.morale) ? { open: true } : {}}>
+        <summary>Способности и мораль</summary>
+      <div className="props-group">
+        <h4>Способности и мораль</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Реестр способностей — «Кампания и реестры» → «Статусы и способности».
+        </div>
+        <div className="chips" style={{ marginBottom: 8 }}>
+          {store.options('ability').map((o) => {
+            const on = (npc.abilities ?? []).includes(o.id)
+            return (
+              <button
+                key={o.id}
+                type="button"
+                className={`chip ${on ? 'chip-on' : ''}`}
+                onClick={() => {
+                  const set = new Set(npc.abilities ?? [])
+                  if (on) set.delete(o.id)
+                  else set.add(o.id)
+                  if (set.size) npc.abilities = [...set]
+                  else delete npc.abilities
+                  commit()
+                }}
+              >
+                {o.label}
+              </button>
+            )
+          })}
+          {store.options('ability').length === 0 && <span className="muted small">В кампании пока нет способностей.</span>}
+        </div>
+        <div className="fld-row">
+          <label className="fld" data-tip="Когда здоровье падёт ниже этого процента, враг в начале своего хода может сбежать">
+            <span>Мораль: порог бегства, % HP</span>
+            <input
+              type="number" min={0} max={100} value={npc.morale?.below_hp_pct ?? ''} placeholder="не сбегает"
+              onChange={(e) => {
+                const v = Number(e.target.value) || 0
+                if (v > 0) npc.morale = { below_hp_pct: v, flee_chance: npc.morale?.flee_chance ?? 50 }
+                else delete npc.morale
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Шанс бегства при каждом броске морали (0–100)">
+            <span>Шанс бегства, %</span>
+            <input
+              type="number" min={0} max={100} value={npc.morale?.flee_chance ?? ''} placeholder="—" disabled={!npc.morale}
+              onChange={(e) => {
+                if (npc.morale) npc.morale.flee_chance = Math.max(0, Math.min(100, Number(e.target.value) || 0))
+                commit()
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      </details>
 
       <div className="props-group">
         <h4>Характеристики</h4>
@@ -479,6 +640,8 @@ function NpcForm({
         </button>
       </div>
 
+      <details className="spoiler-block" {...((npc.inventory?.length ?? 0) > 0 || Object.keys(npc.equipment ?? {}).length > 0) ? { open: true } : {}}>
+        <summary>Снаряжение и инвентарь</summary>
       <div className="props-group">
         <h4>Снаряжение и инвентарь</h4>
         <div className="fld-row">
@@ -563,6 +726,10 @@ function NpcForm({
         </button>
       </div>
 
+      </details>
+
+      <details className="spoiler-block" {...(!!npc.trader) ? { open: true } : {}}>
+        <summary>Торговля</summary>
       <div className="props-group">
         <h4>Торговля</h4>
         <label className="fld fld-check">
@@ -657,6 +824,8 @@ function NpcForm({
           </>
         )}
       </div>
+
+      </details>
 
       <div className="props-group">
         <h4>Расписание (где персонаж в течение дня)</h4>

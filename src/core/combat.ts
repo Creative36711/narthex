@@ -1,14 +1,17 @@
 import type {
+  AbilityDef,
+  ActiveStatus,
   ArenaDef,
   Effect,
   ItemDef,
   NpcDef,
   StatBlock,
+  StatusDef,
   WeaponData,
 } from '../shared/types'
 import type { GameEngine } from './engine'
-import { type Hex, hexKey, hexDistance, reachable, astar } from './hex'
-import { skillCheck, damageBonus, movement, derivedHP, type CheckResult } from './brp'
+import { type Hex, hexKey, hexDistance, reachable, astar, hexToPixel } from './hex'
+import { skillCheck, damageBonus, movement, derivedHP, derivedMP, type CheckResult } from './brp'
 import { rollDice } from './dice'
 import { playUi, playInteraction } from '../shared/audio'
 
@@ -25,6 +28,16 @@ export interface Combatant {
   label: string
   side: 'player' | 'enemy'
   portrait?: string
+  /** фигурка боя (вместо жетона); нет — рисуется круглый жетон (блок 3 ТЗ) */
+  figure?: string
+  /** как разворачивать фигурку; по умолчанию 'topdown' */
+  figure_mode?: 'topdown' | 'side' | 'static'
+  /** мягкая тень под фигуркой (по умолчанию включена) */
+  figure_shadow?: boolean
+  /** направление фигурки, градусы: 0 — вверх, по часовой (режим 'topdown') */
+  facing: number
+  /** зеркало по горизонтали (режим 'side') */
+  flip: boolean
   stats: StatBlock
   skills: Record<string, number>
   weapon: WeaponData
@@ -38,6 +51,17 @@ export interface Combatant {
   attacked: boolean
   defensesUsed: number
   dead: boolean
+  /** активные статусы (блок 5 ТЗ); left — боевые раунды, в сейв не попадают */
+  statuses: ActiveStatus[]
+  /** мана (производная от POW); тратится на способности (блок 6 ТЗ) */
+  mp: number
+  maxMp: number
+  /** id способностей из реестра кампании */
+  abilities: string[]
+  /** оставшийся кулдаун по способностям, раунды */
+  cooldowns: Record<string, number>
+  /** сбежал по морали: не считается убитым, лута нет */
+  fled?: boolean
 }
 
 type StartCombatEffect = Extract<Effect, { type: 'start_combat' }>
@@ -125,6 +149,11 @@ export class CombatController {
       label: playerDef.label,
       side: 'player',
       portrait: playerDef.token ?? playerDef.portrait?.neutral,
+      figure: playerDef.combat_figure,
+      figure_mode: playerDef.figure_mode ?? 'topdown',
+      figure_shadow: playerDef.shadow,
+      facing: 90,
+      flip: false,
       stats: p.stats,
       skills: overloaded ? { ...p.skills, dodge: Math.max(0, (p.skills.dodge ?? 0) - 10) } : p.skills,
       weapon,
@@ -135,6 +164,11 @@ export class CombatController {
       pos: this.takeSpawn(playerSpawns),
       mov: Math.max(2, movement(p.stats) - (overloaded ? 2 : 0)),
       movLeft: 0,
+      statuses: [],
+      mp: p.mp,
+      maxMp: p.max_mp,
+      abilities: playerDef.abilities ?? [],
+      cooldowns: {},
       attacked: false,
       defensesUsed: 0,
       dead: false,
@@ -152,6 +186,11 @@ export class CombatController {
         label: def.label,
         side: 'player',
         portrait: def.token ?? def.portrait?.neutral,
+        figure: def.combat_figure,
+        figure_mode: def.figure_mode ?? 'topdown',
+        figure_shadow: def.shadow,
+        facing: 90,
+        flip: false,
         stats: def.stats,
         skills: def.skills,
         weapon: w.weapon,
@@ -162,6 +201,11 @@ export class CombatController {
         pos: this.takeSpawn(playerSpawns),
         mov: movement(def.stats),
         movLeft: 0,
+        statuses: [],
+        mp: derivedMP(def.stats),
+        maxMp: derivedMP(def.stats),
+        abilities: def.abilities ?? [],
+        cooldowns: {},
         attacked: false,
         defensesUsed: 0,
         dead: false,
@@ -183,6 +227,11 @@ export class CombatController {
           label: grp.count > 1 ? `${def.label} ${a}` : def.label,
           side: 'player',
           portrait: def.token ?? def.portrait?.neutral,
+          figure: def.combat_figure,
+          figure_mode: def.figure_mode ?? 'topdown',
+          figure_shadow: def.shadow,
+          facing: 90,
+          flip: false,
           stats: def.stats,
           skills: def.skills,
           weapon: w.weapon,
@@ -193,6 +242,11 @@ export class CombatController {
           pos: this.takeSpawn(playerSpawns),
           mov: movement(def.stats),
           movLeft: 0,
+          statuses: [],
+          mp: derivedMP(def.stats),
+          maxMp: derivedMP(def.stats),
+          abilities: def.abilities ?? [],
+          cooldowns: {},
           attacked: false,
           defensesUsed: 0,
           dead: false,
@@ -214,6 +268,11 @@ export class CombatController {
           label: grp.count > 1 ? `${def.label} ${i + 1}` : def.label,
           side: 'enemy',
           portrait: def.token ?? def.portrait?.neutral,
+          figure: def.combat_figure,
+          figure_mode: def.figure_mode ?? 'topdown',
+          figure_shadow: def.shadow,
+          facing: -90,
+          flip: true,
           stats: def.stats,
           skills: def.skills,
           weapon: w.weapon,
@@ -224,6 +283,11 @@ export class CombatController {
           pos: this.takeSpawn(enemySpawns),
           mov: movement(def.stats),
           movLeft: 0,
+          statuses: [],
+          mp: derivedMP(def.stats),
+          maxMp: derivedMP(def.stats),
+          abilities: def.abilities ?? [],
+          cooldowns: {},
           attacked: false,
           defensesUsed: 0,
           dead: false,
@@ -256,12 +320,13 @@ export class CombatController {
 
   private resolveArmor(def: NpcDef): number {
     if (def.armor != null) return def.armor
-    const armorItemId = def.equipment?.armor
-    if (armorItemId) {
-      const item = this.engine.campaign.entities[armorItemId] as ItemDef | undefined
-      if (item?.armor_data) return item.armor_data.points
+    // броня — сумма очков всех надетых предметов с бронёй (блок 7 ТЗ)
+    let points = 0
+    for (const itemId of Object.values(def.equipment ?? {})) {
+      const item = this.engine.campaign.entities[itemId] as ItemDef | undefined
+      if (item?.armor_data) points += item.armor_data.points
     }
-    return 0
+    return points
   }
 
   // ─────────────── доступ ───────────────
@@ -301,11 +366,29 @@ export class CombatController {
     return reachable(a.pos, a.movLeft, this.passable, this.moveCost)
   }
 
+  /**
+   * Разворот фигурки к точке (блок 3 ТЗ): 'topdown' — поворот по направлению,
+   * 'side' — зеркало по горизонтали, 'static' и жетоны не трогаем.
+   * Вращается только картинка — гекс-логика не меняется.
+   */
+  private faceTowards(c: Combatant, to: Hex): void {
+    if (!c.figure || (c.figure_mode ?? 'topdown') === 'static') return
+    const size = this.arena.hex_grid.hex_size
+    const a = hexToPixel(c.pos, size, { x: 0, y: 0 })
+    const b = hexToPixel(to, size, { x: 0, y: 0 })
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return
+    if ((c.figure_mode ?? 'topdown') === 'side') c.flip = dx < 0
+    else c.facing = (Math.atan2(dx, -dy) * 180) / Math.PI
+  }
+
   canAttack(attacker: Combatant, target: Combatant): boolean {
     return (
       !attacker.attacked &&
       !attacker.dead &&
       !target.dead &&
+      !target.fled &&
       attacker.side !== target.side &&
       hexDistance(attacker.pos, target.pos) <= attacker.weapon.range
     )
@@ -318,6 +401,7 @@ export class CombatController {
     const r = this.reachableHexes()
     const cost = r.get(hexKey(h))
     if (cost == null) return
+    this.faceTowards(this.active, h)
     this.active.pos = { ...h }
     this.active.movLeft -= cost
     this.engine.notify()
@@ -327,6 +411,7 @@ export class CombatController {
     if (!this.isPlayerTurn()) return
     const target = this.combatants.find((c) => c.id === targetId)
     if (!target || !this.canAttack(this.active, target)) return
+    this.faceTowards(this.active, target.pos)
     this.resolveAttack(this.active, target)
     this.checkEnd()
     // атака завершает ход автоматически (фидбек №1 пятого раунда):
@@ -372,10 +457,100 @@ export class CombatController {
   // ─────────────── цикл раундов ───────────────
 
   private startRound(): void {
+    this.tickStatuses()
     for (const c of this.combatants) {
-      c.movLeft = c.mov
+      c.movLeft = Math.max(1, c.mov + this.statusMovMod(c))
       c.attacked = false
       c.defensesUsed = 0
+      // кулдауны способностей тикают на границе раунда
+      for (const k of Object.keys(c.cooldowns)) {
+        c.cooldowns[k] -= 1
+        if (c.cooldowns[k] <= 0) delete c.cooldowns[k]
+      }
+    }
+  }
+
+  /** определение способности из реестра кампании */
+  abilityDef(id: string): AbilityDef | undefined {
+    return this.engine.campaign.meta.abilities?.find((a) => a.id === id)
+  }
+
+  // ─────────────── статусы бойцов (блок 5 ТЗ) ───────────────
+
+  private statusDef(id: string): StatusDef | undefined {
+    return this.engine.campaign.meta.statuses?.find((s) => s.id === id)
+  }
+
+  /** название статуса для UI */
+  statusLabel(id: string): string {
+    return this.statusDef(id)?.label ?? id
+  }
+
+  /** наложить боевой статус на бойца (блок 6 будет звать из способностей) */
+  applyStatusTo(combatantId: string, statusId: string, duration?: number): void {
+    const def = this.statusDef(statusId)
+    if (!def || def.scope === 'world') return
+    const c = this.combatants.find((x) => x.id === combatantId)
+    if (!c || c.dead) return
+    const left = duration ?? def.duration
+    if (left <= 0) return
+    const existing = c.statuses.find((s) => s.id === statusId)
+    if (existing) {
+      existing.left = Math.max(existing.left, left)
+    } else {
+      c.statuses.push({ id: statusId, left })
+      this.log.push(def.apply_message ?? `${c.label}: ${def.label.toLowerCase()}.`)
+    }
+    this.engine.notify()
+  }
+
+  removeStatusFrom(combatantId: string, statusId: string): void {
+    const c = this.combatants.find((x) => x.id === combatantId)
+    if (!c) return
+    c.statuses = c.statuses.filter((s) => s.id !== statusId)
+    this.engine.notify()
+  }
+
+  /** суммарный модификатор навыка бойца от его статусов */
+  private statusSkillMod(c: Combatant, skill: string): number {
+    let mod = 0
+    for (const s of c.statuses) {
+      const def = this.statusDef(s.id)
+      for (const m of def?.skill_mods ?? []) if (m.skill === skill) mod += m.delta
+    }
+    return mod
+  }
+
+  private statusMovMod(c: Combatant): number {
+    let mod = 0
+    for (const s of c.statuses) mod += this.statusDef(s.id)?.mov_mod ?? 0
+    return mod
+  }
+
+  /** тик статусов в начале раунда: DoT, декремент, истечение */
+  private tickStatuses(): void {
+    for (const c of this.combatants) {
+      if (c.dead || !c.statuses.length) continue
+      const expired: StatusDef[] = []
+      for (const s of c.statuses) {
+        const def = this.statusDef(s.id)
+        if (!def) continue
+        if (def.dot?.hp) {
+          c.hp = Math.max(0, c.hp - def.dot.hp)
+          this.log.push(`${c.label}: ${def.label.toLowerCase()} — −${def.dot.hp} HP.`)
+          if (c.hp <= 0) {
+            c.dead = true
+            this.log.push(`${c.label} погибает от статуса «${def.label}».`)
+            playUi('kill')
+          }
+        }
+        if (!c.dead) s.left -= 1
+        if (s.left <= 0) expired.push(def)
+      }
+      if (expired.length) {
+        c.statuses = c.statuses.filter((s) => s.left > 0)
+        for (const def of expired) this.log.push(`${c.label}: «${def.label}» заканчивается.`)
+      }
     }
   }
 
@@ -388,9 +563,10 @@ export class CombatController {
         this.round++
         this.log.push(`— Раунд ${this.round} —`)
         this.startRound()
+        this.checkEnd() // DoT статусов мог добить последнюю сторону
       }
       guard++
-    } while (this.active.dead && guard < 100)
+    } while (!this.result && this.active.dead && guard < 100)
   }
 
   private processUntilPlayer(): void {
@@ -409,10 +585,27 @@ export class CombatController {
   // ─────────────── AI (базовый: к ближайшему, атаковать) ───────────────
 
   private aiTurn(c: Combatant): void {
-    const targets = this.combatants.filter((x) => !x.dead && x.side !== c.side)
+    if (c.fled) return
+    // мораль (блок 6 ТЗ): раненый враг в начале хода может сбежать
+    if (c.side === 'enemy') {
+      const npcDef = this.engine.campaign.entities[c.entityId] as NpcDef | undefined
+      const morale = npcDef?.morale
+      if (morale && (c.hp / c.maxHp) * 100 < morale.below_hp_pct) {
+        if (this.engine.rng.next() * 100 < morale.flee_chance) {
+          c.fled = true
+          this.log.push(`${c.label} падает духом и обращается в бегство!`)
+          playUi('flee')
+          return
+        }
+      }
+    }
+    const targets = this.combatants.filter((x) => !x.dead && !x.fled && x.side !== c.side)
     if (!targets.length) return
     targets.sort((a, b) => hexDistance(c.pos, a.pos) - hexDistance(c.pos, b.pos))
     const target = targets[0]
+
+    // способность вместо атаки — если применима (шанс 50%, детерминизм через rng)
+    if (this.tryUseAiAbility(c, target)) return
 
     if (hexDistance(c.pos, target.pos) > c.weapon.range) {
       const path = astar(c.pos, target.pos, this.passable, this.moveCost)
@@ -429,9 +622,119 @@ export class CombatController {
       }
     }
 
+    this.faceTowards(c, target.pos)
     if (this.canAttack(c, target)) {
       this.resolveAttack(c, target)
     }
+  }
+
+  // ─────────────── способности (блок 6 ТЗ «Гибкий движок») ───────────────
+
+  /** ИИ: шанс 50% применить готовую способность вместо атаки. */
+  private tryUseAiAbility(c: Combatant, target: Combatant): boolean {
+    if (!c.abilities.length) return false
+    const usable = c.abilities
+      .map((id) => this.abilityDef(id))
+      .filter((a): a is AbilityDef => !!a && a.kind !== 'heal' && a.mp_cost <= c.mp && (c.cooldowns[a.id] ?? 0) <= 0)
+      .filter((a) => hexDistance(c.pos, target.pos) <= a.range)
+    if (!usable.length) return false
+    if (this.engine.rng.next() >= 0.5) return false
+    const ab = usable[this.engine.rng.int(0, usable.length - 1)]
+    this.resolveAbility(c, ab, target)
+    return true
+  }
+
+  /** Применение способности: расход MP, кулдаун, проверка навыка, эффект. */
+  private resolveAbility(caster: Combatant, ab: AbilityDef, target: Combatant): void {
+    caster.attacked = true
+    caster.mp = Math.max(0, caster.mp - ab.mp_cost)
+    if (ab.cooldown_rounds) caster.cooldowns[ab.id] = ab.cooldown_rounds
+    this.faceTowards(caster, target.pos)
+    const rng = this.engine.rng
+
+    if (ab.kind === 'heal') {
+      const amount = rollDice(ab.heal ?? '1d6', rng)
+      target.hp = Math.min(target.maxHp, target.hp + amount)
+      this.log.push(`${caster.label}: «${ab.label}» — ${target.label} восстанавливает ${amount} HP.`)
+      playUi('heal')
+      this.syncParty()
+      return
+    }
+
+    // проверка попадания (если навык задан); цель защищается как от атаки
+    if (ab.skill) {
+      const skillVal = Math.max(1, (caster.skills[ab.skill] ?? 25) + this.statusSkillMod(caster, ab.skill))
+      const atk = skillCheck(skillVal, rng, 0, this.engine.diceRules)
+      this.log.push(
+        `${caster.label}: способность «${ab.label}» — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
+      )
+      if (caster.id === 'c_player' && atk.success) this.engine.markSkill(ab.skill)
+      if (RANK[atk.result] < 2) {
+        this.log.push(`${target.label} избегает эффекта.`)
+        playUi('miss')
+        return
+      }
+      if (this.defenderSaves(target, RANK[atk.result])) return
+    }
+
+    if (ab.kind === 'damage') {
+      const dmg = Math.max(0, rollDice(ab.damage ?? '1d6', rng) - target.armor)
+      this.log.push(`${caster.label}: «${ab.label}» попадает.`)
+      playUi('hit')
+      this.finishDamage(target, dmg)
+    } else if (ab.kind === 'status' && ab.status) {
+      this.log.push(`${caster.label}: «${ab.label}» — на «${target.label}» действует «${this.statusLabel(ab.status)}».`)
+      this.applyStatusTo(target.id, ab.status, ab.status_duration)
+    }
+  }
+
+  /** Способности игрока и готовность каждой на этом ходу. */
+  playerAbilities(): Array<{ def: AbilityDef; usable: boolean; reason: string }> {
+    const c = this.combatants.find((x) => x.id === 'c_player')
+    if (!c) return []
+    const out: Array<{ def: AbilityDef; usable: boolean; reason: string }> = []
+    for (const id of c.abilities) {
+      const def = this.abilityDef(id)
+      if (!def) continue
+      let reason = ''
+      if (!this.isPlayerTurn() || c.attacked) reason = 'сейчас не ваш ход'
+      else if (c.mp < def.mp_cost) reason = `не хватает MP (${def.mp_cost})`
+      else if ((c.cooldowns[id] ?? 0) > 0) reason = `кулдаун ещё ${c.cooldowns[id]} раунд(а)`
+      out.push({ def, usable: reason === '', reason })
+    }
+    return out
+  }
+
+  /** Допустимые цели способности из текущей позиции игрока. */
+  abilityTargets(abilityId: string): Combatant[] {
+    const ab = this.abilityDef(abilityId)
+    const c = this.combatants.find((x) => x.id === 'c_player')
+    if (!ab || !c || c.dead) return []
+    const pool =
+      ab.kind === 'heal'
+        ? this.combatants.filter((x) => x.side === c.side && !x.dead)
+        : this.combatants.filter((x) => x.side !== c.side && !x.dead && !x.fled)
+    return pool.filter((t) => hexDistance(c.pos, t.pos) <= ab.range)
+  }
+
+  /** Игрок применяет способность — ход завершается, как после атаки. */
+  useAbility(abilityId: string, targetId: string): void {
+    if (!this.isPlayerTurn() || this.active.attacked) return
+    const c = this.active
+    const ab = this.abilityDef(abilityId)
+    if (!ab || !c.abilities.includes(abilityId)) return
+    if (c.mp < ab.mp_cost || (c.cooldowns[abilityId] ?? 0) > 0) return
+    const target = this.combatants.find((x) => x.id === targetId)
+    if (!target || target.dead || target.fled) return
+    if (ab.kind === 'heal' ? target.side !== c.side : target.side === c.side) return
+    if (hexDistance(c.pos, target.pos) > ab.range) return
+    this.resolveAbility(c, ab, target)
+    this.checkEnd()
+    if (!this.result) {
+      this.nextTurn()
+      this.processUntilPlayer()
+    }
+    this.engine.notify()
   }
 
   // ─────────────── разрешение атаки (BRP) ───────────────
@@ -439,7 +742,7 @@ export class CombatController {
   private resolveAttack(attacker: Combatant, defender: Combatant): void {
     attacker.attacked = true
     const rng = this.engine.rng
-    const skillVal = attacker.skills[attacker.weapon.skill] ?? 25
+    const skillVal = Math.max(1, (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill))
     const atk = skillCheck(skillVal, rng, 0, this.engine.diceRules)
     this.log.push(
       `${attacker.label}: атака «${attacker.weaponLabel}» — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
@@ -451,24 +754,7 @@ export class CombatController {
     }
 
     // защита: уклонение или парирование, повторные со штрафом −30
-    const dodgeVal = defender.skills['dodge'] ?? 0
-    const parryVal = defender.weapon.parry_capable ? (defender.skills[defender.weapon.skill] ?? 0) : 0
-    const useParry = parryVal > dodgeVal
-    const defBase = useParry ? parryVal : dodgeVal
-    if (defBase > 0) {
-      const penalty = -30 * defender.defensesUsed
-      defender.defensesUsed++
-      const def = skillCheck(defBase, rng, penalty, this.engine.diceRules)
-      this.log.push(
-        `${defender.label}: ${useParry ? 'парирование' : 'уклонение'} — d100=${def.roll} против ${def.target} → ${labelResult(def.result)}`,
-      )
-      if (RANK[def.result] >= 2 && RANK[def.result] >= RANK[atk.result]) {
-        this.log.push(`${defender.label} ${useParry ? 'отбивает удар' : 'уходит от удара'}.`)
-        playUi('parry')
-        if (defender.id === 'c_player') this.engine.markSkill(useParry ? defender.weapon.skill : 'dodge')
-        return
-      }
-    }
+    if (this.defenderSaves(defender, RANK[atk.result])) return
 
     // урон
     const w = attacker.weapon
@@ -483,6 +769,37 @@ export class CombatController {
       dmg = Math.max(0, raw - defender.armor)
       playUi('hit')
     }
+    this.finishDamage(defender, dmg)
+  }
+
+  /** Защита от удара: уклонение/парирование. Истина — атака отражена. */
+  private defenderSaves(defender: Combatant, atkRank: number): boolean {
+    const rng = this.engine.rng
+    const dodgeVal = Math.max(0, (defender.skills['dodge'] ?? 0) + this.statusSkillMod(defender, 'dodge'))
+    const parryVal = defender.weapon.parry_capable
+      ? Math.max(0, (defender.skills[defender.weapon.skill] ?? 0) + this.statusSkillMod(defender, defender.weapon.skill))
+      : 0
+    const useParry = parryVal > dodgeVal
+    const defBase = useParry ? parryVal : dodgeVal
+    if (defBase > 0) {
+      const penalty = -30 * defender.defensesUsed
+      defender.defensesUsed++
+      const def = skillCheck(defBase, rng, penalty, this.engine.diceRules)
+      this.log.push(
+        `${defender.label}: ${useParry ? 'парирование' : 'уклонение'} — d100=${def.roll} против ${def.target} → ${labelResult(def.result)}`,
+      )
+      if (RANK[def.result] >= 2 && RANK[def.result] >= atkRank) {
+        this.log.push(`${defender.label} ${useParry ? 'отбивает удар' : 'уходит от удара'}.`)
+        playUi('parry')
+        if (defender.id === 'c_player') this.engine.markSkill(useParry ? defender.weapon.skill : 'dodge')
+        return true
+      }
+    }
+    return false
+  }
+
+  /** Урон бойцу: лог, смерть, синхронизация с состоянием партии. */
+  private finishDamage(defender: Combatant, dmg: number): void {
     defender.hp -= dmg
     this.log.push(`${defender.label} получает ${dmg} урона (HP ${Math.max(0, defender.hp)}/${defender.maxHp}).`)
 
@@ -500,9 +817,16 @@ export class CombatController {
       }
     }
 
-    // синхронизация HP игрока и напарников
+    this.syncParty()
+  }
+
+  /** синхронизация HP/MP игрока и напарников с состоянием боя */
+  private syncParty(): void {
     const pc = this.combatants.find((x) => x.id === 'c_player')
-    if (pc) this.engine.state.player.hp = Math.max(0, pc.hp)
+    if (pc) {
+      this.engine.state.player.hp = Math.max(0, pc.hp)
+      this.engine.state.player.mp = Math.max(0, Math.min(pc.mp, this.engine.state.player.max_mp))
+    }
     for (const ally of this.combatants.filter((x) => x.id.startsWith('c_ally_') && !x.dead)) {
       const comp = this.engine.state.party.find((c) => c.entity === ally.entityId)
       if (comp) comp.hp = Math.max(0, ally.hp)
@@ -513,7 +837,7 @@ export class CombatController {
 
   private checkEnd(): void {
     if (this.result) return
-    const enemiesAlive = this.combatants.some((c) => c.side === 'enemy' && !c.dead)
+    const enemiesAlive = this.combatants.some((c) => c.side === 'enemy' && !c.dead && !c.fled)
     const playerAlive = this.combatants.some((c) => c.id === 'c_player' && !c.dead)
     if (!playerAlive) {
       this.result = 'defeat'

@@ -1,0 +1,252 @@
+import { useState } from 'react'
+import { Ico } from '../shared/icons'
+import type { CampaignData, NpcDef } from '../shared/types'
+import {
+  allSkillIds,
+  charChoiceProblems,
+  derivedFromChoice,
+  newCharChoice,
+  skillMinVal,
+  skillPointsUsed,
+  statPointsUsed,
+  STAT_KEYS,
+  withCalling,
+  withProfession,
+  type CharChoice,
+} from '../core/charcreate'
+import { skillLabel } from '../shared/skills'
+
+/** русское имя характеристики для подсказок */
+const STAT_LABELS: Record<string, string> = {
+  STR: 'Сила',
+  CON: 'Телосложение',
+  SIZ: 'Размер',
+  DEX: 'Ловкость',
+  INT: 'Интеллект',
+  POW: 'Сила воли',
+  CHA: 'Обаяние',
+}
+
+/**
+ * Экран создания персонажа (блок 11 ТЗ «Гибкий движок»).
+ * Происхождения, призвания, пороги и бюджеты целиком настраиваются в редакторе;
+ * игрок выбирает происхождение и призвание и докручивает очки под себя.
+ */
+export function CharacterCreation({
+  campaign,
+  onBack,
+  onStart,
+}: {
+  campaign: CampaignData
+  onBack: () => void
+  onStart: (choice: CharChoice) => void
+}) {
+  const creation = campaign.meta.char_creation!
+  const template = campaign.entities[campaign.meta.default_player] as NpcDef
+  const [choice, setChoice] = useState<CharChoice>(() => newCharChoice(creation, template, campaign.meta))
+
+  const { min, max } = creation.stat_limits
+  const statLeft = creation.total_points - statPointsUsed(creation, choice)
+  const skillsOn = creation.skill_points !== undefined
+  const skillLeft = skillsOn ? creation.skill_points! - skillPointsUsed(creation, choice) : 0
+  const problems = charChoiceProblems(creation, choice, campaign.meta.skills)
+  const derived = derivedFromChoice(choice)
+  const professions = creation.professions ?? []
+
+  // навыки: реестр кампании + навыки шаблона, по алфавиту
+  const skillList = (() => {
+    const seen = new Set<string>()
+    const out: Array<{ id: string; label: string }> = []
+    for (const s of [...allSkillIds(campaign.meta), ...Object.keys(template.skills).map((id) => ({ id, label: skillLabel(id, campaign.meta.skills) }))]) {
+      if (seen.has(s.id)) continue
+      seen.add(s.id)
+      out.push(s)
+    }
+    return out.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  })()
+  const forbidden = new Set(creation.forbidden_skills ?? [])
+  const mandatory = new Set(creation.mandatory_skills ?? [])
+
+  return (
+    <div className="char-create">
+      <div className="char-create-inner panel">
+        <div className="panel-header">
+          <h2><Ico n="user" />  Создание персонажа</h2>
+          <button className="btn btn-small" onClick={onBack}><Ico n="close" /> </button>
+        </div>
+
+        {creation.choose_name && (
+          <div className="props-group">
+            <h4>Имя героя</h4>
+            <input
+              className="char-name"
+              value={choice.name}
+              maxLength={40}
+              placeholder={template.label}
+              onChange={(e) => setChoice({ ...choice, name: e.target.value })}
+            />
+          </div>
+        )}
+
+        {professions.length > 0 && (
+          <div className="props-group">
+            <h4>Происхождение</h4>
+            <div className="muted small" style={{ marginBottom: 6 }}>
+              Выберите путь героя: происхождение задаёт стартовые характеристики
+              и навыки — потом их можно подстроить под себя.
+            </div>
+            <div className="char-professions">
+              {professions.map((p) => (
+                <button
+                  key={p.id}
+                  className={`char-prof-card ${choice.profession === p.id ? 'sel' : ''}`}
+                  onClick={() => setChoice(withProfession(creation, choice, p.id))}
+                >
+                  <div className="char-prof-label">{p.label}</div>
+                  {p.description && <div className="muted small">{p.description}</div>}
+                  <div className="char-prof-bonus small">
+                    {Object.entries(p.skill_bonus).length
+                      ? Object.entries(p.skill_bonus).map(([id, v]) => `+${v} ${skillLabel(id, campaign.meta.skills)}`).join(' · ')
+                      : 'без бонусов к навыкам'}
+                  </div>
+                  {p.items?.length ? (
+                    <div className="muted small">
+                      Снаряжение: {p.items.map((it) => `${campaign.entities[it.item]?.label ?? it.item}${it.quantity > 1 ? ` ×${it.quantity}` : ''}`).join(', ')}
+                    </div>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {(creation.callings ?? []).length > 0 && (
+          <div className="props-group">
+            <h4>Призвание</h4>
+            <div className="muted small" style={{ marginBottom: 6 }}>
+              Призвание задаёт стартовые навыки героя — их тоже можно подстроить ниже.
+            </div>
+            <div className="char-professions">
+              {(creation.callings ?? []).map((c) => (
+                <button
+                  key={c.id}
+                  className={`char-prof-card ${choice.calling === c.id ? 'sel' : ''}`}
+                  onClick={() => setChoice(withCalling(creation, choice, c.id))}
+                >
+                  <div className="char-prof-label">{c.label}</div>
+                  {c.description && <div className="muted small">{c.description}</div>}
+                  <div className="char-prof-bonus small">
+                    {Object.entries(c.skills).length
+                      ? Object.entries(c.skills)
+                          .map(([id, v]) => `${skillLabel(id, campaign.meta.skills)} ${v}%`)
+                          .sort((a, b) => a.localeCompare(b, 'ru'))
+                          .join(' · ')
+                      : 'без навыков'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="props-group">
+          <h4>Характеристики</h4>
+          <div className={`char-budget ${statLeft > 0 ? 'warn' : 'ok'}`}>
+            Свободных очков характеристик: <b>{statLeft}</b> из {creation.total_points} · пороги {min}–{max}
+            {statLeft > 0 && (
+              <div className="char-budget-warn">
+                В бой с {statLeft} нераспределёнными очками? Это хардкор — герой будет заметно слабее.
+              </div>
+            )}
+          </div>
+          <div className="char-stats">
+            {STAT_KEYS.map((k) => (
+              <div key={k} className="char-stat-row">
+                <span className="char-stat-key" data-tip={`${k} — ${STAT_LABELS[k]}`}>{k}</span>
+                <button
+                  className="btn btn-small"
+                  disabled={(choice.stats[k] ?? min) <= min}
+                  onClick={() => setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) - 1 } })}
+                >
+                  −
+                </button>
+                <span className="char-stat-val">{choice.stats[k] ?? min}</span>
+                <button
+                  className="btn btn-small"
+                  disabled={statLeft <= 0 || (choice.stats[k] ?? min) >= max}
+                  onClick={() => setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) + 1 } })}
+                >
+                  +
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="muted small">
+            Здоровье: <b>{derived.hp}</b> · Магия: <b>{derived.mp}</b>
+          </div>
+        </div>
+
+        {skillsOn && (
+          <div className="props-group">
+            <h4>Навыки</h4>
+            <div className={`char-budget ${skillLeft > 0 ? 'warn' : 'ok'}`}>
+              Свободных очков навыков: <b>{skillLeft}</b> из {creation.skill_points} · пороги {creation.skill_floor ?? 0}–{creation.skill_cap ?? 'без предела'}
+              {skillLeft > 0 && (
+                <div className="char-budget-warn">
+                  {skillLeft} очк. навыков не потрачено — старт будет сложнее (хардкор). Лучше вложить всё.
+                </div>
+              )}
+            </div>
+            <div className="char-skills">
+              {skillList.map((s) => {
+                const v = choice.skills[s.id] ?? 0
+                const isForbidden = forbidden.has(s.id)
+                const floor = skillMinVal(creation, choice, s.id)
+                const cap = creation.skill_cap
+                return (
+                  <div key={s.id} className={`char-skill-row ${isForbidden ? 'char-skill-forbidden' : ''}`} data-tip={isForbidden ? 'Этот навык покупать нельзя' : undefined}>
+                    <span className="char-skill-name">
+                      {s.label}
+                      {mandatory.has(s.id) && <span className="muted">*</span>}
+                    </span>
+                    <button
+                      className="btn btn-small"
+                      disabled={isForbidden || v <= floor}
+                      onClick={() => setChoice({ ...choice, skills: { ...choice.skills, [s.id]: v - 1 } })}
+                    >
+                      −
+                    </button>
+                    <span className="char-stat-val">{v}%</span>
+                    <button
+                      className="btn btn-small"
+                      disabled={isForbidden || skillLeft <= 0 || (cap !== undefined && v >= cap)}
+                      onClick={() => setChoice({ ...choice, skills: { ...choice.skills, [s.id]: v + 1 } })}
+                    >
+                      +
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="muted small">* — обязательный навык (начинается с 25%).</div>
+          </div>
+        )}
+
+        {problems.length > 0 && (
+          <ul className="char-problems">
+            {problems.map((p, i) => (
+              <li key={i}>{p}</li>
+            ))}
+          </ul>
+        )}
+
+        <div className="char-create-foot">
+          <button className="btn" onClick={onBack}>Назад</button>
+          <button className="btn btn-primary" disabled={problems.length > 0} onClick={() => onStart(choice)}>
+            Начать забег
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

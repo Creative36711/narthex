@@ -79,7 +79,7 @@ src/
     CutsceneEditor.tsx    редактор слайд-катсцен (порядок, переходы, тест-прогон)
     ArenaEditor.tsx       кисти для гекс-арен
     MonacoEditors.tsx     JSON/ink редакторы «расширенного» режима
-    slotTypes.ts          встроенные типы слотов + effectiveSlotType(entity)
+    slotTypes.ts          типы слотов (реестр кампании, без встроенных) + effectiveSlotType(entity)
     ids.ts                slugify/makeId (транслитерация, уникальность)
     newCampaign.ts        скаффолд новой кампании, реестр public/campaigns/index.json
     chronicle.ts          экспорт/импорт .chronicle (zip Campaign Package)

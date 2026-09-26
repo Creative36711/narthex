@@ -52,7 +52,7 @@ function check(name: string, ok: boolean, extra = '') {
 {
   const overlay = readFileSync('src/player/DialogueOverlay.tsx', 'utf8')
   check('G2 файл озвучки играет при показе реплики', overlay.includes('new Audio(assetUrl(engine.campaign, line.voice))'))
-  check('G2 клик по реплике — повтор', overlay.includes("playLine(l, 'replay')") && overlay.includes('прослушать ещё раз'))
+  check('G2 повтор реплики убран (фидбек 17)', !overlay.includes("'replay'") && !overlay.includes('прослушать ещё раз'))
   check('G2 фолбэк на синтезатор', overlay.includes('speak(line.text') && overlay.includes('tts_enabled'))
   check('G2 громкость из настроек', overlay.includes('voiceVolume(settings)'))
   check('G2 звук снимается при закрытии', overlay.includes('pause()') && overlay.includes('useEffect'))

@@ -401,8 +401,9 @@ function LocationProps({
         onChange={commit}
         heading="Музыка локации (условия → треки)"
       />
-      <div className="fld fld-block">
-        <span>Фоновые звуки локации (слоями, зацикленно)</span>
+      {/* звуков может быть много — прячем под спойлер, как в сценах */}
+      <details className="spoiler-block">
+        <summary>Фоновые звуки локации (слоями, зацикленно){(loc.ambient?.length ?? 0) ? ` — ${loc.ambient!.length}` : ''}</summary>
         <SoundMultiSelect
           store={store}
           value={loc.ambient ?? (loc.ambient = [])}
@@ -411,7 +412,7 @@ function LocationProps({
             commit()
           }}
         />
-      </div>
+      </details>
 
       <div className="fld-block">
         <span className="fld-caption">Дороги (куда можно дойти отсюда)</span>

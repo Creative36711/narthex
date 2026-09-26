@@ -3,9 +3,11 @@ import { isExternalUrl } from '../core/loader'
 import type {
   ArenaDef,
   CampaignMeta,
+  CodexEntryDef,
   CutsceneDef,
   EntityDef,
   QuestDef,
+  RecipeDef,
   RuleDef,
   SceneDef,
   WorldDef,
@@ -26,6 +28,10 @@ export interface ManifestDef {
   encounters?: string[]
   /** катсцены (итерация 8, блок E) */
   cutscenes?: string[]
+  /** рецепты крафта (блок 4 ТЗ) */
+  recipes?: string[]
+  /** записи кодекса/бестиария (блок 10 ТЗ) */
+  codex?: string[]
   dialogues: string[]
 }
 
@@ -39,6 +45,8 @@ export type EditorSection =
   | 'dialogues'
   | 'arenas'
   | 'cutscenes'
+  | 'recipes'
+  | 'codex'
 
 export class EditorStore {
   basePath: string // "/campaigns/ash-of-caerden"
@@ -62,7 +70,7 @@ export class EditorStore {
   private snapshots = new Map<string, string>()
   /** содержимое файлов на диске (на момент загрузки/сохранения) — для точного счётчика «несохранено» */
   private saved = new Map<string, string>()
-  private lastTouch = { path: '', at: 0 }
+  private lastTouch = { path: '', group: '', at: 0 }
 
   constructor(basePath: string) {
     this.basePath = basePath
@@ -110,6 +118,8 @@ export class EditorStore {
     for (const f of this.manifest.quests ?? []) loadJson(`quests/${f}`)
     for (const f of this.manifest.encounters ?? []) loadJson(`rules/${f}`)
     for (const f of this.manifest.cutscenes ?? []) loadJson(`cutscenes/${f}`)
+    for (const f of this.manifest.recipes ?? []) loadJson(`recipes/${f}`)
+    for (const f of this.manifest.codex ?? []) loadJson(`codex/${f}`)
     for (const f of this.manifest.dialogues) loadText(`dialogues/${f}`)
     // визуальные исходники конструктора диалогов (могут отсутствовать)
     for (const f of this.manifest.dialogues) {
@@ -158,6 +168,12 @@ export class EditorStore {
   cutscenePaths(): string[] {
     return (this.manifest.cutscenes ?? []).map((f) => `cutscenes/${f}`)
   }
+  recipePaths(): string[] {
+    return (this.manifest.recipes ?? []).map((f) => `recipes/${f}`)
+  }
+  codexPaths(): string[] {
+    return (this.manifest.codex ?? []).map((f) => `codex/${f}`)
+  }
 
   scene(path: string): SceneDef {
     return this.jsonFiles.get(path) as SceneDef
@@ -182,6 +198,12 @@ export class EditorStore {
   cutscene(path: string): CutsceneDef {
     return this.jsonFiles.get(path) as CutsceneDef
   }
+  recipe(path: string): RecipeDef {
+    return this.jsonFiles.get(path) as RecipeDef
+  }
+  codexEntry(path: string): CodexEntryDef {
+    return this.jsonFiles.get(path) as CodexEntryDef
+  }
 
   /** списки id для подсказок в полях */
   /** все флаги, упомянутые в правилах/квестах/ink — для подсказок в конструкторах */
@@ -204,7 +226,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -256,6 +278,18 @@ export class EditorStore {
       for (const sk of this.meta.skills ?? []) out.push({ id: sk.id, label: sk.label || sk.id })
     } else if (kind === 'need') {
       for (const n of this.meta.needs) out.push({ id: n.id, label: n.label || n.id })
+    } else if (kind === 'status') {
+      for (const s of this.meta.statuses ?? []) out.push({ id: s.id, label: s.label || s.id })
+    } else if (kind === 'ability') {
+      for (const a of this.meta.abilities ?? []) out.push({ id: a.id, label: a.label || a.id })
+    } else if (kind === 'weather') {
+      out.push({ id: '', label: 'Ясно' })
+      for (const w of this.meta.weathers ?? []) out.push({ id: w.id, label: w.label || w.id })
+    } else if (kind === 'codex') {
+      for (const p of this.codexPaths()) {
+        const c = this.codexEntry(p)
+        if (c) out.push({ id: c.id, label: c.label || c.id })
+      }
     } else if (kind === 'disposition') {
       // отношение можно менять и к фракции, и к отдельному NPC
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: `${f.label || f.id} (фракция)` })
@@ -313,7 +347,7 @@ export class EditorStore {
     return relPath
   }
 
-  ids(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'cutscene'): string[] {
+  ids(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'cutscene' | 'recipe' | 'codex'): string[] {
     const out: string[] = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -331,6 +365,10 @@ export class EditorStore {
       for (const p of this.rulePaths()) out.push(this.rule(p)?.id ?? '')
     } else if (kind === 'cutscene') {
       for (const p of this.cutscenePaths()) out.push(this.cutscene(p)?.id ?? '')
+    } else if (kind === 'recipe') {
+      for (const p of this.recipePaths()) out.push(this.recipe(p)?.id ?? '')
+    } else if (kind === 'codex') {
+      for (const p of this.codexPaths()) out.push(this.codexEntry(p)?.id ?? '')
     } else if (kind === 'location') {
       const walk = (regions: typeof this.world.regions) => {
         for (const r of regions) {
@@ -514,16 +552,18 @@ export class EditorStore {
 
   // ─────────────── правки ───────────────
 
-  touch(path: string): void {
+  touch(path: string, group = ''): void {
     const now = Date.now()
     const prev = this.snapshots.get(path)
-    // группируем серию быстрых правок одного файла (набор текста) в один шаг undo
-    const sameBurst = this.lastTouch.path === path && now - this.lastTouch.at < 900
+    // группируем только СЕРИИ ОДНОТИПНЫХ правок, явно помеченных группой
+    // (например набор текста); структурные изменения (добавил слот, удалил
+    // правило…) всегда дают отдельный шаг отката — без группировки
+    const sameBurst = group !== '' && this.lastTouch.path === path && this.lastTouch.group === group && now - this.lastTouch.at < 900
     if (prev !== undefined && !sameBurst) {
       this.undoStack.push({ path, text: prev })
       if (this.undoStack.length > 100) this.undoStack.shift()
     }
-    this.lastTouch = { path, at: now }
+    this.lastTouch = { path, group, at: now }
     this.snapshots.set(path, this.fileText(path))
     if (this.saved.get(path) === this.fileText(path)) this.dirty.delete(path)
     else this.dirty.add(path)
@@ -548,7 +588,7 @@ export class EditorStore {
     // если откат вернул файл к состоянию на диске — он больше не «несохранён»
     if (this.saved.get(path) === text) this.dirty.delete(path)
     else this.dirty.add(path)
-    this.lastTouch = { path: '', at: 0 }
+    this.lastTouch = { path: '', group: '', at: 0 }
     this.notify()
     return path
   }

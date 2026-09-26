@@ -95,7 +95,7 @@ function scaffold(id: string, title: string, author: string) {
     label: 'Первая сцена',
     location: 'loc_start',
     canvas: { w: 1280, h: 720 },
-    states: [{ id: 'state_default', label: 'Обычное', image: '', condition: null }],
+    states: [{ id: 'state_default', label: 'Обычное', image: 'scenes/img/scene_start.jpg', condition: null }],
     slots: [],
     navigation: [],
   }
@@ -141,6 +141,33 @@ async function saveFile(rel: string, text: string): Promise<void> {
   if (!res.ok) throw new Error(`${rel}: ${res.status} ${await res.text()}`)
 }
 
+async function saveFileBase64(rel: string, base64: string): Promise<void> {
+  const res = await fetch('/__editor/save', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: rel, base64 }),
+  })
+  if (!res.ok) throw new Error(`${rel}: ${res.status} ${await res.text()}`)
+}
+
+/**
+ * Заглушка фона первой сцены, чтобы новая кампания сразу отрисовывалась
+ * (правка «первая сцена новой кампании должна отображаться»). Копируется
+ * из общего шаблона и потом заменяется артом мастера.
+ */
+async function starterImageBase64(): Promise<string> {
+  try {
+    const res = await fetch('/__starter/scene_start.jpg')
+    if (!res.ok) return ''
+    const buf = new Uint8Array(await res.arrayBuffer())
+    let bin = ''
+    for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000))
+    return btoa(bin)
+  } catch {
+    return ''
+  }
+}
+
 /** создать кампанию на диске и вернуть её id */
 export async function createCampaign(title: string, author = ''): Promise<string> {
   const index = await fetchCampaignIndex()
@@ -154,6 +181,9 @@ export async function createCampaign(title: string, author = ''): Promise<string
   for (const [rel, data] of Object.entries(files)) {
     await saveFile(`campaigns/${id}/${rel}`, JSON.stringify(data, null, 2))
   }
+  // фон первой сцены, чтобы кампания сразу отрисовывалась
+  const img = await starterImageBase64()
+  if (img) await saveFileBase64(`campaigns/${id}/scenes/img/scene_start.jpg`, img)
   index.push({ id, title, author })
   await saveFile('campaigns/index.json', JSON.stringify(index, null, 2))
   return id

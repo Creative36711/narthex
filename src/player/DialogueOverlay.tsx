@@ -14,6 +14,14 @@ interface Props {
 const TYPE_MS = 24 // скорость печати, мс на символ (как в катсценах)
 const LINE_PAUSE_MS = 420 // пауза между репликами
 
+/**
+ * страховка на случай «немого» синтезатора: сколько максимум ждать озвучку
+ * реплики, прежде чем диалог пойдёт дальше сам (как в катсценах)
+ */
+function fallbackReadMs(text: string): number {
+  return Math.min(30000, text.length * 70 + 4000)
+}
+
 /** Диалоговое окно: портрет + постепенная выдача текста (как в катсценах) + варианты (ТЗ 4.5). */
 export function DialogueOverlay({ engine }: Props) {
   const d = engine.dialogue
@@ -21,63 +29,97 @@ export function DialogueOverlay({ engine }: Props) {
   const settings = useSettings()
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const stopTtsRef = useRef<(() => void) | null>(null)
-  const spokenRef = useRef(-1)
+  const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** строк показано полностью */
   const [revealed, setRevealed] = useState(0)
   /** набрано символов текущей строки */
   const [typed, setTyped] = useState(0)
+  /** озвучка текущей реплики закончилась (или её нет) — как в катсценах,
+   *  диалог не идёт дальше, пока фраза не договорена (фидбек 21) */
+  const [lineDone, setLineDone] = useState(true)
 
-  // новая сессия диалога — сброс прогресса чтения; закрытие — снять звук
-  useEffect(() => {
-    setRevealed(0)
-    setTyped(0)
-    spokenRef.current = -1
-    return () => {
-      audioRef.current?.pause()
-      audioRef.current = null
-      stopTtsRef.current?.()
-      stopTtsRef.current = null
+  const clearLineAudio = () => {
+    audioRef.current?.pause()
+    audioRef.current = null
+    stopTtsRef.current?.()
+    stopTtsRef.current = null
+    if (fallbackRef.current !== null) {
+      clearTimeout(fallbackRef.current)
+      fallbackRef.current = null
     }
-  }, [d])
+  }
+
+  // закрытие диалога (размонтирование) — снять звук: это делает cleanup
+  // эффекта озвучки ниже (он же переживает дев-режим, см. комментарий там)
+
+  // Фидбек 22: `dialogue` заменяется ЦЕЛИКОМ на ответ реплику (новый объект,
+  // только новые строки). Сброс прогресса в useEffect происходил ПОСЛЕ коммита,
+  // и в промежуточном рендере `revealed` указывал в середину нового списка —
+  // озвучка начинала со средней фразы, а первые молча пропускались.
+  // Поэтому сбрасываем состояние СИНХРОННО в фазе рендера (штатный паттерн
+  // «корректировка состояния при рендере»): коммит уже видит revealed=0.
+  const lastDRef = useRef<unknown>(d)
+  if (lastDRef.current !== d) {
+    lastDRef.current = d
+    clearLineAudio()
+    if (revealed !== 0) setRevealed(0)
+    if (typed !== 0) setTyped(0)
+    if (!lineDone) setLineDone(true)
+  }
 
   const lines: DialogueLine[] = d?.lines ?? []
   const current = lines[revealed]
   const full = current ? (current.action ? `→ ${current.text}` : current.text) : ''
   const activeLine = current ?? lines[revealed - 1]
 
-  /** озвучка реплики: файл (тег # voice:) или синтезатор; queue — фразы подряд без срезания */
-  const playLine = (line: DialogueLine | undefined, mode: 'auto' | 'replay') => {
-    if (mode === 'replay') {
-      audioRef.current?.pause()
-      audioRef.current = null
-      stopTtsRef.current?.()
-      stopTtsRef.current = null
+  /**
+   * Озвучка реплики — по образцу катсцены (фидбек 21): одна фраза звучит
+   * одна (без накопления в очереди), а её окончание двигает диалог дальше.
+   */
+  const playLine = (line: DialogueLine | undefined) => {
+    clearLineAudio()
+    setLineDone(false)
+    const done = () => setLineDone(true)
+    if (!line || line.action) {
+      done()
+      return
     }
-    if (!line || line.action) return
+    // страховочный таймер: если звук так и не отчитался — диалог не виснет
+    fallbackRef.current = setTimeout(() => {
+      fallbackRef.current = null
+      done()
+    }, fallbackReadMs(line.text))
     const vol = voiceVolume(settings)
     if (line.voice && vol > 0) {
-      if (mode === 'auto' && audioRef.current) audioRef.current.pause()
       const a = new Audio(assetUrl(engine.campaign, line.voice))
       a.volume = vol
-      void a.play().catch(() => undefined)
+      a.onended = done
+      a.onerror = done
+      void a.play().catch(done)
       audioRef.current = a
     } else if (settings.tts_enabled && vol > 0) {
       stopTtsRef.current = speak(line.text, {
         voice: settings.tts_voice,
         rate: settings.tts_rate,
         volume: vol,
-        queue: mode === 'auto',
+        onEnd: done,
       })
+    } else {
+      done()
     }
   }
 
-  // новая реплика появилась — озвучить её (каждую, а не только последнюю)
+  // новая реплика появилась — озвучить её. Эффект идемпотентен: в дев-режиме
+  // (StrictMode) эффекты гоняются «настройка → уборка → настройка», и уборка
+  // снимает звук строки, а повторная настройка заводит его заново. Поэтому
+  // ПЕРВАЯ фраза диалога больше не умирает молча и диалог не зависает
+  // (фидбек 23). При смене строки/диалога уборка глушит предыдущий звук.
   useEffect(() => {
-    if (!d || !current || spokenRef.current >= revealed) return
-    spokenRef.current = revealed
-    playLine(current, 'auto')
+    if (!d || !current) return
+    playLine(current)
+    return () => clearLineAudio()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [d, revealed, current])
+  }, [d, revealed])
 
   // печать по буквам — как в катсценах
   useEffect(() => {
@@ -86,16 +128,16 @@ export function DialogueOverlay({ engine }: Props) {
     return () => clearTimeout(t)
   }, [current, typed, full.length])
 
-  // строка дописана — пауза и следующая; typed обязательно сбрасываем —
-  // иначе следующая строка либо проскакивает целиком, либо печатается с середины
+  // строка дописана И озвучка договорена — пауза и следующая реплика
+  // (катсценный подход: голос управляет темпом, а не таймер печати)
   useEffect(() => {
-    if (!current || typed < full.length) return
+    if (!current || typed < full.length || !lineDone) return
     const t = setTimeout(() => {
       setTyped(0)
       setRevealed((n) => n + 1)
     }, LINE_PAUSE_MS)
     return () => clearTimeout(t)
-  }, [current, typed, full.length])
+  }, [current, typed, full.length, lineDone])
 
   if (!d) return null
 
@@ -105,14 +147,12 @@ export function DialogueOverlay({ engine }: Props) {
    * (файл или синтезатор). Кнопка пропуска не нужна.
    */
   const skip = () => {
+    clearLineAudio()
+    setLineDone(true)
     if (revealed < lines.length) {
       setTyped(0)
       setRevealed(lines.length)
     }
-    audioRef.current?.pause()
-    audioRef.current = null
-    stopTtsRef.current?.()
-    stopTtsRef.current = null
   }
 
   const emotion = activeLine?.emotion ?? 'neutral'
@@ -129,22 +169,11 @@ export function DialogueOverlay({ engine }: Props) {
         </div>
         <div className="dialogue-content">
           <div className="dialogue-lines">
-            {lines.slice(0, revealed).map((l, i) => {
-              const isLast = i === revealed - 1
-              return (
-                <p
-                  key={i}
-                  className={`${l.action ? 'action ' : ''}past`}
-                  data-tip={isLast && !(l.action || (!l.voice && !settings.tts_enabled)) ? 'Клик — прослушать ещё раз' : undefined}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (isLast) playLine(l, 'replay')
-                  }}
-                >
-                  {l.action ? <>→ {l.text}</> : l.text}
-                </p>
-              )
-            })}
+            {lines.slice(0, revealed).map((l, i) => (
+              <p key={i} className={`${l.action ? 'action ' : ''}past`}>
+                {l.action ? <>→ {l.text}</> : l.text}
+              </p>
+            ))}
             {current && <p className={`${current.action ? 'action ' : ''}current`}>{full.slice(0, typed)}</p>}
           </div>
           {showTip && hasCheckChoice && allShown && (

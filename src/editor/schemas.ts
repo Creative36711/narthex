@@ -32,6 +32,10 @@ export type FieldKind =
   | 'journalKeyRef' // ключ журнальной записи квеста из соседнего поля quest
   | 'dialogueNodeRef' // узел диалога NPC из соседнего поля entity
   | 'cutsceneRef' // катсцена кампании (итерация 8, блок E)
+  | 'statusRef' // статус из реестра кампании (блок 5 ТЗ)
+  | 'weatherRef' // погода из реестра кампании (блок 9 ТЗ)
+  | 'codexRef' // запись кодекса (блок 10 ТЗ)
+  | 'portraitPick' // портрет: из персонажа или своё изображение
 
 export interface FieldSpec {
   key: string
@@ -167,6 +171,16 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'probability', label: 'Вероятность (0–1)', kind: 'number' }],
     blank: { probability: 0.5 },
   },
+  has_status: {
+    label: 'У игрока есть статус',
+    fields: [{ key: 'status', label: 'Статус', kind: 'statusRef' }],
+    blank: { status: '' },
+  },
+  weather_is: {
+    label: 'Погода сейчас',
+    fields: [{ key: 'weather', label: 'Погода', kind: 'weatherRef' }],
+    blank: { weather: '' },
+  },
   and: {
     label: 'И (все)',
     fields: [{ key: 'conditions', label: 'Условия', kind: 'conditions' }],
@@ -196,6 +210,29 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Снять флаг',
     fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],
     blank: { flag: '' },
+  },
+  apply_status: {
+    label: 'Наложить статус',
+    fields: [
+      { key: 'status', label: 'Статус', kind: 'statusRef' },
+      { key: 'duration', label: 'Длительность (пусто — из реестра)', kind: 'number', optional: true },
+    ],
+    blank: { target: 'player', status: '' },
+  },
+  remove_status: {
+    label: 'Снять статус',
+    fields: [{ key: 'status', label: 'Статус', kind: 'statusRef' }],
+    blank: { target: 'player', status: '' },
+  },
+  set_weather: {
+    label: 'Сменить погоду',
+    fields: [{ key: 'weather', label: 'Погода (пусто — ясно)', kind: 'weatherRef' }],
+    blank: { weather: '' },
+  },
+  unlock_codex: {
+    label: 'Открыть запись кодекса',
+    fields: [{ key: 'entry', label: 'Запись', kind: 'codexRef' }],
+    blank: { entry: '' },
   },
   set_variable: {
     label: 'Установить переменную',
@@ -372,7 +409,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Показать сообщение',
     fields: [
       { key: 'text', label: 'Текст', kind: 'string' },
-      { key: 'portrait', label: 'Портрет (путь)', kind: 'string', optional: true },
+      { key: 'portrait', label: 'Портрет', kind: 'portraitPick', optional: true },
     ],
     blank: { text: '' },
   },
@@ -445,6 +482,9 @@ const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
   dispRef: 'disposition',
   flagRef: 'flag',
   cutsceneRef: 'cutscene',
+  statusRef: 'status',
+  weatherRef: 'weather',
+  codexRef: 'codex',
 }
 
 /** Человекочитаемое значение одного поля (русские названия вместо id). */

@@ -126,6 +126,10 @@
   margin-bottom: 12px;
 }
 .props-group h4 { margin: 0 0 10px; color: var(--gold); font-size: 14px; }
+/* тумблеры профиля механик (блок 1 ТЗ «Гибкий движок») */
+.feature-toggle { flex-direction: row; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); }
+.feature-toggle input { margin-top: 3px; flex: none; }
+.feature-toggle b { color: var(--text); font-size: 13px; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
@@ -774,3 +778,41 @@
 }
 .reg-picker-item:hover { background: var(--panel-2); color: var(--gold-bright); }
 .reg-picker-row.on .reg-picker-item { color: var(--gold); font-weight: 600; }
+
+/* вкладка «Оформление» (блок 2 ТЗ): шрифты и предпросмотр */
+.theme-font-row { padding: 10px; border: 1px dashed var(--border); }
+.theme-role { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 10px; flex-wrap: wrap; }
+.theme-role .fld { min-width: 260px; }
+.font-sample { flex: 1; min-width: 240px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-2); font-size: 14px; }
+.font-sample-display { font-size: 20px; font-weight: bold; }
+.font-sample-hand { font-size: 16px; font-style: italic; }
+
+/* блок-спойлер в формах (длинные списки, напр. фоновые звуки сцены) */
+.spoiler-block { border: 1px dashed var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; }
+.spoiler-block > summary { cursor: var(--cur-pointer); color: var(--muted); font-size: 13px; }
+.spoiler-block[open] > summary { color: var(--gold-bright); margin-bottom: 8px; }
+
+/* карточка категории предметов: поля и галочки переносятся на новые строки,
+   горизонтальной прокрутки нет при любом количестве галочек */
+.itemcat-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+.itemcat-card > .fld-row { margin-bottom: 4px; }
+.itemcat-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 10px; margin-top: 6px; align-items: center; }
+.itemcat-checks .fld-check { margin-bottom: 0; min-width: 0; }
+
+/* карточка «происхождения»: аккуратные секции, ничего не слипается */
+.prof-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; background: var(--panel-2, rgba(255,255,255,0.02)); }
+.prof-card-head { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
+.prof-card-head .fld { flex: 1; margin-bottom: 0; min-width: 0; }
+.prof-sec { font-size: 12px; color: var(--muted); margin: 10px 0 5px; }
+.prof-budget { font-size: 12px; margin-top: 8px; padding: 6px 8px; border-radius: 6px; border: 1px dashed var(--border); }
+.prof-budget.ok { color: var(--green, #7da963); border-color: rgba(122,160,90,0.5); }
+.prof-budget.warn { color: var(--warn, #d8a24a); border-color: rgba(216,162,74,0.55); }
+.prof-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 6px 8px; }
+.prof-stat { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
+.prof-stat input { width: 100%; }
+.prof-line { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.prof-line input[type='number'] { width: 64px; }
+.prof-line-label { flex: 1; min-width: 0; font-size: 13px; }
+.prof-card select { margin-top: 4px; }
+/* запрещённые навыки в редакторе — красноватый акцент */
+.chipset-warn .chip-on { border-color: #b3543f; color: #e69a86; background: rgba(179, 84, 63, 0.16); }

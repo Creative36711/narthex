@@ -42,7 +42,9 @@
     "item_gambeson.json",
     "item_chain_shirt.json",
     "item_wool_cloak.json",
-    "item_fur_coat.json"
+    "item_fur_coat.json",
+    "item_tavern_key.json",
+    "item_locked_chest.json"
   ],
   "rules": [
     "rule_intro_cutscene.json",
@@ -60,7 +62,9 @@
     "rule_market_raid.json",
     "rule_city_assault.json",
     "encounter_camp_fight_surprise.json",
-    "rule_maeva_thanks.json"
+    "rule_maeva_thanks.json",
+    "rule_weather_ashfall.json",
+    "rule_weather_ravine_rain.json"
   ],
   "dialogues": [
     "aldric.ink",
@@ -88,5 +92,13 @@
   ],
   "cutscenes": [
     "cutscene_intro.json"
+  ],
+  "recipes": [
+    "recipe_healing_salve.json"
+  ],
+  "codex": [
+    "codex_kaerden_valley.json",
+    "codex_oaken_shield.json",
+    "codex_rat_giant.json"
   ]
 }

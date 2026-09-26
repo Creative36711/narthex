@@ -5,7 +5,7 @@ import type Konva from 'konva'
 import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
 import { ArtView, artToDataUrl } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { ImageUpload, JsonField, RefSelect, FlagSelect, FileAdvancedJson } from './Fields'
+import { ImageUpload, JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
@@ -41,6 +41,7 @@ export function SceneConditionEditor({
     if (next.time_of_day && (!Array.isArray(next.time_of_day) || next.time_of_day.length)) clean.time_of_day = next.time_of_day
     if (next.flag) clean.flag = next.flag
     if (next.not_flag) clean.not_flag = next.not_flag
+    if (next.weather !== undefined) clean.weather = next.weather
     onChange(Object.keys(clean).length ? clean : null)
   }
   return (
@@ -65,6 +66,14 @@ export function SceneConditionEditor({
         <FlagSelect label="…установлен флаг" store={store} value={v.flag ?? ''} optional onChange={(f) => apply({ ...v, flag: f || undefined })} />
         <FlagSelect label="…НЕ установлен флаг" store={store} value={v.not_flag ?? ''} optional onChange={(f) => apply({ ...v, not_flag: f || undefined })} />
       </div>
+      <RefSelect
+        label="…погода"
+        kind="weather"
+        store={store}
+        value={v.weather ?? ''}
+        optional
+        onChange={(w) => apply({ ...v, weather: w === undefined || w === '' ? undefined : w })}
+      />
       <div className="muted small">Пусто = показывается всегда.</div>
     </div>
   )
@@ -107,8 +116,13 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   const img = useImage(!st?.art && st?.image ? store.assetSrc(st.image) : null)
 
   useEffect(() => {
-    if (trRef.current && selRef.current) {
-      trRef.current.nodes([selRef.current])
+    // после отката (или удаления) выбранный объект мог исчезнуть — не
+    // оставляем трансформер на несуществующем узле
+    const valid =
+      sel &&
+      (sel.kind === 'slot' ? !!scene.slots[sel.index] : !!scene.navigation[sel.index])
+    if (trRef.current) {
+      trRef.current.nodes(valid && selRef.current ? [selRef.current] : [])
       trRef.current.getLayer()?.batchDraw()
     }
   }, [sel, scene, stateIdx])
@@ -319,8 +333,8 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
         onChange={commit}
         heading="Музыка сцены (перекрывает музыку локации)"
       />
-      <div className="fld fld-block">
-        <span>Фоновые звуки сцены (слоями, зацикленно)</span>
+      <details className="spoiler-block">
+        <summary>Фоновые звуки сцены (слоями, зацикленно){(scene.ambient?.length ?? 0) ? ` — ${scene.ambient!.length}` : ''}</summary>
         <SoundMultiSelect
           store={store}
           value={scene.ambient ?? (scene.ambient = [])}
@@ -329,7 +343,7 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
             commit()
           }}
         />
-      </div>
+      </details>
     </div>
   )
 }
@@ -415,24 +429,33 @@ function StateBackground({
 }
 
 function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorStore; commit: () => void }) {
+  const card = (s: SceneStateDef, i: number) => (
+    <div key={i} className="ce-item ce-body">
+      <label className="fld">
+        <span>Название</span>
+        <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
+      </label>
+      <StateBackground state={s} store={store} commit={commit} />
+      <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
+      {scene.states.length > 1 && (
+        <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>
+          <Ico n="close" />  удалить состояние
+        </button>
+      )}
+    </div>
+  )
+  const [first, ...rest] = scene.states
   return (
     <div className="props-group">
       <h4>Состояния сцены</h4>
-      {scene.states.map((s, i) => (
-        <div key={i} className="ce-item ce-body">
-          <label className="fld">
-            <span>Название</span>
-            <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
-          </label>
-          <StateBackground state={s} store={store} commit={commit} />
-          <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
-          {scene.states.length > 1 && (
-            <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>
-              <Ico n="close" />  удалить состояние
-            </button>
-          )}
-        </div>
-      ))}
+      {/* первое состояние всегда видно, остальные — под спойлером: их может быть много */}
+      {first && card(first, 0)}
+      {rest.length > 0 && (
+        <details className="spoiler-block">
+          <summary>Остальные состояния — {rest.length}</summary>
+          {rest.map((s, k) => card(s, k + 1))}
+        </details>
+      )}
       <button
         className="btn btn-small"
         onClick={() => {
@@ -517,6 +540,68 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
       <div className="muted small" style={{ marginBottom: 8 }}>
         Список отфильтрован по типам слота. Тип сущности задаётся в её карточке
         («Тип в слотах сцены»).
+      </div>
+      <label className="fld" data-tip="Множитель размера спрайта сцены в этом слоте: один и тот же персонаж в толпе — меньше, на авансцене — больше. Пусто = 1.">
+        <span>Масштаб спрайта (1 — по высоте слота)</span>
+        <input
+          type="number"
+          min={0.1}
+          step={0.1}
+          value={slot.sprite_scale ?? ''}
+          placeholder="1"
+          onChange={(e) => {
+            const v = Number(e.target.value)
+            if (v > 0) slot.sprite_scale = v
+            else delete slot.sprite_scale
+            commit()
+          }}
+        />
+      </label>
+      <div className="fld-block" style={{ marginTop: 8 }}>
+        <span className="fld-caption">Использование предметов на слоте («ключ к двери»)</span>
+        {(slot.use_with ?? []).map((u, i) => (
+          <div key={i} className="ce-item" style={{ marginBottom: 8 }}>
+            <div className="fld-row">
+              <RefSelect
+                label="Предмет из инвентаря"
+                kind="item"
+                store={store}
+                value={u.item}
+                onChange={(v) => ((slot.use_with![i].item = v ?? ''), commit())}
+              />
+              <label className="fld fld-check">
+                <input
+                  type="checkbox"
+                  checked={!!u.consume}
+                  onChange={(e) => ((slot.use_with![i].consume = e.target.checked || undefined), commit())}
+                />
+                <span>Израсходовать</span>
+              </label>
+              <button
+                className="btn btn-small ce-del"
+                onClick={() => {
+                  slot.use_with = slot.use_with!.filter((_, j) => j !== i)
+                  if (!slot.use_with.length) delete slot.use_with
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </div>
+            <label className="fld">
+              <span>Сообщение при применении (необязательно)</span>
+              <input value={u.message ?? ''} onChange={(e) => ((slot.use_with![i].message = e.target.value || undefined), commit())} />
+            </label>
+            <EffectListEditor
+              store={store}
+              effects={u.effects}
+              onChange={(ef) => ((slot.use_with![i].effects = ef), commit())}
+            />
+          </div>
+        ))}
+        <button className="btn btn-small" onClick={() => (((slot.use_with ??= []).push({ item: '', effects: [] })), commit())}>
+          <Ico n="plus" />  Использование предмета
+        </button>
       </div>
       <SceneConditionEditor value={slot.condition} store={store} onChange={(v) => ((slot.condition = v), commit())} />
       <div className="muted small">

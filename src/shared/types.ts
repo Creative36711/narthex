@@ -70,6 +70,67 @@ export interface NeedDef {
   restore_when?: NeedCondition[]
 }
 
+// ───────────────────────── статусы (блок 5 ТЗ «Гибкий движок») ─────────────────────────
+
+/**
+ * Длительное изменяющее состояние: яд, кровотечение, бафф. В мире живёт в
+ * тиках, в бою — в раундах. Реестр статусов — в `campaign.json` (meta.statuses).
+ */
+export interface StatusDef {
+  id: string
+  label: string
+  description?: string
+  /** иконка-файл/ссылка; нет — текстовый чип */
+  icon?: string
+  /** мир — тики, бой — раунды; 'both' — и там и там */
+  scope: 'world' | 'combat' | 'both'
+  /** длительность по умолчанию (мировые тики / боевые раунды) */
+  duration: number
+  /** урон за тик (мир) / за раунд (бой) */
+  dot?: { hp?: number; mp?: number }
+  /** модификаторы навыков на время статуса */
+  skill_mods?: Array<{ skill: string; delta: number }>
+  /** аддитив к движению (итог не ниже 1) */
+  mov_mod?: number
+  on_apply?: Effect[]
+  on_expire?: Effect[]
+  apply_message?: string
+  expire_message?: string
+}
+
+/** Активный статус: сколько осталось (тиков в мире, раундов в бою). */
+export interface ActiveStatus {
+  id: string
+  left: number
+}
+
+// ───────────────────────── боевые способности (блок 6 ТЗ «Гибкий движок») ─────────────────────────
+
+/**
+ * Способность бойца: тратит MP, имеет кулдаун, бьёт/лечит/вешает статус.
+ * Реестр — в `campaign.json` (meta.abilities); НПС получают `abilities: [id…]`.
+ */
+export interface AbilityDef {
+  id: string
+  label: string
+  description?: string
+  mp_cost: number
+  /** кулдаун в раундах (по умолчанию 0) */
+  cooldown_rounds?: number
+  /** дальность в гексах (1 = вплотную) */
+  range: number
+  /** навык попадания; нет — гарантированное применение */
+  skill?: string
+  kind: 'damage' | 'status' | 'heal'
+  /** для kind 'damage', напр. '1d6+2' (бонус силы НЕ добавляется) */
+  damage?: string
+  /** для kind 'status' */
+  status?: string
+  status_duration?: number
+  /** для kind 'heal', напр. '1d6' */
+  heal?: string
+}
+
 export interface CurrencyDef {
   id: string
   label: string
@@ -77,13 +138,64 @@ export interface CurrencyDef {
   exchange_rate?: Record<string, number>
 }
 
+/** «происхождение» героя при создании персонажа (блок 11 ТЗ) */
+export interface ProfessionDef {
+  id: string
+  label: string
+  description?: string
+  /** бонусы к навыкам (бесплатные, не тратят бюджет) */
+  skill_bonus: Record<string, number>
+  /** стартовое снаряжение */
+  items?: Array<{ item: string; quantity: number }>
+  /**
+   * стартовое распределение характеристик, которое задаёт мастер:
+   * абсолютные значения семи характеристик (в рамках stat_limits).
+   * Нет — все характеристики начинают с минимума.
+   */
+  stats?: Record<string, number>
+}
+
+/**
+ * «Призвание» — второй шаблон создания персонажа (фидбек 19): если
+ * происхождение распределяет характеристики, то призвание — стартовые
+ * НАВЫКИ. Мастер обязан распределить весь бюджет skill_points (значения —
+ * абсолютные стартовые проценты, считая от нижнего порога), игрок после
+ * выбора может убавлять/прибавлять в рамках бюджета.
+ */
+export interface CallingDef {
+  id: string
+  label: string
+  description?: string
+  /** стартовые значения навыков (абсолютные, ≥ нижнего порога) */
+  skills: Record<string, number>
+}
+
+/**
+ * Создание персонажа (блок 11 ТЗ). Всё задаёт мастер кампании —
+ * встроенных значений и «происхождений по умолчанию» в движке нет.
+ * Нет самого блока `char_creation` — забег стартует готовым шаблоном.
+ */
 export interface CharCreationDef {
+  /** бюджет характеристик (очки сверх минимума) */
   total_points: number
+  /** пороги каждой характеристики (задаёт мастер) */
   stat_limits: { min: number; max: number }
-  skill_cap: number
-  mandatory_skills: string[]
-  forbidden_skills: string[]
-  allowed_professions: string[]
+  /** бюджет навыков (нет — покупки навыков выключены) */
+  skill_points?: number
+  /** порог навыка сверху (нет — без верхнего порога) */
+  skill_cap?: number
+  /** порог навыка снизу (нет — 0) */
+  skill_floor?: number
+  /** обязательные навыки (стартуют с 25%) */
+  mandatory_skills?: string[]
+  /** нельзя покупать */
+  forbidden_skills?: string[]
+  /** «происхождения» — шаблоны героя (распределяют характеристики) */
+  professions?: ProfessionDef[]
+  /** «призвания» — шаблоны стартовых навыков (фидбек 19) */
+  callings?: CallingDef[]
+  /** ввод имени героя */
+  choose_name?: boolean
 }
 
 export interface TimeOfDayThresholds {
@@ -118,6 +230,80 @@ export interface ItemCategoryDef {
   sounds?: SoundHookMap
 }
 
+/**
+ * Профиль механик кампании (блок 1 ТЗ «Гибкий движок»). Каждое поле —
+ * выключатель подсистемы; ОТСУТСТВУЮЩЕЕ поле (или весь `features`) означает,
+ * что механика ВКЛЮЧЕНА — старые кампании работают без изменений.
+ * Тумблеры скрывают подсистему и в движке, и в интерфейсе игрока.
+ */
+export interface CampaignFeatures {
+  /** карта мира и путешествия между локациями */
+  map?: boolean
+  /** инвентарь, экипировка, предметы в бою (эффекты предметов продолжают работать) */
+  inventory?: boolean
+  /** потребности и их убывание/восстановление */
+  needs?: boolean
+  /** навыки: проверки резолвятся успехом без броска, рост отключён */
+  skills?: boolean
+  /** панель отношений (сами отношения продолжают меняться — могут гейтить диалоги) */
+  relationships?: boolean
+  /** торговля */
+  trade?: boolean
+  /** тактический бой: конфликты резолвятся немедленной победой */
+  combat?: boolean
+  /** отображение часов и времени суток (ход времени остаётся) */
+  time?: boolean
+}
+
+/** механика включена, если поле отсутствует или истинно */
+export function featureOn(meta: CampaignMeta, key: keyof CampaignFeatures): boolean {
+  return meta.features?.[key] !== false
+}
+
+/**
+ * Шрифт кампании (блок 2 ТЗ «Гибкий движок»): файл пакета (обычно
+ * `assets/fonts/…`) или внешняя ссылка. Подключается `@font-face` на лету.
+ */
+export interface FontDef {
+  id: string
+  label: string
+  src: string // .woff2/.woff/.ttf/.otf
+  /** начертание для @font-face (например '400', '700'); по умолчанию '400' */
+  weight?: string
+  style?: 'normal' | 'italic'
+}
+
+/**
+ * Тема оформления кампании (блок 2 ТЗ). Применяется ТОЛЬКО к Player Mode;
+ * редактор остаётся в фирменном стиле. Палитра переопределяется ограниченно —
+ * только акцентный цвет, чтобы мастер не сломал контрасты.
+ */
+export interface ThemeDoc {
+  /** роли шрифтов — id из `meta.fonts`; отсутствует роль — системный шрифт */
+  fonts?: {
+    /** основной текст: диалоги, панели, кнопки */
+    body?: string
+    /** заголовки: названия сцен и панелей, меню */
+    display?: string
+    /** «рукописный»: журнал, записки, кодекс */
+    hand?: string
+  }
+  menu?: {
+    /** фон главного меню (файл пакета или ссылка) */
+    background?: string
+    /** затемнение фона 0…0.9 для читаемости текста (по умолчанию 0.5) */
+    dim?: number
+    /** медленный зум фона («кен-бёрнс») */
+    ken_burns?: boolean
+    /** арт/лого кампании над заголовком */
+    title_art?: string
+  }
+  /** фон экрана финала; нет — используется фон меню */
+  end?: { background?: string }
+  /** акцентный цвет интерфейса (заменяет золото темы) */
+  accent?: string
+}
+
 export interface CampaignMeta {
   id: string
   title: string
@@ -133,6 +319,42 @@ export interface CampaignMeta {
   starting_scene: string
   starting_tick?: number
   needs: NeedDef[]
+  /** реестр статусов: яды, кровотечения, баффы (блок 5 ТЗ) */
+  statuses?: StatusDef[]
+  /** реестр боевых способностей (блок 6 ТЗ) */
+  abilities?: AbilityDef[]
+  /** реестр слотов экипировки (блок 7 ТЗ); встроенные Оружие/Броня есть всегда */
+  equipment_slots?: Array<{ id: string; label: string }>
+  /** календарь кампании: свои месяцы и дни недели (блок 9 ТЗ) */
+  calendar?: {
+    /** «Летопись Каэрдена», «г.э.»… */
+    year_label?: string
+    /** default 1 */
+    start_year?: number
+    /** default 30 */
+    days_per_month?: number
+    /** названия месяцев (циклы); нет — «Месяц 1» */
+    months?: string[]
+    /** названия дней недели (циклы); нет — без имён */
+    day_names?: string[]
+  }
+  /** реестр погод (блок 9 ТЗ) */
+  weathers?: WeatherDef[]
+  /**
+   * финальные экраны (концовки): мастер задаёт сколько угодно; при завершении
+   * забега движок берёт ПЕРВУЮ концовку, чьи условия выполнены (и чей `on`
+   * совпадает с исходом). Нет подходящей — стандартный экран исхода.
+   */
+  endings?: EndingDef[]
+  /**
+   * реестр визуальных слоёв погоды (id + название) — «без хардкода»: список
+   * для селекта «Слой» целиком задаёт кампания. Движок умеет рисовать слои
+   * `rain`, `snow`, `fog`, `ash`; свои id рисуются классом `weather-<id>`
+   * (стили мастер может добавить в тему оформления).
+   */
+  overlay_layers?: Array<{ id: string; label: string }>
+  /** категории кодекса (блок 10 ТЗ); нет — встроенные три */
+  codex_categories?: Array<{ id: string; label: string }>
   /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
   dice_rules?: DiceRules
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
@@ -157,6 +379,12 @@ export interface CampaignMeta {
   default_music?: string[]
   /** трек(и) боя по умолчанию (если у арены нет своего arena.music) */
   combat_music?: string[]
+  /** профиль механик: что включено в этой кампании (нет поля — всё включено) */
+  features?: CampaignFeatures
+  /** реестр шрифтов кампании (блок 2 ТЗ) */
+  fonts?: FontDef[]
+  /** тема оформления: шрифтовые роли, фон меню/финала, акцент (блок 2 ТЗ) */
+  theme?: ThemeDoc
   /** максимальный груз в кг: STR + SIZ (по умолчанию) */
   max_load_formula?: 'str_plus_siz'
   max_companions?: number
@@ -229,6 +457,8 @@ export interface SceneCondition {
   time_of_day?: TimeOfDay | TimeOfDay[]
   flag?: string
   not_flag?: string
+  /** текущая погода (блок 9 ТЗ) */
+  weather?: string
 }
 
 // ─────────────── декларативная графика (итерация 8, блок D) ───────────────
@@ -337,6 +567,75 @@ export interface SceneStateDef {
 /** тип слота — id из реестра кампании slot_types (мастер может добавлять свои) */
 export type SlotType = string
 
+/** погода (блок 9 ТЗ): визуальный слой + звуковые слои */
+export interface WeatherDef {
+  id: string
+  label: string
+  /**
+   * визуальный слой поверх сцены (чистый CSS), задаётся кампанией.
+   * Движок рисует класс `weather-<overlay>`; встроенные слои движка:
+   * `rain`, `snow`, `fog`, `ash`. Нет/'none' — без слоя. Встроенных
+   * «погод по умолчанию» не существует — реестр целиком создаёт кампания.
+   */
+  overlay?: string
+  /** зацикленные звуки (id из реестра звуков) — слои к эмбиенту */
+  ambient?: string[]
+}
+
+/**
+ * Финальный экран (концовка). Мастер задаёт столько концовок, сколько хочет;
+ * при завершении забега движок выбирает ПЕРВУЮ, у которой совпадает исход
+ * (`on`) и выполнены все `conditions`. Если ни одна не подошла — стандартный
+ * экран исхода («Забег окончен» / «Победа»).
+ */
+export interface EndingDef {
+  id: string
+  /** название в редакторе */
+  label: string
+  /** заголовок финального экрана */
+  title: string
+  /** текст концовки */
+  text?: string
+  /** тон экрана: гибель / победа / нейтральный */
+  tone?: 'death' | 'victory' | 'neutral'
+  /** к какому исходу применима концовка (нет — к любому) */
+  on?: 'death' | 'victory'
+  /** фон финала (файл пакета или ссылка); нет — фон темы */
+  image?: string
+  /** условия, при которых эта концовка показывается (все сразу) */
+  conditions?: Condition[]
+}
+
+/** запись кодекса/бестиария — разблокируемый лор (блок 10 ТЗ) */
+export interface CodexEntryDef {
+  id: string
+  /** название записи */
+  label: string
+  /** id из meta.codex_categories (нет — встроенные «Хроники») */
+  category?: string
+  /** основной текст */
+  text: string
+  /** файл/ссылка (нет — без картинки) */
+  image?: string
+}
+
+/** встроенные категории кодекса (блок 10 ТЗ) */
+export const BUILTIN_CODEX_CATEGORIES: Array<{ id: string; label: string }> = [
+  { id: 'creatures', label: 'Существа' },
+  { id: 'places', label: 'Места' },
+  { id: 'chronicles', label: 'Хроники' },
+]
+
+/** применение предмета инвентаря к слоту сцены — «ключ к двери» (блок 8 ТЗ) */
+export interface SlotUseWith {
+  /** предмет из инвентаря игрока */
+  item: string
+  /** израсходовать предмет (по умолчанию нет) */
+  consume?: boolean
+  effects: Effect[]
+  message?: string
+}
+
 export interface SlotDef {
   id: string
   /** название слота для мастера (в списках вместо id) */
@@ -349,6 +648,10 @@ export interface SlotDef {
   h: number
   default_entity?: string
   condition: SceneCondition | null
+  /** множитель размера спрайта сцены в этом слоте (1 = по высоте слота) */
+  sprite_scale?: number
+  /** предметы, которыми можно воздействовать на слот (блок 8 ТЗ) */
+  use_with?: SlotUseWith[]
 }
 
 /**
@@ -432,7 +735,20 @@ export interface NpcDef {
   label: string
   /** описание сущности (при наведении); можно менять динамически (set_description) */
   description: string
+  /** ПОРТРЕТ (диалог): состояние → изображение (блок 3 ТЗ «Гибкий движок») */
   portrait: Record<string, string> // emotion -> image
+  /** СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);
+   *  нет — в сцене используется портрет (состояние «Обычный») */
+  scene_sprite?: string
+  /** ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски
+   *  и рамки стороны); нет — круглый жетон из `token ?? portrait.neutral` */
+  combat_figure?: string
+  /** как разворачивать фигурку: вид сверху (поворот), вид сбоку (зеркало),
+   *  не разворачивать; по умолчанию 'topdown' */
+  figure_mode?: 'topdown' | 'side' | 'static'
+  /** мягкая тень под спрайтом/фигуркой (по умолчанию включена) */
+  shadow?: boolean
+  /** изображение жетона в бою (когда фигурка не задана) */
   token?: string
   stats: StatBlock
   skills: Record<string, number>
@@ -453,6 +769,10 @@ export interface NpcDef {
   armor?: number
   /** природное оружие (когти, укус) — если нет equipment.weapon */
   natural_weapon?: WeaponData
+  /** боевые способности (список id из реестра кампании; блок 6 ТЗ) */
+  abilities?: string[]
+  /** мораль: при каком % HP и с каким шансом враг может сбежать (блок 6 ТЗ) */
+  morale?: { below_hp_pct: number; flee_chance: number }
   /** звуки взаимодействий (хук → id звука реестра кампании) */
   sounds?: SoundHookMap
 }
@@ -488,6 +808,9 @@ export interface ItemDef {
   weapon_data?: WeaponData
   /** броня: очки поглощения урона */
   armor_data?: { points: number }
+  /** слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;
+   *  нет — не экипируется. Старым предметам выставляется миграцией. */
+  equip_slot?: string
   /** взаимодействие в сцене (бочка с водой и т.п.) */
   on_interact?: UseEffectDef
   /** использование из инвентаря */
@@ -619,6 +942,8 @@ export interface MusicCondition {
   time_of_day?: TimeOfDay | TimeOfDay[]
   flag?: string
   not_flag?: string
+  /** текущая погода (блок 9 ТЗ) */
+  weather?: string
 }
 
 /**
@@ -665,6 +990,8 @@ export type DlgCond =
   | { type: 'quest'; quest: string; stage: string; not?: boolean } // квест на стадии ('' = не начат)
   | { type: 'in_party'; npc: string; not?: boolean }
   | { type: 'hp_ge'; value: number; not?: boolean } // здоровье ≥ (not: <)
+  | { type: 'has_status'; status: string; not?: boolean } // статус активен (блок 5 ТЗ)
+  | { type: 'weather_is'; weather: string; not?: boolean } // текущая погода (блок 9 ТЗ; '' — ясно)
 
 export type DlgEffect =
   | { type: 'set_flag'; flag: string }
@@ -681,6 +1008,13 @@ export type DlgEffect =
   | { type: 'change_disposition'; target: string; delta: number }
   | { type: 'play_cutscene'; cutscene: string }
   | { type: 'set_description'; entity: string; text: string }
+  /** статусы (блок 5 ТЗ): наложить (0/нет — из реестра) / снять */
+  | { type: 'apply_status'; status: string; duration?: number }
+  | { type: 'remove_status'; status: string }
+  /** сменить погоду ('' — ясно; блок 9 ТЗ) */
+  | { type: 'set_weather'; weather: string }
+  /** разблокировать запись кодекса (повтор — no-op; блок 10 ТЗ) */
+  | { type: 'unlock_codex'; entry: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -768,6 +1102,32 @@ export interface ArenaDef {
   music?: string
 }
 
+// ───────────────────────── рецепты крафта (блок 4 ТЗ «Гибкий движок») ─────────────────────────
+
+/**
+ * Рецепт изготовления: компоненты (+ инструменты) → предмет. Проверка
+ * навыка — родная BRP-механика (успех ставит «галочку» опыта).
+ */
+export interface RecipeDef {
+  id: string
+  label: string
+  description?: string
+  /** расходуемые компоненты */
+  inputs: Array<{ item: string; quantity: number }>
+  /** инструменты: нужны в инвентаре, НЕ расходуются */
+  tools?: string[]
+  /** декларативные условия возможности крафта (локация, флаг, …) */
+  requires?: Condition[]
+  /** проверка навыка при изготовлении; успех = создал, провал = компоненты целы */
+  skill?: { id: string; difficulty: number }
+  /** время изготовления (промотка тиков после успеха) */
+  time_ticks?: number
+  /** результат */
+  output: { item: string; quantity: number }
+  /** сообщение об успехе (нет — стандартное) */
+  message?: string
+}
+
 // ───────────────────────── квесты (ТЗ 3.7) ─────────────────────────
 
 export interface QuestStageDef {
@@ -838,6 +1198,8 @@ export type Condition =
   | { type: 'disposition_le'; target: string; threshold: number }
   | { type: 'in_party'; entity: string }
   | { type: 'random_chance'; probability: number }
+  | { type: 'has_status'; status: string }
+  | { type: 'weather_is'; weather: string }
   | { type: 'and'; conditions: Condition[] }
   | { type: 'or'; conditions: Condition[] }
   | { type: 'not'; condition: Condition }
@@ -845,6 +1207,14 @@ export type Condition =
 export type Effect =
   | { type: 'set_flag'; flag: string }
   | { type: 'clear_flag'; flag: string }
+  /** наложить статус (блок 5 ТЗ); цель в мире — игрок */
+  | { type: 'apply_status'; target: 'player'; status: string; duration?: number }
+  /** снять статус */
+  | { type: 'remove_status'; target: 'player'; status: string }
+  /** сменить погоду ('' — ясно; блок 9 ТЗ) */
+  | { type: 'set_weather'; weather: string }
+  /** разблокировать запись кодекса (повтор — no-op; блок 10 ТЗ) */
+  | { type: 'unlock_codex'; entry: string }
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
@@ -905,6 +1275,8 @@ export interface RuleDef {
 
 export interface PlayerState {
   entity: string
+  /** имя героя, выбранное при создании персонажа (блок 11 ТЗ) */
+  name?: string
   stats: StatBlock
   skills: Record<string, number>
   /** «галочки» роста навыков (experience checks, ТЗ 4.3) */
@@ -916,8 +1288,10 @@ export interface PlayerState {
   needs: Record<string, number>
   inventory: InventoryEntry[]
   currencies: Record<string, number>
-  /** экипировка игрока: id предметов из инвентаря */
-  equipment: { weapon?: string; armor?: string }
+  /** экипировка игрока: слот → предмет из инвентаря (блок 7 ТЗ; слоты задаёт кампания) */
+  equipment: Record<string, string>
+  /** активные статусы игрока (блок 5 ТЗ); left — мировые тики */
+  statuses?: ActiveStatus[]
 }
 
 export interface QuestState {
@@ -932,7 +1306,20 @@ export interface CompanionState {
   max_hp: number
 }
 
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
+
+/**
+ * Встроенные слоты экипировки (блок 7 ТЗ): присутствуют всегда, даже если
+ * мастер добавил свои (фэнтези-амулеты, киберпанк-импланты…).
+ */
+/**
+ * Слоты экипировки задаёт ТОЛЬКО кампания (блок 7 + правка «без хардкода»):
+ * встроенных слотов нет — мастер сам решает, куда персонаж что надевает.
+ * Броня всех надетых слотов по-прежнему суммируется в бою (механика BRP).
+ */
+export function equipmentSlots(meta: { equipment_slots?: Array<{ id: string; label: string }> }): Array<{ id: string; label: string }> {
+  return (meta.equipment_slots ?? []).map((s) => ({ ...s }))
+}
 
 export interface GameState {
   save_version?: number
@@ -942,6 +1329,18 @@ export interface GameState {
   region: string
   location: string
   scene: string
+  /** текущая погода (блок 9 ТЗ): id из реестра; нет — ясно */
+  weather?: string
+  /** разблокированные записи кодекса (блок 10 ТЗ) */
+  codex_unlocked?: string[]
+  /** выбор создания персонажа (блок 11 ТЗ): имя, характеристики, навыки, происхождение и призвание */
+  char_choice?: {
+    name: string
+    stats: Record<string, number>
+    profession: string
+    calling?: string
+    skills: Record<string, number>
+  }
   flags: Record<string, boolean>
   variables: Record<string, number | string>
   /** динамические описания сущностей (действие set_description) */
@@ -959,7 +1358,7 @@ export interface GameState {
   party: CompanionState[]
   blocked_paths: string[]
   log: string[]
-  game_over: null | { type: 'death' | 'victory'; reason: string }
+  game_over: null | { type: 'death' | 'victory'; reason: string; ending?: string }
   stats_run: { travels: number; dialogues: number; ticks_survived: number; kills: number; quests_completed: number }
 }
 
@@ -976,6 +1375,10 @@ export interface CampaignData {
   encounters: Record<string, EncounterTableDef>
   /** катсцены по id (итерация 8, блок E) */
   cutscenes: Record<string, CutsceneDef>
+  /** рецепты крафта по id (блок 4 ТЗ) */
+  recipes: Record<string, RecipeDef>
+  /** записи кодекса/бестиария по id (блок 10 ТЗ) */
+  codex: Record<string, CodexEntryDef>
   dialogues: Record<string, string> // путь -> исходник .ink
   basePath: string
 }
@@ -1013,6 +1416,10 @@ export interface MonolithDoc {
   cutscenes: Record<string, CutsceneDef>
   /** таблицы случайных встреч (в Campaign Package лежат в rules/encounters.json) */
   encounters?: Record<string, EncounterTableDef>
+  /** рецепты крафта по id (блок 4 ТЗ; файлы в recipes/) */
+  recipes?: Record<string, RecipeDef>
+  /** записи кодекса/бестиария по id (блок 10 ТЗ; файлы в codex/) */
+  codex?: Record<string, CodexEntryDef>
   /** диалоги по id (имя файла без расширения) */
   dialogues: Record<string, MonolithDialogue>
 }

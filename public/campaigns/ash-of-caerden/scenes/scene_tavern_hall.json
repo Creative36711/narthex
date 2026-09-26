@@ -53,6 +53,47 @@
       "w": 130,
       "h": 220,
       "condition": null
+    },
+    {
+      "id": "slot_chest",
+      "label": "Запертый сундук",
+      "type": [
+        "container"
+      ],
+      "shape": "rect",
+      "x": 950,
+      "y": 480,
+      "w": 130,
+      "h": 110,
+      "default_entity": "item_locked_chest",
+      "condition": null,
+      "use_with": [
+        {
+          "item": "item_tavern_key",
+          "consume": true,
+          "effects": [
+            {
+              "type": "add_item",
+              "item": "item_silver",
+              "quantity": 20
+            },
+            {
+              "type": "add_item",
+              "item": "item_healing_salve",
+              "quantity": 1
+            },
+            {
+              "type": "set_flag",
+              "flag": "tavern_chest_opened"
+            },
+            {
+              "type": "remove_entity",
+              "entity": "item_locked_chest"
+            }
+          ],
+          "message": "Замок щёлкает. Внутри — кошель серебра и баночка целебной мази."
+        }
+      ]
     }
   ],
   "navigation": [

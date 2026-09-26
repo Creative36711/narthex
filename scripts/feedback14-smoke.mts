@@ -18,8 +18,8 @@ const speech = f('src/shared/speech.ts')
 const dlg = f('src/player/DialogueOverlay.tsx')
 const builder = f('src/editor/DialogueBuilder.tsx')
 
-// 1 — JSON кампании без подписи, с малым отступом снизу
-must(!campaign.includes('Валюты, мета-прогресс') && css.includes('height: calc(100vh - 150px)'),
+// 1 — JSON кампании без подписи, до низа экрана (флекс-колонка + растяжение)
+must(!campaign.includes('Валюты, мета-прогресс') && css.includes('height: calc(100vh - 118px)') && css.includes('.advanced-json-page textarea'),
   '1 JSON кампании без лишней подписи, почти до низа экрана')
 must(!world.includes('Мир целиком'),
   '1 у JSON мира подпись тоже убрана')
@@ -44,10 +44,11 @@ must(css.includes('.token-enemy:not(.token-dead) { cursor: var(--cur-sword); }')
   '5 по жетону врага — курсор-меч, по своим — прицел')
 
 // 6 — диалоги: постепенная выдача + озвучка каждой фразы
-must(speech.includes('queue?: boolean') && speech.includes('if (!opts.queue) synth.cancel()'),
+// (фидбек 21: диалоги озвучиваются по образцу катсцен — одна фраза, темп по onEnd)
+must(speech.includes('queue?: boolean') && speech.includes('const queue: QueueItem[]'),
   '6 синтезатор: фразы ставятся в очередь, не срезают друг друга')
-must(dlg.includes('TYPE_MS') && dlg.includes('setTyped') && dlg.includes('revealed') && dlg.includes("queue: mode === 'auto'"),
-  '6 диалоги печатаются постепенно (как катсцены), каждая фраза озвучивается')
+must(dlg.includes('TYPE_MS') && dlg.includes('setTyped') && dlg.includes('revealed') && dlg.includes('lineDone'),
+  '6 диалоги печатаются постепенно (как катсцены), темп ведёт озвучка (lineDone)')
 must(dlg.includes('allShown') && dlg.includes('dialogue-choices'),
   '6 варианты ответа появляются после полного показа текста')
 

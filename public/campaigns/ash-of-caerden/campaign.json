@@ -102,19 +102,127 @@
     }
   ],
   "char_creation": {
-    "total_points": 250,
+    "total_points": 35,
     "stat_limits": {
       "min": 3,
       "max": 18
     },
+    "skill_points": 60,
     "skill_cap": 75,
+    "skill_floor": 15,
     "mandatory_skills": [
       "dodge",
       "first_aid"
     ],
-    "forbidden_skills": [],
-    "allowed_professions": [
-      "profession_soldier"
+    "forbidden_skills": [
+      "bite"
+    ],
+    "choose_name": true,
+    "professions": [
+      {
+        "id": "profession_soldier",
+        "label": "Солдат",
+        "description": "Строевая выучка и сталь в руках. Крепкий, сильный, немногословный.",
+        "skill_bonus": {
+          "sword": 10,
+          "brawl": 5
+        },
+        "items": [
+          {
+            "item": "item_gambeson",
+            "quantity": 1
+          }
+        ],
+        "stats": {
+          "STR": 11,
+          "CON": 10,
+          "SIZ": 10,
+          "DEX": 9,
+          "INT": 6,
+          "POW": 5,
+          "CHA": 5
+        }
+      },
+      {
+        "id": "profession_scout",
+        "label": "Разведчик",
+        "description": "Тихий шаг и зоркий глаз. Ходит там, где другие боятся.",
+        "skill_bonus": {
+          "stealth": 10,
+          "spot": 10
+        },
+        "items": [
+          {
+            "item": "item_healing_salve",
+            "quantity": 1
+          }
+        ],
+        "stats": {
+          "STR": 8,
+          "CON": 9,
+          "SIZ": 8,
+          "DEX": 13,
+          "INT": 9,
+          "POW": 5,
+          "CHA": 4
+        }
+      },
+      {
+        "id": "profession_envoy",
+        "label": "Посланник",
+        "description": "Слово острее клинка, а серебро открывает двери.",
+        "skill_bonus": {
+          "persuade": 10,
+          "bargain": 10
+        },
+        "items": [
+          {
+            "item": "item_silver",
+            "quantity": 10
+          }
+        ],
+        "stats": {
+          "STR": 6,
+          "CON": 8,
+          "SIZ": 8,
+          "DEX": 9,
+          "INT": 11,
+          "POW": 6,
+          "CHA": 8
+        }
+      }
+    ],
+    "callings": [
+      {
+        "id": "calling_mercenary",
+        "label": "Наёмник",
+        "description": "Жил клинком: рубка, кулаки и умение увернуться от чужого клинка.",
+        "skills": {
+          "sword": 45,
+          "brawl": 30,
+          "dodge": 40
+        }
+      },
+      {
+        "id": "calling_tracker",
+        "label": "Следопыт",
+        "description": "Ходил глухими тропами: неслышный шаг, зоркий глаз, быстрые ноги.",
+        "skills": {
+          "stealth": 40,
+          "spot": 35,
+          "dodge": 40
+        }
+      },
+      {
+        "id": "calling_trader",
+        "label": "Торговец",
+        "description": "Знает цену слову и товару: торг, убеждение и полевая медицина.",
+        "skills": {
+          "bargain": 40,
+          "persuade": 40,
+          "first_aid": 35
+        }
+      }
     ]
   },
   "roguelike": {
@@ -369,6 +477,11 @@
       "id": "raid_rumors",
       "label": "Слухи о налёте",
       "description": "Город гудит: банда готовит удар. Лена дежурит в таверне круглосуточно."
+    },
+    {
+      "id": "tavern_chest_opened",
+      "label": "Сундук в таверне открыт",
+      "description": "Запертый сундук в зале таверны отпёрт ключом."
     }
   ],
   "music_tracks": [
@@ -1246,5 +1359,167 @@
   ],
   "combat_music": [
     "track_combat"
+  ],
+  "statuses": [
+    {
+      "id": "status_rat_poison",
+      "label": "Крысиный яд",
+      "description": "Яд гигантской крысы жжёт кровь.",
+      "scope": "combat",
+      "duration": 3,
+      "dot": {
+        "hp": 2
+      },
+      "apply_message": "Яд крысы разливается по жилам."
+    }
+  ],
+  "abilities": [
+    {
+      "id": "ability_rat_bite",
+      "label": "Ядовитый укус",
+      "description": "Крыса вонзает отравленные клыки: цель отравлена на 3 раунда.",
+      "mp_cost": 0,
+      "range": 1,
+      "skill": "bite",
+      "kind": "status",
+      "status": "status_rat_poison",
+      "status_duration": 3
+    }
+  ],
+  "calendar": {
+    "year_label": "год Пепла",
+    "start_year": 137,
+    "days_per_month": 30,
+    "months": [
+      "Углемес",
+      "Гаревей",
+      "Дымолун",
+      "Пеплопад",
+      "Искроткань",
+      "Студень",
+      "Снеговей",
+      "Таловод",
+      "Розжиг",
+      "Зелень",
+      "Высолнце",
+      "Жатвень"
+    ],
+    "day_names": [
+      "Пепельник",
+      "Кузнецов",
+      "Ветровик",
+      "Странник",
+      "Тихий",
+      "Светлый",
+      "Тёмный"
+    ]
+  },
+  "weathers": [
+    {
+      "id": "weather_ashfall",
+      "label": "Пеплопад",
+      "overlay": "ash"
+    },
+    {
+      "id": "weather_cold_rain",
+      "label": "Холодный дождь",
+      "overlay": "rain"
+    },
+    {
+      "id": "weather_thick_fog",
+      "label": "Густой туман",
+      "overlay": "fog"
+    },
+    {
+      "id": "weather_first_snow",
+      "label": "Первый снег",
+      "overlay": "snow"
+    }
+  ],
+  "slot_types": [
+    {
+      "id": "person",
+      "label": "Персонаж"
+    },
+    {
+      "id": "item",
+      "label": "Предмет"
+    },
+    {
+      "id": "container",
+      "label": "Контейнер"
+    },
+    {
+      "id": "animal",
+      "label": "Животное"
+    }
+  ],
+  "equipment_slots": [
+    {
+      "id": "weapon",
+      "label": "Оружие"
+    },
+    {
+      "id": "armor",
+      "label": "Броня"
+    }
+  ],
+  "overlay_layers": [
+    {
+      "id": "rain",
+      "label": "Дождь"
+    },
+    {
+      "id": "snow",
+      "label": "Снег"
+    },
+    {
+      "id": "fog",
+      "label": "Туман"
+    },
+    {
+      "id": "ash",
+      "label": "Пепел"
+    }
+  ],
+  "endings": [
+    {
+      "id": "ending_bandit_slain",
+      "label": "Банда разбита мечом",
+      "title": "Дороги снова чисты",
+      "text": "Йорек мёртв, банда рассеяна по холмам. Караваны снова идут в Каэрден, и у ворот твоё имя произносят с уважением. Бран уже сочинил песню — разумеется, прибавив пару подвигов.",
+      "tone": "victory",
+      "on": "victory",
+      "conditions": [
+        {
+          "type": "quest_at_stage",
+          "quest": "quest_bandit_threat",
+          "stage": "completed_fight"
+        }
+      ]
+    },
+    {
+      "id": "ending_grey_deal",
+      "label": "Серый мир с бандой",
+      "title": "Серый мир",
+      "text": "Ты выбрал серебро вместо стали. Бандиты платят «пошлину», стража молчит, торг идёт бойко. Только Алдрик больше не здоровается с тобой у ворот.",
+      "tone": "neutral",
+      "on": "victory",
+      "conditions": [
+        {
+          "type": "quest_at_stage",
+          "quest": "quest_bandit_threat",
+          "stage": "completed_deal"
+        }
+      ]
+    },
+    {
+      "id": "ending_ashes",
+      "label": "Пепельный финал",
+      "title": "Пепел принял ещё одного",
+      "text": "Каэрден пережил многих героев. Переживёт и тебя. Таверна вспомнит тебя кружкой эля, а летопись — строчкой.",
+      "tone": "death",
+      "on": "death"
+    }
   ]
 }

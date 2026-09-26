@@ -18,6 +18,10 @@
   ],
   "effects": [
     {
+      "type": "unlock_codex",
+      "entry": "codex_oaken_shield"
+    },
+    {
       "type": "set_description",
       "entity": "npc_maeva",
       "text": "Маэва — хозяйка таверны «У тракта». После истории с крысами относится к герою с уважением и угощает лучшим."

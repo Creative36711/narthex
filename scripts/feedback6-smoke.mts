@@ -5,7 +5,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import { BUILTIN_SLOT_TYPES } from '../src/editor/slotTypes'
 
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
@@ -28,8 +27,12 @@ console.log(`Кампания: ${campaign.meta.title}`)
 {
   const src = readFileSync('src/editor/EntityEditor.tsx', 'utf8')
   check('№1 в карточках сущностей нет «авто»', !src.includes('авто'))
-  check('№1 неиспользуемый тип «Мебель» убран', !BUILTIN_SLOT_TYPES.some((t) => t.id === 'furniture'))
-  check('№1 встроенных типов четыре', BUILTIN_SLOT_TYPES.length === 4, BUILTIN_SLOT_TYPES.map((t) => t.label).join(', '))
+  // встроенных типов слотов больше нет вообще — реестр целиком от кампании
+  const slotTypesSrc = readFileSync('src/editor/slotTypes.ts', 'utf8')
+  check('№1 в коде нет встроенного списка типов слотов', !slotTypesSrc.includes('BUILTIN_SLOT_TYPES'))
+  const st = campaign.meta.slot_types ?? []
+  check('№1 неиспользуемый тип «Мебель» не объявлен мастером', !st.some((t) => t.id === 'furniture'))
+  check('№1 реестр типов слотов — из кампании', st.length >= 4, st.map((t) => t.label).join(', '))
 }
 
 // ── №2: особые места по событиям важнее расписания ──
