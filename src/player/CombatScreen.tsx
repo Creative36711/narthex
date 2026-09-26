@@ -29,7 +29,8 @@ export function CombatScreen({ engine }: Props) {
   const canvas = arena.canvas ?? { w: 1280, h: 720 }
   const size = arena.hex_grid.hex_size
   const [hoverHex, setHoverHex] = useState<string | null>(null)
-  const [showTutorial, setShowTutorial] = useState(() => !tipSeen('combat'))
+  const campaignId = engine.campaign.meta.id
+  const [showTutorial, setShowTutorial] = useState(() => !tipSeen('combat', campaignId))
   /** выбранная способность игрока: ждём клик по цели */
   const [pendingAbility, setPendingAbility] = useState<string | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
@@ -256,19 +257,19 @@ export function CombatScreen({ engine }: Props) {
 
             {showTutorial && !combat.result && (
               <div className="combat-tutorial">
-                <h4><Ico n="info" />  Первый бой — как это работает</h4>
+                <h4><Ico n="info" />  Первый бой — подсказка по правилам движка</h4>
                 <ol>
-                  <li><b>Инициатива.</b> Порядок ходов определяет Ловкость (DEX) — очередь видна справа внизу.</li>
-                  <li><b>Движение.</b> В свой ход кликайте по <i>подсвеченным</i> гексам — столько шагов, сколько позволяет Движение.</li>
-                  <li><b>Атака.</b> Подойдите к врагу вплотную и кликните по нему (красная подсветка). Шанс попадания = навык оружия (d100).</li>
-                  <li><b>Защита.</b> От ударов по вам персонаж сам уклоняется или парирует; каждая повторная защита за раунд слабее на 30%.</li>
-                  <li><b>Предметы.</b> Лечебная мазь и еда — через «Использовать предмет» (тратит действие).</li>
+                  <li><b>Очередь.</b> Порядок ходов определяется Ловкостью (DEX); текущий ход и очередь показаны в интерфейсе боя.</li>
+                  <li><b>Движение.</b> Перемещайтесь по подсвеченным гексам. Доступная дальность учитывает характеристики, эффекты и правила текущего боя.</li>
+                  <li><b>Атака.</b> Выберите противника в пределах досягаемости. Движок проверит навык оружия персонажа броском d100 по правилам этой кампании.</li>
+                  <li><b>Защита.</b> Движок автоматически проверяет уклонение или парирование, если у персонажа есть подходящий навык/оружие. Повторные защиты в раунде получают штраф.</li>
+                  {featureOn(engine.campaign.meta, 'inventory') && combat.usableItems().length > 0 && <li><b>Предметы.</b> Предметы с боевым эффектом доступны в блоке действий; их использование расходует действие.</li>}
                 </ol>
-                <p className="muted small">Каждая успешная атака и защита «отмечает» навык — во сне он сможет вырасти. Подробнее — кнопка «?» в игре.</p>
+                <p className="muted small">Кнопки и доступные действия зависят от кампании. Броски и эффекты рассчитывает движок; подробности — в справке.</p>
                 <button
                   className="btn btn-primary"
                   onClick={() => {
-                    markTip('combat')
+                    markTip('combat', campaignId)
                     setShowTutorial(false)
                   }}
                 >
@@ -337,17 +338,16 @@ export function CombatScreen({ engine }: Props) {
                       </ul>
                     </div>
                   )}
-                  {!tipSeen('growth') && (
+                  {featureOn(engine.campaign.meta, 'skills') && !tipSeen('growth', campaignId) && (
                     <p className="combat-growth-tip">
-                      <Ico n="info" />  Навыки, которые вы применяли в бою, получили отметку. Отдохните
-                      (кнопка «Отдых» в сцене) — по каждому отмеченному навыку пройдёт бросок
-                      d100: выпало больше навыка — навык вырастет на 1d6.
+                      <Ico n="info" /> Успешные атаки и защиты могут отметить использованный навык.
+                      Когда сценарий кампании вызывает сон, движок проверяет отмеченные навыки: бросок d100 выше текущего значения даёт рост на 1d6.
                     </p>
                   )}
                   <button
                     className="btn btn-primary"
                     onClick={() => {
-                      markTip('growth')
+                      markTip('growth', campaignId)
                       engine.endCombat()
                     }}
                   >

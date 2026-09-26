@@ -211,13 +211,18 @@ function typeSchema(node: ts.TypeNode): Schema {
 
 // ── сборка ──
 register(ROOT_TYPE)
+// Пакетные файлы валидируются отдельно по этим же определениям.
+register('CampaignManifest')
+register('CampaignIndexEntry')
+register('EncounterFileDef')
 
 const schema = {
-  $schema: 'http://json-schema.org/draft-07/schema#',
+  $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'https://chronicle-forge.local/docs/campaign.schema.json',
-  title: 'Chronicle Forge — кампания одним JSON (MonolithDoc)',
+  title: 'Chronicle Forge — монолитная кампания и схемы файлов пакета',
   description:
-    'Монолитный формат кампании Chronicle Forge: campaign, world, scenes, entities, rules, quests, arenas, cutscenes, encounters, dialogues. ' +
+    'Монолитный JSON Chronicle Forge: обязательные ключи campaign, world, scenes, entities, rules, quests, arenas, cutscenes, dialogues; необязательные encounters, recipes, codex. ' +
+    'В $defs также CampaignIndexEntry, CampaignManifest и EncounterFileDef для реестра и отдельных файлов Campaign Package. ' +
     'Сгенерировано из src/shared/types.ts (scripts/gen-schema.mts). Гайд для ИИ-генераторов: docs/ai-campaign-guide.md.',
   $ref: `#/$defs/${ROOT_TYPE}`,
   $defs: defs,

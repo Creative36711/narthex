@@ -38,14 +38,54 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   "quests":     { "<id>": { … } },  // квесты (§9)
   "arenas":     { "<id>": { … } },  // гекс-арены боёв (§10)
   "cutscenes":  { "<id>": { … } },  // слайд-катсцены (§11)
-  "encounters": { "<id>": { … } },  // таблицы случайных встреч (§12)
-  "recipes":    { "<id>": { … } },  // рецепты крафта (§14б)
+  "encounters": { "<id>": { … } },  // необязательно: таблицы случайных встреч (§12)
+  "recipes":    { "<id>": { … } },  // необязательно: рецепты крафта (§14б)
+  "codex":      { "<id>": { … } },  // необязательно: записи кодекса (§14з)
   "dialogues":  { "<id>": { … } }   // диалоги конструктора (§13)
 }
 ```
 
-Все словари — **по id объекта**. Объект внутри словаря обязан иметь то же
-`id`, что и ключ.
+Обязательные ключи: `campaign`, `world`, `scenes`, `entities`, `rules`,
+`quests`, `arenas`, `cutscenes`, `dialogues`. Необязательные: `encounters`,
+`recipes`, `codex`; если они не нужны, их можно опустить или передать пустыми
+объектами. Все словари ресурсов — **по id объекта**; внутреннее поле `id`
+должно совпадать с ключом.
+
+### Campaign Package и монолит — два разных обменных формата
+
+Распакованный Campaign Package хранится несколькими файлами. Архив `.chronicle`
+содержит ту же структуру каталогов; это не монолитный JSON. Отдельная команда
+«Экспорт JSON» создаёт именно MonolithDoc из примера выше.
+
+```text
+campaign.json                 CampaignMeta
+world.json                    WorldDef
+manifest.json                 CampaignManifest
+scenes/<имя>.json             SceneDef
+entities/<имя>.json           EntityDef (NPC или предмет)
+rules/<имя>.json              RuleDef
+rules/<файл-встреч>.json      EncounterFileDef: { "encounter_tables": [...] }
+arenas/<имя>.json             ArenaDef
+quests/<имя>.json             QuestDef
+cutscenes/<имя>.json          CutsceneDef
+recipes/<имя>.json            RecipeDef
+codex/<имя>.json              CodexEntryDef
+dialogues/<имя>.ink           исходник, который читает движок
+```
+
+`manifest.json` обязан содержать массивы `scenes`, `entities`, `rules` и
+`dialogues`; массивы `arenas`, `quests`, `encounters`, `cutscenes`, `recipes`,
+`codex` можно опустить, если раздел пуст. `encounters` ссылается на файлы в
+`rules/`, каждый из которых содержит обёртку `encounter_tables`. Для диалога
+конструктор дополнительно хранит `dialogues/<имя>.dlg.json` (`DlgDoc`); при
+сохранении из конструктора `.ink` генерируется из него. В монолите передаётся
+только `DlgDoc` либо объект `{ "label": "…", "ink": "…" }` для сырого Ink.
+Имена файлов перечислены в манифесте; имена словарей в монолите — это id.
+
+Типы модулей и монолита описаны в `src/shared/types.ts`. Их схема
+`docs/campaign.schema.json` содержит `$defs` для MonolithDoc, `index.json` и
+отдельных модулей; `npm run audit:campaign-formats` сверяет примеры,
+экспорт/импорт и промпт генератора.
 
 ## 3. Соглашения по id
 
@@ -72,7 +112,7 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   "skills": [ { "id": "persuade", "label": "Убеждение" } ],
   "item_categories": [ { "id": "food", "label": "Еда", "restores_needs": ["need_hunger"] } ],
   "slot_types": [], "flags": [ { "id": "met_guard", "label": "Поговорил с караульным" } ],
-  "factions": [ { "id": "faction_guild", "label": "Гильдия", "base_disposition": 0 } ],
+  "factions": [ { "id": "faction_guild", "label": "Гильдия", "base_disposition": 0, "description": "Торговое объединение города." } ],
   "default_player": "player_hero",
   "dice_rules": { "critical_divisor": 5, "special_divisor": 2, "fumble_from": 96 },
   "max_companions": 2
@@ -101,8 +141,10 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
   `title_art` (лого кампании); `theme.end.background` — фон экрана финала;
   `theme.accent` — акцентный цвет интерфейса. Без `theme` всё по умолчанию.
 - **Реестры** (`skills`, `item_categories`, `flags`, `factions`, `slot_types`)
-  нужны редактору для списков. Флаги вне реестра всё равно работают, но
-  добавь их — мастеру будет понятнее.
+  нужны редактору для списков. У фракции обязательны `id`, `label`,
+  `base_disposition`; необязательные `description` и `hidden` задают справку и
+  скрывают служебную фракцию из листа персонажа. Флаги вне реестра всё равно
+  работают, но добавь их — мастеру будет понятнее.
 - `slot_types` — типы слотов сцены (`{ "id": "person", "label": "Персонаж" }`
   и т.п.). Встроенных типов нет: объявляй все, которые используешь в
   `"type"` слотов (обычно персонаж/предмет/контейнер/животное).

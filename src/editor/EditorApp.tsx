@@ -274,7 +274,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     return (
       <div className="playtest-shell">
-        {testEngine ? <GameView engine={testEngine} onRestart={() => setTestEngine(testEngine.restart())} onExitToMenu={leaveTest} /> : (
+        {testEngine ? <GameView engine={testEngine} onRestart={() => setTestEngine(testEngine.restart())} onExitToMenu={leaveTest} debugPanelOpen={debugOpen} onGamePanelOpen={() => setDebugOpen(false)} /> : (
           <CharacterCreation campaign={testCampaign} onBack={leaveTest} onStart={startTest} />
         )}
         <div className="playtest-banner">

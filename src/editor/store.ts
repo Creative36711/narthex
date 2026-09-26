@@ -2,6 +2,7 @@ import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
 import { isExternalUrl } from '../core/loader'
 import type {
   ArenaDef,
+  CampaignManifest,
   CampaignMeta,
   CodexEntryDef,
   CutsceneDef,
@@ -19,21 +20,7 @@ import type {
  * Сохранение: dev-эндпоинт vite (POST /__editor/save) пишет в public/campaigns/<id>/.
  */
 
-export interface ManifestDef {
-  scenes: string[]
-  entities: string[]
-  rules: string[]
-  arenas?: string[]
-  quests?: string[]
-  encounters?: string[]
-  /** катсцены (итерация 8, блок E) */
-  cutscenes?: string[]
-  /** рецепты крафта (блок 4 ТЗ) */
-  recipes?: string[]
-  /** записи кодекса/бестиария (блок 10 ТЗ) */
-  codex?: string[]
-  dialogues: string[]
-}
+export type ManifestDef = CampaignManifest
 
 export type EditorSection =
   | 'campaign'

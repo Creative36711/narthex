@@ -1,17 +1,12 @@
 import { slugify } from './ids'
+import type { CampaignIndexEntry } from '../shared/types'
+export type { CampaignIndexEntry } from '../shared/types'
 
 /**
  * Создание новой кампании (ТЗ 5.1): минимальный рабочий Campaign Package
  * записывается на диск через dev-эндпоинт, кампания попадает в реестр
  * public/campaigns/index.json.
  */
-
-export interface CampaignIndexEntry {
-  id: string
-  title: string
-  description?: string
-  author?: string
-}
 
 export async function fetchCampaignIndex(): Promise<CampaignIndexEntry[]> {
   try {

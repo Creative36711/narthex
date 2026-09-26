@@ -38,6 +38,7 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
       return equipFilter === 'equipped' ? on : !on
     })
   const totalWeight = items.reduce((sum, x) => sum + (x.def!.weight ?? 0) * x.entry.quantity, 0)
+  const currencies = engine.campaign.meta.currencies
 
   return (
     <div className="overlay panel-overlay" onClick={onClose}>
@@ -46,6 +47,19 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
           <h2>Инвентарь</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
+        {currencies.length > 0 && (
+          <section className="inventory-currency" aria-label="Валюта персонажа">
+            <h3>Валюта</h3>
+            <div className="inventory-currency-list">
+              {currencies.map((currency) => (
+                <div className="inventory-currency-item" key={currency.id}>
+                  <span>{currency.label}</span>
+                  <b>{(engine.state.player.currencies[currency.id] ?? 0).toLocaleString('ru-RU')} {currency.symbol || currency.label}</b>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <div className="panel-tools">
           <input placeholder="Поиск по названию…" value={q} onChange={(e) => setQ(e.target.value)} />
           <div className="chips">
@@ -250,7 +264,7 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
                 const v = engine.state.dispositions[f.id] ?? 0
                 const label = v >= 50 ? 'дружелюбно' : v >= 0 ? 'нейтрально' : v > -50 ? 'настороженно' : 'враждебно'
                 return (
-                  <li key={f.id}>
+                  <li key={f.id} data-tip={f.description || undefined}>
                     <span>{f.label}</span>
                     <span className={`disp ${v >= 0 ? 'disp-pos' : 'disp-neg'}`}>{v} · {label}</span>
                   </li>

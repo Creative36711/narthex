@@ -2,6 +2,7 @@
   "id": "player_mercenary",
   "type": "npc",
   "label": "Наёмник",
+  "description": "Опытный боец, прибывший в Каэрден искать работу и серебро.",
   "portrait": {
     "neutral": "assets/img/npc/player_portrait.jpg"
   },

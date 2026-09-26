@@ -803,6 +803,10 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
             </label>
             <label className="fld">
+              <span>Описание фракции</span>
+              <input value={f.description ?? ''} onChange={(e) => ((f.description = e.target.value || undefined), commit())} />
+            </label>
+            <label className="fld">
               <span>Отношение к игроку</span>
               <input type="number" value={f.base_disposition} onChange={(e) => ((f.base_disposition = Number(e.target.value)), commit())} />
             </label>

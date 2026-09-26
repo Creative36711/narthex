@@ -25,7 +25,8 @@ function fallbackReadMs(text: string): number {
 /** Диалоговое окно: портрет + постепенная выдача текста (как в катсценах) + варианты (ТЗ 4.5). */
 export function DialogueOverlay({ engine }: Props) {
   const d = engine.dialogue
-  const [showTip, setShowTip] = useState(() => !tipSeen('dialogue'))
+  const campaignId = engine.campaign.meta.id
+  const [showTip, setShowTip] = useState(() => !tipSeen('dialogue', campaignId))
   const settings = useSettings()
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const stopTtsRef = useRef<(() => void) | null>(null)
@@ -157,7 +158,7 @@ export function DialogueOverlay({ engine }: Props) {
 
   const emotion = activeLine?.emotion ?? 'neutral'
   const portrait = d.npc.portrait[emotion] ?? d.npc.portrait['neutral']
-  const hasCheckChoice = d.choices.some((c) => /\((Убеждение|Торговля|проверка)/i.test(c.text))
+  const hasChoices = d.choices.length > 0
   const allShown = revealed >= lines.length
 
   return (
@@ -176,18 +177,16 @@ export function DialogueOverlay({ engine }: Props) {
             ))}
             {current && <p className={`${current.action ? 'action ' : ''}current`}>{full.slice(0, typed)}</p>}
           </div>
-          {showTip && hasCheckChoice && allShown && (
+          {showTip && hasChoices && allShown && (
             <div className="dialogue-tip">
               <div className="dialogue-tip-text">
-                <p>
-                  <Ico n="info" />  Ответы с пометкой — например <b>«(Убеждение)»</b> — это проверка навыка.
-                </p>
-                <p>Бросается кость d100: выпало не больше навыка — успех. Чем выше навык, тем лучше шанс. Итог броска записывается в журнал <Ico n="scroll" /> .</p>
+                <p><Ico n="info" /> Выберите реплику, чтобы продолжить разговор. Доступные варианты задаёт автор кампании.</p>
+                <p>Если вариант запускает проверку, движок использует навык персонажа и правила броска этой кампании. Результат появится в журнале <Ico n="scroll" />.</p>
               </div>
               <button
                 className="btn btn-small"
                 onClick={() => {
-                  markTip('dialogue')
+                  markTip('dialogue', campaignId)
                   setShowTip(false)
                 }}
               >

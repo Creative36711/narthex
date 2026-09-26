@@ -84,7 +84,7 @@ console.log(`Кампания: ${campaign.meta.title}`)
   const menu = readFileSync('src/player/MainMenu.tsx', 'utf8')
   check('A2 в главном меню нет «Обучение заново»', !menu.includes('Обучение заново'))
   const help = readFileSync('src/player/HelpPanel.tsx', 'utf8')
-  check('A2 в справке кнопка осталась', help.includes('Обучение заново') && help.includes('resetTips()'))
+  check('A2 в справке кнопка осталась', help.includes('Обучение заново') && help.includes('resetTips('))
 }
 
 // ── A3: множественные значения в условиях потребностей ──
