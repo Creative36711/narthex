@@ -251,6 +251,12 @@ button { font-family: inherit;  }
 /* векторный фон (ArtDoc) занимает то же место, что и картинка */
 div.scene-bg { display: block; }
 div.scene-bg svg { width: 100%; height: 100%; display: block; }
+/* сцена без арта: нейтральный градиент вместо «чёрного экрана» */
+.scene-bg-fallback {
+  background:
+    radial-gradient(130% 100% at 50% 18%, rgba(120, 130, 160, 0.28) 0%, rgba(40, 44, 60, 0) 55%),
+    linear-gradient(180deg, #2b3040 0%, #1c2030 62%, #141724 100%);
+}
 
 .tod-tint-night .scene-bg { filter: brightness(0.85) saturate(0.8); }
 .tod-tint-evening .scene-bg { filter: sepia(0.15) brightness(0.95); }

@@ -23,7 +23,8 @@ must(/\nselect \{[\s\S]*?background: var\(--panel-2\)/.test(css) && css.includes
   '1 селекты (включая «+ состояние (выбрать из списка)…») стилизованы под формы')
 
 // 2 — JSON во вкладках до самого низа
-must(css.includes('height: calc(100vh - 150px)') && css.includes('.advanced-json-page'),
+// фидбек «окна до низа»: страница — flex-колонка, textarea растягивается
+must(css.includes('.advanced-json-page') && css.includes('height: calc(100vh - 118px)') && css.includes('.advanced-json-page textarea') && css.includes('flex: 1'),
   '2 JSON во вкладках заполняет окно до низа, без чёрного поля')
 
 // 3 — у вкладок нет лишнего вертикального скролла

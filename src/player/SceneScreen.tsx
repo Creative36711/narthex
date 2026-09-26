@@ -37,10 +37,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
       <div className={`scene-stage tod-tint-${tod}`} style={{ aspectRatio: `${canvas.w} / ${canvas.h}` }}>
         {state.art ? (
           <ArtView className="scene-bg" art={state.art} />
+        ) : state.image ? (
+          <img className="scene-bg" src={assetUrl(engine.campaign, state.image)} alt={state.label} draggable={false} />
         ) : (
-          state.image && (
-            <img className="scene-bg" src={assetUrl(engine.campaign, state.image)} alt={state.label} draggable={false} />
-          )
+          /* сцена без арта не должна быть «чёрным экраном» */
+          <div className="scene-bg scene-bg-fallback" aria-hidden />
         )}
 
         {/* спрайты рисуются по порядку снизу вверх: нижние — поверх дальних */}

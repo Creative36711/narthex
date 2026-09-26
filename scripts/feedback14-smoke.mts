@@ -18,8 +18,8 @@ const speech = f('src/shared/speech.ts')
 const dlg = f('src/player/DialogueOverlay.tsx')
 const builder = f('src/editor/DialogueBuilder.tsx')
 
-// 1 — JSON кампании без подписи, с малым отступом снизу
-must(!campaign.includes('Валюты, мета-прогресс') && css.includes('height: calc(100vh - 150px)'),
+// 1 — JSON кампании без подписи, до низа экрана (флекс-колонка + растяжение)
+must(!campaign.includes('Валюты, мета-прогресс') && css.includes('height: calc(100vh - 118px)') && css.includes('.advanced-json-page textarea'),
   '1 JSON кампании без лишней подписи, почти до низа экрана')
 must(!world.includes('Мир целиком'),
   '1 у JSON мира подпись тоже убрана')

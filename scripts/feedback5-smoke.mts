@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
-import { effectiveSlotType, BUILTIN_SLOT_TYPES } from '../src/editor/slotTypes'
+import { effectiveSlotType } from '../src/editor/slotTypes'
 
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
@@ -53,7 +53,11 @@ console.log(`Кампания: ${campaign.meta.title}`)
 
 // ── №2/№3: типы слотов — фильтрация и согласованность контента ──
 {
-  check('№2 встроенные типы без неиспользуемых', BUILTIN_SLOT_TYPES.length === 4)
+  // встроенных типов НЕТ — реестр задаёт только кампания (мастер)
+  const st = campaign.meta.slot_types ?? []
+  check('№2 реестр типов слотов берётся из кампании (не встроенный)', st.length >= 4, st.map((t) => t.label).join(', '))
+  const stIds = new Set(st.map((t) => t.id))
+  check('№2 нужные типы объявлены мастером', ['person', 'item', 'container', 'animal'].every((id) => stIds.has(id)))
   const rat = campaign.entities['npc_rat_giant'] as any
   check('№3 крыса — «животное» в слотах', effectiveSlotType(rat) === 'animal')
   check('№3 НПС по умолчанию — «персонаж»', effectiveSlotType(campaign.entities['npc_bran'] as any) === 'person')

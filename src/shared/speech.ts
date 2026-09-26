@@ -12,7 +12,11 @@
  *  - после `cancel()` выдерживается пауза: в Chrome `speak()`, вызванный
  *    сразу за асинхронным `cancel()`, молча проглатывается;
  *  - периодический `pause()/resume()` — обход хронического замирания
- *    синтезатора в Chrome при долгой речи.
+ *    синтезатора в Chrome при долгой речи;
+ *  - повтор при сбое (фидбек «диалог озвучивается с середины»): если
+ *    синтезатор вернул ошибку или за 5 секунд не подтвердил старт фразы,
+ *    она ставится обратно в начало очереди (до 2 повторов) — первые реплики
+ *    диалога больше не теряются.
  */
 
 import { useEffect, useState } from 'react'
@@ -78,6 +82,12 @@ interface QueueItem {
   clean: string
   opts: { voice?: string; rate?: number; volume?: number; onEnd?: () => void }
   cancelled?: boolean
+  /** сколько раз фраза уже перезапускалась из-за сбоев синтезатора */
+  retries: number
+  /** синтезатор подтвердил старт произнесения (событие onstart) */
+  started: boolean
+  /** по фразе уже принято финальное решение (защита от двойных событий) */
+  settled: boolean
 }
 
 const queue: QueueItem[] = []
@@ -86,6 +96,17 @@ let pumpTimer: ReturnType<typeof setTimeout> | null = null
 /** до этого момента не зовём speak(): cancel() в Chrome асинхронный */
 let cooldownUntil = 0
 let keepalive: ReturnType<typeof setInterval> | null = null
+/** таймер «застревания»: фраза не началась за 5 с — перезапускаем её */
+let stallTimer: ReturnType<typeof setTimeout> | null = null
+/** максимум повторов одной фразы при сбоях синтезатора */
+const MAX_RETRIES = 2
+
+function clearStallTimer(): void {
+  if (stallTimer !== null) {
+    clearTimeout(stallTimer)
+    stallTimer = null
+  }
+}
 
 function startKeepalive(): void {
   if (keepalive !== null || !ttsSupported()) return
@@ -138,7 +159,58 @@ function pump(): void {
   }
   queue.shift()
   active = item
+  item.started = false
+  item.settled = false
   startKeepalive()
+  speakItem(item)
+}
+
+/** фразу дочитали (или решение принято) — двигаем очередь дальше */
+function finishItem(item: QueueItem): void {
+  if (item.settled) return
+  item.settled = true
+  clearStallTimer()
+  if (active === item) active = null
+  if (!item.cancelled) item.opts.onEnd?.()
+  pump()
+}
+
+/**
+ * Сбой фразы (ошибка синтезатора или «застревание»: 5 с без onstart).
+ * Chrome периодически молча проглатывает фразы — особенно первые после
+ * смены реплик; из-за этого диалог «начинался с середины». Поэтому фразу
+ * не выбрасываем, а ставим обратно в начало очереди (до 2 повторов).
+ */
+function retryItem(item: QueueItem): void {
+  if (item.settled || item.cancelled) {
+    finishItem(item)
+    return
+  }
+  clearStallTimer()
+  if (active === item) active = null
+  if (item.retries < MAX_RETRIES) {
+    item.retries++
+    item.started = false
+    item.settled = false
+    queue.unshift(item)
+    try {
+      window.speechSynthesis.cancel()
+    } catch {
+      /* синтезатор недоступен — очередь разберётся сама */
+    }
+    // короткий кулдаун: в Chrome speak() сразу после cancel() проглатывается
+    cooldownUntil = Date.now() + 300
+    pumpTimer = setTimeout(() => {
+      pumpTimer = null
+      pump()
+    }, 320)
+  } else {
+    finishItem(item)
+  }
+}
+
+/** произнести одну фразу (с перезапуском при сбоях) */
+function speakItem(item: QueueItem): void {
   const synth = window.speechSynthesis
   const u = new SpeechSynthesisUtterance(item.clean)
   const chosen = pickVoice(item.opts.voice)
@@ -150,22 +222,25 @@ function pump(): void {
   }
   u.rate = Math.max(0.5, Math.min(2, item.opts.rate ?? 1))
   u.volume = Math.max(0, Math.min(1, item.opts.volume ?? 1))
-  let done = false
-  const finish = () => {
-    if (done) return
-    done = true
-    if (active === item) active = null
-    if (!item.cancelled) item.opts.onEnd?.()
-    pump()
+  u.onstart = () => {
+    item.started = true
+    clearStallTimer()
   }
-  u.onend = finish
-  u.onerror = finish
+  u.onend = () => finishItem(item)
+  u.onerror = () => retryItem(item)
   try {
     synth.speak(u)
     synth.resume() // защита от «застрявшего» пауз-состояния
   } catch {
-    finish()
+    retryItem(item)
+    return
   }
+  // сторожок: синтезатор не подтвердил старт за 5 секунд — считаем сбоем
+  clearStallTimer()
+  stallTimer = setTimeout(() => {
+    stallTimer = null
+    if (active === item && !item.started) retryItem(item)
+  }, 5000)
 }
 
 /**
@@ -178,6 +253,7 @@ export function stopSpeaking(): void {
   if (active) active.cancelled = true
   active = null
   if (ttsSupported()) window.speechSynthesis.cancel()
+  clearStallTimer()
   cooldownUntil = Date.now() + 100
 }
 
@@ -200,7 +276,7 @@ export function speak(
   }
   initVoices()
   if (!opts.queue) stopSpeaking()
-  const item: QueueItem = { clean, opts }
+  const item: QueueItem = { clean, opts, retries: 0, started: false, settled: false }
   queue.push(item)
   pump()
   return () => {

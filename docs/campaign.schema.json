@@ -1129,14 +1129,7 @@
         },
         "overlay": {
           "type": "string",
-          "enum": [
-            "rain",
-            "snow",
-            "fog",
-            "ash",
-            "none"
-          ],
-          "description": "визуальный слой поверх сцены (чистый CSS); нет/'none' — без слоя"
+          "description": "визуальный слой поверх сцены (чистый CSS), задаётся кампанией.\nДвижок рисует класс `weather-<overlay>`; встроенные слои движка:\n`rain`, `snow`, `fog`, `ash`. Нет/'none' — без слоя. Встроенных\n«погод по умолчанию» не существует — реестр целиком создаёт кампания."
         },
         "ambient": {
           "type": "array",
@@ -1620,7 +1613,7 @@
           "additionalProperties": {
             "type": "number"
           },
-          "description": "бонусы к навыкам"
+          "description": "бонусы к навыкам (бесплатные, не тратят бюджет)"
         },
         "items": {
           "type": "array",
@@ -1641,6 +1634,13 @@
             "additionalProperties": false
           },
           "description": "стартовое снаряжение"
+        },
+        "stats": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "стартовое распределение характеристик, которое задаёт мастер:\nабсолютные значения семи характеристик (в рамках stat_limits).\nНет — все характеристики начинают с минимума."
         }
       },
       "required": [
@@ -1656,7 +1656,7 @@
       "properties": {
         "total_points": {
           "type": "number",
-          "description": "бюджет характеристик"
+          "description": "бюджет характеристик (очки сверх минимума)"
         },
         "stat_limits": {
           "type": "object",
@@ -1673,15 +1673,19 @@
             "max"
           ],
           "additionalProperties": false,
-          "description": "рамки каждой характеристики"
+          "description": "пороги каждой характеристики (задаёт мастер)"
         },
         "skill_points": {
           "type": "number",
-          "description": "бюджет навыков (нет — без бюджета навыков)"
+          "description": "бюджет навыков (нет — покупки навыков выключены)"
         },
         "skill_cap": {
           "type": "number",
-          "description": "максимум навыка на старте"
+          "description": "порог навыка сверху (нет — без верхнего порога)"
+        },
+        "skill_floor": {
+          "type": "number",
+          "description": "порог навыка снизу (нет — 0)"
         },
         "mandatory_skills": {
           "type": "array",
@@ -1702,7 +1706,7 @@
           "items": {
             "$ref": "#/$defs/ProfessionDef"
           },
-          "description": "выбор «происхождения» (может быть пусто)"
+          "description": "«происхождения» — шаблоны героя; целиком на усмотрение мастера"
         },
         "choose_name": {
           "type": "boolean",
@@ -1714,7 +1718,7 @@
         "stat_limits"
       ],
       "additionalProperties": false,
-      "description": "создание персонажа (блок 11 ТЗ); нет — забег стартует как раньше"
+      "description": "Создание персонажа (блок 11 ТЗ). Всё задаёт мастер кампании —\nвстроенных значений и «происхождений по умолчанию» в движке нет.\nНет самого блока `char_creation` — забег стартует готовым шаблоном."
     },
     "CampaignMeta": {
       "type": "object",

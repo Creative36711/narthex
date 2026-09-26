@@ -5,13 +5,13 @@
  *  1. миграция сейва в3 {weapon, armor} → рекорд слотов (в4);
  *  2. старые предметы без equip_slot экипируются по данным;
  *  3. свой слот кампании + броня из нескольких слотов суммируется в бою;
- *  4. редактор и схема; демо без правок (только встроенные слоты).
+ *  4. редактор и схема; слоты экипировки объявляет кампания (встроенных нет).
  */
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine, loadSave } from '../src/core/engine'
 import { migrateEntity } from '../src/shared/migrate'
-import { equipmentSlots, BUILTIN_EQUIPMENT_SLOTS, type CampaignData, type ItemDef } from '../src/shared/types'
+import { equipmentSlots, type CampaignData, type ItemDef } from '../src/shared/types'
 
 const mem = new Map<string, string>()
 ;(globalThis as any).localStorage = {
@@ -78,7 +78,12 @@ const demo = await loadCampaign(base)
 // ── 3. свой слот + суммирование брони ──
 {
   const c: CampaignData = JSON.parse(JSON.stringify(demo))
-  c.meta.equipment_slots = [{ id: 'helm', label: 'Шлем' }]
+  // встроенных слотов нет: мастер объявляет весь реестр сам
+  c.meta.equipment_slots = [
+    { id: 'weapon', label: 'Оружие' },
+    { id: 'armor', label: 'Броня' },
+    { id: 'helm', label: 'Шлем' },
+  ]
   c.entities['item_iron_helm'] = {
     id: 'item_iron_helm', type: 'item', category: 'armor', label: 'Железный шлем',
     description: '', weight: 1, stackable: false,
@@ -87,7 +92,7 @@ const demo = await loadCampaign(base)
   const e = new GameEngine(c)
   e.start()
   const slots = e.equipmentSlots()
-  check('3 встроенные слоты всегда на месте', slots.slice(0, 2).map((s) => s.id).join(',') === 'weapon,armor')
+  check('3 реестр мастера целиком виден движку', slots.map((s) => s.id).join(',') === 'weapon,armor,helm', slots.map((s) => s.id).join(','))
   check('3 свой слот добавлен', slots.some((s) => s.id === 'helm' && s.label === 'Шлем'))
   e.addItem('item_leather_jerkin', 1)
   e.addItem('item_iron_helm', 1)
@@ -109,7 +114,7 @@ const demo = await loadCampaign(base)
 // ── 4. редактор, схема, демо ──
 {
   const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
-  check('4 редактор: реестр слотов экипировки', ce.includes('Слоты экипировки') && ce.includes('BUILTIN_EQUIPMENT_SLOTS'))
+  check('4 редактор: реестр слотов экипировки', ce.includes('Слоты экипировки') && !ce.includes('BUILTIN_EQUIPMENT_SLOTS'))
   const ee = readFileSync('src/editor/EntityEditor.tsx', 'utf8')
   check('4 редактор предмета: селект слота', ee.includes('Слот экипировки') && ee.includes('Не экипируется'))
   const inv = readFileSync('src/player/Panels.tsx', 'utf8')
@@ -119,7 +124,8 @@ const demo = await loadCampaign(base)
   check('4 схема: equip_slot у предмета', !!schema.$defs.ItemDef.properties?.equip_slot)
   const e = new GameEngine(demo)
   e.start()
-  check('4 демо без правок: только встроенные слоты', equipmentSlots(demo.meta).length === BUILTIN_EQUIPMENT_SLOTS.length)
+  // встроенных слотов нет: реестр целиком задаёт кампания (мастер)
+  check('4 демо: слоты экипировки объявлены кампанией', equipmentSlots(demo.meta).length === (demo.meta.equipment_slots ?? []).length && equipmentSlots(demo.meta).length > 0, equipmentSlots(demo.meta).map((s) => s.label).join(', '))
 }
 
 if (failed > 0) {
