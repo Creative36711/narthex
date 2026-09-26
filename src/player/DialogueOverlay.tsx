@@ -30,7 +30,6 @@ export function DialogueOverlay({ engine }: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const stopTtsRef = useRef<(() => void) | null>(null)
   const fallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const spokenRef = useRef(-1)
   /** строк показано полностью */
   const [revealed, setRevealed] = useState(0)
   /** набрано символов текущей строки */
@@ -50,8 +49,8 @@ export function DialogueOverlay({ engine }: Props) {
     }
   }
 
-  // закрытие диалога (размонтирование) — снять звук
-  useEffect(() => () => clearLineAudio(), []) // eslint-disable-line react-hooks/exhaustive-deps
+  // закрытие диалога (размонтирование) — снять звук: это делает cleanup
+  // эффекта озвучки ниже (он же переживает дев-режим, см. комментарий там)
 
   // Фидбек 22: `dialogue` заменяется ЦЕЛИКОМ на ответ реплику (новый объект,
   // только новые строки). Сброс прогресса в useEffect происходил ПОСЛЕ коммита,
@@ -62,7 +61,6 @@ export function DialogueOverlay({ engine }: Props) {
   const lastDRef = useRef<unknown>(d)
   if (lastDRef.current !== d) {
     lastDRef.current = d
-    spokenRef.current = -1
     clearLineAudio()
     if (revealed !== 0) setRevealed(0)
     if (typed !== 0) setTyped(0)
@@ -111,13 +109,17 @@ export function DialogueOverlay({ engine }: Props) {
     }
   }
 
-  // новая реплика появилась — озвучить её (каждую, а не только последнюю)
+  // новая реплика появилась — озвучить её. Эффект идемпотентен: в дев-режиме
+  // (StrictMode) эффекты гоняются «настройка → уборка → настройка», и уборка
+  // снимает звук строки, а повторная настройка заводит его заново. Поэтому
+  // ПЕРВАЯ фраза диалога больше не умирает молча и диалог не зависает
+  // (фидбек 23). При смене строки/диалога уборка глушит предыдущий звук.
   useEffect(() => {
-    if (!d || !current || spokenRef.current >= revealed) return
-    spokenRef.current = revealed
+    if (!d || !current) return
     playLine(current)
+    return () => clearLineAudio()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [d, revealed, current])
+  }, [d, revealed])
 
   // печать по буквам — как в катсценах
   useEffect(() => {
