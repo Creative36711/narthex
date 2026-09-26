@@ -1,0 +1,20 @@
+import { readFileSync } from 'node:fs'
+let failed = 0
+const check = (label: string, ok: boolean) => { console.log(`${ok ? '✓' : '✗'} ${label}`); if (!ok) failed++ }
+const read = (path: string) => readFileSync(path, 'utf8')
+const markdown = read('src/editor/MarkdownView.tsx')
+const book = read('src/editor/EditorBookPanel.tsx')
+const css = read('src/index.css')
+const scene = read('src/player/SceneScreen.tsx')
+const end = read('src/player/EndScreen.tsx')
+const help = read('src/player/HelpPanel.tsx')
+check('Книга мастера доступна из редактора и содержит навигацию', read('src/editor/EditorApp.tsx').includes('Книга мастера') && book.includes('editor-book-nav'))
+check('Markdown рендерит заголовки, жирный текст, списки и таблицы', markdown.includes('book-table') && markdown.includes('<strong') && markdown.includes('<ul') && markdown.includes('const heading'))
+check('Обложка книги — собственная иллюстрация, файл доступен веб-просмотру', read('docs/book/README.md').includes('chronicle-forge-world.png') && readFileSync('public/book/img/chronicle-forge-world.png').length > 100_000)
+check('Фон сцены плавно меняется с кроссфейдом', scene.includes('scene-bg-transition-out') && css.includes('.scene-bg-enter') && css.includes('cf-fade-out var(--dur-slow)'))
+check('Слои перехода сцен не перехватывают клики', css.includes('.scene-bg-transition-out { z-index: 2; pointer-events: none;'))
+check('Экран финала привязан к окну целиком', css.includes('.end-overlay { position: fixed; inset: 0; align-items: center; justify-content: center; }'))
+check('Справка описывает критический провал по текущей формуле', help.includes('fumbleWindow') && help.includes('Бросок 100 всегда означает критический провал'))
+check('В заголовке раздела справки единый текстовый стиль без одиночной песочной эмблемы', help.includes("title: 'Время и потребности'") && !help.includes('⏳ Время и потребности'))
+console.log(failed ? `ПРОВАЛЕНО: ${failed}` : 'ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')
+process.exit(failed ? 1 : 0)

@@ -104,6 +104,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [testEngine, setTestEngine] = useState<GameEngine | null>(null)
   const [debugOpen, setDebugOpen] = useState(false)
   const [bookOpen, setBookOpen] = useState(false)
+  const [bookFile, setBookFile] = useState('README.md')
+  const [bookContextual, setBookContextual] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const store = useMemo(() => new EditorStore(base), [base])
@@ -592,6 +594,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         >
           <Ico n="sparkle" />  Кампания с ИИ
         </button>
+        <button className="btn btn-small" onClick={() => { setBookFile('README.md'); setBookContextual(false); setBookOpen(true) }} data-tip="Открыть книгу мастера"><Ico n="book" />  Книга мастера</button>
         <button className="btn btn-small" onClick={playtest} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" />  Плейтест</button>
         <button className="btn btn-small" onClick={doExport} data-tip="Скачать кампанию одним файлом .chronicle"><Ico n="download" />  Экспорт</button>
         <button
@@ -657,7 +660,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             )
           })}
           <span className="muted small" style={{ marginLeft: 6 }}>{navLabelOf(section)}</span>
-          <button className="editor-help-button" type="button" aria-label="Открыть раздел книги" onClick={() => setBookOpen(true)}>?</button>
+          <button className="editor-help-button" type="button" aria-label="Открыть раздел книги" onClick={() => { setBookFile('02-editor.md'); setBookContextual(true); setBookOpen(true) }}>?</button>
         </nav>
 
         {hasList && (
@@ -740,7 +743,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         </main>
       </div>
       {aiWizard && <AiWizard onClose={() => setAiWizard(false)} />}
-      {bookOpen && <EditorBookPanel section={section} sectionLabel={navLabelOf(section)} onClose={() => setBookOpen(false)} />}
+      {bookOpen && <EditorBookPanel section={section} sectionLabel={navLabelOf(section)} initialFile={bookFile} contextual={bookContextual} onClose={() => setBookOpen(false)} />}
     </div>
   )
 }

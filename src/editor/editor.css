@@ -836,3 +836,23 @@
 .editor-book-panel { display: flex; flex-direction: column; width: min(520px, 94vw); height: 100%; background: #211b15; border-left: 1px solid var(--border); box-shadow: -12px 0 32px #0008; color: var(--text); }
 .editor-book-panel > header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border); }
 .editor-book-panel pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; margin: 0; font: 13px/1.65 inherit; color: var(--text); }
+.editor-book-nav { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 5px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.editor-book-content { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px 30px; }
+.book-context-label { color: var(--muted); font-size: 13px; }
+.book-markdown { max-width: 760px; font: 14px/1.65 system-ui, sans-serif; color: var(--text); }
+.book-markdown h1, .book-markdown h2, .book-markdown h3, .book-markdown h4 { color: var(--gold-bright); line-height: 1.25; margin: 1.2em 0 .55em; }
+.book-markdown h1 { font-size: 25px; margin-top: 0; }
+.book-markdown h2 { font-size: 20px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
+.book-markdown p { margin: .55em 0 .9em; }
+.book-markdown li { margin: .25em 0; }
+.book-markdown blockquote { margin: .8em 0; padding: 4px 12px; border-left: 3px solid var(--gold); color: var(--muted); }
+.book-markdown code { padding: 1px 4px; border-radius: 3px; background: rgba(0,0,0,.25); font-size: .92em; }
+.book-markdown .book-code { overflow: auto; padding: 10px; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,.24); }
+.book-markdown .book-code code { padding: 0; background: transparent; }
+.book-markdown a, .book-inline-link { color: var(--gold-bright); }
+.book-inline-link { padding: 0; border: 0; background: none; text-decoration: underline; cursor: var(--cur-pointer); font: inherit; }
+.book-inline-image { display: block; width: 100%; height: auto; margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; }
+.book-table-wrap { max-width: 100%; overflow-x: auto; margin: 10px 0 18px; }
+.book-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.book-table th, .book-table td { min-width: 95px; padding: 7px 8px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+.book-table th { color: var(--gold-bright); background: rgba(0,0,0,.22); }

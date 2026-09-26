@@ -1747,3 +1747,8 @@ html.no-anim *, html.no-anim *::before, html.no-anim *::after {
 @keyframes cf-lunge { from, to { transform: translate(-50%, -50%); } 45% { transform: translate(-50%, -50%) translateX(7px); } }
 .token-lunge { animation: cf-lunge var(--dur) var(--ease); }
 .combat-roll-feedback { position: absolute; z-index: 21; left: 50%; top: 10%; transform: translateX(-50%); padding: 7px 14px; border: 1px solid rgba(232,201,135,.65); border-radius: 999px; background: rgba(20,16,12,.9); color: var(--gold-bright); font-weight: 800; letter-spacing: .08em; pointer-events: none; animation: cf-pop-in var(--dur) var(--ease) both; }
+/* Финал всегда занимает окно целиком, а не только область после HUD. */
+.end-overlay { position: fixed; inset: 0; align-items: center; justify-content: center; }
+.scene-bg-enter { animation: cf-fade-in var(--dur-slow) var(--ease) both; }
+.scene-bg-transition-out { z-index: 2; pointer-events: none; animation: cf-fade-out var(--dur-slow) var(--ease-out) both; }
+.scene-slot-enter { animation: cf-rise-in var(--dur) var(--ease) both; }
