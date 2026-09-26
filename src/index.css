@@ -1487,3 +1487,9 @@ input[type='checkbox'], input[type='radio'] {
   color: #e8cfa0;
   white-space: nowrap;
 }
+
+/* ─────────────── способности (блок 6 ТЗ «Гибкий движок») ─────────────── */
+.hex-ability { fill: rgba(150, 90, 220, 0.35); stroke: #b98ae8; stroke-width: 2; }
+.combat-abilities { display: flex; flex-direction: column; gap: 4px; }
+.ability-btn { justify-content: flex-start; }
+.ability-btn.ability-pending { border-color: #b98ae8; box-shadow: 0 0 8px rgba(185, 138, 232, 0.6); }

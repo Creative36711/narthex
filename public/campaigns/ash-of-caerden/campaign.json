@@ -1246,5 +1246,31 @@
   ],
   "combat_music": [
     "track_combat"
+  ],
+  "statuses": [
+    {
+      "id": "status_rat_poison",
+      "label": "Крысиный яд",
+      "description": "Яд гигантской крысы жжёт кровь.",
+      "scope": "combat",
+      "duration": 3,
+      "dot": {
+        "hp": 2
+      },
+      "apply_message": "Яд крысы разливается по жилам."
+    }
+  ],
+  "abilities": [
+    {
+      "id": "ability_rat_bite",
+      "label": "Ядовитый укус",
+      "description": "Крыса вонзает отравленные клыки: цель отравлена на 3 раунда.",
+      "mp_cost": 0,
+      "range": 1,
+      "skill": "bite",
+      "kind": "status",
+      "status": "status_rat_poison",
+      "status_duration": 3
+    }
   ]
 }

@@ -30,6 +30,8 @@ export function CombatScreen({ engine }: Props) {
   const size = arena.hex_grid.hex_size
   const [hoverHex, setHoverHex] = useState<string | null>(null)
   const [showTutorial, setShowTutorial] = useState(() => !tipSeen('combat'))
+  /** выбранная способность игрока: ждём клик по цели */
+  const [pendingAbility, setPendingAbility] = useState<string | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
 
   const origin = useMemo(() => {
@@ -55,6 +57,11 @@ export function CombatScreen({ engine }: Props) {
     if (el) el.scrollTop = el.scrollHeight
   }, [combat.log.length])
 
+  // вне хода игрока выбор способности сбрасывается
+  useEffect(() => {
+    if (!playerTurn) setPendingAbility(null)
+  }, [playerTurn])
+
   const hexes: Hex[] = []
   for (let row = 0; row < arena.hex_grid.rows; row++) {
     for (let col = 0; col < arena.hex_grid.cols; col++) {
@@ -64,9 +71,22 @@ export function CombatScreen({ engine }: Props) {
 
   const activePlayer = combat.active
 
+  // цели выбранной способности (блок 6 ТЗ): подсвечиваются вместо дальности хода
+  const abilityTargetIds = useMemo(() => {
+    if (!pendingAbility || !playerTurn) return new Set<string>()
+    return new Set(combat.abilityTargets(pendingAbility).map((t) => t.id))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAbility, playerTurn, combat.round, combat.active.pos.col, combat.active.pos.row])
+
   const onHexClick = (h: Hex) => {
     if (!playerTurn) return
     const occ = combat.occupantAt(h)
+    if (pendingAbility && occ && abilityTargetIds.has(occ.id)) {
+      combat.useAbility(pendingAbility, occ.id)
+      setPendingAbility(null)
+      return
+    }
+    if (pendingAbility) setPendingAbility(null) // клик мимо цели отменяет выбор
     if (occ && occ.side === 'enemy') {
       if (combat.canAttack(combat.active, occ)) combat.playerAttack(occ.id)
       return
@@ -101,14 +121,16 @@ export function CombatScreen({ engine }: Props) {
                 const difficult = combat.isDifficult(h)
                 const inReach = reach.has(k)
                 const occ = combat.occupantAt(h)
+                const abilityTarget = !!pendingAbility && !!occ && abilityTargetIds.has(occ.id)
                 const attackable =
                   playerTurn && occ && occ.side === 'enemy' && combat.canAttack(combat.active, occ)
                 let cls = 'hex'
                 if (blocked) cls += ' hex-blocked'
+                else if (abilityTarget) cls += ' hex-ability'
                 else if (attackable) cls += ' hex-attack'
                 else if (inReach) cls += ' hex-reach'
                 else if (difficult) cls += ' hex-difficult'
-                if (hoverHex === k && (inReach || attackable)) cls += ' hex-hover'
+                if (hoverHex === k && (inReach || attackable || abilityTarget)) cls += ' hex-hover'
                 return (
                   <polygon
                     key={k}
@@ -216,12 +238,29 @@ export function CombatScreen({ engine }: Props) {
               {playerTurn ? (
                 <>
                   <div className="combat-hint">
-                    Движение: <b>{activePlayer.movLeft}</b> гекс. ·{''}
-                    {activePlayer.attacked ? 'действие израсходовано' : `атака: «${activePlayer.weaponLabel}»`}
+                    Движение: <b>{activePlayer.movLeft}</b> гекс. · MP: <b>{activePlayer.mp}</b> ·{''}
+                    {activePlayer.attacked ? ' действие израсходовано' : ` атака: «${activePlayer.weaponLabel}»`}
                   </div>
                   <div className="combat-hint muted">
-                    Клик по подсвеченному гексу — движение, по врагу в досягаемости — атака.
+                    {pendingAbility
+                      ? 'Кликните по подсвеченной цели, чтобы применить способность (клик мимо — отмена).'
+                      : 'Клик по подсвеченному гексу — движение, по врагу в досягаемости — атака.'}
                   </div>
+                  {combat.playerAbilities().length > 0 && (
+                    <div className="combat-abilities">
+                      {combat.playerAbilities().map(({ def, usable, reason }) => (
+                        <button
+                          key={def.id}
+                          className={`btn btn-small ability-btn ${pendingAbility === def.id ? 'ability-pending' : ''}`}
+                          disabled={!usable && pendingAbility !== def.id}
+                          data-tip={`${def.description ?? def.label}\nСтоимость: ${def.mp_cost} MP · дальность ${def.range} гекс.${def.cooldown_rounds ? ` · кулдаун ${def.cooldown_rounds} раунд.` : ''}${reason ? `\nНедоступно: ${reason}` : ''}`}
+                          onClick={() => setPendingAbility(pendingAbility === def.id ? null : def.id)}
+                        >
+                          <Ico n="sparkle" />  {def.label} ({def.mp_cost} MP)
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {!activePlayer.attacked && featureOn(engine.campaign.meta, 'inventory') && combat.usableItems().length > 0 && (
                     <details className="combat-items">
                       <summary>Использовать предмет (действие)</summary>

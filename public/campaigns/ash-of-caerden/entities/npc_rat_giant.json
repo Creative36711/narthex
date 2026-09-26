@@ -40,5 +40,8 @@
   "faction": "faction_vermin",
   "base_disposition": -100,
   "combat_ai": "aggressive",
-  "slot_type": "animal"
+  "slot_type": "animal",
+  "abilities": [
+    "ability_rat_bite"
+  ]
 }

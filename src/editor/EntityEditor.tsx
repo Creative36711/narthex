@@ -477,6 +477,60 @@ function NpcForm({
       </div>
 
       <div className="props-group">
+        <h4>Способности и мораль</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Реестр способностей — «Кампания и реестры» → «Статусы и способности».
+        </div>
+        <div className="chips" style={{ marginBottom: 8 }}>
+          {store.options('ability').map((o) => {
+            const on = (npc.abilities ?? []).includes(o.id)
+            return (
+              <button
+                key={o.id}
+                type="button"
+                className={`chip ${on ? 'chip-on' : ''}`}
+                onClick={() => {
+                  const set = new Set(npc.abilities ?? [])
+                  if (on) set.delete(o.id)
+                  else set.add(o.id)
+                  if (set.size) npc.abilities = [...set]
+                  else delete npc.abilities
+                  commit()
+                }}
+              >
+                {o.label}
+              </button>
+            )
+          })}
+          {store.options('ability').length === 0 && <span className="muted small">В кампании пока нет способностей.</span>}
+        </div>
+        <div className="fld-row">
+          <label className="fld" data-tip="Когда здоровье падёт ниже этого процента, враг в начале своего хода может сбежать">
+            <span>Мораль: порог бегства, % HP</span>
+            <input
+              type="number" min={0} max={100} value={npc.morale?.below_hp_pct ?? ''} placeholder="не сбегает"
+              onChange={(e) => {
+                const v = Number(e.target.value) || 0
+                if (v > 0) npc.morale = { below_hp_pct: v, flee_chance: npc.morale?.flee_chance ?? 50 }
+                else delete npc.morale
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Шанс бегства при каждом броске морали (0–100)">
+            <span>Шанс бегства, %</span>
+            <input
+              type="number" min={0} max={100} value={npc.morale?.flee_chance ?? ''} placeholder="—" disabled={!npc.morale}
+              onChange={(e) => {
+                if (npc.morale) npc.morale.flee_chance = Math.max(0, Math.min(100, Number(e.target.value) || 0))
+                commit()
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="props-group">
         <h4>Характеристики</h4>
         <div className="stats-row">
           {STATS.map((k) => (

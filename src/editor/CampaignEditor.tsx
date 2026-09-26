@@ -1295,7 +1295,121 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
       </div>
       <div className="props-group">
         <h4>Способности</h4>
-        <p className="muted small">Появятся в следующем блоке — боевые способности и мораль.</p>
+        <p className="muted small">
+          Боевые способности: тратят MP, имеют кулдаун. НПС получают их полем
+          «Способности» в форме персонажа; игрок — способностями своей сущности.
+        </p>
+        {(m.abilities ?? []).map((a, i) => (
+          <details key={a.id} className="need-conds" open>
+            <summary>
+              {a.label || '(без названия)'} · {a.kind === 'damage' ? 'урон' : a.kind === 'status' ? 'статус' : 'лечение'} · {a.mp_cost} MP
+              <button
+                className="btn btn-small ce-del"
+                data-tip="Удалить способность"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  m.abilities!.splice(i, 1)
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </summary>
+            <div className="fld-row">
+              <label className="fld">
+                <span>Название</span>
+                <input value={a.label} onChange={(e) => ((a.label = e.target.value), commit())} />
+              </label>
+              <label className="fld">
+                <span>Тип</span>
+                <select value={a.kind} onChange={(e) => ((a.kind = e.target.value as typeof a.kind), commit())}>
+                  <option value="damage">Урон</option>
+                  <option value="status">Статус</option>
+                  <option value="heal">Лечение</option>
+                </select>
+              </label>
+              <label className="fld">
+                <span>Стоимость, MP</span>
+                <input type="number" min={0} value={a.mp_cost} onChange={(e) => ((a.mp_cost = Math.max(0, Number(e.target.value) || 0)), commit())} />
+              </label>
+              <label className="fld" data-tip="Сколько раундов нельзя применять снова (0 — без кулдауна)">
+                <span>Кулдаун, раунд.</span>
+                <input
+                  type="number" min={0} value={a.cooldown_rounds ?? ''} placeholder="0"
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0
+                    if (v > 0) a.cooldown_rounds = v; else delete a.cooldown_rounds
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld" data-tip="Дальность в гексах: 1 — вплотную">
+                <span>Дальность</span>
+                <input type="number" min={1} value={a.range} onChange={(e) => ((a.range = Math.max(1, Number(e.target.value) || 1)), commit())} />
+              </label>
+            </div>
+            <label className="fld">
+              <span>Описание (видно игроку)</span>
+              <input value={a.description ?? ''} onChange={(e) => ((a.description = e.target.value || undefined), commit())} />
+            </label>
+            <div className="fld-row">
+              <RefSelect
+                label="Навык попадания (пусто — без проверки)"
+                kind="skill"
+                store={store}
+                value={a.skill ?? ''}
+                optional
+                onChange={(v) => ((a.skill = v || undefined), commit())}
+              />
+              {a.kind === 'damage' && (
+                <label className="fld" data-tip="Нотация кубиков, напр. 1d6+2. Бонус силы НЕ добавляется; броня цели поглощает.">
+                  <span>Урон (кубики)</span>
+                  <input value={a.damage ?? ''} placeholder="1d6" onChange={(e) => ((a.damage = e.target.value || undefined), commit())} />
+                </label>
+              )}
+              {a.kind === 'status' && (
+                <>
+                  <RefSelect
+                    label="Статус"
+                    kind="status"
+                    store={store}
+                    value={a.status ?? ''}
+                    onChange={(v) => ((a.status = v || undefined), commit())}
+                  />
+                  <label className="fld" data-tip="Длительность в раундах (пусто — из реестра статуса)">
+                    <span>Длительность</span>
+                    <input
+                      type="number" min={0} value={a.status_duration ?? ''} placeholder="из реестра"
+                      onChange={(e) => {
+                        const v = Number(e.target.value) || 0
+                        if (v > 0) a.status_duration = v; else delete a.status_duration
+                        commit()
+                      }}
+                    />
+                  </label>
+                </>
+              )}
+              {a.kind === 'heal' && (
+                <label className="fld" data-tip="Нотация кубиков, напр. 1d6">
+                  <span>Лечение (кубики)</span>
+                  <input value={a.heal ?? ''} placeholder="1d6" onChange={(e) => ((a.heal = e.target.value || undefined), commit())} />
+                </label>
+              )}
+            </div>
+          </details>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название способности', 'например «Огненный шар»')
+            if (!label) return
+            ;(m.abilities ??= []).push({ id: makeId('ability_', label, (m.abilities ?? []).map((x) => x.id)), label, mp_cost: 3, range: 3, kind: 'damage', damage: '1d6' })
+            commit()
+          }}
+        >
+          + способность
+        </button>
       </div>
     </>
   )

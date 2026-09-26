@@ -1025,6 +1025,67 @@
       "additionalProperties": false,
       "description": "Длительное изменяющее состояние: яд, кровотечение, бафф. В мире живёт в\nтиках, в бою — в раундах. Реестр статусов — в `campaign.json` (meta.statuses)."
     },
+    "AbilityDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "mp_cost": {
+          "type": "number"
+        },
+        "cooldown_rounds": {
+          "type": "number",
+          "description": "кулдаун в раундах (по умолчанию 0)"
+        },
+        "range": {
+          "type": "number",
+          "description": "дальность в гексах (1 = вплотную)"
+        },
+        "skill": {
+          "type": "string",
+          "description": "навык попадания; нет — гарантированное применение"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "damage",
+            "status",
+            "heal"
+          ]
+        },
+        "damage": {
+          "type": "string",
+          "description": "для kind 'damage', напр. '1d6+2' (бонус силы НЕ добавляется)"
+        },
+        "status": {
+          "type": "string",
+          "description": "для kind 'status'"
+        },
+        "status_duration": {
+          "type": "number"
+        },
+        "heal": {
+          "type": "string",
+          "description": "для kind 'heal', напр. '1d6'"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "mp_cost",
+        "range",
+        "kind"
+      ],
+      "additionalProperties": false,
+      "description": "Способность бойца: тратит MP, имеет кулдаун, бьёт/лечит/вешает статус.\nРеестр — в `campaign.json` (meta.abilities); НПС получают `abilities: [id…]`."
+    },
     "DiceRules": {
       "type": "object",
       "properties": {
@@ -1583,6 +1644,13 @@
             "$ref": "#/$defs/StatusDef"
           },
           "description": "реестр статусов: яды, кровотечения, баффы (блок 5 ТЗ)"
+        },
+        "abilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AbilityDef"
+          },
+          "description": "реестр боевых способностей (блок 6 ТЗ)"
         },
         "dice_rules": {
           "$ref": "#/$defs/DiceRules",
@@ -3375,6 +3443,30 @@
         "natural_weapon": {
           "$ref": "#/$defs/WeaponData",
           "description": "природное оружие (когти, укус) — если нет equipment.weapon"
+        },
+        "abilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "боевые способности (список id из реестра кампании; блок 6 ТЗ)"
+        },
+        "morale": {
+          "type": "object",
+          "properties": {
+            "below_hp_pct": {
+              "type": "number"
+            },
+            "flee_chance": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "below_hp_pct",
+            "flee_chance"
+          ],
+          "additionalProperties": false,
+          "description": "мораль: при каком % HP и с каким шансом враг может сбежать (блок 6 ТЗ)"
         },
         "sounds": {
           "$ref": "#/$defs/SoundHookMap",
