@@ -7,7 +7,7 @@ import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
 import type { CampaignFeatures, CampaignMeta, DiceRules, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
-import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
+import { BUILTIN_EQUIPMENT_SLOTS, CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { BUILTIN_SLOT_TYPES } from './slotTypes'
 import { askText } from './prompt'
 import { migrateNeedCondition } from '../shared/migrate'
@@ -911,6 +911,42 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           }}
         >
           + тип слота
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Слоты экипировки</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Куда персонаж надевает предметы: оружие, броня — и любые свои
+          (амулеты, импланты, рации). Броня всех надетых слотов суммируется в бою.
+        </div>
+        <div className="chips" style={{ marginBottom: 8 }}>
+          {BUILTIN_EQUIPMENT_SLOTS.map((s) => (
+            <span key={s.id} className="chip chip-static" data-tip="Встроенный слот — удалить нельзя">
+              {s.label}
+            </span>
+          ))}
+        </div>
+        {(m.equipment_slots ?? []).map((s, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
+            </label>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.equipment_slots!.splice(i, 1), commit())}><Ico n="close" /> </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название слота экипировки', 'например «Амулет»')
+            if (!label) return
+            if (!m.equipment_slots) m.equipment_slots = []
+            m.equipment_slots.push({ id: makeId('slot_', label, [...BUILTIN_EQUIPMENT_SLOTS, ...m.equipment_slots].map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + слот экипировки
         </button>
       </div>
 

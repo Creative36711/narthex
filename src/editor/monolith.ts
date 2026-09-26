@@ -451,6 +451,9 @@ function normalizeDefs(ctx: RepairCtx): void {
       if (typeof it.weight !== 'number') it.weight = 0
       if (typeof it.stackable !== 'boolean') it.stackable = true
       if (!it.description) it.description = ''
+      // блок 7 ТЗ: старым оружию/броне без слота — встроенный слот
+      if (!it.equip_slot && it.weapon_data) it.equip_slot = 'weapon'
+      else if (!it.equip_slot && it.armor_data) it.equip_slot = 'armor'
     } else {
       const npc = e as NpcDef
       npc.stats = isObj(npc.stats) ? { ...DEFAULT_STATS, ...npc.stats } : { ...DEFAULT_STATS }

@@ -114,6 +114,7 @@ export class EditorStore {
     for (const f of this.manifest.quests ?? []) loadJson(`quests/${f}`)
     for (const f of this.manifest.encounters ?? []) loadJson(`rules/${f}`)
     for (const f of this.manifest.cutscenes ?? []) loadJson(`cutscenes/${f}`)
+    for (const f of this.manifest.recipes ?? []) loadJson(`recipes/${f}`)
     for (const f of this.manifest.dialogues) loadText(`dialogues/${f}`)
     // визуальные исходники конструктора диалогов (могут отсутствовать)
     for (const f of this.manifest.dialogues) {

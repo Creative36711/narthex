@@ -56,6 +56,26 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
             ))}
           </div>
         </div>
+        <h3>Экипировка</h3>
+        <div className="equip-slots">
+          {engine.equipmentSlots().map((slot) => {
+            const worn = engine.state.player.equipment[slot.id]
+            const wornDef = worn ? (engine.campaign.entities[worn] as ItemDef | undefined) : undefined
+            return (
+              <div key={slot.id} className="equip-slot">
+                <span className="equip-slot-name muted small">{slot.label}</span>
+                {wornDef ? (
+                  <>
+                    <b className="small">{wornDef.label}</b>
+                    <button className="btn btn-small" onClick={() => engine.unequipItem(slot.id)}>Снять</button>
+                  </>
+                ) : (
+                  <span className="muted small">пусто</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
         {items.length === 0 && <p className="muted">Пусто.</p>}
         <ul className="inv-list">
           {items.map(({ entry, def }) => (
@@ -83,16 +103,20 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                     Использовать
                   </button>
                 )}
-                {(def!.weapon_data || def!.armor_data) &&
+                {engine.itemSlot(entry.item) &&
                   (engine.isEquipped(entry.item) ? (
                     <button
                       className="btn btn-small"
-                      onClick={() => engine.unequipItem(def!.weapon_data ? 'weapon' : 'armor')}
+                      onClick={() => engine.unequipItem(engine.equippedSlotOf(entry.item))}
                     >
                       Снять
                     </button>
                   ) : (
-                    <button className="btn btn-small" onClick={() => engine.equipItem(entry.item)}>
+                    <button
+                      className="btn btn-small"
+                      data-tip={`Слот: ${engine.slotLabel(engine.itemSlot(entry.item)!)}`}
+                      onClick={() => engine.equipItem(entry.item)}
+                    >
                       Надеть
                     </button>
                   ))}

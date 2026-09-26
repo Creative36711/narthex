@@ -887,7 +887,7 @@ function EffectRow({
             type="number"
             min={0}
             value={e.duration ?? 0}
-            title="Длительность в тиках (0 — из реестра)"
+            data-tip="Длительность в тиках (0 — из реестра)"
             onChange={(ev) => {
               const v = Math.max(0, Number(ev.target.value) || 0)
               if (v > 0) e.duration = v

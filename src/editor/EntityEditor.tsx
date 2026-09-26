@@ -1,7 +1,7 @@
 import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
-import { DEFAULT_EMOTION } from '../shared/types'
+import { DEFAULT_EMOTION, equipmentSlots } from '../shared/types'
 import type { EditorStore } from './store'
 import { FlagSelect, ImageUpload, RefSelect, FileAdvancedJson } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
@@ -209,6 +209,31 @@ function ItemForm({
           </label>
         </div>
       )}
+
+      <div className="props-group">
+        <h4>Экипировка</h4>
+        <label className="fld">
+          <span>Слот экипировки</span>
+          <select
+            value={item.equip_slot ?? ''}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v) item.equip_slot = v
+              else delete item.equip_slot
+              commit()
+            }}
+          >
+            <option value="">Не экипируется</option>
+            {equipmentSlots(store.meta).map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        </label>
+        <div className="muted small">
+          Старым предметам со свойствами оружия/брони слот подставляется автоматически
+          (Оружие/Броня), пока мастер не выберет свой.
+        </div>
+      </div>
 
       <div className="props-group">
         <SoundHookMapEditor

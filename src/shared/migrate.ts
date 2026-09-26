@@ -48,6 +48,13 @@ export function migrateEntity<T extends { type?: string }>(e: T): T {
   if (e && e.type === 'npc' && typeof (e as { description?: string }).description !== 'string') {
     return { ...e, description: '' }
   }
+  // блок 7 ТЗ: старым предметам без equip_slot слот выводится из данных
+  if (e && e.type === 'item') {
+    const it = e as unknown as { equip_slot?: string; weapon_data?: unknown; armor_data?: unknown }
+    if (!it.equip_slot && (it.weapon_data || it.armor_data)) {
+      return { ...e, equip_slot: it.weapon_data ? 'weapon' : 'armor' }
+    }
+  }
   return e
 }
 

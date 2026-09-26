@@ -272,6 +272,8 @@ export interface CampaignMeta {
   statuses?: StatusDef[]
   /** реестр боевых способностей (блок 6 ТЗ) */
   abilities?: AbilityDef[]
+  /** реестр слотов экипировки (блок 7 ТЗ); встроенные Оружие/Броня есть всегда */
+  equipment_slots?: Array<{ id: string; label: string }>
   /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
   dice_rules?: DiceRules
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
@@ -652,6 +654,9 @@ export interface ItemDef {
   weapon_data?: WeaponData
   /** броня: очки поглощения урона */
   armor_data?: { points: number }
+  /** слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;
+   *  нет — не экипируется. Старым предметам выставляется миграцией. */
+  equip_slot?: string
   /** взаимодействие в сцене (бочка с водой и т.п.) */
   on_interact?: UseEffectDef
   /** использование из инвентаря */
@@ -1115,8 +1120,8 @@ export interface PlayerState {
   needs: Record<string, number>
   inventory: InventoryEntry[]
   currencies: Record<string, number>
-  /** экипировка игрока: id предметов из инвентаря */
-  equipment: { weapon?: string; armor?: string }
+  /** экипировка игрока: слот → предмет из инвентаря (блок 7 ТЗ; слоты задаёт кампания) */
+  equipment: Record<string, string>
   /** активные статусы игрока (блок 5 ТЗ); left — мировые тики */
   statuses?: ActiveStatus[]
 }
@@ -1133,7 +1138,25 @@ export interface CompanionState {
   max_hp: number
 }
 
-export const SAVE_VERSION = 3
+export const SAVE_VERSION = 4
+
+/**
+ * Встроенные слоты экипировки (блок 7 ТЗ): присутствуют всегда, даже если
+ * мастер добавил свои (фэнтези-амулеты, киберпанк-импланты…).
+ */
+export const BUILTIN_EQUIPMENT_SLOTS: Array<{ id: string; label: string }> = [
+  { id: 'weapon', label: 'Оружие' },
+  { id: 'armor', label: 'Броня' },
+]
+
+/** полный список слотов кампании: встроенные + свои мастера */
+export function equipmentSlots(meta: { equipment_slots?: Array<{ id: string; label: string }> }): Array<{ id: string; label: string }> {
+  const out = BUILTIN_EQUIPMENT_SLOTS.map((s) => ({ ...s }))
+  for (const s of meta.equipment_slots ?? []) {
+    if (s.id && !out.some((x) => x.id === s.id)) out.push({ id: s.id, label: s.label || s.id })
+  }
+  return out
+}
 
 export interface GameState {
   save_version?: number

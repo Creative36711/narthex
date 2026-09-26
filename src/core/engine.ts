@@ -21,7 +21,7 @@ import type {
   PresenceOverride,
   WeaponData,
 } from '../shared/types'
-import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn } from '../shared/types'
+import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots } from '../shared/types'
 import { PRNG } from './prng'
 import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
 import { rollDice } from './dice'
@@ -384,40 +384,63 @@ export class GameEngine {
     if (!entry) return
     entry.quantity -= quantity
     if (entry.quantity <= 0) inv.splice(inv.indexOf(entry), 1)
-    // предмет закончился — снимаем с персонажа
-    const eq = this.state.player.equipment
+    // предмет закончился — снимаем со всех слотов
     if (!this.hasItem(id)) {
-      if (eq.weapon === id) delete eq.weapon
-      if (eq.armor === id) delete eq.armor
+      const eq = this.state.player.equipment
+      for (const slot of Object.keys(eq)) {
+        if (eq[slot] === id) delete eq[slot]
+      }
     }
   }
 
-  // ─────────────── экипировка ───────────────
+  // ─────────────── экипировка (блок 7 ТЗ: слоты задаёт кампания) ───────────────
+
+  /** список слотов экипировки кампании (встроенные + свои) */
+  equipmentSlots(): Array<{ id: string; label: string }> {
+    return equipmentSlots(this.campaign.meta)
+  }
+
+  slotLabel(slotId: string): string {
+    return this.equipmentSlots().find((s) => s.id === slotId)?.label ?? slotId
+  }
+
+  /** слот, в который экипируется предмет (нет — не экипируется) */
+  itemSlot(id: string): string | undefined {
+    const def = this.campaign.entities[id] as ItemDef | undefined
+    if (!def || def.type !== 'item') return undefined
+    if (def.equip_slot) return def.equip_slot
+    if (def.weapon_data) return 'weapon' // мягкая миграция старых предметов
+    if (def.armor_data) return 'armor'
+    return undefined
+  }
 
   /** предмет надет? */
   isEquipped(id: string): boolean {
-    const eq = this.state.player.equipment
-    return eq.weapon === id || eq.armor === id
+    return Object.values(this.state.player.equipment).includes(id)
   }
 
-  /** надеть оружие/броню из инвентаря */
+  /** в каком слоте надет предмет (нет — '') */
+  equippedSlotOf(id: string): string {
+    const eq = this.state.player.equipment
+    for (const slot of Object.keys(eq)) if (eq[slot] === id) return slot
+    return ''
+  }
+
+  /** надеть предмет из инвентаря в его слот */
   equipItem(id: string): void {
     if (!this.hasItem(id)) return
     const def = this.campaign.entities[id] as ItemDef | undefined
     if (!def || def.type !== 'item') return
-    if (def.weapon_data) {
-      this.state.player.equipment.weapon = id
-      this.pushLog(`Взято в руки: ${def.label}.`)
-    } else if (def.armor_data) {
-      this.state.player.equipment.armor = id
-      this.pushLog(`Надето: ${def.label}.`)
-    } else return
+    const slot = this.itemSlot(id)
+    if (!slot) return
+    this.state.player.equipment[slot] = id
+    this.pushLog(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`)
     this.autosave()
     this.notify()
   }
 
-  /** снять оружие/броню */
-  unequipItem(slot: 'weapon' | 'armor'): void {
+  /** снять предмет из слота */
+  unequipItem(slot: string): void {
     const eq = this.state.player.equipment
     const id = eq[slot]
     if (!id) return
@@ -430,7 +453,7 @@ export class GameEngine {
 
   /** текущее оружие игрока (для UI и боя): экипированное или кулаки */
   playerWeapon(): { itemId: string | null; weapon: WeaponData; label: string } {
-    const id = this.state.player.equipment.weapon
+    const id = this.state.player.equipment['weapon']
     if (id && this.hasItem(id)) {
       const def = this.campaign.entities[id] as ItemDef | undefined
       if (def?.weapon_data) return { itemId: id, weapon: def.weapon_data, label: def.label }
@@ -442,14 +465,23 @@ export class GameEngine {
     }
   }
 
-  /** текущая броня игрока (очки поглощения) */
+  /** броня игрока: сумма очков ВСЕХ надетых предметов с бронёй (шлем+кираса) */
   playerArmor(): { itemId: string | null; points: number; label: string } {
-    const id = this.state.player.equipment.armor
-    if (id && this.hasItem(id)) {
+    let points = 0
+    let first: string | null = null
+    const labels: string[] = []
+    for (const slot of Object.keys(this.state.player.equipment)) {
+      const id = this.state.player.equipment[slot]
+      if (!id || !this.hasItem(id)) continue
       const def = this.campaign.entities[id] as ItemDef | undefined
-      if (def?.armor_data) return { itemId: id, points: def.armor_data.points, label: def.label }
+      if (def?.armor_data) {
+        points += def.armor_data.points
+        labels.push(def.label)
+        if (!first) first = id
+      }
     }
-    return { itemId: null, points: 0, label: 'Без брони' }
+    if (!points) return { itemId: null, points: 0, label: 'Без брони' }
+    return { itemId: first, points, label: labels.join(' + ') }
   }
 
   useItem(id: string): void {
@@ -1348,8 +1380,16 @@ export function loadSave(campaignId: string): GameState | null {
     const raw = localStorage.getItem(saveKey(campaignId))
     if (!raw) return null
     const state = JSON.parse(raw) as GameState
-    // несовместимые старые сейвы отбрасываем
-    if ((state.save_version ?? 1) !== SAVE_VERSION) return null
+    const v = state.save_version ?? 1
+    // старше в3 — слишком древние, отбрасываем
+    if (v < 3) return null
+    // в3 → в4 (блок 7 ТЗ): equipment {weapon?, armor?} уже ложится в
+    // модель «слот → предмет» — только поднимаем версию
+    if (v === 3) {
+      if (!state.player || typeof state.player.equipment !== 'object' || state.player.equipment === null) return null
+      state.save_version = SAVE_VERSION
+    }
+    if (state.save_version !== SAVE_VERSION) return null
     return state
   } catch {
     return null

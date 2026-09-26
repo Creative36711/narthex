@@ -1652,6 +1652,26 @@
           },
           "description": "реестр боевых способностей (блок 6 ТЗ)"
         },
+        "equipment_slots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр слотов экипировки (блок 7 ТЗ); встроенные Оружие/Броня есть всегда"
+        },
         "dice_rules": {
           "$ref": "#/$defs/DiceRules",
           "description": "правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES"
@@ -3557,6 +3577,10 @@
           ],
           "additionalProperties": false,
           "description": "броня: очки поглощения урона"
+        },
+        "equip_slot": {
+          "type": "string",
+          "description": "слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;\nнет — не экипируется. Старым предметам выставляется миграцией."
         },
         "on_interact": {
           "$ref": "#/$defs/UseEffectDef",

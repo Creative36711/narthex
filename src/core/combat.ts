@@ -320,12 +320,13 @@ export class CombatController {
 
   private resolveArmor(def: NpcDef): number {
     if (def.armor != null) return def.armor
-    const armorItemId = def.equipment?.armor
-    if (armorItemId) {
-      const item = this.engine.campaign.entities[armorItemId] as ItemDef | undefined
-      if (item?.armor_data) return item.armor_data.points
+    // броня — сумма очков всех надетых предметов с бронёй (блок 7 ТЗ)
+    let points = 0
+    for (const itemId of Object.values(def.equipment ?? {})) {
+      const item = this.engine.campaign.entities[itemId] as ItemDef | undefined
+      if (item?.armor_data) points += item.armor_data.points
     }
-    return 0
+    return points
   }
 
   // ─────────────── доступ ───────────────
