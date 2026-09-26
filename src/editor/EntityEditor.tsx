@@ -286,6 +286,12 @@ function NpcForm({
   const armors = itemsWhere(store, (i) => !!i.armor_data)
   const allItems = store.options('item')
   const portraitKeys = Object.keys(npc.portrait ?? {})
+  /** есть ли у НПС хоть одно изображение — тогда спойлер «Изображения» открыт */
+  const hasArt =
+    Object.values(npc.portrait ?? {}).some(Boolean) ||
+    !!npc.scene_sprite ||
+    !!npc.combat_figure ||
+    !!npc.token
 
   return (
     <div className="rule-editor">
@@ -336,6 +342,10 @@ function NpcForm({
         />
       </div>
 
+      {/* изображения НПС занимают много места — держим их под спойлером;
+          открыт, если изображения уже есть */}
+      <details className="spoiler-block" {...(hasArt ? { open: true } : {})}>
+        <summary>Изображения: портреты, спрайт, фигурка</summary>
       <div className="props-group">
         <h4>Портреты (состояния)</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
@@ -501,6 +511,10 @@ function NpcForm({
         <div className="muted small">Если и жетон не задан, в бою используется обычный портрет.</div>
       </div>
 
+      </details>
+
+      <details className="spoiler-block" {...((npc.abilities?.length ?? 0) > 0 || !!npc.morale) ? { open: true } : {}}>
+        <summary>Способности и мораль</summary>
       <div className="props-group">
         <h4>Способности и мораль</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
@@ -554,6 +568,8 @@ function NpcForm({
           </label>
         </div>
       </div>
+
+      </details>
 
       <div className="props-group">
         <h4>Характеристики</h4>
@@ -624,6 +640,8 @@ function NpcForm({
         </button>
       </div>
 
+      <details className="spoiler-block" {...((npc.inventory?.length ?? 0) > 0 || Object.keys(npc.equipment ?? {}).length > 0) ? { open: true } : {}}>
+        <summary>Снаряжение и инвентарь</summary>
       <div className="props-group">
         <h4>Снаряжение и инвентарь</h4>
         <div className="fld-row">
@@ -708,6 +726,10 @@ function NpcForm({
         </button>
       </div>
 
+      </details>
+
+      <details className="spoiler-block" {...(!!npc.trader) ? { open: true } : {}}>
+        <summary>Торговля</summary>
       <div className="props-group">
         <h4>Торговля</h4>
         <label className="fld fld-check">
@@ -802,6 +824,8 @@ function NpcForm({
           </>
         )}
       </div>
+
+      </details>
 
       <div className="props-group">
         <h4>Расписание (где персонаж в течение дня)</h4>

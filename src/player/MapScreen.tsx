@@ -109,10 +109,15 @@ export function MapScreen({ engine, onClose }: Props) {
         <div className="map-header">
           <h2><Ico n="map" /> {region.label}</h2>
           <div className="map-tools">
-            <label className="fld-check small map-labels-toggle" data-tip="Показывать подписи у всех локаций">
-              <input type="checkbox" checked={labels} onChange={toggleLabels} />
-              <span>Названия</span>
-            </label>
+            {/* вместо голой галочки — кнопка-переключатель с состоянием */}
+            <button
+              type="button"
+              className={`btn btn-small map-labels-toggle ${labels ? 'map-labels-on' : ''}`}
+              data-tip="Показывать подписи у всех локаций"
+              onClick={toggleLabels}
+            >
+              Названия
+            </button>
             <button className="btn btn-small" onClick={() => zoomBy(1 / 1.25)} data-tip="Уменьшить">−</button>
             <button className="btn btn-small" onClick={() => zoomBy(1.25)} data-tip="Увеличить"><Ico n="plus" /> </button>
             <button

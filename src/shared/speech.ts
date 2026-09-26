@@ -86,6 +86,8 @@ interface QueueItem {
   retries: number
   /** синтезатор подтвердил старт произнесения (событие onstart) */
   started: boolean
+  /** синтезатор реально произносит символы (событие onboundary) */
+  boundarySeen: boolean
   /** по фразе уже принято финальное решение (защита от двойных событий) */
   settled: boolean
 }
@@ -98,6 +100,8 @@ let cooldownUntil = 0
 let keepalive: ReturnType<typeof setInterval> | null = null
 /** таймер «застревания»: фраза не началась за 5 с — перезапускаем её */
 let stallTimer: ReturnType<typeof setTimeout> | null = null
+/** таймер «тишины»: старт был, но символы не произносятся — перезапуск */
+let silentTimer: ReturnType<typeof setTimeout> | null = null
 /** максимум повторов одной фразы при сбоях синтезатора */
 const MAX_RETRIES = 2
 
@@ -106,6 +110,39 @@ function clearStallTimer(): void {
     clearTimeout(stallTimer)
     stallTimer = null
   }
+}
+
+function clearSilentTimer(): void {
+  if (silentTimer !== null) {
+    clearTimeout(silentTimer)
+    silentTimer = null
+  }
+}
+
+// ─────────────── «прогрев» синтезатора первым жестом ───────────────
+// Chrome может молча проглотить первые фразы, пока синтезатор «спит»;
+// короткая служебная фраза на первом жесте пользователя будит его заранее.
+
+let primed = false
+function prime(): void {
+  if (primed || !ttsSupported()) return
+  primed = true
+  try {
+    const u = new SpeechSynthesisUtterance(' ')
+    u.volume = 0.01
+    const v = pickVoice(undefined)
+    if (v) {
+      u.voice = v
+      u.lang = v.lang
+    }
+    window.speechSynthesis.speak(u)
+  } catch {
+    /* не критично */
+  }
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('pointerdown', prime, { once: true })
+  window.addEventListener('keydown', prime, { once: true })
 }
 
 function startKeepalive(): void {
@@ -160,6 +197,7 @@ function pump(): void {
   queue.shift()
   active = item
   item.started = false
+  item.boundarySeen = false
   item.settled = false
   startKeepalive()
   speakItem(item)
@@ -170,6 +208,7 @@ function finishItem(item: QueueItem): void {
   if (item.settled) return
   item.settled = true
   clearStallTimer()
+  clearSilentTimer()
   if (active === item) active = null
   if (!item.cancelled) item.opts.onEnd?.()
   pump()
@@ -187,15 +226,18 @@ function retryItem(item: QueueItem): void {
     return
   }
   clearStallTimer()
+  clearSilentTimer()
   if (active === item) active = null
   if (item.retries < MAX_RETRIES) {
     item.retries++
     item.started = false
+    item.boundarySeen = false
     // эта попытка «потреблена»: события выброшенного синтезатором
     // высказывания (поздний onerror/onend) уже не должны трогать очередь —
     // при следующем заходе в pump() флаги сбросятся заново
     item.settled = true
     queue.unshift(item)
+    console.info(`[tts] повтор фразы (${item.retries}/${MAX_RETRIES}): «${item.clean.slice(0, 40)}…»`)
     try {
       window.speechSynthesis.cancel()
     } catch {
@@ -230,9 +272,31 @@ function speakItem(item: QueueItem): void {
   u.onstart = () => {
     item.started = true
     clearStallTimer()
+    // Chrome порой «стартует» без звука: если за 2,5 с не пришло ни одного
+    // символьного события (onboundary) — считаем фразу проглоченной и повторяем
+    if (item.clean.length > 3 && !item.boundarySeen) {
+      clearSilentTimer()
+      silentTimer = setTimeout(() => {
+        silentTimer = null
+        if (active === item && !item.boundarySeen) {
+          console.info('[tts] синтезатор стартовал без звука — фраза вернулась в очередь')
+          retryItem(item)
+        }
+      }, 2500)
+    }
+  }
+  u.onboundary = () => {
+    item.boundarySeen = true
+    clearSilentTimer()
   }
   u.onend = () => finishItem(item)
-  u.onerror = () => retryItem(item)
+  u.onerror = (ev) => {
+    // отменённые фразы не повторяем; «interrupted»/«canceled» при stopSpeaking
+    const err = (ev as SpeechSynthesisErrorEvent).error
+    if (err === 'canceled' || err === 'interrupted') return
+    console.info(`[tts] ошибка синтезатора (${err ?? '?'}) — фраза вернулась в очередь`)
+    retryItem(item)
+  }
   try {
     synth.speak(u)
     synth.resume() // защита от «застрявшего» пауз-состояния
@@ -244,7 +308,10 @@ function speakItem(item: QueueItem): void {
   clearStallTimer()
   stallTimer = setTimeout(() => {
     stallTimer = null
-    if (active === item && !item.started) retryItem(item)
+    if (active === item && !item.started) {
+      console.info('[tts] синтезатор не стартовал за 5 с — фраза вернулась в очередь')
+      retryItem(item)
+    }
   }, 5000)
 }
 
@@ -281,7 +348,7 @@ export function speak(
   }
   initVoices()
   if (!opts.queue) stopSpeaking()
-  const item: QueueItem = { clean, opts, retries: 0, started: false, settled: false }
+  const item: QueueItem = { clean, opts, retries: 0, started: false, boundarySeen: false, settled: false }
   queue.push(item)
   pump()
   return () => {

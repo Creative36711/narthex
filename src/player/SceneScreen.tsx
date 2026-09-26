@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
 import { timeOfDay } from '../core/time'
@@ -15,7 +15,11 @@ type UseModal = { slot: SlotDef; options: Array<{ itemId: string; label: string;
 /** Экран сцены: фон (активное состояние) + слоты + зоны навигации (ТЗ 6.1). */
 export function SceneScreen({ engine, onOpenMap }: Props) {
   const [useModal, setUseModal] = useState<UseModal | null>(null)
+  /** фон сцены не загрузился — показываем причину прямо на экране */
+  const [bgError, setBgError] = useState('')
   const scene = engine.currentScene()
+  const sceneId = scene?.id
+  useEffect(() => setBgError(''), [sceneId])
   if (!scene) return <div className="scene-missing">Сцена не найдена</div>
 
   const canvas = scene.canvas ?? { w: 1280, h: 720 }
@@ -37,11 +41,29 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
       <div className={`scene-stage tod-tint-${tod}`} style={{ aspectRatio: `${canvas.w} / ${canvas.h}` }}>
         {state.art ? (
           <ArtView className="scene-bg" art={state.art} />
-        ) : state.image ? (
-          <img className="scene-bg" src={assetUrl(engine.campaign, state.image)} alt={state.label} draggable={false} />
+        ) : state.image && !bgError ? (
+          <img
+            className="scene-bg"
+            src={assetUrl(engine.campaign, state.image)}
+            alt={state.label}
+            draggable={false}
+            onError={(e) => {
+              // диагностика «чёрной сцены»: причина видна сразу, а не в глубине DevTools
+              const src = (e.target as HTMLImageElement).currentSrc || state.image || '(путь не задан)'
+              console.error(`[сцена] фон не загрузился: ${src}`)
+              setBgError(src)
+            }}
+          />
         ) : (
-          /* сцена без арта не должна быть «чёрным экраном» */
+          /* сцена без арта (или арт не загрузился) — не «чёрный экран» */
           <div className="scene-bg scene-bg-fallback" aria-hidden />
+        )}
+        {bgError && (
+          <div className="scene-bg-note">
+            Фон сцены не загрузился: {bgError}
+            <br />
+            Проверьте вкладку Network в DevTools — файл отсутствует или повреждён.
+          </div>
         )}
 
         {/* спрайты рисуются по порядку снизу вверх: нижние — поверх дальних */}

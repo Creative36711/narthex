@@ -1146,6 +1146,499 @@
       "additionalProperties": false,
       "description": "погода (блок 9 ТЗ): визуальный слой + звуковые слои"
     },
+    "Condition": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "player_enters_location"
+            },
+            "location": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "location"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "player_enters_scene"
+            },
+            "scene": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "scene"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "flag_set"
+            },
+            "flag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "flag_not_set"
+            },
+            "flag": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "variable_compare"
+            },
+            "var": {
+              "type": "string"
+            },
+            "operator": {
+              "type": "string",
+              "enum": [
+                "==",
+                "!=",
+                "<",
+                ">",
+                "<=",
+                ">="
+              ]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "var",
+            "operator",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "time_of_day"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TimeOfDay"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/TimeOfDay"
+                  }
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "tick_elapsed"
+            },
+            "min_tick": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "min_tick"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "quest_at_stage"
+            },
+            "quest": {
+              "type": "string"
+            },
+            "stage": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "quest",
+            "stage"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "has_item"
+            },
+            "item": {
+              "type": "string"
+            },
+            "min_quantity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "skill_ge"
+            },
+            "skill": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "skill",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "need_le"
+            },
+            "need": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "need",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "need_ge"
+            },
+            "need": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "need",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "entity_alive"
+            },
+            "entity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "entity_dead"
+            },
+            "entity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "disposition_ge"
+            },
+            "target": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "disposition_le"
+            },
+            "target": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "in_party"
+            },
+            "entity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "random_chance"
+            },
+            "probability": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "probability"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "has_status"
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "weather_is"
+            },
+            "weather": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "and"
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "conditions"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "or"
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "conditions"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "not"
+            },
+            "condition": {
+              "$ref": "#/$defs/Condition"
+            }
+          },
+          "required": [
+            "type",
+            "condition"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "EndingDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string",
+          "description": "название в редакторе"
+        },
+        "title": {
+          "type": "string",
+          "description": "заголовок финального экрана"
+        },
+        "text": {
+          "type": "string",
+          "description": "текст концовки"
+        },
+        "tone": {
+          "type": "string",
+          "enum": [
+            "death",
+            "victory",
+            "neutral"
+          ],
+          "description": "тон экрана: гибель / победа / нейтральный"
+        },
+        "on": {
+          "type": "string",
+          "enum": [
+            "death",
+            "victory"
+          ],
+          "description": "к какому исходу применима концовка (нет — к любому)"
+        },
+        "image": {
+          "type": "string",
+          "description": "фон финала (файл пакета или ссылка); нет — фон темы"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия, при которых эта концовка показывается (все сразу)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "title"
+      ],
+      "additionalProperties": false,
+      "description": "Финальный экран (концовка). Мастер задаёт столько концовок, сколько хочет;\nпри завершении забега движок выбирает ПЕРВУЮ, у которой совпадает исход\n(`on`) и выполнены все `conditions`. Если ни одна не подошла — стандартный\nэкран исхода («Забег окончен» / «Победа»)."
+    },
     "DiceRules": {
       "type": "object",
       "properties": {
@@ -1842,6 +2335,33 @@
           },
           "description": "реестр погод (блок 9 ТЗ)"
         },
+        "endings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EndingDef"
+          },
+          "description": "финальные экраны (концовки): мастер задаёт сколько угодно; при завершении\nзабега движок берёт ПЕРВУЮ концовку, чьи условия выполнены (и чей `on`\nсовпадает с исходом). Нет подходящей — стандартный экран исхода."
+        },
+        "overlay_layers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр визуальных слоёв погоды (id + название) — «без хардкода»: список\nдля селекта «Слой» целиком задаёт кампания. Движок умеет рисовать слои\n`rain`, `snow`, `fog`, `ash`; свои id рисуются классом `weather-<id>`\n(стили мастер может добавить в тему оформления)."
+        },
         "codex_categories": {
           "type": "array",
           "items": {
@@ -2406,444 +2926,6 @@
       ],
       "additionalProperties": false,
       "description": "Векторная «картинка из JSON»: слои примитивов в координатах холста\n(по умолчанию 1280×720 — та же система, что у слотов сцены).\nФормат рассчитан на генерацию ИИ: нарисовав сцену примитивами, генератор\nсам знает координаты объектов и ставит слоты точно на них."
-    },
-    "Condition": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "player_enters_location"
-            },
-            "location": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "location"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "player_enters_scene"
-            },
-            "scene": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "scene"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "flag_set"
-            },
-            "flag": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "flag"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "flag_not_set"
-            },
-            "flag": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "flag"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "variable_compare"
-            },
-            "var": {
-              "type": "string"
-            },
-            "operator": {
-              "type": "string",
-              "enum": [
-                "==",
-                "!=",
-                "<",
-                ">",
-                "<=",
-                ">="
-              ]
-            },
-            "value": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                }
-              ]
-            }
-          },
-          "required": [
-            "type",
-            "var",
-            "operator",
-            "value"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "time_of_day"
-            },
-            "value": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/TimeOfDay"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/$defs/TimeOfDay"
-                  }
-                }
-              ]
-            }
-          },
-          "required": [
-            "type",
-            "value"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "tick_elapsed"
-            },
-            "min_tick": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "min_tick"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "quest_at_stage"
-            },
-            "quest": {
-              "type": "string"
-            },
-            "stage": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "quest",
-            "stage"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "has_item"
-            },
-            "item": {
-              "type": "string"
-            },
-            "min_quantity": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "item"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "skill_ge"
-            },
-            "skill": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "skill",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "need_le"
-            },
-            "need": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "need",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "need_ge"
-            },
-            "need": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "need",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "entity_alive"
-            },
-            "entity": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "entity_dead"
-            },
-            "entity": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "disposition_ge"
-            },
-            "target": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "target",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "disposition_le"
-            },
-            "target": {
-              "type": "string"
-            },
-            "threshold": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "target",
-            "threshold"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "in_party"
-            },
-            "entity": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "random_chance"
-            },
-            "probability": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "probability"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "has_status"
-            },
-            "status": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "status"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "weather_is"
-            },
-            "weather": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "weather"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "and"
-            },
-            "conditions": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Condition"
-              }
-            }
-          },
-          "required": [
-            "type",
-            "conditions"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "or"
-            },
-            "conditions": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Condition"
-              }
-            }
-          },
-          "required": [
-            "type",
-            "conditions"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "not"
-            },
-            "condition": {
-              "$ref": "#/$defs/Condition"
-            }
-          },
-          "required": [
-            "type",
-            "condition"
-          ],
-          "additionalProperties": false
-        }
-      ]
     },
     "TravelConnection": {
       "type": "object",

@@ -1431,5 +1431,63 @@
       "id": "armor",
       "label": "Броня"
     }
+  ],
+  "overlay_layers": [
+    {
+      "id": "rain",
+      "label": "Дождь"
+    },
+    {
+      "id": "snow",
+      "label": "Снег"
+    },
+    {
+      "id": "fog",
+      "label": "Туман"
+    },
+    {
+      "id": "ash",
+      "label": "Пепел"
+    }
+  ],
+  "endings": [
+    {
+      "id": "ending_bandit_slain",
+      "label": "Банда разбита мечом",
+      "title": "Дороги снова чисты",
+      "text": "Йорек мёртв, банда рассеяна по холмам. Караваны снова идут в Каэрден, и у ворот твоё имя произносят с уважением. Бран уже сочинил песню — разумеется, прибавив пару подвигов.",
+      "tone": "victory",
+      "on": "victory",
+      "conditions": [
+        {
+          "type": "quest_at_stage",
+          "quest": "quest_bandit_threat",
+          "stage": "completed_fight"
+        }
+      ]
+    },
+    {
+      "id": "ending_grey_deal",
+      "label": "Серый мир с бандой",
+      "title": "Серый мир",
+      "text": "Ты выбрал серебро вместо стали. Бандиты платят «пошлину», стража молчит, торг идёт бойко. Только Алдрик больше не здоровается с тобой у ворот.",
+      "tone": "neutral",
+      "on": "victory",
+      "conditions": [
+        {
+          "type": "quest_at_stage",
+          "quest": "quest_bandit_threat",
+          "stage": "completed_deal"
+        }
+      ]
+    },
+    {
+      "id": "ending_ashes",
+      "label": "Пепельный финал",
+      "title": "Пепел принял ещё одного",
+      "text": "Каэрден пережил многих героев. Переживёт и тебя. Таверна вспомнит тебя кружкой эля, а летопись — строчкой.",
+      "tone": "death",
+      "on": "death"
+    }
   ]
 }

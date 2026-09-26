@@ -429,24 +429,33 @@ function StateBackground({
 }
 
 function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorStore; commit: () => void }) {
+  const card = (s: SceneStateDef, i: number) => (
+    <div key={i} className="ce-item ce-body">
+      <label className="fld">
+        <span>Название</span>
+        <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
+      </label>
+      <StateBackground state={s} store={store} commit={commit} />
+      <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
+      {scene.states.length > 1 && (
+        <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>
+          <Ico n="close" />  удалить состояние
+        </button>
+      )}
+    </div>
+  )
+  const [first, ...rest] = scene.states
   return (
     <div className="props-group">
       <h4>Состояния сцены</h4>
-      {scene.states.map((s, i) => (
-        <div key={i} className="ce-item ce-body">
-          <label className="fld">
-            <span>Название</span>
-            <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
-          </label>
-          <StateBackground state={s} store={store} commit={commit} />
-          <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
-          {scene.states.length > 1 && (
-            <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>
-              <Ico n="close" />  удалить состояние
-            </button>
-          )}
-        </div>
-      ))}
+      {/* первое состояние всегда видно, остальные — под спойлером: их может быть много */}
+      {first && card(first, 0)}
+      {rest.length > 0 && (
+        <details className="spoiler-block">
+          <summary>Остальные состояния — {rest.length}</summary>
+          {rest.map((s, k) => card(s, k + 1))}
+        </details>
+      )}
       <button
         className="btn btn-small"
         onClick={() => {

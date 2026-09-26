@@ -1443,7 +1443,13 @@ export class GameEngine {
 
   gameOver(type: 'death' | 'victory', reason: string): void {
     if (this.state.game_over) return
-    this.state.game_over = { type, reason }
+    // концовки кампании: первая подходящая по исходу и условиям (мастер задаёт сам)
+    const ending = (this.campaign.meta.endings ?? []).find(
+      (en) =>
+        (!en.on || en.on === type) &&
+        (en.conditions ?? []).every((c) => evalCondition(c, this)),
+    )
+    this.state.game_over = { type, reason, ending: ending?.id }
     if (type === 'death') {
       this.dialogue = null
       this.activeStory = null

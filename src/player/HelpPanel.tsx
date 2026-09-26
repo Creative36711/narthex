@@ -17,11 +17,10 @@ function ChecksBody({ rules }: { rules: DiceRules }) {
   const crit = Math.max(1, Math.floor(DEMO_SKILL / (rules.critical_divisor || 1)))
   const special = Math.max(1, Math.floor(DEMO_SKILL / (rules.special_divisor || 1)))
   const lowSkill = rules.fumble_low_skill
-  const fumbleLine =
-    rules.fumble_from >= 100 || lowSkill == null
-      ? `     Бросок ${rules.fumble_from}–100         → Критический провал`
-      : `     Бросок ${rules.fumble_from}–100         → Критический провал
-     (при навыке ниже ${lowSkill} — весь хвост ${rules.fumble_from}–99)`
+  const fumbleNote =
+    rules.fumble_from < 100 && lowSkill != null
+      ? `При навыке ниже ${lowSkill} — весь хвост ${rules.fumble_from}–99 тоже критический провал.`
+      : ''
   return (
     <>
       <p>
@@ -29,11 +28,15 @@ function ChecksBody({ rules }: { rules: DiceRules }) {
         заметить ловушку, ударить мечом, — движок бросает виртуальный d100 (число от 1 до 100)
         и сравнивает его со значением навыка.
       </p>
-      <pre>{`  +  Бросок ≤ навыка          → Успех
-     Бросок ≤ навыка ÷ ${String(rules.critical_divisor).padEnd(3)}   → Критический успех!
-  ⭐ Бросок ≤ навыка ÷ ${String(rules.special_divisor).padEnd(3)}   → Особый (хороший) успех
-  −  Бросок > навыка          → Провал
-${fumbleLine}`}</pre>
+      {/* таблица исходов — строками с переносом, без горизонтального скролла */}
+      <div className="checks-table">
+        <div className="checks-row"><span className="checks-mark ok">+</span><span>Бросок ≤ навыка</span><span className="checks-res">Успех</span></div>
+        <div className="checks-row"><span className="checks-mark crit">★</span><span>Бросок ≤ навыка ÷ {rules.critical_divisor}</span><span className="checks-res">Критический успех!</span></div>
+        <div className="checks-row"><span className="checks-mark good">✦</span><span>Бросок ≤ навыка ÷ {rules.special_divisor}</span><span className="checks-res">Особый (хороший) успех</span></div>
+        <div className="checks-row"><span className="checks-mark bad">−</span><span>Бросок &gt; навыка</span><span className="checks-res">Провал</span></div>
+        <div className="checks-row"><span className="checks-mark bad">☠</span><span>Бросок {rules.fumble_from}–100</span><span className="checks-res">Критический провал</span></div>
+      </div>
+      {fumbleNote && <p className="muted small">{fumbleNote}</p>}
       <p>
         Пример: навык «Убеждение» = {DEMO_SKILL}%.
         <br />• Бросок 23 → 23 ≤ {DEMO_SKILL} → <b>успех</b>, собеседник согласился.

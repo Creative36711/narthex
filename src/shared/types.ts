@@ -323,6 +323,19 @@ export interface CampaignMeta {
   }
   /** реестр погод (блок 9 ТЗ) */
   weathers?: WeatherDef[]
+  /**
+   * финальные экраны (концовки): мастер задаёт сколько угодно; при завершении
+   * забега движок берёт ПЕРВУЮ концовку, чьи условия выполнены (и чей `on`
+   * совпадает с исходом). Нет подходящей — стандартный экран исхода.
+   */
+  endings?: EndingDef[]
+  /**
+   * реестр визуальных слоёв погоды (id + название) — «без хардкода»: список
+   * для селекта «Слой» целиком задаёт кампания. Движок умеет рисовать слои
+   * `rain`, `snow`, `fog`, `ash`; свои id рисуются классом `weather-<id>`
+   * (стили мастер может добавить в тему оформления).
+   */
+  overlay_layers?: Array<{ id: string; label: string }>
   /** категории кодекса (блок 10 ТЗ); нет — встроенные три */
   codex_categories?: Array<{ id: string; label: string }>
   /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
@@ -550,6 +563,30 @@ export interface WeatherDef {
   overlay?: string
   /** зацикленные звуки (id из реестра звуков) — слои к эмбиенту */
   ambient?: string[]
+}
+
+/**
+ * Финальный экран (концовка). Мастер задаёт столько концовок, сколько хочет;
+ * при завершении забега движок выбирает ПЕРВУЮ, у которой совпадает исход
+ * (`on`) и выполнены все `conditions`. Если ни одна не подошла — стандартный
+ * экран исхода («Забег окончен» / «Победа»).
+ */
+export interface EndingDef {
+  id: string
+  /** название в редакторе */
+  label: string
+  /** заголовок финального экрана */
+  title: string
+  /** текст концовки */
+  text?: string
+  /** тон экрана: гибель / победа / нейтральный */
+  tone?: 'death' | 'victory' | 'neutral'
+  /** к какому исходу применима концовка (нет — к любому) */
+  on?: 'death' | 'victory'
+  /** фон финала (файл пакета или ссылка); нет — фон темы */
+  image?: string
+  /** условия, при которых эта концовка показывается (все сразу) */
+  conditions?: Condition[]
 }
 
 /** запись кодекса/бестиария — разблокируемый лор (блок 10 ТЗ) */
@@ -1303,7 +1340,7 @@ export interface GameState {
   party: CompanionState[]
   blocked_paths: string[]
   log: string[]
-  game_over: null | { type: 'death' | 'victory'; reason: string }
+  game_over: null | { type: 'death' | 'victory'; reason: string; ending?: string }
   stats_run: { travels: number; dialogues: number; ticks_survived: number; kills: number; quests_completed: number }
 }
 

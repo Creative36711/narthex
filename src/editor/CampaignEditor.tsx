@@ -2,11 +2,11 @@ import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
 import { useEffect, useState } from 'react'
 import type { EditorStore } from './store'
-import { AssetUpload, EffectListEditor, JsonField, RefSelect } from './Fields'
+import { AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { CampaignFeatures, CampaignMeta, DiceRules, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
+import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 
 import { askText } from './prompt'
@@ -59,16 +59,18 @@ function ChipMultiSelect({
   value,
   onChange,
   emptyLabel,
+  className = '',
 }: {
   options: Array<{ id: string; label: string }>
   value: string[]
   onChange: (v: string[]) => void
   emptyLabel: string
+  className?: string
 }) {
   const toggle = (id: string) =>
     onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id])
   return (
-    <div className="chips chip-multi">
+    <div className={`chips chip-multi ${className}`}>
       {options.length === 0 && <span className="muted small">{emptyLabel}</span>}
       {options.map((o) => (
         <button
@@ -1027,10 +1029,41 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <div className="props-group">
         <h4>Погода</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
-          Типы погоды с визуальным слоем (дождь, снег, туман, пепел) и
-          зацикленными звуками. Погоду меняют эффекты «Сменить погоду»;
-          условия «Погода сейчас» доступны правилам, слотам и музыке.
+          Типы погоды с визуальным слоем и зацикленными звуками. Погоду меняют
+          эффекты «Сменить погоду»; условия «Погода сейчас» доступны правилам,
+          слотам и музыке. Список слоёв — целиком ваш: движок умеет рисовать
+          дождь, снег, туман и пепел, свои id подключаются классом weather-&lt;id&gt;.
         </div>
+        <div className="prof-sec" style={{ marginTop: 0 }}>Слои погоды (реестр кампании):</div>
+        {(m.overlay_layers ?? []).map((l, i) => (
+          <div className="prof-line" key={i}>
+            <span className="prof-line-label">{l.label} <span className="muted small">({l.id})</span></span>
+            <button className="btn btn-small ce-del" data-tip="Удалить слой" onClick={() => ((m.overlay_layers = m.overlay_layers!.filter((_, x) => x !== i)), commit())}><Ico n="close" /></button>
+          </div>
+        ))}
+        <select value="" onChange={async (e) => {
+          let id = e.target.value
+          if (!id) return
+          if (id === '__custom__') {
+            const name = await askText('Новый слой погоды', 'id латиницей, например embers — будет класс weather-embers')
+            if (!name) return
+            id = name.trim().replace(/\s+/g, '_')
+            ;(m.overlay_layers ??= []).push({ id, label: id })
+          } else {
+            const label = ({ rain: 'Дождь', snow: 'Снег', fog: 'Туман', ash: 'Пепел' } as Record<string, string>)[id] ?? id
+            ;(m.overlay_layers ??= []).push({ id, label })
+          }
+          commit()
+        }}>
+          <option value="">+ добавить слой…</option>
+          {['rain', 'snow', 'fog', 'ash'].filter((id) => !(m.overlay_layers ?? []).some((l) => l.id === id)).map((id) => (
+            <option key={id} value={id}>{({ rain: 'Дождь', snow: 'Снег', fog: 'Туман', ash: 'Пепел' } as Record<string, string>)[id]}</option>
+          ))}
+          <option value="__custom__">Свой слой…</option>
+        </select>
+        {(m.overlay_layers ?? []).length === 0 && (
+          <div className="muted small" style={{ marginTop: 4 }}>Без реестра селект «Слой» у погоды будет пустым.</div>
+        )}
         {(m.weathers ?? []).map((w, i) => (
           <div key={i} className="props-group" style={{ border: '1px solid var(--border)', padding: 10, borderRadius: 8, marginBottom: 8 }}>
             <div className="fld-row" style={{ flexWrap: 'wrap' }}>
@@ -1049,14 +1082,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                     commit()
                   }}
                 >
-                  {w.overlay && !['rain', 'snow', 'fog', 'ash'].includes(w.overlay) && (
-                    <option value={w.overlay}>{w.overlay} (свое название)</option>
+                  {/* список слоёв — из реестра кампании, а не из движка */}
+                  {w.overlay && !(m.overlay_layers ?? []).some((l) => l.id === w.overlay) && (
+                    <option value={w.overlay}>{w.overlay} (вне реестра)</option>
                   )}
                   <option value="none">Без слоя</option>
-                  <option value="rain">Дождь</option>
-                  <option value="snow">Снег</option>
-                  <option value="fog">Туман</option>
-                  <option value="ash">Пепел</option>
+                  {(m.overlay_layers ?? []).map((l) => (
+                    <option key={l.id} value={l.id}>{l.label}</option>
+                  ))}
                 </select>
               </label>
               <button className="btn btn-small ce-del" data-tip="Удалить погоду" onClick={() => (m.weathers!.splice(i, 1), commit())}><Ico n="close" /> </button>
@@ -1193,53 +1226,35 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Игрок вводит имя героя</span>
             </label>
 
-            <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-              <label className="fld">
-                <span>Обязательный навык (стартует с 25%)</span>
-                <select value="" onChange={(e) => {
-                  const id = e.target.value
-                  if (!id) return
-                  if (!m.char_creation!.mandatory_skills!.includes(id)) m.char_creation!.mandatory_skills!.push(id)
-                  commit()
-                }}>
-                  <option value="">+ добавить…</option>
-                  {store.options('skill').filter((s) => !m.char_creation!.mandatory_skills!.includes(s.id)).map((s) => (
-                    <option key={s.id} value={s.id}>{s.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="fld">
-                <span>Запрещённый навык</span>
-                <select value="" onChange={(e) => {
-                  const id = e.target.value
-                  if (!id) return
-                  if (!m.char_creation!.forbidden_skills!.includes(id)) m.char_creation!.forbidden_skills!.push(id)
-                  commit()
-                }}>
-                  <option value="">+ добавить…</option>
-                  {store.options('skill').filter((s) => !m.char_creation!.forbidden_skills!.includes(s.id)).map((s) => (
-                    <option key={s.id} value={s.id}>{s.label}</option>
-                  ))}
-                </select>
-              </label>
+            {/* навыки-переключатели: клик по навыку включает/выключает его роль */}
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <span className="muted small" style={{ display: 'block', marginBottom: 4 }}>
+                Обязательные навыки — у любого происхождения стартуют не ниже 25%
+              </span>
+              <ChipMultiSelect
+                options={store.options('skill')}
+                value={m.char_creation.mandatory_skills!}
+                onChange={(v) => ((m.char_creation!.mandatory_skills = v), commit())}
+                emptyLabel="нажмите на навык, чтобы сделать обязательным"
+              />
             </div>
-            <div className="chips">
-              {m.char_creation.mandatory_skills!.map((id) => (
-                <span key={id} className="chip">{store.labelFor('skill', id)}
-                  <button className="chip-del" onClick={() => ((m.char_creation!.mandatory_skills = m.char_creation!.mandatory_skills!.filter((x) => x !== id)), commit())}><Ico n="close" /></button>
-                </span>
-              ))}
-              {m.char_creation.forbidden_skills!.map((id) => (
-                <span key={id} className="chip chip-warn">{store.labelFor('skill', id)}
-                  <button className="chip-del" onClick={() => ((m.char_creation!.forbidden_skills = m.char_creation!.forbidden_skills!.filter((x) => x !== id)), commit())}><Ico n="close" /></button>
-                </span>
-              ))}
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <span className="muted small" style={{ display: 'block', marginBottom: 4 }}>
+                Запрещённые навыки — очки на них тратить нельзя
+              </span>
+              <ChipMultiSelect
+                className="chipset-warn"
+                options={store.options('skill')}
+                value={m.char_creation.forbidden_skills!}
+                onChange={(v) => ((m.char_creation!.forbidden_skills = v), commit())}
+                emptyLabel="нажмите на навык, чтобы запретить его"
+              />
             </div>
 
             <h4 style={{ marginTop: 12 }}>Происхождения</h4>
             {(m.char_creation.professions ?? []).map((p, i) => (
-              <div key={i} className="props-group" style={{ border: '1px solid var(--border)', padding: 10, borderRadius: 8, marginBottom: 8 }}>
-                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+              <div key={i} className="prof-card">
+                <div className="prof-card-head">
                   <label className="fld"><span>Название</span>
                     <input value={p.label} onChange={(e) => ((p.label = e.target.value), commit())} />
                   </label>
@@ -1248,16 +1263,16 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 <label className="fld"><span>Описание</span>
                   <input value={p.description ?? ''} onChange={(e) => ((p.description = e.target.value || undefined), commit())} />
                 </label>
-                <div className="muted small" style={{ marginTop: 6 }}>Стартовые характеристики (пустое поле = минимум):</div>
-                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+
+                <div className="prof-sec">Стартовые характеристики (пустое поле = минимум):</div>
+                <div className="prof-stats">
                   {(['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const).map((k) => (
-                    <label key={k} className="fld fld-num" style={{ width: 64 }}>
+                    <label key={k} className="prof-stat" data-tip={`${k}: от ${m.char_creation!.stat_limits.min} до ${m.char_creation!.stat_limits.max}`}>
                       <span>{k}</span>
                       <input
                         type="number"
                         value={p.stats?.[k] ?? ''}
                         placeholder={String(m.char_creation!.stat_limits.min)}
-                        data-tip={`От ${m.char_creation!.stat_limits.min} до ${m.char_creation!.stat_limits.max}`}
                         onChange={(e) => {
                           const raw = e.target.value.trim()
                           if (raw === '') {
@@ -1275,13 +1290,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                     </label>
                   ))}
                 </div>
-                <div className="muted small" style={{ marginTop: 6 }}>Бонусы к навыкам:</div>
+
+                <div className="prof-sec">Бонусы к навыкам (бесплатно поверх бюджета):</div>
                 {Object.entries(p.skill_bonus).map(([sk, v]) => (
-                  <div className="fld-row" key={sk}>
-                    <span className="small">{store.labelFor('skill', sk)}</span>
-                    <input className="fld-num" type="number" value={v} style={{ width: 70 }}
+                  <div className="prof-line" key={sk}>
+                    <span className="prof-line-label">{store.labelFor('skill', sk)}</span>
+                    <input className="fld-num" type="number" value={v}
                       onChange={(e) => ((p.skill_bonus[sk] = Number(e.target.value) || 0), commit())} />
-                    <button className="btn btn-small ce-del" onClick={() => (delete p.skill_bonus[sk], commit())}><Ico n="close" /></button>
+                    <button className="btn btn-small ce-del" data-tip="Убрать бонус" onClick={() => (delete p.skill_bonus[sk], commit())}><Ico n="close" /></button>
                   </div>
                 ))}
                 <select value="" onChange={(e) => {
@@ -1291,13 +1307,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                   <option value="">+ бонус навыку…</option>
                   {store.options('skill').map((s) => (<option key={s.id} value={s.id}>{s.label}</option>))}
                 </select>
-                <div className="muted small" style={{ marginTop: 6 }}>Стартовое снаряжение:</div>
+
+                <div className="prof-sec">Стартовое снаряжение:</div>
                 {(p.items ?? []).map((it, j) => (
-                  <div className="fld-row" key={j}>
-                    <span className="small">{store.labelFor('item', it.item)}</span>
-                    <input type="number" min={1} value={it.quantity} style={{ width: 70 }}
+                  <div className="prof-line" key={j}>
+                    <span className="prof-line-label">{store.labelFor('item', it.item)}</span>
+                    <input type="number" min={1} value={it.quantity}
                       onChange={(e) => ((it.quantity = Math.max(1, Number(e.target.value) || 1)), commit())} />
-                    <button className="btn btn-small ce-del" onClick={() => ((p.items = p.items!.filter((_, x) => x !== j)), commit())}><Ico n="close" /></button>
+                    <button className="btn btn-small ce-del" data-tip="Убрать предмет" onClick={() => ((p.items = p.items!.filter((_, x) => x !== j)), commit())}><Ico n="close" /></button>
                   </div>
                 ))}
                 <select value="" onChange={(e) => {
@@ -1318,6 +1335,91 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             }}>+ происхождение</button>
           </>
         )}
+      </div>
+
+      <div className="props-group">
+        <h4>Финальные экраны (концовки)</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Сколько угодно финалов: при завершении забега движок показывает первую
+          концовку, у которой совпадает исход и выполнены все условия. Без подходящей —
+          стандартный экран («Забег окончен» / «Победа»).
+        </div>
+        {(m.endings ?? []).map((en, i) => (
+          <div key={i} className="prof-card">
+            <div className="prof-card-head">
+              <label className="fld"><span>Название (для редактора)</span>
+                <input value={en.label} onChange={(e) => ((en.label = e.target.value), commit())} />
+              </label>
+              <button className="btn btn-small ce-del" data-tip="Удалить концовку" onClick={() => ((m.endings = m.endings!.filter((_, x) => x !== i)), commit())}><Ico n="close" /></button>
+            </div>
+            <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+              <label className="fld"><span>Заголовок экрана</span>
+                <input value={en.title} onChange={(e) => ((en.title = e.target.value), commit())} />
+              </label>
+              <label className="fld"><span>Тон экрана</span>
+                <select
+                  value={en.tone ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v) en.tone = v as EndingDef['tone']
+                    else delete en.tone
+                    commit()
+                  }}
+                >
+                  <option value="">По исходу (гибель/победа)</option>
+                  <option value="death">Гибель</option>
+                  <option value="victory">Победа</option>
+                  <option value="neutral">Нейтральный</option>
+                </select>
+              </label>
+              <label className="fld"><span>К исходу</span>
+                <select
+                  value={en.on ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v) en.on = v as EndingDef['on']
+                    else delete en.on
+                    commit()
+                  }}
+                >
+                  <option value="">Любой исход</option>
+                  <option value="death">Только гибель</option>
+                  <option value="victory">Только победа</option>
+                </select>
+              </label>
+            </div>
+            <label className="fld"><span>Текст концовки</span>
+              <textarea rows={3} value={en.text ?? ''} onChange={(e) => ((en.text = e.target.value || undefined), commit())} />
+            </label>
+            <ImageUpload
+              label="Фон финала (необязательно)"
+              value={en.image ?? ''}
+              dir="assets/img/endings"
+              store={store}
+              onChange={(p) => {
+                if (p) en.image = p
+                else delete en.image
+                commit()
+              }}
+            />
+            <div className="prof-sec">Условия (все сразу; пусто — всегда):</div>
+            <ConditionListEditor
+              store={store}
+              conditions={en.conditions ?? []}
+              onChange={(v) => {
+                if (v.length) en.conditions = v
+                else delete en.conditions
+                commit()
+              }}
+            />
+          </div>
+        ))}
+        <button className="btn btn-small" onClick={async () => {
+          const label = await askText('Название концовки', 'например «Банда разбита»')
+          if (!label) return
+          ;(m.endings ??= []).push({ id: makeId('ending_', label, m.endings?.map((x) => x.id) ?? []), label, title: label })
+          commit()
+        }}>+ концовка</button>
       </div>
 
       <div className="props-group">

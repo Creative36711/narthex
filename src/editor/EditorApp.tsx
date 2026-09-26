@@ -122,13 +122,17 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     fetchCampaignIndex().then(setCampaigns)
   }, [base])
 
-  // undo: Ctrl+Z вне текстовых полей (в полях работает свой откат браузера/Monaco)
+  // undo: Ctrl+Z — тот же откат, что и кнопка «Откатить». В текстовых полях
+  // остаётся родной откат браузера/Monaco; а галочки, селекты и кнопки
+  // родного undo не имеют — там Ctrl+Z обязан вызывать откат магазина.
   useEffect(() => {
+    const textLike = new Set(['text', 'number', 'password', 'search', 'url', 'email', 'tel', ''])
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
       const t = e.target as HTMLElement
-      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
-      if (t.closest('.monaco-editor')) return
+      if (t.isContentEditable || t.closest('.monaco-editor')) return
+      if (t.tagName === 'TEXTAREA') return
+      if (t.tagName === 'INPUT' && textLike.has((t as HTMLInputElement).type)) return
       if (store.canUndo()) {
         e.preventDefault()
         store.undo()
