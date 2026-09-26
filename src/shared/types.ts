@@ -429,6 +429,8 @@ export interface SlotDef {
   h: number
   default_entity?: string
   condition: SceneCondition | null
+  /** множитель размера спрайта сцены в этом слоте (1 = по высоте слота) */
+  sprite_scale?: number
 }
 
 /**
@@ -512,7 +514,20 @@ export interface NpcDef {
   label: string
   /** описание сущности (при наведении); можно менять динамически (set_description) */
   description: string
+  /** ПОРТРЕТ (диалог): состояние → изображение (блок 3 ТЗ «Гибкий движок») */
   portrait: Record<string, string> // emotion -> image
+  /** СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);
+   *  нет — в сцене используется портрет (состояние «Обычный») */
+  scene_sprite?: string
+  /** ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски
+   *  и рамки стороны); нет — круглый жетон из `token ?? portrait.neutral` */
+  combat_figure?: string
+  /** как разворачивать фигурку: вид сверху (поворот), вид сбоку (зеркало),
+   *  не разворачивать; по умолчанию 'topdown' */
+  figure_mode?: 'topdown' | 'side' | 'static'
+  /** мягкая тень под спрайтом/фигуркой (по умолчанию включена) */
+  shadow?: boolean
+  /** изображение жетона в бою (когда фигурка не задана) */
   token?: string
   stats: StatBlock
   skills: Record<string, number>

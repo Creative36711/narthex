@@ -7,7 +7,7 @@ import type {
   WeaponData,
 } from '../shared/types'
 import type { GameEngine } from './engine'
-import { type Hex, hexKey, hexDistance, reachable, astar } from './hex'
+import { type Hex, hexKey, hexDistance, reachable, astar, hexToPixel } from './hex'
 import { skillCheck, damageBonus, movement, derivedHP, type CheckResult } from './brp'
 import { rollDice } from './dice'
 import { playUi, playInteraction } from '../shared/audio'
@@ -25,6 +25,16 @@ export interface Combatant {
   label: string
   side: 'player' | 'enemy'
   portrait?: string
+  /** фигурка боя (вместо жетона); нет — рисуется круглый жетон (блок 3 ТЗ) */
+  figure?: string
+  /** как разворачивать фигурку; по умолчанию 'topdown' */
+  figure_mode?: 'topdown' | 'side' | 'static'
+  /** мягкая тень под фигуркой (по умолчанию включена) */
+  figure_shadow?: boolean
+  /** направление фигурки, градусы: 0 — вверх, по часовой (режим 'topdown') */
+  facing: number
+  /** зеркало по горизонтали (режим 'side') */
+  flip: boolean
   stats: StatBlock
   skills: Record<string, number>
   weapon: WeaponData
@@ -125,6 +135,11 @@ export class CombatController {
       label: playerDef.label,
       side: 'player',
       portrait: playerDef.token ?? playerDef.portrait?.neutral,
+      figure: playerDef.combat_figure,
+      figure_mode: playerDef.figure_mode ?? 'topdown',
+      figure_shadow: playerDef.shadow,
+      facing: 90,
+      flip: false,
       stats: p.stats,
       skills: overloaded ? { ...p.skills, dodge: Math.max(0, (p.skills.dodge ?? 0) - 10) } : p.skills,
       weapon,
@@ -152,6 +167,11 @@ export class CombatController {
         label: def.label,
         side: 'player',
         portrait: def.token ?? def.portrait?.neutral,
+        figure: def.combat_figure,
+        figure_mode: def.figure_mode ?? 'topdown',
+        figure_shadow: def.shadow,
+        facing: 90,
+        flip: false,
         stats: def.stats,
         skills: def.skills,
         weapon: w.weapon,
@@ -183,6 +203,11 @@ export class CombatController {
           label: grp.count > 1 ? `${def.label} ${a}` : def.label,
           side: 'player',
           portrait: def.token ?? def.portrait?.neutral,
+          figure: def.combat_figure,
+          figure_mode: def.figure_mode ?? 'topdown',
+          figure_shadow: def.shadow,
+          facing: 90,
+          flip: false,
           stats: def.stats,
           skills: def.skills,
           weapon: w.weapon,
@@ -214,6 +239,11 @@ export class CombatController {
           label: grp.count > 1 ? `${def.label} ${i + 1}` : def.label,
           side: 'enemy',
           portrait: def.token ?? def.portrait?.neutral,
+          figure: def.combat_figure,
+          figure_mode: def.figure_mode ?? 'topdown',
+          figure_shadow: def.shadow,
+          facing: -90,
+          flip: true,
           stats: def.stats,
           skills: def.skills,
           weapon: w.weapon,
@@ -301,6 +331,23 @@ export class CombatController {
     return reachable(a.pos, a.movLeft, this.passable, this.moveCost)
   }
 
+  /**
+   * Разворот фигурки к точке (блок 3 ТЗ): 'topdown' — поворот по направлению,
+   * 'side' — зеркало по горизонтали, 'static' и жетоны не трогаем.
+   * Вращается только картинка — гекс-логика не меняется.
+   */
+  private faceTowards(c: Combatant, to: Hex): void {
+    if (!c.figure || (c.figure_mode ?? 'topdown') === 'static') return
+    const size = this.arena.hex_grid.hex_size
+    const a = hexToPixel(c.pos, size, { x: 0, y: 0 })
+    const b = hexToPixel(to, size, { x: 0, y: 0 })
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return
+    if ((c.figure_mode ?? 'topdown') === 'side') c.flip = dx < 0
+    else c.facing = (Math.atan2(dx, -dy) * 180) / Math.PI
+  }
+
   canAttack(attacker: Combatant, target: Combatant): boolean {
     return (
       !attacker.attacked &&
@@ -318,6 +365,7 @@ export class CombatController {
     const r = this.reachableHexes()
     const cost = r.get(hexKey(h))
     if (cost == null) return
+    this.faceTowards(this.active, h)
     this.active.pos = { ...h }
     this.active.movLeft -= cost
     this.engine.notify()
@@ -327,6 +375,7 @@ export class CombatController {
     if (!this.isPlayerTurn()) return
     const target = this.combatants.find((c) => c.id === targetId)
     if (!target || !this.canAttack(this.active, target)) return
+    this.faceTowards(this.active, target.pos)
     this.resolveAttack(this.active, target)
     this.checkEnd()
     // атака завершает ход автоматически (фидбек №1 пятого раунда):
@@ -429,6 +478,7 @@ export class CombatController {
       }
     }
 
+    this.faceTowards(c, target.pos)
     if (this.canAttack(c, target)) {
       this.resolveAttack(c, target)
     }

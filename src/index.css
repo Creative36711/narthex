@@ -1401,3 +1401,60 @@ input[type='checkbox'], input[type='radio'] {
 .end-overlay { position: relative; }
 .end-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; opacity: 0.5; }
 .end-overlay > .end-panel { position: relative; z-index: 1; }
+
+/* фигурка боя вместо жетона (блок 3 ТЗ): без круглой маски и рамки стороны */
+.token-figure {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  aspect-ratio: 1;
+  z-index: 5;
+  transition: left 0.35s ease, top 0.35s ease;
+}
+.token-figure img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.25s ease;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.55));
+}
+.token-figure .figure-shadow {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 2%;
+  height: 16%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), transparent 70%);
+  z-index: -1;
+}
+.token-figure .token-hp { position: absolute; left: 6%; right: 6%; bottom: -12%; }
+.token-figure.token-dead { opacity: 0.55; filter: grayscale(1); z-index: 1; }
+.token-figure.token-dead img { transform: rotate(90deg); }
+.figure-active img { filter: drop-shadow(0 0 8px rgba(232, 201, 135, 0.9)); }
+/* курсоры как у жетонов: по живому врагу — меч, по своим — прицел */
+.token-figure { cursor: var(--cur-cross); }
+.token-figure.figure-enemy:not(.token-dead) { cursor: var(--cur-sword); }
+
+/* спрайт сцены: вырезанный фон, привязка к нижнему краю слота (блок 3 ТЗ) */
+.slot-hotspot.slot-sprited { background: none; border: none; overflow: visible; }
+.slot-sprite {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: auto;
+  max-width: none;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+  pointer-events: none;
+}
+.slot-hotspot.slot-sprited .sprite-shadow {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: -2%;
+  height: 8%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5), transparent 70%);
+}

@@ -2058,6 +2058,10 @@
               "const": null
             }
           ]
+        },
+        "sprite_scale": {
+          "type": "number",
+          "description": "множитель размера спрайта сцены в этом слоте (1 = по высоте слота)"
         }
       },
       "required": [
@@ -2408,10 +2412,33 @@
           "type": "object",
           "additionalProperties": {
             "type": "string"
-          }
+          },
+          "description": "ПОРТРЕТ (диалог): состояние → изображение (блок 3 ТЗ «Гибкий движок»)"
+        },
+        "scene_sprite": {
+          "type": "string",
+          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);\nнет — в сцене используется портрет (состояние «Обычный»)"
+        },
+        "combat_figure": {
+          "type": "string",
+          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`"
+        },
+        "figure_mode": {
+          "type": "string",
+          "enum": [
+            "topdown",
+            "side",
+            "static"
+          ],
+          "description": "как разворачивать фигурку: вид сверху (поворот), вид сбоку (зеркало),\nне разворачивать; по умолчанию 'topdown'"
+        },
+        "shadow": {
+          "type": "boolean",
+          "description": "мягкая тень под спрайтом/фигуркой (по умолчанию включена)"
         },
         "token": {
-          "type": "string"
+          "type": "string",
+          "description": "изображение жетона в бою (когда фигурка не задана)"
         },
         "stats": {
           "$ref": "#/$defs/StatBlock"

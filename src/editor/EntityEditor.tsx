@@ -396,8 +396,74 @@ function NpcForm({
             <option value="__new__">+ Создать новое состояние…</option>
           </select>
         </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Спрайт в сцене</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Изображение с вырезанным фоном (прозрачный PNG), которым персонаж стоит в сцене.
+          Если не задано — в сцене используется портрет «Обычный».
+        </div>
         <ImageUpload
-          label="Изображение в бою (жетон на арене)"
+          label="Спрайт в сцене"
+          value={npc.scene_sprite ?? ''}
+          dir="assets/img/npc"
+          store={store}
+          onChange={(p) => {
+            if (p) npc.scene_sprite = p
+            else delete npc.scene_sprite
+            commit()
+          }}
+        />
+        <label className="fld fld-check">
+          <input
+            type="checkbox"
+            checked={npc.shadow !== false}
+            onChange={(e) => {
+              if (e.target.checked) delete npc.shadow
+              else npc.shadow = false
+              commit()
+            }}
+          />
+          <span>Мягкая тень под персонажем (в сцене и в бою)</span>
+        </label>
+      </div>
+
+      <div className="props-group">
+        <h4>В бою</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Фигурка показывается на арене вместо жетона (без круглой рамки) и разворачивается
+          при движении и атаке. Если фигурки нет — рисуется круглый жетон.
+        </div>
+        <ImageUpload
+          label="Фигурка боя"
+          value={npc.combat_figure ?? ''}
+          dir="assets/img/npc"
+          store={store}
+          onChange={(p) => {
+            if (p) npc.combat_figure = p
+            else delete npc.combat_figure
+            commit()
+          }}
+        />
+        <label className="fld">
+          <span>Как разворачивать фигурку</span>
+          <select
+            value={npc.figure_mode ?? 'topdown'}
+            onChange={(e) => {
+              const v = e.target.value as NpcDef['figure_mode']
+              if (v === 'topdown') delete npc.figure_mode
+              else npc.figure_mode = v
+              commit()
+            }}
+          >
+            <option value="topdown">Вид сверху — поворот по направлению</option>
+            <option value="side">Вид сбоку — зеркало влево/вправо</option>
+            <option value="static">Не разворачивать</option>
+          </select>
+        </label>
+        <ImageUpload
+          label="Изображение жетона (используется, только если фигурка не задана)"
           value={npc.token ?? ''}
           dir="assets/img/npc"
           store={store}
@@ -407,7 +473,7 @@ function NpcForm({
             commit()
           }}
         />
-        <div className="muted small">Если жетон не задан, в бою используется обычный портрет.</div>
+        <div className="muted small">Если и жетон не задан, в бою используется обычный портрет.</div>
       </div>
 
       <div className="props-group">

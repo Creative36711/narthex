@@ -36,32 +36,52 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           )
         )}
 
-        {occupants.map(({ slot, entity }) =>
-          entity ? (
-            <button
-              key={slot.id}
-              className={`slot-hotspot slot-${entity.type}`}
-              style={{
-                left: pct(slot.x, canvas.w),
-                top: pct(slot.y, canvas.h),
-                width: pct(slot.w, canvas.w),
-                height: pct(slot.h, canvas.h),
-              }}
-              onClick={() => engine.interactWithSlot({ slot, entity })}
-              data-tip={`${entity.label}${engine.descOf(entity.id) ? `\n${engine.descOf(entity.id)}` : ''}`}
-            >
-              {entity.type === 'npc' && entity.portrait?.neutral && (
-                <img
-                  className="slot-portrait"
-                  src={assetUrl(engine.campaign, entity.portrait.neutral)}
-                  alt={entity.label}
-                  draggable={false}
-                />
-              )}
-              <span className="slot-label">{entity.label}</span>
-            </button>
-          ) : null,
-        )}
+        {/* спрайты рисуются по порядку снизу вверх: нижние — поверх дальних */}
+        {[...occupants]
+          .filter((o): o is typeof o & { entity: NonNullable<typeof o.entity> } => o.entity != null)
+          .sort((a, b) => a.slot.y + a.slot.h - (b.slot.y + b.slot.h))
+          .map(({ slot, entity }) => {
+            const npc = entity.type === 'npc' ? entity : null
+            const sprite = npc?.scene_sprite
+            const scale = slot.sprite_scale ?? 1
+            return (
+              <button
+                key={slot.id}
+                className={`slot-hotspot slot-${entity.type} ${sprite ? 'slot-sprited' : ''}`}
+                style={{
+                  left: pct(slot.x, canvas.w),
+                  top: pct(slot.y, canvas.h),
+                  width: pct(slot.w, canvas.w),
+                  height: pct(slot.h, canvas.h),
+                }}
+                onClick={() => engine.interactWithSlot({ slot, entity })}
+                data-tip={`${entity.label}${engine.descOf(entity.id) ? `\n${engine.descOf(entity.id)}` : ''}`}
+              >
+                {npc && sprite ? (
+                  <>
+                    {npc.shadow !== false && <span className="sprite-shadow" />}
+                    <img
+                      className="slot-sprite"
+                      src={assetUrl(engine.campaign, sprite)}
+                      alt={npc.label}
+                      draggable={false}
+                      style={{ height: `${((slot.h * scale) / canvas.h) * 100}%` }}
+                    />
+                  </>
+                ) : (
+                  npc?.portrait?.neutral && (
+                    <img
+                      className="slot-portrait"
+                      src={assetUrl(engine.campaign, npc.portrait.neutral)}
+                      alt={npc.label}
+                      draggable={false}
+                    />
+                  )
+                )}
+                <span className="slot-label">{entity.label}</span>
+              </button>
+            )
+          })}
 
         {scene.navigation.map((nav, i) => {
           const handle = () => {

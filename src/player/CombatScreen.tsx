@@ -124,16 +124,49 @@ export function CombatScreen({ engine }: Props) {
 
             {combat.combatants.map((c) => {
               const px = hexToPixel(c.pos, size, origin)
+              const posStyle = {
+                left: `${(px.x / canvas.w) * 100}%`,
+                top: `${(px.y / canvas.h) * 100}%`,
+                width: `${((size * 1.45) / canvas.w) * 100}%`,
+              }
+              const tip = `${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}`
+              // фигурка боя вместо жетона (блок 3 ТЗ): без круглой маски и
+              // рамки стороны; разворот по направлению движения/атаки
+              if (c.figure) {
+                const mode = c.figure_mode ?? 'topdown'
+                const transform =
+                  mode === 'topdown'
+                    ? `rotate(${c.facing}deg)`
+                    : mode === 'side'
+                      ? `scaleX(${c.flip ? -1 : 1})`
+                      : undefined
+                return (
+                  <div
+                    key={c.id}
+                    className={`token-figure figure-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'figure-active' : ''}`}
+                    style={posStyle}
+                    data-tip={tip}
+                    onClick={() => onHexClick(c.pos)}
+                  >
+                    {c.figure_shadow !== false && !c.dead && <span className="figure-shadow" />}
+                    <img
+                      src={assetUrl(engine.campaign, c.figure)}
+                      alt={c.label}
+                      draggable={false}
+                      style={transform ? { transform } : undefined}
+                    />
+                    <div className="token-hp">
+                      <div className="token-hp-fill" style={{ width: `${Math.max(0, (c.hp / c.maxHp) * 100)}%` }} />
+                    </div>
+                  </div>
+                )
+              }
               return (
                 <div
                   key={c.id}
                   className={`token token-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'token-active' : ''}`}
-                  style={{
-                    left: `${(px.x / canvas.w) * 100}%`,
-                    top: `${(px.y / canvas.h) * 100}%`,
-                    width: `${((size * 1.45) / canvas.w) * 100}%`,
-                  }}
-                  data-tip={`${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}`}
+                  style={posStyle}
+                  data-tip={tip}
                   onClick={() => onHexClick(c.pos)}
                 >
                   {c.portrait ? (

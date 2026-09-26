@@ -518,6 +518,22 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
         Список отфильтрован по типам слота. Тип сущности задаётся в её карточке
         («Тип в слотах сцены»).
       </div>
+      <label className="fld" data-tip="Множитель размера спрайта сцены в этом слоте: один и тот же персонаж в толпе — меньше, на авансцене — больше. Пусто = 1.">
+        <span>Масштаб спрайта (1 — по высоте слота)</span>
+        <input
+          type="number"
+          min={0.1}
+          step={0.1}
+          value={slot.sprite_scale ?? ''}
+          placeholder="1"
+          onChange={(e) => {
+            const v = Number(e.target.value)
+            if (v > 0) slot.sprite_scale = v
+            else delete slot.sprite_scale
+            commit()
+          }}
+        />
+      </label>
       <SceneConditionEditor value={slot.condition} store={store} onChange={(v) => ((slot.condition = v), commit())} />
       <div className="muted small">
         Положение: x {slot.x} · y {slot.y} · размер {slot.w}×{slot.h}
