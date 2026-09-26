@@ -1493,3 +1493,9 @@ input[type='checkbox'], input[type='radio'] {
 .combat-abilities { display: flex; flex-direction: column; gap: 4px; }
 .ability-btn { justify-content: flex-start; }
 .ability-btn.ability-pending { border-color: #b98ae8; box-shadow: 0 0 8px rgba(185, 138, 232, 0.6); }
+
+/* ─────────────── предмет → слот сцены (блок 8 ТЗ «Гибкий движок») ─────────────── */
+.slot-usewith { background: rgba(212, 175, 55, 0.08); border: 1px dashed rgba(212, 175, 55, 0.4); }
+.slot-usewith:hover { background: rgba(212, 175, 55, 0.18); }
+.usewith-box .usewith-options { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.usewith-box .usewith-options .btn { width: 100%; }

@@ -1,15 +1,20 @@
+import { useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
 import { timeOfDay } from '../core/time'
 import { ArtView } from '../shared/ArtView'
+import type { SlotDef, SlotUseWith } from '../shared/types'
 
 interface Props {
   engine: GameEngine
   onOpenMap: () => void
 }
 
+type UseModal = { slot: SlotDef; options: Array<{ itemId: string; label: string; use: SlotUseWith }> }
+
 /** Экран сцены: фон (активное состояние) + слоты + зоны навигации (ТЗ 6.1). */
 export function SceneScreen({ engine, onOpenMap }: Props) {
+  const [useModal, setUseModal] = useState<UseModal | null>(null)
   const scene = engine.currentScene()
   if (!scene) return <div className="scene-missing">Сцена не найдена</div>
 
@@ -54,7 +59,18 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                   width: pct(slot.w, canvas.w),
                   height: pct(slot.h, canvas.h),
                 }}
-                onClick={() => engine.interactWithSlot({ slot, entity })}
+                onClick={() => {
+                  // «ключ к двери» (блок 8 ТЗ): НПС — диалог, иначе при наличии
+                  // подходящих предметов — модалка выбора
+                  if (entity.type !== 'npc') {
+                    const options = engine.slotUseOptions(slot)
+                    if (options.length) {
+                      setUseModal({ slot, options })
+                      return
+                    }
+                  }
+                  engine.interactWithSlot({ slot, entity })
+                }}
                 data-tip={`${entity.label}${engine.descOf(entity.id) ? `\n${engine.descOf(entity.id)}` : ''}`}
               >
                 {npc && sprite ? (
@@ -83,6 +99,27 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             )
           })}
 
+        {/* пустые слоты с «ключом к двери» (блок 8 ТЗ): невидимые точки применения */}
+        {scene.slots
+          .filter((slot) => {
+            const taken = occupants.some((o) => o.slot.id === slot.id && o.entity)
+            return !taken && engine.slotUseOptions(slot).length > 0
+          })
+          .map((slot) => (
+            <button
+              key={slot.id}
+              className="slot-hotspot slot-usewith"
+              style={{
+                left: pct(slot.x, canvas.w),
+                top: pct(slot.y, canvas.h),
+                width: pct(slot.w, canvas.w),
+                height: pct(slot.h, canvas.h),
+              }}
+              onClick={() => setUseModal({ slot, options: engine.slotUseOptions(slot) })}
+              data-tip={slot.label ? `Использовать предмет: ${slot.label}` : 'Использовать предмет'}
+            />
+          ))}
+
         {scene.navigation.map((nav, i) => {
           const handle = () => {
             if (nav.open_map) return onOpenMap()
@@ -105,6 +142,35 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           )
         })}
       </div>
+
+      {/* модалка выбора предмета для слота (блок 8 ТЗ) */}
+      {useModal && (
+        <div className="overlay message-overlay" onClick={() => setUseModal(null)}>
+          <div className="message-box usewith-box" onClick={(e) => e.stopPropagation()}>
+            <p>
+              {useModal.options.length > 1
+                ? `Что использовать на «${useModal.slot.label ?? 'объекте'}»?`
+                : `Использовать на «${useModal.slot.label ?? 'объекте'}»?`}
+            </p>
+            <div className="usewith-options">
+              {useModal.options.map((o) => (
+                <button
+                  key={o.itemId}
+                  className="btn btn-primary"
+                  onClick={() => {
+                    engine.useItemOnSlot(useModal.slot.id, o.itemId)
+                    setUseModal(null)
+                  }}
+                >
+                  {o.label}
+                  {o.use.consume ? ' (будет израсходован)' : ''}
+                </button>
+              ))}
+            </div>
+            <button className="btn btn-small" onClick={() => setUseModal(null)}>Отмена</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

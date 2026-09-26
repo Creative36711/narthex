@@ -15,6 +15,7 @@ import type {
   SceneDef,
   SceneStateDef,
   SlotDef,
+  SlotUseWith,
   StatusDef,
   TravelConnection,
   NeedCondition,
@@ -1179,6 +1180,37 @@ export class GameEngine {
   }
 
   // ─────────────── взаимодействие со слотами ───────────────
+
+  // ─────────────── предмет → слот сцены (блок 8 ТЗ «Гибкий движок») ───────────────
+
+  /** предметы игрока, применимые к слоту (для модалки выбора) */
+  slotUseOptions(slot: SlotDef): Array<{ itemId: string; label: string; use: SlotUseWith }> {
+    return (slot.use_with ?? [])
+      .filter((u) => u.item && this.hasItem(u.item))
+      .map((u) => ({
+        itemId: u.item,
+        label: (this.campaign.entities[u.item] as ItemDef | undefined)?.label ?? u.item,
+        use: u,
+      }))
+  }
+
+  /** применить предмет к слоту сцены; ложь — предмет/слот не подходят */
+  useItemOnSlot(slotId: string, itemId: string): boolean {
+    const scene = this.currentScene()
+    const slot = scene?.slots.find((s) => s.id === slotId)
+    const use = slot?.use_with?.find((u) => u.item === itemId)
+    if (!slot || !use || !this.hasItem(itemId)) return false
+    const def = this.campaign.entities[itemId] as ItemDef | undefined
+    if (use.consume) this.removeItem(itemId, 1)
+    this.applyEffects(use.effects)
+    if (use.message) this.messages.push({ text: use.message })
+    this.pushLog(`${def?.label ?? itemId}: использовано на «${slot.label ?? slotId}».`)
+    playInteraction('use', { entity: def })
+    this.checkRules()
+    this.autosave()
+    this.notify()
+    return true
+  }
 
   interactWithSlot(occ: SlotOccupant): void {
     if (!occ.entity) return

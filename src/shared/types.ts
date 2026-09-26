@@ -484,6 +484,16 @@ export interface SceneStateDef {
 /** тип слота — id из реестра кампании slot_types (мастер может добавлять свои) */
 export type SlotType = string
 
+/** применение предмета инвентаря к слоту сцены — «ключ к двери» (блок 8 ТЗ) */
+export interface SlotUseWith {
+  /** предмет из инвентаря игрока */
+  item: string
+  /** израсходовать предмет (по умолчанию нет) */
+  consume?: boolean
+  effects: Effect[]
+  message?: string
+}
+
 export interface SlotDef {
   id: string
   /** название слота для мастера (в списках вместо id) */
@@ -498,6 +508,8 @@ export interface SlotDef {
   condition: SceneCondition | null
   /** множитель размера спрайта сцены в этом слоте (1 = по высоте слота) */
   sprite_scale?: number
+  /** предметы, которыми можно воздействовать на слот (блок 8 ТЗ) */
+  use_with?: SlotUseWith[]
 }
 
 /**

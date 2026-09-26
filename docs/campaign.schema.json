@@ -2946,6 +2946,34 @@
       "type": "string",
       "description": "тип слота — id из реестра кампании slot_types (мастер может добавлять свои)"
     },
+    "SlotUseWith": {
+      "type": "object",
+      "properties": {
+        "item": {
+          "type": "string",
+          "description": "предмет из инвентаря игрока"
+        },
+        "consume": {
+          "type": "boolean",
+          "description": "израсходовать предмет (по умолчанию нет)"
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          }
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "item",
+        "effects"
+      ],
+      "additionalProperties": false,
+      "description": "применение предмета инвентаря к слоту сцены — «ключ к двери» (блок 8 ТЗ)"
+    },
     "SlotDef": {
       "type": "object",
       "properties": {
@@ -2993,6 +3021,13 @@
         "sprite_scale": {
           "type": "number",
           "description": "множитель размера спрайта сцены в этом слоте (1 = по высоте слота)"
+        },
+        "use_with": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SlotUseWith"
+          },
+          "description": "предметы, которыми можно воздействовать на слот (блок 8 ТЗ)"
         }
       },
       "required": [

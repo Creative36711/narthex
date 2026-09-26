@@ -5,7 +5,7 @@ import type Konva from 'konva'
 import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
 import { ArtView, artToDataUrl } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { ImageUpload, JsonField, RefSelect, FlagSelect, FileAdvancedJson } from './Fields'
+import { ImageUpload, JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
@@ -534,6 +534,52 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
           }}
         />
       </label>
+      <div className="fld-block" style={{ marginTop: 8 }}>
+        <span className="fld-caption">Использование предметов на слоте («ключ к двери»)</span>
+        {(slot.use_with ?? []).map((u, i) => (
+          <div key={i} className="ce-item" style={{ marginBottom: 8 }}>
+            <div className="fld-row">
+              <RefSelect
+                label="Предмет из инвентаря"
+                kind="item"
+                store={store}
+                value={u.item}
+                onChange={(v) => ((slot.use_with![i].item = v ?? ''), commit())}
+              />
+              <label className="fld fld-check">
+                <input
+                  type="checkbox"
+                  checked={!!u.consume}
+                  onChange={(e) => ((slot.use_with![i].consume = e.target.checked || undefined), commit())}
+                />
+                <span>Израсходовать</span>
+              </label>
+              <button
+                className="btn btn-small ce-del"
+                onClick={() => {
+                  slot.use_with = slot.use_with!.filter((_, j) => j !== i)
+                  if (!slot.use_with.length) delete slot.use_with
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </div>
+            <label className="fld">
+              <span>Сообщение при применении (необязательно)</span>
+              <input value={u.message ?? ''} onChange={(e) => ((slot.use_with![i].message = e.target.value || undefined), commit())} />
+            </label>
+            <EffectListEditor
+              store={store}
+              effects={u.effects}
+              onChange={(ef) => ((slot.use_with![i].effects = ef), commit())}
+            />
+          </div>
+        ))}
+        <button className="btn btn-small" onClick={() => (((slot.use_with ??= []).push({ item: '', effects: [] })), commit())}>
+          <Ico n="plus" />  Использование предмета
+        </button>
+      </div>
       <SceneConditionEditor value={slot.condition} store={store} onChange={(v) => ((slot.condition = v), commit())} />
       <div className="muted small">
         Положение: x {slot.x} · y {slot.y} · размер {slot.w}×{slot.h}

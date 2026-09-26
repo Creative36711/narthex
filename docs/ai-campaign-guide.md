@@ -529,6 +529,29 @@ Chronicle Forge кнопкой «⬆ Импорт из JSON» и сразу за
 - `equipment` у НПС/игрока — словарь `слот → предмет` (ключи `weapon`/`armor`
   у старых кампаний остаются валидными).
 
+## 14е. use_with — предмет на слоте сцены (блок 8 ТЗ, «ключ к двери»)
+
+```json
+"slots": [ {
+  "id": "slot_chest", "label": "Запертый сундук", "type": ["item"],
+  "x": 950, "y": 480, "w": 130, "h": 110, "shape": "rect",
+  "default_entity": "item_locked_chest", "condition": null,
+  "use_with": [ {
+    "item": "item_tavern_key", "consume": true,
+    "effects": [ { "type": "add_item", "item": "item_silver", "quantity": 20 },
+                 { "type": "remove_entity", "entity": "item_locked_chest" } ],
+    "message": "Замок щёлкает. Внутри — кошель серебра."
+  } ]
+} ]
+```
+
+- Клик по слоту: НПС → диалог; есть `use_with` и предмет в инвентаре →
+  модалка выбора (несколько предметов — выбор, расход помечен); иначе —
+  обычное поведение слота.
+- `consume: true` — предмет расходуется (по умолчанию — нет).
+- Пустые слоты с `use_with` и подходящим предметом тоже кликабельны
+  (дверь, нарисованная на фоне).
+
 ## 15. Звук и музыка без файлов (SoundDoc / MusicDoc)
 
 Реестры в `campaign`:

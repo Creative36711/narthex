@@ -42,7 +42,9 @@
     "item_gambeson.json",
     "item_chain_shirt.json",
     "item_wool_cloak.json",
-    "item_fur_coat.json"
+    "item_fur_coat.json",
+    "item_tavern_key.json",
+    "item_locked_chest.json"
   ],
   "rules": [
     "rule_intro_cutscene.json",
