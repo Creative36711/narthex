@@ -1752,3 +1752,26 @@ html.no-anim *, html.no-anim *::before, html.no-anim *::after {
 .scene-bg-enter { animation: cf-fade-in var(--dur-slow) var(--ease) both; }
 .scene-bg-transition-out { z-index: 2; pointer-events: none; animation: cf-fade-out var(--dur-slow) var(--ease-out) both; }
 .scene-slot-enter { animation: cf-rise-in var(--dur) var(--ease) both; }
+/* Дополнительные обратные связи для карты, финала и прогресса. */
+.map-stage-motion { transition: transform var(--dur-slow) var(--ease), width var(--dur-slow) var(--ease), height var(--dur-slow) var(--ease); }
+.map-viewport.is-dragging .map-stage { transition: none !important; }
+.map-pin .pin-dot { transition: transform var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease); }
+.map-pin.reachable:hover .pin-dot { transform: scale(1.12); }
+.pin-label { transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); }
+.end-overlay { animation: cf-fade-in var(--dur-slow) var(--ease) both; }
+.end-panel { animation: cf-rise-in var(--dur-slow) var(--ease) both; }
+.end-bg { animation: cf-ken-burns 40s var(--ease) forwards; }
+.end-stats > div { animation: cf-rise-in var(--dur) var(--ease) both; }
+.end-stats > div:nth-child(2) { animation-delay: 80ms; }
+.end-stats > div:nth-child(3) { animation-delay: 160ms; }
+.end-stats > div:nth-child(4) { animation-delay: 240ms; }
+.inv-item { animation: cf-rise-in var(--dur) var(--ease) both; }
+.hud-status-chip { animation: cf-pop-in var(--dur) var(--ease) both; }
+.codex-view { animation: cf-rise-in var(--dur) var(--ease) both; }
+.dialogue-choices .choice-btn { animation: cf-rise-in var(--dur) var(--ease) both; }
+.dialogue-choices .choice-btn:nth-child(2) { animation-delay: 60ms; }
+.dialogue-choices .choice-btn:nth-child(3) { animation-delay: 120ms; }
+.dialogue-choices .choice-btn:nth-child(4) { animation-delay: 180ms; }
+.dialogue-choices .choice-btn:nth-child(5) { animation-delay: 240ms; }
+@media (prefers-reduced-motion: reduce) { .dialogue-choices .choice-btn { animation-delay: 0ms !important; } }
+html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }

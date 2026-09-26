@@ -552,17 +552,37 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         ) : (
           <span className="editor-title">{store.meta.title}</span>
         )}
-        <button className="btn btn-small" onClick={newCampaign} data-tip="Создать новую кампанию"><Ico n="plus" />  Кампания</button>
-        <button className="btn btn-small ce-del" onClick={deleteCampaign} data-tip="Удалить текущую кампанию с диска"><Ico n="trash" />  Удалить</button>
         <span className="editor-spacer" />
-        <button
-          className="btn btn-small"
-          onClick={() => store.undo()}
-          disabled={!store.canUndo()}
-          data-tip="Откатить последнее изменение (Ctrl+Z)"
-        >
-          ↩ Откат
-        </button>
+        <details className="editor-toolbar-menu">
+          <summary className="btn btn-small">Файл <span aria-hidden="true">▾</span></summary>
+          <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
+            <button className="editor-toolbar-item" onClick={newCampaign}><Ico n="plus" /> Новая кампания</button>
+            <button className="editor-toolbar-item danger" onClick={deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
+            <div className="editor-toolbar-divider" />
+            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт .chronicle</button>
+            <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON</button>
+            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle</button>
+            <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
+          </div>
+        </details>
+        <details className="editor-toolbar-menu">
+          <summary className="btn btn-small">Инструменты <span aria-hidden="true">▾</span></summary>
+          <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
+            <button className="editor-toolbar-item" onClick={() => store.undo()} disabled={!store.canUndo()}><span aria-hidden="true">↩</span> Откатить изменение</button>
+            <button
+              className="editor-toolbar-item"
+              onClick={() => {
+                const issues = store.validateContent()
+                if (!issues.length) void showAlert('Проблем не найдено', 'Все ссылки кампании указывают на существующие объекты.')
+                else void showList(`Найдено проблем: ${issues.length}`, issues, 'Кампания загружается и так, но эти ссылки никуда не ведут:', {
+                  label: 'Скопировать отчёт для ИИ', text: aiFixReport(issues),
+                })
+              }}
+            ><Ico n="check" /> Проверить кампанию</button>
+            <button className="editor-toolbar-item" onClick={() => setAiWizard(true)}><Ico n="sparkle" /> Кампания с ИИ</button>
+            <button className="editor-toolbar-item" onClick={() => { setBookFile('README.md'); setBookContextual(false); setBookOpen(true) }}><Ico n="book" /> Книга мастера</button>
+          </div>
+        </details>
         {busy && <span className="muted small">{busy}</span>}
         <span className={`editor-dirty ${store.dirty.size ? 'on' : ''}`}>
           {store.dirty.size ? `несохранено: ${store.dirty.size}` : 'все сохранено'}
@@ -570,48 +590,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size} data-tip="Записать изменения кампании на диск">
           <Ico n="download" /> Сохранить
         </button>
-        <button
-          className="btn btn-small"
-          data-tip="Проверить ссылки: сцены, локации, слоты, квесты, правила"
-          onClick={() => {
-            const issues = store.validateContent()
-            if (!issues.length) {
-              void showAlert('Проблем не найдено', 'Все ссылки кампании указывают на существующие объекты.')
-            } else {
-              void showList(`Найдено проблем: ${issues.length}`, issues, 'Кампания загружается и так, но эти ссылки никуда не ведут:', {
-                label: 'Скопировать отчёт для ИИ',
-                text: aiFixReport(issues),
-              })
-            }
-          }}
-        >
-          <Ico n="check" /> Проверить
-        </button>
-        <button
-          className="btn btn-small"
-          onClick={() => setAiWizard(true)}
-          data-tip="Мастер: собрать бриф и скопировать промпт для ИИ-генератора кампаний"
-        >
-          <Ico n="sparkle" />  Кампания с ИИ
-        </button>
-        <button className="btn btn-small" onClick={() => { setBookFile('README.md'); setBookContextual(false); setBookOpen(true) }} data-tip="Открыть книгу мастера"><Ico n="book" />  Книга мастера</button>
-        <button className="btn btn-small" onClick={playtest} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" />  Плейтест</button>
-        <button className="btn btn-small" onClick={doExport} data-tip="Скачать кампанию одним файлом .chronicle"><Ico n="download" />  Экспорт</button>
-        <button
-          className="btn btn-small"
-          onClick={doExportJson}
-          data-tip="Скачать кампанию одним JSON (формат обмена и ИИ-генерации)"
-        >
-          <Ico n="download" />  JSON
-        </button>
-        <button className="btn btn-small" onClick={() => fileInput.current?.click()} data-tip="Импортировать кампанию из файла .chronicle"><Ico n="up" />  Импорт</button>
-        <button
-          className="btn btn-small"
-          onClick={doImportJson}
-          data-tip="Импортировать кампанию из JSON: файлом или вставив текст"
-        >
-          <Ico n="up" />  Импорт из JSON
-        </button>
+        <button className="btn btn-small editor-playtest-button" onClick={playtest} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" /> Плейтест</button>
+        <button className="btn btn-small" onClick={onExit} data-tip="Выйти в главное меню игры"><Ico n="exit" /> Выйти</button>
         <input
           ref={fileInput}
           type="file"
@@ -623,7 +603,6 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             e.target.value = ''
           }}
         />
-        <button className="btn btn-small" onClick={onExit} data-tip="Выйти в главное меню игры"><Ico n="exit" />  Выйти</button>
       </header>
 
       <div className="editor-body">

@@ -41,6 +41,8 @@ export function MapScreen({ engine, onClose }: Props) {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [fit, setFit] = useState(1)
   const [box, setBox] = useState({ w: 800, h: 500 })
+  const [dragging, setDragging] = useState(false)
+  const [mapMotion, setMapMotion] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null)
 
@@ -82,6 +84,19 @@ export function MapScreen({ engine, onClose }: Props) {
     const v = !labels
     setLabels(v)
     writeLabels(v)
+  }
+
+  const focusLocation = (position: { x: number; y: number }) => {
+    const targetZoom = Math.max(zoom, 1.15)
+    const targetScale = fit * targetZoom
+    const maxX = Math.max(0, (size.w * targetScale - box.w) / 2)
+    const maxY = Math.max(0, (size.h * targetScale - box.h) / 2)
+    const x = -(position.x - size.w / 2) * targetScale
+    const y = -(position.y - size.h / 2) * targetScale
+    setZoom(targetZoom)
+    setPan({ x: Math.max(-maxX, Math.min(maxX, x)), y: Math.max(-maxY, Math.min(maxY, y)) })
+    setMapMotion(true)
+    window.setTimeout(() => setMapMotion(false), 450)
   }
 
   const zoomBy = (mul: number, cx?: number, cy?: number) => {
@@ -136,13 +151,14 @@ export function MapScreen({ engine, onClose }: Props) {
 
         <div
           ref={wrapRef}
-          className="map-viewport"
+          className={`map-viewport ${dragging ? 'is-dragging' : ''}`}
           onWheel={(e) => {
             e.preventDefault()
             zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12)
           }}
           onPointerDown={(e) => {
             if ((e.target as HTMLElement).closest('.map-pin')) return
+            setDragging(true)
             drag.current = { px: e.clientX, py: e.clientY, ox: pan.x, oy: pan.y }
             ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
           }}
@@ -151,11 +167,11 @@ export function MapScreen({ engine, onClose }: Props) {
             if (!d) return
             setPan(clampPan({ x: d.ox + (e.clientX - d.px), y: d.oy + (e.clientY - d.py) }))
           }}
-          onPointerUp={() => (drag.current = null)}
-          onPointerLeave={() => (drag.current = null)}
+          onPointerUp={() => { drag.current = null; setDragging(false) }}
+          onPointerLeave={() => { drag.current = null; setDragging(false) }}
         >
           <div
-            className={`map-stage ${labels ? 'show-labels' : ''}`}
+            className={`map-stage ${labels ? 'show-labels' : ''} ${mapMotion ? 'map-stage-motion' : ''}`}
             style={{
               width: size.w * scale,
               height: size.h * scale,
@@ -176,7 +192,7 @@ export function MapScreen({ engine, onClose }: Props) {
                   key={l.id}
                   className={`map-pin ${here ? 'here' : ''} ${reachable ? 'reachable' : ''} ${l.position.y / size.h > 0.72 ? 'label-up' : ''}`}
                   style={{ left: `${(l.position.x / size.w) * 100}%`, top: `${(l.position.y / size.h) * 100}%` }}
-                  onClick={() => reachable && setPending(l.id)}
+                  onClick={() => { if (reachable) { setPending(l.id); focusLocation(l.position) } }}
                 >
                   <span className="pin-dot" />
                   <span className="pin-label">
