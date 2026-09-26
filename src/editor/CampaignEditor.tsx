@@ -123,7 +123,7 @@ function DiceRulesEditor({
           onClick={() => preset('generous')}
           data-tip="Критический успех ≤ навык/5, особый ≤ навык/2, крит-провал 96–100"
         >
-          <Ico n="dice" />  Щедрые (по умолчанию)
+          <Ico n="dice" />  Хроника (по умолчанию)
         </button>
         <button
           className={`btn btn-small ${isClassic ? 'btn-primary' : ''}`}

@@ -23,6 +23,14 @@ import './editor.css'
 import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from './prompt'
 import { collectExternalUrls, embedExternalAssets } from './assets'
 import { exportMonolith, importMonolithText } from './monolith'
+import { campaignFromMonolith } from './playtest'
+import type { CampaignData } from '../shared/types'
+import { GameEngine, deleteSave } from '../core/engine'
+import { GameView } from '../player/GameView'
+import { CharacterCreation } from '../player/CharacterCreation'
+import { PlaytestDebugPanel } from './PlaytestDebugPanel'
+import type { CharChoice } from '../core/charcreate'
+import { EditorBookPanel } from './EditorBookPanel'
 
 /**
  * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
@@ -92,6 +100,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [, force] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignIndexEntry[]>([])
+  const [testCampaign, setTestCampaign] = useState<CampaignData | null>(null)
+  const [testEngine, setTestEngine] = useState<GameEngine | null>(null)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [bookOpen, setBookOpen] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const store = useMemo(() => new EditorStore(base), [base])
@@ -230,6 +242,35 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     )
   if (!loaded) return <div className="screen-center"><div className="loading">Загрузка кампании в редактор…</div></div>
 
+  if (testCampaign) {
+    const leaveTest = () => {
+      deleteSave(testCampaign.meta.id)
+      setTestEngine(null)
+      setTestCampaign(null)
+      setDebugOpen(false)
+    }
+    const startTest = (choice?: CharChoice) => {
+      if (!testCampaign) return
+      const e = new GameEngine(testCampaign)
+      if (choice) e.applyCharCreation(choice)
+      e.start()
+      setTestEngine(e)
+    }
+    return (
+      <div className="playtest-shell">
+        {testEngine ? <GameView engine={testEngine} onRestart={() => setTestEngine(testEngine.restart())} onExitToMenu={leaveTest} /> : (
+          <CharacterCreation campaign={testCampaign} onBack={leaveTest} onStart={startTest} />
+        )}
+        <div className="playtest-banner">
+          <b>Режим отладки</b>
+          <button className="btn btn-small" onClick={() => setDebugOpen((v) => !v)}>{debugOpen ? 'Скрыть панель' : 'Отладка'}</button>
+          <button className="btn btn-small" onClick={leaveTest}>Вернуться в редактор</button>
+        </div>
+        {debugOpen && testEngine && <PlaytestDebugPanel engine={testEngine} onClose={() => setDebugOpen(false)} />}
+      </div>
+    )
+  }
+
   const listFor = (s: EditorSection): Array<{ path: string; title: string; group?: string; groupOrder?: string }> => {
     switch (s) {
       case 'scenes':
@@ -351,8 +392,30 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }
 
   const playtest = async () => {
-    await save()
-    window.open('/', '_blank')
+    try {
+      const { doc, warnings } = exportMonolith(store)
+      const problems = [...warnings, ...store.validateContent()]
+      const campaign = campaignFromMonolith(doc)
+      campaign.basePath = base
+      if (!campaign.meta.starting_scene || !campaign.scenes[campaign.meta.starting_scene]) {
+        problems.push(`Стартовая сцена «${campaign.meta.starting_scene || 'не выбрана'}» не найдена.`)
+      }
+      if (problems.length) {
+        void showList('Плейтест: проверьте кампанию', problems, 'Исправьте проблемы в редакторе и запустите проверку снова.')
+        return
+      }
+      // Отдельный id гарантирует изоляцию автосохранений от настоящей кампании.
+      campaign.meta.id = `${campaign.meta.id}__playtest`
+      setTestCampaign(campaign)
+      if (!campaign.meta.char_creation) {
+        const engine = new GameEngine(campaign)
+        engine.start()
+        setTestEngine(engine)
+      } else setTestEngine(null)
+      setDebugOpen(false)
+    } catch (e) {
+      void showAlert('Не удалось подготовить плейтест', String(e))
+    }
   }
 
   const doExport = async () => {
@@ -529,7 +592,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         >
           <Ico n="sparkle" />  Кампания с ИИ
         </button>
-        <button className="btn btn-small" onClick={playtest} data-tip="Сохранить и открыть игру в новой вкладке"><Ico n="play" />  Плейтест</button>
+        <button className="btn btn-small" onClick={playtest} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" />  Плейтест</button>
         <button className="btn btn-small" onClick={doExport} data-tip="Скачать кампанию одним файлом .chronicle"><Ico n="download" />  Экспорт</button>
         <button
           className="btn btn-small"
@@ -594,6 +657,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             )
           })}
           <span className="muted small" style={{ marginLeft: 6 }}>{navLabelOf(section)}</span>
+          <button className="editor-help-button" type="button" aria-label="Открыть раздел книги" onClick={() => setBookOpen(true)}>?</button>
         </nav>
 
         {hasList && (
@@ -675,7 +739,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           )}
         </main>
       </div>
-          {aiWizard && <AiWizard onClose={() => setAiWizard(false)} />}
-</div>
+      {aiWizard && <AiWizard onClose={() => setAiWizard(false)} />}
+      {bookOpen && <EditorBookPanel section={section} sectionLabel={navLabelOf(section)} onClose={() => setBookOpen(false)} />}
+    </div>
   )
 }

@@ -33,6 +33,10 @@ export default function App() {
   const settings = useSettings()
 
   useEffect(() => {
+    document.documentElement.classList.toggle('no-anim', !settings.animations)
+  }, [settings.animations])
+
+  useEffect(() => {
     fetchCampaignIndex().then((idx) => {
       setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: 'Пепел Каэрдена' }])
     })

@@ -738,7 +738,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   aspect-ratio: 1;
   border-radius: 50%;
   overflow: visible;
-  transition: left 0.35s ease, top 0.35s ease;
+  transition: left var(--dur-slow) var(--ease), top var(--dur-slow) var(--ease);
   
   z-index: 5;
 }
@@ -1467,14 +1467,14 @@ input[type='checkbox'], input[type='radio'] {
   transform: translate(-50%, -50%);
   aspect-ratio: 1;
   z-index: 5;
-  transition: left 0.35s ease, top 0.35s ease;
+  transition: left var(--dur-slow) var(--ease), top var(--dur-slow) var(--ease);
 }
 .token-figure img {
   width: 100%;
   height: 100%;
   object-fit: contain;
   display: block;
-  transition: transform 0.25s ease;
+  transition: transform var(--dur) var(--ease);
   filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.55));
 }
 .token-figure .figure-shadow {
@@ -1698,3 +1698,52 @@ input[type='checkbox'], input[type='radio'] {
 /* нейтральный тон финального экрана (концовки от мастера) */
 .end-overlay.neutral .end-panel { border-color: var(--border); }
 .end-overlay.neutral h1 { color: var(--text); }
+
+/* Движение интерфейса: единые токены и переиспользуемые эффекты. */
+:root {
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 450ms;
+  --ease: cubic-bezier(0.25, 0.8, 0.35, 1);
+  --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+@keyframes cf-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cf-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes cf-rise-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cf-pop-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes cf-flash-red { 0%, 100% { opacity: 0; } 25% { opacity: .34; } }
+@keyframes cf-float-up { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-28px); } }
+@keyframes cf-shake { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@keyframes cf-bar-ghost { from { opacity: .75; } to { opacity: .28; } }
+.cf-fade-in { animation: cf-fade-in var(--dur) var(--ease) both; }
+.cf-fade-out { animation: cf-fade-out var(--dur) var(--ease-out) both; }
+.cf-rise-in { animation: cf-rise-in var(--dur) var(--ease) both; }
+.cf-pop-in { animation: cf-pop-in var(--dur) var(--ease) both; }
+.dialogue-box { animation: cf-rise-in var(--dur) var(--ease) both; }
+.message-box, .modal-box { animation: cf-pop-in var(--dur) var(--ease) both; }
+.scene-bg { transition: filter var(--dur-slow) var(--ease); }
+.hud-bar-fill { transition: width var(--dur-slow) var(--ease); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+html.no-anim *, html.no-anim *::before, html.no-anim *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+  scroll-behavior: auto !important;
+}
+/* Применение общего движения к основным игровым контейнерам. */
+.panel-overlay, .message-overlay, .combat-overlay { animation: cf-fade-in var(--dur) var(--ease) both; }
+.side-panel, .combat-panel { animation: cf-rise-in var(--dur) var(--ease) both; }
+.combat-log-line { animation: cf-fade-in var(--dur-fast) var(--ease) both; }
+
+.combat-float-number { position: absolute; z-index: 20; transform: translate(-50%, -50%); pointer-events: none; font-size: clamp(18px, 2vw, 28px); line-height: 1; font-weight: 800; text-shadow: 0 2px 5px #000; animation: cf-float-up var(--dur-slow) var(--ease-out) both; }
+.combat-float-number.damage { color: #ff725f; }
+.combat-float-number.healing { color: #8bd47d; }
+.token-hit::after { content: ""; position: absolute; inset: 0; z-index: 8; border-radius: inherit; background: rgba(225, 42, 32, .42); pointer-events: none; animation: cf-flash-red var(--dur) var(--ease) both; }
+.token-hit > img, .token-hit .token-fallback { animation: cf-shake var(--dur) var(--ease); }
+.game-view { position: relative; }
+.player-damage-flash::after { content: ""; position: absolute; z-index: 1000; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 48%, rgba(196, 30, 28, .42) 100%); animation: cf-flash-red var(--dur) var(--ease) both; }
+@keyframes cf-lunge { from, to { transform: translate(-50%, -50%); } 45% { transform: translate(-50%, -50%) translateX(7px); } }
+.token-lunge { animation: cf-lunge var(--dur) var(--ease); }
+.combat-roll-feedback { position: absolute; z-index: 21; left: 50%; top: 10%; transform: translateX(-50%); padding: 7px 14px; border: 1px solid rgba(232,201,135,.65); border-radius: 999px; background: rgba(20,16,12,.9); color: var(--gold-bright); font-weight: 800; letter-spacing: .08em; pointer-events: none; animation: cf-pop-in var(--dur) var(--ease) both; }

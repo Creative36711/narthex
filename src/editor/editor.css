@@ -816,3 +816,23 @@
 .prof-card select { margin-top: 4px; }
 /* запрещённые навыки в редакторе — красноватый акцент */
 .chipset-warn .chip-on { border-color: #b3543f; color: #e69a86; background: rgba(179, 84, 63, 0.16); }
+
+/* Режим плейтеста остаётся внутри смонтированного редактора. */
+.playtest-shell { position: fixed; inset: 0; z-index: 20000; background: #100d0a; color: #eee; }
+.playtest-shell > .game-view { height: 100%; width: 100%; }
+.playtest-shell > .char-create-screen { height: 100%; }
+.playtest-banner { position: fixed; z-index: 20010; top: 8px; right: 12px; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid rgba(214,177,108,.48); border-radius: 8px; background: rgba(22,17,13,.92); box-shadow: 0 3px 14px #0008; font-size: 12px; }
+.pt-debug-panel { position: fixed; z-index: 20020; right: 10px; top: 54px; bottom: 10px; width: min(390px, calc(100vw - 20px)); overflow: auto; padding: 10px; border: 1px solid var(--border, #57452e); border-radius: 10px; background: rgba(24,20,16,.97); color: #eee; box-shadow: 0 8px 30px #000a; }
+.pt-debug-panel > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pt-debug-section { border-top: 1px solid #564630; padding: 7px 0; }
+.pt-debug-section summary { cursor: var(--cur-pointer); font-weight: 650; }
+.pt-debug-section > div { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 3px; align-items: center; }
+.pt-debug-section input, .pt-debug-section select { min-width: 70px; max-width: 100%; }
+.pt-debug-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pt-debug-row label { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 6px; }
+@media (max-width: 700px) { .playtest-banner { left: 8px; right: 8px; justify-content: center; } .playtest-banner b { display: none; } }
+.editor-help-button { margin-left: 8px; width: 24px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: transparent; color: var(--gold-bright); font-weight: 700; cursor: var(--cur-pointer); }
+.editor-book-backdrop { position: fixed; z-index: 12000; inset: 0; display: flex; justify-content: flex-end; background: rgba(0,0,0,.42); }
+.editor-book-panel { display: flex; flex-direction: column; width: min(520px, 94vw); height: 100%; background: #211b15; border-left: 1px solid var(--border); box-shadow: -12px 0 32px #0008; color: var(--text); }
+.editor-book-panel > header { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border); }
+.editor-book-panel pre { overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 14px; margin: 0; font: 13px/1.65 inherit; color: var(--text); }

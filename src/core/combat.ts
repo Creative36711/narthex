@@ -800,6 +800,10 @@ export class CombatController {
 
   /** Урон бойцу: лог, смерть, синхронизация с состоянием партии. */
   private finishDamage(defender: Combatant, dmg: number): void {
+    if (defender.id === 'c_player' && this.engine.debugInvincible) {
+      this.log.push(`${defender.label}: урон отменён режимом отладки.`)
+      return
+    }
     defender.hp -= dmg
     this.log.push(`${defender.label} получает ${dmg} урона (HP ${Math.max(0, defender.hp)}/${defender.maxHp}).`)
 

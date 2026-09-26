@@ -52,6 +52,8 @@ export class GameEngine {
   campaign: CampaignData
   state: GameState
   rng: PRNG
+  /** Временный флаг отладки, не сохраняется в состоянии забега. */
+  debugInvincible = false
   private listeners = new Set<() => void>()
   private activeStory: Story | null = null
   private activeNpc: NpcDef | null = null
@@ -336,6 +338,7 @@ export class GameEngine {
   }
 
   changeHp(delta: number): void {
+    if (this.debugInvincible && delta < 0) return
     const p = this.state.player
     p.hp = Math.min(p.max_hp, p.hp + delta)
     if (p.hp <= 0) this.gameOver('death', 'Ваши раны оказались смертельными.')

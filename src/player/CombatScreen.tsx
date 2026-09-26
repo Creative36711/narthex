@@ -33,6 +33,43 @@ export function CombatScreen({ engine }: Props) {
   /** выбранная способность игрока: ждём клик по цели */
   const [pendingAbility, setPendingAbility] = useState<string | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
+  const previousHp = useRef<Map<string, number> | null>(null)
+  const [recentDamage, setRecentDamage] = useState<Set<string>>(() => new Set())
+  const [damagePopups, setDamagePopups] = useState<Array<{ id: string; target: string; amount: number }>>([])
+  const [rollFeedback, setRollFeedback] = useState<{ text: string; actor: string } | null>(null)
+  const latestCombatLog = combat.log.at(-1) ?? ''
+  const hpStamp = combat.combatants.map((c) => `${c.id}:${c.hp}`).join('|')
+
+  useEffect(() => {
+    const current = new Map(combat.combatants.map((c) => [c.id, c.hp]))
+    const before = previousHp.current
+    previousHp.current = current
+    if (!before) return
+    const changed = combat.combatants.flatMap((c) => {
+      const amount = (before.get(c.id) ?? c.hp) - c.hp
+      return amount ? [{ id: `${combat.log.length}-${c.id}`, target: c.id, amount }] : []
+    })
+    if (!changed.length) return
+    const damaged = new Set(changed.filter((p) => p.amount > 0).map((p) => p.target))
+    if (damaged.size) {
+      setRecentDamage(damaged)
+      window.setTimeout(() => setRecentDamage(new Set()), 180)
+    }
+    setDamagePopups((old) => [...old, ...changed])
+    const popupIds = new Set(changed.map((p) => p.id))
+    const timer = window.setTimeout(() => setDamagePopups((old) => old.filter((p) => !popupIds.has(p.id))), 700)
+    return () => window.clearTimeout(timer)
+  }, [hpStamp, combat])
+
+  useEffect(() => {
+    const match = latestCombatLog.match(/^(.+?): атака .*d100=(\d+)/)
+    if (!match) return
+    const actor = combat.combatants.find((c) => c.label === match[1])
+    if (!actor) return
+    setRollFeedback({ actor: actor.id, text: `d100 · ${match[2]}` })
+    const timer = window.setTimeout(() => setRollFeedback(null), 600)
+    return () => window.clearTimeout(timer)
+  }, [latestCombatLog, combat])
 
   const origin = useMemo(() => {
     if (arena.hex_grid.origin) return arena.hex_grid.origin
@@ -168,7 +205,7 @@ export function CombatScreen({ engine }: Props) {
                 return (
                   <div
                     key={c.id}
-                    className={`token-figure figure-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'figure-active' : ''}`}
+                    className={`token-figure figure-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'figure-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
                     style={posStyle}
                     data-tip={tip}
                     onClick={() => onHexClick(c.pos)}
@@ -189,7 +226,7 @@ export function CombatScreen({ engine }: Props) {
               return (
                 <div
                   key={c.id}
-                  className={`token token-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'token-active' : ''}`}
+                  className={`token token-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'token-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
                   style={posStyle}
                   data-tip={tip}
                   onClick={() => onHexClick(c.pos)}
@@ -207,6 +244,14 @@ export function CombatScreen({ engine }: Props) {
                   </div>
                 </div>
               )
+            })}
+
+            {rollFeedback && <div className="combat-roll-feedback" aria-live="polite">{rollFeedback.text}</div>}
+            {damagePopups.map((popup) => {
+              const target = combat.combatants.find((c) => c.id === popup.target)
+              if (!target) return null
+              const point = hexToPixel(target.pos, size, origin)
+              return <div key={popup.id} className={`combat-float-number ${popup.amount > 0 ? 'damage' : 'healing'}`} style={{ left: `${(point.x / canvas.w) * 100}%`, top: `${(point.y / canvas.h) * 100}%` }}>{popup.amount > 0 ? `−${popup.amount}` : `+${-popup.amount}`}</div>
             })}
 
             {showTutorial && !combat.result && (

@@ -25,6 +25,8 @@ export interface PlayerSettings {
   tts_rate: number
   /** масштаб текста плеера (доступность): 0.9 мельче, 1 обычно, 1.15 крупнее */
   text_scale: number
+  /** выключить анимации интерфейса */
+  animations: boolean
 }
 
 export const DEFAULT_SETTINGS: PlayerSettings = {
@@ -37,6 +39,7 @@ export const DEFAULT_SETTINGS: PlayerSettings = {
   tts_voice: '',
   tts_rate: 1,
   text_scale: 1,
+  animations: true,
 }
 
 const KEY = 'chronicle-forge:settings'

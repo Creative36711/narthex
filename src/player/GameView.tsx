@@ -26,6 +26,17 @@ type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'c
 
 export function GameView({ engine, onRestart, onExitToMenu }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
+  const [damageFlash, setDamageFlash] = useState(false)
+  const previousHp = useRef(engine.state.player.hp)
+  useEffect(() => {
+    const current = engine.state.player.hp
+    const wasHit = current < previousHp.current
+    previousHp.current = current
+    if (!wasHit) return
+    setDamageFlash(true)
+    const timer = window.setTimeout(() => setDamageFlash(false), 220)
+    return () => window.clearTimeout(timer)
+  }, [engine, engine.state.player.hp])
   const message = engine.messages[0]
   // катсцена (итерация 8, блок E): пока идёт ролик, экраны остальных эффектов
   // (диалог, бой, торговля, сообщения, финал) ждут его окончания
@@ -77,7 +88,7 @@ export function GameView({ engine, onRestart, onExitToMenu }: Props) {
   }, [])
 
   return (
-    <div className="game-view">
+    <div className={`game-view ${damageFlash ? 'player-damage-flash' : ''}`}>
       <HUD
         engine={engine}
         onOpenMap={() => openPanel('map')}
