@@ -191,7 +191,10 @@ function retryItem(item: QueueItem): void {
   if (item.retries < MAX_RETRIES) {
     item.retries++
     item.started = false
-    item.settled = false
+    // эта попытка «потреблена»: события выброшенного синтезатором
+    // высказывания (поздний onerror/onend) уже не должны трогать очередь —
+    // при следующем заходе в pump() флаги сбросятся заново
+    item.settled = true
     queue.unshift(item)
     try {
       window.speechSynthesis.cancel()
@@ -200,10 +203,12 @@ function retryItem(item: QueueItem): void {
     }
     // короткий кулдаун: в Chrome speak() сразу после cancel() проглатывается
     cooldownUntil = Date.now() + 300
-    pumpTimer = setTimeout(() => {
-      pumpTimer = null
-      pump()
-    }, 320)
+    if (pumpTimer === null) {
+      pumpTimer = setTimeout(() => {
+        pumpTimer = null
+        pump()
+      }, 320)
+    }
   } else {
     finishItem(item)
   }
