@@ -70,6 +70,40 @@ export interface NeedDef {
   restore_when?: NeedCondition[]
 }
 
+// ───────────────────────── статусы (блок 5 ТЗ «Гибкий движок») ─────────────────────────
+
+/**
+ * Длительное изменяющее состояние: яд, кровотечение, бафф. В мире живёт в
+ * тиках, в бою — в раундах. Реестр статусов — в `campaign.json` (meta.statuses).
+ */
+export interface StatusDef {
+  id: string
+  label: string
+  description?: string
+  /** иконка-файл/ссылка; нет — текстовый чип */
+  icon?: string
+  /** мир — тики, бой — раунды; 'both' — и там и там */
+  scope: 'world' | 'combat' | 'both'
+  /** длительность по умолчанию (мировые тики / боевые раунды) */
+  duration: number
+  /** урон за тик (мир) / за раунд (бой) */
+  dot?: { hp?: number; mp?: number }
+  /** модификаторы навыков на время статуса */
+  skill_mods?: Array<{ skill: string; delta: number }>
+  /** аддитив к движению (итог не ниже 1) */
+  mov_mod?: number
+  on_apply?: Effect[]
+  on_expire?: Effect[]
+  apply_message?: string
+  expire_message?: string
+}
+
+/** Активный статус: сколько осталось (тиков в мире, раундов в бою). */
+export interface ActiveStatus {
+  id: string
+  left: number
+}
+
 export interface CurrencyDef {
   id: string
   label: string
@@ -207,6 +241,8 @@ export interface CampaignMeta {
   starting_scene: string
   starting_tick?: number
   needs: NeedDef[]
+  /** реестр статусов: яды, кровотечения, баффы (блок 5 ТЗ) */
+  statuses?: StatusDef[]
   /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
   dice_rules?: DiceRules
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
@@ -760,6 +796,7 @@ export type DlgCond =
   | { type: 'quest'; quest: string; stage: string; not?: boolean } // квест на стадии ('' = не начат)
   | { type: 'in_party'; npc: string; not?: boolean }
   | { type: 'hp_ge'; value: number; not?: boolean } // здоровье ≥ (not: <)
+  | { type: 'has_status'; status: string; not?: boolean } // статус активен (блок 5 ТЗ)
 
 export type DlgEffect =
   | { type: 'set_flag'; flag: string }
@@ -776,6 +813,9 @@ export type DlgEffect =
   | { type: 'change_disposition'; target: string; delta: number }
   | { type: 'play_cutscene'; cutscene: string }
   | { type: 'set_description'; entity: string; text: string }
+  /** статусы (блок 5 ТЗ): наложить (0/нет — из реестра) / снять */
+  | { type: 'apply_status'; status: string; duration?: number }
+  | { type: 'remove_status'; status: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -959,6 +999,7 @@ export type Condition =
   | { type: 'disposition_le'; target: string; threshold: number }
   | { type: 'in_party'; entity: string }
   | { type: 'random_chance'; probability: number }
+  | { type: 'has_status'; status: string }
   | { type: 'and'; conditions: Condition[] }
   | { type: 'or'; conditions: Condition[] }
   | { type: 'not'; condition: Condition }
@@ -966,6 +1007,10 @@ export type Condition =
 export type Effect =
   | { type: 'set_flag'; flag: string }
   | { type: 'clear_flag'; flag: string }
+  /** наложить статус (блок 5 ТЗ); цель в мире — игрок */
+  | { type: 'apply_status'; target: 'player'; status: string; duration?: number }
+  /** снять статус */
+  | { type: 'remove_status'; target: 'player'; status: string }
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
@@ -1039,6 +1084,8 @@ export interface PlayerState {
   currencies: Record<string, number>
   /** экипировка игрока: id предметов из инвентаря */
   equipment: { weapon?: string; armor?: string }
+  /** активные статусы игрока (блок 5 ТЗ); left — мировые тики */
+  statuses?: ActiveStatus[]
 }
 
 export interface QuestState {

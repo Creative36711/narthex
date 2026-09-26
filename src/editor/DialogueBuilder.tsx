@@ -59,6 +59,8 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'join_party', label: 'Взять в отряд' },
   { id: 'play_cutscene', label: 'Показать катсцену' },
   { id: 'set_description', label: 'Изменить описание' },
+  { id: 'apply_status', label: 'Наложить статус' },
+  { id: 'remove_status', label: 'Снять статус' },
   { id: 'open_trade', label: 'Открыть торговлю (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
 ]
@@ -79,6 +81,8 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'change_disposition': return { type, target: '', delta: 5 }
     case 'play_cutscene': return { type, cutscene: '' }
     case 'set_description': return { type, entity: '', text: '' }
+    case 'apply_status': return { type, status: '' }
+    case 'remove_status': return { type, status: '' }
   }
 }
 
@@ -97,6 +101,8 @@ const COND_TYPES: Array<{ id: string; label: string }> = [
   { id: 'in_party!', label: 'НЕ в отряде' },
   { id: 'hp_ge', label: 'Здоровье не ниже' },
   { id: 'hp_ge!', label: 'Здоровье ниже' },
+  { id: 'has_status', label: 'Есть статус' },
+  { id: 'has_status!', label: 'Статуса НЕТ' },
 ]
 
 function blankCond(key: string): DlgCond {
@@ -110,6 +116,7 @@ function blankCond(key: string): DlgCond {
     case 'quest': return { type, quest: '', stage: '', not }
     case 'in_party': return { type, npc: '', not }
     case 'hp_ge': return { type, value: 10, not }
+    case 'has_status': return { type, status: '', not }
   }
 }
 
@@ -402,6 +409,8 @@ function CondFields({ cond: c, store, commit }: { cond: DlgCond; store: EditorSt
           <span className="muted small">HP</span>
         </>
       )
+    case 'has_status':
+      return <InlineRef kind="status" store={store} value={c.status} onChange={(v) => ((c.status = v), commit())} />
   }
 }
 
@@ -870,6 +879,27 @@ function EffectRow({
           <InlineRef kind="disposition" store={store} value={e.target} onChange={(v) => ((e.target = v), commit())} />
           <input type="number" value={e.delta} onChange={(ev) => ((e.delta = Number(ev.target.value)), commit())} />
         </>
+      )}
+      {e.type === 'apply_status' && (
+        <>
+          <InlineRef kind="status" store={store} value={e.status} onChange={(v) => ((e.status = v), commit())} />
+          <input
+            type="number"
+            min={0}
+            value={e.duration ?? 0}
+            title="Длительность в тиках (0 — из реестра)"
+            onChange={(ev) => {
+              const v = Math.max(0, Number(ev.target.value) || 0)
+              if (v > 0) e.duration = v
+              else delete e.duration
+              commit()
+            }}
+          />
+          <span className="muted small">тиков (0 — из реестра)</span>
+        </>
+      )}
+      {e.type === 'remove_status' && (
+        <InlineRef kind="status" store={store} value={e.status} onChange={(v) => ((e.status = v), commit())} />
       )}
       <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>
     </div>

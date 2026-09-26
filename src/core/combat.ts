@@ -1,9 +1,11 @@
 import type {
+  ActiveStatus,
   ArenaDef,
   Effect,
   ItemDef,
   NpcDef,
   StatBlock,
+  StatusDef,
   WeaponData,
 } from '../shared/types'
 import type { GameEngine } from './engine'
@@ -48,6 +50,8 @@ export interface Combatant {
   attacked: boolean
   defensesUsed: number
   dead: boolean
+  /** активные статусы (блок 5 ТЗ); left — боевые раунды, в сейв не попадают */
+  statuses: ActiveStatus[]
 }
 
 type StartCombatEffect = Extract<Effect, { type: 'start_combat' }>
@@ -150,6 +154,7 @@ export class CombatController {
       pos: this.takeSpawn(playerSpawns),
       mov: Math.max(2, movement(p.stats) - (overloaded ? 2 : 0)),
       movLeft: 0,
+      statuses: [],
       attacked: false,
       defensesUsed: 0,
       dead: false,
@@ -182,6 +187,7 @@ export class CombatController {
         pos: this.takeSpawn(playerSpawns),
         mov: movement(def.stats),
         movLeft: 0,
+        statuses: [],
         attacked: false,
         defensesUsed: 0,
         dead: false,
@@ -218,6 +224,7 @@ export class CombatController {
           pos: this.takeSpawn(playerSpawns),
           mov: movement(def.stats),
           movLeft: 0,
+          statuses: [],
           attacked: false,
           defensesUsed: 0,
           dead: false,
@@ -254,6 +261,7 @@ export class CombatController {
           pos: this.takeSpawn(enemySpawns),
           mov: movement(def.stats),
           movLeft: 0,
+          statuses: [],
           attacked: false,
           defensesUsed: 0,
           dead: false,
@@ -421,10 +429,85 @@ export class CombatController {
   // ─────────────── цикл раундов ───────────────
 
   private startRound(): void {
+    this.tickStatuses()
     for (const c of this.combatants) {
-      c.movLeft = c.mov
+      c.movLeft = Math.max(1, c.mov + this.statusMovMod(c))
       c.attacked = false
       c.defensesUsed = 0
+    }
+  }
+
+  // ─────────────── статусы бойцов (блок 5 ТЗ) ───────────────
+
+  private statusDef(id: string): StatusDef | undefined {
+    return this.engine.campaign.meta.statuses?.find((s) => s.id === id)
+  }
+
+  /** наложить боевой статус на бойца (блок 6 будет звать из способностей) */
+  applyStatusTo(combatantId: string, statusId: string, duration?: number): void {
+    const def = this.statusDef(statusId)
+    if (!def || def.scope === 'world') return
+    const c = this.combatants.find((x) => x.id === combatantId)
+    if (!c || c.dead) return
+    const left = duration ?? def.duration
+    if (left <= 0) return
+    const existing = c.statuses.find((s) => s.id === statusId)
+    if (existing) {
+      existing.left = Math.max(existing.left, left)
+    } else {
+      c.statuses.push({ id: statusId, left })
+      this.log.push(def.apply_message ?? `${c.label}: ${def.label.toLowerCase()}.`)
+    }
+    this.engine.notify()
+  }
+
+  removeStatusFrom(combatantId: string, statusId: string): void {
+    const c = this.combatants.find((x) => x.id === combatantId)
+    if (!c) return
+    c.statuses = c.statuses.filter((s) => s.id !== statusId)
+    this.engine.notify()
+  }
+
+  /** суммарный модификатор навыка бойца от его статусов */
+  private statusSkillMod(c: Combatant, skill: string): number {
+    let mod = 0
+    for (const s of c.statuses) {
+      const def = this.statusDef(s.id)
+      for (const m of def?.skill_mods ?? []) if (m.skill === skill) mod += m.delta
+    }
+    return mod
+  }
+
+  private statusMovMod(c: Combatant): number {
+    let mod = 0
+    for (const s of c.statuses) mod += this.statusDef(s.id)?.mov_mod ?? 0
+    return mod
+  }
+
+  /** тик статусов в начале раунда: DoT, декремент, истечение */
+  private tickStatuses(): void {
+    for (const c of this.combatants) {
+      if (c.dead || !c.statuses.length) continue
+      const expired: StatusDef[] = []
+      for (const s of c.statuses) {
+        const def = this.statusDef(s.id)
+        if (!def) continue
+        if (def.dot?.hp) {
+          c.hp = Math.max(0, c.hp - def.dot.hp)
+          this.log.push(`${c.label}: ${def.label.toLowerCase()} — −${def.dot.hp} HP.`)
+          if (c.hp <= 0) {
+            c.dead = true
+            this.log.push(`${c.label} погибает от статуса «${def.label}».`)
+            playUi('kill')
+          }
+        }
+        if (!c.dead) s.left -= 1
+        if (s.left <= 0) expired.push(def)
+      }
+      if (expired.length) {
+        c.statuses = c.statuses.filter((s) => s.left > 0)
+        for (const def of expired) this.log.push(`${c.label}: «${def.label}» заканчивается.`)
+      }
     }
   }
 
@@ -437,9 +520,10 @@ export class CombatController {
         this.round++
         this.log.push(`— Раунд ${this.round} —`)
         this.startRound()
+        this.checkEnd() // DoT статусов мог добить последнюю сторону
       }
       guard++
-    } while (this.active.dead && guard < 100)
+    } while (!this.result && this.active.dead && guard < 100)
   }
 
   private processUntilPlayer(): void {
@@ -489,7 +573,7 @@ export class CombatController {
   private resolveAttack(attacker: Combatant, defender: Combatant): void {
     attacker.attacked = true
     const rng = this.engine.rng
-    const skillVal = attacker.skills[attacker.weapon.skill] ?? 25
+    const skillVal = Math.max(1, (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill))
     const atk = skillCheck(skillVal, rng, 0, this.engine.diceRules)
     this.log.push(
       `${attacker.label}: атака «${attacker.weaponLabel}» — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
@@ -501,8 +585,10 @@ export class CombatController {
     }
 
     // защита: уклонение или парирование, повторные со штрафом −30
-    const dodgeVal = defender.skills['dodge'] ?? 0
-    const parryVal = defender.weapon.parry_capable ? (defender.skills[defender.weapon.skill] ?? 0) : 0
+    const dodgeVal = Math.max(0, (defender.skills['dodge'] ?? 0) + this.statusSkillMod(defender, 'dodge'))
+    const parryVal = defender.weapon.parry_capable
+      ? Math.max(0, (defender.skills[defender.weapon.skill] ?? 0) + this.statusSkillMod(defender, defender.weapon.skill))
+      : 0
     const useParry = parryVal > dodgeVal
     const defBase = useParry ? parryVal : dodgeVal
     if (defBase > 0) {

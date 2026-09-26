@@ -214,7 +214,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
@@ -266,6 +266,8 @@ export class EditorStore {
       for (const sk of this.meta.skills ?? []) out.push({ id: sk.id, label: sk.label || sk.id })
     } else if (kind === 'need') {
       for (const n of this.meta.needs) out.push({ id: n.id, label: n.label || n.id })
+    } else if (kind === 'status') {
+      for (const s of this.meta.statuses ?? []) out.push({ id: s.id, label: s.label || s.id })
     } else if (kind === 'disposition') {
       // отношение можно менять и к фракции, и к отдельному NPC
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: `${f.label || f.id} (фракция)` })

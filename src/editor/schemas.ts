@@ -32,6 +32,7 @@ export type FieldKind =
   | 'journalKeyRef' // ключ журнальной записи квеста из соседнего поля quest
   | 'dialogueNodeRef' // узел диалога NPC из соседнего поля entity
   | 'cutsceneRef' // катсцена кампании (итерация 8, блок E)
+  | 'statusRef' // статус из реестра кампании (блок 5 ТЗ)
 
 export interface FieldSpec {
   key: string
@@ -167,6 +168,11 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'probability', label: 'Вероятность (0–1)', kind: 'number' }],
     blank: { probability: 0.5 },
   },
+  has_status: {
+    label: 'У игрока есть статус',
+    fields: [{ key: 'status', label: 'Статус', kind: 'statusRef' }],
+    blank: { status: '' },
+  },
   and: {
     label: 'И (все)',
     fields: [{ key: 'conditions', label: 'Условия', kind: 'conditions' }],
@@ -196,6 +202,19 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Снять флаг',
     fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],
     blank: { flag: '' },
+  },
+  apply_status: {
+    label: 'Наложить статус',
+    fields: [
+      { key: 'status', label: 'Статус', kind: 'statusRef' },
+      { key: 'duration', label: 'Длительность (пусто — из реестра)', kind: 'number', optional: true },
+    ],
+    blank: { target: 'player', status: '' },
+  },
+  remove_status: {
+    label: 'Снять статус',
+    fields: [{ key: 'status', label: 'Статус', kind: 'statusRef' }],
+    blank: { target: 'player', status: '' },
   },
   set_variable: {
     label: 'Установить переменную',
@@ -445,6 +464,7 @@ const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
   dispRef: 'disposition',
   flagRef: 'flag',
   cutsceneRef: 'cutscene',
+  statusRef: 'status',
 }
 
 /** Человекочитаемое значение одного поля (русские названия вместо id). */

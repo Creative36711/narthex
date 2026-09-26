@@ -108,6 +108,9 @@ export function bindExternals(story: Story, engine: GameEngine): void {
     engine.restAndGrow()
     return 0
   })
+  bind('has_status', (id: string) => engine.hasStatus(id))
+  bind('apply_status', (id: string, duration: number) => { engine.applyStatus('player', id, duration > 0 ? duration : undefined); return 0 })
+  bind('remove_status', (id: string) => { engine.removeStatus('player', id); return 0 })
 }
 
 /** Прочитать все доступные строки до выбора/конца. */

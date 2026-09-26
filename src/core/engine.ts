@@ -15,6 +15,7 @@ import type {
   SceneDef,
   SceneStateDef,
   SlotDef,
+  StatusDef,
   TravelConnection,
   NeedCondition,
   PresenceOverride,
@@ -232,24 +233,51 @@ export class GameEngine {
       if (this.state.game_over) return
       this.state.tick += 1
       this.state.stats_run.ticks_survived += 1
-      if (!needsOn) continue // потребности выключены профилем кампании
-      for (const need of meta.needs) {
-        // старые сохранения могут не знать новую потребность — считаем её полной
-        const cur = this.state.player.needs[need.id] ?? need.max
-        let next = cur
-        // убыль — только когда все условия выполнены (пусто = всегда)
-        const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
-        if (decays) next = Math.max(0, next - need.decay_per_tick)
-        // восстановление — когда выполнены условия restore_when
-        if (
-          need.restore_per_tick &&
-          (!need.restore_when?.length || need.restore_when.every((c) => this.needCondOk(c)))
-        ) {
-          next = Math.min(need.max, next + need.restore_per_tick)
+      if (needsOn) {
+        for (const need of meta.needs) {
+          // старые сохранения могут не знать новую потребность — считаем её полной
+          const cur = this.state.player.needs[need.id] ?? need.max
+          let next = cur
+          // убыль — только когда все условия выполнены (пусто = всегда)
+          const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
+          if (decays) next = Math.max(0, next - need.decay_per_tick)
+          // восстановление — когда выполнены условия restore_when
+          if (
+            need.restore_per_tick &&
+            (!need.restore_when?.length || need.restore_when.every((c) => this.needCondOk(c)))
+          ) {
+            next = Math.min(need.max, next + need.restore_per_tick)
+          }
+          this.state.player.needs[need.id] = next
+          if (next <= 0 && cur > 0) this.onNeedZero(need.id)
         }
-        this.state.player.needs[need.id] = next
-        if (next <= 0 && cur > 0) this.onNeedZero(need.id)
       }
+      // статусы игрока (блок 5 ТЗ): DoT, декремент, истечение
+      this.tickStatuses()
+    }
+  }
+
+  /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
+  private tickStatuses(): void {
+    const list = this.state.player.statuses
+    if (!list?.length) return
+    const expired: StatusDef[] = []
+    for (const s of list) {
+      const def = this.statusDef(s.id)
+      if (!def) continue
+      if (def.dot?.hp) this.state.player.hp = Math.max(1, this.state.player.hp - def.dot.hp)
+      if (def.dot?.mp) this.state.player.mp = Math.max(0, this.state.player.mp - def.dot.mp)
+      if (def.dot?.hp) this.pushLog(`${def.label}: −${def.dot.hp} HP.`)
+      s.left -= 1
+      if (s.left <= 0) expired.push(def)
+    }
+    if (expired.length) {
+      this.state.player.statuses = list.filter((s) => s.left > 0)
+      for (const def of expired) {
+        this.pushLog(def.expire_message ?? `${def.label}: эффект закончился.`)
+        if (def.on_expire?.length) this.applyEffects(def.on_expire)
+      }
+      this.notify()
     }
   }
 
@@ -278,6 +306,59 @@ export class GameEngine {
     const p = this.state.player
     p.hp = Math.min(p.max_hp, p.hp + delta)
     if (p.hp <= 0) this.gameOver('death', 'Ваши раны оказались смертельными.')
+  }
+
+  // ─────────────── статусы (блок 5 ТЗ «Гибкий движок») ───────────────
+
+  /** определение статуса из реестра кампании */
+  statusDef(id: string): StatusDef | undefined {
+    return this.campaign.meta.statuses?.find((s) => s.id === id)
+  }
+
+  /** активен ли статус у игрока */
+  hasStatus(id: string): boolean {
+    return !!this.state.player.statuses?.some((s) => s.id === id)
+  }
+
+  /**
+   * Наложить статус на игрока (в мире — только игрок, v1). Повторное
+   * наложение обновляет длительность по максимуму.
+   */
+  applyStatus(_target: 'player', id: string, duration?: number): void {
+    const def = this.statusDef(id)
+    if (!def || def.scope === 'combat') return // чисто боевые — через бой (блок 6)
+    const left = duration ?? def.duration
+    if (left <= 0) return
+    const list = (this.state.player.statuses ??= [])
+    const existing = list.find((s) => s.id === id)
+    if (existing) {
+      existing.left = Math.max(existing.left, left)
+      return
+    }
+    list.push({ id, left })
+    this.pushLog(def.apply_message ?? `${def.label}: эффект наложен.`)
+    if (def.on_apply?.length) this.applyEffects(def.on_apply)
+    this.notify()
+  }
+
+  /** снять статус (без срабатывания on_expire) */
+  removeStatus(_target: 'player', id: string): void {
+    const list = this.state.player.statuses
+    if (!list?.some((s) => s.id === id)) return
+    this.state.player.statuses = list.filter((s) => s.id !== id)
+    const def = this.statusDef(id)
+    if (def) this.pushLog(`${def.label}: эффект снят.`)
+    this.notify()
+  }
+
+  /** суммарный модификатор навыка от активных статусов */
+  statusSkillMod(skill: string): number {
+    let mod = 0
+    for (const s of this.state.player.statuses ?? []) {
+      const def = this.statusDef(s.id)
+      for (const m of def?.skill_mods ?? []) if (m.skill === skill) mod += m.delta
+    }
+    return mod
   }
 
   // ─────────────── инвентарь ───────────────
@@ -521,7 +602,7 @@ export class GameEngine {
     if (!featureOn(this.campaign.meta, 'skills')) {
       return { roll: 0, target: 100, result: 'success', success: true }
     }
-    const value = this.state.player.skills[skill] ?? 0
+    const value = Math.max(0, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
     const out = skillCheck(value, this.rng, 50 - difficulty, this.diceRules)
     this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
     if (out.success) this.markSkill(skill)
@@ -976,6 +1057,8 @@ export class GameEngine {
         this.setEntityDescription(e.entity, e.text)
         break
       case 'clear_flag': delete s.flags[e.flag]; break
+      case 'apply_status': this.applyStatus(e.target, e.status, e.duration); break
+      case 'remove_status': this.removeStatus(e.target, e.status); break
       case 'set_variable': s.variables[e.var] = e.value; break
       case 'change_variable':
         s.variables[e.var] = Number(s.variables[e.var] ?? 0) + e.delta

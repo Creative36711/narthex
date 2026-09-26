@@ -56,6 +56,8 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.getDisposition(c.target) <= c.threshold
     case 'in_party':
       return engine.isInParty(c.entity)
+    case 'has_status':
+      return engine.hasStatus(c.status)
     case 'random_chance':
       return engine.rng.chance(c.probability)
     case 'and':

@@ -219,6 +219,8 @@ export function condInk(c: DlgCond): string {
       return c.not ? `not in_party(${q(c.npc)})` : `in_party(${q(c.npc)})`
     case 'hp_ge':
       return c.not ? `get_hp() < ${c.value}` : `get_hp() >= ${c.value}`
+    case 'has_status':
+      return c.not ? `not has_status(${q(c.status)})` : `has_status(${q(c.status)})`
   }
 }
 
@@ -252,6 +254,8 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'change_disposition': return `${indent}~ change_disposition(${q(e.target)}, ${e.delta})`
     case 'play_cutscene': return `${indent}~ play_cutscene(${q(e.cutscene)})`
     case 'set_description': return `${indent}~ set_description(${q(e.entity)}, ${q(e.text)})`
+    case 'apply_status': return `${indent}~ apply_status(${q(e.status)}, ${e.duration ?? 0})`
+    case 'remove_status': return `${indent}~ remove_status(${q(e.status)})`
   }
 }
 
