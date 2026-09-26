@@ -1455,7 +1455,8 @@ export class GameEngine {
 
   // ─────────────── рогалик-луп ───────────────
 
-  gameOver(type: 'death' | 'victory', reason: string): void {
+  gameOver(type: 'death' | 'victory', reason: string, force = false): void {
+    if (this.debugInvincible && type === 'death' && !force) return
     if (this.state.game_over) return
     // концовки кампании: первая подходящая по исходу и условиям (мастер задаёт сам)
     const ending = (this.campaign.meta.endings ?? []).find(

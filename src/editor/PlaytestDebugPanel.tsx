@@ -7,11 +7,30 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   return <details className="pt-debug-section" open><summary>{label}</summary><div>{children}</div></details>
 }
 
+const STAT_LABELS: Record<string, string> = {
+  STR: 'Сила',
+  CON: 'Выносливость',
+  SIZ: 'Размер',
+  DEX: 'Ловкость',
+  INT: 'Интеллект',
+  POW: 'Сила воли',
+  CHA: 'Обаяние',
+}
+
 function contentFlags(value: unknown, out = new Set<string>()): Set<string> {
   if (Array.isArray(value)) value.forEach((v) => contentFlags(v, out))
   else if (value && typeof value === 'object') for (const [key, v] of Object.entries(value)) {
     if (typeof v === 'string' && /^(flag|not_flag|set_flag|toggle_flag|clear_flag)$/.test(key) && v) out.add(v)
     else contentFlags(v, out)
+  }
+  return out
+}
+
+function contentVariables(value: unknown, out = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) value.forEach((entry) => contentVariables(entry, out))
+  else if (value && typeof value === 'object') for (const [key, entry] of Object.entries(value)) {
+    if (key === 'var' && typeof entry === 'string' && entry) out.add(entry)
+    else contentVariables(entry, out)
   }
   return out
 }
@@ -30,6 +49,8 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
   const [amount, setAmount] = useState(1)
   const [skill, setSkill] = useState(Object.keys(engine.state.player.skills)[0] ?? '')
   const [stat, setStat] = useState(Object.keys(engine.state.player.stats)[0] ?? 'STR')
+  const [feedback, setFeedback] = useState<{ text: string; serial: number } | null>(null)
+  const [feedbackSerial, setFeedbackSerial] = useState(0)
   const [, refresh] = useState(0)
   useEffect(() => {
     const unsubscribe = engine.subscribe(() => refresh((n) => n + 1))
@@ -37,7 +58,14 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
     window.addEventListener('keydown', onKey)
     return () => { unsubscribe(); window.removeEventListener('keydown', onKey) }
   }, [engine, onClose])
-  const mutate = (fn: () => void) => { fn(); engine.notify(); engine.autosave() }
+  const mutate = (fn: () => void, message: string | (() => string) = 'Отладочное действие выполнено.') => {
+    fn()
+    engine.notify()
+    engine.autosave()
+    const serial = feedbackSerial + 1
+    setFeedbackSerial(serial)
+    setFeedback({ text: typeof message === 'function' ? message() : message, serial })
+  }
   const allRegions = engine.campaign.world.regions
   const selectedRegion = allRegions.find((r) => r.id === region)
   const allLocations = selectedRegion?.locations ?? []
@@ -54,10 +82,12 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
   const selectedFlag = allFlags.find((f) => f.id === flag || f.label.localeCompare(flag, 'ru-RU', { sensitivity: 'base' }) === 0)
   const selectedFlagId = selectedFlag?.id ?? flag
   const selectedFlagActive = !!engine.state.flags[selectedFlagId]
+  const variableNames = [...new Set([...Object.keys(engine.state.variables), ...contentVariables(engine.campaign)])].sort((a, b) => a.localeCompare(b, 'ru-RU'))
   const quests = Object.entries(engine.campaign.quests)
   const entries = Object.values(engine.campaign.codex)
   return <aside className="pt-debug-panel" role="dialog" aria-label="Панель отладки">
     <header><b>Отладка</b><button className="btn btn-small" onClick={onClose}>Закрыть</button></header>
+    {feedback && <div key={feedback.serial} className="pt-debug-feedback" role="status" aria-live="polite">{feedback.text}</div>}
     <Section label="Переход к сцене">
       <select value={region} onChange={(e) => { const next = allRegions.find((r) => r.id === e.target.value); setRegion(e.target.value); const loc = next?.locations[0]; if (loc) { setLocation(loc.id); setScene(Object.values(engine.campaign.scenes).find((s) => s.location === loc.id)?.id ?? '') } }}>
         {allRegions.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
@@ -66,7 +96,7 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
         {allLocations.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
       </select>
       <select value={scene} onChange={(e) => setScene(e.target.value)}>{locationScenes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
-      <button className="btn btn-small" disabled={!scene} onClick={() => mutate(() => engine.goToScene(scene))}>Перейти</button>
+      <button className="btn btn-small" disabled={!scene} onClick={() => mutate(() => engine.goToScene(scene), `Переход выполнен: ${engine.campaign.scenes[scene]?.label ?? scene}.`)}>Перейти</button>
     </Section>
     <Section label="Флаги">
       <FlagAutocomplete value={flag} flags={allFlags} onChange={setFlag} />
@@ -76,33 +106,67 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
           <strong className={selectedFlagActive ? 'is-on' : 'is-off'}>{selectedFlagActive ? 'Включён' : 'Выключен'}</strong>
         </> : <span className="muted small">Выберите флаг, чтобы увидеть его состояние.</span>}
       </div>
-      <button className="btn btn-small" disabled={!flag.trim() || selectedFlagActive} onClick={() => mutate(() => { engine.state.flags[selectedFlagId] = true })}>Включить</button>
-      <button className="btn btn-small" disabled={!flag.trim() || !selectedFlagActive} onClick={() => mutate(() => { delete engine.state.flags[selectedFlagId] })}>Снять</button>
+      <button className="btn btn-small" disabled={!flag.trim() || selectedFlagActive} onClick={() => mutate(() => { engine.state.flags[selectedFlagId] = true }, `Флаг «${selectedFlag?.label ?? selectedFlagId}» включён.`)}>Включить</button>
+      <button className="btn btn-small" disabled={!flag.trim() || !selectedFlagActive} onClick={() => mutate(() => { delete engine.state.flags[selectedFlagId] }, `Флаг «${selectedFlag?.label ?? selectedFlagId}» снят.`)}>Снять</button>
     </Section>
     <Section label="Переменные">
-      {Object.entries(engine.state.variables).map(([k, v]) => <div className="pt-debug-row" key={k}><span>{k}: {String(v)}</span><button className="btn btn-small" onClick={() => { setVariable(k); setValue(String(v)) }}>Изменить</button></div>)}
-      <div className="pt-debug-row"><input value={variable} onChange={(e) => setVariable(e.target.value)} placeholder="Имя переменной" /><input value={value} onChange={(e) => setValue(e.target.value)} aria-label="Значение" /></div>
-      <button className="btn btn-small" disabled={!variable} onClick={() => mutate(() => { const n = Number(value); engine.state.variables[variable] = value.trim() !== '' && Number.isFinite(n) ? n : value })}>Задать</button>
+      <p className="pt-debug-help">
+        Переменные — значения, которые сценарии и правила кампании проверяют или меняют. Используйте имя из правила; новая переменная сама по себе ничего не меняет, пока контент её не читает. Числовые значения подходят для сравнений и прибавления; текстовые — для сравнений «равно / не равно».
+      </p>
+      <div className="pt-debug-variable-list">
+        {variableNames.length === 0 && <span className="muted small">Кампания пока не использует переменные.</span>}
+        {variableNames.map((key) => {
+          const isSet = Object.prototype.hasOwnProperty.call(engine.state.variables, key)
+          const current = isSet ? engine.state.variables[key] : 0
+          return <div className="pt-debug-row" key={key}>
+            <span><b>{key}</b>: {isSet ? String(current) : '0 (по умолчанию)'}</span>
+            <button className="btn btn-small" onClick={() => { setVariable(key); setValue(String(current)) }}>Изменить</button>
+          </div>
+        })}
+      </div>
+      <div className="pt-debug-row">
+        <input value={variable} onChange={(e) => setVariable(e.target.value)} placeholder="Имя из правила кампании" aria-label="Имя переменной" />
+        <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Число или текст" aria-label="Значение переменной" />
+      </div>
+      <button className="btn btn-small" disabled={!variable.trim()} onClick={() => mutate(() => { const key = variable.trim(); const n = Number(value); engine.state.variables[key] = value.trim() !== '' && Number.isFinite(n) ? n : value }, () => `Переменная «${variable.trim()}» задана: ${String(engine.state.variables[variable.trim()])}.`)}>Задать</button>
     </Section>
     <Section label="Предметы и валюта">
       <select value={item} onChange={(e) => setItem(e.target.value)}><option value="">Предмет…</option>{Object.values(engine.campaign.entities).filter((e) => e.type === 'item').map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}</select>
-      <button className="btn btn-small" disabled={!item} onClick={() => mutate(() => engine.addItem(item, Math.max(1, amount)))}>Выдать</button>
+      <button className="btn btn-small" disabled={!item} onClick={() => mutate(() => engine.addItem(item, Math.max(1, amount)), () => `Выдан предмет «${engine.campaign.entities[item]?.label ?? item}» ×${Math.max(1, amount)}. В инвентаре: ${engine.itemCount(item)}.`)}>Выдать</button>
       <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} aria-label="Количество" />
       <select value={currency} onChange={(e) => setCurrency(e.target.value)}>{engine.campaign.meta.currencies.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
-      <button className="btn btn-small" onClick={() => mutate(() => engine.addItem(engine.currencyItemId(currency), Math.max(1, amount)))}>Добавить валюту</button>
+      <button className="btn btn-small" onClick={() => mutate(() => engine.addItem(engine.currencyItemId(currency), Math.max(1, amount)), () => `${engine.campaign.meta.currencies.find((c) => c.id === currency)?.label ?? 'Валюта'}: добавлено ${Math.max(1, amount)}. Баланс: ${engine.currencyAmount(currency)}.`)}>Добавить валюту</button>
     </Section>
     <Section label="Герой">
-      <button className="btn btn-small" onClick={() => mutate(() => { engine.state.player.hp = engine.state.player.max_hp; engine.state.player.mp = engine.state.player.max_mp; for (const n of engine.campaign.meta.needs) engine.state.player.needs[n.id] = n.max })}>Вылечить и восстановить потребности</button>
-      <label className="fld-check small"><input type="checkbox" checked={engine.debugInvincible} onChange={(e) => mutate(() => { engine.debugInvincible = e.target.checked })} /><span>Бессмертие</span></label>
-      <select value={skill} onChange={(e) => setSkill(e.target.value)}>{Object.keys(engine.state.player.skills).map((s) => <option key={s} value={s}>{engine.campaign.meta.skills?.find((x) => x.id === s)?.label ?? s}</option>)}</select>
-      <input type="number" min="0" max="100" value={engine.state.player.skills[skill] ?? 0} onChange={(e) => mutate(() => { engine.state.player.skills[skill] = Number(e.target.value) })} aria-label="Значение навыка" />
-      <select value={stat} onChange={(e) => setStat(e.target.value)}>{Object.keys(engine.state.player.stats).map((s) => <option key={s} value={s}>{s}</option>)}</select>
-      <input type="number" value={engine.state.player.stats[stat as keyof typeof engine.state.player.stats] ?? 0} onChange={(e) => mutate(() => {
-        const stats = engine.state.player.stats
-        stats[stat as keyof typeof stats] = Number(e.target.value)
-        if (stat === 'CON' || stat === 'SIZ') { const max = derivedHP(stats); engine.state.player.max_hp = max; engine.state.player.hp = Math.min(engine.state.player.hp, max) }
-        if (stat === 'POW') { const max = derivedMP(stats); engine.state.player.max_mp = max; engine.state.player.mp = Math.min(engine.state.player.mp, max) }
-      })} aria-label="Значение характеристики" />
+      <button className="btn btn-small" onClick={() => mutate(() => { engine.state.player.hp = engine.state.player.max_hp; engine.state.player.mp = engine.state.player.max_mp; for (const n of engine.campaign.meta.needs) engine.state.player.needs[n.id] = n.max }, 'Здоровье, магия и потребности восстановлены.')}>Вылечить и восстановить потребности</button>
+      <div className="pt-debug-help">Персонаж не погибает от урона, истощения и других игровых причин. «Мгновенное поражение» в этой панели по-прежнему работает. Настройка действует только в плейтесте.</div>
+      <label className="pt-debug-immortality"><input type="checkbox" checked={engine.debugInvincible} onChange={(e) => mutate(() => { engine.debugInvincible = e.target.checked }, e.target.checked ? 'Бессмертие персонажа включено.' : 'Бессмертие персонажа выключено.')} /><span>Бессмертие персонажа</span></label>
+      <div className="pt-debug-setting">
+        <label className="pt-debug-setting-label" htmlFor="pt-debug-skill">Навык героя</label>
+        <div className="pt-debug-control-row">
+          <select id="pt-debug-skill" value={skill} onChange={(e) => setSkill(e.target.value)} aria-label="Навык героя">
+            {Object.keys(engine.state.player.skills).map((s) => <option key={s} value={s}>{engine.campaign.meta.skills?.find((x) => x.id === s)?.label ?? s}</option>)}
+          </select>
+          <input type="number" min="0" max="100" value={engine.state.player.skills[skill] ?? 0} onChange={(e) => mutate(() => { engine.state.player.skills[skill] = Math.max(0, Math.min(100, Number(e.target.value))) }, `Навык изменён: ${engine.campaign.meta.skills?.find((x) => x.id === skill)?.label ?? skill}.`)} aria-label="Значение навыка, процентов" />
+          <span>%</span>
+        </div>
+        <p className="pt-debug-help">Дубины, копья и кулачный бой — навыки. Число задаёт целевое значение броска d100: чем оно выше, тем легче пройти проверку. Изменение действует только в этом плейтесте.</p>
+      </div>
+      <div className="pt-debug-setting">
+        <label className="pt-debug-setting-label" htmlFor="pt-debug-stat">Характеристика героя</label>
+        <div className="pt-debug-control-row">
+          <select id="pt-debug-stat" value={stat} onChange={(e) => setStat(e.target.value)} aria-label="Характеристика героя">
+            {Object.keys(engine.state.player.stats).map((s) => <option key={s} value={s}>{STAT_LABELS[s] ? `${STAT_LABELS[s]} (${s})` : s}</option>)}
+          </select>
+          <input type="number" value={engine.state.player.stats[stat as keyof typeof engine.state.player.stats] ?? 0} onChange={(e) => mutate(() => {
+            const stats = engine.state.player.stats
+            stats[stat as keyof typeof stats] = Number(e.target.value)
+            if (stat === 'CON' || stat === 'SIZ') { const max = derivedHP(stats); engine.state.player.max_hp = max; engine.state.player.hp = Math.min(engine.state.player.hp, max) }
+            if (stat === 'POW') { const max = derivedMP(stats); engine.state.player.max_mp = max; engine.state.player.mp = Math.min(engine.state.player.mp, max) }
+          }, `Характеристика ${STAT_LABELS[stat] ?? stat} изменена.`)} aria-label={`Значение ${STAT_LABELS[stat] ?? stat}`} />
+        </div>
+        <p className="pt-debug-help">CON + SIZ определяют максимум HP, POW — максимум MP, DEX влияет на порядок хода, STR + SIZ — на бонус урона, STR/SIZ/DEX — на движение. INT и CHA хранятся в листе героя, но пока не участвуют в автоматических проверках ядра. Изменения действуют только в плейтесте.</p>
+      </div>
     </Section>
     <Section label="Бой">
       {engine.combat ? <>
@@ -111,26 +175,41 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
           for (const c of combat.combatants) if (c.side === 'enemy') { c.hp = 0; c.dead = true; engine.state.dead_entities.push(c.entityId) }
           combat.result = 'victory'
           engine.onCombatVictory(combat.def.on_victory ?? [])
-        })}>Мгновенная победа</button>
-        <button className="btn btn-small" disabled={!!engine.combat.result} onClick={() => mutate(() => { engine.combat!.result = 'defeat'; engine.gameOver('death', 'Поражение в режиме отладки.') })}>Мгновенное поражение</button>
+        }, 'В бою одержана мгновенная победа.')}>Мгновенная победа</button>
+        <button className="btn btn-small" disabled={!!engine.combat.result} onClick={() => mutate(() => { engine.combat!.result = 'defeat'; engine.gameOver('death', 'Поражение в режиме отладки.', true) }, 'Плейтест завершён поражением.')}>Мгновенное поражение</button>
       </> : <span className="muted small">Сейчас бой не идёт.</span>}
     </Section>
     <Section label="Время и погода">
-      <button className="btn btn-small" onClick={() => mutate(() => engine.advanceTicks(1))}>+1 тик</button>
-      <button className="btn btn-small" onClick={() => mutate(() => engine.advanceTicks(engine.campaign.meta.ticks_per_day))}>+1 день</button>
-      <select value={engine.state.weather ?? ''} onChange={(e) => mutate(() => { engine.state.weather = e.target.value || undefined })}><option value="">Ясно</option>{(engine.campaign.meta.weathers ?? []).map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select>
+      <button className="btn btn-small" onClick={() => mutate(() => engine.advanceTicks(1), 'Время продвинуто на 1 тик.')}>+1 тик</button>
+      <button className="btn btn-small" onClick={() => mutate(() => engine.advanceTicks(engine.campaign.meta.ticks_per_day), 'Время продвинуто на 1 день.')}>+1 день</button>
+      <select value={engine.state.weather ?? ''} onChange={(e) => mutate(() => { engine.state.weather = e.target.value || undefined }, `Погода установлена: ${engine.campaign.meta.weathers?.find((w) => w.id === e.target.value)?.label ?? 'Ясно'}.`)}><option value="">Ясно</option>{(engine.campaign.meta.weathers ?? []).map((w) => <option key={w.id} value={w.id}>{w.label}</option>)}</select>
       {(['morning', 'day', 'evening', 'night'] as const).map((period) => <button key={period} className="btn btn-small" onClick={() => mutate(() => {
         const clock = engine.campaign.meta.time_of_day ?? { morning: 6, day: 10, evening: 18, night: 22 }
         const hour = clock[period]
         const baseTick = Math.floor(engine.state.tick / engine.campaign.meta.ticks_per_day) * engine.campaign.meta.ticks_per_day
         engine.state.tick = baseTick + hour
-      })}>{{ morning: 'Утро', day: 'День', evening: 'Вечер', night: 'Ночь' }[period]}</button>)}
+      }, `Время переключено: ${{ morning: 'утро', day: 'день', evening: 'вечер', night: 'ночь' }[period]}.`)}>{{ morning: 'Утро', day: 'День', evening: 'Вечер', night: 'Ночь' }[period]}</button>)}
     </Section>
-    <Section label="Квесты">
-      {quests.map(([id, q]) => <div className="pt-debug-row" key={id}><label>{q.label}<select value={engine.state.quests[id]?.stage ?? ''} onChange={(e) => mutate(() => engine.advanceQuestTo(id, e.target.value))}><option value="">Стадия…</option>{q.stages.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label></div>)}
+    <Section label={`Квесты (${quests.length})`}>
+      {quests.length === 0 ? <span className="muted small">В кампании нет квестов.</span> : (
+        <div className="pt-debug-quest-list">
+          {quests.map(([id, q]) => <div className="pt-debug-quest-row" key={id}>
+            <label><span>{q.label}</span><select value={engine.state.quests[id]?.stage ?? ''} onChange={(e) => mutate(() => engine.advanceQuestTo(id, e.target.value), `Квест «${q.label}»: стадия «${q.stages.find((s) => s.id === e.target.value)?.label ?? e.target.value}».`)}>
+              <option value="">Стадия…</option>{q.stages.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select></label>
+          </div>)}
+        </div>
+      )}
     </Section>
-    <Section label="Кодекс">
-      {entries.map((e) => <button key={e.id} className="btn btn-small" disabled={(engine.state.codex_unlocked ?? []).includes(e.id)} onClick={() => mutate(() => engine.unlockCodex(e.id))}>{e.label}</button>)}
+    <Section label={`Кодекс (${entries.length})`}>
+      {entries.length === 0 ? <span className="muted small">В кампании нет записей кодекса.</span> : (
+        <div className="pt-debug-codex-list">
+          {entries.map((e) => {
+            const unlocked = (engine.state.codex_unlocked ?? []).includes(e.id)
+            return <button key={e.id} className="btn btn-small" disabled={unlocked} onClick={() => mutate(() => engine.unlockCodex(e.id), `Запись «${e.label}» добавлена в журнал.`)}>{unlocked ? `Уже в журнале: ${e.label}` : `Добавить в журнал: ${e.label}`}</button>
+          })}
+        </div>
+      )}
     </Section>
   </aside>
 }

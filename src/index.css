@@ -554,7 +554,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 }
 .panel-header { display: flex; justify-content: space-between; align-items: center; }
 .panel-header h2 { margin: 0; color: var(--gold-bright); }
-.inventory-currency { position: sticky; top: 0; z-index: 4; margin: 8px -20px 12px; padding: 8px 20px 10px; border-block: 1px solid var(--border); background: var(--panel); box-shadow: 0 4px 10px rgba(0,0,0,.18); }
+.inventory-currency { position: static; margin: 8px -20px 12px; padding: 8px 20px 10px; border-block: 1px solid var(--border); background: var(--panel); }
 .inventory-currency h3 { margin: 0 0 6px; color: var(--gold-bright); font-size: 14px; }
 .inventory-currency-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .inventory-currency-item { display: flex; flex: 1 1 150px; justify-content: space-between; gap: 10px; padding: 5px 8px; border-radius: 5px; background: var(--panel-2); font-size: 13px; }
@@ -1076,8 +1076,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 }
 .cs-stage {
   position: relative;
-  width: min(100vw, calc(100vh * 16 / 9));
-  height: min(100vh, calc(100vw * 9 / 16));
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   
   background: #000;
@@ -1086,7 +1086,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .cs-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; display: block; }
 .cs-media svg { width: 100%; height: 100%; display: block; }
 .cs-black { background: #000; }
-.cs-video { background: #000; object-fit: contain; }
+.cs-video { background: #000; object-fit: cover; }
 
 .cs-in-fade { animation: cs-fade-in 0.9s ease both; }
 .cs-in-slide { animation: cs-slide-in 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
