@@ -3,6 +3,7 @@ import { useId, useState } from 'react'
 export interface FlagOption {
   id: string
   label: string
+  active?: boolean
 }
 
 /** Поиск и выбор флага по русскому названию, сохраняя в кампании его id. */
@@ -21,16 +22,16 @@ export function FlagAutocomplete({
 }) {
   const listId = useId()
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState<string | null>(null)
   const selected = flags.find((flag) => flag.id === value)
-  const shownValue = open ? query : selected?.label ?? value
-  const search = query.trim().toLocaleLowerCase('ru-RU')
+  const shownValue = open && query !== null ? query : selected?.label ?? value
+  const search = (query ?? '').trim().toLocaleLowerCase('ru-RU')
   const matches = [...new Map(flags.map((flag) => [flag.id, flag])).values()]
     .filter((flag) => !search || `${flag.label} ${flag.id}`.toLocaleLowerCase('ru-RU').includes(search))
     .sort((a, b) => a.label.localeCompare(b.label, 'ru-RU'))
   const commitQuery = () => {
-    const text = query.trim()
-    const exact = flags.find((flag) => flag.id === text || flag.label === text)
+    const text = (query ?? selected?.label ?? value).trim()
+    const exact = flags.find((flag) => flag.id === text || flag.label.localeCompare(text, 'ru-RU', { sensitivity: 'base' }) === 0)
     onChange(exact?.id ?? text)
     setOpen(false)
   }
@@ -49,10 +50,11 @@ export function FlagAutocomplete({
         aria-label={ariaLabel}
         aria-controls={listId}
         aria-expanded={open}
-        onFocus={() => { setQuery(selected?.label ?? value); setOpen(true) }}
-        onChange={(event) => { setQuery(event.target.value); setOpen(true) }}
+        onFocus={() => { setQuery(null); setOpen(true) }}
+        onClick={() => { if (!open) { setQuery(null); setOpen(true) } }}
+        onChange={(event) => { setQuery(event.target.value); onChange(event.target.value); setOpen(true) }}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') setOpen(false)
+          if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); setOpen(false) }
           if (event.key === 'Enter') { event.preventDefault(); commitQuery() }
         }}
       />
@@ -66,9 +68,14 @@ export function FlagAutocomplete({
               aria-selected={value === flag.id}
               className={`flag-autocomplete-option${value === flag.id ? ' is-selected' : ''}`}
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => { onChange(flag.id); setQuery(flag.label); setOpen(false) }}
+              onClick={() => { onChange(flag.id); setQuery(null); setOpen(false) }}
             >
-              {flag.label}
+              <span>{flag.label}</span>
+              {flag.active !== undefined && (
+                <small className={flag.active ? 'flag-autocomplete-active' : 'flag-autocomplete-inactive'}>
+                  {flag.active ? 'Включён' : 'Выключен'}
+                </small>
+              )}
             </button>
           )) : (
             <div className="flag-autocomplete-empty">Нет совпадений. Можно задать свой флаг.</div>

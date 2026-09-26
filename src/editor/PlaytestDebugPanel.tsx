@@ -30,21 +30,30 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
   const [amount, setAmount] = useState(1)
   const [skill, setSkill] = useState(Object.keys(engine.state.player.skills)[0] ?? '')
   const [stat, setStat] = useState(Object.keys(engine.state.player.stats)[0] ?? 'STR')
+  const [, refresh] = useState(0)
   useEffect(() => {
+    const unsubscribe = engine.subscribe(() => refresh((n) => n + 1))
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+    return () => { unsubscribe(); window.removeEventListener('keydown', onKey) }
+  }, [engine, onClose])
   const mutate = (fn: () => void) => { fn(); engine.notify(); engine.autosave() }
   const allRegions = engine.campaign.world.regions
   const selectedRegion = allRegions.find((r) => r.id === region)
   const allLocations = selectedRegion?.locations ?? []
   const locationScenes = Object.values(engine.campaign.scenes).filter((s) => s.location === location)
-  const flagOptions = new Map((engine.campaign.meta.flags ?? []).map((f) => [f.id, { id: f.id, label: f.label || f.id }]))
+  const flagOptions = new Map((engine.campaign.meta.flags ?? []).map((f) => [f.id, {
+    id: f.id,
+    label: f.label || f.id,
+    active: !!engine.state.flags[f.id],
+  }]))
   for (const id of [...Object.keys(engine.state.flags), ...contentFlags(engine.campaign)]) {
-    if (!flagOptions.has(id)) flagOptions.set(id, { id, label: id })
+    if (!flagOptions.has(id)) flagOptions.set(id, { id, label: id, active: !!engine.state.flags[id] })
   }
   const allFlags = [...flagOptions.values()]
+  const selectedFlag = allFlags.find((f) => f.id === flag || f.label.localeCompare(flag, 'ru-RU', { sensitivity: 'base' }) === 0)
+  const selectedFlagId = selectedFlag?.id ?? flag
+  const selectedFlagActive = !!engine.state.flags[selectedFlagId]
   const quests = Object.entries(engine.campaign.quests)
   const entries = Object.values(engine.campaign.codex)
   return <aside className="pt-debug-panel" role="dialog" aria-label="Панель отладки">
@@ -61,8 +70,14 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
     </Section>
     <Section label="Флаги">
       <FlagAutocomplete value={flag} flags={allFlags} onChange={setFlag} />
-      <button className="btn btn-small" disabled={!flag} onClick={() => mutate(() => { engine.state.flags[flag] = true })}>Включить</button>
-      <button className="btn btn-small" disabled={!flag} onClick={() => mutate(() => { delete engine.state.flags[flag] })}>Снять</button>
+      <div className="pt-debug-flag-status" aria-live="polite">
+        {selectedFlag ? <>
+          <span>{selectedFlag.label}</span>
+          <strong className={selectedFlagActive ? 'is-on' : 'is-off'}>{selectedFlagActive ? 'Включён' : 'Выключен'}</strong>
+        </> : <span className="muted small">Выберите флаг, чтобы увидеть его состояние.</span>}
+      </div>
+      <button className="btn btn-small" disabled={!flag.trim() || selectedFlagActive} onClick={() => mutate(() => { engine.state.flags[selectedFlagId] = true })}>Включить</button>
+      <button className="btn btn-small" disabled={!flag.trim() || !selectedFlagActive} onClick={() => mutate(() => { delete engine.state.flags[selectedFlagId] })}>Снять</button>
     </Section>
     <Section label="Переменные">
       {Object.entries(engine.state.variables).map(([k, v]) => <div className="pt-debug-row" key={k}><span>{k}: {String(v)}</span><button className="btn btn-small" onClick={() => { setVariable(k); setValue(String(v)) }}>Изменить</button></div>)}
@@ -112,7 +127,7 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
       })}>{{ morning: 'Утро', day: 'День', evening: 'Вечер', night: 'Ночь' }[period]}</button>)}
     </Section>
     <Section label="Квесты">
-      {quests.map(([id, q]) => <div className="pt-debug-row" key={id}><label>{q.label}<select defaultValue={engine.state.quests[id]?.stage ?? ''} onChange={(e) => mutate(() => engine.advanceQuestTo(id, e.target.value))}><option value="">Стадия…</option>{q.stages.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label></div>)}
+      {quests.map(([id, q]) => <div className="pt-debug-row" key={id}><label>{q.label}<select value={engine.state.quests[id]?.stage ?? ''} onChange={(e) => mutate(() => engine.advanceQuestTo(id, e.target.value))}><option value="">Стадия…</option>{q.stages.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select></label></div>)}
     </Section>
     <Section label="Кодекс">
       {entries.map((e) => <button key={e.id} className="btn btn-small" disabled={(engine.state.codex_unlocked ?? []).includes(e.id)} onClick={() => mutate(() => engine.unlockCodex(e.id))}>{e.label}</button>)}
