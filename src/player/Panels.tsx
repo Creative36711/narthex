@@ -251,6 +251,49 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
           </div>
         )}
 
+        {engine.progressionEnabled() && (
+          <>
+            <h3>Прокачка</h3>
+            <div className="derived-row">
+              <span>Уровень {engine.level()}</span>
+              <span>Опыт {engine.xp()}{engine.xpToNext() != null ? ` / +${engine.xpToNext()} до след.` : ' (потолок)'}</span>
+              {engine.pendingFeats() > 0 && <span className="skill-mark">Доступно черт: {engine.pendingFeats()}</span>}
+            </div>
+            {(p.feats ?? []).length > 0 && (
+              <ul className="skill-list">
+                {(p.feats ?? []).map((fid) => {
+                  const f = engine.campaign.meta.progression?.feats?.find((x) => x.id === fid)
+                  return (
+                    <li key={fid} data-tip={f?.description || undefined}>
+                      <span><Ico n="star" />  {f?.label ?? fid}</span>
+                      <span className="skill-val">черта</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {engine.pendingFeats() > 0 && (
+              <div className="feat-picks">
+                <h4 className="skill-cat">Выберите черту:</h4>
+                <ul className="skill-list">
+                  {engine.availableFeats().filter((f) => engine.featEligible(f)).map((f) => (
+                    <li key={f.id} data-tip={f.description || undefined}>
+                      <span>{f.label}</span>
+                      <button className="btn btn-small" onClick={() => engine.takeFeat(f.id)}>Взять</button>
+                    </li>
+                  ))}
+                  {engine.availableFeats().filter((f) => !engine.featEligible(f)).map((f) => (
+                    <li key={f.id} className="muted" data-tip={`${f.description ?? ''}\n(истинность предпосылок не выполнена)`}>
+                      <span>{f.label} — недоступна</span>
+                      <span className="skill-val">—</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
         {(engine.wealthLevels().length > 0 || engine.reputationEnabled() || Object.keys(p.passions ?? {}).length > 0 || Object.keys(p.allegiance ?? {}).length > 0) && (
           <>
             <h3>Мир и характер</h3>

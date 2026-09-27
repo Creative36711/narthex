@@ -112,6 +112,27 @@ export interface StatusDef {
   }
 }
 
+/**
+ * Черта прокачки (аудит B8, meta.progression.feats): постоянный бонус героя.
+ * Месяет навыки, характеристики, HP/MP, движение; условия доступности —
+ * обычные условия кампании (requires).
+ */
+export interface FeatDef {
+  id: string
+  label: string
+  description?: string
+  /** условия-предпосылки: все истинны — черту можно взять */
+  requires?: Condition[]
+  /** постоянные прибавки при взятии */
+  mods?: {
+    skills?: Record<string, number>
+    stats?: Partial<Record<'STR' | 'CON' | 'SIZ' | 'DEX' | 'INT' | 'POW' | 'CHA' | 'EDU', number>>
+    hp?: number
+    mp?: number
+    mov?: number
+  }
+}
+
 /** Активный статус: сколько осталось (тиков в мире, раундов в бою). */
 export interface ActiveStatus {
   id: string
@@ -649,6 +670,22 @@ export interface CampaignMeta {
    * рогалика приятнее мягче; мастер решает сам.
    */
   luck?: { multiplier?: number; reroll_cost?: number; rest_luck?: boolean }
+  /**
+   * Уровни и черты — ОПЦИОНАЛЬНАЯ прогрессия поверх BRP (аудит B8).
+   * Отсутствие блока — систем нет (классический рогалик: рост только навыков).
+   * Опыт — эффектом grant_xp (или награды достижений), пороги:
+   * xp_per_level (умолчание 100 за уровень, кумулятивно base×(1..n)).
+   */
+  progression?: {
+    /** база порога уровня: уровень N стоит base×N очков опыта (умолчание 100) */
+    xp_per_level?: number
+    /** черт за уровень (умолчание 1; 0 — уровневая прокачка без черт) */
+    feats_per_level?: number
+    /** потолок уровня; нет — без потолка */
+    max_level?: number
+    /** реестр черт, доступных герою */
+    feats?: FeatDef[]
+  }
   /**
    * Скрытность и обнаружение (аудит §5.6 п.12). Отсутствие блока — системы
    * нет (для стелс-кампаний мастер включает явно).
@@ -1591,6 +1628,10 @@ export type Condition =
   | { type: 'crime_committed'; id?: string; min_bounty?: number }
   /** суммарная награда за голову героя не меньше порога (аудит B7) */
   | { type: 'bounty_total_ge'; threshold: number }
+  /** уровень героя не ниже (аудит B8, meta.progression) */
+  | { type: 'level_ge'; level: number }
+  /** черта взята (аудит B8) */
+  | { type: 'has_feat'; id: string }
   /** страсть не ниже значения (аудит B6) */
   | { type: 'passion_ge'; id: string; value: number }
   /** очков причастности не меньше порога (аудит B6) */
@@ -1737,6 +1778,10 @@ export type Effect =
   | { type: 'set_price_event'; id: string }
   /** снять ценовое событие (все — id не задано) */
   | { type: 'clear_price_event'; id?: string }
+  /** очки опыта (аудит B8, meta.progression) */
+  | { type: 'grant_xp'; points: number }
+  /** выдать черту вне прокачки (аудит B8; дубликаты игнорируются) */
+  | { type: 'grant_feat'; id: string }
   | { type: 'join_party'; entity: string }
   | { type: 'leave_party'; entity: string }
   | { type: 'block_path'; from: string; to: string }
@@ -1789,6 +1834,11 @@ export interface PlayerState {
   passions?: Record<string, number>
   /** причастность (аудит B6): id силы/богини → очки; реестр в meta.allegiances */
   allegiance?: Record<string, number>
+  /** опыт и уровень (аудит B8, opt-in meta.progression); старт 0/1 */
+  xp?: number
+  level?: number
+  /** взятые черты (аудит B8) */
+  feats?: string[]
   needs: Record<string, number>
   inventory: InventoryEntry[]
   /** устаревшее поле сохранений; актуальный баланс валют хранится в inventory как предметы-монеты */

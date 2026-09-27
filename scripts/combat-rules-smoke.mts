@@ -941,5 +941,75 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   }
 }
 
+
+// ═══ §19. Опыт, уровни и черты (B8, progression opt-in) ═══
+{
+  const e = new GameEngine(synth((camp) => {
+    buff(camp)
+    if (camp.meta.char_creation) camp.meta.char_creation.stat_limits = { min: 1, max: 99 }
+    camp.meta.progression = {
+      xp_per_level: 100,
+      feats_per_level: 1,
+      max_level: 3,
+      feats: [
+        { id: 'tough', label: 'Живучий', mods: { hp: 3 } },
+        { id: 'sharp', label: 'Острый', mods: { skills: { melee: 5 } }, requires: [{ type: 'level_ge', level: 3 }] },
+        { id: 'mighty', label: 'Могучий', mods: { stats: { STR: 2 } } },
+      ],
+    }
+  }))
+  const p = e.state.player
+  const sp = e.state.scenePlayer
+
+  check('19 progression выкл по умолчанию — отдельный смоук ниже', e.progressionEnabled())
+  check('19 старт: уровень 1, опыта 0', e.level() === 1 && e.xp() === 0)
+  check('19 до след. уровня 100', e.xpToNext() === 100)
+
+  e.grantXp(99)
+  check('19 99 опыта — уровень не вырос', e.level() === 1 && e.xp() === 99)
+  e.grantXp(1) // ровно 100 — уровень 2
+  check('19 100 опыта — уровень 2', e.level() === 2, `level=${e.level()}`)
+  check('19 остаток опыта обнулился', e.xp() === 0)
+  check('19 до 3-го уровня ещё 200', e.xpToNext() === 200)
+  check('19 доступна 1 черта к выбору', e.pendingFeats() === 1)
+  check('19 лог сообщил о новом уровне', e.state.log.some((t) => /уровень/i.test(t)))
+
+  const hpBefore = p.max_hp + 0
+  check('19 недоступную по требованиям черту не взять', !e.featEligible(e.availableFeats().find((f) => f.id === 'sharp')!))
+  e.takeFeat('tough')
+  check('19 черта «Живучий» выдана', (p.feats ?? []).includes('tough'))
+  check('19 hp max вырос на +3', p.max_hp === hpBefore + 3, `${hpBefore} → ${p.max_hp}`)
+  check('19 свободных черт больше нет', e.pendingFeats() === 0)
+
+  // характеристики из черт идут через ограничения (trainStat)
+  p.stats.STR = 10
+  const str0 = p.stats.STR
+  e.grantXp(200) // уровень 3 — максимум
+  check('19 уровень 3 = потолок', e.level() === 3 && e.xpToNext() == null)
+  check('19 на потолке опыт не копится', e.xp() === 0)
+  check('19 черт к выбору: 1 (3-й уровень)', e.pendingFeats() === 1)
+  e.takeFeat('mighty')
+  check('19 STR выросла на +2 через черту', p.stats.STR === str0 + 2, `STR ${str0} → ${p.stats.STR}`)
+
+  // на потолке новый уровень не выдаётся
+  e.grantXp(500)
+  check('19 опыт сверх потолка игнорируется', e.level() === 3 && e.xp() === 0)
+
+  // подача черты напрямую эффектом
+  const before = (p.feats ?? []).length
+  e.applyEffect({ type: 'grant_feat', id: 'sharp' } as never)
+  check('19 grant_feat выдаёт черту в обход требований', (p.feats ?? []).length === before + 1 && (p.feats ?? []).includes('sharp'))
+  check('19 skill-мод черты применился', (p.skills.melee ?? 0) >= 5)
+
+  // без progression — геттеры безопасны
+  const e2 = new GameEngine(synth((camp) => buff(camp)))
+  check('19 progression выключен: progressionEnabled=false', !e2.progressionEnabled())
+  check('19 выкл: уровень 1, опыта 0, черт нет', e2.level() === 1 && e2.xp() === 0 && e2.pendingFeats() === 0 && e2.xpToNext() == null)
+  e2.grantXp(50)
+  check('19 выкл: grant_xp — no-op', e2.level() === 1)
+  e2.grantFeat('nope')
+  check('19 выкл: grant_feat молча игнорируется', (e2.state.player.feats ?? []).length === 0)
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

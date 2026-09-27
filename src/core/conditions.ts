@@ -94,6 +94,10 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.hasCrime(c.id, c.min_bounty ?? 0)
     case 'bounty_total_ge':
       return engine.bountyTotal() >= c.threshold
+    case 'level_ge':
+      return engine.level() >= c.level
+    case 'has_feat':
+      return (engine.state.player.feats ?? []).includes(c.id)
     case 'and':
       return c.conditions.every((x) => evalCondition(x, engine))
     case 'or':

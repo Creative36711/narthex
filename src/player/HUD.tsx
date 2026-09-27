@@ -68,6 +68,14 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
             {engine.reputationLabel()} {engine.reputation()}
           </div>
         )}
+        {engine.progressionEnabled() && (
+          <div
+            className="hud-status-chip"
+            data-tip={`Уровень ${engine.level()} — опыт ${engine.xp()}${engine.xpToNext() != null ? ` (до след. уровня ${engine.xpToNext()})` : ' (потолок)'}.\nОпыт — эффектом grant_xp; за уровень — черта к выбору в листе персонажа.`}
+          >
+            Ур. {engine.level()}{engine.pendingFeats() > 0 ? ` (+${engine.pendingFeats()})` : ''}
+          </div>
+        )}
         {needsOn && meta.needs.map((n) => {
           const val = s.player.needs[n.id] ?? 0
           const critical = val <= n.critical_threshold

@@ -206,6 +206,16 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'threshold', label: 'Порог', kind: 'number' }],
     blank: { threshold: 100 },
   },
+  level_ge: {
+    label: 'Уровень героя ≥',
+    fields: [{ key: 'level', label: 'Уровень', kind: 'number' }],
+    blank: { level: 2 },
+  },
+  has_feat: {
+    label: 'Черта взята',
+    fields: [{ key: 'id', label: 'id черты', kind: 'string' }],
+    blank: { id: '' },
+  },
   need_le: {
     label: 'Потребность ≤',
     fields: [
@@ -529,6 +539,16 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Снять ценовое событие',
     fields: [{ key: 'id', label: 'id события (пусто — все)', kind: 'string', optional: true }],
     blank: {},
+  },
+  grant_xp: {
+    label: 'Опыт (очки уровней)',
+    fields: [{ key: 'points', label: 'Очки опыта', kind: 'number' }],
+    blank: { points: 50 },
+  },
+  grant_feat: {
+    label: 'Выдать черту',
+    fields: [{ key: 'id', label: 'id черты', kind: 'string' }],
+    blank: { id: '' },
   },
   start_quest: {
     label: 'Начать квест',

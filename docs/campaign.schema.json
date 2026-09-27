@@ -1105,6 +1105,38 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "grant_xp"
+            },
+            "points": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "points"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "grant_feat"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "join_party"
             },
             "entity": {
@@ -1973,6 +2005,38 @@
           "required": [
             "type",
             "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "level_ge"
+            },
+            "level": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "has_feat"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id"
           ],
           "additionalProperties": false
         },
@@ -3097,6 +3161,61 @@
       "additionalProperties": false,
       "description": "Боевые правила кампании: всё отдаётся мастеру, отсутствие поля —\nповедение кампаний до появления блока (обратная совместимость)."
     },
+    "FeatDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия-предпосылки: все истинны — черту можно взять"
+        },
+        "mods": {
+          "type": "object",
+          "properties": {
+            "skills": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "stats": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "hp": {
+              "type": "number"
+            },
+            "mp": {
+              "type": "number"
+            },
+            "mov": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "description": "постоянные прибавки при взятии"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Черта прокачки (аудит B8, meta.progression.feats): постоянный бонус героя.\nМесяет навыки, характеристики, HP/MP, движение; условия доступности —\nобычные условия кампании (requires)."
+    },
     "CampaignMeta": {
       "type": "object",
       "properties": {
@@ -3707,6 +3826,32 @@
           },
           "additionalProperties": false,
           "description": "Очки удачи героя (аудит §5.6 п.8, книжная Удача = POW×5): максимум =\nPOW × multiplier (умолчание 5; задайте 0, чтобы выключить удачу).\nНа провальный мировой/диалоговый бросок игрок может потратить\n`reroll_cost` удачи (умолчание 1) и перебросить. Удача восстанавливается\nна отдыхе (`rest_luck` ≠ false) — книжно удача не восполняется, но для\nрогалика приятнее мягче; мастер решает сам."
+        },
+        "progression": {
+          "type": "object",
+          "properties": {
+            "xp_per_level": {
+              "type": "number",
+              "description": "база порога уровня: уровень N стоит base×N очков опыта (умолчание 100)"
+            },
+            "feats_per_level": {
+              "type": "number",
+              "description": "черт за уровень (умолчание 1; 0 — уровневая прокачка без черт)"
+            },
+            "max_level": {
+              "type": "number",
+              "description": "потолок уровня; нет — без потолка"
+            },
+            "feats": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/FeatDef"
+              },
+              "description": "реестр черт, доступных герою"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Уровни и черты — ОПЦИОНАЛЬНАЯ прогрессия поверх BRP (аудит B8).\nОтсутствие блока — систем нет (классический рогалик: рост только навыков).\nОпыт — эффектом grant_xp (или награды достижений), пороги:\nxp_per_level (умолчание 100 за уровень, кумулятивно base×(1..n))."
         },
         "stealth": {
           "type": "object",

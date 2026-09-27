@@ -11,6 +11,7 @@ import type {
   ItemDef,
   LocationDef,
   ActiveStatus,
+  FeatDef,
   NpcDef,
   PlayerState,
   RecipeDef,
@@ -36,7 +37,7 @@ import {
   MAX_SAVE_SLOTS,
 } from './savemigrate'
 import { PRNG } from './prng'
-import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL, difficultyModifier, difficultyLabel, type SkillCheckOutcome } from './brp'
+import { derivedHP, derivedMP, movement, skillCheck, CHECK_RESULT_LABEL, difficultyModifier, difficultyLabel, type SkillCheckOutcome } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
@@ -1114,6 +1115,135 @@ export class GameEngine {
     return labels[stat] ?? stat
   }
 
+  // ─────────────── уровни и черты (аудит B8, opt-in meta.progression) ───────────────
+
+  /** система уровней включена мастером */
+  progressionEnabled(): boolean {
+    return !!this.campaign.meta.progression
+  }
+
+  /** текущий уровень (старт 1) */
+  level(): number {
+    return Math.max(1, this.state.player.level ?? 1)
+  }
+
+  /** текущий запас опыта */
+  xp(): number {
+    return Math.max(0, this.state.player.xp ?? 0)
+  }
+
+  /** сколько опыта нужно, чтобы взять следующий уровень (кумулятивно) */
+  xpForLevel(level: number): number {
+    const base = this.campaign.meta.progression?.xp_per_level ?? 100
+    // база×summing i=1..level: base при lvl1→2; растёт линейно
+    return base * level
+  }
+
+  /** опыт до следующего уровня или до потолка */
+  xpToNext(): number | null {
+    if (!this.progressionEnabled()) return null
+    const max = this.campaign.meta.progression?.max_level
+    if (max != null && this.level() >= max) return null
+    return this.xpForLevel(this.level()) - this.xp()
+  }
+
+  /** нераспределённых черт (по умолчанию по одной за уровень) */
+  pendingFeats(): number {
+    if (!this.progressionEnabled()) return 0
+    const per = this.campaign.meta.progression?.feats_per_level ?? 1
+    return Math.max(0, (this.level() - 1) * per - (this.state.player.feats ?? []).length)
+  }
+
+  /** начислить опыт; при достижении порога — уровень ↑ (одна итерация) */
+  grantXp(points: number): void {
+    if (!this.progressionEnabled() || points <= 0) return
+    const p = this.state.player
+    const cap = this.campaign.meta.progression?.max_level
+    if (cap != null && this.level() >= cap) return // потолок: опыт не копится
+    p.xp = this.xp() + points
+    this.pushLog(`Опыт: +${points} (всего ${p.xp}, до след. уровня ${this.xpToNext() ?? 'потолок'}).`)
+    // уровни поднимаем по одному за проход (линейный лад book-op)
+    while (this.xp() >= this.xpForLevel(this.level())) {
+      const max = this.campaign.meta.progression?.max_level
+      if (max != null && this.level() >= max) break
+      p.xp = this.xp() - this.xpForLevel(this.level())
+      p.level = this.level() + 1
+      const slots = this.campaign.meta.progression?.feats_per_level ?? 1
+      this.pushLog(`Уровень ${p.level}!${slots > 0 ? ` Доступно ${slots} чёрт(а) к выбору в листе персонажа.` : ''}`)
+      this.checkRules()
+    }
+    this.notify()
+  }
+
+  /** дефолтного набора черт */
+  availableFeats(): FeatDef[] {
+    if (!this.progressionEnabled()) return []
+    const taken = new Set(this.state.player.feats ?? [])
+    return (this.campaign.meta.progression?.feats ?? []).filter((f) => !taken.has(f.id))
+  }
+
+  /** доступна ли черта (условия requires) */
+  featEligible(feat: FeatDef): boolean {
+    if (!feat.requires?.length) return true
+    return feat.requires.every((c) => evalCondition(c, this))
+  }
+
+  /** взять черту точкой прокачки (слоты расходуются) */
+  takeFeat(id: string): boolean {
+    if (!this.progressionEnabled() || this.pendingFeats() <= 0) return false
+    const feat = this.availableFeats().find((f) => f.id === id)
+    if (!feat || !this.featEligible(feat)) return false
+    this.applyFeat(feat)
+    this.pushLog(`Взята черта «${feat.label}».`)
+    this.notify()
+    return true
+  }
+
+  /** выдать черту напрямую (эффект grant_feat, без счёта слотов) */
+  grantFeat(id: string): void {
+    if (!this.progressionEnabled()) return
+    const feat = this.campaign.meta.progression?.feats?.find((f) => f.id === id)
+    if (!feat || (this.state.player.feats ?? []).includes(id)) return
+    this.applyFeat(feat)
+    this.pushLog(`Освоена черта «${feat.label}».`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** применение бонусов черты (уже взята) */
+  private applyFeat(feat: FeatDef): void {
+    const p = this.state.player
+    p.feats ??= []
+    p.feats.push(feat.id)
+    const mods = feat.mods ?? {}
+    for (const [skill, delta] of Object.entries(mods.skills ?? {})) {
+      p.skills[skill] = Math.max(0, (p.skills[skill] ?? 0) + (delta as number))
+    }
+    for (const [stat, delta] of Object.entries(mods.stats ?? {})) {
+      if (delta) this.trainStat(stat, delta as number)
+    }
+    if (mods.hp) {
+      p.max_hp = Math.max(1, p.max_hp + mods.hp)
+      p.hp = Math.min(p.max_hp, p.hp + mods.hp)
+    }
+    if (mods.mp) {
+      p.max_mp = Math.max(0, p.max_mp + mods.mp)
+      p.mp = Math.min(p.max_mp, p.mp + mods.mp)
+    }
+    // движение от черт — добавкой в список модификаторов movement()
+    this.checkRules()
+  }
+
+  /** движение героя: базовое + перманентные бонусы черт */
+  playerMovement(): number {
+    let mov = movement(this.state.player.stats)
+    for (const fid of this.state.player.feats ?? []) {
+      const f = this.campaign.meta.progression?.feats?.find((x) => x.id === fid)
+      mov += f?.mods?.mov ?? 0
+    }
+    return Math.max(1, mov)
+  }
+
   // ─────────────── опасности, преступления, цены, лагерь (аудит B7) ───────────────
 
   /**
@@ -2067,6 +2197,8 @@ export class GameEngine {
       case 'commit_crime': this.commitCrime(e.id, e.bounty); break
       case 'set_price_event': this.setPriceEvent(e.id, true); break
       case 'clear_price_event': this.setPriceEvent(e.id ?? '', false); break
+      case 'grant_xp': this.grantXp(e.points); break
+      case 'grant_feat': this.grantFeat(e.id); break
       case 'change_disposition': this.changeDisposition(e.target, e.delta); break
       case 'start_quest': this.startQuest(e.quest); break
       case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break

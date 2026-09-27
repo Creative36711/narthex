@@ -7,7 +7,7 @@ import { AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonFi
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
+import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { brightenHex } from '../shared/theme'
 import { PROFILE_GROUPS, VISUAL_PROFILES, resolveProfile, contrastRatio } from '../shared/profiles'
@@ -1127,6 +1127,139 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             />
           </label>
         </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Опыт, уровни и черты (B8)</h4>
+        <div className="fld-row">
+          <label className="fld fld-check" data-tip="Вкл — в игре копится опыт (эффект grant_xp), герой получает уровни и выбирает черты. Выкл — классика BRP: рост только навыками при прокачке отдыхом">
+            <input type="checkbox" checked={!!m.progression} onChange={(e) => { if (e.target.checked) { m.progression = { xp_per_level: 100, feats_per_level: 1 } } else { delete m.progression } commit() }} />
+            <span>Уровни и опыт</span>
+          </label>
+          {m.progression && (
+            <>
+              <label className="fld" data-tip="Стоимость каждого N-го уровня: базовое × N (накопительно). Например 100: 2-й уровень при 100 опыта, 3-й при 300, 4-й при 600">
+                <span>Опыта за уровень</span>
+                <input type="number" min={1} value={m.progression.xp_per_level ?? 100} onChange={(e) => { m.progression!.xp_per_level = +e.target.value || 100; commit() }} />
+              </label>
+              <label className="fld" data-tip="Сколько черт герой выбирает за каждый новый уровень (вкладка персонажа)">
+                <span>Черт на уровень</span>
+                <input type="number" min={0} value={m.progression.feats_per_level ?? 1} onChange={(e) => { m.progression!.feats_per_level = +e.target.value || 0; commit() }} />
+              </label>
+              <label className="fld" data-tip="Пусто — без потолка. На потолке опыт перестаёт копиться">
+                <span>Максимальный уровень</span>
+                <input type="number" min={1} value={m.progression.max_level ?? ''} onChange={(e) => { if (e.target.value === '') { delete m.progression!.max_level } else { m.progression!.max_level = +e.target.value || 1 } commit() }} />
+              </label>
+            </>
+          )}
+        </div>
+        {m.progression && (
+          <div className="fld-row" style={{ flexDirection: 'column', gap: 8 }}>
+            <label className="fld" data-tip="Шаблон + новые строки = новые черты. Существующие черты сохраняют свои модификаторы/условия; удалённые строки удаляют черту">
+              <span>Черты (id=Название — по строке)</span>
+              <textarea
+                rows={(m.progression.feats?.length ?? 0) + 2}
+                value={(m.progression.feats ?? []).map((f) => `${f.id}=${f.label}`).join('\n')}
+                onChange={(e) => {
+                  const lines = e.target.value.split('\n')
+                  const next: FeatDef[] = []
+                  for (const line of lines) {
+                    if (!line.trim()) continue
+                    const [id, ...rest] = line.split('=')
+                    const fid = (id ?? '').trim()
+                    if (!fid) continue
+                    const flabel = rest.join('=').trim() || fid
+                    const prev = (m.progression!.feats ?? []).find((f) => f.id === fid)
+                    next.push(prev ? { ...prev, label: flabel } : { id: fid, label: flabel })
+                  }
+                  m.progression!.feats = next
+                  commit()
+                }}
+              />
+            </label>
+            {(m.progression.feats ?? []).map((f, i) => (
+              <div key={f.id} className="panel" style={{ padding: 8 }}>
+                <div className="fld-row">
+                  <b>{f.label}</b> <code style={{ opacity: 0.7 }}>{f.id}</code>
+                </div>
+                <div className="fld-row">
+                  <label className="fld" style={{ flex: 1 }}>
+                    <span>Описание</span>
+                    <input
+                      value={f.description ?? ''}
+                      onChange={(e) => { const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); m.progression!.feats = feats; commit() }}
+                    />
+                  </label>
+                  <label className="fld" data-tip="skill:id=+N; stat:ID=+N (через ограничение статов); hp=+N; mp=+N; mov=+N — через запятую">
+                    <span>Модификаторы</span>
+                    <input
+                      defaultValue={[
+                        ...Object.entries(f.mods?.skills ?? {}).map(([k, v]) => `skill:${k}=${v >= 0 ? '+' : ''}${v}`),
+                        ...Object.entries(f.mods?.stats ?? {}).map(([k, v]) => `stat:${k}=${v >= 0 ? '+' : ''}${v}`),
+                        ...(f.mods?.hp ? [`hp=+${f.mods.hp}`] : []),
+                        ...(f.mods?.mp ? [`mp=+${f.mods.mp}`] : []),
+                        ...(f.mods?.mov ? [`mov=+${f.mods.mov}`] : []),
+                      ].join(', ')}
+                      placeholder="skill:melee=+5, hp=+2"
+                      onBlur={(e) => {
+                        const skills: Record<string, number> = {}
+                        const stats: Record<string, number> = {}
+                        let hp = 0; let mp = 0; let mov = 0
+                        for (const part of e.target.value.split(',')) {
+                          const [k, v] = part.split('='); const n = parseInt(v ?? '', 10)
+                          if (!k || Number.isNaN(n)) continue
+                          const key = k.trim()
+                          if (key.startsWith('skill:')) skills[key.slice(6)] = n
+                          else if (key.startsWith('stat:')) stats[key.slice(5)] = n
+                          else if (key === 'hp') hp = n
+                          else if (key === 'mp') mp = n
+                          else if (key === 'mov') mov = n
+                        }
+                        const mods: NonNullable<FeatDef['mods']> = {}
+                        if (Object.keys(skills).length) mods.skills = skills
+                        if (Object.keys(stats).length) mods.stats = stats
+                        if (hp) mods.hp = hp
+                        if (mp) mods.mp = mp
+                        if (mov) mods.mov = mov
+                        const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, mods: Object.keys(mods).length ? mods : undefined } : x)
+                        m.progression!.feats = feats
+                        commit()
+                      }}
+                    />
+                  </label>
+                  <label className="fld" data-tip="level_ge:N / has_feat:id / has_item:id / flag_set:key / skill_ge:id=N / variable_compare:var>=N — через запятую">
+                    <span>Требования</span>
+                    <input
+                      defaultValue={(f.requires ?? []).map((c) => c.type === 'level_ge' ? `level_ge:${c.level}`
+                        : c.type === 'has_feat' ? `has_feat:${c.id}`
+                        : c.type === 'has_item' ? `has_item:${c.item}`
+                        : c.type === 'flag_set' ? `flag_set:${c.flag}`
+                        : c.type === 'skill_ge' ? `skill_ge:${c.skill}=${c.threshold}`
+                        : c.type === 'variable_compare' ? `variable_compare:${c.var}${c.operator}${String(c.value)}`
+                        : c.type).join(', ')}
+                      placeholder="level_ge:3, has_feat:keen"
+                      onBlur={(e) => {
+                        const reqs: NonNullable<FeatDef['requires']> = []
+                        for (const part of e.target.value.split(',')) {
+                          const [t, ...rest] = part.trim().split(':'); const v = rest.join(':')
+                          if (t === 'level_ge') reqs.push({ type: 'level_ge', level: parseInt(v, 10) || 1 })
+                          else if (t === 'has_feat' && v) reqs.push({ type: 'has_feat', id: v })
+                          else if (t === 'has_item' && v) reqs.push({ type: 'has_item', item: v })
+                          else if (t === 'flag_set' && v) reqs.push({ type: 'flag_set', flag: v })
+                          else if (t === 'skill_ge') { const [sk, n] = (v || '').split('='); if (sk) reqs.push({ type: 'skill_ge', skill: sk, threshold: parseInt(n, 10) || 0 }) }
+                          else if (t === 'variable_compare') { const mch = (v || '').match(/^([A-Za-z_0-9-]+)(==|!=|>=|<=|>|<)(-?\d+)$/); if (mch) reqs.push({ type: 'variable_compare', var: mch[1], operator: mch[2] as '==' | '!=' | '<' | '>' | '<=' | '>=', value: parseInt(mch[3], 10) }) }
+                        }
+                        const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, requires: reqs.length ? reqs : undefined } : x)
+                        m.progression!.feats = feats
+                        commit()
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="props-group">
