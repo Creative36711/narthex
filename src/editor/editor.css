@@ -1230,45 +1230,63 @@
 .editor-toolbar-item.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--ed-danger) 12%, var(--ed-bg-2)); color: var(--ed-danger); }
 .editor-toolbar-divider { height: 1px; margin: 5px 4px; background: var(--ed-line); }
 
-/* ── модалки в режиме редактора — фирменный стиль, а не тема кампании ── */
+/* ── модалки в режиме редактора — фирменный стиль, а не тема кампании ──
+   ВАЖНО: ModalHost монтируется на уровне App (вне .editor-root!), поэтому
+   наследование --ed-* от .editor-root до модалок не доходит. Здесь — только
+   литеральные значения, иначе var(--panel) превращается в «unset» и бокс
+   становится прозрачным (фидбек-скриншоты 27.09: «модалки не починились»). */
 body.cf-editor .modal-overlay {
-  --bg: var(--ed-bg);
-  --bg-deep: var(--ed-bg-2);
-  --panel: var(--ed-bg-2);
-  --panel-2: var(--ed-bg-3);
-  --inset: var(--ed-bg);
-  --border: var(--ed-line-strong);
-  --border-soft: var(--ed-line);
-  --border-strong: var(--ed-line-strong);
-  --text: var(--ed-text);
-  --muted: var(--ed-muted);
-  --faint: var(--ed-faint);
-  --gold: var(--ed-accent);
-  --gold-bright: var(--ed-accent-bright);
-  --red: var(--ed-danger);
-  --red-bright: var(--ed-danger);
-  --green: var(--ed-ok);
-  --green-bright: var(--ed-ok);
-  --blue: var(--ed-select);
-  --blue-bright: var(--ed-select-bright);
+  --bg: #14161c;
+  --bg-deep: #1a1d25;
+  --panel: #212530;
+  --panel-2: #2a303d;
+  --inset: #12151c;
+  --border: #414a5c;
+  --border-soft: #2d3340;
+  --border-strong: #414a5c;
+  --text: #e8ebf2;
+  --muted: #9aa3b5;
+  --faint: #6f7889;
+  --gold: #c08a4a;
+  --gold-bright: #e2ab6c;
+  --red: #d96c5a;
+  --red-bright: #d96c5a;
+  --green: #86b576;
+  --green-bright: #86b576;
+  --blue: #58b7c9;
+  --blue-bright: #8fd6e4;
   --cf-font-body: 'Segoe UI', system-ui, sans-serif;
   --cf-font-display: 'Segoe UI', system-ui, sans-serif;
-  --overlay-bg: rgba(5, 8, 14, 0.68);
   --radius: 6px;
   --radius-lg: 10px;
-  --focus-ring: var(--ed-select);
+  --focus-ring: #58b7c9;
   font-family: 'Segoe UI', system-ui, sans-serif;
+  background: rgba(5, 8, 14, 0.72);
 }
 body.cf-editor .modal-overlay .modal-box {
-  border-top-color: var(--ed-accent);
+  background: #212530;             /* непрозрачный все ради этого правила */
+  border-color: #414a5c;
+  border-top-color: #c08a4a;
+  color: #e8ebf2;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65);
 }
+body.cf-editor .modal-overlay .modal-box .modal-title { color: #e2ab6c; }
+body.cf-editor .modal-overlay .modal-box .modal-body { color: #9aa3b5; }
 body.cf-editor .modal-overlay input,
 body.cf-editor .modal-overlay select,
 body.cf-editor .modal-overlay textarea {
   font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #12151c;
+  color: #e8ebf2;
+  border: 1px solid #2d3340;
+}
+body.cf-editor .modal-overlay .modal-list li {
+  background: #2a303d;
+  border-color: #414a5c;
+  color: #e8ebf2;
 }
 /* поля форм (AiWizard и прочие .fld в модалках редактора) — хром, не бумага */
-body.cf-editor .modal-overlay .fld > span { color: var(--ed-muted); }
+body.cf-editor .modal-overlay .fld > span { color: var(--ed-muted, #9aa3b5); }
 
 @media (max-width: 760px) {
   .editor-brand { letter-spacing: 1px; }
