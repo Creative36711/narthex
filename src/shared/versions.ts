@@ -137,3 +137,40 @@ export function checkEngine(required: string | undefined): EngineCheck {
     message: `Кампания рассчитана на движок ${req} и новее, а запущен ${actual}. Обновите Chronicle Forge — иначе правила и механики кампании могут работать неверно.`,
   }
 }
+
+// ─────────────────────── формат пакета ───────────────────────
+
+export interface PackageCheck {
+  ok: boolean
+  /** что объявил пакет (0 — не объявил, считаем v1) */
+  declared: number
+  /** что понимает этот движок */
+  supported: number
+  message: string
+}
+
+/**
+ * Подходит ли формат пакета этому движку. Пакет новее — честный отказ с
+ * объяснением (иначе игрок получил бы «странные глюки» вместо причины);
+ * пакет старее — нормально, его приводит к текущему виду `shared/migrate.ts`.
+ */
+export function checkPackage(declared: number | undefined, oldest = OLDEST_PACKAGE_FORMAT): PackageCheck {
+  const format = typeof declared === 'number' && declared > 0 ? declared : OLDEST_PACKAGE_FORMAT
+  if (format > PACKAGE_FORMAT) {
+    return {
+      ok: false,
+      declared: format,
+      supported: PACKAGE_FORMAT,
+      message: `Кампания собрана в формате пакета v${format}, а этот движок понимает только до v${PACKAGE_FORMAT}. Обновите Chronicle Forge, чтобы открыть кампанию.`,
+    }
+  }
+  if (format < oldest) {
+    return {
+      ok: false,
+      declared: format,
+      supported: PACKAGE_FORMAT,
+      message: `Кампания собрана в устаревшем формате пакета v${format} (поддерживается с v${oldest}). Попросите автора выпустить кампанию заново.`,
+    }
+  }
+  return { ok: true, declared: format, supported: PACKAGE_FORMAT, message: '' }
+}

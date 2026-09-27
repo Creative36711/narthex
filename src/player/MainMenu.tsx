@@ -4,7 +4,7 @@ import type { CampaignData } from '../shared/types'
 import { askConfirm, showAlert } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
 import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
-import { peekSave } from '../core/engine'
+import { peekSave, importSaveText, deleteSave } from '../core/engine'
 import { ENGINE_VERSION } from '../shared/versions'
 import { setAudioCampaign } from '../shared/audio'
 import { refreshMusic, setMenuMode } from '../shared/music'
@@ -37,6 +37,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   const [showSettings, setShowSettings] = useState(false)
   const [importBusy, setImportBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const saveRef = useRef<HTMLInputElement>(null)
 
   // музыка меню (блок H): menu_music темы (или default_music)
   useEffect(() => {
@@ -64,6 +65,20 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   const saveNote = envelope
     ? `сохранение: кампания v${envelope.campaign_version ?? '—'}, ${envelope.tick ?? 0} ${m.tick_label}, ${formatSaveDate(envelope.updated_at)}`
     : ''
+
+  /** «шлюпка спасения»: вернуть в игру сохранение, экспортированное файлом */
+  const doImportSave = async (file: File) => {
+    try {
+      const text = await file.text()
+      if (!importSaveText(m.id, text)) {
+        await showAlert('Не удалось загрузить сохранение', 'Файл не похож на сохранение Chronicle Forge (.cfsave).')
+        return
+      }
+      await showAlert('Сохранение загружено', `Сохранение установлено для кампании «${m.title}». Проверьте версию кампании: если она новее, сохранение будет перенесено при продолжении забега.`)
+    } catch (e) {
+      await showAlert('Не удалось загрузить сохранение', String(e))
+    }
+  }
 
   // тема кампании (блок 2 ТЗ): фон меню, затемнение, кен-бёрнс, арт-заголовок
   const menuBg = themeBackgroundUrl(campaign, 'menu')
@@ -184,6 +199,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                           headers: { 'content-type': 'application/json' },
                           body: JSON.stringify({ path: 'campaigns/index.json', text: JSON.stringify(next, null, 2) }),
                         })
+                        deleteSave(c.id) // сейвы удалённой кампании не нужны
                         // обновить реестр; если удалили открытую кампанию — переключиться
                         onImported(c.id === m.id && next[0] ? next[0].id : m.id)
                       } catch (err) {
@@ -200,6 +216,20 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
               <button className="btn" disabled={importBusy} onClick={() => fileRef.current?.click()}>
                 {importBusy ? 'Импорт…' : <><Ico n="doc" /> Импортировать кампанию (.chronicle)</>}
               </button>
+              <button className="btn" data-tip="Файл .cfsave, сохранённый ранее на этом или другом компьютере" onClick={() => saveRef.current?.click()}>
+                <Ico n="doc" /> Загрузить сохранение (.cfsave)
+              </button>
+              <input
+                ref={saveRef}
+                type="file"
+                accept=".cfsave,.json"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) void doImportSave(f)
+                  e.target.value = ''
+                }}
+              />
               <input
                 ref={fileRef}
                 type="file"

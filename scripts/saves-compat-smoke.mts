@@ -13,7 +13,7 @@
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine, openSave, peekSave, hasSave, deleteSave, saveKey, backupKey, exportSaveText, importSaveText, checkSaveVersion } from '../src/core/engine'
 import { SAVE_MIGRATIONS, repairState, type ReportCtx } from '../src/core/savemigrate'
-import { ENGINE_VERSION, PACKAGE_FORMAT, checkEngine, compareVersions, bumpVersion, parseVersion, stableVersion } from '../src/shared/versions'
+import { ENGINE_VERSION, OLDEST_PACKAGE_FORMAT, PACKAGE_FORMAT, checkEngine, checkPackage, compareVersions, bumpVersion, parseVersion, stableVersion } from '../src/shared/versions'
 import { SAVE_VERSION, SAVE_ENVELOPE_VERSION, type CampaignData, type SaveNote } from '../src/shared/types'
 
 const mem = new Map<string, string>()
@@ -43,6 +43,9 @@ console.log(`Кампания: ${demo.meta.title} v${demo.meta.version} · дв�
   check('1 движок подходит демо-кампании', checkEngine(demo.meta.min_engine ?? demo.meta.engine_version).ok)
   const future = checkEngine('99.0.0')
   check('1 слишком новый минимум — понятный отказ', !future.ok && future.message.includes('99.0.0'), future.message.slice(0, 40))
+  check('1 свой формат пакета проходит', checkPackage(PACKAGE_FORMAT).ok && checkPackage(undefined).ok)
+  check('1 пакет новее движка — отказ с причиной', !checkPackage(PACKAGE_FORMAT + 1).ok && checkPackage(PACKAGE_FORMAT + 1).message.includes(`v${PACKAGE_FORMAT + 1}`))
+  check('1 древний формат пакета — отказ', !checkPackage(OLDEST_PACKAGE_FORMAT - 1).ok || OLDEST_PACKAGE_FORMAT === 1)
   check('1 цепочка миграций непрерывна', SAVE_MIGRATIONS.every((m, i) => i === 0 || m.from === SAVE_MIGRATIONS[i - 1].to) && SAVE_MIGRATIONS[SAVE_MIGRATIONS.length - 1].to === SAVE_VERSION)
 }
 
