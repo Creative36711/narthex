@@ -2294,10 +2294,24 @@
           "type": "string"
         },
         "version": {
-          "type": "string"
+          "type": "string",
+          "description": "версия кампании (semver). Задаёт мастер; на ней завязана совместимость сохранений"
         },
         "engine_version": {
-          "type": "string"
+          "type": "string",
+          "description": "УСТАРЕВШЕЕ имя минимальной версии движка. Новое поле — `min_engine`;\nдвижок читает оба (`effectiveMinEngine`), старые пакеты продолжают работать."
+        },
+        "package_format": {
+          "type": "number",
+          "description": "Версия формата Campaign Package, под которую собран пакет\n(`PACKAGE_FORMAT` в `shared/versions.ts` на момент экспорта).\nНет поля — пакет собран до введения формата (считается v1)."
+        },
+        "min_engine": {
+          "type": "string",
+          "description": "минимальная версия движка, на которой кампания работает корректно"
+        },
+        "save_base_version": {
+          "type": "string",
+          "description": "Сохранения от какой версии кампании ещё поддерживаются. Задаёт редактор\nпри публикации обновления (сравнение пакетов), мастер только подтверждает.\nНет поля — поддерживаются любые сохранения этой кампании (чинятся\nавтоматически, `core/savemigrate.ts`)."
         },
         "author": {
           "type": "string"

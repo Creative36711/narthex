@@ -20,6 +20,7 @@ const NAV = [
   ['README.md', 'О книге'], ['01-quick-start.md', 'Быстрый старт'], ['02-editor.md', 'Редактор'],
   ['03-game-mastering.md', 'Как водить игру'], ['04-reference.md', 'Справочник'],
   ['05-limitations.md', 'Чего пока нет'], ['06-license.md', 'Лицензия'],
+  ['07-versions.md', 'Версии и сохранения'],
 ] as const
 const modulePath = (file: string) => `../../docs/book/${file}`
 
