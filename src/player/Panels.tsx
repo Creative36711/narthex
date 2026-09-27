@@ -93,7 +93,7 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
         {items.length === 0 && <p className="muted">Пусто.</p>}
         <ul className="inv-list">
           {items.map(({ entry, def }) => (
-            <li key={entry.item} className="inv-item">
+            <li key={`${entry.item}:${entry.durability ?? "full"}:${(def!.weight ?? 0)}`} className="inv-item">
               <div className="inv-item-main">
                 <b>{def!.label}</b>
                 {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
@@ -106,6 +106,17 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                   <div className="muted small">
                     Оружие: {def!.weapon_data.damage}
                     {def!.weapon_data.damage_bonus ? '+ бонус силы' : ''} · навык «{engine.skillLabel(def!.weapon_data.skill)}»
+                    {def!.weapon_data.durability !== undefined && (
+                      <> · прочность {entry.durability ?? def!.weapon_data.durability}/{def!.weapon_data.durability}
+                        {(entry.durability ?? def!.weapon_data.durability) === 0 && <b> (СЛОМАНО)</b>}
+                      </>
+                    )}
+                  </div>
+                )}
+                {def!.armor_data && def!.armor_data.durability !== undefined && (
+                  <div className="muted small">
+                    Прочность брони: {entry.durability ?? def!.armor_data.durability}/{def!.armor_data.durability}
+                    {(entry.durability ?? def!.armor_data.durability) === 0 && <b> (СЛОМАНО)</b>}
                   </div>
                 )}
                 {def!.armor_data && <div className="muted small">Броня: −{def!.armor_data.points} к урону</div>}
@@ -362,6 +373,7 @@ export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose
         <ul className="craft-list">
           {recipes.map((r) => {
             const missing = engine.recipeMissing(r)
+            if (r.repair && !engine.hasDamaged(r.output.item)) missing.push(`нет изношенного «${engine.campaign.entities[r.output.item]?.label ?? r.output.item}» — чинить нечего`)
             return <CraftRow key={r.id} engine={engine} recipe={r} missing={missing} />
           })}
         </ul>
@@ -377,6 +389,7 @@ function CraftRow({ engine, recipe, missing }: { engine: GameEngine; recipe: Rec
     <li className={`craft-row ${canCraft ? '' : 'craft-blocked'}`}>
       <div className="inv-item-main">
         <b>{recipe.label}</b>
+        {recipe.repair && <span className="equipped-badge" data-tip="Восстанавливает прочность изношенного предмета до максимума">починка</span>}
         {recipe.description && <div className="muted small">{recipe.description}</div>}
         {recipe.inputs.length > 0 && (
           <div className="muted small">
@@ -401,7 +414,7 @@ function CraftRow({ engine, recipe, missing }: { engine: GameEngine; recipe: Rec
       <div className="inv-item-side">
         <div className="muted small craft-out">{out?.label ?? recipe.output.item}{recipe.output.quantity > 1 ? ` ×${recipe.output.quantity}` : ''}</div>
         <button className="btn btn-small" disabled={!canCraft} onClick={() => engine.craft(recipe.id)}>
-          <Ico n="hammer" />  Изготовить
+          <Ico n="hammer" />  {recipe.repair ? 'Починить' : 'Изготовить'}
         </button>
       </div>
     </li>

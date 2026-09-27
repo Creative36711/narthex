@@ -460,22 +460,42 @@ export class GameEngine {
   }
 
   itemCount(id: string): number {
-    return this.state.player.inventory.find((i) => i.item === id)?.quantity ?? 0
+    return this.state.player.inventory
+      .filter((i) => i.item === id)
+      .reduce((s, i) => s + i.quantity, 0)
   }
 
   addItem(id: string, quantity = 1): void {
     const inv = this.state.player.inventory
-    const entry = inv.find((i) => i.item === id)
+    // изнашиваемые предметы — отдельные экземпляры (аудит §5.6 п.10)
+    if (this.itemMaxDurability(id) !== undefined) {
+      for (let i = 0; i < quantity; i++) inv.push({ item: id, quantity: 1 })
+      return
+    }
+    const entry = inv.find((i) => i.item === id && i.durability === undefined)
     if (entry) entry.quantity += quantity
     else inv.push({ item: id, quantity })
   }
 
   removeItem(id: string, quantity = 1): void {
     const inv = this.state.player.inventory
-    const entry = inv.find((i) => i.item === id)
-    if (!entry) return
-    entry.quantity -= quantity
-    if (entry.quantity <= 0) inv.splice(inv.indexOf(entry), 1)
+    let left = quantity
+    // сначала расходим наиболее изношенные экземпляры
+    while (left > 0) {
+      const entries = inv.filter((i) => i.item === id)
+      if (!entries.length) break
+      const max = this.itemMaxDurability(id)
+      const pick = max === undefined
+        ? entries[0]
+        : entries.reduce((a, b) => ((a.durability ?? max) <= (b.durability ?? max) ? a : b))
+      if (pick.quantity > left) {
+        pick.quantity -= left
+        left = 0
+      } else {
+        left -= pick.quantity
+        inv.splice(inv.indexOf(pick), 1)
+      }
+    }
     // предмет закончился — снимаем со всех слотов
     if (!this.hasItem(id)) {
       const eq = this.state.player.equipment
@@ -483,6 +503,90 @@ export class GameEngine {
         if (eq[slot] === id) delete eq[slot]
       }
     }
+  }
+
+  // ─────────────── износ снаряжения (аудит §5.6 п.10) ───────────────
+
+  /** максимальная прочность предмета (оружие — weapon_data, броня — armor_data); нет — вечный */
+  itemMaxDurability(itemId: string): number | undefined {
+    const def = this.campaign.entities[itemId] as ItemDef | undefined
+    if (!def || def.type !== 'item') return undefined
+    return def.weapon_data?.durability ?? def.armor_data?.durability
+  }
+
+  /** осталось прочности у первого пригодного экземпляра (нет — null) */
+  itemDurabilityOf(id: string): { left: number; max: number } | null {
+    const max = this.itemMaxDurability(id)
+    if (max === undefined) return null
+    const entry = this.state.player.inventory.find((i) => i.item === id)
+    if (!entry) return null
+    return { left: entry.durability ?? max, max }
+  }
+
+  /** пригоден ли предмет к использованию (есть экземпляр с прочностью > 0) */
+  isItemUsable(id: string): boolean {
+    const max = this.itemMaxDurability(id)
+    if (max === undefined) return this.hasItem(id)
+    return this.state.player.inventory.some((i) => i.item === id && (i.durability ?? max) > 0)
+  }
+
+  /** экземпляры с износом от меньшей прочности (для UI) */
+  durabilityEntries(id: string): Array<{ entry: { item: string; quantity: number; durability?: number }; left: number }> {
+    const max = this.itemMaxDurability(id)
+    if (max === undefined) return []
+    return this.state.player.inventory
+      .filter((i) => i.item === id)
+      .map((entry) => ({ entry, left: entry.durability ?? max }))
+      .sort((a, b) => a.left - b.left)
+  }
+
+  /**
+   * Износ предмета игрока (урон в бою): −amount самому надетому экземпляру.
+   * Сломанный экземпляр с прочностью 0 сохраняется (для починки рецептом).
+   * Истина — предмет сломался этим износом.
+   */
+  damageItemDurability(itemId: string, amount = 1): boolean {
+    const max = this.itemMaxDurability(itemId)
+    if (max === undefined) return false
+    const entry = this.state.player.inventory
+      .filter((i) => i.item === itemId && (i.durability ?? max) > 0)
+      .sort((a, b) => (a.durability ?? max) - (b.durability ?? max))[0]
+    if (!entry) return false
+    const before = entry.durability ?? max
+    entry.durability = Math.max(0, before - amount)
+    if (entry.durability === 0 && before > 0) {
+      const def = this.campaign.entities[itemId]
+      this.pushLog(`«${def?.label ?? itemId}» сломался!`)
+      playUi('defeat')
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Починка (мастер помечает рецепт `repair: true`): восстанавливает самый
+   * изношенный экземпляр до максимума. Истина — нашелся изношенный.
+   */
+  repairItem(itemId: string): boolean {
+    const max = this.itemMaxDurability(itemId)
+    if (max === undefined) return false
+    const entry = this.state.player.inventory
+      .filter((i) => i.item === itemId)
+      .sort((a, b) => (a.durability ?? max) - (b.durability ?? max))[0]
+    if (!entry || (entry.durability ?? max) >= max) return false
+    entry.durability = max
+    const def = this.campaign.entities[itemId]
+    this.pushLog(`«${def?.label ?? itemId}» отремонтирован.`)
+    this.notify()
+    this.autosave()
+    return true
+  }
+
+  /** свободные «еда предмета» нет изношенных экземпляров — для рецепта починки */
+  hasDamaged(itemId: string): boolean {
+    const max = this.itemMaxDurability(itemId)
+    if (max === undefined) return false
+    return this.state.player.inventory.some((i) => i.item === itemId && (i.durability ?? max) < max)
   }
 
   // ─────────────── экипировка (блок 7 ТЗ: слоты задаёт кампания) ───────────────
@@ -543,10 +647,11 @@ export class GameEngine {
     this.notify()
   }
 
-  /** текущее оружие игрока (для UI и боя): экипированное или кулаки */
+  /** текущее оружие игрока (для UI и боя): экипированное или кулаки; сломанное — кулаки */
   playerWeapon(): { itemId: string | null; weapon: WeaponData; label: string } {
     const id = this.state.player.equipment['weapon']
-    if (id && this.hasItem(id)) {
+    // сломанное оружие (прочность 0) не годится — кулаки (аудит §5.6 п.10)
+    if (id && this.isItemUsable(id)) {
       const def = this.campaign.entities[id] as ItemDef | undefined
       if (def?.weapon_data) return { itemId: id, weapon: def.weapon_data, label: def.label }
     }
@@ -564,7 +669,8 @@ export class GameEngine {
     const labels: string[] = []
     for (const slot of Object.keys(this.state.player.equipment)) {
       const id = this.state.player.equipment[slot]
-      if (!id || !this.hasItem(id)) continue
+      // сломанная броня (прочность 0) перестаёт поглощать урон (аудит §5.6 п.10)
+      if (!id || !this.isItemUsable(id)) continue
       const def = this.campaign.entities[id] as ItemDef | undefined
       if (def?.armor_data) {
         points += def.armor_data.points
@@ -1072,6 +1178,11 @@ export class GameEngine {
   craft(recipeId: string): boolean {
     const r = this.campaign.recipes[recipeId]
     if (!r || this.recipeMissing(r).length > 0) return false
+    // рецепт починки (аудит §5.6 п.10): нужен изношенный экземпляр результата
+    if (r.repair && !this.hasDamaged(r.output.item)) {
+      this.messages.push({ text: `Не изнашившийся «${this.itemTitle(r.output.item)}» — чинить нечего.` })
+      return false
+    }
     if (r.skill) {
       const out = this.playerSkillCheck(r.skill.id, r.skill.difficulty)
       if (!out.success) {
@@ -1082,7 +1193,11 @@ export class GameEngine {
       }
     }
     for (const need of r.inputs ?? []) this.removeItem(need.item, need.quantity)
-    this.addItem(r.output.item, r.output.quantity ?? 1)
+    if (r.repair) {
+      this.repairItem(r.output.item)
+    } else {
+      this.addItem(r.output.item, r.output.quantity ?? 1)
+    }
     if (r.time_ticks) this.advanceTicks(r.time_ticks)
     const outLabel = this.itemTitle(r.output.item)
     this.pushLog(`Изготовлено: ${outLabel} (рецепт «${r.label}»).`)

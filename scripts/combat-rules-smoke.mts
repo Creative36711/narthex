@@ -468,5 +468,149 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   check('13 врасплох: защита не бросается', !lines.some((l) => l.includes('уклонение') || l.includes('парирование')), lines.join(' / '))
 }
 
+// ── 14. износ снаряжения и починка (аудит §5.6 п.10) ──
+{
+  const c = synth((camp) => {
+    buff(camp)
+    camp.entities['item_wear_sword'] = {
+      id: 'item_wear_sword',
+      type: 'item',
+      category: 'weapon',
+      label: 'Хрупкий клинок',
+      description: 'Тест износа.',
+      weight: 1,
+      stackable: false,
+      weapon_data: { skill: 'melee', damage: '1d6', damage_bonus: false, range: 1, attacks_per_round: 1, parry_capable: false, durability: 3 } as never,
+    }
+    camp.entities['item_wear_mail'] = {
+      id: 'item_wear_mail',
+      type: 'item',
+      category: 'armor',
+      label: 'Тонкая кольчуга',
+      description: 'Тест износа брони.',
+      weight: 4,
+      stackable: false,
+      armor_data: { points: 2, durability: 2 } as never,
+      equip_slot: 'armor',
+    }
+    camp.recipes['recipe_repair_sword'] = {
+      id: 'recipe_repair_sword',
+      label: 'Починка клинка',
+      inputs: [{ item: 'item_scrap', quantity: 1 }],
+      output: { item: 'item_wear_sword', quantity: 1 },
+      repair: true,
+    } as never
+    camp.entities['item_scrap'] ??= {
+      id: 'item_scrap',
+      type: 'item',
+      category: 'material',
+      label: 'Металлолом',
+      description: 'Тест.',
+      weight: 1,
+      stackable: true,
+    } as never
+  })
+  const e = new GameEngine(c)
+  e.start()
+  check('14 предмет изнашиваемый (максимум)', e.itemMaxDurability('item_wear_sword') === 3)
+  check('14 вечный предмет не изнашиваемый', e.itemMaxDurability('item_scrap') === undefined)
+  e.addItem('item_wear_sword', 2)
+  const swords = e.state.player.inventory.filter((i) => i.item === 'item_wear_sword')
+  check('14 две копии изнашиваемого — два экземпляра', swords.length === 2 && swords.every((s) => s.quantity === 1), `entries=${swords.length}`)
+  // износ единицы
+  e.damageItemDurability('item_wear_sword', 1)
+  e.damageItemDurability('item_wear_sword', 2)
+  const after = e.durabilityEntries('item_wear_sword').map((x) => x.left)
+  check('14 износ всегда по самому слабому экземпляру', JSON.stringify(after) === '[0,3]', `after=${JSON.stringify(after)}`)
+  // оружие работает, пока жива хоть одна копия
+  e.state.player.equipment['weapon'] = 'item_wear_sword'
+  check('14 пока есть целая копия — оружие в руках', e.playerWeapon().itemId === 'item_wear_sword')
+  e.damageItemDurability('item_wear_sword', 3)
+  check('14 все копии сломаны — кулаки', e.playerWeapon().itemId === null && e.playerWeapon().label === 'Кулаки')
+  // починка: самая слабая из сломанных восстанавливается первой
+  e.addItem('item_scrap', 2)
+  check('14 сломанные копии ждут починки', e.hasDamaged('item_wear_sword'))
+  const ok = e.craft('recipe_repair_sword')
+  const lefts = e.durabilityEntries('item_wear_sword').map((x) => x.left)
+  check('14 рецепт починки: самый слабый до максимума', ok && JSON.stringify(lefts) === '[0,3]', `lefts=${JSON.stringify(lefts)}`)
+  const ok2 = e.craft('recipe_repair_sword')
+  check('14 вторая починка довела до полного', ok2 && JSON.stringify(e.durabilityEntries('item_wear_sword').map((x) => x.left)) === '[3,3]')
+  check('14 isItemUsable после починки', e.isItemUsable('item_wear_sword'))
+  check('14 weapon снова в руках', e.playerWeapon().itemId === 'item_wear_sword')
+  // броня
+  e.addItem('item_wear_mail', 1)
+  e.state.player.equipment['armor'] = 'item_wear_mail'
+  check('14 броня считается', e.playerArmor().points === 2)
+  e.damageItemDurability('item_wear_mail', 2)
+  check('14 сломанная броня не защищает', e.playerArmor().points === 0)
+  check('14 isItemUsable сломанной брони — false', !e.isItemUsable('item_wear_mail'))
+  // бой: крит. провал изнашивает оружие (ищем seed с fumble)
+  let fumbled = false
+  for (let attempt = 0; attempt < 40 && !fumbled; attempt++) {
+    const cF = synth((camp) => {
+      buff(camp, (p) => {
+        p.equipment = { weapon: 'item_wear_sword' }
+        p.inventory = [{ item: 'item_wear_sword', quantity: 1 }]
+      })
+      camp.entities['item_wear_sword'] = JSON.parse(JSON.stringify(c.entities['item_wear_sword'])) as never
+      ;(camp.entities['item_wear_sword'] as never as { weapon_data: { durability: number } }).weapon_data.durability = 1
+    })
+    const eF = new GameEngine(cF)
+    eF.start()
+    ;(eF as any).rng = new PRNG(`cr-fumble-${attempt}`)
+    const combat = startBasicCombat(eF)
+    untilPlayerTurn(combat)
+    const pc = findPc(combat)
+    const bandit = findEnemy(combat)
+    pc.pos = { col: bandit.pos.col, row: bandit.pos.row + 1 }
+    pc.skills = { ...pc.skills, melee: 1 }
+    const durBefore = combat.weaponWearOverride ?? null
+    void durBefore
+    ;(combat as any).resolveAttack(pc, bandit)
+    if (pc.weaponItemId === null) {
+      fumbled = true
+      check('14 крит. провал сломал оружие игрока в бою', true)
+    }
+  }
+  check('14 fumble встречается в 40 попытках', fumbled)
+}
+
+// ── 15. приказы напарникам (аудит §5.6 п.11) ──
+{
+  const c = synth((camp) => {
+    buff(camp)
+  })
+  // companion: взять в партию существующего NPC из демо (дары crone?)
+  const e = new GameEngine(c)
+  e.start()
+  const someNpc = Object.values(c.entities).find((x) => x.type === 'npc' && x.id !== c.meta.default_player && !(x as NpcDef).morale) as NpcDef | undefined
+  check('15 в демо есть кандидат в напарники', !!someNpc, someNpc?.id)
+  if (someNpc) {
+    e.joinParty(someNpc.id)
+    ;(e as any).rng = new PRNG('cr-orders')
+    const combat = startBasicCombat(e)
+    const ally = combat.combatants.find((x) => x.id === `c_ally_${someNpc.id}`)
+    check('15 напарник в бою на стороне игрока', !!ally && ally.side === 'player')
+    const orders = combat.companionOrders()
+    check('15 UI: приказ виден и по умолчанию «сам»', orders.length === 1 && orders[0].order === 'free')
+    combat.setCompanionOrder(someNpc.id, 'hold')
+    check('15 смена приказа записалась', e.state.party[0].order === 'hold')
+    // hold: не двигается
+    const posBefore = { ...ally!.pos }
+    ;(combat as any).aiTurn(ally!)
+    check('15 «держать позицию»: не двинулся', ally!.pos.col === posBefore.col && ally!.pos.row === posBefore.row)
+    combat.setCompanionOrder(someNpc.id, 'retreat')
+    e.state.party[0].order = 'retreat'
+    if (ally) ally.movLeft = 5
+    const foe = findEnemy(combat)
+    const before = Math.abs(ally!.pos.col - foe.pos.col) + Math.abs(ally!.pos.row - foe.pos.row)
+    ;(combat as any).aiTurn(ally!)
+    const afterDist = Math.abs(ally!.pos.col - foe.pos.col) + Math.abs(ally!.pos.row - foe.pos.row)
+    check('15 «отступать»: не приблизился', afterDist >= before, `${before} → ${afterDist}`)
+    combat.setCompanionOrder(someNpc.id, 'free')
+    check('15 возврат к «сам» снимает order', e.state.party[0].order === undefined)
+  }
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

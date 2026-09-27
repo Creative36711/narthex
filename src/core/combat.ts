@@ -42,9 +42,13 @@ export interface Combatant {
   skills: Record<string, number>
   weapon: WeaponData
   weaponLabel: string
+  /** id предмета-оружия (нет — кулаки/природное); для износа (аудит §5.6 п.10) */
+  weaponItemId: string | null
   armor: number
   hp: number
   maxHp: number
+  /** износ предмета-оружия напарника/врага (id предмета → сколько осталось); аудит §5.6 п.10 */
+  wear?: Record<string, number>
   pos: Hex
   mov: number
   movLeft: number
@@ -171,6 +175,7 @@ export class CombatController {
       skills: overloaded ? { ...p.skills, dodge: Math.max(0, (p.skills.dodge ?? 0) - 10) } : p.skills,
       weapon,
       weaponLabel,
+      weaponItemId: pw.itemId,
       armor: pa.points,
       hp: p.hp,
       maxHp: p.max_hp,
@@ -209,6 +214,7 @@ export class CombatController {
         skills: def.skills,
         weapon: w.weapon,
         weaponLabel: w.weaponLabel,
+        weaponItemId: w.weaponItemId,
         armor: this.resolveArmor(def),
         hp: comp.hp,
         maxHp: comp.max_hp,
@@ -251,6 +257,7 @@ export class CombatController {
           skills: def.skills,
           weapon: w.weapon,
           weaponLabel: w.weaponLabel,
+          weaponItemId: w.weaponItemId,
           armor: this.resolveArmor(def),
           hp,
           maxHp: hp,
@@ -293,6 +300,7 @@ export class CombatController {
           skills: def.skills,
           weapon: w.weapon,
           weaponLabel: w.weaponLabel,
+          weaponItemId: w.weaponItemId,
           armor: this.resolveArmor(def),
           hp,
           maxHp: hp,
@@ -324,15 +332,15 @@ export class CombatController {
     return { col: 0, row: 0 }
   }
 
-  private resolveWeapon(def: NpcDef, skills: Record<string, number>): { weapon: WeaponData; weaponLabel: string } {
+  private resolveWeapon(def: NpcDef, skills: Record<string, number>): { weapon: WeaponData; weaponLabel: string; weaponItemId: string | null } {
     const weaponItemId = def.equipment?.weapon
     if (weaponItemId) {
       const item = this.engine.campaign.entities[weaponItemId] as ItemDef | undefined
-      if (item?.weapon_data) return { weapon: item.weapon_data, weaponLabel: item.label }
+      if (item?.weapon_data) return { weapon: item.weapon_data, weaponLabel: item.label, weaponItemId }
     }
-    if (def.natural_weapon) return { weapon: def.natural_weapon, weaponLabel: def.natural_weapon.label ?? 'Атака' }
+    if (def.natural_weapon) return { weapon: def.natural_weapon, weaponLabel: def.natural_weapon.label ?? 'Атака', weaponItemId: null }
     void skills
-    return { weapon: FISTS, weaponLabel: FISTS.label! }
+    return { weapon: FISTS, weaponLabel: FISTS.label!, weaponItemId: null }
   }
 
   private resolveArmor(def: NpcDef): number {
@@ -755,8 +763,87 @@ export class CombatController {
 
   // ─────────────── AI (базовый: к ближайшему, атаковать) ───────────────
 
+  /** шаг отступления: уйти на максимально дальний гекс в радиусе хода (приказ 'retreat') */
+  private stepAway(c: Combatant, foe: Combatant): void {
+    const reach = reachable(c.pos, c.movLeft, this.passable, this.moveCost)
+    let bestKey: string | null = null
+    let bestScore = hexDistance(c.pos, foe.pos)
+    for (const [k, cost] of reach) {
+      const [col, row] = k.split(',').map(Number)
+      const d = hexDistance({ col, row }, foe.pos)
+      if (d > bestScore) {
+        bestScore = d
+        bestKey = k
+        void cost
+      }
+    }
+    if (bestKey) {
+      const [col, row] = bestKey.split(',').map(Number)
+      c.movLeft -= reach.get(bestKey) ?? 0
+      c.pos = { col, row }
+    }
+  }
+
+  /** приказы отряду для UI (аудит §5.6 п.11) */
+  companionOrders(): Array<{ entityId: string; label: string; order: 'free' | 'follow' | 'hold' | 'retreat' }> {
+    const out: Array<{ entityId: string; label: string; order: 'free' | 'follow' | 'hold' | 'retreat' }> = []
+    for (const comp of this.engine.state.party) {
+      const c = this.combatants.find((x) => x.id === `c_ally_${comp.entity}`)
+      if (!c || c.dead) continue
+      const def = this.engine.campaign.entities[comp.entity] as NpcDef | undefined
+      out.push({ entityId: comp.entity, label: def?.label ?? comp.entity, order: comp.order ?? 'free' })
+    }
+    return out
+  }
+
+  /** смена приказа напарнику */
+  setCompanionOrder(entityId: string, order: 'free' | 'follow' | 'hold' | 'retreat'): void {
+    const comp = this.engine.state.party.find((x) => x.entity === entityId)
+    if (!comp) return
+    comp.order = order === 'free' ? undefined : order
+    this.engine.notify()
+  }
+
   private aiTurn(c: Combatant): void {
     if (c.fled || c.down || c.dead) return
+    // приказы напарникам (аудит §5.6 п.11): follow/hold/retreat меняют поведение AI
+    if (c.side === 'player' && c.id !== 'c_player') {
+      const comp = this.engine.state.party.find((x) => x.entity === c.entityId)
+      const order = comp?.order ?? 'free'
+      const hero = this.combatants.find((x) => x.id === 'c_player')!
+      if (order === 'hold') {
+        // стоять: только атаковать в досягаемости
+        const near = this.combatants.find((x) => x.side === 'enemy' && !x.dead && !x.fled && !x.down && hexDistance(c.pos, x.pos) <= c.weapon.range)
+        if (near) this.resolveAttack(c, near)
+        return
+      }
+      if (order === 'retreat') {
+        // держаться подальше: отойти от ближайшего врага, не атаковать
+        const foes = this.combatants.filter((x) => x.side === 'enemy' && !x.dead && !x.fled && !x.down)
+        if (foes.length && c.movLeft > 0) {
+          const nearest = foes.sort((a, b) => hexDistance(c.pos, a.pos) - hexDistance(c.pos, b.pos))[0]
+          if (hexDistance(c.pos, nearest.pos) <= 2) this.stepAway(c, nearest)
+        }
+        return
+      }
+      if (order === 'follow') {
+        // идти за героем: держаться в паре гексов, без атак
+        if (hexDistance(c.pos, hero.pos) > 2 && c.movLeft > 0) {
+          const path = astar(c.pos, hero.pos, this.passable, this.moveCost)
+          if (path) {
+            for (const step of path) {
+              if (this.occupantAt(step)) break
+              const cost = this.moveCost(step)
+              if (c.movLeft < cost) break
+              if (hexDistance(step, hero.pos) <= 2) break
+              c.pos = { ...step }
+              c.movLeft -= cost
+            }
+          }
+        }
+        return
+      }
+    }
     // мораль (блок 6 ТЗ): раненый враг в начале хода может сбежать
     if (c.side === 'enemy') {
       const npcDef = this.engine.campaign.entities[c.entityId] as NpcDef | undefined
@@ -950,6 +1037,8 @@ export class CombatController {
     if (attacker.id === 'c_player' && atk.success) this.engine.markSkill(attacker.weapon.skill)
     if (RANK[atk.result] < 2) {
       playUi('miss')
+      // критический провал — износ оружия атакующего (аудит §5.6 п.10)
+      if (atk.result === 'fumble' && !opts?.free) this.wearWeapon(attacker)
       return
     }
 
@@ -974,6 +1063,68 @@ export class CombatController {
       playUi('hit')
     }
     this.finishDamage(defender, dmg)
+    // удар прошёл — износ брони защитника (аудит §5.6 п.10)
+    if (dmg > 0) this.wearArmor(defender)
+  }
+
+  /** износ оружия атакующего при критическом провале; слом — переход на кулаки */
+  private wearWeapon(attacker: Combatant): void {
+    if (!attacker.weaponItemId) return
+    if (attacker.id === 'c_player') {
+      const broke = this.engine.damageItemDurability(attacker.weaponItemId, 1)
+      if (broke) {
+        attacker.weapon = { ...FISTS }
+        attacker.weaponLabel = FISTS.label!
+        attacker.weaponItemId = null
+        this.log.push(`${attacker.label}: оружие сломалось — дальше кулаками.`)
+      }
+      return
+    }
+    const item = this.engine.campaign.entities[attacker.weaponItemId] as ItemDef | undefined
+    const max = item?.weapon_data?.durability
+    if (max === undefined) return
+    attacker.wear ??= {}
+    const left = (attacker.wear[attacker.weaponItemId] ?? max) - 1
+    attacker.wear[attacker.weaponItemId] = left
+    if (left <= 0) {
+      attacker.weapon = { ...FISTS }
+      attacker.weaponLabel = FISTS.label!
+      attacker.weaponItemId = null
+      this.log.push(`${attacker.label}: «${item?.label ?? 'оружие'}» сломано — дальше голыми.`)
+    }
+  }
+
+  /** износ брони защитника после пробившего удара */
+  private wearArmor(defender: Combatant): void {
+    if (defender.id === 'c_player') {
+      for (const id of Object.values(this.engine.state.player.equipment)) {
+        if (!id) continue
+        const item = this.engine.campaign.entities[id] as ItemDef | undefined
+        if (item?.armor_data?.durability === undefined || !this.engine.isItemUsable(id)) continue
+        const broke = this.engine.damageItemDurability(id, 1)
+        if (broke) {
+          defender.armor = this.engine.playerArmor().points
+          this.log.push(`${defender.label}: «${item.label}» разбита насмерть — броня ${defender.armor}.`)
+        }
+        return
+      }
+      return
+    }
+    const def = this.engine.campaign.entities[defender.entityId] as NpcDef | undefined
+    if (!def) return
+    for (const itemId of Object.values(def.equipment ?? {})) {
+      const item = this.engine.campaign.entities[itemId] as ItemDef | undefined
+      const max = item?.armor_data?.durability
+      if (max === undefined || !item) continue
+      defender.wear ??= {}
+      const left = (defender.wear[itemId] ?? max) - 1
+      defender.wear[itemId] = left
+      if (left <= 0) {
+        defender.armor = Math.max(0, defender.armor - item.armor_data!.points)
+        this.log.push(`${defender.label}: доспех «${item.label}» разбит — броня ${defender.armor}.`)
+      }
+      return
+    }
   }
 
   /** Защита от удара: уклонение/парирование. Истина — атака отражена. */

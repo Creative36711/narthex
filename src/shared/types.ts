@@ -871,6 +871,11 @@ export interface ScheduleEntry {
 export interface InventoryEntry {
   item: string
   quantity: number
+  /**
+   * Прочность конкретного экземпляра (аудит §5.6 п.10): запись с этим полем —
+   * отдельная копия многоразового предмета, стакается только с себе равными.
+   */
+  durability?: number
 }
 
 export interface TraderDef {
@@ -943,6 +948,12 @@ export interface WeaponData {
   attacks_per_round: number
   parry_capable: boolean
   label?: string
+  /**
+   * Износ (аудит §5.6 п.10): максимальная прочность. Нет — оружие вечно.
+   * Срабатывание: за бой изнашивается 1 раз на каждую сломанную единицу —
+   * шанс поломки `wear_chance` за атаку, − 1 прочность/слом; на 0 слом.
+   */
+  durability?: number
 }
 
 export interface UseEffectDef {
@@ -965,7 +976,17 @@ export interface ItemDef {
   stackable: boolean
   weapon_data?: WeaponData
   /** броня: очки поглощения урона */
-  armor_data?: { points: number }
+  armor_data?: {
+    points: number
+    /** износ брони: максимальная прочность (нет — вечная) */
+    durability?: number
+  }
+  /**
+   * Износ (аудит §5.6 п.10): мастер задаёт у оружия в weapon_data, у брони
+   * в armor_data. Боевое изнашивание оружия, удар по броне. Сломанный
+   * предмет сохраняет форму, но перестаёт работать (weapon_data/armor_data
+   * дают 0), пока его не починят рецептом (`repair: true`).
+   */
   /** слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;
    *  нет — не экипируется. Старым предметам выставляется миграцией. */
   equip_slot?: string
@@ -1275,6 +1296,12 @@ export interface RecipeDef {
   inputs: Array<{ item: string; quantity: number }>
   /** инструменты: нужны в инвентаре, НЕ расходуются */
   tools?: string[]
+  /**
+   * Рецепт починки (аудит §5.6 п.10): результат — не новый предмет, а
+   * восстановленная прочность сломанного/изношенного экземпляра `output.item`
+   * до максимума. Игрок выбирает, какой экземпляр чинить.
+   */
+  repair?: boolean
   /** декларативные условия возможности крафта (локация, флаг, …) */
   requires?: Condition[]
   /** проверка навыка при изготовлении; успех = создал, провал = компоненты целы */
@@ -1551,6 +1578,14 @@ export interface CompanionState {
   entity: string
   hp: number
   max_hp: number
+  /**
+   * Приказ напарнику на бой (аудит §5.6 п.11):
+   * 'free' (умолчание, AI сам), 'follow' (держаться рядом, не нападая),
+   * 'hold' (стоять и защищаться), 'retreat' (держаться подальше, не нападать).
+   */
+  order?: 'free' | 'follow' | 'hold' | 'retreat'
+  /** цель приказа 'focus' на этот бой: id подразделения противника (в памяти боя) */
+  focus?: string
 }
 
 /**

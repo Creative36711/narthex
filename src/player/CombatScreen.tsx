@@ -308,6 +308,27 @@ export function CombatScreen({ engine }: Props) {
                       ))}
                     </div>
                   )}
+                  {combat.companionOrders().length > 0 && (
+                    <details className="combat-items">
+                      <summary>Приказы отряду (аудит §5.6 п.11)</summary>
+                      {combat.companionOrders().map((o) => (
+                        <div key={o.entityId} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '4px 0' }}>
+                          <span className="small" style={{ flex: 1 }}>{o.label}</span>
+                          <select
+                            className="btn btn-small"
+                            value={o.order}
+                            data-tip={'Сам — действует как простой AI.\nСледовать — держится в паре гексов от вас, не нападает.\nДержать позицию — стоит, бьёт только в досягаемости.\nОтступать — держится подальше от врагов.'}
+                            onChange={(e) => combat.setCompanionOrder(o.entityId, e.target.value as 'free' | 'follow' | 'hold' | 'retreat')}
+                          >
+                            <option value="free">Сам</option>
+                            <option value="follow">Следовать</option>
+                            <option value="hold">Позиция</option>
+                            <option value="retreat">Отступать</option>
+                          </select>
+                        </div>
+                      ))}
+                    </details>
+                  )}
                   {!activePlayer.attacked && featureOn(engine.campaign.meta, 'inventory') && combat.usableItems().length > 0 && (
                     <details className="combat-items">
                       <summary>Использовать предмет (действие)</summary>

@@ -197,6 +197,19 @@ function ItemForm({
               <input type="checkbox" checked={item.weapon_data.parry_capable} onChange={(e) => ((item.weapon_data!.parry_capable = e.target.checked), commit())} />
               <span>Парирует</span>
             </label>
+            <label className="fld fld-num" data-tip="0 — вечное оружие. Износ: критический провал в бою −1. Слом чинится рецептом «починка».">
+              <span>Прочность (0 — вечное)</span>
+              <input
+                type="number" min={0}
+                value={item.weapon_data.durability ?? 0}
+                onChange={(e) => {
+                  const v = Math.max(0, Number(e.target.value) || 0)
+                  if (v > 0) item.weapon_data!.durability = v
+                  else delete item.weapon_data!.durability
+                  commit()
+                }}
+              />
+            </label>
           </div>
         </div>
       )}
@@ -206,6 +219,19 @@ function ItemForm({
           <label className="fld">
             <span>Очки брони (−к урону)</span>
             <input type="number" value={item.armor_data.points} onChange={(e) => ((item.armor_data!.points = Number(e.target.value)), commit())} />
+          </label>
+          <label className="fld fld-num" data-tip="0 — вечная броня. Износ: каждый пробивший удар в бою −1. Слом чинится рецептом «починка».">
+            <span>Прочность (0 — вечная)</span>
+            <input
+              type="number" min={0}
+              value={item.armor_data.durability ?? 0}
+              onChange={(e) => {
+                const v = Math.max(0, Number(e.target.value) || 0)
+                if (v > 0) item.armor_data!.durability = v
+                else delete item.armor_data!.durability
+                commit()
+              }}
+            />
           </label>
         </div>
       )}
