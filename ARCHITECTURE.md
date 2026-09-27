@@ -3,6 +3,8 @@
 Документ описывает, как устроен проект: слои, формат данных, движок, рантайм
 игрока, редактор и инструменты разработки. Аудитория — разработчики движка и
 авторы кампаний, которым нужно понять «что где лежит и почему».
+Всё, что описано здесь, покрыт headless-смоуками (`scripts/`); документ
+обновляется вместе с кодом.
 
 ---
 
@@ -17,80 +19,138 @@
    (сущности, сцены, флаги, навыки, стадии квестов…) выбирается из выпадающих
    списков, которые питаются реестрами кампании.
 3. **Логика тестируется headless.** Движок и стор редактора не зависят от DOM:
-   смоук-тесты (`scripts/*.mts`) гоняют бой, диалоги, квесты и потребности в
-   Node (нужен только dev-сервер как файловый хост и заглушка `localStorage`).
+   46 смоук-тестов (`scripts/*.mts`) гоняют бой, диалоги, квесты, потребности,
+   крафт, статусы, способности, погоду, создание героя в Node (нужен только
+   dev-сервер как файловый хост и заглушка `localStorage`).
 4. **Один рендер-слой на подсистему.** Боевая логика (`core/combat.ts`) не
-   знает про React; сцены редактора рисует Konva; ink-код показывает Monaco;
-   всё остальное — обычный React + CSS.
+   знает про React; сцены редактора рисует Konva; ink/JSON показывает Monaco;
+   декоративная графика — свой SVG-рендер (`ArtView`); всё остальное —
+   обычный React + CSS.
 
 ## 2. Карта каталогов
 
 ```
 src/
-  shared/                 общие для всех слоёв вещи
-    types.ts              ЕДИНЫЙ источник правды: формат кампании, сейва, эффектов, .dlg.json, MonolithDoc
-    modals.tsx            askText / askTextArea / askConfirm / showAlert + ModalHost (замена браузерных окон)
-    skills.ts             встроенный словарь названий навыков (fallback к реестру кампании)
-    migrate.ts            мягкие миграции старого контента (условия потребностей, переходы из сцен)
-    ArtView.tsx           рендер ArtDoc (SVG) — общий для игрока и редактора
-    CutscenePlayer.tsx    проигрыватель слайд-катсцен (общий для игры и тест-прогона)
-    settings.ts           настройки игрока (громкости, синтезатор речи), localStorage
-    speech.ts             Web Speech API — фолбэк озвучки реплик
+  App.tsx               корень: выбор кампании, Player Mode, переход в редактор
+  main.tsx              точка входа, единый ModalHost, initTooltips, ErrorBoundary
+  index.css             общие стили игры: курсоры, иконки, тултипы, чипсы, погода
+  shared/               общие для всех слоёв вещи
+    types.ts            ЕДИНЫЙ источник правды: формат кампании, сейва, условий,
+                        эффектов, .dlg.json, MonolithDoc, профили, календарь
+    profiles.ts         каталог 13 визуальных профилей (фирменный Chronicle Forge —
+                        дефолт; механизм: класс `.cf-profile-<id>` на `.cf-themed`,
+                        без if'ов по жанру в компонентах), легаси-маппинг старых id
+    theme.ts            сборка темы: профиль + переопределения кампании → CSS-переменные
+    migrate.ts          мягкие миграции старого контента (условия потребностей,
+                        переходы из сцен, строка музыки → правила, эмоции)
+    modals.tsx          askText / askTextArea / askConfirm / showAlert + ModalHost
+    settings.ts         настройки игрока (громкости, синтез речи), localStorage
+    SettingsPanel.tsx   панель настроек (⚙): громкости, озвучка, выбор голоса
+    speech.ts           Web Speech API — фолбэк озвучки реплик (очередь по фразам)
+    audio.ts            звуки: тема кампании (ui_sounds), цепочка взаимодействий,
+                        зацикленные эмбиент-слои, громкости
+    music.ts            музыка: стек приоритетов, плейлисты, кроссфейд, синглтон
+    synth.ts            генеративный звук: MusicDoc (луп по гамме) и SoundDoc (ZzFX)
+    ArtView.tsx         рендер ArtDoc (SVG) — общий для игрока и редактора
+    CutscenePlayer.tsx  проигрыватель слайд-катсцен (общий для игры и тест-прогона)
+    skills.ts           встроенный словарь названий навыков (fallback к реестру)
+    icons.tsx           набор SVG-иконок `<Ico>` (без эмодзи)
+    tooltip.ts          адаптивные тултипы [data-tip] (одна плашка, клампы)
+    ErrorBoundary.tsx   React-граница ошибок: экран с сообщением, не белый экран
 
-  core/                   движок (без React)
-    engine.ts             GameEngine: состояние, тики, эффекты, диалоги, торговля, сейвы
-    combat.ts             CombatController: гекс-бой (инициатива, движение, атаки, AI, лут)
-    dialogue.ts           компиляция ink (кэш), bindExternals, drainStory
-    conditions.ts         evalCondition / evalSceneCondition (декларативные условия)
-    brp.ts                d100-проверки, производные характеристики (HP/MP/damage bonus/MOV)
-    dice.ts               парсер и броски "NdX+M"
-    hex.ts                offset odd-r ↔ кубические координаты, соседи, дистанции, A*, Дейкстра
-    prng.ts               seedrandom-обёртка (детерминизм внутри забега)
-    time.ts               тик → час/день/время суток
-    loader.ts             loadCampaign(basePath): чтение пакета по manifest.json
+  core/                 движок (без React)
+    engine.ts           GameEngine: состояние, тики, потребности, правила, сцены,
+                        диалоги, торговля, партия, квесты, крафт, кодекс, погода,
+                        концовки, встречи, катсцены, сейвы
+    combat.ts           CombatController: гекс-бой (инициатива, движение, атаки,
+                        способности, статусы, AI, лут)
+    charcreate.ts       создание героя: бюджеты, пороги, прописи/призвания,
+                        минимальные навыки, итог характеристик и навыков
+    dialogue.ts         компиляция ink (кэш), bindExternals, drainStory, теги
+    conditions.ts       evalCondition / evalSceneCondition (23 декларативных условия)
+    brp.ts              d100-проверки, производные характеристики (HP/MP/damage
+                        bonus/MOV), пороги по dice_rules
+    dice.ts             парсер и броски «NdX+M»
+    hex.ts              offset odd-r ↔ кубические координаты, соседи, дистанции,
+                        A*, Дейкстра
+    prng.ts             seedrandom-обёртка (детерминизм внутри забега)
+    time.ts             тик → час/день/время суток + календарь кампании
+    loader.ts           loadCampaign(basePath): чтение пакета по manifest.json,
+                        assetUrl (файлы пакета и внешние ссылки)
 
-  player/                 Player Mode (React)
+  player/               Player Mode (React)
+    CharacterCreation.tsx  создание героя: прописи, призывания, бюджеты, имя
     GameView.tsx          корневой экран игры: композиция HUD/сцены/оверлеев
-    SceneScreen.tsx       сцена: фон, слоты, зоны навигации
-    DialogueOverlay.tsx   диалог: портреты-настроения, реплики, варианты
-    CombatScreen.tsx      бой: гекс-сетка (SVG), лог, панель действий, экран победы
-    MapScreen.tsx         карта региона и путешествия
+    SceneScreen.tsx       сцена: фон/ArtDoc, погода-оверлей, слоты, зоны навигации
+    DialogueOverlay.tsx   диалог: портреты-настроения, печать, озвучка, варианты
+    CombatScreen.tsx      бой: гекс-сетка (SVG), лог, действия, способности,
+                          статусы, экраны победы/поражения
+    MapScreen.tsx         карта региона и путешествия (зум, метки)
     TradePanel.tsx        торговля (цены от репутации и навыка)
-    Panels.tsx            герой / инвентарь / журнал / отношения
-    HUD.tsx               время, потребности, HP, кнопки панелей, выход в меню
+    Panels.tsx            герой / инвентарь (экипировка, крафт) / журнал /
+                          отношения
+    CodexPanel.tsx        кодекс: разблокированные записи по категориям
+    HUD.tsx               время, календарь, погода, потребности, HP/MP, кнопки
     MainMenu.tsx          меню: забег, кампании (выбор/импорт/удаление), обучение
-    EndScreen.tsx         финал забега (победа/смерть) и статистика
+    EndScreen.tsx         финал забега: концовка кампании или стандартный экран
     HelpPanel.tsx         справка «Как играть» (уровень 1 обучения)
-    tips.ts               одноразовые интерактивные подсказки (уровень 2), localStorage
+    tips.ts               одноразовые интерактивные подсказки (уровень 2)
 
-  editor/                 Editor Mode (React, ленивый чанк)
-    EditorApp.tsx         каркас: разделы, списки, тулбар, кампании (создать/удалить)
-    store.ts              EditorStore: файлы кампании в памяти, dirty/undo, сохранение
-    schemas.ts            декларативные схемы ВСЕХ условий и эффектов + русские сводки
-    Fields.tsx            универсальные поля форм по FieldKind (RefSelect, FlagSelect…)
-    CampaignEditor.tsx    реестры кампании (потребности+условия, флаги, фракции, типы слотов…)
-    WorldEditor.tsx       карта мира, регионы, локации
-    SceneEditor.tsx       Konva: слоты/зоны перетаскиванием, условия видимости
-    EntityEditor.tsx      формы НПС и предметов (снаряжение, торговля, расписание, дроп…)
-    RuleEditor.tsx        конструктор правил
-    QuestEditor.tsx       конструктор квестов
-    DialogueBuilder.tsx   визуальный конструктор диалогов (v2 + токены значений)
-    dialogueDoc.ts        операции с .dlg.json: generateInk(), миграция v1→v2, токены
+  editor/               Editor Mode (React, ленивый чанк)
+    EditorApp.tsx         каркас: разделы, списки, тулбар, кампании, темы полотна
+    CampaignEditor.tsx    реестры кампании (все разделы campaign.json)
+    WorldEditor.tsx       карта мира, регионы, локации, связи путешествий
+    SceneEditor.tsx       Konva: слоты/зоны перетаскиванием, состояния, условия
+    EntityEditor.tsx      формы НПС и предметов (снаряжение, торговля, расписание,
+                          особые места, портреты, способности, описания…)
+    RuleEditor.tsx        конструктор правил (условия + эффекты)
+    QuestEditor.tsx       конструктор квестов (стадии, переходы, журнал, финалы)
+    DialogueBuilder.tsx   визуальный конструктор диалогов (v2, токены значений)
     CutsceneEditor.tsx    редактор слайд-катсцен (порядок, переходы, тест-прогон)
     ArenaEditor.tsx       кисти для гекс-арен
-    MonacoEditors.tsx     JSON/ink редакторы «расширенного» режима
-    slotTypes.ts          типы слотов (реестр кампании, без встроенных) + effectiveSlotType(entity)
-    ids.ts                slugify/makeId (транслитерация, уникальность)
-    newCampaign.ts        скаффолд новой кампании, реестр public/campaigns/index.json
-    chronicle.ts          экспорт/импорт .chronicle (zip Campaign Package)
-    monolith.ts           экспорт/импорт «кампания одним JSON» + валидатор с автопочинкой
+    RecipeEditor.tsx      редактор рецептов крафта
+    CodexEditor.tsx       редактор записей кодекса
+    AudioSection.tsx      звук: реестры треков/звуков, MusicDoc/SoundDoc, тема UI
+    AiWizard.tsx          «Кампания с ИИ»: анкета → промпт-контракт
+    PlaytestDebugPanel.tsx панель плейтеста поверх игры (флаги, тики, правила)
+    EditorBookPanel.tsx   «Книга мастера» в редакторе (docs/book → Markdown)
+    MonacoEditors.tsx     JsonDocEditor / InkEditor («Расширенный JSON» и ink)
+    monacoSetup.ts        настройка Monaco (локальный бандл, без CDN)
+    MarkdownView.tsx      лёгкий markdown-рендер (книга, описания)
+    FlagAutocomplete.tsx  автодополнение флагов из реестра
+    Fields.tsx            универсальные поля форм по FieldKind (RefSelect,
+                          FlagSelect, AssetUpload, TimeOfDayChips, RewardItems…)
+    schemas.ts            декларативные схемы ВСЕХ 23 условий и 37 эффектов +
+                          русские сводки
+    store.ts              EditorStore: файлы кампании в памяти, dirty/undo,
+                          сохранение, реестры для селектов
+    dialogueDoc.ts        операции с .dlg.json: generateInk(), миграция v1→v2,
+                          токены
     assets.ts             внешние ссылки: проверка доступности, «вшить в пакет»
+    newCampaign.ts        скаффолд новой кампании (art-сцена, стартовый НПС),
+                          реестр public/campaigns/index.json
+    chronicle.ts          экспорт/импорт .chronicle (zip Campaign Package)
+    monolith.ts           экспорт/импорт «кампания одним JSON» + валидатор с
+                          автопочинкой (repairMonolith)
+    playtest.ts           плейтест: запуск игры поверх редактора
+    aiPrompt.ts           сборка промпта для ИИ (контракт + требования + бриф)
     prompt.tsx            реэкспорт модалок (совместимость)
+    editor.css            стили редактора: «ателье хроник», темы полотна, формы
 
-scripts/                  headless-проверки (см. §8) + gen-schema.mts
-docs/                     campaign.schema.json (JSON Schema) + ai-campaign-guide.md
-src-tauri/                десктоп-оболочка Tauri v2
-public/campaigns/         кампании: index.json + <id>/ (Campaign Package)
+scripts/                52 .mts: 46 headless-смоуков + 6 инструментов (см. §8)
+docs/
+  campaign.schema.json  JSON Schema формата кампании (генерируется из types.ts)
+  ai-campaign-guide.md  гайд-контракт для ИИ-генерации кампаний
+  book/                 «Книга мастера» (6 глав, markdown + иллюстрация)
+  glossary.md           глоссарий: канонические термины интерфейса и книги
+  text-audit-*.tsv|md   аудит формулировок: инвентаризация и рабочий журнал
+src-tauri/              десктоп-оболочка Tauri v2 (окно «Chronicle Forge»,
+                        identifier app.chronicleforge.desktop, default-права)
+public/
+  campaigns/            кампании: index.json + <id>/ (Campaign Package)
+  book/img/             иллюстрации для «Книги мастера» (статик vite)
+  __starter/            стартовые ассеты новой кампании (scene_start.jpg)
+  favicon.svg           иконка приложения
 ```
 
 ## 3. Формат кампании (Campaign Package)
@@ -99,53 +159,110 @@ public/campaigns/         кампании: index.json + <id>/ (Campaign Package
 Все типы описаны в `src/shared/types.ts`.
 
 ```
-campaign.json    метаданные и РЕЕСТРЫ (см. ниже)
-world.json       регионы → локации (позиции на карте, связи путешествий, сцены)
-manifest.json    списки файлов по разделам — только их загружает loader
-scenes/*.json    сцены: states (фон по условиям), slots, navigation
-entities/*.json  НПС и предметы
-rules/*.json     правила: conditions[] + effects[] (+once, +manual)
-dialogues/*.ink  диалоги для движка (генерируются конструктором)
+campaign.json      метаданные и РЕЕСТРЫ (§3.2)
+world.json         регионы → локации (позиции на карте, связи путешествий, сцены)
+manifest.json      списки файлов по разделам — только их загружает loader
+scenes/*.json      сцены: states (фон по условиям), slots, navigation, музыка, эмбиент
+entities/*.json    НПС и предметы
+rules/*.json       правила: conditions[] + effects[] (+once, +manual);
+                   сюда же лежат таблицы встреч (encounter_tables)
+arenas/*.json      гекс-арены боя
+quests/*.json      квесты: стадии, переходы, журнал, финалы
+cutscenes/*.json   слайд-катсцены
+recipes/*.json     рецепты крафта
+codex/*.json       записи кодекса/бестиария
+dialogues/*.ink    диалоги для движка (генерируются конструктором)
 dialogues/*.dlg.json  исходники визуального конструктора (движок их не читает)
-quests/*.json    квесты: стадии, переходы, журнал, финалы
-arenas/*.json    гекс-арены боя
-assets/          изображения (сцены, портреты, карта)
+assets/            изображения и медиа (img/{scenes,npc,maps,arenas}, audio, voice)
 ```
 
-### 3.1 Реестры в `campaign.json`
+`manifest.json` — списки имён файлов по разделам (`scenes`, `entities`,
+`rules`, `arenas`, `quests`, `encounters`, `cutscenes`, `recipes`, `codex`,
+`dialogues`); loader читает только перечисленные файлы. Файл таблицы встреч
+может лежать в `rules/` и одновременно значиться в `encounters`.
+
+### 3.1 Реестры в `campaign.json` (CampaignMeta)
 
 Реестры — источник выпадающих списков редактора и русских названий в игре:
 
 - `needs` — потребности: `max`, `decay_per_tick`, `critical_threshold`,
   `on_zero_effect` (`death` или id правила), **условная убыль** `decay_when[]`
   и **восстановление** `restore_per_tick` + `restore_when[]`
-  (условия: время суток / флаг / в локации / есть предмет / надет предмет);
+  (условия: время суток / флаг / в локации / погода / есть предмет / надет предмет);
+- `statuses` — **статусы** (блок 5 ТЗ): `scope` (мир/бой/оба), `duration`
+  (тики/раунды), `dot` (урон HP/MP за тик/раунд), `skill_mods`, `mov_mod`,
+  `on_apply`/`on_expire` (эффекты), иконка, сообщения;
+- `abilities` — **боевые способности** (блок 6 ТЗ): `mp_cost`, `cooldown_rounds`,
+  `range`, навык попадания, `kind` (урон/статус/лечение) с формулами;
+- `equipment_slots` — **слоты экипировки** (блок 7 ТЗ): свои слоты поверх
+  конвенции `weapon`/`armor` (предметы с `weapon_data`/`armor_data`
+  автоматически ложатся в «Оружие»/«Броня»); броня надетых слотов суммируется;
+- `calendar` — **календарь кампании** (блок 9 ТЗ): свои месяцы и дни недели,
+  названия («Летопись Каэрдена, 12-й день весеннего месяца»);
+- `weathers` — **погоды** (блок 9 ТЗ): реестр целиком создаёт кампания
+  (встроенных «погод по умолчанию» нет); `overlay` — визуальный слой
+  (встроенные классы `rain`/`snow`/`fog`/`ash` или свой `weather-<id>`),
+  `ambient` — зацикленные звуки-слои;
+- `endings` — **концовки** (блок 9 ТЗ): `title`/`text`/`tone` (гибель/победа/
+  нейтральный), `on` (к какому исходу), `image`, `conditions[]` — движок
+  берёт ПЕРВУЮ подошедшую; ни одна не подошла — стандартный экран исхода;
+- `overlay_layers` — реестр именованных слоёв погоды: список названий для
+  селекта «Слой» у погоды (движковские классы `rain`/`snow`/`fog`/`ash` +
+  свои `weather-<id>`);
+- `codex_categories` — категории кодекса (нет — встроенные «Хроники»);
+- `dice_rules` — пороги d100: `critical_divisor` (крит ≤ навык/д),
+  `special_divisor` (особый успех), `fumble_from` (крит-провал с этого броска),
+  `fumble_low_skill` (классический BRP: широкий провал при низком навыке);
+  пресеты «Хроника (по умолчанию)» и «Классический BRP»;
 - `skills` — навыки игры (id + русское название);
-- `flags` — реестр флагов: `{ id, label, description? }` — «память мира» по-русски;
+- `flags` — реестр флагов: `{ id, label, description? }` — «память мира»;
+- `emotions` — состояния портретов: все записи кампании свои, переименовываемые
+  и удаляемые; скрытое дефолтное состояние «Обычный» не показывается в реестре;
 - `factions` — фракции: `base_disposition`, `hidden` (служебные, скрыты от игрока);
 - `item_categories` — категории предметов: что умеет предмет
-  (`restores_hp`, `restores_needs`, `is_weapon`, `is_armor`);
-- `slot_types` — свои типы слотов сцены (встроенные: персонаж/предмет/контейнер/животное);
+  (`restores_hp`, `restores_needs`, `is_weapon`, `is_armor`, звуки);
+- `slot_types` — свои типы слотов сцены (встроенных нет — реестр только
+  кампании; у типа — своя тема звуков);
 - `currencies` — валюты (первая — основная, в ней считаются цены);
-- `time_of_day`, `ticks_per_day`, `tick_label` — календарь;
+- `music_tracks` / `sounds` / `ui_sounds` / `default_music` / `combat_music`
+  — звук и музыка (§3.14);
+- `char_creation` — параметры **создания героя** (блок 11 ТЗ, §3.15);
+- `fonts` — роли шрифтов кампании (переопределение профиля);
+- `theme` — тема кампании: `profile` (id визуального профиля) +
+  переопределения (акцент, шрифты, фон меню, фон финала);
+- `time_of_day`, `ticks_per_day`, `tick_label` — календарь времени;
+- `max_load_formula` (`str_plus_siz`), `max_companions` — ограничения партии;
+- `features` — тумблеры опциональных механик кампании;
 - `roguelike` — permadeath, мета-прогресс;
-- стартовые `starting_region/location/scene/tick`, `default_player`, `max_companions`.
+- стартовые `starting_region/location/scene/tick`, `default_player`.
 
 ### 3.2 Сущности
 
-`NpcDef`: характеристики BRP (`STR…CHA`), навыки, снаряжение **предметами**
-(`equipment.weapon/armor` → у предметов `weapon_data`/`armor_data`),
-`natural_weapon` (укус/когти — когда снаряжение не нужно), `loot_table`,
-`trader` (прилавок: товары, цены-переопределения, запас, скупка с `buy_rate`),
-`dialogue` (путь к .ink), `schedule[]` (часы → сцена/слот),
-`presence_overrides[]` («особые места по событиям»: пока флаг активен —
-персонаж здесь, расписание не действует), `slot_type`, `portrait`
-(настроение → изображение), `token` (изображение в бою), `faction`,
-`base_disposition` (личная поправка к отношению фракции).
+`NpcDef`: характеристики BRP (`STR…CHA` — MP производный, = POW), навыки,
+**снаряжение по слотам** (`equipment: { <slotId>: <itemId> }` — слоты из
+`equipment_slots` + конвенция `weapon`/`armor`), `natural_weapon` (укус/когти
+— когда оружия нет), `abilities` (список id из реестра способностей),
+`loot_table` (`chance`, `min`/`max`), `trader` (прилавок: товары,
+цены-переопределения, запас, скупка с `buy_rate`), `dialogue` (путь к .ink),
+`schedule[]` (часы → сцена/слот), `presence_overrides[]` («особые места по
+событиям»: пока флаг активен — персонаж здесь, расписание не действует),
+`slot_type`, `portrait` (настроение → изображение в диалоге),
+`scene_sprite` (спрайт в сцене с прозрачным фоном; нет — портрет),
+`combat_figure` (фигурка на арене вместо круглого жетона) + `figure_mode`
+(`topdown`/`side`/`static`) + `shadow`, `token` (жетон, когда фигурки нет),
+`faction`, `base_disposition` (личная поправка к отношению фракции),
+`description` (описание при наведении; можно менять эффектом
+`set_description`), `sounds` (своя тема).
 
 `ItemDef`: `category` (поведение — из реестра категорий), `value` (цена в
-основной валюте), `weight`, `stackable`, `weapon_data`, `armor_data`,
-`on_use` (эффекты применения), `slot_type`.
+основной валюте), `weight`, `stackable`, `weapon_data` (урон N×dX+бонус,
+свойства), `armor_data`, `on_use` (эффекты применения), `slot_type`,
+`description`, `sounds`.
+
+`SlotDef` (слоты сцены): `label`, `slot_type` (фильтрует, кого можно
+поставить), `use_with` (блок 8 ТЗ) — **предметы, которыми можно воздействовать
+на слот**: `{ item, consume?, effects[], message? }` — «книга + читать»,
+«ключ + открыть». Действие появляется в сцене, если предмет в инвентаре.
 
 ### 3.3 Правила: условия и эффекты
 
@@ -154,18 +271,25 @@ assets/          изображения (сцены, портреты, карт�
 проверяется автоматически — обязательно для правил-«функций», иначе пустые
 условия сработают на каждом тике).
 
-Условия (~20): `player_enters_location/scene`, `flag_set/not_set`,
-`time_of_day`, `tick_elapsed`, `quest_at_stage`, `has_item`, `skill_ge`,
-`need_le/ge`, `entity_alive/dead`, `disposition_ge/le`, `in_party`,
-`random_chance`, `variable_compare`, `and/or/not`.
+**23 условия** (`conditions.ts`): `player_enters_location/scene`,
+`flag_set/not_set`, `time_of_day`, `tick_elapsed`, `quest_at_stage`,
+`has_item` (+ количество), `has_status`, `skill_ge`, `need_le/ge`,
+`entity_alive/dead`, `disposition_ge/le`, `in_party`, `weather_is`
+(текущая погода; `''` — ясно), `variable_compare`, `random_chance`
+и логические `and`/`or`/`not`.
 
-Эффекты (~28): `start_dialogue` (+ узел), `start_combat` (враги, арена,
-временные `allies`, `on_victory[]`), `teleport_player`, `add/remove_item`,
-`change_need/hp/skill/disposition`, `set/clear_flag`, `start_quest`,
-`advance_quest`, `journal_update`, `give_reward`, `show_message`,
-`reveal_location`, `change_scene_state`, `skill_check_gate` (проверка с
-ветками), `spawn_entity`, `advance_time`, `join_party`, `game_over_*` и др.
-Полный список — `schemas.ts` (редактор) и `applyEffects` в `engine.ts`.
+**37 эффектов** (`applyEffects` в `engine.ts`): `start_dialogue` (+ узел),
+`start_combat` (враги, арена, временные `allies`, `on_victory[]`),
+`teleport_player`, `add/remove_item`, `change_need/hp/skill/disposition`,
+`set/clear_flag`, `set_variable`/`change_variable`, `start_quest`,
+`advance_quest`, `fail_quest`, `journal_update`, `give_reward`,
+`show_message`, `reveal_location`, `change_scene_state`, `block_path`/
+`unblock_path`, `spawn_entity`, `remove_entity`, `advance_time`, `sleep`,
+`join_party`, `leave_party`, `apply_status`/`remove_status`, `set_weather`,
+`set_description` (динамическое описание сущности), `unlock_codex`
+(разблокировать запись кодекса), `play_cutscene`, `skill_check_gate`
+(проверка навыка с ветками), `fire_rule`, `open_trade`, `game_over_death`/
+`game_over_victory`. Полный список со сводками — `schemas.ts`.
 
 **Порядок применения `on_victory`:** безопасные эффекты (сообщения, флаги,
 предметы, отношение) применяются в момент победы — игрок видит их на экране
@@ -184,145 +308,93 @@ assets/          изображения (сцены, портреты, карт�
   для использованных функций, защита от зависания (автовариант «Закончить
   разговор», принудительный `-> DONE` после `open_trade`/`fire_rule`).
 
-Движок биндит external-функции в `dialogue.ts`: `get/set_flag`, `add/remove_item`,
-`item_count`, `has_item`, `skill_check`, `get/change_need`, `get/change_hp`,
-`advance_time`, `sleep`, `fire_rule`, `open_trade`, `join_party`, `in_party`,
-`get/change_disposition`, `start_quest`, `quest_stage`, `get_stat`, `get_skill`.
-Каждый разговор — свежая Ink-история: `*`-варианты «одноразовы» в рамках
-разговора, долговременная память — только флаги.
+Движок биндит external-функции в `dialogue.ts`: `get/set_flag`,
+`add/remove_item`, `item_count`, `has_item`, `skill_check`, `get/change_need`,
+`get/change_hp`, `advance_time`, `sleep`, `fire_rule`, `open_trade`,
+`join_party`, `in_party`, `get/change_disposition`, `start_quest`,
+`quest_stage`, `get_stat`, `get_skill`. Каждый разговор — свежая Ink-история:
+`*`-варианты «одноразовы» в рамках разговора, долговременная память — только
+флаги.
+
+**Токены значений** в репликах: `{счёт:id}/{здоровье}/{потребность:id}/
+{навык:id}/…` подставляются движком из текущего состояния.
 
 **Озвучка реплик (итерация 8, блок G).** `DlgLine.voice?` — файл пакета
 (`assets/voice/…`) или ссылка; в ink уезжает тегом `# voice: …`, движок
 (`parseLineTags` → `DialogueLine.voice`) отдаёт его UI. `DialogueOverlay`
 играет файл при показе реплики (клик по реплике — повтор); если файла нет, а
 в настройках включён «Озвучивать диалоги синтезатором», текст читает Web
-Speech (`shared/speech.ts`; выбор голоса из системных, скорость). Настройки
-громкости (общая/музыка/эффекты/голос, выкл озвучки, синтезатор) —
-`shared/settings.ts` + `shared/SettingsPanel.tsx` (кнопки «⚙» в главном меню и
-HUD). Генерация файлов озвучки — `scripts/voice-gen.mts`: обходит `.dlg.json`,
-зовёт локальный Piper (ru: irina/dmitri/denis/ruslan), складывает wav→ogg в
-`assets/voice/` и прописывает `voice`; без Piper печатает инструкцию.
+Speech (`shared/speech.ts`). Темп диалога ведёт окончание озвучки фразы
+(фидбек 21): голос не «отстаёт» и не стартует с середины разговора; до
+первого жеста игрока очередь ждёт (автоплей). Настройки громкости (общая/
+музыка/эффекты/голос, выкл озвучки, синтезатор, выбор голоса) —
+`shared/settings.ts` + `shared/SettingsPanel.tsx`. Генерация файлов озвучки —
+`scripts/voice-gen.mts`: обходит `.dlg.json`, зовёт локальный Piper
+(ru: irina/dmitri/denis/ruslan), складывает wav→ogg в `assets/voice/` и
+прописывает `voice`; без Piper печатает инструкцию.
 
-## 4. Движок (`src/core`)
+### 3.5 Квесты и встречи
 
-### 4.1 GameEngine (`engine.ts`)
+**Квест** (`quests/*.json`): стадии (`label`, `final`, `outcome`
+успех/провал, `on_enter_effects`), переходы стадий по условиям, журнал
+(`journal_key` + записи), награды (`give_reward`), финальные эффекты.
+Журнал игрока показывает текущие квесты и их стадии; завершение —
+цветной итог (успех/провал).
 
-Владеет `GameState` (сейв целиком) и `CampaignData`. Ключевые зоны:
+**Встречи на дорогах**: `EncounterTableDef { id, rolls, entries[] }` — файл-
+обёртка `encounter_tables` (лежит в `rules/`, в манифесте — `encounters`).
+`TravelConnection.random_encounter_table` — таблица для связи; при
+`travelTo` бросок `1..rolls` выбирает запись: `{ weight, type: 'combat' |
+'event', … }` — бой по врагам или набор эффектов с сообщением.
 
-- **Время:** `advanceTicks(n)` — тик за тиком: потребности (условная убыль
-  `decay_when`, восстановление `restore_when`, `onNeedZero` → смерть или
-  правило), затем `checkRules()`.
-- **Правила:** `checkRules()` перебирает не-`manual` правила; `tryFireRule`
-  проверяет `once`/условия и применяет эффекты; `fireRule(id)` — принудительно
-  (из ink), но тоже с условиями; для форс-запуска боя в тестах —
-  `engine.startCombat(effect)` напрямую.
-- **Сцены и мир:** `goToScene(sceneId, costTicks)`, `travelTo(locationId)`
-  (стоимость, случайные встречи), `slotOccupants(scene)` — заполнение слотов:
-  1) заспавненные эффектами, 2) НПС с активным `presence_override` (только в
-  его месте), иначе по `schedule`, 3) `default_entity` (если НПС не «занят»
-  расписанием/событием и не в отряде/не мёртв).
-- **Диалоги:** `startDialogue(entityId, knot?)` — компиляция ink (кэш),
-  выбор узла, `drainStory`; guard: не стартует поверх боя/торговли.
-- **Торговля:** `openTrade`, цены `buyPrice/sellPrice` от
-  `value[основная валюта]` × модификатор репутации и навыка торговли.
-- **Партия:** `joinParty`, HP напарников сохраняется между боями, гибель
-  перманентна.
-- **Квесты:** `startQuest`, переходы стадий по условиям
-  (`checkQuestTransitions` внутри `checkRules`), `journalUpdate`, финалы.
-- **Рост:** «галочки» опыта за успешные проверки; `restAndGrow()` во сне —
-  d100 > навык → +1d6.
-- **Сейвы:** автосейв в `localStorage` (`chronicle-forge:save:<campaignId>`,
-  `SAVE_VERSION = 3`); `gameOver()` всегда стирает сейв (permadeath);
-  `hasSave/loadSave/deleteSave` — экспортируемые помощники.
+### 3.6 Рецепты крафта (`recipes/*.json`)
 
-### 4.2 Бой (`combat.ts`)
+`RecipeDef`: `label`, `description`, `inputs[]` (расходуемые компоненты
+`{item, quantity}`), `tools[]` (инструменты: нужны в инвентаре, НЕ
+расходуются), `requires[]` (декларативные условия возможности: локация,
+флаг…), `skill {id, difficulty}` (проверка при изготовлении: успех = создал,
+провал = компоненты целы), `time_ticks` (промотка времени после успеха),
+`output {item, quantity}`, `message`. В игре — вкладка «Крафт» инвентаря:
+доступные рецепты подсвечены, у недоступных видно, чего не хватает.
 
-`CombatController` создаётся эффектом `start_combat`: юниты игрока, напарников,
-временных союзников и врагов (`c_player`, `c_ally_*`, `c_tally_*`).
-Раунд: инициатива по DEX; у юнита — движение (`movLeft`, Дейкстра с ценой
-сложной местности ×2) и одно действие (атака/предмет). Атака: проверка навыка
-оружия d100 → защита целью (уклонение/парирование, повторные −30%) → урон
-кости + damage bonus − броня (крит: макс. урон, игнор брони).
-**Атака игрока автоматически завершает ход** (`playerAttack` → `nextTurn` +
-`processUntilPlayer`); кнопка в UI — «Пропустить ход». AI (враги и напарники):
-A* к ближайшей цели, атака в радиусе. `checkEnd()` при победе зовёт
-`engine.onCombatVictory(on_victory)` (см. §3.3) и `rollLoot()`; `endCombat()`
-(по «Продолжить») применяет отложенные эффекты, двигает время и сохраняет.
-Перегруз (вес > STR+SIZ) режет MOV и уклонение.
+### 3.7 Кодекс (`codex/*.json`)
 
-### 4.3 Детерминизм
+`CodexEntryDef`: `label`, `category` (id из `meta.codex_categories`, нет —
+встроенные «Хроники»), `text` (markdown), `image`. Записи **разблокируются**
+эффектом `unlock_codex { entry }` (правило, квест, диалог) и появляются в
+панели «Кодекс» (`CodexPanel`, вкладка рядом с журналом). Не разблокированные
+игроку не видны.
 
-`prng.ts` (seedrandom): seed создаётся на забег и лежит в сейве; рестарт —
-новый seed. Игроку seed не показывается.
+### 3.8 Погода, календарь, концовки
 
-## 5. Player Mode (`src/player`)
+- **Погода**: `state.weather` — id из `meta.weathers`. Меняется эффектом
+  `set_weather`, проверяется условием `weather_is` и условиями состояний
+  сцен/потребностей. Рендер: `SceneScreen` рисует `weather-overlay
+  weather-<overlay>` (встроенные CSS-слои `rain`/`snow`/`fog`/`ash` или свой
+  класс), `ambient[]` — зацикленные звуки-слои. HUD показывает название.
+- **Календарь**: `meta.calendar` задаёт месяцы/дни недели; `time.ts` складывает
+  «год/месяц/день + день недели» для HUD.
+- **Концовки**: см. `endings` (§3.1). `game_over_*` эффекты вызывают
+  `engine.gameOver(outcome)` — движок подбирает первую концовку, у которой
+  совпал исход и выполнены условия; экран — `EndScreen` (тон, фон, статистика).
+- **Слои погоды**: `meta.overlay_layers` — реестр названий слоёв, которые
+  кампания может назначить погоде (`weathers[i].overlay`); движковские CSS-
+  слои плюс свои классы `weather-<id>`.
 
-`App.tsx` грузит кампанию (`loadCampaign`), показывает `MainMenu` (выбор/импорт/
-удаление кампаний, «Обучение заново») и создаёт `GameEngine` на «Новый забег»/
-«Продолжить». `GameView` подписан на `engine.notify()` и композитит экраны:
-сцена → карта → бой → диалог → торговля → панели → сообщения (`show_message`
-поверх всего, включая бой) → финал. Обучение: уровень 1 — `HelpPanel` (справка,
-включая кнопку «Обучение заново»), уровень 2 — `tips.ts` (одноразовые подсказки
-в бою/диалоге/росте; сброс — `resetTips()`).
-
-## 6. Editor Mode (`src/editor`)
-
-### 6.1 EditorStore
-
-Загружает пакет по `manifest.json` в память (`jsonFiles`/`textFiles`), даёт
-типизированный доступ (`scene(path)`, `entity(path)`…), реестры для селектов
-(`options(kind)` — всегда отсортированы по-русски; `labelFor`, `questStageLabel`),
-следит за изменениями: `touch(path)` → `dirty` + снапшоты для **undo** (серии
-быстрых правок группируются), счётчик «несохранено» сверяется с состоянием
-диска (`saved`-карта) — откат к сохранённому убирает файл из dirty.
-До `load()` стор отдаёт безопасные пустые значения — рендер между сменой
-кампаний не падает; готовность в `EditorApp` привязана к конкретному стору.
-
-### 6.2 Формы: schemas + Fields
-
-`schemas.ts` — декларативные описания всех условий/эффектов: список полей
-(`FieldSpec { key, label, kind }`) + `blank`-заготовка + русские сводки
-(`conditionSummary`/`effectSummary` через `LabelSource`). `Fields.tsx` рендерит
-поле по `kind`: `entityRef/npcRef/itemRef/sceneRef/…` (селекты по реестрам),
-`flagRef` (FlagSelect с «создать новый флаг»), `questStageRef/journalKeyRef`
-(зависят от выбранного квеста), `dialogueNodeRef` (узлы диалога выбранного НПС),
-`timeOfDay` (чипы), `rewardItems`, `enemies` и т.д. Новые эффекты добавляются
-описанием схемы — UI получается автоматически.
-
-### 6.3 Конструктор диалогов
-
-`DialogueBuilder.tsx` редактирует `.dlg.json` и на каждый commit перегенерирует
-`.ink` (`generateInk`). Слово «ink» пользователю не показывается; названия
-диалогов — из `DlgDoc.label`. Настроения реплик = базовые + ключи `portrait`
-НПС, говорящего этим диалогом.
-
-### 6.4 Dev-инфраструктура (vite.config.ts)
-
-- `POST /__editor/save { path, text|base64 }` — запись файла кампании
-  (с защитой от выхода из `public/campaigns`);
-- `POST /__editor/delete { path }` — удаление кампании (кнопки в редакторе и меню);
-- `GET /campaigns/*` — **собственный middleware** отдаёт файлы кампаний прямо с
-  диска. Причина: vite перезагружал страницу при любой записи в `public/`
-  (ломая создание кампаний), поэтому `server.watch.ignored` исключает
-  `public/campaigns`, а раздачу берёт на себя middleware (иначе кэш публичных
-  файлов vite не видит новые кампании и отдаёт index.html).
-
-В прод-сборке и Tauri этих эндпоинтов нет — обмен контентом через `.chronicle`
-(экспорт/импорт zip, `chronicle.ts`); запись через Tauri fs — задача Фазы 5.
-
-### 3.5 Ассеты: файлы пакета и внешние ссылки
+### 3.9 Ассеты: файлы пакета и внешние ссылки
 
 Ассет (картинка сцены, портрет, звук, кадр катсцены) задаётся строкой:
 
 - **путь внутри пакета** (`assets/img/scenes/gates.jpg`) — файл лежит рядом с
   JSON и уезжает вместе с кампанией;
 - **внешняя ссылка** (`https://…`) — `assetUrl()` пропускает `http(s)://`
-  как есть (`core/loader.ts`, `isExternalUrl`). Это удобно для ИИ-генерации и
-  для тяжёлого медиа, но добавляет зависимость от чужого сервера.
+  как есть (`core/loader.ts`, `isExternalUrl`). Удобно для ИИ-генерации и
+  тяжёлого медиа, но добавляет зависимость от чужого сервера.
 
 В редакторе любое поле загрузки (`AssetUpload` в `Fields.tsx`) принимает и
-файл с компьютера, и ссылку: ссылка проверяется мгновенно (`editor/assets.ts`,
-`checkExternalUrl`) — грузится ли файл в браузере и отдаёт ли сервер CORS.
+файл с компьютера, и ссылку: ссылка проверяется мгновенно
+(`editor/assets.ts`, `checkExternalUrl`) — грузится ли файл в браузере и
+отдаёт ли сервер CORS.
 
 #### Риски внешних ссылок
 
@@ -331,90 +403,63 @@ A* к ближайшей цели, атака в радиусе. `checkEnd()` п
 | **Гниение ссылок** | файл удалят на хостинге — в кампании будет «битая» картинка | хранить важное в пакете |
 | **CORS** | картинка показывается, но скачать её браузером нельзя | вшивать в пакет на dev-сервере (эндпоинт `/__editor/fetch` качает сервером) |
 | **Офлайн** | без интернета внешнее медиа не загрузится | чекбокс «Вшить внешние ссылки в пакет» при экспорте |
-| **Подмена содержимого** | владелец ссылки поменяет файл — кампания изменится | после проверки контента вшивать файлы |
+| **Подмена содержимого** | владелец ссылки поменял файл — кампания изменилась | после проверки контента вшивать файлы |
 
 Экспорт `.chronicle` по умолчанию собирает **лёгкий пакет** (ссылки остаются
 ссылками). С галочкой «Вшить внешние ссылки в пакет» редактор скачивает файлы
 в `assets/external/`, переписывает ссылки во всех документах и кампания
 становится автономной (`embedExternalAssets`).
 
-### 3.6 Декларативная графика (ArtDoc)
+### 3.10 Декларативная графика (ArtDoc)
 
 `ArtDoc` (`shared/types.ts`) — векторная «картинка из JSON»: слои примитивов
 в координатах холста (по умолчанию 1280×720 — та же система, что у слотов
 и зон сцены). Рендер — один на всех: `shared/ArtView.tsx` (`ArtView`,
 `artToSvg`, `artToDataUrl`), чистый SVG без библиотек.
 
-```jsonc
-{
-  "canvas": { "w": 1280, "h": 720 },
-  "background": "#1c2230",
-  "layers": [
-    { "label": "небо",   "shape": { "type": "rect", "x": 0, "y": 0, "w": 1280, "h": 420,
-        "fill": { "gradient": { "from": "#1c2340", "to": "#d9895b", "angle": 90 } } } },
-    { "label": "луна",   "shape": { "type": "ellipse", "cx": 980, "cy": 150, "rx": 46, "ry": 46, "fill": "#f4e6c4" } },
-    { "label": "гора",   "shape": { "type": "polygon", "points": [0,520, 320,260, 700,520], "fill": "#223044" } },
-    { "label": "дорога", "shape": { "type": "line", "x1": 80, "y1": 700, "x2": 640, "y2": 470, "color": "#a58a5c", "width": 8 } },
-    { "label": "вывеска","shape": { "type": "text", "x": 640, "y": 90, "text": "Каэрден", "size": 48, "align": "middle" } }
-  ]
-}
-```
-
-Примитивы: `rect` (x, y, w, h, radius), `ellipse` (cx, cy, rx, ry), `polygon`
-(points — плоский массив x,y), `line` (x1…y2, color, width), `text` (x, y,
-text, size, color, align, bold/italic). Общие свойства: `fill` (цвет или
-`{ gradient: { from, to, angle } }`, 0° — слева направо, 90° — сверху вниз),
-`stroke`/`stroke_width`, `opacity`, `rotate` (градусы вокруг центра фигуры).
+Примитивы: `rect` (x, y, w, h, radius), `ellipse` (cx, cy, rx, ry),
+`polygon` (points — плоский массив x,y), `line` (x1…y2, color, width),
+`text` (x, y, text, size, color, align, bold/italic). Общие свойства:
+`fill` (цвет или `{ gradient: { from, to, angle } }`, 0° — слева направо,
+90° — сверху вниз), `stroke`/`stroke_width`, `opacity`, `rotate` (градусы
+вокруг центра фигуры).
 
 Где применяется:
 - **состояния сцены** — `image` ИЛИ `art`. ИИ, «рисуя» сцену примитивами,
   знает координаты объектов и ставит слоты точно на них; мастер потом может
   заменить `art` картинкой («🖼 Заменить изображением») — слоты останутся;
-- **слайды катсцен** (§3.7);
+- **слайды катсцен** (§3.11);
 - **фон карты региона** — `RegionDef.map_art` вместо `map_image`.
 
 Визуального редактора примитивов нет намеренно (это генераторский формат):
 редактор показывает `art` как фон сцены и даёт «✎ Расширенный JSON».
 
-### 3.7 Слайд-катсцены (`cutscenes/*.json`)
+### 3.11 Слайд-катсцены (`cutscenes/*.json`)
 
-`CutsceneDef` (`shared/types.ts`) — ролик из слайдов; раздел манифеста
-`cutscenes`, редактор — `editor/CutsceneEditor.tsx` (раздел «🎬 Катсцены»).
+`CutsceneDef` — ролик из слайдов; раздел манифеста `cutscenes`, редактор —
+`editor/CutsceneEditor.tsx` (раздел «🎬 Катсцены»).
 
-```jsonc
-{
-  "id": "cutscene_intro",
-  "label": "Пролог",
-  "music": "assets/audio/music/theme.ogg",      // файл пакета или ссылка (необязательно)
-  "slides": [
-    { "art": { /* ArtDoc */ }, "text": "Долина Каэрден…", "transition": "panzoom" },
-    { "image": "assets/img/cutscenes/caravan.jpg", "text": "…", "voice": "assets/voice/intro_2.ogg", "transition": "fade" },
-    { "video": "https://youtu.be/…", "duration": 12, "transition": "cut" }  // только онлайн
-  ]
-}
-```
+Кадр слайда — одно из `art` (ArtDoc) / `image` / `video` (mp4 — тегом
+`<video>`, YouTube — через embed; «работает только онлайн», исключение, не
+основа); без кадра — подпись на чёрном. `text` печатается поверх кадра снизу.
+Переходы: `cut`, `fade`, `slide`, `panzoom` (медленный наезд). Длительность:
+`duration` (сек) или автоматически — по окончании озвучки, по длине подписи,
+mp4 — по концу видео, YouTube — по сигналу `ENDED` (IFrame Player API).
 
-- Кадр слайда — одно из `art` (ArtDoc) / `image` / `video` (mp4 — тегом
-  `<video>`, YouTube — через embed; «работает только онлайн», исключение, не
-  основа); без кадра — подпись на чёрном. `text` печатается поверх кадра снизу.
-- Переходы: `cut` (резкая смена), `fade` (затемнение), `slide` (сдвиг),
-  `panzoom` (медленный наезд на весь слайд).
-- Длительность: `duration` (сек) или автоматически — по окончании озвучки,
-  по длине подписи (печать + время на чтение), mp4 — по концу видео.
-- Запуск — эффект `play_cutscene { cutscene }` из правила, квеста или диалога
-  (действие «Показать катсцену» в конструкторе → `~ play_cutscene("id")`).
-  Движок (`engine.playCutscene`) ставит ролик в **очередь**; остальные эффекты
-  применяются сразу, но их экраны (диалог, бой, торговля, сообщения, финал)
-  `GameView` показывает только после ролика — игрок видит поток эффектов
-  «после катсцены». В `on_victory` катсцена откладывается до «Продолжить».
-- Проигрыватель — `shared/CutscenePlayer.tsx` (общий для игры и тест-прогона
-  в редакторе): клик/пробел — дальше, «Пропустить» появляется после первого
-  слайда, музыка и озвучка учитывают настройки громкости игрока.
-- «На старте забега»: новый забег (`freshRun`) в `start()` прогоняет
-  `checkRules()`, поэтому правило `once` + `tick_elapsed 0` + `play_cutscene`
-  показывает вступление ровно один раз за забег (демо: `rule_intro_cutscene`).
+Запуск — эффект `play_cutscene { cutscene }` из правила, квеста или диалога.
+Движок (`engine.playCutscene`) ставит ролик в **очередь**; остальные эффекты
+применяются сразу, но их экраны `GameView` показывает только после ролика —
+игрок видит поток эффектов «после катсцены». В `on_victory` катсцена
+откладывается до «Продолжить».
 
-### 3.8 Монолитный JSON: кампания одним файлом (обмен и ИИ-генерация)
+Проигрыватель — `shared/CutscenePlayer.tsx` (общий для игры и тест-прогона
+в редакторе): клик/пробел — дальше, «Пропустить» появляется после первого
+слайда, музыка и озвучка учитывают настройки громкости. «На старте забега»:
+новый забег (`freshRun`) в `start()` прогоняет `checkRules()`, поэтому правило
+`once` + `tick_elapsed 0` + `play_cutscene` показывает вступление ровно один
+раз за забег (демо: `rule_intro_cutscene`).
+
+### 3.12 Монолитный JSON: кампания одним файлом (обмен и ИИ-генерация)
 
 `MonolithDoc` (`shared/types.ts`) — вся кампания одним объектом: то же
 содержимое, что в Campaign Package, но словарями по id. Это формат обмена и
@@ -438,10 +483,9 @@ JSON Schema формата — `docs/campaign.schema.json`, **генерируе
 TypeScript; перегенерировать после правок типов). Гайд для генераторов —
 `docs/ai-campaign-guide.md`: соглашения по id, ArtDoc-сцены и слоты по
 координатам нарисованных объектов, катсцены, диалоги с токенами, звук/музыка
-синтезом (см. §3.9) — кампания приходит вообще без бинарников и сразу
-работает.
+синтезом (§3.14) — кампания приходит вообще без бинарников и сразу работает.
 
-### 3.9 Звук и музыка (`music_tracks` / `sounds` / `ui_sounds`, блок H)
+### 3.13 Звук и музыка (`music_tracks` / `sounds` / `ui_sounds`, блок H)
 
 Реестры кампании (в `campaign.json`, монолит — синхронно):
 
@@ -450,11 +494,12 @@ TypeScript; перегенерировать после правок типов)
   `mood: тревожная|спокойная|боевая|торжественная|таинственная`, `tempo?`,
   `key?`, `scale: минор|мажор|дорийский|фригийский|пентатоника`,
   `layers: [пад-аккорды|арпеджио|бас|перкуссия]`, `progression?: ["i","VI",…]`,
-  `seed?`; всё играет по гамме, детерминизм от seed — `src/shared/synth.ts`).
-- `sounds: SoundDef[]` — `{id, label, src: SoundSource | SoundSource[]}`;
+  `seed?`; всё играет по гамме, детерминизм от seed — `src/shared/synth.ts`);
+- `sounds: SoundDef[]` — `{id, label, src: SoundSource | SoundSource[], loop?}`;
   `SoundDoc {zzfx: [≤20 чисел]}` — параметрический SFX в порядке параметров
   ZzFX (см. комментарий в `synth.ts:renderSoundDoc`); **массив** источников —
-  случайный вариант при каждом воспроизведении (три скрипа двери).
+  случайный вариант при каждом воспроизведении (три скрипа двери); `loop` —
+  зацикленные эмбиент-слои;
 - `ui_sounds: Record<SoundHookName, id>` — звуковая тема кампании:
   `menu_music` (id **трека**), `click`, `panel_open`, `panel_close`, `message`,
   `travel_depart`, `travel_arrive`, `scene_transition`, `combat_start`, `hit`,
@@ -477,224 +522,430 @@ TypeScript; перегенерировать после правок типов)
 предмета → тип слота → `ui_sounds` → тишина (у `travel` алиас
 `scene_transition` — звучит один раз). Хуки взаимодействий: `pickup`, `use`,
 `open`, `talk`, `drop`, `travel`; у `NpcDef`/`ItemDef`/`ItemCategoryDef`/
-`slot_types[i]` — `sounds: SoundHookMap`. Громкости — настройки игрока
-(`shared/settings.ts`: общая/музыка/эффекты/голос). Headless (смоуки) —
-все вызовы безопасные no-op.
+`slot_types[i]` — `sounds: SoundHookMap`. Зацикленные слои: `playLoop/
+stopLoop/refreshAmbient` — каналы по id, повторный запуск no-op, разовые
+звуки поверх. Громкости — настройки игрока. Headless (смоуки) — все вызовы
+безопасные no-op.
 
 Редактор (`src/editor/AudioSection.tsx`): реестры треков/звуков с
 конструкторами MusicDoc/SoundDoc и предпрослушиванием ▶, вариативность
 источников, тема интерфейса, `SoundHookMapEditor` (сущности/категории/типы
 слотов), `MusicRulesEditor` (локации/сцены), выбор трека в катсценах.
 
+### 3.14 Создание героя (блок 11 ТЗ, `char_creation`)
+
+`CharCreationDef` — параметры экрана создания персонажа (показывается на
+«Новый забег», если поле задано; иначе герой — `default_player` как есть):
+
+- `total_points` — бюджет характеристик (очки сверх минимума);
+- `stat_limits {min, max}` — пороги каждой характеристики (задаёт мастер);
+- `skill_points`, `skill_cap`, `skill_floor` — бюджет и пороги навыков;
+- `mandatory_skills` — обязательные навыки (стартуют с 25%);
+- `forbidden_skills` — нельзя покупать;
+- `professions` — **происхождения**: шаблоны героя (распределяют
+  характеристики, дают стартовые навыки/предметы);
+- `callings` — **призвания** (фидбек 19): шаблоны стартовых навыков;
+- `choose_name` — ввод имени героя.
+
+Логика — `src/core/charcreate.ts` (без React): `newCharChoice` (от
+`default_player`), `withCalling`, `statPointsUsed`, `skillBaseFloor/
+skillProfBonus/skillMinVal`, `allSkillIds`. Экран — `player/
+CharacterCreation.tsx`: прописи и призывания-чипы, сетка характеристик с
+«+», покупки навыков, имя. Итог пишется в `state.player` (характеристики,
+навыки, MP, инвентарь) ДО первого тика — поэтому детерминизм абсолютный:
+один seed + один выбор = одинаковый забег.
+
+## 4. Движок (`src/core`)
+
+### 4.1 GameEngine (`engine.ts`)
+
+Владеет `GameState` (сейв целиком) и `CampaignData`. Ключевые зоны:
+
+- **Время:** `advanceTicks(n)` — тик за тиком: потребности (условная убыль
+  `decay_when`, восстановление `restore_when`, `onNeedZero` → смерть или
+  правило), статусы мира (тик-даун, DoT, `on_expire`), затем `checkRules()`.
+- **Правила:** `checkRules()` перебирает не-`manual` правила; `tryFireRule`
+  проверяет `once`/условия и применяет эффекты; `fireRule(id)` — принудительно
+  (из ink), но тоже с условиями; для форс-запуска боя в тестах —
+  `engine.startCombat(effect)` напрямую.
+- **Сцены и мир:** `goToScene(sceneId, costTicks)`, `travelTo(locationId)`
+  (стоимость, случайные встречи по таблице связи), `slotOccupants(scene)` —
+  заполнение слотов: 1) заспавненные эффектами, 2) НПС с активным
+  `presence_override` (только в его месте), иначе по `schedule`,
+  3) `default_entity` (если НПС не «занят» расписанием/событием и не в
+  отряде/не мёртв).
+- **Диалоги:** `startDialogue(entityId, knot?)` — компиляция ink (кэш),
+  выбор узла, `drainStory`; guard: не стартует поверх боя/торговли.
+- **Торговля:** `openTrade`, цены `buyPrice/sellPrice` от
+  `value[основная валюта]` × модификатор репутации и навыка торговли.
+- **Партия:** `joinParty`/`leaveParty`, HP напарников сохраняется между боями,
+  гибель перманентна.
+- **Квесты:** `startQuest`, переходы стадий по условиям
+  (`checkQuestTransitions` внутри `checkRules`), `journalUpdate`, финалы.
+- **Рост:** «галочки» опыта за успешные проверки; `restAndGrow()` во сне —
+  d100 > навык → +1d6.
+- **Крафт:** `allRecipes()` — доступность по `requires[]` и инвентарю,
+  `craft(recipeId)` — проверка, бросок навыка (провал — компоненты целы),
+  расход, `output`, `time_ticks`.
+- **Кодекс:** `unlockCodex(entryId)` — append в `state.codex_unlocked`,
+  дубликаты игнорируются; панель показывает только разблокированные.
+- **Погода/концовки:** `set_weather` (эффект) меняет `state.weather` и
+  перезапускает эмбиент; `gameOver(outcome)` подбирает концовку, всегда
+  стирает сейв (permadeath).
+- **Катсцены:** `playCutscene` — очередь; экраны эффектов ждут окончания.
+- **Сейвы:** автосейв в `localStorage` (`chronicle-forge:save:<campaignId>`,
+  `SAVE_VERSION = 4`); `loadSave` отбрасывает сейвы старше v3 (модель
+  экипировки) и чужих версий; `gameOver()` всегда стирает сейв (permadeath);
+  `hasSave/loadSave/deleteSave` — экспортируемые помощники.
+
+### 4.2 Бой (`combat.ts`)
+
+`CombatController` создаётся эффектом `start_combat`: юниты игрока, напарников,
+временных союзников и врагов (`c_player`, `c_ally_*`, `c_tally_*`).
+Раунд: инициатива по DEX; у юнита — движение (`movLeft`, Дейкстра с ценой
+сложной местности ×2) и одно действие (атака/предмет/способность).
+Атака: проверка навыка оружия d100 → защита целью (уклонение/парирование,
+повторные −30%) → урон кости + damage bonus − броня (крит: макс. урон, игнор
+брони). **Атака игрока автоматически завершает ход** (`playerAttack` →
+`nextTurn` + `processUntilPlayer`); кнопка в UI — «Пропустить ход».
+AI (враги и напарники): A* к ближайшей цели, атака в радиусе, использование
+способностей (MP, кулдаун, дальность). Статусы боя: тик-даун по раундам,
+DoT, `skill_mods`/`mov_mod` в расчётах. `checkEnd()` при победе зовёт
+`engine.onCombatVictory(on_victory)` (§3.3) и `rollLoot()`; `endCombat()`
+(по «Продолжить») применяет отложенные эффекты, двигает время и сохраняет.
+Перегруз (вес > STR+SIZ) режет MOV и уклонение.
+
+### 4.3 Способности и статусы (блоки 5–6 ТЗ)
+
+**Способности** (`meta.abilities`, `AbilityDef`): тратят MP, кулдаун в
+раундах, дальность в гексах, навык попадания (нет — гарантированное
+применение); `kind`: `damage` (формула, без бонуса силы), `status` (вешает
+статус на цель), `heal`. НПС получают список id. В бою — отдельная кнопка
+действия; в UI видны MP/кулдаун/доступность.
+
+**Статусы** (`meta.statuses`, `StatusDef`): `scope` мир/бой/оба; длительность
+по умолчанию (мировые тики / боевые раунды), DoT (`hp`/`mp` за тик/раунд),
+`skill_mods` (модификаторы навыков на время), `mov_mod`, `on_apply`/`on_expire`
+(наборы эффектов), сообщения. Наносятся: эффектами `apply_status`,
+способностями, `on_victory`. В мире живут в `state.player.statuses`, в бою —
+в юнитах `ActiveStatus {id, left}`.
+
+### 4.4 Детерминизм
+
+`prng.ts` (seedrandom): seed создаётся на забег и лежит в сейве; рестарт —
+новый seed. Игроку seed не показывается. Все броски (встречи, лут, криты,
+крафт, рост) идут через один генератор — при одинаковом seed и одинаковых
+действиях забег воспроизводится побросково.
+
+## 5. Player Mode (`src/player`)
+
+`App.tsx` грузит кампанию (`loadCampaign`), показывает `MainMenu`
+(выбор/импорт/удаление кампаний, «Обучение заново»). На «Новый забег» — если
+в кампании задан `char_creation`, — экран `CharacterCreation`, затем
+создаётся `GameEngine`. `GameView` подписан на `engine.notify()` и композитит
+экраны: сцена → карта → бой → диалог → торговля → панели (герой/инвентарь/
+журнал/отношения/**кодекс**) → сообщения (`show_message` поверх всего,
+включая бой) → финал. Погода — оверлей на сцене + строка в HUD.
+
+Обучение: уровень 1 — `HelpPanel` (справка, включая кнопку «Обучение заново»),
+уровень 2 — `tips.ts` (одноразовые подсказки в бою/диалоге/росте; сброс —
+`resetTips()`). Ошибки рендера ловит `ErrorBoundary` (экран с текстом, не
+белый экран). Настройки — `SettingsPanel` (⚙ в главном меню и HUD).
+
+## 6. Editor Mode (`src/editor`)
+
+### 6.1 EditorStore
+
+Загружает пакет по `manifest.json` в память (`jsonFiles`/`textFiles`), даёт
+типизированный доступ (`scene(path)`, `entity(path)`…), реестры для селектов
+(`options(kind)` — всегда отсортированы по-русски; `labelFor`,
+`questStageLabel`), следит за изменениями: `touch(path)` → `dirty` +
+снапшоты для **undo** (структурные правки — отдельные снимки, серии быстрых
+правок группируются по запросу), счётчик «несохранено» сверяется с состоянием
+диска (`saved`-карта) — откат к сохранённому убирает файл из dirty.
+До `load()` стор отдаёт безопасные пустые значения — рендер между сменой
+кампаний не падает; готовность в `EditorApp` привязана к конкретному стору.
+
+### 6.2 Формы: schemas + Fields
+
+`schemas.ts` — декларативные описания всех 23 условий и 37 эффектов: список
+полей (`FieldSpec { key, label, kind }`) + `blank`-заготовка + русские
+сводки (`conditionSummary`/`effectSummary` через `LabelSource`).
+`Fields.tsx` рендерит поле по `kind`: `entityRef/npcRef/itemRef/sceneRef/…`
+(селекты по реестрам), `flagRef` (FlagSelect с автодополнением и «создать
+новый флаг»), `questStageRef/journalKeyRef` (зависят от выбранного квеста),
+`dialogueNodeRef` (узлы диалога выбранного НПС), `timeOfDay` (чипы),
+`rewardItems`, `enemies`, `asset` (файл или ссылка) и т.д. Новые эффекты
+добавляются описанием схемы — UI получается автоматически.
+
+### 6.3 Конструктор диалогов
+
+`DialogueBuilder.tsx` редактирует `.dlg.json` и на каждый commit перегенерирует
+`.ink` (`generateInk`). Слово «ink» пользователю не показывается (есть вкладка
+«ink-исходник» для любопытных); названия диалогов — из `DlgDoc.label`.
+Настроения реплик = ключи `portrait` НПС, говорящего этим диалогом. Токены
+значений — кнопка «{ } Вставить значение» с предпросмотром.
+
+### 6.4 Разделы редактора
+
+- **Кампания** (вкладки под-разделов): потребности (+условия убыли/
+  восстановления), статусы, способности, слоты экипировки, календарь, погода
+  (реестр + слои + эмбиент), концовки, слои погоды, категории кодекса,
+  `dice_rules`
+  (пресеты + пороги), навыки, флаги, состояния портретов, фракции, категории
+  предметов, типы слотов, валюты, создание героя (бюджеты, пороги,
+  прописи/призвания, имя), звук (AudioSection), оформление (профиль +
+  переопределения, с проверкой контраста).
+- **Мир** — карта, регионы (фон: файл или ArtDoc), локации (музыка по
+  условиям, эмбиент), связи путешествий (стоимость, таблица встреч).
+- **Сцены (Konva)** — холст 1280×720: слоты и зоны навигации перетаскиванием,
+  состояния (фон `image`/`art`, условия), `use_with` у слотов, музыка/эмбиент
+  сцены.
+- **Сущности** — формы НПС (характеристики, навыки, способности, снаряжение
+  по слотам, дроп, торговля, расписание, особые места, портреты-состояния,
+  описание, звуки) и предметов (категория задаёт поля; структурный ввод урона
+  N×dX+бонус; `on_use`; описание; звуки).
+- **Правила** — конструктор условий/эффектов + «Расширенный JSON».
+- **Таблицы встреч** (раздел манифеста `encounters`, файлы в `rules/`) —
+  редакция через «Расширенный JSON»/монолит; у связи путешествия в мире —
+  ссылка на таблицу.
+- **Квесты** — стадии, переходы, журнал, награды, финалы.
+- **Диалоги** — конструктор (§6.3).
+- **Арены** — кисти гекс-сетки (стены, сложная местность, спавны, рельеф).
+- **Катсцены** — слайды, переходы, музыка/озвучка, тест-прогон.
+- **Рецепты** — крафт: компоненты, инструменты, условия, проверка навыка.
+- **Кодекс** — записи (категории, markdown, изображения).
+- В каждой форме — «✎ Расширенный JSON» (Monaco, весь файл).
+
+### 6.5 ИИ-мастер и монолит
+
+`AiWizard.tsx` — «Кампания с ИИ»: анкета (жанр, сеттинг, тон, механики) +
+свободное поле → кнопка «Скопировать промпт» = техконтракт
+`docs/ai-campaign-guide.md` + жёсткие требования + творческое направление
+(`aiPrompt.ts`). Импорт результата — «⬆ Импорт из JSON» (монолит, §3.12):
+валидатор с автопочинкой, отчёт по-русски; кнопка «Скопировать отчёт для ИИ»
+закрывает цикл исправлений (2–3 круга). Встроенного API нет.
+
+### 6.6 «Книга мастера» в редакторе
+
+`docs/book/` — учебное пособие автора кампании (6 глав: быстрый старт,
+редактор, проведение игры, справочник, ограничения, лицензия; markdown +
+иллюстрация). `EditorBookPanel.tsx` грузит главы через
+`import.meta.glob('../../docs/book/*.md', { query: '?raw' })` и рендерит
+markdown (`MarkdownView.tsx`); иллюстрации — статик `public/book/img/`.
+Кнопка «📖 Книга мастера» в шапке редактора.
+
+### 6.7 Темы рабочего полотна
+
+Три темы холста — выбор мастера (фидбек 24): **Бумага** (тёплая, дефолт),
+**Тёмная**, **Графит**. Кнопка-селект «Полотно: …» в шапке; выбор хранится в
+`localStorage` (`cf_editor_theme`), применяется классом `.ed-theme-*` на
+`.editor-root` (только переменные холста — хром «ателье хроник» и панели
+неизменны). Бумажное полотно — с контрастной тёмной типографикой: списки
+(включая узлы диалога), холсты сцен/арен и Monaco в бумажной теме читаемы.
+
+### 6.8 Dev-инфраструктура (vite.config.ts)
+
+- `GET /campaigns/*` — **собственный middleware** отдаёт файлы кампаний прямо
+  с диска. Причина: vite перезагружал страницу при любой записи в `public/`
+  (ломая создание кампаний), поэтому `server.watch.ignored` исключает
+  `public/campaigns`, а раздачу берёт на себя middleware (иначе кэш публичных
+  файлов vite не видит новые кампании и отдаёт index.html);
+- `POST /__editor/save { path, text|base64 }` — запись файла кампании
+  (с защитой от выхода из `public/campaigns`);
+- `POST /__editor/delete { path }` — удаление кампании (кнопки в редакторе и меню);
+- `POST /__editor/fetch { url, path }` — «вшить внешнюю ссылку»: сервер качает
+  файл в пакет (обход CORS для изображений).
+
+В прод-сборке и Tauri этих эндпоинтов нет — обмен контентом через `.chronicle`
+(экспорт/импорт zip, `chronicle.ts`); запись через Tauri fs — задача Фазы 5.
+
 ## 7. Хранилища браузера
 
 | Ключ | Что |
 |------|-----|
-| `chronicle-forge:save:<campaignId>` | автосейв забега (`GameState`, `SAVE_VERSION=3`) |
-| `chronicle-forge:settings` | настройки игрока: громкости, озвучка, синтезатор речи |
-| `cf_tips_seen` | просмотренные интерактивные подсказки |
+| `chronicle-forge:save:<campaignId>` | автосейв забега (`GameState`, `SAVE_VERSION=4`); стирается при финале |
+| `chronicle-forge:settings` | настройки игрока: громкости, озвучка, синтезатор речи, голос |
+| `cf_tips_seen[:<campaignId>]` | просмотренные интерактивные подсказки (по кампании или общие) |
 | `chronicle-forge:map-labels` | показывать ли названия локаций на карте |
-| последняя кампания | ключ в `App.tsx` (выбор в меню) |
+| `cf_last_campaign` | последняя открытая кампания (выбор в меню) |
+| `cf_editor_theme` | тема полотна редактора (`dark`/`anthracite`; absence = Бумага) |
 
-## 8. Тестирование
+## 8. Тестирование и инструменты
 
-`scripts/feedbackN-smoke.mts` (N=1…8: `feedback8-A/BC/D/E/F-smoke.mts`) —
-headless-прогоны против dev-сервера `:5173`: движок (бой с настоящими атаками,
-диалоги через inkjs, квесты, потребности с условиями, расписания и события НПС),
-стор редактора (undo, ошибки загрузки, гонки), генерация ink (компиляция всех
-диалогов), согласованность контента демо (флаги в реестре, типы слотов,
-снаряжение), монолитный JSON (экспорт→импорт→экспорт без потерь, автопочинка
-битого, схема и гайд). `scripts/regen-ink.mts` — перегенерация всех `.ink` из
-`.dlg.json` с проверкой компиляции; `scripts/gen-schema.mts` — перегенерация
-`docs/campaign.schema.json`. Соглашения для headless: заглушка `localStorage`;
-победа в бою — обнулить врагов и позвать `(combat as any).checkEnd()`; флаги
-ставить напрямую `engine.state.flags[...] = true`.
+**Смоуки (46)** — headless-прогоны против dev-сервера `:5173`,
+`npx tsx scripts/<имя>.mts`:
+
+- `feedback-smoke.mts` … `feedback24-smoke.mts` (8-A/BC/D/E/F/G/H — итерация 8
+  по блокам) — по одному на каждый раунд фидбека: движок (бой с настоящими
+  атаками, диалоги через inkjs, квесты, потребности с условиями, расписания и
+  события НПС, крафт, статусы/способности, погода, создание героя),
+  стор редактора (undo, ошибки загрузки, гонки), генерация ink (компиляция
+  всех диалогов), согласованность контента демо (флаги в реестре, типы слотов,
+  снаряжение), монолитный JSON (экспорт→импорт→экспорт без потерь,
+  автопочинка битого, схема и гайд), профили и контрасты, плейтест, релизный
+  UI;
+- `tz1-features` … `tz12-profiles` — ТЗ «Редизайн 2026» по блокам (фичи,
+  тема, изображения, крафт, статусы, способности, слоты, use_with, погода,
+  кодекс, создание героя, профили);
+- `release-ui-smoke.mts` — проверочный проход релизного UI;
+  `animations-smoke.mts`, `playtest-smoke.mts`, `currency-smoke.mts`
+  (npm `smoke:currency`) — отдельные механики.
+
+**Инструменты (6):**
+
+- `regen-ink.mts` — перегенерация всех `.ink` из `.dlg.json` с проверкой
+  компиляции;
+- `gen-schema.mts` (npm `generate:campaign-schema`) — перегенерация
+  `docs/campaign.schema.json` из `shared/types.ts`;
+- `audit-campaign-formats.mts` (npm `audit:campaign-formats`) — аудит форматов
+  файлов демо-кампании на соответствие схемам;
+- `voice-gen.mts` — генерация озвучки диалогов локальным Piper;
+- `contrast-audit.mts` — аудит контрастов всех 13 визуальных профилей
+  (WCAG): тексты на фонах, акценты, переопределения;
+- `text-audit.mts` — сканер формулировок UI (регулярные выражения):
+  инвентаризация в `docs/text-audit-inventory.tsv`, журнал правок —
+  `docs/text-audit-results.md`.
+
+Соглашения для headless: заглушка `localStorage`; победа в бою — обнулить
+врагов и позвать `(combat as any).checkEnd()`; флаги ставить напрямую
+`engine.state.flags[...] = true`.
 
 ## 9. Соглашения проекта
 
 - Весь UI — по-русски; сырые id, английские ключи и JSON пользователю не
-  показываются (сводки — через `LabelSource`).
+  показываются (сводки — через `LabelSource`); канонические термины —
+  `docs/glossary.md`.
 - Никаких `prompt/confirm/alert` — только `shared/modals.tsx` (единственный
   `ModalHost` монтируется в `main.tsx`).
-- Все списки редактора отсортированы по алфавиту (ru).
-- id — только автогенерация из названий (`ids.ts`).
-- Изображения — загрузкой с компьютера (пишутся в `assets/` кампании).
-- Контент кампании в движке не хардкодится (см. §1.1).
+- Никаких эмодзи и нативных `title=` в UI — только `<Ico>` и `[data-tip]`
+  (проверяется смоуками).
+- Все списки редактора отсортированы по алфавиту (ru) и имеют живой поиск.
+- id — только автогенерация из названий (`ids.ts`); типы слотов и слоты
+  экипировки — только из реестров кампании, без встроенных значений.
+- Изображения — загрузкой с компьютера (пишутся в `assets/` кампании) или
+  внешней ссылкой (с проверкой и «вшиванием»).
+- Контент кампании в движке не хардкодится (см. §1, принцип 1).
 
-## 10. Итерация 9 (фидбек №9)
+## 10. История итераций
 
-- **Списки**: живой поиск по названию везде (сущности/сцены/квесты/диалоги/…,
-  инвентарь, журнал); фильтры «Все / Надето / Не надето» (инвентарь, `isEquipped`)
-  и «Все / Надевается / Без слота» (предметы по `slot`) в редакторе.
-- **Звук**: `SoundDef.loop` — зацикленные слои (`audio.ts`: `playLoop/stopLoop/
-  refreshAmbient`), union слоёв локации (`ambient` + легаси `ambient_audio`) и
-  сцены (`ambient`); каналы по id, повторный запуск — no-op; разовые звуки поверх.
-  Превью любого трека (`previewMusicSource`) гасит музыку и предыдущее превью.
-  `arena.music` — музыка боя поверх `combat_music` кампании.
-- **Катсцены**: слайд знает конец YouTube-ролика (IFrame Player API, `ENDED`);
-  без API — прежняя схема с кнопкой «Далее». Хронометраж/счётчик слайдов — только
-  `testMode` (тест-прогон из редактора).
-- **Портреты**: реестр состояний `meta.emotions` (`EmotionDef`, 5 встроенных
-  неудаляемых), секция «Состояния портретов» в «Флагах», `emotionsOf/emotionsFor`.
-- **ИИ-мастер** (`editor/AiWizard.tsx`): анкета + свободное поле → «Скопировать
-  промпт» = техконтракт `docs/ai-campaign-guide.md` + жёсткие требования +
-  творческое направление; отчёты импорта/проверки копируются кнопкой
-  «Скопировать отчёт для ИИ» (цикл исправлений 2–3 круга). Встроенного API нет.
-- **Расширенный JSON**: единый `FileAdvancedJson` (правка файла целиком) во всех
-  формах — сущности, квесты, правила, арены, сцены, мир, катсцены.
-- **Бой**: `playInteraction('use', …)` при использовании предмета в бою.
-- **UI**: кастомные `<Ico>`/курсоры/тултипы `data-tip`; эмодзи и нативные `title=`
-  в коде запрещены (смоук `feedback9-smoke.mts`).
+Подробно — таблица в [README.md](./README.md); здесь — архитектурно
+значимые решения каждого раунда.
 
-## 11. Итерация 10 (фидбек №10)
+### 10.1 Итерация 8 (фидбек №8, блоки A–H)
 
-Курсоры/тултипы/иконки и мелкие баги интерфейса.
+- **A**: `dice_rules` + пресеты, `arrival_scene`, переходы только внутри
+  локации, миграция множественных условий потребностей, карта во весь экран.
+- **B**: токены значений в диалогах.
+- **C**: ассеты по внешним ссылкам, «вшить в пакет».
+- **D**: ArtDoc — декларативная графика (§3.10).
+- **E**: слайд-катсцены, `play_cutscene`, очередь экранов (§3.11).
+- **F**: монолитный JSON + валидатор с автопочинкой, JSON Schema, AI-гайд
+  (§3.12).
+- **G**: озвучка реплик/слайдов, Web Speech-фолбэк, Piper-генератор (§3.4).
+- **H**: звук и музыка: генеративный синтез, стек приоритетов, кроссфейд,
+  тема интерфейса, настройки громкостей (§3.13).
 
-- **`index.css`** — хвост переписан: контрастные курсоры (белая заливка + чёрная обводка), I-beam только на текстовых полях (чекбоксы/радио/файлы/label/ползунки — рука или `ew-resize`), тултипы `[data-tip]` всегда **ниже** элемента с `white-space: normal` и `max-width: 260px` (нет нижнего скроллбара), чипсы `.chip/.chip-on` (пилюли, gap 6px, активная золотая), поля `.panel-tools input/.editor-list-search` (тёмное поле, золотой фокус), `.copy-status` для подтверждения копирования, `.map-pin.label-up` — метки у нижнего края карты переворачиваются вверх, трупы `opacity: 0.55`.
-- **`MapScreen`** — зум 1–2.5 (`zoomBy`, колесо, сброс): без чёрных полей и пикселей; точки маркеров сидят на координате (`translate(-50%, -10px)`).
-- **`CombatScreen`** — классы гексов конкатенируются **через пробел** (`' hex-blocked'` и др.): рельеф/запрет/радиус снова видны, нет чёрных гексов.
-- **`EditorApp`** — попапы меню не закрываются по своему же клику (`stopPropagation` на `.editor-nav-menu`); тултипы на кнопках шапки (Сохранить/Плейтест/Импорт/Выйти); выход — иконка `exit`.
-- **`AiWizard`** — `modal-buttons` внутри `.modal-box` (клики не всплывают в overlay и не закрывают окно), явное «Промпт скопирован в буфер обмена» / сообщение об ошибке, фолбэк `document.execCommand('copy')`.
-- **`icons.tsx`** — перерисованы `settings`/`help`, новые `exit` (дверь со стрелкой), обводка 2.
-- **`shared/music.ts`** — экспорт `setMusicCampaign(c)`: кампания привязывается при загрузке (`App.tsx` рядом с `setAudioCampaign`), а после первого жеста `refreshMusic(engine)` стартует фоновую музыку меню (автоплей). В редакторе по-прежнему тишина.
+### 10.2 Итерация 9 (фидбек №9)
 
-## 12. Итерация 11 (фидбек №11)
+Живой поиск во всех списках; фильтры инвентаря/предметов; `SoundDef.loop`
+(эмбиент-слои); конец YouTube-ролика = конец слайда; **реестр состояний
+портретов** (`meta.emotions`, `EmotionDef`); **ИИ-мастер**
+(`editor/AiWizard.tsx`) и «Скопировать отчёт для ИИ»; «Расширенный JSON»
+(`FileAdvancedJson`) во всех формах; хук `use` в бою; иконки `<Ico>`/курсоры/
+тултипы `data-tip` — эмодзи и нативные `title=` запрещены (смоук).
 
-Иконки/курсоры/тултипы/favicon + реестр состояний портретов.
+### 10.3 Итерации 10–13 (фидбек №10–13)
 
-- **`index.css`** — `.ico` снова `1em×1em` (без CSS-размера svg раздувал весь интерфейс — регресс итерации 10). Курсоры вынесены в переменные `:root` (`--cur-arrow/pointer/text/move/grab/grabbing`); «рука» перерисована перчаткой (фигуры с двойной заливкой — чистый контур без внутренних швов); нативные `cursor: pointer/default` **вычищены из обоих CSS** (правила в `editor.css` перебивали кастомные — на табах «Основное/Персонажи/…» стоял стандартный указатель). Тултипы: пустые (`data-tip=""`) не показываются, вложенные не двоятся (`[data-tip]:has([data-tip]:hover)::after { display: none }` — только самый вложенный).
-- **`editor.css`** — вкладки форм: одна строка (`nowrap`, горизонтальный скролл), активная — с золотым индикатором **прямо под ней** (`.ce-tab.on::after`), а не внизу под всеми.
-- **`public/favicon.svg` + `index.html`** — favicon (тёмный скруглённый квадрат, золотая наковальня с искрой), `<link rel="icon">`.
-- **Состояния портретов** — встроенных пять больше нет (`BUILTIN_EMOTIONS` удалён из `types.ts`): скрытое дефолтное состояние `DEFAULT_EMOTION = { id: 'neutral', label: 'Обычный' }` (в реестре не показывается, картинка по умолчанию персонажа идёт в него), реестр кампании (`m.emotions`) — только свои, все записи переименовываемы и **удаляемы**; `migrateMeta` вычищает автоматом добавленные старые пять (не трогая переименованные пользователем).
+Курсоры/тултипы/иконки: контрастные курсоры, I-beam только на тексте,
+курсор-перчатка и боевые (прицел/меч), тултипы ниже элемента с переносом,
+адаптивные (клампы у краёв, не двоение вложенных) через единую плашку
+`shared/tooltip.ts`; favicon; вкладки без зазоров, JSON во вкладках до низа;
+зум карты 1–2.5; рельефные гексы (конкатенация классов через пробел);
+состояния портретов без встроенных (все удаляемы, дефолт «Обычный» скрыт,
+`migrateMeta` чистит старые); стилизованные селекты/чекбоксы; «Мир» получил
+вкладку JSON; боевые JSON/ink вкладки.
 
-## 13. Итерация 12 (фидбек №12)
+### 10.4 Итерации 14–15 (фидбек №14–15)
 
-Тултипы/вкладки/JSON/мелкие баги интерфейса и контента.
+Диалоги печатаются постепенно и озвучиваются по фразам (очередь TTS); клик
+мыши — весь текст сразу и прерывание речи; починка бага «ускорения» печати.
 
-- **`src/shared/tooltip.ts`** — адаптивные подсказки: одна плашка `.ui-tooltip` (`position: fixed`, z-index 10000) вместо `::after`. Клампы по краям экрана (не вылезает за «Выйти» и не рождает скроллбар), поверх сайдбара ничего не перекрывает; `::after`-тултипы и `position: relative` на `[data-tip]` удалены. Подключается `initTooltips()` в `main.tsx`.
-- **`editor.css`** — `.editor-main` без верхнего паддинга, `.rule-editor:has(.ce-tabs) { padding-top: 0 }`: залипающие вкладки приклеены к шапке без зазора.
-- **JSON форм** — `FileAdvancedJson` получил `inline` (без `<details>`, высокий редактор). Вкладка «JSON» кампании и новая вкладка «Мир → JSON» показывают код развёрнутым на весь экран; правый свёрнутый блок в «Мире» удалён.
-- **`EditorApp`** — фильтр списка «Персонажи»: «Все/Персонажи/Предметы» (по типу сущности) вместо «Все/Надевается/Без слота».
-- **`QuestEditor`** — итог этапа `sel-outcome`: успех — зелёный, провал — красный.
-- **`assets.ts`** — YouTube-ссылки (`youtubeId()`) для видео не грузятся как `<video>` (ложное «не открывается»), а распознаются и принимаются для катсцен.
-- **`EntityEditor`** — состояние портрета выбирается из списка (`select emotion-pick`), «+ Создать новое состояние…» — прямо там же (в реестр кампании без перехода во вкладку).
-- **`ArtView`** — слои без `<title>`: в катсцене нет нативных подсказок «Небо» и т.п.
-- **`arena_cellar.json`** — спавны/непроходимые гексы перебраны по картине арены (бочки/столы/лестница заняты, бой — на открытом полу).
-- **`HUD.tsx`** — «Выход»: иконка `exit` вместо глифа `⏻` (отображался квадратом); **`index.css`** — `.dmg-row` (урон оружия больше не сжат в крохотные поля).
+### 10.5 Итерация 16 (фидбек №16)
 
-## 14. Итерация 13 (фидбек №13)
+Описания сущностей: наведение на НПС/предмет — имя и описание (без двойного
+имени); **динамическое описание** — эффект `set_description { entity, text }`
+(правила/диалоги меняют, что написано у сущности); все JSON-схемы,
+`campaign.schema.json` и шаблон промпта ИИ обновлены.
 
-Контролы/скроллы/курсоры и чистка демо-данных.
+### 10.6 Итерация 17 — ТЗ «Редизайн 2026» (tz1–tz12)
 
-- **`index.css`** — глобальные стили `select` (в тон формам; «+ состояние (выбрать из списка)…» больше не серое) и `input[type=checkbox|radio]` (`accent-color: var(--gold)`). JSON во вкладках (`advanced-json-page`) — `height: calc(100vh - 195px)`, до самого низа. `.dmg-row` — широкие поля (88/96px) + `.dmg-summary` с итоговым «NdN±M». Сцены/арены: `.scene-editor > .advanced-json, .arena-editor > .advanced-json` — свёрнутый блок внизу (flex-wrap + order), не правая колонка. Боевые курсоры: `--cur-cross` (прицел — движение, `hex-reach`) и `--cur-sword` (меч — атака, `hex-attack`).
-- **`editor.css`** — строка вкладок: `overflow-y: hidden` (нет вертикального скроллбара), вылет на всю ширину только внутри `.rule-editor > .ce-tabs`; в «Мире» вкладки без вылета — нет горизонтального скролла.
-- **`EntityEditor`** — `DamageInput` показывает итоговое значение урона рядом с полями.
-- **`DialogueBuilder`** — `details.advanced-json` «Ink-исходник» (генерируется из конструктора, read-only) — как расширенный JSON.
-- **Демо-кампания** — из `portrait` персонажей вычищены `happy/angry` (дубликаты нейтральной картинки, остались от старого формата), `"emotion": "happy|angry"` в диалогах и `emotion: …` в ink заменены на `neutral`: по умолчанию только дефолтное состояние.
+Крупный релиз: единая дизайн-система и 12 блоков фич (по блоку — смоуки
+`tz*`):
 
-## 15. Итерация 14 (фидбек №14)
+- **tz1–3 (базовые фичи, тема, изображения)** — единая система тем (CSS-
+  переменные), `meta.theme` (профиль + переопределения) в схеме и AI-гайде;
+  обработка изображений сцен/карт;
+- **tz4 — крафт** (§3.6): рецепты, вкладка «Крафт» инвентаря, `RecipeEditor`;
+- **tz5 — статусы** (§4.3): реестр, мир+бой, DoT, модификаторы, эффекты;
+- **tz6 — способности** (§4.3): MP/кулдаун/дальность, damage/status/heal;
+- **tz7 — слоты экипировки**: `equipment_slots` кампании, `equipment` по
+  слотам, суммирование брони;
+- **tz8 — use_with** (§3.2): предметы-действие на слотах сцены;
+- **tz9 — погода/календарь/концовки** (§3.8): реестр погод со слоями и
+  эмбиентом, свой календарь, именованные концовки;
+- **tz10 — кодекс** (§3.7): записи, категории, `unlock_codex`, `CodexPanel`;
+- **tz11 — создание героя** (§3.14): бюджеты, пороги, прописи, `charcreate.ts`,
+  `CharacterCreation.tsx`;
+- **tz12 — визуальные профили**: каталог 13 стартовых художественных наборов
+  (фирменный **Chronicle Forge** — дефолт) в `shared/profiles.ts`; профиль
+  задаёт палитру, типографику, стиль панелей и атмосферный эффект;
+  применяется классом `.cf-profile-<id>` на контейнере `.cf-themed` — ни
+  одного `if (genre === …)` в игровых компонентах; на правила и данные не
+  влияет; поверх — разрешённые переопределения (акцент с проверкой контраста,
+  роли шрифтов, фон меню, фон финала); легаси-id (`fantasy`/`horror`/
+  `survival`) читаются автоматически; редактор — тема
+  «ателье хроник» (графит + бумага + латунь), раздельные зоны
+  навигация/список/полотно/инспектор, плейтест в теме кампании внутри хрома
+  редактора; WCAG-аудит контрастов всех профилей (`contrast-audit.mts`).
 
-Диалоги, JSON, музыка арены, курсоры жетонов.
+### 10.7 Фидбек 17–23 (полиш после редизайна)
 
-- **`player/DialogueOverlay.tsx`** — переработан: текст печатается **постепенно** (как в катсценах, 24 мс/символ, пауза 420 мс между репликами), каждая реплика **озвучивается отдельно** (файл или TTS в очередь), варианты ответа появляются после полного показа; клик по окну — весь оставшийся текст сразу (без кнопок и ожидания) и прерывание текущей озвучки (файл и синтезатор); клик по последней реплике — прослушать повтор. Фидбек 15: починен баг «ускорения» печати — при переходе к следующей строке счётчик набранных символов сбрасывается (иначе строки выстреливали целиком или печатались с середины).
+- **17**: undo — структурные правки отдельными снимками, группировка только по
+  запросу; без хардкода: типы слотов и слоты экипировки — только кампания;
+- **18**: Ctrl+Z работает на галочках/селектах; понятные переключатели
+  «обязательные/запрещённые» навыки в создании героя;
+- **19**: реестр слоёв погоды без английских id в скобках, новый слой — только
+  название; **призвания** (`callings`) в создании героя;
+- **20**: создание героя — сетка (длинные названия не сдвигают кнопки);
+  инвентарь — экипировка строками «слот | предмет | кнопка»; озвучка: очередь
+  до первого жеста;
+- **21**: темп диалога ведёт окончание озвучки фразы (голос не отстаёт);
+- **22**: фикс бага «сдвинутого» диалога после выбора ответа (сброс `revealed`
+  до коммита);
+- **23**: фикс «умирающей» первой фразы диалога в StrictMode (гонка эффектов
+  монтирования — отдельный «уборочный» эффект).
 
-### Фидбек 16 — описания сущностей
+### 10.8 Фидбек 24 (текущий)
 
-- **Наведение в игре**: тултип сущности (сцена, боевые жетоны) показывает **имя и описание** (`.ui-tooltip` с `white-space: pre-line`); подпись `.slot-label` по наведению больше не появляется — двойного имени нет.
-- **`NpcDef.description: string`** — описание NPC как у предметов; поле «Описание» в форме NPC (`EntityEditor`); заготовки (newCampaign/EditorApp/monolith) и мягкая миграция старых данных (`migrateEntity` в loader + `store.entity()`).
-- **Динамическое описание** — действие **`set_description`** (`entity`, `text`): регистр `EFFECT_SCHEMAS` (правила/квесты/предметы), `DlgEffect` + конструктор реплик + Ink-кодогенерация (`~ set_description(...)`), `engine.applyEffect`/`setEntityDescription`, чтение через `engine.descOf(id)` с переопределениями в `GameState.desc_overrides` (сейв). Демо: `rules/rule_maeva_thanks.json`.
-- **Шаблон промпта ИИ** (`docs/ai-campaign-guide.md`): `description` у всех NPC-примеров + `set_description` в списках эффектов.
-- **`shared/speech.ts`** — `speak(..., { queue: true })` ставит фразы в очередь (не `cancel()`): раньше звучала только последняя фраза всего диалога.
-- **JSON/ink** — подписи-описания над JSON кампании и мира убраны; поле почти до низа экрана (`calc(100vh - 150px)`); раскрытый «Расширенный JSON» — `min-height: 62vh` (rows 22). Ink-исходник диалогов (`details.advanced-json`) — внизу на всю ширину (`flex-wrap` + `order`), не правой колонкой.
-- **`ArenaEditor`** — «Музыка боя» перенесена компактным полем внутрь блока «Арена».
-- **Жетоны в бою** — по своим/мёртвым `--cur-cross` (прицел), по живому врагу `--cur-sword` (меч), включая само изображение жетона.
+- Плашка «d100» в справке — по содержимому (без наезда на текст, nowrap);
+- **JSON-вкладки без скролла страницы** (Кампания, Мир, сцены, арены): редактор
+  Monaco уместился в экран и скроллится сам (flex-цепочка
+  `.editor-shell → .editor-main → .world-main → .advanced-json-page`);
+- **темы полотна редактора**: Бумага (дефолт) / Тёмная / Графит — выбор
+  мастера, `localStorage`, хром «ателье» неизменен;
+- узлы диалога на бумажной карточке читаемы (`.dlg-nodes .editor-list-item` —
+  контрастная типографика);
+- Мир→JSON: `world-main` растягивается на всю высоту в json-режиме.
+Смоук — `scripts/feedback24-smoke.mts` (16 проверок).
 
-## 16. Редизайн 2026: визуальные профили и фирменный стиль
+## 11. Фаза 5 — что осталось
 
-Слоистая архитектура оформления: **универсальная UI-логика / именованные
-визуальные профили / ресурсы кампании / ограниченные переопределения автора**.
-В компонентах нет ни одного `if (genre === …)` — только токены и CSS-классы.
-
-### 16.1 Слой токенов (`src/index.css`)
-
-Один набор семантических переменных (`--bg/--panel/--border/--text/--gold/
---red/--green/--blue/--cf-font-*/--radius/--shadow-*/--overlay-bg/--hud-bg/
---focus-ring` + FX: `--fx-vignette`, `--fx-grain-opacity`). Каждый профиль —
-блок `.cf-profile-<id>` с полным набором токенов и именованным эффектом.
-Кроме палитры профиль задаёт характер: шрифтовые роли (body/display/hand/mono),
-скругления, тень, HUD-градиент, именные эффекты (ember/grain/haze/vignette/
-ink/dust/scan/neon/clean) и характерные правила (рамка сцены, типографика
-заголовков, декор панелей) — профиль не сводится к свотчу.
-
-Каталог из 13 профилей (`shared/profiles.ts`): `forge` (фирменный стиль
-Chronicle Forge, **дефолт**), `epic-fantasy`, `dark-fantasy`, `myth-folklore`,
-`gothic-horror`, `cosmic-horror`, `noir`, `historical`, `wilderness`,
-`postapocalypse`, `scifi`, `cyberpunk`, `modern`. Группы каталога (`PROFILE_
-GROUPS`) — только для карточек редактора.
-
-### 16.2 Применение
-
-- **Плеер** — `App.tsx` вешает `profileClass(meta)` (`.cf-profile-<id>`) на
-  контейнер `.cf-themed` **и** на `<html>` (модалки рендерятся на уровне
-  body). `themeVars()` (`shared/theme.ts`) поверх инлайном ставит только
-  авторские переопределения: шрифтовые роли кампании (`@font-face`), акцент
-  `--gold` + производный `--gold-bright` (`brightenHex`), масштаб текста.
-  Профиль в `themeVars` не попадает — только класс.
-- **Редактор** — собственный постоянный хром «ателье хроник» (`--ed-*` в
-  `editor.css`: графит-индиго, бумажные полотна, латунный бренд-акцент,
-  бирюза выбора). Профиль кампании на хром редактора **не влияет**; профиль
-  на `<html>` в режиме редактора снимается.
-- **Плейтест** — `EditorApp` оборачивает GameView/CharacterCreation в
-  `.cf-themed .cf-profile-<id>` с `themeVars(campaign, 1)` внутри
-  `.playtest-shell` (z-index 20000): кампания темится, хром — нет.
-
-### 16.3 Обратная совместимость
-
-Старые id `theme.profile` = `fantasy`/`horror`/`survival` не удалялись из
-данных: `normalizeProfileId()` (`shared/profiles.ts`) сопоставляет их через
-`LEGACY_PROFILE_IDS` → `dark-fantasy`/`gothic-horror`/`wilderness`. Данные
-не мигрируют; неизвестное значение — дефолт `forge` без падения. Кампании без
-`theme` получают фирменный профиль. Демо «Пепел Каэрдена» явно переведено на
-`dark-fantasy` (`campaign.json → theme.profile`), сохраняя прежний вид.
-
-### 16.4 Переопределения автора (безопасный набор)
-
-`theme.accent` (цвет + авто-производный яркий; предупреждение редактора при
-контрасте < 2.5 к панели, WCAG `contrastRatio`), `theme.fonts.{body,display,
-hand}`, `theme.menu.{background,dim,ken_burns,title_art}`,
-`theme.end.background`, `theme.atmosphere: false`. Произвольного CSS/JS из
-данных кампании нет — только реестр именованных значений и ограниченное
-число полей.
-
-### 16.5 Проверки
-
-`scripts/tz12-profiles-smoke.mts`: каталог (13 id, группы, эффекты,
-шрифтовые роли, различимость палитр/шрифтов/эффектов), legacy-маппинг,
-дефолт `forge`, переопределения акцента, монолит-раундтрип профиля без
-изменения `dice_rules`/квестов, схема и AI-гайд, классы в плеере/редакторе,
-«характер в CSS» (блок токенов + FX + характерные правила у каждого
-профиля). `scripts/contrast-audit.mts`: WCAG-аудит пар
-(текст/фон/панель, вторичный текст, акценты, состояния) по всем профилям.
-
-## 17. Фидбек 24: справка, JSON-вкладки, темы полотна редактора
-
-- **Справка** — `.checks-row .checks-mark` вместо фиксированного `width: 1.2em`
-  (под односимвольные `* + − ×`) получил `min-width: 1.2em`: плашка «d100» в
-  таблице проверок стала по содержимому и больше не наезжает на текст.
-- **Узлы диалога** — список `.dlg-nodes` стоит на бумажной карточке, а 
-  `.editor-list-item` стилизован под тёмный хром: подписи узлов (Первая встреча у 
-  ворот…) сливались с фоном. Добавлены бумажные переопределения 
-  `.dlg-nodes .editor-list-item` (текст, hover, on-состояние) — как у дерева мира.
-- **Вкладки JSON** (Кампания → JSON, Мир → JSON) — страница не скроллится.
-  Цепочка контейнеров стала flex-колонкой до `.advanced-json-page`, и редактор
-  кода занимает остаток экрана, скроллясь сам:
-  `.editor-main:has(> .rule-editor > .advanced-json-page)` и
-  `.world-main:has(> .advanced-json-page)` → `display: flex; flex-direction:
-  column`, а `.advanced-json-page { flex: 1; min-height: 0; height: auto }`.
-- **Темы полотна редактора** — хром «ателье» неизменен; выбирается рабочее
-  полотно: `ed-theme-paper` (дефолт, светлая бумага), `ed-theme-dark` (холодный
-  графит), `ed-theme-anthracite` (тёплый уголь). Реализация — переопределение
-  бумажных токенов `--ed-paper*` + `--ed-canvas-glow` классом на `.editor-root`
-  (все 150+ потребителей токенов подхватываются автоматически). Выбор мастера
-  хранится в `localStorage` (`cf_editor_theme`), переключатель — в тулбаре.
-  Это настройка окружения, а не данные кампании: в `campaign.json` не попадает.
+- Пиксель-перфект рендер боя (PixiJS) — если понадобятся анимации и большие
+  карты; сейчас SVG-оверлей полностью отделён от логики и готов к замене.
+- Сохранение из редактора в прод-сборке/Tauri через Tauri fs (сейчас —
+  dev-эндпоинты vite и экспорт `.chronicle`).
+- Баланс демо-кампании и новых механик (крафт/статусы/способности) под
+  длительные забеги.
+- Справка «Уровень 3» (ссылки на первоисточники правил) — отложена по
+  решению заказчика.
