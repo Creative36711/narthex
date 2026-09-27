@@ -1173,7 +1173,8 @@ export interface DlgSection {
 /** проверка навыка с ветками успеха и провала */
 export interface DlgCheck {
   skill: string
-  difficulty: number
+  /** см. SkillDifficulty: число-порог (50 нейтрально) или уровень */
+  difficulty: SkillDifficulty
   /** изменённая сложность при условиях (например «легче, если пришли с тыла») */
   mods?: Array<{ conds: DlgCond[]; value: number }>
   success: { sections: DlgSection[]; goto: string }
@@ -1255,7 +1256,7 @@ export interface RecipeDef {
   /** декларативные условия возможности крафта (локация, флаг, …) */
   requires?: Condition[]
   /** проверка навыка при изготовлении; успех = создал, провал = компоненты целы */
-  skill?: { id: string; difficulty: number }
+  skill?: { id: string; difficulty: SkillDifficulty }
   /** время изготовления (промотка тиков после успеха) */
   time_ticks?: number
   /** результат */
@@ -1286,6 +1287,13 @@ export interface QuestDef {
 
 // ───────────────────────── случайные встречи (ТЗ 3.8) ─────────────────────────
 
+/**
+ * Сложность проверки навыка (аудит §5.6 п.7): число — старый порог
+ * (50 нейтрально, больше — труднее), строка — книжный уровень:
+ * 'easy' ×2, 'normal' ×1, 'difficult' ½, 'impossible' ¼.
+ */
+export type SkillDifficulty = number | 'easy' | 'normal' | 'difficult' | 'impossible'
+
 export type EncounterEntry =
   | { weight: number; type: 'nothing' }
   | {
@@ -1300,7 +1308,7 @@ export type EncounterEntry =
       weight: number
       type: 'skill_check'
       skill: string
-      difficulty: number
+      difficulty: SkillDifficulty
       message?: string
       success_effects: Effect[]
       fail_effects: Effect[]
@@ -1417,7 +1425,7 @@ export type Effect =
   | {
       type: 'skill_check_gate'
       skill: string
-      difficulty: number
+      difficulty: SkillDifficulty
       success_effects: Effect[]
       fail_effects: Effect[]
     }

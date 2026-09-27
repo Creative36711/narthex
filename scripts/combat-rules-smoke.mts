@@ -383,5 +383,22 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   check('9 отдых восстанавливает удачу', e.luck() === e.luckMax())
 }
 
+// ── 10. уровни сложности проверок (аудит §5.6 п.7) ──
+{
+  const c = synth((camp) => {
+    buff(camp)
+    camp.meta.dice_rules = { ...(camp.meta.dice_rules ?? ({} as never)), fumble_from: 100 }
+  })
+  const e = new GameEngine(c)
+  e.start()
+  ;(e as any).rng = new PRNG('cr-lvl')
+  e.state.player.skills = { ...e.state.player.skills, brawl: 60 }
+  check('10 лёгкая проверка: цель ×2', e.playerSkillCheck('brawl', 'easy').target === 120)
+  check('10 обычная строкой = обычной числом', e.playerSkillCheck('brawl', 'normal').target === e.playerSkillCheck('brawl', 50).target)
+  check('10 трудная проверка: цель ½', e.playerSkillCheck('brawl', 'difficult').target === 30)
+  check('10 невозможная: цель ¼', e.playerSkillCheck('brawl', 'impossible').target === 15)
+  check('10 числовой порог 70 → цель 40', e.playerSkillCheck('brawl', 70).target === 40)
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

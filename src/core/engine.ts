@@ -23,6 +23,7 @@ import type {
   TravelConnection,
   NeedCondition,
   PresenceOverride,
+  SkillDifficulty,
   WeaponData,
 } from '../shared/types'
 import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES } from '../shared/types'
@@ -33,7 +34,7 @@ import {
   writeSave,
 } from './savemigrate'
 import { PRNG } from './prng'
-import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL, type SkillCheckOutcome } from './brp'
+import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL, difficultyModifier, difficultyLabel, type SkillCheckOutcome } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
@@ -842,14 +843,16 @@ export class GameEngine {
   }
 
   /** Проверка навыка игрока с «галочкой» опыта при успехе. */
-  playerSkillCheck(skill: string, difficulty = 50): ReturnType<typeof skillCheck> {
+  playerSkillCheck(skill: string, difficulty: SkillDifficulty = 50): ReturnType<typeof skillCheck> {
     // навыки выключены профилем — проверка резолвится успехом без броска
     if (!featureOn(this.campaign.meta, 'skills')) {
       return { roll: 0, target: 100, result: 'success', success: true }
     }
     const value = Math.max(0, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
-    const out = skillCheck(value, this.rng, 50 - difficulty, this.diceRules)
-    this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
+    const out = skillCheck(value, this.rng, difficultyModifier(value, difficulty), this.diceRules)
+    this.pushLog(
+      `Проверка «${this.skillLabel(skill)}» (${difficultyLabel(difficulty)}) — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`,
+    )
     if (out.success) this.markSkill(skill)
     return out
   }

@@ -1068,7 +1068,7 @@ function CheckEditor({
         <button
           className="btn btn-small"
           onClick={() => {
-            check.mods = [...(check.mods ?? []), { conds: [blankCond('flag')], value: check.difficulty - 20 }]
+            check.mods = [...(check.mods ?? []), { conds: [blankCond('flag')], value: typeof check.difficulty === 'number' ? check.difficulty - 20 : 30 }]
             commit()
           }}
         >
