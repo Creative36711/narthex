@@ -5,7 +5,7 @@ import type { Condition, Effect, NpcDef } from '../shared/types'
 import { makeId } from './ids'
 import type { EditorStore } from './store'
 import { isExternalUrl } from '../core/loader'
-import { askText } from '../shared/modals'
+import { askText, showAlert } from '../shared/modals'
 import { checkExternalUrl, reportAssetError, type AssetKind, type UrlCheck } from './assets'
 import {
   CONDITION_SCHEMAS,
@@ -1025,6 +1025,19 @@ export function FileAdvancedJson({ store, path, commit, label = 'Расшире�
   const apply = (v: unknown) => {
     const text = v as string | undefined
     if (text !== undefined) {
+      // Жёсткий запрет переименования id (`docs/compatibility.md`): на id
+      // завязаны все ссылки пакета и сохранения игроков. Переименовать объект
+      // нельзя — можно создать новый, а старый удалить.
+      const before = store.jsonFiles.get(path) as { id?: string } | undefined
+      const after = text as unknown as { id?: string }
+      if (before?.id && after && typeof after === 'object' && after.id && after.id !== before.id) {
+        void showAlert(
+          'Менять id нельзя',
+          `Id «${before.id}» → «${after.id}».\n\nНа этот id ссылаются другие объекты кампании и сохранения игроков: после переименования связи и старые сейвы сломаются. Создайте новый объект, перенесите в него содержимое, а старый удалите.`,
+        )
+        setGen((n) => n + 1) // вернуть в поле прежнее значение
+        return
+      }
       store.jsonFiles.set(path, text)
       commit()
     }

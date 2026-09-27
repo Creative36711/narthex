@@ -13,6 +13,11 @@ import { brightenHex } from '../shared/theme'
 import { PROFILE_GROUPS, VISUAL_PROFILES, resolveProfile, contrastRatio } from '../shared/profiles'
 
 import { askText, askConfirm } from './prompt'
+import { showList, showAlert } from '../shared/modals'
+import { applyPublish, loadCompat, planPublish, storeInventory, type PublishPlan } from './compatPublish'
+import { diffReportLines } from '../shared/compat'
+import { ENGINE_VERSION, PACKAGE_FORMAT, bumpVersion } from '../shared/versions'
+import type { CampaignCompat } from '../shared/types'
 import { migrateNeedCondition } from '../shared/migrate'
 import { AudioRegistries, SoundHookMapEditor } from './AudioSection'
 
@@ -709,7 +714,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
     store.touch('campaign.json')
     force((n) => n + 1)
   }
-  type CeTab = 'main' | 'mechanics' | 'look' | 'statuses' | 'people' | 'items' | 'flags' | 'audio' | 'json'
+  type CeTab = 'main' | 'versions' | 'mechanics' | 'look' | 'statuses' | 'people' | 'items' | 'flags' | 'audio' | 'json'
   const [tab, setTab] = useState<CeTab>('main')
 
   const sceneOpts = store.options('scene')
@@ -720,12 +725,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
   return (
     <div className="rule-editor">
       <div className="ce-tabs">
-        {([['main', 'Основное'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['statuses', 'Статусы и способности'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
+        {([['main', 'Основное'], ['versions', 'Версии'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['statuses', 'Статусы и способности'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
           <button key={id} type="button" className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
             {lab}
           </button>
         ))}
       </div>
+
+      {tab === 'versions' && <VersionsTab store={store} commit={commit} />}
 
       {tab === 'mechanics' && (
         <div className="props-group">
@@ -2141,6 +2148,138 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
           }}
         >
           + способность
+        </button>
+      </div>
+    </>
+  )
+}
+
+/**
+ * Вкладка «Версии» (фаза B совместимости): версия кампании, минимальный
+ * движок, публикация обновления с контрактом `compat.json`.
+ *
+ * Совместимость считается автоматически: редактор сравнивает пакет с
+ * предыдущей публикацией и предлагает `save_base_version`. Мастер только
+ * подтверждает — вручную таблицы совместимости вести не нужно.
+ */
+function VersionsTab({ store, commit }: { store: EditorStore; commit: () => void }) {
+  const m = store.meta
+  const [, force] = useState(0)
+  const [compat, setCompat] = useState<CampaignCompat | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    void loadCompat(store).then((c) => setCompat(c))
+  }, [store])
+
+  const publish = async () => {
+    setBusy(true)
+    try {
+      const plan: PublishPlan = await planPublish(store)
+      const lines = diffReportLines(plan.diff)
+      await showList(
+        plan.previous ? `Обновление ${plan.previous.version} → ${plan.suggestedVersion}` : 'Первая публикация версии',
+        lines,
+        plan.diff.breaking
+          ? `Есть ломающие изменения: сохранения до версии ${plan.suggestedBase} поддерживаться не будут. Игрок увидит это до обновления кампании.`
+          : 'Ломающих изменений нет: сохранения игроков продолжат работать.',
+        { label: 'Скопировать отчёт', text: lines.join('\n') },
+      )
+      const nextVersion =
+        (await askText(
+          'Версия кампании',
+          'например 1.5.0',
+          plan.suggestedVersion,
+          'Опубликовать',
+        )) ?? ''
+      if (!nextVersion.trim()) return
+      const notes = (await askText('Что изменилось (видно игроку)', 'например «переписана глава 3»', plan.compat.notes ?? '', 'Записать')) ?? undefined
+      const paths = applyPublish(store, plan, nextVersion.trim(), notes)
+      await store.saveToDisk(paths)
+      setCompat(await loadCompat(store))
+      commit()
+      force((n) => n + 1)
+      await showAlert('Версия опубликована', `Записаны ${paths.join(', ')}. Сохраните кампанию, чтобы изменения попали на диск.`)
+    } catch (e) {
+      await showAlert('Не удалось опубликовать версию', String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const inventory = storeInventory(store)
+
+  return (
+    <>
+      <div className="props-group">
+        <h4>Версии</h4>
+        <p className="muted small">
+          Версия кампании — для игрока и для совместимости сохранений. Версия движка
+          и формат пакета подставляются сами: их задаёт Chronicle Forge, не мастер.
+        </p>
+        <div className="fld-row">
+          <label className="fld">
+            <span>Версия кампании</span>
+            <input value={m.version} onChange={(e) => ((m.version = e.target.value), commit())} />
+          </label>
+          <label className="fld" data-tip="Минимальная версия движка, на которой кампания работает корректно">
+            <span>Мин. движок</span>
+            <input
+              value={m.min_engine ?? ''}
+              placeholder={ENGINE_VERSION}
+              onChange={(e) => ((m.min_engine = e.target.value || undefined), commit())}
+            />
+          </label>
+          <div className="fld">
+            <span>Движок сейчас</span>
+            <input value={ENGINE_VERSION} readOnly />
+          </div>
+          <div className="fld">
+            <span>Формат пакета</span>
+            <input value={`v${PACKAGE_FORMAT}`} readOnly />
+          </div>
+        </div>
+        <div className="fld-row">
+          <label className="fld" data-tip="Сохранения от какой версии кампании ещё поддерживаются. Заполняется при публикации обновления.">
+            <span>Сохранения поддерживаются с версии</span>
+            <input
+              value={m.save_base_version ?? ''}
+              placeholder="поддерживаются все"
+              onChange={(e) => ((m.save_base_version = e.target.value || undefined), commit())}
+            />
+          </label>
+          <div className="fld">
+            <span>Быстро поднять версию</span>
+            <span className="btn-row">
+              <button className="btn btn-small" onClick={() => ((m.version = bumpVersion(m.version, 'patch')), commit())}>+_patch</button>
+              <button className="btn btn-small" onClick={() => ((m.version = bumpVersion(m.version, 'minor')), commit())}>+minor</button>
+              <button className="btn btn-small" onClick={() => ((m.version = bumpVersion(m.version, 'major')), commit())}>+major</button>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Контракт совместимости (compat.json)</h4>
+        {compat ? (
+          <p className="muted small">
+            Опубликована версия {compat.version}
+            {compat.save_base_version ? `; сохранения поддерживаются с ${compat.save_base_version}` : '; поддерживаются все сохранения'}
+            {compat.updated_at ? `; обновлено ${new Date(compat.updated_at).toLocaleString('ru-RU')}` : ''}
+            {compat.breaks?.length ? `; ломающих изменений: ${compat.breaks.length}` : ''}.
+          </p>
+        ) : (
+          <p className="muted small">
+            Контракта ещё нет: кампания не публиковалась. При первой публикации
+            редактор зафиксирует текущее состояние пакета как точку отсчёта.
+          </p>
+        )}
+        <p className="muted small">
+          Объектов в пакете: {Object.values(inventory.ids).reduce((n, list) => n + list.length, 0)} ·
+          отпечаток инвентаризации: <code>{inventory.digest}</code>
+        </p>
+        <button className="btn btn-primary" disabled={busy} onClick={() => void publish()}>
+          {busy ? 'Сравнение…' : 'Проверить совместимость и опубликовать версию'}
         </button>
       </div>
     </>
