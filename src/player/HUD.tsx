@@ -13,6 +13,7 @@ interface Props {
   onOpenInventory: () => void
   onOpenCharacter: () => void
   onOpenLog: () => void
+  onOpenMeta?: () => void
   onOpenCraft: () => void
   onOpenCodex: () => void
   onOpenSaves: () => void
@@ -20,7 +21,7 @@ interface Props {
   onExitToMenu: () => void
 }
 
-export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenCraft, onOpenCodex, onOpenSaves, onOpenHelp, onExitToMenu }: Props) {
+export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenCraft, onOpenCodex, onOpenSaves, onOpenHelp, onOpenMeta, onExitToMenu }: Props) {
   const s = engine.state
   const meta = engine.campaign.meta
   const tod = timeOfDay(s.tick, meta)
@@ -139,6 +140,9 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         )}
         <button className="hud-btn" onClick={onOpenCharacter} data-tip="Лист персонажа"><Ico n="user" />  Герой</button>
         <button className="hud-btn" onClick={onOpenLog} data-tip="Журнал"><Ico n="scroll" />  Журнал</button>
+        {engine.metaProgressEnabled() && onOpenMeta && (
+          <button className="hud-btn" onClick={onOpenMeta} data-tip="Хроника: достижения, метавалюта и постоянные усиления между забегами"><Ico n="star" />  Хроника</button>
+        )}
         {engine.campAvailable().ok && (
           <button className="hud-btn" onClick={() => engine.campRest()} data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}>
             <Ico n="flame" />  Лагерь

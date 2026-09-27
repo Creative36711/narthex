@@ -96,6 +96,10 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.bountyTotal() >= c.threshold
     case 'level_ge':
       return engine.level() >= c.level
+    case 'meta_currency_ge':
+      return engine.metaCurrency(c.currency) >= c.threshold
+    case 'meta_achievement':
+      return engine.metaAchievementDone(c.id)
     case 'has_feat':
       return (engine.state.player.feats ?? []).includes(c.id)
     case 'and':

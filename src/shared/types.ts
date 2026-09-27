@@ -133,6 +133,76 @@ export interface FeatDef {
   }
 }
 
+// ───── мета-прогресс между забегами (аудит B8b) ─────
+
+/** Метавалюта: копится между забегами, тратится на постоянные усиления. */
+export interface MetaCurrencyDef {
+  id: string
+  label: string
+  icon?: string
+  description?: string
+}
+
+/**
+ * Достижение кампании: условие истинно при проверке (тик, эффекты, конец
+ * забега) → открывается навсегда. Либо счётчик stats-суммы к цели.
+ * Награда — в метавалюте или в опыте текущего забега.
+ */
+export interface AchievementDef {
+  id: string
+  label: string
+  description?: string
+  icon?: string
+  /** не показывать в списке до открытия */
+  hidden?: boolean
+  /** условия — все истинны для открытия (иначе счётчик) */
+  conditions?: Condition[]
+  /** накопительная метрика: поле stats_run суммируется по всем забегам */
+  counter?: { stat: 'travels' | 'dialogues' | 'ticks_survived' | 'kills' | 'quests_completed'; target: number }
+  /** награда при открытии */
+  reward?: { currency?: string; amount?: number; xp?: number }
+}
+
+/** Постоянное усиление, купленное за метавалюту; действует каждом новом забеге. */
+export interface MetaUnlockDef {
+  id: string
+  label: string
+  description?: string
+  icon?: string
+  /** цена в метавалютах */
+  cost: { currency: string; amount: number }[]
+  /** эффекты, исполняемые один раз при старте каждого нового забега */
+  grants: Effect[]
+  /** условия видимости/доступности в магазине (все истинны) */
+  requires?: Condition[]
+}
+
+/**
+ * Снимок мета-хранилища кампании (localStorage `chronicle-forge:meta:<id>`):
+ * счётчики забегов, метавалюты, открытые достижения, купленные усиления,
+ * суммарная статистика всех забегов.
+ */
+export interface MetaStoreState {
+  runs: number
+  deaths: number
+  victories: number
+  currencies: Record<string, number>
+  /** id достижения → дата открытия (ISO) */
+  achievements: Record<string, string>
+  unlocks: string[]
+  counters: Record<string, number>
+}
+
+/** Конфиг мета-прогресса кампании (включён самим наличием блока). */
+export interface MetaProgressDef {
+  /** метавалюты */
+  currencies?: MetaCurrencyDef[]
+  /** реестр достижений */
+  achievements?: AchievementDef[]
+  /** магазин постоянных усилений */
+  unlocks?: MetaUnlockDef[]
+}
+
 /** Активный статус: сколько осталось (тиков в мире, раундов в бою). */
 export interface ActiveStatus {
   id: string
@@ -686,6 +756,13 @@ export interface CampaignMeta {
     /** реестр черт, доступных герою */
     feats?: FeatDef[]
   }
+  /**
+   * Мета-прогресс между забегами (аудит B8b): достижения, метавалюты и
+   * постоянные усиления. Сохранение — отдельным ключом localStorage
+   * `chronicle-forge:meta:<campaignId>`, живёт перекрёстно между сейвами.
+   * Отсутствие блока — мета-прогресса нет (мастер может опустить весь пласт).
+   */
+  metaprogress?: MetaProgressDef
   /**
    * Скрытность и обнаружение (аудит §5.6 п.12). Отсутствие блока — системы
    * нет (для стелс-кампаний мастер включает явно).
@@ -1630,6 +1707,10 @@ export type Condition =
   | { type: 'bounty_total_ge'; threshold: number }
   /** уровень героя не ниже (аудит B8, meta.progression) */
   | { type: 'level_ge'; level: number }
+  /** метавалюты достаточно (аудит B8b) */
+  | { type: 'meta_currency_ge'; currency: string; threshold: number }
+  /** достижение открыто (аудит B8b) */
+  | { type: 'meta_achievement'; id: string }
   /** черта взята (аудит B8) */
   | { type: 'has_feat'; id: string }
   /** страсть не ниже значения (аудит B6) */
@@ -1780,6 +1861,8 @@ export type Effect =
   | { type: 'clear_price_event'; id?: string }
   /** очки опыта (аудит B8, meta.progression) */
   | { type: 'grant_xp'; points: number }
+  /** начислить метавалюту (аудит B8b), открытие достижения meta_achievement не срабатывает — его проверяем отдельно */
+  | { type: 'meta_currency'; id: string; amount: number }
   /** выдать черту вне прокачки (аудит B8; дубликаты игнорируются) */
   | { type: 'grant_feat'; id: string }
   | { type: 'join_party'; entity: string }

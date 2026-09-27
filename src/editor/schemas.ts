@@ -216,6 +216,19 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'id', label: 'id черты', kind: 'string' }],
     blank: { id: '' },
   },
+  meta_currency_ge: {
+    label: 'Метавалюты ≥',
+    fields: [
+      { key: 'currency', label: 'id метавалюты', kind: 'string' },
+      { key: 'threshold', label: 'Порог', kind: 'number' },
+    ],
+    blank: { currency: '', threshold: 10 },
+  },
+  meta_achievement: {
+    label: 'Достижение открыто',
+    fields: [{ key: 'id', label: 'id достижения', kind: 'string' }],
+    blank: { id: '' },
+  },
   need_le: {
     label: 'Потребность ≤',
     fields: [
@@ -549,6 +562,14 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Выдать черту',
     fields: [{ key: 'id', label: 'id черты', kind: 'string' }],
     blank: { id: '' },
+  },
+  meta_currency: {
+    label: 'Метавалюта (между забегами)',
+    fields: [
+      { key: 'id', label: 'id метавалюты', kind: 'string' },
+      { key: 'amount', label: 'Сумма (±)', kind: 'number' },
+    ],
+    blank: { id: '', amount: 5 },
   },
   start_quest: {
     label: 'Начать квест',

@@ -2577,3 +2577,51 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
   .brand-row::before, .brand-row::after { width: 24px; }
   .menu-secondary { grid-template-columns: 1fr; }
 }
+
+/* ─────────── мета-прогресс (хроника) ─────────── */
+.meta-side-panel { max-width: 520px; }
+.meta-summary {
+  display: flex; gap: 12px; margin-bottom: 14px;
+}
+.meta-summary > div {
+  flex: 1; text-align: center; background: var(--panel-2);
+  border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 8px;
+}
+.meta-summary span { display: block; font-size: 11px; color: var(--muted); }
+.meta-summary b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.meta-panel h4 { margin: 14px 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.meta-currencies { display: flex; flex-wrap: wrap; gap: 8px; }
+.meta-currency {
+  display: flex; gap: 8px; align-items: baseline;
+  background: var(--panel-2); border: 1px solid var(--border-soft);
+  border-radius: var(--radius); padding: 6px 10px;
+}
+.meta-currency span { color: var(--accent, #e8c46b); font-weight: 700; font-variant-numeric: tabular-nums; }
+.meta-unlocks, .meta-achievements { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.meta-unlocks li {
+  display: flex; align-items: center; gap: 10px; justify-content: space-between;
+  background: var(--panel-2); border: 1px solid var(--border-soft);
+  border-radius: var(--radius); padding: 8px 10px;
+}
+.meta-unlocks li.owned { border-color: var(--accent, #e8c46b); }
+.meta-unlock-info { display: flex; flex-direction: column; gap: 2px; }
+.meta-unlock-cost { font-size: 12px; color: var(--muted); }
+.meta-achievements li {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--panel-2); border: 1px solid var(--border-soft);
+  border-radius: var(--radius); padding: 8px 10px;
+}
+.meta-achievements li.locked { opacity: 0.65; }
+.meta-achievements li.done { border-color: var(--accent, #e8c46b); }
+.meta-ach-icon { color: var(--accent, #e8c46b); padding-top: 2px; }
+.meta-ach-info { display: flex; flex-direction: column; gap: 2px; }
+.meta-ach-progress { font-size: 12px; color: var(--muted); }
+.meta-ach-reward { font-size: 12px; color: var(--accent, #e8c46b); }
+.meta-totals { font-size: 12px; }
+.end-meta { margin: 12px 0; text-align: left; }
+.end-meta h4 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 0 6px; }
+.end-meta ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.end-meta li { display: flex; gap: 8px; align-items: center; }
+.end-meta-currencies { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+.end-meta-cur { background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 4px 10px; font-size: 13px; }
+.small { font-size: 12px; }

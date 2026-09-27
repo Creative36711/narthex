@@ -1527,5 +1527,92 @@
   ],
   "theme": {
     "profile": "dark-fantasy"
+  },
+  "metaprogress": {
+    "currencies": [
+      {
+        "id": "ash",
+        "label": "Пепел",
+        "description": "Крупицы пепла Кэрдена — память прошлых забегов. Копится между попытками, тратится в Хронике."
+      }
+    ],
+    "achievements": [
+      {
+        "id": "rat_catcher",
+        "label": "Крысолов",
+        "description": "Зачистить подвал таверны от крыс.",
+        "conditions": [
+          {
+            "type": "flag_set",
+            "flag": "rats_done"
+          }
+        ],
+        "reward": {
+          "currency": "ash",
+          "amount": 5
+        }
+      },
+      {
+        "id": "ash_survivor",
+        "label": "Прижился в золе",
+        "description": "Прожить 50 тиков за один забег.",
+        "counter": {
+          "stat": "ticks_survived",
+          "target": 50
+        },
+        "reward": {
+          "currency": "ash",
+          "amount": 10
+        }
+      },
+      {
+        "id": "slayer5",
+        "label": "Пятеро не вернутся",
+        "description": "Победить пятерых врагов (суммарно по всем забегам).",
+        "counter": {
+          "stat": "kills",
+          "target": 5
+        },
+        "reward": {
+          "currency": "ash",
+          "amount": 5,
+          "xp": 0
+        }
+      },
+      {
+        "id": "chronicler",
+        "label": "Слушатель хроник",
+        "description": "Поговорить со всеми жителями (10 диалогов суммарно).",
+        "counter": {
+          "stat": "dialogues",
+          "target": 10
+        },
+        "hidden": true,
+        "reward": {
+          "currency": "ash",
+          "amount": 8
+        }
+      }
+    ],
+    "unlocks": [
+      {
+        "id": "heirloom_silver",
+        "label": "Наследная марка",
+        "description": "В начале каждого нового забега герой находит в кармане две серебряные марки — последнее, что осталось от прошлых попыток.",
+        "cost": [
+          {
+            "currency": "ash",
+            "amount": 8
+          }
+        ],
+        "grants": [
+          {
+            "type": "add_item",
+            "item": "item_silver",
+            "quantity": 2
+          }
+        ]
+      }
+    ]
   }
 }

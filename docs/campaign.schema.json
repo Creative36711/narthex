@@ -1121,6 +1121,26 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "meta_currency"
+            },
+            "id": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "amount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "grant_feat"
             },
             "id": {
@@ -2021,6 +2041,42 @@
           "required": [
             "type",
             "level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "meta_currency_ge"
+            },
+            "currency": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "currency",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "meta_achievement"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id"
           ],
           "additionalProperties": false
         },
@@ -3216,6 +3272,190 @@
       "additionalProperties": false,
       "description": "Черта прокачки (аудит B8, meta.progression.feats): постоянный бонус героя.\nМесяет навыки, характеристики, HP/MP, движение; условия доступности —\nобычные условия кампании (requires)."
     },
+    "MetaCurrencyDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Метавалюта: копится между забегами, тратится на постоянные усиления."
+    },
+    "AchievementDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "hidden": {
+          "type": "boolean",
+          "description": "не показывать в списке до открытия"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия — все истинны для открытия (иначе счётчик)"
+        },
+        "counter": {
+          "type": "object",
+          "properties": {
+            "stat": {
+              "type": "string",
+              "enum": [
+                "travels",
+                "dialogues",
+                "ticks_survived",
+                "kills",
+                "quests_completed"
+              ]
+            },
+            "target": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "stat",
+            "target"
+          ],
+          "additionalProperties": false,
+          "description": "накопительная метрика: поле stats_run суммируется по всем забегам"
+        },
+        "reward": {
+          "type": "object",
+          "properties": {
+            "currency": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            },
+            "xp": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "description": "награда при открытии"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Достижение кампании: условие истинно при проверке (тик, эффекты, конец\nзабега) → открывается навсегда. Либо счётчик stats-суммы к цели.\nНаграда — в метавалюте или в опыте текущего забега."
+    },
+    "MetaUnlockDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "cost": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "currency": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "currency",
+              "amount"
+            ],
+            "additionalProperties": false
+          },
+          "description": "цена в метавалютах"
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          },
+          "description": "эффекты, исполняемые один раз при старте каждого нового забега"
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия видимости/доступности в магазине (все истинны)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "cost",
+        "grants"
+      ],
+      "additionalProperties": false,
+      "description": "Постоянное усиление, купленное за метавалюту; действует каждом новом забеге."
+    },
+    "MetaProgressDef": {
+      "type": "object",
+      "properties": {
+        "currencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MetaCurrencyDef"
+          },
+          "description": "метавалюты"
+        },
+        "achievements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AchievementDef"
+          },
+          "description": "реестр достижений"
+        },
+        "unlocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MetaUnlockDef"
+          },
+          "description": "магазин постоянных усилений"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Конфиг мета-прогресса кампании (включён самим наличием блока)."
+    },
     "CampaignMeta": {
       "type": "object",
       "properties": {
@@ -3852,6 +4092,10 @@
           },
           "additionalProperties": false,
           "description": "Уровни и черты — ОПЦИОНАЛЬНАЯ прогрессия поверх BRP (аудит B8).\nОтсутствие блока — систем нет (классический рогалик: рост только навыков).\nОпыт — эффектом grant_xp (или награды достижений), пороги:\nxp_per_level (умолчание 100 за уровень, кумулятивно base×(1..n))."
+        },
+        "metaprogress": {
+          "$ref": "#/$defs/MetaProgressDef",
+          "description": "Мета-прогресс между забегами (аудит B8b): достижения, метавалюты и\nпостоянные усиления. Сохранение — отдельным ключом localStorage\n`chronicle-forge:meta:<campaignId>`, живёт перекрёстно между сейвами.\nОтсутствие блока — мета-прогресса нет (мастер может опустить весь пласт)."
         },
         "stealth": {
           "type": "object",

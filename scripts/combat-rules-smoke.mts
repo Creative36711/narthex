@@ -1011,5 +1011,74 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   check('19 выкл: grant_feat молча игнорируется', (e2.state.player.feats ?? []).length === 0)
 }
 
+
+// ═══ §20. Мета-прогресс между забегами (B8b) ═══
+{
+  // чистим мета-хранилище тестовой кампании
+  const metaKey = 'chronicle-forge:meta:ash-of-caerden'
+  localStorage.removeItem(metaKey)
+
+  const mk = () => new GameEngine(synth((camp) => {
+    buff(camp)
+    camp.meta.metaprogress = {
+      currencies: [{ id: 'ember', label: 'Угли' }],
+      achievements: [
+        { id: 'diehard', label: 'Живчик', counter: { stat: 'ticks_survived', target: 5 } },
+        { id: 'flagon', label: 'Флаговец', conditions: [{ type: 'flag_set', flag: 'test_flag_x' }], reward: { currency: 'ember', amount: 7 } },
+      ],
+      unlocks: [
+        {
+          id: 'hardy', label: 'Закалённый',
+          cost: [{ currency: 'ember', amount: 5 }],
+          grants: [{ type: 'set_flag', flag: 'meta_hardy_applied' } as never],
+        },
+      ],
+    }
+  }))
+
+  const e1 = mk()
+  check('20 мета-прогресс выключен без блока', !new GameEngine(synth((camp) => { buff(camp); delete (camp.meta as { metaprogress?: unknown }).metaprogress })).metaProgressEnabled())
+  check('20 мета-прогресс включён блоком', e1.metaProgressEnabled())
+
+  e1.start()
+  const st1 = e1.metaStore()
+  check('20 забег засчитан в хронику', st1.runs === 1, `runs=${st1.runs}`)
+
+  check('20 достижение не открыто до условия', !e1.metaAchievementDone('flagon'))
+  e1.applyEffect({ type: 'set_flag', flag: 'test_flag_x' } as never)
+  check('20 достижение по условию открылось', e1.metaAchievementDone('flagon'))
+  check('20 награда метавалютой начислена', e1.metaCurrency('ember') === 7, `ember=${e1.metaCurrency('ember')}`)
+  check('20 повторно достижение не начисляет', (() => { e1.checkAchievements(); return e1.metaCurrency('ember') === 7 })())
+
+  check('20 счётчикное достижение не готово', !e1.metaAchievementDone('diehard'))
+  e1.advanceTicks(5)
+  check('20 счётчикное достижение за 5 тиков открылось', e1.metaAchievementDone('diehard'))
+
+  e1.gameOver('death', 'тест', true)
+  const st2 = e1.metaStore()
+  check('20 смерть ушла в хронику', st2.deaths === 1 && st2.runs === 1)
+  check('20 суммарная статистика накоплена', (st2.counters.ticks_survived ?? 0) >= 5, `ticks=${st2.counters.ticks_survived}`)
+
+  const e2 = mk()
+  check('20 хранилище живёт между движками', e2.metaStore().runs === 1)
+  check('20 достижения пережили смерть', e2.metaAchievementDone('flagon'))
+  check('20 счётчик суммируется с прошлым забегом', e2.achievementStates().find((a) => a.def.id === 'diehard')?.done === true)
+
+  check('20 усиление недоступно без валюты…', !e2.metaUnlockOwned('hardy'))
+  e2.grantMetaCurrency('ember', 3)
+  check('20 метавалюта докинулась', e2.metaCurrency('ember') === 10)
+  check('20 покупка усиления прошла', e2.buyMetaUnlock('hardy'))
+  check('20 валюта списалась', e2.metaCurrency('ember') === 5)
+  check('20 повторная покупка отклонена', !e2.buyMetaUnlock('hardy'))
+
+  e2.start()
+  check('20 забег №2 засчитан', e2.metaStore().runs === 2)
+  check('20 грант усиления применился на старте', !!e2.state.flags['meta_hardy_applied'])
+
+  // achievementsUnlockedThisRun — только для текущего движка
+  check('20 список достижений забега', e1.achievementsUnlockedThisRun().map((a) => a.id).sort().join(',') === 'diehard,flagon')
+  check('20 у нового движка свой список', e2.achievementsUnlockedThisRun().length === 0)
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

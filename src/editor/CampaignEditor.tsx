@@ -7,7 +7,7 @@ import { AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonFi
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
+import type { AchievementDef, CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { brightenHex } from '../shared/theme'
 import { PROFILE_GROUPS, VISUAL_PROFILES, resolveProfile, contrastRatio } from '../shared/profiles'
@@ -1127,6 +1127,125 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             />
           </label>
         </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Мета-прогресс между забегами (B8b)</h4>
+        <div className="fld-row">
+          <label className="fld fld-check" data-tip="Вкл — кнопка «Хроника» в HUD, достижения, метавалюты и магазин постоянных усилений. Хранится отдельным ключом localStorage chronicle-forge:meta:<campaignId>. Выкл — пласта нет вообще">
+            <input type="checkbox" checked={!!m.metaprogress} onChange={(e) => { if (e.target.checked) { m.metaprogress = { currencies: [{ id: 'ember', label: 'Угли' }], achievements: [], unlocks: [] } } else { delete m.metaprogress } commit() }} />
+            <span>Хроника (мета-прогресс)</span>
+          </label>
+          {m.metaprogress && (
+            <label className="fld" data-tip="Метавалюты: id=Название через запятую (копятся между забегами)">
+              <span>Метавалюты</span>
+              <input
+                defaultValue={(m.metaprogress.currencies ?? []).map((c) => `${c.id}=${c.label}`).join(', ')}
+                onBlur={(e) => {
+                  const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                    const [id, label] = x.split('=').map((y) => y.trim())
+                    const prev = (m.metaprogress?.currencies ?? []).find((c) => c.id === id)
+                    return prev ?? { id: id || '', label: label || id || '' }
+                  }).filter((x) => x.id)
+                  m.metaprogress!.currencies = arr
+                  commit()
+                }}
+              />
+            </label>
+          )}
+        </div>
+        {m.metaprogress && (
+          <div className="fld-row" style={{ flexDirection: 'column', gap: 8 }}>
+            <span className="fld-label">Достижения <span className="muted" data-tip="Формат строки: id=Название | счётчик:цель | награда:валюта:N или xp:N | «тайное». Счётчик — один из: kills, travels, dialogues, ticks_survived, quests_completed (сумма по всем забегам). Условия открытия — расширенный редактор ниже.">(?)</span></span>
+            <textarea
+              rows={(m.metaprogress.achievements?.length ?? 0) + 2}
+              value={(m.metaprogress.achievements ?? []).map((a) => `${a.id}=${a.label}${a.counter ? ` | ${a.counter.stat}:${a.counter.target}` : ''}${a.reward?.currency ? ` | награда:${a.reward.currency}:${a.reward.amount}` : ''}${a.reward?.xp ? ` | xp:${a.reward.xp}` : ''}${a.hidden ? ' | тайное' : ''}`).join('\n')}
+              onChange={(e) => {
+                const lines = e.target.value.split('\n')
+                const next: AchievementDef[] = []
+                for (const line of lines) {
+                  if (!line.trim()) continue
+                  const [idl, ...parts] = line.split('|').map((x) => x.trim())
+                  const [id, label] = (idl ?? '').split('=').map((x) => x.trim())
+                  if (!id) continue
+                  const prev = (m.metaprogress!.achievements ?? []).find((x) => x.id === id)
+                  const a: AchievementDef = prev ? { ...prev, label: label || id } : { id, label: label || id }
+                  a.counter = undefined; a.reward = undefined; a.hidden = false
+                  for (const part of parts) {
+                    if (/^(kills|travels|dialogues|ticks_survived|quests_completed):-?\d+$/.test(part)) {
+                      const [stat, tgt] = part.split(':')
+                      a.counter = { stat: stat as never, target: Math.max(1, parseInt(tgt, 10) || 1) }
+                    } else if (part.startsWith('награда:')) {
+                      const [, cur, amt] = part.split(':')
+                      a.reward = { ...(a.reward ?? {}), currency: cur, amount: parseInt(amt ?? '', 10) || 1 }
+                    } else if (part.startsWith('xp:')) {
+                      a.reward = { ...(a.reward ?? {}), xp: parseInt(part.slice(3), 10) || 0 }
+                    } else if (part === 'тайное') {
+                      a.hidden = true
+                    }
+                  }
+                  next.push(a)
+                }
+                m.metaprogress!.achievements = next
+                commit()
+              }}
+            />
+            {(m.metaprogress.achievements ?? []).map((a, i) => (
+              <div key={a.id} className="panel" style={{ padding: 8 }}>
+                <b>{a.label}</b> <code style={{ opacity: 0.7 }}>{a.id}</code>
+                <label className="fld" style={{ marginLeft: 12, display: 'inline-flex' }}>
+                  <input type="checkbox" checked={!!a.conditions?.length} onChange={(e) => { if (e.target.checked) { a.conditions = [{ type: 'flag_set', flag: '' }] } else { delete a.conditions } commit() }} />
+                  <span style={{ marginLeft: 6 }}>Открытие по условиям забега</span>
+                </label>
+                {a.conditions && (
+                  <ConditionListEditor
+                    store={store}
+                    conditions={a.conditions}
+                    onChange={(conds) => { const arr = (m.metaprogress?.achievements ?? []).map((x, j) => j === i ? { ...x, conditions: conds.length ? conds : undefined } : x); if (m.metaprogress) m.metaprogress.achievements = arr; commit() }}
+                  />
+                )}
+              </div>
+            ))}
+
+            <span className="fld-label">Магазин постоянных усилений</span>
+            <div className="fld-row">
+              <button className="btn btn-small" onClick={() => { m.metaprogress!.unlocks = [...(m.metaprogress!.unlocks ?? []), { id: makeId('unlock', 'новое усиление', (m.metaprogress?.unlocks ?? []).map((x) => x.id)), label: 'Новое усиление', cost: [{ currency: m.metaprogress!.currencies?.[0]?.id ?? 'ember', amount: 10 }], grants: [] }]; commit() }}>+ усиление</button>
+            </div>
+            {(m.metaprogress.unlocks ?? []).map((u, i) => (
+              <div key={u.id} className="panel" style={{ padding: 8 }}>
+                <div className="fld-row">
+                  <input value={u.label} onChange={(e) => { const arr = (m.metaprogress?.unlocks ?? []).map((x, j) => j === i ? { ...x, label: e.target.value } : x); m.metaprogress!.unlocks = arr; commit() }} style={{ flex: 1 }} />
+                  <code style={{ opacity: 0.6 }}>{u.id}</code>
+                  <button className="btn btn-small btn-danger" onClick={() => { m.metaprogress!.unlocks = (m.metaprogress?.unlocks ?? []).filter((_, j) => j !== i); commit() }}><Ico n="trash" /></button>
+                </div>
+                <div className="fld-row">
+                  <label className="fld" style={{ flex: 1 }}>
+                    <span>Описание</span>
+                    <input value={u.description ?? ''} onChange={(e) => { const arr = (m.metaprogress?.unlocks ?? []).map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); m.metaprogress!.unlocks = arr; commit() }} />
+                  </label>
+                  <label className="fld" data-tip="валюта:сумма, …">
+                    <span>Цена</span>
+                    <input
+                      defaultValue={u.cost.map((c) => `${c.currency}:${c.amount}`).join(', ')}
+                      onBlur={(e) => {
+                        const cost = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => { const [currency, amt] = x.split(':'); return { currency: currency ?? '', amount: parseInt(amt ?? '', 10) || 1 } }).filter((x) => x.currency)
+                        const arr = (m.metaprogress?.unlocks ?? []).map((x, j) => j === i ? { ...x, cost: cost.length ? cost : [{ currency: m.metaprogress!.currencies?.[0]?.id ?? 'ember', amount: 10 }] } : x)
+                        m.metaprogress!.unlocks = arr
+                        commit()
+                      }}
+                    />
+                  </label>
+                </div>
+                <span className="fld-label">Гранты при старте каждого забега</span>
+                <EffectListEditor
+                  store={store}
+                  effects={u.grants}
+                  onChange={(grants) => { const arr = (m.metaprogress?.unlocks ?? []).map((x, j) => j === i ? { ...x, grants } : x); m.metaprogress!.unlocks = arr; commit() }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="props-group">

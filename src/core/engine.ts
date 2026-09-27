@@ -10,8 +10,11 @@ import type {
   GameState,
   ItemDef,
   LocationDef,
+  AchievementDef,
   ActiveStatus,
   FeatDef,
+  MetaStoreState,
+  MetaUnlockDef,
   NpcDef,
   PlayerState,
   RecipeDef,
@@ -183,6 +186,7 @@ export class GameEngine {
     // (вступительная катсцена и т.п. — once + tick_elapsed 0)
     if (this.freshRun) {
       this.freshRun = false
+      this.metaRunStart()
       this.checkRules()
     }
     this.runLocationRules(this.state.location)
@@ -302,6 +306,8 @@ export class GameEngine {
       // статусы игрока (блок 5 ТЗ): DoT, декремент, истечение
       this.tickStatuses()
     }
+    // достижения со счётчиками (прожитые тики и пр.) — после пачки тиков
+    this.checkAchievements()
   }
 
   /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
@@ -2199,6 +2205,7 @@ export class GameEngine {
       case 'clear_price_event': this.setPriceEvent(e.id ?? '', false); break
       case 'grant_xp': this.grantXp(e.points); break
       case 'grant_feat': this.grantFeat(e.id); break
+      case 'meta_currency': this.grantMetaCurrency(e.id, e.amount); break
       case 'change_disposition': this.changeDisposition(e.target, e.delta); break
       case 'start_quest': this.startQuest(e.quest); break
       case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break
@@ -2245,6 +2252,8 @@ export class GameEngine {
         this.playCutscene(e.cutscene)
         break
     }
+    // эффект мог выполнить условия достижений (флаги, предметы, переменные)
+    this.checkAchievements()
   }
 
   // ─────────────── взаимодействие со слотами ───────────────
@@ -2499,6 +2508,7 @@ export class GameEngine {
         (en.conditions ?? []).every((c) => evalCondition(c, this)),
     )
     this.state.game_over = { type, reason, ending: ending?.id }
+    this.finalizeRunMeta(type === 'victory')
     if (type === 'death') {
       this.dialogue = null
       this.activeStory = null
@@ -2518,6 +2528,181 @@ export class GameEngine {
     }
     fresh.start()
     return fresh
+  }
+
+  // ─────────────── мета-прогресс между забегами (аудит B8b) ───────────────
+
+  /** мета-прогресс включён мастером (блок meta.metaprogress) */
+  metaProgressEnabled(): boolean {
+    return !!this.campaign.meta.metaprogress
+  }
+
+  private static metaKey(campaignId: string): string {
+    return `chronicle-forge:meta:${campaignId}`
+  }
+
+  private metaState: MetaStoreState | null = null
+
+  private static blankMetaState(): MetaStoreState {
+    return { runs: 0, deaths: 0, victories: 0, currencies: {}, achievements: {}, unlocks: [], counters: {} }
+  }
+
+  /** снимок мета-хранилища (ленивая загрузка из localStorage) */
+  metaStore(): MetaStoreState {
+    if (this.metaState) return this.metaState
+    let loaded: MetaStoreState
+    try {
+      const raw = localStorage.getItem(GameEngine.metaKey(this.campaign.meta.id))
+      loaded = raw ? { ...GameEngine.blankMetaState(), ...(JSON.parse(raw) as Partial<MetaStoreState>) } : GameEngine.blankMetaState()
+    } catch {
+      loaded = GameEngine.blankMetaState()
+    }
+    this.metaState = loaded
+    return loaded
+  }
+
+  private saveMetaStore(): void {
+    if (!this.metaProgressEnabled() || !this.metaState) return
+    try {
+      localStorage.setItem(GameEngine.metaKey(this.campaign.meta.id), JSON.stringify(this.metaState))
+    } catch { /* хранилище переполнено/недоступно — мета-прогресс терпимо */ }
+  }
+
+  /** баланс метавалюты */
+  metaCurrency(id: string): number {
+    return this.metaStore().currencies[id] ?? 0
+  }
+
+  /** начислить метавалюту (эффект/награда достижения) */
+  grantMetaCurrency(id: string, amount: number): void {
+    if (!this.metaProgressEnabled() || amount === 0) return
+    const def = this.campaign.meta.metaprogress?.currencies?.find((c) => c.id === id)
+    if (!def) return
+    const st = this.metaStore()
+    st.currencies[id] = Math.max(0, (st.currencies[id] ?? 0) + amount)
+    this.pushLog(`${def.label}: ${amount > 0 ? '+' : ''}${amount} (всего ${st.currencies[id]}).`)
+    this.saveMetaStore()
+    this.notify()
+  }
+
+  /** открыто ли достижение */
+  metaAchievementDone(id: string): boolean {
+    return !!this.metaStore().achievements[id]
+  }
+
+  /** достижения с состоянием (для экрана) */
+  achievementStates(): { def: AchievementDef; done: boolean; progress?: number; target?: number }[] {
+    const cfg = this.campaign.meta.metaprogress
+    if (!cfg) return []
+    const st = this.metaStore()
+    return (cfg.achievements ?? [])
+      .filter((a) => !a.hidden || st.achievements[a.id])
+      .map((a) => ({
+        def: a,
+        done: !!st.achievements[a.id],
+        ...(a.counter ? { progress: this.achievementCounter(a), target: a.counter.target } : {}),
+      }))
+  }
+
+  private achievementCounter(a: AchievementDef): number {
+    if (!a.counter) return 0
+    const st = this.metaStore()
+    const total = st.counters[a.counter.stat] ?? 0
+    return total + (this.state.stats_run[a.counter.stat] ?? 0)
+  }
+
+  /**
+   * Проверка всех закрытых достижений (тики, эффекты, конец забега вызывают).
+   * Защёлкивает открывшиеся: лог, награда, сохранение.
+   */
+  checkAchievements(): void {
+    const cfg = this.campaign.meta.metaprogress
+    if (!cfg?.achievements?.length) return
+    const st = this.metaStore()
+    let dirty = false
+    for (const a of cfg.achievements) {
+      if (st.achievements[a.id]) continue
+      const ok = a.counter
+        ? this.achievementCounter(a) >= a.counter.target
+        : (a.conditions ?? []).length > 0 && (a.conditions ?? []).every((c) => evalCondition(c, this))
+      if (!ok) continue
+      st.achievements[a.id] = new Date().toISOString()
+      dirty = true
+      this.unlockedThisRun.push(a.id)
+      this.pushLog(`Достижение: «${a.label}»!`)
+      if (a.reward?.currency && a.reward.amount) {
+        st.currencies[a.reward.currency] = Math.max(0, (st.currencies[a.reward.currency] ?? 0) + a.reward.amount)
+        const curLabel = cfg.currencies?.find((c) => c.id === a.reward!.currency)?.label ?? a.reward.currency
+        this.pushLog(`${curLabel}: +${a.reward.amount}.`)
+      }
+      if (a.reward?.xp) this.grantXp(a.reward.xp)
+    }
+    if (dirty) this.saveMetaStore()
+  }
+
+  /** открытые в этом забеге достижения (для экрана исхода) */
+  private unlockedThisRun: string[] = []
+  achievementsUnlockedThisRun(): AchievementDef[] {
+    const cfg = this.campaign.meta.metaprogress
+    if (!cfg) return []
+    return this.unlockedThisRun
+      .map((id) => cfg.achievements?.find((a) => a.id === id))
+      .filter((x): x is AchievementDef => !!x)
+  }
+
+  /** вклад статистики текущего забега в суммарные счётчики + исход */
+  private finalizeRunMeta(won: boolean): void {
+    if (!this.metaProgressEnabled()) return
+    const st = this.metaStore()
+    if (won) st.victories += 1
+    else st.deaths += 1
+    for (const [k, v] of Object.entries(this.state.stats_run)) {
+      st.counters[k] = (st.counters[k] ?? 0) + (v ?? 0)
+    }
+    this.checkAchievements() // награда «за весь забег» тоже получает шанс
+    this.saveMetaStore()
+  }
+
+  /** старт нового забега: счётчик и гранты купленных усилений */
+  private metaRunStart(): void {
+    const cfg = this.campaign.meta.metaprogress
+    if (!cfg) return
+    const st = this.metaStore()
+    st.runs += 1
+    this.saveMetaStore()
+    if (st.runs > 1) this.pushLog(`Хроника продолжает писаться — забег №${st.runs}.`)
+    for (const uid of st.unlocks) {
+      const u = cfg.unlocks?.find((x) => x.id === uid)
+      if (!u) continue
+      this.pushLog(`Усиление из хроники: «${u.label}».`)
+      this.applyEffects(u.grants)
+    }
+    this.checkAchievements()
+  }
+
+  /** куплено ли усиление */
+  metaUnlockOwned(id: string): boolean {
+    return this.metaStore().unlocks.includes(id)
+  }
+
+  /** можно ли купить усиление (валюты хватает, требования истинны) */
+  metaUnlockAffordable(u: MetaUnlockDef): boolean {
+    if (this.metaUnlockOwned(u.id)) return false
+    if (u.requires?.length && !u.requires.every((c) => evalCondition(c, this))) return false
+    return u.cost.every((c) => this.metaCurrency(c.currency) >= c.amount)
+  }
+
+  /** купить постоянное усиление (экран хроники/финала) */
+  buyMetaUnlock(id: string): boolean {
+    const u = this.campaign.meta.metaprogress?.unlocks?.find((x) => x.id === id)
+    if (!u || !this.metaUnlockAffordable(u)) return false
+    const st = this.metaStore()
+    for (const c of u.cost) st.currencies[c.currency] = (st.currencies[c.currency] ?? 0) - c.amount
+    st.unlocks.push(id)
+    this.saveMetaStore()
+    this.pushLog(`В хронику записано усиление «${u.label}» — будет действовать каждом новом забеге.`)
+    this.notify()
+    return true
   }
 
   // ─────────────── сохранение ───────────────

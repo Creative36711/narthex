@@ -7,6 +7,7 @@ import { DialogueOverlay } from './DialogueOverlay'
 import { InventoryPanel, CharacterPanel, LogPanel, CraftingPanel } from './Panels'
 import { SavesPanel } from './SavesPanel'
 import { CodexPanel } from './CodexPanel'
+import { MetaPanel } from './MetaPanel'
 import { TradePanel } from './TradePanel'
 import { EndScreen } from './EndScreen'
 import { HelpPanel } from './HelpPanel'
@@ -27,7 +28,7 @@ interface Props {
   onGamePanelOpen?: () => void
 }
 
-type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | 'saves' | null
+type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | 'saves' | 'meta' | null
 
 export function GameView({ engine, onRestart, onExitToMenu, onLoadSlot, debugPanelOpen = false, onGamePanelOpen }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
@@ -106,6 +107,7 @@ export function GameView({ engine, onRestart, onExitToMenu, onLoadSlot, debugPan
         onOpenInventory={() => openPanel('inventory')}
         onOpenCharacter={() => openPanel('character')}
         onOpenLog={() => openPanel('log')}
+        onOpenMeta={() => openPanel('meta')}
         onOpenCraft={() => openPanel('craft')}
         onOpenCodex={() => openPanel('codex')}
         onOpenSaves={() => openPanel('saves')}
@@ -124,6 +126,7 @@ export function GameView({ engine, onRestart, onExitToMenu, onLoadSlot, debugPan
       )}
       {panel === 'log' && <LogPanel engine={engine} onClose={closePanel} />}
       {panel === 'codex' && <CodexPanel engine={engine} onClose={closePanel} />}
+      {panel === 'meta' && engine.metaProgressEnabled() && <MetaPanel engine={engine} onClose={closePanel} />}
       {panel === 'help' && <HelpPanel engine={engine} onClose={closePanel} />}
       {panel === 'saves' && onLoadSlot && (
         <SavesPanel engine={engine} onClose={closePanel} onLoadSlot={(slot) => { closePanel(); onLoadSlot(slot) }} />
