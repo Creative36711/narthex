@@ -42,6 +42,7 @@
   /* ── тёмные арт-холсты на бумаге ── */
   --ed-art: #191d24;
   --ed-art-line: #333b49;
+  --ed-canvas-glow: rgba(255, 255, 255, 0.35);
   --ed-focus: var(--ed-select);
 
   height: 100%;
@@ -51,6 +52,40 @@
   color: var(--ed-text);
   font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
 }
+
+/* ─────────── темы рабочего полотна редактора (выбор мастера) ───────────
+   Хром «ателье» неизменен; меняется только светлый «бумажный» холст.
+   Дефолт — Бумага (класс ed-theme-paper). */
+
+/* Тёмная: холодный графит, в тон хрому */
+.editor-root.ed-theme-dark {
+  --ed-paper: #171a20;
+  --ed-paper-2: #1d2129;
+  --ed-paper-card: #1f242d;
+  --ed-paper-line: #333b49;
+  --ed-paper-line-strong: #4a5568;
+  --ed-paper-text: #e8ebf2;
+  --ed-paper-muted: #9aa3b5;
+  --ed-paper-faint: #6f7889;
+  --ed-paper-input: #12151b;
+  --ed-canvas-glow: rgba(130, 155, 210, 0.07);
+}
+
+/* Графит: тёплый уголь, спокойнее для долгих сессий */
+.editor-root.ed-theme-anthracite {
+  --ed-paper: #211e19;
+  --ed-paper-2: #282420;
+  --ed-paper-card: #29251f;
+  --ed-paper-line: #3b362c;
+  --ed-paper-line-strong: #57503f;
+  --ed-paper-text: #e6e0d2;
+  --ed-paper-muted: #a09781;
+  --ed-paper-faint: #756d5a;
+  --ed-paper-input: #1b1915;
+  --ed-canvas-glow: rgba(220, 180, 110, 0.05);
+}
+
+
 
 /* ─────────── верхняя панель ─────────── */
 
@@ -149,7 +184,7 @@
   padding: 18px;
   min-width: 0;
   background:
-    radial-gradient(120% 60% at 50% 0%, rgba(255, 255, 255, 0.35), transparent 60%),
+    radial-gradient(120% 60% at 50% 0%, var(--ed-canvas-glow), transparent 60%),
     var(--ed-paper);
   color: var(--ed-paper-text);
 }
@@ -425,6 +460,17 @@
   max-width: 260px;
 }
 .campaign-select:focus { outline: 2px solid var(--ed-focus); outline-offset: -1px; }
+.editor-theme-select {
+  background: var(--ed-bg-3);
+  border: 1px solid var(--ed-line-strong);
+  border-radius: 6px;
+  color: var(--ed-muted);
+  padding: 5px 8px;
+  font-size: 12px;
+  max-width: 170px;
+}
+.editor-theme-select:hover { border-color: var(--ed-accent); color: var(--ed-accent-bright); }
+.editor-theme-select:focus { outline: 2px solid var(--ed-focus); outline-offset: -1px; }
 .advanced-json { margin-top: 14px; border: 1px dashed var(--ed-paper-line-strong); border-radius: 8px; padding: 10px 14px; background: var(--ed-paper); }
 .advanced-json > summary { color: var(--ed-paper-muted); font-size: 13px; }
 .advanced-json[open] > summary { color: var(--ed-accent); margin-bottom: 8px; }
@@ -474,6 +520,16 @@
 .world-tree .muted { color: var(--ed-paper-muted); }
 .world-main .ce-tabs { position: static; margin: 0 0 14px; padding-top: 0; }
 .world-main { flex: 1; overflow-y: auto; min-width: 0; max-height: 100%; }
+
+/* вкладки JSON (Кампания → JSON, Мир → JSON): страница не скроллится —
+   редактор кода уместился в экран и скроллится сам (фидбек 17) */
+.editor-main:has(> .rule-editor > .advanced-json-page) { display: flex; flex-direction: column; }
+.editor-main:has(> .rule-editor > .advanced-json-page) > .rule-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rule-editor > .advanced-json-page { flex: 1; min-height: 0; height: auto; }
+.editor-main:has(> .world-editor .advanced-json-page) { display: flex; flex-direction: column; }
+.editor-main:has(> .world-editor .advanced-json-page) > .world-editor { flex: 1; min-height: 0; }
+.world-main:has(> .advanced-json-page) { display: flex; flex-direction: column; }
+.world-main > .advanced-json-page { flex: 1; min-height: 0; height: auto; }
 .world-map-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
 .world-map {
   position: relative;

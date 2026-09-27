@@ -103,6 +103,16 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [busy, setBusy] = useState<string | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignIndexEntry[]>([])
   const [testCampaign, setTestCampaign] = useState<CampaignData | null>(null)
+  // тема рабочего полотна редактора (фидбек 17): выбор мастера, глобально в localStorage
+  const [edTheme, setEdTheme] = useState<'paper' | 'dark' | 'anthracite'>(() => {
+    const v = localStorage.getItem('cf_editor_theme')
+    return v === 'dark' || v === 'anthracite' ? v : 'paper'
+  })
+  const changeEdTheme = (v: 'paper' | 'dark' | 'anthracite') => {
+    setEdTheme(v)
+    if (v === 'paper') localStorage.removeItem('cf_editor_theme')
+    else localStorage.setItem('cf_editor_theme', v)
+  }
   const [testEngine, setTestEngine] = useState<GameEngine | null>(null)
   const [debugOpen, setDebugOpen] = useState(false)
   const [bookOpen, setBookOpen] = useState(false)
@@ -552,11 +562,22 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
 
   return (
-    <div className="editor-root">
+    <div className={`editor-root ed-theme-${edTheme}`}>
       <header className="editor-topbar">
         <span className="editor-brand">
           <Ico n="forge" /> Chronicle Forge <span className="editor-brand-sub">· редактор</span>
         </span>
+        <select
+          className="editor-theme-select"
+          value={edTheme}
+          onChange={(e) => changeEdTheme(e.target.value as 'paper' | 'dark' | 'anthracite')}
+          data-tip="Тема оформления редактора (рабочее полотно)"
+          aria-label="Тема оформления редактора"
+        >
+          <option value="paper">Полотно: бумага</option>
+          <option value="dark">Полотно: тёмная</option>
+          <option value="anthracite">Полотно: графит</option>
+        </select>
         {campaigns.length > 0 ? (
           <select
             className="campaign-select"
