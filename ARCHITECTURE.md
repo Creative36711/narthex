@@ -1029,7 +1029,8 @@ markdown (`MarkdownView.tsx`); иллюстрации — статик `public/b
   `scripts/compat-report.mts`, запрет переименования id в «Расширенном JSON».
 - **Игрок**: модалка отчёта о сейве (`player/SaveReportModal.tsx`), строка
   «сохранение: версия/тики/дата» и предупреждение о движке в главном меню,
-  загрузка `.cfsave` в окне кампаний.
+  загрузка `.cfsave` в окне кампаний, раздел справки «Сохранения и
+  обновления».
 - Смоуки — `saves-compat-smoke.mts`, `compat-publish-smoke.mts`; документация
   — `docs/compatibility.md`, `docs/workshop.md`, `docs/book/07-versions.md`.
 

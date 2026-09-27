@@ -10,6 +10,7 @@
  *  6. резервная копия создаётся до первой правки сейва;
  *  7. экспорт/импорт сейва.
  */
+import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine, openSave, peekSave, hasSave, deleteSave, saveKey, backupKey, exportSaveText, importSaveText, checkSaveVersion, preserveSave } from '../src/core/engine'
 import { SAVE_MIGRATIONS, repairState, type ReportCtx } from '../src/core/savemigrate'
@@ -180,6 +181,24 @@ engine.start()
   check('7 импортированный сейв читается', peekSave(demo.meta.id)?.campaign_version === demo.meta.version)
   check('7 битый текст не импортируется', importSaveText(demo.meta.id, 'это не json') === false)
   deleteSave(demo.meta.id)
+}
+
+// ── 8. интерфейс: игрок видит версии и отчёты ──
+{
+  const app = readFileSync('src/App.tsx', 'utf8')
+  const menu = readFileSync('src/player/MainMenu.tsx', 'utf8')
+  const modal = readFileSync('src/player/SaveReportModal.tsx', 'utf8')
+  const help = readFileSync('src/player/HelpPanel.tsx', 'utf8')
+  const fields = readFileSync('src/editor/Fields.tsx', 'utf8')
+  check('8 меню продолжает забег через openSave (с вердиктом)', app.includes('openSave(campaign.meta.id, campaign)'))
+  check('8 «Продолжить» учитывает кампанию', app.includes('hasSave(campaign.meta.id, campaign)'))
+  check('8 неподдержавшийся сейв уходит в резерв перед новым забегом', app.includes('preserveSave(campaign.meta.id)'))
+  check('8 в меню видна версия движка, а не поля пакета', menu.includes('движок {ENGINE_VERSION}'))
+  check('8 в меню видны версия и дата сохранения', menu.includes('menu-save-note') && menu.includes('peekSave(m.id)'))
+  check('8 предупреждение о движке показывается в меню', menu.includes('engineWarning') && menu.includes('menu-warning'))
+  check('8 отчёт сейва объясняет причину и не удаляет файл', modal.includes('Сохранение не поддерживается') && modal.includes('не удалено'))
+  check('8 справка рассказывает про сохранения и обновления', help.includes("id: 'saves'") && help.includes('.cfsave'))
+  check('8 переименование id отклоняется с объяснением', fields.includes('Менять id нельзя'))
 }
 
 console.log(failed === 0 ? '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ (saves-compat)' : `\nПРОВАЛЕНО ПРОВЕРОК: ${failed}`)
