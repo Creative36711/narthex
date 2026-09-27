@@ -803,6 +803,18 @@
               "type": "number",
               "description": "дополнительный модификатор к цели (ситуация мастера)"
             },
+            "augment_passion": {
+              "type": "string",
+              "description": "аугмент страсти (аудит B6): id страсти из meta.passions_list; порог и бонус — meta.augments"
+            },
+            "assist_entity": {
+              "type": "string",
+              "description": "подмога союзника (аудит B6): id NPC-сущности; её навык — assist_skill или сама проверка stat?"
+            },
+            "assist_skill": {
+              "type": "string",
+              "description": "навык подмоги (умолчание — навык проверки / для stat_check — 'support')"
+            },
             "success_effects": {
               "type": "array",
               "items": {
@@ -853,6 +865,10 @@
                 "opponent"
               ]
             },
+            "augment_passion": {
+              "type": "string",
+              "description": "аугмент страсти героя для этого спора (аудит B6)"
+            },
             "success_effects": {
               "type": "array",
               "items": {
@@ -886,6 +902,132 @@
           },
           "required": [
             "type",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_fatigue"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_sanity"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_reputation"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_wealth"
+            },
+            "levels": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "levels"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_passion"
+            },
+            "id": {
+              "type": "string"
+            },
+            "delta": {
+              "type": "number"
+            },
+            "set": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_allegiance"
+            },
+            "id": {
+              "type": "string"
+            },
+            "points": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "points"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "train_stat"
+            },
+            "stat": {
+              "type": "string"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "stat",
             "delta"
           ],
           "additionalProperties": false
@@ -1572,6 +1714,164 @@
           "required": [
             "type",
             "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "fatigue_ge"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "fatigue_le"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "sanity_ge"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "sanity_le"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "reputation_ge"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "wealth_ge"
+            },
+            "level": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "passion_ge"
+            },
+            "id": {
+              "type": "string"
+            },
+            "value": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "allegiance_ge"
+            },
+            "id": {
+              "type": "string"
+            },
+            "points": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "id",
+            "points"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "power_level_ge"
+            },
+            "level": {
+              "type": "string",
+              "enum": [
+                "normal",
+                "heroic",
+                "epic",
+                "superhuman"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "level"
           ],
           "additionalProperties": false
         },
@@ -2831,6 +3131,21 @@
               },
               "label": {
                 "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "description": "Категория навыка (аудит B6): id из meta.skill_categories;\nпанели навыков группируют по категориям."
+              },
+              "base": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Базовый шанс навыка без обучения (аудит B6, книжные «базовые шансы»):\nчисло (напр. 25) или формула характеристик «DEX×2», «INT×5».\nНет — необученный навык даёт 0% (как раньше)."
               }
             },
             "required": [
@@ -2840,6 +3155,155 @@
             "additionalProperties": false
           },
           "description": "реестр навыков кампании (id + русское название); см. shared/skills.ts"
+        },
+        "skill_categories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр категорий навыков (аудит B6): бой/общение/знания/крафт…"
+        },
+        "vitals": {
+          "type": "object",
+          "properties": {
+            "fatigue": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "multiplier": {
+                      "type": "number"
+                    },
+                    "rest_restore": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "sanity": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "multiplier": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "description": "Производные опции BRP (аудит B6), всё выключаемо мастером:\n- fatigue — очки усталости, max = (STR+CON)×multiplier (умолчание ×1);\n  на отдыхе восстанавливаются (rest_restore ≠ false); траты задаёт\n  мастер эффектами change_fatigue (бег, бессонница, тяжёлый доспех);\n- sanity — рассудок = POW×multiplier (умолчание ×5), траты эффектами\n  change_sanity; пороги/психозы — правилами на условия sanity_le.\nБез блока систем нет (как раньше)."
+        },
+        "reputation": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "репутация (аудит B6): вкл. — чип в HUD и строка в панели героя"
+        },
+        "wealth_levels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "шкала достатка (аудит B6): названия от низшего к высшему, напр. ['Нищий','Бедный','Свободный','Знатный']"
+        },
+        "passions_list": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр страстей (аудит B6): id + название; значения 0..100+"
+        },
+        "allegiances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "реестр сил причастности (аудит B6): боги, духи, стихии; очки до 100+"
+        },
+        "power_level": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "heroic",
+            "epic",
+            "superhuman"
+          ],
+          "description": "Уровень мощи кампании (аудит B6, книжные normal/heroic/epic/superhuman):\nметка для условий power_level_ge и документации; характеристики/навыки\nмастер задаёт через char_creation (для heroic — формулы 2d6+6 в roll)."
+        },
+        "augments": {
+          "type": "object",
+          "properties": {
+            "threshold": {
+              "type": "number"
+            },
+            "bonus": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Аугменты страстей и подмога союзников (аудит B6): одинаковые числа для\nвсех проверок. threshold — минимальное значение страсти/навыка союзника\n(умолчание 50), bonus — прибавка к броску (умолчание +20, книжно)."
         },
         "item_categories": {
           "type": "array",

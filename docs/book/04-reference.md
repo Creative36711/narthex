@@ -57,6 +57,30 @@
 
 Везде, где мастер задаёт `difficulty` проверки навыка (`skill_check_gate`, крафт, случайные встречи, диалоги), принимаются либо число-порог (50 нейтрально), либо книжный уровень: `easy` (×2), `normal` (×1), `difficult` (½), `impossible` (¼).
 
+### Производные опции (`meta.vitals`, `meta.reputation`, `meta.wealth_levels`…)
+
+Опциональные книжные системы — все выключаемы мастером, отсутствие блока = систем нет:
+
+- `meta.vitals.fatigue` — очки усталости, максимум (STR+CON) × multiplier (умолчание ×1). Чип в HUD. Траты/восстановление: эффект `change_fatigue {delta}`, условия `fatigue_ge/fatigue_le`, ink `get_fatigue()/change_fatigue(d)`. На отдыхе снимается (`rest_restore` ≠ false). На нуле траты не применяются — но срабатывают правила мастера на условии `fatigue_le: 0` (обморок, штрафы — написать самим).
+- `meta.vitals.sanity` — рассудок = POW × multiplier (умолчание ×5). Эффект `change_sanity`, условия `sanity_ge/sanity_le`, ink `get_sanity()/change_sanity(d)`. Кризисы рассудка мастер описывает правилами на пороговых условиях (напр., `sanity_le` на пятой доле максимума → помешательство).
+- `meta.reputation` (можно `{label: 'Слава'}`) — счётчик известности: чип в HUD, эффект `change_reputation`, условие `reputation_ge`, ink `get_reputation()/change_reputation(d)`.
+- `meta.wealth_levels: string[]` — шкала достатка от низшей к высшей ступени; строка в панели героя; эффект `change_wealth {levels: ±n}`, условие `wealth_ge {level}`. Предметы-валюта (`meta.currencies`) дополняют: уровень достатка — обобщённое имущество и положение вне наличных монет.
+
+### Страсти, причастность, аугменты
+
+- `meta.passions_list: [{id, label}]` — реестр страстей героя (Честь, Ненависть, Любовь…). Значения 0..100+, в панели героя. Эффект `change_passion {id, delta | set}`, условие `passion_ge`, ink `get_passion(id)/change_passion(id, d)`.
+- `meta.allegiances: [{id, label}]` — реестр сил причастности (боги, духи, стихии); поступки в их духе — `change_allegiance {id, points}` (+очки), условие `allegiance_ge` («проявленный» с 100 очков — пороги пишет мастер), ink `get_allegiance(id)/change_allegiance(id, n)`.
+- Аугменты (книжные): у эффектов `stat_check`/`opposed_check` поля `augment_passion` (id страсти) и `assist_entity`/`assist_skill` (подмога союзника). Страсть/навык-подмога ≥ порога `meta.augments.threshold` (умолчание 50) даёт +`meta.augments.bonus` (умолчание 20) к броску героя, с записью в журнале.
+
+### Категории навыков и базовые шансы
+
+`meta.skill_categories` (реестр, напр. `[{id:'combat', label:'Бой'}, {id:'social', label:'Общение'}]`) + поле `category` у навыков — лист персонажа группирует навыки по категориям. Поле `base` у навыка — книжный «базовый шанс» без обучения: число (`25`) или формула характеристик (`DEX×2`, `INT×5`; сложение частей через `+`). Геймы с необученным героем: проверки неизученного навыка идут от базового шанса (`engine.skillEffective`).
+
+### Уровень мощи и развитие характеристик
+
+- `meta.power_level`: `normal` (умолчание) | `heroic` | `epic` | `superhuman` — книжные ступени мощности. Проверяется условием `power_level_ge` (ряд normal<heroic<epic<superhuman). Героические характеристики мастер задаёт через `char_creation.roll.per_stat` (классика — все по `2d6+6`).
+- Эффект `train_stat {stat, delta}` — рост/тренировка характеристики: кламп по `stat_limits`, пересчёт производных (HP, MP, усталость/рассудок при соответствующих характеристиках). Из ink — `train_stat("POW", 1)`.
+
 ## Сравнение с исходной системой
 
 Сравнение относится к общим механическим идеям BRP. Оно не переносит текст или иллюстрации сторонних книг.

@@ -251,20 +251,80 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
           </div>
         )}
 
-        {skillsOn && (
+        {(engine.wealthLevels().length > 0 || engine.reputationEnabled() || Object.keys(p.passions ?? {}).length > 0 || Object.keys(p.allegiance ?? {}).length > 0) && (
           <>
-            <h3>Навыки <span className="muted small">(<Ico n="check" />  — готов к росту после сна)</span></h3>
+            <h3>Мир и характер</h3>
             <ul className="skill-list">
-              {Object.entries(p.skills).sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (
-                <li key={id}>
-                  <span>
-                    {engine.skillLabel(id)}
-                    {p.skill_marks?.[id] && <span className="skill-mark"> <Ico n="check" /> </span>}
-                  </span>
+              {engine.wealthLevels().length > 0 && (
+                <li data-tip={'Уровень достатка на шкале мастера (meta.wealth_levels).\nМеняется эффектами change_wealth.'}>
+                  <span><Ico n="coin" />  Достаток</span>
+                  <span className="skill-val">{engine.wealthLevelLabel()}</span>
+                </li>
+              )}
+              {engine.reputationEnabled() && (
+                <li data-tip="Репутация героя; меняется деяниями (эффекты change_reputation).">
+                  <span><Ico n="star" />  {engine.reputationLabel()}</span>
+                  <span className="skill-val">{engine.reputation()}</span>
+                </li>
+              )}
+              {Object.entries(p.passions ?? {}).map(([id, val]) => (
+                <li key={`passion-${id}`} data-tip={`Страсть: при значении ≥ порога аугмента даёт +бонус к подходящим проверкам (мастер назначает аугмент в эффектах).`}>
+                  <span><Ico n="heart" />  {engine.passionLabel(id)} (страсть)</span>
                   <span className="skill-val">{val}%</span>
                 </li>
               ))}
+              {Object.entries(p.allegiance ?? {}).map(([id, val]) => (
+                <li key={`all-${id}`} data-tip="Причастность силе: поступки в её духе (+1 очко) — эффекты change_allegiance; 100+ — знаки силы.">
+                  <span><Ico n="flame" />  {engine.allegianceLabel(id)} (причастность)</span>
+                  <span className="skill-val">{val}</span>
+                </li>
+              ))}
             </ul>
+          </>
+        )}
+
+        {skillsOn && (
+          <>
+            <h3>Навыки <span className="muted small">(<Ico n="check" />  — готов к росту после сна)</span></h3>
+            {(meta.skill_categories?.length ?? 0) > 0 ? (
+              (() => {
+                const catLabels = new Map((meta.skill_categories ?? []).map((c) => [c.id, c.label]))
+                const groups = new Map<string, Array<[string, number]>>()
+                for (const [id, val] of Object.entries(p.skills)) {
+                  const cat = meta.skills?.find((s) => s.id === id)?.category ?? ''
+                  if (!groups.has(cat)) groups.set(cat, [])
+                  groups.get(cat)!.push([id, val])
+                }
+                return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([cat, rows]) => (
+                  <div key={cat || '__none'}>
+                    <h4 className="skill-cat">{cat ? (catLabels.get(cat) ?? cat) : 'Прочее'}</h4>
+                    <ul className="skill-list">
+                      {rows.sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (
+                        <li key={id}>
+                          <span>
+                            {engine.skillLabel(id)}
+                            {p.skill_marks?.[id] && <span className="skill-mark"> <Ico n="check" /> </span>}
+                          </span>
+                          <span className="skill-val">{val}%</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              })()
+            ) : (
+              <ul className="skill-list">
+                {Object.entries(p.skills).sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (
+                  <li key={id}>
+                    <span>
+                      {engine.skillLabel(id)}
+                      {p.skill_marks?.[id] && <span className="skill-mark"> <Ico n="check" /> </span>}
+                    </span>
+                    <span className="skill-val">{val}%</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </>
         )}
         {relationshipsOn && factions.length > 0 && (

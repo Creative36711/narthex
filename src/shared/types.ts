@@ -497,7 +497,56 @@ export interface CampaignMeta {
   /** правила бросков d100 (пороги крита/особого успеха/провала); см. DEFAULT_DICE_RULES */
   dice_rules?: DiceRules
   /** реестр навыков кампании (id + русское название); см. shared/skills.ts */
-  skills?: Array<{ id: string; label: string }>
+  skills?: Array<{
+    id: string
+    label: string
+    /**
+     * Категория навыка (аудит B6): id из meta.skill_categories;
+     * панели навыков группируют по категориям.
+     */
+    category?: string
+    /**
+     * Базовый шанс навыка без обучения (аудит B6, книжные «базовые шансы»):
+     * число (напр. 25) или формула характеристик «DEX×2», «INT×5».
+     * Нет — необученный навык даёт 0% (как раньше).
+     */
+    base?: number | string
+  }>
+  /** реестр категорий навыков (аудит B6): бой/общение/знания/крафт… */
+  skill_categories?: Array<{ id: string; label: string }>
+  /**
+   * Производные опции BRP (аудит B6), всё выключаемо мастером:
+   * - fatigue — очки усталости, max = (STR+CON)×multiplier (умолчание ×1);
+   *   на отдыхе восстанавливаются (rest_restore ≠ false); траты задаёт
+   *   мастер эффектами change_fatigue (бег, бессонница, тяжёлый доспех);
+   * - sanity — рассудок = POW×multiplier (умолчание ×5), траты эффектами
+   *   change_sanity; пороги/психозы — правилами на условия sanity_le.
+   * Без блока систем нет (как раньше).
+   */
+  vitals?: {
+    fatigue?: boolean | { multiplier?: number; rest_restore?: boolean }
+    sanity?: boolean | { multiplier?: number }
+  }
+  /** репутация (аудит B6): вкл. — чип в HUD и строка в панели героя */
+  reputation?: boolean | { label?: string }
+  /** шкала достатка (аудит B6): названия от низшего к высшему, напр. ['Нищий','Бедный','Свободный','Знатный'] */
+  wealth_levels?: string[]
+  /** реестр страстей (аудит B6): id + название; значения 0..100+ */
+  passions_list?: Array<{ id: string; label: string }>
+  /** реестр сил причастности (аудит B6): боги, духи, стихии; очки до 100+ */
+  allegiances?: Array<{ id: string; label: string }>
+  /**
+   * Уровень мощи кампании (аудит B6, книжные normal/heroic/epic/superhuman):
+   * метка для условий power_level_ge и документации; характеристики/навыки
+   * мастер задаёт через char_creation (для heroic — формулы 2d6+6 в roll).
+   */
+  power_level?: 'normal' | 'heroic' | 'epic' | 'superhuman'
+  /**
+   * Аугменты страстей и подмога союзников (аудит B6): одинаковые числа для
+   * всех проверок. threshold — минимальное значение страсти/навыка союзника
+   * (умолчание 50), bonus — прибавка к броску (умолчание +20, книжно).
+   */
+  augments?: { threshold?: number; bonus?: number }
   /** реестр категорий предметов: категория определяет, что предмет умеет */
   item_categories?: ItemCategoryDef[]
   /** реестр типов слотов сцены (что можно ставить в слот); по умолчанию — встроенные */
@@ -1454,6 +1503,19 @@ export type Condition =
   | { type: 'hp_ge'; threshold: number }
   /** очков удачи не меньше порога (аудит §5.6 п.8) */
   | { type: 'luck_ge'; threshold: number }
+  /** усталость/рассудок/репутация/достаток (аудит B6, opt-in) */
+  | { type: 'fatigue_ge'; threshold: number }
+  | { type: 'fatigue_le'; threshold: number }
+  | { type: 'sanity_ge'; threshold: number }
+  | { type: 'sanity_le'; threshold: number }
+  | { type: 'reputation_ge'; threshold: number }
+  | { type: 'wealth_ge'; level: number }
+  /** страсть не ниже значения (аудит B6) */
+  | { type: 'passion_ge'; id: string; value: number }
+  /** очков причастности не меньше порога (аудит B6) */
+  | { type: 'allegiance_ge'; id: string; points: number }
+  /** уровень мощи кампании не ниже (аудит B6; ряд normal<heroic<epic<superhuman) */
+  | { type: 'power_level_ge'; level: 'normal' | 'heroic' | 'epic' | 'superhuman' }
   | { type: 'need_le'; need: string; threshold: number }
   | { type: 'need_ge'; need: string; threshold: number }
   | { type: 'entity_alive'; entity: string }
@@ -1533,6 +1595,12 @@ export type Effect =
       multiplier?: number
       /** дополнительный модификатор к цели (ситуация мастера) */
       modifier?: number
+      /** аугмент страсти (аудит B6): id страсти из meta.passions_list; порог и бонус — meta.augments */
+      augment_passion?: string
+      /** подмога союзника (аудит B6): id NPC-сущности; её навык — assist_skill или сама проверка stat? */
+      assist_entity?: string
+      /** навык подмоги (умолчание — навык проверки / для stat_check — 'support') */
+      assist_skill?: string
       success_effects: Effect[]
       fail_effects: Effect[]
     }
@@ -1551,10 +1619,31 @@ export type Effect =
       /** или числовой порог вместо броска NPC (значение навыка оппонента) */
       against_value?: number
       tie?: 'player' | 'opponent'
+      /** аугмент страсти героя для этого спора (аудит B6) */
+      augment_passion?: string
       success_effects: Effect[]
       fail_effects: Effect[]
     }
   | { type: 'change_luck'; delta: number }
+  /** трата/восстановление усталости (аудит B6, meta.vitals.fatigue) */
+  | { type: 'change_fatigue'; delta: number }
+  /** трата рассудка или исцеление психики (аудит B6, meta.vitals.sanity) */
+  | { type: 'change_sanity'; delta: number }
+  /** репутация (аудит B6, meta.reputation) */
+  | { type: 'change_reputation'; delta: number }
+  /** сдвиг уровня достатка на ±n ступеней (аудит B6, meta.wealth_levels) */
+  | { type: 'change_wealth'; levels: number }
+  /** задать/сдвинуть страсть (аудит B6); set — точное значение */
+  | { type: 'change_passion'; id: string; delta?: number; set?: number }
+  /** очки причастности силе (аудит B6) */
+  | { type: 'change_allegiance'; id: string; points: number }
+  /**
+   * Тренировка/рост ХАРАКТЕРИСТИКИ (аудит B6, книжный рост со временем):
+   * прибавка delta к stat; движок пересчитывает HP/MP/усталость/рассудок.
+   * Пределы — stat_limits кампании (культурные/видовые модификаторы уже
+   * заложены мастером при создании: char_creation.roll.per_stat).
+   */
+  | { type: 'train_stat'; stat: string; delta: number }
   | { type: 'join_party'; entity: string }
   | { type: 'leave_party'; entity: string }
   | { type: 'block_path'; from: string; to: string }
@@ -1595,6 +1684,18 @@ export interface PlayerState {
   max_mp: number
   /** текущие очки удачи (аудит §5.6 п.8); отсутствует в старых сейвах — считается полным (POW×множитель) */
   luck?: number
+  /** очки усталости (аудит B6, opt-in meta.vitals.fatigue); max = (STR+CON)×множитель */
+  fatigue?: number
+  /** рассудок (аудит B6, opt-in meta.vitals.sanity); старт = POW×множитель */
+  sanity?: number
+  /** репутация (аудит B6, opt-in meta.reputation): шкала мастера, старт 0 */
+  reputation?: number
+  /** уровень достатка (аудит B6, opt-in meta.wealth_levels): индекс в шкале */
+  wealth_level?: number
+  /** страсти (аудит B6): id → значение 0..100+; реестр в meta.passions_list */
+  passions?: Record<string, number>
+  /** причастность (аудит B6): id силы/богини → очки; реестр в meta.allegiances */
+  allegiance?: Record<string, number>
   needs: Record<string, number>
   inventory: InventoryEntry[]
   /** устаревшее поле сохранений; актуальный баланс валют хранится в inventory как предметы-монеты */

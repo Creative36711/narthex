@@ -1008,6 +1008,128 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       </div>
 
       <div className="props-group">
+        <h4>Производные опции (усталость, рассудок, слава, достаток, страсти, причастность)</h4>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld fld-check" data-tip="Очки усталости = (STR+CON). Траты задаёте эффектами change_fatigue; на нуле срабатывают правила">
+            <input
+              type="checkbox"
+              checked={!!m.vitals?.fatigue}
+              onChange={(e) => {
+                const v = { ...(m.vitals ?? {}) }
+                if (e.target.checked) v.fatigue = true
+                else delete v.fatigue
+                if (Object.keys(v).length) m.vitals = v
+                else delete m.vitals
+                commit()
+              }}
+            />
+            <span>Очки усталости (STR+CON)</span>
+          </label>
+          <label className="fld fld-check" data-tip="Рассудок = POW×5. Потери — change_sanity, пороги — правилами на sanity_le">
+            <input
+              type="checkbox"
+              checked={!!m.vitals?.sanity}
+              onChange={(e) => {
+                const v = { ...(m.vitals ?? {}) }
+                if (e.target.checked) v.sanity = true
+                else delete v.sanity
+                if (Object.keys(v).length) m.vitals = v
+                else delete m.vitals
+                commit()
+              }}
+            />
+            <span>Рассудок (POW×5)</span>
+          </label>
+          <label className="fld fld-check" data-tip="Репутация героя — счётчик славы; чип в HUD и влияние на мир через условия reputation_ge">
+            <input
+              type="checkbox"
+              checked={!!m.reputation}
+              onChange={(e) => {
+                if (e.target.checked) m.reputation = true
+                else delete m.reputation
+                commit()
+              }}
+            />
+            <span>Репутация</span>
+          </label>
+          <label className="fld" data-tip="Названия ступеней достатка через запятую, от низшей к высшей: Нищий, Бедный, Свободный, Знатный. Пусто — системы нет">
+            <span>Шкала достатка</span>
+            <input
+              value={(m.wealth_levels ?? []).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean)
+                if (arr.length) m.wealth_levels = arr
+                else delete m.wealth_levels
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="id=Название страстей через запятую: honor=Честь, loyalty=Верность">
+            <span>Страсти</span>
+            <input
+              value={(m.passions_list ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [id, label] = x.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id }
+                }).filter((x) => x.id)
+                if (arr.length) m.passions_list = arr
+                else delete m.passions_list
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="id=Название сил причастности через запятую: storm_goddess=Богиня Грозы">
+            <span>Причастность</span>
+            <input
+              value={(m.allegiances ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [id, label] = x.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id }
+                }).filter((x) => x.id)
+                if (arr.length) m.allegiances = arr
+                else delete m.allegiances
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Книжный уровень мощи кампании; для heroic+ используйте формулы 2d6+6 в генерации характеристик">
+            <span>Уровень мощи</span>
+            <select
+              value={m.power_level ?? 'normal'}
+              onChange={(e) => {
+                if (e.target.value === 'normal') delete m.power_level
+                else m.power_level = e.target.value as 'heroic' | 'epic' | 'superhuman'
+                commit()
+              }}
+            >
+              <option value="normal">Обычный (умолчание)</option>
+              <option value="heroic">Героический</option>
+              <option value="epic">Эпический</option>
+              <option value="superhuman">Сверхчеловеческий</option>
+            </select>
+          </label>
+          <label className="fld fld-num" data-tip="Порог страсти/навыка-союзника для аугмента (умолчание 50; книжно +20 при ≥50)">
+            <span>Порог аугмента</span>
+            <input
+              type="number" min={1}
+              value={m.augments?.threshold ?? 50}
+              onChange={(e) => ((m.augments = { ...(m.augments ?? {}), threshold: Math.max(1, Number(e.target.value) || 50) }), commit())}
+            />
+          </label>
+          <label className="fld fld-num" data-tip="Прибавка к броску при аугменте/подмоге (умолчание +20)">
+            <span>Бонус аугмента</span>
+            <input
+              type="number" min={0}
+              value={m.augments?.bonus ?? 20}
+              onChange={(e) => ((m.augments = { ...(m.augments ?? {}), bonus: Math.max(0, Number(e.target.value) || 20) }), commit())}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="props-group">
         <h4>Старт игры</h4>
         <div className="fld-row">
           <SelectFld label="Регион" value={m.starting_region} options={regionOpts} onChange={(v) => ((m.starting_region = v), commit())} />
@@ -1539,11 +1661,59 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           Единый список навыков кампании: он используется в листе персонажа, в проверках,
           в бою и во всех выпадающих списках редактора.
         </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap', marginBottom: 6 }}>
+          <label className="fld" data-tip="id=Название категорий навыков через запятую: combat=Бой, social=Общение. Пусто — без категорий">
+            <span>Категории навыков</span>
+            <input
+              value={(m.skill_categories ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [id, label] = x.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id }
+                }).filter((x) => x.id)
+                if (arr.length) m.skill_categories = arr
+                else delete m.skill_categories
+                commit()
+              }}
+            />
+          </label>
+        </div>
         {(m.skills ?? []).map((sk, i) => (
           <div key={i} className="fld-row need-row">
             <label className="fld">
               <span>Название</span>
               <input value={sk.label} onChange={(e) => ((sk.label = e.target.value), commit())} />
+            </label>
+            {(m.skill_categories?.length ?? 0) > 0 && (
+              <label className="fld" data-tip="Категория для группировки в листе персонажа">
+                <span>Категория</span>
+                <select
+                  value={sk.category ?? ''}
+                  onChange={(e) => {
+                    if (e.target.value) sk.category = e.target.value
+                    else delete sk.category
+                    commit()
+                  }}
+                >
+                  <option value="">—</option>
+                  {(m.skill_categories ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="fld" data-tip="Базовый шанс без обучения: число (25) или формула (DEX×2, INT×5). Пусто — 0%">
+              <span>Базовый шанс</span>
+              <input
+                value={sk.base ?? ''}
+                placeholder="0"
+                onChange={(e) => {
+                  const v = e.target.value.trim()
+                  if (!v) delete sk.base
+                  else sk.base = /^\d+$/.test(v) ? Number(v) : v
+                  commit()
+                }}
+              />
             </label>
             <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>

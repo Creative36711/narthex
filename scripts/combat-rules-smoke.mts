@@ -771,5 +771,69 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   check('16 fumble встречается в 60 попытках', sawStuck)
 }
 
+
+// ── 17. производные опции B6: усталость, рассудок, репутация, достаток, страсти, причастность, базовые шансы, аугменты ──
+{
+  const c = synth((camp) => {
+    buff(camp)
+    camp.meta.vitals = { fatigue: true, sanity: true }
+    camp.meta.reputation = true
+    camp.meta.wealth_levels = ['Нищий', 'Бедный', 'Свободный', 'Знатный']
+    camp.meta.passions_list = [{ id: 'honor', label: 'Честь' }]
+    camp.meta.allegiances = [{ id: 'storm_goddess', label: 'Богиня Грозы' }]
+  })
+  const e = new GameEngine(c)
+  e.start()
+  // усталость: max = STR+CON = 30+30 = 60
+  check('17 усталость: максимум STR+CON', e.fatigueMax() === 60, `max=${e.fatigueMax()}`)
+  check('17 усталость стартует полной', e.fatigue() === 60)
+  e.applyEffects([{ type: 'change_fatigue', delta: -10 } as never])
+  check('17 трата усталости работает', e.fatigue() === 50)
+  e.restHeal()
+  check('17 отдых восстанавливает усталость', e.fatigue() === 60)
+  // рассудок: POW×5 = 75
+  check('17 рассудок: максимум POW×5', e.sanityMax() === 75, `max=${e.sanityMax()}`)
+  e.applyEffects([{ type: 'change_sanity', delta: -30 } as never])
+  check('17 потеря рассудка записалась', e.sanity() === 45 && (e.state.player.sanity ?? 75) === 45)
+  e.applyEffects([{ type: 'change_sanity', delta: +100 } as never])
+  check('17 рассудок ограничен максимумом', e.sanity() === 75)
+  // репутация и достаток
+  e.applyEffects([{ type: 'change_reputation', delta: +12 } as never])
+  check('17 репутация выросла', e.reputation() === 12)
+  e.applyEffects([{ type: 'change_wealth', levels: +2 } as never])
+  check('17 достаток поднялся на 2 ступени', e.wealthLevel() === 2 && e.wealthLevelLabel() === 'Свободный')
+  e.applyEffects([{ type: 'change_wealth', levels: +5 } as never])
+  check('17 достаток ограничен шкалой', e.wealthLevel() === 3)
+  // страсти и причастность
+  e.applyEffects([{ type: 'change_passion', id: 'honor', delta: 40 } as never])
+  check('17 страсть создана со значением', e.passion('honor') === 40 && (e.state.player.passions ?? {})['honor'] === 40)
+  e.applyEffects([{ type: 'change_allegiance', id: 'storm_goddess', points: 3 } as never])
+  check('17 причастность растёт', e.allegiance('storm_goddess') === 3)
+  // условия
+  const { evalCondition } = await import('../src/core/conditions')
+  check('17 условие sanity_le', evalCondition({ type: 'sanity_le', threshold: 50 } as never, e) === false)
+  check('17 условие passion_ge', evalCondition({ type: 'passion_ge', id: 'honor', value: 50 } as never, e) === false)
+  check('17 условие power_level_ge', evalCondition({ type: 'power_level_ge', level: 'normal' } as never, e) === true)
+  check('17 условие wealth_ge', evalCondition({ type: 'wealth_ge', level: 3 } as never, e) === true)
+  // базовый шанс навыка: DEX×2 = 60 при DEX 30
+  c.meta.skills = [...(c.meta.skills ?? []).filter((s) => s.id !== 'tradetalk'), { id: 'tradetalk', label: 'Торговля', base: 'DEX×2' }]
+  delete e.state.player.skills['tradetalk']
+  check('17 базовый шанс: DEX×2 без обучения', e.skillBaseChance('tradetalk') === 60, `${e.skillBaseChance('tradetalk')}`)
+  check('17 skillEffective берёт базовый шанс', e.skillEffective('tradetalk') === 60)
+  e.state.player.skills['tradetalk'] = 30
+  check('17 изученный навык сильнее базового', e.skillEffective('tradetalk') === 30 || e.skillEffective('tradetalk') === 60)
+  // аугмент страсти к stat_check: порог 50, бонус +20
+  e.applyEffects([{ type: 'change_passion', id: 'honor', delta: 20 } as never])
+  check('17 страсть дотянула до порога', e.passion('honor') === 60)
+  const logBefore = e.state.log.length
+  ;(e as any).applyEffects([{ type: 'stat_check', stat: 'POW', multiplier: 1, augment_passion: 'honor', success_effects: [], fail_effects: [] } as never]) // POW=15, цель 15+20
+  const logLines = e.state.log.slice(logBefore)
+  check(
+    '17 аугмент страсти добавил +20 и залогирован',
+    logLines.some((l) => l.includes('+20')) && logLines.some((l) => l.includes('против 35')),
+    logLines.join(' | ').slice(0, 200),
+  )
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

@@ -50,6 +50,26 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return s.player.hp >= c.threshold
     case 'luck_ge':
       return engine.luck() >= c.threshold
+    case 'fatigue_ge':
+      return engine.fatigue() >= c.threshold
+    case 'fatigue_le':
+      return engine.fatigue() <= c.threshold
+    case 'sanity_ge':
+      return engine.sanity() >= c.threshold
+    case 'sanity_le':
+      return engine.sanity() <= c.threshold
+    case 'reputation_ge':
+      return engine.reputation() >= c.threshold
+    case 'wealth_ge':
+      return engine.wealthLevel() >= c.level
+    case 'passion_ge':
+      return (s.player.passions?.[c.id] ?? 0) >= c.value
+    case 'allegiance_ge':
+      return (s.player.allegiance?.[c.id] ?? 0) >= c.points
+    case 'power_level_ge': {
+      const order = ['normal', 'heroic', 'epic', 'superhuman']
+      return order.indexOf(engine.campaign.meta.power_level ?? 'normal') >= order.indexOf(c.level)
+    }
     case 'need_le':
       return (s.player.needs[c.need] ?? 0) <= c.threshold
     case 'need_ge':

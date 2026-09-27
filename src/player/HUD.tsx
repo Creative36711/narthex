@@ -43,6 +43,31 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
             Удача {engine.luck()}
           </div>
         )}
+        {engine.fatigueMax() > 0 && (
+          <div
+            className={`hud-bar need ${engine.fatigue() <= 0 ? 'critical' : ''}`}
+            data-tip={`Усталость: ${engine.fatigue()}/${engine.fatigueMax()} (= (STR+CON)×множитель).\nТраты задаёт мастер (бег, тяжёлый труд, бессонница); на нуле — правила кампании решают последствия.\nВосстанавливается на отдыхе (если мастер не отключил).`}
+          >
+            <div className="hud-bar-fill" style={{ width: `${(engine.fatigue() / engine.fatigueMax()) * 100}%` }} />
+            <span>Усталость {engine.fatigue()}</span>
+          </div>
+        )}
+        {engine.sanityMax() > 0 && (
+          <div
+            className="hud-status-chip"
+            data-tip={`Рассудок: ${engine.sanity()}/${engine.sanityMax()} (POW × множитель).\nПотери и исцеление — эффектами мастера; пороги (может, помешательство) — правилами на sanity_le.`}
+          >
+            Рассудок {engine.sanity()}
+          </div>
+        )}
+        {engine.reputationEnabled() && (
+          <div
+            className="hud-status-chip"
+            data-tip={`${engine.reputationLabel()}: ${engine.reputation()}.\nМеняется деяниями героя (эффекты мастера change_reputation).`}
+          >
+            {engine.reputationLabel()} {engine.reputation()}
+          </div>
+        )}
         {needsOn && meta.needs.map((n) => {
           const val = s.player.needs[n.id] ?? 0
           const critical = val <= n.critical_threshold

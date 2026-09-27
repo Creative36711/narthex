@@ -397,6 +397,15 @@ export class GameEngine {
       this.state.player.luck = this.luckMax()
       this.pushLog('Герой чувствует: удача вернулась.')
     }
+    // усталость снимается отдыхом (мастер может запретить vitals.fatigue.rest_restore=false)
+    if (this.fatigueMax() > 0) {
+      const cfg = this.campaign.meta.vitals?.fatigue
+      const restore = cfg === true ? true : (typeof cfg === 'object' ? cfg.rest_restore !== false : true)
+      if (restore && this.fatigue() < this.fatigueMax()) {
+        this.state.player.fatigue = this.fatigueMax()
+        this.pushLog('Усталость прошла (отдых).')
+      }
+    }
     return { hp: healed, mpFull }
   }
 
@@ -844,6 +853,231 @@ export class GameEngine {
     return true
   }
 
+  // ─────────────── производные опции B6: усталость, рассудок, репутация, достаток, страсти, причастность ───────────────
+
+  /** максимум усталости: (STR+CON)×множитель; opt-in meta.vitals.fatigue */
+  fatigueMax(): number {
+    const cfg = this.campaign.meta.vitals?.fatigue
+    if (!cfg) return 0
+    const mult = cfg === true ? 1 : (cfg.multiplier ?? 1)
+    return Math.max(0, Math.round((this.state.player.stats.STR + this.state.player.stats.CON) * mult))
+  }
+
+  /** текущая усталость (полная по умолчанию, как удача) */
+  fatigue(): number {
+    const max = this.fatigueMax()
+    return Math.min(max, this.state.player.fatigue ?? max)
+  }
+
+  /** израсходовать/восстановить усталость; ложь — запаса не хватит */
+  changeFatigue(delta: number): boolean {
+    const max = this.fatigueMax()
+    if (max === 0 && delta !== 0) return true // система выключена — no-op
+    const cur = this.fatigue()
+    if (delta < 0 && cur + delta < 0) {
+      this.state.player.fatigue = 0
+      this.pushLog('Вы на пределе: очки усталости на нуле!')
+      this.checkRules() // правила мастера могут среагировать на fatigue_le
+      this.notify()
+      return false
+    }
+    this.state.player.fatigue = Math.max(0, Math.min(max, cur + delta))
+    this.checkRules()
+    this.notify()
+    return true
+  }
+
+  /** максимум рассудка: POW×множитель; opt-in meta.vitals.sanity */
+  sanityMax(): number {
+    const cfg = this.campaign.meta.vitals?.sanity
+    if (!cfg) return 0
+    const mult = cfg === true ? 5 : (cfg.multiplier ?? 5)
+    return Math.max(0, this.state.player.stats.POW * mult)
+  }
+
+  /** текущий рассудок */
+  sanity(): number {
+    const max = this.sanityMax()
+    return Math.min(max, this.state.player.sanity ?? max)
+  }
+
+  /** потеря/исцеление рассудка; пороги/психозы — правилами на sanity_le */
+  changeSanity(delta: number): void {
+    const max = this.sanityMax()
+    if (max === 0 && delta !== 0) return
+    const next = Math.max(0, Math.min(max, this.sanity() + delta))
+    const lost = next - this.sanity()
+    this.state.player.sanity = next
+    if (lost < 0) this.pushLog(`Рассудок трещит: ${lost}. (сейчас ${next}/${max})`)
+    else if (lost > 0) this.pushLog(`Мысли проясняются: рассудок +${lost}. (сейчас ${next}/${max})`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** репутация (opt-in meta.reputation) */
+  reputation(): number {
+    return Math.max(0, this.state.player.reputation ?? 0)
+  }
+
+  /** репутация включена мастером */
+  reputationEnabled(): boolean {
+    return !!this.campaign.meta.reputation
+  }
+
+  reputationLabel(): string {
+    const cfg = this.campaign.meta.reputation
+    return (typeof cfg === 'object' && cfg?.label) || 'Репутация'
+  }
+
+  changeReputation(delta: number): void {
+    const next = Math.max(0, this.reputation() + delta)
+    this.state.player.reputation = next
+    if (delta > 0) this.pushLog(`Слава о вас растёт: репутация ${next}.`)
+    else if (delta < 0) this.pushLog(`О вас отзываются хуже: репутация ${next}.`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** шкала достатка (opt-in meta.wealth_levels) */
+  wealthLevels(): string[] {
+    return this.campaign.meta.wealth_levels ?? []
+  }
+
+  /** текущий уровень достатка (индекс в шкале) */
+  wealthLevel(): number {
+    const lv = this.wealthLevels()
+    return Math.max(0, Math.min(lv.length - 1, this.state.player.wealth_level ?? 0))
+  }
+
+  wealthLevelLabel(): string {
+    return this.wealthLevels()[this.wealthLevel()] ?? ''
+  }
+
+  /** сдвиг достатка на ±levels ступеней */
+  changeWealth(levels: number): void {
+    const lv = this.wealthLevels()
+    if (!lv.length) return
+    const next = Math.max(0, Math.min(lv.length - 1, this.wealthLevel() + levels))
+    if (next === this.wealthLevel()) return
+    this.state.player.wealth_level = next
+    this.pushLog(`Ваш достаток меняется: теперь «${lv[next]}».`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** страсть: значение 0..100+ */
+  passion(id: string): number {
+    return this.state.player.passions?.[id] ?? 0
+  }
+
+  passionLabel(id: string): string {
+    return this.campaign.meta.passions_list?.find((p) => p.id === id)?.label ?? id
+  }
+
+  /** создать/сдвинуть страсть (clamped ≥ 0); лог первого появления */
+  changePassion(id: string, delta: number): void {
+    const p = this.state.player
+    p.passions ??= {}
+    const next = Math.max(0, (p.passions[id] ?? 0) + delta)
+    const fresh = p.passions[id] == null
+    p.passions[id] = next
+    if (fresh) this.pushLog(`В вас зажигается страсть: «${this.passionLabel(id)}» (${next}).`)
+    else this.pushLog(`Страсть «${this.passionLabel(id)}»: ${delta > 0 ? '+' : ''}${delta} → ${next}.`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** очки причастности силе */
+  allegiance(id: string): number {
+    return this.state.player.allegiance?.[id] ?? 0
+  }
+
+  allegianceLabel(id: string): string {
+    return this.campaign.meta.allegiances?.find((a) => a.id === id)?.label ?? id
+  }
+
+  /** +очки причастности (по книге без снижения, дельта 0..100+) */
+  changeAllegiance(id: string, points: number): void {
+    const p = this.state.player
+    p.allegiance ??= {}
+    const next = Math.max(0, (p.allegiance[id] ?? 0) + points)
+    const fresh = p.allegiance[id] == null
+    p.allegiance[id] = next
+    if (fresh) this.pushLog(`Вы обретаете причастность к «${this.allegianceLabel(id)}» (${next}).`)
+    else if (points > 0) this.pushLog(`Причастность «${this.allegianceLabel(id)}»: +${points} → ${next}.`)
+    else this.pushLog(`Причастность «${this.allegianceLabel(id)}»: ${points} → ${next}.`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /**
+   * Базовый шанс навыка (без обучения). Формула 'DEX×2' ('×' или '*'),
+   * несколько слагаемых через '+': 'DEX×2+INT'.
+   * Возвращает 0, если у навыка нет base (необученный даёт 0% — как раньше).
+   */
+  skillBaseChance(skillId: string): number {
+    const def = this.campaign.meta.skills?.find((s) => s.id === skillId)
+    const base = def?.base
+    if (base == null) return 0
+    if (typeof base === 'number') return base
+    const stats = this.state.player.stats as unknown as Record<string, number>
+    let total = 0
+    for (const part of base.split('+')) {
+      const m = part.trim().match(/^([A-Z]+)(?:\s*[×x*]\s*(\d+))?$/)
+      if (!m) continue
+      const stat = stats[m[1]] ?? 0
+      total += stat * (m[2] ? parseInt(m[2], 10) : 1)
+    }
+    return total
+  }
+
+  /**
+   * Эффективное значение навыка для проверок вне боя: изученный навык,
+   * иначе базовый шанс (если у навыка задан `base` в реестре кампании).
+   */
+  skillEffective(skillId: string): number {
+    const learned = this.state.player.skills[skillId]
+    return learned != null ? learned : this.skillBaseChance(skillId)
+  }
+
+  /**
+   * Тренировка характеристики (аудит B6): прибавка с клампом по stat_limits
+   * кампании; пересчитывает производные пулы (HP/MP/усталость/рассудок).
+   */
+  trainStat(stat: string, delta: number): void {
+    const p = this.state.player
+    const stats = p.stats as unknown as Record<string, number>
+    if (!(stat in stats)) return
+    const lim = this.campaign.meta.char_creation?.stat_limits
+    const min = lim?.min ?? 1
+    const max = lim?.max ?? 99
+    const next = Math.max(min, Math.min(max, stats[stat] + delta))
+    if (next === stats[stat]) return
+    stats[stat] = next
+    this.pushLog(`Тренировка дала плоды: ${this.statLabel(stat)} ${delta > 0 ? '+' : ''}${delta} → ${next}.`)
+    // пересчёт HP (SIZ+CON)/MP (POW) теми же формулами, что на создании героя
+    const newMaxHp = derivedHP(p.stats)
+    if (newMaxHp !== p.max_hp) {
+      const diff = newMaxHp - p.max_hp
+      p.max_hp = newMaxHp
+      p.hp = Math.max(1, Math.min(p.max_hp, p.hp + Math.max(0, diff)))
+    }
+    const newMaxMp = derivedMP(p.stats)
+    if (newMaxMp !== p.max_mp) {
+      const diff = newMaxMp - p.max_mp
+      p.max_mp = newMaxMp
+      p.mp = Math.max(0, Math.min(p.max_mp, p.mp + Math.max(0, diff)))
+    }
+    this.checkRules()
+    this.notify()
+  }
+
+  /** локализованное имя характеристики */
+  statLabel(stat: string): string {
+    const labels: Record<string, string> = { STR: 'Сила', CON: 'Телосложение', SIZ: 'Размер', DEX: 'Ловкость', INT: 'Разум', POW: 'Мощь', CHA: 'Обаяние', EDU: 'Образование' }
+    return labels[stat] ?? stat
+  }
+
   /**
    * Предложение переброска за удачу (аудит §5.6 п.8). Не сохраняется в сейв:
    * если игрок закрыл игру с открытым предложением — применится ветка провала.
@@ -913,12 +1147,37 @@ export class GameEngine {
   }
 
   /**
+   * Аугмент страсти и подмога союзника (аудит B6, книжные аугменты):
+   * порог значения — meta.augments.threshold (умолчание 50),
+   * прибавка к броску — meta.augments.bonus (умолчание +20, книжно).
+   */
+  private augmentBonus(e: { augment_passion?: string; assist_entity?: string; assist_skill?: string }, fallbackSkill?: string): number {
+    let mod = 0
+    const cfg = this.campaign.meta.augments
+    const threshold = Math.max(1, cfg?.threshold ?? 50)
+    const bonus = Math.max(0, cfg?.bonus ?? 20)
+    if (e.augment_passion && this.passion(e.augment_passion) >= threshold) {
+      mod += bonus
+      this.pushLog(`Страсть «${this.passionLabel(e.augment_passion)}» подхватывает вас (+${bonus}%).`)
+    }
+    if (e.assist_entity) {
+      const npc = this.campaign.entities[e.assist_entity] as NpcDef | undefined
+      const sk = e.assist_skill ?? fallbackSkill
+      if (sk && (npc?.skills?.[sk] ?? 0) >= threshold) {
+        mod += bonus
+        this.pushLog(`${npc?.label ?? e.assist_entity} помогает (+${bonus}%).`)
+      }
+    }
+    return mod
+  }
+
+  /**
    * Противоборство навыком героя (аудит §5.6 п.6): бросок героя против
    * броска оппонента (NPC или числовой порог), ранги из diceRules-таблицы.
    */
   opposedCheck(e: Extract<Effect, { type: 'opposed_check' }>): { success: boolean; player: SkillCheckOutcome; rival: SkillCheckOutcome } {
     const skill = e.skill
-    const playerValue = Math.max(1, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
+    const playerValue = Math.max(1, this.skillEffective(skill) + this.statusSkillMod(skill) + this.augmentBonus(e, skill))
     const player = this.playerCheckOutcome(playerValue, 0, `Противоборство «${this.skillLabel(skill)}» (герой)`)
     let rivalValue: number
     let rivalLabel = ''
@@ -1029,7 +1288,8 @@ export class GameEngine {
     if (!featureOn(this.campaign.meta, 'skills')) {
       return { roll: 0, target: 100, result: 'success', success: true }
     }
-    const value = Math.max(0, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
+    // необученный навык берёт базовый шанс (аудит B6, meta.skills[].base)
+    const value = Math.max(0, this.skillEffective(skill) + this.statusSkillMod(skill))
     const out = skillCheck(value, this.rng, difficultyModifier(value, difficulty), this.diceRules)
     this.pushLog(
       `Проверка «${this.skillLabel(skill)}» (${difficultyLabel(difficulty)}) — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`,
@@ -1573,11 +1833,13 @@ export class GameEngine {
       }
       case 'stat_check': {
         const mult = e.multiplier ?? 5
-        const out = this.statCheck(e.stat, mult, e.modifier ?? 0)
+        const aug = this.augmentBonus(e)
+        const modifier = (e.modifier ?? 0) + aug
+        const out = this.statCheck(e.stat, mult, modifier)
         this.applyByCheck(
           out,
           `Проверка характеристики ${e.stat}×${mult}`,
-          () => this.statCheck(e.stat, mult, e.modifier ?? 0),
+          () => this.statCheck(e.stat, mult, modifier),
           () => this.applyEffects(e.success_effects),
           () => this.applyEffects(e.fail_effects),
         )
@@ -1614,6 +1876,13 @@ export class GameEngine {
         break
       }
       case 'change_luck': this.changeLuck(e.delta); break
+      case 'change_fatigue': this.changeFatigue(e.delta); break
+      case 'change_sanity': this.changeSanity(e.delta); break
+      case 'change_reputation': this.changeReputation(e.delta); break
+      case 'change_wealth': this.changeWealth(e.levels); break
+      case 'change_passion': this.changePassion(e.id, e.delta ?? (e.set != null ? e.set - (this.state.player.passions?.[e.id] ?? 0) : 0)); break
+      case 'change_allegiance': this.changeAllegiance(e.id, e.points); break
+      case 'train_stat': this.trainStat(e.stat, e.delta); break
       case 'change_disposition': this.changeDisposition(e.target, e.delta); break
       case 'start_quest': this.startQuest(e.quest); break
       case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break

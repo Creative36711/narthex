@@ -142,6 +142,57 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'threshold', label: 'Очков удачи', kind: 'number' }],
     blank: { threshold: 1 },
   },
+  fatigue_ge: {
+    label: 'Усталость ≥',
+    fields: [{ key: 'threshold', label: 'Очков усталости', kind: 'number' }],
+    blank: { threshold: 1 },
+  },
+  fatigue_le: {
+    label: 'Усталость ≤',
+    fields: [{ key: 'threshold', label: 'Очков усталости', kind: 'number' }],
+    blank: { threshold: 0 },
+  },
+  sanity_ge: {
+    label: 'Рассудок ≥',
+    fields: [{ key: 'threshold', label: 'Очков рассудка', kind: 'number' }],
+    blank: { threshold: 50 },
+  },
+  sanity_le: {
+    label: 'Рассудок ≤',
+    fields: [{ key: 'threshold', label: 'Очков рассудка', kind: 'number' }],
+    blank: { threshold: 25 },
+  },
+  reputation_ge: {
+    label: 'Репутация ≥',
+    fields: [{ key: 'threshold', label: 'Порог', kind: 'number' }],
+    blank: { threshold: 50 },
+  },
+  wealth_ge: {
+    label: 'Достаток ≥',
+    fields: [{ key: 'level', label: 'Уровень (индекс шкалы)', kind: 'number' }],
+    blank: { level: 1 },
+  },
+  passion_ge: {
+    label: 'Страсть ≥',
+    fields: [
+      { key: 'id', label: 'id страсти', kind: 'string' },
+      { key: 'value', label: 'Значение', kind: 'number' },
+    ],
+    blank: { id: '', value: 50 },
+  },
+  allegiance_ge: {
+    label: 'Причастность ≥',
+    fields: [
+      { key: 'id', label: 'id силы', kind: 'string' },
+      { key: 'points', label: 'Очки', kind: 'number' },
+    ],
+    blank: { id: '', points: 100 },
+  },
+  power_level_ge: {
+    label: 'Уровень мощи кампании ≥',
+    fields: [{ key: 'level', label: "normal/heroic/epic/superhuman", kind: 'string', placeholder: 'heroic' }],
+    blank: { level: 'heroic' },
+  },
   need_le: {
     label: 'Потребность ≤',
     fields: [
@@ -369,6 +420,9 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'POW' },
       { key: 'multiplier', label: 'Множитель (ум. 5)', kind: 'number', optional: true },
       { key: 'modifier', label: 'Модификатор к цели', kind: 'number', optional: true },
+      { key: 'augment_passion', label: 'Аугмент: id страсти', kind: 'string', optional: true },
+      { key: 'assist_entity', label: 'Подмога: id союзника', kind: 'npcRef', optional: true },
+      { key: 'assist_skill', label: 'Навык подмоги', kind: 'skillRef', optional: true },
       { key: 'success_effects', label: 'При успехе', kind: 'effects' },
       { key: 'fail_effects', label: 'При провале', kind: 'effects' },
     ],
@@ -382,6 +436,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'against_skill', label: 'Навык оппонента', kind: 'skillRef', optional: true },
       { key: 'against_value', label: 'Или порог навыка', kind: 'number', optional: true },
       { key: 'tie', label: 'При равенстве выигрывает', kind: 'select', options: ['player', 'opponent'], optional: true },
+      { key: 'augment_passion', label: 'Аугмент: id страсти', kind: 'string', optional: true },
       { key: 'success_effects', label: 'При победе героя', kind: 'effects' },
       { key: 'fail_effects', label: 'При поражении', kind: 'effects' },
     ],
@@ -391,6 +446,50 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Изменить удачу',
     fields: [{ key: 'delta', label: 'Очки удачи (±)', kind: 'number' }],
     blank: { delta: -1 },
+  },
+  change_fatigue: {
+    label: 'Изменить усталость',
+    fields: [{ key: 'delta', label: 'Очки усталости (±)', kind: 'number' }],
+    blank: { delta: -1 },
+  },
+  change_sanity: {
+    label: 'Изменить рассудок',
+    fields: [{ key: 'delta', label: 'Очки рассудка (±)', kind: 'number' }],
+    blank: { delta: -5 },
+  },
+  change_reputation: {
+    label: 'Изменить репутацию',
+    fields: [{ key: 'delta', label: 'Сдвиг (±)', kind: 'number' }],
+    blank: { delta: 5 },
+  },
+  change_wealth: {
+    label: 'Сдвиг достатка',
+    fields: [{ key: 'levels', label: 'Ступеней (±)', kind: 'number' }],
+    blank: { levels: 1 },
+  },
+  change_passion: {
+    label: 'Изменить страсть',
+    fields: [
+      { key: 'id', label: 'id страсти', kind: 'string' },
+      { key: 'delta', label: 'Сдвиг (±)', kind: 'number' },
+    ],
+    blank: { id: '', delta: 10 },
+  },
+  change_allegiance: {
+    label: 'Изменить причастность',
+    fields: [
+      { key: 'id', label: 'id силы', kind: 'string' },
+      { key: 'points', label: 'Очки (±)', kind: 'number' },
+    ],
+    blank: { id: '', points: 1 },
+  },
+  train_stat: {
+    label: 'Тренировка характеристики',
+    fields: [
+      { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'STR' },
+      { key: 'delta', label: 'Сдвиг (±)', kind: 'number' },
+    ],
+    blank: { stat: 'STR', delta: 1 },
   },
   start_quest: {
     label: 'Начать квест',
