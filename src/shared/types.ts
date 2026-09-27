@@ -1071,6 +1071,9 @@ export interface SlotDef {
   condition: SceneCondition | null
   /** множитель размера спрайта сцены в этом слоте (1 = по высоте слота) */
   sprite_scale?: number
+  /** состояние спрайта сцены для занятого НПС (ключ из scene_sprite_states,
+   *  id состояния кампании); пусто — обычный спрайт */
+  sprite_state?: string
   /** предметы, которыми можно воздействовать на слот (блок 8 ТЗ) */
   use_with?: SlotUseWith[]
 }
@@ -1168,6 +1171,10 @@ export interface NpcDef {
   /** СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);
    *  нет — в сцене используется портрет (состояние «Обычный») */
   scene_sprite?: string
+  /** состояния спрайта сцены — по образцу портретов: ключ — id состояния из
+   *  реестра кампании (`meta.emotions`); «Куда девать» определяет слот сцены
+   *  (SlotDef.sprite_state). Пустого ключа нет: «Обычный» — это scene_sprite. */
+  scene_sprite_states?: Record<string, string>
   /** ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски
    *  и рамки стороны); нет — круглый жетон из `token ?? portrait.neutral` */
   combat_figure?: string

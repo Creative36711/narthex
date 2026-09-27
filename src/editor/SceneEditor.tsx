@@ -557,6 +557,22 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
           }}
         />
       </label>
+      <label className="fld" data-tip="Какой вариант спрайта показывать у персонажа в этом слоте — из «Спрайта в сцене» в карточке персонажа. «Обычный» — основной спрайт.">
+        <span>Состояние спрайта</span>
+        <select
+          value={slot.sprite_state ?? ''}
+          onChange={(e) => {
+            if (e.target.value) slot.sprite_state = e.target.value
+            else delete slot.sprite_state
+            commit()
+          }}
+        >
+          <option value="">Обычный</option>
+          {(store.meta.emotions ?? []).map((e) => (
+            <option key={e.id} value={e.id}>{e.label}</option>
+          ))}
+        </select>
+      </label>
       <div className="fld-block" style={{ marginTop: 8 }}>
         <span className="fld-caption">Использование предметов на слоте («ключ к двери»)</span>
         {(slot.use_with ?? []).map((u, i) => (
@@ -648,6 +664,21 @@ function NavProps({
       <label className="fld">
         <span>Подпись</span>
         <input value={nav.label} onChange={(e) => ((nav.label = e.target.value), commit())} />
+      </label>
+      <label className="fld feature-toggle">
+        <input
+          type="checkbox"
+          checked={!!nav.hide_label}
+          onChange={(e) => {
+            if (e.target.checked) nav.hide_label = true
+            else delete nav.hide_label
+            commit()
+          }}
+        />
+        <span>
+          <b>Не показывать подпись</b>
+          <small>как «живая картинка»: обозначение перехода появляется только под курсором игрока</small>
+        </span>
       </label>
       <label className="fld">
         <span>Тип перехода</span>

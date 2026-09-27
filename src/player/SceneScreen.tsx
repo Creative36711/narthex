@@ -101,8 +101,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             const npc = entity.type === 'npc' ? entity : null
             const item = entity.type === 'item' ? (entity as ItemDef) : null
             // спрайт: НПС — sprite в сцене (с откатом на портрет «Обычный» ниже),
-            // предмет — только своя картинка; без неё в слоте не рисуется ничего
-            const sprite = npc ? npc.scene_sprite : item?.scene_sprite
+            // предмет — только своя картинка; без неё в слоте не рисуется ничего.
+            // Состояние спрайта выбирает мастер в свойствах слота (как «настроение» в диалоге).
+            const sprite = npc
+              ? (slot.sprite_state && npc.scene_sprite_states?.[slot.sprite_state]) || npc.scene_sprite
+              : item?.scene_sprite
             const scale = slot.sprite_scale ?? 1
             // предмет под условием блокировки — «декорация»: виден, но не кликается (№8)
             const interactable = !item || engine.itemInteractable(item)

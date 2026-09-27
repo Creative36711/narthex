@@ -3706,7 +3706,7 @@
           "items": {
             "type": "string"
           },
-          "description": "цель квеста: шаблон строки с подстановками {список:ключ} (или старая форма {list:key})"
+          "description": "цель квеста: шаблон строки с подстановками {list:key}"
         }
       },
       "required": [
@@ -5212,6 +5212,10 @@
           "type": "number",
           "description": "множитель размера спрайта сцены в этом слоте (1 = по высоте слота)"
         },
+        "sprite_state": {
+          "type": "string",
+          "description": "состояние спрайта сцены для занятого НПС (ключ из scene_sprite_states,\nid состояния кампании); пусто — обычный спрайт"
+        },
         "use_with": {
           "type": "array",
           "items": {
@@ -5604,6 +5608,13 @@
         "scene_sprite": {
           "type": "string",
           "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);\nнет — в сцене используется портрет (состояние «Обычный»)"
+        },
+        "scene_sprite_states": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "состояния спрайта сцены — по образцу портретов: ключ — id состояния из\nреестра кампании (`meta.emotions`); «Куда девать» определяет слот сцены\n(SlotDef.sprite_state). Пустого ключа нет: «Обычный» — это scene_sprite."
         },
         "combat_figure": {
           "type": "string",

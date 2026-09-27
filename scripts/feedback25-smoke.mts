@@ -82,6 +82,20 @@ const f = (p: string) => readFileSync(p, 'utf8')
   check('6 поле hide_label у перехода', /hide_label\?:\s*boolean/.test(types))
   check('6 класс nav-nolabel применяется', scene.includes('nav-nolabel'))
   check('6 подпись появляется наведением', /\.nav-zone\.nav-nolabel:hover \.nav-label/.test(css))
+  check('6 редактор сцен: галочка «Не показывать подпись»', f('src/editor/SceneEditor.tsx').includes('Не показывать подпись'))
+}
+
+// ── 6б. состояния спрайта сцены (по образцу портретов) ──
+{
+  const types = f('src/shared/types.ts')
+  const scene = f('src/player/SceneScreen.tsx')
+  const sceneEd = f('src/editor/SceneEditor.tsx')
+  const entEd = f('src/editor/EntityEditor.tsx')
+  check('6б NpcDef.scene_sprite_states', /scene_sprite_states\?:\s*Record<string, string>/.test(types))
+  check('6б SlotDef.sprite_state', /sprite_state\?:\s*string/.test(types))
+  check('6б сцена выбирает спрайт по состоянию слота', scene.includes('slot.sprite_state') && scene.includes('scene_sprite_states'))
+  check('6б редактор сцен: выбор «Состояние спрайта»', sceneEd.includes('Состояние спрайта'))
+  check('6б карточка НПС: словарь состояний спрайта', entEd.includes('scene_sprite_states'))
 }
 
 // ── 7. состояния фигурки боя ──
@@ -101,7 +115,7 @@ const f = (p: string) => readFileSync(p, 'utf8')
   const scene = f('src/player/SceneScreen.tsx')
   const entEd = f('src/editor/EntityEditor.tsx')
   check('8 предмет: спрайт сцены/портреты/варианты действий/условие', /scene_sprite\?:\s*string/.test(types) && /interact_options\?:\s*ItemInteractOption\[\]/.test(types) && /interactable_when\?:\s*Condition\[\]/.test(types))
-  check('8 слот предмета без спрайта пуст', /const sprite = npc \? npc\.scene_sprite : item\?\.scene_sprite/.test(scene))
+  check('8 слот предмета без спрайта пуст', /: item\?\.scene_sprite/.test(scene) && !/item\?\.portrait/.test(scene))
   check('8 предмет-«декорация» нежатка', /disabled=\{!interactable\}/.test(scene) && engine.includes('itemInteractable'))
   check('8 окно действий мини-диалогом', scene.includes('ItemInteractDialog') && engine.includes('runItemInteract'))
   check('8 редактор предмета: все четыре блока', entEd.includes('Предмет в сцене') && entEd.includes('Портреты предмета') && entEd.includes('Действия с предметом в сцене') && entEd.includes('Условия взаимодействия'))

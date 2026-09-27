@@ -544,6 +544,7 @@ function NpcForm({
   const hasArt =
     Object.values(npc.portrait ?? {}).some(Boolean) ||
     !!npc.scene_sprite ||
+    Object.values(npc.scene_sprite_states ?? {}).some(Boolean) ||
     !!npc.combat_figure ||
     !!npc.token
 
@@ -601,7 +602,7 @@ function NpcForm({
       <details className="spoiler-block" {...(hasArt ? { open: true } : {})}>
         <summary>Изображения: портреты, спрайт, фигурка</summary>
       <div className="props-group">
-        <h4>Портреты (состояния)</h4>
+        <h4>Портреты</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           «Обычный» показывается по умолчанию; остальные состояния включаются в репликах диалога
           (в конструкторе диалогов — поле «настроение»).
@@ -704,6 +705,78 @@ function NpcForm({
             commit()
           }}
         />
+        {/* состояния спрайта — по образцу «Портретов»: ключи из общего
+            реестра состояний; показ — «Состояние спрайта» в свойствах слота сцены */}
+        <div className="muted small" style={{ margin: '8px 0 8px' }}>
+          Состояния — как у портретов: добавьте варианты спрайта (с мечом, раненый, в движении…),
+          а показывать их поможет выбор «Состояние спрайта» в свойствах слота сцены.
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          {Object.keys(npc.scene_sprite_states ?? {}).map((k) => (
+            <div key={k} style={{ position: 'relative' }}>
+              <ImageUpload
+                label={emLabelOf(store, k)}
+                value={npc.scene_sprite_states?.[k] ?? ''}
+                dir="assets/img/npc"
+                store={store}
+                onChange={(p) => {
+                  npc.scene_sprite_states = { ...(npc.scene_sprite_states ?? {}) }
+                  if (p) npc.scene_sprite_states[k] = p
+                  else delete npc.scene_sprite_states[k]
+                  if (!Object.keys(npc.scene_sprite_states).length) delete npc.scene_sprite_states
+                  commit()
+                }}
+              />
+              <button
+                className="btn btn-small ce-del"
+                data-tip="Убрать состояние"
+                style={{ position: 'absolute', top: 0, right: 0 }}
+                onClick={() => {
+                  delete npc.scene_sprite_states?.[k]
+                  if (npc.scene_sprite_states && !Object.keys(npc.scene_sprite_states).length) delete npc.scene_sprite_states
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="fld-row">
+          <select
+            className="emotion-pick"
+            value=""
+            data-tip="Добавить состояние спрайта — из списка или своё"
+            onChange={async (e) => {
+              const v = e.target.value
+              if (!v) return
+              let key = v
+              let label = emotionsOf(store).find((x) => x.id === v)?.label ?? v
+              if (v === '__new__') {
+                const name = await askText('Название нового состояния спрайта', 'например «Раненый»')
+                if (!name) return
+                key = slugify(name) || `state_${Object.keys(npc.scene_sprite_states ?? {}).length + 1}`
+                label = name
+                if (!store.meta.emotions?.some((x) => x.id === key)) {
+                  if (!store.meta.emotions) store.meta.emotions = []
+                  store.meta.emotions.push({ id: key, label })
+                  store.touch('campaign.json')
+                }
+              }
+              npc.scene_sprite_states = { ...(npc.scene_sprite_states ?? {}), [key]: '' }
+              commit()
+              e.target.value = ''
+            }}
+          >
+            <option value="">+ Добавить состояние спрайта…</option>
+            {emotionsOf(store)
+              .filter((x) => !(x.id in (npc.scene_sprite_states ?? {})))
+              .map((x) => (
+                <option key={x.id} value={x.id}>{x.label}</option>
+              ))}
+            <option value="__new__">+ Создать новое состояние…</option>
+          </select>
+        </div>
         <label className="fld fld-check">
           <input
             type="checkbox"
