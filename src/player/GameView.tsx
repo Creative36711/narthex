@@ -17,6 +17,7 @@ import { CutscenePlayer } from '../shared/CutscenePlayer'
 import { setAudioCampaign, playUi, refreshAmbient, stopAllLoops } from '../shared/audio'
 import { refreshMusic, setMenuMode, stopMusic, applyMusicVolume } from '../shared/music'
 import { featureOn, type MusicTrackDef } from '../shared/types'
+import { Ico } from '../shared/icons'
 
 interface Props {
   engine: GameEngine
@@ -48,6 +49,13 @@ export function GameView({ engine, onRestart, onExitToMenu, onLoadSlot, debugPan
     const timer = window.setTimeout(() => setDamageFlash(false), 220)
     return () => window.clearTimeout(timer)
   }, [engine, engine.state.player.hp])
+  // транзитные подсказки (получено/потеряно): каждая гаснет по таймеру
+  const toasts = engine.toasts
+  useEffect(() => {
+    if (!toasts.length) return
+    const timers = toasts.map((t) => window.setTimeout(() => engine.dismissToast(t.id), 4200))
+    return () => { for (const t of timers) window.clearTimeout(t) }
+  }, [engine, toasts])
   const message = engine.messages[0]
   // катсцена (итерация 8, блок E): пока идёт ролик, экраны остальных эффектов
   // (диалог, бой, торговля, сообщения, финал) ждут его окончания
@@ -137,6 +145,17 @@ export function GameView({ engine, onRestart, onExitToMenu, onLoadSlot, debugPan
       {!cutscene && engine.trade && !engine.combat && <TradePanel engine={engine} />}
 
       {!cutscene && engine.dialogue && !engine.combat && !engine.trade && <DialogueOverlay engine={engine} />}
+
+      {toasts.length > 0 && (
+        <div className="toast-stack" aria-live="polite">
+          {toasts.map((t) => (
+            <div key={t.id} className={`toast toast-${t.kind}`} onClick={() => engine.dismissToast(t.id)}>
+              <Ico n={t.kind === 'get' ? 'bag' : t.kind === 'lose' ? 'trash' : 'info'} />
+              <span>{t.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {!cutscene && message && (
         <div className="overlay message-overlay" onClick={() => engine.dismissMessage()}>

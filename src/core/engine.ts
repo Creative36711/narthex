@@ -9,6 +9,7 @@ import type {
   EntityDef,
   GameState,
   ItemDef,
+  ItemInteractOption,
   LocationDef,
   AchievementDef,
   ActiveStatus,
@@ -52,6 +53,7 @@ import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
 import { playUi, playInteraction } from '../shared/audio'
+import type { SoundHook } from '../shared/types'
 import { migrateNeedCondition } from '../shared/migrate'
 import { CombatController } from './combat'
 
@@ -79,6 +81,27 @@ export class GameEngine {
   combat: CombatController | null = null
   /** открытая торговля: id NPC-торговца */
   trade: NpcDef | null = null
+  /** транзитные всплывающие подсказки (не в сейве): «Получено: …» и т.п. — UI отображает и сам гасит */
+  toasts: { id: number; text: string; kind: 'get' | 'lose' | 'info' }[] = []
+  private toastSeq = 0
+
+  /** добавить короткое всплывающее уведомление (записывается и в журнал) */
+  pushToast(text: string, kind: 'get' | 'lose' | 'info' = 'info'): void {
+    this.toasts.push({ id: ++this.toastSeq, text, kind })
+    this.pushLog(text)
+    playUi(kind === 'lose' ? 'item_lose' : kind === 'get' ? 'item_get' : 'message')
+    this.notify()
+  }
+
+  /** UI погасил подсказку по таймеру */
+  dismissToast(id: number): void {
+    const i = this.toasts.findIndex((t) => t.id === id)
+    if (i >= 0) {
+      this.toasts.splice(i, 1)
+      this.notify()
+    }
+  }
+
   /** всплывающие сообщения (show_message) */
   messages: { text: string; portrait?: string }[] = []
   /**
@@ -221,7 +244,7 @@ export class GameEngine {
     // навыки: итоговые значения с экрана (база + покупки + бонусы профессии)
     s.player.skills = { ...choice.skills }
     // снаряжение профессии
-    for (const it of profession?.items ?? []) this.addItem(it.item, it.quantity)
+    for (const it of profession?.items ?? []) this.addItem(it.item, it.quantity, { silent: true })
     s.char_choice = JSON.parse(JSON.stringify(choice))
     this.pushLog(`${name || 'Герой'}: забег начинается.`)
   }
@@ -522,19 +545,20 @@ export class GameEngine {
       .reduce((s, i) => s + i.quantity, 0)
   }
 
-  addItem(id: string, quantity = 1): void {
+  addItem(id: string, quantity = 1, opts: { silent?: boolean } = {}): void {
     const inv = this.state.player.inventory
     // изнашиваемые предметы — отдельные экземпляры (аудит §5.6 п.10)
     if (this.itemMaxDurability(id) !== undefined) {
       for (let i = 0; i < quantity; i++) inv.push({ item: id, quantity: 1 })
-      return
+    } else {
+      const entry = inv.find((i) => i.item === id && i.durability === undefined)
+      if (entry) entry.quantity += quantity
+      else inv.push({ item: id, quantity })
     }
-    const entry = inv.find((i) => i.item === id && i.durability === undefined)
-    if (entry) entry.quantity += quantity
-    else inv.push({ item: id, quantity })
+    if (!opts.silent) this.pushToast(`Получено: ${this.itemTitle(id)}${quantity > 1 ? ` ×${quantity}` : ''}.`, 'get')
   }
 
-  removeItem(id: string, quantity = 1): void {
+  removeItem(id: string, quantity = 1, opts: { silent?: boolean } = {}): void {
     const inv = this.state.player.inventory
     let left = quantity
     // сначала расходим наиболее изношенные экземпляры
@@ -560,6 +584,8 @@ export class GameEngine {
         if (eq[slot] === id) delete eq[slot]
       }
     }
+    const lost = quantity - left
+    if (!opts.silent && lost > 0) this.pushToast(`${lost >= quantity ? 'Потеряно' : 'Частично потеряно'}: ${this.itemTitle(id)}${lost > 1 ? ` ×${lost}` : ''}.`, 'lose')
   }
 
   // ─────────────── износ снаряжения (аудит §5.6 п.10) ───────────────
@@ -745,7 +771,7 @@ export class GameEngine {
     playInteraction('use', { entity: def })
     this.applyEffects(def.on_use.effects)
     if (def.on_use.consume !== false) this.removeItem(id, 1)
-    if (def.on_use.message) this.messages.push({ text: def.on_use.message })
+    if (def.on_use.message) this.messages.push({ text: this.fmt(def.on_use.message) })
     this.checkRules()
     this.notify()
   }
@@ -1703,8 +1729,8 @@ export class GameEngine {
   buyItem(itemId: string, price: number): boolean {
     const currencyItem = this.currencyItemId()
     if (this.itemCount(currencyItem) < price) return false
-    this.removeItem(currencyItem, price)
-    this.addItem(itemId, 1)
+    this.removeItem(currencyItem, price, { silent: true })
+    this.addItem(itemId, 1, { silent: true })
     this.markSkill('bargain')
     playUi('coin')
     this.notify()
@@ -1713,8 +1739,8 @@ export class GameEngine {
 
   sellItem(itemId: string, price: number): boolean {
     if (this.itemCount(itemId) < 1) return false
-    this.removeItem(itemId, 1)
-    this.addItem(this.currencyItemId(), price)
+    this.removeItem(itemId, 1, { silent: true })
+    this.addItem(this.currencyItemId(), price, { silent: true })
     this.markSkill('bargain')
     playUi('coin')
     this.notify()
@@ -1773,7 +1799,7 @@ export class GameEngine {
         return false
       }
     }
-    for (const need of r.inputs ?? []) this.removeItem(need.item, need.quantity)
+    for (const need of r.inputs ?? []) this.removeItem(need.item, need.quantity, { silent: true })
     if (r.repair) {
       this.repairItem(r.output.item)
     } else {
@@ -2245,7 +2271,7 @@ export class GameEngine {
         if (i >= 0) s.blocked_paths.splice(i, 1)
         break
       }
-      case 'show_message': this.messages.push({ text: e.text, portrait: e.portrait }); break
+      case 'show_message': this.messages.push({ text: this.fmt(e.text), portrait: e.portrait }); break
       case 'reveal_location':
         if (!s.revealed_locations.includes(e.location)) s.revealed_locations.push(e.location)
         break
@@ -2333,20 +2359,68 @@ export class GameEngine {
     return this.campaign.meta.codex_categories ?? BUILTIN_CODEX_CATEGORIES
   }
 
-  interactWithSlot(occ: SlotOccupant): void {
-    if (!occ.entity) return
+  /**
+   * Можно ли взаимодействовать с предметом прямо сейчас (фидбек №8: условия
+   * блокируют клик — предмет остаётся «декорацией» в слоте).
+   */
+  /**
+   * Текст с упоминаниями героя (фидбек №11, «больше плейсхолдеров в диалогах»):
+   * `{имя}`/`{герой}` — имя персонажа, `{здоровье}`/`{здоровье_макс}` — HP,
+   * `{день}` — номер дня забега, `{время}` — время суток по-русски,
+   * `{переменная:<имя>}` — обычная переменная читалки ({имя} считает её латиницей).
+   */
+  fmt(text: string): string {
+    if (!text.includes('{')) return text
+    const st = this.state
+    const out: Record<string, string> = {
+      'имя': st.player.name ?? 'герой',
+      'герой': st.player.name ?? 'герой',
+      'имя_героя': st.player.name ?? 'герой',
+      'здоровье': String(Math.max(0, st.player.hp)),
+      'здоровье_макс': String(st.player.max_hp),
+      'день': String(Math.floor((st.tick ?? 0) / Math.max(1, this.campaign.meta.ticks_per_day || 24)) + 1),
+    }
+    return text.replace(/\{([^{}]+)\}/g, (_m, raw: string) => out[raw] ?? `{${raw}}`)
+  }
+
+  itemInteractable(item: ItemDef): boolean {
+    return (item.interactable_when ?? []).every((c) => evalCondition(c, this))
+  }
+
+  /** доступные сейчас варианты действий с предметом (условия показа) */
+  itemInteractOptions(item: ItemDef): ItemInteractOption[] {
+    return (item.interact_options ?? []).filter((o) => (o.conditions ?? []).every((c) => evalCondition(c, this)))
+  }
+
+  /** применить выбранный вариант взаимодействия с предметом */
+  runItemInteract(item: ItemDef, option: ItemInteractOption): void {
+    playInteraction((option.sound ?? 'use') as SoundHook, { entity: item })
+    this.applyEffects(option.effects)
+    if (option.message) {
+      this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? 'neutral'] ?? item.portrait?.['neutral'] })
+    }
+    if (option.consume) this.state.removed_entities.push(item.id)
+    this.checkRules()
+    this.notify()
+  }
+
+  interactWithSlot(occ: SlotOccupant): boolean {
+    if (!occ.entity) return false
     if (occ.entity.type === 'npc') {
       this.startDialogue(occ.entity.id)
-      return
+      return true
     }
     const item = occ.entity as ItemDef
+    if (!this.itemInteractable(item)) return false
     const slotType = occ.slot.type[0]
+    // предмет с вариантами действий — окно выбора; собирается стороной UI
+    if (this.itemInteractOptions(item).length) return false
     if (item.on_interact) {
       // «открыть контейнер» vs «использовать»: по типу слота/категории
       const isOpen = occ.slot.type.includes('container') || item.category === 'container'
       playInteraction(isOpen ? 'open' : 'use', { entity: item, slotType })
       this.applyEffects(item.on_interact.effects)
-      if (item.on_interact.message) this.messages.push({ text: item.on_interact.message })
+      if (item.on_interact.message) this.messages.push({ text: this.fmt(item.on_interact.message) })
       if (item.on_interact.consume) {
         this.state.removed_entities.push(item.id)
       }
@@ -2356,6 +2430,7 @@ export class GameEngine {
       this.messages.push({ text: item.description || item.label })
       this.notify()
     }
+    return true
   }
 
   // ─────────────── бой (Фаза 1) ───────────────

@@ -16,20 +16,40 @@
 
 // ─────────────── токены значений в тексте реплик ───────────────
 
-export type TokenKind = 'count' | 'hp' | 'need' | 'skill'
+export type TokenKind = 'name' | 'count' | 'hp' | 'hp_max' | 'mp' | 'mp_max' | 'luck' | 'level' | 'xp' | 'day' | 'stat' | 'skill' | 'need' | 'currency'
 
 export const TOKEN_KINDS: Array<{ id: TokenKind; label: string; hint: string }> = [
+  { id: 'name', label: 'Имя героя', hint: 'обращение к герою по имени из характеристики' },
   { id: 'count', label: 'Количество предмета', hint: 'сколько штук предмета у героя' },
   { id: 'hp', label: 'Здоровье', hint: 'текущее здоровье героя' },
-  { id: 'need', label: 'Потребность', hint: 'текущее значение потребности' },
+  { id: 'hp_max', label: 'Здоровье (макс.)', hint: 'максимум здоровья героя' },
+  { id: 'mp', label: 'Мана', hint: 'текущая мана героя' },
+  { id: 'mp_max', label: 'Мана (макс.)', hint: 'максимум маны героя' },
+  { id: 'luck', label: 'Очки удачи', hint: 'текущие очки удачи' },
+  { id: 'level', label: 'Уровень', hint: 'уровень героя (статистика)' },
+  { id: 'xp', label: 'Опыт', hint: 'очки опыта героя' },
+  { id: 'day', label: 'День забега', hint: 'номер дня с начала забега' },
+  { id: 'stat', label: 'Характеристика', hint: 'СИЛ, ВЫН, ЛОВК и прочие' },
   { id: 'skill', label: 'Навык', hint: 'текущее значение навыка' },
+  { id: 'need', label: 'Потребность', hint: 'текущее значение потребности (голод, жажда…)' },
+  { id: 'currency', label: 'Валюта', hint: 'сколько монет/пепла у героя' },
 ]
 
 const TOKEN_WORD: Record<TokenKind, string> = {
+  name: 'имя',
   count: 'счёт',
   hp: 'здоровье',
-  need: 'потребность',
+  hp_max: 'здоровье_макс',
+  mp: 'мана',
+  mp_max: 'мана_макс',
+  luck: 'удача',
+  level: 'уровень',
+  xp: 'опыт',
+  day: 'день',
+  stat: 'стат',
   skill: 'навык',
+  need: 'потребность',
+  currency: 'валюта',
 }
 
 export interface TextPart {
@@ -42,14 +62,26 @@ export function tokenString(kind: TokenKind, id?: string): string {
   return id ? `{${TOKEN_WORD[kind]}:${id}}` : `{${TOKEN_WORD[kind]}}`
 }
 
-const TOKEN_RE = /\{\s*(счёт|счет|здоровье|потребность|навык)\s*(?::\s*([^}]*?))?\s*\}/gi
+const TOKEN_RE = /\{\s*(имя|герой|счёт|счет|здоровье_макс|здоровье|мана_макс|мана|удача|уровень|опыт|день|стат|потребность|валюта|навык)\s*(?::\s*([^}]*?))?\s*\}/gi
 
 function kindByWord(word: string): TokenKind {
   const w = word.toLowerCase().replace('ё', 'е')
-  if (w === 'счет') return 'count'
-  if (w === 'здоровье') return 'hp'
-  if (w === 'потребность') return 'need'
-  return 'skill'
+  switch (w) {
+    case 'имя': case 'герой': return 'name'
+    case 'счет': return 'count'
+    case 'здоровье': return 'hp'
+    case 'здоровье_макс': return 'hp_max'
+    case 'мана': return 'mp'
+    case 'мана_макс': return 'mp_max'
+    case 'удача': return 'luck'
+    case 'уровень': return 'level'
+    case 'опыт': return 'xp'
+    case 'день': return 'day'
+    case 'стат': return 'stat'
+    case 'потребность': return 'need'
+    case 'валюта': return 'currency'
+    default: return 'skill'
+  }
 }
 
 /** разобрать текст реплики на обычные куски и токены (для предпросмотра) */
@@ -72,10 +104,20 @@ export function tokensToInk(text: string): string {
     const kind = kindByWord(word)
     const key = (id ?? '').trim()
     switch (kind) {
+      case 'name': return `{get_player_name()}`
       case 'count': return `{item_count("${key}")}`
       case 'hp': return `{get_hp()}`
+      case 'hp_max': return `{get_hp_max()}`
+      case 'mp': return `{get_mp()}`
+      case 'mp_max': return `{get_mp_max()}`
+      case 'luck': return `{get_luck()}`
+      case 'level': return `{get_level()}`
+      case 'xp': return `{get_xp()}`
+      case 'day': return `{get_run_day()}`
+      case 'stat': return `{get_stat("${key}")}`
       case 'need': return `{get_need("${key}")}`
       case 'skill': return `{get_skill("${key}")}`
+      case 'currency': return `{get_currency("${key}")}`
     }
   })
 }
@@ -83,10 +125,20 @@ export function tokensToInk(text: string): string {
 /** старые «сырые» ink-выражения в тексте → токены (мягкая миграция) */
 export function inkToTokens(text: string): string {
   return text
+    .replace(/\{\s*get_player_name\(\s*\)\s*\}/gi, () => tokenString('name'))
     .replace(/\{\s*item_count\(\s*["']([^"']+)["']\s*\)\s*\}/gi, (_m, id: string) => tokenString('count', id))
+    .replace(/\{\s*get_hp_max\(\s*\)\s*\}/gi, () => tokenString('hp_max'))
     .replace(/\{\s*get_hp\(\s*\)\s*\}/gi, () => tokenString('hp'))
+    .replace(/\{\s*get_mp_max\(\s*\)\s*\}/gi, () => tokenString('mp_max'))
+    .replace(/\{\s*get_mp\(\s*\)\s*\}/gi, () => tokenString('mp'))
+    .replace(/\{\s*get_luck\(\s*\)\s*\}/gi, () => tokenString('luck'))
+    .replace(/\{\s*get_level\(\s*\)\s*\}/gi, () => tokenString('level'))
+    .replace(/\{\s*get_xp\(\s*\)\s*\}/gi, () => tokenString('xp'))
+    .replace(/\{\s*get_run_day\(\s*\)\s*\}/gi, () => tokenString('day'))
+    .replace(/\{\s*get_stat\(\s*["']([^"']+)["']\s*\)\s*\}/gi, (_m, id: string) => tokenString('stat', id))
     .replace(/\{\s*get_need\(\s*["']([^"']+)["']\s*\)\s*\}/gi, (_m, id: string) => tokenString('need', id))
     .replace(/\{\s*get_skill\(\s*["']([^"']+)["']\s*\)\s*\}/gi, (_m, id: string) => tokenString('skill', id))
+    .replace(/\{\s*get_currency\(\s*["']([^"']+)["']\s*\)\s*\}/gi, (_m, id: string) => tokenString('currency', id))
 }
 
 // Типы формата .dlg.json живут в shared/types.ts (единый источник правды —

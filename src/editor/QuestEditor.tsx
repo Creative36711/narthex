@@ -121,8 +121,8 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
                   value={stage.outcome ?? 'success'}
                   onChange={(e) => ((stage.outcome = e.target.value as 'success' | 'failure'), commit())}
                 >
-                  <option value="success">успех</option>
-                  <option value="failure">провал</option>
+                  <option value="success" className="sel-outcome-success">✔ успех</option>
+                  <option value="failure" className="sel-outcome-failure">✖ провал</option>
                 </select>
               )}
               <button

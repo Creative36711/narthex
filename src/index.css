@@ -1787,7 +1787,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 900;
+  z-index: 30000; /* поверх всего: игра, playtest-оболочка редактора (20000), книга (12000) */
 }
 .modal-box {
   background: var(--panel);
@@ -1873,6 +1873,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   inset: 0;
   z-index: 800; /* поверх всех экранов игры, но под модалками */
   background: #000;
+  user-select: none; /* клики для пропуска не должны выделять текст подписи */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2187,6 +2188,15 @@ select.sel-outcome.failure {
   color: var(--red-bright);
   border-color: color-mix(in srgb, var(--red) 60%, transparent);
 }
+/* строки выпадающего списка тоже цветные: «успех» всегда зелёный, «провал» — красный */
+select.sel-outcome option[value="success"] {
+  color: var(--green-bright);
+  background: var(--bg-paper);
+}
+select.sel-outcome option[value="failure"] {
+  color: var(--red-bright);
+  background: var(--bg-paper);
+}
 
 /* выбор состояния портрета */
 select.emotion-pick {
@@ -2290,16 +2300,35 @@ input[type='checkbox'], input[type='radio'] {
 
 /* спрайт сцены: вырезанный фон, привязка к нижнему краю слота (блок 3 ТЗ) */
 .slot-hotspot.slot-sprited { background: none; border: none; overflow: visible; }
-.slot-sprite {
+/* бокс спрайта = слот × sprite_scale; картинка вписана целиком (contain) — ни обрезки, ни минькания */
+.slot-sprite-box {
   position: absolute;
   left: 50%;
   bottom: 0;
   transform: translateX(-50%);
-  width: auto;
-  max-width: none;
+  width: 100%;
+  pointer-events: none;
+  display: block;
+}
+.slot-sprite {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
-  pointer-events: none;
+}
+/* подсветка прозрачных PNG при наведении — ореол по контуру, а не рамка вокруг */
+.slot-hotspot.slot-sprited:hover .slot-sprite,
+.slot-hotspot.slot-sprited:focus-visible .slot-sprite {
+  filter:
+    drop-shadow(0 0 4px color-mix(in srgb, var(--gold-bright) 90%, transparent))
+    drop-shadow(0 0 14px color-mix(in srgb, var(--gold) 55%, transparent))
+    drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+.slot-hotspot.slot-sprited:hover {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
 }
 .slot-hotspot.slot-sprited .sprite-shadow {
   position: absolute;
@@ -2625,3 +2654,79 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
 .end-meta-currencies { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
 .end-meta-cur { background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 4px 10px; font-size: 13px; }
 .small { font-size: 12px; }
+
+/* ─────────── транзитные уведомления (получено/потеряно) ─────────── */
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 700;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
+  background: var(--panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  animation: toast-in 0.22s ease-out;
+}
+.toast-get { border-color: var(--accent, #e8c46b); }
+.toast-get .ico { color: var(--accent, #e8c46b); }
+.toast-lose .ico { color: var(--danger, #d66); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ фидбек (баг-пас): предметы-декорации, скрытые переходы, окно действий ═══ */
+
+/* предмет под блокирующим условием — «декорация»: без подсветки и курсора */
+.slot-hotspot.slot-inert { cursor: default; }
+.slot-hotspot.slot-inert:hover { background: none; border-color: transparent; box-shadow: none; }
+.slot-hotspot.slot-inert:hover .slot-sprite { filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+.slot-hotspot.slot-inert .slot-label { opacity: 0; }
+
+/* переход со скрытой подписью: зона невидима до наведения (фидбек №6) */
+.nav-zone.nav-nolabel .nav-label { opacity: 0; }
+.nav-zone.nav-nolabel:hover .nav-label,
+.nav-zone.nav-nolabel:focus-visible .nav-label { opacity: 1; }
+
+/* окно действий с предметом: мини-диалог с портретом (фидбек №8) */
+.itemdlg-overlay { align-items: center; justify-content: center; }
+.itemdlg-box {
+  display: flex;
+  gap: 20px;
+  max-width: 640px;
+  width: min(92vw, 640px);
+  background: var(--bg-paper);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-panel);
+}
+.itemdlg-portrait {
+  flex: 0 0 160px;
+  width: 160px;
+  height: 220px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--bg-deep) 40%, transparent);
+}
+.itemdlg-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.itemdlg-content { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.itemdlg-title { margin: 0; font-size: 18px; color: var(--gold-bright); }
+.itemdlg-desc { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
+.itemdlg-option { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.itemdlg-hint { font-size: 11.5px; color: color-mix(in srgb, var(--ink-bright) 72%, transparent); font-weight: normal; }

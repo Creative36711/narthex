@@ -162,24 +162,24 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     fetchCampaignIndex().then(setCampaigns)
   }, [base])
 
-  // undo: Ctrl+Z — тот же откат, что и кнопка «Откатить». В текстовых полях
-  // остаётся родной откат браузера/Monaco; а галочки, селекты и кнопки
-  // родного undo не имеют — там Ctrl+Z обязан вызывать откат магазина.
+  // undo: Ctrl+Z везде в редакторе НАЖИМАЕТ кнопку «Отменить» (фидбек №10:
+  // «принцип простой — Ctrl+Z просто нажимает кнопку “Отменить”»). Родной
+  // откат браузера в текстовых полях всё равно мёртв: каждое нажатие сразу
+  // коммитится в магазин и переписывает DOM, стек браузера ломается.
+  // Исключение — Monaco (у него своя полноценная история).
   useEffect(() => {
-    const textLike = new Set(['text', 'number', 'password', 'search', 'url', 'email', 'tel', ''])
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
       const t = e.target as HTMLElement
-      if (t.isContentEditable || t.closest('.monaco-editor')) return
-      if (t.tagName === 'TEXTAREA') return
-      if (t.tagName === 'INPUT' && textLike.has((t as HTMLInputElement).type)) return
+      if (t.closest('.monaco-editor')) return
       if (store.canUndo()) {
         e.preventDefault()
+        e.stopPropagation()
         store.undo()
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [store])
 
   const newCampaign = async () => {
@@ -313,10 +313,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         // группировка: персонажи, затем предметы по категориям (фидбек №8)
         return store.entityPaths().map((p) => {
           const e = store.entity(p)
-          if (!e) return { path: p, title: p }
-          if (e.type === 'npc') return { path: p, title: e.label || p, group: 'Персонажи', groupOrder: '0' }
+          if (!e) return { path: p, title: p, type: 'item' as const }
+          if (e.type === 'npc') return { path: p, title: e.label || p, type: 'npc' as const, group: 'Персонажи', groupOrder: '0' }
           const cat = store.labelFor('itemCategory', e.category)
-          return { path: p, title: e.label || p, group: `${cat}`, groupOrder: `1${cat}` }
+          return { path: p, title: e.label || p, type: 'item' as const, group: `${cat}`, groupOrder: `1${cat}` }
         })
       case 'rules':
         return store.rulePaths().map((p) => ({ path: p, title: store.rule(p)?.label ?? p }))

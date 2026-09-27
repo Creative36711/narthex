@@ -91,6 +91,16 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('get_stat', (s: string) => (engine.state.player.stats as unknown as Record<string, number>)[s] ?? 0)
   bind('get_skill', (s: string) => engine.state.player.skills[s] ?? 0)
   bind('get_hp', () => engine.state.player.hp)
+  // плейсхолдеры реплик (фидбек №11): «упоминать персонажа по имени и много
+  // чего другого» — токены конструктора диалогов разворачиваются в эти вызовы
+  bind('get_hp_max', () => engine.state.player.max_hp)
+  bind('get_mp', () => engine.state.player.mp)
+  bind('get_mp_max', () => engine.state.player.max_mp)
+  bind('get_player_name', () => engine.state.player.name ?? 'герой')
+  bind('get_run_day', () => Math.floor((engine.state.tick ?? 0) / Math.max(1, engine.campaign.meta.ticks_per_day || 24)) + 1)
+  bind('get_level', () => engine.state.player.level ?? 1)
+  bind('get_xp', () => engine.state.player.xp ?? 0)
+  bind('get_currency', (id: string) => engine.state.player.currencies?.[id] ?? 0)
   bind('get_luck', () => engine.luck())
   bind('change_luck', (d: number) => { engine.changeLuck(d); return 0 })
   // производные опции (аудит B6): усталость, рассудок, репутация, достаток, страсти, причастность
@@ -164,3 +174,5 @@ export function drainStory(story: Story): { lines: DialogueLine[]; choices: { in
   const choices = story.currentChoices.map((c, i) => ({ index: i, text: c.text }))
   return { lines, choices, finished: choices.length === 0 && !story.canContinue }
 }
+
+

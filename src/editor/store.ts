@@ -214,9 +214,11 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
-    if (kind === 'entity' || kind === 'item' || kind === 'npc') {
+    if (kind === 'currency') {
+      for (const c of this.meta.currencies ?? []) out.push({ id: c.id, label: c.label })
+    } else if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
         const e = this.entity(p)
         if (!e) continue

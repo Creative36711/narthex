@@ -1086,6 +1086,8 @@ export interface NavigationZone {
   open_map?: boolean
   label: string
   cost_ticks?: number
+  /** скрывать подпись до наведения курсора (зона как невидимый хотспот) */
+  hide_label?: boolean
 }
 
 export interface SceneDef {
@@ -1169,6 +1171,9 @@ export interface NpcDef {
   /** ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски
    *  и рамки стороны); нет — круглый жетон из `token ?? portrait.neutral` */
   combat_figure?: string
+  /** состояния фигурки боя: 'dead' — погиб, 'down' — без сознания/выведен,
+   *  id статуса — пока статус активен. Пустой ключ = обычная (combat_figure). */
+  combat_figure_states?: Record<string, string>
   /** как разворачивать фигурку: вид сверху (поворот), вид сбоку (зеркало),
    *  не разворачивать; по умолчанию 'topdown' */
   figure_mode?: 'topdown' | 'side' | 'static'
@@ -1246,6 +1251,30 @@ export interface UseEffectDef {
   message?: string
 }
 
+/**
+ * Вариант взаимодействия с предметом в сцене (фидбек: «собрать траву»,
+ * «срезать», «поджечь»). Клик по предмету с таким списком открывает
+ * окно выбора действия — как мини-диалог с портретом предмета.
+ */
+export interface ItemInteractOption {
+  /** подпись кнопки действия */
+  label: string
+  /** состояние портрета предмета при выборе (ключ из portrait) */
+  emotion?: string
+  /** пояснение под кнопкой: условия, расход, проверка */
+  hint?: string
+  /** условия показа (все истинны — вариант виден) */
+  conditions?: Condition[]
+  /** реакция */
+  effects: Effect[]
+  /** после применения предмет исчезает со сцены */
+  consume?: boolean
+  /** сообщение после применения (оформлено портретом предмета) */
+  message?: string
+  /** звуковой хук взаимодействия (умолчание 'use' или 'open' для контейнера) */
+  sound?: string
+}
+
 export interface ItemDef {
   id: string
   type: 'item'
@@ -1255,6 +1284,21 @@ export interface ItemDef {
   label: string
   description: string
   image?: string
+  /** мягкая тень под спрайтом в сцене (по умолчанию включена) */
+  shadow?: boolean
+  /** ПОРТРЕТЫ (состояния) предмета для окна взаимодействия: emotion → изображение.
+   *  «Обычный» — по умолчанию; без портретов окно показывает только текст. */
+  portrait?: Record<string, string>
+  /** СПРАЙТ В СЦЕНЕ: картинка предмета в его слоте (целиком, без обрезки).
+   *  Нет — в слоте не рисуется ничего (ни портрет, ни иконка). */
+  scene_sprite?: string
+  /**
+   * Взаимодействовать можно только когда условия истинны; пока ложны —
+   * предмет «декорация»: виден в слоте, но не нажимается и не подсвечивается.
+   */
+  interactable_when?: Condition[]
+  /** варианты действий по клику (выбор как в диалоге); приоритет над on_interact */
+  interact_options?: ItemInteractOption[]
   weight: number
   value?: Record<string, number>
   stackable: boolean

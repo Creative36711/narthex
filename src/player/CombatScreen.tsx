@@ -197,6 +197,17 @@ export function CombatScreen({ engine }: Props) {
               // рамки стороны; разворот по направлению движения/атаки
               if (c.figure) {
                 const mode = c.figure_mode ?? 'topdown'
+                // состояния фигурки боя (фидбек №7): погиб/без сознания/статус — своя картинка
+                const fstates = (() => {
+                  if (!c.entityId) return undefined
+                  const def = engine.campaign.entities[c.entityId]
+                  return def && (def as { combat_figure_states?: Record<string, string> }).combat_figure_states
+                })()
+                const statusOverride = fstates
+                  ? c.statuses.map((s) => fstates[s.id]).find((p) => !!p)
+                  : undefined
+                const figureSrc =
+                  (c.dead ? fstates?.['dead'] : c.down ? fstates?.['down'] : statusOverride) ?? c.figure
                 const transform =
                   mode === 'topdown'
                     ? `rotate(${c.facing}deg)`
@@ -213,7 +224,7 @@ export function CombatScreen({ engine }: Props) {
                   >
                     {c.figure_shadow !== false && !c.dead && <span className="figure-shadow" />}
                     <img
-                      src={assetUrl(engine.campaign, c.figure)}
+                      src={assetUrl(engine.campaign, figureSrc)}
                       alt={c.label}
                       draggable={false}
                       style={transform ? { transform } : undefined}

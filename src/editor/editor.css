@@ -1147,7 +1147,11 @@
    (через .cf-themed внутри). */
 .playtest-shell { position: fixed; inset: 0; z-index: 20000; display: flex; flex-direction: column; background: var(--ed-bg); color: var(--ed-text); font-family: 'Segoe UI', system-ui, sans-serif; }
 .playtest-shell > .game-view { flex: 1 1 0; min-height: 0; height: auto; width: 100%; }
-.playtest-shell > .cf-themed { flex: 1 1 0; min-height: 0; height: auto; }
+/* контейнер плейтеста — прокручиваемый корень: экран создания героя (длинный)
+   и другие «длинные» экраны прокручиваются до кнопки «Начать забег» (фидбек №12) */
+.playtest-shell > .cf-themed { flex: 1 1 0; min-height: 0; height: auto; overflow-y: auto; overflow-x: hidden; }
+/* экраны игры (GameView) прокручиваются внутренними панелями — лишнего скролла не плодим */
+.playtest-shell > .cf-themed:has(> .game-view) { overflow: hidden; }
 .playtest-shell > .char-create, .playtest-shell > .cf-themed > .char-create { flex: 1 1 auto; min-height: 0; height: auto; overflow: auto; }
 .playtest-banner { position: relative; order: -1; z-index: 45; align-self: flex-end; flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin: 8px 12px 0; padding: 6px 10px; border: 1px solid var(--ed-line-strong); border-radius: 8px; background: var(--ed-bg-2); box-shadow: 0 3px 14px rgba(0, 0, 0, 0.5); font-size: 12px; }
 .playtest-banner b { color: var(--ed-select-bright); letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
@@ -1227,8 +1231,7 @@
 .editor-toolbar-divider { height: 1px; margin: 5px 4px; background: var(--ed-line); }
 
 /* ── модалки в режиме редактора — фирменный стиль, а не тема кампании ── */
-#root:has(> .editor-root) > .modal-overlay,
-#root:has(> .playtest-shell) > .modal-overlay {
+body.cf-editor .modal-overlay {
   --bg: var(--ed-bg);
   --bg-deep: var(--ed-bg-2);
   --panel: var(--ed-bg-2);
@@ -1256,19 +1259,16 @@
   --focus-ring: var(--ed-select);
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
-#root:has(> .editor-root) > .modal-overlay .modal-box,
-#root:has(> .playtest-shell) > .modal-overlay .modal-box {
+body.cf-editor .modal-overlay .modal-box {
   border-top-color: var(--ed-accent);
 }
-#root:has(> .editor-root) > .modal-overlay input,
-#root:has(> .playtest-shell) > .modal-overlay input,
-#root:has(> .editor-root) > .modal-overlay select,
-#root:has(> .playtest-shell) > .modal-overlay select {
+body.cf-editor .modal-overlay input,
+body.cf-editor .modal-overlay select,
+body.cf-editor .modal-overlay textarea {
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 /* поля форм (AiWizard и прочие .fld в модалках редактора) — хром, не бумага */
-#root:has(> .editor-root) > .modal-overlay .fld > span,
-#root:has(> .playtest-shell) > .modal-overlay .fld > span { color: var(--ed-muted); }
+body.cf-editor .modal-overlay .fld > span { color: var(--ed-muted); }
 
 @media (max-width: 760px) {
   .editor-brand { letter-spacing: 1px; }
@@ -1287,8 +1287,10 @@
 }
 
 /* Экран создания персонажа в режиме плейтеста — собственный прокручиваемый viewport. */
-.playtest-shell .char-create { width: 100%; height: auto; min-height: 0; box-sizing: border-box; overflow-y: auto; align-items: flex-start; padding: 12px 12px 24px; }
-.playtest-shell .char-create .char-create-inner { flex: 0 0 auto; max-height: none; overflow: visible; margin: 0 auto; }
+/* min-height базового стиля (100vh) должен уступить высоте оболочки, иначе
+   прокрутка уходит в фиксированный вьюпорт и кнопка «Начать забег» недостижима */
+.playtest-shell .char-create { width: 100%; height: auto; min-height: 0; box-sizing: border-box; align-items: flex-start; padding: 12px 12px 24px; }
+.playtest-shell .char-create .char-create-inner { flex: 0 0 auto; max-height: none; overflow: visible; margin: 0 auto; height: auto; }
 
 /* ── слайд-катсцены в редакторе: превью на тёмном арт-холсте ── */
 .cs-thumb-empty { background: var(--ed-art); }

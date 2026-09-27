@@ -41,6 +41,13 @@ export default function App() {
     document.documentElement.classList.toggle('no-anim', !settings.animations)
   }, [settings.animations])
 
+  // режим редактора — класс на <body>: модалки (ModalHost) и прочие всплывашки
+  // показывает тот же фирменный стиль, что и хром редактора, независимо от DOM-иерархии
+  useEffect(() => {
+    document.body.classList.toggle('cf-editor', editor)
+    return () => document.body.classList.remove('cf-editor')
+  }, [editor])
+
   // профиль на <html>: модалки рендерятся на уровне body (ModalHost),
   // поэтому и им нужны токены профиля. В режиме редактора классы снимаются —
   // оболочка редактора живёт в фирменном стиле Chronicle Forge.
