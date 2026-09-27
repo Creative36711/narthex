@@ -210,6 +210,60 @@ function ItemForm({
                 }}
               />
             </label>
+            <label className="fld fld-num" data-tip="Дальность в гексах: 1 — руопашная.">
+              <span>Дальность</span>
+              <input
+                type="number" min={1}
+                value={item.weapon_data.range}
+                onChange={(e) => ((item.weapon_data!.range = Math.max(1, Number(e.target.value) || 1)), commit())}
+              />
+            </label>
+            <label className="fld fld-num" data-tip="Сколько атак в раунде делает боец с этим оружием (последующие с штрафом из правил кампании).">
+              <span>Атак в раунде</span>
+              <input
+                type="number" min={1}
+                value={item.weapon_data.attacks_per_round}
+                onChange={(e) => ((item.weapon_data!.attacks_per_round = Math.max(1, Number(e.target.value) || 1)), commit())}
+              />
+            </label>
+            <ItemSelect
+              label="Боеприпасы (id предмета)"
+              store={store}
+              value={item.weapon_data.ammo_item ?? ''}
+              allowNone
+              onChange={(v) => {
+                if (v) item.weapon_data!.ammo_item = v
+                else delete item.weapon_data!.ammo_item
+                commit()
+              }}
+            />
+          </div>
+          <div className="fld-row">
+            {(
+              [
+                ['impale', 'Пронзание (+урон без брони)'],
+                ['knockback', 'Отброс на гекс'],
+                ['disarm', 'Разоружение'],
+                ['grapple', 'Захват (ход потерян)'],
+                ['push_harmless', 'Толчок без урона'],
+              ] as const
+            ).map(([trait, tl]) => (
+              <label key={trait} className="fld fld-check" data-tip="Особый удар: срабатывает при уверенном успехе и критическом.">
+                <input
+                  type="checkbox"
+                  checked={(item.weapon_data!.traits ?? []).includes(trait)}
+                  onChange={(e) => {
+                    const cur = new Set(item.weapon_data!.traits ?? [])
+                    if (e.target.checked) cur.add(trait)
+                    else cur.delete(trait)
+                    if (cur.size) item.weapon_data!.traits = [...cur]
+                    else delete item.weapon_data!.traits
+                    commit()
+                  }}
+                />
+                <span>{tl}</span>
+              </label>
+            ))}
           </div>
         </div>
       )}
@@ -1164,6 +1218,34 @@ function SkillSelect({
       <span>{label}</span>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         {!options.some((o) => o.id === value) && <option value={value}>{BUILTIN_SKILL_LABELS[value] ?? value}</option>}
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.label}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function ItemSelect({
+  label,
+  store,
+  value,
+  onChange,
+  allowNone,
+}: {
+  label: string
+  store: EditorStore
+  value: string
+  onChange: (v: string) => void
+  allowNone?: boolean
+}) {
+  const options = store.options('item')
+  return (
+    <label className="fld">
+      <span>{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {allowNone && <option value="">— нет —</option>}
+        {!allowNone && !options.some((o) => o.id === value) && <option value={value}>{value}</option>}
         {options.map((o) => (
           <option key={o.id} value={o.id}>{o.label}</option>
         ))}

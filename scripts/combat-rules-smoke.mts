@@ -612,5 +612,164 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   }
 }
 
+
+// ── 16. глубина боя: прицел, боеприпасы, особые удары, атаки возможности, таблица провалов (аудит B5) ──
+{
+  // 16a — прицельная атака (двухатакный клинок, чтобы прицел не завершал ход)
+  const cA = synth((camp) => {
+    buff(camp, (p) => {
+      p.equipment = { weapon: 'item_test_dagger' }
+      p.inventory = [{ item: 'item_test_dagger', quantity: 1 }]
+    })
+    camp.entities['item_test_dagger'] = {
+      id: 'item_test_dagger', type: 'item', category: 'weapon', label: 'Парный клинок', description: '', weight: 1, stackable: false,
+      weapon_data: { skill: 'melee', damage: '1d4', damage_bonus: false, range: 1, attacks_per_round: 2, parry_capable: false },
+    } as never
+    camp.meta.dice_rules = { ...(camp.meta.dice_rules ?? ({} as never)), fumble_from: 100 }
+  })
+  const eA = new GameEngine(cA)
+  eA.start()
+  ;(eA as any).rng = new PRNG('cr-aim')
+  const combatA = startBasicCombat(eA)
+  untilPlayerTurn(combatA)
+  const pcA = findPc(combatA)
+  const banditA = findEnemy(combatA)
+  pcA.pos = { col: banditA.pos.col, row: banditA.pos.row + 1 }
+  check('16 прицеливание включено по умолчанию', combatA.aimEnabled())
+  const attacksBefore = pcA.attacksLeft
+  combatA.playerAim()
+  check('16 прицел тратит одну атаку и выставляет бонус', pcA.attacksLeft === Math.max(0, attacksBefore - 1) && (pcA.aimBonus ?? 0) > 0)
+  const logBefore = combatA.log.length
+  ;(combatA as any).resolveAttack(pcA, banditA)
+  check('16 следующая атака с пометкой «прицельная»', combatA.log.slice(logBefore).some((l) => l.includes('прицельная')))
+  check('16 бонус прицела сброшен после атаки', (pcA.aimBonus ?? 0) === 0)
+  cA.meta.combat = { aim: false }
+  check('16 meta.combat.aim=false отключает прицел', !startBasicCombat(eA).aimEnabled())
+}
+
+{
+  // 16b — боеприпасы
+  const cB = synth((camp) => {
+    buff(camp, (p) => {
+      p.equipment = { weapon: 'item_test_bow' }
+      p.inventory = [{ item: 'item_test_arrow', quantity: 2 }, { item: 'item_test_bow', quantity: 1 }]
+    })
+    camp.entities['item_test_arrow'] = {
+      id: 'item_test_arrow', type: 'item', category: 'misc', label: 'Стрела', description: '', weight: 0, stackable: true,
+    } as never
+    camp.entities['item_test_bow'] = {
+      id: 'item_test_bow', type: 'item', category: 'weapon', label: 'Лук', description: '', weight: 1, stackable: false,
+      weapon_data: { skill: 'ranged', damage: '1d6', damage_bonus: false, range: 6, attacks_per_round: 1, parry_capable: false, ammo_item: 'item_test_arrow' },
+    } as never
+  })
+  const eB = new GameEngine(cB)
+  eB.start()
+  ;(eB as any).rng = new PRNG('cr-ammo')
+  const combatB = startBasicCombat(eB)
+  untilPlayerTurn(combatB)
+  const pcB = findPc(combatB)
+  ;(combatB as any).resolveAttack(pcB, findEnemy(combatB))
+  check('16 атака из лука тратит 1 стрелу', eB.itemCount('item_test_arrow') === 1, `осталось=${eB.itemCount('item_test_arrow')}`)
+  ;(combatB as any).resolveAttack(pcB, findEnemy(combatB))
+  check('16 вторая атака израсходовала запас', eB.itemCount('item_test_arrow') === 0)
+  check('16 без стрел canAttack ложно', !combatB.canAttack(pcB, findEnemy(combatB)))
+}
+
+{
+  // 16c — особые удары оружия
+  const cC = synth((camp) => {
+    buff(camp, (p) => {
+      p.equipment = { weapon: 'item_test_spear' }
+      p.inventory = [{ item: 'item_test_spear', quantity: 1 }]
+    })
+    camp.entities['item_test_spear'] = {
+      id: 'item_test_spear', type: 'item', category: 'weapon', label: 'Копьё', description: '', weight: 3, stackable: false,
+      weapon_data: { skill: 'melee', damage: '1d6', damage_bonus: false, range: 1, attacks_per_round: 1, parry_capable: false, traits: ['impale', 'knockback', 'grapple'] },
+    } as never
+  })
+  const eC = new GameEngine(cC)
+  eC.start()
+  ;(eC as any).rng = new PRNG('cr-traits')
+  const combatC = startBasicCombat(eC)
+  untilPlayerTurn(combatC)
+  const pcC = findPc(combatC)
+  const banditC = findEnemy(combatC)
+  pcC.pos = { col: banditC.pos.col, row: banditC.pos.row + 1 }
+  const hpBefore = banditC.hp
+  ;(combatC as any).applyWeaponTraits(pcC, banditC)
+  check('16 пронзание добавило урон без брони', banditC.hp < hpBefore, `${hpBefore} → ${banditC.hp}`)
+  check('16 захват пропускает следующий ход', banditC.skipNext === true)
+  ;(banditC as any).weaponItemId = 'item_test_spear'
+  banditC.weaponLabel = 'Копьё'
+  ;(combatC as any).disarm(banditC, pcC)
+  check('16 разоружение: оружие потеряно, в руке кулаки', banditC.weaponItemId === null && banditC.weapon.label === 'Кулаки')
+}
+
+{
+  // 16d — атаки возможности при уходе из зоны контроля
+  const cE = synth((camp) => {
+    buff(camp)
+    camp.meta.dice_rules = { ...(camp.meta.dice_rules ?? ({} as never)), fumble_from: 100 }
+  })
+  const eE = new GameEngine(cE)
+  eE.start()
+  ;(eE as any).rng = new PRNG('cr-aoo')
+  const combatE = startBasicCombat(eE)
+  untilPlayerTurn(combatE)
+  const pcE = findPc(combatE)
+  const banditE = findEnemy(combatE)
+  pcE.pos = { col: banditE.pos.col, row: banditE.pos.row + 1 }
+  pcE.movLeft = 8
+  const weaponRange = banditE.weapon.range
+  // ищем доступный гекс, который уже ВНЕ досягаемости бандита
+  let dest: { col: number; row: number } | null = null
+  for (const key of combatE.reachableHexes().keys()) {
+    const [col, row] = key.split(',').map(Number)
+    const d = Math.max(Math.abs(col - banditE.pos.col), Math.abs(row - banditE.pos.row))
+    if (d > weaponRange) { dest = { col, row }; break }
+    void d
+  }
+  check('16 есть гекс для отступления', !!dest)
+  const logE = combatE.log.length
+  if (dest) combatE.playerMoveTo(dest)
+  const slice = combatE.log.slice(logE)
+  check('16 уход из зоны контроля провоцирует удар вслед', slice.some((l) => l.includes('рубит вслед')), slice.slice(0, 2).join(' | '))
+  cE.meta.combat = { opportunity_attacks: false }
+}
+
+{
+  // 16e — таблица критических провалов мастера
+  let sawStuck = false
+  for (let attempt = 0; attempt < 60 && !sawStuck; attempt++) {
+    const cF = synth((camp) => {
+      buff(camp)
+      camp.meta.combat = {
+        fumble_table: [
+          { weight: 1, kind: 'stuck', text: 'Клинок вязнет в щите.' },
+          { weight: 1, kind: 'skip_next' },
+        ],
+      }
+      camp.meta.dice_rules = { ...(camp.meta.dice_rules ?? ({} as never)), fumble_from: 100 }
+    })
+    const eTmp = new GameEngine(cF)
+    eTmp.start()
+    ;(eTmp as any).rng = new PRNG(`cr-fumb2-${attempt}`)
+    const cb = startBasicCombat(eTmp)
+    untilPlayerTurn(cb)
+    const pxl = findPc(cb)
+    pxl.pos = { col: findEnemy(cb).pos.col, row: findEnemy(cb).pos.row + 1 }
+    pxl.skills = { ...pxl.skills, melee: 1 }
+    const logI = cb.log.length
+    ;(cb as any).resolveAttack(pxl, findEnemy(cb))
+    const lines = cb.log.slice(logI)
+    if (lines.some((l) => l.includes('ПРОВАЛ'))) {
+      check('16 таблица провалов: запись в журнале', lines.some((l) => l.includes('застряло') || l.includes('спотыкается')), lines.slice(-2).join(' | '))
+      check('16 осложнение пропускает ход', pxl.skipNext === true)
+      sawStuck = true
+    }
+  }
+  check('16 fumble встречается в 60 попытках', sawStuck)
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

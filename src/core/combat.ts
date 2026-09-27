@@ -72,6 +72,10 @@ export interface Combatant {
   down?: boolean
   /** скрыт от врагов (аудит §5.6 п.12): не выбирается целью; атака выдаёт */
   hidden?: boolean
+  /** прицелился: бонус к следующей атаке (аудит B5, meta.combat.aim) */
+  aimBonus?: number
+  /** пропустить следующий ход (захват, осечка оружия из таблицы провалов) */
+  skipNext?: boolean
 }
 
 type StartCombatEffect = Extract<Effect, { type: 'start_combat' }>
@@ -419,8 +423,16 @@ export class CombatController {
       !target.fled &&
       !(target.hidden && attacker.side === 'enemy') &&
       attacker.side !== target.side &&
+      !this.outOfAmmo(attacker) &&
       hexDistance(attacker.pos, target.pos) <= attacker.weapon.range
     )
+  }
+
+  /** нет боеприпасов к оружию (аудит B5: weapon.ammo_item) — только для игрока */
+  private outOfAmmo(attacker: Combatant): boolean {
+    const ammo = attacker.weapon.ammo_item
+    if (!ammo || attacker.id !== 'c_player') return false
+    return this.engine.itemCount(ammo) <= 0
   }
 
   /**
@@ -497,6 +509,28 @@ export class CombatController {
     c.attacksLeft = 0
   }
 
+  /** бонус прицельной атаки (meta.combat.aim; умолчание вкл., +20) */
+  aimEnabled(): boolean {
+    return this.combatRules()?.aim !== false
+  }
+
+  /** прицеливание: тратит одну атаку, следующая — с бонусом */
+  playerAim(): void {
+    if (!this.isPlayerTurn() || !this.aimEnabled()) return
+    const pc = this.active
+    if (pc.attacked || pc.attacksLeft <= 0 || (pc.aimBonus ?? 0) > 0) return
+    pc.attacksLeft -= 1
+    if (pc.attacksLeft <= 0) pc.attacked = true
+    const cfg = this.combatRules()?.aim
+    pc.aimBonus = typeof cfg === 'object' && cfg?.bonus != null ? cfg.bonus : 20
+    this.log.push(`${pc.label} прицеливается… (следующая атака +${pc.aimBonus}%)`)
+    if (!this.result && pc.attacksLeft <= 0) {
+      this.nextTurn()
+      this.processUntilPlayer()
+    }
+    this.engine.notify()
+  }
+
   // ─────────────── действия игрока ───────────────
 
   playerMoveTo(h: Hex): void {
@@ -504,10 +538,34 @@ export class CombatController {
     const r = this.reachableHexes()
     const cost = r.get(hexKey(h))
     if (cost == null) return
+    const from = { ...this.active.pos }
     this.faceTowards(this.active, h)
     this.active.pos = { ...h }
     this.active.movLeft -= cost
+    this.triggerOpportunity(this.active, from)
+    this.checkEnd()
     this.engine.notify()
+  }
+
+  /**
+   * Атаки возможности (аудит B5): уход из зоны контроля врага — враг бьёт
+   * напоследок бесплатно. Умолчание вкл.; meta.combat.opportunity_attacks.
+   */
+  private triggerOpportunity(mover: Combatant, from: Hex): void {
+    if (this.combatRules()?.opportunity_attacks === false) return
+    if (hexDistance(from, mover.pos) === 0) return
+    for (const foe of this.combatants) {
+      if (this.result || mover.dead || mover.down) return
+      if (foe.side === mover.side || foe.dead || foe.down || foe.fled) continue
+      if (foe.hidden && mover.side === 'enemy') continue
+      // был в зоне удара, а теперь ушёл
+      if (hexDistance(foe.pos, from) > foe.weapon.range) continue
+      if (hexDistance(foe.pos, mover.pos) <= foe.weapon.range) continue
+      if (this.outOfAmmo(foe)) continue
+      this.log.push(`${foe.label} рубит вслед уходящему ${mover.label}!`)
+      this.faceTowards(foe, mover.pos)
+      this.resolveAttack(foe, mover, { free: true })
+    }
   }
 
   playerAttack(targetId: string): void {
@@ -625,6 +683,13 @@ export class CombatController {
       c.attacksLeft = Math.max(1, c.weapon.attacks_per_round)
       c.defensesUsed = 0
       c.attacked = false
+      // захват/осечка: боец пропускает ход целиком (аудит B5)
+      if (c.skipNext) {
+        c.skipNext = false
+        c.movLeft = 0
+        c.attacksLeft = 0
+        c.attacked = true
+      }
       // внезапность (аудит §5.6 п.12): застигнутая сторона теряет первый раунд
       if (this.round === 1 && this.surprise) {
         const ambusher = this.surprise === 'player' ? 'player' : 'enemy'
@@ -822,7 +887,11 @@ export class CombatController {
         const foes = this.combatants.filter((x) => x.side === 'enemy' && !x.dead && !x.fled && !x.down)
         if (foes.length && c.movLeft > 0) {
           const nearest = foes.sort((a, b) => hexDistance(c.pos, a.pos) - hexDistance(c.pos, b.pos))[0]
-          if (hexDistance(c.pos, nearest.pos) <= 2) this.stepAway(c, nearest)
+          if (hexDistance(c.pos, nearest.pos) <= 2) {
+            const from = { ...c.pos }
+            this.stepAway(c, nearest)
+            this.triggerOpportunity(c, from)
+          }
         }
         return
       }
@@ -872,6 +941,7 @@ export class CombatController {
     if (this.tryUseAiAbility(c, target)) return
 
     if (hexDistance(c.pos, target.pos) > c.weapon.range) {
+      const from = { ...c.pos }
       const path = astar(c.pos, target.pos, this.passable, this.moveCost)
       if (path) {
         // идём по пути, не заходя в гекс цели
@@ -884,6 +954,8 @@ export class CombatController {
           c.movLeft -= cost
         }
       }
+      // ушёл из зоны контроля противника (например, сбежавший моралью) — удар вслед
+      this.triggerOpportunity(c, from)
     }
 
     // мультиатаки (аудит §5.6 п.1): бьём, пока есть атаки и живая цель рядом
@@ -1025,20 +1097,35 @@ export class CombatController {
       penalty = (apr - attacker.attacksLeft) * this.multiAttackPenalty
       attacker.attacksLeft -= 1
       if (attacker.attacksLeft <= 0) this.spendAction(attacker)
+      // боеприпасы (аудит B5): каждая атака игрока тратит 1 шт.
+      if (attacker.id === 'c_player' && attacker.weapon.ammo_item) {
+        this.engine.removeItem(attacker.weapon.ammo_item, 1)
+        const left = this.engine.itemCount(attacker.weapon.ammo_item)
+        if (left === 0) this.log.push(`Боеприпасы к «${attacker.weaponLabel}» кончились!`)
+      }
     }
     const rng = this.engine.rng
     const fromShadow = !!attacker.hidden
-    const skillVal = Math.max(1, (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill))
+    // прицельная атака: бонус прицеливания на следующую атаку (аудит B5)
+    const aim = attacker.aimBonus ?? 0
+    attacker.aimBonus = 0
+    const skillVal = Math.max(
+      1,
+      (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill) + aim,
+    )
     const atk = skillCheck(skillVal, rng, penalty, this.engine.diceRules)
     this.log.push(
-      `${attacker.label}: ${fromShadow ? 'ВНЕЗАПНАЯ атака' : 'атака'} «${attacker.weaponLabel}»${penalty ? ` (повторная, ${penalty}%)` : ''} — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
+      `${attacker.label}: ${fromShadow ? 'ВНЕЗАПНАЯ атака' : 'атака'} «${attacker.weaponLabel}»${penalty ? ` (повторная, ${penalty}%)` : ''}${aim ? ` (прицельная, +${aim}%)` : ''} — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
     )
     attacker.hidden = false // атака выдаёт позицию
     if (attacker.id === 'c_player' && atk.success) this.engine.markSkill(attacker.weapon.skill)
     if (RANK[atk.result] < 2) {
       playUi('miss')
-      // критический провал — износ оружия атакующего (аудит §5.6 п.10)
-      if (atk.result === 'fumble' && !opts?.free) this.wearWeapon(attacker)
+      // критический провал — износ оружия + таблица осложнений мастера
+      if (atk.result === 'fumble' && !opts?.free) {
+        this.wearWeapon(attacker)
+        this.applyFumble(attacker)
+      }
       return
     }
 
@@ -1052,11 +1139,15 @@ export class CombatController {
     // урон
     const w = attacker.weapon
     const dbNotation = w.damage_bonus ? damageBonus(attacker.stats) : '0'
+    const harmless = w.traits?.includes('push_harmless')
     let dmg: number
     if (atk.result === 'critical') {
-      dmg = maxOf(w.damage) + Math.max(0, maxOf(dbNotation))
+      dmg = harmless ? 0 : maxOf(w.damage) + Math.max(0, maxOf(dbNotation))
       this.log.push(`Критический удар! Броня не спасает.`)
       playUi('crit')
+    } else if (harmless) {
+      dmg = 0
+      playUi('hit')
     } else {
       const raw = rollDice(w.damage, rng) + rollSigned(dbNotation, rng)
       dmg = Math.max(0, raw - defender.armor)
@@ -1065,6 +1156,88 @@ export class CombatController {
     this.finishDamage(defender, dmg)
     // удар прошёл — износ брони защитника (аудит §5.6 п.10)
     if (dmg > 0) this.wearArmor(defender)
+    // особые удары оружия (аудит B5) — с уверенного успеха и критического
+    if (!defender.dead && !defender.down && RANK[atk.result] >= RANK.hard) {
+      this.applyWeaponTraits(attacker, defender)
+    }
+  }
+
+  /** особые удары оружия: пронзание, отброс, разоружение, захват */
+  private applyWeaponTraits(attacker: Combatant, defender: Combatant): void {
+    const traits = attacker.weapon.traits
+    if (!traits?.length) return
+    const rng = this.engine.rng
+    if (traits.includes('impale')) {
+      const extra = rollDice(attacker.weapon.damage, rng)
+      this.log.push(`Пронзание! «${attacker.weaponLabel}» впивается глубоко: +${extra} урона без брони.`)
+      this.finishDamage(defender, extra)
+      if (defender.dead || defender.down) return
+    }
+    if (traits.includes('knockback') || traits.includes('push_harmless')) {
+      const dc = defender.pos.col - attacker.pos.col
+      const dr = defender.pos.row - attacker.pos.row
+      const step: Hex = { col: defender.pos.col + Math.sign(dc), row: defender.pos.row + Math.sign(dr) }
+      if (this.passable(step)) {
+        defender.pos = step
+        this.log.push(`${defender.label} отброшен назад.`)
+      }
+    }
+    if (traits.includes('disarm')) {
+      this.disarm(defender, attacker)
+      if (defender.dead || defender.down) return
+    }
+    if (traits.includes('grapple')) {
+      defender.skipNext = true
+      this.log.push(`${attacker.label} захватывает ${defender.label} — тот пропустит следующий ход!`)
+    }
+  }
+
+  /** разоружение: игрок теряет оружие в инвентарь, NPC — навсегда */
+  private disarm(defender: Combatant, attacker: Combatant): void {
+    if (!defender.weaponItemId) return
+    const label = defender.weaponLabel
+    if (defender.id === 'c_player') {
+      const eq = this.engine.state.player.equipment
+      if (eq.weapon === defender.weaponItemId) delete eq.weapon
+      this.log.push(`${attacker.label} выбивает «${label}» из рук ${defender.label}! Оружие отлетело в рюкзак.`)
+    } else {
+      this.log.push(`${attacker.label} выбивает «${label}» из рук ${defender.label}!`)
+    }
+    defender.weapon = { ...FISTS }
+    defender.weaponLabel = FISTS.label!
+    defender.weaponItemId = null
+    defender.attacksLeft = Math.min(defender.attacksLeft, 1)
+  }
+
+  /** таблица критических провалов мастера (meta.combat.fumble_table) */
+  private applyFumble(attacker: Combatant): void {
+    const table = this.combatRules()?.fumble_table
+    if (!table?.length) return
+    const total = table.reduce((s, e) => s + Math.max(0, e.weight), 0)
+    if (total <= 0) return
+    let roll = this.engine.rng.int(1, total)
+    const entry = table.find((e) => (roll -= Math.max(0, e.weight)) <= 0) ?? table[table.length - 1]
+    const note = entry.text ? ` ${entry.text}` : ''
+    switch (entry.kind) {
+      case 'drop_weapon':
+        this.log.push(`${attacker.label} роняет оружие!${note}`)
+        this.disarm(attacker, attacker)
+        break
+      case 'stuck':
+        attacker.skipNext = true
+        this.log.push(`${attacker.label}: оружие застряло — следующий ход уйдёт на извлечение.${note}`)
+        break
+      case 'self_hit': {
+        const dmg = Math.max(0, rollDice(attacker.weapon.damage, this.engine.rng) - attacker.armor)
+        this.log.push(`${attacker.label} ранит себя!${note}`)
+        this.finishDamage(attacker, dmg)
+        break
+      }
+      case 'skip_next':
+        attacker.skipNext = true
+        this.log.push(`${attacker.label} спотыкается — следующий ход потерян.${note}`)
+        break
+    }
   }
 
   /** износ оружия атакующего при критическом провале; слом — переход на кулаки */

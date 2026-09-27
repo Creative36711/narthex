@@ -856,6 +856,45 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               }}
             />
           </label>
+          <label className="fld fld-check" data-tip="Действие «Прицелиться»: тратит одну атаку, следующая — с бонусом">
+            <input
+              type="checkbox"
+              checked={m.combat?.aim !== false}
+              onChange={(e) => {
+                const c = { ...(m.combat ?? {}) }
+                c.aim = e.target.checked ? undefined : false
+                m.combat = c
+                commit()
+              }}
+            />
+            <span>Прицельные атаки</span>
+          </label>
+          <label className="fld fld-num" data-tip="Бонус за прицеливание (по умолчанию +20%)">
+            <span>Бонус прицеливания</span>
+            <input
+              type="number"
+              value={typeof m.combat?.aim === 'object' ? (m.combat.aim.bonus ?? 20) : 20}
+              onChange={(e) => {
+                const c = { ...(m.combat ?? {}) }
+                c.aim = { bonus: Number(e.target.value) || 0 }
+                m.combat = c
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld fld-check" data-tip="Уход из угрожаемого гекса провоцирует бесплатную атаку врага">
+            <input
+              type="checkbox"
+              checked={m.combat?.opportunity_attacks !== false}
+              onChange={(e) => {
+                const c = { ...(m.combat ?? {}) }
+                c.opportunity_attacks = e.target.checked ? undefined : false
+                m.combat = c
+                commit()
+              }}
+            />
+            <span>Атаки возможности</span>
+          </label>
           <label className="fld" data-tip="Скрытность: красться (сцена), прятаться и внезапные атаки (бой). Поля ниже — навыки скрытности и внимательности.">
             <span>Скрытность</span>
             <select

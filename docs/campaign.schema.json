@@ -205,6 +205,26 @@
       ],
       "additionalProperties": false
     },
+    "SkillDifficulty": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "const": "easy"
+        },
+        {
+          "const": "normal"
+        },
+        {
+          "const": "difficult"
+        },
+        {
+          "const": "impossible"
+        }
+      ],
+      "description": "Сложность проверки навыка (аудит §5.6 п.7): число — старый порог\n(50 нейтрально, больше — труднее), строка — книжный уровень:\n'easy' ×2, 'normal' ×1, 'difficult' ½, 'impossible' ¼."
+    },
     "Effect": {
       "anyOf": [
         {
@@ -441,6 +461,18 @@
               "type": "boolean",
               "description": "запретить бегство игрока именно в этом бою (босс, засада)"
             },
+            "no_hide": {
+              "type": "boolean",
+              "description": "скрытность не работает в этом бою (открытое поле, тесная комната)"
+            },
+            "surprise": {
+              "type": "string",
+              "enum": [
+                "player",
+                "enemy"
+              ],
+              "description": "бой начинается внезапно для героя: пропуск первого раунда"
+            },
             "on_fled": {
               "type": "array",
               "items": {
@@ -606,7 +638,7 @@
               "type": "string"
             },
             "difficulty": {
-              "type": "number"
+              "$ref": "#/$defs/SkillDifficulty"
             },
             "success_effects": {
               "type": "array",
@@ -750,6 +782,111 @@
           },
           "required": [
             "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "stat_check",
+              "description": "проверка ХАРАКТЕРИСТИКИ × множитель (аудит §5.6 п.6): POW×5 — удача, INT×5 — идея…"
+            },
+            "stat": {
+              "type": "string"
+            },
+            "multiplier": {
+              "type": "number",
+              "description": "множитель характеристики (умолчание 5 — книжный)"
+            },
+            "modifier": {
+              "type": "number",
+              "description": "дополнительный модификатор к цели (ситуация мастера)"
+            },
+            "success_effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            },
+            "fail_effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "stat",
+            "success_effects",
+            "fail_effects"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "opposed_check",
+              "description": "Противоборство навыком (аудит §5.6 п.6): герой против NPC или порога.\nРанги сравниваются (провал < успех < твёрдый < крит); при равенстве\nпобеждает `tie` (умолчание 'player')."
+            },
+            "skill": {
+              "type": "string"
+            },
+            "entity": {
+              "type": "string",
+              "description": "цель — NPC (бросает тем же или указанным навыком)"
+            },
+            "against_skill": {
+              "type": "string",
+              "description": "навык цели (умолчание — тот же навык)"
+            },
+            "against_value": {
+              "type": "number",
+              "description": "или числовой порог вместо броска NPC (значение навыка оппонента)"
+            },
+            "tie": {
+              "type": "string",
+              "enum": [
+                "player",
+                "opponent"
+              ]
+            },
+            "success_effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            },
+            "fail_effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "skill",
+            "success_effects",
+            "fail_effects"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_luck"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "delta"
           ],
           "additionalProperties": false
         },
@@ -1366,6 +1503,74 @@
           "required": [
             "type",
             "skill",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "stat_ge"
+            },
+            "stat": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "stat",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "hp_le"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "hp_ge"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "luck_ge"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
             "threshold"
           ],
           "additionalProperties": false
@@ -2356,6 +2561,58 @@
           "type": "number",
           "description": "Штраф каждой СЛЕДУЮЩЕЙ атаки бойца в том же раунде (оружие с\n`attacks_per_round > 1`): второй удар идёт на penalty×1, третий — ×2…\nУмолчание −20 (разделение навыка по духу BRP); 0 — все атаки ровные."
         },
+        "aim": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "bonus": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "Прицельная атака: действие «Прицелиться» тратит одну атаку из края и\nдаёт +bonus к следующей (умолчание вкл., бонус +20). false — выкл."
+        },
+        "opportunity_attacks": {
+          "type": "boolean",
+          "description": "Атаки возможности (аудит B5): уход из гекса, угрожаемого врагом,\nвызывает у него бесплатный удар. Умолчание вкл. (книжно); false — выкл."
+        },
+        "fumble_table": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "weight": {
+                "type": "number"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "drop_weapon",
+                  "stuck",
+                  "self_hit",
+                  "skip_next"
+                ],
+                "description": "что случается с бойцом"
+              },
+              "text": {
+                "type": "string",
+                "description": "строка для журнала (нет — стандартная)"
+              }
+            },
+            "required": [
+              "weight",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Таблица критических провалов мастера: бросок по весам при fumble.\nНет — fumble лишь промах (и износ оружия, если задана прочность)."
+        },
         "death": {
           "type": "object",
           "properties": {
@@ -2720,6 +2977,35 @@
           "$ref": "#/$defs/CombatRulesDef",
           "description": "боевые правила кампании: побег, мультиатаки, тяжёлые раны (аудит §5.6)"
         },
+        "luck": {
+          "type": "object",
+          "properties": {
+            "multiplier": {
+              "type": "number"
+            },
+            "reroll_cost": {
+              "type": "number"
+            },
+            "rest_luck": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Очки удачи героя (аудит §5.6 п.8, книжная Удача = POW×5): максимум =\nPOW × multiplier (умолчание 5; задайте 0, чтобы выключить удачу).\nНа провальный мировой/диалоговый бросок игрок может потратить\n`reroll_cost` удачи (умолчание 1) и перебросить. Удача восстанавливается\nна отдыхе (`rest_luck` ≠ false) — книжно удача не восполняется, но для\nрогалика приятнее мягче; мастер решает сам."
+        },
+        "stealth": {
+          "type": "object",
+          "properties": {
+            "skill": {
+              "type": "string"
+            },
+            "perception_skill": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Скрытность и обнаружение (аудит §5.6 п.12). Отсутствие блока — системы\nнет (для стелс-кампаний мастер включает явно).\n- `skill` — навык скрытности героя (умолчание 'stealth');\n- `perception_skill` — навык обнаружения у NPC (умолчание 'perception';\n  у NPC без него берётся INT×2);\n- `combat_hide_penalty` — штраф атаки врагов по скрытому герою… нет:\n  скрытый герой просто не выбирается целью."
+        },
         "rest": {
           "type": "object",
           "properties": {
@@ -2762,6 +3048,10 @@
             "randomize_on_restart"
           ],
           "additionalProperties": false
+        },
+        "save_slots": {
+          "type": "number",
+          "description": "Сколько ручных слотов сохранения у игрока сверх автосейва\n(аудит §5.6 п.9). Умолчание 3; 0 — только автосейв (классический\nрогалик). Пермадет стирает автосейв; ручные слоты переживают забег —\nэто честный «снимок на всякий случай», мастер может запретить."
         }
       },
       "required": [
@@ -3702,6 +3992,10 @@
         },
         "quantity": {
           "type": "number"
+        },
+        "durability": {
+          "type": "number",
+          "description": "Прочность конкретного экземпляра (аудит §5.6 п.10): запись с этим полем —\nотдельная копия многоразового предмета, стакается только с себе равными."
         }
       },
       "required": [
@@ -3837,6 +4131,28 @@
         },
         "label": {
           "type": "string"
+        },
+        "durability": {
+          "type": "number",
+          "description": "Износ (аудит §5.6 п.10): максимальная прочность. Нет — оружие вечно.\nСрабатывание: за бой изнашивается 1 раз на критический провал.\nСломанное оружие заменяется кулаками, чинится рецептом (`repair: true`)."
+        },
+        "ammo_item": {
+          "type": "string",
+          "description": "Боеприпасы (аудит B5): id предмета-расходника (стрелы, патроны). Каждая\nатака игрока тратит 1 шт. из инвентаря; NPC — без ограничений.\nНет боеприпасов у игрока — оружие не стреляет."
+        },
+        "traits": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "impale",
+              "knockback",
+              "disarm",
+              "grapple",
+              "push_harmless"
+            ]
+          },
+          "description": "Особые удары (аудит B5): срабатывают при уверенном успехе и крите\n(на выбор мастера на оружие):\n- 'impale' — пронзание: дополнительный бросок урона без учёта брони;\n- 'knockback' — отброс на 1 гекс от атакующего;\n- 'disarm' — разоружение: цель теряет оружие (NPC — голыми руками);\n- 'grapple' — захват: цель пропускает следующий ход;\n- 'push_harmless' — толчок без урона (удар не наносит урона вообще)."
         }
       },
       "required": [
@@ -3986,6 +4302,10 @@
           "type": "number",
           "description": "броня в очках (если нет предмета-брони)"
         },
+        "perception": {
+          "type": "number",
+          "description": "Внимательность для скрытности (аудит §5.6 п.12): значение проверки\nобнаружения. Нет — навык meta.stealth.perception_skill, а без него INT×2."
+        },
         "natural_weapon": {
           "$ref": "#/$defs/WeaponData",
           "description": "природное оружие (когти, укус) — если нет equipment.weapon"
@@ -4096,6 +4416,10 @@
           "properties": {
             "points": {
               "type": "number"
+            },
+            "durability": {
+              "type": "number",
+              "description": "износ брони: максимальная прочность (нет — вечная)"
             }
           },
           "required": [
@@ -4594,7 +4918,7 @@
               "type": "string"
             },
             "difficulty": {
-              "type": "number"
+              "$ref": "#/$defs/SkillDifficulty"
             },
             "message": {
               "type": "string"
@@ -4712,6 +5036,10 @@
           },
           "description": "инструменты: нужны в инвентаре, НЕ расходуются"
         },
+        "repair": {
+          "type": "boolean",
+          "description": "Рецепт починки (аудит §5.6 п.10): результат — не новый предмет, а\nвосстановленная прочность сломанного/изношенного экземпляра `output.item`\nдо максимума. Игрок выбирает, какой экземпляр чинить."
+        },
         "requires": {
           "type": "array",
           "items": {
@@ -4726,7 +5054,7 @@
               "type": "string"
             },
             "difficulty": {
-              "type": "number"
+              "$ref": "#/$defs/SkillDifficulty"
             }
           },
           "required": [
@@ -5410,7 +5738,8 @@
           "type": "string"
         },
         "difficulty": {
-          "type": "number"
+          "$ref": "#/$defs/SkillDifficulty",
+          "description": "см. SkillDifficulty: число-порог (50 нейтрально) или уровень"
         },
         "mods": {
           "type": "array",

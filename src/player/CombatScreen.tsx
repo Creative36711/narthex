@@ -349,6 +349,21 @@ export function CombatScreen({ engine }: Props) {
                       {activePlayer.hidden ? 'Вы скрыты' : 'Скрыться'}
                     </button>
                   )}
+                  {combat.aimEnabled() && (
+                    <button
+                      className="btn"
+                      disabled={activePlayer.attacked || (activePlayer.aimBonus ?? 0) > 0 || activePlayer.attacksLeft <= 0}
+                      data-tip={'Прицельная атака (аудит B5).\nТратит одну атаку за ход; следующая атака получает бонус (умолчание +20%).'}
+                      onClick={() => combat.playerAim()}
+                    >
+                      {(activePlayer.aimBonus ?? 0) > 0 ? `Прицел (+${activePlayer.aimBonus}%)` : 'Прицелиться'}
+                    </button>
+                  )}
+                  {activePlayer.weapon.ammo_item && (
+                    <div className="combat-ammo" data-tip="Боеприпасы текущего оружия: каждая атака тратит 1 шт. Нет патронов — оружие не стреляет.">
+                      Боеприпасы: <b>{engine.itemCount(activePlayer.weapon.ammo_item)}</b>
+                    </div>
+                  )}
                   {combat.canFlee() && (
                     <button
                       className="btn"
