@@ -131,6 +131,11 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         )}
         <button className="hud-btn" onClick={onOpenCharacter} data-tip="Лист персонажа"><Ico n="user" />  Герой</button>
         <button className="hud-btn" onClick={onOpenLog} data-tip="Журнал"><Ico n="scroll" />  Журнал</button>
+        {engine.campAvailable().ok && (
+          <button className="hud-btn" onClick={() => engine.campRest()} data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}>
+            <Ico n="flame" />  Лагерь
+          </button>
+        )}
         <button className="hud-btn" onClick={onOpenSaves} data-tip="Сохранения (слоты)" aria-label="Сохранения"><Ico n="download" /> </button>
         {(s.codex_unlocked ?? []).length > 0 && (
           <button className="hud-btn" onClick={onOpenCodex} data-tip="Разблокированные записи о мире"><Ico n="book" />  Кодекс</button>

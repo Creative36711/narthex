@@ -90,6 +90,10 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return (s.weather ?? '') === c.weather
     case 'random_chance':
       return engine.rng.chance(c.probability)
+    case 'crime_committed':
+      return engine.hasCrime(c.id, c.min_bounty ?? 0)
+    case 'bounty_total_ge':
+      return engine.bountyTotal() >= c.threshold
     case 'and':
       return c.conditions.every((x) => evalCondition(x, engine))
     case 'or':

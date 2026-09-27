@@ -10,6 +10,7 @@ import type {
   GameState,
   ItemDef,
   LocationDef,
+  ActiveStatus,
   NpcDef,
   PlayerState,
   RecipeDef,
@@ -307,14 +308,42 @@ export class GameEngine {
     const list = this.state.player.statuses
     if (!list?.length) return
     const expired: StatusDef[] = []
+    const cured: string[] = []
     for (const s of list) {
       const def = this.statusDef(s.id)
       if (!def) continue
-      if (def.dot?.hp) this.state.player.hp = Math.max(1, this.state.player.hp - def.dot.hp)
-      if (def.dot?.mp) this.state.player.mp = Math.max(0, this.state.player.mp - def.dot.mp)
-      if (def.dot?.hp) this.pushLog(`${def.label}: −${def.dot.hp} HP.`)
+      // болезни/яды с течением (аудит B7): стадии — спасбросок CON; DoT и модификаторы масштабированы тяжестью
+      const severity = Math.max(1, s.severity ?? 1)
+      if (def.dot?.hp) this.state.player.hp = Math.max(1, this.state.player.hp - def.dot.hp * severity)
+      if (def.dot?.mp) this.state.player.mp = Math.max(0, this.state.player.mp - def.dot.mp * severity)
+      if (def.dot?.hp) this.pushLog(`${def.label}: −${def.dot.hp * severity} HP${severity > 1 ? ` (тяжесть ${severity})` : ''}.`)
+      if (def.disease && (s.next_check ?? Infinity) <= this.state.tick) {
+        const mult = def.disease.con_multiplier ?? 5
+        const out = skillCheck(this.state.player.stats.CON * mult, this.rng, 0, this.diceRules)
+        this.pushLog(`${def.label}: стадия течения — CON×${mult}, d100=${out.roll} против ${out.target} → ${CHECK_RESULT_LABEL[out.result]}`)
+        s.next_check = this.state.tick + def.disease.interval_ticks
+        if (out.success) {
+          s.severity = Math.max(0, severity - 1)
+          if (s.severity === 0) {
+            cured.push(s.id)
+            continue
+          }
+          this.pushLog(`${def.label}: тяжесть снижается до ${s.severity}.`)
+        } else {
+          const cap = def.disease.severity_max ?? 5
+          s.severity = Math.min(cap, severity + 1)
+          this.pushLog(`${def.label}: болезнь ухудшается — тяжесть ${s.severity}/${cap}.`)
+        }
+      }
       s.left -= 1
       if (s.left <= 0) expired.push(def)
+    }
+    if (cured.length) {
+      this.state.player.statuses = (this.state.player.statuses ?? []).filter((s) => !cured.includes(s.id))
+      for (const id of cured) {
+        const def = this.statusDef(id)
+        this.pushLog(`${def?.label ?? id}: выздоровление.`)
+      }
     }
     if (expired.length) {
       this.state.player.statuses = list.filter((s) => s.left > 0)
@@ -436,7 +465,13 @@ export class GameEngine {
       existing.left = Math.max(existing.left, left)
       return
     }
-    list.push({ id, left })
+    // болезни/яды с течением (аудит B7): стартовая тяжесть и первая стадия
+    const entry: ActiveStatus = { id, left }
+    if (def.disease) {
+      entry.severity = 1
+      entry.next_check = this.state.tick + def.disease.interval_ticks
+    }
+    list.push(entry)
     this.pushLog(def.apply_message ?? `${def.label}: эффект наложен.`)
     if (def.on_apply?.length) this.applyEffects(def.on_apply)
     this.notify()
@@ -452,12 +487,13 @@ export class GameEngine {
     this.notify()
   }
 
-  /** суммарный модификатор навыка от активных статусов */
+  /** суммарный модификатор навыка от активных статусов (болезни масштабированы тяжестью) */
   statusSkillMod(skill: string): number {
     let mod = 0
     for (const s of this.state.player.statuses ?? []) {
       const def = this.statusDef(s.id)
-      for (const m of def?.skill_mods ?? []) if (m.skill === skill) mod += m.delta
+      const sev = def?.disease ? Math.max(1, s.severity ?? 1) : 1
+      for (const m of def?.skill_mods ?? []) if (m.skill === skill) mod += m.delta * sev
     }
     return mod
   }
@@ -1078,6 +1114,148 @@ export class GameEngine {
     return labels[stat] ?? stat
   }
 
+  // ─────────────── опасности, преступления, цены, лагерь (аудит B7) ───────────────
+
+  /**
+   * Падение (аудит B7): урон = floor(meters / porog) кубиков, смягчающая
+   * проверка навыком (умолчание dodge) уполовинивает. Порог и кубик
+   * настраиваются в meta.hazards (книжные: 3 м на 1d6).
+   */
+  applyFall(meters: number, skill?: string): void {
+    const hz = this.campaign.meta.hazards
+    const perDie = Math.max(1, hz?.fall_meters_per_die ?? 3)
+    const dice = Math.floor(Math.max(0, meters) / perDie)
+    const sane = dice <= 0 ? '0' : `${dice}d6`
+    let dmg = 0
+    let modLog = ''
+    const p = this.state.player
+    if (dice > 0) {
+      const skillId = skill ?? 'dodge'
+      const known = p.skills[skillId]
+      if (known != null && known > 0) {
+        const out = skillCheck(Math.max(1, known), this.rng, 0, this.diceRules)
+        if (out.success) {
+          modLog = ` (${this.skillLabel(skillId)} смягчает: половина)`
+        }
+        dmg = rollDice(sane, this.rng)
+        if (out.success) dmg = Math.max(0, Math.ceil(dmg / 2))
+        this.pushLog(`Падение с ${meters} м — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}${modLog}`)
+      } else {
+        dmg = rollDice(sane, this.rng)
+        this.pushLog(`Падение с ${meters} м: ${dmg} урона (${sane}).`)
+      }
+    }
+    if (dmg > 0) this.changeHp(-dmg)
+    else this.pushLog('Падение обошлось без серьёзных травм.')
+    this.notify()
+  }
+
+  /** реестр преступления из кампании */
+  crimeLabel(id: string): string {
+    return this.campaign.meta.crimes?.find((c) => c.id === id)?.label ?? id
+  }
+
+  /** зафиксировать преступление героя (аудит B7) */
+  commitCrime(id: string, bounty = 0): void {
+    const s = this.state
+    s.crimes ??= {}
+    if (s.crimes[id]) {
+      s.crimes[id].bounty += Math.max(0, bounty)
+    } else {
+      s.crimes[id] = { bounty: Math.max(0, bounty), tick: s.tick }
+    }
+    this.pushLog(`Совершено преступление: «${this.crimeLabel(id)}»${bounty > 0 ? ` (награда за голову ${bounty})` : ''}.`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** преступление совершено? (любое — без id; minBounty — порог награды) */
+  hasCrime(id?: string, minBounty = 0): boolean {
+    const list = this.state.crimes ?? {}
+    if (!id) return Object.values(list).some((c) => minBounty <= 0 ? true : c.bounty >= minBounty)
+    const c = list[id]
+    if (!c) return false
+    return minBounty <= 0 ? true : c.bounty >= minBounty
+  }
+
+  /** суммарная награда за голову героя */
+  bountyTotal(): number {
+    return Object.values(this.state.crimes ?? {}).reduce((sum, c) => sum + c.bounty, 0)
+  }
+
+  /** активные ценовые события */
+  priceEventsActive(): Array<{ id: string; label: string }> {
+    const reg = this.campaign.meta.price_events ?? []
+    return (this.state.price_events ?? []).map((id) => ({ id, label: reg.find((e) => e.id === id)?.label ?? id }))
+  }
+
+  /** включить/выключить ценовое событие (аудит B7) */
+  setPriceEvent(id: string, on: boolean): void {
+    const list = (this.state.price_events ??= [])
+    if (on) {
+      if (!this.campaign.meta.price_events?.some((e) => e.id === id)) return
+      if (!list.includes(id)) {
+        list.push(id)
+        this.pushLog(`Ценник меняется: «${this.campaign.meta.price_events.find((e) => e.id === id)!.label}».`)
+      }
+    } else if (id) {
+      const i = list.indexOf(id)
+      if (i >= 0) list.splice(i, 1)
+    } else if (list.length) {
+      list.length = 0
+      this.pushLog('Ценники снова прежние.')
+    }
+    this.checkRules()
+    this.notify()
+  }
+
+  /** множитель цен по активным ценовым событиям для данного предмета */
+  priceEventMultiplier(item: ItemDef): number {
+    if (!this.state.price_events?.length) return 1
+    let mult = 1
+    for (const id of this.state.price_events) {
+      const ev = this.campaign.meta.price_events?.find((e) => e.id === id)
+      if (!ev) continue
+      if (ev.items?.length && !ev.items.includes(item.id)) continue
+      if (ev.categories?.length && !ev.categories.includes(item.category)) continue
+      mult *= ev.multiplier
+    }
+    return mult
+  }
+
+  /** разрешён ли здесь лагерь (аудит B7): meta.camping + локация с camp: true */
+  campAvailable(): { ok: boolean; reason: string } {
+    const cfg = this.campaign.meta.camping
+    if (!cfg) return { ok: false, reason: 'мастер не включил ночлег (meta.camping)' }
+    if (this.combat || this.trade) return { ok: false, reason: 'сейчас не до отдыха' }
+    const loc = this.findLocation(this.state.location)?.location
+    if (!loc?.camp) return { ok: false, reason: 'здесь лагерь не разбить (location.camp)' }
+    return { ok: true, reason: '' }
+  }
+
+  /**
+   * Ночлег в лагере (аудит B7): advanceTicks(cfg.ticks), рост навыков,
+   * естественное лечение, возможная засада — правило мастера
+   * (meta.camping.ambush_rule, шанс ambush_chance).
+   */
+  campRest(): void {
+    const cfg = this.campaign.meta.camping
+    if (!cfg || !this.campAvailable().ok) return
+    this.pushLog('Вы разбиваете лагерь и устраиваетесь на ночлег…')
+    this.advanceTicks(cfg.ticks ?? 8)
+    this.restAndGrow()
+    this.restHeal()
+    const chance = Math.max(0, Math.min(1, cfg.ambush_chance ?? 0))
+    if (chance > 0 && this.rng.chance(chance)) {
+      this.pushLog('Ночью — тревога! В лагерь кто-то прокрался!')
+      if (cfg.ambush_rule) this.fireRule(cfg.ambush_rule)
+    } else {
+      this.pushLog('Ночь прошла спокойно.')
+    }
+    this.autosave()
+    this.notify()
+  }
+
   /**
    * Предложение переброска за удачу (аудит §5.6 п.8). Не сохраняется в сейв:
    * если игрок закрыл игру с открытым предложением — применится ветка провала.
@@ -1369,14 +1547,16 @@ export class GameEngine {
   buyPrice(npc: NpcDef, itemId: string, basePrice?: number): number {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
     const base = basePrice ?? item?.value?.[this.mainCurrency] ?? 1
-    return Math.max(1, Math.round(base * this.priceModifier(npc)))
+    const dynamic = item ? this.priceEventMultiplier(item) : 1
+    return Math.max(1, Math.round(base * this.priceModifier(npc) * dynamic))
   }
 
   sellPrice(npc: NpcDef, itemId: string): number {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
     const base = item?.value?.[this.mainCurrency] ?? 0
     const rate = npc.trader?.buy_rate ?? 0.4
-    return Math.max(0, Math.floor((base * rate) / this.priceModifier(npc)))
+    const dynamic = item ? this.priceEventMultiplier(item) : 1
+    return Math.max(0, Math.floor((base * rate * dynamic) / this.priceModifier(npc)))
   }
 
   buyItem(itemId: string, price: number): boolean {
@@ -1883,6 +2063,10 @@ export class GameEngine {
       case 'change_passion': this.changePassion(e.id, e.delta ?? (e.set != null ? e.set - (this.state.player.passions?.[e.id] ?? 0) : 0)); break
       case 'change_allegiance': this.changeAllegiance(e.id, e.points); break
       case 'train_stat': this.trainStat(e.stat, e.delta); break
+      case 'hazard_fall': this.applyFall(e.meters, e.skill); break
+      case 'commit_crime': this.commitCrime(e.id, e.bounty); break
+      case 'set_price_event': this.setPriceEvent(e.id, true); break
+      case 'clear_price_event': this.setPriceEvent(e.id ?? '', false); break
       case 'change_disposition': this.changeDisposition(e.target, e.delta); break
       case 'start_quest': this.startQuest(e.quest); break
       case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break

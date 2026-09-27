@@ -193,6 +193,19 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'level', label: "normal/heroic/epic/superhuman", kind: 'string', placeholder: 'heroic' }],
     blank: { level: 'heroic' },
   },
+  crime_committed: {
+    label: 'Преступление совершено',
+    fields: [
+      { key: 'id', label: 'id преступления (пусто — любое)', kind: 'string', optional: true },
+      { key: 'min_bounty', label: 'Мин. награда', kind: 'number', optional: true },
+    ],
+    blank: {},
+  },
+  bounty_total_ge: {
+    label: 'Награда за голову ≥',
+    fields: [{ key: 'threshold', label: 'Порог', kind: 'number' }],
+    blank: { threshold: 100 },
+  },
   need_le: {
     label: 'Потребность ≤',
     fields: [
@@ -490,6 +503,32 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'delta', label: 'Сдвиг (±)', kind: 'number' },
     ],
     blank: { stat: 'STR', delta: 1 },
+  },
+  hazard_fall: {
+    label: 'Падение (высота → урон)',
+    fields: [
+      { key: 'meters', label: 'Высота, метров', kind: 'number' },
+      { key: 'skill', label: 'Навык смягчения (ум. dodge)', kind: 'skillRef', optional: true },
+    ],
+    blank: { meters: 10 },
+  },
+  commit_crime: {
+    label: 'Совершить преступление',
+    fields: [
+      { key: 'id', label: 'id преступления', kind: 'string' },
+      { key: 'bounty', label: 'Награда за голову (опц.)', kind: 'number', optional: true },
+    ],
+    blank: { id: '' },
+  },
+  set_price_event: {
+    label: 'Включить ценовое событие',
+    fields: [{ key: 'id', label: 'id события', kind: 'string' }],
+    blank: { id: '' },
+  },
+  clear_price_event: {
+    label: 'Снять ценовое событие',
+    fields: [{ key: 'id', label: 'id события (пусто — все)', kind: 'string', optional: true }],
+    blank: {},
   },
   start_quest: {
     label: 'Начать квест',

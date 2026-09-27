@@ -140,6 +140,12 @@ export class CombatController {
     this.difficult = new Set(arena.hex_grid.difficult_terrain.map(([c, r]) => `${c},${r}`))
     this.surprise = def.surprise
     this.setup()
+    // погода ложится на бой (аудит B7): общий статус, если назначен
+    const wStatus = this.weatherCombat?.status
+    if (wStatus) {
+      for (const c of this.combatants) this.applyStatusTo(c.id, wStatus)
+      this.log.push(`Погода: «${this.statusLabel(wStatus)}» действует на всех.`)
+    }
     if (def.intro) this.log.push(def.intro)
     if (this.surprise) {
       const side = this.surprise === 'player' ? 'героя' : 'врагов'
@@ -424,7 +430,7 @@ export class CombatController {
       !(target.hidden && attacker.side === 'enemy') &&
       attacker.side !== target.side &&
       !this.outOfAmmo(attacker) &&
-      hexDistance(attacker.pos, target.pos) <= attacker.weapon.range
+      hexDistance(attacker.pos, target.pos) <= this.weaponRange(attacker)
     )
   }
 
@@ -493,6 +499,24 @@ export class CombatController {
     return this.engine.campaign.meta.combat
   }
 
+  /** погодные боевые модификаторы (аудит B7): настройки в meta.weathers[].combat */
+  private get weatherCombat() {
+    return this.engine.campaign.meta.weathers?.find((w) => w.id === this.engine.state.weather)?.combat
+  }
+
+  /** сдвиг навыка от погоды */
+  private weatherSkillMod(skill: string): number {
+    let mod = 0
+    for (const m of this.weatherCombat?.skill_mods ?? []) if (m.skill === skill) mod += m.delta
+    return mod
+  }
+
+  /** дальность оружия с погодным ограничением (минимум 1) */
+  weaponRange(c: Combatant): number {
+    const pen = Math.max(0, this.weatherCombat?.range_penalty ?? 0)
+    return Math.max(1, c.weapon.range - pen)
+  }
+
   /** штраф следующей атаки в раунде (умолчание −20, BRP-разделение) */
   private get multiAttackPenalty(): number {
     return this.combatRules()?.multi_attack_penalty ?? -20
@@ -559,8 +583,8 @@ export class CombatController {
       if (foe.side === mover.side || foe.dead || foe.down || foe.fled) continue
       if (foe.hidden && mover.side === 'enemy') continue
       // был в зоне удара, а теперь ушёл
-      if (hexDistance(foe.pos, from) > foe.weapon.range) continue
-      if (hexDistance(foe.pos, mover.pos) <= foe.weapon.range) continue
+      if (hexDistance(foe.pos, from) > this.weaponRange(foe)) continue
+      if (hexDistance(foe.pos, mover.pos) <= this.weaponRange(foe)) continue
       if (this.outOfAmmo(foe)) continue
       this.log.push(`${foe.label} рубит вслед уходящему ${mover.label}!`)
       this.faceTowards(foe, mover.pos)
@@ -600,7 +624,7 @@ export class CombatController {
     if (!this.isPlayerTurn() || !this.canFlee()) return
     const pc = this.active
     const foes = this.combatants.filter(
-      (c) => c.side === 'enemy' && !c.dead && !c.fled && !c.down && hexDistance(c.pos, pc.pos) <= c.weapon.range,
+      (c) => c.side === 'enemy' && !c.dead && !c.fled && !c.down && hexDistance(c.pos, pc.pos) <= this.weaponRange(c),
     )
     if (foes.length) this.log.push('Вы бросаетесь прочь — враги рубят вслед!')
     for (const foe of foes) {
@@ -678,7 +702,7 @@ export class CombatController {
         c.attacked = true
         continue
       }
-      c.movLeft = Math.max(1, c.mov + this.statusMovMod(c))
+      c.movLeft = Math.max(1, c.mov + this.statusMovMod(c) - Math.max(0, this.weatherCombat?.mov_penalty ?? 0))
       // край атак за раунд — attacks_per_round оружия (аудит §5.6 п.1)
       c.attacksLeft = Math.max(1, c.weapon.attacks_per_round)
       c.defensesUsed = 0
@@ -878,7 +902,7 @@ export class CombatController {
       const hero = this.combatants.find((x) => x.id === 'c_player')!
       if (order === 'hold') {
         // стоять: только атаковать в досягаемости
-        const near = this.combatants.find((x) => x.side === 'enemy' && !x.dead && !x.fled && !x.down && hexDistance(c.pos, x.pos) <= c.weapon.range)
+        const near = this.combatants.find((x) => x.side === 'enemy' && !x.dead && !x.fled && !x.down && hexDistance(c.pos, x.pos) <= this.weaponRange(c))
         if (near) this.resolveAttack(c, near)
         return
       }
@@ -940,7 +964,7 @@ export class CombatController {
     // способность вместо атаки — если применима (шанс 50%, детерминизм через rng)
     if (this.tryUseAiAbility(c, target)) return
 
-    if (hexDistance(c.pos, target.pos) > c.weapon.range) {
+    if (hexDistance(c.pos, target.pos) > this.weaponRange(c)) {
       const from = { ...c.pos }
       const path = astar(c.pos, target.pos, this.passable, this.moveCost)
       if (path) {
@@ -949,7 +973,7 @@ export class CombatController {
           if (this.occupantAt(step)) break
           const cost = this.moveCost(step)
           if (c.movLeft < cost) break
-          if (hexDistance(c.pos, target.pos) <= c.weapon.range) break
+          if (hexDistance(c.pos, target.pos) <= this.weaponRange(c)) break
           c.pos = { ...step }
           c.movLeft -= cost
         }
@@ -961,11 +985,11 @@ export class CombatController {
     // мультиатаки (аудит §5.6 п.1): бьём, пока есть атаки и живая цель рядом
     let guard = 0
     while (!this.result && guard++ < 8) {
-      if (target.dead || target.down || target.fled || hexDistance(c.pos, target.pos) > c.weapon.range) {
+      if (target.dead || target.down || target.fled || hexDistance(c.pos, target.pos) > this.weaponRange(c)) {
         const rest = this.combatants
           .filter((x) => !x.dead && !x.fled && !x.down && x.side !== c.side)
           .sort((a, b) => hexDistance(c.pos, a.pos) - hexDistance(c.pos, b.pos))
-        if (!rest.length || hexDistance(c.pos, rest[0].pos) > c.weapon.range) break
+        if (!rest.length || hexDistance(c.pos, rest[0].pos) > this.weaponRange(c)) break
         target = rest[0]
       }
       if (!this.canAttack(c, target)) break
@@ -1111,7 +1135,7 @@ export class CombatController {
     attacker.aimBonus = 0
     const skillVal = Math.max(
       1,
-      (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill) + aim,
+      (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill) + this.weatherSkillMod(attacker.weapon.skill) + aim,
     )
     const atk = skillCheck(skillVal, rng, penalty, this.engine.diceRules)
     this.log.push(
@@ -1308,9 +1332,9 @@ export class CombatController {
       if (defender.side !== ambusher) return false
     }
     const rng = this.engine.rng
-    const dodgeVal = Math.max(0, (defender.skills['dodge'] ?? 0) + this.statusSkillMod(defender, 'dodge'))
+    const dodgeVal = Math.max(0, (defender.skills['dodge'] ?? 0) + this.statusSkillMod(defender, 'dodge') + this.weatherSkillMod('dodge'))
     const parryVal = defender.weapon.parry_capable
-      ? Math.max(0, (defender.skills[defender.weapon.skill] ?? 0) + this.statusSkillMod(defender, defender.weapon.skill))
+      ? Math.max(0, (defender.skills[defender.weapon.skill] ?? 0) + this.statusSkillMod(defender, defender.weapon.skill) + this.weatherSkillMod(defender.weapon.skill))
       : 0
     const useParry = parryVal > dodgeVal
     const defBase = useParry ? parryVal : dodgeVal

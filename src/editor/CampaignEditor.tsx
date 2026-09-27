@@ -1130,6 +1130,92 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       </div>
 
       <div className="props-group">
+        <h4>Лагерь, опасности, преступления, цены (B7)</h4>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld fld-check" data-tip="Кнопка «Разбить лагерь» в HUD на локациях с отметкой camp">
+            <input
+              type="checkbox"
+              checked={!!m.camping}
+              onChange={(e) => {
+                if (e.target.checked) m.camping = { ticks: 8 }
+                else delete m.camping
+                commit()
+              }}
+            />
+            <span>Лагерь и ночлег</span>
+          </label>
+          {m.camping && (
+            <>
+              <label className="fld fld-num" data-tip="Сколько тиков идёт отдых">
+                <span>Длительность, тиков</span>
+                <input
+                  type="number" min={1}
+                  value={m.camping.ticks ?? 8}
+                  onChange={(e) => ((m.camping!.ticks = Math.max(1, Number(e.target.value) || 8)), commit())}
+                />
+              </label>
+              <label className="fld fld-num" data-tip="Шанс ночной засады 0..1. Мастер сам решает последствия — через правило засады">
+                <span>Шанс засады (0..1)</span>
+                <input
+                  type="number" min={0} max={1} step={0.05}
+                  value={m.camping.ambush_chance ?? 0}
+                  onChange={(e) => ((m.camping!.ambush_chance = Math.max(0, Math.min(1, Number(e.target.value) || 0))), commit())}
+                />
+              </label>
+              <label className="fld" data-tip="Id правила из реестра, отвечающего за вылазку (спавн врагов, бой, плен)">
+                <span>Правило засады</span>
+                <input
+                  value={m.camping.ambush_rule ?? ''}
+                  onChange={(e) => ((m.camping!.ambush_rule = e.target.value || undefined), commit())}
+                />
+              </label>
+            </>
+          )}
+          <label className="fld fld-num" data-tip="Метров падения на один кубик урона (книжное умолчание 3)">
+            <span>Падение: м/кубик</span>
+            <input
+              type="number" min={1}
+              value={m.hazards?.fall_meters_per_die ?? 3}
+              onChange={(e) => ((m.hazards = { ...(m.hazards ?? {}), fall_meters_per_die: Math.max(1, Number(e.target.value) || 3) }), commit())}
+            />
+          </label>
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld" data-tip="Реестр преступлений: id=Название через запятую (theft=Кража, murder=Убийство); совершаются эффектом commit_crime">
+            <span>Преступления</span>
+            <input
+              value={(m.crimes ?? []).map((c) => `${c.id}=${c.label}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [id, label] = x.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id }
+                }).filter((x) => x.id)
+                if (arr.length) m.crimes = arr
+                else delete m.crimes
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Ценовые события: id=Название*множитель через запятую (war=Война*1.5); задать фильтры по предметам/категориям можно в JSON; включаются эффектом set_price_event">
+            <span>Ценовые события</span>
+            <input
+              value={(m.price_events ?? []).map((e2) => `${e2.id}=${e2.label}*${e2.multiplier}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [pair, mult] = x.split('*')
+                  const [id, label] = pair.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id, multiplier: Number(mult) || 1.5 }
+                }).filter((x) => x.id)
+                if (arr.length) m.price_events = arr
+                else delete m.price_events
+                commit()
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="props-group">
         <h4>Старт игры</h4>
         <div className="fld-row">
           <SelectFld label="Регион" value={m.starting_region} options={regionOpts} onChange={(v) => ((m.starting_region = v), commit())} />
@@ -1978,6 +2064,66 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 </span>
               ))}
             </div>
+            <div className="fld-row" style={{ flexWrap: 'wrap' }} data-tip="Влияние этой погоды на бой (аудит B7): действует на обе стороны">
+              <label className="fld fld-num" data-tip="Общий штраф всему движению (и бойцам игрока, и врагам); итог не ниже 1">
+                <span>Штраф движения в бою</span>
+                <input
+                  type="number" min={0}
+                  value={w.combat?.mov_penalty ?? 0}
+                  onChange={(e) => {
+                    const v = Math.max(0, Number(e.target.value) || 0)
+                    if (v > 0) w.combat = { ...(w.combat ?? {}), mov_penalty: v }
+                    else if (w.combat) delete w.combat.mov_penalty
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld fld-num" data-tip="Срезание дальности оружия (туман, темнота); итог ≥ 1">
+                <span>Срезание дальности</span>
+                <input
+                  type="number" min={0}
+                  value={w.combat?.range_penalty ?? 0}
+                  onChange={(e) => {
+                    const v = Math.max(0, Number(e.target.value) || 0)
+                    if (v > 0) w.combat = { ...(w.combat ?? {}), range_penalty: v }
+                    else if (w.combat) delete w.combat.range_penalty
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld" data-tip="Сдвиг навыков под погодой: навык=±сдвиг через запятую (dodge=-10, ranged=-20)">
+                <span>Сдвиг навыков</span>
+                <input
+                  value={(w.combat?.skill_mods ?? []).map((x) => `${x.skill}=${x.delta}`).join(', ')}
+                  onChange={(e) => {
+                    const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                      const [skill, delta] = x.split('=').map((y) => y.trim())
+                      return { skill: skill || '', delta: Number(delta) || 0 }
+                    }).filter((x) => x.skill)
+                    if (arr.length) w.combat = { ...(w.combat ?? {}), skill_mods: arr }
+                    else if (w.combat) delete w.combat.skill_mods
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld" data-tip="Статус, который действует на всех бойцов в бою под этой погодой (мороз, пар)">
+                <span>Статус в бою</span>
+                <select
+                  value={w.combat?.status ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v) w.combat = { ...(w.combat ?? {}), status: v }
+                    else if (w.combat) delete w.combat.status
+                    commit()
+                  }}
+                >
+                  <option value="">— нет —</option>
+                  {(m.statuses ?? []).map((st) => (
+                    <option key={st.id} value={st.id}>{st.label || st.id}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
         ))}
         <button
@@ -2345,6 +2491,48 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                 <span>Длительность</span>
                 <input type="number" min={1} value={s.duration} onChange={(e) => ((s.duration = Math.max(1, Number(e.target.value) || 1)), commit())} />
               </label>
+            </div>
+            <div className="fld-row" style={{ alignItems: 'center' }}>
+              <label className="fld fld-check" data-tip="Болезни и яды с течением: каждую стадию — спасбросок CON; провал — тяжесть ↑ (урон и модификаторы ×тяжесть), успех — тяжесть ↓, при нуле выздоровление">
+                <input
+                  type="checkbox"
+                  checked={!!s.disease}
+                  onChange={(e) => {
+                    if (e.target.checked) s.disease = { interval_ticks: 24 }
+                    else delete s.disease
+                    commit()
+                  }}
+                />
+                <span>Болезнь / яд с течением</span>
+              </label>
+              {s.disease && (
+                <>
+                  <label className="fld fld-num" data-tip="Период стадий в мировых тиках">
+                    <span>Стадия каждые, тиков</span>
+                    <input
+                      type="number" min={1}
+                      value={s.disease.interval_ticks}
+                      onChange={(e) => ((s.disease!.interval_ticks = Math.max(1, Number(e.target.value) || 24)), commit())}
+                    />
+                  </label>
+                  <label className="fld fld-num" data-tip="Спасбросок CON × множитель (умолчание 5)">
+                    <span>Множитель CON</span>
+                    <input
+                      type="number" min={1}
+                      value={s.disease.con_multiplier ?? 5}
+                      onChange={(e) => ((s.disease!.con_multiplier = Math.max(1, Number(e.target.value) || 5)), commit())}
+                    />
+                  </label>
+                  <label className="fld fld-num" data-tip="Предел тяжести (умолчание 5)">
+                    <span>Предел тяжести</span>
+                    <input
+                      type="number" min={1}
+                      value={s.disease.severity_max ?? 5}
+                      onChange={(e) => ((s.disease!.severity_max = Math.max(1, Number(e.target.value) || 5)), commit())}
+                    />
+                  </label>
+                </>
+              )}
             </div>
             <label className="fld">
               <span>Описание (видно игроку)</span>

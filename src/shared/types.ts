@@ -96,12 +96,30 @@ export interface StatusDef {
   on_expire?: Effect[]
   apply_message?: string
   expire_message?: string
+  /**
+   * Болезни и яды с течением (аудит B7): каждые interval_ticks мировых
+   * тиков — спасбросок CON × con_multiplier. Успех — тяжесть −1 (0 —
+   * выздоровление), провал — +1 (нарастает до severity_max). Урон от
+   * течения времени и модификаторы навыков умножаются на текущую тяжесть.
+   */
+  disease?: {
+    /** период спасбросков CON, мировых тиков */
+    interval_ticks: number
+    /** множитель CON (умолчание 5) */
+    con_multiplier?: number
+    /** предел тяжести (умолчание 5) */
+    severity_max?: number
+  }
 }
 
 /** Активный статус: сколько осталось (тиков в мире, раундов в бою). */
 export interface ActiveStatus {
   id: string
   left: number
+  /** текущая тяжесть болезни/яда (аудит B7); по умолчанию 1 */
+  severity?: number
+  /** мировой тик следующей стадии (спасброска CON) */
+  next_check?: number
 }
 
 // ───────────────────────── боевые способности (блок 6 ТЗ «Гибкий движок») ─────────────────────────
@@ -480,6 +498,49 @@ export interface CampaignMeta {
   /** реестр погод (блок 9 ТЗ) */
   weathers?: WeatherDef[]
   /**
+   * Лагерь и ночлег (аудит B7): действие «Разбить лагерь» в HUD, когда
+   * герой в локации с `camp: true`. Отсутствие блока — кнопки нет ни где!
+   * Master решает длительность (ticks, умолчание 8), риск вылазки опасности
+   * (ambush_chance 0..1, умолчание 0 — безопасный лагерь) и сюжет засады
+   * (ambush_rule — правило из реестра rules).
+   */
+  camping?: {
+    ticks?: number
+    ambush_chance?: number
+    ambush_rule?: string
+  }
+  /**
+   * Числа опасностей (аудит B7): падение — по {fall_meters_per_die} метрам
+   * на один кубик урона {fall_damage} (книжное умолчание 3 м на 1d6);
+   * навык смягчения — эффектом (умолчание dodge).
+   */
+  hazards?: {
+    fall_meters_per_die?: number
+    fall_damage?: string
+  }
+  /**
+   * Реестр преступлений (аудит B7): преступление регистрируется эффектом
+   * commit_crime; последствия (награда за голову, реакция стражи) — правилами
+   * мастера по условиям crime_committed / bounty_total_ge
+   */
+  crimes?: Array<{ id: string; label: string }>
+  /**
+   * Ценники под событием (аудит B7): война, блокада, ярмарка.
+   * Событие активируется эффектом set_price_event (выключить —
+   * clear_price_event) и действует на весь каталог, соответствующий
+   * его фильтрам (предметы и/или категории; без фильтров — на всё).
+   */
+  price_events?: Array<{
+    id: string
+    label: string
+    /** множитель цены (1.5 = +50% к выкупу у игрока; продажа — обратно пропорционально) */
+    multiplier: number
+    /** только эти предметы; нет — все */
+    items?: string[]
+    /** только эти категории; нет — все */
+    categories?: string[]
+  }>
+  /**
    * финальные экраны (концовки): мастер задаёт сколько угодно; при завершении
    * забега движок берёт ПЕРВУЮ концовку, чьи условия выполнены (и чей `on`
    * совпадает с исходом). Нет подходящей — стандартный экран исхода.
@@ -647,6 +708,8 @@ export interface LocationDef {
   ambient_audio?: string // легаси: один звук фона
   /** фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6 */
   ambient?: string[]
+  /** здесь можно разбить лагерь (аудит B7); конфиг ночлега — meta.camping */
+  camp?: boolean
   /**
    * музыка локации: список записей «условия → треки» (побеждает первая
    * истинная). Старый формат — строка (id трека или ссылка) — мигрируется
@@ -803,6 +866,20 @@ export interface WeatherDef {
   overlay?: string
   /** зацикленные звуки (id из реестра звуков) — слои к эмбиенту */
   ambient?: string[]
+  /**
+   * Влияние погоды на бой (аудит B7): сдвиг навыков (метель −стрельбе),
+   * штраф движения, урезание дальности оружия (туман), статус всем
+   * бойцам при начале боя в эту погоду. Действует на обе стороны.
+   */
+  combat?: {
+    skill_mods?: Array<{ skill: string; delta: number }>
+    /** аддитив к движению всех бойцов, итог ≥ 1 */
+    mov_penalty?: number
+    /** срезание дальности оружия (дальность ≥ 1) */
+    range_penalty?: number
+    /** статус, накладываемый всем в начале боя */
+    status?: string
+  }
 }
 
 /**
@@ -1510,6 +1587,10 @@ export type Condition =
   | { type: 'sanity_le'; threshold: number }
   | { type: 'reputation_ge'; threshold: number }
   | { type: 'wealth_ge'; level: number }
+  /** преступление совершено (любое — id не задан; либо суммарная награда ≥) */
+  | { type: 'crime_committed'; id?: string; min_bounty?: number }
+  /** суммарная награда за голову героя не меньше порога (аудит B7) */
+  | { type: 'bounty_total_ge'; threshold: number }
   /** страсть не ниже значения (аудит B6) */
   | { type: 'passion_ge'; id: string; value: number }
   /** очков причастности не меньше порога (аудит B6) */
@@ -1644,6 +1725,18 @@ export type Effect =
    * заложены мастером при создании: char_creation.roll.per_stat).
    */
   | { type: 'train_stat'; stat: string; delta: number }
+  /**
+   * Падение (аудит B7): `meters` — высота. Урон = floor(meters / настройку)
+   * кубиков урона падения (meta.hazards, умолчание 3м на 1d6); смягчающая
+   * проверка навыком (умолчание dodge) уполовинивает при успехе.
+   */
+  | { type: 'hazard_fall'; meters: number; skill?: string }
+  /** совершить зарегистрированное преступление (аудит B7) */
+  | { type: 'commit_crime'; id: string; bounty?: number }
+  /** включить ценовое событие (аудит B7) */
+  | { type: 'set_price_event'; id: string }
+  /** снять ценовое событие (все — id не задано) */
+  | { type: 'clear_price_event'; id?: string }
   | { type: 'join_party'; entity: string }
   | { type: 'leave_party'; entity: string }
   | { type: 'block_path'; from: string; to: string }
@@ -1876,6 +1969,10 @@ export interface GameState {
   player: PlayerState
   quests: Record<string, QuestState>
   dispositions: Record<string, number>
+  /** совершённые преступления героя: id → награда и тик (аудит B7) */
+  crimes?: Record<string, { bounty: number; tick: number }>
+  /** активные ценовые события (аудит B7) */
+  price_events?: string[]
   party: CompanionState[]
   blocked_paths: string[]
   log: string[]

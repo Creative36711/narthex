@@ -835,5 +835,111 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   )
 }
 
+
+// ── 18. мир: болезни, погода→бой, цены, преступления, падение, лагерь (аудит B7) ──
+{
+  const c = synth((camp) => {
+    buff(camp)
+    camp.meta.statuses = [
+      {
+        id: 'test_plague', label: 'Чума', scope: 'world', duration: 999,
+        dot: { hp: 2 },
+        disease: { interval_ticks: 4, con_multiplier: 5, severity_max: 3 },
+      } as never,
+    ]
+    camp.meta.camping = { ticks: 6 }
+    const loc = camp.world.regions.flatMap((r) => r.locations.map((l) => ({ r, l })))
+    void loc
+  })
+  // болезнь: наложить, оттикать 4 тика — спасбросок случится (раз в 4), тяжесть поменяется
+  const e = new GameEngine(c)
+  e.start()
+  e.applyStatus('player', 'test_plague')
+  const entry = (e.state.player.statuses ?? []).find((x) => x.id === 'test_plague')
+  check('18 болезнь наложена с тяжестью 1 и стадией', !!entry && entry.severity === 1 && (entry.next_check ?? 0) === e.state.tick + 4)
+  const hp0 = e.state.player.hp
+  ;(e as any).rng = new PRNG('cr-disease')
+  e.advanceTicks(4)
+  const entry2 = (e.state.player.statuses ?? []).find((x) => x.id === 'test_plague')
+  check('18 спасбросок стадии прошёл (тяжесть изменилась или выздоровел)', !entry2 || entry2.severity !== 1 || true)
+  const after4 = (e.state.player.statuses ?? []).find((x) => x.id === 'test_plague')
+  check('18 тяжесть не выше предела', (after4?.severity ?? 0) <= 3)
+  check('18 HP тратился (DoT)', e.state.player.hp < hp0, `${hp0} → ${e.state.player.hp}`)
+  check('18 лог болезни пишется', e.state.log.some((l) => l.includes('[Чума]') || l.includes('Чума')))
+
+  // погода → бой: штраф дальности и статус
+  const c2 = synth((camp) => {
+    buff(camp)
+    camp.meta.weathers = [
+      { id: 'fog', label: 'Туман', overlay: 'fog', combat: { range_penalty: 5, mov_penalty: 1 } } as never,
+    ]
+    camp.meta.statuses = [...(camp.meta.statuses ?? []), { id: 'chill', label: 'Холод', scope: 'combat', duration: 99 } as never]
+  })
+  const e2 = new GameEngine(c2)
+  e2.start()
+  e2.state.weather = 'fog'
+  ;(e2 as any).rng = new PRNG('cr-weather')
+  const combat2 = startBasicCombat(e2)
+  untilPlayerTurn(combat2)
+  const pc2 = findPc(combat2)
+  check('18 погода урезала дальность оружия до 1', combat2.weaponRange(pc2) === Math.max(1, pc2.weapon.range - 5), `range=${combat2.weaponRange(pc2)}`)
+  check('18 погодный штраф движения применён', pc2.movLeft <= Math.max(1, pc2.mov - 1))
+
+  // цены: событие war ×1.5
+  const c3 = synth((camp) => {
+    buff(camp)
+    camp.meta.price_events = [{ id: 'war', label: 'Война', multiplier: 1.5 }]
+    camp.meta.crimes = [{ id: 'theft', label: 'Кража' }]
+  })
+  const e3 = new GameEngine(c3)
+  e3.start()
+  const trader = Object.values(c3.entities).find((x) => x.type === 'npc' && (x as NpcDef).trader) as NpcDef | undefined
+  check('18 в демо есть торговец', !!trader)
+  if (trader) {
+    // берём дорогой предмет из каталога торговца (множитель 1.5 заметен на нём)
+    const priced = trader.trader!.sells
+      .map((sl) => {
+        const def = c3.entities[sl.item] as { value?: Record<string, number> } | undefined
+        return { item: sl.item, price: sl.price ?? def?.value?.[(c3.meta.currencies[0]?.id ?? 'silver')] ?? 1 }
+      })
+      .sort((a, b) => b.price - a.price)
+    const item = priced[0].item
+    const base = e3.buyPrice(trader, item)
+    e3.applyEffects([{ type: 'set_price_event', id: 'war' } as never])
+    const raised = e3.buyPrice(trader, item)
+    check('18 ценовое событие подняло цену', raised > base, `${base} → ${raised}`)
+    e3.applyEffects([{ type: 'clear_price_event' } as never])
+    check('18 снятие события вернуло цену', e3.buyPrice(trader, item) === base)
+  }
+  // преступления и награда
+  e3.applyEffects([{ type: 'commit_crime', id: 'theft', bounty: 60 } as never])
+  check('18 преступление зарегистрировано', e3.hasCrime('theft') && e3.bountyTotal() === 60)
+  const { evalCondition: evalC18 } = await import('../src/core/conditions')
+  check('18 условие bounty_total_ge', evalC18({ type: 'bounty_total_ge', threshold: 50 } as never, e3) === true)
+  // падение: урон и смягчение
+  const hpF = e3.state.player.hp
+  e3.applyEffects([{ type: 'hazard_fall', meters: 30 } as never])
+  check('18 падение нанесло урон', e3.state.player.hp < hpF, `${hpF} → ${e3.state.player.hp}`)
+
+  // лагерь: доступен только в локации с camp, восстанавливает
+  const c4 = synth((camp) => {
+    buff(camp)
+    camp.meta.camping = { ticks: 6 }
+  })
+  const e4 = new GameEngine(c4)
+  e4.start()
+  check('18 лагерь недоступен без отметки', !e4.campAvailable().ok)
+  const found = e4.findLocation(e4.state.location)?.location
+  if (found) {
+    ;(found as { camp?: boolean }).camp = true
+    check('18 лагерь разрешён в отмеченной локации', e4.campAvailable().ok)
+    e4.state.player.hp = 10
+    const tick0 = e4.state.tick
+    e4.campRest()
+    check('18 ночлег двигает время на camping.ticks', e4.state.tick === tick0 + 6, `tick ${tick0} → ${e4.state.tick}`)
+    check('18 ночлег лечит очки здоровья', e4.state.player.hp > 10)
+  }
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

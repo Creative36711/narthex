@@ -1036,6 +1036,75 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "hazard_fall"
+            },
+            "meters": {
+              "type": "number"
+            },
+            "skill": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "meters"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "commit_crime"
+            },
+            "id": {
+              "type": "string"
+            },
+            "bounty": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_price_event"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "clear_price_event"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "join_party"
             },
             "entity": {
@@ -1343,6 +1412,28 @@
         },
         "expire_message": {
           "type": "string"
+        },
+        "disease": {
+          "type": "object",
+          "properties": {
+            "interval_ticks": {
+              "type": "number",
+              "description": "период спасбросков CON, мировых тиков"
+            },
+            "con_multiplier": {
+              "type": "number",
+              "description": "множитель CON (умолчание 5)"
+            },
+            "severity_max": {
+              "type": "number",
+              "description": "предел тяжести (умолчание 5)"
+            }
+          },
+          "required": [
+            "interval_ticks"
+          ],
+          "additionalProperties": false,
+          "description": "Болезни и яды с течением (аудит B7): каждые interval_ticks мировых\nтиков — спасбросок CON × con_multiplier. Успех — тяжесть −1 (0 —\nвыздоровление), провал — +1 (нарастает до severity_max). Урон от\nтечения времени и модификаторы навыков умножаются на текущую тяжесть."
         }
       },
       "required": [
@@ -1434,6 +1525,44 @@
             "type": "string"
           },
           "description": "зацикленные звуки (id из реестра звуков) — слои к эмбиенту"
+        },
+        "combat": {
+          "type": "object",
+          "properties": {
+            "skill_mods": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "skill": {
+                    "type": "string"
+                  },
+                  "delta": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "skill",
+                  "delta"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "mov_penalty": {
+              "type": "number",
+              "description": "аддитив к движению всех бойцов, итог ≥ 1"
+            },
+            "range_penalty": {
+              "type": "number",
+              "description": "срезание дальности оружия (дальность ≥ 1)"
+            },
+            "status": {
+              "type": "string",
+              "description": "статус, накладываемый всем в начале боя"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Влияние погоды на бой (аудит B7): сдвиг навыков (метель −стрельбе),\nштраф движения, урезание дальности оружия (туман), статус всем\nбойцам при начале боя в эту погоду. Действует на обе стороны."
         }
       },
       "required": [
@@ -1810,6 +1939,40 @@
           "required": [
             "type",
             "level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "crime_committed"
+            },
+            "id": {
+              "type": "string"
+            },
+            "min_bounty": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "bounty_total_ge"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
           ],
           "additionalProperties": false
         },
@@ -3070,6 +3233,94 @@
           },
           "description": "реестр погод (блок 9 ТЗ)"
         },
+        "camping": {
+          "type": "object",
+          "properties": {
+            "ticks": {
+              "type": "number"
+            },
+            "ambush_chance": {
+              "type": "number"
+            },
+            "ambush_rule": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Лагерь и ночлег (аудит B7): действие «Разбить лагерь» в HUD, когда\nгерой в локации с `camp: true`. Отсутствие блока — кнопки нет ни где!\nMaster решает длительность (ticks, умолчание 8), риск вылазки опасности\n(ambush_chance 0..1, умолчание 0 — безопасный лагерь) и сюжет засады\n(ambush_rule — правило из реестра rules)."
+        },
+        "hazards": {
+          "type": "object",
+          "properties": {
+            "fall_meters_per_die": {
+              "type": "number"
+            },
+            "fall_damage": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Числа опасностей (аудит B7): падение — по {fall_meters_per_die} метрам\nна один кубик урона {fall_damage} (книжное умолчание 3 м на 1d6);\nнавык смягчения — эффектом (умолчание dodge)."
+        },
+        "crimes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Реестр преступлений (аудит B7): преступление регистрируется эффектом\ncommit_crime; последствия (награда за голову, реакция стражи) — правилами\nмастера по условиям crime_committed / bounty_total_ge"
+        },
+        "price_events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "multiplier": {
+                "type": "number",
+                "description": "множитель цены (1.5 = +50% к выкупу у игрока; продажа — обратно пропорционально)"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "только эти предметы; нет — все"
+              },
+              "categories": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "только эти категории; нет — все"
+              }
+            },
+            "required": [
+              "id",
+              "label",
+              "multiplier"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Ценники под событием (аудит B7): война, блокада, ярмарка.\nСобытие активируется эффектом set_price_event (выключить —\nclear_price_event) и действует на весь каталог, соответствующий\nего фильтрам (предметы и/или категории; без фильтров — на всё)."
+        },
         "endings": {
           "type": "array",
           "items": {
@@ -4018,6 +4269,10 @@
             "type": "string"
           },
           "description": "фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6"
+        },
+        "camp": {
+          "type": "boolean",
+          "description": "здесь можно разбить лагерь (аудит B7); конфиг ночлега — meta.camping"
         },
         "music": {
           "anyOf": [
