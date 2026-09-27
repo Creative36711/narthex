@@ -31,6 +31,7 @@ import type {
   StatusDef,
   TravelConnection,
   NeedCondition,
+  RuleDef,
   PresenceOverride,
   SkillDifficulty,
   WeaponData,
@@ -2082,11 +2083,19 @@ export class GameEngine {
     this.checkQuestTransitions()
   }
 
+  /** условия правила: все `conditions` И (если заданы) хотя бы одна ИЛИ-группа */
+  private ruleConditionsOk(rule: RuleDef): boolean {
+    if (!rule.conditions.every((c) => evalCondition(c, this))) return false
+    const groups = rule.conditions_any
+    if (!groups || groups.length === 0) return true
+    return groups.some((g) => !g.length || g.every((c) => evalCondition(c, this)))
+  }
+
   private tryFireRule(ruleId: string): void {
     const rule = this.campaign.rules[ruleId]
     if (!rule) return
     if (rule.once && this.state.fired_rules.includes(rule.id)) return
-    if (!rule.conditions.every((c) => evalCondition(c, this))) return
+    if (!this.ruleConditionsOk(rule)) return
     this.state.fired_rules.push(rule.id)
     this.applyEffects(rule.effects)
   }
@@ -2853,7 +2862,7 @@ export class GameEngine {
       const rule = this.campaign.rules[ruleId]
       if (!rule) continue
       if (rule.once && this.state.fired_rules.includes(rule.id)) continue
-      if (!rule.conditions.every((c) => evalCondition(c, this))) continue
+      if (!this.ruleConditionsOk(rule)) continue
       candidates.push(ruleId)
     }
     if (!candidates.length) return null

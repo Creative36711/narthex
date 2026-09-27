@@ -116,6 +116,19 @@ const f = (p: string) => readFileSync(p, 'utf8')
   check('6в демо на полигоне: живой фон ворот', demo.includes('"frames"') && demo.includes('gates_front_night'))
 }
 
+// ── 6г. ИЛИ-группы условий правил ──
+{
+  const types = f('src/shared/types.ts')
+  const engine = f('src/core/engine.ts')
+  const ruleEd = f('src/editor/RuleEditor.tsx')
+  const demo = f('public/campaigns/ash-of-caerden/rules/gen_whisper_protest.json')
+  check('6г RuleDef.conditions_any — Condition[][]', /conditions_any\?:\s*Condition\[\]\[\]/.test(types))
+  check('6г движок: ИЛИ в tryFireRule', engine.includes('ruleConditionsOk') && /groups\.some\(\(g\)\s*=>\s*!g\.length \|\| g\.every/.test(engine))
+  check('6г движок: ИЛИ в таблицах событий', /rollEventTable[\s\S]*ruleConditionsOk\(rule\)/.test(engine))
+  check('6г редактор правил: «+ Группа»', ruleEd.includes('Группы «или»') && ruleEd.includes('Группа «или» №'))
+  check('6г демо-правило на полигоне', demo.includes('conditions_any') && demo.includes('shrine_offended'))
+}
+
 // ── 7. состояния фигурки боя ──
 {
   const types = f('src/shared/types.ts')

@@ -1628,7 +1628,8 @@
         ],
         "rules": [
           "gen_whisper_blessing",
-          "gen_whisper_chill"
+          "gen_whisper_chill",
+          "gen_whisper_protest"
         ]
       }
     ],

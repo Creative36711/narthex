@@ -1,0 +1,38 @@
+{
+  "id": "gen_whisper_protest",
+  "label": "Шёпот: протест пепла",
+  "once": false,
+  "manual": true,
+  "_demo_note": "полигон: демонстрация групп «или» — срабатывает ночью, КОГДА герой устал ИЛИ храм обижен",
+  "conditions": [
+    {
+      "type": "time_of_day",
+      "value": "night"
+    }
+  ],
+  "conditions_any": [
+    [
+      {
+        "type": "fatigue_ge",
+        "threshold": 10
+      }
+    ],
+    [
+      {
+        "type": "flag_set",
+        "flag": "shrine_offended"
+      }
+    ]
+  ],
+  "effects": [
+    {
+      "type": "show_message",
+      "text": "Пепел под ногами оседает недовольно, будто кто-то ворчит сквозь сон: «Устал… или виноват?»"
+    },
+    {
+      "type": "meta_currency",
+      "id": "ash",
+      "amount": -1
+    }
+  ]
+}

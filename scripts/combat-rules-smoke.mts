@@ -1204,5 +1204,44 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   void fired
 }
 
+// ═══ 22. ИЛИ-группы условий правил (conditions_any) ═══
+{
+  const mk = () => new GameEngine(synth((camp) => {
+    buff(camp)
+    camp.rules['ev_or'] = {
+      id: 'ev_or', label: 'Или-группы', once: false,
+      conditions: [],
+      conditions_any: [
+        [{ type: 'flag_set', flag: 'path_a' } as never],
+        [{ type: 'flag_set', flag: 'path_b' } as never, { type: 'flag_set', flag: 'path_b2' } as never],
+      ],
+      effects: [{ type: 'set_flag', flag: 'ev_or_fired' }] as never,
+    }
+    camp.rules['ev_and_or'] = {
+      id: 'ev_and_or', label: 'И + Или', once: false,
+      conditions: [{ type: 'flag_set', flag: 'gate' } as never],
+      conditions_any: [[{ type: 'flag_set', flag: 'path_a' } as never]],
+      effects: [{ type: 'set_flag', flag: 'ev_and_or_fired' }] as never,
+    }
+    camp.meta.generators = { event_tables: [{ id: 't_or', label: 'Таблица', interval_ticks: 1, chance: 1, rules: ['ev_or', 'ev_and_or'] }] }
+  }))
+  const e = mk()
+  e.start()
+  check('22 ничего не выпало, ни одна группа не верна', e.rollEventTable('t_or', { forced: true, ignoreFilters: true }) === null)
+  e.applyEffect({ type: 'set_flag', flag: 'path_a' } as never)
+  check('22 группа A (одно условие) — правило стреляет', e.rollEventTable('t_or', { forced: true, ignoreFilters: true }) !== null && !!e.state.flags['ev_or_fired'])
+  check('22 общее И (gate) не верно — ev_and_or молчит', !e.state.flags['ev_and_or_fired'])
+  e.applyEffect({ type: 'set_flag', flag: 'gate' } as never)
+  check('22 и общее, и группа верны — ev_and_or стреляет', e.rollEventTable('t_or', { forced: true, ignoreFilters: true }) !== null && !!e.state.flags['ev_and_or_fired'])
+
+  // без флага path_a, но с полной группой B (два условия «по И»)
+  const e2 = mk()
+  e2.start()
+  e2.applyEffect({ type: 'set_flag', flag: 'path_b' } as never)
+  check('22 половина группы B не считается', e2.rollEventTable('t_or', { forced: true, ignoreFilters: true }) === null)
+  e2.applyEffect({ type: 'set_flag', flag: 'path_b2' } as never)
+  check('22 вся группа B верна — правило стреляет', e2.rollEventTable('t_or', { forced: true, ignoreFilters: true }) !== null && !!e2.state.flags['ev_or_fired'])
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)
