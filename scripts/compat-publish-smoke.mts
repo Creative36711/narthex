@@ -121,5 +121,20 @@ const inv = storeInventory(store)
   })())
 }
 
+// ── 6. проверка кампании ловит ошибки в версиях ──
+{
+  const version = store.meta.version
+  const base = store.meta.save_base_version
+  check('6 корректные версии — замечаний нет', !store.validateContent().some((i) => i.includes('версия') || i.includes('граница сохранений')), store.validateContent().filter((i) => i.includes('верси')).join('; '))
+  store.meta.version = 'v1'
+  check('6 «v1» — не semver', store.validateContent().some((i) => i.includes('не похожа на semver')))
+  store.meta.version = '1.0.0'
+  store.meta.save_base_version = '2.0.0'
+  check('6 граница сохранений новее версии — ошибка', store.validateContent().some((i) => i.includes('новее версии кампании')))
+  store.meta.version = version
+  store.meta.save_base_version = base
+  check('6 после исправления замечаний нет', !store.validateContent().some((i) => i.includes('верси')))
+}
+
 console.log(failed === 0 ? '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ (compat-publish)' : `\nПРОВАЛЕНО ПРОВЕРОК: ${failed}`)
 process.exit(failed === 0 ? 0 : 1)
