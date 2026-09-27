@@ -57,7 +57,7 @@ export function SaveReportModal({ report, verdict, campaignVersion, onContinue, 
             ))}
           </ul>
         )}
-        <div className="modal-actions">
+        <div className="modal-buttons">
           {usable ? (
             <button className="btn btn-primary" onClick={onContinue}>
               <Ico n="play" /> Продолжить забег

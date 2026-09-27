@@ -1,5 +1,5 @@
 import { slugify } from './ids'
-import { ENGINE_VERSION, PACKAGE_FORMAT } from '../shared/versions'
+import { ENGINE_VERSION, PACKAGE_FORMAT, checkEngine, checkPackage } from '../shared/versions'
 import type { CampaignIndexEntry } from '../shared/types'
 export type { CampaignIndexEntry } from '../shared/types'
 
@@ -210,7 +210,15 @@ export async function importChroniclePackage(file: File): Promise<CampaignIndexE
   const zip = await JSZip.loadAsync(file)
   const metaFile = zip.files['campaign.json']
   if (!metaFile) throw new Error('в архиве нет campaign.json — это не пакет кампании')
-  const meta = JSON.parse(await metaFile.async('text')) as { id: string; title: string; author?: string; description?: string }
+  const meta = JSON.parse(await metaFile.async('text')) as {
+    id: string; title: string; author?: string; description?: string
+    package_format?: number; min_engine?: string; engine_version?: string; version?: string
+  }
+  // контракт версий до записи файлов: пакет новее движка — не ставим
+  const pkg = checkPackage(meta.package_format)
+  if (!pkg.ok) throw new Error(pkg.message)
+  const engine = checkEngine(meta.min_engine ?? meta.engine_version)
+  if (!engine.ok) console.warn(`[chronicle] ${engine.message}`)
   const id = meta.id
   for (const [p, f] of Object.entries(zip.files)) {
     if (f.dir) continue
