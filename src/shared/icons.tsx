@@ -9,7 +9,7 @@ export type IcoName =
   | 'up' | 'down' | 'left' | 'right' | 'chevron' | 'chevronRight' | 'sparkle'
   | 'coin' | 'mic' | 'star' | 'heart' | 'flame' | 'ghost' | 'lock' | 'help'
   | 'message' | 'move' | 'flag' | 'clock' | 'skull' | 'trophy' | 'info' | 'panel' | 'shield' | 'exit'
-  | 'hammer'
+  | 'hammer' | 'forge' | 'compass' | 'layers' | 'eye' | 'undo' | 'search'
 
 const P: Record<IcoName, string> = {
   // крестик
@@ -77,6 +77,18 @@ const P: Record<IcoName, string> = {
   shield: 'M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6l7-3z',
   // молоток (крафт)
   hammer: 'M4 20l7-7M13 4l3-1 5 5-1 3-3 1-4-4-2 2-2-2 2-2z',
+  // наковальня — бренд Chronicle Forge
+  forge: 'M3 6h18v2.2c-2.8 0-5 1.2-5.6 3.3 2.2.5 3.6 1.9 3.6 3.5H15c0-1-1.3-1.8-3-1.8s-3 .8-3 1.8H5V6z M7 16h10l1.2 3.5H5.8L7 16z',
+  // компас-роза — навигация редактора
+  compass: 'M12 3a9 9 0 100 18 9 9 0 000-18zM15.5 8.5l-2 5-5 2 2-5 5-2z',
+  // слои — профили/оформление
+  layers: 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17l9 5 9-5',
+  // глаз — предпросмотр
+  eye: 'M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
+  // отмена (лук назад)
+  undo: 'M8 5L3 10l5 5M3 10h11a6 6 0 016 6v1',
+  // лупа — поиск
+  search: 'M10 4a6 6 0 104.47 10.03l4.53 4.47 1.4-1.4-4.47-4.53A6 6 0 0010 4z',
 }
 
 export function Ico({ n, className = '' }: { n: IcoName; className?: string }) {

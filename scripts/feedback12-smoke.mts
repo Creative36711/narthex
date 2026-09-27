@@ -31,7 +31,7 @@ must(css.includes('.ui-tooltip') && css.includes('z-index: 10000') && main.inclu
   '1 плашка поверх всего (z-index 10000), подключена в main.tsx')
 
 // 2 — залипающие вкладки без зазора с шапкой
-must(ecss.includes('.rule-editor:has(.ce-tabs) { padding-top: 0; }') && ecss.includes('.editor-main { flex: 1; overflow: auto; padding: 0;'),
+must(ecss.includes('.rule-editor:has(.ce-tabs) { padding-top: 0; }') && ecss.includes('.rule-editor { padding: 0; }') && ecss.includes('.rule-editor > .ce-tabs { margin: 0 -18px 14px;'),
   '2 вкладки приклеены к шапке без «пляшущего» зазора')
 
 // 3 — JSON во вкладках на весь экран, «Мир» получил вкладку JSON

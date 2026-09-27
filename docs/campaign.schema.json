@@ -2036,9 +2036,36 @@
       "additionalProperties": false,
       "description": "Шрифт кампании (блок 2 ТЗ «Гибкий движок»): файл пакета (обычно\n`assets/fonts/…`) или внешняя ссылка. Подключается `@font-face` на лету."
     },
+    "VisualProfileId": {
+      "type": "string",
+      "enum": [
+        "forge",
+        "epic-fantasy",
+        "dark-fantasy",
+        "myth-folklore",
+        "gothic-horror",
+        "cosmic-horror",
+        "noir",
+        "historical",
+        "wilderness",
+        "postapocalypse",
+        "scifi",
+        "cyberpunk",
+        "modern"
+      ],
+      "description": "Игровой визуальный профиль (редизайн 2026): «стартовый художественный набор»,\nа не тип механики. Профиль задаёт палитру, типографику, формы, стиль панелей\nи именованный атмосферный эффект; поверх него автор допустимо\nпереопределяет акцент, шрифтовые роли, фоны и атмосферу (см. ThemeDoc).\nМеняет только оформление — ни правил, ни dice_rules, ни данных."
+    },
     "ThemeDoc": {
       "type": "object",
       "properties": {
+        "profile": {
+          "$ref": "#/$defs/VisualProfileId",
+          "description": "визуальный профиль игры: «Фэнтези» / «Хоррор» / «Выживание».\nНе задан — «Фэнтези» (наследие темы «Пепла Каэрдена»).\nСтарые кампании без этого поля открываются без изменений."
+        },
+        "atmosphere": {
+          "type": "boolean",
+          "description": "атмосферный эффект профиля (виньетка/зерно/чистый кадр).\nНе задан или true — эффект профиля включён; false — чистый кадр."
+        },
         "fonts": {
           "type": "object",
           "properties": {

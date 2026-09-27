@@ -69,11 +69,19 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
             alt=""
             draggable={false}
           />
-          <div className="menu-dim" style={{ background: `rgba(8, 6, 4, ${menuTheme?.dim ?? 0.5})` }} />
+          {/* затемнение тоном профиля, а не фиксированным коричневым */}
+          <div
+            className="menu-dim"
+            style={{ background: `color-mix(in srgb, var(--bg-deep) ${Math.round((menuTheme?.dim ?? 0.55) * 100)}%, transparent)` }}
+          />
         </>
       )}
       <div className="main-menu-inner">
-        <div className="brand">CHRONICLE FORGE</div>
+        <div className="brand-row">
+          <span className="brand">
+            <Ico n="forge" /> Chronicle Forge
+          </span>
+        </div>
         <div className="brand-sub">движок тактических визуальных новелл</div>
 
         <div className="campaign-current">
@@ -88,23 +96,25 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
             </button>
             {canContinue && (
               <button className="btn" onClick={onContinue}>
-                Продолжить
+                <Ico n="play" /> Продолжить
               </button>
             )}
+          </div>
+          <div className="menu-secondary">
             <button className="btn" onClick={() => setShowList(true)}>
               <Ico n="book" /> Кампании
             </button>
             {onHelp && (
               <button className="btn" onClick={onHelp}>
-                <Ico n="help" />  Как играть
+                <Ico n="help" /> Как играть
               </button>
             )}
             <button className="btn" onClick={() => setShowSettings(true)}>
-              <Ico n="settings" />  Настройки
+              <Ico n="settings" /> Настройки
             </button>
             {onEditor && (
               <button className="btn" onClick={onEditor}>
-                <Ico n="settings" /> Редактор
+                <Ico n="forge" /> Редактор
               </button>
             )}
           </div>

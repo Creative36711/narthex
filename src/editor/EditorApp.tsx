@@ -17,6 +17,8 @@ import { CodexEditor, newCodexEntry } from './CodexEditor'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { stopMusic } from '../shared/music'
+import { themeVars } from '../shared/theme'
+import { profileClass, atmosphereOn } from '../shared/profiles'
 import { AiWizard, aiFixReport } from './AiWizard'
 import { makeId, slugify } from './ids'
 import './editor.css'
@@ -101,6 +103,16 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [busy, setBusy] = useState<string | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignIndexEntry[]>([])
   const [testCampaign, setTestCampaign] = useState<CampaignData | null>(null)
+  // тема рабочего полотна редактора (фидбек 17): выбор мастера, глобально в localStorage
+  const [edTheme, setEdTheme] = useState<'paper' | 'dark' | 'anthracite'>(() => {
+    const v = localStorage.getItem('cf_editor_theme')
+    return v === 'dark' || v === 'anthracite' ? v : 'paper'
+  })
+  const changeEdTheme = (v: 'paper' | 'dark' | 'anthracite') => {
+    setEdTheme(v)
+    if (v === 'paper') localStorage.removeItem('cf_editor_theme')
+    else localStorage.setItem('cf_editor_theme', v)
+  }
   const [testEngine, setTestEngine] = useState<GameEngine | null>(null)
   const [debugOpen, setDebugOpen] = useState(false)
   const [bookOpen, setBookOpen] = useState(false)
@@ -272,11 +284,17 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       e.start()
       setTestEngine(e)
     }
+    // предпросмотр — игровая тема кампании (профиль + шрифты/акцент),
+    // оболочка баннера остаётся фирменным стилем редактора
+    const playThemeClass = `cf-themed ${profileClass(testCampaign.meta)}${atmosphereOn(testCampaign.meta) ? '' : ' cf-atmos-off'}`
+    const playThemeStyle = themeVars(testCampaign, 1)
     return (
       <div className="playtest-shell">
-        {testEngine ? <GameView engine={testEngine} onRestart={() => setTestEngine(testEngine.restart())} onExitToMenu={leaveTest} debugPanelOpen={debugOpen} onGamePanelOpen={() => setDebugOpen(false)} /> : (
-          <CharacterCreation campaign={testCampaign} onBack={leaveTest} onStart={startTest} />
-        )}
+        <div className={playThemeClass} style={playThemeStyle}>
+          {testEngine ? <GameView engine={testEngine} onRestart={() => setTestEngine(testEngine.restart())} onExitToMenu={leaveTest} debugPanelOpen={debugOpen} onGamePanelOpen={() => setDebugOpen(false)} /> : (
+            <CharacterCreation campaign={testCampaign} onBack={leaveTest} onStart={startTest} />
+          )}
+        </div>
         <div className="playtest-banner">
           <b>Режим отладки</b>
           <button className="btn btn-small" onClick={() => setDebugOpen((v) => !v)}>{debugOpen ? 'Скрыть панель' : 'Отладка'}</button>
@@ -544,9 +562,22 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
 
   return (
-    <div className="editor-root">
+    <div className={`editor-root ed-theme-${edTheme}`}>
       <header className="editor-topbar">
-        <span className="editor-brand">CHRONICLE FORGE · РЕДАКТОР</span>
+        <span className="editor-brand">
+          <Ico n="forge" /> Chronicle Forge <span className="editor-brand-sub">· редактор</span>
+        </span>
+        <select
+          className="editor-theme-select"
+          value={edTheme}
+          onChange={(e) => changeEdTheme(e.target.value as 'paper' | 'dark' | 'anthracite')}
+          data-tip="Тема оформления редактора (рабочее полотно)"
+          aria-label="Тема оформления редактора"
+        >
+          <option value="paper">Полотно: бумага</option>
+          <option value="dark">Полотно: тёмная</option>
+          <option value="anthracite">Полотно: графит</option>
+        </select>
         {campaigns.length > 0 ? (
           <select
             className="campaign-select"
@@ -568,10 +599,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         )}
         <span className="editor-spacer" />
         <button className="btn btn-small" onClick={() => store.undo()} disabled={!store.canUndo()} data-tip="Отменить последнее изменение в кампании">
-          ↩ Отменить
+          <Ico n="undo" /> Отменить
         </button>
         <details className="editor-toolbar-menu">
-          <summary className="btn btn-small">Файл <span aria-hidden="true">▾</span></summary>
+          <summary className="btn btn-small">Файл <Ico n="chevron" /></summary>
           <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
             <button className="editor-toolbar-item" onClick={newCampaign}><Ico n="plus" /> Новая кампания</button>
             <button className="editor-toolbar-item danger" onClick={deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
@@ -583,7 +614,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           </div>
         </details>
         <details className="editor-toolbar-menu">
-          <summary className="btn btn-small">Инструменты <span aria-hidden="true">▾</span></summary>
+          <summary className="btn btn-small">Инструменты <Ico n="chevron" /></summary>
           <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
             <button
               className="editor-toolbar-item"
@@ -632,7 +663,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                   onClick={() => setOpenMenu(openMenu === menu.id ? null : menu.id)}
                 >
                   {menu.label}
-                  <span className="editor-nav-caret">▾</span>
+                  <span className="editor-nav-caret"><Ico n="chevron" /></span>
                 </button>
                 {openMenu === menu.id && (
                   <div className="editor-nav-popup">
@@ -646,7 +677,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                           setOpenMenu(null)
                         }}
                       >
-                        {section === it.id ? '▸' : ''}{it.label}
+                        {section === it.id ? <Ico n="chevronRight" /> : ''}{it.label}
                       </button>
                     ))}
                   </div>

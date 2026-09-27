@@ -1,6 +1,7 @@
 import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
 import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { EditorStore } from './store'
 import { AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
@@ -8,8 +9,10 @@ import { makeId } from './ids'
 import { FlagSelect } from './Fields'
 import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
+import { brightenHex } from '../shared/theme'
+import { PROFILE_GROUPS, VISUAL_PROFILES, resolveProfile, contrastRatio } from '../shared/profiles'
 
-import { askText } from './prompt'
+import { askText, askConfirm } from './prompt'
 import { migrateNeedCondition } from '../shared/migrate'
 import { AudioRegistries, SoundHookMapEditor } from './AudioSection'
 
@@ -329,25 +332,188 @@ function FontSample({ store, fontId, meta, role }: { store: EditorStore; fontId:
       ) : assigned ? (
         <span className="muted">{role.sample}</span>
       ) : (
-        <span className="muted small">— системный шрифт —</span>
+        <span className="muted small">— шрифт профиля —</span>
       )}
     </div>
   )
 }
 
-/** вкладка «Оформление»: шрифты, фон меню/финала, акцент (блок 2 ТЗ) */
+/** живой мини-предпросмотр: та же композиция, что в игре (сцена + панель HUD) */
+function ProfilePreview({ meta }: { meta: CampaignMeta }) {
+  const profile = resolveProfile(meta)
+  const accent = meta.theme?.accent ?? profile.swatches.accent
+  const accentBright = meta.theme?.accent ? brightenHex(meta.theme.accent) : brightenHex(profile.swatches.accent)
+  const style = {
+    '--pv-bg': profile.swatches.bg,
+    '--pv-panel': profile.swatches.panel,
+    '--pv-text': profile.swatches.text,
+    '--pv-accent': accent,
+    '--pv-accent-bright': accentBright,
+    '--pv-frame': profile.swatches.frame,
+    '--pv-font': profile.fonts.body,
+    '--pv-display': profile.fonts.display,
+  } as CSSProperties
+  return (
+    <div className="profile-preview" style={style} aria-label={`Предпросмотр: профиль ${profile.label}`}>
+      <div className="profile-preview-scene">
+        <span className="profile-preview-loc">Городские ворота — вид снаружи</span>
+      </div>
+      <div className="profile-preview-panel">
+        <span className="pp-bar"><i style={{ width: '64%' }} /></span>
+        <span className="pp-bar" style={{ opacity: 0.7 }}><i style={{ width: '38%' }} /></span>
+        <span className="pp-btn solid">Действие</span>
+        <span className="pp-btn">Открыть</span>
+        <span className="pp-text">Текст интерфейса</span>
+      </div>
+    </div>
+  )
+}
+
+/** карточки визуальных профилей: автор видит названия и свотчи, не id;
+    каталог сгруппирован (фирменный / фэнтези / хоррор / детектив / выживание / фантастика) */
+function ProfilePicker({ meta, commit }: { meta: CampaignMeta; commit: () => void }) {
+  const current = resolveProfile(meta).id
+  const set = (id: string) => {
+    meta.theme = { ...(meta.theme ?? {}), profile: id as NonNullable<CampaignMeta['theme']>['profile'] }
+    commit()
+  }
+  return (
+    <div className="profile-catalog" role="radiogroup" aria-label="Визуальный профиль игры">
+      {PROFILE_GROUPS.map((g) => {
+        const cards = VISUAL_PROFILES.filter((p) => p.group === g.id)
+        if (!cards.length) return null
+        return (
+          <div key={g.id} className="profile-group">
+            <span className="profile-group-label">{g.label}</span>
+            <div className="profile-cards">
+              {cards.map((p) => {
+                const on = p.id === current
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    className={`profile-card ${on ? 'on' : ''}`}
+                    onClick={() => {
+                      if (!on) set(p.id)
+                    }}
+                  >
+                    <span className="profile-check" aria-hidden="true"><Ico n="check" /></span>
+                    <span className="profile-swatch" aria-hidden="true">
+                      <i style={{ background: p.swatches.bg }} />
+                      <i style={{ background: p.swatches.panel }} />
+                      <i style={{ background: p.swatches.text }} />
+                      <i style={{ background: p.swatches.accent }} />
+                      <i className="sw-frame" style={{ background: p.swatches.frame }} />
+                    </span>
+                    <span className="profile-card-title">{p.label}</span>
+                    <span className="profile-card-tag">{p.tagline}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** вкладка «Оформление»: визуальный профиль, атмосфера, шрифты, фоны, акцент (редизайн 2026 + блок 2 ТЗ) */
 function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorStore; commit: () => void }) {
   const fonts = meta.fonts ?? (meta.fonts = [])
   const theme = meta.theme ?? (meta.theme = {})
   const fontOpts = fonts.map((f) => ({ id: f.id, label: f.label || f.id }))
+  const profile = resolveProfile(meta)
+  const accent = theme.accent ?? profile.swatches.accent
+  // контраст акцента к панели: ниже порога — предупреждаем, но не запрещаем
+  const accentContrast = contrastRatio(accent, profile.swatches.panel)
 
   const setFont = (patch: Partial<NonNullable<CampaignMeta['theme']>['fonts'] & object>) => {
     theme.fonts = { ...(theme.fonts ?? {}), ...patch }
     commit()
   }
 
+  const resetToProfile = async () => {
+    if (!(await askConfirm(
+      `Вернуть оформление профиля «${profile.label}» по умолчанию?`,
+      'Сбросить',
+    ))) return
+    // сбрасываем только авторские переопределения — профиль и контент не трогаем
+    delete theme.accent
+    delete theme.fonts
+    delete theme.menu
+    delete theme.end
+    delete theme.atmosphere
+    commit()
+  }
+
   return (
     <>
+      <div className="props-group">
+        <h4>Визуальный профиль</h4>
+        <div className="muted small" style={{ marginBottom: 4 }}>
+          Стартовый художественный набор игры: палитра, шрифты, стиль панелей и атмосферный эффект.
+          Профиль не меняет механику и данные — только оформление. После выбора его можно
+          докрутить: акцент, шрифты, фоны.
+        </div>
+        <ProfilePicker meta={meta} commit={commit} />
+        <ProfilePreview meta={meta} />
+        <div style={{ marginTop: 12 }}>
+          <label className="fld fld-check">
+            <input
+              type="checkbox"
+              checked={theme.atmosphere !== false}
+              onChange={(e) => {
+                if (e.target.checked) delete theme.atmosphere
+                else theme.atmosphere = false
+                commit()
+              }}
+            />
+            <span>Атмосферный эффект профиля ({profile.effectLabel})</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Акцентный цвет</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Переопределяет акцент профиля: кнопки, рамки, подсветки. Если контраст низкий —
+          подсказка под полем.
+        </div>
+        <div className="fld-row">
+          <label className="fld" data-tip="Цвет кнопок, рамок и подсветок. Слишком тёмный — пропадёт контраст.">
+            <span>Цвет кнопок, рамок и подсветок</span>
+            <input
+              type="color"
+              value={accent}
+              onChange={(e) => {
+                theme.accent = e.target.value
+                commit()
+              }}
+            />
+          </label>
+          {theme.accent && (
+            <button
+              className="btn btn-small"
+              onClick={() => {
+                delete theme.accent
+                commit()
+              }}
+            >
+              Вернуть акцент профиля
+            </button>
+          )}
+        </div>
+        {accentContrast < 2.5 && (
+          <div className="accent-contrast-warn" role="alert">
+            <Ico n="warn" />  Низкий контраст с панелями ({accentContrast.toFixed(1)}:1). Подсветки и
+            подписи на кнопках могут стать трудночитаемыми — выберите светлее.
+          </div>
+        )}
+      </div>
+
       <div className="props-group">
         <h4>Шрифты кампании</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
@@ -435,7 +601,7 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
             <label className="fld">
               <span>{role.label}</span>
               <select value={theme.fonts?.[role.key] ?? ''} onChange={(e) => setFont({ [role.key]: e.target.value || undefined })}>
-                <option value="">Системный (по умолчанию)</option>
+                <option value="">Профиль (по умолчанию)</option>
                 {fontOpts.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.label}
@@ -515,31 +681,14 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
       </div>
 
       <div className="props-group">
-        <h4>Акцентный цвет</h4>
-        <div className="fld-row">
-          <label className="fld" data-tip="Заменяет золотой акцент интерфейса. Не меняйте на слишком тёмный — пропадёт контраст.">
-            <span>Цвет кнопок, рамок и подсветок</span>
-            <input
-              type="color"
-              value={theme.accent ?? '#c9a45c'}
-              onChange={(e) => {
-                theme.accent = e.target.value
-                commit()
-              }}
-            />
-          </label>
-          {theme.accent && (
-            <button
-              className="btn btn-small"
-              onClick={() => {
-                delete theme.accent
-                commit()
-              }}
-            >
-              Вернуть золото по умолчанию
-            </button>
-          )}
+        <h4>Сброс</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Убрать авторские переопределения (акцент, шрифты, фоны, атмосферу) и вернуть
+          оформление выбранного профиля. Контент кампании и профиль не меняются.
         </div>
+        <button className="btn btn-small" onClick={() => void resetToProfile()}>
+          <Ico n="undo" />  Сбросить к профилю «{profile.label}»
+        </button>
       </div>
     </>
   )
