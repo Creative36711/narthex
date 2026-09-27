@@ -5,6 +5,7 @@ import { SceneScreen } from './SceneScreen'
 import { MapScreen } from './MapScreen'
 import { DialogueOverlay } from './DialogueOverlay'
 import { InventoryPanel, CharacterPanel, LogPanel, CraftingPanel } from './Panels'
+import { SavesPanel } from './SavesPanel'
 import { CodexPanel } from './CodexPanel'
 import { TradePanel } from './TradePanel'
 import { EndScreen } from './EndScreen'
@@ -20,13 +21,15 @@ interface Props {
   engine: GameEngine
   onRestart: () => void
   onExitToMenu: () => void
+  /** Загрузить забег из слота сохранений (аудит §5.6 п.9) — пересобирает движок */
+  onLoadSlot?: (slot: import('../core/savemigrate').SaveSlot) => void
   debugPanelOpen?: boolean
   onGamePanelOpen?: () => void
 }
 
-type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | null
+type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | 'saves' | null
 
-export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = false, onGamePanelOpen }: Props) {
+export function GameView({ engine, onRestart, onExitToMenu, onLoadSlot, debugPanelOpen = false, onGamePanelOpen }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
   // GameView owns the subscription so embedded playtests update just like the normal player.
   const [, invalidate] = useState(0)
@@ -105,6 +108,7 @@ export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = fal
         onOpenLog={() => openPanel('log')}
         onOpenCraft={() => openPanel('craft')}
         onOpenCodex={() => openPanel('codex')}
+        onOpenSaves={() => openPanel('saves')}
         onOpenHelp={() => openPanel('help')}
         onExitToMenu={onExitToMenu}
       />
@@ -121,6 +125,9 @@ export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = fal
       {panel === 'log' && <LogPanel engine={engine} onClose={closePanel} />}
       {panel === 'codex' && <CodexPanel engine={engine} onClose={closePanel} />}
       {panel === 'help' && <HelpPanel engine={engine} onClose={closePanel} />}
+      {panel === 'saves' && onLoadSlot && (
+        <SavesPanel engine={engine} onClose={closePanel} onLoadSlot={(slot) => { closePanel(); onLoadSlot(slot) }} />
+      )}
 
       {!cutscene && engine.combat && <CombatScreen engine={engine} />}
 

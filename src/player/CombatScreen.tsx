@@ -318,6 +318,16 @@ export function CombatScreen({ engine }: Props) {
                       ))}
                     </details>
                   )}
+                  {combat.canHide() && (
+                    <button
+                      className="btn"
+                      disabled={activePlayer.attacked || activePlayer.hidden}
+                      data-tip={'Скрытность (действие за ход).\nПроверка скрытности против лучшей внимательности врагов.\nСкрытый герой не выбирается целью; первая атака из скрытности бьёт без защиты.'}
+                      onClick={() => combat.playerHide()}
+                    >
+                      {activePlayer.hidden ? 'Вы скрыты' : 'Скрыться'}
+                    </button>
+                  )}
                   {combat.canFlee() && (
                     <button
                       className="btn"

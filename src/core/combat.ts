@@ -66,6 +66,8 @@ export interface Combatant {
   attacksLeft: number
   /** без сознания (тяжёлая рана/спасбросок BRP): выбыл из боя, но жив */
   down?: boolean
+  /** скрыт от врагов (аудит §5.6 п.12): не выбирается целью; атака выдаёт */
+  hidden?: boolean
 }
 
 type StartCombatEffect = Extract<Effect, { type: 'start_combat' }>
@@ -114,6 +116,8 @@ export class CombatController {
   activeIndex = 0
   log: string[] = []
   result: 'victory' | 'defeat' | 'fled' | null = null
+  /** внезапное начало боя (аудит §5.6 п.12): сторона, начавшая внезапно */
+  readonly surprise?: 'player' | 'enemy'
   loot: CombatLootEntry[] = []
   private blocked: Set<string>
   private difficult: Set<string>
@@ -126,8 +130,13 @@ export class CombatController {
     this.arena = arena
     this.blocked = new Set(arena.hex_grid.blocked_hexes.map(([c, r]) => `${c},${r}`))
     this.difficult = new Set(arena.hex_grid.difficult_terrain.map(([c, r]) => `${c},${r}`))
+    this.surprise = def.surprise
     this.setup()
     if (def.intro) this.log.push(def.intro)
+    if (this.surprise) {
+      const side = this.surprise === 'player' ? 'героя' : 'врагов'
+      this.log.push(`Внезапность! Враги${this.surprise === 'player' ? ' застигнуты врасплох' : ' застают вас врасплох'} — сторона ${side} не действует в первом раунде и не защищается.`)
+    }
     this.log.push(`— Раунд 1 —`)
     this.startRound()
     this.processUntilPlayer()
@@ -400,9 +409,61 @@ export class CombatController {
       !target.dead &&
       !target.down &&
       !target.fled &&
+      !(target.hidden && attacker.side === 'enemy') &&
       attacker.side !== target.side &&
       hexDistance(attacker.pos, target.pos) <= attacker.weapon.range
     )
+  }
+
+  /**
+   * Может ли герой прятаться в этом бою (аудит §5.6 п.12):
+   * мастер включил скрытность кампании, бой не запретил ukрытие.
+   */
+  canHide(): boolean {
+    if (this.def.no_hide) return false
+    return !!this.engine.campaign.meta.stealth
+  }
+
+  /**
+   * Действие «скрыться» (тратит действие за ход): проверка скрытности героя
+   * против лучшей внимательности живых врагов. Успех — `hidden`, враги
+   * теряют вас из виду до следующей вашей атаки.
+   */
+  playerHide(): void {
+    if (!this.isPlayerTurn() || this.active.attacked || !this.canHide()) return
+    const pc = this.active
+    const st = this.engine.campaign.meta.stealth!
+    const foes = this.combatants.filter((c) => c.side === 'enemy' && !c.dead && !c.fled && !c.down)
+    const best = foes
+      .map((c) => {
+        const def = this.engine.campaign.entities[c.entityId] as import('../shared/types').NpcDef | undefined
+        const v = def?.perception ?? Math.max(1, (c.skills[st.perception_skill ?? 'perception'] ?? 0) || c.stats.INT * 2)
+        return { label: def?.label ?? c.entityId, value: v }
+      })
+      .sort((a, b) => b.value - a.value)[0]
+    this.spendAction(pc)
+    if (!best) return
+    const mine = skillCheck(
+      Math.max(1, (pc.skills[st.skill ?? 'stealth'] ?? 0) + this.statusSkillMod(pc, st.skill ?? 'stealth')),
+      this.engine.rng,
+      0,
+      this.engine.diceRules,
+    )
+    const theirs = skillCheck(best.value, this.engine.rng, 0, this.engine.diceRules)
+    const RANK: Record<string, number> = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 }
+    const wins = (RANK[mine.result] ?? 1) >= (RANK[theirs.result] ?? 1)
+    this.log.push(
+      `${pc.label}: скрытность — ${mine.roll}/${mine.target} против «${best.label}» ${theirs.roll}/${theirs.target} → ${wins ? 'вы скрылись' : 'вас держат в поле зрения'}`,
+    )
+    if (wins) {
+      pc.hidden = true
+      this.log.push(`${pc.label} исчезает из виду.`)
+    }
+    if (!this.result && pc.attacksLeft <= 0) {
+      this.nextTurn()
+      this.processUntilPlayer()
+    }
+    this.engine.notify()
   }
 
   // ─────────────── боевые правила кампании (мастер; аудит §5.6) ───────────────
@@ -554,8 +615,17 @@ export class CombatController {
       c.movLeft = Math.max(1, c.mov + this.statusMovMod(c))
       // край атак за раунд — attacks_per_round оружия (аудит §5.6 п.1)
       c.attacksLeft = Math.max(1, c.weapon.attacks_per_round)
-      c.attacked = false
       c.defensesUsed = 0
+      c.attacked = false
+      // внезапность (аудит §5.6 п.12): застигнутая сторона теряет первый раунд
+      if (this.round === 1 && this.surprise) {
+        const ambusher = this.surprise === 'player' ? 'player' : 'enemy'
+        if (c.side !== ambusher) {
+          c.movLeft = 0
+          c.attacksLeft = 0
+          c.attacked = true
+        }
+      }
       // кулдауны способностей тикают на границе раунда
       for (const k of Object.keys(c.cooldowns)) {
         c.cooldowns[k] -= 1
@@ -700,8 +770,14 @@ export class CombatController {
         }
       }
     }
-    const targets = this.combatants.filter((x) => !x.dead && !x.fled && !x.down && x.side !== c.side)
-    if (!targets.length) return
+    // скрытые бойцы игнорируются AI — противник вас потерял (аудит §5.6 п.12)
+    const targets = this.combatants.filter((x) => !x.dead && !x.fled && !x.down && !x.hidden && x.side !== c.side)
+    if (!targets.length) {
+      if (c.side === 'enemy' && this.combatants.some((x) => x.hidden && !x.dead && x.side !== c.side)) {
+        this.log.push(`${c.label} озирается — цель потеряна из виду.`)
+      }
+      return
+    }
     targets.sort((a, b) => hexDistance(c.pos, a.pos) - hexDistance(c.pos, b.pos))
     let target = targets[0]
 
@@ -864,19 +940,25 @@ export class CombatController {
       if (attacker.attacksLeft <= 0) this.spendAction(attacker)
     }
     const rng = this.engine.rng
+    const fromShadow = !!attacker.hidden
     const skillVal = Math.max(1, (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill))
     const atk = skillCheck(skillVal, rng, penalty, this.engine.diceRules)
     this.log.push(
-      `${attacker.label}: атака «${attacker.weaponLabel}»${penalty ? ` (повторная, ${penalty}%)` : ''} — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
+      `${attacker.label}: ${fromShadow ? 'ВНЕЗАПНАЯ атака' : 'атака'} «${attacker.weaponLabel}»${penalty ? ` (повторная, ${penalty}%)` : ''} — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
     )
+    attacker.hidden = false // атака выдаёт позицию
     if (attacker.id === 'c_player' && atk.success) this.engine.markSkill(attacker.weapon.skill)
     if (RANK[atk.result] < 2) {
       playUi('miss')
       return
     }
 
-    // защита: уклонение или парирование, повторные со штрафом −30
-    if (this.defenderSaves(defender, RANK[atk.result])) return
+    // внезапная атака из скрытности — защита невозможна (аудит §5.6 п.12)
+    if (fromShadow) {
+      this.log.push(`${defender.label} не видит нападающего — защита невозможна!`)
+    } else if (this.defenderSaves(defender, RANK[atk.result])) {
+      return
+    }
 
     // урон
     const w = attacker.weapon
@@ -896,6 +978,11 @@ export class CombatController {
 
   /** Защита от удара: уклонение/парирование. Истина — атака отражена. */
   private defenderSaves(defender: Combatant, atkRank: number): boolean {
+    // внезапность: застигнутые врасплох не защищаются в первом раунде
+    if (this.round === 1 && this.surprise) {
+      const ambusher = this.surprise === 'player' ? 'player' : 'enemy'
+      if (defender.side !== ambusher) return false
+    }
     const rng = this.engine.rng
     const dodgeVal = Math.max(0, (defender.skills['dodge'] ?? 0) + this.statusSkillMod(defender, 'dodge'))
     const parryVal = defender.weapon.parry_capable

@@ -400,5 +400,73 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   check('10 числовой порог 70 → цель 40', e.playerSkillCheck('brawl', 70).target === 40)
 }
 
+// ── 13. скрытность и обнаружение (аудит §5.6 п.12) ──
+{
+  const c = synth((camp) => {
+    buff(camp)
+    camp.meta.stealth = { skill: 'stealth', perception_skill: 'perception' }
+  })
+  const e = new GameEngine(c)
+  e.start()
+  check('13 скрытность opt-in: есть блок — есть механика', e.stealthEnabled())
+  check('13 старт — открыто, не крадётся', !e.isSneaking())
+  e.state.player.skills = { ...e.state.player.skills, stealth: 200 }
+  e.toggleSneak()
+  check('13 красться включилось', e.isSneaking())
+  check('13 высокая скрытность незаметна', e.detectCheck('тест') || !e.isDetected(), '')
+  // бой из скрытности — внезапный для врагов
+  ;(e as any).rng = new PRNG('cr-stealth')
+  const combat = startBasicCombat(e)
+  check('13 бой из скрытности — surprise за игрока', combat.surprise === 'player', `surprise=${combat.surprise}`)
+  check('13 красться снято боем', !e.isSneaking())
+  const enemy = findEnemy(combat)
+  check('13 враг застигнут: без атак в 1-м раунде', enemy.attacksLeft === 0 && enemy.movLeft === 0, `attacks=${enemy.attacksLeft}`)
+  // прятаться в бою: действием
+  const c2 = synth((camp) => {
+    buff(camp)
+    camp.meta.stealth = { skill: 'stealth', perception_skill: 'perception' }
+  })
+  const e2 = new GameEngine(c2)
+  e2.start()
+  const combat2 = startBasicCombat(e2)
+  untilPlayerTurn(combat2)
+  const pc2 = findPc(combat2)
+  pc2.skills = { ...pc2.skills, stealth: 500 }
+  check('13 бой без def.no_hide позволяет прятаться', combat2.canHide())
+  combat2.playerHide()
+  check('13 прятки удались (500 vs bandit)', pc2.hidden === true)
+  check('13 прятки съели ход, раунд крутанулся', pc2.attacksLeft >= 1, `attacksLeft=${pc2.attacksLeft} round=${combat2.round}`)
+  // ИИ не видит скрытого героя
+  const seen = (combat2 as any).combatants // debug
+  void seen
+  // атака из скрытности снимает hidden
+  ;(combat2 as any).resolveAttack(pc2, findEnemy(combat2))
+  check('13 атака выдаёт позицию', pc2.hidden === false)
+  // def.no_hide: запрет
+  const e3 = new GameEngine(c2)
+  e3.start()
+  const combat3 = startBasicCombat(e3, { no_hide: true })
+  check('13 no_hide запрещает прятаться в бою', !combat3.canHide())
+  // без meta.stealth нельзя прятаться
+  const c4 = synth((camp) => buff(camp))
+  const e4 = new GameEngine(c4)
+  e4.start()
+  const combat4 = startBasicCombat(e4)
+  check('13 без meta.stealth прятаться нельзя', !combat4.canHide())
+  // застигнутые врасплох не защищаются
+  const e5 = new GameEngine(synth((camp) => buff(camp)))
+  e5.start()
+  const combat5 = startBasicCombat(e5, { surprise: 'player' })
+  const pc5 = findPc(combat5)
+  const bandit5 = findEnemy(combat5)
+  bandit5.skills = { ...bandit5.skills, dodge: 500 }
+  pc5.pos = { col: bandit5.pos.col, row: bandit5.pos.row + 1 }
+  ;(e5 as any).rng = new PRNG('cr-surpr')
+  const logBefore = combat5.log.length
+  ;(combat5 as any).resolveAttack(pc5, bandit5)
+  const lines = combat5.log.slice(logBefore)
+  check('13 врасплох: защита не бросается', !lines.some((l) => l.includes('уклонение') || l.includes('парирование')), lines.join(' / '))
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

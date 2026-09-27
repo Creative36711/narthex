@@ -270,6 +270,14 @@ export default function App() {
         engine={engine}
         onRestart={() => setEngine(engine.restart())}
         onExitToMenu={() => setEngine(null)}
+        onLoadSlot={(slot) => {
+          // загрузка из слота: пересобираем движок из состояния слота
+          const opened = openSave(engine.campaign.meta.id, engine.campaign, slot)
+          if (!opened || opened.verdict.kind !== 'ok') return
+          const fresh = new GameEngine(engine.campaign, opened.state)
+          fresh.start()
+          setEngine(fresh)
+        }}
       />
     </div>
   )

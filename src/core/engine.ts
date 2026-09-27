@@ -32,6 +32,7 @@ import {
   loadState,
   removeSave,
   writeSave,
+  MAX_SAVE_SLOTS,
 } from './savemigrate'
 import { PRNG } from './prng'
 import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL, difficultyModifier, difficultyLabel, type SkillCheckOutcome } from './brp'
@@ -835,6 +836,80 @@ export class GameEngine {
     return { success: wins, player, rival }
   }
 
+  // ─────────────── скрытность и обнаружение (аудит §5.6 п.12) ───────────────
+
+  /** включена ли скрытность мастером (meta.stealth); боевой режим — отдельно */
+  stealthEnabled(): boolean {
+    return !!this.campaign.meta.stealth
+  }
+
+  /** герой сейчас крадётся */
+  isSneaking(): boolean {
+    return this.state.stealth?.sneaking === true
+  }
+
+  /** героя заметили в текущей сцене */
+  isDetected(): boolean {
+    return this.state.stealth?.detected === true
+  }
+
+  /**
+   * Переключить красться/идти открыто. Вход в красться — моментальная
+   * проверка против всех наблюдателей в сцене; заметили — режим включён,
+   * но скрытым вас не считают.
+   */
+  toggleSneak(): void {
+    if (!this.stealthEnabled()) return
+    const st = (this.state.stealth ??= { sneaking: false, detected: false })
+    st.sneaking = !st.sneaking
+    st.detected = false
+    this.pushLog(st.sneaking ? 'Вы переходите на скрытное передвижение.' : 'Вы больше не скрываетесь.')
+    if (st.sneaking) this.detectCheck('вы появляетесь в поле зрения')
+    this.autosave()
+    this.notify()
+  }
+
+  /**
+   * Проверка обнаружения: бросок скрытности героя против лучшей
+   * внимательности живых NPC в текущей сцене. Поражение — `detected`.
+   * Истина — остался незамеченным.
+   */
+  detectCheck(context: string): boolean {
+    if (!this.stealthEnabled() || !this.isSneaking() || this.isDetected()) return true
+    const scene = this.currentScene()
+    if (!scene) return true
+    const st = this.campaign.meta.stealth!
+    let bestNpc: { label: string; value: number } | null = null
+    for (const occ of this.slotOccupants(scene)) {
+      const def = occ.entity
+      if (!def || def.type !== 'npc') continue
+      const value = def.perception ?? Math.max(1, (def.skills[st.perception_skill ?? 'perception'] ?? 0) || def.stats.INT * 2)
+      if (!bestNpc || value > bestNpc.value) bestNpc = { label: def.label, value }
+    }
+    if (!bestNpc) return true
+    const skill = st.skill ?? 'stealth'
+    const hero = Math.max(1, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
+    const mine = skillCheck(hero, this.rng, 0, this.diceRules)
+    const theirs = skillCheck(bestNpc.value, this.rng, 0, this.diceRules)
+    const RANK: Record<string, number> = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 }
+    const wins = (RANK[mine.result] ?? 1) >= (RANK[theirs.result] ?? 1)
+    this.pushLog(
+      `Скрытность (${context}): d100=${mine.roll}/${mine.target} против «${bestNpc.label}» d100=${theirs.roll}/${theirs.target} → ${wins ? 'вас не заметили' : 'ВАС ЗАМЕТИЛИ'}`,
+    )
+    if (!wins) {
+      this.state.stealth!.detected = true
+      this.pushLog(`${bestNpc.label} замечает вас!`)
+    }
+    return wins
+  }
+
+  /** Внезапность при начале боя из скрытности: враги застигнуты врасплох. */
+  consumeSurpriseFromSneak(): boolean {
+    const st = this.state.stealth
+    if (st?.sneaking && !st.detected) return true
+    return false
+  }
+
   // ─────────────── рост навыков (ТЗ 4.3) ───────────────
 
   markSkill(skill: string): void {
@@ -1202,6 +1277,9 @@ export class GameEngine {
     const prevLocation = this.state.location
     this.state.scene = sceneId
     this.state.location = scene.location
+    // скрытность: новая сцена — новые глаза; замеченным остаётся только по факту проверки
+    if (this.state.stealth) this.state.stealth.detected = false
+    if (this.isSneaking()) this.detectCheck('смена сцены')
     if (scene.location !== prevLocation) {
       this.onEnterLocation(scene.location)
     } else {
@@ -1584,11 +1662,18 @@ export class GameEngine {
       this.notify()
       return
     }
+    // внезапность из скрытности (мастер может задать def.surprise явно)
+    let effective = def
+    if (!def.surprise && this.isSneaking() && !this.isDetected()) {
+      effective = { ...def, surprise: 'player' }
+      this.pushLog('Вы нападаете из скрытности — враги застигнуты врасплох!')
+    }
+    if (this.state.stealth) this.state.stealth.sneaking = false
     // бой прерывает диалог
     this.dialogue = null
     this.activeStory = null
     this.activeNpc = null
-    this.combat = new CombatController(this, def)
+    this.combat = new CombatController(this, effective)
     playUi('combat_start')
     this.notify()
   }
@@ -1746,6 +1831,26 @@ export class GameEngine {
     if (this.state.game_over) return
     this.envelope = writeSave(this.campaign.meta.id, this.state, this.campaign.meta.version, this.envelope ?? undefined) ?? this.envelope
   }
+
+  /**
+   * Ручной сейв в слот игрока (аудит §5.6 п.9): перезаписывает слот.
+   * Пермадет стирает автосейв, ручные слоты переживают забег — честный
+   * «снимок на всякий случай», если мастер их не запретил (meta.save_slots).
+   */
+  manualSave(slot: number): boolean {
+    if (this.state.game_over) return false
+    const env = writeSave(this.campaign.meta.id, this.state, this.campaign.meta.version, undefined, slot)
+    if (env) {
+      this.pushLog(`Слот ${slot}: забег записан.`)
+      this.notify()
+    }
+    return env !== null
+  }
+
+  /** сколько ручных слотов показывать игроку (мастер; умолчание 3) */
+  saveSlotsCount(): number {
+    return Math.max(0, Math.min(MAX_SAVE_SLOTS, this.campaign.meta.save_slots ?? 3))
+  }
 }
 
 // ─────────────── save/load helpers ───────────────
@@ -1764,7 +1869,12 @@ export {
   checkSaveVersion,
   SAVE_MIGRATIONS,
   OLDEST_SAVE_VERSION,
+  slotKey,
+  listSaveSlots,
+  removeSave as removeSaveSlot,
+  MAX_SAVE_SLOTS,
 } from './savemigrate'
+export type { SaveSlot, SaveSlotInfo } from './savemigrate'
 export type { OpenedSave, SaveVerdict, SaveMigration } from './savemigrate'
 export type { SaveReport, SaveNote, SaveEnvelope } from '../shared/types'
 
