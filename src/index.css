@@ -2468,7 +2468,7 @@ input[type='checkbox'], input[type='radio'] {
 /* таблица исходов d100 в справке: строки с переносом, без гориз. скролла */
 .checks-table { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
 .checks-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: var(--radius); padding: 6px 10px; }
-.checks-row .checks-mark { flex: 0 0 auto; min-width: 1.2em; text-align: center; }
+.checks-row .checks-mark { flex: 0 0 auto; min-width: 1.2em; text-align: center; white-space: nowrap; }
 .checks-mark.ok { color: var(--green-bright); } .checks-mark.crit { color: var(--gold-bright); } .checks-mark.good { color: var(--blue-bright); } .checks-mark.bad { color: var(--red-bright); }
 .checks-row > span:nth-child(2) { flex: 1; min-width: 140px; }
 .checks-res { color: var(--gold-bright); white-space: nowrap; }

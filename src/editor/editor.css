@@ -587,6 +587,10 @@
   border-radius: 8px;
   padding: 8px;
 }
+/* узлы диалога на бумажной карточке — в бумажном стиле (как дерево мира) */
+.dlg-nodes .editor-list-item { color: var(--ed-paper-text); }
+.dlg-nodes .editor-list-item:hover { border-color: var(--ed-paper-line-strong); }
+.dlg-nodes .editor-list-item.on { background: color-mix(in srgb, var(--ed-select) 12%, var(--ed-paper-card)); border-color: var(--ed-paper-line-strong); border-left-color: var(--ed-select); color: var(--ed-select); }
 .dlg-node-form { flex: 1; overflow-y: auto; min-width: 0; max-height: 100%; }
 .dlg-line-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: flex-start; }
 .dlg-line-voice { flex: 1 0 100%; padding: 6px 8px; background: var(--ed-paper); border: 1px dashed var(--ed-paper-line-strong); border-radius: 6px; }

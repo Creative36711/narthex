@@ -26,7 +26,7 @@ const edcss = f('src/editor/editor.css')
 const app = f('src/editor/EditorApp.tsx')
 
 // 1. справка: плашка d100 по содержимому, а не фиксированная
-check('1 checks-mark по содержимому (min-width)', css.includes('.checks-row .checks-mark { flex: 0 0 auto; min-width: 1.2em; text-align: center; }'))
+check('1 checks-mark по содержимому (min-width + nowrap)', /min-width: 1\.2em; text-align: center; white-space: nowrap;/.test(css))
 const markRule = css.match(/\.checks-row \.checks-mark \{[^}]*\}/)?.[0] ?? ''
 check('1 фиксированный width у checks-mark удалён', /min-width: 1\.2em/.test(markRule) && !/(?<!min-)width:/.test(markRule))
 
@@ -41,6 +41,9 @@ check('3 тема «тёмная» переопределяет бумажные
 check('3 тема «графит» переопределяет бумажные токены', edcss.includes('.editor-root.ed-theme-anthracite {') && edcss.includes('--ed-paper: #211e19'))
 check('3 свечение полотна — токеном (не зажёванное белое)', edcss.includes('--ed-canvas-glow: rgba(255, 255, 255, 0.35);') && edcss.includes('var(--ed-canvas-glow)'))
 check('3 хром ателье не зависит от темы полотна', !edcss.includes('.editor-root.ed-theme-dark --ed-bg'))
+// 4. узлы диалога на бумажной карточке читаются (не светлые на светлом)
+check('4 узлы диалога — бумажный стиль', edcss.includes('.dlg-nodes .editor-list-item { color: var(--ed-paper-text); }'))
+check('4 активный узел диалога — бумажная подложка', edcss.includes('.dlg-nodes .editor-list-item.on { background: color-mix(in srgb, var(--ed-select) 12%, var(--ed-paper-card))'))
 // переключатель и сохранение выбора мастера
 check('3 переключатель темы в тулбаре', app.includes('editor-theme-select') && app.includes('Полотно: тёмная') && app.includes('Полотно: графит'))
 check('3 выбор хранится в localStorage', app.includes("localStorage.getItem('cf_editor_theme')") && app.includes("localStorage.setItem('cf_editor_theme', v)"))
