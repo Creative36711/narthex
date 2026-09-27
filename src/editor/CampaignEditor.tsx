@@ -714,7 +714,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
     store.touch('campaign.json')
     force((n) => n + 1)
   }
-  type CeTab = 'main' | 'creation' | 'versions' | 'mechanics' | 'look' | 'statuses' | 'people' | 'items' | 'flags' | 'audio' | 'json'
+  type CeTab = 'main' | 'creation' | 'versions' | 'mechanics' | 'look' | 'statuses' | 'people' | 'items' | 'flags' | 'audio' | 'json' | 'generators'
+
   const [tab, setTab] = useState<CeTab>('main')
 
   const sceneOpts = store.options('scene')
@@ -725,7 +726,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
   return (
     <div className="rule-editor">
       <div className="ce-tabs" role="tablist" aria-label="Вкладки кампании">
-        {([['main', 'Основное'], ['creation', 'Создание героя'], ['versions', 'Версии'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['statuses', 'Статусы и способности'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
+        {([['main', 'Основное'], ['creation', 'Создание героя'], ['versions', 'Версии'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['statuses', 'Статусы и способности'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['generators', 'События и генераторы'], ['json', 'JSON']] as const).map(([id, lab]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
             {lab}
           </button>
@@ -2660,6 +2661,116 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
 
         </>
       )}
+      {tab === 'generators' && (() => {
+        const g = m.generators ?? { event_tables: [], npc: [], scenes: [], adventures: [] }
+        const setG = (next: typeof g) => { m.generators = next; commit() }
+        const ruleIds = new Set(store.ids('rule'))
+        const ruleExists = (rid: string) => ruleIds.has(rid)
+        const tables = g.event_tables ?? []
+        return (
+          <div className="props-group">
+            <h4>Таблицы случайных событий (B9)</h4>
+            <p className="muted small">
+              Мастер решает: таблиц нет — событий нет; отдельную таблицу можно выключить.
+              Шаг — интервал тиков мира; на каждом шаге — бросок на шанс, затем выбор
+              случайного ПОДХОДЯЩЕГО правила (проверяются условия правил-кандидатов).
+              Форс-вызов — эффектом roll_event_table или ink-вызовом roll_table.
+            </p>
+            {tables.map((t, i) => (
+              <div key={t.id} className="panel" style={{ padding: 10, marginBottom: 10 }}>
+                <div className="fld-row">
+                  <input value={t.label} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, label: e.target.value } : x); setG({ ...g, event_tables: nt }) }} style={{ flex: 1 }} />
+                  <code style={{ opacity: 0.6 }}>{t.id}</code>
+                  <label className="fld fld-check" data-tip="Выключить таблицу (не удаляя)">
+                    <input type="checkbox" checked={!t.disabled} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, disabled: !e.target.checked || undefined } : x); setG({ ...g, event_tables: nt }) }} />
+                    <span>вкл</span>
+                  </label>
+                  <button className="btn btn-small btn-danger" onClick={() => setG({ ...g, event_tables: tables.filter((_, j) => j !== i) })}><Ico n="trash" /></button>
+                </div>
+                <div className="fld-row">
+                  <label className="fld" data-tip="Каждые N тиков мира — один бросок">
+                    <span>Интервал, тиков</span>
+                    <input type="number" min={1} value={t.interval_ticks} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, interval_ticks: Math.max(1, +e.target.value || 1) } : x); setG({ ...g, event_tables: nt }) }} />
+                  </label>
+                  <label className="fld" data-tip="Вероятность события на шаге (1 = каждый шаг)">
+                    <span>Шанс 0..1</span>
+                    <input type="number" min={0} max={1} step={0.05} value={t.chance ?? 1} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, chance: +e.target.value } : x); setG({ ...g, event_tables: nt }) }} />
+                  </label>
+                  <label className="fld" data-tip="Время суток через запятую: morning, day, evening, night; пусто — всегда">
+                    <span>Время суток</span>
+                    <input
+                      defaultValue={(t.time_of_day ?? []).join(',')}
+                      onBlur={(e) => { const v = e.target.value ? e.target.value.split(',').map((x) => x.trim()).filter(Boolean) as TimeOfDay[] : undefined; const nt = tables.map((x, j) => j === i ? { ...x, time_of_day: v } : x); setG({ ...g, event_tables: nt }) }}
+                    />
+                  </label>
+                  <label className="fld" data-tip="id локаций через запятую; пусто — везде">
+                    <span>Локации</span>
+                    <input
+                      defaultValue={(t.locations ?? []).join(',')}
+                      onBlur={(e) => { const v = e.target.value ? e.target.value.split(',').map((x) => x.trim()).filter(Boolean) : undefined; const nt = tables.map((x, j) => j === i ? { ...x, locations: v } : x); setG({ ...g, event_tables: nt }) }}
+                    />
+                  </label>
+                </div>
+                <div className="fld-row" style={{ alignItems: 'flex-start' }}>
+                  <label className="fld" style={{ flex: 2 }} data-tip="Правила-кандидаты (уберите условие «только вручную» у них не обязательно — таблица вызывает напрямую). Через запятую: id правил">
+                    <span>Правила-кандидаты</span>
+                    <textarea
+                      rows={2}
+                      defaultValue={t.rules.join(', ')}
+                      onBlur={(e) => { const v = e.target.value.split(',').map((x) => x.trim()).filter(Boolean); const nt = tables.map((x, j) => j === i ? { ...x, rules: v } : x); setG({ ...g, event_tables: nt }) }}
+                    />
+                  </label>
+                </div>
+                {t.rules.length > 0 && (
+                  <div className="muted small" style={{ marginTop: 4 }}>
+                    {t.rules.map((rid) => (
+                      <span key={rid} style={{ marginRight: 8 }}>
+                        <code>{rid}</code> {ruleExists(rid) ? '' : <span style={{ color: 'var(--danger, #d66)' }}>— нет такого правила!</span>}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            <button
+              className="btn btn-small"
+              onClick={() => {
+                const id = makeId('table', 'таблица', tables.map((x) => x.id))
+                setG({ ...g, event_tables: [...tables, { id, label: 'Новая таблица', interval_ticks: 6, chance: 0.5, rules: [] }] })
+              }}
+            >
+              + таблица событий
+            </button>
+            {tables.filter((t) => t.rules.some((r) => !ruleExists(r))).length > 0 && (
+              <p className="muted small" style={{ color: 'var(--danger, #d66)' }}>Есть ссылки на отсутствующие правила — создайте их во вкладке правил или исправьте id.</p>
+            )}
+            {tables.some((t) => (t.locations ?? []).some((l) => !locOpts.some((o) => o.id === l))) && (
+              <p className="muted small" style={{ color: 'var(--danger, #d66)' }}>Есть фильтры по отсутствующим локациям.</p>
+            )}
+            <h4 style={{ marginTop: 18 }}>Генераторы контента (списки)</h4>
+            <p className="muted small">
+              Генераторы — это взвешенные списки строк мастера. Значения выбираются вызовами
+              ink: <code>gen(generatorId, listKey)</code>, <code>gen_seeded(generatorId, listKey, seed)</code>,
+              либо пакетно эффектом <code>generate_variables</code>. Редактируются здесь JSON-блоком
+              (структуры npc/scenes/adventures см. в справочнике 04).
+            </p>
+            <JsonField
+              label="npc / scenes / adventures (JSON)"
+              rows={16}
+              value={{ npc: g.npc ?? [], scenes: g.scenes ?? [], adventures: g.adventures ?? [] }}
+              onChange={(v) => {
+                const obj = v as { npc?: typeof g.npc; scenes?: typeof g.scenes; adventures?: typeof g.adventures }
+                setG({ ...g, npc: obj.npc ?? [], scenes: obj.scenes ?? [], adventures: obj.adventures ?? [] })
+              }}
+            />
+            <div className="fld-row">
+              <button className="btn btn-small btn-danger" disabled={!m.generators} onClick={() => { delete m.generators; commit() }}>
+                Удалить весь блок
+              </button>
+            </div>
+          </div>
+        )
+      })()}
       {tab === 'json' && (
         <div className="advanced-json-page">
           <JsonField

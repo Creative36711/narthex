@@ -1141,6 +1141,63 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "roll_event_table"
+            },
+            "table": {
+              "type": "string"
+            },
+            "ignore_filters": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "table"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "generate_variables"
+            },
+            "generator": {
+              "type": "string"
+            },
+            "seed": {
+              "type": "string"
+            },
+            "pack": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "as": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "type",
+            "generator",
+            "pack"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "grant_feat"
             },
             "id": {
@@ -3456,6 +3513,246 @@
       "additionalProperties": false,
       "description": "Конфиг мета-прогресса кампании (включён самим наличием блока)."
     },
+    "EventTableDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "таблица отключена"
+        },
+        "interval_ticks": {
+          "type": "number",
+          "description": "полный порядок: каждые interval_ticks тиков мира — один бросок на событие"
+        },
+        "chance": {
+          "type": "number",
+          "description": "шанс, что на этом интервале вообще произойдёт событие (0..1; умолчание 1)"
+        },
+        "time_of_day": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TimeOfDay"
+          },
+          "description": "время суток, когда таблица активна (нет — всегда)"
+        },
+        "locations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "локации, где таблица активна (нет — везде)"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ручные правила-кандидаты. В броске участвуют те, чьи ПРЕДПОСЫЛКИ\n(rule.conditions) истинны прямо сейчас; выпавшее правило исполняется\n(как при fire_rule). Повторы — как у правил: once-правило сработает\nединожды, обычное может выпасть снова."
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "interval_ticks",
+        "rules"
+      ],
+      "additionalProperties": false,
+      "description": "Настройка одной таблицы событий (мастер решает тайминг и шансы)."
+    },
+    "GenWeightedItem": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "additionalProperties": false,
+      "description": "Вольный элемент списка генератора с весом."
+    },
+    "NamePatternPart": {
+      "type": "object",
+      "properties": {
+        "list": {
+          "type": "string"
+        },
+        "literal": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Компоновка имени: последовательность списков {list}/частей {literal}."
+    },
+    "NpcGeneratorDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "lists": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/GenWeightedItem"
+            }
+          },
+          "description": "списки значений (id → взвешенный список строк)"
+        },
+        "name": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NamePatternPart"
+          },
+          "description": "Компоновка: {field → список-ключ}. Поля:\n`name` (компоновка через parts: {list} или {literal}),\nстроковые поля — любые из NameableEntity-подобных: description, disposition_label и пр."
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "поле → ключ списка (description, stats.X, skills.Y, item.weapon …)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "lists"
+      ],
+      "additionalProperties": false,
+      "description": "Генератор NPC: мастер собирает имя/облик/характер из своих таблиц.\nРезультат применяется к целевому NPC (effect generate_npc) или к новой\nсущности (spawn_template): создаётся копия шаблона с новым id."
+    },
+    "SceneGeneratorDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "lists": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/GenWeightedItem"
+            }
+          }
+        },
+        "slots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "id слота сцены → ключ списка: значение вставляется как описание слота (set_description-стиль)"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "lists",
+        "slots"
+      ],
+      "additionalProperties": false,
+      "description": "Генератор сцен описаний: заполняет слоты сцены текстами по словарям."
+    },
+    "AdventureGeneratorDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "lists": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/GenWeightedItem"
+            }
+          }
+        },
+        "goals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "цель квеста: шаблон строки с подстановками {list:key}"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "lists",
+        "goals"
+      ],
+      "additionalProperties": false,
+      "description": "Генератор приключений: цепочка целей (квесто-строк) из таблиц."
+    },
+    "GeneratorsDef": {
+      "type": "object",
+      "properties": {
+        "event_tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EventTableDef"
+          },
+          "description": "таблицы случайных событий (каждая со своим таймингом/шансом/фильтрами)"
+        },
+        "npc": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NpcGeneratorDef"
+          },
+          "description": "генераторы NPC"
+        },
+        "scenes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SceneGeneratorDef"
+          },
+          "description": "генераторы сцен"
+        },
+        "adventures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AdventureGeneratorDef"
+          },
+          "description": "генераторы приключений"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Общий блок генераторов в meta кампании (отсутствие — подсистемы нет)."
+    },
     "CampaignMeta": {
       "type": "object",
       "properties": {
@@ -4096,6 +4393,10 @@
         "metaprogress": {
           "$ref": "#/$defs/MetaProgressDef",
           "description": "Мета-прогресс между забегами (аудит B8b): достижения, метавалюты и\nпостоянные усиления. Сохранение — отдельным ключом localStorage\n`chronicle-forge:meta:<campaignId>`, живёт перекрёстно между сейвами.\nОтсутствие блока — мета-прогресса нет (мастер может опустить весь пласт)."
+        },
+        "generators": {
+          "$ref": "#/$defs/GeneratorsDef",
+          "description": "Таблицы случайных событий и генераторы контента (аудит B9).\nМастер решает: можно отключить всё (нет блока), отключить отдельные\nтаблицы (table.disabled) или собирать свои — генераторы работают\nтолько на таблицах, которые описал мастер."
         },
         "stealth": {
           "type": "object",

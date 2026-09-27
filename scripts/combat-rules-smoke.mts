@@ -1080,5 +1080,121 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   check('20 у нового движка свой список', e2.achievementsUnlockedThisRun().length === 0)
 }
 
+
+// ═══ §21. Таблицы случайных событий и генераторы (B9) ═══
+{
+  const fired: string[] = []
+  const mk = () => new GameEngine(synth((camp) => {
+    buff(camp)
+    camp.rules['ev_clear'] = { id: 'ev_clear', label: 'Ясно', once: false, conditions: [], effects: [{ type: 'set_flag', flag: 'ev_clear_fired' }] as never }
+    camp.rules['ev_rain'] = { id: 'ev_rain', label: 'Дождь', once: false, conditions: [{ type: 'flag_set', flag: 'rain_possible' } as never], effects: [{ type: 'set_flag', flag: 'ev_rain_fired' }] as never }
+    camp.meta.generators = {
+      event_tables: [
+        {
+          id: 'sky', label: 'Небо', interval_ticks: 4, chance: 1,
+          rules: ['ev_clear', 'ev_rain'],
+        },
+        { id: 'off', label: 'Выключенная', interval_ticks: 1, chance: 1, disabled: true, rules: ['ev_clear'] },
+        { id: 'night_only', label: 'Ночные', interval_ticks: 3, chance: 1, time_of_day: ['night'], rules: ['ev_clear'] },
+      ],
+      npc: [
+        {
+          id: 'traveller',
+          label: 'Попутчик',
+          name: [{ list: 'first' }, { literal: ' ' }, { list: 'last' }],
+          lists: {
+            first: [{ value: 'Агата' }, { value: 'Борис' }],
+            last: [{ value: 'Ворожейкина' }, { value: 'Жарков' }],
+          },
+        },
+      ],
+      adventures: [
+        {
+          id: 'side_gigs',
+          label: 'Подработка',
+          lists: {
+            foe: [{ value: 'крыс' }, { value: 'грабителей' }],
+            place: [{ value: 'подвале таверны' }, { value: 'старых штольнях' }],
+          },
+          goals: ['Отбить {list:place} от {list:foe}', 'Пересчитать {list:foe} в {list:place}'],
+        },
+      ],
+    }
+    // перехват fireRule
+    const fx = camp.rules['ev_watch'] = { id: 'ev_watch', label: 'Сторож', once: false, conditions: [], effects: [{ type: 'set_flag', flag: 'ev_watch_fired' }] as never }
+    void fx
+  }))
+
+  const e = mk()
+  check('21 генераторы включены блоком', e.generatorsEnabled())
+  check('21 без блока — выключены', !new GameEngine(synth((camp) => { buff(camp); delete (camp.meta as { generators?: unknown }).generators })).generatorsEnabled())
+
+  e.start()
+  // выключаемая таблица не стреляет никогда
+  check('21 disabled-таблица молчит', (() => { const r = e.rollEventTable('off', { forced: true, ignoreFilters: true }); return r === null })())
+
+  // таблица ночных событий днём спит даже при форсе
+  const dayFires = e.rollEventTable('night_only', { forced: true })
+  const todNow = e.state.tick
+  check('21 фильтр времени суток блокирует', dayFires === null, `tick=${todNow}`)
+  check('21 ignore_filters обходит фильтр', e.rollEventTable('night_only', { forced: true, ignoreFilters: true }) === 'ev_clear')
+
+  // правило без выполненных предпосылок не участвует
+  let rain = 0, clear = 0
+  for (let i = 0; i < 40; i++) {
+    const r = e.rollEventTable('sky', { forced: true })
+    if (r === 'ev_rain') rain++
+    if (r === 'ev_clear') clear++
+  }
+  check('21 без флага дождь не выпадает', rain === 0 && clear === 40, `rain=${rain}`)
+  e.applyEffect({ type: 'set_flag', flag: 'rain_possible' } as never)
+  rain = 0; clear = 0
+  for (let i = 0; i < 200; i++) {
+    const r = e.rollEventTable('sky', { forced: true })
+    if (r === 'ev_rain') rain++
+    else if (r === 'ev_clear') clear++
+  }
+  check('21 оба правила выпадают (случайность под контролем)', rain > 40 && clear > 40, `rain=${rain} clear=${clear}`)
+
+  // автотик: каждый 4-й тик sky даёт событие
+  e.state.fired_rules = []
+  delete e.state.flags['ev_clear_fired']
+  delete e.state.flags['ev_rain_fired']
+  e.advanceTicks(4)
+  check('21 автотик по интервалу запустил событие', !!(e.state.flags['ev_clear_fired'] || e.state.flags['ev_rain_fired']))
+
+  // ── генераторы строк ──
+  const val = e.genValue('traveller', 'first')
+  check('21 значение из списка генератора', val === 'Агата' || val === 'Борис', `→ ${val}`)
+  const nm1 = e.genValue('traveller', 'name', 'hero-1')
+  const nm2 = e.genValue('traveller', 'name', 'hero-1')
+  const nm3 = e.genValue('traveller', 'name', 'hero-2')
+  check('21 seed стабилизирует имя', nm1 === nm2 && nm1.length > 2, `${nm1} vs ${nm2}`)
+  check('21 разные seed — (почти всегда) другой облик', nm3.length > 2)
+  const g0 = e.genValue('side_gigs', 'goal:0', 'g1')
+  check('21 шаблон цели подставляет списки', /^(Отбить).+/.test(g0) && !g0.includes('{list:'), `→ ${g0}`)
+  const g0b = e.genValue('side_gigs', 'goal:0', 'g1')
+  check('21 шаблон со seed стабилен', g0 === g0b)
+
+  // пакетная генерация в переменные
+  e.applyEffect({
+    type: 'generate_variables',
+    generator: 'traveller',
+    seed: 'bob',
+    pack: [{ key: 'first' }, { key: 'last', as: 'surname' }],
+  } as never)
+  check('21 generate_variables пишет переменные', typeof e.state.variables.first === 'string' && typeof e.state.variables.surname === 'string',
+    `${String(e.state.variables.first)} / ${String(e.state.variables.surname)}`)
+
+  // форс-эффект roll_event_table
+  e.state.fired_rules = []
+  delete e.state.flags['ev_watch_fired']
+  e.campaign.rules['ev_watch'].conditions = []
+  e.campaign.meta.generators!.event_tables![0].rules = ['ev_watch']
+  e.applyEffect({ type: 'roll_event_table', table: 'sky' } as never)
+  check('21 эффект roll_event_table запустил правило', !!e.state.flags['ev_watch_fired'])
+  void fired
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

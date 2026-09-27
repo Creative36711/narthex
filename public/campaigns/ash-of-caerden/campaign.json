@@ -1614,5 +1614,131 @@
         ]
       }
     ]
+  },
+  "generators": {
+    "event_tables": [
+      {
+        "id": "shrine_whispers",
+        "label": "Шёпот святилища",
+        "description": "В храме порой слышится эхо пепла — мелкие злоключения и подарки.",
+        "interval_ticks": 12,
+        "chance": 0.35,
+        "locations": [
+          "loc_temple"
+        ],
+        "rules": [
+          "gen_whisper_blessing",
+          "gen_whisper_chill"
+        ]
+      }
+    ],
+    "npc": [
+      {
+        "id": "traveller",
+        "label": "Попутчик",
+        "description": "Генератор случайного путника: имя, облик, занятие.",
+        "name": [
+          {
+            "list": "first"
+          },
+          {
+            "literal": " "
+          },
+          {
+            "list": "last"
+          }
+        ],
+        "lists": {
+          "first": [
+            {
+              "value": "Агата"
+            },
+            {
+              "value": "Борис"
+            },
+            {
+              "value": "Веста"
+            },
+            {
+              "value": "Ганс"
+            },
+            {
+              "value": "Дарья"
+            }
+          ],
+          "last": [
+            {
+              "value": "Ворожейкина"
+            },
+            {
+              "value": "Жарков"
+            },
+            {
+              "value": "Зольникова"
+            },
+            {
+              "value": "Искрин"
+            }
+          ],
+          "look": [
+            {
+              "value": "в запёпелённом плаще"
+            },
+            {
+              "value": "с обгоревшей шляпой"
+            },
+            {
+              "value": "с посохом из плоти ясеня"
+            }
+          ],
+          "trade": [
+            {
+              "value": "сборщик золы"
+            },
+            {
+              "value": "писец хроник"
+            },
+            {
+              "value": "кузнец-подмастерье"
+            }
+          ]
+        }
+      }
+    ],
+    "adventures": [
+      {
+        "id": "side_gigs",
+        "label": "Мелкие поручения",
+        "lists": {
+          "foe": [
+            {
+              "value": "крыс"
+            },
+            {
+              "value": "грабителей"
+            },
+            {
+              "value": "упырей"
+            }
+          ],
+          "place": [
+            {
+              "value": "подвале таверны"
+            },
+            {
+              "value": "старых штольнях"
+            },
+            {
+              "value": "пепельном огороде"
+            }
+          ]
+        },
+        "goals": [
+          "Отбить {list:place} от {list:foe}",
+          "Пересчитать {list:foe} в {list:place}",
+          "Выяснить, кто завёл {list:foe} в {list:place}"
+        ]
+      }
+    ]
   }
 }

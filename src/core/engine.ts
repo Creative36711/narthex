@@ -12,6 +12,9 @@ import type {
   LocationDef,
   AchievementDef,
   ActiveStatus,
+  EventTableDef,
+  GenWeightedItem,
+  NpcGeneratorDef,
   FeatDef,
   MetaStoreState,
   MetaUnlockDef,
@@ -308,6 +311,8 @@ export class GameEngine {
     }
     // достижения со счётчиками (прожитые тики и пр.) — после пачки тиков
     this.checkAchievements()
+    // таблицы случайных событий ходят тем же шагом, что и тики мира (аудит B9)
+    this.tickEventTables()
   }
 
   /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
@@ -2206,6 +2211,15 @@ export class GameEngine {
       case 'grant_xp': this.grantXp(e.points); break
       case 'grant_feat': this.grantFeat(e.id); break
       case 'meta_currency': this.grantMetaCurrency(e.id, e.amount); break
+      case 'roll_event_table': this.rollEventTable(e.table, { forced: true, ignoreFilters: e.ignore_filters }); break
+      case 'generate_variables': {
+        for (const p of e.pack) {
+          const val = this.genValue(e.generator, p.key, e.seed)
+          s.variables[p.as ?? p.key] = val
+        }
+        this.pushLog('Мир что-то замышляет…')
+        break
+      }
       case 'change_disposition': this.changeDisposition(e.target, e.delta); break
       case 'start_quest': this.startQuest(e.quest); break
       case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break
@@ -2703,6 +2717,152 @@ export class GameEngine {
     this.pushLog(`В хронику записано усиление «${u.label}» — будет действовать каждом новом забеге.`)
     this.notify()
     return true
+  }
+
+  // ─────────────── случайные события и генераторы (аудит B9) ───────────────
+
+  /** есть ли генераторы/таблицы вообще */
+  generatorsEnabled(): boolean {
+    const g = this.campaign.meta.generators
+    return !!(g && (g.event_tables?.length || g.npc?.length || g.scenes?.length || g.adventures?.length))
+  }
+
+  /** таблица событий по id */
+  eventTableDef(id: string): EventTableDef | undefined {
+    return this.campaign.meta.generators?.event_tables?.find((t) => t.id === id)
+  }
+
+  /** таблица событий активна сейчас (не выключена, время/локация подходят) */
+  private eventTableActive(t: EventTableDef): boolean {
+    if (t.disabled) return false
+    if (t.time_of_day?.length && !t.time_of_day.includes(timeOfDay(this.state.tick, this.campaign.meta))) return false
+    if (t.locations?.length && !t.locations.includes(this.state.location)) return false
+    return true
+  }
+
+  /**
+   * Один бросок таблицы: выбор случайного подходящего правила и его
+   * исполнение. Возвращает id исполненного правила или null.
+   * `forced` — вызыватель эффекта roll_event_table: без шанса-интервала,
+   * `ignoreFilters` — даже без проверок времени/локации.
+   */
+  rollEventTable(tableId: string, opts: { forced?: boolean; ignoreFilters?: boolean } = {}): string | null {
+    const t = this.eventTableDef(tableId)
+    if (!t || t.disabled) return null
+    if (!opts.ignoreFilters && !this.eventTableActive(t)) return null
+    if (!opts.forced && (t.chance ?? 1) < 1 && !this.rng.chance(t.chance ?? 1)) return null
+    const candidates: string[] = []
+    for (const ruleId of t.rules) {
+      const rule = this.campaign.rules[ruleId]
+      if (!rule) continue
+      if (rule.once && this.state.fired_rules.includes(rule.id)) continue
+      if (!rule.conditions.every((c) => evalCondition(c, this))) continue
+      candidates.push(ruleId)
+    }
+    if (!candidates.length) return null
+    const picked = candidates[this.rng.int(0, candidates.length - 1)]!
+    this.pushLog(`Событие (${t.label})…`)
+    this.fireRule(picked)
+    return picked
+  }
+
+  /** тики: у каждой таблицы свой шаг (tick % interval === 0) */
+  private tickEventTables(): void {
+    const tables = this.campaign.meta.generators?.event_tables
+    if (!tables?.length) return
+    for (const t of tables) {
+      if (t.interval_ticks <= 0) continue
+      if (this.state.tick % t.interval_ticks !== 0) continue
+      this.rollEventTable(t.id)
+    }
+  }
+
+  /** взвешенный выбор из списка генератора (`genPick` используется и из ink) */
+  genPickWeighted(items: GenWeightedItem[], rand: () => number): string | null {
+    if (!items.length) return null
+    let total = 0
+    for (const it of items) total += Math.max(0, it.weight ?? 1)
+    if (total <= 0) return items[0].value
+    let roll = rand() * total
+    for (const it of items) {
+      roll -= Math.max(0, it.weight ?? 1)
+      if (roll <= 0) return it.value
+    }
+    return items[items.length - 1].value
+  }
+
+  /** найти определение генератора (любого вида) по id или id списка */
+  private genDef(generatorId: string): { lists: Record<string, GenWeightedItem[]> } | undefined {
+    const g = this.campaign.meta.generators
+    if (!g) return undefined
+    return (
+      g.npc?.find((x) => x.id === generatorId) ??
+      g.scenes?.find((x) => x.id === generatorId) ??
+      g.adventures?.find((x) => x.id === generatorId)
+    )
+  }
+
+  /**
+   * Значение из списка генератора. `key` — ключ списка; компоновка имени —
+   * ключ `name` (через gen.name части). seed — стабильная строка: тот же
+   * seed+key даёт то же значение. Без seed — игровой PRNG.
+   */
+  genValue(generatorId: string, key: string, seed?: string): string {
+    const def = this.genDef(generatorId)
+    if (!def) return ''
+    const rand = seed ? this.seedRand(`${seed}:${generatorId}:${key}`) : () => this.rng.next()
+    if (key === 'name') {
+      const nameGen = this.campaign.meta.generators?.npc?.find((x) => x.id === generatorId)
+      if (nameGen?.name?.length) return this.composeGenName(nameGen, rand)
+    }
+    // спец-ключ цели приключения: goals:N
+    if (key.startsWith('goal:')) {
+      const adv = this.campaign.meta.generators?.adventures?.find((x) => x.id === generatorId)
+      const idx = parseInt(key.slice(5), 10)
+      const template = adv?.goals[idx]
+      if (template) return this.expandGenTemplate(template, def.lists, rand)
+      return ''
+    }
+    const list = def.lists[key]
+    return list ? (this.genPickWeighted(list, rand) ?? '') : ''
+  }
+
+  /** детерминированный PRNG из строки (стабильность по seed) */
+  private seedRand(seed: string): () => number {
+    let h = 2166136261 >>> 0
+    for (let i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i)
+      h = Math.imul(h, 16777619) >>> 0
+    }
+    let x = h || 1
+    return () => {
+      x ^= x << 13; x >>>= 0
+      x ^= x >> 17
+      x ^= x << 5; x >>>= 0
+      return x / 4294967296
+    }
+  }
+
+  /** компоновка имени из частей (список/литерал) */
+  private composeGenName(gen: NpcGeneratorDef, rand: () => number): string {
+    if (!gen.name?.length) return ''
+    return gen.name
+      .map((p) => {
+        if (p.literal != null) return p.literal
+        const list = gen.lists[p.list ?? '']
+        return list ? (this.genPickWeighted(list, rand) ?? '') : ''
+      })
+      .filter(Boolean)
+      .join('')
+      .trim()
+  }
+
+  /** подстановка {list:key} в шаблон (цели приключений и слоты сцен) */
+  private expandGenTemplate(template: string, lists: Record<string, GenWeightedItem[]>, rand: () => number): string {
+    return template.replace(/\{list:([A-Za-z0-9_-]+)\}/g, (_m, key: string) => {
+      const list = lists[key]
+      return list ? (this.genPickWeighted(list, rand) ?? '') : ''
+    })
   }
 
   // ─────────────── сохранение ───────────────

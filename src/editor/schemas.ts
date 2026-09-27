@@ -571,6 +571,23 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     ],
     blank: { id: '', amount: 5 },
   },
+  roll_event_table: {
+    label: 'Событие из таблицы (сейчас)',
+    fields: [
+      { key: 'table', label: 'id таблицы', kind: 'string', placeholder: 'см. вкладку «Генераторы»' },
+      { key: 'ignore_filters', label: 'Игнорировать фильтры (время/локация)', kind: 'boolean', optional: true },
+    ],
+    blank: { table: '' },
+  },
+  generate_variables: {
+    label: 'Генерация переменных (списки)',
+    fields: [
+      { key: 'generator', label: 'id генератора', kind: 'string' },
+      { key: 'seed', label: 'seed (стабильность)', kind: 'string', optional: true },
+      { key: 'pack', label: 'Пакет ключей', kind: 'json' },
+    ],
+    blank: { generator: '', pack: [] },
+  },
   start_quest: {
     label: 'Начать квест',
     fields: [{ key: 'quest', label: 'Квест', kind: 'questRef' }],
