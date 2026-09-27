@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { CampaignData } from './shared/types'
 import { loadCampaign } from './core/loader'
-import { GameEngine, hasSave, openSave, exportSaveText } from './core/engine'
+import { GameEngine, hasSave, openSave, exportSaveText, preserveSave } from './core/engine'
 import type { OpenedSave } from './core/engine'
 import { checkEngine } from './shared/versions'
 import { SaveReportModal } from './player/SaveReportModal'
@@ -235,6 +235,9 @@ export default function App() {
             }}
             onNewRun={() => {
               setSaveReview(null)
+              // старый сейв не поддержался — убираем его в резерв, чтобы новый
+              // забег не затёр файл (игрок сможет вернуться к старой версии кампании)
+              if (saveReview.verdict.kind !== 'ok') preserveSave(campaign.meta.id)
               if (campaign.meta.char_creation) {
                 setCreating(true)
                 return

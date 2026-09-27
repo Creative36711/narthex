@@ -635,6 +635,27 @@ export function peekSave(campaignId: string): SaveEnvelope | null {
   }
 }
 
+/**
+ * Убрать сейв с активного ключа в резервный перед новым забегом.
+ *
+ * Нужно, когда сохранение не поддержалось (вердикт `unsupported`/`too_old`):
+ * новый забег пишет в тот же ключ, а обещание игроку — «старое сохранение не
+ * удалено, оно откроется после возврата к прежней версии кампании».
+ * Возвращает true, если сейв был и его удалось сохранить.
+ */
+export function preserveSave(campaignId: string): boolean {
+  const raw = readRaw(saveKey(campaignId))
+  if (!raw) return false
+  const kept = readRaw(backupKey(campaignId)) ? true : writeRaw(backupKey(campaignId), raw)
+  if (!kept) return false
+  try {
+    localStorage.removeItem(saveKey(campaignId))
+  } catch {
+    return false
+  }
+  return true
+}
+
 export function removeSave(campaignId: string): void {
   try {
     localStorage.removeItem(saveKey(campaignId))

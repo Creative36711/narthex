@@ -1513,6 +1513,7 @@ export class GameEngine {
 export {
   saveKey,
   backupKey,
+  preserveSave,
   openSave,
   inspectSave,
   peekSave,

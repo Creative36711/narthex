@@ -588,8 +588,8 @@ CharacterCreation.tsx`: прописи и призывания-чипы, сет�
 версии (`editor/compatPublish.ts`): версия, `save_base_version`,
 `inventory_digest` (FNV-1a от инвентаризации пакета), список ломающих
 изменений `breaks` с последствиями по-русски, сводка `changes`, заметка
-автора. Сравнение пакетов — `shared/compat.ts`: `inventoryOf` (id по 31 виду
-объектов + свёртка значимых полей; косметические поля из `COSMETIC_FIELDS` не
+автора. Сравнение пакетов — `shared/compat.ts`: `inventoryOf` (id по видам
+объектов, словарь `CHANGE_KINDS` — 33 вида + свёртка значимых полей; косметические поля из `COSMETIC_FIELDS` не
 учитываются), `diffInventories` (классы S/A/B/C/D), `suggestSaveBaseVersion`,
 `suggestNextVersion`. Поля, нужные рантайму, дублируются в `campaign.json`,
 поэтому движок не читает `compat.json`.
@@ -646,8 +646,9 @@ CLI для автора: `npx tsx scripts/compat-report.mts <старая> <но
   исходник копируется в `chronicle-forge:save-backup:<campaignId>`. Сейвы
   новее движка не открываются и не перезаписываются. `gameOver()` стирает сейв
   (permadeath) — это единственная ситуация, когда сейв удаляется сам;
-  несовместимый сейв остаётся на диске. Помощники: `hasSave/loadSave/
-  deleteSave/peekSave/exportSaveText/importSaveText`. Подробно —
+  несовместимый сейв остаётся на диске, а при старте нового забега уезжает в
+  резерв (`preserveSave`). Помощники: `hasSave/loadSave/deleteSave/peekSave/
+  preserveSave/exportSaveText/importSaveText`. Подробно —
   [docs/compatibility.md](./docs/compatibility.md).
 
 ### 4.2 Бой (`combat.ts`)

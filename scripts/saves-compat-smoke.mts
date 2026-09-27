@@ -11,7 +11,7 @@
  *  7. экспорт/импорт сейва.
  */
 import { loadCampaign } from '../src/core/loader'
-import { GameEngine, openSave, peekSave, hasSave, deleteSave, saveKey, backupKey, exportSaveText, importSaveText, checkSaveVersion } from '../src/core/engine'
+import { GameEngine, openSave, peekSave, hasSave, deleteSave, saveKey, backupKey, exportSaveText, importSaveText, checkSaveVersion, preserveSave } from '../src/core/engine'
 import { SAVE_MIGRATIONS, repairState, type ReportCtx } from '../src/core/savemigrate'
 import { ENGINE_VERSION, OLDEST_PACKAGE_FORMAT, PACKAGE_FORMAT, checkEngine, checkPackage, compareVersions, bumpVersion, parseVersion, stableVersion } from '../src/shared/versions'
 import { SAVE_VERSION, SAVE_ENVELOPE_VERSION, type CampaignData, type SaveNote } from '../src/shared/types'
@@ -152,6 +152,11 @@ engine.start()
   check('5 без save_base_version поддерживается всё', hasSave(id, demo) === true)
   // сейв без версии кампании (сделан до введения обёртки) — не выбрасываем
   check('5 сейв без версии кампании принимается', checkSaveVersion(undefined, strict.meta).kind === 'ok')
+  // новый забег не должен затереть неподдержавшийся сейв
+  check('5 preserveSave убирает сейв в резерв', preserveSave(id) === true)
+  check('5 активный ключ освобождён', !mem.get(saveKey(id)))
+  check('5 резерв хранит прежнюю версию', JSON.parse(mem.get(backupKey(id)) ?? '{}').campaign_version === '0.1.0')
+  check('5 повторный вызов без сейва — false', preserveSave(id) === false)
   deleteSave(id)
 }
 
