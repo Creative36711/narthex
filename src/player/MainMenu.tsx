@@ -4,6 +4,8 @@ import type { CampaignData } from '../shared/types'
 import { askConfirm, showAlert } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
 import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
+import { peekSave } from '../core/engine'
+import { ENGINE_VERSION } from '../shared/versions'
 import { setAudioCampaign } from '../shared/audio'
 import { refreshMusic, setMenuMode } from '../shared/music'
 import { themeBackgroundUrl } from '../shared/theme'
@@ -16,6 +18,8 @@ interface Props {
   /** кампания импортирована из .chronicle — обновить список и переключиться */
   onImported: (id: string) => void
   canContinue: boolean
+  /** кампания требует более новый движок, чем запущен (min_engine) */
+  engineWarning?: string
   onNewGame: () => void
   onContinue: () => void
   onEditor?: () => void
@@ -27,7 +31,7 @@ interface Props {
  * отдельным окном по кнопке «Кампании» (фидбек №14): кампаний может быть много.
  * Там же — импорт пакета .chronicle.
  */
-export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, canContinue, onNewGame, onContinue, onEditor, onHelp }: Props) {
+export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, canContinue, engineWarning, onNewGame, onContinue, onEditor, onHelp }: Props) {
   const m = campaign.meta
   const [showList, setShowList] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -54,6 +58,12 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
       setImportBusy(false)
     }
   }
+
+  // что лежит в сейве: версия кампании и дата (чтобы обновление кампании не было «вслепую»)
+  const envelope = canContinue ? peekSave(m.id) : null
+  const saveNote = envelope
+    ? `сохранение: кампания v${envelope.campaign_version ?? '—'}, ${envelope.tick ?? 0} ${m.tick_label}, ${formatSaveDate(envelope.updated_at)}`
+    : ''
 
   // тема кампании (блок 2 ТЗ): фон меню, затемнение, кен-бёрнс, арт-заголовок
   const menuBg = themeBackgroundUrl(campaign, 'menu')
@@ -118,9 +128,15 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
               </button>
             )}
           </div>
+          {engineWarning && (
+            <div className="menu-warning" role="alert">
+              <Ico n="help" /> {engineWarning}
+            </div>
+          )}
           <div className="menu-meta">
-            v{m.version} · автор: {m.author} · движок {m.engine_version}
+            кампания v{m.version} · автор: {m.author} · движок {ENGINE_VERSION}
           </div>
+          {saveNote && <div className="menu-meta menu-save-note">{saveNote}</div>}
         </div>
       </div>
       <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
@@ -201,4 +217,13 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
       )}
     </div>
   )
+}
+
+
+/** дата сохранения по-русски, без секунд */
+function formatSaveDate(iso: string | undefined): string {
+  if (!iso) return 'без даты'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'без даты'
+  return d.toLocaleString('ru-RU', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' })
 }

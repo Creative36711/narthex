@@ -828,6 +828,18 @@ html.cf-profile-modern {
 }
 .menu-secondary .btn { width: 100%; text-align: left; display: inline-flex; align-items: center; gap: 8px; justify-content: flex-start; }
 .menu-meta { margin-top: 44px; color: var(--faint); font-size: 12.5px; letter-spacing: 0.4px; }
+.menu-save-note { margin-top: 4px; }
+/* кампания требует более новый движок (min_engine) — предупреждение в меню */
+.menu-warning {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-top: 18px; padding: 10px 14px;
+  max-width: 520px; text-align: left;
+  border: 1px solid var(--border-strong); border-left: 3px solid var(--gold);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--panel-2) 88%, transparent);
+  color: var(--text); font-size: 13px; line-height: 1.45;
+}
+.menu-warning svg { flex: 0 0 auto; margin-top: 2px; }
 
 /* платформа кампаний в главном меню */
 .menu-columns { display: flex; gap: 32px; justify-content: center; align-items: flex-start; flex-wrap: wrap; }

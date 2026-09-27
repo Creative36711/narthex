@@ -1,7 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import type { CampaignData } from './shared/types'
 import { loadCampaign } from './core/loader'
-import { GameEngine, loadSave, hasSave } from './core/engine'
+import { GameEngine, hasSave, openSave, exportSaveText } from './core/engine'
+import type { OpenedSave } from './core/engine'
+import { checkEngine } from './shared/versions'
+import { SaveReportModal } from './player/SaveReportModal'
 import { MainMenu } from './player/MainMenu'
 import { GameView } from './player/GameView'
 import { HelpPanel } from './player/HelpPanel'
@@ -30,6 +33,8 @@ export default function App() {
   const [help, setHelp] = useState(false)
   // экран создания персонажа перед новым забегом (блок 11 ТЗ)
   const [creating, setCreating] = useState(false)
+  /** отчёт о сохранении: показываем, что движок сделал с сейвом (миграция/починка) */
+  const [saveReview, setSaveReview] = useState<OpenedSave | null>(null)
   const settings = useSettings()
 
   useEffect(() => {
@@ -102,6 +107,15 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
+  /** продолжить забег из уже открытого (перенесённого и почищенного) сейва */
+  const startFromSave = (opened: OpenedSave) => {
+    if (!campaign) return
+    const e = new GameEngine(campaign, opened.state)
+    e.envelope = opened.envelope
+    e.start()
+    setEngine(e)
+  }
+
   if (editor) {
     return (
       <Suspense fallback={<div className="screen-center"><div className="loading">Загрузка редактора…</div></div>}>
@@ -135,6 +149,9 @@ export default function App() {
       </div>
     )
   }
+
+  // движок подходит кампании? (min_engine из campaign.json)
+  const engineCheck = checkEngine(campaign.meta.min_engine ?? campaign.meta.engine_version)
 
   // тема кампании (блок 2 ТЗ + редизайн 2026): визуальный профиль (класс) и
   // шрифтовые роли/акцент (инлайн-переменные) — только у Player Mode
@@ -179,7 +196,8 @@ export default function App() {
               loadCampaign(`/campaigns/${id}`).then(setCampaign).catch((e) => setError(String(e)))
             })
           }}
-          canContinue={hasSave(campaign.meta.id)}
+          canContinue={hasSave(campaign.meta.id, campaign)}
+          engineWarning={engineCheck.ok ? undefined : engineCheck.message}
           onNewGame={() => {
             if (campaign.meta.char_creation) {
               setCreating(true)
@@ -190,17 +208,54 @@ export default function App() {
             setEngine(e)
           }}
           onContinue={() => {
-            const save = loadSave(campaign.meta.id)
-            if (!save) return
-            const e = new GameEngine(campaign, save)
-            e.start()
-            setEngine(e)
+            // полное открытие сейва: перенос формата + вердикт по версиям кампании
+            // + починка ссылок; что сделано — показываем игроку (SaveReportModal)
+            const opened = openSave(campaign.meta.id, campaign)
+            if (!opened) return
+            const clean = opened.verdict.kind === 'ok' && opened.report.notes.length === 0
+            if (!clean) {
+              setSaveReview(opened)
+              return
+            }
+            startFromSave(opened)
           }}
           onEditor={() => {
             window.location.hash = '#editor'
           }}
           onHelp={() => setHelp(true)}
         />
+        {saveReview && (
+          <SaveReportModal
+            report={saveReview.report}
+            verdict={saveReview.verdict}
+            campaignVersion={campaign.meta.version}
+            onContinue={() => {
+              startFromSave(saveReview)
+              setSaveReview(null)
+            }}
+            onNewRun={() => {
+              setSaveReview(null)
+              if (campaign.meta.char_creation) {
+                setCreating(true)
+                return
+              }
+              const e = new GameEngine(campaign)
+              e.start()
+              setEngine(e)
+            }}
+            onExport={() => {
+              const text = exportSaveText(campaign.meta.id)
+              if (!text) return
+              const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `${campaign.meta.id}-save.cfsave`
+              a.click()
+              setTimeout(() => URL.revokeObjectURL(url), 5000)
+            }}
+            onClose={() => setSaveReview(null)}
+          />
+        )}
         {help && <HelpPanel onClose={() => setHelp(false)} />}
       </div>
     )

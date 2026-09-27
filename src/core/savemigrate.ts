@@ -80,11 +80,12 @@ function makeCtx(): ReportCtx {
   }
 }
 
-/** «Мечи, Топоры и ещё 3» — чтобы отчёт не занимал пол-экрана */
+/** «Мечи», «Топоры» и ещё 3 — чтобы отчёт не занимал пол-экрана */
 function listShort(labels: string[], max = 3): string {
   if (labels.length === 0) return ''
-  if (labels.length <= max) return labels.join(', ')
-  return `${labels.slice(0, max).join(', ')} и ещё ${labels.length - max}`
+  const quoted = labels.map((l) => `«${l}»`)
+  if (quoted.length <= max) return quoted.join(', ')
+  return `${quoted.slice(0, max).join(', ')} и ещё ${quoted.length - max}`
 }
 
 // ─────────────────────── миграции формата GameState ───────────────────────
@@ -194,9 +195,13 @@ export function migrateState(state: GameState, ctx: ReportCtx): boolean {
 
 // ─────────────────────── починка ссылок на кампанию ───────────────────────
 
+/**
+ * Название сущности для отчёта. Если её уже нет в кампании (именно поэтому
+ * сейв и чинится), имени взять неоткуда — показываем id в кавычках.
+ */
 function entityLabel(campaign: CampaignData, id: string): string {
-  const e = campaign.entities[id]
-  return (e as { label?: string } | undefined)?.label ?? id
+  const e = campaign.entities[id] as { label?: string } | undefined
+  return e?.label || id
 }
 
 /**
@@ -558,7 +563,10 @@ export function inspectSave(campaignId: string, campaign: CampaignData): OpenedS
   }
 
   const state = envelope.state
-  report.from_version = envelope.save_version ?? state.save_version ?? OLDEST_SAVE_VERSION
+  // обёртка — источник правды: сейв из более нового движка обязан быть
+  // распознан как «новее», даже если само состояние помечено старой версией
+  if (typeof envelope.save_version === 'number') state.save_version = envelope.save_version
+  report.from_version = state.save_version ?? OLDEST_SAVE_VERSION
   report.campaign_version = envelope.campaign_version
 
   const verdictVersion = checkSaveVersion(envelope.campaign_version, campaign.meta)
