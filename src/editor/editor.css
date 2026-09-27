@@ -528,7 +528,7 @@
 .rule-editor > .advanced-json-page { flex: 1; min-height: 0; height: auto; }
 .editor-main:has(> .world-editor .advanced-json-page) { display: flex; flex-direction: column; }
 .editor-main:has(> .world-editor .advanced-json-page) > .world-editor { flex: 1; min-height: 0; }
-.world-main:has(> .advanced-json-page) { display: flex; flex-direction: column; }
+.world-main:has(> .advanced-json-page) { display: flex; flex-direction: column; height: 100%; }
 .world-main > .advanced-json-page { flex: 1; min-height: 0; height: auto; }
 .world-map-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
 .world-map {

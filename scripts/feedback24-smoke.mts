@@ -33,7 +33,7 @@ check('1 фиксированный width у checks-mark удалён', /min-wid
 // 2. JSON во вкладках: страница без скролла, редактор кода — сам
 check('2 Кампания→JSON: полотно-контейнер стал flex-колонкой', edcss.includes('.editor-main:has(> .rule-editor > .advanced-json-page) { display: flex; flex-direction: column; }'))
 check('2 Кампания→JSON: редактор занимает остаток экрана', edcss.includes('.rule-editor > .advanced-json-page { flex: 1; min-height: 0; height: auto; }'))
-check('2 Мир→JSON: мир-область стала flex-колонкой', edcss.includes('.world-main:has(> .advanced-json-page) { display: flex; flex-direction: column; }'))
+check('2 Мир→JSON: мир-область стала flex-колонкой на всю высоту', edcss.includes('.world-main:has(> .advanced-json-page) { display: flex; flex-direction: column; height: 100%; }'))
 check('2 Мир→JSON: редактор занимает остаток экрана', edcss.includes('.world-main > .advanced-json-page { flex: 1; min-height: 0; height: auto; }'))
 
 // 3. темы редактора: токены полотна переопределяются классом
