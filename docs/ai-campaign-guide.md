@@ -139,12 +139,25 @@ dialogues/<имя>.ink           исходник, который читает �
 - **Шрифты и оформление** (необязательно). `fonts` — реестр шрифтов кампании:
   `{ "id": "font_gothic", "label": "Готика", "src": "assets/fonts/gothic.woff2",
   "weight": "400" }`. `theme` — куда они применяются и как выглядит меню:
-  `"theme": { "fonts": { "body": "font_gothic" },
+  `"theme": { "profile": "noir", "fonts": { "body": "font_gothic" },
   "menu": { "background": "assets/img/menu.jpg", "dim": 0.5, "ken_burns": true } }`.
-  Роли шрифтов: `body` (текст), `display` (заголовки), `hand` (журнал);
-  у меню — фон, затемнение `dim` 0…0.9, медленный зум `ken_burns`,
-  `title_art` (лого кампании); `theme.end.background` — фон экрана финала;
-  `theme.accent` — акцентный цвет интерфейса. Без `theme` всё по умолчанию.
+  **`theme.profile`** — визуальный профиль игры. Каталог из 13 направлений:
+  `"forge"` (фирменный стиль Chronicle Forge, **по умолчанию**), `"epic-fantasy"`,
+  `"dark-fantasy"`, `"myth-folklore"`, `"gothic-horror"`, `"cosmic-horror"`,
+  `"noir"`, `"historical"`, `"wilderness"`, `"postapocalypse"`, `"scifi"`,
+  `"cyberpunk"`, `"modern"`. Каждый профиль — цельный художественный набор:
+  палитра, шрифтовые роли, стиль панелей и именованный атмосферный эффект;
+  это оформление, а не механика — на правила, `dice_rules` и данные не влияет.
+  Старые кампании с `"fantasy"`/`"horror"`/`"survival"` читаются автоматически
+  (сопоставлены с `"dark-fantasy"`/`"gothic-horror"`/`"wilderness"`), новые
+  кампании создавайте с id из каталога выше. Поверх профиля допустимы
+  переопределения: `theme.accent` (акцентный цвет), роли шрифтов
+  `fonts.body/display/hand`, фон и затемнение меню, фон финала,
+  `theme.atmosphere: false` (выключить атмосферный эффект). Роли шрифтов:
+  `body` (текст), `display` (заголовки), `hand` (журнал); у меню — фон,
+  затемнение `dim` 0…0.9, медленный зум `ken_burns`, `title_art` (лого
+  кампании); `theme.end.background` — фон экрана финала. Без `theme` —
+  фирменный профиль «Chronicle Forge» и всё по умолчанию.
 - **Реестры** (`skills`, `item_categories`, `flags`, `factions`, `slot_types`)
   нужны редактору для списков. У фракции обязательны `id`, `label`,
   `base_disposition`; необязательные `description` и `hidden` задают справку и

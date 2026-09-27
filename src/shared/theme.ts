@@ -12,6 +12,18 @@ import type { CSSProperties } from 'react'
 import type { CampaignData } from './types'
 import { assetUrl } from '../core/loader'
 
+/** осветлить hex (для пары «акцент / яркий акцент», когда автор меняет акцент) */
+export function brightenHex(hex: string, amount = 0.28): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return hex
+  const n = parseInt(m[1], 16)
+  const ch = (v: number) => Math.min(255, Math.round(v + (255 - v) * amount))
+  const r = ch((n >> 16) & 255)
+  const g = ch((n >> 8) & 255)
+  const b = ch(n & 255)
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
+
 const STYLE_ID = 'cf-campaign-fonts'
 
 /** имя семейства для @font-face: по id шрифта из реестра кампании */
@@ -56,7 +68,12 @@ export function themeVars(campaign: CampaignData | null, textScale = 1): CSSProp
   if (body) vars['--cf-font-body'] = `'${fontFamily(body.id)}', Georgia, 'Times New Roman', serif`
   if (display) vars['--cf-font-display'] = `'${fontFamily(display.id)}', Georgia, serif`
   if (hand) vars['--cf-font-hand'] = `'${fontFamily(hand.id)}', 'Segoe Script', cursive`
-  if (theme?.accent) vars['--gold'] = theme.accent
+  // акцент кампании переопределяет профильный акцент; «яркий» вариант
+  // выводится, чтобы пара gold/gold-bright не расцветалась
+  if (theme?.accent) {
+    vars['--gold'] = theme.accent
+    vars['--gold-bright'] = brightenHex(theme.accent)
+  }
   if (textScale !== 1) vars['--cf-text-scale'] = String(textScale)
   return vars as CSSProperties
 }
