@@ -2956,7 +2956,9 @@ export class GameEngine {
 
   /** подстановка {list:key} в шаблон (цели приключений и слоты сцен) */
   private expandGenTemplate(template: string, lists: Record<string, GenWeightedItem[]>, rand: () => number): string {
-    return template.replace(/\{list:([A-Za-z0-9_-]+)\}/g, (_m, key: string) => {
+    // {list:ключ} — наследие ранних версий; {список:ключ} — русская форма,
+    // которую учит подсказывать UI мастера. Обе подстановки равноправны.
+    return template.replace(/\{(?:list|список):([^\s{}]+)\}/g, (_m, key: string) => {
       const list = lists[key]
       return list ? (this.genPickWeighted(list, rand) ?? '') : ''
     })

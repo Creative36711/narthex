@@ -1105,6 +1105,8 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
           lists: {
             first: [{ value: 'Агата' }, { value: 'Борис' }],
             last: [{ value: 'Ворожейкина' }, { value: 'Жарков' }],
+            // русские ключи списков — движок не должен пристраститься к латинице
+            'облик': [{ value: 'с шрамом' }, { value: 'в сером' }],
           },
         },
       ],
@@ -1115,8 +1117,9 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
           lists: {
             foe: [{ value: 'крыс' }, { value: 'грабителей' }],
             place: [{ value: 'подвале таверны' }, { value: 'старых штольнях' }],
+            'место': [{ value: 'на мосту' }],
           },
-          goals: ['Отбить {list:place} от {list:foe}', 'Пересчитать {list:foe} в {list:place}'],
+          goals: ['Отбить {list:place} от {list:foe}', 'Пересчитать {list:foe} в {list:place}', 'Дождаться встречи {list:место}'],
         },
       ],
     }
@@ -1175,6 +1178,11 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   check('21 шаблон цели подставляет списки', /^(Отбить).+/.test(g0) && !g0.includes('{list:'), `→ ${g0}`)
   const g0b = e.genValue('side_gigs', 'goal:0', 'g1')
   check('21 шаблон со seed стабилен', g0 === g0b)
+  // русские ключи списков: значение и подстановка в {list:…}-шаблон
+  const look = e.genValue('traveller', 'облик', 'l1')
+  check('21 русский ключ списка возвращает значение', look === 'с шрамом' || look === 'в сером', `→ ${look}`)
+  const g2 = e.genValue('side_gigs', 'goal:2', 'g2')
+  check('21 {list:место} в шаблоне раскрывается', g2 === 'Дождаться встречи на мосту' && !g2.includes('{list:'), `→ ${g2}`)
 
   // пакетная генерация в переменные
   e.applyEffect({
