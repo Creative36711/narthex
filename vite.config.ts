@@ -2,6 +2,10 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import fs from 'node:fs'
 import path from 'node:path'
+import { createRequire } from 'node:module'
+
+/** версия движка берётся из package.json — единый источник (см. shared/versions.ts) */
+const pkg = createRequire(import.meta.url)('./package.json') as { version: string }
 
 /**
  * Dev-плагин редактора: сохранение файлов кампании на диск.
@@ -155,6 +159,10 @@ function editorSavePlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), editorSavePlugin()],
+  // версия движка доступна в рантайме как __CF_ENGINE_VERSION__ (shared/versions.ts)
+  define: {
+    __CF_ENGINE_VERSION__: JSON.stringify(pkg.version),
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,

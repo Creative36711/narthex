@@ -1,5 +1,6 @@
 import type {
   CampaignData,
+  SaveEnvelope,
   CodexEntryDef,
   CutsceneDef,
   DiceRules,
@@ -25,6 +26,12 @@ import type {
   WeaponData,
 } from '../shared/types'
 import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES } from '../shared/types'
+import {
+  inspectSave,
+  loadState,
+  removeSave,
+  writeSave,
+} from './savemigrate'
 import { PRNG } from './prng'
 import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
 import { rollDice } from './dice'
@@ -74,6 +81,8 @@ export class GameEngine {
   private cutsceneSerial = 0
   /** забег создан с нуля (а не загружен из сейва) — для правил «на старте» */
   private freshRun: boolean
+  /** обёртка последнего сохранения: версии кампании/движка и даты (`SaveEnvelope`) */
+  envelope: SaveEnvelope | null = null
 
   constructor(campaign: CampaignData, state?: GameState) {
     this.campaign = campaign
@@ -1488,51 +1497,55 @@ export class GameEngine {
 
   // ─────────────── сохранение ───────────────
 
+  /**
+   * Автосейв: состояние пишется в обёртке (`SaveEnvelope`) вместе с версией
+   * кампании и версией движка — без этого нельзя ни перенести сейв, ни
+   * объяснить игроку, почему он не подошёл после обновления.
+   */
   autosave(): void {
     if (this.state.game_over) return
-    try {
-      localStorage.setItem(saveKey(this.campaign.meta.id), JSON.stringify(this.state))
-    } catch {
-      /* приватный режим и т.п. */
-    }
+    this.envelope = writeSave(this.campaign.meta.id, this.state, this.campaign.meta.version, this.envelope ?? undefined) ?? this.envelope
   }
 }
 
 // ─────────────── save/load helpers ───────────────
 
-function saveKey(campaignId: string): string {
-  return `chronicle-forge:save:${campaignId}`
-}
+export {
+  saveKey,
+  backupKey,
+  openSave,
+  inspectSave,
+  peekSave,
+  loadState,
+  writeSave,
+  exportSaveText,
+  importSaveText,
+  checkSaveVersion,
+  SAVE_MIGRATIONS,
+  OLDEST_SAVE_VERSION,
+} from './savemigrate'
+export type { OpenedSave, SaveVerdict, SaveMigration } from './savemigrate'
+export type { SaveReport, SaveNote, SaveEnvelope } from '../shared/types'
 
+/**
+ * Чтение сохранения без кампании: только перенос формата (`SAVE_MIGRATIONS`).
+ * Полная проверка (версии кампании + починка ссылок) — `openSave`.
+ */
 export function loadSave(campaignId: string): GameState | null {
-  try {
-    const raw = localStorage.getItem(saveKey(campaignId))
-    if (!raw) return null
-    const state = JSON.parse(raw) as GameState
-    const v = state.save_version ?? 1
-    // старше в3 — слишком древние, отбрасываем
-    if (v < 3) return null
-    // в3 → в4 (блок 7 ТЗ): equipment {weapon?, armor?} уже ложится в
-    // модель «слот → предмет» — только поднимаем версию
-    if (v === 3) {
-      if (!state.player || typeof state.player.equipment !== 'object' || state.player.equipment === null) return null
-      state.save_version = SAVE_VERSION
-    }
-    if (state.save_version !== SAVE_VERSION) return null
-    return state
-  } catch {
-    return null
-  }
+  return loadState(campaignId)
 }
 
 export function deleteSave(campaignId: string): void {
-  try {
-    localStorage.removeItem(saveKey(campaignId))
-  } catch {
-    /* ignore */
-  }
+  removeSave(campaignId)
 }
 
-export function hasSave(campaignId: string): boolean {
-  return loadSave(campaignId) !== null
+/**
+ * Есть ли сохранение, с которым можно продолжить забег. Учитывает и перенос
+ * формата, и вердикт по версиям кампании: неподдерживаемый сейв кнопкой
+ * «Продолжить» не предлагается, но и не удаляется (`openSave` покажет причину).
+ */
+export function hasSave(campaignId: string, campaign?: CampaignData): boolean {
+  if (!campaign) return loadState(campaignId) !== null
+  const opened = inspectSave(campaignId, campaign)
+  return !!opened && opened.verdict.kind === 'ok'
 }

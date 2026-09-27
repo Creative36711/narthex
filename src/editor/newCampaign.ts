@@ -1,4 +1,5 @@
 import { slugify } from './ids'
+import { ENGINE_VERSION, PACKAGE_FORMAT } from '../shared/versions'
 import type { CampaignIndexEntry } from '../shared/types'
 export type { CampaignIndexEntry } from '../shared/types'
 
@@ -23,7 +24,10 @@ function scaffold(id: string, title: string, author: string) {
     id,
     title,
     version: '0.1.0',
-    engine_version: '1.0',
+    // кампания создаётся под текущий движок: он же и минимальный поддерживаемый
+    engine_version: ENGINE_VERSION,
+    min_engine: ENGINE_VERSION,
+    package_format: PACKAGE_FORMAT,
     author,
     description: 'Новая кампания. Опишите её в разделе «Кампания».',
     tick_label: 'час',
