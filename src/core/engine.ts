@@ -2372,15 +2372,37 @@ export class GameEngine {
   fmt(text: string): string {
     if (!text.includes('{')) return text
     const st = this.state
+    const p = st.player
+    const day = Math.floor((st.tick ?? 0) / Math.max(1, this.campaign.meta.ticks_per_day || 24)) + 1
     const out: Record<string, string> = {
-      'имя': st.player.name ?? 'герой',
-      'герой': st.player.name ?? 'герой',
-      'имя_героя': st.player.name ?? 'герой',
-      'здоровье': String(Math.max(0, st.player.hp)),
-      'здоровье_макс': String(st.player.max_hp),
-      'день': String(Math.floor((st.tick ?? 0) / Math.max(1, this.campaign.meta.ticks_per_day || 24)) + 1),
+      'имя': p.name ?? 'герой',
+      'герой': p.name ?? 'герой',
+      'имя_героя': p.name ?? 'герой',
+      'здоровье': String(Math.max(0, p.hp)),
+      'здоровье_макс': String(p.max_hp),
+      'мана': String(Math.max(0, p.mp)),
+      'мана_макс': String(p.max_mp),
+      'удача': String(this.luck()),
+      'уровень': String(p.level ?? 1),
+      'опыт': String(p.xp ?? 0),
+      'день': String(day),
     }
-    return text.replace(/\{([^{}]+)\}/g, (_m, raw: string) => out[raw] ?? `{${raw}}`)
+    return text.replace(/\{([^{}]+)\}/g, (_m, raw: string) => {
+      if (raw in out) return out[raw]!
+      const cut = raw.indexOf(':')
+      if (cut > 0) {
+        const kind = raw.slice(0, cut)
+        const id = raw.slice(cut + 1).trim()
+        switch (kind) {
+          case 'счёт': case 'счет': return String(this.itemCount(id))
+          case 'навык': return String(p.skills[id] ?? 0)
+          case 'потребность': return String(p.needs[id] ?? 0)
+          case 'стат': return String((p.stats as unknown as Record<string, number>)[id] ?? 0)
+          case 'валюта': return String(p.currencies?.[id] ?? 0)
+        }
+      }
+      return `{${raw}}`
+    })
   }
 
   itemInteractable(item: ItemDef): boolean {

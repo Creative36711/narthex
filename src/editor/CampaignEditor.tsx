@@ -7,7 +7,7 @@ import { AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonFi
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { AchievementDef, CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
+import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, GenWeightedItem, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { brightenHex } from '../shared/theme'
 import { PROFILE_GROUPS, VISUAL_PROFILES, resolveProfile, contrastRatio } from '../shared/profiles'
@@ -1131,128 +1131,198 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       </div>
 
       <div className="props-group">
-        <h4>Мета-прогресс между забегами (B8b)</h4>
+        <h4>Хроника: прогресс между забегами</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Необязательный «надзабеговой» слой: достижения, метавалюты и магазин
+          постоянных усилений. Включён — в игре в HUD появляется кнопка «Хроника».
+          Всё хранится на устройстве игрока отдельной записью между забегами.
+        </div>
         <div className="fld-row">
-          <label className="fld fld-check" data-tip="Вкл — кнопка «Хроника» в HUD, достижения, метавалюты и магазин постоянных усилений. Хранится отдельным ключом localStorage chronicle-forge:meta:<campaignId>. Выкл — пласта нет вообще">
+          <label className="fld fld-check">
             <input type="checkbox" checked={!!m.metaprogress} onChange={(e) => { if (e.target.checked) { m.metaprogress = { currencies: [{ id: 'ember', label: 'Угли' }], achievements: [], unlocks: [] } } else { delete m.metaprogress } commit() }} />
-            <span>Хроника (мета-прогресс)</span>
+            <span>Хроника включена</span>
           </label>
-          {m.metaprogress && (
-            <label className="fld" data-tip="Метавалюты: id=Название через запятую (копятся между забегами)">
-              <span>Метавалюты</span>
-              <input
-                defaultValue={(m.metaprogress.currencies ?? []).map((c) => `${c.id}=${c.label}`).join(', ')}
-                onBlur={(e) => {
-                  const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                    const [id, label] = x.split('=').map((y) => y.trim())
-                    const prev = (m.metaprogress?.currencies ?? []).find((c) => c.id === id)
-                    return prev ?? { id: id || '', label: label || id || '' }
-                  }).filter((x) => x.id)
-                  m.metaprogress!.currencies = arr
-                  commit()
-                }}
-              />
-            </label>
-          )}
         </div>
         {m.metaprogress && (
-          <div className="fld-row" style={{ flexDirection: 'column', gap: 8 }}>
-            <span className="fld-label">Достижения <span className="muted" data-tip="Формат строки: id=Название | счётчик:цель | награда:валюта:N или xp:N | «тайное». Счётчик — один из: kills, travels, dialogues, ticks_survived, quests_completed (сумма по всем забегам). Условия открытия — расширенный редактор ниже.">(?)</span></span>
-            <textarea
-              rows={(m.metaprogress.achievements?.length ?? 0) + 2}
-              value={(m.metaprogress.achievements ?? []).map((a) => `${a.id}=${a.label}${a.counter ? ` | ${a.counter.stat}:${a.counter.target}` : ''}${a.reward?.currency ? ` | награда:${a.reward.currency}:${a.reward.amount}` : ''}${a.reward?.xp ? ` | xp:${a.reward.xp}` : ''}${a.hidden ? ' | тайное' : ''}`).join('\n')}
-              onChange={(e) => {
-                const lines = e.target.value.split('\n')
-                const next: AchievementDef[] = []
-                for (const line of lines) {
-                  if (!line.trim()) continue
-                  const [idl, ...parts] = line.split('|').map((x) => x.trim())
-                  const [id, label] = (idl ?? '').split('=').map((x) => x.trim())
-                  if (!id) continue
-                  const prev = (m.metaprogress!.achievements ?? []).find((x) => x.id === id)
-                  const a: AchievementDef = prev ? { ...prev, label: label || id } : { id, label: label || id }
-                  a.counter = undefined; a.reward = undefined; a.hidden = false
-                  for (const part of parts) {
-                    if (/^(kills|travels|dialogues|ticks_survived|quests_completed):-?\d+$/.test(part)) {
-                      const [stat, tgt] = part.split(':')
-                      a.counter = { stat: stat as never, target: Math.max(1, parseInt(tgt, 10) || 1) }
-                    } else if (part.startsWith('награда:')) {
-                      const [, cur, amt] = part.split(':')
-                      a.reward = { ...(a.reward ?? {}), currency: cur, amount: parseInt(amt ?? '', 10) || 1 }
-                    } else if (part.startsWith('xp:')) {
-                      a.reward = { ...(a.reward ?? {}), xp: parseInt(part.slice(3), 10) || 0 }
-                    } else if (part === 'тайное') {
-                      a.hidden = true
-                    }
-                  }
-                  next.push(a)
-                }
-                m.metaprogress!.achievements = next
-                commit()
-              }}
-            />
-            {(m.metaprogress.achievements ?? []).map((a, i) => (
-              <div key={a.id} className="panel" style={{ padding: 8 }}>
-                <b>{a.label}</b> <code style={{ opacity: 0.7 }}>{a.id}</code>
-                <label className="fld" style={{ marginLeft: 12, display: 'inline-flex' }}>
-                  <input type="checkbox" checked={!!a.conditions?.length} onChange={(e) => { if (e.target.checked) { a.conditions = [{ type: 'flag_set', flag: '' }] } else { delete a.conditions } commit() }} />
-                  <span style={{ marginLeft: 6 }}>Открытие по условиям забега</span>
-                </label>
-                {a.conditions && (
+          <>
+            <h4>Метавалюты</h4>
+            <div className="muted small" style={{ marginBottom: 8 }}>
+              Копятся между забегами и тратятся в магазине усилений.
+            </div>
+            {(m.metaprogress.currencies ?? []).map((c, ci) => (
+              <div key={c.id} className="fld-row" style={{ alignItems: 'center' }}>
+                <input
+                  style={{ flex: 1 }}
+                  value={c.label}
+                  placeholder="Название метавалюты (например «Угли»)"
+                  onChange={(e) => { m.metaprogress!.currencies![ci] = { ...c, label: e.target.value }; commit() }}
+                />
+                <button
+                  className="btn btn-small btn-danger"
+                  data-tip="Убрать метавалюту (цены контента скинутся на первую по списку)"
+                  onClick={() => {
+                    m.metaprogress!.currencies = (m.metaprogress!.currencies ?? []).filter((_, j) => j !== ci)
+                    if (!(m.metaprogress!.currencies ?? []).length) m.metaprogress!.currencies = [{ id: 'ember', label: 'Угли' }]
+                    commit()
+                  }}
+                ><Ico n="trash" /></button>
+              </div>
+            ))}
+            <div className="fld-row">
+              <button className="btn btn-small" onClick={() => { m.metaprogress!.currencies = [...(m.metaprogress!.currencies ?? []), { id: makeId('meta', `валюта ${(m.metaprogress!.currencies?.length ?? 0) + 1}`, (m.metaprogress!.currencies ?? []).map((x) => x.id)), label: '' }]; commit() }}><Ico n="plus" /> метавалюта</button>
+            </div>
+
+            <h4 style={{ marginTop: 14 }}>Достижения</h4>
+            <div className="muted small" style={{ marginBottom: 8 }}>
+              Награды/заметки пути. У каждого — условие спокойствия: либо счётчик
+              действий за все забеги, либо условия (как у правил). «Тайное»
+              скрытое в хронике, пока не открыто.
+            </div>
+            <div className="fld-row">
+              <button
+                className="btn btn-small"
+                onClick={() => {
+                  m.metaprogress!.achievements = [...(m.metaprogress!.achievements ?? []), { id: makeId('ach', `достижение ${(m.metaprogress!.achievements?.length ?? 0) + 1}`, (m.metaprogress!.achievements ?? []).map((x) => x.id)), label: 'Новое достижение' }]
+                  commit()
+                }}
+              ><Ico n="plus" /> достижение</button>
+            </div>
+            {(m.metaprogress.achievements ?? []).map((a, ai) => (
+              <div key={a.id} className="panel" style={{ padding: 8, marginTop: 6 }}>
+                <div className="fld-row">
+                  <input style={{ flex: 1 }} value={a.label} placeholder="Название достижения"
+                    onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, label: e.target.value }; m.metaprogress!.achievements = arr; commit() }} />
+                  <button className="btn btn-small btn-danger" onClick={() => { m.metaprogress!.achievements = (m.metaprogress!.achievements ?? []).filter((_, j) => j !== ai); commit() }}><Ico n="trash" /></button>
+                </div>
+                <div className="fld-row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label className="fld fld-check" data-tip="Открывается автоматически, когда сумма действий за все забеги достигнет цели">
+                    <input
+                      type="checkbox"
+                      checked={!!a.counter}
+                      onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a }; if (e.target.checked) arr[ai].counter = { stat: 'kills', target: 10 }; else delete arr[ai].counter; m.metaprogress!.achievements = arr; commit() }}
+                    />
+                    <span>открывается счётчиком</span>
+                  </label>
+                  {a.counter && (
+                    <>
+                      <select
+                        value={a.counter.stat}
+                        onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, counter: { stat: e.target.value as never, target: a.counter?.target ?? 10 } }; m.metaprogress!.achievements = arr; commit() }}
+                      >
+                        <option value="kills">убийств в бою</option>
+                        <option value="travels">переходов между сценами</option>
+                        <option value="dialogues">начатых разговоров</option>
+                        <option value="ticks_survived">прожитых минут</option>
+                        <option value="quests_completed">завершённых квестов</option>
+                      </select>
+                      <label className="fld" data-tip="Цель: сколько раз нужно выполнить действие (суммарно за все забеги)">
+                        <span>цель</span>
+                        <input type="number" min={1} value={a.counter.target}
+                          onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, counter: { stat: a.counter!.stat, target: Math.max(1, +e.target.value || 1) } }; m.metaprogress!.achievements = arr; commit() }} />
+                      </label>
+                    </>
+                  )}
+                  <label className="fld fld-check" data-tip="Не показывать в хронике до открытия">
+                    <input type="checkbox" checked={!!a.hidden}
+                      onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, hidden: e.target.checked || undefined }; m.metaprogress!.achievements = arr; commit() }} />
+                    <span>тайное</span>
+                  </label>
+                </div>
+                <div className="fld-row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span className="fld-label">Награда:</span>
+                  <label className="fld">
+                    <span>метавалюта</span>
+                    <select value={a.reward?.currency ?? ''} onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a }; if (e.target.value) { arr[ai].reward = { ...(arr[ai].reward ?? {}), currency: e.target.value, amount: arr[ai].reward?.amount ?? 5 } } else if (arr[ai].reward) { delete arr[ai].reward!.currency; delete arr[ai].reward!.amount; if (!Object.keys(arr[ai].reward!).length) delete arr[ai].reward } m.metaprogress!.achievements = arr; commit() }}>
+                      <option value="">— не нужна —</option>
+                      {(m.metaprogress!.currencies ?? []).map((c) => <option key={c.id} value={c.id}>{c.label || 'Без названия'}</option>)}
+                    </select>
+                  </label>
+                  {a.reward?.currency && (
+                    <label className="fld">
+                      <span>сумма</span>
+                      <input type="number" min={1} value={a.reward.amount ?? 5} onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, reward: { ...(arr[ai].reward ?? {}), amount: Math.max(1, +e.target.value || 1) } }; m.metaprogress!.achievements = arr; commit() }} />
+                    </label>
+                  )}
+                  <label className="fld" data-tip="Очки опыта на шаг развития (0 — без опыта)">
+                    <span>опыт</span>
+                    <input type="number" min={0} value={a.reward?.xp ?? 0} onChange={(e) => { const v = Math.max(0, +e.target.value || 0); const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a }; if (v > 0) arr[ai].reward = { ...(arr[ai].reward ?? {}), xp: v }; else if (arr[ai].reward) { delete arr[ai].reward!.xp; if (!Object.keys(arr[ai].reward!).length) delete arr[ai].reward } m.metaprogress!.achievements = arr; commit() }} />
+                  </label>
+                </div>
+                <div className="fld-row">
+                  <label className="fld fld-check" data-tip="Дополнительные условия (как у правил): открывается, когда все выполнены">
+                    <input type="checkbox" checked={!!a.conditions?.length} onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a }; if (e.target.checked) arr[ai].conditions = [{ type: 'flag_set', flag: '' }]; else delete arr[ai].conditions; m.metaprogress!.achievements = arr; commit() }} />
+                    <span>Открытие по условиям забега</span>
+                  </label>
+                </div>
+                {a.conditions?.length ? (
                   <ConditionListEditor
                     store={store}
                     conditions={a.conditions}
-                    onChange={(conds) => { const arr = (m.metaprogress?.achievements ?? []).map((x, j) => j === i ? { ...x, conditions: conds.length ? conds : undefined } : x); if (m.metaprogress) m.metaprogress.achievements = arr; commit() }}
+                    onChange={(conds) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, conditions: conds.length ? conds : undefined }; m.metaprogress!.achievements = arr; commit() }}
                   />
-                )}
+                ) : null}
               </div>
             ))}
 
-            <span className="fld-label">Магазин постоянных усилений</span>
-            <div className="fld-row">
-              <button className="btn btn-small" onClick={() => { m.metaprogress!.unlocks = [...(m.metaprogress!.unlocks ?? []), { id: makeId('unlock', 'новое усиление', (m.metaprogress?.unlocks ?? []).map((x) => x.id)), label: 'Новое усиление', cost: [{ currency: m.metaprogress!.currencies?.[0]?.id ?? 'ember', amount: 10 }], grants: [] }]; commit() }}>+ усиление</button>
+            <h4 style={{ marginTop: 14 }}>Магазин постоянных усилений</h4>
+            <div className="muted small" style={{ marginBottom: 8 }}>
+              Усиления, которые игрок покупает за метавалюту из «Хроники» и получает
+              на старте каждого следующего забега.
             </div>
-            {(m.metaprogress.unlocks ?? []).map((u, i) => (
-              <div key={u.id} className="panel" style={{ padding: 8 }}>
+            <div className="fld-row">
+              <button
+                className="btn btn-small"
+                onClick={() => { m.metaprogress!.unlocks = [...(m.metaprogress!.unlocks ?? []), { id: makeId('unlock', 'новое усиление', (m.metaprogress?.unlocks ?? []).map((x) => x.id)), label: 'Новое усиление', cost: [{ currency: m.metaprogress!.currencies?.[0]?.id ?? 'ember', amount: 10 }], grants: [] }]; commit() }}
+              ><Ico n="plus" /> усиление</button>
+            </div>
+            {(m.metaprogress.unlocks ?? []).map((u, ui) => (
+              <div key={u.id} className="panel" style={{ padding: 8, marginTop: 6 }}>
                 <div className="fld-row">
-                  <input value={u.label} onChange={(e) => { const arr = (m.metaprogress?.unlocks ?? []).map((x, j) => j === i ? { ...x, label: e.target.value } : x); m.metaprogress!.unlocks = arr; commit() }} style={{ flex: 1 }} />
-                  <code style={{ opacity: 0.6 }}>{u.id}</code>
-                  <button className="btn btn-small btn-danger" onClick={() => { m.metaprogress!.unlocks = (m.metaprogress?.unlocks ?? []).filter((_, j) => j !== i); commit() }}><Ico n="trash" /></button>
+                  <input value={u.label} onChange={(e) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, label: e.target.value }; m.metaprogress!.unlocks = arr; commit() }} style={{ flex: 1 }} placeholder="Название усиления" />
+                  <button className="btn btn-small btn-danger" onClick={() => { m.metaprogress!.unlocks = (m.metaprogress?.unlocks ?? []).filter((_, j) => j !== ui); commit() }}><Ico n="trash" /></button>
                 </div>
-                <div className="fld-row">
-                  <label className="fld" style={{ flex: 1 }}>
-                    <span>Описание</span>
-                    <input value={u.description ?? ''} onChange={(e) => { const arr = (m.metaprogress?.unlocks ?? []).map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); m.metaprogress!.unlocks = arr; commit() }} />
-                  </label>
-                  <label className="fld" data-tip="валюта:сумма, …">
-                    <span>Цена</span>
-                    <input
-                      defaultValue={u.cost.map((c) => `${c.currency}:${c.amount}`).join(', ')}
-                      onBlur={(e) => {
-                        const cost = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => { const [currency, amt] = x.split(':'); return { currency: currency ?? '', amount: parseInt(amt ?? '', 10) || 1 } }).filter((x) => x.currency)
-                        const arr = (m.metaprogress?.unlocks ?? []).map((x, j) => j === i ? { ...x, cost: cost.length ? cost : [{ currency: m.metaprogress!.currencies?.[0]?.id ?? 'ember', amount: 10 }] } : x)
-                        m.metaprogress!.unlocks = arr
-                        commit()
-                      }}
-                    />
-                  </label>
+                <label className="fld" style={{ marginTop: 4 }}>
+                  <span>Описание (что игрок получит на старте забега)</span>
+                  <input value={u.description ?? ''} onChange={(e) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, description: e.target.value || undefined }; m.metaprogress!.unlocks = arr; commit() }} />
+                </label>
+                <div className="fld-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span className="fld-label">Цена:</span>
+                  {u.cost.map((c, ci) => (
+                    <span key={ci} className="fld-row" style={{ alignItems: 'center', gap: 4 }}>
+                      <input type="number" min={1} value={c.amount} style={{ width: 76 }}
+                        onChange={(e) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; const cost = [...u.cost]; cost[ci] = { ...c, amount: Math.max(1, +e.target.value || 1) }; arr[ui] = { ...u, cost }; m.metaprogress!.unlocks = arr; commit() }} />
+                      <select value={c.currency}
+                        onChange={(e) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; const cost = [...u.cost]; cost[ci] = { ...c, currency: e.target.value }; arr[ui] = { ...u, cost }; m.metaprogress!.unlocks = arr; commit() }}>
+                        {(m.metaprogress!.currencies ?? []).map((x) => <option key={x.id} value={x.id}>{x.label || 'Без названия'}</option>)}
+                      </select>
+                      {u.cost.length > 1 && (
+                        <button className="btn btn-small" onClick={() => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, cost: u.cost.filter((_, j) => j !== ci) }; m.metaprogress!.unlocks = arr; commit() }}><Ico n="close" /></button>
+                      )}
+                    </span>
+                  ))}
+                  <button className="btn btn-small" data-tip="Цена в нескольких метавалютах" onClick={() => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, cost: [...u.cost, { currency: m.metaprogress!.currencies?.[0]?.id ?? 'ember', amount: 1 }] }; m.metaprogress!.unlocks = arr; commit() }}>+ цена</button>
                 </div>
-                <span className="fld-label">Гранты при старте каждого забега</span>
+                <span className="fld-label">Что даст на старте каждого забега</span>
                 <EffectListEditor
                   store={store}
                   effects={u.grants}
-                  onChange={(grants) => { const arr = (m.metaprogress?.unlocks ?? []).map((x, j) => j === i ? { ...x, grants } : x); m.metaprogress!.unlocks = arr; commit() }}
+                  onChange={(grants) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, grants }; m.metaprogress!.unlocks = arr; commit() }}
                 />
               </div>
             ))}
-          </div>
+          </>
         )}
       </div>
 
       <div className="props-group">
-        <h4>Опыт, уровни и черты (B8)</h4>
+        <h4>Опыт, уровни и черты</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Необязательный рост героя: действия начисляют опыт (реакции правил и
+          диалогов), за уровни герой выбирает «черты» — маленькие усиления.
+          Выключено — герой растёт только тренировкой навыков при отдыхе.
+        </div>
         <div className="fld-row">
-          <label className="fld fld-check" data-tip="Вкл — в игре копится опыт (эффект grant_xp), герой получает уровни и выбирает черты. Выкл — классика BRP: рост только навыками при прокачке отдыхом">
+          <label className="fld fld-check" data-tip="Вкл — в игре копится опыт, герой получает уровни и выбирает черты. Выкл — рост только навыками при отдыхе">
             <input type="checkbox" checked={!!m.progression} onChange={(e) => { if (e.target.checked) { m.progression = { xp_per_level: 100, feats_per_level: 1 } } else { delete m.progression } commit() }} />
             <span>Уровни и опыт</span>
           </label>
@@ -1275,8 +1345,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
         {m.progression && (
           <div className="fld-row" style={{ flexDirection: 'column', gap: 8 }}>
-            <label className="fld" data-tip="Шаблон + новые строки = новые черты. Существующие черты сохраняют свои модификаторы/условия; удалённые строки удаляют черту">
-              <span>Черты (id=Название — по строке)</span>
+            <label className="fld" data-tip="Одна черта на строку. Новые строки создают черты; удалённые строки удаляют черту вместе с её модификаторами и условиями">
+              <span>Черты (по строке)</span>
               <textarea
                 rows={(m.progression.feats?.length ?? 0) + 2}
                 value={(m.progression.feats ?? []).map((f) => `${f.id}=${f.label}`).join('\n')}
@@ -1300,7 +1370,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             {(m.progression.feats ?? []).map((f, i) => (
               <div key={f.id} className="panel" style={{ padding: 8 }}>
                 <div className="fld-row">
-                  <b>{f.label}</b> <code style={{ opacity: 0.7 }}>{f.id}</code>
+                  <b>{f.label}</b>
                 </div>
                 <div className="fld-row">
                   <label className="fld" style={{ flex: 1 }}>
@@ -1310,7 +1380,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                       onChange={(e) => { const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); m.progression!.feats = feats; commit() }}
                     />
                   </label>
-                  <label className="fld" data-tip="skill:id=+N; stat:ID=+N (через ограничение статов); hp=+N; mp=+N; mov=+N — через запятую">
+                  <label className="fld" data-tip="Что даёт черта. Формат через запятую: skill:Навык=+5 — прибавка к навыку, stat:СИЛ=+1 — к характеристике, hp=+2 — к здоровью, mp=+2 — к мане, mov=+1 — к скорости. Пример: skill:melee=+5, hp=+2">
                     <span>Модификаторы</span>
                     <input
                       defaultValue={[
@@ -1347,7 +1417,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                       }}
                     />
                   </label>
-                  <label className="fld" data-tip="level_ge:N / has_feat:id / has_item:id / flag_set:key / skill_ge:id=N / variable_compare:var>=N — через запятую">
+                  <label className="fld" data-tip="Кто может взять черту (через запятую). level_ge:3 — уровень 3 и выше; has_feat:keen — уже есть черта; has_item:id — есть предмет; flag_set:key — взведён флаг; skill_ge:melee=60 — навык от 60; variable_compare:var>=5 — переменная от 5">
                     <span>Требования</span>
                     <input
                       defaultValue={(f.requires ?? []).map((c) => c.type === 'level_ge' ? `level_ge:${c.level}`
@@ -1506,7 +1576,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         <div className="muted small" style={{ marginBottom: 8 }}>
           Экран перед новым забегом: игрок распределяет характеристики,
           выбирает происхождение и навыки. Выключено — забег стартует
-          готовым персонажем-шаблоном, как раньше.
+          сразу готовым персонажем-шаблоном.
         </div>
         <label className="fld fld-check">
           <input
@@ -2669,18 +2739,18 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         const tables = g.event_tables ?? []
         return (
           <div className="props-group">
-            <h4>Таблицы случайных событий (B9)</h4>
+            <h4>Таблицы случайных событий</h4>
             <p className="muted small">
-              Мастер решает: таблиц нет — событий нет; отдельную таблицу можно выключить.
-              Шаг — интервал тиков мира; на каждом шаге — бросок на шанс, затем выбор
-              случайного ПОДХОДЯЩЕГО правила (проверяются условия правил-кандидатов).
-              Форс-вызов — эффектом roll_event_table или ink-вызовом roll_table.
+              Включены — время от времени в мире случаются события: шаг мира,
+              бросок на шанс, затем выбор случайного подходящего правила
+              (проверяются условия, как у обычных правил). Отдельную таблицу можно
+              временно выключить. Событие можно вызвать и вручную — реакцией
+              «бросить таблицу случайных событий» у правил или в диалогах.
             </p>
             {tables.map((t, i) => (
               <div key={t.id} className="panel" style={{ padding: 10, marginBottom: 10 }}>
                 <div className="fld-row">
-                  <input value={t.label} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, label: e.target.value } : x); setG({ ...g, event_tables: nt }) }} style={{ flex: 1 }} />
-                  <code style={{ opacity: 0.6 }}>{t.id}</code>
+                  <input value={t.label} placeholder="Название таблицы (например «Пящие в деревне»)" onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, label: e.target.value } : x); setG({ ...g, event_tables: nt }) }} style={{ flex: 1 }} />
                   <label className="fld fld-check" data-tip="Выключить таблицу (не удаляя)">
                     <input type="checkbox" checked={!t.disabled} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, disabled: !e.target.checked || undefined } : x); setG({ ...g, event_tables: nt }) }} />
                     <span>вкл</span>
@@ -2688,47 +2758,63 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                   <button className="btn btn-small btn-danger" onClick={() => setG({ ...g, event_tables: tables.filter((_, j) => j !== i) })}><Ico n="trash" /></button>
                 </div>
                 <div className="fld-row">
-                  <label className="fld" data-tip="Каждые N тиков мира — один бросок">
-                    <span>Интервал, тиков</span>
+                  <label className="fld" data-tip="Каждые N шагов мира (минут по умолчанию) — один бросок на событие">
+                    <span>ШАГ мира, минут</span>
                     <input type="number" min={1} value={t.interval_ticks} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, interval_ticks: Math.max(1, +e.target.value || 1) } : x); setG({ ...g, event_tables: nt }) }} />
                   </label>
-                  <label className="fld" data-tip="Вероятность события на шаге (1 = каждый шаг)">
+                  <label className="fld" data-tip="Вероятность события на шаге: 1 — каждый шаг, 0.5 — каждый второй в среднем">
                     <span>Шанс 0..1</span>
                     <input type="number" min={0} max={1} step={0.05} value={t.chance ?? 1} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, chance: +e.target.value } : x); setG({ ...g, event_tables: nt }) }} />
                   </label>
-                  <label className="fld" data-tip="Время суток через запятую: morning, day, evening, night; пусто — всегда">
-                    <span>Время суток</span>
-                    <input
-                      defaultValue={(t.time_of_day ?? []).join(',')}
-                      onBlur={(e) => { const v = e.target.value ? e.target.value.split(',').map((x) => x.trim()).filter(Boolean) as TimeOfDay[] : undefined; const nt = tables.map((x, j) => j === i ? { ...x, time_of_day: v } : x); setG({ ...g, event_tables: nt }) }}
-                    />
-                  </label>
-                  <label className="fld" data-tip="id локаций через запятую; пусто — везде">
-                    <span>Локации</span>
-                    <input
-                      defaultValue={(t.locations ?? []).join(',')}
-                      onBlur={(e) => { const v = e.target.value ? e.target.value.split(',').map((x) => x.trim()).filter(Boolean) : undefined; const nt = tables.map((x, j) => j === i ? { ...x, locations: v } : x); setG({ ...g, event_tables: nt }) }}
-                    />
-                  </label>
                 </div>
-                <div className="fld-row" style={{ alignItems: 'flex-start' }}>
-                  <label className="fld" style={{ flex: 2 }} data-tip="Правила-кандидаты (уберите условие «только вручную» у них не обязательно — таблица вызывает напрямую). Через запятую: id правил">
-                    <span>Правила-кандидаты</span>
-                    <textarea
-                      rows={2}
-                      defaultValue={t.rules.join(', ')}
-                      onBlur={(e) => { const v = e.target.value.split(',').map((x) => x.trim()).filter(Boolean); const nt = tables.map((x, j) => j === i ? { ...x, rules: v } : x); setG({ ...g, event_tables: nt }) }}
-                    />
-                  </label>
+                <span className="fld-label">Время суток события <span className="muted">(ничего не отмечено — в любое время)</span></span>
+                <div className="chips" style={{ margin: '4px 0 10px' }}>
+                  {(['morning', 'day', 'evening', 'night'] as const).map((tod) => {
+                    const labels = { morning: 'утро', day: 'день', evening: 'вечер', night: 'ночь' }
+                    const on = (t.time_of_day ?? []).includes(tod)
+                    return (
+                      <button key={tod} type="button" className={`chip ${on ? 'chip-on' : ''}`}
+                        onClick={() => {
+                          const cur = new Set(t.time_of_day ?? [])
+                          if (on) cur.delete(tod); else cur.add(tod)
+                          const nt = tables.map((x, j) => j === i ? { ...x, time_of_day: cur.size ? [...cur] : undefined } : x)
+                          setG({ ...g, event_tables: nt })
+                        }}>{labels[tod]}</button>
+                    )
+                  })}
                 </div>
-                {t.rules.length > 0 && (
-                  <div className="muted small" style={{ marginTop: 4 }}>
-                    {t.rules.map((rid) => (
-                      <span key={rid} style={{ marginRight: 8 }}>
-                        <code>{rid}</code> {ruleExists(rid) ? '' : <span style={{ color: 'var(--danger, #d66)' }}>— нет такого правила!</span>}
-                      </span>
-                    ))}
-                  </div>
+                <span className="fld-label">Только в локациях <span className="muted">(ничего не отмечено — везде)</span></span>
+                <div className="chips" style={{ margin: '4px 0 10px' }}>
+                  {locOpts.map((o) => {
+                    const on = (t.locations ?? []).includes(o.id)
+                    return (
+                      <button key={o.id} type="button" className={`chip ${on ? 'chip-on' : ''}`}
+                        onClick={() => {
+                          const cur = new Set(t.locations ?? [])
+                          if (on) cur.delete(o.id); else cur.add(o.id)
+                          const nt = tables.map((x, j) => j === i ? { ...x, locations: cur.size ? [...cur] : undefined } : x)
+                          setG({ ...g, event_tables: nt })
+                        }}>{o.label}</button>
+                    )
+                  })}
+                </div>
+                <span className="fld-label">Правила-кандидаты <span className="muted">(из них выбирается одно на событие; условия у правила сужают выбор)</span></span>
+                <div className="chips" style={{ margin: '4px 0 6px' }}>
+                  {store.options('rule').map((o) => {
+                    const on = t.rules.includes(o.id)
+                    return (
+                      <button key={o.id} type="button" className={`chip ${on ? 'chip-on' : ''}`}
+                        onClick={() => {
+                          const cur = new Set(t.rules)
+                          if (on) cur.delete(o.id); else cur.add(o.id)
+                          const nt = tables.map((x, j) => j === i ? { ...x, rules: [...cur] } : x)
+                          setG({ ...g, event_tables: nt })
+                        }}>{o.label}</button>
+                    )
+                  })}
+                </div>
+                {t.rules.some((r) => !ruleExists(r)) && (
+                  <div className="muted small" style={{ color: 'var(--danger, #d66)' }}>В списке есть отсутствующие правила — перевыберите их выше.</div>
                 )}
               </div>
             ))}
@@ -2739,29 +2825,111 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 setG({ ...g, event_tables: [...tables, { id, label: 'Новая таблица', interval_ticks: 6, chance: 0.5, rules: [] }] })
               }}
             >
-              + таблица событий
+              <Ico n="plus" /> таблица событий
             </button>
-            {tables.filter((t) => t.rules.some((r) => !ruleExists(r))).length > 0 && (
-              <p className="muted small" style={{ color: 'var(--danger, #d66)' }}>Есть ссылки на отсутствующие правила — создайте их во вкладке правил или исправьте id.</p>
-            )}
             {tables.some((t) => (t.locations ?? []).some((l) => !locOpts.some((o) => o.id === l))) && (
-              <p className="muted small" style={{ color: 'var(--danger, #d66)' }}>Есть фильтры по отсутствующим локациям.</p>
+              <p className="muted small" style={{ color: 'var(--danger, #d66)' }}>Есть отметки по удалённым локациям — снимите их в таблицах выше.</p>
             )}
-            <h4 style={{ marginTop: 18 }}>Генераторы контента (списки)</h4>
+
+            <h4 style={{ marginTop: 18 }}>Генераторы лиц и мест</h4>
             <p className="muted small">
-              Генераторы — это взвешенные списки строк мастера. Значения выбираются вызовами
-              ink: <code>gen(generatorId, listKey)</code>, <code>gen_seeded(generatorId, listKey, seed)</code>,
-              либо пакетно эффектом <code>generate_variables</code>. Редактируются здесь JSON-блоком
-              (структуры npc/scenes/adventures см. в справочнике 04).
+              Генераторы — это взвешенные списки значений мастера: движок выбирает
+              из них случайные имена, описания, детали мест и цели приключений.
+              Значение возвращают эффект «сгенерировать переменные» и вызовы в
+              диалогах; повторный вызов с тем же зерном даёт тот же результат.
             </p>
-            <JsonField
-              label="npc / scenes / adventures (JSON)"
-              rows={16}
-              value={{ npc: g.npc ?? [], scenes: g.scenes ?? [], adventures: g.adventures ?? [] }}
-              onChange={(v) => {
-                const obj = v as { npc?: typeof g.npc; scenes?: typeof g.scenes; adventures?: typeof g.adventures }
-                setG({ ...g, npc: obj.npc ?? [], scenes: obj.scenes ?? [], adventures: obj.adventures ?? [] })
-              }}
+            <GeneratorKindSection
+              title="Лица (NPC)"
+              hint="Случайные имена, чины и характеры для встреч в мире."
+              items={g.npc ?? []}
+              onChange={(npc) => setG({ ...g, npc: npc.length ? npc : undefined })}
+              makeNew={(existing) => ({ id: makeId('gennpc', 'генератор лиц', existing.map((x) => x.id)), label: 'Новый генератор лиц', lists: {}, name: [] })}
+              store={store}
+              fields={<span>Складывание имени: подряд идут части — либо выбор из вашего списка, либо фиксированный текст. Поля — пары «что заполнить → из какого списка брать» (например description, disposition_label, stats.STR, skills.stealth).</span>}
+              renderBody={(gen, update, _store) => (
+                <>
+                  <GenListsEditor lists={gen.lists} onChange={(lists) => update({ ...gen, lists })} />
+                  <span className="fld-label">Имя из частей</span>
+                  {(gen.name ?? []).map((part, pi) => (
+                    <div key={pi} className="fld-row" style={{ alignItems: 'center' }}>
+                      <select value={part.list !== undefined ? 'list' : 'literal'} onChange={(e) => { const name = (gen.name ?? []).map((x, j) => j === pi ? (e.target.value === 'list' ? { list: Object.keys(gen.lists)[0] ?? '' } : { literal: ((x as { literal?: string }).literal ?? ' ') }) : x); update({ ...gen, name }) }}>
+                        <option value="list">выбор из списка</option>
+                        <option value="literal">фиксированный текст</option>
+                      </select>
+                      {part.list !== undefined ? (
+                        <select value={part.list} onChange={(e) => { const name = (gen.name ?? []).map((x, j) => j === pi ? ({ list: e.target.value }) : x); update({ ...gen, name }) }}>
+                          {Object.keys(gen.lists).map((k) => <option key={k} value={k}>{k}</option>)}
+                        </select>
+                      ) : (
+                        <input value={part.literal ?? ''} placeholder="текст (пробел, «-ог»…)" onChange={(e) => { const name = (gen.name ?? []).map((x, j) => j === pi ? ({ literal: e.target.value }) : x); update({ ...gen, name }) }} />
+                      )}
+                      <button className="btn btn-small" onClick={() => update({ ...gen, name: (gen.name ?? []).filter((_, j) => j !== pi) })}><Ico n="close" /></button>
+                    </div>
+                  ))}
+                  <button className="btn btn-small" onClick={() => update({ ...gen, name: [...(gen.name ?? []), { list: Object.keys(gen.lists)[0] ?? '' }] })} disabled={!Object.keys(gen.lists).length}><Ico n="plus" /> часть имени</button>
+                  <span className="fld-label" style={{ marginTop: 8 }}>Прочие поля персонажа</span>
+                  {Object.entries(gen.fields ?? {}).map(([fld, key]) => (
+                    <div key={fld} className="fld-row" style={{ alignItems: 'center' }}>
+                      <input value={fld} disabled style={{ width: 170 }} data-tip="Поле сущности: description, disposition_label, stats.STR, skills.stealth и т.п." />
+                      <select value={key} onChange={(e) => update({ ...gen, fields: { ...(gen.fields ?? {}), [fld]: e.target.value } })}>
+                        {Object.keys(gen.lists).map((k) => <option key={k} value={k}>{k}</option>)}
+                      </select>
+                      <button className="btn btn-small" onClick={() => { const fields = { ...(gen.fields ?? {}) }; delete fields[fld]; update({ ...gen, fields }) }}><Ico n="close" /></button>
+                    </div>
+                  ))}
+                  <div className="fld-row" style={{ alignItems: 'center' }}>
+                    <GenFieldAdder existing={gen.lists} onAdd={(fld, key) => update({ ...gen, fields: { ...(gen.fields ?? {}), [fld]: key } })} />
+                  </div>
+                </>
+              )}
+            />
+            <GeneratorKindSection
+              title="Места (описания сцен)"
+              hint="Случайные детали места в слотах сцены: «в углу —…», «пахнет —…»."
+              items={g.scenes ?? []}
+              onChange={(scenes) => setG({ ...g, scenes: scenes.length ? scenes : undefined })}
+              makeNew={(existing) => ({ id: makeId('gensc', 'генератор мест', existing.map((x) => x.id)), label: 'Новый генератор мест', lists: {}, slots: {} })}
+              store={store}
+              fields={<span>Слоты: «идентификатор слота сцены → какой список», значение ставится описанием слота.</span>}
+              renderBody={(gen, update, store) => (
+                <>
+                  <GenListsEditor lists={gen.lists} onChange={(lists) => update({ ...gen, lists })} />
+                  <span className="fld-label">Наполнение слотов сцены</span>
+                  {Object.entries(gen.slots ?? {}).map(([slotId, key]) => (
+                    <div key={slotId} className="fld-row" style={{ alignItems: 'center' }}>
+                      <GenSlotSelect slotId={slotId} store={store} onChange={(v) => { const slots = { ...(gen.slots ?? {}) }; delete slots[slotId]; slots[v] = key; update({ ...gen, slots }) }} />
+                      <select value={key} onChange={(e) => update({ ...gen, slots: { ...(gen.slots ?? {}), [slotId]: e.target.value } })}>
+                        {Object.keys(gen.lists).map((k) => <option key={k} value={k}>{k}</option>)}
+                      </select>
+                      <button className="btn btn-small" onClick={() => { const slots = { ...(gen.slots ?? {}) }; delete slots[slotId]; update({ ...gen, slots }) }}><Ico n="close" /></button>
+                    </div>
+                  ))}
+                  <GenSlotAdder store={store} gen={gen} onAdd={(slotId, key) => update({ ...gen, slots: { ...(gen.slots ?? {}), [slotId]: key } })} />
+                </>
+              )}
+            />
+            <GeneratorKindSection
+              title="Приключения (цепочки целей)"
+              hint="Цели квеста: строка с подстановками из ваших списков {список:ключ}."
+              items={g.adventures ?? []}
+              onChange={(adventures) => setG({ ...g, adventures: adventures.length ? adventures : undefined })}
+              makeNew={(existing) => ({ id: makeId('genadv', 'генератор приключений', existing.map((x) => x.id)), label: 'Новый генератор приключений', lists: {}, goals: [] })}
+              store={store}
+              fields={<span>Цели — строки, по одной. Подстановки пишите как {'{список:ключ}'} — их пункты выбираются из ваших списков.</span>}
+              renderBody={(gen, update) => (
+                <>
+                  <GenListsEditor lists={gen.lists} onChange={(lists) => update({ ...gen, lists })} />
+                  <label className="fld" data-tip="Одна цель на строку. Подстановка: {список:ключ} — выбирает пункт из списка">
+                    <span>Цели приключений (по строке)</span>
+                    <textarea
+                      rows={(gen.goals?.length ?? 0) + 2}
+                      value={(gen.goals ?? []).join('\n')}
+                      placeholder="Добыть в {список:места} трофей {список:трофеи}"
+                      onChange={(e) => update({ ...gen, goals: e.target.value.split('\n').filter((x) => x.trim()) })}
+                    />
+                  </label>
+                </>
+              )}
             />
             <div className="fld-row">
               <button className="btn btn-small btn-danger" disabled={!m.generators} onClick={() => { delete m.generators; commit() }}>
@@ -3269,4 +3437,166 @@ function VersionsTab({ store, commit }: { store: EditorStore; commit: () => void
       </div>
     </>
   )
+}
+
+
+// ─────────────── генераторы: конструкторы без JSON (фидбек «без техно-форм») ───────────────
+
+type GenBase = { id: string; label: string; description?: string; lists: Record<string, GenWeightedItem[]> }
+
+/** Панель генератора одного вида (лица/места/приключения): заготовка + фабрика. */
+function GeneratorKindSection<T extends GenBase>({
+  title,
+  hint,
+  items,
+  onChange,
+  makeNew,
+  fields,
+  store,
+  renderBody,
+}: {
+  title: string
+  hint: string
+  items: T[]
+  onChange: (next: T[]) => void
+  makeNew: (existing: T[]) => T
+  fields: React.ReactNode
+  store: EditorStore
+  renderBody: (gen: T, update: (g: T) => void, store: EditorStore) => React.ReactNode
+}) {
+  return (
+    <div className="props-group" style={{ borderTop: '1px dashed var(--border-soft)', marginTop: 12, paddingTop: 10 }}>
+      <h5 className="ce-subhead">{title}</h5>
+      <div className="muted small" style={{ marginBottom: 6 }}>{hint}</div>
+      {items.map((gen, i) => (
+        <div key={gen.id} className="panel" style={{ padding: 8, marginBottom: 8 }}>
+          <div className="fld-row">
+            <input value={gen.label} placeholder="Название генератора" style={{ flex: 1 }}
+              onChange={(e) => { const arr = items.map((x, j) => j === i ? { ...x, label: e.target.value } : x); onChange(arr) }} />
+            <button className="btn btn-small btn-danger" onClick={() => onChange(items.filter((_, j) => j !== i))}><Ico n="trash" /></button>
+          </div>
+          <label className="fld">
+            <span>Описание (для себя)</span>
+            <input value={gen.description ?? ''} onChange={(e) => { const arr = items.map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); onChange(arr) }} />
+          </label>
+          <div className="muted small" style={{ margin: '4px 0' }}>{fields}</div>
+          {renderBody(gen, (g2) => { const arr = items.map((x, j) => j === i ? g2 : x); onChange(arr) }, store)}
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={() => onChange([...items, makeNew(items)])}><Ico n="plus" /> {title.toLowerCase()}</button>
+    </div>
+  )
+}
+
+/** Списки генератора: ключ → строки «значение | вес» (вес опционален). */
+function GenListsEditor({
+  lists,
+  onChange,
+}: {
+  lists: Record<string, GenWeightedItem[]>
+  onChange: (next: Record<string, GenWeightedItem[]>) => void
+}) {
+  const addList = () => {
+    let n = 1
+    while (lists[`список_${n}`]) n++
+    onChange({ ...lists, [`список_${n}`]: [] })
+  }
+  return (
+    <>
+      <span className="fld-label">Списки значений (вес через «|»: «Суровый | 2»)</span>
+      {Object.entries(lists).map(([key, items]) => (
+        <div key={key} className="panel" style={{ padding: 8, marginBottom: 6 }}>
+          <div className="fld-row" style={{ alignItems: 'center' }}>
+            <input
+              value={key}
+              data-tip="Ключ списка — в подстановках {список:ключ} и привязках полей"
+              style={{ width: 170 }}
+              onChange={(e) => {
+                const nk = e.target.value.trim()
+                const next: Record<string, GenWeightedItem[]> = {}
+                for (const [k, v] of Object.entries(lists)) next[k === key && nk ? nk : k] = v
+                onChange(next)
+              }}
+            />
+            <button className="btn btn-small" onClick={() => { const next = { ...lists }; delete next[key]; onChange(next) }}><Ico n="close" /></button>
+          </div>
+          <textarea
+            rows={Math.min(6, items.length + 1)}
+            value={items.map((x) => (x.weight && x.weight !== 1 ? `${x.value} | ${x.weight}` : x.value)).join('\n')}
+            placeholder="один вариант на строку; реже/чаще — «вариант | вес»"
+            onChange={(e) => {
+              const items: GenWeightedItem[] = e.target.value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+                const m = l.match(/^(.*?)\s*\|\s*(\d+)\s*$/)
+                return m ? { value: m[1] ?? '', weight: Math.max(1, +m![2] || 1) } : { value: l }
+              })
+              onChange({ ...lists, [key]: items })
+            }}
+          />
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={addList}><Ico n="plus" /> список значений</button>
+    </>
+  )
+}
+
+/** Добавление пары «поле → список» для лиц. */
+function GenFieldAdder({ existing, onAdd }: { existing: Record<string, GenWeightedItem[]>; onAdd: (field: string, key: string) => void }) {
+  const [field, setField] = useState('description')
+  const keys = Object.keys(existing)
+  const [key, setKey] = useState(keys[0] ?? '')
+  return (
+    <>
+      <input value={field} data-tip="Поле: description, disposition_label, stats.STR, skills.stealth, item.weapon…" onChange={(e) => setField(e.target.value)} />
+      <select value={keys.includes(key) ? key : keys[0] ?? ''} onChange={(e) => setKey(e.target.value)}>
+        {keys.map((k) => <option key={k} value={k}>{k}</option>)}
+      </select>
+      <button className="btn btn-small" disabled={!field.trim() || !keys.length} onClick={() => onAdd(field.trim(), keys.includes(key) ? key : keys[0] ?? '')}><Ico n="plus" /> поле</button>
+    </>
+  )
+}
+
+function GenSlotSelect({ slotId, store, onChange }: { slotId: string; store: EditorStore; onChange: (v: string) => void }) {
+  const opts = collectSlotOptions(store)
+  const known = opts.some((o) => o.id === slotId)
+  return (
+    <select value={slotId} onChange={(e) => onChange(e.target.value)} style={{ width: 200 }}>
+      {!known && <option value={slotId}>{slotId}</option>}
+      {opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+    </select>
+  )
+}
+
+function GenSlotAdder({ store, gen, onAdd }: { store: EditorStore; gen: { lists: Record<string, GenWeightedItem[]>; slots: Record<string, string> }; onAdd: (slotId: string, key: string) => void }) {
+  const opts = collectSlotOptions(store).filter((o) => !(gen.slots ?? {})[o.id])
+  const keys = Object.keys(gen.lists)
+  const [slotId, setSlotId] = useState(opts[0]?.id ?? '')
+  const [key, setKey] = useState(keys[0] ?? '')
+  if (!opts.length || !keys.length) return null
+  return (
+    <div className="fld-row" style={{ alignItems: 'center' }}>
+      <select value={opts.some((o) => o.id === slotId) ? slotId : opts[0]!.id} onChange={(e) => setSlotId(e.target.value)}>
+        {opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+      </select>
+      <select value={keys.includes(key) ? key : keys[0]} onChange={(e) => setKey(e.target.value)}>
+        {keys.map((k) => <option key={k} value={k}>{k}</option>)}
+      </select>
+      <button className="btn btn-small" onClick={() => onAdd(opts.some((o) => o.id === slotId) ? slotId : opts[0]!.id, keys.includes(key) ? key : keys[0]!)}><Ico n="plus" /> слот</button>
+    </div>
+  )
+}
+
+/** Все слоты всех сцен кампании: «сцена · слот» (значение — id слота). */
+function collectSlotOptions(store: EditorStore): Array<{ id: string; label: string }> {
+  const seen = new Set<string>()
+  const out: Array<{ id: string; label: string }> = []
+  for (const p of store.scenePaths()) {
+    const sc = store.scene(p)
+    if (!sc) continue
+    for (const sl of sc.slots ?? []) {
+      if (seen.has(sl.id)) continue
+      seen.add(sl.id)
+      out.push({ id: sl.id, label: `${sc.label}: ${sl.label ?? sl.id}` })
+    }
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
 }

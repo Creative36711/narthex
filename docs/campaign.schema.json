@@ -5270,6 +5270,10 @@
         },
         "cost_ticks": {
           "type": "number"
+        },
+        "hide_label": {
+          "type": "boolean",
+          "description": "скрывать подпись до наведения курсора (зона как невидимый хотспот)"
         }
       },
       "required": [
@@ -5605,6 +5609,13 @@
           "type": "string",
           "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`"
         },
+        "combat_figure_states": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "состояния фигурки боя: 'dead' — погиб, 'down' — без сознания/выведен,\nid статуса — пока статус активен. Пустой ключ = обычная (combat_figure)."
+        },
         "figure_mode": {
           "type": "string",
           "enum": [
@@ -5759,6 +5770,55 @@
       ],
       "additionalProperties": false
     },
+    "ItemInteractOption": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "подпись кнопки действия"
+        },
+        "emotion": {
+          "type": "string",
+          "description": "состояние портрета предмета при выборе (ключ из portrait)"
+        },
+        "hint": {
+          "type": "string",
+          "description": "пояснение под кнопкой: условия, расход, проверка"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия показа (все истинны — вариант виден)"
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          },
+          "description": "реакция"
+        },
+        "consume": {
+          "type": "boolean",
+          "description": "после применения предмет исчезает со сцены"
+        },
+        "message": {
+          "type": "string",
+          "description": "сообщение после применения (оформлено портретом предмета)"
+        },
+        "sound": {
+          "type": "string",
+          "description": "звуковой хук взаимодействия (умолчание 'use' или 'open' для контейнера)"
+        }
+      },
+      "required": [
+        "label",
+        "effects"
+      ],
+      "additionalProperties": false,
+      "description": "Вариант взаимодействия с предметом в сцене (фидбек: «собрать траву»,\n«срезать», «поджечь»). Клик по предмету с таким списком открывает\nокно выбора действия — как мини-диалог с портретом предмета."
+    },
     "UseEffectDef": {
       "type": "object",
       "properties": {
@@ -5804,6 +5864,35 @@
         },
         "image": {
           "type": "string"
+        },
+        "shadow": {
+          "type": "boolean",
+          "description": "мягкая тень под спрайтом в сцене (по умолчанию включена)"
+        },
+        "portrait": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "ПОРТРЕТЫ (состояния) предмета для окна взаимодействия: emotion → изображение.\n«Обычный» — по умолчанию; без портретов окно показывает только текст."
+        },
+        "scene_sprite": {
+          "type": "string",
+          "description": "СПРАЙТ В СЦЕНЕ: картинка предмета в его слоте (целиком, без обрезки).\nНет — в слоте не рисуется ничего (ни портрет, ни иконка)."
+        },
+        "interactable_when": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "Взаимодействовать можно только когда условия истинны; пока ложны —\nпредмет «декорация»: виден в слоте, но не нажимается и не подсвечивается."
+        },
+        "interact_options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ItemInteractOption"
+          },
+          "description": "варианты действий по клику (выбор как в диалоге); приоритет над on_interact"
         },
         "weight": {
           "type": "number"
