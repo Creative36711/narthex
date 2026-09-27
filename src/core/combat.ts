@@ -60,8 +60,12 @@ export interface Combatant {
   abilities: string[]
   /** оставшийся кулдаун по способностям, раунды */
   cooldowns: Record<string, number>
-  /** сбежал по морали: не считается убитым, лута нет */
+  /** сбежал по морали / игрок отступил: не считается убитым, лута нет */
   fled?: boolean
+  /** атак осталось в этом раунде (attacks_per_round оружия; аудит §5.6 п.1) */
+  attacksLeft: number
+  /** без сознания (тяжёлая рана/спасбросок BRP): выбыл из боя, но жив */
+  down?: boolean
 }
 
 type StartCombatEffect = Extract<Effect, { type: 'start_combat' }>
@@ -109,7 +113,7 @@ export class CombatController {
   round = 1
   activeIndex = 0
   log: string[] = []
-  result: 'victory' | 'defeat' | null = null
+  result: 'victory' | 'defeat' | 'fled' | null = null
   loot: CombatLootEntry[] = []
   private blocked: Set<string>
   private difficult: Set<string>
@@ -169,6 +173,7 @@ export class CombatController {
       maxMp: p.max_mp,
       abilities: playerDef.abilities ?? [],
       cooldowns: {},
+      attacksLeft: 0,
       attacked: false,
       defensesUsed: 0,
       dead: false,
@@ -206,6 +211,7 @@ export class CombatController {
         maxMp: derivedMP(def.stats),
         abilities: def.abilities ?? [],
         cooldowns: {},
+        attacksLeft: 0,
         attacked: false,
         defensesUsed: 0,
         dead: false,
@@ -247,6 +253,7 @@ export class CombatController {
           maxMp: derivedMP(def.stats),
           abilities: def.abilities ?? [],
           cooldowns: {},
+          attacksLeft: 0,
           attacked: false,
           defensesUsed: 0,
           dead: false,
@@ -288,6 +295,7 @@ export class CombatController {
           maxMp: derivedMP(def.stats),
           abilities: def.abilities ?? [],
           cooldowns: {},
+          attacksLeft: 0,
           attacked: false,
           defensesUsed: 0,
           dead: false,
@@ -340,7 +348,7 @@ export class CombatController {
   }
 
   occupantAt(h: Hex): Combatant | undefined {
-    return this.combatants.find((c) => !c.dead && c.pos.col === h.col && c.pos.row === h.row)
+    return this.combatants.find((c) => !c.dead && !c.down && c.pos.col === h.col && c.pos.row === h.row)
   }
 
   inBounds(h: Hex): boolean {
@@ -386,12 +394,38 @@ export class CombatController {
   canAttack(attacker: Combatant, target: Combatant): boolean {
     return (
       !attacker.attacked &&
+      attacker.attacksLeft > 0 &&
       !attacker.dead &&
+      !attacker.down &&
       !target.dead &&
+      !target.down &&
       !target.fled &&
       attacker.side !== target.side &&
       hexDistance(attacker.pos, target.pos) <= attacker.weapon.range
     )
+  }
+
+  // ─────────────── боевые правила кампании (мастер; аудит §5.6) ───────────────
+
+  /** настройки боя из campaign.json (meta.combat) — всё с умолчаниями */
+  private combatRules() {
+    return this.engine.campaign.meta.combat
+  }
+
+  /** штраф следующей атаки в раунде (умолчание −20, BRP-разделение) */
+  private get multiAttackPenalty(): number {
+    return this.combatRules()?.multi_attack_penalty ?? -20
+  }
+
+  /** правила гибели героя: instant (умолчание) | brp */
+  private get deathMode(): 'instant' | 'brp' {
+    return this.combatRules()?.death?.mode ?? 'instant'
+  }
+
+  /** действие израсходовано не-атакой (предмет/способность) */
+  private spendAction(c: Combatant): void {
+    c.attacked = true
+    c.attacksLeft = 0
   }
 
   // ─────────────── действия игрока ───────────────
@@ -414,9 +448,61 @@ export class CombatController {
     this.faceTowards(this.active, target.pos)
     this.resolveAttack(this.active, target)
     this.checkEnd()
-    // атака завершает ход автоматически (фидбек №1 пятого раунда):
-    // кнопка «Пропустить ход» нужна только чтобы закончить ход без атаки
-    if (!this.result) {
+    // ход завершается сам, когда атаки исчерпаны (attacks_per_round);
+    // атаки остались — игрок может бить дальше, двигаться или закончить ход
+    if (!this.result && this.active.attacksLeft <= 0) {
+      this.nextTurn()
+      this.processUntilPlayer()
+    }
+    this.engine.notify()
+  }
+
+  /** Может ли игрок бежать из этого боя (аудит §5.6 п.2). */
+  canFlee(): boolean {
+    if (this.def.no_flee) return false
+    return this.combatRules()?.flee !== false
+  }
+
+  /**
+   * Отступление: враги в досягаемости бьют напоследок (бесплатные атаки),
+   * затем проверка навыка отступления (умолчание dodge, иначе DEX×5).
+   * Успех — бой окончен бегством (`on_fled` эффекта start_combat);
+   * провал — ход потерян.
+   */
+  playerFlee(): void {
+    if (!this.isPlayerTurn() || !this.canFlee()) return
+    const pc = this.active
+    const foes = this.combatants.filter(
+      (c) => c.side === 'enemy' && !c.dead && !c.fled && !c.down && hexDistance(c.pos, pc.pos) <= c.weapon.range,
+    )
+    if (foes.length) this.log.push('Вы бросаетесь прочь — враги рубят вслед!')
+    for (const foe of foes) {
+      this.resolveAttack(foe, pc, { free: true })
+      if (pc.dead || pc.down) break
+    }
+    this.checkEnd()
+    if (this.result) {
+      this.engine.notify()
+      return
+    }
+    const cfg = this.combatRules()?.flee
+    const skill = (typeof cfg === 'object' && cfg?.skill) || 'dodge'
+    const known = pc.skills[skill]
+    const base = known != null ? known + this.statusSkillMod(pc, skill) : pc.stats.DEX * 5
+    const out = skillCheck(Math.max(1, base), this.engine.rng, foes.length ? -20 : 0, this.engine.diceRules)
+    this.log.push(
+      `${pc.label}: отступление — ${known != null ? `навык «${this.engine.skillLabel(skill)}»` : 'DEX×5'}, d100=${out.roll} против ${out.target} → ${labelResult(out.result)}`,
+    )
+    if (out.success) {
+      pc.fled = true
+      this.result = 'fled'
+      this.log.push('Вы вырываетесь из боя!')
+      playUi('flee')
+      this.engine.onCombatResolve(this.def.on_fled ?? [])
+      if (out.result === 'critical') this.engine.markSkill(skill)
+    } else {
+      this.log.push('Отступить не вышло — ход потерян.')
+      this.spendAction(pc)
       this.nextTurn()
       this.processUntilPlayer()
     }
@@ -428,7 +514,7 @@ export class CombatController {
     if (!this.isPlayerTurn() || this.active.attacked) return
     const item = this.engine.campaign.entities[itemId] as ItemDef | undefined
     if (!item || item.type !== 'item' || !item.on_use) return
-    this.active.attacked = true
+    this.spendAction(this.active)
     this.engine.applyEffects(item.on_use.effects)
     if (item.on_use.consume !== false) this.engine.removeItem(itemId, 1)
     // синхронизация HP игрока (эффект мог лечить)
@@ -459,7 +545,15 @@ export class CombatController {
   private startRound(): void {
     this.tickStatuses()
     for (const c of this.combatants) {
+      if (c.down || c.fled || c.dead) {
+        c.movLeft = 0
+        c.attacksLeft = 0
+        c.attacked = true
+        continue
+      }
       c.movLeft = Math.max(1, c.mov + this.statusMovMod(c))
+      // край атак за раунд — attacks_per_round оружия (аудит §5.6 п.1)
+      c.attacksLeft = Math.max(1, c.weapon.attacks_per_round)
       c.attacked = false
       c.defensesUsed = 0
       // кулдауны способностей тикают на границе раунда
@@ -538,10 +632,16 @@ export class CombatController {
         if (def.dot?.hp) {
           c.hp = Math.max(0, c.hp - def.dot.hp)
           this.log.push(`${c.label}: ${def.label.toLowerCase()} — −${def.dot.hp} HP.`)
-          if (c.hp <= 0) {
-            c.dead = true
-            this.log.push(`${c.label} погибает от статуса «${def.label}».`)
-            playUi('kill')
+          if (c.hp <= 0 && !c.down) {
+            if (c.id === 'c_player' && this.deathMode === 'brp' && this.conSave(c, `статус «${def.label}»`)) {
+              c.hp = 1
+              c.down = true
+              this.log.push(`${c.label} падает без сознания от статуса — но дышит. (1 HP)`)
+            } else {
+              c.dead = true
+              this.log.push(`${c.label} погибает от статуса «${def.label}».`)
+              playUi('kill')
+            }
           }
         }
         if (!c.dead) s.left -= 1
@@ -566,7 +666,7 @@ export class CombatController {
         this.checkEnd() // DoT статусов мог добить последнюю сторону
       }
       guard++
-    } while (!this.result && this.active.dead && guard < 100)
+    } while (!this.result && (this.active.dead || this.active.down || this.active.fled) && guard < 100)
   }
 
   private processUntilPlayer(): void {
@@ -579,13 +679,14 @@ export class CombatController {
       this.nextTurn()
       guard++
     }
-    if (!this.result && this.active.dead) this.nextTurn()
+    if (!this.result && (this.active.dead || this.active.down || this.active.fled) && this.active.id !== 'c_player')
+      this.nextTurn()
   }
 
   // ─────────────── AI (базовый: к ближайшему, атаковать) ───────────────
 
   private aiTurn(c: Combatant): void {
-    if (c.fled) return
+    if (c.fled || c.down || c.dead) return
     // мораль (блок 6 ТЗ): раненый враг в начале хода может сбежать
     if (c.side === 'enemy') {
       const npcDef = this.engine.campaign.entities[c.entityId] as NpcDef | undefined
@@ -599,10 +700,10 @@ export class CombatController {
         }
       }
     }
-    const targets = this.combatants.filter((x) => !x.dead && !x.fled && x.side !== c.side)
+    const targets = this.combatants.filter((x) => !x.dead && !x.fled && !x.down && x.side !== c.side)
     if (!targets.length) return
     targets.sort((a, b) => hexDistance(c.pos, a.pos) - hexDistance(c.pos, b.pos))
-    const target = targets[0]
+    let target = targets[0]
 
     // способность вместо атаки — если применима (шанс 50%, детерминизм через rng)
     if (this.tryUseAiAbility(c, target)) return
@@ -622,9 +723,20 @@ export class CombatController {
       }
     }
 
-    this.faceTowards(c, target.pos)
-    if (this.canAttack(c, target)) {
+    // мультиатаки (аудит §5.6 п.1): бьём, пока есть атаки и живая цель рядом
+    let guard = 0
+    while (!this.result && guard++ < 8) {
+      if (target.dead || target.down || target.fled || hexDistance(c.pos, target.pos) > c.weapon.range) {
+        const rest = this.combatants
+          .filter((x) => !x.dead && !x.fled && !x.down && x.side !== c.side)
+          .sort((a, b) => hexDistance(c.pos, a.pos) - hexDistance(c.pos, b.pos))
+        if (!rest.length || hexDistance(c.pos, rest[0].pos) > c.weapon.range) break
+        target = rest[0]
+      }
+      if (!this.canAttack(c, target)) break
+      this.faceTowards(c, target.pos)
       this.resolveAttack(c, target)
+      this.checkEnd()
     }
   }
 
@@ -646,7 +758,7 @@ export class CombatController {
 
   /** Применение способности: расход MP, кулдаун, проверка навыка, эффект. */
   private resolveAbility(caster: Combatant, ab: AbilityDef, target: Combatant): void {
-    caster.attacked = true
+    this.spendAction(caster)
     caster.mp = Math.max(0, caster.mp - ab.mp_cost)
     if (ab.cooldown_rounds) caster.cooldowns[ab.id] = ab.cooldown_rounds
     this.faceTowards(caster, target.pos)
@@ -739,13 +851,23 @@ export class CombatController {
 
   // ─────────────── разрешение атаки (BRP) ───────────────
 
-  private resolveAttack(attacker: Combatant, defender: Combatant): void {
-    attacker.attacked = true
+  /**
+   * Удар по цели. `opts.free` — бесплатная атака (рубеж вслед убегающему):
+   * не тратит атаку хода и не получает штрафа мультиатаки.
+   */
+  private resolveAttack(attacker: Combatant, defender: Combatant, opts?: { free?: boolean }): void {
+    let penalty = 0
+    if (!opts?.free) {
+      const apr = Math.max(1, attacker.weapon.attacks_per_round)
+      penalty = (apr - attacker.attacksLeft) * this.multiAttackPenalty
+      attacker.attacksLeft -= 1
+      if (attacker.attacksLeft <= 0) this.spendAction(attacker)
+    }
     const rng = this.engine.rng
     const skillVal = Math.max(1, (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill))
-    const atk = skillCheck(skillVal, rng, 0, this.engine.diceRules)
+    const atk = skillCheck(skillVal, rng, penalty, this.engine.diceRules)
     this.log.push(
-      `${attacker.label}: атака «${attacker.weaponLabel}» — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
+      `${attacker.label}: атака «${attacker.weaponLabel}»${penalty ? ` (повторная, ${penalty}%)` : ''} — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
     )
     if (attacker.id === 'c_player' && atk.success) this.engine.markSkill(attacker.weapon.skill)
     if (RANK[atk.result] < 2) {
@@ -807,7 +929,23 @@ export class CombatController {
     defender.hp -= dmg
     this.log.push(`${defender.label} получает ${dmg} урона (HP ${Math.max(0, defender.hp)}/${defender.maxHp}).`)
 
-    if (defender.hp <= 0) {
+    // режим combat.death.mode='brp' (аудит §5.6 п.4): тяжёлые раны и потеря
+    // сознания вместо мгновенной смерти — только для героя
+    if (defender.id === 'c_player' && this.deathMode === 'brp' && !defender.dead && !defender.down) {
+      // тяжёлая рана: единичный удар от половины максимума HP — провал CON роняет в нокаут
+      if (defender.hp > 0 && dmg >= Math.ceil(defender.maxHp / 2) && !this.conSave(defender, 'тяжёлая рана')) {
+        defender.down = true
+        this.log.push(`${defender.label} теряет сознание от тяжёлой раны.`)
+      }
+      // последний спасбросок при HP ≤ 0: успех — выжить без сознания (1 HP), провал — смерть
+      if (!defender.down && defender.hp <= 0 && this.conSave(defender, 'смертельный удар')) {
+        defender.hp = 1
+        defender.down = true
+        this.log.push(`${defender.label} падает без сознания — но дышит. (1 HP)`)
+      }
+    }
+
+    if (defender.hp <= 0 && !defender.down) {
       defender.dead = true
       this.log.push(`† ${defender.label} погибает.`)
       playUi('death')
@@ -822,6 +960,21 @@ export class CombatController {
     }
 
     this.syncParty()
+    if (defender.down || defender.dead) this.checkEnd()
+  }
+
+  /**
+   * Спасбросок CON×con_multiplier при критическом состоянии героя (режим
+   * 'brp'): тяжёлая рана — успех удерживает в сознании; смертельный удар —
+   * успех оставляет жить (без сознания). Истина — спасбросок пройден.
+   */
+  private conSave(c: Combatant, cause: string): boolean {
+    const mult = this.combatRules()?.death?.con_multiplier ?? 5
+    const out = skillCheck(c.stats.CON * mult, this.engine.rng, 0, this.engine.diceRules)
+    this.log.push(
+      `${c.label}: грань сознания (${cause}) — CON×${mult}, d100=${out.roll} против ${out.target} → ${labelResult(out.result)}`,
+    )
+    return out.success
   }
 
   /** синхронизация HP/MP игрока и напарников с состоянием боя */
@@ -841,12 +994,20 @@ export class CombatController {
 
   private checkEnd(): void {
     if (this.result) return
-    const enemiesAlive = this.combatants.some((c) => c.side === 'enemy' && !c.dead && !c.fled)
-    const playerAlive = this.combatants.some((c) => c.id === 'c_player' && !c.dead)
-    if (!playerAlive) {
+    const enemiesAlive = this.combatants.some((c) => c.side === 'enemy' && !c.dead && !c.fled && !c.down)
+    const pc = this.combatants.find((c) => c.id === 'c_player')
+    const playerActive = !!pc && !pc.dead && !pc.down && !pc.fled
+    if (!playerActive) {
       this.result = 'defeat'
       playUi('defeat')
-      this.engine.gameOver('death', 'Вы пали в бою.')
+      // режим 'brp': герой выжил без сознания — последствия задаёт мастер
+      // (on_defeat start_combat); не заданы — смерть, как в режиме 'instant'
+      if (this.deathMode === 'brp' && pc?.down && !pc.dead && (this.def.on_defeat?.length ?? 0) > 0) {
+        this.log.push('Бой проигран, но вы живы. Сознание гаснет…')
+        this.engine.onCombatResolve(this.def.on_defeat ?? [])
+      } else {
+        this.engine.gameOver('death', 'Вы пали в бою.')
+      }
       return
     }
     if (!enemiesAlive) {
@@ -855,7 +1016,7 @@ export class CombatController {
       this.rollLoot()
       this.log.push('Победа! Противники повержены.')
       // сообщения и флаги победы — сразу, пока игрок видит экран победы
-      this.engine.onCombatVictory(this.def.on_victory ?? [])
+      this.engine.onCombatResolve(this.def.on_victory ?? [])
     }
   }
 

@@ -174,7 +174,7 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
           const combat = engine.combat!
           for (const c of combat.combatants) if (c.side === 'enemy') { c.hp = 0; c.dead = true; engine.state.dead_entities.push(c.entityId) }
           combat.result = 'victory'
-          engine.onCombatVictory(combat.def.on_victory ?? [])
+          engine.onCombatResolve(combat.def.on_victory ?? [])
         }, 'В бою одержана мгновенная победа.')}>Мгновенная победа</button>
         <button className="btn btn-small" disabled={!!engine.combat.result} onClick={() => mutate(() => { engine.combat!.result = 'defeat'; engine.gameOver('death', 'Поражение в режиме отладки.', true) }, 'Плейтест завершён поражением.')}>Мгновенное поражение</button>
       </> : <span className="muted small">Сейчас бой не идёт.</span>}

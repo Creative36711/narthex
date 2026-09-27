@@ -106,6 +106,7 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('sleep', (ticks: number) => {
     engine.advanceTicks(ticks)
     engine.restAndGrow()
+    engine.restHeal()
     return 0
   })
   bind('has_status', (id: string) => engine.hasStatus(id))

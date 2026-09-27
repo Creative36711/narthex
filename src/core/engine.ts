@@ -349,7 +349,48 @@ export class GameEngine {
     if (this.debugInvincible && delta < 0) return
     const p = this.state.player
     p.hp = Math.min(p.max_hp, p.hp + delta)
-    if (p.hp <= 0) this.gameOver('death', 'Ваши раны оказались смертельными.')
+    if (p.hp <= 0 && !this.tryBrpSurvival()) this.gameOver('death', 'Ваши раны оказались смертельными.')
+  }
+
+  /**
+   * Мировой спасбросок от смерти (режим combat.death.mode='brp'): при HP ≤ 0
+   * бросок CON×con_multiplier; успех — герой выживает на грани (1 HP).
+   * Истина — смерть отменена.
+   */
+  private tryBrpSurvival(): boolean {
+    const death = this.campaign.meta.combat?.death
+    if (death?.mode !== 'brp') return false
+    const mult = death.con_multiplier ?? 5
+    const out = skillCheck(this.state.player.stats.CON * mult, this.rng, 0, this.diceRules)
+    this.pushLog(`Грань смерти: CON×${mult} — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
+    if (!out.success) return false
+    this.state.player.hp = 1
+    this.pushLog('Герой выживает на грани смерти (1 HP).')
+    return true
+  }
+
+  /**
+   * Естественное лечение при отдыхе (аудит §5.6 п.3): сон (ink-вызов `sleep`)
+   * лечит HP костями из `meta.rest.hp` (умолчание '1d3') и, если не отключено
+   * (`rest.mp_full: false`), полностью восстанавливает MP.
+   */
+  restHeal(): { hp: number; mpFull: boolean } {
+    const rest = this.campaign.meta.rest
+    const p = this.state.player
+    let healed = 0
+    if (p.hp > 0 && p.hp < p.max_hp) {
+      healed = Math.min(p.max_hp - p.hp, rollDice(rest?.hp ?? '1d3', this.rng))
+      if (healed > 0) {
+        p.hp += healed
+        this.pushLog(`Отдых восстанавливает ${healed} HP.`)
+      }
+    }
+    const mpFull = rest?.mp_full ?? true
+    if (mpFull && p.mp < p.max_mp) {
+      p.mp = p.max_mp
+      this.pushLog('Силы восстановлены (MP полностью).')
+    }
+    return { hp: healed, mpFull }
   }
 
   // ─────────────── статусы (блок 5 ТЗ «Гибкий движок») ───────────────
@@ -1338,11 +1379,12 @@ export class GameEngine {
   private postCombatEffects: Effect[] = []
 
   /**
-   * Вызывается боем в момент победы (фидбек: сообщения должны быть видны
-   * ещё на экране победы, до «Продолжить»). Безопасные эффекты применяются
-   * сразу; смена экрана (диалог, телепорт, новый бой, финал) — после закрытия.
+   * Вызывается боем в момент его разрешения — победы, бегства игрока или
+   * «бессознательного» проигрыша (BRP-режим). Безопасные эффекты применяются
+   * сразу, пока игрок видит экран исхода; смена экрана (диалог, телепорт,
+   * новый бой, финал) — после закрытия боя.
    */
-  onCombatVictory(effects: Effect[]): void {
+  onCombatResolve(effects: Effect[]): void {
     const defer = new Set(['start_dialogue', 'start_combat', 'teleport_player', 'game_over_victory', 'game_over_death', 'play_cutscene'])
     this.postCombatEffects = effects.filter((e) => defer.has(e.type))
     this.applyEffects(effects.filter((e) => !defer.has(e.type)))
@@ -1367,19 +1409,33 @@ export class GameEngine {
     this.notify()
   }
 
-  /** Вызывается UI после экрана победы. */
+  /** Вызывается UI после экрана исхода боя (победа / бегство / выживание). */
   endCombat(): void {
     const combat = this.combat
     if (!combat) return
     this.combat = null
-    if (combat.result === 'victory') {
-      // основная часть on_victory уже применена в момент победы (onCombatVictory)
+    if (combat.result === 'victory' || combat.result === 'fled') {
+      // основная часть эффектов уже применена в момент исхода (onCombatResolve)
       const deferred = this.postCombatEffects
       this.postCombatEffects = []
       this.applyEffects(deferred)
       this.advanceTicks(1) // бой занимает время (ТЗ 4.1)
-      this.pushLog(`Бой «${combat.arena.label}» выигран за ${combat.round} раунд(ов).`)
       this.state.stats_run.kills += combat.combatants.filter((c) => c.side === 'enemy' && c.dead).length
+      this.pushLog(
+        combat.result === 'victory'
+          ? `Бой «${combat.arena.label}» выигран за ${combat.round} раунд(ов).`
+          : `Вы отступили из боя «${combat.arena.label}».`,
+      )
+      this.checkRules()
+      this.autosave()
+    } else if (combat.result === 'defeat' && !this.state.game_over) {
+      // BRP-режим (combat.death.mode='brp'): герой падает без сознания, но
+      // выживает — эффекты on_defeat мастера уже частично применены
+      const deferred = this.postCombatEffects
+      this.postCombatEffects = []
+      this.applyEffects(deferred)
+      this.advanceTicks(1)
+      this.pushLog('Вы приходите в себя после поражения.')
       this.checkRules()
       this.autosave()
     }

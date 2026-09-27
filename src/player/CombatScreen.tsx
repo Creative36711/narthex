@@ -192,7 +192,7 @@ export function CombatScreen({ engine }: Props) {
               const statusText = c.statuses.length
                 ? '\n' + c.statuses.map((s) => `${combat.statusLabel(s.id)}: ещё ${s.left} раунд(а)`).join('\n')
                 : ''
-              const tip = `${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}${statusText}`
+              const tip = `${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}${statusText}${c.down && !c.dead ? '\nБЕЗ СОЗНАНИЯ (выбыл из боя, жив)' : ''}`
               // фигурка боя вместо жетона (блок 3 ТЗ): без круглой маски и
               // рамки стороны; разворот по направлению движения/атаки
               if (c.figure) {
@@ -206,7 +206,7 @@ export function CombatScreen({ engine }: Props) {
                 return (
                   <div
                     key={c.id}
-                    className={`token-figure figure-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'figure-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
+                    className={`token-figure figure-${c.side} ${c.dead || c.down ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead && !c.down ? 'figure-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
                     style={posStyle}
                     data-tip={tip}
                     onClick={() => onHexClick(c.pos)}
@@ -227,7 +227,7 @@ export function CombatScreen({ engine }: Props) {
               return (
                 <div
                   key={c.id}
-                  className={`token token-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'token-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
+                  className={`token token-${c.side} ${c.dead || c.down ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead && !c.down ? 'token-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
                   style={posStyle}
                   data-tip={tip}
                   onClick={() => onHexClick(c.pos)}
@@ -284,7 +284,8 @@ export function CombatScreen({ engine }: Props) {
               {playerTurn ? (
                 <>
                   <div className="combat-hint">
-                    Движение: <b>{activePlayer.movLeft}</b> гекс. · MP: <b>{activePlayer.mp}</b> ·{''}
+                    Движение: <b>{activePlayer.movLeft}</b> гекс. · Атак: <b>{activePlayer.attacksLeft}</b>
+                    {activePlayer.attacksLeft > 1 ? ' (следующая со штрафом)' : ''} · MP: <b>{activePlayer.mp}</b> ·{''}
                     {activePlayer.attacked ? ' действие израсходовано' : ` атака: «${activePlayer.weaponLabel}»`}
                   </div>
                   <div className="combat-hint muted">
@@ -316,6 +317,15 @@ export function CombatScreen({ engine }: Props) {
                         </button>
                       ))}
                     </details>
+                  )}
+                  {combat.canFlee() && (
+                    <button
+                      className="btn"
+                      data-tip={'Отступление из боя.\nВраги в досягаемости ударят напоследок, затем проверка навыка отступления (уклонение или DEX×5).\nПровал — ход потерян.'}
+                      onClick={() => combat.playerFlee()}
+                    >
+                      Бежать из боя
+                    </button>
                   )}
                   <button
                     className="btn btn-primary"
@@ -354,10 +364,30 @@ export function CombatScreen({ engine }: Props) {
                     Продолжить
                   </button>
                 </div>
+              ) : combat.result === 'fled' ? (
+                <div className="combat-victory">
+                  <h3>Вы отступили</h3>
+                  <p className="muted small">Бой позади. Противники остались на своих позициях.</p>
+                  <button className="btn btn-primary" onClick={() => engine.endCombat()}>
+                    Продолжить
+                  </button>
+                </div>
               ) : combat.result === 'defeat' ? (
                 <div className="combat-defeat">
-                  <h3><Ico n="skull" />  Вы пали в бою</h3>
-                  <p className="muted small">Забег окончен…</p>
+                  {engine.state.game_over ? (
+                    <>
+                      <h3><Ico n="skull" />  Вы пали в бою</h3>
+                      <p className="muted small">Забег окончен…</p>
+                    </>
+                  ) : (
+                    <>
+                      <h3>Вы теряете сознание</h3>
+                      <p className="muted small">Бой проигран — но герой жив.</p>
+                      <button className="btn btn-primary" onClick={() => engine.endCombat()}>
+                        Продолжить
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="combat-hint">Ход противника…</div>
@@ -373,6 +403,7 @@ export function CombatScreen({ engine }: Props) {
                 <div key={c.id} className={`roster-row ${c.dead ? 'dead' : ''} side-${c.side}`}>
                   <span>
                     {c.label}
+                    {c.down && !c.dead && <span className="roster-status" data-tip="Выбыл из боя, но жив">без сознания</span>}
                     {c.statuses.map((s) => (
                       <span key={s.id} className="roster-status" data-tip={combat.statusLabel(s.id)}>
                         {combat.statusLabel(s.id)} ({s.left})
