@@ -6,6 +6,8 @@ import {
   charChoiceProblems,
   derivedFromChoice,
   newCharChoice,
+  rollStat,
+  rollStatSet,
   skillMinVal,
   skillPointsUsed,
   statPointsUsed,
@@ -43,10 +45,48 @@ export function CharacterCreation({
 }) {
   const creation = campaign.meta.char_creation!
   const template = campaign.entities[campaign.meta.default_player] as NpcDef
-  const [choice, setChoice] = useState<CharChoice>(() => newCharChoice(creation, template, campaign.meta))
+  const rollCfg = creation.roll
+  // режим кубиков (аудит §5.6 п.5): наборы, выбранный, перебросы, перераспределение
+  const [sets, setSets] = useState<Record<string, number>[]>(() =>
+    rollCfg ? Array.from({ length: Math.max(1, rollCfg.arrays ?? 1) }, () => rollStatSet(creation)) : [],
+  )
+  const [pickedSet, setPickedSet] = useState(0)
+  const [rerollsLeft, setRerollsLeft] = useState(rollCfg?.rerolls ?? 0)
+  const [redSpent, setRedSpent] = useState(0)
+  const [choice, setChoice] = useState<CharChoice>(() => {
+    const base = newCharChoice(creation, template, campaign.meta)
+    return rollCfg ? { ...base, stats: { ...(sets[0] ?? base.stats) } } : base
+  })
 
   const { min, max } = creation.stat_limits
   const statLeft = creation.total_points - statPointsUsed(creation, choice)
+  const redTotal = rollCfg?.redistribute ?? 0
+
+  /** перебросить все наборы целиком */
+  const rerollAll = () => {
+    const next = Array.from({ length: Math.max(1, rollCfg?.arrays ?? 1) }, () => rollStatSet(creation))
+    setSets(next)
+    setPickedSet(0)
+    setRerollsLeft(rollCfg?.rerolls ?? 0)
+    setRedSpent(0)
+    setChoice({ ...choice, stats: { ...next[0] } })
+  }
+
+  /** выбрать один из брошенных наборов */
+  const pickSet = (i: number) => {
+    if (!sets[i]) return
+    setPickedSet(i)
+    setRerollsLeft(rollCfg?.rerolls ?? 0)
+    setRedSpent(0)
+    setChoice({ ...choice, stats: { ...sets[i] } })
+  }
+
+  /** переброс одной характеристики (тратит переброс) */
+  const rerollOne = (k: string) => {
+    if (rerollsLeft <= 0) return
+    setRerollsLeft(rerollsLeft - 1)
+    setChoice({ ...choice, stats: { ...choice.stats, [k]: rollStat(creation, k) } })
+  }
   const skillsOn = creation.skill_points !== undefined
   const skillLeft = skillsOn ? creation.skill_points! - skillPointsUsed(creation, choice) : 0
   const problems = charChoiceProblems(creation, choice, campaign.meta.skills)
@@ -151,33 +191,96 @@ export function CharacterCreation({
 
         <div className="props-group">
           <h4>Характеристики</h4>
-          <div className={`char-budget ${statLeft > 0 ? 'warn' : 'ok'}`}>
-            Свободных очков характеристик: <b>{statLeft}</b> из {creation.total_points} · пороги {min}–{max}
-            {statLeft > 0 && (
-              <div className="char-budget-warn">
-                В бой с {statLeft} нераспределёнными очками? Это хардкор — герой будет заметно слабее.
+          {rollCfg ? (
+            <>
+              <div className="char-budget ok">
+                Характеристики бросаются кубиками
+                {rollCfg.per_stat && Object.keys(rollCfg.per_stat).length > 0 && (
+                  <>: {STAT_KEYS.map((k) => `${k} ${rollCfg.per_stat?.[k] ?? rollCfg.notation ?? '3d6'}`).join(' · ')}</>
+                )}
+                {!(rollCfg.per_stat && Object.keys(rollCfg.per_stat).length > 0) && <> ({rollCfg.notation ?? '3d6'})</>}
+                · пороги {min}–{max}
               </div>
-            )}
-          </div>
+              {sets.length > 1 && (
+                <div className="char-professions" style={{ marginBottom: 8 }}>
+                  {sets.map((s, i) => (
+                    <button
+                      key={i}
+                      className={`char-prof-card ${pickedSet === i ? 'sel' : ''}`}
+                      onClick={() => pickSet(i)}
+                    >
+                      <div className="char-prof-label">Набор {i + 1}</div>
+                      <div className="muted small">
+                        {STAT_KEYS.map((k) => `${k} ${s[k]}`).join(' · ')}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="char-roll-actions" style={{ marginBottom: 8 }}>
+                <button className="btn btn-small" onClick={rerollAll}>
+                  <Ico n="dice" />  Бросить заново
+                </button>
+                {rerollsLeft > 0 && (
+                  <span className="muted small">Перебросов отдельных характеристик: {rerollsLeft} (кнопка кубика у значения)</span>
+                )}
+                {redTotal > 0 && (
+                  <span className="muted small">Очков перераспределения: {redTotal - redSpent} из {redTotal} (кнопки − и + переливают очки)</span>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className={`char-budget ${statLeft > 0 ? 'warn' : 'ok'}`}>
+              Свободных очков характеристик: <b>{statLeft}</b> из {creation.total_points} · пороги {min}–{max}
+              {statLeft > 0 && (
+                <div className="char-budget-warn">
+                  В бой с {statLeft} нераспределёнными очками? Это хардкор — герой будет заметно слабее.
+                </div>
+              )}
+            </div>
+          )}
           <div className="char-stats">
             {STAT_KEYS.map((k) => (
               <div key={k} className="char-stat-row">
                 <span className="char-stat-key" data-tip={`${k} — ${STAT_LABELS[k]}`}>{k}</span>
                 <button
                   className="btn btn-small"
-                  disabled={(choice.stats[k] ?? min) <= min}
-                  onClick={() => setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) - 1 } })}
+                  disabled={
+                    rollCfg
+                      ? redSpent <= 0 || (choice.stats[k] ?? min) <= min
+                      : (choice.stats[k] ?? min) <= min
+                  }
+                  onClick={() => {
+                    if (rollCfg) setRedSpent(redSpent - 1)
+                    setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) - 1 } })
+                  }}
                 >
                   −
                 </button>
                 <span className="char-stat-val">{choice.stats[k] ?? min}</span>
                 <button
                   className="btn btn-small"
-                  disabled={statLeft <= 0 || (choice.stats[k] ?? min) >= max}
-                  onClick={() => setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) + 1 } })}
+                  disabled={
+                    rollCfg
+                      ? redSpent >= redTotal || (choice.stats[k] ?? min) >= max
+                      : statLeft <= 0 || (choice.stats[k] ?? min) >= max
+                  }
+                  onClick={() => {
+                    if (rollCfg) setRedSpent(redSpent + 1)
+                    setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) + 1 } })
+                  }}
                 >
                   +
                 </button>
+                {rollCfg && rerollsLeft > 0 && (
+                  <button
+                    className="btn btn-small"
+                    data-tip="Перебросить эту характеристику"
+                    onClick={() => rerollOne(k)}
+                  >
+                    <Ico n="dice" />
+                  </button>
+                )}
               </div>
             ))}
           </div>

@@ -1373,6 +1373,71 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Игрок вводит имя героя</span>
             </label>
 
+            <label className="fld fld-check">
+              <input
+                type="checkbox"
+                checked={!!m.char_creation.roll}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    m.char_creation!.roll = { notation: '3d6', per_stat: { INT: '2d6+6', SIZ: '2d6+6' }, arrays: 1, rerolls: 0, redistribute: 3 }
+                  } else delete m.char_creation!.roll
+                  commit()
+                }}
+              />
+              <span data-tip="Базовый метод BRP: характеристики бросаются кубиками, а не покупаются за очки. Распределение характеристик происхождений в этом режиме игнорируется.">
+                Характеристики — броски кубиков (вместо бюджета очков)
+              </span>
+            </label>
+            {m.char_creation.roll && (
+              <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                <label className="fld">
+                  <span>Базовая формула броска</span>
+                  <input
+                    value={m.char_creation.roll.notation ?? '3d6'}
+                    placeholder="3d6"
+                    onChange={(e) => ((m.char_creation!.roll!.notation = e.target.value || '3d6'), commit())}
+                  />
+                </label>
+                <label className="fld fld-num" data-tip="Сколько наборов бросается, игрок выбирает один">
+                  <span>Наборов на выбор</span>
+                  <input type="number" min={1} value={m.char_creation.roll.arrays ?? 1} onChange={(e) => ((m.char_creation!.roll!.arrays = Math.max(1, Number(e.target.value) || 1)), commit())} />
+                </label>
+                <label className="fld fld-num" data-tip="Сколько характеристик можно перебросить по одной штуке">
+                  <span>Перебросов</span>
+                  <input type="number" min={0} value={m.char_creation.roll.rerolls ?? 0} onChange={(e) => ((m.char_creation!.roll!.rerolls = Math.max(0, Number(e.target.value) || 0)), commit())} />
+                </label>
+                <label className="fld fld-num" data-tip="Очков сверх выброшенного набора для докрутки (BRP: до 3)">
+                  <span>Докрутка очков</span>
+                  <input type="number" min={0} value={m.char_creation.roll.redistribute ?? 0} onChange={(e) => ((m.char_creation!.roll!.redistribute = Math.max(0, Number(e.target.value) || 0)), commit())} />
+                </label>
+              </div>
+            )}
+            {m.char_creation.roll && (
+              <div className="fld" style={{ marginBottom: 10 }}>
+                <span className="muted small" style={{ display: 'block', marginBottom: 4 }}>
+                  Свои формулы по характеристикам (пусто — базовая). BRP: INT и SIZ бросаются 2d6+6.
+                </span>
+                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                  {(['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const).map((k) => (
+                    <label key={k} className="fld" style={{ maxWidth: 90 }}>
+                      <span>{k}</span>
+                      <input
+                        value={m.char_creation!.roll!.per_stat?.[k] ?? ''}
+                        placeholder={m.char_creation!.roll!.notation ?? '3d6'}
+                        onChange={(e) => {
+                          const per = { ...(m.char_creation!.roll!.per_stat ?? {}) }
+                          if (e.target.value.trim()) per[k] = e.target.value.trim()
+                          else delete per[k]
+                          m.char_creation!.roll!.per_stat = Object.keys(per).length ? per : undefined
+                          commit()
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* навыки-переключатели: клик по навыку включает/выключает его роль */}
             <div className="fld" style={{ marginBottom: 10 }}>
               <span className="muted small" style={{ display: 'block', marginBottom: 4 }}>
