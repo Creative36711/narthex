@@ -321,7 +321,7 @@ export function CombatScreen({ engine }: Props) {
                   )}
                   {combat.companionOrders().length > 0 && (
                     <details className="combat-items">
-                      <summary>Приказы отряду (аудит §5.6 п.11)</summary>
+                      <summary>Приказы отряду</summary>
                       {combat.companionOrders().map((o) => (
                         <div key={o.entityId} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '4px 0' }}>
                           <span className="small" style={{ flex: 1 }}>{o.label}</span>
@@ -364,7 +364,7 @@ export function CombatScreen({ engine }: Props) {
                     <button
                       className="btn"
                       disabled={activePlayer.attacked || (activePlayer.aimBonus ?? 0) > 0 || activePlayer.attacksLeft <= 0}
-                      data-tip={'Прицельная атака (аудит B5).\nТратит одну атаку за ход; следующая атака получает бонус (умолчание +20%).'}
+                       data-tip={'Прицельная атака.\nТратит одну атаку за ход; следующая атака получает бонус (умолчание +20%).'}
                       onClick={() => combat.playerAim()}
                     >
                       {(activePlayer.aimBonus ?? 0) > 0 ? `Прицел (+${activePlayer.aimBonus}%)` : 'Прицелиться'}

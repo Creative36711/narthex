@@ -2387,7 +2387,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 </span>
               ))}
             </div>
-            <div className="fld-row" style={{ flexWrap: 'wrap' }} data-tip="Влияние этой погоды на бой (аудит B7): действует на обе стороны">
+            <div className="fld-row" style={{ flexWrap: 'wrap' }} data-tip="Влияние этой погоды на бой: действует на обе стороны">
               <label className="fld fld-num" data-tip="Общий штраф всему движению (и бойцам игрока, и врагам); итог не ниже 1">
                 <span>Штраф движения в бою</span>
                 <input
