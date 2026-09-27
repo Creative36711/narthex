@@ -961,11 +961,16 @@ export interface ArtDoc {
   layers: ArtLayer[]
 }
 
+/** изображение пакета либо цикл кадров для «живых» сцен (frame-swap анимация):
+ *  строка — статично (все старые кампании); массив строк — кадры без настроек;
+ *  объект — кадры + темп (кадр/с, умолч. 2) + зацикленность (умолч. true). */
+export type ImageValue = string | string[] | { frames: string[]; fps?: number; loop?: boolean }
+
 export interface SceneStateDef {
   id: string
   label: string
-  /** фон-изображение (файл пакета или ссылка) */
-  image?: string
+  /** фон-изображение (файл пакета или ссылка); можно цикл кадров (ImageValue) */
+  image?: ImageValue
   /** фон, нарисованный примитивами (вместо image) */
   art?: ArtDoc
   condition: SceneCondition | null
@@ -1169,18 +1174,20 @@ export interface NpcDef {
   /** ПОРТРЕТ (диалог): состояние → изображение (блок 3 ТЗ «Гибкий движок») */
   portrait: Record<string, string> // emotion -> image
   /** СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);
-   *  нет — в сцене используется портрет (состояние «Обычный») */
-  scene_sprite?: string
+   *  нет — в сцене используется портрет (состояние «Обычный»).
+   *  Можно цикл кадров (ImageValue) — «живой» спрайт. */
+  scene_sprite?: ImageValue
   /** состояния спрайта сцены — по образцу портретов: ключ — id состояния из
    *  реестра кампании (`meta.emotions`); «Куда девать» определяет слот сцены
    *  (SlotDef.sprite_state). Пустого ключа нет: «Обычный» — это scene_sprite. */
-  scene_sprite_states?: Record<string, string>
+  scene_sprite_states?: Record<string, ImageValue>
   /** ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски
-   *  и рамки стороны); нет — круглый жетон из `token ?? portrait.neutral` */
-  combat_figure?: string
+   *  и рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`.
+   *  Можно цикл кадров (ImageValue). */
+  combat_figure?: ImageValue
   /** состояния фигурки боя: 'dead' — погиб, 'down' — без сознания/выведен,
    *  id статуса — пока статус активен. Пустой ключ = обычная (combat_figure). */
-  combat_figure_states?: Record<string, string>
+  combat_figure_states?: Record<string, ImageValue>
   /** как разворачивать фигурку: вид сверху (поворот), вид сбоку (зеркало),
    *  не разворачивать; по умолчанию 'topdown' */
   figure_mode?: 'topdown' | 'side' | 'static'
@@ -1297,8 +1304,9 @@ export interface ItemDef {
    *  «Обычный» — по умолчанию; без портретов окно показывает только текст. */
   portrait?: Record<string, string>
   /** СПРАЙТ В СЦЕНЕ: картинка предмета в его слоте (целиком, без обрезки).
-   *  Нет — в слоте не рисуется ничего (ни портрет, ни иконка). */
-  scene_sprite?: string
+   *  Нет — в слоте не рисуется ничего (ни портрет, ни иконка).
+   *  Можно цикл кадров (ImageValue) — «живой» предмет. */
+  scene_sprite?: ImageValue
   /**
    * Взаимодействовать можно только когда условия истинны; пока ложны —
    * предмет «декорация»: виден в слоте, но не нажимается и не подсвечивается.

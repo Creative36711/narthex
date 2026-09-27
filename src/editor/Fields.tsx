@@ -1,7 +1,8 @@
 import { Ico } from '../shared/icons'
 import { useId, useState } from 'react'
 import { FlagAutocomplete } from './FlagAutocomplete'
-import type { Condition, Effect, NpcDef } from '../shared/types'
+import type { Condition, Effect, ImageValue, NpcDef } from '../shared/types'
+import { framesOf } from '../player/frames'
 import { makeId } from './ids'
 import type { EditorStore } from './store'
 import { isExternalUrl } from '../core/loader'
@@ -734,6 +735,120 @@ export function ImageUpload({
   onChange: (path: string) => void
 }) {
   return <AssetUpload label={label} value={value} dir={dir} store={store} kind="image" onChange={onChange} />
+}
+
+/**
+ * «Живые» изображения (разрешено мастеру-пункт «живые сцены»): статичное
+ * изображение — как обычно; «Оживить…» превращает в цикл кадров (список
+ * картинок + темп + зацикленность). Значение: string одиночное, объект
+ * {frames, fps, loop} — анимация.
+ */
+export function AnimImageEditor({
+  label,
+  value,
+  dir,
+  store,
+  onChange,
+}: {
+  label: string
+  value: ImageValue | undefined
+  dir: string
+  store: EditorStore
+  onChange: (v: ImageValue | undefined) => void
+}) {
+  const info = framesOf(value)
+  const animated = (info?.frames.length ?? 0) > 0 && typeof value !== 'string'
+
+  if (!animated) {
+    return (
+      <div>
+        <ImageUpload
+          label={label}
+          value={info?.frames[0] ?? ''}
+          dir={dir}
+          store={store}
+          onChange={(p) => onChange(p || undefined)}
+        />
+        {!!info?.frames[0] && (
+          <button
+            className="btn btn-small"
+            data-tip="Несколько картинок, сменяющих друг друга по таймеру — «живые» сцены"
+            onClick={() => onChange({ frames: info.frames, fps: 2, loop: true })}
+          >
+            <Ico n="sparkle" /> Оживить (кадры за кадром)…
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  const set = (patch: Partial<{ frames: string[]; fps: number; loop: boolean }>) => {
+    onChange({ frames: info!.frames, fps: info!.fps, loop: info!.loop, ...patch })
+  }
+
+  return (
+    <div className="fld fld-block img-upload anim-frames">
+      <span>{label} — оживление ({info!.frames.length} кадр(а), {info!.fps} к/с{info!.loop ? ', зациклено' : ''})</span>
+      {info!.frames.map((f, i) => (
+        <div key={i} className="fld-row" style={{ alignItems: 'flex-start' }}>
+          <ImageUpload
+            label={`Кадр ${i + 1}`}
+            value={f}
+            dir={dir}
+            store={store}
+            onChange={(p) => {
+              const frames = [...info!.frames]
+              frames[i] = p
+              set({ frames })
+            }}
+          />
+          <button
+            className="btn btn-small ce-del"
+            data-tip="Убрать кадр"
+            onClick={() => {
+              const frames = info!.frames.filter((_, j) => j !== i)
+              if (frames.length === 1) onChange(frames[0])
+              else if (!frames.length) onChange(undefined)
+              else set({ frames })
+            }}
+          >
+            <Ico n="close" />
+          </button>
+        </div>
+      ))}
+      <div className="fld-row" style={{ alignItems: 'center', marginTop: 6 }}>
+        <button className="btn btn-small" onClick={() => set({ frames: [...info!.frames, ''] })}>
+          <Ico n="plus" /> Кадр
+        </button>
+        <label className="fld" style={{ maxWidth: 150 }}>
+          <span>Темп, кадр/с</span>
+          <input
+            type="number"
+            min={0.25}
+            max={12}
+            step={0.25}
+            value={info!.fps}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (v > 0) set({ fps: Math.min(12, v) })
+            }}
+          />
+        </label>
+        <label className="fld fld-check" style={{ marginTop: 18 }}>
+          <input type="checkbox" checked={info!.loop} onChange={(e) => set({ loop: e.target.checked })} />
+          <span>Зациклить</span>
+        </label>
+        <button
+          className="btn btn-small"
+          style={{ marginLeft: 'auto' }}
+          data-tip="Оставить только первый кадр — анимация выключится"
+          onClick={() => onChange(info!.frames[0] || undefined)}
+        >
+          Сделать статичным
+        </button>
+      </div>
+    </div>
+  )
 }
 
 /** Загрузка звука (музыка, озвучка) с компьютера или по ссылке. */

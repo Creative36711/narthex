@@ -5067,6 +5067,41 @@
       ],
       "additionalProperties": false
     },
+    "ImageValue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "frames": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "fps": {
+              "type": "number"
+            },
+            "loop": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "frames"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "изображение пакета либо цикл кадров для «живых» сцен (frame-swap анимация):\nстрока — статично (все старые кампании); массив строк — кадры без настроек;\nобъект — кадры + темп (кадр/с, умолч. 2) + зацикленность (умолч. true)."
+    },
     "SceneCondition": {
       "type": "object",
       "properties": {
@@ -5107,8 +5142,8 @@
           "type": "string"
         },
         "image": {
-          "type": "string",
-          "description": "фон-изображение (файл пакета или ссылка)"
+          "$ref": "#/$defs/ImageValue",
+          "description": "фон-изображение (файл пакета или ссылка); можно цикл кадров (ImageValue)"
         },
         "art": {
           "$ref": "#/$defs/ArtDoc",
@@ -5606,24 +5641,24 @@
           "description": "ПОРТРЕТ (диалог): состояние → изображение (блок 3 ТЗ «Гибкий движок»)"
         },
         "scene_sprite": {
-          "type": "string",
-          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);\nнет — в сцене используется портрет (состояние «Обычный»)"
+          "$ref": "#/$defs/ImageValue",
+          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);\nнет — в сцене используется портрет (состояние «Обычный»).\nМожно цикл кадров (ImageValue) — «живой» спрайт."
         },
         "scene_sprite_states": {
           "type": "object",
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/$defs/ImageValue"
           },
           "description": "состояния спрайта сцены — по образцу портретов: ключ — id состояния из\nреестра кампании (`meta.emotions`); «Куда девать» определяет слот сцены\n(SlotDef.sprite_state). Пустого ключа нет: «Обычный» — это scene_sprite."
         },
         "combat_figure": {
-          "type": "string",
-          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`"
+          "$ref": "#/$defs/ImageValue",
+          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`.\nМожно цикл кадров (ImageValue)."
         },
         "combat_figure_states": {
           "type": "object",
           "additionalProperties": {
-            "type": "string"
+            "$ref": "#/$defs/ImageValue"
           },
           "description": "состояния фигурки боя: 'dead' — погиб, 'down' — без сознания/выведен,\nid статуса — пока статус активен. Пустой ключ = обычная (combat_figure)."
         },
@@ -5888,8 +5923,8 @@
           "description": "ПОРТРЕТЫ (состояния) предмета для окна взаимодействия: emotion → изображение.\n«Обычный» — по умолчанию; без портретов окно показывает только текст."
         },
         "scene_sprite": {
-          "type": "string",
-          "description": "СПРАЙТ В СЦЕНЕ: картинка предмета в его слоте (целиком, без обрезки).\nНет — в слоте не рисуется ничего (ни портрет, ни иконка)."
+          "$ref": "#/$defs/ImageValue",
+          "description": "СПРАЙТ В СЦЕНЕ: картинка предмета в его слоте (целиком, без обрезки).\nНет — в слоте не рисуется ничего (ни портрет, ни иконка).\nМожно цикл кадров (ImageValue) — «живой» предмет."
         },
         "interactable_when": {
           "type": "array",

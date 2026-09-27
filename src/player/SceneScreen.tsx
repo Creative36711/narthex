@@ -3,6 +3,7 @@ import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
 import { timeOfDay } from '../core/time'
 import { ArtView } from '../shared/ArtView'
+import { firstFrame, LiveImg } from './frames'
 import type { ItemDef, SceneStateDef, SlotDef, SlotUseWith } from '../shared/types'
 
 interface Props {
@@ -29,7 +30,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const background: SceneBackground = state?.art
     ? { kind: 'art', art: state.art }
     : state?.image
-      ? { kind: 'image', src: assetUrl(engine.campaign, state.image), label: state.label }
+      ? { kind: 'image', src: assetUrl(engine.campaign, firstFrame(state.image)), label: state.label }
       : { kind: 'fallback' }
 
   useEffect(() => setBgError(''), [sceneId])
@@ -65,15 +66,16 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         {state.art ? (
           <ArtView key={stateKey} className="scene-bg scene-bg-enter" art={state.art} />
         ) : state.image && !bgError ? (
-          <img
+          <LiveImg
             key={stateKey}
             className="scene-bg scene-bg-enter"
-            src={assetUrl(engine.campaign, state.image)}
+            value={state.image}
+            tickKey={stateKey}
+            urlOf={(f) => assetUrl(engine.campaign, f)}
             alt={state.label}
             draggable={false}
-            onError={(e) => {
+            onError={(src) => {
               // диагностика «чёрной сцены»: причина видна сразу, а не в глубине DevTools
-              const src = (e.target as HTMLImageElement).currentSrc || state.image || '(путь не задан)'
               console.error(`[сцена] фон не загрузился: ${src}`)
               setBgError(src)
             }}
@@ -144,11 +146,12 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                   <>
                     {entity.shadow !== false && <span className="sprite-shadow" />}
                     <span className="slot-sprite-box" style={{ height: `${scale * 100}%` }}>
-                      <img
+                      <LiveImg
                         className="slot-sprite"
-                        src={assetUrl(engine.campaign, sprite)}
+                        value={sprite}
+                        tickKey={slot.sprite_state ?? ''}
+                        urlOf={(f) => assetUrl(engine.campaign, f)}
                         alt={entity.label}
-                        draggable={false}
                       />
                     </span>
                   </>

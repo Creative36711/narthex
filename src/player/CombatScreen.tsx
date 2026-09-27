@@ -6,6 +6,8 @@ import { hexKey, hexToPixel, hexCorners, gridPixelSize, hexDistance } from '../c
 import { assetUrl } from '../core/loader'
 import { tipSeen, markTip } from './tips'
 import { featureOn } from '../shared/types'
+import { LiveImg } from './frames'
+import type { ImageValue } from '../shared/types'
 
 interface Props {
   engine: GameEngine
@@ -195,13 +197,13 @@ export function CombatScreen({ engine }: Props) {
               const tip = `${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}${statusText}${c.down && !c.dead ? '\nБЕЗ СОЗНАНИЯ (выбыл из боя, жив)' : ''}`
               // фигурка боя вместо жетона (блок 3 ТЗ): без круглой маски и
               // рамки стороны; разворот по направлению движения/атаки
-              if (c.figure) {
+                if (c.figure) {
                 const mode = c.figure_mode ?? 'topdown'
                 // состояния фигурки боя (фидбек №7): погиб/без сознания/статус — своя картинка
                 const fstates = (() => {
                   if (!c.entityId) return undefined
                   const def = engine.campaign.entities[c.entityId]
-                  return def && (def as { combat_figure_states?: Record<string, string> }).combat_figure_states
+                  return def && (def as { combat_figure_states?: Record<string, ImageValue> }).combat_figure_states
                 })()
                 const statusOverride = fstates
                   ? c.statuses.map((s) => fstates[s.id]).find((p) => !!p)
@@ -223,8 +225,10 @@ export function CombatScreen({ engine }: Props) {
                     onClick={() => onHexClick(c.pos)}
                   >
                     {c.figure_shadow !== false && !c.dead && <span className="figure-shadow" />}
-                    <img
-                      src={assetUrl(engine.campaign, figureSrc)}
+                    <LiveImg
+                      value={figureSrc}
+                      tickKey={`${c.entityId ?? ''}:${c.dead ? 'dead' : c.down ? 'down' : c.statuses[0]?.id ?? ''}`}
+                      urlOf={(f) => assetUrl(engine.campaign, f)}
                       alt={c.label}
                       draggable={false}
                       style={transform ? { transform } : undefined}

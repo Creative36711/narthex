@@ -10,7 +10,15 @@
     {
       "id": "state_day",
       "label": "День",
-      "image": "assets/img/scenes/gates_front_day.jpg",
+      "image": {
+        "frames": [
+          "assets/img/scenes/gates_front_day.jpg",
+          "assets/img/scenes/gates_front_night.jpg"
+        ],
+        "fps": 0.2,
+        "loop": true
+      },
+      "_demo_note": "полигон: живой фон frame-swap (кадр каждые 5 с); в реальной кампании день/ночь выбираются состояниями ниже",
       "condition": {
         "time_of_day": [
           "morning",

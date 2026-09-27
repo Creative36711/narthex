@@ -3,6 +3,7 @@ import type {
   ActiveStatus,
   ArenaDef,
   Effect,
+  ImageValue,
   ItemDef,
   NpcDef,
   StatBlock,
@@ -28,8 +29,9 @@ export interface Combatant {
   label: string
   side: 'player' | 'enemy'
   portrait?: string
-  /** фигурка боя (вместо жетона); нет — рисуется круглый жетон (блок 3 ТЗ) */
-  figure?: string
+  /** фигурка боя (вместо жетона); нет — рисуется круглый жетон (блок 3 ТЗ).
+   *  Может быть циклом кадров (ImageValue) — «живая» фигурка. */
+  figure?: ImageValue
   /** как разворачивать фигурку; по умолчанию 'topdown' */
   figure_mode?: 'topdown' | 'side' | 'static'
   /** мягкая тень под фигуркой (по умолчанию включена) */

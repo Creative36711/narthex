@@ -5,10 +5,11 @@ import type Konva from 'konva'
 import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
 import { ArtView, artToDataUrl } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { ImageUpload, JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor } from './Fields'
+import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, AnimImageEditor } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
+import { firstFrame } from '../player/frames'
 
 /**
  * Визуальный редактор сцены (ТЗ 5.2.2) на Konva:
@@ -113,7 +114,7 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   // фон: ArtDoc рисуем как SVG-подложку под прозрачным Konva-холстом,
   // обычное изображение — внутри Konva (итерация 8, блок D)
   const artUrl = st?.art ? artToDataUrl(st.art) : ''
-  const img = useImage(!st?.art && st?.image ? store.assetSrc(st.image) : null)
+  const img = useImage(!st?.art && st?.image ? store.assetSrc(firstFrame(st.image)) : null)
 
   useEffect(() => {
     // после отката (или удаления) выбранный объект мог исчезнуть — не
@@ -400,12 +401,16 @@ function StateBackground({
   }
   return (
     <div className="fld fld-block">
-      <ImageUpload
+      <AnimImageEditor
         label="Фон сцены"
-        value={state.image ?? ''}
+        value={state.image}
         dir="assets/img/scenes"
         store={store}
-        onChange={(p) => ((state.image = p), commit())}
+        onChange={(v) => {
+          if (v) state.image = v
+          else delete state.image
+          commit()
+        }}
       />
       <div className="art-preview-tools">
         <button

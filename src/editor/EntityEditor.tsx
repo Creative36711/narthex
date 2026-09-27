@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
 import { DEFAULT_EMOTION, equipmentSlots } from '../shared/types'
 import type { EditorStore } from './store'
-import { ConditionListEditor, EffectListEditor, FlagSelect, ImageUpload, RefSelect, FileAdvancedJson } from './Fields'
+import { ConditionListEditor, EffectListEditor, FlagSelect, ImageUpload, RefSelect, FileAdvancedJson, AnimImageEditor } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { SoundHookMapEditor } from './AudioSection'
 import { askText } from './prompt'
@@ -151,13 +151,13 @@ function ItemForm({
 
       <div className="props-group">
         <h4>Предмет в сцене</h4>
-        <ImageUpload
-          label="Спрайт в сцене (картинка предмета в его слоте; беспорто — слот пуст)"
-          value={item.scene_sprite ?? ''}
+        <AnimImageEditor
+          label="Спрайт в сцене (картинка предмета в его слоте; без него — слот пуст)"
+          value={item.scene_sprite}
           dir="assets/img/items"
           store={store}
-          onChange={(p) => {
-            if (p) item.scene_sprite = p
+          onChange={(v) => {
+            if (v) item.scene_sprite = v
             else delete item.scene_sprite
             commit()
           }}
@@ -694,13 +694,13 @@ function NpcForm({
           Изображение с вырезанным фоном (прозрачный PNG), которым персонаж стоит в сцене.
           Если не задано — в сцене используется портрет «Обычный».
         </div>
-        <ImageUpload
+        <AnimImageEditor
           label="Спрайт в сцене"
-          value={npc.scene_sprite ?? ''}
+          value={npc.scene_sprite}
           dir="assets/img/npc"
           store={store}
-          onChange={(p) => {
-            if (p) npc.scene_sprite = p
+          onChange={(v) => {
+            if (v) npc.scene_sprite = v
             else delete npc.scene_sprite
             commit()
           }}
@@ -714,14 +714,14 @@ function NpcForm({
         <div className="fld-row" style={{ flexWrap: 'wrap' }}>
           {Object.keys(npc.scene_sprite_states ?? {}).map((k) => (
             <div key={k} style={{ position: 'relative' }}>
-              <ImageUpload
+              <AnimImageEditor
                 label={emLabelOf(store, k)}
-                value={npc.scene_sprite_states?.[k] ?? ''}
+                value={npc.scene_sprite_states?.[k]}
                 dir="assets/img/npc"
                 store={store}
-                onChange={(p) => {
+                onChange={(v) => {
                   npc.scene_sprite_states = { ...(npc.scene_sprite_states ?? {}) }
-                  if (p) npc.scene_sprite_states[k] = p
+                  if (v) npc.scene_sprite_states[k] = v
                   else delete npc.scene_sprite_states[k]
                   if (!Object.keys(npc.scene_sprite_states).length) delete npc.scene_sprite_states
                   commit()
@@ -797,13 +797,13 @@ function NpcForm({
           Фигурка показывается на арене вместо жетона (без круглой рамки) и разворачивается
           при движении и атаке. Если фигурки нет — рисуется круглый жетон.
         </div>
-        <ImageUpload
+        <AnimImageEditor
           label="Фигурка боя"
-          value={npc.combat_figure ?? ''}
+          value={npc.combat_figure}
           dir="assets/img/npc"
           store={store}
-          onChange={(p) => {
-            if (p) npc.combat_figure = p
+          onChange={(v) => {
+            if (v) npc.combat_figure = v
             else delete npc.combat_figure
             commit()
           }}
@@ -833,14 +833,14 @@ function NpcForm({
         <div className="fld-row" style={{ flexWrap: 'wrap' }}>
           {Object.keys(npc.combat_figure_states ?? {}).map((k) => (
             <div key={k} style={{ position: 'relative' }}>
-              <ImageUpload
+              <AnimImageEditor
                 label={figureStateLabel(store, k)}
-                value={npc.combat_figure_states?.[k] ?? ''}
+                value={npc.combat_figure_states?.[k]}
                 dir="assets/img/npc"
                 store={store}
-                onChange={(p) => {
+                onChange={(v) => {
                   npc.combat_figure_states = { ...(npc.combat_figure_states ?? {}) }
-                  if (p) npc.combat_figure_states[k] = p
+                  if (v) npc.combat_figure_states[k] = v
                   else delete npc.combat_figure_states[k]
                   if (!Object.keys(npc.combat_figure_states).length) delete npc.combat_figure_states
                   commit()
