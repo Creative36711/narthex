@@ -818,7 +818,7 @@ markdown (`MarkdownView.tsx`); иллюстрации — статик `public/b
 | Ключ | Что |
 |------|-----|
 | `chronicle-forge:save:<campaignId>` | автосейв забега: обёртка `SaveEnvelope` (`envelope_version=1`) с `GameState` (`SAVE_VERSION=4`), версией кампании и движка; стирается при финале |
-| `chronicle-forge:save-backup:<campaignId>` | исходник сейва до первой правки (миграция/починка); удаляется вместе с сейвом |
+| `chronicle-forge:save-backup:<campaignId>` | исходник сейва до первой правки (миграция/починка) или неподдержавшийся сейв перед новым забегом; удаляется вместе с сейвом |
 | `chronicle-forge:settings` | настройки игрока: громкости, озвучка, синтезатор речи, голос |
 | `cf_tips_seen[:<campaignId>]` | просмотренные интерактивные подсказки (по кампании или общие) |
 | `chronicle-forge:map-labels` | показывать ли названия локаций на карте |
@@ -998,7 +998,7 @@ markdown (`MarkdownView.tsx`); иллюстрации — статик `public/b
 - **23**: фикс «умирающей» первой фразы диалога в StrictMode (гонка эффектов
   монтирования — отдельный «уборочный» эффект).
 
-### 10.8 Фидбек 24 (текущий)
+### 10.8 Фидбек 24
 
 - Плашка «d100» в справке — по содержимому (без наезда на текст, nowrap);
 - **JSON-вкладки без скролла страницы** (Кампания, Мир, сцены, арены): редактор
@@ -1010,6 +1010,28 @@ markdown (`MarkdownView.tsx`); иллюстрации — статик `public/b
   контрастная типографика);
 - Мир→JSON: `world-main` растягивается на всю высоту в json-режиме.
 Смоук — `scripts/feedback24-smoke.mts` (16 проверок).
+
+### 10.9 Версии и совместимость (текущий)
+
+- **Контракт версий** (`shared/versions.ts`): `ENGINE_VERSION` из
+  `package.json` (define vite; версии Tauri синхронизированы),
+  `PACKAGE_FORMAT`, semver-сравнение, `checkEngine`, `checkPackage`.
+  `meta.engine_version` читается как устаревшее `min_engine`.
+- **Сохранения**: обёртка `SaveEnvelope` (версии кампании и движка, даты,
+  тик, локация), цепочка миграций `SAVE_MIGRATIONS` (в1→в4), починка ссылок
+  `repairState`, вердикты `ok/unsupported/too_old`, резервный ключ,
+  `preserveSave`, экспорт/импорт `.cfsave` (`core/savemigrate.ts`). Политика
+  сменилась с «старый сейв отбрасываем» на «переносим и чиним с отчётом»;
+  смоук `tz7` обновлён под неё.
+- **Кампании**: `compat.json` (`chronicle-compat/1`), инвентаризация пакета и
+  сравнение версий (`shared/compat.ts`, классы S/A/B/C/D), вкладка «Версии» и
+  публикация из редактора (`editor/compatPublish.ts`), CLI
+  `scripts/compat-report.mts`, запрет переименования id в «Расширенном JSON».
+- **Игрок**: модалка отчёта о сейве (`player/SaveReportModal.tsx`), строка
+  «сохранение: версия/тики/дата» и предупреждение о движке в главном меню,
+  загрузка `.cfsave` в окне кампаний.
+- Смоуки — `saves-compat-smoke.mts`, `compat-publish-smoke.mts`; документация
+  — `docs/compatibility.md`, `docs/workshop.md`, `docs/book/07-versions.md`.
 
 ## 11. Что осталось
 
