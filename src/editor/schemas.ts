@@ -119,6 +119,29 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     ],
     blank: { skill: '', threshold: 50 },
   },
+  stat_ge: {
+    label: 'Характеристика ≥',
+    fields: [
+      { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'POW' },
+      { key: 'threshold', label: 'Порог', kind: 'number' },
+    ],
+    blank: { stat: 'POW', threshold: 10 },
+  },
+  hp_le: {
+    label: 'HP ≤',
+    fields: [{ key: 'threshold', label: 'Порог', kind: 'number' }],
+    blank: { threshold: 3 },
+  },
+  hp_ge: {
+    label: 'HP ≥',
+    fields: [{ key: 'threshold', label: 'Порог', kind: 'number' }],
+    blank: { threshold: 1 },
+  },
+  luck_ge: {
+    label: 'Удача ≥',
+    fields: [{ key: 'threshold', label: 'Очков удачи', kind: 'number' }],
+    blank: { threshold: 1 },
+  },
   need_le: {
     label: 'Потребность ≤',
     fields: [
@@ -339,6 +362,35 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'delta', label: 'Дельта', kind: 'number' },
     ],
     blank: { target: '', delta: 10 },
+  },
+  stat_check: {
+    label: 'Проверка характеристики (ветвление)',
+    fields: [
+      { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'POW' },
+      { key: 'multiplier', label: 'Множитель (ум. 5)', kind: 'number', optional: true },
+      { key: 'modifier', label: 'Модификатор к цели', kind: 'number', optional: true },
+      { key: 'success_effects', label: 'При успехе', kind: 'effects' },
+      { key: 'fail_effects', label: 'При провале', kind: 'effects' },
+    ],
+    blank: { stat: 'POW', success_effects: [], fail_effects: [] },
+  },
+  opposed_check: {
+    label: 'Противоборство навыком (ветвление)',
+    fields: [
+      { key: 'skill', label: 'Навык героя', kind: 'skillRef' },
+      { key: 'entity', label: 'Оппонент NPC', kind: 'npcRef', optional: true },
+      { key: 'against_skill', label: 'Навык оппонента', kind: 'skillRef', optional: true },
+      { key: 'against_value', label: 'Или порог навыка', kind: 'number', optional: true },
+      { key: 'tie', label: 'При равенстве выигрывает', kind: 'select', options: ['player', 'opponent'], optional: true },
+      { key: 'success_effects', label: 'При победе героя', kind: 'effects' },
+      { key: 'fail_effects', label: 'При поражении', kind: 'effects' },
+    ],
+    blank: { skill: '', success_effects: [], fail_effects: [] },
+  },
+  change_luck: {
+    label: 'Изменить удачу',
+    fields: [{ key: 'delta', label: 'Очки удачи (±)', kind: 'number' }],
+    blank: { delta: -1 },
   },
   start_quest: {
     label: 'Начать квест',

@@ -144,6 +144,25 @@ export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = fal
         <EndScreen engine={engine} onRestart={onRestart} onExitToMenu={onExitToMenu} />
       )}
 
+      {!cutscene && engine.luckOffer && !engine.combat && (
+        <div className="overlay message-overlay">
+          <div className="message-box">
+            <p>{engine.luckOffer.text}</p>
+            <p className="muted small">
+              Потратить удачу ({engine.luckOffer.cost} очк., осталось {engine.luck()}) и бросить заново?
+            </p>
+            <div className="modal-buttons">
+              <button className="btn" onClick={() => engine.resolveLuckOffer(false)}>
+                Оставить как есть
+              </button>
+              <button className="btn btn-primary" onClick={() => engine.resolveLuckOffer(true)}>
+                Перебросить за удачу
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {cutscene && (
         <CutscenePlayer
           key={engine.cutsceneKey}

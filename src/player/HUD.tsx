@@ -34,6 +34,14 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           <div className="hud-bar-fill" style={{ width: `${(s.player.hp / s.player.max_hp) * 100}%` }} />
           <span>HP {s.player.hp}/{s.player.max_hp}</span>
         </div>
+        {engine.campaign.meta.luck && engine.luckMax() > 0 && (
+          <div
+            className="hud-status-chip"
+            data-tip={`Удача: ${engine.luck()}/${engine.luckMax()} (POW × множитель).\nНа провальном броске вне боя можно потратить удачу и перебросить.\nВосстанавливается на отдыхе (если мастер не отключил).`}
+          >
+            Удача {engine.luck()}
+          </div>
+        )}
         {needsOn && meta.needs.map((n) => {
           const val = s.player.needs[n.id] ?? 0
           const critical = val <= n.critical_threshold

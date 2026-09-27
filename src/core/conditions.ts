@@ -42,6 +42,14 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
     }
     case 'skill_ge':
       return (s.player.skills[c.skill] ?? 0) >= c.threshold
+    case 'stat_ge':
+      return ((s.player.stats as unknown as Record<string, number>)[c.stat] ?? 0) >= c.threshold
+    case 'hp_le':
+      return s.player.hp <= c.threshold
+    case 'hp_ge':
+      return s.player.hp >= c.threshold
+    case 'luck_ge':
+      return engine.luck() >= c.threshold
     case 'need_le':
       return (s.player.needs[c.need] ?? 0) <= c.threshold
     case 'need_ge':

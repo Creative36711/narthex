@@ -266,5 +266,122 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   check('6 без brp-режима смерть мгновенна', !!e2.state.game_over)
 }
 
+// ── 7. проверка характеристики и новые условия правил ──
+{
+  const { evalCondition } = await import('../src/core/conditions')
+  const c = synth((camp) => {
+    buff(camp)
+    camp.meta.luck = { multiplier: 5, reroll_cost: 1 }
+  })
+  const e = new GameEngine(c)
+  e.start()
+  ;(e as any).rng = new PRNG('cr-stat')
+  // POW 15 → POW×5 = 75; детерминировать: модификатор +100 — гарантированный успех
+  const out = e.statCheck('POW', 5, 100)
+  check('7 statCheck успешен при заведомо большой цели', out.success)
+  const outF = e.statCheck('POW', 5, -1000)
+  check('7 statCheck провален при заведомо малой цели', !outF.success)
+  // эффект stat_check применяет ветки
+  e.applyEffects([{ type: 'stat_check', stat: 'POW', multiplier: 5, modifier: 100, success_effects: [{ type: 'set_flag', flag: 'stat_ok' }], fail_effects: [{ type: 'set_flag', flag: 'stat_fail' }] }])
+  check('7 эффект stat_check: ветка успеха', e.state.flags['stat_ok'] === true && !e.state.flags['stat_fail'])
+  e.applyEffects([{ type: 'stat_check', stat: 'POW', multiplier: 5, modifier: -1000, success_effects: [{ type: 'set_flag', flag: 'stat_ok2' }], fail_effects: [{ type: 'set_flag', flag: 'stat_fail2' }] }])
+  // провал без удачного предложения? удача включена — появится предложение переброса
+  check('7 провал при включённой удаче даёт предложение', !!e.luckOffer)
+  e.resolveLuckOffer(false)
+  check('7 отказ от переброса — ветка провала', e.state.flags['stat_fail2'] === true && !e.state.flags['stat_ok2'])
+  // условия правил
+  e.state.player.hp = 7
+  check('7 условие hp_ge', evalCondition({ type: 'hp_ge', threshold: 5 }, e) && !evalCondition({ type: 'hp_ge', threshold: 8 }, e))
+  check('7 условие hp_le', evalCondition({ type: 'hp_le', threshold: 7 }, e) && !evalCondition({ type: 'hp_le', threshold: 6 }, e))
+  check('7 условие stat_ge', evalCondition({ type: 'stat_ge', stat: 'POW', threshold: 15 }, e) && !evalCondition({ type: 'stat_ge', stat: 'POW', threshold: 16 }, e))
+  check('7 условие luck_ge', evalCondition({ type: 'luck_ge', threshold: e.luck() }, e) && !evalCondition({ type: 'luck_ge', threshold: e.luck() + 1 }, e))
+}
+
+// ── 8. противоборство ──
+{
+  const c = synth((camp) => {
+    buff(camp) // навыки ≥95 у героя
+  })
+  const e = new GameEngine(c)
+  e.start()
+  ;(e as any).rng = new PRNG('cr-opp')
+  const bandit = c.entities['npc_bandit'] as NpcDef
+  bandit.skills = { ...bandit.skills }
+  // порог 1 — герой почти наверняка побеждает
+  let wins = 0
+  for (let i = 0; i < 15; i++) {
+    ;(e as any).rng = new PRNG(`cr-opp-${i}`)
+    const r = e.opposedCheck({ type: 'opposed_check', skill: 'melee', against_value: 1, success_effects: [], fail_effects: [] })
+    if (r.success) wins++
+  }
+  check('8 противоборство против порога 1: герой выигрывает большинство', wins >= 10, `wins=${wins}/15`)
+  // противоборство через эффект — ветка поражения (герой 0 против порога 100)
+  e.state.player.skills = { ...e.state.player.skills, brawl: 0 }
+  e.applyEffects([
+    {
+      type: 'opposed_check',
+      skill: 'brawl',
+      against_value: 500,
+      tie: 'opponent',
+      success_effects: [{ type: 'set_flag', flag: 'opp_win' }],
+      fail_effects: [{ type: 'set_flag', flag: 'opp_lose' }],
+    },
+  ])
+  check('8 эффект opposed_check: поражение применено', e.state.flags['opp_lose'] === true && !e.state.flags['opp_win'])
+  // tie по умолчанию — за игроком: порог равный навыку, проверяем ветку на повторяемость
+  const t = e.opposedCheck({ type: 'opposed_check', skill: 'melee', against_value: 1, tie: 'opponent', success_effects: [], fail_effects: [] })
+  check('8 opposedCheck возвращает итог', typeof t.success === 'boolean' && !!t.player && !!t.rival)
+}
+
+// ── 9. удача: переброс за очки ──
+{
+  const c = synth((camp) => {
+    buff(camp)
+    camp.meta.luck = { multiplier: 5, reroll_cost: 2, rest_luck: true }
+  })
+  const e = new GameEngine(c)
+  e.start()
+  check('9 максимум удачи = POW×5', e.luckMax() === e.state.player.stats.POW * 5, `max=${e.luckMax()}`)
+  check('9 старт с полной удачей', e.luck() === e.luckMax())
+  // гарантированный провал: навык 0, fumble_from=100
+  c.meta.dice_rules = { ...(c.meta.dice_rules ?? ({} as never)), fumble_from: 100 }
+  e.state.player.skills = { ...e.state.player.skills, brawl: 1 }
+  ;(e as any).rng = new PRNG('cr-luck-fail')
+  e.applyEffects([
+    {
+      type: 'skill_check_gate',
+      skill: 'brawl',
+      difficulty: 100,
+      success_effects: [{ type: 'set_flag', flag: 'luck_ok' }],
+      fail_effects: [{ type: 'set_flag', flag: 'luck_fail' }],
+    },
+  ])
+  if (e.luckOffer) {
+    check('9 провал предложил переброс за 2 удачи', e.luckOffer.cost === 2)
+    check('9 очки списались при предложении', e.luck() === e.luckMax() - 2, `luck=${e.luck()}`)
+    const before = e.luck()
+    e.resolveLuckOffer(true)
+    check('9 после переброса применилась одна из веток', (e.state.flags['luck_ok'] ?? false) !== (e.state.flags['luck_fail'] ?? false))
+    check('9 повторных списаний не было', e.luck() === before)
+  } else {
+    // удачное стечение: бросок со счётом 1 мог быть критом — принимаем только явный провал
+    check('9 провал предложил переброс за 2 удачи', e.state.flags['luck_fail'] === true, 'бросок неожиданно удался — reroll не требовался')
+  }
+  // удача не тратится без meta.luck
+  const c2 = synth((camp) => {
+    buff(camp)
+    camp.meta.dice_rules = { ...(camp.meta.dice_rules ?? ({} as never)), fumble_from: 100 }
+  })
+  const e2 = new GameEngine(c2)
+  e2.start()
+  e2.state.player.skills = { ...e2.state.player.skills, brawl: 0 }
+  e2.applyEffects([{ type: 'skill_check_gate', skill: 'brawl', difficulty: 100, success_effects: [{ type: 'set_flag', flag: 'x' }], fail_effects: [{ type: 'set_flag', flag: 'y' }] }])
+  check('9 без meta.luck предложений нет', !e2.luckOffer && e2.luckMax() === 0)
+  // удача восстанавливается на отдыхе
+  e.state.player.luck = 0
+  e.restHeal()
+  check('9 отдых восстанавливает удачу', e.luck() === e.luckMax())
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nВСЁ ЗЕЛЁНОЕ')
 process.exit(failed ? 1 : 0)

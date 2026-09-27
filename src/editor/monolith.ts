@@ -811,6 +811,17 @@ function fixEffect(ctx: RepairCtx, e: Effect, where: string, keep: (e: Effect | 
       e.success_effects = fixEffectList(ctx, e.success_effects ?? [], where)
       e.fail_effects = fixEffectList(ctx, e.fail_effects ?? [], where)
       break
+    case 'stat_check':
+      e.success_effects = fixEffectList(ctx, e.success_effects ?? [], where)
+      e.fail_effects = fixEffectList(ctx, e.fail_effects ?? [], where)
+      break
+    case 'opposed_check':
+      registerSkill(ctx, e.skill)
+      if (e.against_skill) registerSkill(ctx, e.against_skill)
+      if (e.entity) entityReferenced(e.entity, 'npc', ctx)
+      e.success_effects = fixEffectList(ctx, e.success_effects ?? [], where)
+      e.fail_effects = fixEffectList(ctx, e.fail_effects ?? [], where)
+      break
     case 'change_disposition':
       registerFaction(ctx, e.target)
       break

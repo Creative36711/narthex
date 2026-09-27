@@ -33,7 +33,7 @@ import {
   writeSave,
 } from './savemigrate'
 import { PRNG } from './prng'
-import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
+import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL, type SkillCheckOutcome } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
@@ -390,6 +390,11 @@ export class GameEngine {
       p.mp = p.max_mp
       this.pushLog('Силы восстановлены (MP полностью).')
     }
+    // удача восполняется на отдыхе (мастер может запретить luck.rest_luck=false)
+    if (this.luckMax() > 0 && (this.campaign.meta.luck?.rest_luck ?? true) && this.luck() < this.luckMax()) {
+      this.state.player.luck = this.luckMax()
+      this.pushLog('Герой чувствует: удача вернулась.')
+    }
     return { hp: healed, mpFull }
   }
 
@@ -704,6 +709,129 @@ export class GameEngine {
 
   isInParty(entityId: string): boolean {
     return this.state.party.some((c) => c.entity === entityId)
+  }
+
+  // ─────────────── удача (аудит §5.6 п.8) ───────────────
+
+  /** максимум удачи: POW × meta.luck.multiplier (умолчание 5). Система opt-in: нет meta.luck — удачи нет. */
+  luckMax(): number {
+    const cfg = this.campaign.meta.luck
+    if (!cfg) return 0
+    const mult = cfg.multiplier ?? 5
+    return Math.max(0, this.state.player.stats.POW * mult)
+  }
+
+  /** текущие очки удачи (старые сейвы без поля считаются полными) */
+  luck(): number {
+    const max = this.luckMax()
+    return Math.min(max, this.state.player.luck ?? max)
+  }
+
+  /** потратить/вернуть очки удачи; ложь — не хватает */
+  changeLuck(delta: number): boolean {
+    const cur = this.luck()
+    const next = Math.max(0, Math.min(this.luckMax(), cur + delta))
+    if (delta < 0 && cur + delta < 0) return false
+    this.state.player.luck = next
+    return true
+  }
+
+  /**
+   * Предложение переброска за удачу (аудит §5.6 п.8). Не сохраняется в сейв:
+   * если игрок закрыл игру с открытым предложением — применится ветка провала.
+   */
+  luckOffer: { text: string; cost: number; decide: (reroll: boolean) => void } | null = null
+
+  /** игрок ответил на предложение удачи (UI) */
+  resolveLuckOffer(reroll: boolean): void {
+    const offer = this.luckOffer
+    this.luckOffer = null
+    offer?.decide(reroll)
+    this.notify()
+  }
+
+  /** Бросок проверки характеристики героя (POW×5 — удача, INT×5 — идея). */
+  statCheck(stat: string, multiplier = 5, modifier = 0): SkillCheckOutcome {
+    return this.playerCheckOutcome(
+      ((this.state.player.stats as unknown as Record<string, number>)[stat] ?? 0) * multiplier,
+      modifier,
+      `Проверка характеристики ${stat}×${multiplier}`,
+    )
+  }
+
+  /**
+   * Синхронно бросить проверку и применить успех/провал-эффекты.
+   * Если включена удача и броска не вышло — игроку предлагают переброс,
+   * но эффекты ждут ответа (ложь возвращает «эффекты уже применились»).
+   */
+  private applyByCheck(outcome: SkillCheckOutcome, describe: string, retry: () => SkillCheckOutcome, onOk: () => void, onFail: () => void): boolean {
+    if (outcome.success) {
+      onOk()
+      return false
+    }
+    const cfg = this.campaign.meta.luck
+    const cost = Math.max(1, cfg?.reroll_cost ?? 1)
+    if (!cfg || this.luckMax() <= 0 || this.luck() < cost) {
+      onFail()
+      return false
+    }
+    this.changeLuck(-cost)
+    this.pushLog(`Провал можно исправить за удачу: −${cost} (осталось ${this.luck()}).`)
+    this.luckOffer = {
+      text: `${describe} — провал (d100=${outcome.roll} против ${outcome.target}).`,
+      cost,
+      decide: (reroll) => {
+        if (reroll) {
+          const second = retry()
+          this.pushLog(`Переброс за удачу: d100=${second.roll} против ${second.target} → ${CHECK_RESULT_LABEL[second.result]}.`)
+          if (second.success) onOk()
+          else onFail()
+        } else {
+          this.pushLog('Удача прибережена — остаётся провал.')
+          onFail()
+        }
+        this.checkRules()
+        this.autosave()
+      },
+    }
+    return true
+  }
+
+  /** единый путь мировых бросков героя: бросок + журнал (+ метки навыка в playerSkillCheck) */
+  private playerCheckOutcome(target: number, modifier: number, describe: string): SkillCheckOutcome {
+    const out = skillCheck(Math.max(1, target), this.rng, modifier, this.diceRules)
+    this.pushLog(`${describe} — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
+    return out
+  }
+
+  /**
+   * Противоборство навыком героя (аудит §5.6 п.6): бросок героя против
+   * броска оппонента (NPC или числовой порог), ранги из diceRules-таблицы.
+   */
+  opposedCheck(e: Extract<Effect, { type: 'opposed_check' }>): { success: boolean; player: SkillCheckOutcome; rival: SkillCheckOutcome } {
+    const skill = e.skill
+    const playerValue = Math.max(1, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
+    const player = this.playerCheckOutcome(playerValue, 0, `Противоборство «${this.skillLabel(skill)}» (герой)`)
+    let rivalValue: number
+    let rivalLabel = ''
+    if (e.entity) {
+      const npc = this.campaign.entities[e.entity] as NpcDef | undefined
+      const rSkill = e.against_skill ?? skill
+      rivalValue = Math.max(1, npc?.skills?.[rSkill] ?? 25)
+      rivalLabel = npc?.label ?? e.entity
+      if (npc && e.against_skill) rivalLabel += ` (${this.skillLabel(rSkill)})`
+    } else {
+      rivalValue = Math.max(1, e.against_value ?? 50)
+      rivalLabel = `порог ${rivalValue}`
+    }
+    const rival = this.playerCheckOutcome(rivalValue, 0, `Противоборство (${rivalLabel})`)
+    const RANK: Record<string, number> = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 }
+    const cmp = (RANK[player.result] ?? 1) - (RANK[rival.result] ?? 1)
+    const wins = cmp > 0 || (cmp === 0 && (e.tie ?? 'player') === 'player')
+    if (cmp === 0) this.pushLog(`Равный исход — победа ${wins ? 'героя' : 'оппонента'} по умолчанию.`)
+    this.pushLog(wins ? 'Герой побеждает в противоборстве.' : 'Герой проигрывает противоборство.')
+    if (player.success) this.markSkill(skill)
+    return { success: wins, player, rival }
   }
 
   // ─────────────── рост навыков (ТЗ 4.3) ───────────────
@@ -1234,9 +1362,62 @@ export class GameEngine {
       }
       case 'skill_check_gate': {
         const out = this.playerSkillCheck(e.skill, e.difficulty)
-        this.applyEffects(out.success ? e.success_effects : e.fail_effects)
+        const retry = () => this.playerSkillCheck(e.skill, e.difficulty)
+        const deferred = this.applyByCheck(
+          out,
+          `Проверка «${this.skillLabel(e.skill)}»`,
+          retry,
+          () => this.applyEffects(e.success_effects),
+          () => this.applyEffects(e.fail_effects),
+        )
+        // с luckOffer эффекты применит resolveLuckOffer
+        void deferred
+        if (out.success) this.markSkill(e.skill)
         break
       }
+      case 'stat_check': {
+        const mult = e.multiplier ?? 5
+        const out = this.statCheck(e.stat, mult, e.modifier ?? 0)
+        this.applyByCheck(
+          out,
+          `Проверка характеристики ${e.stat}×${mult}`,
+          () => this.statCheck(e.stat, mult, e.modifier ?? 0),
+          () => this.applyEffects(e.success_effects),
+          () => this.applyEffects(e.fail_effects),
+        )
+        break
+      }
+      case 'opposed_check': {
+        const res = this.opposedCheck(e)
+        const finalize = (r: { success: boolean }) => this.applyEffects(r.success ? e.success_effects : e.fail_effects)
+        if (res.success) {
+          finalize(res)
+          break
+        }
+        const cfg = this.campaign.meta.luck
+        const cost = Math.max(1, cfg?.reroll_cost ?? 1)
+        if (!cfg || this.luckMax() <= 0 || this.luck() < cost) {
+          finalize(res)
+          break
+        }
+        this.changeLuck(-cost)
+        this.pushLog(`Поражение можно оспорить за удачу: −${cost} (осталось ${this.luck()}).`)
+        this.luckOffer = {
+          text: `Противоборство «${this.skillLabel(e.skill)}» — поражение героя.`,
+          cost,
+          decide: (reroll) => {
+            if (reroll) finalize(this.opposedCheck(e))
+            else {
+              this.pushLog('Удача прибережена — остаётся поражение.')
+              finalize(res)
+            }
+            this.checkRules()
+            this.autosave()
+          },
+        }
+        break
+      }
+      case 'change_luck': this.changeLuck(e.delta); break
       case 'change_disposition': this.changeDisposition(e.target, e.delta); break
       case 'start_quest': this.startQuest(e.quest); break
       case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break

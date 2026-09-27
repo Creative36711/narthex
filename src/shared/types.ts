@@ -510,6 +510,15 @@ export interface CampaignMeta {
   /** боевые правила кампании: побег, мультиатаки, тяжёлые раны (аудит §5.6) */
   combat?: CombatRulesDef
   /**
+   * Очки удачи героя (аудит §5.6 п.8, книжная Удача = POW×5): максимум =
+   * POW × multiplier (умолчание 5; задайте 0, чтобы выключить удачу).
+   * На провальный мировой/диалоговый бросок игрок может потратить
+   * `reroll_cost` удачи (умолчание 1) и перебросить. Удача восстанавливается
+   * на отдыхе (`rest_luck` ≠ false) — книжно удача не восполняется, но для
+   * рогалика приятнее мягче; мастер решает сам.
+   */
+  luck?: { multiplier?: number; reroll_cost?: number; rest_luck?: boolean }
+  /**
    * Отдых и естественное лечение (аудит §5.6 п.3): сон через ink-вызов
    * `sleep` раньше только растил навыки. Теперь: `hp` — кости лечения за
    * сон (умолчание '1d3', мастер сам решает щедрость); `mp_full` — MP
@@ -1344,6 +1353,13 @@ export type Condition =
   | { type: 'quest_at_stage'; quest: string; stage: string }
   | { type: 'has_item'; item: string; min_quantity?: number }
   | { type: 'skill_ge'; skill: string; threshold: number }
+  /** характеристика героя не ниже порога (аудит §5.6 п.6) */
+  | { type: 'stat_ge'; stat: string; threshold: number }
+  /** HP не выше/не ниже порога (аудит: ранее HP можно было читать только из диалогов) */
+  | { type: 'hp_le'; threshold: number }
+  | { type: 'hp_ge'; threshold: number }
+  /** очков удачи не меньше порога (аудит §5.6 п.8) */
+  | { type: 'luck_ge'; threshold: number }
   | { type: 'need_le'; need: string; threshold: number }
   | { type: 'need_ge'; need: string; threshold: number }
   | { type: 'entity_alive'; entity: string }
@@ -1411,6 +1427,36 @@ export type Effect =
   | { type: 'fail_quest'; quest: string }
   | { type: 'journal_update'; quest: string; text_key: string }
   | { type: 'give_reward'; items?: Array<{ item: string; quantity: number }> }
+  | {
+      /** проверка ХАРАКТЕРИСТИКИ × множитель (аудит §5.6 п.6): POW×5 — удача, INT×5 — идея… */
+      type: 'stat_check'
+      stat: string
+      /** множитель характеристики (умолчание 5 — книжный) */
+      multiplier?: number
+      /** дополнительный модификатор к цели (ситуация мастера) */
+      modifier?: number
+      success_effects: Effect[]
+      fail_effects: Effect[]
+    }
+  | {
+      /**
+       * Противоборство навыком (аудит §5.6 п.6): герой против NPC или порога.
+       * Ранги сравниваются (провал < успех < твёрдый < крит); при равенстве
+       * побеждает `tie` (умолчание 'player').
+       */
+      type: 'opposed_check'
+      skill: string
+      /** цель — NPC (бросает тем же или указанным навыком) */
+      entity?: string
+      /** навык цели (умолчание — тот же навык) */
+      against_skill?: string
+      /** или числовой порог вместо броска NPC (значение навыка оппонента) */
+      against_value?: number
+      tie?: 'player' | 'opponent'
+      success_effects: Effect[]
+      fail_effects: Effect[]
+    }
+  | { type: 'change_luck'; delta: number }
   | { type: 'join_party'; entity: string }
   | { type: 'leave_party'; entity: string }
   | { type: 'block_path'; from: string; to: string }
@@ -1449,6 +1495,8 @@ export interface PlayerState {
   max_hp: number
   mp: number
   max_mp: number
+  /** текущие очки удачи (аудит §5.6 п.8); отсутствует в старых сейвах — считается полным (POW×множитель) */
+  luck?: number
   needs: Record<string, number>
   inventory: InventoryEntry[]
   /** устаревшее поле сохранений; актуальный баланс валют хранится в inventory как предметы-монеты */

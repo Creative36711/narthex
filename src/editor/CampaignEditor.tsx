@@ -724,9 +724,9 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
 
   return (
     <div className="rule-editor">
-      <div className="ce-tabs">
+      <div className="ce-tabs" role="tablist" aria-label="Вкладки кампании">
         {([['main', 'Основное'], ['versions', 'Версии'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['statuses', 'Статусы и способности'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
-          <button key={id} type="button" className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
+          <button key={id} type="button" role="tab" aria-selected={tab === id} className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
             {lab}
           </button>
         ))}
@@ -812,6 +812,135 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       </div>
 
       <DiceRulesEditor value={m.dice_rules!} commit={commit} />
+
+      <div className="props-group">
+        <h4>Бой и смерть</h4>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld fld-check" data-tip="Кнопка «Бежать из боя»: бесплатные атаки вслед + проверка навыка отступления">
+            <input
+              type="checkbox"
+              checked={m.combat?.flee !== false}
+              onChange={(e) => {
+                const c = { ...(m.combat ?? {}) }
+                c.flee = e.target.checked ? undefined : false
+                m.combat = Object.keys(c).length && JSON.stringify(c) !== '{}' ? c : undefined
+                if (!Object.values(c).some((v) => v !== undefined)) delete m.combat
+                commit()
+              }}
+            />
+            <span>Бегство из боя разрешено</span>
+          </label>
+          <label className="fld" data-tip="Навык проверки отступления; пусто — dodge, а при его отсутствии — DEX×5">
+            <span>Навык отступления</span>
+            <input
+              value={typeof m.combat?.flee === 'object' ? (m.combat.flee.skill ?? '') : ''}
+              placeholder="dodge"
+              onChange={(e) => {
+                const c = { ...(m.combat ?? {}), flee: { skill: e.target.value || undefined } }
+                if (!e.target.value) (c.flee as { skill?: string }).skill = undefined
+                m.combat = c
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld fld-num" data-tip="Штраф каждой следующей атаки за раунд при attacks_per_round > 1">
+            <span>Штраф повторных атак</span>
+            <input
+              type="number"
+              value={m.combat?.multi_attack_penalty ?? -20}
+              onChange={(e) => {
+                const c = { ...(m.combat ?? {}) }
+                c.multi_attack_penalty = Number(e.target.value) || 0
+                m.combat = c
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="instant: 0 HP = смерть. brp: тяжёлые раны (нокаут от удара ≥ ½ max HP при провале CON) и последний спасбросок CON при 0 HP">
+            <span>Правила гибели</span>
+            <select
+              value={m.combat?.death?.mode ?? 'instant'}
+              onChange={(e) => {
+                const c = { ...(m.combat ?? {}) }
+                c.death = { ...(c.death ?? {}), mode: e.target.value as 'instant' | 'brp' }
+                m.combat = c
+                commit()
+              }}
+            >
+              <option value="instant">Мгновенная смерть (умолчание)</option>
+              <option value="brp">BRP: тяжёлые раны и спасброски CON</option>
+            </select>
+          </label>
+          {m.combat?.death?.mode === 'brp' && (
+            <label className="fld fld-num" data-tip="Множитель CON для спасбросков сознания/смерти (умолчание 5)">
+              <span>Множитель CON</span>
+              <input
+                type="number" min={1}
+                value={m.combat.death.con_multiplier ?? 5}
+                onChange={(e) => ((m.combat!.death!.con_multiplier = Math.max(1, Number(e.target.value) || 5)), commit())}
+              />
+            </label>
+          )}
+        </div>
+        <div className="muted small">
+          В режиме BRP «проигранный» бой с выжившим без сознания героем завершается эффектами
+          «on_defeat» у конкретного start_combat — например, плен. Без них герой погибает.
+        </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Отдых и удача</h4>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld" data-tip="Кости лечения HP за сон; «0» — сон не лечит">
+            <span>Лечение за сон</span>
+            <input
+              value={m.rest?.hp ?? '1d3'}
+              placeholder="1d3"
+              onChange={(e) => {
+                const r = { ...(m.rest ?? {}), hp: e.target.value || '1d3' }
+                m.rest = r
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld fld-check">
+            <input
+              type="checkbox"
+              checked={m.rest?.mp_full !== false}
+              onChange={(e) => ((m.rest = { ...(m.rest ?? {}), mp_full: e.target.checked || undefined }), commit())}
+            />
+            <span>Сон восстанавливает MP полностью</span>
+          </label>
+          <label className="fld fld-num" data-tip="Максимум удачи = POW × множитель. 0 — удача выключена">
+            <span>Множитель удачи (×POW)</span>
+            <input
+              type="number" min={0}
+              value={m.luck?.multiplier ?? 5}
+              onChange={(e) => {
+                const v = Math.max(0, Number(e.target.value) || 0)
+                m.luck = { ...(m.luck ?? {}), multiplier: v === 5 && !m.luck ? undefined : v }
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld fld-num" data-tip="Стоимость переброска провального броска вне боя">
+            <span>Цена переброска</span>
+            <input
+              type="number" min={1}
+              value={m.luck?.reroll_cost ?? 1}
+              onChange={(e) => ((m.luck = { ...(m.luck ?? {}), reroll_cost: Math.max(1, Number(e.target.value) || 1) }), commit())}
+            />
+          </label>
+          <label className="fld fld-check" data-tip="По книге удача не восстанавливается; для рогалика обычно мягче">
+            <input
+              type="checkbox"
+              checked={m.luck?.rest_luck !== false}
+              onChange={(e) => ((m.luck = { ...(m.luck ?? {}), rest_luck: e.target.checked || undefined }), commit())}
+            />
+            <span>Удача восстанавливается на отдыхе</span>
+          </label>
+        </div>
+      </div>
 
       <div className="props-group">
         <h4>Старт игры</h4>
