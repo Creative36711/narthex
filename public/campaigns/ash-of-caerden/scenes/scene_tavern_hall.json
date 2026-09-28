@@ -125,6 +125,26 @@
                 {
                   "type": "change_hp",
                   "delta": -2
+                },
+                {
+                  "type": "start_pursuit",
+                  "label": "Стража",
+                  "skill": "stealth",
+                  "every_ticks": 2,
+                  "fails_to_catch": 3,
+                  "on_fail": [
+                    {
+                      "type": "start_combat",
+                      "enemies": [
+                        {
+                          "entity": "npc_guard",
+                          "count": 2
+                        }
+                      ],
+                      "arena": "arena_market",
+                      "intro": "Звонок тревоги привёл стражу — вас окружили!"
+                    }
+                  ]
                 }
               ]
             }

@@ -714,7 +714,7 @@ export class CombatController {
       }
       c.movLeft = Math.max(1, c.mov + this.statusMovMod(c) - Math.max(0, this.weatherCombat?.mov_penalty ?? 0))
       // край атак за раунд — attacks_per_round оружия (аудит §5.6 п.1)
-      c.attacksLeft = Math.max(1, c.weapon.attacks_per_round)
+      c.attacksLeft = Math.max(1, c.weapon.attacks_per_round ?? 1)
       c.defensesUsed = 0
       c.attacked = false
       // захват/осечка: боец пропускает ход целиком (аудит B5)
@@ -1053,13 +1053,16 @@ export class CombatController {
       if (RANK[atk.result] < 2) {
         this.log.push(`${target.label} избегает эффекта.`)
         playUi('miss')
+        // критический провал силы — магический откат по мастерской таблице (backlash_table)
+        if (atk.result === 'fumble' && ab.backlash_table?.length) this.applyBacklash(caster, ab)
         return
       }
       if (this.defenderSaves(target, RANK[atk.result])) return
     }
 
     if (ab.kind === 'damage') {
-      const dmg = Math.max(0, rollDice(ab.damage ?? '1d6', rng) - target.armor)
+      let dmg = Math.max(0, rollDice(ab.damage ?? '1d6', rng) - target.armor)
+      if (caster.side === 'enemy' && target.id === 'c_player') dmg = Math.round(dmg * this.enemyDamageMult(caster))
       this.log.push(`${caster.label}: «${ab.label}» попадает.`)
       playUi('hit')
       this.finishDamage(target, dmg)
@@ -1069,16 +1072,41 @@ export class CombatController {
     }
   }
 
+  /** множитель урона врагов по герою (мастерской пресет сложности, выбранный игроком) */
+  private enemyDamageMult(from: Combatant): number {
+    return from.side === 'enemy' ? (this.engine.difficultyDef()?.enemy_damage ?? 1) : 1
+  }
+
+  /** магический откат (backlash_table способности): бросок по весам, действует на заклинателя */
+  private applyBacklash(caster: Combatant, ab: AbilityDef): void {
+    const table = ab.backlash_table!
+    const total = table.reduce((s, e) => s + Math.max(0, e.weight), 0)
+    if (total <= 0) return
+    let roll = this.engine.rng.int(1, total)
+    const entry = table.find((e) => (roll -= Math.max(0, e.weight)) <= 0) ?? table[table.length - 1]
+    this.log.push(`${caster.label}: НАРУШЕНИЕ СИЛЫ!${entry.text ? ` ${entry.text}` : ''}`)
+    if (entry.hp_delta) {
+      if (entry.hp_delta < 0) this.finishDamage(caster, -entry.hp_delta)
+      else caster.hp = Math.min(caster.maxHp, caster.hp + entry.hp_delta)
+    }
+    if (entry.mp_delta) caster.mp = Math.max(0, Math.min(caster.maxMp, caster.mp + entry.mp_delta))
+    if (entry.status) this.applyStatusTo(caster.id, entry.status, entry.status_duration)
+  }
+
   /** Способности игрока и готовность каждой на этом ходу. */
   playerAbilities(): Array<{ def: AbilityDef; usable: boolean; reason: string }> {
     const c = this.combatants.find((x) => x.id === 'c_player')
     if (!c) return []
     const out: Array<{ def: AbilityDef; usable: boolean; reason: string }> = []
+    // слоты магии: способность с prepare действует только подготовленная (лист персонажа)
+    const magicSlots = this.engine.campaign.meta.magic?.slots
+    const prepared = this.engine.state.player.prepared_abilities ?? []
     for (const id of c.abilities) {
       const def = this.abilityDef(id)
       if (!def) continue
       let reason = ''
       if (!this.isPlayerTurn() || c.attacked) reason = 'сейчас не ваш ход'
+      else if (magicSlots && def.prepare && !prepared.includes(id)) reason = 'не подготовлена — занесите в слоты в листе персонажа (вне боя)'
       else if (c.mp < def.mp_cost) reason = `не хватает MP (${def.mp_cost})`
       else if ((c.cooldowns[id] ?? 0) > 0) reason = `кулдаун ещё ${c.cooldowns[id]} раунд(а)`
       out.push({ def, usable: reason === '', reason })
@@ -1127,7 +1155,7 @@ export class CombatController {
   private resolveAttack(attacker: Combatant, defender: Combatant, opts?: { free?: boolean }): void {
     let penalty = 0
     if (!opts?.free) {
-      const apr = Math.max(1, attacker.weapon.attacks_per_round)
+      const apr = Math.max(1, attacker.weapon.attacks_per_round ?? 1)
       penalty = (apr - attacker.attacksLeft) * this.multiAttackPenalty
       attacker.attacksLeft -= 1
       if (attacker.attacksLeft <= 0) this.spendAction(attacker)
@@ -1215,6 +1243,7 @@ export class CombatController {
         this.log.push(`Удар в спину: +${extra} урона.`)
       }
     }
+    if (attacker.side === 'enemy' && defender.id === 'c_player') dmg = Math.round(dmg * this.enemyDamageMult(attacker))
     this.finishDamage(defender, dmg)
     // последствия критической записи мастера: разоружение и статус цели
     if (critEntry && !defender.dead && !defender.down) {

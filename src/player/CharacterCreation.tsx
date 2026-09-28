@@ -370,6 +370,28 @@ export function CharacterCreation({
           </ul>
         )}
 
+        {/* уровень сложности — пресеты мастера (meta.difficulties), выбор игрока */}
+        {(campaign.meta.difficulties?.length ?? 0) > 1 && (
+          <div className="char-block">
+            <h3>Сложность</h3>
+            <div className="char-diff-list">
+              {campaign.meta.difficulties!.map((d) => {
+                const active = (choice.difficulty ?? campaign.meta.difficulties![0].id) === d.id
+                return (
+                  <button
+                    key={d.id}
+                    className={`btn char-diff${active ? ' btn-primary' : ''}`}
+                    onClick={() => setChoice({ ...choice, difficulty: d.id })}
+                  >
+                    <span className="char-diff-label">{d.label}</span>
+                    {d.description && <span className="muted small">{d.description}</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="char-create-foot">
           <button className="btn" onClick={onBack}>Назад</button>
           <button className="btn btn-primary" disabled={problems.length > 0} onClick={() => onStart(choice)}>

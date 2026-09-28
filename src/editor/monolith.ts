@@ -815,6 +815,10 @@ function fixEffect(ctx: RepairCtx, e: Effect, where: string, keep: (e: Effect | 
       e.success_effects = fixEffectList(ctx, e.success_effects ?? [], where)
       e.fail_effects = fixEffectList(ctx, e.fail_effects ?? [], where)
       break
+    case 'start_pursuit':
+      if (e.skill) registerSkill(ctx, e.skill)
+      e.on_fail = fixEffectList(ctx, e.on_fail ?? [], where)
+      break
     case 'group_stat_check':
       if (e.skill) registerSkill(ctx, e.skill)
       e.success_effects = fixEffectList(ctx, e.success_effects ?? [], where)

@@ -464,6 +464,22 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     ],
     blank: { stat: 'POW', success_effects: [], fail_effects: [] },
   },
+  start_pursuit: {
+    label: 'Начать преследование героя',
+    fields: [
+      { key: 'label', label: 'Кто гонится (подпись в журнале)', kind: 'string', placeholder: 'Сторожа барона', optional: true },
+      { key: 'skill', label: 'Навык маскировки (ум. stealth)', kind: 'skillRef', optional: true },
+      { key: 'every_ticks', label: 'Проверка каждые N тиков (ум. 4)', kind: 'number', optional: true },
+      { key: 'fails_to_catch', label: 'Провалов до облавы (ум. 1)', kind: 'number', optional: true },
+      { key: 'on_fail', label: 'Когда настигли (обычно «Начать бой»)', kind: 'effects' },
+    ],
+    blank: { skill: 'stealth', every_ticks: 4, fails_to_catch: 1, on_fail: [] },
+  },
+  stop_pursuit: {
+    label: 'Преследование окончено (оторвались)',
+    fields: [],
+    blank: {},
+  },
   group_stat_check: {
     label: 'Групповая сцепленная проверка (герой + союзники)',
     fields: [

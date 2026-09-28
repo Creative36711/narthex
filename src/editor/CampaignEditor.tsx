@@ -3162,7 +3162,49 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                   <input value={a.heal ?? ''} placeholder="1d6" onChange={(e) => ((a.heal = e.target.value || undefined), commit())} />
                 </label>
               )}
+              <label className="fld fld-check" data-tip="Заклинание действует только подготовленное в слот (слоты задаются ниже — «Слоты подготовки магии»)">
+                <input type="checkbox" checked={!!a.prepare} onChange={(e) => ((a.prepare = e.target.checked || undefined), commit())} />
+                <span>Требует подготовки</span>
+              </label>
             </div>
+            <details className="need-conds">
+              <summary>Откат при критическом провале ({(a.backlash_table ?? []).length ? `${a.backlash_table!.length} записей` : 'нет — просто промах'})</summary>
+              <div className="muted small" style={{ margin: '4px 0 6px' }}>
+                Магическое нарушение: срабатывает при критическом провале броска навыка применения; запись бьёт по заклинателю.
+              </div>
+              {(a.backlash_table ?? []).map((b, j) => (
+                <div className="fld-row" key={j} style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <label className="fld fld-num">
+                    <span>Вес</span>
+                    <input type="number" min={1} value={b.weight} onChange={(e) => ((b.weight = Math.max(1, Number(e.target.value) || 1)), commit())} />
+                  </label>
+                  <label className="fld fld-num" data-tip="Знаковое: −2 — заклинатель теряет 2 HP">
+                    <span>HP ±</span>
+                    <input value={b.hp_delta ?? ''} placeholder="0" onChange={(e) => ((b.hp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
+                  </label>
+                  <label className="fld fld-num" data-tip="Знаковое: −3 — заклинатель теряет 3 MP">
+                    <span>MP ±</span>
+                    <input value={b.mp_delta ?? ''} placeholder="0" onChange={(e) => ((b.mp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
+                  </label>
+                  <RefSelect
+                    label="Статус заклинателю"
+                    kind="status"
+                    store={store}
+                    value={b.status ?? ''}
+                    optional
+                    onChange={(v) => ((b.status = v || undefined), commit())}
+                  />
+                  <label className="fld" style={{ flex: 1, minWidth: 160 }}>
+                    <span>Строка в журнал</span>
+                    <input value={b.text ?? ''} onChange={(e) => ((b.text = e.target.value || undefined), commit())} />
+                  </label>
+                  <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => { a.backlash_table = a.backlash_table!.filter((_, k) => k !== j); if (!a.backlash_table.length) delete a.backlash_table; commit() }}><Ico n="close" /> </button>
+                </div>
+              ))}
+              <button className="btn btn-small" onClick={() => (((a.backlash_table ??= []).push({ weight: 1, hp_delta: -2 })), commit())}>
+                <Ico n="plus" /> Запись отката
+              </button>
+            </details>
           </details>
         ))}
         <button
@@ -3176,6 +3218,18 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
         >
           + способность
         </button>
+        <label className="fld fld-num" data-tip="Сколько способностей с галочкой «Требует подготовки» герой держит в голове одновременно. Пусто — подготовка не требуется">
+          <span>Слоты подготовки магии</span>
+          <input
+            type="number" min={0} value={m.magic?.slots ?? ''} placeholder="выключено"
+            onChange={(e) => {
+              const v = Number(e.target.value) || 0
+              if (v > 0) m.magic = { ...(m.magic ?? {}), slots: v }
+              else delete m.magic
+              commit()
+            }}
+          />
+        </label>
       </div>
     </>
   )

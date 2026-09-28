@@ -318,6 +318,10 @@
       "id": "locks",
       "label": "Взлом",
       "base": 5
+    },
+    {
+      "id": "pyromancy",
+      "label": "Пиромантия"
     }
   ],
   "item_categories": [
@@ -1381,6 +1385,40 @@
         "hp": 2
       },
       "apply_message": "Яд крысы разливается по жилам."
+    },
+    {
+      "id": "status_staggered",
+      "label": "Ошеломлён",
+      "description": "Напуган или контужен: боевые навыки −20%.",
+      "scope": "combat",
+      "duration": 1,
+      "skill_mods": [
+        {
+          "skill": "sword",
+          "delta": -20
+        },
+        {
+          "skill": "spear",
+          "delta": -20
+        },
+        {
+          "skill": "brawl",
+          "delta": -20
+        },
+        {
+          "skill": "club",
+          "delta": -20
+        },
+        {
+          "skill": "shield",
+          "delta": -20
+        },
+        {
+          "skill": "dodge",
+          "delta": -20
+        }
+      ],
+      "apply_message": "Противник ошеломлён и растерян."
     }
   ],
   "abilities": [
@@ -1394,6 +1432,47 @@
       "kind": "status",
       "status": "status_rat_poison",
       "status_duration": 3
+    },
+    {
+      "id": "ability_flame_bolt",
+      "label": "Огненный болт",
+      "description": "Сгусток пламени: 1d8 урона по цели до 4 гексов. Требует подготовки в слотах магии; критическая неудача обжигает самого.",
+      "mp_cost": 3,
+      "range": 4,
+      "skill": "pyromancy",
+      "kind": "damage",
+      "damage": "1d8",
+      "prepare": true,
+      "backlash_table": [
+        {
+          "weight": 2,
+          "text": "Пламя лизнуло руки заклинателя.",
+          "hp_delta": -2
+        },
+        {
+          "weight": 1,
+          "text": "Огонь вырвался вспышкой — одежда тлеет!",
+          "hp_delta": -4,
+          "status": "status_staggered",
+          "status_duration": 1
+        },
+        {
+          "weight": 1,
+          "text": "Заклинание развеялось, высосав силы.",
+          "mp_delta": -2
+        }
+      ]
+    },
+    {
+      "id": "ability_war_cry",
+      "label": "Боевой клич",
+      "description": "Громовой рёв деморализует врага рядом: −20% к его навыку на 1 раунд. Подготовка не нужна.",
+      "mp_cost": 1,
+      "range": 1,
+      "skill": "persuade",
+      "kind": "status",
+      "status": "status_staggered",
+      "status_duration": 1
     }
   ],
   "calendar": {
@@ -1748,5 +1827,31 @@
         ]
       }
     ]
-  }
+  },
+  "magic": {
+    "slots": 2
+  },
+  "difficulties": [
+    {
+      "id": "wanderer",
+      "label": "Странник",
+      "description": "Спокойное путешествие: враги бьют вполсилы, цены ниже.",
+      "enemy_damage": 0.5,
+      "prices": 0.85
+    },
+    {
+      "id": "caerden",
+      "label": "Пепел Каэрдена",
+      "description": "Как задумано автором."
+    },
+    {
+      "id": "iron",
+      "label": "Железный человек",
+      "description": "Враги жестоки, голод неумолим, торговцы ломят цену. Без автосохранений.",
+      "enemy_damage": 1.5,
+      "need_decay": 1.5,
+      "prices": 1.25,
+      "no_autosave": true
+    }
+  ]
 }

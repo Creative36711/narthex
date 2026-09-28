@@ -1,4 +1,5 @@
 import type {
+  DifficultyPreset,
   CampaignData,
   SaveEnvelope,
   CodexEntryDef,
@@ -239,6 +240,10 @@ export class GameEngine {
     if (name) s.player.name = name
     // возраст и биография (аудит §5.6): только если мастер включил поля
     if (creation.choose_age && choice.age !== undefined) s.player.age = choice.age
+    // уровень сложности от игрока (мастерские пресеты meta.difficulties)
+    if (choice.difficulty && this.campaign.meta.difficulties?.some((d) => d.id === choice.difficulty)) {
+      s.difficulty = choice.difficulty
+    }
     else delete s.player.age
     if (creation.choose_bio && choice.bio?.trim()) s.player.bio = choice.bio.trim()
     else delete s.player.bio
@@ -327,7 +332,7 @@ export class GameEngine {
           let next = cur
           // убыль — только когда все условия выполнены (пусто = всегда)
           const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
-          if (decays) next = Math.max(0, next - need.decay_per_tick)
+          if (decays) next = Math.max(0, next - need.decay_per_tick * (this.difficultyDef()?.need_decay ?? 1))
           // восстановление — когда выполнены условия restore_when
           if (
             need.restore_per_tick &&
@@ -341,6 +346,14 @@ export class GameEngine {
       }
       // статусы игрока (блок 5 ТЗ): DoT, декремент, истечение
       this.tickStatuses()
+      // преследование (start_pursuit): периодические цепочные проверки маскировки
+      if (this.state.pursuit) {
+        this.state.pursuit.left -= 1
+        if (this.state.pursuit.left <= 0) this.tickPursuit()
+      }
+      // смена суток: самочувствие NPC (спал по расписанию / не спал)
+      const tpd = meta.ticks_per_day ?? 24
+      if (tpd > 0 && this.state.tick > 0 && this.state.tick % tpd === 0) this.tickNpcMood()
     }
     // достижения со счётчиками (прожитые тики и пр.) — после пачки тиков
     this.checkAchievements()
@@ -816,9 +829,22 @@ export class GameEngine {
     const npc = this.campaign.entities[target] as NpcDef | undefined
     if (npc && npc.type === 'npc') {
       const factionValue = npc.faction ? (this.state.dispositions[npc.faction] ?? 0) : 0
-      return factionValue + (npc.base_disposition ?? 0)
+      // самочувствие NPC (выспался/устал) подкрашивает отношение: ±25
+      const moodShift = Math.round((this.npcMood(target) - 50) / 2)
+      return factionValue + (npc.base_disposition ?? 0) + moodShift
     }
     return this.state.dispositions[target] ?? 0
+  }
+
+  /** самочувствие NPC (0..100, умолчание 50): усталость от пропуска ночёвки по расписанию */
+  npcMood(entityId: string): number {
+    return this.state.npc_mood?.[entityId] ?? 50
+  }
+
+  /** сдвинуть самочувствие NPC (правила/эффекты; K.D. clamp 0..100) */
+  changeNpcMood(entityId: string, delta: number): void {
+    const m = (this.state.npc_mood ??= {})
+    m[entityId] = Math.max(0, Math.min(100, (m[entityId] ?? 50) + delta))
   }
 
   changeDisposition(target: string, delta: number): void {
@@ -1728,7 +1754,8 @@ export class GameEngine {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
     const base = basePrice ?? item?.value?.[this.mainCurrency] ?? 1
     const dynamic = item ? this.priceEventMultiplier(item) : 1
-    return Math.max(1, Math.round(base * this.priceModifier(npc) * dynamic))
+    const diff = this.difficultyDef()?.prices ?? 1
+    return Math.max(1, Math.round(base * this.priceModifier(npc) * dynamic * diff))
   }
 
   sellPrice(npc: NpcDef, itemId: string): number {
@@ -2120,6 +2147,82 @@ export class GameEngine {
     return this.state.desc_overrides?.[entityId] ?? def?.description ?? ''
   }
 
+  /**
+   * Раз в сутки: самочувствие NPC с расписанием. Чьё расписание покрывает
+   * ночь (от начала ночи до утра) — тот отсыпается (+10); кто без ночёвки
+   * по расписанию — устаёт (−10). Диапазоны времени поддерживают полночь.
+   */
+  private tickNpcMood(): void {
+    const meta = this.campaign.meta
+    const tpd = meta.ticks_per_day ?? 24
+    const nightStart = meta.time_of_day?.night ?? 22
+    const morning = meta.time_of_day?.morning ?? 6
+    const spanNight = (((morning - nightStart) % tpd) + tpd) % tpd || tpd
+    const nightPts = [0, 0.25, 0.5, 0.75].map((f) => (nightStart + Math.floor(spanNight * f)) % tpd)
+    for (const [id, ent] of Object.entries(this.campaign.entities)) {
+      if (!ent || ent.type !== 'npc') continue
+      const sch = (ent as NpcDef).schedule
+      if (!sch?.length) continue
+      const slept = sch.some((e) => {
+        let [a, b] = e.time_range
+        a = ((a % tpd) + tpd) % tpd
+        b = ((b % tpd) + tpd) % tpd
+        const covers = (t: number) => (a <= b ? t >= a && t < b : t >= a || t < b)
+        return nightPts.every(covers)
+      })
+      this.changeNpcMood(id, slept ? 10 : -10)
+    }
+  }
+
+  /** периодическая проверка погони: герой + до двух союзников цепочкой; провал наращивает счётчик до облавы */
+  private tickPursuit(): void {
+    const p = this.state.pursuit
+    if (!p) return
+    const companions = this.state.party.slice(0, 2)
+    let wins = 0
+    const outP = this.playerSkillCheck(p.skill, 50)
+    if (outP.success) wins++
+    for (const c of companions) {
+      const def = this.campaign.entities[c.entity]
+      if (!def || def.type !== 'npc') continue
+      const out = skillCheck(Math.max(1, def.skills?.[p.skill] ?? 0), this.rng, difficultyModifier(def.skills?.[p.skill] ?? 0, 50), this.diceRules)
+      this.pushLog(`${def.label}: d100=${out.roll} против ${out.target} → ${CHECK_RESULT_LABEL[out.result]}`)
+      if (out.success) wins++
+    }
+    p.left = p.every
+    if (wins > 0) {
+      if (p.fails > 0) this.pushLog(`След удалось запутать — ${p.label ?? 'погоня'} пока не настигает.`)
+      p.fails = 0
+      return
+    }
+    p.fails += 1
+    if (p.fails < p.fails_needed) {
+      this.pushLog(`${p.label ?? 'Погоня'} не отстаёт — ещё ${p.fails_needed - p.fails} сорванная проверка, и отряд настигнут!`)
+      return
+    }
+    this.pushLog(`${p.label ?? 'Погоня'} настигла отряд!`)
+    const effects = p.on_fail
+    delete this.state.pursuit
+    this.applyEffects(effects)
+  }
+
+  /** подготовка способности в слот магии (meta.magic.slots): true — получилось */
+  togglePreparedAbility(id: string): boolean {
+    const s = this.state
+    const slots = this.campaign.meta.magic?.slots
+    if (!slots) return false
+    const cur = new Set(s.player.prepared_abilities ?? [])
+    if (cur.has(id)) cur.delete(id)
+    else {
+      if (cur.size >= slots) return false
+      cur.add(id)
+    }
+    const arr = [...cur]
+    s.player.prepared_abilities = arr
+    if (!arr.length) delete s.player.prepared_abilities
+    return true
+  }
+
   /** динамически изменить описание сущности (правила/диалоги, действие set_description) */
   setEntityDescription(entityId: string, text: string): void {
     const s = this.state
@@ -2343,6 +2446,27 @@ export class GameEngine {
         if (!s.revealed_locations.includes(e.location)) s.revealed_locations.push(e.location)
         break
       case 'advance_time': this.advanceTicks(e.ticks); break
+      case 'start_pursuit': {
+        // преследование героя: периодические цепочные проверки маскировки
+        s.pursuit = {
+          label: e.label,
+          skill: e.skill ?? 'stealth',
+          every: Math.max(1, e.every_ticks ?? 4),
+          fails_needed: Math.max(1, e.fails_to_catch ?? 1),
+          fails: 0,
+          left: Math.max(1, e.every_ticks ?? 4),
+          on_fail: e.on_fail,
+        }
+        this.pushLog(`За вами следом идут${e.label ? ` — ${e.label}` : ''}! Удерживайте маскировку, пока не оторвётесь.`)
+        break
+      }
+      case 'stop_pursuit': {
+        if (s.pursuit) {
+          delete s.pursuit
+          this.pushLog('Погоня осталась позади.')
+        }
+        break
+      }
       case 'remove_entity':
         if (!s.removed_entities.includes(e.entity)) s.removed_entities.push(e.entity)
         break
@@ -3038,8 +3162,17 @@ export class GameEngine {
    * кампании и версией движка — без этого нельзя ни перенести сейв, ни
    * объяснить игроку, почему он не подошёл после обновления.
    */
+  /** выбранный игроком уровень сложности (мастерские пресеты meta.difficulties) */
+  difficultyDef(): DifficultyPreset | null {
+    const list = this.campaign.meta.difficulties
+    if (!list?.length) return null
+    return list.find((d) => d.id === this.state.difficulty) ?? list[0]
+  }
+
   autosave(): void {
     if (this.state.game_over) return
+    // «путь железного человека»: на этом уровне сложности автосейвы выключены
+    if (this.difficultyDef()?.no_autosave) return
     this.envelope = writeSave(this.campaign.meta.id, this.state, this.campaign.meta.version, this.envelope ?? undefined) ?? this.envelope
   }
 

@@ -24,7 +24,8 @@
     "persuade": 30,
     "bargain": 25,
     "stealth": 25,
-    "brawl": 30
+    "brawl": 30,
+    "pyromancy": 35
   },
   "inventory": [
     {
@@ -51,5 +52,9 @@
   "equipment": {
     "weapon": "item_short_sword",
     "armor": "item_leather_jerkin"
-  }
+  },
+  "abilities": [
+    "ability_flame_bolt",
+    "ability_war_cry"
+  ]
 }

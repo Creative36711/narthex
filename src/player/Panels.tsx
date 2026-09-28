@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Ico } from '../shared/icons'
 import { askConfirm } from '../shared/modals'
 import type { GameEngine } from '../core/engine'
-import { featureOn, type Effect, type ItemDef, type RecipeDef } from '../shared/types'
+import { featureOn, type Effect, type ItemDef, type NpcDef, type RecipeDef } from '../shared/types'
 import { damageBonus, movement } from '../core/brp'
-import { playInteraction } from '../shared/audio'
+import { playInteraction, playUi } from '../shared/audio'
 
 /** человекочитаемое описание эффектов on_use (фидбек №7: «сколько HP лечит мазь») */
 function describeUseEffects(engine: GameEngine, effects: Effect[]): string {
@@ -276,6 +276,50 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
             </div>
           ))}
         </div>
+        {(() => {
+          // способности героя и слоты подготовки магии (meta.magic.slots)
+          const entDef = engine.campaign.entities[p.entity] as NpcDef | undefined
+          const abs = (entDef?.abilities ?? [])
+            .map((id) => meta.abilities?.find((a) => a.id === id))
+            .filter(Boolean) as Array<{ id: string; label: string; description?: string; mp_cost: number; prepare?: boolean }>
+          if (!abs.length) return null
+          const slots = meta.magic?.slots
+          const prepared = p.prepared_abilities ?? []
+          return (
+            <>
+              <h3>Способности</h3>
+              {slots !== undefined && (
+                <div className="muted small" style={{ marginBottom: 6 }}>
+                  Слоты подготовки: {prepared.filter((id) => abs.some((a) => a.id === id && a.prepare)).length} / {slots} — чаровать можно только вне боя.
+                </div>
+              )}
+              <ul className="status-list">
+                {abs.map((a) => (
+                  <li key={a.id} className="status-item">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <b>{a.label}</b>
+                      <span className="muted small">MP {a.mp_cost}</span>
+                      {slots !== undefined && a.prepare && (
+                        <button
+                          className={`chip ${prepared.includes(a.id) ? 'chip-on' : ''}`}
+                          style={{ marginLeft: 'auto' }}
+                          data-tip={prepared.includes(a.id) ? 'Убрать из подготовленных' : 'Подготовить в слот'}
+                          onClick={() => {
+                            if (!engine.togglePreparedAbility(a.id)) playUi('error')
+                            engine.notify()
+                          }}
+                        >
+                          {prepared.includes(a.id) ? 'Подготовлена' : 'В слот'}
+                        </button>
+                      )}
+                    </div>
+                    {a.description && <div className="muted small">{a.description}</div>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )
+        })()}
         {(p.statuses ?? []).length > 0 && (
           <>
             <h3>Состояния</h3>

@@ -57,6 +57,8 @@ export interface CharChoice {
   calling: string
   /** итоговые значения навыков (порог + бонусы происхождения + покупки) */
   skills: Record<string, number>
+  /** id выбранного уровня сложности (если мастер задал meta.difficulties) */
+  difficulty?: string
 }
 
 /**

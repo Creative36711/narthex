@@ -235,6 +235,97 @@ export function CombatRulesEditor({ store }: { store: EditorStore }) {
       <CombatLuckTables m={m} commit={commit} />
 
       <HitLocationsTable m={m} commit={commit} />
+
+      <DifficultyPresets m={m} commit={commit} />
+    </div>
+  )
+}
+
+/**
+ * Уровни сложности, которые мастер предлагает игроку на экране создания героя.
+ * Нет списка — сложность всегда «как задумано». Есть — игрок выбирает
+ * (первый — умолчание), множители действуют весь забег.
+ */
+function DifficultyPresets({ m, commit }: { m: CampaignMeta; commit: () => void }) {
+  const list = m.difficulties ?? []
+  const seed = () => {
+    m.difficulties = [
+      { id: 'easy', label: 'Путник', description: 'Спокойное путешествие: враги бьют слабее, цены ниже.', enemy_damage: 0.75, prices: 0.85 },
+      { id: 'normal', label: 'Искатель', description: 'Как задумано автором.' },
+      { id: 'hard', label: 'Железный человек', description: 'Враги бьют сильнее, голод неумолим, автосохранений нет.', enemy_damage: 1.35, need_decay: 1.5, prices: 1.2, no_autosave: true },
+    ]
+    commit()
+  }
+  const setList = (next?: typeof list) => {
+    m.difficulties = next && next.length ? next : undefined
+    commit()
+  }
+  let uid = list.length + 1
+  return (
+    <div className="props-group">
+      <h4>Уровни сложности</h4>
+      <div className="muted small" style={{ marginBottom: 8 }}>
+        По умолчанию сложность одна — «как задумали вы». Задайте уровни, и на
+        создании героя игрок выберет: враги жёстче или мягче, потребности
+        убывают скорее, цены кусаются, автосохранение отключено.
+      </div>
+      <label className="fld fld-check" data-tip="Решение мастера: предлагать ли игроку выбор сложности">
+        <input
+          type="checkbox"
+          checked={list.length > 0}
+          onChange={(e) => { if (e.target.checked) seed(); else setList(undefined) }}
+        />
+        <span>Игрок выбирает сложность при старте</span>
+      </label>
+      {list.length > 0 && (
+        <>
+          {list.map((d, i) => (
+            <div key={d.id} className="fld-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end', borderBottom: '1px dashed var(--ed-paper-line)', padding: '6px 0' }}>
+              <label className="fld" style={{ minWidth: 110 }}>
+                <span>Название</span>
+                <input value={d.label} onChange={(ev) => ((d.label = ev.target.value), commit())} />
+              </label>
+              <label className="fld" style={{ flex: 1, minWidth: 200 }}>
+                <span>Пояснение игроку</span>
+                <input value={d.description ?? ''} onChange={(ev) => ((d.description = ev.target.value || undefined), commit())} />
+              </label>
+              <label className="fld fld-num" data-tip="Урон врагов по герою (1 — как задумано, 0.5 — вполсилы, 1.3 — жёстче)">
+                <span>Урон врагов ×</span>
+                <input type="number" min={0.1} step={0.05} value={d.enemy_damage ?? 1} onChange={(ev) => { const v = Number(ev.target.value); d.enemy_damage = v && v !== 1 ? v : undefined; commit() }} />
+              </label>
+              <label className="fld fld-num" data-tip="Скорость убыли потребностей (1 — как задумано)">
+                <span>Голод/жажда ×</span>
+                <input type="number" min={0.1} step={0.1} value={d.need_decay ?? 1} onChange={(ev) => { const v = Number(ev.target.value); d.need_decay = v && v !== 1 ? v : undefined; commit() }} />
+              </label>
+              <label className="fld fld-num" data-tip="Цены при покупке у торговцев (1 — как задумано, 0.8 — дешевле, 1.2 — дороже)">
+                <span>Цены ×</span>
+                <input type="number" min={0.1} step={0.05} value={d.prices ?? 1} onChange={(ev) => { const v = Number(ev.target.value); d.prices = v && v !== 1 ? v : undefined; commit() }} />
+              </label>
+              <label className="fld fld-check" data-tip="На этом уровне автосохранение выключено — только ручные слоты (если мастер их не запретил)">
+                <input
+                  type="checkbox"
+                  checked={!!d.no_autosave}
+                  onChange={(ev) => ((d.no_autosave = ev.target.checked ? true : undefined), commit())}
+                />
+                <span>Без автосохранений</span>
+              </label>
+              <button className="btn btn-small ce-del" data-tip="Удалить уровень" onClick={() => { list.splice(i, 1); setList(list) }}><Ico n="close" /> </button>
+            </div>
+          ))}
+          <button
+            className="btn btn-small"
+            onClick={() => {
+              const base = 'difficulty'
+              let id = `${base}_${uid}`
+              while (list.some((d) => d.id === id)) id = `${base}_${++uid}`
+              list.push({ id, label: 'Новый уровень' })
+              commit()
+            }}
+          >
+            <Ico n="plus" /> Уровень сложности
+          </button>
+        </>
+      )}
     </div>
   )
 }
