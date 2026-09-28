@@ -221,17 +221,17 @@ function startCombat(e: GameEngine): CombatController {
   e.start()
   check('5 без выбора игроком берётся первый уровень', e.difficultyDef()?.id === 'easy')
   // цены: тот же торговец, тот же товар — только сложность меняется
-  e.state.difficulty = 'easy'
+  e.state.player.difficulty = 'easy'
   const merchant = c.entities['npc_bran'] as NpcDef
   const pEasy = e.buyPrice(merchant, 'item_travel_rations')
-  e.state.difficulty = 'hard'
+  e.state.player.difficulty = 'hard'
   const pHard = e.buyPrice(merchant, 'item_travel_rations')
   check('5 множитель цен применяется (hard дороже)', pHard > pEasy, `${pEasy}→${pHard}`)
   // автосейв отключён на «железном человеке»
   mem.clear()
   e.autosave()
   check('5 автосохранение выключено на «железном человеке»', mem.size === 0, `keys=${mem.size}`)
-  e.state.difficulty = 'easy'
+  e.state.player.difficulty = 'easy'
   e.autosave()
   check('5 автосохранение работает на обычной сложности', mem.size > 0)
   // урон врагов: прямой множитель через resolveAttack

@@ -422,6 +422,30 @@ export interface CallingDef {
  * встроенных значений и «происхождений по умолчанию» в движке нет.
  * Нет самого блока `char_creation` — забег стартует готовым шаблоном.
  */
+/**
+ * Портрет героя из галереи мастера (char_creation.portraits): игрок выбирает
+ * карточку при создании персонажа. states — варианты облика по состоянию
+ * (ключи из общего реестра meta.emotions: «ранен», «устал»…).
+ */
+export interface HeroPortraitOption {
+  id: string
+  label: string
+  image: ImageValue
+  states?: Record<string, ImageValue>
+}
+
+/**
+ * Слой составного портрета (char_creation.portrait_layers): «лицо»,
+ * «волосы», «одежда» — игрок собирает облик из вариантов слоёв мастера,
+ * итог — стек изображений по порядку слоёв.
+ */
+export interface HeroPortraitLayerDef {
+  id: string
+  /** подпись сегмента для игрока («Лицо») */
+  label: string
+  options: Array<{ id: string; label: string; image: ImageValue; states?: Record<string, ImageValue> }>
+}
+
 export interface CharCreationDef {
   /** бюджет характеристик (очки сверх минимума) */
   total_points: number
@@ -447,6 +471,18 @@ export interface CharCreationDef {
   choose_age?: boolean
   /** поле «Биография» — короткая предыстория своими словами */
   choose_bio?: boolean
+  /**
+   * Галерея портретов героя (пункт «портрет героя»): игрок выбирает одну
+   * карточку. Пусто — экран портрета не появляется.
+   */
+  portraits?: HeroPortraitOption[]
+  /**
+   * Составной портрет по сегментам («лицо», «волосы», «одежда»): игрок
+   * собирает облик из вариантов мастера. Можно сочетать с галереей —
+   * собранный портрет перекрывает выбранную карточку, если сделан выбор
+   * хотя бы в одном сегменте.
+   */
+  portrait_layers?: HeroPortraitLayerDef[]
   /**
    * Генерация характеристик КУБИКАМИ (аудит §5.6 п.5, базовый метод BRP).
    * Задано — на экране создания появляются броски вместо бюджета очков;
@@ -2269,6 +2305,11 @@ export interface PlayerState {
   age?: number
   /** id подготовленных способностей магии (meta.magic.slots, аудит §5.6) */
   prepared_abilities?: string[]
+  /**
+   * Облик героя: выбор игрока из галереи (gallery = id портрета) и/или
+   * по сегментам (layers = id сегмента → id варианта).
+   */
+  portrait_choice?: { gallery?: string; layers?: Record<string, string> }
   /** id выбранного уровня сложности (meta.difficulties мастера) */
   difficulty?: string
   /** короткая биография героя (если мастер включил; аудит §5.6) */

@@ -59,6 +59,10 @@ export interface CharChoice {
   skills: Record<string, number>
   /** id выбранного уровня сложности (если мастер задал meta.difficulties) */
   difficulty?: string
+  /** id портрета из галереи мастера (char_creation.portraits) */
+  portrait?: string
+  /** выбор по сегментам портрета (char_creation.portrait_layers): id сегмента → id варианта */
+  portrait_layers?: Record<string, string>
 }
 
 /**

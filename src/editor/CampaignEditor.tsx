@@ -3,11 +3,11 @@ import { Ico } from '../shared/icons'
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { EditorStore } from './store'
-import { AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect } from './Fields'
+import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, GenWeightedItem, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
+import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, GenWeightedItem, ImageValue, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { brightenHex } from '../shared/theme'
 import { PROFILE_GROUPS, VISUAL_PROFILES, resolveProfile, contrastRatio } from '../shared/profiles'
@@ -1531,6 +1531,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <input type="checkbox" checked={!!m.char_creation.choose_bio} onChange={(e) => ((m.char_creation!.choose_bio = e.target.checked || undefined), commit())} />
               <span>Игрок пишет биографию</span>
             </label>
+
+            <HeroPortraitsEditor m={m} store={store} commit={commit} />
 
             <label className="fld fld-check">
               <input
@@ -3689,6 +3691,224 @@ function SpeciesRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorS
       >
         + вид
       </button>
+    </div>
+  )
+}
+
+/**
+ * Портреты героя (пункт «портрет героя»): галерея готовых карточек и/или
+ * составной облик по сегментам («лицо», «волосы», «одежда»). Игрок выбирает
+ * на экране создания персонажа; портрет едет в лист персонажа. У каждого
+ * варианта — состояния облика: ранен (< половины HP), устал (потребность ≤ 25),
+ * обычный, либо любой статус из реестра (пока он активен на герое).
+ */
+function HeroPortraitsEditor({ m, store, commit }: { m: CampaignMeta; store: EditorStore; commit: () => void }) {
+  const cc = (m.char_creation ??= ({} as CampaignMeta['char_creation']))!
+  if (!cc.total_points) return null // блок выключен — портретам неоткуда жить
+  const emotions = m.emotions ?? []
+  const statuses = m.statuses ?? []
+  let uid = 1 + (cc.portraits?.length ?? 0) + (cc.portrait_layers?.reduce((n, l) => n + l.options.length, 0) ?? 0)
+  const nextId = (prefix: string) => `${prefix}_${uid++}`
+
+  /** конструктор состояний облика: выбор ключа + свой кадр */
+  function StatesEditor({ states, dir, onChange }: { states: Record<string, ImageValue> | undefined; dir: string; onChange: (v: Record<string, ImageValue> | undefined) => void }) {
+    const cur = states ?? {}
+    const stdKeys: Array<{ id: string; label: string }> = [
+      { id: 'wounded', label: 'Ранен (HP < 50%)' },
+      { id: 'tired', label: 'Устал (потребность ≤ 25)' },
+      { id: 'neutral', label: 'Обычный (по умолчанию)' },
+    ]
+    const statusKeys = statuses.map((st) => ({ id: st.id, label: `Статус «${st.label || st.id}»` }))
+    const allKeys = [...stdKeys, ...statusKeys]
+    return (
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        {Object.keys(cur).map((k) => (
+          <div key={k} style={{ position: 'relative' }}>
+            <AnimImageEditor
+              label={allKeys.find((x) => x.id === k)?.label ?? k}
+              value={cur[k]}
+              dir={dir}
+              store={store}
+              onChange={(v) => {
+                const next = { ...cur }
+                if (v) next[k] = v
+                else delete next[k]
+                onChange(Object.keys(next).length ? next : undefined)
+              }}
+            />
+            <button
+              className="btn btn-small ce-del"
+              data-tip="Убрать состояние"
+              style={{ position: 'absolute', top: 0, right: 0 }}
+              onClick={() => {
+                const next = { ...cur }
+                delete next[k]
+                onChange(Object.keys(next).length ? next : undefined)
+              }}
+            >
+              <Ico n="close" />
+            </button>
+          </div>
+        ))}
+        <select
+          className="btn btn-small"
+          value=""
+          data-tip="Добавить состояние облика — отдельный кадр для этого случая"
+          onChange={(e) => {
+            const k = e.target.value
+            if (!k) return
+            onChange({ ...cur, [k]: '' })
+          }}
+        >
+          <option value="">+ состояние…</option>
+          {allKeys.filter((k) => !(k.id in cur)).map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+        </select>
+        {emotions.length > 0 && (
+          <span className="muted small" style={{ alignSelf: 'center' }}>свои ключи состояний — из реестра «Состояния» выше</span>
+        )}
+      </div>
+    )
+  }
+
+  /** карточка портрета галереи */
+  function PortraitRow({ p }: { p: NonNullable<typeof cc.portraits>[number] }) {
+    const list = cc.portraits!
+    return (
+      <details className="need-conds">
+        <summary>
+          {p.label || '(без названия)'}
+          <button
+            className="btn btn-small ce-del"
+            data-tip="Удалить портрет"
+            onClick={(e) => {
+              e.preventDefault(); e.stopPropagation()
+              list.splice(list.indexOf(p), 1)
+              if (!list.length) delete cc.portraits
+              commit()
+            }}
+          >
+            <Ico n="close" />
+          </button>
+        </summary>
+        <div className="fld-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <label className="fld" style={{ minWidth: 160 }}>
+            <span>Название</span>
+            <input value={p.label} onChange={(e) => ((p.label = e.target.value), commit())} />
+          </label>
+          <AnimImageEditor
+            label="Портрет"
+            value={p.image}
+            dir="assets/img/hero"
+            store={store}
+            onChange={(v) => ((p.image = v ?? ''), commit())}
+          />
+        </div>
+        <div className="muted small" style={{ margin: '4px 0' }}>Состояния облика (необязательно):</div>
+        <StatesEditor
+          states={p.states}
+          dir="assets/img/hero"
+          onChange={(v) => ((p.states = v), commit())}
+        />
+      </details>
+    )
+  }
+
+  /** сегмент составного портрета */
+  function LayerGroup({ layer }: { layer: { id: string; label: string; options: Array<{ id: string; label: string; image: ImageValue; states?: Record<string, ImageValue> }> } }) {
+    const layers = cc.portrait_layers!
+    return (
+      <details className="need-conds">
+        <summary>
+          {layer.label || '(сегмент)'} · вариантов: {layer.options.length}
+          <button
+            className="btn btn-small ce-del"
+            data-tip="Удалить сегмент"
+            onClick={(e) => {
+              e.preventDefault(); e.stopPropagation()
+              layers.splice(layers.indexOf(layer), 1)
+              if (!layers.length) delete cc.portrait_layers
+              commit()
+            }}
+          >
+            <Ico n="close" />
+          </button>
+        </summary>
+        <label className="fld" style={{ maxWidth: 260 }}>
+          <span>Название сегмента (видит игрок)</span>
+          <input value={layer.label} onChange={(e) => ((layer.label = e.target.value), commit())} />
+        </label>
+        {layer.options.map((o) => (
+          <details key={o.id} className="need-conds" style={{ marginLeft: 8 }}>
+            <summary>
+              {o.label || '(вариант)'}
+              <button
+                className="btn btn-small ce-del"
+                data-tip="Удалить вариант"
+                onClick={(e) => {
+                  e.preventDefault(); e.stopPropagation()
+                  layer.options.splice(layer.options.indexOf(o), 1)
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </summary>
+            <div className="fld-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <label className="fld" style={{ minWidth: 140 }}>
+                <span>Название варианта</span>
+                <input value={o.label} onChange={(e) => ((o.label = e.target.value), commit())} />
+              </label>
+              <AnimImageEditor
+                label="Изображение слоя"
+                value={o.image}
+                dir="assets/img/hero"
+                store={store}
+                onChange={(v) => ((o.image = v ?? ''), commit())}
+              />
+            </div>
+            <StatesEditor
+              states={o.states}
+              dir="assets/img/hero"
+              onChange={(v) => ((o.states = v), commit())}
+            />
+          </details>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={() => (layer.options.push({ id: nextId('opt'), label: 'Вариант', image: '' }), commit())}
+        >
+          <Ico n="plus" /> Вариант
+        </button>
+      </details>
+    )
+  }
+
+  return (
+    <div className="props-group" style={{ marginTop: 8 }}>
+      <h4>Портрет героя</h4>
+      <div className="muted small" style={{ marginBottom: 8 }}>
+        Задайте готовые портреты (игрок выберет карточку) и/или сегменты для
+        составного облика (игрок соберёт себя из вариантов: лицо + волосы + одежда).
+        В обоих случаях можно дать отдельные кадры для состояний: «ранен», «устал»,
+        либо под конкретный статус из реестра — облик будет меняться по ходу игры.
+      </div>
+      {(cc.portraits ?? []).map((p) => <PortraitRow key={p.id} p={p} />)}
+      <button
+        className="btn btn-small"
+        onClick={() => ((cc.portraits ??= []).push({ id: nextId('portrait'), label: 'Портрет', image: '' }), commit())}
+      >
+        <Ico n="plus" /> Готовый портрет
+      </button>
+      <div className="muted small" style={{ margin: '10px 0 6px' }}>Составной облик по сегментам:</div>
+      {(cc.portrait_layers ?? []).map((l) => <LayerGroup key={l.id} layer={l} />)}
+      <div>
+        <button
+          className="btn btn-small"
+          onClick={() => ((cc.portrait_layers ??= []).push({ id: nextId('layer'), label: 'Сегмент', options: [{ id: nextId('opt'), label: 'Вариант', image: '' }] }), commit())}
+        >
+          <Ico n="plus" /> Сегмент облика
+        </button>
+      </div>
     </div>
   )
 }

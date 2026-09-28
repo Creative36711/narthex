@@ -36,6 +36,8 @@ import type {
   PresenceOverride,
   SkillDifficulty,
   WeaponData,
+
+  ImageValue,
 } from '../shared/types'
 import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import {
@@ -242,8 +244,20 @@ export class GameEngine {
     if (creation.choose_age && choice.age !== undefined) s.player.age = choice.age
     // уровень сложности от игрока (мастерские пресеты meta.difficulties)
     if (choice.difficulty && this.campaign.meta.difficulties?.some((d) => d.id === choice.difficulty)) {
-      s.difficulty = choice.difficulty
+      s.player.difficulty = choice.difficulty
     }
+    // облик героя: галерея и/или слои мастера (char_creation.portraits[-layers])
+    const pc: Record<string, unknown> = {}
+    if (choice.portrait && creation.portraits?.some((p) => p.id === choice.portrait)) pc.gallery = choice.portrait
+    if (choice.portrait_layers && creation.portrait_layers?.length) {
+      const layers: Record<string, string> = {}
+      for (const layer of creation.portrait_layers) {
+        const sel = choice.portrait_layers[layer.id]
+        if (sel && layer.options.some((o) => o.id === sel)) layers[layer.id] = sel
+      }
+      if (Object.keys(layers).length) pc.layers = layers
+    }
+    if (Object.keys(pc).length) s.player.portrait_choice = pc as PlayerState['portrait_choice']
     else delete s.player.age
     if (creation.choose_bio && choice.bio?.trim()) s.player.bio = choice.bio.trim()
     else delete s.player.bio
@@ -837,6 +851,52 @@ export class GameEngine {
   }
 
   /** самочувствие NPC (0..100, умолчание 50): усталость от пропуска ночёвки по расписанию */
+  /**
+   * Ключ состояния облика героя: первый активный статус с совпадающим
+   * ключом в meta.emotions… но практичнее — известные ключи по порядку:
+   * статус из списка активных, иначе 'wounded' (HP < 50%), 'tired' (любая
+   * потребность ≤ 25), иначе 'neutral'. Ключи — из реестра состояний мастера.
+   */
+  heroPortraitStateKey(): string {
+    const p = this.state.player
+    if (p.statuses?.length) return p.statuses[0].id
+    if (p.hp * 2 < p.max_hp) return 'wounded'
+    for (const v of Object.values(this.state.player.needs ?? {})) if (v <= 25) return 'tired'
+    return 'neutral'
+  }
+
+  /**
+   * Стек изображений портрета героя (низ → верх) с учётом состояния:
+   * галерея — один кадр; слои — кадры выбранных вариантов по порядку
+   * сегментов мастера; вариант облика под ключ состояния меняет кадр,
+   * если мастер задал такую запись. Пусто — портрета нет.
+   */
+  heroPortraitImages(): ImageValue[] {
+    const meta = this.campaign.meta
+    const choice = this.state.player.portrait_choice
+    if (!choice) return []
+    const key = this.heroPortraitStateKey()
+    const withState = (img: ImageValue, states?: Record<string, ImageValue>): ImageValue => {
+      const hit = states?.[key]
+      if (hit) return hit
+      return img
+    }
+    if (choice.layers && meta.char_creation?.portrait_layers?.length) {
+      const out: ImageValue[] = []
+      for (const layer of meta.char_creation.portrait_layers) {
+        const opt = layer.options.find((o) => o.id === choice.layers![layer.id]) ?? layer.options[0]
+        if (!opt) continue
+        out.push(withState(opt.image, opt.states))
+      }
+      if (out.length) return out
+    }
+    if (choice.gallery) {
+      const def = meta.char_creation?.portraits?.find((p) => p.id === choice.gallery)
+      if (def) return [withState(def.image, def.states)]
+    }
+    return []
+  }
+
   npcMood(entityId: string): number {
     return this.state.npc_mood?.[entityId] ?? 50
   }
@@ -3166,7 +3226,7 @@ export class GameEngine {
   difficultyDef(): DifficultyPreset | null {
     const list = this.campaign.meta.difficulties
     if (!list?.length) return null
-    return list.find((d) => d.id === this.state.difficulty) ?? list[0]
+    return list.find((d) => d.id === this.state.player.difficulty) ?? list[0]
   }
 
   autosave(): void {

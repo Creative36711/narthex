@@ -17,6 +17,8 @@ import {
   type CharChoice,
 } from '../core/charcreate'
 import { skillLabel } from '../shared/skills'
+import { assetUrl } from '../core/loader'
+import { framesOf } from './frames'
 
 /** русское имя характеристики для подсказок */
 const STAT_LABELS: Record<string, string> = {
@@ -152,6 +154,79 @@ export function CharacterCreation({
                 />
               </label>
             )}
+          </div>
+        )}
+
+        {/* облик героя: галерея портретов и/или составные сегменты мастера */}
+        {((creation.portraits?.length ?? 0) > 0 || (creation.portrait_layers?.length ?? 0) > 0) && (
+          <div className="props-group">
+            <h4>Облик героя</h4>
+            <div className="hero-look">
+              <div className="hero-look-preview">
+                {(() => {
+                  const frames: string[] = []
+                  const pick = (img: import('../shared/types').ImageValue) => (typeof img === 'string' ? img : (framesOf(img)?.frames[0] ?? ''))
+                  if (creation.portrait_layers?.length && choice.portrait_layers && Object.keys(choice.portrait_layers).length) {
+                    for (const layer of creation.portrait_layers) {
+                      const opt = layer.options.find((o) => o.id === choice.portrait_layers![layer.id]) ?? layer.options[0]
+                      if (opt) { const f = pick(opt.image); if (f) frames.push(f) }
+                    }
+                  } else if (choice.portrait) {
+                    const def = creation.portraits?.find((p) => p.id === choice.portrait)
+                    if (def) { const f = pick(def.image); if (f) frames.push(f) }
+                  }
+                  if (!frames.length) return <div className="img-upload-empty">выберите портрет</div>
+                  return frames.map((f, i) => <img key={i} className="hero-portrait-frame" src={assetUrl(campaign, f)} alt="" />)
+                })()}
+              </div>
+              <div className="hero-look-picks">
+                {(creation.portraits?.length ?? 0) > 0 && (
+                  <>
+                    <span className="muted small">Готовые портреты</span>
+                    <div className="hero-gallery">
+                      {creation.portraits!.map((p) => {
+                        const src = assetUrl(campaign, typeof p.image === 'string' ? p.image : (framesOf(p.image)?.frames[0] ?? ''))
+                        const active = choice.portrait === p.id && !Object.keys(choice.portrait_layers ?? {}).length
+                        return (
+                          <button
+                            key={p.id}
+                            className={`btn hero-gallery-card${active ? ' sel' : ''}`}
+                            onClick={() => setChoice({ ...choice, portrait: p.id, portrait_layers: undefined })}
+                          >
+                            {src && <img src={src} alt="" />}
+                            <span>{p.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+                {(creation.portrait_layers ?? []).map((layer) => (
+                  <div key={layer.id} className="hero-layer-row">
+                    <span className="muted small">{layer.label}</span>
+                    <div className="hero-layer-opts">
+                      {layer.options.map((o) => {
+                        const active = choice.portrait_layers?.[layer.id] === o.id
+                        return (
+                          <button
+                            key={o.id}
+                            className={`btn btn-small${active ? ' btn-primary' : ''}`}
+                            onClick={() =>
+                              setChoice({
+                                ...choice,
+                                portrait_layers: { ...(choice.portrait_layers ?? {}), [layer.id]: o.id },
+                              })
+                            }
+                          >
+                            {o.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

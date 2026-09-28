@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Ico } from '../shared/icons'
+import { PlayerPortrait } from './PlayerPortrait'
 import { askConfirm } from '../shared/modals'
 import type { GameEngine } from '../core/engine'
 import { featureOn, type Effect, type ItemDef, type NpcDef, type RecipeDef } from '../shared/types'
@@ -261,12 +262,22 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
           <h2>{p.name ? `${p.name} · ${def?.label ?? 'Герой'}` : (def?.label ?? 'Герой')}</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
-        {(p.age !== undefined || p.bio) && (
-          <div className="char-dossier">
-            {p.age !== undefined && <div className="muted small">Возраст: {p.age}</div>}
-            {p.bio && <div className="char-bio small">{p.bio}</div>}
-          </div>
-        )}
+        {(() => {
+          const portrait = <PlayerPortrait engine={engine} size={104} />
+          const dossier = (p.age !== undefined || p.bio) && (
+            <div className="char-dossier">
+              {p.age !== undefined && <div className="muted small">Возраст: {p.age}</div>}
+              {p.bio && <div className="char-bio small">{p.bio}</div>}
+            </div>
+          )
+          if (!portrait) return dossier
+          return (
+            <div className="char-hero-card">
+              {portrait}
+              {dossier && <div className="char-hero-card-side">{dossier}</div>}
+            </div>
+          )
+        })()}
         <h3>Характеристики</h3>
         <div className="stat-grid">
           {statNames.map((s) => (

@@ -28,7 +28,7 @@ import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } fro
 import { collectExternalUrls, embedExternalAssets } from './assets'
 import { exportMonolith, importMonolithText } from './monolith'
 import { campaignFromMonolith } from './playtest'
-import type { CampaignData } from '../shared/types'
+import type { CampaignData, ItemDef } from '../shared/types'
 import { GameEngine, deleteSave } from '../core/engine'
 import { GameView } from '../player/GameView'
 import { CharacterCreation } from '../player/CharacterCreation'
@@ -353,7 +353,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           if (!r) { out.push({ path: p, title: p }); continue }
           if (r.repair) out.push({ path: p, title: r.label || p, group: 'Починка вещей', groupOrder: '1' })
           else {
-            const item = r.output?.item ? store.entity(`entities/${r.output.item}.json`) : undefined
+            const item = (r.output?.item ? store.entity(`entities/${r.output.item}.json`) : undefined) as ItemDef | undefined
             const cat = item?.category ? store.labelFor('itemCategory', item.category) : ''
             out.push({ path: p, title: r.label || p, group: cat || 'Без категории', groupOrder: `0${cat}` })
           }
