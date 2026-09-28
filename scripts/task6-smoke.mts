@@ -264,5 +264,25 @@ function startCombat(e: GameEngine): CombatController {
   check('5 урон врага по герою умножается на 3', hits.length >= 3 && hits.some((d) => d >= 6), `выборка=${hits.join(',')}`)
 }
 
+
+// 32. New Game+: наследие и ужесточение круга (master-фича)
+{
+  const ngCamp = synth((c) => {
+    c.meta.new_game_plus = { keep: ['skills', 'stats'], boost: { enemy_damage_step: 0.25 } }
+    c.meta.difficulties = [{ id: 'hard', label: 'Сурово', description: '', player_damage: 1, enemy_damage: 1, need_decay: 1, prices: 1 }]
+  })
+  const e = new GameEngine(ngCamp)
+  e.start()
+  e.state.player.skills.status = 77
+  e.state.player.stats.strength = 99
+  e.state.player.difficulty = 'hard'
+  e.state.game_over = { type: 'victory', reason: 'тест' }
+  ok(e.newGamePlusAvailable(), 'NG+ доступен после победы')
+  const e2 = e.newGamePlus()
+  ok(!!e2 && e2.state.ng_cycle === 1, 'NG+ создаёт второй круг')
+  ok(e2!.state.player.skills.status === 77 && e2!.state.player.stats.strength === 99, 'навыки и характеристики перенеслись')
+  ok(e2!.difficultyDef()?.enemy_damage === 1.25, 'круг 1: урон врагов +25% поверх пресета')
+}
+
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nвсе проверки зелёные')
 process.exit(failed ? 1 : 0)
