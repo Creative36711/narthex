@@ -33,6 +33,7 @@ export type EditorSection =
   | 'dialogues'
   | 'arenas'
   | 'cutscenes'
+  | 'combat'
   | 'recipes'
   | 'codex'
 

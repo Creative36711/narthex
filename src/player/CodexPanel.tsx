@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Ico } from '../shared/icons'
 import type { GameEngine } from '../core/engine'
+import type { NpcDef } from '../shared/types'
 import { assetUrl } from '../core/loader'
 
 /**
@@ -61,10 +62,49 @@ export function CodexPanel({ engine, onClose }: { engine: GameEngine; onClose: (
                     <img className="codex-image" src={assetUrl(engine.campaign, sel.image)} alt={sel.label} />
                   )}
                   <div className="codex-text">{sel.text}</div>
+                  {sel.creature_entity && <CreatureCard engine={engine} entityId={sel.creature_entity} />}
                 </>
               )}
             </div>
           </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Боевая сводка существа в записи бестиария: статы, броня, оружие, способности, мораль. */
+function CreatureCard({ engine, entityId }: { engine: GameEngine; entityId: string }) {
+  const def = engine.campaign.entities[entityId] as NpcDef | undefined
+  if (!def || def.type !== 'npc') return null
+  const STAT_KEYS = ['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const
+  const abs = (def.abilities ?? [])
+    .map((id) => engine.campaign.meta.abilities?.find((a) => a.id === id))
+    .filter(Boolean) as Array<{ id: string; label: string }>
+  return (
+    <div className="codex-creature">
+      <h4 className="codex-creature-title"><Ico n="skull" /> Боевая сводка</h4>
+      <div className="stat-grid codex-creature-stats">
+        {STAT_KEYS.map((k) => (
+          <div key={k} className="stat-cell">
+            <span className="stat-name">{k}</span>
+            <span className="stat-val">{def.stats[k]}</span>
+          </div>
+        ))}
+      </div>
+      <div className="codex-creature-rows">
+        {(def.armor ?? 0) > 0 && <div className="muted small">Броня: −{def.armor} к урону</div>}
+        {def.natural_weapon && (
+          <div className="muted small">
+            Природное оружие: {def.natural_weapon.label ?? 'удар'} — {def.natural_weapon.damage}
+            {def.natural_weapon.damage_bonus ? ' + бонус силы' : ''} · навык «{engine.skillLabel(def.natural_weapon.skill)}»
+          </div>
+        )}
+        {abs.length > 0 && (
+          <div className="muted small">Способности: {abs.map((a) => a.label || a.id).join(', ')}</div>
+        )}
+        {def.morale && def.morale.below_hp_pct > 0 && (
+          <div className="muted small">Ниже {def.morale.below_hp_pct}% здоровья может бросить бой</div>
         )}
       </div>
     </div>

@@ -10,6 +10,7 @@ import { EntityEditor } from './EntityEditor'
 import { DialogueBuilder, hasDlgDoc, dialogueTitle } from './DialogueBuilder'
 import { generateInk, newDlgDoc } from './dialogueDoc'
 import { CampaignEditor } from './CampaignEditor'
+import { CombatRulesEditor } from './CombatRulesEditor'
 import { WorldEditor } from './WorldEditor'
 import { CutsceneEditor, newCutscene } from './CutsceneEditor'
 import { RecipeEditor, newRecipe } from './RecipeEditor'
@@ -79,7 +80,10 @@ const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
   {
     id: 'mechanics',
     label: 'Механики',
-    items: [{ id: 'recipes', label: 'Рецепты крафта' }],
+    items: [
+      { id: 'combat', label: 'Правила боя' },
+      { id: 'recipes', label: 'Рецепты крафта' },
+    ],
   },
 ]
 
@@ -590,7 +594,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     return true
   })
-  const hasList = !['campaign', 'world'].includes(section)
+  const hasList = !['campaign', 'world', 'combat'].includes(section)
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
   // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
   const groupCounts = new Map<string, number>()
@@ -779,6 +783,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
         <main className="editor-main">
           {section === 'campaign' && <CampaignEditor key={`c-${base}`} store={store} />}
+          {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
           {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} />}
           {section === 'entities' && sel && <EntityEditor key={sel} store={store} path={sel} />}

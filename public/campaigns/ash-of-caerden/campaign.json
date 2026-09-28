@@ -226,7 +226,9 @@
           "first_aid": 35
         }
       }
-    ]
+    ],
+    "choose_age": true,
+    "choose_bio": true
   },
   "roguelike": {
     "permadeath": true,

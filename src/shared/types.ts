@@ -633,6 +633,8 @@ export interface CampaignMeta {
   statuses?: StatusDef[]
   /** реестр боевых способностей (блок 6 ТЗ) */
   abilities?: AbilityDef[]
+  /** шаблоны видов существ — мастерские заготовки боевых параметров NPC (контент, не движок) */
+  species?: SpeciesTemplate[]
   /** реестр слотов экипировки (блок 7 ТЗ); встроенные Оружие/Броня есть всегда */
   equipment_slots?: Array<{ id: string; label: string }>
   /** календарь кампании: свои месяцы и дни недели (блок 9 ТЗ) */
@@ -1103,6 +1105,12 @@ export interface CodexEntryDef {
   category?: string
   /** основной текст */
   text: string
+  /**
+   * Бестиарий (аудит §5.6): id существа-NPC, о котором запись.
+   * Заполнено — у записи в кодексе появляется боевая сводка
+   * (характеристики, броня, природное оружие, способности, мораль).
+   */
+  creature_entity?: string
   /** файл/ссылка (нет — без картинки) */
   image?: string
 }
@@ -1287,6 +1295,34 @@ export interface NpcDef {
   morale?: { below_hp_pct: number; flee_chance: number }
   /** звуки взаимодействий (хук → id звука реестра кампании) */
   sounds?: SoundHookMap
+}
+
+/**
+ * Шаблон вида существа (meta.species): боевой костяк NPC по нажатию
+ * «Применить вид» в редакторе персонажа. Встроенных видов в движке нет —
+ * виды задаёт мастер под свою кампанию (контент, не код).
+ */
+export interface SpeciesTemplate {
+  id: string
+  label: string
+  /** подсказка мастеру: чем этот вид примечателен */
+  description?: string
+  stats?: Record<string, number>
+  skills?: Record<string, number>
+  /** броня в очках (нет — 0) */
+  armor?: number
+  natural_weapon?: {
+    skill: string
+    damage: string
+    label?: string
+    damage_bonus?: boolean
+    range?: number
+    attacks_per_round?: number
+    parry_capable?: boolean
+  }
+  /** id способностей из реестра кампании */
+  abilities?: string[]
+  morale?: { below_hp_pct: number; flee_chance: number }
 }
 
 export interface WeaponData {

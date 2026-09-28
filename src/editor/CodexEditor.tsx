@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { BUILTIN_CODEX_CATEGORIES, type CodexEntryDef } from '../shared/types'
 import type { EditorStore } from './store'
-import { AssetUpload, FileAdvancedJson } from './Fields'
+import { AssetUpload, FileAdvancedJson, RefSelect } from './Fields'
 
 export function newCodexEntry(id: string, label: string): CodexEntryDef {
   return { id, label, text: '' }
@@ -50,6 +50,21 @@ export function CodexEditor({ store, path }: { store: EditorStore; path: string 
           <span>Текст записи</span>
           <textarea rows={10} value={entry.text} onChange={(e) => ((entry.text = e.target.value), commit())} />
         </label>
+        <RefSelect
+          label="Существо бестиария (NPC из «Сущностей»)"
+          kind="npc"
+          store={store}
+          value={entry.creature_entity ?? ''}
+          optional
+          onChange={(v) => {
+            if (v) entry.creature_entity = v
+            else delete entry.creature_entity
+            commit()
+          }}
+        />
+        {(entry.category ?? 'chronicles') === 'creatures' && !entry.creature_entity && (
+          <div className="muted small">Запись в категории «Существа» без привязки к персонажу — покажет только текст и картинку, боевой сводки не будет.</div>
+        )}
         <AssetUpload
           label="Картинка (необязательно)"
           value={entry.image ?? ''}

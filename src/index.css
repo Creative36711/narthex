@@ -683,6 +683,10 @@ html.cf-profile-modern {
 
 /* «рукописная» роль — журнал квестов и событий, записки, кодекс */
 .cf-themed .quest-journal, .cf-themed .log-list, .cf-themed .end-reason, .cf-themed .codex-text {
+.codex-creature { margin-top: 12px; border-top: 1px solid var(--border-soft); padding-top: 10px; }
+.codex-creature-title { margin: 0 0 8px; font-size: 14px; color: var(--gold); }
+.codex-creature-stats { margin-bottom: 8px; }
+.codex-creature-rows > div { margin-bottom: 3px; }
   font-family: var(--cf-font-hand, var(--cf-font-body, Georgia, serif));
 }
 
