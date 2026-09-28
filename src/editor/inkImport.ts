@@ -35,7 +35,7 @@ function parseCondToken(token: string, warnings: string[], where: string): DlgCo
   m = /^(not )?in_party\("([^"]+)"\)$/.exec(t)
   if (m) return { type: 'in_party', npc: m[2], not: !!m[1] || undefined }
   m = /^get_hp\(\)\s*(>=|<)\s*(-?\d+)$/.exec(t)
-  if (m) return { type: 'hp_ge', value: Number(m[3]), not: m[2] === '<' || undefined }
+  if (m) return { type: 'hp_ge', value: Number(m[2]), not: m[1] === '<' || undefined }
   m = /^(not )?has_status\("([^"]+)"\)$/.exec(t)
   if (m) return { type: 'has_status', status: m[2], not: !!m[1] || undefined }
   m = /^(not )?weather_is\("([^"]+)"\)$/.exec(t)
