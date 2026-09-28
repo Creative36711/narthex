@@ -169,7 +169,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   // Исключение — Monaco (у него своя полноценная история).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
+      // e.key на кириллической раскладке даёт «я» — сравниваем физическую
+      // клавишу (KeyZ), чтобы Ctrl+Z работал независимо от раскладки
+      if (!(e.ctrlKey || e.metaKey) || e.code !== 'KeyZ' || e.shiftKey) return
       const t = e.target as HTMLElement
       if (t.closest('.monaco-editor')) return
       if (store.canUndo()) {

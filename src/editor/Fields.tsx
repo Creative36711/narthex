@@ -760,24 +760,27 @@ export function AnimImageEditor({
   const animated = (info?.frames.length ?? 0) > 0 && typeof value !== 'string'
 
   if (!animated) {
+    const base = info?.frames[0] ?? ''
     return (
       <div>
         <ImageUpload
           label={label}
-          value={info?.frames[0] ?? ''}
+          value={base}
           dir={dir}
           store={store}
           onChange={(p) => onChange(p || undefined)}
         />
-        {!!info?.frames[0] && (
-          <button
-            className="btn btn-small"
-            data-tip="Несколько картинок, сменяющих друг друга по таймеру — «живые» сцены"
-            onClick={() => onChange({ frames: info.frames, fps: 2, loop: true })}
-          >
-            <Ico n="sparkle" /> Оживить (кадры за кадром)…
-          </button>
-        )}
+        <div className="muted small" style={{ margin: '4px 0' }}>
+          Хотите «живой» вариант? Это несколько картинок, сменяющих друг друга по таймеру
+          (пламя, мигание фонаря, дверцу у печи).
+        </div>
+        <button
+          className="btn btn-small"
+          data-tip="Переключить поле в режим кадров: добавьте 2+ картинки и темп"
+          onClick={() => onChange({ frames: base ? [base, ''] : ['', ''], fps: 2, loop: true })}
+        >
+          <Ico n="sparkle" /> Оживить (кадры за кадром)…
+        </button>
       </div>
     )
   }
@@ -790,7 +793,7 @@ export function AnimImageEditor({
     <div className="fld fld-block img-upload anim-frames">
       <span>{label} — оживление ({info!.frames.length} кадр(а), {info!.fps} к/с{info!.loop ? ', зациклено' : ''})</span>
       {info!.frames.map((f, i) => (
-        <div key={i} className="fld-row" style={{ alignItems: 'flex-start' }}>
+        <div key={i} className="anim-frame-row">
           <ImageUpload
             label={`Кадр ${i + 1}`}
             value={f}
@@ -816,11 +819,11 @@ export function AnimImageEditor({
           </button>
         </div>
       ))}
-      <div className="fld-row" style={{ alignItems: 'center', marginTop: 6 }}>
+      <div className="anim-controls">
         <button className="btn btn-small" onClick={() => set({ frames: [...info!.frames, ''] })}>
           <Ico n="plus" /> Кадр
         </button>
-        <label className="fld" style={{ maxWidth: 150 }}>
+        <label className="fld anim-fps">
           <span>Темп, кадр/с</span>
           <input
             type="number"
@@ -834,15 +837,14 @@ export function AnimImageEditor({
             }}
           />
         </label>
-        <label className="fld fld-check" style={{ marginTop: 18 }}>
+        <label className="fld fld-check anim-loop">
           <input type="checkbox" checked={info!.loop} onChange={(e) => set({ loop: e.target.checked })} />
           <span>Зациклить</span>
         </label>
         <button
-          className="btn btn-small"
-          style={{ marginLeft: 'auto' }}
+          className="btn btn-small anim-static"
           data-tip="Оставить только первый кадр — анимация выключится"
-          onClick={() => onChange(info!.frames[0] || undefined)}
+          onClick={() => onChange(info!.frames.find(Boolean) || undefined)}
         >
           Сделать статичным
         </button>

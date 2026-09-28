@@ -86,19 +86,23 @@ export class GameEngine {
   toasts: { id: number; text: string; kind: 'get' | 'lose' | 'info' }[] = []
   private toastSeq = 0
 
-  /** добавить короткое всплывающее уведомление (записывается и в журнал) */
+  /** добавить короткое всплывающее уведомление (записывается и в журнал).
+   *  Гаснет само — обращать внимание важно, а закрывать каждое рукой — перебор (баг-фитч №6). */
   pushToast(text: string, kind: 'get' | 'lose' | 'info' = 'info'): void {
-    this.toasts.push({ id: ++this.toastSeq, text, kind })
+    const toast = { id: ++this.toastSeq, text, kind }
+    // новый массив — UI-эффект таймеров ловит изменение ссылки
+    this.toasts = [...this.toasts, toast]
     this.pushLog(text)
     playUi(kind === 'lose' ? 'item_lose' : kind === 'get' ? 'item_get' : 'message')
     this.notify()
+    // страховка: гасим и без UI-эффекта (вдруг экран без транзит-надписей)
+    setTimeout(() => this.dismissToast(toast.id), 5200)
   }
 
   /** UI погасил подсказку по таймеру */
   dismissToast(id: number): void {
-    const i = this.toasts.findIndex((t) => t.id === id)
-    if (i >= 0) {
-      this.toasts.splice(i, 1)
+    if (this.toasts.some((t) => t.id === id)) {
+      this.toasts = this.toasts.filter((t) => t.id !== id)
       this.notify()
     }
   }
@@ -559,7 +563,7 @@ export class GameEngine {
     if (!opts.silent) this.pushToast(`Получено: ${this.itemTitle(id)}${quantity > 1 ? ` ×${quantity}` : ''}.`, 'get')
   }
 
-  removeItem(id: string, quantity = 1, opts: { silent?: boolean } = {}): void {
+  removeItem(id: string, quantity = 1, opts: { silent?: boolean; verb?: string } = {}): void {
     const inv = this.state.player.inventory
     let left = quantity
     // сначала расходим наиболее изношенные экземпляры
@@ -586,7 +590,10 @@ export class GameEngine {
       }
     }
     const lost = quantity - left
-    if (!opts.silent && lost > 0) this.pushToast(`${lost >= quantity ? 'Потеряно' : 'Частично потеряно'}: ${this.itemTitle(id)}${lost > 1 ? ` ×${lost}` : ''}.`, 'lose')
+    if (!opts.silent && lost > 0) {
+      const verb = opts.verb ?? (lost >= quantity ? 'Потеряно' : 'Частично потеряно')
+      this.pushToast(`${verb}: ${this.itemTitle(id)}${lost > 1 ? ` ×${lost}` : ''}.`, 'lose')
+    }
   }
 
   // ─────────────── износ снаряжения (аудит §5.6 п.10) ───────────────
@@ -771,7 +778,7 @@ export class GameEngine {
     if (!def || def.type !== 'item' || !def.on_use) return
     playInteraction('use', { entity: def })
     this.applyEffects(def.on_use.effects)
-    if (def.on_use.consume !== false) this.removeItem(id, 1)
+    if (def.on_use.consume !== false) this.removeItem(id, 1, { verb: 'Использовано' })
     if (def.on_use.message) this.messages.push({ text: this.fmt(def.on_use.message) })
     this.checkRules()
     this.notify()
@@ -2327,7 +2334,7 @@ export class GameEngine {
     const use = slot?.use_with?.find((u) => u.item === itemId)
     if (!slot || !use || !this.hasItem(itemId)) return false
     const def = this.campaign.entities[itemId] as ItemDef | undefined
-    if (use.consume) this.removeItem(itemId, 1)
+    if (use.consume) this.removeItem(itemId, 1, { verb: 'Использовано' })
     this.applyEffects(use.effects)
     if (use.message) this.messages.push({ text: use.message })
     this.pushLog(`${def?.label ?? itemId}: использовано на «${slot.label ?? slotId}».`)

@@ -12,7 +12,8 @@
    · активный выбор/ссылки — отдельный бирюзовый цвет (--ed-select).
    ═══════════════════════════════════════════════════════════════════ */
 
-.editor-root {
+.editor-root,
+.playtest-shell {
   /* ── хром ── */
   --ed-bg: #14161c;
   --ed-bg-2: #1a1d25;
@@ -508,6 +509,24 @@
   background: var(--ed-paper);
 }
 .img-upload-btns { display: flex; flex-direction: column; gap: 6px; }
+
+/* «кадры оживления» — компактный список кадров, не распирающий панель */
+.anim-frames {
+  border: 1px solid var(--ed-paper-line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--ed-paper-card);
+}
+.anim-frames > span { color: var(--ed-paper-muted); font-size: 12px; display: block; margin-bottom: 8px; }
+.anim-frame-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.anim-frame-row .img-upload { flex: 1; min-width: 0; margin-bottom: 0; }
+.anim-frame-row > .ce-del { flex: 0 0 auto; margin-top: 22px; }
+.anim-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 8px; }
+.anim-controls .fld { margin-bottom: 0; }
+.anim-fps { flex: 0 0 auto; }
+.anim-fps input { width: 64px; }
+.anim-loop { flex-direction: row; align-items: center; gap: 6px; padding-bottom: 6px; }
+.anim-static { margin-left: auto; }
 
 /* ─────────── редактор мира с картой ─────────── */
 
@@ -1153,9 +1172,11 @@
 /* экраны игры (GameView) прокручиваются внутренними панелями — лишнего скролла не плодим */
 .playtest-shell > .cf-themed:has(> .game-view) { overflow: hidden; }
 .playtest-shell > .char-create, .playtest-shell > .cf-themed > .char-create { flex: 1 1 auto; min-height: 0; height: auto; overflow: auto; }
-.playtest-banner { position: relative; order: -1; z-index: 45; align-self: flex-end; flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin: 8px 12px 0; padding: 6px 10px; border: 1px solid var(--ed-line-strong); border-radius: 8px; background: var(--ed-bg-2); box-shadow: 0 3px 14px rgba(0, 0, 0, 0.5); font-size: 12px; }
+/* z выше боевого оверлея (60): кнопка «Отладка» доступна и во время боя */
+.playtest-banner { position: relative; order: -1; z-index: 130; align-self: flex-end; flex: 0 0 auto; display: flex; align-items: center; gap: 8px; margin: 8px 12px 0; padding: 6px 10px; border: 1px solid var(--ed-line-strong); border-radius: 8px; background: var(--ed-bg-2); box-shadow: 0 3px 14px rgba(0, 0, 0, 0.5); font-size: 12px; }
 .playtest-banner b { color: var(--ed-select-bright); letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
-.pt-debug-panel { position: fixed; z-index: 40; left: 10px; right: auto; top: 54px; bottom: 10px; width: min(390px, calc(100vw - 20px)); overflow: auto; padding: 10px; border: 1px solid var(--ed-line-strong); border-radius: 10px; background: var(--ed-bg-2); color: var(--ed-text); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); font-family: 'Segoe UI', system-ui, sans-serif; }
+/* z выше боевого оверлея (60): отладка доступна и во время боя */
+.pt-debug-panel { position: fixed; z-index: 120; left: 10px; right: auto; top: 54px; bottom: 10px; width: min(390px, calc(100vw - 20px)); overflow: auto; padding: 10px; border: 1px solid var(--ed-line-strong); border-radius: 10px; background: var(--ed-bg-2); color: var(--ed-text); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); font-family: 'Segoe UI', system-ui, sans-serif; }
 .pt-debug-panel > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .pt-debug-feedback { position: sticky; top: -10px; z-index: 8; flex: 1 1 100%; margin: 0 -10px 7px; padding: 8px 10px; border-bottom: 1px solid var(--ed-accent); background: var(--ed-bg-3); color: var(--ed-accent-bright); font-size: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); }
 .pt-debug-section { border-top: 1px solid var(--ed-line); padding: 7px 0; }

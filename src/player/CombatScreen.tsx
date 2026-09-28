@@ -13,11 +13,16 @@ interface Props {
   engine: GameEngine
 }
 
-/** класс строки лога по содержимому — для читаемости */
-function logLineClass(l: string): string {
+/** класс строки лога: свои/враги — разными цветами, системное — как раньше.
+ *  Имена бойцов известны: строки летописи начинаются с них («Наёмник: …»). */
+function logLineClass(l: string, own: string[], foe: string[]): string {
   if (l.startsWith('— Раунд')) return 'log-round'
-  if (l.startsWith('')) return 'log-death'
-  if (l.startsWith('')) return 'log-win'
+  const startsActor = (names: string[]) =>
+    names.some((n) => l.startsWith(n + ':') || l.startsWith(n + ' ') || l === n)
+  if (l.startsWith('Вы ') || l.startsWith('Вы,') || startsActor(own)) return 'log-own'
+  if (startsActor(foe)) return 'log-enemy'
+  if (l.includes('погибает') || l.includes('убит') || l.includes('без сознания') || l.includes('"смерть')) return 'log-death'
+  if (l.includes('Победа') || l.includes('бегство!')) return 'log-win'
   if (l.includes('Промах') || l.includes('промах') || l.includes('уклоняется') || l.includes('парирует'))
     return 'log-miss'
   if (l.includes('урона') || l.includes('Крит')) return 'log-hit'
@@ -27,6 +32,17 @@ function logLineClass(l: string): string {
 /** Экран тактического боя: арена + гекс-сетка + токены (ТЗ 6.1 «Бой»). */
 export function CombatScreen({ engine }: Props) {
   const combat = engine.combat!
+  const logOwn = useMemo(
+    () => combat.combatants.filter((c) => c.side === 'player').map((c) => c.label).sort((a, b) => b.length - a.length),
+    // метки участников не меняются внутри боя
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [combat],
+  )
+  const logFoe = useMemo(
+    () => combat.combatants.filter((c) => c.side !== 'player').map((c) => c.label).sort((a, b) => b.length - a.length),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [combat],
+  )
   const arena = combat.arena
   const canvas = arena.canvas ?? { w: 1280, h: 720 }
   const size = arena.hex_grid.hex_size
@@ -456,7 +472,7 @@ export function CombatScreen({ engine }: Props) {
             </div>
             <div className="combat-log" ref={logRef}>
               {combat.log.map((l, i) => (
-                <div key={i} className={`combat-log-line ${logLineClass(l)}`}>{l}</div>
+                <div key={i} className={`combat-log-line ${logLineClass(l, logOwn, logFoe)}`}>{l}</div>
               ))}
             </div>
             <div className="combat-roster">

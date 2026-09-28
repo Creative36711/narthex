@@ -10,39 +10,42 @@ import type { ImageValue } from '../shared/types'
 
 export type FramesInfo = { frames: string[]; fps: number; loop: boolean }
 
-/** нормализация ImageValue в список кадров и настройки; пусто → null */
+/** нормализация ImageValue в список кадров и настройки; пусто → null.
+ *  Пустые кадры СОХРАНЯЮТСЯ (редактор показывает их как «пустой слот») */
 export function framesOf(v: ImageValue | null | undefined): FramesInfo | null {
   if (!v) return null
   if (typeof v === 'string') return v ? { frames: [v], fps: 1, loop: true } : null
   if (Array.isArray(v)) {
-    const frames = v.filter(Boolean)
-    return frames.length ? { frames, fps: 2, loop: true } : null
+    return v.length ? { frames: v.slice(), fps: 2, loop: true } : null
   }
-  const frames = (v.frames ?? []).filter(Boolean)
+  const frames = (v.frames ?? []).slice()
   return frames.length ? { frames, fps: Math.min(30, Math.max(0.25, v.fps ?? 2)), loop: v.loop !== false } : null
 }
 
-/** первая картинка значения (статичные места: превью редактора, откаты) */
+/** первая ЗАПОЛНЕННАЯ картинка значения (статичные места: превью редактора, откаты) */
 export function firstFrame(v: ImageValue | null | undefined): string {
-  return framesOf(v)?.frames[0] ?? ''
+  return framesOf(v)?.frames.find(Boolean) ?? ''
 }
 
-/** текущий кадр значения: для статики — просто сама строка, таймер не поднимается */
+/** текущий кадр значения: для статики — просто сама строка, таймер не поднимается;
+ *  пустые кадры в проигрывании пропускаются */
 export function useCurrentFrame(v: ImageValue | null | undefined, tickKey?: unknown): string {
   const info = framesOf(v)
   const [idx, setIdx] = useState(0)
   const key = info ? info.frames.join('\n') + '|' + info.fps + '|' + info.loop + '|' + String(tickKey ?? '') : ''
   useEffect(() => {
     setIdx(0)
-    if (!info || info.frames.length < 2) return
+    if (!info) return
+    const playableNow = info.frames.filter(Boolean)
+    if (playableNow.length < 2) return
     const ms = Math.max(40, Math.round(1000 / info.fps))
     let i = 0
     const t = window.setInterval(() => {
       i += 1
-      if (i >= info.frames.length) {
+      if (i >= playableNow.length) {
         if (info.loop) i = 0
         else {
-          i = info.frames.length - 1
+          i = playableNow.length - 1
           window.clearInterval(t)
         }
       }
@@ -51,8 +54,9 @@ export function useCurrentFrame(v: ImageValue | null | undefined, tickKey?: unkn
     return () => window.clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
-  if (!info) return ''
-  return info.frames[Math.min(idx, info.frames.length - 1)] ?? ''
+  const playable = info ? info.frames.filter(Boolean) : []
+  if (!playable.length) return ''
+  return playable[Math.min(idx, playable.length - 1)] ?? ''
 }
 
 /** <img>, которое крутит кадры ImageValue; для статики — обычный <img> без таймера */

@@ -432,6 +432,8 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   untilPlayerTurn(combat2)
   const pc2 = findPc(combat2)
   pc2.skills = { ...pc2.skills, stealth: 500 }
+  // детерминизм смоука: выключаем крит-провал 96–100, иначе 1 из 20 прогонов флакает
+  c2.meta.dice_rules = { ...c2.meta.dice_rules!, fumble_from: 101 }
   check('13 бой без def.no_hide позволяет прятаться', combat2.canHide())
   combat2.playerHide()
   check('13 прятки удались (500 vs bandit)', pc2.hidden === true)
@@ -1229,10 +1231,12 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   e.start()
   check('22 ничего не выпало, ни одна группа не верна', e.rollEventTable('t_or', { forced: true, ignoreFilters: true }) === null)
   e.applyEffect({ type: 'set_flag', flag: 'path_a' } as never)
-  check('22 группа A (одно условие) — правило стреляет', e.rollEventTable('t_or', { forced: true, ignoreFilters: true }) !== null && !!e.state.flags['ev_or_fired'])
+  e.campaign.meta.generators!.event_tables![0].rules = ['ev_or']
+  check('22 группа A (одно условие) — правило стреляет', e.rollEventTable('t_or', { forced: true, ignoreFilters: true }) === 'ev_or' && !!e.state.flags['ev_or_fired'])
   check('22 общее И (gate) не верно — ev_and_or молчит', !e.state.flags['ev_and_or_fired'])
   e.applyEffect({ type: 'set_flag', flag: 'gate' } as never)
-  check('22 и общее, и группа верны — ev_and_or стреляет', e.rollEventTable('t_or', { forced: true, ignoreFilters: true }) !== null && !!e.state.flags['ev_and_or_fired'])
+  e.campaign.meta.generators!.event_tables![0].rules = ['ev_and_or']
+  check('22 и общее, и группа верны — ev_and_or стреляет', e.rollEventTable('t_or', { forced: true, ignoreFilters: true }) === 'ev_and_or' && !!e.state.flags['ev_and_or_fired'])
 
   // без флага path_a, но с полной группой B (два условия «по И»)
   const e2 = mk()
