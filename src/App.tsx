@@ -12,7 +12,7 @@ import { CharacterCreation } from './player/CharacterCreation'
 import { fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
 import { setAudioCampaign, playUi, unlockAudio } from './shared/audio'
 import { setMusicCampaign, refreshMusic } from './shared/music'
-import { injectCampaignFonts, themeVars } from './shared/theme'
+import { injectCampaignFonts, themeHasFrame, themeVars } from './shared/theme'
 import { profileClass, atmosphereOn } from './shared/profiles'
 import { useSettings } from './shared/settings'
 
@@ -163,7 +163,7 @@ export default function App() {
   // тема кампании (блок 2 ТЗ + редизайн 2026): визуальный профиль (класс) и
   // шрифтовые роли/акцент (инлайн-переменные) — только у Player Mode
   const themeStyle = themeVars(campaign, settings.text_scale)
-  const themeClass = `cf-themed ${profileClass(campaign.meta)} ${atmosphereOn(campaign.meta) ? '' : 'cf-atmos-off'}`.trim()
+  const themeClass = `cf-themed ${profileClass(campaign.meta)} ${atmosphereOn(campaign.meta) ? '' : 'cf-atmos-off'} ${themeHasFrame(campaign) ? 'cf-has-frame' : ''}`.trim()
 
   if (!engine && creating && campaign.meta.char_creation) {
     return (

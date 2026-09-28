@@ -520,6 +520,81 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
       </div>
 
       <div className="props-group">
+        <h4>Тоны поверхностей и рамка-«кадр»</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Докрутка палитры профиля: панели, карточки и кнопки, колодцы полей, фон журнала.
+          Пустое поле — тон профиля. Рамка-«кадр» обрамляет все панели игры: PNG с
+          изображением-изображением (прозрачная сердцевина, орнамент по краям).
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          {([
+            ['panel', 'Панели'],
+            ['cards', 'Карточки и кнопки'],
+            ['inset', 'Колодцы полей'],
+            ['log', 'Фон журнала'],
+          ] as const).map(([key, label]) => (
+            <label key={key} className="fld" data-tip="Пусто — тон визуального профиля">
+              <span>{label}</span>
+              <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={theme.tokens?.[key] ?? '#888888'}
+                  onChange={(e) => {
+                    theme.tokens = { ...(theme.tokens ?? {}), [key]: e.target.value }
+                    commit()
+                  }}
+                  disabled={!theme.tokens?.[key]}
+                />
+                <input
+                  type="checkbox"
+                  checked={!!theme.tokens?.[key]}
+                  data-tip={`Свой тон «${label}»`}
+                  onChange={(e) => {
+                    const next = { ...(theme.tokens ?? {}) }
+                    if (e.target.checked) next[key] = '#2a2f3c'
+                    else delete next[key]
+                    theme.tokens = Object.keys(next).length ? next : undefined
+                    commit()
+                  }}
+                />
+              </span>
+            </label>
+          ))}
+        </div>
+        <ImageUpload
+          label="Рамка-«кадр» для панелей (PNG, орнамент по краям)"
+          value={theme.frame?.image ?? ''}
+          dir="assets/img/ui"
+          store={store}
+          onChange={(path) => {
+            if (path) theme.frame = { ...(theme.frame ?? {}), image: path }
+            else if (theme.frame) { delete theme.frame.image; if (!theme.frame.image && !theme.frame.slice && !theme.frame.width) delete theme.frame }
+            commit()
+          }}
+        />
+        {theme.frame?.image && (
+          <div className="fld-row">
+            <label className="fld fld-num" data-tip="Какую часть картинки от края считать орнаментом (px, умолчание 30)">
+              <span>Глубина среза, px</span>
+              <input
+                type="number" min={4} max={120}
+                value={theme.frame.slice ?? 30}
+                onChange={(e) => { theme.frame!.slice = Number(e.target.value) || undefined; commit() }}
+              />
+            </label>
+            <label className="fld fld-num" data-tip="Видимая толщина рамки на панели (px, умолчание 20)">
+              <span>Толщина рамки, px</span>
+              <input
+                type="number" min={4} max={60}
+                value={theme.frame.width ?? 20}
+                onChange={(e) => { theme.frame!.width = Number(e.target.value) || undefined; commit() }}
+              />
+            </label>
+          </div>
+        )}
+      </div>
+
+      <div className="props-group">
         <h4>Шрифты кампании</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Загруженные шрифты применяются ко всей игре: диалогам, панелям, меню. Редактор остаётся

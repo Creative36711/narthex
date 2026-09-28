@@ -74,8 +74,25 @@ export function themeVars(campaign: CampaignData | null, textScale = 1): CSSProp
     vars['--gold'] = theme.accent
     vars['--gold-bright'] = brightenHex(theme.accent)
   }
+  // тоны поверхностей (мастерская докрутка): панели/карточки/колодцы/журнал
+  const tok = theme?.tokens
+  if (tok?.panel) vars['--panel'] = tok.panel
+  if (tok?.cards) vars['--panel-2'] = tok.cards
+  if (tok?.inset) vars['--inset'] = tok.inset
+  if (tok?.log) vars['--log-bg'] = tok.log
+  // рамка-«кадр» вокруг панелей (9-срез изображения)
+  if (theme?.frame?.image && campaign) {
+    vars['--cf-frame-src'] = `url('${assetUrl(campaign, theme.frame.image)}')`
+    vars['--cf-frame-slice'] = String(theme.frame.slice ?? 30)
+    vars['--cf-frame-w'] = `${theme.frame.width ?? 20}px`
+  }
   if (textScale !== 1) vars['--cf-text-scale'] = String(textScale)
   return vars as CSSProperties
+}
+
+/** у темы задана рамка-«кадр»? (класс cf-has-frame на контейнере) */
+export function themeHasFrame(campaign: CampaignData | null): boolean {
+  return !!campaign?.meta.theme?.frame?.image
 }
 
 /** фон меню/финала как CSS-значение (или пусто) */
