@@ -33,6 +33,20 @@ function cells(line: string): string[] {
   return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim())
 }
 
+/** строка начинает новый markdown-блок (значит, продолжением предыдущего быть не может) */
+const isBlockStart = (raw: string) => /^(#{1,4}\s|[-*+]\s|\d+[.)]\s|>|```|\||-{3,}$)/.test(raw.trim())
+
+/** непустые строки-продолжения (мягкий перенос внутри пункта/абзаца), склеенные пробелом */
+function continuation(lines: string[], from: number): { text: string; next: number } {
+  const parts: string[] = []
+  let i = from
+  while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) {
+    parts.push(lines[i].trim())
+    i++
+  }
+  return { text: parts.join(' '), next: i }
+}
+
 export function MarkdownView({ source, onNavigate }: { source: string; onNavigate: (file: string) => void }) {
   const lines = source.split(/\r?\n/)
   const blocks: ReactNode[] = []
@@ -64,15 +78,33 @@ export function MarkdownView({ source, onNavigate }: { source: string; onNavigat
       continue
     }
     if (/^[-*+]\s+/.test(line)) {
-      const items: string[] = []
-      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*[-*+]\s+/, ''))
-      blocks.push(<ul key={key++}>{items.map((item, n) => <li key={n}>{inline(item, onNavigate, `ul${n}`)}</li>)}</ul>)
+      const items: Array<{ text: string; nested: boolean }> = []
+      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
+        const raw = lines[i]
+        const nested = /^\s{2,}[-*+]\s+/.test(raw)
+        let text = raw.replace(/^\s*[-*+]\s+/, '').trim()
+        i++
+        // мягкий перенос: строки-продолжения пункта (с отступом или без) склеиваем
+        const cont = continuation(lines, i)
+        if (cont.text) { text += ` ${cont.text}`; i = cont.next }
+        items.push({ text, nested })
+      }
+      blocks.push(<ul key={key++}>{items.map((item, n) => <li key={n} className={item.nested ? 'book-li-nested' : undefined}>{inline(item.text, onNavigate, `ul${n}`)}</li>)}</ul>)
       continue
     }
     if (/^\d+[.)]\s+/.test(line)) {
       const items: string[] = []
-      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])) items.push(lines[i++].replace(/^\s*\d+[.)]\s+/, ''))
-      blocks.push(<ol key={key++}>{items.map((item, n) => <li key={n}>{inline(item, onNavigate, `ol${n}`)}</li>)}</ol>)
+      let startNum = 1
+      const first = lines[i].match(/^\s*(\d+)[.)]\s+/)
+      if (first) startNum = Number(first[1])
+      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])) {
+        let text = lines[i].replace(/^\s*\d+[.)]\s+/, '').trim()
+        i++
+        const cont = continuation(lines, i)
+        if (cont.text) { text += ` ${cont.text}`; i = cont.next }
+        items.push(text)
+      }
+      blocks.push(<ol key={key++} start={startNum === 1 ? undefined : startNum}>{items.map((item, n) => <li key={n}>{inline(item, onNavigate, `ol${n}`)}</li>)}</ol>)
       continue
     }
     if (line.startsWith('>')) {
@@ -82,10 +114,11 @@ export function MarkdownView({ source, onNavigate }: { source: string; onNavigat
       continue
     }
     if (/^---+$/.test(line)) { blocks.push(<hr key={key++} />); i++; continue }
+    // абзац: мягкие переносы исходника склеиваются пробелом (как в настоящем markdown)
     const paragraph = [line]
     i++
-    while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|[-*+]\s|\d+[.)]\s|>|\||```)/.test(lines[i].trim())) paragraph.push(lines[i++].trim())
-    blocks.push(<p key={key++}>{paragraph.map((part, n) => <span key={n}>{n > 0 && <br />}{inline(part, onNavigate, `p${key}-${n}`)}</span>)}</p>)
+    while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) paragraph.push(lines[i++].trim())
+    blocks.push(<p key={key++}>{inline(paragraph.join(' '), onNavigate, `p${key}`)}</p>)
   }
   return <div className="book-markdown">{blocks}</div>
 }

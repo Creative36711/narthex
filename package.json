@@ -13,7 +13,8 @@
     "tauri": "tauri",
     "smoke:currency": "tsx scripts/currency-smoke.mts",
     "smoke:ink-import": "tsx scripts/ink-import-smoke.mts",
-    "smoke:fingerprint": "tsx scripts/fingerprint-smoke.mts"
+    "smoke:fingerprint": "tsx scripts/fingerprint-smoke.mts",
+    "smoke:book-md": "tsx scripts/book-md-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

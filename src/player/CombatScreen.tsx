@@ -354,7 +354,7 @@ export function CombatScreen({ engine }: Props) {
                           <select
                             className="btn btn-small"
                             value={o.order}
-                            data-tip={'Сам — действует как простой AI.\nСледовать — держится в паре гексов от вас, не нападает.\nДержать позицию — стоит, бьёт только в досягаемости.\nОтступать — держится подальше от врагов.'}
+                            data-tip={'Сам — выбирает действия сам, как обычный боец ИИ.\nСледовать — держится в паре гексов от вас, не нападает.\nДержать позицию — стоит, бьёт только в досягаемости.\nОтступать — держится подальше от врагов.'}
                             onChange={(e) => combat.setCompanionOrder(o.entityId, e.target.value as 'free' | 'follow' | 'hold' | 'retreat')}
                           >
                             <option value="free">Сам</option>

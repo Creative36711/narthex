@@ -1268,6 +1268,7 @@
 .book-markdown h2 { font-size: 20px; border-bottom: 1px solid var(--ed-line); padding-bottom: 5px; }
 .book-markdown p { margin: .55em 0 .9em; }
 .book-markdown li { margin: .25em 0; }
+.book-li-nested { margin-left: 1.4em; }
 .book-markdown blockquote { margin: .8em 0; padding: 4px 12px; border-left: 3px solid var(--ed-accent); color: var(--ed-muted); }
 .book-markdown code { padding: 1px 4px; border-radius: 3px; background: rgba(0, 0, 0, 0.3); font-size: .92em; }
 .book-markdown .book-code { overflow: auto; padding: 10px; border: 1px solid var(--ed-line-strong); border-radius: 6px; background: rgba(0, 0, 0, 0.3); }

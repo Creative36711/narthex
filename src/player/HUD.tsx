@@ -72,7 +72,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {engine.progressionEnabled() && (
           <div
             className="hud-status-chip"
-            data-tip={`Уровень ${engine.level()} — опыт ${engine.xp()}${engine.xpToNext() != null ? ` (до след. уровня ${engine.xpToNext()})` : ' (потолок)'}.\nОпыт — эффектом grant_xp; за уровень — черта к выбору в листе персонажа.`}
+            data-tip={`Уровень ${engine.level()} — опыт ${engine.xp()}${engine.xpToNext() != null ? ` (до след. уровня ${engine.xpToNext()})` : ' (потолок)'}.\nОпыт начисляется за ход событий; за каждый уровень — новая черта в листе персонажа.`}
           >
             Ур. {engine.level()}{engine.pendingFeats() > 0 ? ` (+${engine.pendingFeats()})` : ''}
           </div>

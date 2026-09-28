@@ -66,7 +66,7 @@ function loadYtApi(): Promise<any> {
       const sc = document.createElement('script')
       sc.src = 'https://www.youtube.com/iframe_api'
       sc.async = true
-      sc.onerror = () => reject(new Error('нет доступа к YouTube API'))
+      sc.onerror = () => reject(new Error('нет доступа к YouTube — проверьте сеть'))
       document.head.appendChild(sc)
       setTimeout(() => reject(new Error('YouTube API не ответил')), 7000)
     })

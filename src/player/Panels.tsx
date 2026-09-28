@@ -415,7 +415,7 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
                     </li>
                   ))}
                   {engine.availableFeats().filter((f) => !engine.featEligible(f)).map((f) => (
-                    <li key={f.id} className="muted" data-tip={`${f.description ?? ''}\n(истинность предпосылок не выполнена)`}>
+                    <li key={f.id} className="muted" data-tip={`${f.description ?? ''}\n(требования не выполнены)`}>
                       <span>{f.label} — недоступна</span>
                       <span className="skill-val">—</span>
                     </li>
@@ -443,7 +443,7 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
                 </li>
               )}
               {Object.entries(p.passions ?? {}).map(([id, val]) => (
-                <li key={`passion-${id}`} data-tip={`Страсть: при значении ≥ порога аугмента даёт +бонус к подходящим проверкам (мастер назначает аугмент в эффектах).`}>
+                <li key={`passion-${id}`} data-tip={`Страсть: при значении ≥ заданного порога даёт бонус к подходящим проверкам (порог задаёт автор кампании).`}>
                   <span><Ico n="heart" />  {engine.passionLabel(id)} (страсть)</span>
                   <span className="skill-val">{val}%</span>
                 </li>
