@@ -277,11 +277,11 @@ function startCombat(e: GameEngine): CombatController {
   e.state.player.stats.strength = 99
   e.state.player.difficulty = 'hard'
   e.state.game_over = { type: 'victory', reason: 'тест' }
-  ok(e.newGamePlusAvailable(), 'NG+ доступен после победы')
+  check('32 NG+ доступен после победы', e.newGamePlusAvailable())
   const e2 = e.newGamePlus()
-  ok(!!e2 && e2.state.ng_cycle === 1, 'NG+ создаёт второй круг')
-  ok(e2!.state.player.skills.status === 77 && e2!.state.player.stats.strength === 99, 'навыки и характеристики перенеслись')
-  ok(e2!.difficultyDef()?.enemy_damage === 1.25, 'круг 1: урон врагов +25% поверх пресета')
+  check('32 NG+ создаёт второй круг', !!e2 && e2.state.ng_cycle === 1)
+  check('32 навыки и характеристики перенеслись', e2!.state.player.skills.status === 77 && e2!.state.player.stats.strength === 99)
+  check('32 круг 1: урон врагов +25% поверх пресета', e2!.difficultyDef()?.enemy_damage === 1.25)
 }
 
 console.log(failed ? `\nПРОВАЛОВ: ${failed}` : '\nвсе проверки зелёные')
