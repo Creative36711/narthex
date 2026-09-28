@@ -175,6 +175,7 @@ export function CombatScreen({ engine }: Props) {
                 const c = hexToPixel(h, size, origin)
                 const blocked = combat.isBlocked(h)
                 const difficult = combat.isDifficult(h)
+                const cover = combat.isCover(h)
                 const inReach = reach.has(k)
                 const occ = combat.occupantAt(h)
                 const abilityTarget = !!pendingAbility && !!occ && abilityTargetIds.has(occ.id)
@@ -186,6 +187,7 @@ export function CombatScreen({ engine }: Props) {
                 else if (attackable) cls += ' hex-attack'
                 else if (inReach) cls += ' hex-reach'
                 else if (difficult) cls += ' hex-difficult'
+                else if (cover) cls += ' hex-cover'
                 if (hoverHex === k && (inReach || attackable || abilityTarget)) cls += ' hex-hover'
                 return (
                   <polygon

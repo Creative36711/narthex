@@ -237,6 +237,11 @@ export class GameEngine {
     const profession = creation.professions?.find((p) => p.id === choice.profession)
     const name = choice.name.trim()
     if (name) s.player.name = name
+    // возраст и биография (аудит §5.6): только если мастер включил поля
+    if (creation.choose_age && choice.age !== undefined) s.player.age = choice.age
+    else delete s.player.age
+    if (creation.choose_bio && choice.bio?.trim()) s.player.bio = choice.bio.trim()
+    else delete s.player.bio
     // характеристики: только семь базовых, производные пересчитываются
     const stats = { ...choice.stats } as unknown as StatBlock
     delete stats.HP
@@ -2206,6 +2211,52 @@ export class GameEngine {
           () => this.applyEffects(e.success_effects),
           () => this.applyEffects(e.fail_effects),
         )
+        break
+      }
+      case 'group_stat_check': {
+        // групповая сцепленная проверка (аудит §5.6): герой + до N союзников партии
+        const bySkill = (e.mode ?? (e.stat ? 'stat' : 'skill')) === 'skill'
+        const helpersN = Math.max(0, e.helpers ?? 2)
+        const companions = this.state.party.slice(0, helpersN)
+        const total = 1 + companions.length
+        const need = Math.max(1, e.need ?? Math.ceil(total / 2))
+        let wins = 0
+        const whatLabel = bySkill
+          ? `Групповая проверка «${this.skillLabel(e.skill!)}»`
+          : `Групповая проверка ${e.stat}×${e.multiplier ?? 5}`
+        this.pushLog(`${whatLabel} — цепочка из ${total} чел., нужно успешных: ${need}.`)
+        // герой
+        if (bySkill) {
+          const out = this.playerSkillCheck(e.skill!, e.difficulty ?? 50)
+          if (out.success) wins++
+        } else {
+          const out = this.statCheck(e.stat!, e.multiplier ?? 5, e.modifier ?? 0)
+          if (out.success) wins++
+        }
+        // союзники — их собственными значениями
+        const mult = e.multiplier ?? 5
+        for (const c of companions) {
+          const def = this.campaign.entities[c.entity]
+          if (!def || def.type !== 'npc') continue
+          const value = bySkill
+            ? (def.skills?.[e.skill!] ?? 0)
+            : (((def.stats as unknown as Record<string, number>)[e.stat!] ?? 0) * mult)
+          const out = skillCheck(
+            Math.max(1, value),
+            this.rng,
+            bySkill ? difficultyModifier(value, e.difficulty ?? 50) : (e.modifier ?? 0),
+            this.diceRules,
+          )
+          this.pushLog(`${def.label}: d100=${out.roll} против ${out.target} → ${CHECK_RESULT_LABEL[out.result]}`)
+          if (out.success) wins++
+        }
+        if (wins >= need) {
+          this.pushLog(`Цепочка выдержала: ${wins} из ${total} успешно.`)
+          this.applyEffects(e.success_effects)
+        } else {
+          this.pushLog(`Цепочка порвалась: ${wins} из ${total} успешно (нужно ${need}).`)
+          this.applyEffects(e.fail_effects)
+        }
         break
       }
       case 'opposed_check': {

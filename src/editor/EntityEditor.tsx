@@ -575,6 +575,7 @@ function NpcForm({
           </label>
           <SlotTypeField e={npc} store={store} commit={commit} />
         </div>
+        <SpeciesPresets npc={npc} commit={commit} />
         <label className="fld fld-block">
           <span>Описание</span>
           <textarea
@@ -1666,6 +1667,99 @@ function ItemOptionEditor({
           />
         </div>
       )}
+    </div>
+  )
+}
+
+/** Готовый «вид» существа: статы, навыки, броня, природное оружие и мораль одним нажатием. */
+interface SpeciesPreset {
+  label: string
+  blurb: string
+  stats: StatBlock
+  skills: Record<string, number>
+  armor: number
+  weapon: { skill: string; damage: string; label: string; damage_bonus?: boolean }
+  morale: { below_hp_pct: number; flee_chance: number }
+}
+
+/** шаблоны видов (стартовая заготовка аудита §5.6): применение перезаписывает
+ *  боевую часть персонажа — дальше мастер правит под себя */
+const SPECIES_PRESETS: SpeciesPreset[] = [
+  {
+    label: 'Волк',
+    blurb: 'Быстрый зверь: укус 1d6, отличный слух и чутьё, спасается бегством когда ранен.',
+    stats: { STR: 12, CON: 11, SIZ: 8, DEX: 14, INT: 4, POW: 8, CHA: 5 },
+    skills: { bite: 45, dodge: 40, spot: 50, stealth: 40 },
+    armor: 0,
+    weapon: { skill: 'bite', damage: '1d6', label: 'Укус' },
+    morale: { below_hp_pct: 30, flee_chance: 50 },
+  },
+  {
+    label: 'Скелет',
+    blurb: 'Медленный, но упорный нежить: костяные пальцы 1d4, броня из кости, не убегает.',
+    stats: { STR: 10, CON: 10, SIZ: 10, DEX: 9, INT: 1, POW: 10, CHA: 1 },
+    skills: { melee: 35, dodge: 25 },
+    armor: 1,
+    weapon: { skill: 'melee', damage: '1d4', label: 'Костяные пальцы' },
+    morale: { below_hp_pct: 0, flee_chance: 0 },
+  },
+  {
+    label: 'Гигантская крыса',
+    blurb: 'Роящийся падальщик: укус 1d4, ловкая тварь подвалов и трущоб.',
+    stats: { STR: 6, CON: 9, SIZ: 3, DEX: 15, INT: 2, POW: 6, CHA: 2 },
+    skills: { bite: 40, dodge: 50, stealth: 60 },
+    armor: 0,
+    weapon: { skill: 'bite', damage: '1d4', label: 'Укус' },
+    morale: { below_hp_pct: 40, flee_chance: 60 },
+  },
+  {
+    label: 'Лютый медведь',
+    blurb: 'Стена шерсти: лапа 1d8, толстая шкура на 2 очка брони, не отступает.',
+    stats: { STR: 18, CON: 16, SIZ: 18, DEX: 8, INT: 3, POW: 12, CHA: 3 },
+    skills: { claw: 55, dodge: 20, spot: 45 },
+    armor: 2,
+    weapon: { skill: 'claw', damage: '1d8', label: 'Лапа' },
+    morale: { below_hp_pct: 0, flee_chance: 0 },
+  },
+]
+
+function SpeciesPresets({ npc, commit }: { npc: NpcDef; commit: () => void }) {
+  const [sel, setSel] = useState('')
+  const preset = SPECIES_PRESETS.find((p) => p.label === sel)
+  return (
+    <div className="fld-row" style={{ alignItems: 'flex-end' }}>
+      <label className="fld" data-tip={preset ? preset.blurb : 'Готовая заготовка существа: статы, навыки, броня и природное оружие одним нажатием'}>
+        <span>Вид существа (шаблон)</span>
+        <select value={sel} onChange={(e) => setSel(e.target.value)}>
+          <option value="">— выбрать вид —</option>
+          {SPECIES_PRESETS.map((p) => <option key={p.label} value={p.label}>{p.label}</option>)}
+        </select>
+      </label>
+      <button
+        className="btn btn-small"
+        disabled={!preset}
+        data-tip="Перезапишет статы, навыки, броню, природное оружие и мораль персонажа"
+        onClick={() => {
+          if (!preset) return
+          npc.stats = { ...preset.stats }
+          npc.skills = { ...preset.skills }
+          npc.armor = preset.armor
+          npc.natural_weapon = {
+            skill: preset.weapon.skill,
+            damage: preset.weapon.damage,
+            damage_bonus: preset.weapon.damage_bonus ?? false,
+            range: 1,
+            attacks_per_round: 1,
+            parry_capable: false,
+            label: preset.weapon.label,
+          }
+          npc.morale = { ...preset.morale }
+          commit()
+        }}
+      >
+        Применить вид
+      </button>
+      {preset && <span className="muted small" style={{ maxWidth: 320 }}>{preset.blurb}</span>}
     </div>
   )
 }

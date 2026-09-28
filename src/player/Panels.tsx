@@ -258,9 +258,15 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>{def?.label ?? 'Герой'}</h2>
+          <h2>{p.name ? `${p.name} · ${def?.label ?? 'Герой'}` : (def?.label ?? 'Герой')}</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
+        {(p.age !== undefined || p.bio) && (
+          <div className="char-dossier">
+            {p.age !== undefined && <div className="muted small">Возраст: {p.age}</div>}
+            {p.bio && <div className="char-bio small">{p.bio}</div>}
+          </div>
+        )}
         <h3>Характеристики</h3>
         <div className="stat-grid">
           {statNames.map((s) => (

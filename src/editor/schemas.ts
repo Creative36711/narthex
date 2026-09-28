@@ -464,6 +464,22 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     ],
     blank: { stat: 'POW', success_effects: [], fail_effects: [] },
   },
+  group_stat_check: {
+    label: 'Групповая сцепленная проверка (герой + союзники)',
+    fields: [
+      { key: 'mode', label: 'Чем бросаем', kind: 'select', options: ['skill', 'stat'], optional: true },
+      { key: 'skill', label: 'Навык (mode=skill)', kind: 'skillRef', optional: true },
+      { key: 'stat', label: 'Характеристика (mode=stat)', kind: 'string', placeholder: 'POW', optional: true },
+      { key: 'multiplier', label: 'Множитель хар-ки (ум. 5)', kind: 'number', optional: true },
+      { key: 'difficulty', label: 'Сложность навыка', kind: 'number', optional: true },
+      { key: 'modifier', label: 'Модификатор (stat)', kind: 'number', optional: true },
+      { key: 'helpers', label: 'Союзников в цепочке (ум. 2)', kind: 'number', optional: true },
+      { key: 'need', label: 'Нужно успехов (ум. большинство)', kind: 'number', optional: true },
+      { key: 'success_effects', label: 'Цепочка выдержала', kind: 'effects' },
+      { key: 'fail_effects', label: 'Цепочка порвалась', kind: 'effects' },
+    ],
+    blank: { mode: 'skill', skill: 'stealth', helpers: 2, success_effects: [], fail_effects: [] },
+  },
   opposed_check: {
     label: 'Противоборство навыком (ветвление)',
     fields: [

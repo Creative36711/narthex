@@ -1,1745 +1,1750 @@
 {
-  "id": "ash-of-caerden",
-  "title": "Пепел Каэрдена",
-  "version": "0.1.0",
-  "engine_version": "0.1.0",
-  "min_engine": "0.1.0",
-  "package_format": 1,
-  "author": "Chronicle Forge",
-  "description": "Низкое фэнтези, позднее средневековье. Вы — наёмник, прибывший в приграничный город Каэрден в поисках работы. Караваны не доходят до города: на дорогах хозяйничает банда с холмов. Голод и жажда не ждут — как и бандиты.",
-  "tick_label": "ч",
-  "ticks_per_day": 24,
-  "time_of_day": {
-    "morning": 6,
-    "day": 11,
-    "evening": 18,
-    "night": 22
+ "id": "ash-of-caerden",
+ "title": "Пепел Каэрдена",
+ "version": "0.1.0",
+ "engine_version": "0.1.0",
+ "min_engine": "0.1.0",
+ "package_format": 1,
+ "author": "Chronicle Forge",
+ "description": "Низкое фэнтези, позднее средневековье. Вы — наёмник, прибывший в приграничный город Каэрден в поисках работы. Караваны не доходят до города: на дорогах хозяйничает банда с холмов. Голод и жажда не ждут — как и бандиты.",
+ "tick_label": "ч",
+ "ticks_per_day": 24,
+ "time_of_day": {
+  "morning": 6,
+  "day": 11,
+  "evening": 18,
+  "night": 22
+ },
+ "starting_region": "region_caerden",
+ "starting_location": "loc_gates",
+ "starting_scene": "scene_gates_front",
+ "starting_tick": 8,
+ "default_player": "player_mercenary",
+ "needs": [
+  {
+   "id": "hunger",
+   "label": "Голод",
+   "max": 100,
+   "decay_per_tick": 1.2,
+   "critical_threshold": 15,
+   "on_zero_effect": "death"
   },
-  "starting_region": "region_caerden",
-  "starting_location": "loc_gates",
-  "starting_scene": "scene_gates_front",
-  "starting_tick": 8,
-  "default_player": "player_mercenary",
-  "needs": [
-    {
-      "id": "hunger",
-      "label": "Голод",
-      "max": 100,
-      "decay_per_tick": 1.2,
-      "critical_threshold": 15,
-      "on_zero_effect": "death"
-    },
-    {
-      "id": "thirst",
-      "label": "Жажда",
-      "max": 100,
-      "decay_per_tick": 1.8,
-      "critical_threshold": 15,
-      "on_zero_effect": "death"
-    },
-    {
-      "id": "energy",
-      "label": "Энергия",
-      "max": 100,
-      "decay_per_tick": 0.7,
-      "critical_threshold": 10,
-      "on_zero_effect": "effect_collapse"
-    },
-    {
-      "id": "warmth",
-      "label": "Тепло",
-      "max": 100,
-      "decay_per_tick": 3,
-      "critical_threshold": 25,
-      "on_zero_effect": "death",
-      "decay_when": [
-        {
-          "type": "time_of_day",
-          "values": [
-            "evening",
-            "night"
-          ]
-        },
-        {
-          "type": "has_item",
-          "items": [
-            "item_wool_cloak",
-            "item_fur_coat"
-          ],
-          "not": true
-        },
-        {
-          "type": "in_location",
-          "locations": [
-            "loc_tavern",
-            "loc_barracks",
-            "loc_temple"
-          ],
-          "not": true
-        }
-      ],
-      "restore_per_tick": 8,
-      "restore_when": [
-        {
-          "type": "in_location",
-          "locations": [
-            "loc_tavern",
-            "loc_barracks",
-            "loc_temple"
-          ]
-        }
-      ]
-    }
-  ],
-  "dice_rules": {
-    "critical_divisor": 5,
-    "special_divisor": 2,
-    "fumble_from": 96
+  {
+   "id": "thirst",
+   "label": "Жажда",
+   "max": 100,
+   "decay_per_tick": 1.8,
+   "critical_threshold": 15,
+   "on_zero_effect": "death"
   },
-  "currencies": [
-    {
-      "id": "silver",
-      "label": "Серебряная марка",
-      "item_id": "item_silver",
-      "symbol": "SM"
-    }
-  ],
-  "char_creation": {
-    "total_points": 35,
-    "stat_limits": {
-      "min": 3,
-      "max": 18
-    },
-    "skill_points": 60,
-    "skill_cap": 75,
-    "skill_floor": 15,
-    "mandatory_skills": [
-      "dodge",
-      "first_aid"
-    ],
-    "forbidden_skills": [
-      "bite"
-    ],
-    "choose_name": true,
-    "professions": [
-      {
-        "id": "profession_soldier",
-        "label": "Солдат",
-        "description": "Строевая выучка и сталь в руках. Крепкий, сильный, немногословный.",
-        "skill_bonus": {
-          "sword": 10,
-          "brawl": 5
-        },
-        "items": [
-          {
-            "item": "item_gambeson",
-            "quantity": 1
-          }
-        ],
-        "stats": {
-          "STR": 11,
-          "CON": 10,
-          "SIZ": 10,
-          "DEX": 9,
-          "INT": 6,
-          "POW": 5,
-          "CHA": 5
-        }
-      },
-      {
-        "id": "profession_scout",
-        "label": "Разведчик",
-        "description": "Тихий шаг и зоркий глаз. Ходит там, где другие боятся.",
-        "skill_bonus": {
-          "stealth": 10,
-          "spot": 10
-        },
-        "items": [
-          {
-            "item": "item_healing_salve",
-            "quantity": 1
-          }
-        ],
-        "stats": {
-          "STR": 8,
-          "CON": 9,
-          "SIZ": 8,
-          "DEX": 13,
-          "INT": 9,
-          "POW": 5,
-          "CHA": 4
-        }
-      },
-      {
-        "id": "profession_envoy",
-        "label": "Посланник",
-        "description": "Слово острее клинка, а серебро открывает двери.",
-        "skill_bonus": {
-          "persuade": 10,
-          "bargain": 10
-        },
-        "items": [
-          {
-            "item": "item_silver",
-            "quantity": 10
-          }
-        ],
-        "stats": {
-          "STR": 6,
-          "CON": 8,
-          "SIZ": 8,
-          "DEX": 9,
-          "INT": 11,
-          "POW": 6,
-          "CHA": 8
-        }
-      }
-    ],
-    "callings": [
-      {
-        "id": "calling_mercenary",
-        "label": "Наёмник",
-        "description": "Жил клинком: рубка, кулаки и умение увернуться от чужого клинка.",
-        "skills": {
-          "sword": 45,
-          "brawl": 30,
-          "dodge": 40
-        }
-      },
-      {
-        "id": "calling_tracker",
-        "label": "Следопыт",
-        "description": "Ходил глухими тропами: неслышный шаг, зоркий глаз, быстрые ноги.",
-        "skills": {
-          "stealth": 40,
-          "spot": 35,
-          "dodge": 40
-        }
-      },
-      {
-        "id": "calling_trader",
-        "label": "Торговец",
-        "description": "Знает цену слову и товару: торг, убеждение и полевая медицина.",
-        "skills": {
-          "bargain": 40,
-          "persuade": 40,
-          "first_aid": 35
-        }
-      }
-    ]
+  {
+   "id": "energy",
+   "label": "Энергия",
+   "max": 100,
+   "decay_per_tick": 0.7,
+   "critical_threshold": 10,
+   "on_zero_effect": "effect_collapse"
   },
-  "roguelike": {
-    "permadeath": true,
-    "meta_progress": [
-      "completion_percentage"
-    ],
-    "randomize_on_restart": [
-      "loot_tables",
-      "random_encounters"
-    ]
-  },
-  "factions": [
+  {
+   "id": "warmth",
+   "label": "Тепло",
+   "max": 100,
+   "decay_per_tick": 3,
+   "critical_threshold": 25,
+   "on_zero_effect": "death",
+   "decay_when": [
     {
-      "id": "faction_town_guard",
-      "label": "Стража Каэрдена",
-      "base_disposition": 0
+     "type": "time_of_day",
+     "values": [
+      "evening",
+      "night"
+     ]
     },
     {
-      "id": "faction_town",
-      "label": "Горожане",
-      "base_disposition": 10
+     "type": "has_item",
+     "items": [
+      "item_wool_cloak",
+      "item_fur_coat"
+     ],
+     "not": true
     },
     {
-      "id": "faction_bandits",
-      "label": "Банда с холмов",
-      "base_disposition": -60
-    },
-    {
-      "id": "faction_vermin",
-      "label": "Дикие твари",
-      "base_disposition": -100,
-      "description": "Крысы, хищники и прочие создания, с которыми не договориться.",
-      "hidden": true
+     "type": "in_location",
+     "locations": [
+      "loc_tavern",
+      "loc_barracks",
+      "loc_temple"
+     ],
+     "not": true
     }
-  ],
-  "max_companions": 1,
-  "skills": [
+   ],
+   "restore_per_tick": 8,
+   "restore_when": [
     {
-      "id": "sword",
-      "label": "Мечи"
-    },
-    {
-      "id": "spear",
-      "label": "Копья"
-    },
-    {
-      "id": "brawl",
-      "label": "Кулачный бой"
-    },
-    {
-      "id": "dodge",
-      "label": "Уклонение"
-    },
-    {
-      "id": "stealth",
-      "label": "Скрытность"
-    },
-    {
-      "id": "spot",
-      "label": "Наблюдательность"
-    },
-    {
-      "id": "persuade",
-      "label": "Убеждение"
-    },
-    {
-      "id": "bargain",
-      "label": "Торговля"
-    },
-    {
-      "id": "first_aid",
-      "label": "Первая помощь"
-    },
-    {
-      "id": "bite",
-      "label": "Укус"
-    },
-    {
-      "id": "club",
-      "label": "Дубины"
-    },
-    {
-      "id": "shield",
-      "label": "Щиты"
+     "type": "in_location",
+     "locations": [
+      "loc_tavern",
+      "loc_barracks",
+      "loc_temple"
+     ]
     }
-  ],
-  "item_categories": [
-    {
-      "id": "food",
-      "label": "Еда",
-      "restores_hp": false,
-      "restores_needs": [
-        "hunger"
-      ]
-    },
-    {
-      "id": "drink",
-      "label": "Питьё",
-      "restores_needs": [
-        "thirst"
-      ]
-    },
-    {
-      "id": "medicine",
-      "label": "Лекарства",
-      "restores_hp": true
-    },
-    {
-      "id": "weapon",
-      "label": "Оружие",
-      "is_weapon": true
-    },
-    {
-      "id": "armor",
-      "label": "Броня",
-      "is_armor": true
-    },
-    {
-      "id": "quest",
-      "label": "Квестовые предметы"
-    },
-    {
-      "id": "currency",
-      "label": "Валюта"
-    },
-    {
-      "id": "container",
-      "label": "Интерактивные объекты"
-    },
-    {
-      "id": "misc",
-      "label": "Разное"
-    }
-  ],
-  "flags": [
-    {
-      "id": "gates_greeting_done",
-      "label": "Приветствие у ворот показано",
-      "description": "Первый разговор с Алдриком у ворот состоялся."
-    },
-    {
-      "id": "heard_about_bandits",
-      "label": "Слышал о банде",
-      "description": "Герой узнал о банде с холмов."
-    },
-    {
-      "id": "aldric_gave_ration",
-      "label": "Алдрик поделился пайком",
-      "description": "Убеждение сработало — хлеб получен."
-    },
-    {
-      "id": "aldric_ration_refused",
-      "label": "Алдрик отказал в пайке",
-      "description": "Провал убеждения: больше не просить."
-    },
-    {
-      "id": "met_maeva",
-      "label": "Знаком с Маэвой"
-    },
-    {
-      "id": "met_bran",
-      "label": "Знаком с Браном"
-    },
-    {
-      "id": "bran_bargained",
-      "label": "Торговался с Браном",
-      "description": "Попытка сбить цены использована."
-    },
-    {
-      "id": "guard_ration_taken",
-      "label": "Паёк из караулки взят"
-    },
-    {
-      "id": "herbs_gathered",
-      "label": "Травы собраны"
-    },
-    {
-      "id": "rats_started",
-      "label": "Крысы: дело принято",
-      "description": "Маэва попросила зачистить подвал."
-    },
-    {
-      "id": "rats_done",
-      "label": "Крысы перебиты",
-      "description": "Подвал таверны зачищен."
-    },
-    {
-      "id": "rats_rewarded",
-      "label": "Маэва отблагодарила",
-      "description": "Награда за крыс получена."
-    },
-    {
-      "id": "forest_ambush_cleared",
-      "label": "Засада в лесу отбита"
-    },
-    {
-      "id": "bran_told_about_bandits",
-      "label": "Бран рассказал о банде",
-      "description": "Лагерь Йорека отмечен на карте."
-    },
-    {
-      "id": "bandit_deal_made",
-      "label": "С Йореком договорились",
-      "description": "Банда уходит без боя."
-    },
-    {
-      "id": "camp_cleared",
-      "label": "Лагерь банды зачищен"
-    },
-    {
-      "id": "yorek_met",
-      "label": "Знаком с Йореком"
-    },
-    {
-      "id": "met_corvin",
-      "label": "Знаком с Корвином"
-    },
-    {
-      "id": "relic_returned",
-      "label": "Медальон возвращён",
-      "description": "Реликвия вернулась в храм."
-    },
-    {
-      "id": "medallion_taken",
-      "label": "Медальон найден",
-      "description": "Найден на скелете в шахте."
-    },
-    {
-      "id": "skeleton_looted",
-      "label": "Скелет обыскан"
-    },
-    {
-      "id": "met_lena",
-      "label": "Знаком с Леной"
-    },
-    {
-      "id": "lena_told",
-      "label": "Лена рассказала про лаз",
-      "description": "Тайный путь в Волчью балку известен."
-    },
-    {
-      "id": "secret_path_used",
-      "label": "Тайный ход использован",
-      "description": "Герой прошёл штольней в тыл лагеря."
-    },
-    {
-      "id": "market_raid_repelled",
-      "label": "Налёт на рынок отбит"
-    },
-    {
-      "id": "raid_rumors",
-      "label": "Слухи о налёте",
-      "description": "Город гудит: банда готовит удар. Лена дежурит в таверне круглосуточно."
-    },
-    {
-      "id": "tavern_chest_opened",
-      "label": "Сундук в таверне открыт",
-      "description": "Запертый сундук в зале таверны отпёрт ключом."
-    }
-  ],
-  "music_tracks": [
-    {
-      "id": "track_menu",
-      "label": "Пепел и свечи",
-      "src": {
-        "mood": "таинственная",
-        "scale": "пентатоника",
-        "layers": [
-          "пад-аккорды",
-          "бас"
-        ],
-        "progression": [
-          "i",
-          "VI",
-          "III",
-          "VII"
-        ],
-        "seed": 7
-      },
-      "loop": true
-    },
-    {
-      "id": "track_tavern_day",
-      "label": "Шум и хмель (днём)",
-      "src": {
-        "mood": "спокойная",
-        "tempo": 88,
-        "scale": "мажор",
-        "layers": [
-          "арпеджио",
-          "бас",
-          "перкуссия"
-        ],
-        "progression": [
-          "i",
-          "IV",
-          "vi",
-          "V"
-        ],
-        "seed": 11
-      },
-      "loop": true
-    },
-    {
-      "id": "track_tavern_night",
-      "label": "У очога (вечером)",
-      "src": {
-        "mood": "спокойная",
-        "tempo": 66,
-        "scale": "минор",
-        "layers": [
-          "пад-аккорды",
-          "арпеджио",
-          "бас"
-        ],
-        "progression": [
-          "i",
-          "VI",
-          "III",
-          "VII"
-        ],
-        "seed": 13
-      },
-      "loop": true
-    },
-    {
-      "id": "track_forest",
-      "label": "Опушка",
-      "src": {
-        "mood": "спокойная",
-        "scale": "дорийский",
-        "layers": [
-          "пад-аккорды"
-        ],
-        "progression": [
-          "i",
-          "iv",
-          "i",
-          "VII"
-        ],
-        "seed": 17
-      },
-      "loop": true
-    },
-    {
-      "id": "track_mine",
-      "label": "Копи",
-      "src": {
-        "mood": "тревожная",
-        "tempo": 58,
-        "scale": "фригийский",
-        "layers": [
-          "пад-аккорды",
-          "бас"
-        ],
-        "progression": [
-          "i",
-          "VII",
-          "VI",
-          "VII"
-        ],
-        "seed": 19
-      },
-      "loop": true
-    },
-    {
-      "id": "track_combat",
-      "label": "Сталь и ярость",
-      "src": {
-        "mood": "боевая",
-        "tempo": 140,
-        "scale": "минор",
-        "layers": [
-          "бас",
-          "арпеджио",
-          "перкуссия"
-        ],
-        "progression": [
-          "i",
-          "i",
-          "VII",
-          "VI"
-        ],
-        "seed": 23
-      },
-      "loop": true
-    }
-  ],
-  "sounds": [
-    {
-      "id": "snd_door",
-      "label": "Скрип двери",
-      "src": [
-        {
-          "zzfx": [
-            0.6,
-            0.15,
-            420,
-            0.04,
-            0.18,
-            0.28,
-            2,
-            3,
-            -6,
-            0.2,
-            0,
-            0,
-            0,
-            0.2,
-            0.5,
-            0,
-            0,
-            0.7,
-            1,
-            0
-          ]
-        },
-        {
-          "zzfx": [
-            0.55,
-            0.15,
-            380,
-            0.03,
-            0.14,
-            0.22,
-            2,
-            2.5,
-            -4,
-            0.3,
-            0,
-            0,
-            0,
-            0.25,
-            0.7,
-            0,
-            0,
-            0.7,
-            1,
-            0
-          ]
-        },
-        {
-          "zzfx": [
-            0.65,
-            0.15,
-            460,
-            0.05,
-            0.2,
-            0.3,
-            3,
-            3.5,
-            -7,
-            0.1,
-            0,
-            0,
-            0,
-            0.18,
-            0.4,
-            0,
-            0,
-            0.7,
-            1,
-            0
-          ]
-        }
-      ]
-    },
-    {
-      "id": "snd_click",
-      "label": "Кнопка",
-      "src": {
-        "zzfx": [
-          0.4,
-          0.02,
-          900,
-          0,
-          0.02,
-          0.05,
-          1,
-          1,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.5,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_panel_open",
-      "label": "Панель открывается",
-      "src": {
-        "zzfx": [
-          0.35,
-          0.02,
-          500,
-          0.01,
-          0.03,
-          0.08,
-          1,
-          1,
-          2,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.6,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_panel_close",
-      "label": "Панель закрывается",
-      "src": {
-        "zzfx": [
-          0.35,
-          0.02,
-          600,
-          0.01,
-          0.03,
-          0.08,
-          1,
-          1,
-          -3,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.6,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_message",
-      "label": "Сообщение",
-      "src": {
-        "zzfx": [
-          0.45,
-          0.02,
-          700,
-          0,
-          0.04,
-          0.1,
-          3,
-          1,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.7,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_hit",
-      "label": "Попадание",
-      "src": {
-        "zzfx": [
-          0.9,
-          0.1,
-          180,
-          0,
-          0.05,
-          0.12,
-          4,
-          1,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.3,
-          0,
-          0,
-          0,
-          0.6,
-          1,
-          0.2
-        ]
-      }
-    },
-    {
-      "id": "snd_miss",
-      "label": "Промах",
-      "src": {
-        "zzfx": [
-          0.45,
-          0.1,
-          300,
-          0,
-          0.03,
-          0.07,
-          4,
-          1,
-          -3,
-          0,
-          0,
-          0,
-          0,
-          0.4,
-          0,
-          0,
-          0,
-          0.5,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_crit",
-      "label": "Критический удар",
-      "src": {
-        "zzfx": [
-          1,
-          0.05,
-          250,
-          0.01,
-          0.1,
-          0.2,
-          2,
-          1,
-          -8,
-          0,
-          0,
-          0,
-          0,
-          0.2,
-          2,
-          0,
-          0.05,
-          0.8,
-          1,
-          0.1
-        ]
-      }
-    },
-    {
-      "id": "snd_parry",
-      "label": "Парирование",
-      "src": {
-        "zzfx": [
-          0.65,
-          0.05,
-          800,
-          0,
-          0.03,
-          0.08,
-          3,
-          1,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.2,
-          0,
-          0,
-          0,
-          0.6,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_death",
-      "label": "Кто-то пал",
-      "src": {
-        "zzfx": [
-          0.85,
-          0.05,
-          200,
-          0.02,
-          0.15,
-          0.5,
-          3,
-          1,
-          -5,
-          0,
-          0,
-          0,
-          0,
-          0.1,
-          1,
-          0,
-          0,
-          0.7,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_victory",
-      "label": "Победа",
-      "src": {
-        "zzfx": [
-          0.7,
-          0.02,
-          500,
-          0.01,
-          0.08,
-          0.2,
-          1,
-          1,
-          5,
-          0,
-          0.12,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.7,
-          1
-        ]
-      }
-    },
-    {
-      "id": "snd_defeat",
-      "label": "Поражение",
-      "src": {
-        "zzfx": [
-          0.75,
-          0.05,
-          300,
-          0.02,
-          0.1,
-          0.4,
-          3,
-          1,
-          -4,
-          0,
-          0,
-          0,
-          0,
-          0,
-          1,
-          0,
-          0,
-          0.7,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_coin",
-      "label": "Монеты",
-      "src": {
-        "zzfx": [
-          0.45,
-          0.02,
-          1200,
-          0,
-          0.03,
-          0.05,
-          2,
-          1,
-          4,
-          0.05,
-          0,
-          0,
-          0.06,
-          0,
-          0,
-          0,
-          0,
-          0.6,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_quest",
-      "label": "Квест взят",
-      "src": {
-        "zzfx": [
-          0.55,
-          0.02,
-          600,
-          0.01,
-          0.06,
-          0.15,
-          1,
-          1,
-          3,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.7,
-          1
-        ]
-      }
-    },
-    {
-      "id": "snd_quest_done",
-      "label": "Квест завершён",
-      "src": {
-        "zzfx": [
-          0.65,
-          0.02,
-          700,
-          0.01,
-          0.1,
-          0.25,
-          1,
-          1,
-          7,
-          0,
-          0.2,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.7,
-          1
-        ]
-      }
-    },
-    {
-      "id": "snd_skill",
-      "label": "Навык вырос",
-      "src": {
-        "zzfx": [
-          0.5,
-          0.02,
-          800,
-          0.01,
-          0.05,
-          0.1,
-          2,
-          1,
-          5,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.7,
-          1
-        ]
-      }
-    },
-    {
-      "id": "snd_travel_depart",
-      "label": "Выезд",
-      "src": {
-        "zzfx": [
-          0.5,
-          0.05,
-          250,
-          0.02,
-          0.1,
-          0.2,
-          4,
-          1,
-          2,
-          0,
-          0,
-          0,
-          0,
-          0.3,
-          0,
-          0,
-          0,
-          0.6,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_travel_arrive",
-      "label": "Прибытие",
-      "src": {
-        "zzfx": [
-          0.5,
-          0.05,
-          350,
-          0.02,
-          0.1,
-          0.2,
-          4,
-          1,
-          -2,
-          0,
-          0,
-          0,
-          0,
-          0.3,
-          0,
-          0,
-          0,
-          0.6,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_transition",
-      "label": "Переход по зоне",
-      "src": {
-        "zzfx": [
-          0.4,
-          0.05,
-          400,
-          0.02,
-          0.06,
-          0.15,
-          4,
-          1,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.35,
-          0,
-          0,
-          0.03,
-          0.6,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_combat_start",
-      "label": "Начало боя",
-      "src": {
-        "zzfx": [
-          0.85,
-          0.05,
-          150,
-          0.01,
-          0.15,
-          0.25,
-          2,
-          1,
-          -2,
-          0,
-          0,
-          0,
-          0,
-          0.1,
-          1,
-          0,
-          0,
-          0.8,
-          1,
-          0
-        ]
-      }
-    },
-    {
-      "id": "snd_leaves",
-      "label": "Шелест листвы",
-      "src": {
-        "zzfx": [
-          0.5,
-          0,
-          0,
-          0,
-          2.5,
-          0.5,
-          4,
-          1,
-          0,
-          0,
-          0,
-          0,
-          0,
-          0.9,
-          0,
-          0,
-          0,
-          0.8,
-          0.2,
-          0
-        ]
-      },
-      "loop": true
-    },
-    {
-      "id": "snd_birds",
-      "label": "Пение птиц",
-      "src": [
-        {
-          "zzfx": [
-            0.35,
-            0.3,
-            1900,
-            0.02,
-            0.06,
-            0.05,
-            3,
-            2,
-            6,
-            0.04,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.1,
-            0.7,
-            1,
-            0
-          ]
-        },
-        {
-          "zzfx": [
-            0.3,
-            0.3,
-            2300,
-            0.02,
-            0.05,
-            0.04,
-            3,
-            1.5,
-            -5,
-            0.03,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.12,
-            0.7,
-            1,
-            0
-          ]
-        },
-        {
-          "zzfx": [
-            0.3,
-            0.3,
-            2100,
-            0.01,
-            0.04,
-            0.06,
-            3,
-            3,
-            8,
-            0.05,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.08,
-            0.7,
-            1,
-            0
-          ]
-        }
-      ],
-      "loop": true
-    }
-  ],
-  "ui_sounds": {
-    "menu_music": "track_menu",
-    "click": "snd_click",
-    "panel_open": "snd_panel_open",
-    "panel_close": "snd_panel_close",
-    "message": "snd_message",
-    "travel_depart": "snd_travel_depart",
-    "travel_arrive": "snd_travel_arrive",
-    "scene_transition": "snd_transition",
-    "combat_start": "snd_combat_start",
-    "hit": "snd_hit",
-    "miss": "snd_miss",
-    "crit": "snd_crit",
-    "parry": "snd_parry",
-    "death": "snd_death",
-    "victory": "snd_victory",
-    "defeat": "snd_defeat",
-    "quest_started": "snd_quest",
-    "quest_completed": "snd_quest_done",
-    "skill_up": "snd_skill",
-    "coin": "snd_coin"
-  },
-  "default_music": [
-    "track_forest"
-  ],
-  "combat_music": [
-    "track_combat"
-  ],
-  "statuses": [
-    {
-      "id": "status_rat_poison",
-      "label": "Крысиный яд",
-      "description": "Яд гигантской крысы жжёт кровь.",
-      "scope": "combat",
-      "duration": 3,
-      "dot": {
-        "hp": 2
-      },
-      "apply_message": "Яд крысы разливается по жилам."
-    }
-  ],
-  "abilities": [
-    {
-      "id": "ability_rat_bite",
-      "label": "Ядовитый укус",
-      "description": "Крыса вонзает отравленные клыки: цель отравлена на 3 раунда.",
-      "mp_cost": 0,
-      "range": 1,
-      "skill": "bite",
-      "kind": "status",
-      "status": "status_rat_poison",
-      "status_duration": 3
-    }
-  ],
-  "calendar": {
-    "year_label": "год Пепла",
-    "start_year": 137,
-    "days_per_month": 30,
-    "months": [
-      "Углемес",
-      "Гаревей",
-      "Дымолун",
-      "Пеплопад",
-      "Искроткань",
-      "Студень",
-      "Снеговей",
-      "Таловод",
-      "Розжиг",
-      "Зелень",
-      "Высолнце",
-      "Жатвень"
-    ],
-    "day_names": [
-      "Пепельник",
-      "Кузнецов",
-      "Ветровик",
-      "Странник",
-      "Тихий",
-      "Светлый",
-      "Тёмный"
-    ]
-  },
-  "weathers": [
-    {
-      "id": "weather_ashfall",
-      "label": "Пеплопад",
-      "overlay": "ash"
-    },
-    {
-      "id": "weather_cold_rain",
-      "label": "Холодный дождь",
-      "overlay": "rain"
-    },
-    {
-      "id": "weather_thick_fog",
-      "label": "Густой туман",
-      "overlay": "fog"
-    },
-    {
-      "id": "weather_first_snow",
-      "label": "Первый снег",
-      "overlay": "snow"
-    }
-  ],
-  "slot_types": [
-    {
-      "id": "person",
-      "label": "Персонаж"
-    },
-    {
-      "id": "item",
-      "label": "Предмет"
-    },
-    {
-      "id": "container",
-      "label": "Контейнер"
-    },
-    {
-      "id": "animal",
-      "label": "Животное"
-    }
-  ],
-  "equipment_slots": [
-    {
-      "id": "weapon",
-      "label": "Оружие"
-    },
-    {
-      "id": "armor",
-      "label": "Броня"
-    }
-  ],
-  "overlay_layers": [
-    {
-      "id": "rain",
-      "label": "Дождь"
-    },
-    {
-      "id": "snow",
-      "label": "Снег"
-    },
-    {
-      "id": "fog",
-      "label": "Туман"
-    },
-    {
-      "id": "ash",
-      "label": "Пепел"
-    }
-  ],
-  "endings": [
-    {
-      "id": "ending_bandit_slain",
-      "label": "Банда разбита мечом",
-      "title": "Дороги снова чисты",
-      "text": "Йорек мёртв, банда рассеяна по холмам. Караваны снова идут в Каэрден, и у ворот твоё имя произносят с уважением. Бран уже сочинил песню — разумеется, прибавив пару подвигов.",
-      "tone": "victory",
-      "on": "victory",
-      "conditions": [
-        {
-          "type": "quest_at_stage",
-          "quest": "quest_bandit_threat",
-          "stage": "completed_fight"
-        }
-      ]
-    },
-    {
-      "id": "ending_grey_deal",
-      "label": "Серый мир с бандой",
-      "title": "Серый мир",
-      "text": "Ты выбрал серебро вместо стали. Бандиты платят «пошлину», стража молчит, торг идёт бойко. Только Алдрик больше не здоровается с тобой у ворот.",
-      "tone": "neutral",
-      "on": "victory",
-      "conditions": [
-        {
-          "type": "quest_at_stage",
-          "quest": "quest_bandit_threat",
-          "stage": "completed_deal"
-        }
-      ]
-    },
-    {
-      "id": "ending_ashes",
-      "label": "Пепельный финал",
-      "title": "Пепел принял ещё одного",
-      "text": "Каэрден пережил многих героев. Переживёт и тебя. Таверна вспомнит тебя кружкой эля, а летопись — строчкой.",
-      "tone": "death",
-      "on": "death"
-    }
-  ],
-  "theme": {
-    "profile": "dark-fantasy"
-  },
-  "metaprogress": {
-    "currencies": [
-      {
-        "id": "ash",
-        "label": "Пепел",
-        "description": "Крупицы пепла Кэрдена — память прошлых забегов. Копится между попытками, тратится в Хронике."
-      }
-    ],
-    "achievements": [
-      {
-        "id": "rat_catcher",
-        "label": "Крысолов",
-        "description": "Зачистить подвал таверны от крыс.",
-        "conditions": [
-          {
-            "type": "flag_set",
-            "flag": "rats_done"
-          }
-        ],
-        "reward": {
-          "currency": "ash",
-          "amount": 5
-        }
-      },
-      {
-        "id": "ash_survivor",
-        "label": "Прижился в золе",
-        "description": "Прожить 50 тиков за один забег.",
-        "counter": {
-          "stat": "ticks_survived",
-          "target": 50
-        },
-        "reward": {
-          "currency": "ash",
-          "amount": 10
-        }
-      },
-      {
-        "id": "slayer5",
-        "label": "Пятеро не вернутся",
-        "description": "Победить пятерых врагов (суммарно по всем забегам).",
-        "counter": {
-          "stat": "kills",
-          "target": 5
-        },
-        "reward": {
-          "currency": "ash",
-          "amount": 5,
-          "xp": 0
-        }
-      },
-      {
-        "id": "chronicler",
-        "label": "Слушатель хроник",
-        "description": "Поговорить со всеми жителями (10 диалогов суммарно).",
-        "counter": {
-          "stat": "dialogues",
-          "target": 10
-        },
-        "hidden": true,
-        "reward": {
-          "currency": "ash",
-          "amount": 8
-        }
-      }
-    ],
-    "unlocks": [
-      {
-        "id": "heirloom_silver",
-        "label": "Наследная марка",
-        "description": "В начале каждого нового забега герой находит в кармане две серебряные марки — последнее, что осталось от прошлых попыток.",
-        "cost": [
-          {
-            "currency": "ash",
-            "amount": 8
-          }
-        ],
-        "grants": [
-          {
-            "type": "add_item",
-            "item": "item_silver",
-            "quantity": 2
-          }
-        ]
-      }
-    ]
-  },
-  "generators": {
-    "event_tables": [
-      {
-        "id": "shrine_whispers",
-        "label": "Шёпот святилища",
-        "description": "В храме порой слышится эхо пепла — мелкие злоключения и подарки.",
-        "interval_ticks": 12,
-        "chance": 0.35,
-        "locations": [
-          "loc_temple"
-        ],
-        "rules": [
-          "gen_whisper_blessing",
-          "gen_whisper_chill",
-          "gen_whisper_protest"
-        ]
-      }
-    ],
-    "npc": [
-      {
-        "id": "traveller",
-        "label": "Попутчик",
-        "description": "Генератор случайного путника: имя, облик, занятие.",
-        "name": [
-          {
-            "list": "имя"
-          },
-          {
-            "literal": " "
-          },
-          {
-            "list": "фамилия"
-          }
-        ],
-        "lists": {
-          "имя": [
-            {
-              "value": "Агата"
-            },
-            {
-              "value": "Борис"
-            },
-            {
-              "value": "Веста"
-            },
-            {
-              "value": "Ганс"
-            },
-            {
-              "value": "Дарья"
-            }
-          ],
-          "фамилия": [
-            {
-              "value": "Ворожейкина"
-            },
-            {
-              "value": "Жарков"
-            },
-            {
-              "value": "Зольникова"
-            },
-            {
-              "value": "Искрин"
-            }
-          ],
-          "облик": [
-            {
-              "value": "в запёпелённом плаще"
-            },
-            {
-              "value": "с обгоревшей шляпой"
-            },
-            {
-              "value": "с посохом из плоти ясеня"
-            }
-          ],
-          "ремесло": [
-            {
-              "value": "сборщик золы"
-            },
-            {
-              "value": "писец хроник"
-            },
-            {
-              "value": "кузнец-подмастерье"
-            }
-          ]
-        }
-      }
-    ],
-    "adventures": [
-      {
-        "id": "side_gigs",
-        "label": "Мелкие поручения",
-        "lists": {
-          "враги": [
-            {
-              "value": "крыс"
-            },
-            {
-              "value": "грабителей"
-            },
-            {
-              "value": "упырей"
-            }
-          ],
-          "места": [
-            {
-              "value": "подвале таверны"
-            },
-            {
-              "value": "старых штольнях"
-            },
-            {
-              "value": "пепельном огороде"
-            }
-          ]
-        },
-        "goals": [
-          "Отбить {список:места} от {список:враги}",
-          "Пересчитать {список:враги} в {список:места}",
-          "Выяснить, кто завёл {список:враги} в {список:места}"
-        ]
-      }
-    ]
+   ]
   }
+ ],
+ "dice_rules": {
+  "critical_divisor": 5,
+  "special_divisor": 2,
+  "fumble_from": 96
+ },
+ "currencies": [
+  {
+   "id": "silver",
+   "label": "Серебряная марка",
+   "item_id": "item_silver",
+   "symbol": "SM"
+  }
+ ],
+ "char_creation": {
+  "total_points": 35,
+  "stat_limits": {
+   "min": 3,
+   "max": 18
+  },
+  "skill_points": 60,
+  "skill_cap": 75,
+  "skill_floor": 15,
+  "mandatory_skills": [
+   "dodge",
+   "first_aid"
+  ],
+  "forbidden_skills": [
+   "bite"
+  ],
+  "choose_name": true,
+  "professions": [
+   {
+    "id": "profession_soldier",
+    "label": "Солдат",
+    "description": "Строевая выучка и сталь в руках. Крепкий, сильный, немногословный.",
+    "skill_bonus": {
+     "sword": 10,
+     "brawl": 5
+    },
+    "items": [
+     {
+      "item": "item_gambeson",
+      "quantity": 1
+     }
+    ],
+    "stats": {
+     "STR": 11,
+     "CON": 10,
+     "SIZ": 10,
+     "DEX": 9,
+     "INT": 6,
+     "POW": 5,
+     "CHA": 5
+    }
+   },
+   {
+    "id": "profession_scout",
+    "label": "Разведчик",
+    "description": "Тихий шаг и зоркий глаз. Ходит там, где другие боятся.",
+    "skill_bonus": {
+     "stealth": 10,
+     "spot": 10
+    },
+    "items": [
+     {
+      "item": "item_healing_salve",
+      "quantity": 1
+     }
+    ],
+    "stats": {
+     "STR": 8,
+     "CON": 9,
+     "SIZ": 8,
+     "DEX": 13,
+     "INT": 9,
+     "POW": 5,
+     "CHA": 4
+    }
+   },
+   {
+    "id": "profession_envoy",
+    "label": "Посланник",
+    "description": "Слово острее клинка, а серебро открывает двери.",
+    "skill_bonus": {
+     "persuade": 10,
+     "bargain": 10
+    },
+    "items": [
+     {
+      "item": "item_silver",
+      "quantity": 10
+     }
+    ],
+    "stats": {
+     "STR": 6,
+     "CON": 8,
+     "SIZ": 8,
+     "DEX": 9,
+     "INT": 11,
+     "POW": 6,
+     "CHA": 8
+    }
+   }
+  ],
+  "callings": [
+   {
+    "id": "calling_mercenary",
+    "label": "Наёмник",
+    "description": "Жил клинком: рубка, кулаки и умение увернуться от чужого клинка.",
+    "skills": {
+     "sword": 45,
+     "brawl": 30,
+     "dodge": 40
+    }
+   },
+   {
+    "id": "calling_tracker",
+    "label": "Следопыт",
+    "description": "Ходил глухими тропами: неслышный шаг, зоркий глаз, быстрые ноги.",
+    "skills": {
+     "stealth": 40,
+     "spot": 35,
+     "dodge": 40
+    }
+   },
+   {
+    "id": "calling_trader",
+    "label": "Торговец",
+    "description": "Знает цену слову и товару: торг, убеждение и полевая медицина.",
+    "skills": {
+     "bargain": 40,
+     "persuade": 40,
+     "first_aid": 35
+    }
+   }
+  ]
+ },
+ "roguelike": {
+  "permadeath": true,
+  "meta_progress": [
+   "completion_percentage"
+  ],
+  "randomize_on_restart": [
+   "loot_tables",
+   "random_encounters"
+  ]
+ },
+ "factions": [
+  {
+   "id": "faction_town_guard",
+   "label": "Стража Каэрдена",
+   "base_disposition": 0
+  },
+  {
+   "id": "faction_town",
+   "label": "Горожане",
+   "base_disposition": 10
+  },
+  {
+   "id": "faction_bandits",
+   "label": "Банда с холмов",
+   "base_disposition": -60
+  },
+  {
+   "id": "faction_vermin",
+   "label": "Дикие твари",
+   "base_disposition": -100,
+   "description": "Крысы, хищники и прочие создания, с которыми не договориться.",
+   "hidden": true
+  }
+ ],
+ "max_companions": 1,
+ "skills": [
+  {
+   "id": "sword",
+   "label": "Мечи"
+  },
+  {
+   "id": "spear",
+   "label": "Копья"
+  },
+  {
+   "id": "brawl",
+   "label": "Кулачный бой"
+  },
+  {
+   "id": "dodge",
+   "label": "Уклонение"
+  },
+  {
+   "id": "stealth",
+   "label": "Скрытность"
+  },
+  {
+   "id": "spot",
+   "label": "Наблюдательность"
+  },
+  {
+   "id": "persuade",
+   "label": "Убеждение"
+  },
+  {
+   "id": "bargain",
+   "label": "Торговля"
+  },
+  {
+   "id": "first_aid",
+   "label": "Первая помощь"
+  },
+  {
+   "id": "bite",
+   "label": "Укус"
+  },
+  {
+   "id": "club",
+   "label": "Дубины"
+  },
+  {
+   "id": "shield",
+   "label": "Щиты"
+  },
+  {
+   "id": "locks",
+   "label": "Взлом",
+   "base": 5
+  }
+ ],
+ "item_categories": [
+  {
+   "id": "food",
+   "label": "Еда",
+   "restores_hp": false,
+   "restores_needs": [
+    "hunger"
+   ]
+  },
+  {
+   "id": "drink",
+   "label": "Питьё",
+   "restores_needs": [
+    "thirst"
+   ]
+  },
+  {
+   "id": "medicine",
+   "label": "Лекарства",
+   "restores_hp": true
+  },
+  {
+   "id": "weapon",
+   "label": "Оружие",
+   "is_weapon": true
+  },
+  {
+   "id": "armor",
+   "label": "Броня",
+   "is_armor": true
+  },
+  {
+   "id": "quest",
+   "label": "Квестовые предметы"
+  },
+  {
+   "id": "currency",
+   "label": "Валюта"
+  },
+  {
+   "id": "container",
+   "label": "Интерактивные объекты"
+  },
+  {
+   "id": "misc",
+   "label": "Разное"
+  }
+ ],
+ "flags": [
+  {
+   "id": "gates_greeting_done",
+   "label": "Приветствие у ворот показано",
+   "description": "Первый разговор с Алдриком у ворот состоялся."
+  },
+  {
+   "id": "heard_about_bandits",
+   "label": "Слышал о банде",
+   "description": "Герой узнал о банде с холмов."
+  },
+  {
+   "id": "aldric_gave_ration",
+   "label": "Алдрик поделился пайком",
+   "description": "Убеждение сработало — хлеб получен."
+  },
+  {
+   "id": "aldric_ration_refused",
+   "label": "Алдрик отказал в пайке",
+   "description": "Провал убеждения: больше не просить."
+  },
+  {
+   "id": "met_maeva",
+   "label": "Знаком с Маэвой"
+  },
+  {
+   "id": "met_bran",
+   "label": "Знаком с Браном"
+  },
+  {
+   "id": "bran_bargained",
+   "label": "Торговался с Браном",
+   "description": "Попытка сбить цены использована."
+  },
+  {
+   "id": "guard_ration_taken",
+   "label": "Паёк из караулки взят"
+  },
+  {
+   "id": "herbs_gathered",
+   "label": "Травы собраны"
+  },
+  {
+   "id": "rats_started",
+   "label": "Крысы: дело принято",
+   "description": "Маэва попросила зачистить подвал."
+  },
+  {
+   "id": "rats_done",
+   "label": "Крысы перебиты",
+   "description": "Подвал таверны зачищен."
+  },
+  {
+   "id": "rats_rewarded",
+   "label": "Маэва отблагодарила",
+   "description": "Награда за крыс получена."
+  },
+  {
+   "id": "forest_ambush_cleared",
+   "label": "Засада в лесу отбита"
+  },
+  {
+   "id": "bran_told_about_bandits",
+   "label": "Бран рассказал о банде",
+   "description": "Лагерь Йорека отмечен на карте."
+  },
+  {
+   "id": "bandit_deal_made",
+   "label": "С Йореком договорились",
+   "description": "Банда уходит без боя."
+  },
+  {
+   "id": "camp_cleared",
+   "label": "Лагерь банды зачищен"
+  },
+  {
+   "id": "yorek_met",
+   "label": "Знаком с Йореком"
+  },
+  {
+   "id": "met_corvin",
+   "label": "Знаком с Корвином"
+  },
+  {
+   "id": "relic_returned",
+   "label": "Медальон возвращён",
+   "description": "Реликвия вернулась в храм."
+  },
+  {
+   "id": "medallion_taken",
+   "label": "Медальон найден",
+   "description": "Найден на скелете в шахте."
+  },
+  {
+   "id": "skeleton_looted",
+   "label": "Скелет обыскан"
+  },
+  {
+   "id": "met_lena",
+   "label": "Знаком с Леной"
+  },
+  {
+   "id": "lena_told",
+   "label": "Лена рассказала про лаз",
+   "description": "Тайный путь в Волчью балку известен."
+  },
+  {
+   "id": "secret_path_used",
+   "label": "Тайный ход использован",
+   "description": "Герой прошёл штольней в тыл лагеря."
+  },
+  {
+   "id": "market_raid_repelled",
+   "label": "Налёт на рынок отбит"
+  },
+  {
+   "id": "raid_rumors",
+   "label": "Слухи о налёте",
+   "description": "Город гудит: банда готовит удар. Лена дежурит в таверне круглосуточно."
+  },
+  {
+   "id": "tavern_chest_opened",
+   "label": "Сундук в таверне открыт",
+   "description": "Запертый сундук в зале таверны отпёрт ключом."
+  }
+ ],
+ "music_tracks": [
+  {
+   "id": "track_menu",
+   "label": "Пепел и свечи",
+   "src": {
+    "mood": "таинственная",
+    "scale": "пентатоника",
+    "layers": [
+     "пад-аккорды",
+     "бас"
+    ],
+    "progression": [
+     "i",
+     "VI",
+     "III",
+     "VII"
+    ],
+    "seed": 7
+   },
+   "loop": true
+  },
+  {
+   "id": "track_tavern_day",
+   "label": "Шум и хмель (днём)",
+   "src": {
+    "mood": "спокойная",
+    "tempo": 88,
+    "scale": "мажор",
+    "layers": [
+     "арпеджио",
+     "бас",
+     "перкуссия"
+    ],
+    "progression": [
+     "i",
+     "IV",
+     "vi",
+     "V"
+    ],
+    "seed": 11
+   },
+   "loop": true
+  },
+  {
+   "id": "track_tavern_night",
+   "label": "У очога (вечером)",
+   "src": {
+    "mood": "спокойная",
+    "tempo": 66,
+    "scale": "минор",
+    "layers": [
+     "пад-аккорды",
+     "арпеджио",
+     "бас"
+    ],
+    "progression": [
+     "i",
+     "VI",
+     "III",
+     "VII"
+    ],
+    "seed": 13
+   },
+   "loop": true
+  },
+  {
+   "id": "track_forest",
+   "label": "Опушка",
+   "src": {
+    "mood": "спокойная",
+    "scale": "дорийский",
+    "layers": [
+     "пад-аккорды"
+    ],
+    "progression": [
+     "i",
+     "iv",
+     "i",
+     "VII"
+    ],
+    "seed": 17
+   },
+   "loop": true
+  },
+  {
+   "id": "track_mine",
+   "label": "Копи",
+   "src": {
+    "mood": "тревожная",
+    "tempo": 58,
+    "scale": "фригийский",
+    "layers": [
+     "пад-аккорды",
+     "бас"
+    ],
+    "progression": [
+     "i",
+     "VII",
+     "VI",
+     "VII"
+    ],
+    "seed": 19
+   },
+   "loop": true
+  },
+  {
+   "id": "track_combat",
+   "label": "Сталь и ярость",
+   "src": {
+    "mood": "боевая",
+    "tempo": 140,
+    "scale": "минор",
+    "layers": [
+     "бас",
+     "арпеджио",
+     "перкуссия"
+    ],
+    "progression": [
+     "i",
+     "i",
+     "VII",
+     "VI"
+    ],
+    "seed": 23
+   },
+   "loop": true
+  }
+ ],
+ "sounds": [
+  {
+   "id": "snd_door",
+   "label": "Скрип двери",
+   "src": [
+    {
+     "zzfx": [
+      0.6,
+      0.15,
+      420,
+      0.04,
+      0.18,
+      0.28,
+      2,
+      3,
+      -6,
+      0.2,
+      0,
+      0,
+      0,
+      0.2,
+      0.5,
+      0,
+      0,
+      0.7,
+      1,
+      0
+     ]
+    },
+    {
+     "zzfx": [
+      0.55,
+      0.15,
+      380,
+      0.03,
+      0.14,
+      0.22,
+      2,
+      2.5,
+      -4,
+      0.3,
+      0,
+      0,
+      0,
+      0.25,
+      0.7,
+      0,
+      0,
+      0.7,
+      1,
+      0
+     ]
+    },
+    {
+     "zzfx": [
+      0.65,
+      0.15,
+      460,
+      0.05,
+      0.2,
+      0.3,
+      3,
+      3.5,
+      -7,
+      0.1,
+      0,
+      0,
+      0,
+      0.18,
+      0.4,
+      0,
+      0,
+      0.7,
+      1,
+      0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "snd_click",
+   "label": "Кнопка",
+   "src": {
+    "zzfx": [
+     0.4,
+     0.02,
+     900,
+     0,
+     0.02,
+     0.05,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.5,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_panel_open",
+   "label": "Панель открывается",
+   "src": {
+    "zzfx": [
+     0.35,
+     0.02,
+     500,
+     0.01,
+     0.03,
+     0.08,
+     1,
+     1,
+     2,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.6,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_panel_close",
+   "label": "Панель закрывается",
+   "src": {
+    "zzfx": [
+     0.35,
+     0.02,
+     600,
+     0.01,
+     0.03,
+     0.08,
+     1,
+     1,
+     -3,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.6,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_message",
+   "label": "Сообщение",
+   "src": {
+    "zzfx": [
+     0.45,
+     0.02,
+     700,
+     0,
+     0.04,
+     0.1,
+     3,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_hit",
+   "label": "Попадание",
+   "src": {
+    "zzfx": [
+     0.9,
+     0.1,
+     180,
+     0,
+     0.05,
+     0.12,
+     4,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.3,
+     0,
+     0,
+     0,
+     0.6,
+     1,
+     0.2
+    ]
+   }
+  },
+  {
+   "id": "snd_miss",
+   "label": "Промах",
+   "src": {
+    "zzfx": [
+     0.45,
+     0.1,
+     300,
+     0,
+     0.03,
+     0.07,
+     4,
+     1,
+     -3,
+     0,
+     0,
+     0,
+     0,
+     0.4,
+     0,
+     0,
+     0,
+     0.5,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_crit",
+   "label": "Критический удар",
+   "src": {
+    "zzfx": [
+     1,
+     0.05,
+     250,
+     0.01,
+     0.1,
+     0.2,
+     2,
+     1,
+     -8,
+     0,
+     0,
+     0,
+     0,
+     0.2,
+     2,
+     0,
+     0.05,
+     0.8,
+     1,
+     0.1
+    ]
+   }
+  },
+  {
+   "id": "snd_parry",
+   "label": "Парирование",
+   "src": {
+    "zzfx": [
+     0.65,
+     0.05,
+     800,
+     0,
+     0.03,
+     0.08,
+     3,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.2,
+     0,
+     0,
+     0,
+     0.6,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_death",
+   "label": "Кто-то пал",
+   "src": {
+    "zzfx": [
+     0.85,
+     0.05,
+     200,
+     0.02,
+     0.15,
+     0.5,
+     3,
+     1,
+     -5,
+     0,
+     0,
+     0,
+     0,
+     0.1,
+     1,
+     0,
+     0,
+     0.7,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_victory",
+   "label": "Победа",
+   "src": {
+    "zzfx": [
+     0.7,
+     0.02,
+     500,
+     0.01,
+     0.08,
+     0.2,
+     1,
+     1,
+     5,
+     0,
+     0.12,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     1
+    ]
+   }
+  },
+  {
+   "id": "snd_defeat",
+   "label": "Поражение",
+   "src": {
+    "zzfx": [
+     0.75,
+     0.05,
+     300,
+     0.02,
+     0.1,
+     0.4,
+     3,
+     1,
+     -4,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0.7,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_coin",
+   "label": "Монеты",
+   "src": {
+    "zzfx": [
+     0.45,
+     0.02,
+     1200,
+     0,
+     0.03,
+     0.05,
+     2,
+     1,
+     4,
+     0.05,
+     0,
+     0,
+     0.06,
+     0,
+     0,
+     0,
+     0,
+     0.6,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_quest",
+   "label": "Квест взят",
+   "src": {
+    "zzfx": [
+     0.55,
+     0.02,
+     600,
+     0.01,
+     0.06,
+     0.15,
+     1,
+     1,
+     3,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     1
+    ]
+   }
+  },
+  {
+   "id": "snd_quest_done",
+   "label": "Квест завершён",
+   "src": {
+    "zzfx": [
+     0.65,
+     0.02,
+     700,
+     0.01,
+     0.1,
+     0.25,
+     1,
+     1,
+     7,
+     0,
+     0.2,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     1
+    ]
+   }
+  },
+  {
+   "id": "snd_skill",
+   "label": "Навык вырос",
+   "src": {
+    "zzfx": [
+     0.5,
+     0.02,
+     800,
+     0.01,
+     0.05,
+     0.1,
+     2,
+     1,
+     5,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.7,
+     1
+    ]
+   }
+  },
+  {
+   "id": "snd_travel_depart",
+   "label": "Выезд",
+   "src": {
+    "zzfx": [
+     0.5,
+     0.05,
+     250,
+     0.02,
+     0.1,
+     0.2,
+     4,
+     1,
+     2,
+     0,
+     0,
+     0,
+     0,
+     0.3,
+     0,
+     0,
+     0,
+     0.6,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_travel_arrive",
+   "label": "Прибытие",
+   "src": {
+    "zzfx": [
+     0.5,
+     0.05,
+     350,
+     0.02,
+     0.1,
+     0.2,
+     4,
+     1,
+     -2,
+     0,
+     0,
+     0,
+     0,
+     0.3,
+     0,
+     0,
+     0,
+     0.6,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_transition",
+   "label": "Переход по зоне",
+   "src": {
+    "zzfx": [
+     0.4,
+     0.05,
+     400,
+     0.02,
+     0.06,
+     0.15,
+     4,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.35,
+     0,
+     0,
+     0.03,
+     0.6,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_combat_start",
+   "label": "Начало боя",
+   "src": {
+    "zzfx": [
+     0.85,
+     0.05,
+     150,
+     0.01,
+     0.15,
+     0.25,
+     2,
+     1,
+     -2,
+     0,
+     0,
+     0,
+     0,
+     0.1,
+     1,
+     0,
+     0,
+     0.8,
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "id": "snd_leaves",
+   "label": "Шелест листвы",
+   "src": {
+    "zzfx": [
+     0.5,
+     0,
+     0,
+     0,
+     2.5,
+     0.5,
+     4,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0.9,
+     0,
+     0,
+     0,
+     0.8,
+     0.2,
+     0
+    ]
+   },
+   "loop": true
+  },
+  {
+   "id": "snd_birds",
+   "label": "Пение птиц",
+   "src": [
+    {
+     "zzfx": [
+      0.35,
+      0.3,
+      1900,
+      0.02,
+      0.06,
+      0.05,
+      3,
+      2,
+      6,
+      0.04,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.1,
+      0.7,
+      1,
+      0
+     ]
+    },
+    {
+     "zzfx": [
+      0.3,
+      0.3,
+      2300,
+      0.02,
+      0.05,
+      0.04,
+      3,
+      1.5,
+      -5,
+      0.03,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.12,
+      0.7,
+      1,
+      0
+     ]
+    },
+    {
+     "zzfx": [
+      0.3,
+      0.3,
+      2100,
+      0.01,
+      0.04,
+      0.06,
+      3,
+      3,
+      8,
+      0.05,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.08,
+      0.7,
+      1,
+      0
+     ]
+    }
+   ],
+   "loop": true
+  }
+ ],
+ "ui_sounds": {
+  "menu_music": "track_menu",
+  "click": "snd_click",
+  "panel_open": "snd_panel_open",
+  "panel_close": "snd_panel_close",
+  "message": "snd_message",
+  "travel_depart": "snd_travel_depart",
+  "travel_arrive": "snd_travel_arrive",
+  "scene_transition": "snd_transition",
+  "combat_start": "snd_combat_start",
+  "hit": "snd_hit",
+  "miss": "snd_miss",
+  "crit": "snd_crit",
+  "parry": "snd_parry",
+  "death": "snd_death",
+  "victory": "snd_victory",
+  "defeat": "snd_defeat",
+  "quest_started": "snd_quest",
+  "quest_completed": "snd_quest_done",
+  "skill_up": "snd_skill",
+  "coin": "snd_coin"
+ },
+ "default_music": [
+  "track_forest"
+ ],
+ "combat_music": [
+  "track_combat"
+ ],
+ "statuses": [
+  {
+   "id": "status_rat_poison",
+   "label": "Крысиный яд",
+   "description": "Яд гигантской крысы жжёт кровь.",
+   "scope": "combat",
+   "duration": 3,
+   "dot": {
+    "hp": 2
+   },
+   "apply_message": "Яд крысы разливается по жилам."
+  }
+ ],
+ "abilities": [
+  {
+   "id": "ability_rat_bite",
+   "label": "Ядовитый укус",
+   "description": "Крыса вонзает отравленные клыки: цель отравлена на 3 раунда.",
+   "mp_cost": 0,
+   "range": 1,
+   "skill": "bite",
+   "kind": "status",
+   "status": "status_rat_poison",
+   "status_duration": 3
+  }
+ ],
+ "calendar": {
+  "year_label": "год Пепла",
+  "start_year": 137,
+  "days_per_month": 30,
+  "months": [
+   "Углемес",
+   "Гаревей",
+   "Дымолун",
+   "Пеплопад",
+   "Искроткань",
+   "Студень",
+   "Снеговей",
+   "Таловод",
+   "Розжиг",
+   "Зелень",
+   "Высолнце",
+   "Жатвень"
+  ],
+  "day_names": [
+   "Пепельник",
+   "Кузнецов",
+   "Ветровик",
+   "Странник",
+   "Тихий",
+   "Светлый",
+   "Тёмный"
+  ]
+ },
+ "weathers": [
+  {
+   "id": "weather_ashfall",
+   "label": "Пеплопад",
+   "overlay": "ash"
+  },
+  {
+   "id": "weather_cold_rain",
+   "label": "Холодный дождь",
+   "overlay": "rain"
+  },
+  {
+   "id": "weather_thick_fog",
+   "label": "Густой туман",
+   "overlay": "fog"
+  },
+  {
+   "id": "weather_first_snow",
+   "label": "Первый снег",
+   "overlay": "snow"
+  }
+ ],
+ "slot_types": [
+  {
+   "id": "person",
+   "label": "Персонаж"
+  },
+  {
+   "id": "item",
+   "label": "Предмет"
+  },
+  {
+   "id": "container",
+   "label": "Контейнер"
+  },
+  {
+   "id": "animal",
+   "label": "Животное"
+  }
+ ],
+ "equipment_slots": [
+  {
+   "id": "weapon",
+   "label": "Оружие"
+  },
+  {
+   "id": "armor",
+   "label": "Броня"
+  }
+ ],
+ "overlay_layers": [
+  {
+   "id": "rain",
+   "label": "Дождь"
+  },
+  {
+   "id": "snow",
+   "label": "Снег"
+  },
+  {
+   "id": "fog",
+   "label": "Туман"
+  },
+  {
+   "id": "ash",
+   "label": "Пепел"
+  }
+ ],
+ "endings": [
+  {
+   "id": "ending_bandit_slain",
+   "label": "Банда разбита мечом",
+   "title": "Дороги снова чисты",
+   "text": "Йорек мёртв, банда рассеяна по холмам. Караваны снова идут в Каэрден, и у ворот твоё имя произносят с уважением. Бран уже сочинил песню — разумеется, прибавив пару подвигов.",
+   "tone": "victory",
+   "on": "victory",
+   "conditions": [
+    {
+     "type": "quest_at_stage",
+     "quest": "quest_bandit_threat",
+     "stage": "completed_fight"
+    }
+   ]
+  },
+  {
+   "id": "ending_grey_deal",
+   "label": "Серый мир с бандой",
+   "title": "Серый мир",
+   "text": "Ты выбрал серебро вместо стали. Бандиты платят «пошлину», стража молчит, торг идёт бойко. Только Алдрик больше не здоровается с тобой у ворот.",
+   "tone": "neutral",
+   "on": "victory",
+   "conditions": [
+    {
+     "type": "quest_at_stage",
+     "quest": "quest_bandit_threat",
+     "stage": "completed_deal"
+    }
+   ]
+  },
+  {
+   "id": "ending_ashes",
+   "label": "Пепельный финал",
+   "title": "Пепел принял ещё одного",
+   "text": "Каэрден пережил многих героев. Переживёт и тебя. Таверна вспомнит тебя кружкой эля, а летопись — строчкой.",
+   "tone": "death",
+   "on": "death"
+  }
+ ],
+ "theme": {
+  "profile": "dark-fantasy"
+ },
+ "metaprogress": {
+  "currencies": [
+   {
+    "id": "ash",
+    "label": "Пепел",
+    "description": "Крупицы пепла Кэрдена — память прошлых забегов. Копится между попытками, тратится в Хронике."
+   }
+  ],
+  "achievements": [
+   {
+    "id": "rat_catcher",
+    "label": "Крысолов",
+    "description": "Зачистить подвал таверны от крыс.",
+    "conditions": [
+     {
+      "type": "flag_set",
+      "flag": "rats_done"
+     }
+    ],
+    "reward": {
+     "currency": "ash",
+     "amount": 5
+    }
+   },
+   {
+    "id": "ash_survivor",
+    "label": "Прижился в золе",
+    "description": "Прожить 50 тиков за один забег.",
+    "counter": {
+     "stat": "ticks_survived",
+     "target": 50
+    },
+    "reward": {
+     "currency": "ash",
+     "amount": 10
+    }
+   },
+   {
+    "id": "slayer5",
+    "label": "Пятеро не вернутся",
+    "description": "Победить пятерых врагов (суммарно по всем забегам).",
+    "counter": {
+     "stat": "kills",
+     "target": 5
+    },
+    "reward": {
+     "currency": "ash",
+     "amount": 5,
+     "xp": 0
+    }
+   },
+   {
+    "id": "chronicler",
+    "label": "Слушатель хроник",
+    "description": "Поговорить со всеми жителями (10 диалогов суммарно).",
+    "counter": {
+     "stat": "dialogues",
+     "target": 10
+    },
+    "hidden": true,
+    "reward": {
+     "currency": "ash",
+     "amount": 8
+    }
+   }
+  ],
+  "unlocks": [
+   {
+    "id": "heirloom_silver",
+    "label": "Наследная марка",
+    "description": "В начале каждого нового забега герой находит в кармане две серебряные марки — последнее, что осталось от прошлых попыток.",
+    "cost": [
+     {
+      "currency": "ash",
+      "amount": 8
+     }
+    ],
+    "grants": [
+     {
+      "type": "add_item",
+      "item": "item_silver",
+      "quantity": 2
+     }
+    ]
+   }
+  ]
+ },
+ "generators": {
+  "event_tables": [
+   {
+    "id": "shrine_whispers",
+    "label": "Шёпот святилища",
+    "description": "В храме порой слышится эхо пепла — мелкие злоключения и подарки.",
+    "interval_ticks": 12,
+    "chance": 0.35,
+    "locations": [
+     "loc_temple"
+    ],
+    "rules": [
+     "gen_whisper_blessing",
+     "gen_whisper_chill",
+     "gen_whisper_protest"
+    ]
+   }
+  ],
+  "npc": [
+   {
+    "id": "traveller",
+    "label": "Попутчик",
+    "description": "Генератор случайного путника: имя, облик, занятие.",
+    "name": [
+     {
+      "list": "имя"
+     },
+     {
+      "literal": " "
+     },
+     {
+      "list": "фамилия"
+     }
+    ],
+    "lists": {
+     "имя": [
+      {
+       "value": "Агата"
+      },
+      {
+       "value": "Борис"
+      },
+      {
+       "value": "Веста"
+      },
+      {
+       "value": "Ганс"
+      },
+      {
+       "value": "Дарья"
+      }
+     ],
+     "фамилия": [
+      {
+       "value": "Ворожейкина"
+      },
+      {
+       "value": "Жарков"
+      },
+      {
+       "value": "Зольникова"
+      },
+      {
+       "value": "Искрин"
+      }
+     ],
+     "облик": [
+      {
+       "value": "в запёпелённом плаще"
+      },
+      {
+       "value": "с обгоревшей шляпой"
+      },
+      {
+       "value": "с посохом из плоти ясеня"
+      }
+     ],
+     "ремесло": [
+      {
+       "value": "сборщик золы"
+      },
+      {
+       "value": "писец хроник"
+      },
+      {
+       "value": "кузнец-подмастерье"
+      }
+     ]
+    }
+   }
+  ],
+  "adventures": [
+   {
+    "id": "side_gigs",
+    "label": "Мелкие поручения",
+    "lists": {
+     "враги": [
+      {
+       "value": "крыс"
+      },
+      {
+       "value": "грабителей"
+      },
+      {
+       "value": "упырей"
+      }
+     ],
+     "места": [
+      {
+       "value": "подвале таверны"
+      },
+      {
+       "value": "старых штольнях"
+      },
+      {
+       "value": "пепельном огороде"
+      }
+     ]
+    },
+    "goals": [
+     "Отбить {список:места} от {список:враги}",
+     "Пересчитать {список:враги} в {список:места}",
+     "Выяснить, кто завёл {список:враги} в {список:места}"
+    ]
+   }
+  ]
+ }
 }

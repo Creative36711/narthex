@@ -131,6 +131,8 @@ export class CombatController {
   loot: CombatLootEntry[] = []
   private blocked: Set<string>
   private difficult: Set<string>
+  /** гексы-укрытия арены (мастерская разметка cover_hexes), «c,r» */
+  private coverHexes: Set<string>
 
   constructor(engine: GameEngine, def: StartCombatEffect) {
     this.engine = engine
@@ -140,6 +142,7 @@ export class CombatController {
     this.arena = arena
     this.blocked = new Set(arena.hex_grid.blocked_hexes.map(([c, r]) => `${c},${r}`))
     this.difficult = new Set(arena.hex_grid.difficult_terrain.map(([c, r]) => `${c},${r}`))
+    this.coverHexes = new Set((arena.hex_grid.cover_hexes ?? []).map(([c, r]) => `${c},${r}`))
     this.surprise = def.surprise
     this.setup()
     // погода ложится на бой (аудит B7): общий статус, если назначен
@@ -390,6 +393,11 @@ export class CombatController {
 
   isDifficult(h: Hex): boolean {
     return this.difficult.has(hexKey(h))
+  }
+
+  /** гекс-укрытие? (мастерская разметка cover_hexes на арене) */
+  isCover(h: Hex): boolean {
+    return this.coverHexes.has(hexKey(h))
   }
 
   passable = (h: Hex): boolean =>
@@ -1132,6 +1140,9 @@ export class CombatController {
     }
     const rng = this.engine.rng
     const fromShadow = !!attacker.hidden
+    // удар в спину/фланг (мастерское правило combat.flank): цель в задней дуге не защищается
+    const flank = this.flankRules()
+    const fromBehind = !!flank && this.isRearArc(defender, attacker.pos, flank.arc)
     // прицельная атака: бонус прицеливания на следующую атаку (аудит B5)
     const aim = attacker.aimBonus ?? 0
     attacker.aimBonus = 0
@@ -1139,9 +1150,11 @@ export class CombatController {
       1,
       (attacker.skills[attacker.weapon.skill] ?? 25) + this.statusSkillMod(attacker, attacker.weapon.skill) + this.weatherSkillMod(attacker.weapon.skill) + aim,
     )
-    const atk = skillCheck(skillVal, rng, penalty, this.engine.diceRules)
+    // укрытие (мастерское правило combat.cover): штраф дальнобойной атаки по цели на гексе укрытия
+    const coverP = attacker.weapon.range > 1 && this.coverHexes.has(hexKey(defender.pos)) ? this.coverPenalty() : null
+    const atk = skillCheck(skillVal, rng, penalty + (coverP ?? 0), this.engine.diceRules)
     this.log.push(
-      `${attacker.label}: ${fromShadow ? 'ВНЕЗАПНАЯ атака' : 'атака'} «${attacker.weaponLabel}»${penalty ? ` (повторная, ${penalty}%)` : ''}${aim ? ` (прицельная, +${aim}%)` : ''} — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
+      `${attacker.label}: ${fromShadow ? 'ВНЕЗАПНАЯ атака' : 'атака'} «${attacker.weaponLabel}»${penalty ? ` (повторная, ${penalty}%)` : ''}${aim ? ` (прицельная, +${aim}%)` : ''}${coverP ? ` (укрытие, ${coverP}%)` : ''} — d100=${atk.roll} против ${atk.target} → ${labelResult(atk.result)}`,
     )
     attacker.hidden = false // атака выдаёт позицию
     if (attacker.id === 'c_player' && atk.success) this.engine.markSkill(attacker.weapon.skill)
@@ -1158,6 +1171,8 @@ export class CombatController {
     // внезапная атака из скрытности — защита невозможна (аудит §5.6 п.12)
     if (fromShadow) {
       this.log.push(`${defender.label} не видит нападающего — защита невозможна!`)
+    } else if (fromBehind) {
+      this.log.push(`${attacker.label} бьёт ${defender.label} в спину — защита невозможна!`)
     } else if (this.defenderSaves(defender, RANK[atk.result])) {
       return
     }
@@ -1166,26 +1181,105 @@ export class CombatController {
     const w = attacker.weapon
     const dbNotation = w.damage_bonus ? damageBonus(attacker.stats) : '0'
     const harmless = w.traits?.includes('push_harmless')
+    // таблица критических успехов мастера (meta.combat.crit_table)
+    const critEntry = atk.result === 'critical' ? this.rollCritEntry() : null
+    // хит-локации (мастерское правило combat.hit_locations, по умолчанию выключены)
+    const loc = this.rollHitLocation(rng)
+    if (loc) this.log.push(`${loc.text ?? `Попадание: ${loc.label}.`}`)
+    const locMult = loc?.damage_mult ?? 1
+    /** броня в точке попадания: локальная (у локации — своё значение), иначе общая */
+    const locArmor = loc?.armor ?? defender.armor
     let dmg: number
-    if (atk.result === 'critical') {
-      dmg = harmless ? 0 : maxOf(w.damage) + Math.max(0, maxOf(dbNotation))
-      this.log.push(`Критический удар! Броня не спасает.`)
+    if (atk.result === 'critical' && critEntry?.kind === 'double_damage') {
+      dmg = harmless ? 0 : Math.max(0, Math.round(2 * (rollDice(w.damage, rng) + Math.max(0, rollSigned(dbNotation, rng))) * locMult) - locArmor)
+      this.log.push(`Критический удар — урон удвоен!${critEntry.text ? ` ${critEntry.text}` : ''}`)
+      playUi('crit')
+    } else if (atk.result === 'critical') {
+      // книжный крит: максимум костей, броня не спасает; локация добавляет множитель и локальную броню
+      dmg = harmless ? 0 : Math.max(0, Math.round((maxOf(w.damage) + Math.max(0, maxOf(dbNotation))) * locMult) - (loc ? locArmor : 0))
+      this.log.push(`Критический удар! ${loc ? 'Броня только у локации.' : 'Броня не спасает.'}${critEntry?.text ? ` ${critEntry.text}` : ''}`)
       playUi('crit')
     } else if (harmless) {
       dmg = 0
       playUi('hit')
     } else {
       const raw = rollDice(w.damage, rng) + rollSigned(dbNotation, rng)
-      dmg = Math.max(0, raw - defender.armor)
+      dmg = Math.max(0, Math.round(raw * locMult) - locArmor)
       playUi('hit')
     }
+    // бонус урона за удар в спину (мастерское правило combat.flank.damage_bonus)
+    if (fromBehind && flank?.bonus && !harmless) {
+      const extra = rollDice(flank.bonus, rng)
+      if (extra > 0) {
+        dmg += extra
+        this.log.push(`Удар в спину: +${extra} урона.`)
+      }
+    }
     this.finishDamage(defender, dmg)
+    // последствия критической записи мастера: разоружение и статус цели
+    if (critEntry && !defender.dead && !defender.down) {
+      if (critEntry.kind === 'disarm') this.disarm(defender, attacker)
+      if (critEntry.kind === 'status' && critEntry.status) this.applyStatusTo(defender.id, critEntry.status, critEntry.duration)
+    }
+    // последствия локации попадания: статусы при ранении и при крите
+    if (loc && !defender.dead && !defender.down) {
+      if (atk.result === 'critical' && loc.status_on_crit) this.applyStatusTo(defender.id, loc.status_on_crit)
+      else if (dmg > 0 && loc.status_on_hit) this.applyStatusTo(defender.id, loc.status_on_hit)
+    }
     // удар прошёл — износ брони защитника (аудит §5.6 п.10)
     if (dmg > 0) this.wearArmor(defender)
     // особые удары оружия (аудит B5) — с уверенного успеха и критического
     if (!defender.dead && !defender.down && RANK[atk.result] >= RANK.hard) {
       this.applyWeaponTraits(attacker, defender)
     }
+  }
+
+  /** таблица критических успехов мастера (meta.combat.crit_table) — бросок по весам */
+  private rollCritEntry() {
+    const table = this.combatRules()?.crit_table
+    if (!table?.length) return null
+    const total = table.reduce((s, e) => s + Math.max(0, e.weight), 0)
+    if (total <= 0) return null
+    let roll = this.engine.rng.int(1, total)
+    return table.find((e) => (roll -= Math.max(0, e.weight)) <= 0) ?? table[table.length - 1]
+  }
+
+  /** хит-локации мастера (combat.hit_locations): бросок d100 по диапазонам; механика выкл. — null */
+  private rollHitLocation(rng: GameEngine['rng']) {
+    const rule = this.combatRules()?.hit_locations
+    if (!rule?.table?.length) return null
+    const roll = rng.int(1, 100)
+    return rule.table.find((t) => roll >= t.from && roll <= t.to) ?? null
+  }
+
+  /** штраф укрытия (combat.cover); null — механика выключена */
+  private coverPenalty(): number | null {
+    const c = this.combatRules()?.cover
+    if (!c) return null
+    return typeof c === 'object' ? (c.penalty ?? -20) : -20
+  }
+
+  /** настройка удара в спину (combat.flank); null — механика выключена */
+  private flankRules(): { arc: number; bonus: string | null } | null {
+    const f = this.combatRules()?.flank
+    if (!f) return null
+    return {
+      arc: typeof f === 'object' ? (f.arc ?? 120) : 120,
+      bonus: typeof f === 'object' ? (f.damage_bonus ?? null) : null,
+    }
+  }
+
+  /** стоит ли `from` в задней дуге цели (за её взглядом); дуга arcDeg с центром строго сзади */
+  private isRearArc(defender: Combatant, from: Hex, arcDeg: number): boolean {
+    const size = this.arena.hex_grid.hex_size
+    const a = hexToPixel(defender.pos, size, { x: 0, y: 0 })
+    const b = hexToPixel(from, size, { x: 0, y: 0 })
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return false
+    const dir = (Math.atan2(dx, -dy) * 180) / Math.PI
+    const diff = Math.abs((((dir - defender.facing) % 360) + 540) % 360 - 180)
+    return diff >= 180 - arcDeg / 2
   }
 
   /** особые удары оружия: пронзание, отброс, разоружение, захват */

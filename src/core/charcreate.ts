@@ -47,6 +47,9 @@ export function rollStatSet(creation: CharCreationDef): Record<string, number> {
 /** выбор игрока на экране создания персонажа */
 export interface CharChoice {
   name: string
+  /** возраст и биография (если мастер включил choose_age/choose_bio) */
+  age?: number
+  bio?: string
   stats: Record<string, number>
   /** id профессии (происхождение → характеристики) или '' */
   profession: string

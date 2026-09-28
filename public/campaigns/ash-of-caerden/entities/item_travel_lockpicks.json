@@ -1,0 +1,12 @@
+{
+ "id": "item_travel_lockpicks",
+ "type": "item",
+ "category": "misc",
+ "label": "Набор отмычек",
+ "description": "Подобранные железки и крючки. С ними замок — вопрос ловкости, а не ключа.",
+ "weight": 0.2,
+ "stackable": false,
+ "value": {
+  "silver": 8
+ }
+}

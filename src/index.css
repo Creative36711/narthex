@@ -1534,6 +1534,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 }
 .hex-blocked { fill: rgba(0, 0, 0, 0.55); stroke: rgba(0, 0, 0, 0.6); }
 .hex-difficult { fill: color-mix(in srgb, var(--gold) 16%, transparent); stroke: color-mix(in srgb, var(--gold) 45%, transparent); }
+/* гекс-укрытие: прохладный стальной — стрелки отсюда труднее задеть */
+.hex-cover { fill: rgba(74, 107, 140, 0.28); stroke: rgba(120, 155, 190, 0.5); }
 .hex-reach { fill: color-mix(in srgb, var(--gold) 16%, transparent); stroke: color-mix(in srgb, var(--gold-bright) 65%, transparent); cursor: var(--cur-cross); }
 .hex-attack { fill: color-mix(in srgb, var(--red) 30%, transparent); stroke: color-mix(in srgb, var(--red-bright) 80%, transparent); cursor: var(--cur-sword); }
 .hex-hover { fill: color-mix(in srgb, var(--gold-bright) 34%, transparent); }
@@ -2525,6 +2527,9 @@ input[type='checkbox'], input[type='radio'] {
 .char-skill-row .char-stat-val { text-align: center; }
 .char-skill-forbidden { opacity: 0.45; }
 .char-problems { color: var(--red-bright); margin: 8px 0; padding-left: 20px; }
+/* досье героя в листе персонажа: возраст и биография из создания */
+.char-dossier { margin-bottom: 10px; padding: 8px 10px; border: 1px solid var(--border-soft); border-radius: var(--radius); background: var(--panel-2); }
+.char-dossier .char-bio { margin-top: 4px; font-style: italic; color: var(--muted); }
 .char-create-foot { display: flex; justify-content: space-between; margin-top: 14px; }
 .chip-warn { border-color: color-mix(in srgb, var(--red-bright) 55%, transparent); color: var(--red-bright); }
 

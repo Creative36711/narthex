@@ -115,16 +115,43 @@ export function CharacterCreation({
           <button className="btn btn-small" onClick={onBack}><Ico n="close" /> </button>
         </div>
 
-        {creation.choose_name && (
+        {(creation.choose_name || creation.choose_age || creation.choose_bio) && (
           <div className="props-group">
-            <h4>Имя героя</h4>
-            <input
-              className="char-name"
-              value={choice.name}
-              maxLength={40}
-              placeholder={template.label}
-              onChange={(e) => setChoice({ ...choice, name: e.target.value })}
-            />
+            <h4>Герой</h4>
+            {creation.choose_name && (
+              <input
+                className="char-name"
+                value={choice.name}
+                maxLength={40}
+                placeholder={template.label}
+                onChange={(e) => setChoice({ ...choice, name: e.target.value })}
+              />
+            )}
+            {creation.choose_age && (
+              <label className="fld char-age" style={{ marginTop: creation.choose_name ? 8 : 0 }}>
+                <span>Возраст</span>
+                <input
+                  type="number"
+                  min={14}
+                  max={120}
+                  value={choice.age ?? ''}
+                  placeholder="например 28"
+                  onChange={(e) => setChoice({ ...choice, age: Number(e.target.value) || undefined })}
+                />
+              </label>
+            )}
+            {creation.choose_bio && (
+              <label className="fld fld-block" style={{ marginTop: 8 }}>
+                <span>Биография (коротко — кто вы и откуда)</span>
+                <textarea
+                  rows={3}
+                  maxLength={600}
+                  value={choice.bio ?? ''}
+                  placeholder="Пара строк о жизни до того, как началась эта история…"
+                  onChange={(e) => setChoice({ ...choice, bio: e.target.value || undefined })}
+                />
+              </label>
+            )}
           </div>
         )}
 

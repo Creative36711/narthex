@@ -1,121 +1,159 @@
 {
-  "id": "scene_tavern_hall",
-  "label": "Зал таверны",
-  "location": "loc_tavern",
-  "canvas": {
-    "w": 1280,
-    "h": 720
+ "id": "scene_tavern_hall",
+ "label": "Зал таверны",
+ "location": "loc_tavern",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "states": [
+  {
+   "id": "state_default",
+   "label": "Зал",
+   "image": "assets/img/scenes/tavern_hall.jpg",
+   "condition": null
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_bar_maeva",
+   "label": "Стойка Маэвы",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 800,
+   "y": 245,
+   "w": 150,
+   "h": 255,
+   "condition": null
   },
-  "states": [
+  {
+   "id": "slot_table_2",
+   "label": "Стол у очага",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 395,
+   "y": 330,
+   "w": 140,
+   "h": 235,
+   "condition": null
+  },
+  {
+   "id": "slot_corner",
+   "label": "Тёмный угол",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 585,
+   "y": 380,
+   "w": 130,
+   "h": 220,
+   "condition": null
+  },
+  {
+   "id": "slot_chest",
+   "label": "Запертый сундук",
+   "type": [
+    "container"
+   ],
+   "shape": "rect",
+   "x": 950,
+   "y": 480,
+   "w": 130,
+   "h": 110,
+   "default_entity": "item_locked_chest",
+   "condition": null,
+   "use_with": [
     {
-      "id": "state_default",
-      "label": "Зал",
-      "image": "assets/img/scenes/tavern_hall.jpg",
-      "condition": null
-    }
-  ],
-  "slots": [
-    {
-      "id": "slot_bar_maeva",
-      "label": "Стойка Маэвы",
-      "type": [
-        "person"
-      ],
-      "shape": "rect",
-      "x": 800,
-      "y": 245,
-      "w": 150,
-      "h": 255,
-      "condition": null
+     "item": "item_tavern_key",
+     "consume": true,
+     "effects": [
+      {
+       "type": "add_item",
+       "item": "item_silver",
+       "quantity": 20
+      },
+      {
+       "type": "add_item",
+       "item": "item_healing_salve",
+       "quantity": 1
+      },
+      {
+       "type": "set_flag",
+       "flag": "tavern_chest_opened"
+      },
+      {
+       "type": "remove_entity",
+       "entity": "item_locked_chest"
+      }
+     ],
+     "message": "Замок щёлкает. Внутри — кошель серебра и баночка целебной мази."
     },
     {
-      "id": "slot_table_2",
-      "label": "Стол у очага",
-      "type": [
-        "person"
-      ],
-      "shape": "rect",
-      "x": 395,
-      "y": 330,
-      "w": 140,
-      "h": 235,
-      "condition": null
-    },
-    {
-      "id": "slot_corner",
-      "label": "Тёмный угол",
-      "type": [
-        "person"
-      ],
-      "shape": "rect",
-      "x": 585,
-      "y": 380,
-      "w": 130,
-      "h": 220,
-      "condition": null
-    },
-    {
-      "id": "slot_chest",
-      "label": "Запертый сундук",
-      "type": [
-        "container"
-      ],
-      "shape": "rect",
-      "x": 950,
-      "y": 480,
-      "w": 130,
-      "h": 110,
-      "default_entity": "item_locked_chest",
-      "condition": null,
-      "use_with": [
+     "item": "item_travel_lockpicks",
+     "consume": false,
+     "effects": [
+      {
+       "type": "skill_check_gate",
+       "skill": "locks",
+       "difficulty": 50,
+       "success_effects": [
         {
-          "item": "item_tavern_key",
-          "consume": true,
-          "effects": [
-            {
-              "type": "add_item",
-              "item": "item_silver",
-              "quantity": 20
-            },
-            {
-              "type": "add_item",
-              "item": "item_healing_salve",
-              "quantity": 1
-            },
-            {
-              "type": "set_flag",
-              "flag": "tavern_chest_opened"
-            },
-            {
-              "type": "remove_entity",
-              "entity": "item_locked_chest"
-            }
-          ],
-          "message": "Замок щёлкает. Внутри — кошель серебра и баночка целебной мази."
+         "type": "add_item",
+         "item": "item_silver",
+         "quantity": 20
+        },
+        {
+         "type": "add_item",
+         "item": "item_healing_salve",
+         "quantity": 1
+        },
+        {
+         "type": "set_flag",
+         "flag": "tavern_chest_opened"
+        },
+        {
+         "type": "remove_entity",
+         "entity": "item_locked_chest"
         }
-      ]
+       ],
+       "fail_effects": [
+        {
+         "type": "change_hp",
+         "delta": -2
+        }
+       ]
+      }
+     ],
+     "message": "Дрожат пальцы, звенят отмычки… Успех — замок поддаётся; ошибка — в замке щёлкает скрытая игла!"
     }
-  ],
-  "navigation": [
-    {
-      "area": {
-        "x": 555,
-        "y": 300,
-        "w": 130,
-        "h": 200
-      },
-      "label": "На площадь",
-      "open_map": true
-    },
-    {
-      "area": {
-        "x": 20,
-        "y": 620,
-        "w": 260,
-        "h": 80
-      },
-      "open_map": true,
-      "label": "🗺 Карта долины"
-    }
-  ]
+   ]
+  }
+ ],
+ "navigation": [
+  {
+   "area": {
+    "x": 555,
+    "y": 300,
+    "w": 130,
+    "h": 200
+   },
+   "label": "На площадь",
+   "open_map": true
+  },
+  {
+   "area": {
+    "x": 20,
+    "y": 620,
+    "w": 260,
+    "h": 80
+   },
+   "open_map": true,
+   "label": "🗺 Карта долины"
+  }
+ ]
 }
