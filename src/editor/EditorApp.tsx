@@ -8,6 +8,7 @@ import { QuestEditor, newQuest } from './QuestEditor'
 import { InkEditor } from './MonacoEditors'
 import { EntityEditor } from './EntityEditor'
 import { DialogueBuilder, hasDlgDoc, dialogueTitle } from './DialogueBuilder'
+import { inkToDlgDoc } from './inkImport'
 import { generateInk, newDlgDoc } from './dialogueDoc'
 import { CampaignEditor } from './CampaignEditor'
 import { CombatRulesEditor } from './CombatRulesEditor'
@@ -833,6 +834,27 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                   <Ico n="info" />  Этот диалог написан вручную на языке Ink, поэтому открыт как код.
                   Новые диалоги (кнопка «+ создать») открываются в визуальном конструкторе —
                   без кода: узлы, реплики и ответы собираются формами.
+                  <button
+                    className="btn btn-small"
+                    style={{ marginLeft: 8 }}
+                    onClick={async () => {
+                      const ink = store.textFiles.get(sel) ?? ''
+                      const { doc, warnings } = inkToDlgDoc(ink)
+                      if (warnings.length) {
+                        const ok = await askConfirm(
+                          `Конвертер разобрал диалог, но ${warnings.length} строк требуют проверки вручную:\n\n${warnings.slice(0, 8).map((w) => `• ${w}`).join('\n')}${warnings.length > 8 ? `\n… и ещё ${warnings.length - 8}` : ''}\n\nОткрыть в конструкторе? (при сохранении ink-файл пересоберётся из модели)`,
+                          'Открыть в конструкторе',
+                        )
+                        if (!ok) return
+                      }
+                      const dlgPath = sel.replace(/\.ink$/, '.dlg.json')
+                      store.jsonFiles.set(dlgPath, doc)
+                      store.touch(dlgPath)
+                      force((n) => n + 1)
+                    }}
+                  >
+                    <Ico n="message" /> Открыть в конструкторе
+                  </button>
                 </div>
                 <InkEditor key={sel} store={store} path={sel} />
               </>

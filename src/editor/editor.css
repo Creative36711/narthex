@@ -58,6 +58,15 @@
    Хром «ателье» неизменен; меняется только светлый «бумажный» холст.
    Дефолт — Бумага (класс ed-theme-paper). */
 
+/* Универсальные карточки игры (.panel, тёмные по умолчанию из общего
+   стиля) в редакторе подчиняются выбранному полотну — иначе на «Бумаге»
+   подписи внутри карточек не читаются (тёмный текст на тёмной карточке). */
+.editor-root .panel {
+  background: var(--ed-paper-card);
+  border-color: var(--ed-paper-line);
+  color: var(--ed-paper-text);
+}
+
 /* Тёмная: холодный графит, в тон хрому */
 .editor-root.ed-theme-dark {
   --ed-paper: #171a20;
@@ -70,6 +79,21 @@
   --ed-paper-faint: #6f7889;
   --ed-paper-input: #12151b;
   --ed-canvas-glow: rgba(130, 155, 210, 0.07);
+}
+
+/* Плейтест: игровые экраны живут внутри playtest-shell — редакторские
+   поля (.fld) там не должны быть «бумажными», иначе на тёмной теме игры
+   появляются белые textarea/поля (создание героя, панель отладки). */
+.playtest-shell {
+  --ed-paper: #171a20;
+  --ed-paper-2: #1d2129;
+  --ed-paper-card: #1f242d;
+  --ed-paper-line: #333b49;
+  --ed-paper-line-strong: #4a5568;
+  --ed-paper-text: #e8ebf2;
+  --ed-paper-muted: #9aa3b5;
+  --ed-paper-faint: #6f7889;
+  --ed-paper-input: #12151b;
 }
 
 /* Графит: тёплый уголь, спокойнее для долгих сессий */
@@ -1190,11 +1214,11 @@
 /* z выше боевого оверлея (60): кнопка «Отладка» доступна и во время боя */
 /* баннер закреплён в правом НИЖНЕМ углу: все заголовки и крестики закрытия оверлеев
    (карта, пауза, бой…) сидят сверху — сверху баннер им мешал (баг playtest №4) */
-.playtest-banner { position: fixed; z-index: 130; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--ed-line-strong); border-radius: 8px; background: var(--ed-bg-2); box-shadow: 0 3px 14px rgba(0, 0, 0, 0.5); font-size: 12px; }
+.playtest-banner { position: relative; order: -1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--ed-line-strong); background: var(--ed-bg-2); font-size: 12px; }
 .playtest-banner b { color: var(--ed-select-bright); letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
 /* z выше боевого оверлея (60): отладка доступна и во время боя. Панель теперь слева
    и от верхней кромки (баннер уехал вниз — место под него сверху больше не нужно) */
-.pt-debug-panel { position: fixed; z-index: 120; left: 10px; right: auto; top: 10px; bottom: 10px; width: min(390px, calc(100vw - 20px)); overflow: auto; padding: 10px; border: 1px solid var(--ed-line-strong); border-radius: 10px; background: var(--ed-bg-2); color: var(--ed-text); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); font-family: 'Segoe UI', system-ui, sans-serif; }
+.pt-debug-panel { position: fixed; z-index: 40; left: 10px; right: auto; top: 10px; bottom: 10px; width: min(390px, calc(100vw - 20px)); overflow: auto; padding: 10px; border: 1px solid var(--ed-line-strong); border-radius: 10px; background: var(--ed-bg-2); color: var(--ed-text); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); font-family: 'Segoe UI', system-ui, sans-serif; }
 .pt-debug-panel > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .pt-debug-feedback { position: sticky; top: -10px; z-index: 8; flex: 1 1 100%; margin: 0 -10px 7px; padding: 8px 10px; border-bottom: 1px solid var(--ed-accent); background: var(--ed-bg-3); color: var(--ed-accent-bright); font-size: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); }
 .pt-debug-section { border-top: 1px solid var(--ed-line); padding: 7px 0; }
@@ -1225,7 +1249,7 @@
 .pt-debug-codex-list { flex: 1 1 100%; display: flex; flex-direction: column; align-items: stretch !important; gap: 5px !important; width: 100%; max-height: 230px; overflow-y: auto; padding: 3px 5px 3px 0 !important; }
 .pt-debug-codex-list button { flex: 0 0 auto; width: 100%; text-align: left; background: none; border: 1px solid transparent; color: var(--ed-text); border-radius: 5px; padding: 4px 6px; font: inherit; font-size: 13px; }
 .pt-debug-codex-list button:hover { border-color: var(--ed-select); color: var(--ed-select-bright); }
-@media (max-width: 700px) { .playtest-banner { left: 8px; right: 8px; justify-content: center; } .playtest-banner b { display: none; } .pt-debug-panel { left: 8px; width: min(390px, calc(100vw - 16px)); } }
+@media (max-width: 700px) { .playtest-banner { justify-content: center; flex-wrap: wrap; } .playtest-banner b { display: none; } .pt-debug-panel { left: 8px; width: min(390px, calc(100vw - 16px)); } }
 .editor-help-button { margin-left: 8px; width: 24px; height: 24px; padding: 0; border: 1px solid var(--ed-line-strong); border-radius: 50%; background: transparent; color: var(--ed-accent-bright); font-weight: 700; cursor: var(--cur-pointer); }
 .editor-help-button:hover { border-color: var(--ed-select); color: var(--ed-select-bright); }
 /* книга мастера: тёмный хром + бумажное содержание */

@@ -55,7 +55,7 @@ export function CombatScreen({ engine }: Props) {
   const previousHp = useRef<Map<string, number> | null>(null)
   const [recentDamage, setRecentDamage] = useState<Set<string>>(() => new Set())
   const [damagePopups, setDamagePopups] = useState<Array<{ id: string; target: string; amount: number }>>([])
-  const [rollFeedback, setRollFeedback] = useState<{ text: string; actor: string } | null>(null)
+  const [rollFeedback, setRollFeedback] = useState<{ text: string; actor: string; id: string; at: number } | null>(null)
   const latestCombatLog = combat.log.at(-1) ?? ''
   const hpStamp = combat.combatants.map((c) => `${c.id}:${c.hp}`).join('|')
 
@@ -80,13 +80,17 @@ export function CombatScreen({ engine }: Props) {
     return () => window.clearTimeout(timer)
   }, [hpStamp, combat])
 
+  // бейдж броска гасится по абсолютному времени (а не по таймеру-на-рендер):
+  // при частых notify (режим отладки/ускорение хода ИИ) прежняя версия
+  // переустанавливала таймер и «зависала» на экране
   useEffect(() => {
     const match = latestCombatLog.match(/^(.+?): атака .*d100=(\d+)/)
     if (!match) return
     const actor = combat.combatants.find((c) => c.label === match[1])
     if (!actor) return
-    setRollFeedback({ actor: actor.id, text: `d100 · ${match[2]}` })
-    const timer = window.setTimeout(() => setRollFeedback(null), 600)
+    const id = `${combat.log.length}`
+    setRollFeedback((cur) => (cur?.id === id ? cur : { id, actor: actor.id, text: `d100 · ${match[2]}`, at: performance.now() }))
+    const timer = window.setTimeout(() => setRollFeedback((cur) => (cur && cur.id === id ? null : cur)), 750)
     return () => window.clearTimeout(timer)
   }, [latestCombatLog, combat])
 
@@ -280,7 +284,7 @@ export function CombatScreen({ engine }: Props) {
               )
             })}
 
-            {rollFeedback && <div className="combat-roll-feedback" aria-live="polite">{rollFeedback.text}</div>}
+            {rollFeedback && performance.now() - rollFeedback.at < 700 && <div className="combat-roll-feedback" aria-live="polite">{rollFeedback.text}</div>}
             {damagePopups.map((popup) => {
               const target = combat.combatants.find((c) => c.id === popup.target)
               if (!target) return null

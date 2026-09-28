@@ -11,7 +11,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "tauri": "tauri",
-    "smoke:currency": "tsx scripts/currency-smoke.mts"
+    "smoke:currency": "tsx scripts/currency-smoke.mts",
+    "smoke:ink-import": "tsx scripts/ink-import-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

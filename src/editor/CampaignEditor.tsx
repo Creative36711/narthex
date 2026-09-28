@@ -2927,7 +2927,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               onChange={(npc) => setG({ ...g, npc: npc.length ? npc : undefined })}
               makeNew={(existing) => ({ id: makeId('gennpc', 'генератор лиц', existing.map((x) => x.id)), label: 'Новый генератор лиц', lists: {}, name: [] })}
               store={store}
-              fields={<span>Складывание имени: подряд идут части — либо выбор из вашего списка, либо фиксированный текст. Поля — пары «что заполнить → из какого списка брать» (например description, disposition_label, stats.STR, skills.stealth).</span>}
+              fields={<span>Складывание имени: подряд идут части — либо выбор из вашего списка, либо фиксированный текст. Поля — пары «что заполнить → из какого списка брать» (например: description — описание, disposition_label — метка расположения, stats.STR, skills.stealth).</span>}
               renderBody={(gen, update, _store) => (
                 <>
                   <GenListsEditor lists={gen.lists} onChange={(lists) => update({ ...gen, lists })} />
@@ -2952,7 +2952,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                   <span className="fld-label" style={{ marginTop: 8 }}>Прочие поля персонажа</span>
                   {Object.entries(gen.fields ?? {}).map(([fld, key]) => (
                     <div key={fld} className="fld-row" style={{ alignItems: 'center' }}>
-                      <input value={fld} disabled style={{ width: 170 }} data-tip="Поле сущности: description, disposition_label, stats.STR, skills.stealth и т.п." />
+                      <input value={genFieldLabel(fld)} disabled style={{ width: 230 }} data-tip={"Техническое имя поля: " + fld} />
                       <select value={key} onChange={(e) => update({ ...gen, fields: { ...(gen.fields ?? {}), [fld]: e.target.value } })}>
                         {Object.keys(gen.lists).map((k) => <option key={k} value={k}>{k}</option>)}
                       </select>
@@ -3675,14 +3675,29 @@ function GenListsEditor({
   )
 }
 
+/** Русские подписи технических полей лица (имена в данных не переименовываем) */
+const GEN_FIELD_LABELS: Record<string, string> = {
+  description: 'описание',
+  disposition_label: 'метка расположения',
+}
+/** «описание (description)» — по-русски, с техническим именем рядом */
+export function genFieldLabel(field: string): string {
+  return GEN_FIELD_LABELS[field] ? `${GEN_FIELD_LABELS[field]} (${field})` : field
+}
+
 /** Добавление пары «поле → список» для лиц. */
 function GenFieldAdder({ existing, onAdd }: { existing: Record<string, GenWeightedItem[]>; onAdd: (field: string, key: string) => void }) {
-  const [field, setField] = useState('description')
+  const [field, setField] = useState('')
   const keys = Object.keys(existing)
   const [key, setKey] = useState(keys[0] ?? '')
   return (
     <>
-      <input value={field} data-tip="Поле: description, disposition_label, stats.STR, skills.stealth, item.weapon…" onChange={(e) => setField(e.target.value)} />
+      <input
+        value={field}
+        placeholder="имя поля"
+        data-tip="Техническое имя поля лица: description (описание), disposition_label (метка расположения), stats.STR, skills.stealth, item.weapon…"
+        onChange={(e) => setField(e.target.value)}
+      />
       <select value={keys.includes(key) ? key : keys[0] ?? ''} onChange={(e) => setKey(e.target.value)}>
         {keys.map((k) => <option key={k} value={k}>{k}</option>)}
       </select>

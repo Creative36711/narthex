@@ -801,6 +801,7 @@ export class GameEngine {
     if (!slot) return
     this.state.player.equipment[slot] = id
     this.pushLog(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`)
+    this.pushToast(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`, 'info')
     this.autosave()
     this.notify()
   }
@@ -813,6 +814,7 @@ export class GameEngine {
     const def = this.campaign.entities[id] as ItemDef | undefined
     delete eq[slot]
     this.pushLog(`Снято: ${def?.label ?? id}.`)
+    this.pushToast(`Снято: ${def?.label ?? id}.`, 'info')
     this.autosave()
     this.notify()
   }
