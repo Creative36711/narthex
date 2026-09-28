@@ -5,6 +5,7 @@ import type { EditorStore } from './store'
 import { AssetUpload, AudioUpload, ImageUpload, JsonField } from './Fields'
 import { MusicTrackSelect } from './AudioSection'
 import { ArtView } from '../shared/ArtView'
+import { CameraEditor } from './AtmosEditors'
 import { CutscenePlayer, autoDurationMs, youtubeId } from '../shared/CutscenePlayer'
 import { askConfirm } from './prompt'
 
@@ -286,6 +287,10 @@ function SlideCard({
               />
             </label>
           </div>
+
+          {(kind === 'art' || kind === 'image') && (
+            <CameraEditor value={sl.camera} onChange={(v) => ((sl.camera = v), commit())} />
+          )}
 
           {kind === 'art' && (
             <div className="art-preview-tools">

@@ -4,6 +4,7 @@ import { assetUrl } from '../core/loader'
 import { timeOfDay } from '../core/time'
 import { ArtView } from '../shared/ArtView'
 import { firstFrame, LiveImg } from './frames'
+import { AtmosphereLayer, useCameraStyle } from './Atmosphere'
 import type { ItemDef, SceneStateDef, SlotDef, SlotUseWith } from '../shared/types'
 
 interface Props {
@@ -26,6 +27,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const scene = engine.currentScene()
   const sceneId = scene?.id
   const state = scene ? engine.activeSceneState(scene) : null
+  const camStyle = useCameraStyle(state?.camera ?? null)
   const stateKey = scene && state ? `${scene.id}:${state.id}` : ''
   const background: SceneBackground = state?.art
     ? { kind: 'art', art: state.art }
@@ -63,27 +65,28 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
       {/* сцена занимает всё оставшееся место без прокрутки: ширина и высота —
           от контейнера, картинка растягивается (object-fit: fill) */}
       <div className={`scene-stage tod-tint-${tod}`}>
-        {state.art ? (
-          <ArtView key={stateKey} className="scene-bg scene-bg-enter" art={state.art} />
-        ) : state.image && !bgError ? (
-          <LiveImg
-            key={stateKey}
-            className="scene-bg scene-bg-enter"
-            value={state.image}
-            tickKey={stateKey}
-            urlOf={(f) => assetUrl(engine.campaign, f)}
-            alt={state.label}
-            draggable={false}
-            onError={(src) => {
-              // диагностика «чёрной сцены»: причина видна сразу, а не в глубине DevTools
-              console.error(`[сцена] фон не загрузился: ${src}`)
-              setBgError(src)
-            }}
-          />
-        ) : (
-          /* сцена без арта (или арт не загрузился) — не «чёрный экран» */
-          <div key={stateKey} className="scene-bg scene-bg-fallback scene-bg-enter" aria-hidden />
-        )}
+        <div key={stateKey} className="scene-bg-camera" style={camStyle}>
+          {state.art ? (
+            <ArtView className="scene-bg scene-bg-enter" art={state.art} />
+          ) : state.image && !bgError ? (
+            <LiveImg
+              className="scene-bg scene-bg-enter"
+              value={state.image}
+              tickKey={stateKey}
+              urlOf={(f) => assetUrl(engine.campaign, f)}
+              alt={state.label}
+              draggable={false}
+              onError={(src) => {
+                // диагностика «чёрной сцены»: причина видна сразу, а не в глубине DevTools
+                console.error(`[сцена] фон не загрузился: ${src}`)
+                setBgError(src)
+              }}
+            />
+          ) : (
+            /* сцена без арта (или арт не загрузился) — не «чёрный экран» */
+            <div className="scene-bg scene-bg-fallback scene-bg-enter" aria-hidden />
+          )}
+        </div>
         {outgoingBg?.kind === 'image' && <img className="scene-bg scene-bg-transition-out" src={outgoingBg.src} alt="" draggable={false} />}
         {outgoingBg?.kind === 'art' && <ArtView className="scene-bg scene-bg-transition-out" art={outgoingBg.art} />}
         {outgoingBg?.kind === 'fallback' && <div className="scene-bg scene-bg-fallback scene-bg-transition-out" aria-hidden />}
@@ -215,7 +218,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
 
         {/* слой погоды (блок 9 ТЗ): чистый CSS, полупрозрачный, не ловит клики */}
         {weather?.overlay && weather.overlay !== 'none' && (
-          <div className={`weather-overlay weather-${weather.overlay}`} aria-hidden="true" />
+          <AtmosphereLayer
+            overlay={weather.overlay}
+            atmospherics={engine.campaign.meta.atmospherics}
+            srcOf={(path) => assetUrl(engine.campaign, path)}
+          />
         )}
       </div>
 

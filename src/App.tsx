@@ -12,7 +12,7 @@ import { CharacterCreation } from './player/CharacterCreation'
 import { fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
 import { setAudioCampaign, playUi, unlockAudio } from './shared/audio'
 import { setMusicCampaign, refreshMusic } from './shared/music'
-import { injectCampaignFonts, themeHasFrame, themeVars } from './shared/theme'
+import { injectCampaignCustomCss, injectCampaignFonts, themeHasFrame, themeVars } from './shared/theme'
 import { profileClass, atmosphereOn } from './shared/profiles'
 import { useSettings } from './shared/settings'
 
@@ -79,6 +79,7 @@ export default function App() {
         setAudioCampaign(c)
         setMusicCampaign(c) // фоновая музыка меню звучит ещё до старта забега
         injectCampaignFonts(c) // тема кампании: свои шрифты (блок 2 ТЗ)
+        injectCampaignCustomCss(c) // продвинутое оформление мастера (полный CSS)
       })
       .catch((e) => {
         // выбранная кампания могла исчезнуть — откат на встроенную

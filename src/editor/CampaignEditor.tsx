@@ -7,6 +7,7 @@ import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, Im
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
+import { ParticleListEditor } from './AtmosEditors'
 import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, GenWeightedItem, ImageValue, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { brightenHex } from '../shared/theme'
@@ -592,6 +593,33 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
             </label>
           </div>
         )}
+      </div>
+
+      <div className="props-group">
+        <h4>Полный CSS мастера (продвинутое оформление)</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Свой CSS применяется <b>только к игре</b> (редактор остаётся в фирменном стиле).
+          Пишите правила для селекторов внутри контейнера игры, например{' '}
+          <code>.cf-themed .btn {'{ … }'}</code>. Движок не гарантирует стабильность классов между
+          версиями — слой на совести мастера; сначала попробуйте токены и рамки выше,
+          они почти всегда закрывают нужный наряд. Эта возможность готовится как отдельная опция —
+          в будущем может стать платной «премиум-темой».
+        </div>
+        <label className="fld">
+          <span>Свои CSS-правила</span>
+          <textarea
+            rows={10}
+            style={{ fontFamily: 'monospace' }}
+            placeholder={'.cf-themed .panel { box-shadow: 0 0 24px rgba(0,0,0,.5); }'}
+            value={theme.custom_css ?? ''}
+            onChange={(e) => {
+              if (e.target.value.trim()) theme.custom_css = e.target.value
+              else delete theme.custom_css
+              commit()
+            }}
+          />
+        </label>
+        <div className="muted small">Проверить результат сразу можно через кнопку «Плейтест» — CSS подхватывается без перезапуска.</div>
       </div>
 
       <div className="props-group">
@@ -2360,6 +2388,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         {(m.overlay_layers ?? []).length === 0 && (
           <div className="muted small" style={{ marginTop: 4 }}>Без реестра селект «Слой» у погоды будет пустым.</div>
         )}
+        <h4 style={{ marginTop: 10 }}>Мастерская спецэффектов (слои из файлов)</h4>
+        <div className="muted small" style={{ marginBottom: 6 }}>
+          Атмосферные слои из картинки-«частицы»: дождь из собственного файла, листопад,
+          пыль, искры, мухи, туманная взвесь. Ключ слоя вписывается в поле «Слой» у погоды
+          ниже — движок сам его отрисует поверх сцены. Встроенные слои rain/snow/fog/ash работают без реестра.
+        </div>
+        <ParticleListEditor list={m.atmospherics ?? (m.atmospherics = [])} store={store} commit={commit} />
+
         {(m.weathers ?? []).map((w, i) => (
           <div key={i} className="props-group" style={{ border: '1px solid var(--border)', padding: 10, borderRadius: 8, marginBottom: 8 }}>
             <div className="fld-row" style={{ flexWrap: 'wrap' }}>
@@ -2383,9 +2419,24 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                     <option value={w.overlay}>{w.overlay} (вне реестра)</option>
                   )}
                   <option value="none">Без слоя</option>
-                  {(m.overlay_layers ?? []).map((l) => (
-                    <option key={l.id} value={l.id}>{l.label}</option>
-                  ))}
+                  <optgroup label="Встроенные движком">
+                    <option value="rain">Дождь (встроенный)</option>
+                    <option value="snow">Снег (встроенный)</option>
+                    <option value="fog">Туман (встроенный)</option>
+                    <option value="ash">Пепел (встроенный)</option>
+                  </optgroup>
+                  <optgroup label="Слои кампании (реестр выше)">
+                    {(m.overlay_layers ?? []).map((l) => (
+                      <option key={l.id} value={l.id}>{l.label}</option>
+                    ))}
+                  </optgroup>
+                  {(m.atmospherics?.length ?? 0) > 0 && (
+                    <optgroup label="Мастерская спецэффектов (из файлов)">
+                      {m.atmospherics!.map((a) => (
+                        <option key={a.id} value={a.id}>{a.label || a.id}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </label>
               <button className="btn btn-small ce-del" data-tip="Удалить погоду" onClick={() => (m.weathers!.splice(i, 1), commit())}><Ico n="close" /> </button>

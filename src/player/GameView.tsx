@@ -14,6 +14,7 @@ import { HelpPanel } from './HelpPanel'
 import { CombatScreen } from './CombatScreen'
 import { assetUrl } from '../core/loader'
 import { CutscenePlayer } from '../shared/CutscenePlayer'
+import { BannerLayer, PostcardLayer } from './Atmosphere'
 import { setAudioCampaign, playUi, refreshAmbient, stopAllLoops } from '../shared/audio'
 import { refreshMusic, setMenuMode, stopMusic, applyMusicVolume } from '../shared/music'
 import { featureOn, type MusicTrackDef } from '../shared/types'
@@ -200,6 +201,16 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
           resolve={resolveAsset}
           onEnd={endCutscene}
           resolveTrack={resolveTrack}
+        />
+      )}
+
+      {/* мастерские надписи и «открытка» (эффекты правил) — поверх всего */}
+      <BannerLayer banners={engine.banners} />
+      {engine.postcard && (
+        <PostcardLayer
+          postcard={engine.postcard}
+          srcOf={resolveAsset}
+          onTap={() => engine.hidePostcard()}
         />
       )}
     </div>

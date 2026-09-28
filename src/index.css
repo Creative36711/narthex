@@ -2801,3 +2801,54 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
 .cf-themed.cf-has-frame .side-panel { border-radius: 0; }
 /* фон журнала из токенов оформления (theme.tokens.log) */
 .cf-themed .log-list { background: var(--log-bg, transparent); border-radius: var(--radius); padding: 8px; }
+
+/* ───────── кинематографическая камера фона и мастерская атмосфера ───────── */
+.scene-bg-camera { position: absolute; inset: 0; overflow: hidden; will-change: transform; }
+.scene-bg-camera .scene-bg { position: absolute; inset: -6%; width: 112%; height: 112%; }
+.scene-bg-camera .scene-bg img,
+img.scene-bg { object-fit: fill; }
+.atmosphere-particles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+
+/* ───────── баннеры поверх мира (эффект «banner» правил/диалогов) ───────── */
+.cf-banner {
+  position: absolute; left: 0; right: 0; z-index: 60; pointer-events: none;
+  display: flex; justify-content: center;
+  --banner-accent: var(--gold);
+  text-align: center;
+}
+.cf-banner-центр { top: 40%; }
+.cf-banner-верх { top: 9%; }
+.cf-banner-text {
+  display: inline-block; max-width: min(86%, 900px); padding: 0.35em 0.9em;
+  font-size: clamp(22px, 3.4vw + 10px, 44px); line-height: 1.22;
+  color: var(--banner-accent);
+  text-shadow: 0 2px 14px rgba(0,0,0,0.65), 0 0 46px rgba(0,0,0,0.35);
+}
+/* пресеты наряда */
+.cf-banner-p-глава .cf-banner-text { font-family: var(--cf-font-display, inherit); letter-spacing: 0.02em; border-top: 1px solid color-mix(in srgb, var(--banner-accent) 55%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--banner-accent) 55%, transparent); }
+.cf-banner-p-шёпот .cf-banner-text { font-family: var(--cf-font-hand, inherit); font-style: italic; opacity: 0.82; font-size: clamp(18px, 2.4vw + 8px, 34px); }
+.cf-banner-p-заголовок .cf-banner-text { font-weight: 700; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--banner-accent) 22%, transparent), transparent); }
+.cf-banner-p-проклятье .cf-banner-text { --banner-accent: #e0493e; color: var(--banner-accent); filter: drop-shadow(0 0 12px rgba(160,0,0,0.55)); font-family: var(--cf-font-display, inherit); }
+.cf-banner-p-записочный .cf-banner-text { font-family: var(--cf-font-hand, inherit); transform: rotate(-2.2deg); background: color-mix(in srgb, var(--panel) 88%, transparent); color: var(--ink, var(--banner-accent)); border: 1px solid var(--gold-dim, var(--banner-accent)); border-radius: 6px; padding: 0.5em 1em; }
+/* появления */
+@keyframes cf-banner-всплеск { from { opacity: 0; transform: scale(1.22); } 60% { opacity: 1; } to { opacity: 1; transform: scale(1); } }
+@keyframes cf-banner-тянуть { from { opacity: 0; letter-spacing: 0.35em; filter: blur(3px); } to { opacity: 1; letter-spacing: 0.02em; filter: none; } }
+@keyframes cf-banner-сбоку { from { opacity: 0; transform: translateX(-46vw); } to { opacity: 1; transform: none; } }
+@keyframes cf-banner-молниеносно { from { opacity: 0; } to { opacity: 1; } }
+.cf-banner-e-всплеск .cf-banner-text { animation: cf-banner-всплеск 0.7s cubic-bezier(.2,.8,.25,1) both; }
+.cf-banner-e-тянуть .cf-banner-text { animation: cf-banner-тянуть 1.1s ease-out both; }
+.cf-banner-e-сбоку .cf-banner-text { animation: cf-banner-сбоку 0.65s cubic-bezier(.2,.9,.25,1) both; }
+.cf-banner-e-молниеносно .cf-banner-text { animation: cf-banner-молниеносно 0.12s steps(1) both; }
+
+/* ───────── «открытка» поверх мира (эффект «postcard») ───────── */
+.cf-postcard { position: absolute; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; background: rgba(6, 8, 12, 0.86); backdrop-filter: blur(3px); cursor: pointer; }
+.cf-postcard-frame { position: relative; width: min(88vw, 1050px); max-height: 86vh; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.cf-postcard-zoom { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.cf-postcard-img { width: 100%; max-width: min(88vw, 1050px); max-height: 68vh; object-fit: contain; border: 10px solid var(--panel); border-radius: 4px; box-shadow: 0 18px 60px rgba(0,0,0,0.6); background: var(--inset); }
+.cf-postcard-img.cf-postcard-fallback { min-height: 40vh; }
+.cf-postcard-text { font-size: clamp(18px, 2.2vw + 8px, 30px); }
+
+/* окно кинематографической камеры в катсценах (SlideDoc.camera) */
+.cs-cam-window { position: absolute; inset: 0; overflow: hidden; }
+.cs-cam-strip { position: absolute; inset: -6%; width: 112%; height: 112%; will-change: transform; }
+.cs-cam-strip .cs-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }

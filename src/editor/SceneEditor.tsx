@@ -10,6 +10,7 @@ import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
 import { firstFrame } from '../player/frames'
+import { CameraEditor } from './AtmosEditors'
 
 /**
  * Визуальный редактор сцены (ТЗ 5.2.2) на Konva:
@@ -441,6 +442,7 @@ function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorS
         <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
       </label>
       <StateBackground state={s} store={store} commit={commit} />
+      <CameraEditor value={s.camera} onChange={(v) => ((s.camera = v), commit())} />
       <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
       {scene.states.length > 1 && (
         <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>

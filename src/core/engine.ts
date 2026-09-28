@@ -1,5 +1,7 @@
 import type {
   DifficultyPreset,
+  ArtDoc,
+  CameraDoc,
   CampaignData,
   SaveEnvelope,
   CodexEntryDef,
@@ -288,6 +290,51 @@ export class GameEngine {
   /** уникальный номер показа текущей катсцены (ключ для UI) */
   get cutsceneKey(): number {
     return this.cutsceneQueue[0]?.serial ?? 0
+  }
+
+  // ─────────────── баннеры и «открытки» (кинематографические эффекты правил) ───────────────
+
+  /** активные баннеры этого забега (визуальный слой, в сохранения не входит) */
+  banners: Array<{
+    /** serial для ключей React */
+    serial: number
+    text: string
+    preset?: string
+    enter?: string
+    seconds?: number
+    position?: string
+    accent?: string
+  }> = []
+  /** активная «открытка» (одна за раз, новая вытесняет) */
+  postcard: {
+    image?: string
+    art?: ArtDoc
+    text?: string
+    preset?: string
+    seconds?: number
+    camera?: CameraDoc
+  } | null = null
+  private bannerSerial = 1
+
+  private showBanner(e: { text: string; preset?: string; enter?: string; seconds?: number; position?: string; accent?: string }): void {
+    const serial = this.bannerSerial++
+    this.banners = [...this.banners, { serial, ...e }]
+    const seconds = e.seconds ?? Math.min(8, Math.max(3, e.text.length * 0.06))
+    // таймер через globalThis: в node-смоуке engine тоже живёт
+    globalThis.setTimeout(() => {
+      if (this.banners.some((b) => b.serial === serial)) {
+        this.banners = this.banners.filter((b) => b.serial !== serial)
+        this.notify()
+      }
+    }, seconds * 1000)
+    this.notify()
+  }
+
+  /** закрыть «открытку» (тап или таймер) */
+  hidePostcard(): void {
+    if (!this.postcard) return
+    this.postcard = null
+    this.notify()
   }
 
   playCutscene(id: string): void {
@@ -2464,6 +2511,15 @@ export class GameEngine {
       case 'commit_crime': this.commitCrime(e.id, e.bounty); break
       case 'set_price_event': this.setPriceEvent(e.id, true); break
       case 'clear_price_event': this.setPriceEvent(e.id ?? '', false); break
+      case 'banner': this.showBanner(e); break
+      case 'postcard':
+        this.postcard = { image: e.image, art: e.art, text: e.text, preset: e.preset, seconds: e.seconds, camera: e.camera }
+        if ((e.seconds ?? 6) > 0) {
+          const at = Math.max(1, e.seconds ?? 6)
+          globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
+        }
+        this.notify()
+        break
       case 'grant_xp': this.grantXp(e.points); break
       case 'grant_feat': this.grantFeat(e.id); break
       case 'meta_currency': this.grantMetaCurrency(e.id, e.amount); break

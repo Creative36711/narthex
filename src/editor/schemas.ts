@@ -311,6 +311,28 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
 // ─────────────── эффекты ───────────────
 
 export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
+  banner: {
+    label: 'Большая надпись на экране (баннер)',
+    fields: [
+      { key: 'text', label: 'Текст надписи', kind: 'string' },
+      { key: 'preset', label: 'Наряд: глава | шёпот | заголовок | проклятье | записочный', kind: 'string', optional: true },
+      { key: 'enter', label: 'Появление: всплеск | тянуть | сбоку | молниеносно', kind: 'string', optional: true },
+      { key: 'seconds', label: 'Секунд на экране (пусто — по длине текста)', kind: 'number', optional: true },
+      { key: 'position', label: 'Положение: верх | центр', kind: 'string', optional: true },
+      { key: 'accent', label: 'Цвет (HEX, пусто — цвет пресета)', kind: 'string', optional: true },
+    ],
+    blank: { text: '', preset: 'глава' },
+  },
+  postcard: {
+    label: '«Открытка»: иллюстрация на весь экран с подписью',
+    fields: [
+      { key: 'image', label: 'Картинка (файл пакета или ссылка; пусто — art-рисунок)', kind: 'string', optional: true },
+      { key: 'text', label: 'Подпись', kind: 'string', optional: true },
+      { key: 'preset', label: 'Наряд подписи: глава | шёпот | заголовок | проклятье | записочный', kind: 'string', optional: true },
+      { key: 'seconds', label: 'Секунд показа (0 — только по тапу)', kind: 'number', optional: true },
+    ],
+    blank: { seconds: 6 },
+  },
   set_flag: {
     label: 'Установить флаг',
     fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],

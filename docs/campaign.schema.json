@@ -225,6 +225,369 @@
       ],
       "description": "Сложность проверки навыка (аудит §5.6 п.7): число — старый порог\n(50 нейтрально, больше — труднее), строка — книжный уровень:\n'easy' ×2, 'normal' ×1, 'difficult' ½, 'impossible' ¼."
     },
+    "ArtFill": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "color": {
+              "type": "string"
+            },
+            "gradient": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "angle": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "description": "Заливка примитива: сплошной цвет или линейный градиент.\n`angle` — направление градиента в градусах (0 — слева направо)."
+    },
+    "ArtRect": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "rect"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number"
+        },
+        "h": {
+          "type": "number"
+        },
+        "fill": {
+          "$ref": "#/$defs/ArtFill"
+        },
+        "stroke": {
+          "type": "string"
+        },
+        "stroke_width": {
+          "type": "number"
+        },
+        "radius": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "additionalProperties": false
+    },
+    "ArtEllipse": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "ellipse"
+        },
+        "cx": {
+          "type": "number"
+        },
+        "cy": {
+          "type": "number"
+        },
+        "rx": {
+          "type": "number"
+        },
+        "ry": {
+          "type": "number"
+        },
+        "fill": {
+          "$ref": "#/$defs/ArtFill"
+        },
+        "stroke": {
+          "type": "string"
+        },
+        "stroke_width": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "cx",
+        "cy",
+        "rx",
+        "ry"
+      ],
+      "additionalProperties": false
+    },
+    "ArtPolygon": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "polygon"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "точки в виде [x1, y1, x2, y2, …] в координатах холста"
+        },
+        "fill": {
+          "$ref": "#/$defs/ArtFill"
+        },
+        "stroke": {
+          "type": "string"
+        },
+        "stroke_width": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "points"
+      ],
+      "additionalProperties": false
+    },
+    "ArtLine": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "line"
+        },
+        "x1": {
+          "type": "number"
+        },
+        "y1": {
+          "type": "number"
+        },
+        "x2": {
+          "type": "number"
+        },
+        "y2": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "x1",
+        "y1",
+        "x2",
+        "y2"
+      ],
+      "additionalProperties": false
+    },
+    "ArtText": {
+      "type": "object",
+      "properties": {
+        "opacity": {
+          "type": "number",
+          "description": "прозрачность 0…1"
+        },
+        "rotate": {
+          "type": "number",
+          "description": "поворот вокруг своего центра, градусы"
+        },
+        "type": {
+          "const": "text"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "text": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string"
+        },
+        "align": {
+          "type": "string",
+          "enum": [
+            "start",
+            "middle",
+            "end"
+          ],
+          "description": "'start' | 'middle' | 'end' — как в SVG"
+        },
+        "bold": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "font": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "x",
+        "y",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "ArtShape": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ArtRect"
+        },
+        {
+          "$ref": "#/$defs/ArtEllipse"
+        },
+        {
+          "$ref": "#/$defs/ArtPolygon"
+        },
+        {
+          "$ref": "#/$defs/ArtLine"
+        },
+        {
+          "$ref": "#/$defs/ArtText"
+        }
+      ]
+    },
+    "ArtLayer": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "подпись слоя для мастера («небо», «гора», «стена»)"
+        },
+        "shape": {
+          "$ref": "#/$defs/ArtShape"
+        },
+        "opacity": {
+          "type": "number"
+        },
+        "rotate": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "shape"
+      ],
+      "additionalProperties": false
+    },
+    "ArtDoc": {
+      "type": "object",
+      "properties": {
+        "canvas": {
+          "type": "object",
+          "properties": {
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "w",
+            "h"
+          ],
+          "additionalProperties": false
+        },
+        "background": {
+          "type": "string"
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArtLayer"
+          }
+        }
+      },
+      "required": [
+        "layers"
+      ],
+      "additionalProperties": false,
+      "description": "Векторная «картинка из JSON»: слои примитивов в координатах холста\n(по умолчанию 1280×720 — та же система, что у слотов сцены).\nФормат рассчитан на генерацию ИИ: нарисовав сцену примитивами, генератор\nсам знает координаты объектов и ставит слоты точно на них."
+    },
+    "CameraDoc": {
+      "type": "object",
+      "properties": {
+        "zoom": {
+          "type": "number",
+          "description": "целевой зум (умолчание 1)"
+        },
+        "pan_x": {
+          "type": "number",
+          "description": "горизонтальный сдвиг кадрирования, -50…50 % ширины (умолчание 0)"
+        },
+        "pan_y": {
+          "type": "number",
+          "description": "вертикальный сдвиг кадрирования, -50…50 % высоты (умолчание 0)"
+        },
+        "duration": {
+          "type": "number",
+          "description": "секунды перехода к позиции (умолчание 8; 0 — мгновенно)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Кинематографическая камера фона: медленный пан-зум состояния сцены или\nслайда катсцены («пролёт» по картине, приближение на лицо). Проценты — от\nобщей ширины/высоты изображения; зум >1 приближает, <1 отдаляет."
+    },
     "Effect": {
       "anyOf": [
         {
@@ -1213,6 +1576,99 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "banner"
+            },
+            "text": {
+              "type": "string",
+              "description": "текст надписи; понимает токены {var}/«скобки» стандартной раскладки"
+            },
+            "preset": {
+              "type": "string",
+              "enum": [
+                "глава",
+                "шёпот",
+                "заголовок",
+                "проклятье",
+                "записочный"
+              ]
+            },
+            "enter": {
+              "type": "string",
+              "enum": [
+                "всплеск",
+                "тянуть",
+                "сбоку",
+                "молниеносно"
+              ],
+              "description": "появление: всплеск | тянуть | сбоку | молниеносно"
+            },
+            "seconds": {
+              "type": "number",
+              "description": "секунды на экране (умолчание — от длины текста, минимум 3)"
+            },
+            "position": {
+              "type": "string",
+              "enum": [
+                "верх",
+                "центр"
+              ],
+              "description": "где: верх | центр (умолчание центр)"
+            },
+            "accent": {
+              "type": "string",
+              "description": "цветовое наполнение (HEX; умолчание — цвет пресета)"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "postcard"
+            },
+            "image": {
+              "type": "string"
+            },
+            "art": {
+              "$ref": "#/$defs/ArtDoc"
+            },
+            "text": {
+              "type": "string",
+              "description": "подпись под/поверх иллюстрации"
+            },
+            "preset": {
+              "type": "string",
+              "enum": [
+                "глава",
+                "шёпот",
+                "заголовок",
+                "проклятье",
+                "записочный"
+              ]
+            },
+            "seconds": {
+              "type": "number",
+              "description": "секунды показа (умолчание 6; 0 — только по тапу)"
+            },
+            "camera": {
+              "$ref": "#/$defs/CameraDoc",
+              "description": "кинематографический пан-зум фона (как у состояния сцены)"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "grant_xp"
             },
             "points": {
@@ -1950,8 +2406,74 @@
         "id",
         "label"
       ],
+      "additionalProperties": false
+    },
+    "ParticleEffectDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "sprite": {
+          "type": "string",
+          "description": "PNG/WEBP с альфой (частица любой формы); пусто — точка-градиент"
+        },
+        "count": {
+          "type": "number",
+          "description": "штук на экран (умолчание 60)"
+        },
+        "size_min": {
+          "type": "number"
+        },
+        "size_max": {
+          "type": "number"
+        },
+        "vy_min": {
+          "type": "number",
+          "description": "скорость по вертикали, px/с; положительная — вниз (умолчание 40…80)"
+        },
+        "vy_max": {
+          "type": "number"
+        },
+        "vx_min": {
+          "type": "number",
+          "description": "скорость по горизонтали, px/с (умолчание -5…5)"
+        },
+        "vx_max": {
+          "type": "number"
+        },
+        "spin": {
+          "type": "number",
+          "description": "вращение, град/с (умолчание 0)"
+        },
+        "opacity": {
+          "type": "number",
+          "description": "непрозрачность 0..1 (умолчание 0.8)"
+        },
+        "blur": {
+          "type": "number",
+          "description": "размытие, px (умолчание 0; для тумана)"
+        },
+        "blend": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "screen"
+          ]
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
       "additionalProperties": false,
-      "description": "погода (блок 9 ТЗ): визуальный слой + звуковые слои"
+      "description": "декларативный слой атмосферы («мастерская спецэффектов»): летящие частицы из\nфайла-спрайта с поведением. WeatherDef.overlay = id эффекта (встроенные\nrain/snow/fog/ash продолжают работать)."
     },
     "Condition": {
       "anyOf": [
@@ -3297,6 +3819,9 @@
           },
           "additionalProperties": false,
           "description": "рамка-«кадр» вокруг панелей: изображение 9-срез (border-image)"
+        },
+        "custom_css": {
+          "type": "string"
         }
       },
       "additionalProperties": false,
@@ -3385,6 +3910,38 @@
       "additionalProperties": false,
       "description": "«Призвание» — второй шаблон создания персонажа (фидбек 19): если\nпроисхождение распределяет характеристики, то призвание — стартовые\nНАВЫКИ. Мастер обязан распределить весь бюджет skill_points (значения —\nабсолютные стартовые проценты, считая от нижнего порога), игрок после\nвыбора может убавлять/прибавлять в рамках бюджета."
     },
+    "SheetDoc": {
+      "type": "object",
+      "properties": {
+        "sheet": {
+          "type": "string",
+          "description": "файл пакета или ссылка (PNG/WEBP с раскладкой)"
+        },
+        "cols": {
+          "type": "number",
+          "description": "число колонок кадров"
+        },
+        "rows": {
+          "type": "number",
+          "description": "число строк кадров"
+        },
+        "fps": {
+          "type": "number",
+          "description": "кадров в секунду (умолчание 8)"
+        },
+        "loop": {
+          "type": "boolean",
+          "description": "повторять цикл (умолчание true)"
+        }
+      },
+      "required": [
+        "sheet",
+        "cols",
+        "rows"
+      ],
+      "additionalProperties": false,
+      "description": "Спрайт-лист: один файл-лист с кадрами раскладки N×M (мастерская анимация\nбез нарезки: «идёт дым», «горит окно», покачивание моря). Размер кадра\nвыводится из размеров файла / сетки."
+    },
     "ImageValue": {
       "anyOf": [
         {
@@ -3416,6 +3973,9 @@
             "frames"
           ],
           "additionalProperties": false
+        },
+        {
+          "$ref": "#/$defs/SheetDoc"
         }
       ],
       "description": "изображение пакета либо цикл кадров для «живых» сцен (frame-swap анимация):\nстрока — статично (все старые кампании); массив строк — кадры без настроек;\nобъект — кадры + темп (кадр/с, умолч. 2) + зацикленность (умолч. true)."
@@ -4520,6 +5080,13 @@
           },
           "description": "реестр погод (блок 9 ТЗ)"
         },
+        "atmospherics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ParticleEffectDef"
+          },
+          "description": "реестр атмосферных слоёв из файлов мастера (мастерская спецэффектов)"
+        },
         "camping": {
           "type": "object",
           "properties": {
@@ -5108,346 +5675,6 @@
       ],
       "additionalProperties": false
     },
-    "ArtFill": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "color": {
-              "type": "string"
-            },
-            "gradient": {
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "string"
-                },
-                "to": {
-                  "type": "string"
-                },
-                "angle": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "from",
-                "to"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        }
-      ],
-      "description": "Заливка примитива: сплошной цвет или линейный градиент.\n`angle` — направление градиента в градусах (0 — слева направо)."
-    },
-    "ArtRect": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "rect"
-        },
-        "x": {
-          "type": "number"
-        },
-        "y": {
-          "type": "number"
-        },
-        "w": {
-          "type": "number"
-        },
-        "h": {
-          "type": "number"
-        },
-        "fill": {
-          "$ref": "#/$defs/ArtFill"
-        },
-        "stroke": {
-          "type": "string"
-        },
-        "stroke_width": {
-          "type": "number"
-        },
-        "radius": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "type",
-        "x",
-        "y",
-        "w",
-        "h"
-      ],
-      "additionalProperties": false
-    },
-    "ArtEllipse": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "ellipse"
-        },
-        "cx": {
-          "type": "number"
-        },
-        "cy": {
-          "type": "number"
-        },
-        "rx": {
-          "type": "number"
-        },
-        "ry": {
-          "type": "number"
-        },
-        "fill": {
-          "$ref": "#/$defs/ArtFill"
-        },
-        "stroke": {
-          "type": "string"
-        },
-        "stroke_width": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "type",
-        "cx",
-        "cy",
-        "rx",
-        "ry"
-      ],
-      "additionalProperties": false
-    },
-    "ArtPolygon": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "polygon"
-        },
-        "points": {
-          "type": "array",
-          "items": {
-            "type": "number"
-          },
-          "description": "точки в виде [x1, y1, x2, y2, …] в координатах холста"
-        },
-        "fill": {
-          "$ref": "#/$defs/ArtFill"
-        },
-        "stroke": {
-          "type": "string"
-        },
-        "stroke_width": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "type",
-        "points"
-      ],
-      "additionalProperties": false
-    },
-    "ArtLine": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "line"
-        },
-        "x1": {
-          "type": "number"
-        },
-        "y1": {
-          "type": "number"
-        },
-        "x2": {
-          "type": "number"
-        },
-        "y2": {
-          "type": "number"
-        },
-        "color": {
-          "type": "string"
-        },
-        "width": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "type",
-        "x1",
-        "y1",
-        "x2",
-        "y2"
-      ],
-      "additionalProperties": false
-    },
-    "ArtText": {
-      "type": "object",
-      "properties": {
-        "opacity": {
-          "type": "number",
-          "description": "прозрачность 0…1"
-        },
-        "rotate": {
-          "type": "number",
-          "description": "поворот вокруг своего центра, градусы"
-        },
-        "type": {
-          "const": "text"
-        },
-        "x": {
-          "type": "number"
-        },
-        "y": {
-          "type": "number"
-        },
-        "text": {
-          "type": "string"
-        },
-        "size": {
-          "type": "number"
-        },
-        "color": {
-          "type": "string"
-        },
-        "align": {
-          "type": "string",
-          "enum": [
-            "start",
-            "middle",
-            "end"
-          ],
-          "description": "'start' | 'middle' | 'end' — как в SVG"
-        },
-        "bold": {
-          "type": "boolean"
-        },
-        "italic": {
-          "type": "boolean"
-        },
-        "font": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "type",
-        "x",
-        "y",
-        "text"
-      ],
-      "additionalProperties": false
-    },
-    "ArtShape": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/ArtRect"
-        },
-        {
-          "$ref": "#/$defs/ArtEllipse"
-        },
-        {
-          "$ref": "#/$defs/ArtPolygon"
-        },
-        {
-          "$ref": "#/$defs/ArtLine"
-        },
-        {
-          "$ref": "#/$defs/ArtText"
-        }
-      ]
-    },
-    "ArtLayer": {
-      "type": "object",
-      "properties": {
-        "label": {
-          "type": "string",
-          "description": "подпись слоя для мастера («небо», «гора», «стена»)"
-        },
-        "shape": {
-          "$ref": "#/$defs/ArtShape"
-        },
-        "opacity": {
-          "type": "number"
-        },
-        "rotate": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "shape"
-      ],
-      "additionalProperties": false
-    },
-    "ArtDoc": {
-      "type": "object",
-      "properties": {
-        "canvas": {
-          "type": "object",
-          "properties": {
-            "w": {
-              "type": "number"
-            },
-            "h": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "w",
-            "h"
-          ],
-          "additionalProperties": false
-        },
-        "background": {
-          "type": "string"
-        },
-        "layers": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ArtLayer"
-          }
-        }
-      },
-      "required": [
-        "layers"
-      ],
-      "additionalProperties": false,
-      "description": "Векторная «картинка из JSON»: слои примитивов в координатах холста\n(по умолчанию 1280×720 — та же система, что у слотов сцены).\nФормат рассчитан на генерацию ИИ: нарисовав сцену примитивами, генератор\nсам знает координаты объектов и ставит слоты точно на них."
-    },
     "TravelConnection": {
       "type": "object",
       "properties": {
@@ -5744,6 +5971,10 @@
         "art": {
           "$ref": "#/$defs/ArtDoc",
           "description": "фон, нарисованный примитивами (вместо image)"
+        },
+        "camera": {
+          "$ref": "#/$defs/CameraDoc",
+          "description": "кинематографическая камера фона состояния (пан-зум)"
         },
         "condition": {
           "anyOf": [
@@ -6935,6 +7166,10 @@
         "duration": {
           "type": "number",
           "description": "длительность в секундах; по умолчанию — по длине текста или озвучки"
+        },
+        "camera": {
+          "$ref": "#/$defs/CameraDoc",
+          "description": "кинематографическая камера фона слайда (пан-зум)"
         },
         "transition": {
           "$ref": "#/$defs/CutsceneTransition"

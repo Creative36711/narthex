@@ -53,6 +53,25 @@ export function injectCampaignFonts(campaign: CampaignData | null): void {
     .join('\n')
 }
 
+const CUSTOM_CSS_ID = 'cf-campaign-custom-css'
+
+/**
+ * Вставить (или заменить) полный CSS мастера (theme.custom_css).
+ * Зона видимости — только игра: селекторы автора работают внутри `.cf-themed`
+ * в браузере естественным образом; редактор не покрывается. Пустой — стиль
+ * удаляется.
+ */
+export function injectCampaignCustomCss(campaign: CampaignData | null): void {
+  if (typeof document === 'undefined') return
+  let el = document.getElementById(CUSTOM_CSS_ID) as HTMLStyleElement | null
+  if (!el) {
+    el = document.createElement('style')
+    el.id = CUSTOM_CSS_ID
+    document.head.appendChild(el)
+  }
+  el.textContent = campaign?.meta.theme?.custom_css ?? ''
+}
+
 /** найти шрифт реестра по id */
 function fontById(campaign: CampaignData | null, id?: string) {
   return campaign?.meta.fonts?.find((f) => f.id === id)

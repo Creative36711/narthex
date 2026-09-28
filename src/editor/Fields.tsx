@@ -774,13 +774,67 @@ export function AnimImageEditor({
           Хотите «живой» вариант? Это несколько картинок, сменяющих друг друга по таймеру
           (пламя, мигание фонаря, дверцу у печи).
         </div>
-        <button
-          className="btn btn-small"
-          data-tip="Переключить поле в режим кадров: добавьте 2+ картинки и темп"
-          onClick={() => onChange({ frames: base ? [base, ''] : ['', ''], fps: 2, loop: true })}
-        >
-          <Ico n="sparkle" /> Оживить (кадры за кадром)…
-        </button>
+        <div className="fld-row">
+          <button
+            className="btn btn-small"
+            data-tip="Переключить поле в режим кадров: добавьте 2+ картинки и темп"
+            onClick={() => onChange({ frames: base ? [base, ''] : ['', ''], fps: 2, loop: true })}
+          >
+            <Ico n="sparkle" /> Оживить (кадры за кадром)…
+          </button>
+          <button
+            className="btn btn-small"
+            data-tip="Лист-анимация: один файл с раскладкой N×M кадров (дым, вода, покачивание)"
+            onClick={() => onChange({ sheet: base || '', cols: 3, rows: 1, fps: 8, loop: true })}
+          >
+            <Ico n="sparkle" /> Оживить (лист N×M)…
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // спрайт-лист (SheetDoc): один файл-картинка с раскладкой
+  if (info?.sheet) {
+    const sheet = value as { sheet: string; cols: number; rows: number; fps?: number; loop?: boolean }
+    return (
+      <div className="fld fld-block img-upload anim-frames">
+        <span>{label} — лист-анимация ({sheet.cols}×{sheet.rows}, {sheet.fps ?? 8} к/с{sheet.loop !== false ? ', зациклено' : ''})</span>
+        <ImageUpload
+          label="Файл-лист (PNG с раскладкой кадров сеткой)"
+          value={sheet.sheet}
+          dir={dir}
+          store={store}
+          onChange={(p) => onChange({ ...sheet, sheet: p })}
+        />
+        <div className="anim-controls">
+          <label className="fld anim-fps">
+            <span>Колонок</span>
+            <input type="number" min={1} max={32} value={sheet.cols} onChange={(e) => onChange({ ...sheet, cols: Math.max(1, Math.min(32, +e.target.value || 1)) })} />
+          </label>
+          <label className="fld anim-fps">
+            <span>Строк</span>
+            <input type="number" min={1} max={32} value={sheet.rows} onChange={(e) => onChange({ ...sheet, rows: Math.max(1, Math.min(32, +e.target.value || 1)) })} />
+          </label>
+          <label className="fld anim-fps">
+            <span>Темп, кадр/с</span>
+            <input type="number" min={0.25} max={30} step={0.25} value={sheet.fps ?? 8} onChange={(e) => onChange({ ...sheet, fps: Math.max(0.25, Math.min(30, +e.target.value || 8)) })} />
+          </label>
+          <label className="fld fld-check anim-loop">
+            <input type="checkbox" checked={sheet.loop !== false} onChange={(e) => onChange({ ...sheet, loop: e.target.checked || undefined })} />
+            <span>Зациклить</span>
+          </label>
+          <button
+            className="btn btn-small anim-static"
+            data-tip="Оставить файл как обычную картинку — анимация выключится"
+            onClick={() => onChange(sheet.sheet || undefined)}
+          >
+            Только картинку
+          </button>
+        </div>
+        <div className="muted small">
+          Кадры читаются слева-направо по строкам. Файл не режется: игра сама делит лист на сетку.
+        </div>
       </div>
     )
   }

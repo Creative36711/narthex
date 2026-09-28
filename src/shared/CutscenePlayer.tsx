@@ -12,6 +12,7 @@ import { Ico } from './icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CutsceneDef, CutsceneSlide, MusicTrackDef, MusicSource } from './types'
 import { ArtView } from './ArtView'
+import { useCameraStyle } from '../player/Atmosphere'
 import { getSettings, musicVolume, useSettings, voiceVolume } from './settings'
 import { speak } from './speech'
 import { startTrackSource, type TrackHandle } from './music'
@@ -149,10 +150,24 @@ function SlideMedia({
   if (slide.video && !videoFailed && yt) {
     return <YoutubeSlide key={yt} ytId={yt} onVideoEnd={onVideoEnd} onFallback={onNeedUser} />
   }
+  const camStyle = useCameraStyle(slide.camera ?? null)
   const style: React.CSSProperties = panzoomMs
     ? { animationDuration: `${panzoomMs}ms`, transformOrigin: panzoomOrigin }
     : {}
   const cls = `cs-media ${panzoomMs ? 'cs-panzoom' : ''}`
+  // кинематографическая камера слайда (пан-зум по заданной точке и зуму мастера)
+  if (slide.camera) {
+    let media: React.ReactNode = null
+    if (slide.art) media = <ArtView className="cs-media" art={slide.art} />
+    else if (slide.image) media = <img className="cs-media" src={resolve(slide.image)} alt="" draggable={false} />
+    if (media) {
+      return (
+        <div className="cs-cam-window">
+          <div className="cs-cam-strip" style={camStyle}>{media}</div>
+        </div>
+      )
+    }
+  }
   if (slide.art) return <ArtView className={cls} art={slide.art} style={style} />
   if (slide.image) return <img className={cls} src={resolve(slide.image)} alt="" draggable={false} style={style} />
   if (slide.video && !videoFailed) {
