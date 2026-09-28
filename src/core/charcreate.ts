@@ -14,14 +14,42 @@
  * `GameEngine.applyCharCreation`.
  */
 import { derivedHP, derivedMP } from './brp'
+import { rollDice } from './dice'
+import { PRNG } from './prng'
 import { skillLabel, type SkillDef } from '../shared/skills'
 import type { CampaignMeta, CharCreationDef, NpcDef, StatBlock } from '../shared/types'
 
 export const STAT_KEYS: Array<keyof StatBlock> = ['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA']
 
+/** источник случайности бросков экрана создания (не привязан к seed забега) */
+const screenRng = new PRNG()
+
+/**
+ * Бросок одной характеристики по конфигу `char_creation.roll` (аудит §5.6
+ * п.5): per_stat переопределяет базовую формулу; результат прижимается к
+ * рамкам stat_limits мастера.
+ */
+export function rollStat(creation: CharCreationDef, stat: string): number {
+  const roll = creation.roll
+  const notation = roll?.per_stat?.[stat] ?? roll?.notation ?? '3d6'
+  const v = rollDice(notation, screenRng)
+  const { min, max } = creation.stat_limits
+  return Math.min(max, Math.max(min, v))
+}
+
+/** Бросок полного набора характеристик (все семь). */
+export function rollStatSet(creation: CharCreationDef): Record<string, number> {
+  const stats: Record<string, number> = {}
+  for (const k of STAT_KEYS) stats[k] = rollStat(creation, k)
+  return stats
+}
+
 /** выбор игрока на экране создания персонажа */
 export interface CharChoice {
   name: string
+  /** возраст и биография (если мастер включил choose_age/choose_bio) */
+  age?: number
+  bio?: string
   stats: Record<string, number>
   /** id профессии (происхождение → характеристики) или '' */
   profession: string
@@ -29,6 +57,12 @@ export interface CharChoice {
   calling: string
   /** итоговые значения навыков (порог + бонусы происхождения + покупки) */
   skills: Record<string, number>
+  /** id выбранного уровня сложности (если мастер задал meta.difficulties) */
+  difficulty?: string
+  /** id портрета из галереи мастера (char_creation.portraits) */
+  portrait?: string
+  /** выбор по сегментам портрета (char_creation.portrait_layers): id сегмента → id варианта */
+  portrait_layers?: Record<string, string>
 }
 
 /**
@@ -95,10 +129,15 @@ export function newCharChoice(creation: CharCreationDef, template: NpcDef, meta:
   const first = creation.professions?.[0]
   const firstCall = creation.callings?.[0]
   const stats: Record<string, number> = {}
-  for (const k of STAT_KEYS) {
-    const fromProf = first?.stats?.[k]
-    const v = fromProf !== undefined ? fromProf : statMin(creation)
-    stats[k] = Math.min(creation.stat_limits.max, Math.max(statMin(creation), Math.round(v)))
+  if (creation.roll) {
+    // режим кубиков (аудит §5.6 п.5): старт — первый бросок набора
+    for (const k of STAT_KEYS) stats[k] = rollStat(creation, k)
+  } else {
+    for (const k of STAT_KEYS) {
+      const fromProf = first?.stats?.[k]
+      const v = fromProf !== undefined ? fromProf : statMin(creation)
+      stats[k] = Math.min(creation.stat_limits.max, Math.max(statMin(creation), Math.round(v)))
+    }
   }
   // список навыков: реестр кампании + навыки шаблона
   const ids = new Set<string>([...allSkillIds(meta).map((s) => s.id), ...Object.keys(template.skills)])
@@ -134,10 +173,14 @@ export function withCalling(creation: CharCreationDef, choice: CharChoice, calli
 export function withProfession(creation: CharCreationDef, choice: CharChoice, profId: string): CharChoice {
   const next: CharChoice = { ...choice, profession: profId, stats: { ...choice.stats }, skills: { ...choice.skills } }
   const p = creation.professions?.find((x) => x.id === profId)
-  for (const k of STAT_KEYS) {
-    const v = p?.stats?.[k] !== undefined ? p!.stats![k] : statMin(creation)
-    next.stats[k] = Math.min(creation.stat_limits.max, Math.max(statMin(creation), Math.round(v)))
+  if (!creation.roll) {
+    for (const k of STAT_KEYS) {
+      const v = p?.stats?.[k] !== undefined ? p!.stats![k] : statMin(creation)
+      next.stats[k] = Math.min(creation.stat_limits.max, Math.max(statMin(creation), Math.round(v)))
+    }
   }
+  // режим кубиков: происхождение не трогает выброшенные характеристики,
+  // бонусы к навыкам и снаряжение работают как прежде
   for (const id of Object.keys(next.skills)) {
     const bought = Math.max(0, choice.skills[id] - skillMinVal(creation, choice, id))
     next.skills[id] = skillMinVal(creation, next, id) + bought
@@ -166,8 +209,11 @@ export function charChoiceProblems(
     const v = choice.stats[k] ?? min
     if (v < min || v > max) problems.push(`Характеристика ${k} вне рамок ${min}–${max}.`)
   }
-  const statLeft = creation.total_points - statPointsUsed(creation, choice)
-  if (statLeft < 0) problems.push(`Бюджет характеристик превышен на ${-statLeft}.`)
+  if (!creation.roll) {
+    // бюджет очков — только в режиме покупки; кубики бюджета не знают
+    const statLeft = creation.total_points - statPointsUsed(creation, choice)
+    if (statLeft < 0) problems.push(`Бюджет характеристик превышен на ${-statLeft}.`)
+  }
 
   const forbidden = new Set(creation.forbidden_skills ?? [])
   for (const [id, v] of Object.entries(choice.skills)) {

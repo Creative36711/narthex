@@ -7,6 +7,12 @@
    "label": "Начало разговора",
    "sections": [
     {
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "lena_told"
+      }
+     ],
      "steps": [
       {
        "kind": "line",
@@ -14,23 +20,9 @@
         "text": "Нашёл лаз? Только тихо — я тебе ничего не говорила."
        }
       }
-     ],
-     "conds": [
-      {
-       "type": "flag",
-       "flag": "lena_told"
-      }
      ]
     },
     {
-     "steps": [
-      {
-       "kind": "line",
-       "line": {
-        "text": "Снова ты. Садись, если не шумный."
-       }
-      }
-     ],
      "conds": [
       {
        "type": "flag",
@@ -41,31 +33,17 @@
        "type": "flag",
        "flag": "met_lena"
       }
+     ],
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Снова ты. Садись, если не шумный."
+       }
+      }
      ]
     },
     {
-     "steps": [
-      {
-       "kind": "effect",
-       "effect": {
-        "type": "set_flag",
-        "flag": "met_lena"
-       }
-      },
-      {
-       "kind": "line",
-       "line": {
-        "text": "В тёмном углу таверны, спиной к стене, сидит девушка с кружкой сидра. Взгляд цепкий — такой ничего не пропускает.",
-        "action": true
-       }
-      },
-      {
-       "kind": "line",
-       "line": {
-        "text": "Я Лена. Днём меня тут не ищи — днём я сплю. А ночью слушаю, о чём шепчет город."
-       }
-      }
-     ],
      "conds": [
       {
        "type": "flag",
@@ -77,13 +55,33 @@
        "flag": "met_lena",
        "not": true
       }
+     ],
+     "steps": [
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "met_lena"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "В тёмном углу таверны, спиной к стене, сидит девушка с кружкой сидра. Взгляд цепкий — такой ничего не пропускает. # action"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Я Лена. Днём меня тут не ищи — днём я сплю. А ночью слушаю, о чём шепчет город."
+       }
+      }
      ]
     }
    ],
    "choices": [
     {
      "text": "«Говорят, ты знаешь всё о здешних холмах».",
-     "once": true,
      "conds": [
       {
        "type": "flag",
@@ -91,14 +89,21 @@
        "not": true
       }
      ],
+     "once": true,
      "sections": [
       {
+       "conds": [
+        {
+         "type": "disp_ge",
+         "target": "faction_town",
+         "value": 20
+        }
+       ],
        "steps": [
         {
          "kind": "line",
          "line": {
-          "text": "Лена долго смотрит на вас поверх кружки.",
-          "action": true
+          "text": "Лена долго смотрит на вас поверх кружки. # action"
          }
         },
         {
@@ -127,13 +132,6 @@
          }
         }
        ],
-       "conds": [
-        {
-         "type": "disp_ge",
-         "target": "faction_town",
-         "value": 20
-        }
-       ],
        "else_steps": [
         {
          "kind": "line",
@@ -144,8 +142,7 @@
         {
          "kind": "line",
          "line": {
-          "text": "Лена отворачивается к своей кружке.",
-          "action": true
+          "text": "Лена отворачивается к своей кружке. # action"
          }
         },
         {

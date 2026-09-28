@@ -10,7 +10,14 @@
     {
       "id": "state_day",
       "label": "День",
-      "image": "assets/img/scenes/gates_front_day.jpg",
+      "image": {
+        "frames": [
+          "assets/img/scenes/gates_front_day.jpg",
+          "assets/img/scenes/gates_front_night.jpg"
+        ],
+        "fps": 0.2,
+        "loop": true
+      },
       "condition": {
         "time_of_day": [
           "morning",

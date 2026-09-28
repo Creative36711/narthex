@@ -2,7 +2,7 @@ import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { RuleDef } from '../shared/types'
 import type { EditorStore } from './store'
-import { ConditionListEditor, EffectListEditor, FileAdvancedJson } from './Fields'
+import { ConditionListEditor, EffectListEditor, FileAdvancedJson, ChapterSelect } from './Fields'
 
 /** Визуальный конструктор правил (ТЗ 5.2.4): условия + эффекты. */
 export function RuleEditor({ store, path }: { store: EditorStore; path: string }) {
@@ -21,6 +21,7 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
           <span>Название</span>
           <input value={rule.label} onChange={(e) => ((rule.label = e.target.value), commit())} />
         </label>
+        <ChapterSelect store={store} value={rule.chapter} onChange={(v) => ((rule.chapter = v), commit())} />
         <div className="fld-row">
           <label className="fld fld-check">
             <input type="checkbox" checked={rule.once} onChange={(e) => ((rule.once = e.target.checked), commit())} />
@@ -53,6 +54,54 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
           conditions={rule.conditions}
           onChange={(c) => ((rule.conditions = c), commit())}
         />
+      </div>
+
+      <div className="props-group">
+        <h4>Группы «или» (хватает хотя бы одной)</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Необязательно. Если групп нет — работают только условия выше. Если группы есть —
+          правило сработает, когда верны все условия выше <b>и</b> хотя бы одна группа целиком.
+          Внутри группы условия складываются по «И», между группами — по «или».
+        </div>
+        {(rule.conditions_any ?? []).map((group, gi) => (
+          <div key={gi} className="panel" style={{ padding: 8, marginBottom: 8 }}>
+            <div className="fld-row" style={{ alignItems: 'center', marginBottom: 6 }}>
+              <b>
+                Группа «или» №{gi + 1}
+              </b>
+              <span className="muted small">все условия группы должны выполниться</span>
+              <button
+                className="btn btn-small ce-del"
+                style={{ marginLeft: 'auto' }}
+                data-tip="Убрать группу целиком"
+                onClick={() => {
+                  rule.conditions_any = (rule.conditions_any ?? []).filter((_, j) => j !== gi)
+                  if (!rule.conditions_any.length) delete rule.conditions_any
+                  commit()
+                }}
+              >
+                <Ico n="close" /> убрать
+              </button>
+            </div>
+            <ConditionListEditor
+              store={store}
+              conditions={group}
+              onChange={(c) => {
+                rule.conditions_any = (rule.conditions_any ?? []).map((g, j) => (j === gi ? c : g))
+                commit()
+              }}
+            />
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={() => {
+            rule.conditions_any = [...(rule.conditions_any ?? []), []]
+            commit()
+          }}
+        >
+          <Ico n="plus" /> Группа
+        </button>
       </div>
 
       <div className="props-group">

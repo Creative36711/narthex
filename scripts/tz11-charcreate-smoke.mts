@@ -172,5 +172,50 @@ function validChoice(): CharChoice {
   check('5 схема знает создание персонажа', schema.includes('CharCreationDef') && schema.includes('ProfessionDef') && schema.includes('skill_bonus'))
 }
 
+// ── 6. генерация характеристик кубиками (аудит §5.6 п.5) ──
+{
+  const { rollStat, rollStatSet, charChoiceProblems: problems6, newCharChoice: nc6, withProfession: wp6 } = await import('../src/core/charcreate')
+  const rollCreation = {
+    total_points: 0,
+    stat_limits: { min: 6, max: 18 },
+    roll: { notation: '3d6', per_stat: { INT: '2d6+6', SIZ: '2d6+6' }, arrays: 3, rerolls: 2, redistribute: 3 },
+    professions: (demo.meta.char_creation?.professions ?? []) as never,
+  }
+  // формулы: базовая 3d6 в рамках 6..18, per_stat 2d6+6 в рамках 8..18
+  let okBase = true
+  let okPer = true
+  for (let i = 0; i < 200; i++) {
+    const b = rollStat(rollCreation as never, 'STR')
+    const p = rollStat(rollCreation as never, 'INT')
+    if (b < 6 || b > 18) okBase = false
+    if (p < 8 || p > 18) okPer = false
+  }
+  check('6 кубики: базовая формула в рамках мастера', okBase)
+  check('6 кубики: per_stat-переопределение (2d6+6 ≥ 8)', okPer)
+  const set = rollStatSet(rollCreation as never)
+  check('6 набор содержит все 7 характеристик', Object.keys(set).length === 7)
+  // валидация: режим кубиков не требует бюджета очков
+  const template = demo.entities[demo.meta.default_player] as NpcDef
+  const choice6 = nc6(rollCreation as never, template, demo.meta)
+  const probs = problems6(rollCreation as never, choice6, demo.meta.skills)
+  check('6 режим кубиков: бюджет очков не валидируется', !probs.some((p) => p.includes('Бюджет характеристик')))
+  // происхождение в режиме кубиков не трогает характеристики
+  const profId = demo.meta.char_creation?.professions?.[1]?.id
+  if (profId) {
+    const before = { ...choice6.stats }
+    const after = wp6(rollCreation as never, choice6, profId)
+    check('6 происхождение не затирает броски', JSON.stringify(before) === JSON.stringify(after.stats))
+  } else {
+    check('6 происхождение не затирает броски', false, 'нет второй профессии в демо')
+  }
+  const ui6 = readFileSync('src/player/CharacterCreation.tsx', 'utf8')
+  check('6 экран: панель бросков', ui6.includes('Бросить заново') && ui6.includes('pickedSet'))
+  // applyCharCreation пересчитывает производные от выброшенных характеристик
+  const eng = new GameEngine(JSON.parse(JSON.stringify(demo)))
+  eng.start()
+  eng.applyCharCreation({ name: 'Кубик', stats: { STR: 18, CON: 18, SIZ: 18, DEX: 18, INT: 18, POW: 18, CHA: 18 }, profession: '', calling: '', skills: {} })
+  check('6 производные от бросков: HP=(18+18)/2=18', eng.state.player.max_hp === 18, `max_hp=${eng.state.player.max_hp}`)
+}
+
 console.log(failed ? `\n${failed} ПРОВАЛОВ` : '\nВСЕ ПРОВЕРКИ ЗЕЛЁНЫЕ')
 process.exit(failed ? 1 : 0)

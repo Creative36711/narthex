@@ -1,9 +1,26 @@
-import type { DiceRules, StatBlock } from '../shared/types'
+import type { DiceRules, SkillDifficulty, StatBlock } from '../shared/types'
 import { DEFAULT_DICE_RULES } from '../shared/types'
 import type { PRNG } from './prng'
 import { d100 } from './dice'
 
 /** BRP Rules Engine (ТЗ 4.3). */
+
+/**
+ * Модификатор навыка по сложности мастера (аудит §5.6 п.7):
+ * число-порог (50 нейтрально, больше — труднее) или книжный уровень
+ * ('easy' ×2, 'normal' ×1, 'difficult' ½, 'impossible' ¼).
+ */
+export function difficultyModifier(skillValue: number, difficulty: SkillDifficulty): number {
+  if (typeof difficulty === 'number') return 50 - difficulty
+  const mult = difficulty === 'easy' ? 2 : difficulty === 'difficult' ? 0.5 : difficulty === 'impossible' ? 0.25 : 1
+  return Math.round(skillValue * (mult - 1))
+}
+
+/** Русское имя книжного уровня сложности (логи и подсказки). */
+export function difficultyLabel(d: SkillDifficulty): string {
+  if (typeof d === 'number') return `сложность ${d}`
+  return { easy: 'лёгкая', normal: 'обычная', difficult: 'трудная', impossible: 'невозможная' }[d]
+}
 
 export type CheckResult = 'critical' | 'hard' | 'success' | 'fail' | 'fumble'
 

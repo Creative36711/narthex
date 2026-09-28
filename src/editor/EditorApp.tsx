@@ -5,19 +5,22 @@ import { SceneEditor } from './SceneEditor'
 import { ArenaEditor, newArena } from './ArenaEditor'
 import { RuleEditor, newRule } from './RuleEditor'
 import { QuestEditor, newQuest } from './QuestEditor'
-import { InkEditor } from './MonacoEditors'
+import { DialogueHost } from './DialogueHost'
 import { EntityEditor } from './EntityEditor'
-import { DialogueBuilder, hasDlgDoc, dialogueTitle } from './DialogueBuilder'
+import { dialogueTitle } from './DialogueBuilder'
 import { generateInk, newDlgDoc } from './dialogueDoc'
 import { CampaignEditor } from './CampaignEditor'
+import { CombatRulesEditor } from './CombatRulesEditor'
 import { WorldEditor } from './WorldEditor'
 import { CutsceneEditor, newCutscene } from './CutsceneEditor'
 import { RecipeEditor, newRecipe } from './RecipeEditor'
 import { CodexEditor, newCodexEntry } from './CodexEditor'
+import JSZip from 'jszip'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { stopMusic } from '../shared/music'
 import { themeVars } from '../shared/theme'
+import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { profileClass, atmosphereOn } from '../shared/profiles'
 import { AiWizard, aiFixReport } from './AiWizard'
 import { makeId, slugify } from './ids'
@@ -26,7 +29,7 @@ import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } fro
 import { collectExternalUrls, embedExternalAssets } from './assets'
 import { exportMonolith, importMonolithText } from './monolith'
 import { campaignFromMonolith } from './playtest'
-import type { CampaignData } from '../shared/types'
+import type { CampaignData, ItemDef } from '../shared/types'
 import { GameEngine, deleteSave } from '../core/engine'
 import { GameView } from '../player/GameView'
 import { CharacterCreation } from '../player/CharacterCreation'
@@ -78,7 +81,10 @@ const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
   {
     id: 'mechanics',
     label: 'Механики',
-    items: [{ id: 'recipes', label: 'Рецепты крафта' }],
+    items: [
+      { id: 'combat', label: 'Правила боя' },
+      { id: 'recipes', label: 'Рецепты крафта' },
+    ],
   },
 ]
 
@@ -98,6 +104,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [aiWizard, setAiWizard] = useState(false)
   const [q, setQ] = useState('')
   const [kindF, setKindF] = useState<'all' | 'npc' | 'item'>('all')
+  const [chapterF, setChapterF] = useState('')
   const [selected, setSelected] = useState<string | null>(null)
   const [, force] = useState(0)
   const [busy, setBusy] = useState<string | null>(null)
@@ -162,24 +169,26 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     fetchCampaignIndex().then(setCampaigns)
   }, [base])
 
-  // undo: Ctrl+Z — тот же откат, что и кнопка «Откатить». В текстовых полях
-  // остаётся родной откат браузера/Monaco; а галочки, селекты и кнопки
-  // родного undo не имеют — там Ctrl+Z обязан вызывать откат магазина.
+  // undo: Ctrl+Z везде в редакторе НАЖИМАЕТ кнопку «Отменить» (фидбек №10:
+  // «принцип простой — Ctrl+Z просто нажимает кнопку “Отменить”»). Родной
+  // откат браузера в текстовых полях всё равно мёртв: каждое нажатие сразу
+  // коммитится в магазин и переписывает DOM, стек браузера ломается.
+  // Исключение — Monaco (у него своя полноценная история).
   useEffect(() => {
-    const textLike = new Set(['text', 'number', 'password', 'search', 'url', 'email', 'tel', ''])
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
+      // e.key на кириллической раскладке даёт «я» — сравниваем физическую
+      // клавишу (KeyZ), чтобы Ctrl+Z работал независимо от раскладки
+      if (!(e.ctrlKey || e.metaKey) || e.code !== 'KeyZ' || e.shiftKey) return
       const t = e.target as HTMLElement
-      if (t.isContentEditable || t.closest('.monaco-editor')) return
-      if (t.tagName === 'TEXTAREA') return
-      if (t.tagName === 'INPUT' && textLike.has((t as HTMLInputElement).type)) return
+      if (t.closest('.monaco-editor')) return
       if (store.canUndo()) {
         e.preventDefault()
+        e.stopPropagation()
         store.undo()
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [store])
 
   const newCampaign = async () => {
@@ -308,15 +317,25 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const listFor = (s: EditorSection): Array<{ path: string; title: string; group?: string; groupOrder?: string }> => {
     switch (s) {
       case 'scenes':
-        return store.scenePaths().map((p) => ({ path: p, title: store.scene(p)?.label ?? p }))
+        // группировка по локациям: мастеру проще искать нужную сцену (ревизия левой панели)
+        return store.scenePaths().map((p) => {
+          const sc = store.scene(p)
+          const loc = sc?.location ? store.labelFor('location', sc.location) : ''
+          return {
+            path: p,
+            title: sc?.label ?? p,
+            group: loc || 'Без локации',
+            groupOrder: loc ? `0${loc}` : '1',
+          }
+        })
       case 'entities':
         // группировка: персонажи, затем предметы по категориям (фидбек №8)
         return store.entityPaths().map((p) => {
           const e = store.entity(p)
-          if (!e) return { path: p, title: p }
-          if (e.type === 'npc') return { path: p, title: e.label || p, group: 'Персонажи', groupOrder: '0' }
+          if (!e) return { path: p, title: p, type: 'item' as const }
+          if (e.type === 'npc') return { path: p, title: e.label || p, type: 'npc' as const, group: 'Персонажи', groupOrder: '0' }
           const cat = store.labelFor('itemCategory', e.category)
-          return { path: p, title: e.label || p, group: `${cat}`, groupOrder: `1${cat}` }
+          return { path: p, title: e.label || p, type: 'item' as const, group: `${cat}`, groupOrder: `1${cat}` }
         })
       case 'rules':
         return store.rulePaths().map((p) => ({ path: p, title: store.rule(p)?.label ?? p }))
@@ -328,10 +347,29 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         return store.arenaPaths().map((p) => ({ path: p, title: store.arena(p)?.label ?? p }))
       case 'cutscenes':
         return store.cutscenePaths().map((p) => ({ path: p, title: store.cutscene(p)?.label ?? p }))
-      case 'recipes':
-        return store.recipePaths().map((p) => ({ path: p, title: store.recipe(p)?.label ?? p }))
+      case 'recipes': {
+        // группировка: починка отдельно, изготовление — по категории результата
+        const out = []
+        for (const p of store.recipePaths()) {
+          const r = store.recipe(p)
+          if (!r) { out.push({ path: p, title: p }); continue }
+          if (r.repair) out.push({ path: p, title: r.label || p, group: 'Починка вещей', groupOrder: '1' })
+          else {
+            const item = (r.output?.item ? store.entity(`entities/${r.output.item}.json`) : undefined) as ItemDef | undefined
+            const cat = item?.category ? store.labelFor('itemCategory', item.category) : ''
+            out.push({ path: p, title: r.label || p, group: cat || 'Без категории', groupOrder: `0${cat}` })
+          }
+        }
+        return out
+      }
       case 'codex':
-        return store.codexPaths().map((p) => ({ path: p, title: store.codexEntry(p)?.label ?? p }))
+        // группировка по категориям кодекса (свои из меты, иначе встроенные; ядро — «Хроники»)
+        return store.codexPaths().map((p) => {
+          const ce = store.codexEntry(p)
+          const cats = store.meta.codex_categories ?? BUILTIN_CODEX_CATEGORIES
+          const cat = ce?.category ? (cats.find((c) => c.id === ce.category)?.label ?? ce.category) : 'Хроники'
+          return { path: p, title: ce?.label ?? p, group: cat, groupOrder: cat }
+        })
       default:
         return []
     }
@@ -521,6 +559,40 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  /**
+   * «Чемодан для ИИ-агента»: zip с кампанией монолитом + гайдом движка,
+   * JSON Schema и инструкцией к агентному чату. Работа с ИИ внешняя:
+   * мастер загружает файлы в свой сервис и возвращает правленый JSON.
+   */
+  const doExportAiKit = async () => {
+    setBusy('Собираю чемодан для ИИ-агента…')
+    try {
+      const { doc } = exportMonolith(store)
+      const zip = new JSZip()
+      zip.file('campaign.json', JSON.stringify(doc, null, 2))
+      const kitFiles: Array<[string, string]> = [
+        ['campaign-guide.md', 'Полный гайд по движку (системный промпт агента)'],
+        ['campaign.schema.json', 'JSON Schema всех полей формата'],
+        ['НАЧНИ_С_ЭТОГО.txt', 'Сопроводительный текст: пошаговая инструкция и правила для агента'],
+      ]
+      for (const [name] of kitFiles) {
+        const res = await fetch(`ai/${encodeURIComponent(name)}`)
+        if (!res.ok) throw new Error(`Не найден файл набора: ai/${name} (${res.status})`)
+        zip.file(name, await res.text())
+      }
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
+      downloadBlob(blob, `${doc.campaign.id || 'campaign'}-ai-kit.zip`)
+      void showAlert(
+        'Чемодан для ИИ-агента собран',
+        'Загрузите campaign.json, campaign-guide.md и campaign.schema.json в чат вашего ИИ-сервиса. Пошаговая инструкция и правила для агента — в НАЧНИ_С_ЭТОГО.txt.',
+      )
+    } catch (e) {
+      void showAlert('Не удалось собрать чемодан', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   /** импорт из JSON: файл ИЛИ вставленный текст (кампания может прийти от ИИ) */
   const doImportJson = async () => {
     const text = await askTextArea('Импорт кампании из JSON', {
@@ -546,6 +618,15 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  const chapterOf = (p: string): string | undefined => {
+    switch (section) {
+      case 'scenes': return store.scene(p)?.chapter
+      case 'rules': return store.rule(p)?.chapter
+      case 'quests': return store.quest(p)?.chapter
+      case 'cutscenes': return store.cutscene(p)?.chapter
+      default: return undefined
+    }
+  }
   const itemsAll = listFor(section).sort(
     (a, b) => (a.groupOrder ?? '').localeCompare(b.groupOrder ?? '', 'ru') || a.title.localeCompare(b.title, 'ru'),
   )
@@ -556,10 +637,17 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       const t = (it as { type?: string }).type
       return kindF === 'npc' ? t === 'npc' : t === 'item'
     }
+    if (chapterF) {
+      const ch = chapterOf(it.path)
+      if (chapterF === '-' ? ch !== undefined : ch !== chapterF) return false
+    }
     return true
   })
-  const hasList = !['campaign', 'world'].includes(section)
+  const hasList = !['campaign', 'world', 'combat'].includes(section)
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
+  // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
+  const groupCounts = new Map<string, number>()
+  for (const it of items) if (it.group) groupCounts.set(it.group, (groupCounts.get(it.group) ?? 0) + 1)
 
   return (
     <div className={`editor-root ed-theme-${edTheme}`}>
@@ -609,6 +697,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             <div className="editor-toolbar-divider" />
             <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт .chronicle</button>
             <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON</button>
+            <button className="editor-toolbar-item" onClick={doExportAiKit}><Ico n="sparkle" /> Чемодан для ИИ-агента</button>
             <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle</button>
             <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
           </div>
@@ -673,6 +762,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                         className={`editor-nav-btn ${section === it.id ? 'on' : ''}`}
                         onClick={() => {
                           setSection(it.id)
+                          setChapterF('')
                           setSelected(null)
                           setOpenMenu(null)
                         }}
@@ -697,6 +787,20 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
+            {(section === 'scenes' || section === 'rules' || section === 'quests' || section === 'cutscenes') && (store.meta.chapters?.length ?? 0) > 0 && (
+              <select
+                className="editor-list-chapter"
+                value={chapterF}
+                data-tip="Фильтр по главе кампании (Проект → Основное → Главы)"
+                onChange={(e) => setChapterF(e.target.value)}
+              >
+                <option value="">все главы</option>
+                <option value="-">без главы</option>
+                {[...(store.meta.chapters ?? [])]
+                  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+                  .map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            )}
             {section === 'entities' && (
               <div className="chips editor-list-chips">
                 {([['all', 'Все'], ['npc', 'Персонажи'], ['item', 'Предметы']] as const).map(([k, lbl]) => (
@@ -714,7 +818,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             )}
             {items.map((it, i) => (
               <div key={it.path}>
-                {it.group && it.group !== items[i - 1]?.group && <div className="editor-list-group">{it.group}</div>}
+                {it.group && it.group !== items[i - 1]?.group && (
+                  <div className="editor-list-group">{it.group} <span className="editor-list-count">{groupCounts.get(it.group)}</span></div>
+                )}
                 <button
                   className={`editor-list-item ${sel === it.path ? 'on' : ''} ${store.dirty.has(it.path) ? 'dirty' : ''}`}
                   onClick={() => setSelected(it.path)}
@@ -742,23 +848,13 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
         <main className="editor-main">
           {section === 'campaign' && <CampaignEditor key={`c-${base}`} store={store} />}
+          {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
           {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} />}
           {section === 'entities' && sel && <EntityEditor key={sel} store={store} path={sel} />}
           {section === 'rules' && sel && <RuleEditor key={sel} store={store} path={sel} />}
           {section === 'quests' && sel && <QuestEditor key={sel} store={store} path={sel} />}
-          {section === 'dialogues' && sel && (hasDlgDoc(store, sel)
-            ? <DialogueBuilder key={sel} store={store} path={sel} />
-            : (
-              <>
-                <div className="ink-legacy-note">
-                  <Ico n="info" />  Этот диалог написан вручную на языке Ink, поэтому открыт как код.
-                  Новые диалоги (кнопка «+ создать») открываются в визуальном конструкторе —
-                  без кода: узлы, реплики и ответы собираются формами.
-                </div>
-                <InkEditor key={sel} store={store} path={sel} />
-              </>
-            ))}
+          {section === 'dialogues' && sel && <DialogueHost key={sel} store={store} path={sel} />}
           {section === 'arenas' && sel && <ArenaEditor key={sel} store={store} path={sel} />}
           {section === 'cutscenes' && sel && <CutsceneEditor key={sel} store={store} path={sel} />}
           {section === 'recipes' && sel && <RecipeEditor key={sel} store={store} path={sel} />}

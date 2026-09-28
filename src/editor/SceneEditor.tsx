@@ -5,10 +5,12 @@ import type Konva from 'konva'
 import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
 import { ArtView, artToDataUrl } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { ImageUpload, JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor } from './Fields'
+import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, AnimImageEditor, ChapterSelect } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
+import { firstFrame } from '../player/frames'
+import { CameraEditor } from './AtmosEditors'
 
 /**
  * Визуальный редактор сцены (ТЗ 5.2.2) на Konva:
@@ -113,7 +115,7 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   // фон: ArtDoc рисуем как SVG-подложку под прозрачным Konva-холстом,
   // обычное изображение — внутри Konva (итерация 8, блок D)
   const artUrl = st?.art ? artToDataUrl(st.art) : ''
-  const img = useImage(!st?.art && st?.image ? store.assetSrc(st.image) : null)
+  const img = useImage(!st?.art && st?.image ? store.assetSrc(firstFrame(st.image)) : null)
 
   useEffect(() => {
     // после отката (или удаления) выбранный объект мог исчезнуть — не
@@ -320,6 +322,7 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
         <span>Название</span>
         <input value={scene.label} onChange={(e) => ((scene.label = e.target.value), commit())} />
       </label>
+      <ChapterSelect store={store} value={scene.chapter} onChange={(v) => ((scene.chapter = v), commit())} />
       <RefSelect
         label="Локация"
         kind="location"
@@ -400,12 +403,16 @@ function StateBackground({
   }
   return (
     <div className="fld fld-block">
-      <ImageUpload
+      <AnimImageEditor
         label="Фон сцены"
-        value={state.image ?? ''}
+        value={state.image}
         dir="assets/img/scenes"
         store={store}
-        onChange={(p) => ((state.image = p), commit())}
+        onChange={(v) => {
+          if (v) state.image = v
+          else delete state.image
+          commit()
+        }}
       />
       <div className="art-preview-tools">
         <button
@@ -436,6 +443,7 @@ function StatesProps({ scene, store, commit }: { scene: SceneDef; store: EditorS
         <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
       </label>
       <StateBackground state={s} store={store} commit={commit} />
+      <CameraEditor value={s.camera} onChange={(v) => ((s.camera = v), commit())} />
       <SceneConditionEditor value={s.condition} store={store} onChange={(v) => ((s.condition = v), commit())} />
       {scene.states.length > 1 && (
         <button className="btn btn-small ce-del" onClick={() => (scene.states.splice(i, 1), commit())}>
@@ -557,6 +565,22 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
           }}
         />
       </label>
+      <label className="fld" data-tip="Какой вариант спрайта показывать у персонажа в этом слоте — из «Спрайта в сцене» в карточке персонажа. «Обычный» — основной спрайт.">
+        <span>Состояние спрайта</span>
+        <select
+          value={slot.sprite_state ?? ''}
+          onChange={(e) => {
+            if (e.target.value) slot.sprite_state = e.target.value
+            else delete slot.sprite_state
+            commit()
+          }}
+        >
+          <option value="">Обычный</option>
+          {(store.meta.emotions ?? []).map((e) => (
+            <option key={e.id} value={e.id}>{e.label}</option>
+          ))}
+        </select>
+      </label>
       <div className="fld-block" style={{ marginTop: 8 }}>
         <span className="fld-caption">Использование предметов на слоте («ключ к двери»)</span>
         {(slot.use_with ?? []).map((u, i) => (
@@ -648,6 +672,21 @@ function NavProps({
       <label className="fld">
         <span>Подпись</span>
         <input value={nav.label} onChange={(e) => ((nav.label = e.target.value), commit())} />
+      </label>
+      <label className="fld feature-toggle">
+        <input
+          type="checkbox"
+          checked={!!nav.hide_label}
+          onChange={(e) => {
+            if (e.target.checked) nav.hide_label = true
+            else delete nav.hide_label
+            commit()
+          }}
+        />
+        <span>
+          <b>Не показывать подпись</b>
+          <small>как «живая картинка»: обозначение перехода появляется только под курсором игрока</small>
+        </span>
       </label>
       <label className="fld">
         <span>Тип перехода</span>

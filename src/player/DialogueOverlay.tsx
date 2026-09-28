@@ -166,7 +166,16 @@ export function DialogueOverlay({ engine }: Props) {
       <div className="dialogue-box" onClick={skip}>
         <div className="dialogue-portrait">
           {portrait && <img src={assetUrl(engine.campaign, portrait)} alt={d.npc.label} />}
-          <div className="dialogue-npc-name">{d.npc.label}</div>
+          <div className="dialogue-npc-name">
+            {d.npc.label}
+            {(() => {
+              // самочувствие собеседника (выспался/устал) — мягкая подсказка игроку
+              const mood = engine.npcMood(d.npc.id)
+              if (mood >= 70) return <span className="muted small dlg-mood"> · бодр и расположен</span>
+              if (mood <= 25) return <span className="muted small dlg-mood"> · измотан и раздражён</span>
+              return null
+            })()}
+          </div>
         </div>
         <div className="dialogue-content">
           <div className="dialogue-lines">

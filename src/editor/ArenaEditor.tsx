@@ -11,11 +11,12 @@ import { MusicTrackSelect } from './AudioSection'
  * блокированные гексы, сложная местность, зоны спавна игрока/врагов.
  */
 
-type Brush = 'blocked' | 'difficult' | 'spawn_player' | 'spawn_enemy' | 'erase'
+type Brush = 'blocked' | 'difficult' | 'cover' | 'spawn_player' | 'spawn_enemy' | 'erase'
 
 const BRUSHES: Array<{ id: Brush; label: string; color: string }> = [
   { id: 'blocked', label: 'Блок', color: '#b03a2e' },
   { id: 'difficult', label: 'Сложная местность', color: '#8c7a4a' },
+  { id: 'cover', label: 'Укрытие', color: '#4a6b8c' },
   { id: 'spawn_player', label: 'Спавн игрока', color: '#5a7d43' },
   { id: 'spawn_enemy', label: 'Спавн врагов', color: '#7d435a' },
   { id: 'erase', label: 'Ластик', color: '#666' },
@@ -49,15 +50,19 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
   const paint = (h: Hex) => {
     const g = arena.hex_grid
     const sp = arena.spawn_zones
+    g.cover_hexes ??= []
     // убрать из всех
     g.blocked_hexes = without(g.blocked_hexes, h)
     g.difficult_terrain = without(g.difficult_terrain, h)
+    g.cover_hexes = without(g.cover_hexes, h)
     sp.player.hexes = without(sp.player.hexes, h)
     sp.enemy.hexes = without(sp.enemy.hexes, h)
     if (brush === 'blocked') g.blocked_hexes.push([h.col, h.row])
     else if (brush === 'difficult') g.difficult_terrain.push([h.col, h.row])
+    else if (brush === 'cover') g.cover_hexes.push([h.col, h.row])
     else if (brush === 'spawn_player') sp.player.hexes.push([h.col, h.row])
     else if (brush === 'spawn_enemy') sp.enemy.hexes.push([h.col, h.row])
+    if (!g.cover_hexes.length) delete g.cover_hexes
     commit()
   }
 
@@ -103,6 +108,7 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
               let stroke = 'rgba(232,221,201,0.35)'
               if (inList(g.blocked_hexes, h)) fill = 'rgba(176,58,46,0.5)'
               else if (inList(g.difficult_terrain, h)) fill = 'rgba(140,122,74,0.45)'
+              else if (inList(g.cover_hexes ?? [], h)) fill = 'rgba(74,107,140,0.5)'
               else if (inList(arena.spawn_zones.player.hexes, h)) fill = 'rgba(90,125,67,0.55)'
               else if (inList(arena.spawn_zones.enemy.hexes, h)) fill = 'rgba(125,67,90,0.55)'
               return (
@@ -154,7 +160,9 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
           <div className="muted small">
             Спавн игрока: {arena.spawn_zones.player.hexes.length} · врагов: {arena.spawn_zones.enemy.hexes.length}
             <br />
-            Блоков: {arena.hex_grid.blocked_hexes.length} · сложных: {arena.hex_grid.difficult_terrain.length}
+            Блоков: {arena.hex_grid.blocked_hexes.length} · сложных: {arena.hex_grid.difficult_terrain.length} · укрытий: {(arena.hex_grid.cover_hexes ?? []).length}
+            <br />
+            Укрытия работают, когда во вкладке «Кампания → Бой и смерть» включено правило «Укрытия на арене».
           </div>
           <div className="fld" style={{ marginTop: 10 }}>
             <span>Музыка боя (перекрывает «Музыка боя» кампании)</span>

@@ -42,6 +42,34 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
     }
     case 'skill_ge':
       return (s.player.skills[c.skill] ?? 0) >= c.threshold
+    case 'stat_ge':
+      return ((s.player.stats as unknown as Record<string, number>)[c.stat] ?? 0) >= c.threshold
+    case 'hp_le':
+      return s.player.hp <= c.threshold
+    case 'hp_ge':
+      return s.player.hp >= c.threshold
+    case 'luck_ge':
+      return engine.luck() >= c.threshold
+    case 'fatigue_ge':
+      return engine.fatigue() >= c.threshold
+    case 'fatigue_le':
+      return engine.fatigue() <= c.threshold
+    case 'sanity_ge':
+      return engine.sanity() >= c.threshold
+    case 'sanity_le':
+      return engine.sanity() <= c.threshold
+    case 'reputation_ge':
+      return engine.reputation() >= c.threshold
+    case 'wealth_ge':
+      return engine.wealthLevel() >= c.level
+    case 'passion_ge':
+      return (s.player.passions?.[c.id] ?? 0) >= c.value
+    case 'allegiance_ge':
+      return (s.player.allegiance?.[c.id] ?? 0) >= c.points
+    case 'power_level_ge': {
+      const order = ['normal', 'heroic', 'epic', 'superhuman']
+      return order.indexOf(engine.campaign.meta.power_level ?? 'normal') >= order.indexOf(c.level)
+    }
     case 'need_le':
       return (s.player.needs[c.need] ?? 0) <= c.threshold
     case 'need_ge':
@@ -62,6 +90,18 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return (s.weather ?? '') === c.weather
     case 'random_chance':
       return engine.rng.chance(c.probability)
+    case 'crime_committed':
+      return engine.hasCrime(c.id, c.min_bounty ?? 0)
+    case 'bounty_total_ge':
+      return engine.bountyTotal() >= c.threshold
+    case 'level_ge':
+      return engine.level() >= c.level
+    case 'meta_currency_ge':
+      return engine.metaCurrency(c.currency) >= c.threshold
+    case 'meta_achievement':
+      return engine.metaAchievementDone(c.id)
+    case 'has_feat':
+      return (engine.state.player.feats ?? []).includes(c.id)
     case 'and':
       return c.conditions.every((x) => evalCondition(x, engine))
     case 'or':

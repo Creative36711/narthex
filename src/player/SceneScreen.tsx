@@ -3,7 +3,9 @@ import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
 import { timeOfDay } from '../core/time'
 import { ArtView } from '../shared/ArtView'
-import type { SceneStateDef, SlotDef, SlotUseWith } from '../shared/types'
+import { firstFrame, LiveImg } from './frames'
+import { AtmosphereLayer, useCameraStyle } from './Atmosphere'
+import type { ItemDef, SceneStateDef, SlotDef, SlotUseWith } from '../shared/types'
 
 interface Props {
   engine: GameEngine
@@ -11,11 +13,13 @@ interface Props {
 }
 
 type UseModal = { slot: SlotDef; options: Array<{ itemId: string; label: string; use: SlotUseWith }> }
+type ItemInteractModal = { item: ItemDef }
 type SceneBackground = { kind: 'image'; src: string; label: string } | { kind: 'art'; art: NonNullable<SceneStateDef['art']> } | { kind: 'fallback' }
 
 /** Экран сцены: фон (активное состояние) + слоты + зоны навигации (ТЗ 6.1). */
 export function SceneScreen({ engine, onOpenMap }: Props) {
   const [useModal, setUseModal] = useState<UseModal | null>(null)
+  const [interactModal, setInteractModal] = useState<ItemInteractModal | null>(null)
   /** фон сцены не загрузился — показываем причину прямо на экране */
   const [bgError, setBgError] = useState('')
   const [outgoingBg, setOutgoingBg] = useState<SceneBackground | null>(null)
@@ -23,11 +27,12 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const scene = engine.currentScene()
   const sceneId = scene?.id
   const state = scene ? engine.activeSceneState(scene) : null
+  const camStyle = useCameraStyle(state?.camera ?? null)
   const stateKey = scene && state ? `${scene.id}:${state.id}` : ''
   const background: SceneBackground = state?.art
     ? { kind: 'art', art: state.art }
     : state?.image
-      ? { kind: 'image', src: assetUrl(engine.campaign, state.image), label: state.label }
+      ? { kind: 'image', src: assetUrl(engine.campaign, firstFrame(state.image)), label: state.label }
       : { kind: 'fallback' }
 
   useEffect(() => setBgError(''), [sceneId])
@@ -60,26 +65,28 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
       {/* сцена занимает всё оставшееся место без прокрутки: ширина и высота —
           от контейнера, картинка растягивается (object-fit: fill) */}
       <div className={`scene-stage tod-tint-${tod}`}>
-        {state.art ? (
-          <ArtView key={stateKey} className="scene-bg scene-bg-enter" art={state.art} />
-        ) : state.image && !bgError ? (
-          <img
-            key={stateKey}
-            className="scene-bg scene-bg-enter"
-            src={assetUrl(engine.campaign, state.image)}
-            alt={state.label}
-            draggable={false}
-            onError={(e) => {
-              // диагностика «чёрной сцены»: причина видна сразу, а не в глубине DevTools
-              const src = (e.target as HTMLImageElement).currentSrc || state.image || '(путь не задан)'
-              console.error(`[сцена] фон не загрузился: ${src}`)
-              setBgError(src)
-            }}
-          />
-        ) : (
-          /* сцена без арта (или арт не загрузился) — не «чёрный экран» */
-          <div key={stateKey} className="scene-bg scene-bg-fallback scene-bg-enter" aria-hidden />
-        )}
+        <div key={stateKey} className="scene-bg-camera" style={camStyle}>
+          {state.art ? (
+            <ArtView className="scene-bg scene-bg-enter" art={state.art} />
+          ) : state.image && !bgError ? (
+            <LiveImg
+              className="scene-bg scene-bg-enter"
+              value={state.image}
+              tickKey={stateKey}
+              urlOf={(f) => assetUrl(engine.campaign, f)}
+              alt={state.label}
+              draggable={false}
+              onError={(src) => {
+                // диагностика «чёрной сцены»: причина видна сразу, а не в глубине DevTools
+                console.error(`[сцена] фон не загрузился: ${src}`)
+                setBgError(src)
+              }}
+            />
+          ) : (
+            /* сцена без арта (или арт не загрузился) — не «чёрный экран» */
+            <div className="scene-bg scene-bg-fallback scene-bg-enter" aria-hidden />
+          )}
+        </div>
         {outgoingBg?.kind === 'image' && <img className="scene-bg scene-bg-transition-out" src={outgoingBg.src} alt="" draggable={false} />}
         {outgoingBg?.kind === 'art' && <ArtView className="scene-bg scene-bg-transition-out" art={outgoingBg.art} />}
         {outgoingBg?.kind === 'fallback' && <div className="scene-bg scene-bg-fallback scene-bg-transition-out" aria-hidden />}
@@ -97,18 +104,28 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           .sort((a, b) => a.slot.y + a.slot.h - (b.slot.y + b.slot.h))
           .map(({ slot, entity }) => {
             const npc = entity.type === 'npc' ? entity : null
-            const sprite = npc?.scene_sprite
+            const item = entity.type === 'item' ? (entity as ItemDef) : null
+            // спрайт: НПС — sprite в сцене (с откатом на портрет «Обычный» ниже),
+            // предмет — только своя картинка; без неё в слоте не рисуется ничего.
+            // Состояние спрайта выбирает мастер в свойствах слота (как «настроение» в диалоге).
+            const sprite = npc
+              ? (slot.sprite_state && npc.scene_sprite_states?.[slot.sprite_state]) || npc.scene_sprite
+              : item?.scene_sprite
             const scale = slot.sprite_scale ?? 1
+            // предмет под условием блокировки — «декорация»: виден, но не кликается (№8)
+            const interactable = !item || engine.itemInteractable(item)
+            const hasInteractChoices = !!item && interactable && engine.itemInteractOptions(item).length > 0
             return (
               <button
                 key={`${stateKey}-${slot.id}`}
-                className={`slot-hotspot slot-${entity.type} scene-slot-enter ${sprite ? 'slot-sprited' : ''}`}
+                className={`slot-hotspot slot-${entity.type} scene-slot-enter ${sprite ? 'slot-sprited' : ''}${!interactable ? ' slot-inert' : ''}`}
                 style={{
                   left: pct(slot.x, canvas.w),
                   top: pct(slot.y, canvas.h),
                   width: pct(slot.w, canvas.w),
                   height: pct(slot.h, canvas.h),
                 }}
+                disabled={!interactable}
                 onClick={() => {
                   // «ключ к двери» (блок 8 ТЗ): НПС — диалог, иначе при наличии
                   // подходящих предметов — модалка выбора
@@ -118,21 +135,28 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                       setUseModal({ slot, options })
                       return
                     }
+                    // варианты действий с предметом — окно выбора (фидбек №8)
+                    if (hasInteractChoices && item) {
+                      setInteractModal({ item })
+                      return
+                    }
                   }
                   engine.interactWithSlot({ slot, entity })
                 }}
                 data-tip={`${entity.label}${engine.descOf(entity.id) ? `\n${engine.descOf(entity.id)}` : ''}`}
               >
-                {npc && sprite ? (
+                {sprite ? (
                   <>
-                    {npc.shadow !== false && <span className="sprite-shadow" />}
-                    <img
-                      className="slot-sprite"
-                      src={assetUrl(engine.campaign, sprite)}
-                      alt={npc.label}
-                      draggable={false}
-                      style={{ height: `${((slot.h * scale) / canvas.h) * 100}%` }}
-                    />
+                    {entity.shadow !== false && <span className="sprite-shadow" />}
+                    <span className="slot-sprite-box" style={{ height: `${scale * 100}%` }}>
+                      <LiveImg
+                        className="slot-sprite"
+                        value={sprite}
+                        tickKey={slot.sprite_state ?? ''}
+                        urlOf={(f) => assetUrl(engine.campaign, f)}
+                        alt={entity.label}
+                      />
+                    </span>
                   </>
                 ) : (
                   npc?.portrait?.neutral && (
@@ -178,7 +202,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           return (
             <button
               key={i}
-              className="nav-zone"
+              className={`nav-zone${nav.hide_label ? ' nav-nolabel' : ''}`}
               style={{
                 left: pct(nav.area.x, canvas.w),
                 top: pct(nav.area.y, canvas.h),
@@ -194,7 +218,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
 
         {/* слой погоды (блок 9 ТЗ): чистый CSS, полупрозрачный, не ловит клики */}
         {weather?.overlay && weather.overlay !== 'none' && (
-          <div className={`weather-overlay weather-${weather.overlay}`} aria-hidden="true" />
+          <AtmosphereLayer
+            overlay={weather.overlay}
+            atmospherics={engine.campaign.meta.atmospherics}
+            srcOf={(path) => assetUrl(engine.campaign, path)}
+          />
         )}
       </div>
 
@@ -226,6 +254,57 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           </div>
         </div>
       )}
+
+      {/* окно действий с предметом (фидбек №8): мини-диалог с портретом предмета */}
+      {interactModal && (
+        <ItemInteractDialog
+          engine={engine}
+          item={interactModal.item}
+          onClose={() => setInteractModal(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+/** Мини-диалог с предметом: портрет (если есть), описание и варианты действий. */
+function ItemInteractDialog({ engine, item, onClose }: { engine: GameEngine; item: ItemDef; onClose: () => void }) {
+  const [emotion, setEmotion] = useState('neutral')
+  const options = engine.itemInteractOptions(item)
+  const portrait = item.portrait?.[emotion] ?? item.portrait?.['neutral']
+  return (
+    <div className="overlay message-overlay itemdlg-overlay" onClick={onClose}>
+      <div className="itemdlg-box" onClick={(e) => e.stopPropagation()}>
+        {portrait && (
+          <div className="itemdlg-portrait">
+            <img src={assetUrl(engine.campaign, portrait)} alt={item.label} draggable={false} />
+          </div>
+        )}
+        <div className="itemdlg-content">
+          <h3 className="itemdlg-title">{item.label}</h3>
+          <p className="itemdlg-desc">{item.description}</p>
+          <div className="usewith-options">
+            {options.map((o, i) => (
+              <button
+                key={i}
+                className="btn btn-primary itemdlg-option"
+                onMouseEnter={() => o.emotion && setEmotion(o.emotion)}
+                onMouseLeave={() => setEmotion('neutral')}
+                onClick={() => {
+                  const consume = !!o.consume
+                  engine.runItemInteract(item, o)
+                  // item исчез со сцены — окно давно бессмысленно
+                  if (consume) onClose()
+                }}
+              >
+                <span>{o.label}</span>
+                {o.hint && <small className="itemdlg-hint">{o.hint}</small>}
+              </button>
+            ))}
+          </div>
+          <button className="btn btn-small" onClick={onClose}>Закрыть</button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { migrateCampaign, migrateEntity } from '../shared/migrate'
+import { checkEngine, checkPackage } from '../shared/versions'
 import type {
   ArenaDef,
   CampaignManifest,
@@ -42,6 +43,13 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
     getJSON<WorldDef>(`${basePath}/world.json`),
     getJSON<CampaignManifest>(`${basePath}/manifest.json`),
   ])
+
+  // Контракт версий (docs/compatibility.md): пакет новее движка — честный
+  // отказ до загрузки десятков файлов, а не «странные глюки» в игре.
+  const pkg = checkPackage(meta.package_format)
+  if (!pkg.ok) throw new Error(pkg.message)
+  const engine = checkEngine(meta.min_engine ?? meta.engine_version)
+  if (!engine.ok) console.warn(`[chronicle] ${engine.message}`)
 
   const scenes: Record<string, SceneDef> = {}
   const entities: Record<string, EntityDef> = {}

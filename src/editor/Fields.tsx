@@ -1,11 +1,12 @@
 import { Ico } from '../shared/icons'
 import { useId, useState } from 'react'
 import { FlagAutocomplete } from './FlagAutocomplete'
-import type { Condition, Effect, NpcDef } from '../shared/types'
+import type { Condition, Effect, ImageValue, NpcDef } from '../shared/types'
+import { framesOf } from '../player/frames'
 import { makeId } from './ids'
 import type { EditorStore } from './store'
 import { isExternalUrl } from '../core/loader'
-import { askText } from '../shared/modals'
+import { askText, showAlert } from '../shared/modals'
 import { checkExternalUrl, reportAssetError, type AssetKind, type UrlCheck } from './assets'
 import {
   CONDITION_SCHEMAS,
@@ -736,6 +737,176 @@ export function ImageUpload({
   return <AssetUpload label={label} value={value} dir={dir} store={store} kind="image" onChange={onChange} />
 }
 
+/**
+ * «Живые» изображения (разрешено мастеру-пункт «живые сцены»): статичное
+ * изображение — как обычно; «Оживить…» превращает в цикл кадров (список
+ * картинок + темп + зацикленность). Значение: string одиночное, объект
+ * {frames, fps, loop} — анимация.
+ */
+export function AnimImageEditor({
+  label,
+  value,
+  dir,
+  store,
+  onChange,
+}: {
+  label: string
+  value: ImageValue | undefined
+  dir: string
+  store: EditorStore
+  onChange: (v: ImageValue | undefined) => void
+}) {
+  const info = framesOf(value)
+  const animated = (info?.frames.length ?? 0) > 0 && typeof value !== 'string'
+
+  if (!animated) {
+    const base = info?.frames[0] ?? ''
+    return (
+      <div>
+        <ImageUpload
+          label={label}
+          value={base}
+          dir={dir}
+          store={store}
+          onChange={(p) => onChange(p || undefined)}
+        />
+        <div className="muted small" style={{ margin: '4px 0' }}>
+          Хотите «живой» вариант? Это несколько картинок, сменяющих друг друга по таймеру
+          (пламя, мигание фонаря, дверцу у печи).
+        </div>
+        <div className="fld-row">
+          <button
+            className="btn btn-small"
+            data-tip="Переключить поле в режим кадров: добавьте 2+ картинки и темп"
+            onClick={() => onChange({ frames: base ? [base, ''] : ['', ''], fps: 2, loop: true })}
+          >
+            <Ico n="sparkle" /> Оживить (кадры за кадром)…
+          </button>
+          <button
+            className="btn btn-small"
+            data-tip="Лист-анимация: один файл с раскладкой N×M кадров (дым, вода, покачивание)"
+            onClick={() => onChange({ sheet: base || '', cols: 3, rows: 1, fps: 8, loop: true })}
+          >
+            <Ico n="sparkle" /> Оживить (лист N×M)…
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // спрайт-лист (SheetDoc): один файл-картинка с раскладкой
+  if (info?.sheet) {
+    const sheet = value as { sheet: string; cols: number; rows: number; fps?: number; loop?: boolean }
+    return (
+      <div className="fld fld-block img-upload anim-frames">
+        <span>{label} — лист-анимация ({sheet.cols}×{sheet.rows}, {sheet.fps ?? 8} к/с{sheet.loop !== false ? ', зациклено' : ''})</span>
+        <ImageUpload
+          label="Файл-лист (PNG с раскладкой кадров сеткой)"
+          value={sheet.sheet}
+          dir={dir}
+          store={store}
+          onChange={(p) => onChange({ ...sheet, sheet: p })}
+        />
+        <div className="anim-controls">
+          <label className="fld anim-fps">
+            <span>Колонок</span>
+            <input type="number" min={1} max={32} value={sheet.cols} onChange={(e) => onChange({ ...sheet, cols: Math.max(1, Math.min(32, +e.target.value || 1)) })} />
+          </label>
+          <label className="fld anim-fps">
+            <span>Строк</span>
+            <input type="number" min={1} max={32} value={sheet.rows} onChange={(e) => onChange({ ...sheet, rows: Math.max(1, Math.min(32, +e.target.value || 1)) })} />
+          </label>
+          <label className="fld anim-fps">
+            <span>Темп, кадр/с</span>
+            <input type="number" min={0.25} max={30} step={0.25} value={sheet.fps ?? 8} onChange={(e) => onChange({ ...sheet, fps: Math.max(0.25, Math.min(30, +e.target.value || 8)) })} />
+          </label>
+          <label className="fld fld-check anim-loop">
+            <input type="checkbox" checked={sheet.loop !== false} onChange={(e) => onChange({ ...sheet, loop: e.target.checked || undefined })} />
+            <span>Зациклить</span>
+          </label>
+          <button
+            className="btn btn-small anim-static"
+            data-tip="Оставить файл как обычную картинку — анимация выключится"
+            onClick={() => onChange(sheet.sheet || undefined)}
+          >
+            Только картинку
+          </button>
+        </div>
+        <div className="muted small">
+          Кадры читаются слева-направо по строкам. Файл не режется: игра сама делит лист на сетку.
+        </div>
+      </div>
+    )
+  }
+
+  const set = (patch: Partial<{ frames: string[]; fps: number; loop: boolean }>) => {
+    onChange({ frames: info!.frames, fps: info!.fps, loop: info!.loop, ...patch })
+  }
+
+  return (
+    <div className="fld fld-block img-upload anim-frames">
+      <span>{label} — оживление ({info!.frames.length} кадр(а), {info!.fps} к/с{info!.loop ? ', зациклено' : ''})</span>
+      {info!.frames.map((f, i) => (
+        <div key={i} className="anim-frame-row">
+          <ImageUpload
+            label={`Кадр ${i + 1}`}
+            value={f}
+            dir={dir}
+            store={store}
+            onChange={(p) => {
+              const frames = [...info!.frames]
+              frames[i] = p
+              set({ frames })
+            }}
+          />
+          <button
+            className="btn btn-small ce-del"
+            data-tip="Убрать кадр"
+            onClick={() => {
+              const frames = info!.frames.filter((_, j) => j !== i)
+              if (frames.length === 1) onChange(frames[0])
+              else if (!frames.length) onChange(undefined)
+              else set({ frames })
+            }}
+          >
+            <Ico n="close" />
+          </button>
+        </div>
+      ))}
+      <div className="anim-controls">
+        <button className="btn btn-small" onClick={() => set({ frames: [...info!.frames, ''] })}>
+          <Ico n="plus" /> Кадр
+        </button>
+        <label className="fld anim-fps">
+          <span>Темп, кадр/с</span>
+          <input
+            type="number"
+            min={0.25}
+            max={12}
+            step={0.25}
+            value={info!.fps}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (v > 0) set({ fps: Math.min(12, v) })
+            }}
+          />
+        </label>
+        <label className="fld fld-check anim-loop">
+          <input type="checkbox" checked={info!.loop} onChange={(e) => set({ loop: e.target.checked })} />
+          <span>Зациклить</span>
+        </label>
+        <button
+          className="btn btn-small anim-static"
+          data-tip="Оставить только первый кадр — анимация выключится"
+          onClick={() => onChange(info!.frames.find(Boolean) || undefined)}
+        >
+          Сделать статичным
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /** Загрузка звука (музыка, озвучка) с компьютера или по ссылке. */
 export function AudioUpload({
   label,
@@ -1025,6 +1196,19 @@ export function FileAdvancedJson({ store, path, commit, label = 'Расшире�
   const apply = (v: unknown) => {
     const text = v as string | undefined
     if (text !== undefined) {
+      // Жёсткий запрет переименования id (`docs/compatibility.md`): на id
+      // завязаны все ссылки пакета и сохранения игроков. Переименовать объект
+      // нельзя — можно создать новый, а старый удалить.
+      const before = store.jsonFiles.get(path) as { id?: string } | undefined
+      const after = text as unknown as { id?: string }
+      if (before?.id && after && typeof after === 'object' && after.id && after.id !== before.id) {
+        void showAlert(
+          'Менять id нельзя',
+          `Id «${before.id}» → «${after.id}».\n\nНа этот id ссылаются другие объекты кампании и сохранения игроков: после переименования связи и старые сейвы сломаются. Создайте новый объект, перенесите в него содержимое, а старый удалите.`,
+        )
+        setGen((n) => n + 1) // вернуть в поле прежнее значение
+        return
+      }
       store.jsonFiles.set(path, text)
       commit()
     }
@@ -1044,5 +1228,21 @@ export function FileAdvancedJson({ store, path, commit, label = 'Расшире�
       <summary>{label}</summary>
       <JsonField key={gen} label="" rows={22} pretty value={store.jsonFiles.get(path)} onChange={apply} />
     </details>
+  )
+}
+
+/** Выбор главы кампании (meta.chapters); пустой реестр → поле не показывается. */
+export function ChapterSelect({ store, value, onChange }: { store: EditorStore; value: string | undefined; onChange: (v: string | undefined) => void }) {
+  const chapters = store.meta.chapters ?? []
+  if (!chapters.length) return null
+  const sorted = [...chapters].sort((a, b) => (a.order ?? chapters.indexOf(a)) - (b.order ?? chapters.indexOf(b)))
+  return (
+    <label className="fld" data-tip="Группировка для мастера; движок главы не различает">
+      <span>Глава</span>
+      <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
+        <option value="">без главы</option>
+        {sorted.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+      </select>
+    </label>
   )
 }

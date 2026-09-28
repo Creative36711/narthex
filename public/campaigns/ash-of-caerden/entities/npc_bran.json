@@ -62,6 +62,10 @@
       },
       {
         "item": "item_tavern_key"
+      },
+      {
+        "item": "item_travel_lockpicks",
+        "price": 12
       }
     ],
     "buys": true,

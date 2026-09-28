@@ -7,18 +7,18 @@
    "label": "Начало разговора",
    "sections": [
     {
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "met_bran"
+      }
+     ],
      "steps": [
       {
        "kind": "line",
        "line": {
         "text": "Снова ты. Подходи, товар нынче — что уцелело."
        }
-      }
-     ],
-     "conds": [
-      {
-       "type": "flag",
-       "flag": "met_bran"
       }
      ],
      "else_steps": [
@@ -32,8 +32,7 @@
       {
        "kind": "line",
        "line": {
-        "text": "Подходи, не стесняйся! Бран, лучшие товары долины...",
-        "emotion": "neutral"
+        "text": "Подходи, не стесняйся! Бран, лучшие товары долины..."
        }
       },
       {
@@ -64,8 +63,7 @@
         {
          "kind": "line",
          "line": {
-          "text": "Выбирай, всё лучшее — на прилавке.",
-          "emotion": "neutral"
+          "text": "Выбирай, всё лучшее — на прилавке."
          }
         },
         {
@@ -82,7 +80,6 @@
     },
     {
      "text": "Цены у тебя грабительские. (Торговля)",
-     "once": true,
      "conds": [
       {
        "type": "flag",
@@ -90,6 +87,7 @@
        "not": true
       }
      ],
+     "once": true,
      "sections": [
       {
        "steps": [
@@ -103,9 +101,33 @@
        ]
       }
      ],
+     "goto": "stay",
      "check": {
       "skill": "bargain",
       "difficulty": 50,
+      "success": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Тьфу, язык у тебя подвешен... Ладно. Держи хлеб сверху, только отстань."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "add_item",
+            "item": "item_bread",
+            "qty": 1
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      },
       "fail": {
        "sections": [
         {
@@ -126,33 +148,8 @@
         }
        ],
        "goto": "stay"
-      },
-      "success": {
-       "sections": [
-        {
-         "steps": [
-          {
-           "kind": "line",
-           "line": {
-            "text": "Тьфу, язык у тебя подвешен... Ладно. Держи хлеб сверху, только отстань.",
-            "emotion": "neutral"
-           }
-          },
-          {
-           "kind": "effect",
-           "effect": {
-            "type": "add_item",
-            "item": "item_bread",
-            "qty": 1
-           }
-          }
-         ]
-        }
-       ],
-       "goto": "stay"
       }
-     },
-     "goto": "stay"
+     }
     },
     {
      "text": "Что за банда вас грабит?",
@@ -163,8 +160,7 @@
         {
          "kind": "line",
          "line": {
-          "text": "Организованные, со своим главарём — Серым Йореком.",
-          "emotion": "neutral"
+          "text": "Организованные, со своим главарём — Серым Йореком."
          }
         },
         {

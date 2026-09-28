@@ -6,6 +6,8 @@ import {
   charChoiceProblems,
   derivedFromChoice,
   newCharChoice,
+  rollStat,
+  rollStatSet,
   skillMinVal,
   skillPointsUsed,
   statPointsUsed,
@@ -15,6 +17,8 @@ import {
   type CharChoice,
 } from '../core/charcreate'
 import { skillLabel } from '../shared/skills'
+import { assetUrl } from '../core/loader'
+import { framesOf } from './frames'
 
 /** русское имя характеристики для подсказок */
 const STAT_LABELS: Record<string, string> = {
@@ -43,10 +47,48 @@ export function CharacterCreation({
 }) {
   const creation = campaign.meta.char_creation!
   const template = campaign.entities[campaign.meta.default_player] as NpcDef
-  const [choice, setChoice] = useState<CharChoice>(() => newCharChoice(creation, template, campaign.meta))
+  const rollCfg = creation.roll
+  // режим кубиков (аудит §5.6 п.5): наборы, выбранный, перебросы, перераспределение
+  const [sets, setSets] = useState<Record<string, number>[]>(() =>
+    rollCfg ? Array.from({ length: Math.max(1, rollCfg.arrays ?? 1) }, () => rollStatSet(creation)) : [],
+  )
+  const [pickedSet, setPickedSet] = useState(0)
+  const [rerollsLeft, setRerollsLeft] = useState(rollCfg?.rerolls ?? 0)
+  const [redSpent, setRedSpent] = useState(0)
+  const [choice, setChoice] = useState<CharChoice>(() => {
+    const base = newCharChoice(creation, template, campaign.meta)
+    return rollCfg ? { ...base, stats: { ...(sets[0] ?? base.stats) } } : base
+  })
 
   const { min, max } = creation.stat_limits
   const statLeft = creation.total_points - statPointsUsed(creation, choice)
+  const redTotal = rollCfg?.redistribute ?? 0
+
+  /** перебросить все наборы целиком */
+  const rerollAll = () => {
+    const next = Array.from({ length: Math.max(1, rollCfg?.arrays ?? 1) }, () => rollStatSet(creation))
+    setSets(next)
+    setPickedSet(0)
+    setRerollsLeft(rollCfg?.rerolls ?? 0)
+    setRedSpent(0)
+    setChoice({ ...choice, stats: { ...next[0] } })
+  }
+
+  /** выбрать один из брошенных наборов */
+  const pickSet = (i: number) => {
+    if (!sets[i]) return
+    setPickedSet(i)
+    setRerollsLeft(rollCfg?.rerolls ?? 0)
+    setRedSpent(0)
+    setChoice({ ...choice, stats: { ...sets[i] } })
+  }
+
+  /** переброс одной характеристики (тратит переброс) */
+  const rerollOne = (k: string) => {
+    if (rerollsLeft <= 0) return
+    setRerollsLeft(rerollsLeft - 1)
+    setChoice({ ...choice, stats: { ...choice.stats, [k]: rollStat(creation, k) } })
+  }
   const skillsOn = creation.skill_points !== undefined
   const skillLeft = skillsOn ? creation.skill_points! - skillPointsUsed(creation, choice) : 0
   const problems = charChoiceProblems(creation, choice, campaign.meta.skills)
@@ -75,16 +117,116 @@ export function CharacterCreation({
           <button className="btn btn-small" onClick={onBack}><Ico n="close" /> </button>
         </div>
 
-        {creation.choose_name && (
+        {(creation.choose_name || creation.choose_age || creation.choose_bio) && (
           <div className="props-group">
-            <h4>Имя героя</h4>
-            <input
-              className="char-name"
-              value={choice.name}
-              maxLength={40}
-              placeholder={template.label}
-              onChange={(e) => setChoice({ ...choice, name: e.target.value })}
-            />
+            <h4>Герой</h4>
+            {creation.choose_name && (
+              <input
+                className="char-name"
+                value={choice.name}
+                maxLength={40}
+                placeholder={template.label}
+                onChange={(e) => setChoice({ ...choice, name: e.target.value })}
+              />
+            )}
+            {creation.choose_age && (
+              <label className="fld char-age" style={{ marginTop: creation.choose_name ? 8 : 0 }}>
+                <span>Возраст</span>
+                <input
+                  type="number"
+                  min={14}
+                  max={120}
+                  value={choice.age ?? ''}
+                  placeholder="например 28"
+                  onChange={(e) => setChoice({ ...choice, age: Number(e.target.value) || undefined })}
+                />
+              </label>
+            )}
+            {creation.choose_bio && (
+              <label className="fld fld-block" style={{ marginTop: 8 }}>
+                <span>Биография (коротко — кто вы и откуда)</span>
+                <textarea
+                  rows={3}
+                  maxLength={600}
+                  value={choice.bio ?? ''}
+                  placeholder="Пара строк о жизни до того, как началась эта история…"
+                  onChange={(e) => setChoice({ ...choice, bio: e.target.value || undefined })}
+                />
+              </label>
+            )}
+          </div>
+        )}
+
+        {/* облик героя: галерея портретов и/или составные сегменты мастера */}
+        {((creation.portraits?.length ?? 0) > 0 || (creation.portrait_layers?.length ?? 0) > 0) && (
+          <div className="props-group">
+            <h4>Облик героя</h4>
+            <div className="hero-look">
+              <div className="hero-look-preview">
+                {(() => {
+                  const frames: string[] = []
+                  const pick = (img: import('../shared/types').ImageValue) => (typeof img === 'string' ? img : (framesOf(img)?.frames[0] ?? ''))
+                  if (creation.portrait_layers?.length && choice.portrait_layers && Object.keys(choice.portrait_layers).length) {
+                    for (const layer of creation.portrait_layers) {
+                      const opt = layer.options.find((o) => o.id === choice.portrait_layers![layer.id]) ?? layer.options[0]
+                      if (opt) { const f = pick(opt.image); if (f) frames.push(f) }
+                    }
+                  } else if (choice.portrait) {
+                    const def = creation.portraits?.find((p) => p.id === choice.portrait)
+                    if (def) { const f = pick(def.image); if (f) frames.push(f) }
+                  }
+                  if (!frames.length) return <div className="img-upload-empty">выберите портрет</div>
+                  return frames.map((f, i) => <img key={i} className="hero-portrait-frame" src={assetUrl(campaign, f)} alt="" />)
+                })()}
+              </div>
+              <div className="hero-look-picks">
+                {(creation.portraits?.length ?? 0) > 0 && (
+                  <>
+                    <span className="muted small">Готовые портреты</span>
+                    <div className="hero-gallery">
+                      {creation.portraits!.map((p) => {
+                        const src = assetUrl(campaign, typeof p.image === 'string' ? p.image : (framesOf(p.image)?.frames[0] ?? ''))
+                        const active = choice.portrait === p.id && !Object.keys(choice.portrait_layers ?? {}).length
+                        return (
+                          <button
+                            key={p.id}
+                            className={`btn hero-gallery-card${active ? ' sel' : ''}`}
+                            onClick={() => setChoice({ ...choice, portrait: p.id, portrait_layers: undefined })}
+                          >
+                            {src && <img src={src} alt="" />}
+                            <span>{p.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+                {(creation.portrait_layers ?? []).map((layer) => (
+                  <div key={layer.id} className="hero-layer-row">
+                    <span className="muted small">{layer.label}</span>
+                    <div className="hero-layer-opts">
+                      {layer.options.map((o) => {
+                        const active = choice.portrait_layers?.[layer.id] === o.id
+                        return (
+                          <button
+                            key={o.id}
+                            className={`btn btn-small${active ? ' btn-primary' : ''}`}
+                            onClick={() =>
+                              setChoice({
+                                ...choice,
+                                portrait_layers: { ...(choice.portrait_layers ?? {}), [layer.id]: o.id },
+                              })
+                            }
+                          >
+                            {o.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -151,33 +293,96 @@ export function CharacterCreation({
 
         <div className="props-group">
           <h4>Характеристики</h4>
-          <div className={`char-budget ${statLeft > 0 ? 'warn' : 'ok'}`}>
-            Свободных очков характеристик: <b>{statLeft}</b> из {creation.total_points} · пороги {min}–{max}
-            {statLeft > 0 && (
-              <div className="char-budget-warn">
-                В бой с {statLeft} нераспределёнными очками? Это хардкор — герой будет заметно слабее.
+          {rollCfg ? (
+            <>
+              <div className="char-budget ok">
+                Характеристики бросаются кубиками
+                {rollCfg.per_stat && Object.keys(rollCfg.per_stat).length > 0 && (
+                  <>: {STAT_KEYS.map((k) => `${k} ${rollCfg.per_stat?.[k] ?? rollCfg.notation ?? '3d6'}`).join(' · ')}</>
+                )}
+                {!(rollCfg.per_stat && Object.keys(rollCfg.per_stat).length > 0) && <> ({rollCfg.notation ?? '3d6'})</>}
+                · пороги {min}–{max}
               </div>
-            )}
-          </div>
+              {sets.length > 1 && (
+                <div className="char-professions" style={{ marginBottom: 8 }}>
+                  {sets.map((s, i) => (
+                    <button
+                      key={i}
+                      className={`char-prof-card ${pickedSet === i ? 'sel' : ''}`}
+                      onClick={() => pickSet(i)}
+                    >
+                      <div className="char-prof-label">Набор {i + 1}</div>
+                      <div className="muted small">
+                        {STAT_KEYS.map((k) => `${k} ${s[k]}`).join(' · ')}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="char-roll-actions" style={{ marginBottom: 8 }}>
+                <button className="btn btn-small" onClick={rerollAll}>
+                  <Ico n="dice" />  Бросить заново
+                </button>
+                {rerollsLeft > 0 && (
+                  <span className="muted small">Перебросов отдельных характеристик: {rerollsLeft} (кнопка кубика у значения)</span>
+                )}
+                {redTotal > 0 && (
+                  <span className="muted small">Очков перераспределения: {redTotal - redSpent} из {redTotal} (кнопки − и + переливают очки)</span>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className={`char-budget ${statLeft > 0 ? 'warn' : 'ok'}`}>
+              Свободных очков характеристик: <b>{statLeft}</b> из {creation.total_points} · пороги {min}–{max}
+              {statLeft > 0 && (
+                <div className="char-budget-warn">
+                  В бой с {statLeft} нераспределёнными очками? Это хардкор — герой будет заметно слабее.
+                </div>
+              )}
+            </div>
+          )}
           <div className="char-stats">
             {STAT_KEYS.map((k) => (
               <div key={k} className="char-stat-row">
                 <span className="char-stat-key" data-tip={`${k} — ${STAT_LABELS[k]}`}>{k}</span>
                 <button
                   className="btn btn-small"
-                  disabled={(choice.stats[k] ?? min) <= min}
-                  onClick={() => setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) - 1 } })}
+                  disabled={
+                    rollCfg
+                      ? redSpent <= 0 || (choice.stats[k] ?? min) <= min
+                      : (choice.stats[k] ?? min) <= min
+                  }
+                  onClick={() => {
+                    if (rollCfg) setRedSpent(redSpent - 1)
+                    setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) - 1 } })
+                  }}
                 >
                   −
                 </button>
                 <span className="char-stat-val">{choice.stats[k] ?? min}</span>
                 <button
                   className="btn btn-small"
-                  disabled={statLeft <= 0 || (choice.stats[k] ?? min) >= max}
-                  onClick={() => setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) + 1 } })}
+                  disabled={
+                    rollCfg
+                      ? redSpent >= redTotal || (choice.stats[k] ?? min) >= max
+                      : statLeft <= 0 || (choice.stats[k] ?? min) >= max
+                  }
+                  onClick={() => {
+                    if (rollCfg) setRedSpent(redSpent + 1)
+                    setChoice({ ...choice, stats: { ...choice.stats, [k]: (choice.stats[k] ?? min) + 1 } })
+                  }}
                 >
                   +
                 </button>
+                {rollCfg && rerollsLeft > 0 && (
+                  <button
+                    className="btn btn-small"
+                    data-tip="Перебросить эту характеристику"
+                    onClick={() => rerollOne(k)}
+                  >
+                    <Ico n="dice" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -238,6 +443,28 @@ export function CharacterCreation({
               <li key={i}>{p}</li>
             ))}
           </ul>
+        )}
+
+        {/* уровень сложности — пресеты мастера (meta.difficulties), выбор игрока */}
+        {(campaign.meta.difficulties?.length ?? 0) > 1 && (
+          <div className="char-block">
+            <h3>Сложность</h3>
+            <div className="char-diff-list">
+              {campaign.meta.difficulties!.map((d) => {
+                const active = (choice.difficulty ?? campaign.meta.difficulties![0].id) === d.id
+                return (
+                  <button
+                    key={d.id}
+                    className={`btn char-diff${active ? ' btn-primary' : ''}`}
+                    onClick={() => setChoice({ ...choice, difficulty: d.id })}
+                  >
+                    <span className="char-diff-label">{d.label}</span>
+                    {d.description && <span className="muted small">{d.description}</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         )}
 
         <div className="char-create-foot">

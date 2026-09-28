@@ -1,5 +1,9 @@
 import type {
+  DifficultyPreset,
+  ArtDoc,
+  CameraDoc,
   CampaignData,
+  SaveEnvelope,
   CodexEntryDef,
   CutsceneDef,
   DiceRules,
@@ -8,7 +12,16 @@ import type {
   EntityDef,
   GameState,
   ItemDef,
+  ItemInteractOption,
   LocationDef,
+  AchievementDef,
+  ActiveStatus,
+  EventTableDef,
+  GenWeightedItem,
+  NpcGeneratorDef,
+  FeatDef,
+  MetaStoreState,
+  MetaUnlockDef,
   NpcDef,
   PlayerState,
   RecipeDef,
@@ -21,12 +34,23 @@ import type {
   StatusDef,
   TravelConnection,
   NeedCondition,
+  RuleDef,
   PresenceOverride,
+  SkillDifficulty,
   WeaponData,
+
+  ImageValue,
 } from '../shared/types'
 import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES } from '../shared/types'
+import {
+  inspectSave,
+  loadState,
+  removeSave,
+  writeSave,
+  MAX_SAVE_SLOTS,
+} from './savemigrate'
 import { PRNG } from './prng'
-import { derivedHP, derivedMP, skillCheck, CHECK_RESULT_LABEL } from './brp'
+import { derivedHP, derivedMP, movement, skillCheck, CHECK_RESULT_LABEL, difficultyModifier, difficultyLabel, type SkillCheckOutcome } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
@@ -35,6 +59,7 @@ import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
 import { playUi, playInteraction } from '../shared/audio'
+import type { SoundHook } from '../shared/types'
 import { migrateNeedCondition } from '../shared/migrate'
 import { CombatController } from './combat'
 
@@ -62,6 +87,31 @@ export class GameEngine {
   combat: CombatController | null = null
   /** открытая торговля: id NPC-торговца */
   trade: NpcDef | null = null
+  /** транзитные всплывающие подсказки (не в сейве): «Получено: …» и т.п. — UI отображает и сам гасит */
+  toasts: { id: number; text: string; kind: 'get' | 'lose' | 'info' }[] = []
+  private toastSeq = 0
+
+  /** добавить короткое всплывающее уведомление (записывается и в журнал).
+   *  Гаснет само — обращать внимание важно, а закрывать каждое рукой — перебор (баг-фитч №6). */
+  pushToast(text: string, kind: 'get' | 'lose' | 'info' = 'info'): void {
+    const toast = { id: ++this.toastSeq, text, kind }
+    // новый массив — UI-эффект таймеров ловит изменение ссылки
+    this.toasts = [...this.toasts, toast]
+    this.pushLog(text)
+    playUi(kind === 'lose' ? 'item_lose' : kind === 'get' ? 'item_get' : 'message')
+    this.notify()
+    // страховка: гасим и без UI-эффекта (вдруг экран без транзит-надписей)
+    setTimeout(() => this.dismissToast(toast.id), 5200)
+  }
+
+  /** UI погасил подсказку по таймеру */
+  dismissToast(id: number): void {
+    if (this.toasts.some((t) => t.id === id)) {
+      this.toasts = this.toasts.filter((t) => t.id !== id)
+      this.notify()
+    }
+  }
+
   /** всплывающие сообщения (show_message) */
   messages: { text: string; portrait?: string }[] = []
   /**
@@ -74,6 +124,8 @@ export class GameEngine {
   private cutsceneSerial = 0
   /** забег создан с нуля (а не загружен из сейва) — для правил «на старте» */
   private freshRun: boolean
+  /** обёртка последнего сохранения: версии кампании/движка и даты (`SaveEnvelope`) */
+  envelope: SaveEnvelope | null = null
 
   constructor(campaign: CampaignData, state?: GameState) {
     this.campaign = campaign
@@ -170,6 +222,7 @@ export class GameEngine {
     // (вступительная катсцена и т.п. — once + tick_elapsed 0)
     if (this.freshRun) {
       this.freshRun = false
+      this.metaRunStart()
       this.checkRules()
     }
     this.runLocationRules(this.state.location)
@@ -189,6 +242,27 @@ export class GameEngine {
     const profession = creation.professions?.find((p) => p.id === choice.profession)
     const name = choice.name.trim()
     if (name) s.player.name = name
+    // возраст и биография (аудит §5.6): только если мастер включил поля
+    if (creation.choose_age && choice.age !== undefined) s.player.age = choice.age
+    // уровень сложности от игрока (мастерские пресеты meta.difficulties)
+    if (choice.difficulty && this.campaign.meta.difficulties?.some((d) => d.id === choice.difficulty)) {
+      s.player.difficulty = choice.difficulty
+    }
+    // облик героя: галерея и/или слои мастера (char_creation.portraits[-layers])
+    const pc: Record<string, unknown> = {}
+    if (choice.portrait && creation.portraits?.some((p) => p.id === choice.portrait)) pc.gallery = choice.portrait
+    if (choice.portrait_layers && creation.portrait_layers?.length) {
+      const layers: Record<string, string> = {}
+      for (const layer of creation.portrait_layers) {
+        const sel = choice.portrait_layers[layer.id]
+        if (sel && layer.options.some((o) => o.id === sel)) layers[layer.id] = sel
+      }
+      if (Object.keys(layers).length) pc.layers = layers
+    }
+    if (Object.keys(pc).length) s.player.portrait_choice = pc as PlayerState['portrait_choice']
+    else delete s.player.age
+    if (creation.choose_bio && choice.bio?.trim()) s.player.bio = choice.bio.trim()
+    else delete s.player.bio
     // характеристики: только семь базовых, производные пересчитываются
     const stats = { ...choice.stats } as unknown as StatBlock
     delete stats.HP
@@ -201,7 +275,7 @@ export class GameEngine {
     // навыки: итоговые значения с экрана (база + покупки + бонусы профессии)
     s.player.skills = { ...choice.skills }
     // снаряжение профессии
-    for (const it of profession?.items ?? []) this.addItem(it.item, it.quantity)
+    for (const it of profession?.items ?? []) this.addItem(it.item, it.quantity, { silent: true })
     s.char_choice = JSON.parse(JSON.stringify(choice))
     this.pushLog(`${name || 'Герой'}: забег начинается.`)
   }
@@ -216,6 +290,51 @@ export class GameEngine {
   /** уникальный номер показа текущей катсцены (ключ для UI) */
   get cutsceneKey(): number {
     return this.cutsceneQueue[0]?.serial ?? 0
+  }
+
+  // ─────────────── баннеры и «открытки» (кинематографические эффекты правил) ───────────────
+
+  /** активные баннеры этого забега (визуальный слой, в сохранения не входит) */
+  banners: Array<{
+    /** serial для ключей React */
+    serial: number
+    text: string
+    preset?: string
+    enter?: string
+    seconds?: number
+    position?: string
+    accent?: string
+  }> = []
+  /** активная «открытка» (одна за раз, новая вытесняет) */
+  postcard: {
+    image?: string
+    art?: ArtDoc
+    text?: string
+    preset?: string
+    seconds?: number
+    camera?: CameraDoc
+  } | null = null
+  private bannerSerial = 1
+
+  private showBanner(e: { text: string; preset?: string; enter?: string; seconds?: number; position?: string; accent?: string }): void {
+    const serial = this.bannerSerial++
+    this.banners = [...this.banners, { serial, ...e }]
+    const seconds = e.seconds ?? Math.min(8, Math.max(3, e.text.length * 0.06))
+    // таймер через globalThis: в node-смоуке engine тоже живёт
+    globalThis.setTimeout(() => {
+      if (this.banners.some((b) => b.serial === serial)) {
+        this.banners = this.banners.filter((b) => b.serial !== serial)
+        this.notify()
+      }
+    }, seconds * 1000)
+    this.notify()
+  }
+
+  /** закрыть «открытку» (тап или таймер) */
+  hidePostcard(): void {
+    if (!this.postcard) return
+    this.postcard = null
+    this.notify()
   }
 
   playCutscene(id: string): void {
@@ -274,7 +393,7 @@ export class GameEngine {
           let next = cur
           // убыль — только когда все условия выполнены (пусто = всегда)
           const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
-          if (decays) next = Math.max(0, next - need.decay_per_tick)
+          if (decays) next = Math.max(0, next - need.decay_per_tick * (this.difficultyDef()?.need_decay ?? 1))
           // восстановление — когда выполнены условия restore_when
           if (
             need.restore_per_tick &&
@@ -288,7 +407,19 @@ export class GameEngine {
       }
       // статусы игрока (блок 5 ТЗ): DoT, декремент, истечение
       this.tickStatuses()
+      // преследование (start_pursuit): периодические цепочные проверки маскировки
+      if (this.state.pursuit) {
+        this.state.pursuit.left -= 1
+        if (this.state.pursuit.left <= 0) this.tickPursuit()
+      }
+      // смена суток: самочувствие NPC (спал по расписанию / не спал)
+      const tpd = meta.ticks_per_day ?? 24
+      if (tpd > 0 && this.state.tick > 0 && this.state.tick % tpd === 0) this.tickNpcMood()
     }
+    // достижения со счётчиками (прожитые тики и пр.) — после пачки тиков
+    this.checkAchievements()
+    // таблицы случайных событий ходят тем же шагом, что и тики мира (аудит B9)
+    this.tickEventTables()
   }
 
   /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
@@ -296,14 +427,42 @@ export class GameEngine {
     const list = this.state.player.statuses
     if (!list?.length) return
     const expired: StatusDef[] = []
+    const cured: string[] = []
     for (const s of list) {
       const def = this.statusDef(s.id)
       if (!def) continue
-      if (def.dot?.hp) this.state.player.hp = Math.max(1, this.state.player.hp - def.dot.hp)
-      if (def.dot?.mp) this.state.player.mp = Math.max(0, this.state.player.mp - def.dot.mp)
-      if (def.dot?.hp) this.pushLog(`${def.label}: −${def.dot.hp} HP.`)
+      // болезни/яды с течением (аудит B7): стадии — спасбросок CON; DoT и модификаторы масштабированы тяжестью
+      const severity = Math.max(1, s.severity ?? 1)
+      if (def.dot?.hp) this.state.player.hp = Math.max(1, this.state.player.hp - def.dot.hp * severity)
+      if (def.dot?.mp) this.state.player.mp = Math.max(0, this.state.player.mp - def.dot.mp * severity)
+      if (def.dot?.hp) this.pushLog(`${def.label}: −${def.dot.hp * severity} HP${severity > 1 ? ` (тяжесть ${severity})` : ''}.`)
+      if (def.disease && (s.next_check ?? Infinity) <= this.state.tick) {
+        const mult = def.disease.con_multiplier ?? 5
+        const out = skillCheck(this.state.player.stats.CON * mult, this.rng, 0, this.diceRules)
+        this.pushLog(`${def.label}: стадия течения — CON×${mult}, d100=${out.roll} против ${out.target} → ${CHECK_RESULT_LABEL[out.result]}`)
+        s.next_check = this.state.tick + def.disease.interval_ticks
+        if (out.success) {
+          s.severity = Math.max(0, severity - 1)
+          if (s.severity === 0) {
+            cured.push(s.id)
+            continue
+          }
+          this.pushLog(`${def.label}: тяжесть снижается до ${s.severity}.`)
+        } else {
+          const cap = def.disease.severity_max ?? 5
+          s.severity = Math.min(cap, severity + 1)
+          this.pushLog(`${def.label}: болезнь ухудшается — тяжесть ${s.severity}/${cap}.`)
+        }
+      }
       s.left -= 1
       if (s.left <= 0) expired.push(def)
+    }
+    if (cured.length) {
+      this.state.player.statuses = (this.state.player.statuses ?? []).filter((s) => !cured.includes(s.id))
+      for (const id of cured) {
+        const def = this.statusDef(id)
+        this.pushLog(`${def?.label ?? id}: выздоровление.`)
+      }
     }
     if (expired.length) {
       this.state.player.statuses = list.filter((s) => s.left > 0)
@@ -340,7 +499,62 @@ export class GameEngine {
     if (this.debugInvincible && delta < 0) return
     const p = this.state.player
     p.hp = Math.min(p.max_hp, p.hp + delta)
-    if (p.hp <= 0) this.gameOver('death', 'Ваши раны оказались смертельными.')
+    if (p.hp <= 0 && !this.tryBrpSurvival()) this.gameOver('death', 'Ваши раны оказались смертельными.')
+  }
+
+  /**
+   * Мировой спасбросок от смерти (режим combat.death.mode='brp'): при HP ≤ 0
+   * бросок CON×con_multiplier; успех — герой выживает на грани (1 HP).
+   * Истина — смерть отменена.
+   */
+  private tryBrpSurvival(): boolean {
+    const death = this.campaign.meta.combat?.death
+    if (death?.mode !== 'brp') return false
+    const mult = death.con_multiplier ?? 5
+    const out = skillCheck(this.state.player.stats.CON * mult, this.rng, 0, this.diceRules)
+    this.pushLog(`Грань смерти: CON×${mult} — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
+    if (!out.success) return false
+    this.state.player.hp = 1
+    this.pushLog('Герой выживает на грани смерти (1 HP).')
+    return true
+  }
+
+  /**
+   * Естественное лечение при отдыхе (аудит §5.6 п.3): сон (ink-вызов `sleep`)
+   * лечит HP костями из `meta.rest.hp` (умолчание '1d3') и, если не отключено
+   * (`rest.mp_full: false`), полностью восстанавливает MP.
+   */
+  restHeal(): { hp: number; mpFull: boolean } {
+    const rest = this.campaign.meta.rest
+    const p = this.state.player
+    let healed = 0
+    if (p.hp > 0 && p.hp < p.max_hp) {
+      healed = Math.min(p.max_hp - p.hp, rollDice(rest?.hp ?? '1d3', this.rng))
+      if (healed > 0) {
+        p.hp += healed
+        this.pushLog(`Отдых восстанавливает ${healed} HP.`)
+      }
+    }
+    const mpFull = rest?.mp_full ?? true
+    if (mpFull && p.mp < p.max_mp) {
+      p.mp = p.max_mp
+      this.pushLog('Силы восстановлены (MP полностью).')
+    }
+    // удача восполняется на отдыхе (мастер может запретить luck.rest_luck=false)
+    if (this.luckMax() > 0 && (this.campaign.meta.luck?.rest_luck ?? true) && this.luck() < this.luckMax()) {
+      this.state.player.luck = this.luckMax()
+      this.pushLog('Герой чувствует: удача вернулась.')
+    }
+    // усталость снимается отдыхом (мастер может запретить vitals.fatigue.rest_restore=false)
+    if (this.fatigueMax() > 0) {
+      const cfg = this.campaign.meta.vitals?.fatigue
+      const restore = cfg === true ? true : (typeof cfg === 'object' ? cfg.rest_restore !== false : true)
+      if (restore && this.fatigue() < this.fatigueMax()) {
+        this.state.player.fatigue = this.fatigueMax()
+        this.pushLog('Усталость прошла (отдых).')
+      }
+    }
+    return { hp: healed, mpFull }
   }
 
   // ─────────────── статусы (блок 5 ТЗ «Гибкий движок») ───────────────
@@ -370,7 +584,13 @@ export class GameEngine {
       existing.left = Math.max(existing.left, left)
       return
     }
-    list.push({ id, left })
+    // болезни/яды с течением (аудит B7): стартовая тяжесть и первая стадия
+    const entry: ActiveStatus = { id, left }
+    if (def.disease) {
+      entry.severity = 1
+      entry.next_check = this.state.tick + def.disease.interval_ticks
+    }
+    list.push(entry)
     this.pushLog(def.apply_message ?? `${def.label}: эффект наложен.`)
     if (def.on_apply?.length) this.applyEffects(def.on_apply)
     this.notify()
@@ -386,12 +606,13 @@ export class GameEngine {
     this.notify()
   }
 
-  /** суммарный модификатор навыка от активных статусов */
+  /** суммарный модификатор навыка от активных статусов (болезни масштабированы тяжестью) */
   statusSkillMod(skill: string): number {
     let mod = 0
     for (const s of this.state.player.statuses ?? []) {
       const def = this.statusDef(s.id)
-      for (const m of def?.skill_mods ?? []) if (m.skill === skill) mod += m.delta
+      const sev = def?.disease ? Math.max(1, s.severity ?? 1) : 1
+      for (const m of def?.skill_mods ?? []) if (m.skill === skill) mod += m.delta * sev
     }
     return mod
   }
@@ -403,22 +624,43 @@ export class GameEngine {
   }
 
   itemCount(id: string): number {
-    return this.state.player.inventory.find((i) => i.item === id)?.quantity ?? 0
+    return this.state.player.inventory
+      .filter((i) => i.item === id)
+      .reduce((s, i) => s + i.quantity, 0)
   }
 
-  addItem(id: string, quantity = 1): void {
+  addItem(id: string, quantity = 1, opts: { silent?: boolean } = {}): void {
     const inv = this.state.player.inventory
-    const entry = inv.find((i) => i.item === id)
-    if (entry) entry.quantity += quantity
-    else inv.push({ item: id, quantity })
+    // изнашиваемые предметы — отдельные экземпляры (аудит §5.6 п.10)
+    if (this.itemMaxDurability(id) !== undefined) {
+      for (let i = 0; i < quantity; i++) inv.push({ item: id, quantity: 1 })
+    } else {
+      const entry = inv.find((i) => i.item === id && i.durability === undefined)
+      if (entry) entry.quantity += quantity
+      else inv.push({ item: id, quantity })
+    }
+    if (!opts.silent) this.pushToast(`Получено: ${this.itemTitle(id)}${quantity > 1 ? ` ×${quantity}` : ''}.`, 'get')
   }
 
-  removeItem(id: string, quantity = 1): void {
+  removeItem(id: string, quantity = 1, opts: { silent?: boolean; verb?: string } = {}): void {
     const inv = this.state.player.inventory
-    const entry = inv.find((i) => i.item === id)
-    if (!entry) return
-    entry.quantity -= quantity
-    if (entry.quantity <= 0) inv.splice(inv.indexOf(entry), 1)
+    let left = quantity
+    // сначала расходим наиболее изношенные экземпляры
+    while (left > 0) {
+      const entries = inv.filter((i) => i.item === id)
+      if (!entries.length) break
+      const max = this.itemMaxDurability(id)
+      const pick = max === undefined
+        ? entries[0]
+        : entries.reduce((a, b) => ((a.durability ?? max) <= (b.durability ?? max) ? a : b))
+      if (pick.quantity > left) {
+        pick.quantity -= left
+        left = 0
+      } else {
+        left -= pick.quantity
+        inv.splice(inv.indexOf(pick), 1)
+      }
+    }
     // предмет закончился — снимаем со всех слотов
     if (!this.hasItem(id)) {
       const eq = this.state.player.equipment
@@ -426,6 +668,95 @@ export class GameEngine {
         if (eq[slot] === id) delete eq[slot]
       }
     }
+    const lost = quantity - left
+    if (!opts.silent && lost > 0) {
+      const verb = opts.verb ?? (lost >= quantity ? 'Потеряно' : 'Частично потеряно')
+      this.pushToast(`${verb}: ${this.itemTitle(id)}${lost > 1 ? ` ×${lost}` : ''}.`, 'lose')
+    }
+  }
+
+  // ─────────────── износ снаряжения (аудит §5.6 п.10) ───────────────
+
+  /** максимальная прочность предмета (оружие — weapon_data, броня — armor_data); нет — вечный */
+  itemMaxDurability(itemId: string): number | undefined {
+    const def = this.campaign.entities[itemId] as ItemDef | undefined
+    if (!def || def.type !== 'item') return undefined
+    return def.weapon_data?.durability ?? def.armor_data?.durability
+  }
+
+  /** осталось прочности у первого пригодного экземпляра (нет — null) */
+  itemDurabilityOf(id: string): { left: number; max: number } | null {
+    const max = this.itemMaxDurability(id)
+    if (max === undefined) return null
+    const entry = this.state.player.inventory.find((i) => i.item === id)
+    if (!entry) return null
+    return { left: entry.durability ?? max, max }
+  }
+
+  /** пригоден ли предмет к использованию (есть экземпляр с прочностью > 0) */
+  isItemUsable(id: string): boolean {
+    const max = this.itemMaxDurability(id)
+    if (max === undefined) return this.hasItem(id)
+    return this.state.player.inventory.some((i) => i.item === id && (i.durability ?? max) > 0)
+  }
+
+  /** экземпляры с износом от меньшей прочности (для UI) */
+  durabilityEntries(id: string): Array<{ entry: { item: string; quantity: number; durability?: number }; left: number }> {
+    const max = this.itemMaxDurability(id)
+    if (max === undefined) return []
+    return this.state.player.inventory
+      .filter((i) => i.item === id)
+      .map((entry) => ({ entry, left: entry.durability ?? max }))
+      .sort((a, b) => a.left - b.left)
+  }
+
+  /**
+   * Износ предмета игрока (урон в бою): −amount самому надетому экземпляру.
+   * Сломанный экземпляр с прочностью 0 сохраняется (для починки рецептом).
+   * Истина — предмет сломался этим износом.
+   */
+  damageItemDurability(itemId: string, amount = 1): boolean {
+    const max = this.itemMaxDurability(itemId)
+    if (max === undefined) return false
+    const entry = this.state.player.inventory
+      .filter((i) => i.item === itemId && (i.durability ?? max) > 0)
+      .sort((a, b) => (a.durability ?? max) - (b.durability ?? max))[0]
+    if (!entry) return false
+    const before = entry.durability ?? max
+    entry.durability = Math.max(0, before - amount)
+    if (entry.durability === 0 && before > 0) {
+      const def = this.campaign.entities[itemId]
+      this.pushLog(`«${def?.label ?? itemId}» сломался!`)
+      playUi('defeat')
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Починка (мастер помечает рецепт `repair: true`): восстанавливает самый
+   * изношенный экземпляр до максимума. Истина — нашелся изношенный.
+   */
+  repairItem(itemId: string): boolean {
+    const max = this.itemMaxDurability(itemId)
+    if (max === undefined) return false
+    const entry = this.state.player.inventory
+      .filter((i) => i.item === itemId)
+      .sort((a, b) => (a.durability ?? max) - (b.durability ?? max))[0]
+    if (!entry || (entry.durability ?? max) >= max) return false
+    entry.durability = max
+    const def = this.campaign.entities[itemId]
+    this.pushLog(`«${def?.label ?? itemId}» отремонтирован.`)
+    this.notify()
+    this.autosave()
+    return true
+  }
+
+  /** свободные «еда предмета» нет изношенных экземпляров — для рецепта починки */
+  hasDamaged(itemId: string): boolean {
+    const max = this.itemMaxDurability(itemId)
+    if (max === undefined) return false
+    return this.state.player.inventory.some((i) => i.item === itemId && (i.durability ?? max) < max)
   }
 
   // ─────────────── экипировка (блок 7 ТЗ: слоты задаёт кампания) ───────────────
@@ -470,6 +801,7 @@ export class GameEngine {
     if (!slot) return
     this.state.player.equipment[slot] = id
     this.pushLog(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`)
+    this.pushToast(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`, 'info')
     this.autosave()
     this.notify()
   }
@@ -482,14 +814,16 @@ export class GameEngine {
     const def = this.campaign.entities[id] as ItemDef | undefined
     delete eq[slot]
     this.pushLog(`Снято: ${def?.label ?? id}.`)
+    this.pushToast(`Снято: ${def?.label ?? id}.`, 'info')
     this.autosave()
     this.notify()
   }
 
-  /** текущее оружие игрока (для UI и боя): экипированное или кулаки */
+  /** текущее оружие игрока (для UI и боя): экипированное или кулаки; сломанное — кулаки */
   playerWeapon(): { itemId: string | null; weapon: WeaponData; label: string } {
     const id = this.state.player.equipment['weapon']
-    if (id && this.hasItem(id)) {
+    // сломанное оружие (прочность 0) не годится — кулаки (аудит §5.6 п.10)
+    if (id && this.isItemUsable(id)) {
       const def = this.campaign.entities[id] as ItemDef | undefined
       if (def?.weapon_data) return { itemId: id, weapon: def.weapon_data, label: def.label }
     }
@@ -507,7 +841,8 @@ export class GameEngine {
     const labels: string[] = []
     for (const slot of Object.keys(this.state.player.equipment)) {
       const id = this.state.player.equipment[slot]
-      if (!id || !this.hasItem(id)) continue
+      // сломанная броня (прочность 0) перестаёт поглощать урон (аудит §5.6 п.10)
+      if (!id || !this.isItemUsable(id)) continue
       const def = this.campaign.entities[id] as ItemDef | undefined
       if (def?.armor_data) {
         points += def.armor_data.points
@@ -524,8 +859,8 @@ export class GameEngine {
     if (!def || def.type !== 'item' || !def.on_use) return
     playInteraction('use', { entity: def })
     this.applyEffects(def.on_use.effects)
-    if (def.on_use.consume !== false) this.removeItem(id, 1)
-    if (def.on_use.message) this.messages.push({ text: def.on_use.message })
+    if (def.on_use.consume !== false) this.removeItem(id, 1, { verb: 'Использовано' })
+    if (def.on_use.message) this.messages.push({ text: this.fmt(def.on_use.message) })
     this.checkRules()
     this.notify()
   }
@@ -557,9 +892,68 @@ export class GameEngine {
     const npc = this.campaign.entities[target] as NpcDef | undefined
     if (npc && npc.type === 'npc') {
       const factionValue = npc.faction ? (this.state.dispositions[npc.faction] ?? 0) : 0
-      return factionValue + (npc.base_disposition ?? 0)
+      // самочувствие NPC (выспался/устал) подкрашивает отношение: ±25
+      const moodShift = Math.round((this.npcMood(target) - 50) / 2)
+      return factionValue + (npc.base_disposition ?? 0) + moodShift
     }
     return this.state.dispositions[target] ?? 0
+  }
+
+  /** самочувствие NPC (0..100, умолчание 50): усталость от пропуска ночёвки по расписанию */
+  /**
+   * Ключ состояния облика героя: первый активный статус с совпадающим
+   * ключом в meta.emotions… но практичнее — известные ключи по порядку:
+   * статус из списка активных, иначе 'wounded' (HP < 50%), 'tired' (любая
+   * потребность ≤ 25), иначе 'neutral'. Ключи — из реестра состояний мастера.
+   */
+  heroPortraitStateKey(): string {
+    const p = this.state.player
+    if (p.statuses?.length) return p.statuses[0].id
+    if (p.hp * 2 < p.max_hp) return 'wounded'
+    for (const v of Object.values(this.state.player.needs ?? {})) if (v <= 25) return 'tired'
+    return 'neutral'
+  }
+
+  /**
+   * Стек изображений портрета героя (низ → верх) с учётом состояния:
+   * галерея — один кадр; слои — кадры выбранных вариантов по порядку
+   * сегментов мастера; вариант облика под ключ состояния меняет кадр,
+   * если мастер задал такую запись. Пусто — портрета нет.
+   */
+  heroPortraitImages(): ImageValue[] {
+    const meta = this.campaign.meta
+    const choice = this.state.player.portrait_choice
+    if (!choice) return []
+    const key = this.heroPortraitStateKey()
+    const withState = (img: ImageValue, states?: Record<string, ImageValue>): ImageValue => {
+      const hit = states?.[key]
+      if (hit) return hit
+      return img
+    }
+    if (choice.layers && meta.char_creation?.portrait_layers?.length) {
+      const out: ImageValue[] = []
+      for (const layer of meta.char_creation.portrait_layers) {
+        const opt = layer.options.find((o) => o.id === choice.layers![layer.id]) ?? layer.options[0]
+        if (!opt) continue
+        out.push(withState(opt.image, opt.states))
+      }
+      if (out.length) return out
+    }
+    if (choice.gallery) {
+      const def = meta.char_creation?.portraits?.find((p) => p.id === choice.gallery)
+      if (def) return [withState(def.image, def.states)]
+    }
+    return []
+  }
+
+  npcMood(entityId: string): number {
+    return this.state.npc_mood?.[entityId] ?? 50
+  }
+
+  /** сдвинуть самочувствие NPC (правила/эффекты; K.D. clamp 0..100) */
+  changeNpcMood(entityId: string, delta: number): void {
+    const m = (this.state.npc_mood ??= {})
+    m[entityId] = Math.max(0, Math.min(100, (m[entityId] ?? 50) + delta))
   }
 
   changeDisposition(target: string, delta: number): void {
@@ -656,6 +1050,724 @@ export class GameEngine {
     return this.state.party.some((c) => c.entity === entityId)
   }
 
+  // ─────────────── удача (аудит §5.6 п.8) ───────────────
+
+  /** максимум удачи: POW × meta.luck.multiplier (умолчание 5). Система opt-in: нет meta.luck — удачи нет. */
+  luckMax(): number {
+    const cfg = this.campaign.meta.luck
+    if (!cfg) return 0
+    const mult = cfg.multiplier ?? 5
+    return Math.max(0, this.state.player.stats.POW * mult)
+  }
+
+  /** текущие очки удачи (старые сейвы без поля считаются полными) */
+  luck(): number {
+    const max = this.luckMax()
+    return Math.min(max, this.state.player.luck ?? max)
+  }
+
+  /** потратить/вернуть очки удачи; ложь — не хватает */
+  changeLuck(delta: number): boolean {
+    const cur = this.luck()
+    const next = Math.max(0, Math.min(this.luckMax(), cur + delta))
+    if (delta < 0 && cur + delta < 0) return false
+    this.state.player.luck = next
+    return true
+  }
+
+  // ─────────────── производные опции B6: усталость, рассудок, репутация, достаток, страсти, причастность ───────────────
+
+  /** максимум усталости: (STR+CON)×множитель; opt-in meta.vitals.fatigue */
+  fatigueMax(): number {
+    const cfg = this.campaign.meta.vitals?.fatigue
+    if (!cfg) return 0
+    const mult = cfg === true ? 1 : (cfg.multiplier ?? 1)
+    return Math.max(0, Math.round((this.state.player.stats.STR + this.state.player.stats.CON) * mult))
+  }
+
+  /** текущая усталость (полная по умолчанию, как удача) */
+  fatigue(): number {
+    const max = this.fatigueMax()
+    return Math.min(max, this.state.player.fatigue ?? max)
+  }
+
+  /** израсходовать/восстановить усталость; ложь — запаса не хватит */
+  changeFatigue(delta: number): boolean {
+    const max = this.fatigueMax()
+    if (max === 0 && delta !== 0) return true // система выключена — no-op
+    const cur = this.fatigue()
+    if (delta < 0 && cur + delta < 0) {
+      this.state.player.fatigue = 0
+      this.pushLog('Вы на пределе: очки усталости на нуле!')
+      this.checkRules() // правила мастера могут среагировать на fatigue_le
+      this.notify()
+      return false
+    }
+    this.state.player.fatigue = Math.max(0, Math.min(max, cur + delta))
+    this.checkRules()
+    this.notify()
+    return true
+  }
+
+  /** максимум рассудка: POW×множитель; opt-in meta.vitals.sanity */
+  sanityMax(): number {
+    const cfg = this.campaign.meta.vitals?.sanity
+    if (!cfg) return 0
+    const mult = cfg === true ? 5 : (cfg.multiplier ?? 5)
+    return Math.max(0, this.state.player.stats.POW * mult)
+  }
+
+  /** текущий рассудок */
+  sanity(): number {
+    const max = this.sanityMax()
+    return Math.min(max, this.state.player.sanity ?? max)
+  }
+
+  /** потеря/исцеление рассудка; пороги/психозы — правилами на sanity_le */
+  changeSanity(delta: number): void {
+    const max = this.sanityMax()
+    if (max === 0 && delta !== 0) return
+    const next = Math.max(0, Math.min(max, this.sanity() + delta))
+    const lost = next - this.sanity()
+    this.state.player.sanity = next
+    if (lost < 0) this.pushLog(`Рассудок трещит: ${lost}. (сейчас ${next}/${max})`)
+    else if (lost > 0) this.pushLog(`Мысли проясняются: рассудок +${lost}. (сейчас ${next}/${max})`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** репутация (opt-in meta.reputation) */
+  reputation(): number {
+    return Math.max(0, this.state.player.reputation ?? 0)
+  }
+
+  /** репутация включена мастером */
+  reputationEnabled(): boolean {
+    return !!this.campaign.meta.reputation
+  }
+
+  reputationLabel(): string {
+    const cfg = this.campaign.meta.reputation
+    return (typeof cfg === 'object' && cfg?.label) || 'Репутация'
+  }
+
+  changeReputation(delta: number): void {
+    const next = Math.max(0, this.reputation() + delta)
+    this.state.player.reputation = next
+    if (delta > 0) this.pushLog(`Слава о вас растёт: репутация ${next}.`)
+    else if (delta < 0) this.pushLog(`О вас отзываются хуже: репутация ${next}.`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** шкала достатка (opt-in meta.wealth_levels) */
+  wealthLevels(): string[] {
+    return this.campaign.meta.wealth_levels ?? []
+  }
+
+  /** текущий уровень достатка (индекс в шкале) */
+  wealthLevel(): number {
+    const lv = this.wealthLevels()
+    return Math.max(0, Math.min(lv.length - 1, this.state.player.wealth_level ?? 0))
+  }
+
+  wealthLevelLabel(): string {
+    return this.wealthLevels()[this.wealthLevel()] ?? ''
+  }
+
+  /** сдвиг достатка на ±levels ступеней */
+  changeWealth(levels: number): void {
+    const lv = this.wealthLevels()
+    if (!lv.length) return
+    const next = Math.max(0, Math.min(lv.length - 1, this.wealthLevel() + levels))
+    if (next === this.wealthLevel()) return
+    this.state.player.wealth_level = next
+    this.pushLog(`Ваш достаток меняется: теперь «${lv[next]}».`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** страсть: значение 0..100+ */
+  passion(id: string): number {
+    return this.state.player.passions?.[id] ?? 0
+  }
+
+  passionLabel(id: string): string {
+    return this.campaign.meta.passions_list?.find((p) => p.id === id)?.label ?? id
+  }
+
+  /** создать/сдвинуть страсть (clamped ≥ 0); лог первого появления */
+  changePassion(id: string, delta: number): void {
+    const p = this.state.player
+    p.passions ??= {}
+    const next = Math.max(0, (p.passions[id] ?? 0) + delta)
+    const fresh = p.passions[id] == null
+    p.passions[id] = next
+    if (fresh) this.pushLog(`В вас зажигается страсть: «${this.passionLabel(id)}» (${next}).`)
+    else this.pushLog(`Страсть «${this.passionLabel(id)}»: ${delta > 0 ? '+' : ''}${delta} → ${next}.`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** очки причастности силе */
+  allegiance(id: string): number {
+    return this.state.player.allegiance?.[id] ?? 0
+  }
+
+  allegianceLabel(id: string): string {
+    return this.campaign.meta.allegiances?.find((a) => a.id === id)?.label ?? id
+  }
+
+  /** +очки причастности (по книге без снижения, дельта 0..100+) */
+  changeAllegiance(id: string, points: number): void {
+    const p = this.state.player
+    p.allegiance ??= {}
+    const next = Math.max(0, (p.allegiance[id] ?? 0) + points)
+    const fresh = p.allegiance[id] == null
+    p.allegiance[id] = next
+    if (fresh) this.pushLog(`Вы обретаете причастность к «${this.allegianceLabel(id)}» (${next}).`)
+    else if (points > 0) this.pushLog(`Причастность «${this.allegianceLabel(id)}»: +${points} → ${next}.`)
+    else this.pushLog(`Причастность «${this.allegianceLabel(id)}»: ${points} → ${next}.`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /**
+   * Базовый шанс навыка (без обучения). Формула 'DEX×2' ('×' или '*'),
+   * несколько слагаемых через '+': 'DEX×2+INT'.
+   * Возвращает 0, если у навыка нет base (необученный даёт 0% — как раньше).
+   */
+  skillBaseChance(skillId: string): number {
+    const def = this.campaign.meta.skills?.find((s) => s.id === skillId)
+    const base = def?.base
+    if (base == null) return 0
+    if (typeof base === 'number') return base
+    const stats = this.state.player.stats as unknown as Record<string, number>
+    let total = 0
+    for (const part of base.split('+')) {
+      const m = part.trim().match(/^([A-Z]+)(?:\s*[×x*]\s*(\d+))?$/)
+      if (!m) continue
+      const stat = stats[m[1]] ?? 0
+      total += stat * (m[2] ? parseInt(m[2], 10) : 1)
+    }
+    return total
+  }
+
+  /**
+   * Эффективное значение навыка для проверок вне боя: изученный навык,
+   * иначе базовый шанс (если у навыка задан `base` в реестре кампании).
+   */
+  skillEffective(skillId: string): number {
+    const learned = this.state.player.skills[skillId]
+    return learned != null ? learned : this.skillBaseChance(skillId)
+  }
+
+  /**
+   * Тренировка характеристики (аудит B6): прибавка с клампом по stat_limits
+   * кампании; пересчитывает производные пулы (HP/MP/усталость/рассудок).
+   */
+  trainStat(stat: string, delta: number): void {
+    const p = this.state.player
+    const stats = p.stats as unknown as Record<string, number>
+    if (!(stat in stats)) return
+    const lim = this.campaign.meta.char_creation?.stat_limits
+    const min = lim?.min ?? 1
+    const max = lim?.max ?? 99
+    const next = Math.max(min, Math.min(max, stats[stat] + delta))
+    if (next === stats[stat]) return
+    stats[stat] = next
+    this.pushLog(`Тренировка дала плоды: ${this.statLabel(stat)} ${delta > 0 ? '+' : ''}${delta} → ${next}.`)
+    // пересчёт HP (SIZ+CON)/MP (POW) теми же формулами, что на создании героя
+    const newMaxHp = derivedHP(p.stats)
+    if (newMaxHp !== p.max_hp) {
+      const diff = newMaxHp - p.max_hp
+      p.max_hp = newMaxHp
+      p.hp = Math.max(1, Math.min(p.max_hp, p.hp + Math.max(0, diff)))
+    }
+    const newMaxMp = derivedMP(p.stats)
+    if (newMaxMp !== p.max_mp) {
+      const diff = newMaxMp - p.max_mp
+      p.max_mp = newMaxMp
+      p.mp = Math.max(0, Math.min(p.max_mp, p.mp + Math.max(0, diff)))
+    }
+    this.checkRules()
+    this.notify()
+  }
+
+  /** локализованное имя характеристики */
+  statLabel(stat: string): string {
+    const labels: Record<string, string> = { STR: 'Сила', CON: 'Телосложение', SIZ: 'Размер', DEX: 'Ловкость', INT: 'Разум', POW: 'Мощь', CHA: 'Обаяние', EDU: 'Образование' }
+    return labels[stat] ?? stat
+  }
+
+  // ─────────────── уровни и черты (аудит B8, opt-in meta.progression) ───────────────
+
+  /** система уровней включена мастером */
+  progressionEnabled(): boolean {
+    return !!this.campaign.meta.progression
+  }
+
+  /** текущий уровень (старт 1) */
+  level(): number {
+    return Math.max(1, this.state.player.level ?? 1)
+  }
+
+  /** текущий запас опыта */
+  xp(): number {
+    return Math.max(0, this.state.player.xp ?? 0)
+  }
+
+  /** сколько опыта нужно, чтобы взять следующий уровень (кумулятивно) */
+  xpForLevel(level: number): number {
+    const base = this.campaign.meta.progression?.xp_per_level ?? 100
+    // база×summing i=1..level: base при lvl1→2; растёт линейно
+    return base * level
+  }
+
+  /** опыт до следующего уровня или до потолка */
+  xpToNext(): number | null {
+    if (!this.progressionEnabled()) return null
+    const max = this.campaign.meta.progression?.max_level
+    if (max != null && this.level() >= max) return null
+    return this.xpForLevel(this.level()) - this.xp()
+  }
+
+  /** нераспределённых черт (по умолчанию по одной за уровень) */
+  pendingFeats(): number {
+    if (!this.progressionEnabled()) return 0
+    const per = this.campaign.meta.progression?.feats_per_level ?? 1
+    return Math.max(0, (this.level() - 1) * per - (this.state.player.feats ?? []).length)
+  }
+
+  /** начислить опыт; при достижении порога — уровень ↑ (одна итерация) */
+  grantXp(points: number): void {
+    if (!this.progressionEnabled() || points <= 0) return
+    const p = this.state.player
+    const cap = this.campaign.meta.progression?.max_level
+    if (cap != null && this.level() >= cap) return // потолок: опыт не копится
+    p.xp = this.xp() + points
+    this.pushLog(`Опыт: +${points} (всего ${p.xp}, до след. уровня ${this.xpToNext() ?? 'потолок'}).`)
+    // уровни поднимаем по одному за проход (линейный лад book-op)
+    while (this.xp() >= this.xpForLevel(this.level())) {
+      const max = this.campaign.meta.progression?.max_level
+      if (max != null && this.level() >= max) break
+      p.xp = this.xp() - this.xpForLevel(this.level())
+      p.level = this.level() + 1
+      const slots = this.campaign.meta.progression?.feats_per_level ?? 1
+      this.pushLog(`Уровень ${p.level}!${slots > 0 ? ` Доступно ${slots} чёрт(а) к выбору в листе персонажа.` : ''}`)
+      this.checkRules()
+    }
+    this.notify()
+  }
+
+  /** дефолтного набора черт */
+  availableFeats(): FeatDef[] {
+    if (!this.progressionEnabled()) return []
+    const taken = new Set(this.state.player.feats ?? [])
+    return (this.campaign.meta.progression?.feats ?? []).filter((f) => !taken.has(f.id))
+  }
+
+  /** доступна ли черта (условия requires) */
+  featEligible(feat: FeatDef): boolean {
+    if (!feat.requires?.length) return true
+    return feat.requires.every((c) => evalCondition(c, this))
+  }
+
+  /** взять черту точкой прокачки (слоты расходуются) */
+  takeFeat(id: string): boolean {
+    if (!this.progressionEnabled() || this.pendingFeats() <= 0) return false
+    const feat = this.availableFeats().find((f) => f.id === id)
+    if (!feat || !this.featEligible(feat)) return false
+    this.applyFeat(feat)
+    this.pushLog(`Взята черта «${feat.label}».`)
+    this.notify()
+    return true
+  }
+
+  /** выдать черту напрямую (эффект grant_feat, без счёта слотов) */
+  grantFeat(id: string): void {
+    if (!this.progressionEnabled()) return
+    const feat = this.campaign.meta.progression?.feats?.find((f) => f.id === id)
+    if (!feat || (this.state.player.feats ?? []).includes(id)) return
+    this.applyFeat(feat)
+    this.pushLog(`Освоена черта «${feat.label}».`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** применение бонусов черты (уже взята) */
+  private applyFeat(feat: FeatDef): void {
+    const p = this.state.player
+    p.feats ??= []
+    p.feats.push(feat.id)
+    const mods = feat.mods ?? {}
+    for (const [skill, delta] of Object.entries(mods.skills ?? {})) {
+      p.skills[skill] = Math.max(0, (p.skills[skill] ?? 0) + (delta as number))
+    }
+    for (const [stat, delta] of Object.entries(mods.stats ?? {})) {
+      if (delta) this.trainStat(stat, delta as number)
+    }
+    if (mods.hp) {
+      p.max_hp = Math.max(1, p.max_hp + mods.hp)
+      p.hp = Math.min(p.max_hp, p.hp + mods.hp)
+    }
+    if (mods.mp) {
+      p.max_mp = Math.max(0, p.max_mp + mods.mp)
+      p.mp = Math.min(p.max_mp, p.mp + mods.mp)
+    }
+    // движение от черт — добавкой в список модификаторов movement()
+    this.checkRules()
+  }
+
+  /** движение героя: базовое + перманентные бонусы черт */
+  playerMovement(): number {
+    let mov = movement(this.state.player.stats)
+    for (const fid of this.state.player.feats ?? []) {
+      const f = this.campaign.meta.progression?.feats?.find((x) => x.id === fid)
+      mov += f?.mods?.mov ?? 0
+    }
+    return Math.max(1, mov)
+  }
+
+  // ─────────────── опасности, преступления, цены, лагерь (аудит B7) ───────────────
+
+  /**
+   * Падение (аудит B7): урон = floor(meters / porog) кубиков, смягчающая
+   * проверка навыком (умолчание dodge) уполовинивает. Порог и кубик
+   * настраиваются в meta.hazards (книжные: 3 м на 1d6).
+   */
+  applyFall(meters: number, skill?: string): void {
+    const hz = this.campaign.meta.hazards
+    const perDie = Math.max(1, hz?.fall_meters_per_die ?? 3)
+    const dice = Math.floor(Math.max(0, meters) / perDie)
+    const sane = dice <= 0 ? '0' : `${dice}d6`
+    let dmg = 0
+    let modLog = ''
+    const p = this.state.player
+    if (dice > 0) {
+      const skillId = skill ?? 'dodge'
+      const known = p.skills[skillId]
+      if (known != null && known > 0) {
+        const out = skillCheck(Math.max(1, known), this.rng, 0, this.diceRules)
+        if (out.success) {
+          modLog = ` (${this.skillLabel(skillId)} смягчает: половина)`
+        }
+        dmg = rollDice(sane, this.rng)
+        if (out.success) dmg = Math.max(0, Math.ceil(dmg / 2))
+        this.pushLog(`Падение с ${meters} м — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}${modLog}`)
+      } else {
+        dmg = rollDice(sane, this.rng)
+        this.pushLog(`Падение с ${meters} м: ${dmg} урона (${sane}).`)
+      }
+    }
+    if (dmg > 0) this.changeHp(-dmg)
+    else this.pushLog('Падение обошлось без серьёзных травм.')
+    this.notify()
+  }
+
+  /** реестр преступления из кампании */
+  crimeLabel(id: string): string {
+    return this.campaign.meta.crimes?.find((c) => c.id === id)?.label ?? id
+  }
+
+  /** зафиксировать преступление героя (аудит B7) */
+  commitCrime(id: string, bounty = 0): void {
+    const s = this.state
+    s.crimes ??= {}
+    if (s.crimes[id]) {
+      s.crimes[id].bounty += Math.max(0, bounty)
+    } else {
+      s.crimes[id] = { bounty: Math.max(0, bounty), tick: s.tick }
+    }
+    this.pushLog(`Совершено преступление: «${this.crimeLabel(id)}»${bounty > 0 ? ` (награда за голову ${bounty})` : ''}.`)
+    this.checkRules()
+    this.notify()
+  }
+
+  /** преступление совершено? (любое — без id; minBounty — порог награды) */
+  hasCrime(id?: string, minBounty = 0): boolean {
+    const list = this.state.crimes ?? {}
+    if (!id) return Object.values(list).some((c) => minBounty <= 0 ? true : c.bounty >= minBounty)
+    const c = list[id]
+    if (!c) return false
+    return minBounty <= 0 ? true : c.bounty >= minBounty
+  }
+
+  /** суммарная награда за голову героя */
+  bountyTotal(): number {
+    return Object.values(this.state.crimes ?? {}).reduce((sum, c) => sum + c.bounty, 0)
+  }
+
+  /** активные ценовые события */
+  priceEventsActive(): Array<{ id: string; label: string }> {
+    const reg = this.campaign.meta.price_events ?? []
+    return (this.state.price_events ?? []).map((id) => ({ id, label: reg.find((e) => e.id === id)?.label ?? id }))
+  }
+
+  /** включить/выключить ценовое событие (аудит B7) */
+  setPriceEvent(id: string, on: boolean): void {
+    const list = (this.state.price_events ??= [])
+    if (on) {
+      if (!this.campaign.meta.price_events?.some((e) => e.id === id)) return
+      if (!list.includes(id)) {
+        list.push(id)
+        this.pushLog(`Ценник меняется: «${this.campaign.meta.price_events.find((e) => e.id === id)!.label}».`)
+      }
+    } else if (id) {
+      const i = list.indexOf(id)
+      if (i >= 0) list.splice(i, 1)
+    } else if (list.length) {
+      list.length = 0
+      this.pushLog('Ценники снова прежние.')
+    }
+    this.checkRules()
+    this.notify()
+  }
+
+  /** множитель цен по активным ценовым событиям для данного предмета */
+  priceEventMultiplier(item: ItemDef): number {
+    if (!this.state.price_events?.length) return 1
+    let mult = 1
+    for (const id of this.state.price_events) {
+      const ev = this.campaign.meta.price_events?.find((e) => e.id === id)
+      if (!ev) continue
+      if (ev.items?.length && !ev.items.includes(item.id)) continue
+      if (ev.categories?.length && !ev.categories.includes(item.category)) continue
+      mult *= ev.multiplier
+    }
+    return mult
+  }
+
+  /** разрешён ли здесь лагерь (аудит B7): meta.camping + локация с camp: true */
+  campAvailable(): { ok: boolean; reason: string } {
+    const cfg = this.campaign.meta.camping
+    if (!cfg) return { ok: false, reason: 'мастер не включил ночлег (meta.camping)' }
+    if (this.combat || this.trade) return { ok: false, reason: 'сейчас не до отдыха' }
+    const loc = this.findLocation(this.state.location)?.location
+    if (!loc?.camp) return { ok: false, reason: 'здесь лагерь не разбить (location.camp)' }
+    return { ok: true, reason: '' }
+  }
+
+  /**
+   * Ночлег в лагере (аудит B7): advanceTicks(cfg.ticks), рост навыков,
+   * естественное лечение, возможная засада — правило мастера
+   * (meta.camping.ambush_rule, шанс ambush_chance).
+   */
+  campRest(): void {
+    const cfg = this.campaign.meta.camping
+    if (!cfg || !this.campAvailable().ok) return
+    this.pushLog('Вы разбиваете лагерь и устраиваетесь на ночлег…')
+    this.advanceTicks(cfg.ticks ?? 8)
+    this.restAndGrow()
+    this.restHeal()
+    const chance = Math.max(0, Math.min(1, cfg.ambush_chance ?? 0))
+    if (chance > 0 && this.rng.chance(chance)) {
+      this.pushLog('Ночью — тревога! В лагерь кто-то прокрался!')
+      if (cfg.ambush_rule) this.fireRule(cfg.ambush_rule)
+    } else {
+      this.pushLog('Ночь прошла спокойно.')
+    }
+    this.autosave()
+    this.notify()
+  }
+
+  /**
+   * Предложение переброска за удачу (аудит §5.6 п.8). Не сохраняется в сейв:
+   * если игрок закрыл игру с открытым предложением — применится ветка провала.
+   */
+  luckOffer: { text: string; cost: number; decide: (reroll: boolean) => void } | null = null
+
+  /** игрок ответил на предложение удачи (UI) */
+  resolveLuckOffer(reroll: boolean): void {
+    const offer = this.luckOffer
+    this.luckOffer = null
+    offer?.decide(reroll)
+    this.notify()
+  }
+
+  /** Бросок проверки характеристики героя (POW×5 — удача, INT×5 — идея). */
+  statCheck(stat: string, multiplier = 5, modifier = 0): SkillCheckOutcome {
+    return this.playerCheckOutcome(
+      ((this.state.player.stats as unknown as Record<string, number>)[stat] ?? 0) * multiplier,
+      modifier,
+      `Проверка характеристики ${stat}×${multiplier}`,
+    )
+  }
+
+  /**
+   * Синхронно бросить проверку и применить успех/провал-эффекты.
+   * Если включена удача и броска не вышло — игроку предлагают переброс,
+   * но эффекты ждут ответа (ложь возвращает «эффекты уже применились»).
+   */
+  private applyByCheck(outcome: SkillCheckOutcome, describe: string, retry: () => SkillCheckOutcome, onOk: () => void, onFail: () => void): boolean {
+    if (outcome.success) {
+      onOk()
+      return false
+    }
+    const cfg = this.campaign.meta.luck
+    const cost = Math.max(1, cfg?.reroll_cost ?? 1)
+    if (!cfg || this.luckMax() <= 0 || this.luck() < cost) {
+      onFail()
+      return false
+    }
+    this.changeLuck(-cost)
+    this.pushLog(`Провал можно исправить за удачу: −${cost} (осталось ${this.luck()}).`)
+    this.luckOffer = {
+      text: `${describe} — провал (d100=${outcome.roll} против ${outcome.target}).`,
+      cost,
+      decide: (reroll) => {
+        if (reroll) {
+          const second = retry()
+          this.pushLog(`Переброс за удачу: d100=${second.roll} против ${second.target} → ${CHECK_RESULT_LABEL[second.result]}.`)
+          if (second.success) onOk()
+          else onFail()
+        } else {
+          this.pushLog('Удача прибережена — остаётся провал.')
+          onFail()
+        }
+        this.checkRules()
+        this.autosave()
+      },
+    }
+    return true
+  }
+
+  /** единый путь мировых бросков героя: бросок + журнал (+ метки навыка в playerSkillCheck) */
+  private playerCheckOutcome(target: number, modifier: number, describe: string): SkillCheckOutcome {
+    const out = skillCheck(Math.max(1, target), this.rng, modifier, this.diceRules)
+    this.pushLog(`${describe} — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
+    return out
+  }
+
+  /**
+   * Аугмент страсти и подмога союзника (аудит B6, книжные аугменты):
+   * порог значения — meta.augments.threshold (умолчание 50),
+   * прибавка к броску — meta.augments.bonus (умолчание +20, книжно).
+   */
+  private augmentBonus(e: { augment_passion?: string; assist_entity?: string; assist_skill?: string }, fallbackSkill?: string): number {
+    let mod = 0
+    const cfg = this.campaign.meta.augments
+    const threshold = Math.max(1, cfg?.threshold ?? 50)
+    const bonus = Math.max(0, cfg?.bonus ?? 20)
+    if (e.augment_passion && this.passion(e.augment_passion) >= threshold) {
+      mod += bonus
+      this.pushLog(`Страсть «${this.passionLabel(e.augment_passion)}» подхватывает вас (+${bonus}%).`)
+    }
+    if (e.assist_entity) {
+      const npc = this.campaign.entities[e.assist_entity] as NpcDef | undefined
+      const sk = e.assist_skill ?? fallbackSkill
+      if (sk && (npc?.skills?.[sk] ?? 0) >= threshold) {
+        mod += bonus
+        this.pushLog(`${npc?.label ?? e.assist_entity} помогает (+${bonus}%).`)
+      }
+    }
+    return mod
+  }
+
+  /**
+   * Противоборство навыком героя (аудит §5.6 п.6): бросок героя против
+   * броска оппонента (NPC или числовой порог), ранги из diceRules-таблицы.
+   */
+  opposedCheck(e: Extract<Effect, { type: 'opposed_check' }>): { success: boolean; player: SkillCheckOutcome; rival: SkillCheckOutcome } {
+    const skill = e.skill
+    const playerValue = Math.max(1, this.skillEffective(skill) + this.statusSkillMod(skill) + this.augmentBonus(e, skill))
+    const player = this.playerCheckOutcome(playerValue, 0, `Противоборство «${this.skillLabel(skill)}» (герой)`)
+    let rivalValue: number
+    let rivalLabel = ''
+    if (e.entity) {
+      const npc = this.campaign.entities[e.entity] as NpcDef | undefined
+      const rSkill = e.against_skill ?? skill
+      rivalValue = Math.max(1, npc?.skills?.[rSkill] ?? 25)
+      rivalLabel = npc?.label ?? e.entity
+      if (npc && e.against_skill) rivalLabel += ` (${this.skillLabel(rSkill)})`
+    } else {
+      rivalValue = Math.max(1, e.against_value ?? 50)
+      rivalLabel = `порог ${rivalValue}`
+    }
+    const rival = this.playerCheckOutcome(rivalValue, 0, `Противоборство (${rivalLabel})`)
+    const RANK: Record<string, number> = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 }
+    const cmp = (RANK[player.result] ?? 1) - (RANK[rival.result] ?? 1)
+    const wins = cmp > 0 || (cmp === 0 && (e.tie ?? 'player') === 'player')
+    if (cmp === 0) this.pushLog(`Равный исход — победа ${wins ? 'героя' : 'оппонента'} по умолчанию.`)
+    this.pushLog(wins ? 'Герой побеждает в противоборстве.' : 'Герой проигрывает противоборство.')
+    if (player.success) this.markSkill(skill)
+    return { success: wins, player, rival }
+  }
+
+  // ─────────────── скрытность и обнаружение (аудит §5.6 п.12) ───────────────
+
+  /** включена ли скрытность мастером (meta.stealth); боевой режим — отдельно */
+  stealthEnabled(): boolean {
+    return !!this.campaign.meta.stealth
+  }
+
+  /** герой сейчас крадётся */
+  isSneaking(): boolean {
+    return this.state.stealth?.sneaking === true
+  }
+
+  /** героя заметили в текущей сцене */
+  isDetected(): boolean {
+    return this.state.stealth?.detected === true
+  }
+
+  /**
+   * Переключить красться/идти открыто. Вход в красться — моментальная
+   * проверка против всех наблюдателей в сцене; заметили — режим включён,
+   * но скрытым вас не считают.
+   */
+  toggleSneak(): void {
+    if (!this.stealthEnabled()) return
+    const st = (this.state.stealth ??= { sneaking: false, detected: false })
+    st.sneaking = !st.sneaking
+    st.detected = false
+    this.pushLog(st.sneaking ? 'Вы переходите на скрытное передвижение.' : 'Вы больше не скрываетесь.')
+    if (st.sneaking) this.detectCheck('вы появляетесь в поле зрения')
+    this.autosave()
+    this.notify()
+  }
+
+  /**
+   * Проверка обнаружения: бросок скрытности героя против лучшей
+   * внимательности живых NPC в текущей сцене. Поражение — `detected`.
+   * Истина — остался незамеченным.
+   */
+  detectCheck(context: string): boolean {
+    if (!this.stealthEnabled() || !this.isSneaking() || this.isDetected()) return true
+    const scene = this.currentScene()
+    if (!scene) return true
+    const st = this.campaign.meta.stealth!
+    let bestNpc: { label: string; value: number } | null = null
+    for (const occ of this.slotOccupants(scene)) {
+      const def = occ.entity
+      if (!def || def.type !== 'npc') continue
+      const value = def.perception ?? Math.max(1, (def.skills[st.perception_skill ?? 'perception'] ?? 0) || def.stats.INT * 2)
+      if (!bestNpc || value > bestNpc.value) bestNpc = { label: def.label, value }
+    }
+    if (!bestNpc) return true
+    const skill = st.skill ?? 'stealth'
+    const hero = Math.max(1, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
+    const mine = skillCheck(hero, this.rng, 0, this.diceRules)
+    const theirs = skillCheck(bestNpc.value, this.rng, 0, this.diceRules)
+    const RANK: Record<string, number> = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 }
+    const wins = (RANK[mine.result] ?? 1) >= (RANK[theirs.result] ?? 1)
+    this.pushLog(
+      `Скрытность (${context}): d100=${mine.roll}/${mine.target} против «${bestNpc.label}» d100=${theirs.roll}/${theirs.target} → ${wins ? 'вас не заметили' : 'ВАС ЗАМЕТИЛИ'}`,
+    )
+    if (!wins) {
+      this.state.stealth!.detected = true
+      this.pushLog(`${bestNpc.label} замечает вас!`)
+    }
+    return wins
+  }
+
+  /** Внезапность при начале боя из скрытности: враги застигнуты врасплох. */
+  consumeSurpriseFromSneak(): boolean {
+    const st = this.state.stealth
+    if (st?.sneaking && !st.detected) return true
+    return false
+  }
+
   // ─────────────── рост навыков (ТЗ 4.3) ───────────────
 
   markSkill(skill: string): void {
@@ -664,14 +1776,17 @@ export class GameEngine {
   }
 
   /** Проверка навыка игрока с «галочкой» опыта при успехе. */
-  playerSkillCheck(skill: string, difficulty = 50): ReturnType<typeof skillCheck> {
+  playerSkillCheck(skill: string, difficulty: SkillDifficulty = 50): ReturnType<typeof skillCheck> {
     // навыки выключены профилем — проверка резолвится успехом без броска
     if (!featureOn(this.campaign.meta, 'skills')) {
       return { roll: 0, target: 100, result: 'success', success: true }
     }
-    const value = Math.max(0, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
-    const out = skillCheck(value, this.rng, 50 - difficulty, this.diceRules)
-    this.pushLog(`Проверка «${this.skillLabel(skill)}» — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
+    // необученный навык берёт базовый шанс (аудит B6, meta.skills[].base)
+    const value = Math.max(0, this.skillEffective(skill) + this.statusSkillMod(skill))
+    const out = skillCheck(value, this.rng, difficultyModifier(value, difficulty), this.diceRules)
+    this.pushLog(
+      `Проверка «${this.skillLabel(skill)}» (${difficultyLabel(difficulty)}) — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`,
+    )
     if (out.success) this.markSkill(skill)
     return out
   }
@@ -747,21 +1862,24 @@ export class GameEngine {
   buyPrice(npc: NpcDef, itemId: string, basePrice?: number): number {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
     const base = basePrice ?? item?.value?.[this.mainCurrency] ?? 1
-    return Math.max(1, Math.round(base * this.priceModifier(npc)))
+    const dynamic = item ? this.priceEventMultiplier(item) : 1
+    const diff = this.difficultyDef()?.prices ?? 1
+    return Math.max(1, Math.round(base * this.priceModifier(npc) * dynamic * diff))
   }
 
   sellPrice(npc: NpcDef, itemId: string): number {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
     const base = item?.value?.[this.mainCurrency] ?? 0
     const rate = npc.trader?.buy_rate ?? 0.4
-    return Math.max(0, Math.floor((base * rate) / this.priceModifier(npc)))
+    const dynamic = item ? this.priceEventMultiplier(item) : 1
+    return Math.max(0, Math.floor((base * rate * dynamic) / this.priceModifier(npc)))
   }
 
   buyItem(itemId: string, price: number): boolean {
     const currencyItem = this.currencyItemId()
     if (this.itemCount(currencyItem) < price) return false
-    this.removeItem(currencyItem, price)
-    this.addItem(itemId, 1)
+    this.removeItem(currencyItem, price, { silent: true })
+    this.addItem(itemId, 1, { silent: true })
     this.markSkill('bargain')
     playUi('coin')
     this.notify()
@@ -770,8 +1888,8 @@ export class GameEngine {
 
   sellItem(itemId: string, price: number): boolean {
     if (this.itemCount(itemId) < 1) return false
-    this.removeItem(itemId, 1)
-    this.addItem(this.currencyItemId(), price)
+    this.removeItem(itemId, 1, { silent: true })
+    this.addItem(this.currencyItemId(), price, { silent: true })
     this.markSkill('bargain')
     playUi('coin')
     this.notify()
@@ -816,6 +1934,11 @@ export class GameEngine {
   craft(recipeId: string): boolean {
     const r = this.campaign.recipes[recipeId]
     if (!r || this.recipeMissing(r).length > 0) return false
+    // рецепт починки (аудит §5.6 п.10): нужен изношенный экземпляр результата
+    if (r.repair && !this.hasDamaged(r.output.item)) {
+      this.messages.push({ text: `Не изнашившийся «${this.itemTitle(r.output.item)}» — чинить нечего.` })
+      return false
+    }
     if (r.skill) {
       const out = this.playerSkillCheck(r.skill.id, r.skill.difficulty)
       if (!out.success) {
@@ -825,8 +1948,12 @@ export class GameEngine {
         return false
       }
     }
-    for (const need of r.inputs ?? []) this.removeItem(need.item, need.quantity)
-    this.addItem(r.output.item, r.output.quantity ?? 1)
+    for (const need of r.inputs ?? []) this.removeItem(need.item, need.quantity, { silent: true })
+    if (r.repair) {
+      this.repairItem(r.output.item)
+    } else {
+      this.addItem(r.output.item, r.output.quantity ?? 1)
+    }
     if (r.time_ticks) this.advanceTicks(r.time_ticks)
     const outLabel = this.itemTitle(r.output.item)
     this.pushLog(`Изготовлено: ${outLabel} (рецепт «${r.label}»).`)
@@ -1021,6 +2148,9 @@ export class GameEngine {
     const prevLocation = this.state.location
     this.state.scene = sceneId
     this.state.location = scene.location
+    // скрытность: новая сцена — новые глаза; замеченным остаётся только по факту проверки
+    if (this.state.stealth) this.state.stealth.detected = false
+    if (this.isSneaking()) this.detectCheck('смена сцены')
     if (scene.location !== prevLocation) {
       this.onEnterLocation(scene.location)
     } else {
@@ -1101,11 +2231,19 @@ export class GameEngine {
     this.checkQuestTransitions()
   }
 
+  /** условия правила: все `conditions` И (если заданы) хотя бы одна ИЛИ-группа */
+  private ruleConditionsOk(rule: RuleDef): boolean {
+    if (!rule.conditions.every((c) => evalCondition(c, this))) return false
+    const groups = rule.conditions_any
+    if (!groups || groups.length === 0) return true
+    return groups.some((g) => !g.length || g.every((c) => evalCondition(c, this)))
+  }
+
   private tryFireRule(ruleId: string): void {
     const rule = this.campaign.rules[ruleId]
     if (!rule) return
     if (rule.once && this.state.fired_rules.includes(rule.id)) return
-    if (!rule.conditions.every((c) => evalCondition(c, this))) return
+    if (!this.ruleConditionsOk(rule)) return
     this.state.fired_rules.push(rule.id)
     this.applyEffects(rule.effects)
   }
@@ -1116,6 +2254,82 @@ export class GameEngine {
   descOf(entityId: string): string {
     const def = this.campaign.entities[entityId] as { description?: string } | undefined
     return this.state.desc_overrides?.[entityId] ?? def?.description ?? ''
+  }
+
+  /**
+   * Раз в сутки: самочувствие NPC с расписанием. Чьё расписание покрывает
+   * ночь (от начала ночи до утра) — тот отсыпается (+10); кто без ночёвки
+   * по расписанию — устаёт (−10). Диапазоны времени поддерживают полночь.
+   */
+  private tickNpcMood(): void {
+    const meta = this.campaign.meta
+    const tpd = meta.ticks_per_day ?? 24
+    const nightStart = meta.time_of_day?.night ?? 22
+    const morning = meta.time_of_day?.morning ?? 6
+    const spanNight = (((morning - nightStart) % tpd) + tpd) % tpd || tpd
+    const nightPts = [0, 0.25, 0.5, 0.75].map((f) => (nightStart + Math.floor(spanNight * f)) % tpd)
+    for (const [id, ent] of Object.entries(this.campaign.entities)) {
+      if (!ent || ent.type !== 'npc') continue
+      const sch = (ent as NpcDef).schedule
+      if (!sch?.length) continue
+      const slept = sch.some((e) => {
+        let [a, b] = e.time_range
+        a = ((a % tpd) + tpd) % tpd
+        b = ((b % tpd) + tpd) % tpd
+        const covers = (t: number) => (a <= b ? t >= a && t < b : t >= a || t < b)
+        return nightPts.every(covers)
+      })
+      this.changeNpcMood(id, slept ? 10 : -10)
+    }
+  }
+
+  /** периодическая проверка погони: герой + до двух союзников цепочкой; провал наращивает счётчик до облавы */
+  private tickPursuit(): void {
+    const p = this.state.pursuit
+    if (!p) return
+    const companions = this.state.party.slice(0, 2)
+    let wins = 0
+    const outP = this.playerSkillCheck(p.skill, 50)
+    if (outP.success) wins++
+    for (const c of companions) {
+      const def = this.campaign.entities[c.entity]
+      if (!def || def.type !== 'npc') continue
+      const out = skillCheck(Math.max(1, def.skills?.[p.skill] ?? 0), this.rng, difficultyModifier(def.skills?.[p.skill] ?? 0, 50), this.diceRules)
+      this.pushLog(`${def.label}: d100=${out.roll} против ${out.target} → ${CHECK_RESULT_LABEL[out.result]}`)
+      if (out.success) wins++
+    }
+    p.left = p.every
+    if (wins > 0) {
+      if (p.fails > 0) this.pushLog(`След удалось запутать — ${p.label ?? 'погоня'} пока не настигает.`)
+      p.fails = 0
+      return
+    }
+    p.fails += 1
+    if (p.fails < p.fails_needed) {
+      this.pushLog(`${p.label ?? 'Погоня'} не отстаёт — ещё ${p.fails_needed - p.fails} сорванная проверка, и отряд настигнут!`)
+      return
+    }
+    this.pushLog(`${p.label ?? 'Погоня'} настигла отряд!`)
+    const effects = p.on_fail
+    delete this.state.pursuit
+    this.applyEffects(effects)
+  }
+
+  /** подготовка способности в слот магии (meta.magic.slots): true — получилось */
+  togglePreparedAbility(id: string): boolean {
+    const s = this.state
+    const slots = this.campaign.meta.magic?.slots
+    if (!slots) return false
+    const cur = new Set(s.player.prepared_abilities ?? [])
+    if (cur.has(id)) cur.delete(id)
+    else {
+      if (cur.size >= slots) return false
+      cur.add(id)
+    }
+    const arr = [...cur]
+    s.player.prepared_abilities = arr
+    if (!arr.length) delete s.player.prepared_abilities
+    return true
   }
 
   /** динамически изменить описание сущности (правила/диалоги, действие set_description) */
@@ -1184,7 +2398,140 @@ export class GameEngine {
       }
       case 'skill_check_gate': {
         const out = this.playerSkillCheck(e.skill, e.difficulty)
-        this.applyEffects(out.success ? e.success_effects : e.fail_effects)
+        const retry = () => this.playerSkillCheck(e.skill, e.difficulty)
+        const deferred = this.applyByCheck(
+          out,
+          `Проверка «${this.skillLabel(e.skill)}»`,
+          retry,
+          () => this.applyEffects(e.success_effects),
+          () => this.applyEffects(e.fail_effects),
+        )
+        // с luckOffer эффекты применит resolveLuckOffer
+        void deferred
+        if (out.success) this.markSkill(e.skill)
+        break
+      }
+      case 'stat_check': {
+        const mult = e.multiplier ?? 5
+        const aug = this.augmentBonus(e)
+        const modifier = (e.modifier ?? 0) + aug
+        const out = this.statCheck(e.stat, mult, modifier)
+        this.applyByCheck(
+          out,
+          `Проверка характеристики ${e.stat}×${mult}`,
+          () => this.statCheck(e.stat, mult, modifier),
+          () => this.applyEffects(e.success_effects),
+          () => this.applyEffects(e.fail_effects),
+        )
+        break
+      }
+      case 'group_stat_check': {
+        // групповая сцепленная проверка (аудит §5.6): герой + до N союзников партии
+        const bySkill = (e.mode ?? (e.stat ? 'stat' : 'skill')) === 'skill'
+        const helpersN = Math.max(0, e.helpers ?? 2)
+        const companions = this.state.party.slice(0, helpersN)
+        const total = 1 + companions.length
+        const need = Math.max(1, e.need ?? Math.ceil(total / 2))
+        let wins = 0
+        const whatLabel = bySkill
+          ? `Групповая проверка «${this.skillLabel(e.skill!)}»`
+          : `Групповая проверка ${e.stat}×${e.multiplier ?? 5}`
+        this.pushLog(`${whatLabel} — цепочка из ${total} чел., нужно успешных: ${need}.`)
+        // герой
+        if (bySkill) {
+          const out = this.playerSkillCheck(e.skill!, e.difficulty ?? 50)
+          if (out.success) wins++
+        } else {
+          const out = this.statCheck(e.stat!, e.multiplier ?? 5, e.modifier ?? 0)
+          if (out.success) wins++
+        }
+        // союзники — их собственными значениями
+        const mult = e.multiplier ?? 5
+        for (const c of companions) {
+          const def = this.campaign.entities[c.entity]
+          if (!def || def.type !== 'npc') continue
+          const value = bySkill
+            ? (def.skills?.[e.skill!] ?? 0)
+            : (((def.stats as unknown as Record<string, number>)[e.stat!] ?? 0) * mult)
+          const out = skillCheck(
+            Math.max(1, value),
+            this.rng,
+            bySkill ? difficultyModifier(value, e.difficulty ?? 50) : (e.modifier ?? 0),
+            this.diceRules,
+          )
+          this.pushLog(`${def.label}: d100=${out.roll} против ${out.target} → ${CHECK_RESULT_LABEL[out.result]}`)
+          if (out.success) wins++
+        }
+        if (wins >= need) {
+          this.pushLog(`Цепочка выдержала: ${wins} из ${total} успешно.`)
+          this.applyEffects(e.success_effects)
+        } else {
+          this.pushLog(`Цепочка порвалась: ${wins} из ${total} успешно (нужно ${need}).`)
+          this.applyEffects(e.fail_effects)
+        }
+        break
+      }
+      case 'opposed_check': {
+        const res = this.opposedCheck(e)
+        const finalize = (r: { success: boolean }) => this.applyEffects(r.success ? e.success_effects : e.fail_effects)
+        if (res.success) {
+          finalize(res)
+          break
+        }
+        const cfg = this.campaign.meta.luck
+        const cost = Math.max(1, cfg?.reroll_cost ?? 1)
+        if (!cfg || this.luckMax() <= 0 || this.luck() < cost) {
+          finalize(res)
+          break
+        }
+        this.changeLuck(-cost)
+        this.pushLog(`Поражение можно оспорить за удачу: −${cost} (осталось ${this.luck()}).`)
+        this.luckOffer = {
+          text: `Противоборство «${this.skillLabel(e.skill)}» — поражение героя.`,
+          cost,
+          decide: (reroll) => {
+            if (reroll) finalize(this.opposedCheck(e))
+            else {
+              this.pushLog('Удача прибережена — остаётся поражение.')
+              finalize(res)
+            }
+            this.checkRules()
+            this.autosave()
+          },
+        }
+        break
+      }
+      case 'change_luck': this.changeLuck(e.delta); break
+      case 'change_fatigue': this.changeFatigue(e.delta); break
+      case 'change_sanity': this.changeSanity(e.delta); break
+      case 'change_reputation': this.changeReputation(e.delta); break
+      case 'change_wealth': this.changeWealth(e.levels); break
+      case 'change_passion': this.changePassion(e.id, e.delta ?? (e.set != null ? e.set - (this.state.player.passions?.[e.id] ?? 0) : 0)); break
+      case 'change_allegiance': this.changeAllegiance(e.id, e.points); break
+      case 'train_stat': this.trainStat(e.stat, e.delta); break
+      case 'hazard_fall': this.applyFall(e.meters, e.skill); break
+      case 'commit_crime': this.commitCrime(e.id, e.bounty); break
+      case 'set_price_event': this.setPriceEvent(e.id, true); break
+      case 'clear_price_event': this.setPriceEvent(e.id ?? '', false); break
+      case 'banner': this.showBanner(e); break
+      case 'postcard':
+        this.postcard = { image: e.image, art: e.art, text: e.text, preset: e.preset, seconds: e.seconds, camera: e.camera }
+        if ((e.seconds ?? 6) > 0) {
+          const at = Math.max(1, e.seconds ?? 6)
+          globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
+        }
+        this.notify()
+        break
+      case 'grant_xp': this.grantXp(e.points); break
+      case 'grant_feat': this.grantFeat(e.id); break
+      case 'meta_currency': this.grantMetaCurrency(e.id, e.amount); break
+      case 'roll_event_table': this.rollEventTable(e.table, { forced: true, ignoreFilters: e.ignore_filters }); break
+      case 'generate_variables': {
+        for (const p of e.pack) {
+          const val = this.genValue(e.generator, p.key, e.seed)
+          s.variables[p.as ?? p.key] = val
+        }
+        this.pushLog('Мир что-то замышляет…')
         break
       }
       case 'change_disposition': this.changeDisposition(e.target, e.delta); break
@@ -1212,11 +2559,32 @@ export class GameEngine {
         if (i >= 0) s.blocked_paths.splice(i, 1)
         break
       }
-      case 'show_message': this.messages.push({ text: e.text, portrait: e.portrait }); break
+      case 'show_message': this.messages.push({ text: this.fmt(e.text), portrait: e.portrait }); break
       case 'reveal_location':
         if (!s.revealed_locations.includes(e.location)) s.revealed_locations.push(e.location)
         break
       case 'advance_time': this.advanceTicks(e.ticks); break
+      case 'start_pursuit': {
+        // преследование героя: периодические цепочные проверки маскировки
+        s.pursuit = {
+          label: e.label,
+          skill: e.skill ?? 'stealth',
+          every: Math.max(1, e.every_ticks ?? 4),
+          fails_needed: Math.max(1, e.fails_to_catch ?? 1),
+          fails: 0,
+          left: Math.max(1, e.every_ticks ?? 4),
+          on_fail: e.on_fail,
+        }
+        this.pushLog(`За вами следом идут${e.label ? ` — ${e.label}` : ''}! Удерживайте маскировку, пока не оторвётесь.`)
+        break
+      }
+      case 'stop_pursuit': {
+        if (s.pursuit) {
+          delete s.pursuit
+          this.pushLog('Погоня осталась позади.')
+        }
+        break
+      }
       case 'remove_entity':
         if (!s.removed_entities.includes(e.entity)) s.removed_entities.push(e.entity)
         break
@@ -1233,6 +2601,8 @@ export class GameEngine {
         this.playCutscene(e.cutscene)
         break
     }
+    // эффект мог выполнить условия достижений (флаги, предметы, переменные)
+    this.checkAchievements()
   }
 
   // ─────────────── взаимодействие со слотами ───────────────
@@ -1257,7 +2627,7 @@ export class GameEngine {
     const use = slot?.use_with?.find((u) => u.item === itemId)
     if (!slot || !use || !this.hasItem(itemId)) return false
     const def = this.campaign.entities[itemId] as ItemDef | undefined
-    if (use.consume) this.removeItem(itemId, 1)
+    if (use.consume) this.removeItem(itemId, 1, { verb: 'Использовано' })
     this.applyEffects(use.effects)
     if (use.message) this.messages.push({ text: use.message })
     this.pushLog(`${def?.label ?? itemId}: использовано на «${slot.label ?? slotId}».`)
@@ -1298,20 +2668,90 @@ export class GameEngine {
     return this.campaign.meta.codex_categories ?? BUILTIN_CODEX_CATEGORIES
   }
 
-  interactWithSlot(occ: SlotOccupant): void {
-    if (!occ.entity) return
+  /**
+   * Можно ли взаимодействовать с предметом прямо сейчас (фидбек №8: условия
+   * блокируют клик — предмет остаётся «декорацией» в слоте).
+   */
+  /**
+   * Текст с упоминаниями героя (фидбек №11, «больше плейсхолдеров в диалогах»):
+   * `{имя}`/`{герой}` — имя персонажа, `{здоровье}`/`{здоровье_макс}` — HP,
+   * `{день}` — номер дня забега, `{время}` — время суток по-русски,
+   * `{переменная:<имя>}` — обычная переменная читалки ({имя} считает её латиницей).
+   */
+  fmt(text: string): string {
+    if (!text.includes('{')) return text
+    const st = this.state
+    const p = st.player
+    const day = Math.floor((st.tick ?? 0) / Math.max(1, this.campaign.meta.ticks_per_day || 24)) + 1
+    const out: Record<string, string> = {
+      'имя': p.name ?? 'герой',
+      'герой': p.name ?? 'герой',
+      'имя_героя': p.name ?? 'герой',
+      'здоровье': String(Math.max(0, p.hp)),
+      'здоровье_макс': String(p.max_hp),
+      'мана': String(Math.max(0, p.mp)),
+      'мана_макс': String(p.max_mp),
+      'удача': String(this.luck()),
+      'уровень': String(p.level ?? 1),
+      'опыт': String(p.xp ?? 0),
+      'день': String(day),
+    }
+    return text.replace(/\{([^{}]+)\}/g, (_m, raw: string) => {
+      if (raw in out) return out[raw]!
+      const cut = raw.indexOf(':')
+      if (cut > 0) {
+        const kind = raw.slice(0, cut)
+        const id = raw.slice(cut + 1).trim()
+        switch (kind) {
+          case 'счёт': case 'счет': return String(this.itemCount(id))
+          case 'навык': return String(p.skills[id] ?? 0)
+          case 'потребность': return String(p.needs[id] ?? 0)
+          case 'стат': return String((p.stats as unknown as Record<string, number>)[id] ?? 0)
+          case 'валюта': return String(p.currencies?.[id] ?? 0)
+        }
+      }
+      return `{${raw}}`
+    })
+  }
+
+  itemInteractable(item: ItemDef): boolean {
+    return (item.interactable_when ?? []).every((c) => evalCondition(c, this))
+  }
+
+  /** доступные сейчас варианты действий с предметом (условия показа) */
+  itemInteractOptions(item: ItemDef): ItemInteractOption[] {
+    return (item.interact_options ?? []).filter((o) => (o.conditions ?? []).every((c) => evalCondition(c, this)))
+  }
+
+  /** применить выбранный вариант взаимодействия с предметом */
+  runItemInteract(item: ItemDef, option: ItemInteractOption): void {
+    playInteraction((option.sound ?? 'use') as SoundHook, { entity: item })
+    this.applyEffects(option.effects)
+    if (option.message) {
+      this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? 'neutral'] ?? item.portrait?.['neutral'] })
+    }
+    if (option.consume) this.state.removed_entities.push(item.id)
+    this.checkRules()
+    this.notify()
+  }
+
+  interactWithSlot(occ: SlotOccupant): boolean {
+    if (!occ.entity) return false
     if (occ.entity.type === 'npc') {
       this.startDialogue(occ.entity.id)
-      return
+      return true
     }
     const item = occ.entity as ItemDef
+    if (!this.itemInteractable(item)) return false
     const slotType = occ.slot.type[0]
+    // предмет с вариантами действий — окно выбора; собирается стороной UI
+    if (this.itemInteractOptions(item).length) return false
     if (item.on_interact) {
       // «открыть контейнер» vs «использовать»: по типу слота/категории
       const isOpen = occ.slot.type.includes('container') || item.category === 'container'
       playInteraction(isOpen ? 'open' : 'use', { entity: item, slotType })
       this.applyEffects(item.on_interact.effects)
-      if (item.on_interact.message) this.messages.push({ text: item.on_interact.message })
+      if (item.on_interact.message) this.messages.push({ text: this.fmt(item.on_interact.message) })
       if (item.on_interact.consume) {
         this.state.removed_entities.push(item.id)
       }
@@ -1321,6 +2761,7 @@ export class GameEngine {
       this.messages.push({ text: item.description || item.label })
       this.notify()
     }
+    return true
   }
 
   // ─────────────── бой (Фаза 1) ───────────────
@@ -1329,11 +2770,12 @@ export class GameEngine {
   private postCombatEffects: Effect[] = []
 
   /**
-   * Вызывается боем в момент победы (фидбек: сообщения должны быть видны
-   * ещё на экране победы, до «Продолжить»). Безопасные эффекты применяются
-   * сразу; смена экрана (диалог, телепорт, новый бой, финал) — после закрытия.
+   * Вызывается боем в момент его разрешения — победы, бегства игрока или
+   * «бессознательного» проигрыша (BRP-режим). Безопасные эффекты применяются
+   * сразу, пока игрок видит экран исхода; смена экрана (диалог, телепорт,
+   * новый бой, финал) — после закрытия боя.
    */
-  onCombatVictory(effects: Effect[]): void {
+  onCombatResolve(effects: Effect[]): void {
     const defer = new Set(['start_dialogue', 'start_combat', 'teleport_player', 'game_over_victory', 'game_over_death', 'play_cutscene'])
     this.postCombatEffects = effects.filter((e) => defer.has(e.type))
     this.applyEffects(effects.filter((e) => !defer.has(e.type)))
@@ -1349,28 +2791,49 @@ export class GameEngine {
       this.notify()
       return
     }
+    // внезапность из скрытности (мастер может задать def.surprise явно)
+    let effective = def
+    if (!def.surprise && this.isSneaking() && !this.isDetected()) {
+      effective = { ...def, surprise: 'player' }
+      this.pushLog('Вы нападаете из скрытности — враги застигнуты врасплох!')
+    }
+    if (this.state.stealth) this.state.stealth.sneaking = false
     // бой прерывает диалог
     this.dialogue = null
     this.activeStory = null
     this.activeNpc = null
-    this.combat = new CombatController(this, def)
+    this.combat = new CombatController(this, effective)
     playUi('combat_start')
     this.notify()
   }
 
-  /** Вызывается UI после экрана победы. */
+  /** Вызывается UI после экрана исхода боя (победа / бегство / выживание). */
   endCombat(): void {
     const combat = this.combat
     if (!combat) return
     this.combat = null
-    if (combat.result === 'victory') {
-      // основная часть on_victory уже применена в момент победы (onCombatVictory)
+    if (combat.result === 'victory' || combat.result === 'fled') {
+      // основная часть эффектов уже применена в момент исхода (onCombatResolve)
       const deferred = this.postCombatEffects
       this.postCombatEffects = []
       this.applyEffects(deferred)
       this.advanceTicks(1) // бой занимает время (ТЗ 4.1)
-      this.pushLog(`Бой «${combat.arena.label}» выигран за ${combat.round} раунд(ов).`)
       this.state.stats_run.kills += combat.combatants.filter((c) => c.side === 'enemy' && c.dead).length
+      this.pushLog(
+        combat.result === 'victory'
+          ? `Бой «${combat.arena.label}» выигран за ${combat.round} раунд(ов).`
+          : `Вы отступили из боя «${combat.arena.label}».`,
+      )
+      this.checkRules()
+      this.autosave()
+    } else if (combat.result === 'defeat' && !this.state.game_over) {
+      // BRP-режим (combat.death.mode='brp'): герой падает без сознания, но
+      // выживает — эффекты on_defeat мастера уже частично применены
+      const deferred = this.postCombatEffects
+      this.postCombatEffects = []
+      this.applyEffects(deferred)
+      this.advanceTicks(1)
+      this.pushLog('Вы приходите в себя после поражения.')
       this.checkRules()
       this.autosave()
     }
@@ -1465,6 +2928,7 @@ export class GameEngine {
         (en.conditions ?? []).every((c) => evalCondition(c, this)),
     )
     this.state.game_over = { type, reason, ending: ending?.id }
+    this.finalizeRunMeta(type === 'victory')
     if (type === 'death') {
       this.dialogue = null
       this.activeStory = null
@@ -1486,53 +2950,477 @@ export class GameEngine {
     return fresh
   }
 
+  /** New Game+ доступен? (мастер разрешил, забег завершён победой) */
+  newGamePlusAvailable(): boolean {
+    return !!this.campaign.meta.new_game_plus && this.state.game_over?.type === 'victory'
+  }
+
+  /**
+   * New Game+: победивший герой возвращается в новый забег с наследием
+   * (keep мастера), круг +1 — множители сложности растут на boost-шаги.
+   * Пермадет-семантика сохранена: NG+ только за победу.
+   */
+  newGamePlus(): GameEngine | null {
+    const cfg = this.campaign.meta.new_game_plus
+    if (!this.newGamePlusAvailable() || !cfg) return null
+    const prev = this.state
+    deleteSave(this.campaign.meta.id)
+    const fresh = new GameEngine(this.campaign)
+    if (prev.char_choice) {
+      fresh.applyCharCreation({ ...prev.char_choice, calling: prev.char_choice.calling ?? '' })
+    }
+    fresh.start()
+    const keep = new Set(cfg.keep ?? ['skills', 'skill_marks', 'stats', 'inventory', 'feats', 'prepared'])
+    const pp = prev.player
+    const np = fresh.state.player
+    if (keep.has('skills')) np.skills = JSON.parse(JSON.stringify(pp.skills)) as typeof np.skills
+    if (keep.has('skill_marks')) np.skill_marks = { ...pp.skill_marks }
+    if (keep.has('stats')) {
+      np.stats = { ...pp.stats }
+      // базовые производные взяты из шаблона — подтянем к статам наследия
+      np.max_hp = pp.max_hp
+      np.max_mp = pp.max_mp
+    }
+    if (keep.has('inventory')) {
+      np.inventory = JSON.parse(JSON.stringify(pp.inventory)) as typeof np.inventory
+      np.equipment = { ...pp.equipment }
+    }
+    if (keep.has('feats')) {
+      np.xp = pp.xp
+      np.level = pp.level
+      np.feats = pp.feats?.slice()
+    }
+    if (keep.has('prepared')) np.prepared_abilities = pp.prepared_abilities?.slice()
+    // облик и сложность идентичны прошлому забегу
+    np.portrait_choice = pp.portrait_choice && JSON.parse(JSON.stringify(pp.portrait_choice))
+    np.difficulty = pp.difficulty
+    np.hp = np.max_hp
+    np.mp = np.max_mp
+    fresh.state.ng_cycle = (prev.ng_cycle ?? 0) + 1
+    return fresh
+  }
+
+  // ─────────────── мета-прогресс между забегами (аудит B8b) ───────────────
+
+  /** мета-прогресс включён мастером (блок meta.metaprogress) */
+  metaProgressEnabled(): boolean {
+    return !!this.campaign.meta.metaprogress
+  }
+
+  private static metaKey(campaignId: string): string {
+    return `chronicle-forge:meta:${campaignId}`
+  }
+
+  private metaState: MetaStoreState | null = null
+
+  private static blankMetaState(): MetaStoreState {
+    return { runs: 0, deaths: 0, victories: 0, currencies: {}, achievements: {}, unlocks: [], counters: {} }
+  }
+
+  /** снимок мета-хранилища (ленивая загрузка из localStorage) */
+  metaStore(): MetaStoreState {
+    if (this.metaState) return this.metaState
+    let loaded: MetaStoreState
+    try {
+      const raw = localStorage.getItem(GameEngine.metaKey(this.campaign.meta.id))
+      loaded = raw ? { ...GameEngine.blankMetaState(), ...(JSON.parse(raw) as Partial<MetaStoreState>) } : GameEngine.blankMetaState()
+    } catch {
+      loaded = GameEngine.blankMetaState()
+    }
+    this.metaState = loaded
+    return loaded
+  }
+
+  private saveMetaStore(): void {
+    if (!this.metaProgressEnabled() || !this.metaState) return
+    try {
+      localStorage.setItem(GameEngine.metaKey(this.campaign.meta.id), JSON.stringify(this.metaState))
+    } catch { /* хранилище переполнено/недоступно — мета-прогресс терпимо */ }
+  }
+
+  /** баланс метавалюты */
+  metaCurrency(id: string): number {
+    return this.metaStore().currencies[id] ?? 0
+  }
+
+  /** начислить метавалюту (эффект/награда достижения) */
+  grantMetaCurrency(id: string, amount: number): void {
+    if (!this.metaProgressEnabled() || amount === 0) return
+    const def = this.campaign.meta.metaprogress?.currencies?.find((c) => c.id === id)
+    if (!def) return
+    const st = this.metaStore()
+    st.currencies[id] = Math.max(0, (st.currencies[id] ?? 0) + amount)
+    this.pushLog(`${def.label}: ${amount > 0 ? '+' : ''}${amount} (всего ${st.currencies[id]}).`)
+    this.saveMetaStore()
+    this.notify()
+  }
+
+  /** открыто ли достижение */
+  metaAchievementDone(id: string): boolean {
+    return !!this.metaStore().achievements[id]
+  }
+
+  /** достижения с состоянием (для экрана) */
+  achievementStates(): { def: AchievementDef; done: boolean; progress?: number; target?: number }[] {
+    const cfg = this.campaign.meta.metaprogress
+    if (!cfg) return []
+    const st = this.metaStore()
+    return (cfg.achievements ?? [])
+      .filter((a) => !a.hidden || st.achievements[a.id])
+      .map((a) => ({
+        def: a,
+        done: !!st.achievements[a.id],
+        ...(a.counter ? { progress: this.achievementCounter(a), target: a.counter.target } : {}),
+      }))
+  }
+
+  private achievementCounter(a: AchievementDef): number {
+    if (!a.counter) return 0
+    const st = this.metaStore()
+    const total = st.counters[a.counter.stat] ?? 0
+    return total + (this.state.stats_run[a.counter.stat] ?? 0)
+  }
+
+  /**
+   * Проверка всех закрытых достижений (тики, эффекты, конец забега вызывают).
+   * Защёлкивает открывшиеся: лог, награда, сохранение.
+   */
+  checkAchievements(): void {
+    const cfg = this.campaign.meta.metaprogress
+    if (!cfg?.achievements?.length) return
+    const st = this.metaStore()
+    let dirty = false
+    for (const a of cfg.achievements) {
+      if (st.achievements[a.id]) continue
+      const ok = a.counter
+        ? this.achievementCounter(a) >= a.counter.target
+        : (a.conditions ?? []).length > 0 && (a.conditions ?? []).every((c) => evalCondition(c, this))
+      if (!ok) continue
+      st.achievements[a.id] = new Date().toISOString()
+      dirty = true
+      this.unlockedThisRun.push(a.id)
+      this.pushLog(`Достижение: «${a.label}»!`)
+      if (a.reward?.currency && a.reward.amount) {
+        st.currencies[a.reward.currency] = Math.max(0, (st.currencies[a.reward.currency] ?? 0) + a.reward.amount)
+        const curLabel = cfg.currencies?.find((c) => c.id === a.reward!.currency)?.label ?? a.reward.currency
+        this.pushLog(`${curLabel}: +${a.reward.amount}.`)
+      }
+      if (a.reward?.xp) this.grantXp(a.reward.xp)
+    }
+    if (dirty) this.saveMetaStore()
+  }
+
+  /** открытые в этом забеге достижения (для экрана исхода) */
+  private unlockedThisRun: string[] = []
+  achievementsUnlockedThisRun(): AchievementDef[] {
+    const cfg = this.campaign.meta.metaprogress
+    if (!cfg) return []
+    return this.unlockedThisRun
+      .map((id) => cfg.achievements?.find((a) => a.id === id))
+      .filter((x): x is AchievementDef => !!x)
+  }
+
+  /** вклад статистики текущего забега в суммарные счётчики + исход */
+  private finalizeRunMeta(won: boolean): void {
+    if (!this.metaProgressEnabled()) return
+    const st = this.metaStore()
+    if (won) st.victories += 1
+    else st.deaths += 1
+    for (const [k, v] of Object.entries(this.state.stats_run)) {
+      st.counters[k] = (st.counters[k] ?? 0) + (v ?? 0)
+    }
+    this.checkAchievements() // награда «за весь забег» тоже получает шанс
+    this.saveMetaStore()
+  }
+
+  /** старт нового забега: счётчик и гранты купленных усилений */
+  private metaRunStart(): void {
+    const cfg = this.campaign.meta.metaprogress
+    if (!cfg) return
+    const st = this.metaStore()
+    st.runs += 1
+    this.saveMetaStore()
+    if (st.runs > 1) this.pushLog(`Хроника продолжает писаться — забег №${st.runs}.`)
+    for (const uid of st.unlocks) {
+      const u = cfg.unlocks?.find((x) => x.id === uid)
+      if (!u) continue
+      this.pushLog(`Усиление из хроники: «${u.label}».`)
+      this.applyEffects(u.grants)
+    }
+    this.checkAchievements()
+  }
+
+  /** куплено ли усиление */
+  metaUnlockOwned(id: string): boolean {
+    return this.metaStore().unlocks.includes(id)
+  }
+
+  /** можно ли купить усиление (валюты хватает, требования истинны) */
+  metaUnlockAffordable(u: MetaUnlockDef): boolean {
+    if (this.metaUnlockOwned(u.id)) return false
+    if (u.requires?.length && !u.requires.every((c) => evalCondition(c, this))) return false
+    return u.cost.every((c) => this.metaCurrency(c.currency) >= c.amount)
+  }
+
+  /** купить постоянное усиление (экран хроники/финала) */
+  buyMetaUnlock(id: string): boolean {
+    const u = this.campaign.meta.metaprogress?.unlocks?.find((x) => x.id === id)
+    if (!u || !this.metaUnlockAffordable(u)) return false
+    const st = this.metaStore()
+    for (const c of u.cost) st.currencies[c.currency] = (st.currencies[c.currency] ?? 0) - c.amount
+    st.unlocks.push(id)
+    this.saveMetaStore()
+    this.pushLog(`В хронику записано усиление «${u.label}» — будет действовать каждом новом забеге.`)
+    this.notify()
+    return true
+  }
+
+  // ─────────────── случайные события и генераторы (аудит B9) ───────────────
+
+  /** есть ли генераторы/таблицы вообще */
+  generatorsEnabled(): boolean {
+    const g = this.campaign.meta.generators
+    return !!(g && (g.event_tables?.length || g.npc?.length || g.scenes?.length || g.adventures?.length))
+  }
+
+  /** таблица событий по id */
+  eventTableDef(id: string): EventTableDef | undefined {
+    return this.campaign.meta.generators?.event_tables?.find((t) => t.id === id)
+  }
+
+  /** таблица событий активна сейчас (не выключена, время/локация подходят) */
+  private eventTableActive(t: EventTableDef): boolean {
+    if (t.disabled) return false
+    if (t.time_of_day?.length && !t.time_of_day.includes(timeOfDay(this.state.tick, this.campaign.meta))) return false
+    if (t.locations?.length && !t.locations.includes(this.state.location)) return false
+    return true
+  }
+
+  /**
+   * Один бросок таблицы: выбор случайного подходящего правила и его
+   * исполнение. Возвращает id исполненного правила или null.
+   * `forced` — вызыватель эффекта roll_event_table: без шанса-интервала,
+   * `ignoreFilters` — даже без проверок времени/локации.
+   */
+  rollEventTable(tableId: string, opts: { forced?: boolean; ignoreFilters?: boolean } = {}): string | null {
+    const t = this.eventTableDef(tableId)
+    if (!t || t.disabled) return null
+    if (!opts.ignoreFilters && !this.eventTableActive(t)) return null
+    if (!opts.forced && (t.chance ?? 1) < 1 && !this.rng.chance(t.chance ?? 1)) return null
+    const candidates: string[] = []
+    for (const ruleId of t.rules) {
+      const rule = this.campaign.rules[ruleId]
+      if (!rule) continue
+      if (rule.once && this.state.fired_rules.includes(rule.id)) continue
+      if (!this.ruleConditionsOk(rule)) continue
+      candidates.push(ruleId)
+    }
+    if (!candidates.length) return null
+    const picked = candidates[this.rng.int(0, candidates.length - 1)]!
+    this.pushLog(`Событие (${t.label})…`)
+    this.fireRule(picked)
+    return picked
+  }
+
+  /** тики: у каждой таблицы свой шаг (tick % interval === 0) */
+  private tickEventTables(): void {
+    const tables = this.campaign.meta.generators?.event_tables
+    if (!tables?.length) return
+    for (const t of tables) {
+      if (t.interval_ticks <= 0) continue
+      if (this.state.tick % t.interval_ticks !== 0) continue
+      this.rollEventTable(t.id)
+    }
+  }
+
+  /** взвешенный выбор из списка генератора (`genPick` используется и из ink) */
+  genPickWeighted(items: GenWeightedItem[], rand: () => number): string | null {
+    if (!items.length) return null
+    let total = 0
+    for (const it of items) total += Math.max(0, it.weight ?? 1)
+    if (total <= 0) return items[0].value
+    let roll = rand() * total
+    for (const it of items) {
+      roll -= Math.max(0, it.weight ?? 1)
+      if (roll <= 0) return it.value
+    }
+    return items[items.length - 1].value
+  }
+
+  /** найти определение генератора (любого вида) по id или id списка */
+  private genDef(generatorId: string): { lists: Record<string, GenWeightedItem[]> } | undefined {
+    const g = this.campaign.meta.generators
+    if (!g) return undefined
+    return (
+      g.npc?.find((x) => x.id === generatorId) ??
+      g.scenes?.find((x) => x.id === generatorId) ??
+      g.adventures?.find((x) => x.id === generatorId)
+    )
+  }
+
+  /**
+   * Значение из списка генератора. `key` — ключ списка; компоновка имени —
+   * ключ `name` (через gen.name части). seed — стабильная строка: тот же
+   * seed+key даёт то же значение. Без seed — игровой PRNG.
+   */
+  genValue(generatorId: string, key: string, seed?: string): string {
+    const def = this.genDef(generatorId)
+    if (!def) return ''
+    const rand = seed ? this.seedRand(`${seed}:${generatorId}:${key}`) : () => this.rng.next()
+    if (key === 'name') {
+      const nameGen = this.campaign.meta.generators?.npc?.find((x) => x.id === generatorId)
+      if (nameGen?.name?.length) return this.composeGenName(nameGen, rand)
+    }
+    // спец-ключ цели приключения: goals:N
+    if (key.startsWith('goal:')) {
+      const adv = this.campaign.meta.generators?.adventures?.find((x) => x.id === generatorId)
+      const idx = parseInt(key.slice(5), 10)
+      const template = adv?.goals[idx]
+      if (template) return this.expandGenTemplate(template, def.lists, rand)
+      return ''
+    }
+    const list = def.lists[key]
+    return list ? (this.genPickWeighted(list, rand) ?? '') : ''
+  }
+
+  /** детерминированный PRNG из строки (стабильность по seed) */
+  private seedRand(seed: string): () => number {
+    let h = 2166136261 >>> 0
+    for (let i = 0; i < seed.length; i++) {
+      h ^= seed.charCodeAt(i)
+      h = Math.imul(h, 16777619) >>> 0
+    }
+    let x = h || 1
+    return () => {
+      x ^= x << 13; x >>>= 0
+      x ^= x >> 17
+      x ^= x << 5; x >>>= 0
+      return x / 4294967296
+    }
+  }
+
+  /** компоновка имени из частей (список/литерал) */
+  private composeGenName(gen: NpcGeneratorDef, rand: () => number): string {
+    if (!gen.name?.length) return ''
+    return gen.name
+      .map((p) => {
+        if (p.literal != null) return p.literal
+        const list = gen.lists[p.list ?? '']
+        return list ? (this.genPickWeighted(list, rand) ?? '') : ''
+      })
+      .filter(Boolean)
+      .join('')
+      .trim()
+  }
+
+  /** подстановка {list:key} в шаблон (цели приключений и слоты сцен) */
+  private expandGenTemplate(template: string, lists: Record<string, GenWeightedItem[]>, rand: () => number): string {
+    // {list:ключ} — наследие ранних версий; {список:ключ} — русская форма,
+    // которую учит подсказывать UI мастера. Обе подстановки равноправны.
+    return template.replace(/\{(?:list|список):([^\s{}]+)\}/g, (_m, key: string) => {
+      const list = lists[key]
+      return list ? (this.genPickWeighted(list, rand) ?? '') : ''
+    })
+  }
+
   // ─────────────── сохранение ───────────────
+
+  /**
+   * Автосейв: состояние пишется в обёртке (`SaveEnvelope`) вместе с версией
+   * кампании и версией движка — без этого нельзя ни перенести сейв, ни
+   * объяснить игроку, почему он не подошёл после обновления.
+   */
+  /** выбранный игроком уровень сложности (мастерские пресеты meta.difficulties) с накруткой круга New Game+ */
+  difficultyDef(): DifficultyPreset | null {
+    const list = this.campaign.meta.difficulties
+    if (!list?.length) return null
+    const base = list.find((d) => d.id === this.state.player.difficulty) ?? list[0]
+    const cycle = this.state.ng_cycle ?? 0
+    const boost = this.campaign.meta.new_game_plus?.boost
+    if (!cycle || !boost) return base
+    // круг New Game+ ужесточает мир: шаги множителей поверх выбранного пресета
+    const withStep = (v: number | undefined, step: number | undefined) =>
+      v === undefined || !step ? v : Math.round(v * (1 + step * cycle) * 100) / 100
+    return {
+      ...base,
+      enemy_damage: withStep(base.enemy_damage, boost.enemy_damage_step),
+      need_decay: withStep(base.need_decay, boost.need_decay_step),
+      prices: withStep(base.prices, boost.prices_step),
+    }
+  }
 
   autosave(): void {
     if (this.state.game_over) return
-    try {
-      localStorage.setItem(saveKey(this.campaign.meta.id), JSON.stringify(this.state))
-    } catch {
-      /* приватный режим и т.п. */
+    // «путь железного человека»: на этом уровне сложности автосейвы выключены
+    if (this.difficultyDef()?.no_autosave) return
+    this.envelope = writeSave(this.campaign.meta.id, this.state, this.campaign.meta.version, this.envelope ?? undefined) ?? this.envelope
+  }
+
+  /**
+   * Ручной сейв в слот игрока (аудит §5.6 п.9): перезаписывает слот.
+   * Пермадет стирает автосейв, ручные слоты переживают забег — честный
+   * «снимок на всякий случай», если мастер их не запретил (meta.save_slots).
+   */
+  manualSave(slot: number): boolean {
+    if (this.state.game_over) return false
+    const env = writeSave(this.campaign.meta.id, this.state, this.campaign.meta.version, undefined, slot)
+    if (env) {
+      this.pushLog(`Слот ${slot}: забег записан.`)
+      this.notify()
     }
+    return env !== null
+  }
+
+  /** сколько ручных слотов показывать игроку (мастер; умолчание 3) */
+  saveSlotsCount(): number {
+    return Math.max(0, Math.min(MAX_SAVE_SLOTS, this.campaign.meta.save_slots ?? 3))
   }
 }
 
 // ─────────────── save/load helpers ───────────────
 
-function saveKey(campaignId: string): string {
-  return `chronicle-forge:save:${campaignId}`
-}
+export {
+  saveKey,
+  backupKey,
+  preserveSave,
+  openSave,
+  inspectSave,
+  peekSave,
+  loadState,
+  writeSave,
+  exportSaveText,
+  importSaveText,
+  checkSaveVersion,
+  SAVE_MIGRATIONS,
+  OLDEST_SAVE_VERSION,
+  slotKey,
+  listSaveSlots,
+  removeSave as removeSaveSlot,
+  MAX_SAVE_SLOTS,
+} from './savemigrate'
+export type { SaveSlot, SaveSlotInfo } from './savemigrate'
+export type { OpenedSave, SaveVerdict, SaveMigration } from './savemigrate'
+export type { SaveReport, SaveNote, SaveEnvelope } from '../shared/types'
 
+/**
+ * Чтение сохранения без кампании: только перенос формата (`SAVE_MIGRATIONS`).
+ * Полная проверка (версии кампании + починка ссылок) — `openSave`.
+ */
 export function loadSave(campaignId: string): GameState | null {
-  try {
-    const raw = localStorage.getItem(saveKey(campaignId))
-    if (!raw) return null
-    const state = JSON.parse(raw) as GameState
-    const v = state.save_version ?? 1
-    // старше в3 — слишком древние, отбрасываем
-    if (v < 3) return null
-    // в3 → в4 (блок 7 ТЗ): equipment {weapon?, armor?} уже ложится в
-    // модель «слот → предмет» — только поднимаем версию
-    if (v === 3) {
-      if (!state.player || typeof state.player.equipment !== 'object' || state.player.equipment === null) return null
-      state.save_version = SAVE_VERSION
-    }
-    if (state.save_version !== SAVE_VERSION) return null
-    return state
-  } catch {
-    return null
-  }
+  return loadState(campaignId)
 }
 
 export function deleteSave(campaignId: string): void {
-  try {
-    localStorage.removeItem(saveKey(campaignId))
-  } catch {
-    /* ignore */
-  }
+  removeSave(campaignId)
 }
 
-export function hasSave(campaignId: string): boolean {
-  return loadSave(campaignId) !== null
+/**
+ * Есть ли сохранение, с которым можно продолжить забег. Учитывает и перенос
+ * формата, и вердикт по версиям кампании: неподдерживаемый сейв кнопкой
+ * «Продолжить» не предлагается, но и не удаляется (`openSave` покажет причину).
+ */
+export function hasSave(campaignId: string, campaign?: CampaignData): boolean {
+  if (!campaign) return loadState(campaignId) !== null
+  const opened = inspectSave(campaignId, campaign)
+  return !!opened && opened.verdict.kind === 'ok'
 }

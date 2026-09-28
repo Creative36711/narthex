@@ -5,28 +5,35 @@ import { SceneScreen } from './SceneScreen'
 import { MapScreen } from './MapScreen'
 import { DialogueOverlay } from './DialogueOverlay'
 import { InventoryPanel, CharacterPanel, LogPanel, CraftingPanel } from './Panels'
+import { SavesPanel } from './SavesPanel'
 import { CodexPanel } from './CodexPanel'
+import { MetaPanel } from './MetaPanel'
 import { TradePanel } from './TradePanel'
 import { EndScreen } from './EndScreen'
 import { HelpPanel } from './HelpPanel'
 import { CombatScreen } from './CombatScreen'
 import { assetUrl } from '../core/loader'
 import { CutscenePlayer } from '../shared/CutscenePlayer'
+import { BannerLayer, PostcardLayer } from './Atmosphere'
 import { setAudioCampaign, playUi, refreshAmbient, stopAllLoops } from '../shared/audio'
 import { refreshMusic, setMenuMode, stopMusic, applyMusicVolume } from '../shared/music'
 import { featureOn, type MusicTrackDef } from '../shared/types'
+import { Ico } from '../shared/icons'
 
 interface Props {
   engine: GameEngine
   onRestart: () => void
+  onNewGamePlus?: (next: GameEngine) => void
   onExitToMenu: () => void
+  /** Загрузить забег из слота сохранений (аудит §5.6 п.9) — пересобирает движок */
+  onLoadSlot?: (slot: import('../core/savemigrate').SaveSlot) => void
   debugPanelOpen?: boolean
   onGamePanelOpen?: () => void
 }
 
-type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | null
+type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | 'saves' | 'meta' | null
 
-export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = false, onGamePanelOpen }: Props) {
+export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoadSlot, debugPanelOpen = false, onGamePanelOpen }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
   // GameView owns the subscription so embedded playtests update just like the normal player.
   const [, invalidate] = useState(0)
@@ -44,6 +51,13 @@ export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = fal
     const timer = window.setTimeout(() => setDamageFlash(false), 220)
     return () => window.clearTimeout(timer)
   }, [engine, engine.state.player.hp])
+  // транзитные подсказки (получено/потеряно): каждая гаснет по таймеру
+  const toasts = engine.toasts
+  useEffect(() => {
+    if (!toasts.length) return
+    const timers = toasts.map((t) => window.setTimeout(() => engine.dismissToast(t.id), 4200))
+    return () => { for (const t of timers) window.clearTimeout(t) }
+  }, [engine, toasts])
   const message = engine.messages[0]
   // катсцена (итерация 8, блок E): пока идёт ролик, экраны остальных эффектов
   // (диалог, бой, торговля, сообщения, финал) ждут его окончания
@@ -103,8 +117,10 @@ export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = fal
         onOpenInventory={() => openPanel('inventory')}
         onOpenCharacter={() => openPanel('character')}
         onOpenLog={() => openPanel('log')}
+        onOpenMeta={() => openPanel('meta')}
         onOpenCraft={() => openPanel('craft')}
         onOpenCodex={() => openPanel('codex')}
+        onOpenSaves={() => openPanel('saves')}
         onOpenHelp={() => openPanel('help')}
         onExitToMenu={onExitToMenu}
       />
@@ -120,13 +136,28 @@ export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = fal
       )}
       {panel === 'log' && <LogPanel engine={engine} onClose={closePanel} />}
       {panel === 'codex' && <CodexPanel engine={engine} onClose={closePanel} />}
+      {panel === 'meta' && engine.metaProgressEnabled() && <MetaPanel engine={engine} onClose={closePanel} />}
       {panel === 'help' && <HelpPanel engine={engine} onClose={closePanel} />}
+      {panel === 'saves' && onLoadSlot && (
+        <SavesPanel engine={engine} onClose={closePanel} onLoadSlot={(slot) => { closePanel(); onLoadSlot(slot) }} />
+      )}
 
       {!cutscene && engine.combat && <CombatScreen engine={engine} />}
 
       {!cutscene && engine.trade && !engine.combat && <TradePanel engine={engine} />}
 
       {!cutscene && engine.dialogue && !engine.combat && !engine.trade && <DialogueOverlay engine={engine} />}
+
+      {toasts.length > 0 && (
+        <div className="toast-stack" aria-live="polite">
+          {toasts.map((t) => (
+            <div key={t.id} className={`toast toast-${t.kind}`} onClick={() => engine.dismissToast(t.id)}>
+              <Ico n={t.kind === 'get' ? 'bag' : t.kind === 'lose' ? 'trash' : 'info'} />
+              <span>{t.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {!cutscene && message && (
         <div className="overlay message-overlay" onClick={() => engine.dismissMessage()}>
@@ -141,7 +172,26 @@ export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = fal
       )}
 
       {!cutscene && engine.state.game_over && !engine.dialogue && (
-        <EndScreen engine={engine} onRestart={onRestart} onExitToMenu={onExitToMenu} />
+        <EndScreen engine={engine} onRestart={onRestart} onExitToMenu={onExitToMenu} onNewGamePlus={onNewGamePlus} />
+      )}
+
+      {!cutscene && engine.luckOffer && !engine.combat && (
+        <div className="overlay message-overlay">
+          <div className="message-box">
+            <p>{engine.luckOffer.text}</p>
+            <p className="muted small">
+              Потратить удачу ({engine.luckOffer.cost} очк., осталось {engine.luck()}) и бросить заново?
+            </p>
+            <div className="modal-buttons">
+              <button className="btn" onClick={() => engine.resolveLuckOffer(false)}>
+                Оставить как есть
+              </button>
+              <button className="btn btn-primary" onClick={() => engine.resolveLuckOffer(true)}>
+                Перебросить за удачу
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {cutscene && (
@@ -151,6 +201,16 @@ export function GameView({ engine, onRestart, onExitToMenu, debugPanelOpen = fal
           resolve={resolveAsset}
           onEnd={endCutscene}
           resolveTrack={resolveTrack}
+        />
+      )}
+
+      {/* мастерские надписи и «открытка» (эффекты правил) — поверх всего */}
+      <BannerLayer banners={engine.banners} />
+      {engine.postcard && (
+        <PostcardLayer
+          postcard={engine.postcard}
+          srcOf={resolveAsset}
+          onTap={() => engine.hidePostcard()}
         />
       )}
     </div>

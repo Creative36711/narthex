@@ -7,6 +7,12 @@
    "label": "Начало разговора",
    "sections": [
     {
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "heard_about_bandits"
+      }
+     ],
      "steps": [
       {
        "kind": "line",
@@ -19,12 +25,6 @@
        "line": {
         "text": "Про бандитов новостей нет. Караван из Вельдена так и не пришёл."
        }
-      }
-     ],
-     "conds": [
-      {
-       "type": "flag",
-       "flag": "heard_about_bandits"
       }
      ],
      "else_steps": [
@@ -63,7 +63,6 @@
     },
     {
      "text": "Что тут у вас происходит?",
-     "once": true,
      "conds": [
       {
        "type": "flag",
@@ -71,14 +70,14 @@
        "not": true
       }
      ],
+     "once": true,
      "sections": [
       {
        "steps": [
         {
          "kind": "line",
          "line": {
-          "text": "Банда с холмов душит торговлю. Третью неделю ни один караван не дошёл.",
-          "emotion": "neutral"
+          "text": "Банда с холмов душит торговлю. Третью неделю ни один караван не дошёл."
          }
         },
         {
@@ -101,7 +100,6 @@
     },
     {
      "text": "Пойдёшь со мной против банды Йорека?",
-     "once": true,
      "conds": [
       {
        "type": "quest",
@@ -127,15 +125,21 @@
        "not": true
       }
      ],
+     "once": true,
      "sections": [
       {
+       "conds": [
+        {
+         "type": "disp_ge",
+         "target": "faction_town_guard",
+         "value": 10
+        }
+       ],
        "steps": [
         {
          "kind": "line",
          "line": {
-          "text": "Алдрик долго смотрит на вас, потом сплёвывает и снимает щит со спины.",
-          "emotion": "neutral",
-          "action": true
+          "text": "Алдрик долго смотрит на вас, потом сплёвывает и снимает щит со спины. # action"
          }
         },
         {
@@ -150,13 +154,6 @@
           "type": "join_party",
           "npc": "npc_guard_aldric"
          }
-        }
-       ],
-       "conds": [
-        {
-         "type": "disp_ge",
-         "target": "faction_town_guard",
-         "value": 10
         }
        ],
        "goto": "end",
@@ -180,7 +177,6 @@
     },
     {
      "text": "Поделишься едой, служивый? (Убеждение)",
-     "once": true,
      "conds": [
       {
        "type": "flag",
@@ -193,39 +189,12 @@
        "not": true
       }
      ],
+     "once": true,
      "sections": [],
+     "goto": "stay",
      "check": {
       "skill": "persuade",
       "difficulty": 40,
-      "fail": {
-       "sections": [
-        {
-         "steps": [
-          {
-           "kind": "effect",
-           "effect": {
-            "type": "set_flag",
-            "flag": "aldric_ration_refused"
-           }
-          },
-          {
-           "kind": "line",
-           "line": {
-            "text": "Я тебе не богадельня. Иди к Маэве, у неё похлёбка за пять марок.",
-            "emotion": "neutral"
-           }
-          },
-          {
-           "kind": "line",
-           "line": {
-            "text": "И не заводи эту песню снова — сказал нет, значит нет."
-           }
-          }
-         ]
-        }
-       ],
-       "goto": "stay"
-      },
       "success": {
        "sections": [
         {
@@ -233,8 +202,7 @@
           {
            "kind": "line",
            "line": {
-            "text": "Эх... ладно. Держи, у меня в караулке ещё остался паёк.",
-            "emotion": "neutral"
+            "text": "Эх... ладно. Держи, у меня в караулке ещё остался паёк."
            }
           },
           {
@@ -262,9 +230,36 @@
         }
        ],
        "goto": "stay"
+      },
+      "fail": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "set_flag",
+            "flag": "aldric_ration_refused"
+           }
+          },
+          {
+           "kind": "line",
+           "line": {
+            "text": "Я тебе не богадельня. Иди к Маэве, у неё похлёбка за пять марок."
+           }
+          },
+          {
+           "kind": "line",
+           "line": {
+            "text": "И не заводи эту песню снова — сказал нет, значит нет."
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
       }
-     },
-     "goto": "stay"
+     }
     },
     {
      "text": "Бывай.",
@@ -314,8 +309,7 @@
         {
          "kind": "line",
          "line": {
-          "text": "Неспокойно — мягко сказано.",
-          "emotion": "neutral"
+          "text": "Неспокойно — мягко сказано."
          }
         },
         {

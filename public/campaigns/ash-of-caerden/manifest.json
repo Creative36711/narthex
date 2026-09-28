@@ -44,7 +44,8 @@
     "item_wool_cloak.json",
     "item_fur_coat.json",
     "item_tavern_key.json",
-    "item_locked_chest.json"
+    "item_locked_chest.json",
+    "item_travel_lockpicks.json"
   ],
   "rules": [
     "rule_intro_cutscene.json",
@@ -64,7 +65,10 @@
     "encounter_camp_fight_surprise.json",
     "rule_maeva_thanks.json",
     "rule_weather_ashfall.json",
-    "rule_weather_ravine_rain.json"
+    "rule_weather_ravine_rain.json",
+    "gen_whisper_blessing.json",
+    "gen_whisper_chill.json",
+    "gen_whisper_protest.json"
   ],
   "dialogues": [
     "aldric.ink",

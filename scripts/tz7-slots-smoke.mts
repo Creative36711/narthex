@@ -53,9 +53,15 @@ const demo = await loadCampaign(base)
   check('1 в3-сейв принят (не отброшен)', state !== null)
   check('1 версия поднята до в4', state?.save_version === 4)
   check('1 экипировка стала рекордом слотов', state?.player.equipment['weapon'] === 'item_short_sword' && state?.player.equipment['armor'] === 'item_leather_jerkin')
-  // древний в2 — отбрасывается
+  // в2 — переносится цепочкой миграций (политика «чиним, а не выбрасываем»)
   mem.set(key, JSON.stringify({ ...v3, save_version: 2 }))
-  check('1 в2-сейв отброшен', loadSave('tz7-test') === null)
+  const fromV2 = loadSave('tz7-test')
+  check('1 в2-сейв перенесён, а не отброшен', fromV2 !== null)
+  check('1 в2 → в4: версия поднята', fromV2?.save_version === 4)
+  check('1 в2 → в4: устаревшие валюты убраны', fromV2?.player.currencies === undefined)
+  // сейв из более нового движка — не трогаем (иначе потеряем данные игрока)
+  mem.set(key, JSON.stringify({ ...v3, save_version: 99 }))
+  check('1 сейв новее движка отброшен', loadSave('tz7-test') === null)
   mem.delete(key)
 }
 

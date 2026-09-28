@@ -119,6 +119,116 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     ],
     blank: { skill: '', threshold: 50 },
   },
+  stat_ge: {
+    label: 'Характеристика ≥',
+    fields: [
+      { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'POW' },
+      { key: 'threshold', label: 'Порог', kind: 'number' },
+    ],
+    blank: { stat: 'POW', threshold: 10 },
+  },
+  hp_le: {
+    label: 'HP ≤',
+    fields: [{ key: 'threshold', label: 'Порог', kind: 'number' }],
+    blank: { threshold: 3 },
+  },
+  hp_ge: {
+    label: 'HP ≥',
+    fields: [{ key: 'threshold', label: 'Порог', kind: 'number' }],
+    blank: { threshold: 1 },
+  },
+  luck_ge: {
+    label: 'Удача ≥',
+    fields: [{ key: 'threshold', label: 'Очков удачи', kind: 'number' }],
+    blank: { threshold: 1 },
+  },
+  fatigue_ge: {
+    label: 'Усталость ≥',
+    fields: [{ key: 'threshold', label: 'Очков усталости', kind: 'number' }],
+    blank: { threshold: 1 },
+  },
+  fatigue_le: {
+    label: 'Усталость ≤',
+    fields: [{ key: 'threshold', label: 'Очков усталости', kind: 'number' }],
+    blank: { threshold: 0 },
+  },
+  sanity_ge: {
+    label: 'Рассудок ≥',
+    fields: [{ key: 'threshold', label: 'Очков рассудка', kind: 'number' }],
+    blank: { threshold: 50 },
+  },
+  sanity_le: {
+    label: 'Рассудок ≤',
+    fields: [{ key: 'threshold', label: 'Очков рассудка', kind: 'number' }],
+    blank: { threshold: 25 },
+  },
+  reputation_ge: {
+    label: 'Репутация ≥',
+    fields: [{ key: 'threshold', label: 'Порог', kind: 'number' }],
+    blank: { threshold: 50 },
+  },
+  wealth_ge: {
+    label: 'Достаток ≥',
+    fields: [{ key: 'level', label: 'Уровень (индекс шкалы)', kind: 'number' }],
+    blank: { level: 1 },
+  },
+  passion_ge: {
+    label: 'Страсть ≥',
+    fields: [
+      { key: 'id', label: 'id страсти', kind: 'string' },
+      { key: 'value', label: 'Значение', kind: 'number' },
+    ],
+    blank: { id: '', value: 50 },
+  },
+  allegiance_ge: {
+    label: 'Причастность ≥',
+    fields: [
+      { key: 'id', label: 'id силы', kind: 'string' },
+      { key: 'points', label: 'Очки', kind: 'number' },
+    ],
+    blank: { id: '', points: 100 },
+  },
+  power_level_ge: {
+    label: 'Уровень мощи кампании ≥',
+    fields: [{ key: 'level', label: "normal/heroic/epic/superhuman", kind: 'string', placeholder: 'heroic' }],
+    blank: { level: 'heroic' },
+  },
+  crime_committed: {
+    label: 'Преступление совершено',
+    fields: [
+      { key: 'id', label: 'id преступления (пусто — любое)', kind: 'string', optional: true },
+      { key: 'min_bounty', label: 'Мин. награда', kind: 'number', optional: true },
+    ],
+    blank: {},
+  },
+  bounty_total_ge: {
+    label: 'Награда за голову ≥',
+    fields: [{ key: 'threshold', label: 'Порог', kind: 'number' }],
+    blank: { threshold: 100 },
+  },
+  level_ge: {
+    label: 'Уровень героя ≥',
+    fields: [{ key: 'level', label: 'Уровень', kind: 'number' }],
+    blank: { level: 2 },
+  },
+  has_feat: {
+    label: 'Черта взята',
+    fields: [{ key: 'id', label: 'id черты', kind: 'string' }],
+    blank: { id: '' },
+  },
+  meta_currency_ge: {
+    label: 'Метавалюты ≥',
+    fields: [
+      { key: 'currency', label: 'id метавалюты', kind: 'string' },
+      { key: 'threshold', label: 'Порог', kind: 'number' },
+    ],
+    blank: { currency: '', threshold: 10 },
+  },
+  meta_achievement: {
+    label: 'Достижение открыто',
+    fields: [{ key: 'id', label: 'id достижения', kind: 'string' }],
+    blank: { id: '' },
+  },
   need_le: {
     label: 'Потребность ≤',
     fields: [
@@ -201,6 +311,28 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
 // ─────────────── эффекты ───────────────
 
 export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
+  banner: {
+    label: 'Большая надпись на экране (баннер)',
+    fields: [
+      { key: 'text', label: 'Текст надписи', kind: 'string' },
+      { key: 'preset', label: 'Наряд: глава | шёпот | заголовок | проклятье | записочный', kind: 'string', optional: true },
+      { key: 'enter', label: 'Появление: всплеск | тянуть | сбоку | молниеносно', kind: 'string', optional: true },
+      { key: 'seconds', label: 'Секунд на экране (пусто — по длине текста)', kind: 'number', optional: true },
+      { key: 'position', label: 'Положение: верх | центр', kind: 'string', optional: true },
+      { key: 'accent', label: 'Цвет (HEX, пусто — цвет пресета)', kind: 'string', optional: true },
+    ],
+    blank: { text: '', preset: 'глава' },
+  },
+  postcard: {
+    label: '«Открытка»: иллюстрация на весь экран с подписью',
+    fields: [
+      { key: 'image', label: 'Картинка (файл пакета или ссылка; пусто — art-рисунок)', kind: 'string', optional: true },
+      { key: 'text', label: 'Подпись', kind: 'string', optional: true },
+      { key: 'preset', label: 'Наряд подписи: глава | шёпот | заголовок | проклятье | записочный', kind: 'string', optional: true },
+      { key: 'seconds', label: 'Секунд показа (0 — только по тапу)', kind: 'number', optional: true },
+    ],
+    blank: { seconds: 6 },
+  },
   set_flag: {
     label: 'Установить флаг',
     fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],
@@ -339,6 +471,176 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'delta', label: 'Дельта', kind: 'number' },
     ],
     blank: { target: '', delta: 10 },
+  },
+  stat_check: {
+    label: 'Проверка характеристики (ветвление)',
+    fields: [
+      { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'POW' },
+      { key: 'multiplier', label: 'Множитель (ум. 5)', kind: 'number', optional: true },
+      { key: 'modifier', label: 'Модификатор к цели', kind: 'number', optional: true },
+      { key: 'augment_passion', label: 'Аугмент: id страсти', kind: 'string', optional: true },
+      { key: 'assist_entity', label: 'Подмога: id союзника', kind: 'npcRef', optional: true },
+      { key: 'assist_skill', label: 'Навык подмоги', kind: 'skillRef', optional: true },
+      { key: 'success_effects', label: 'При успехе', kind: 'effects' },
+      { key: 'fail_effects', label: 'При провале', kind: 'effects' },
+    ],
+    blank: { stat: 'POW', success_effects: [], fail_effects: [] },
+  },
+  start_pursuit: {
+    label: 'Начать преследование героя',
+    fields: [
+      { key: 'label', label: 'Кто гонится (подпись в журнале)', kind: 'string', placeholder: 'Сторожа барона', optional: true },
+      { key: 'skill', label: 'Навык маскировки (ум. stealth)', kind: 'skillRef', optional: true },
+      { key: 'every_ticks', label: 'Проверка каждые N тиков (ум. 4)', kind: 'number', optional: true },
+      { key: 'fails_to_catch', label: 'Провалов до облавы (ум. 1)', kind: 'number', optional: true },
+      { key: 'on_fail', label: 'Когда настигли (обычно «Начать бой»)', kind: 'effects' },
+    ],
+    blank: { skill: 'stealth', every_ticks: 4, fails_to_catch: 1, on_fail: [] },
+  },
+  stop_pursuit: {
+    label: 'Преследование окончено (оторвались)',
+    fields: [],
+    blank: {},
+  },
+  group_stat_check: {
+    label: 'Групповая сцепленная проверка (герой + союзники)',
+    fields: [
+      { key: 'mode', label: 'Чем бросаем', kind: 'select', options: ['skill', 'stat'], optional: true },
+      { key: 'skill', label: 'Навык (mode=skill)', kind: 'skillRef', optional: true },
+      { key: 'stat', label: 'Характеристика (mode=stat)', kind: 'string', placeholder: 'POW', optional: true },
+      { key: 'multiplier', label: 'Множитель хар-ки (ум. 5)', kind: 'number', optional: true },
+      { key: 'difficulty', label: 'Сложность навыка', kind: 'number', optional: true },
+      { key: 'modifier', label: 'Модификатор (stat)', kind: 'number', optional: true },
+      { key: 'helpers', label: 'Союзников в цепочке (ум. 2)', kind: 'number', optional: true },
+      { key: 'need', label: 'Нужно успехов (ум. большинство)', kind: 'number', optional: true },
+      { key: 'success_effects', label: 'Цепочка выдержала', kind: 'effects' },
+      { key: 'fail_effects', label: 'Цепочка порвалась', kind: 'effects' },
+    ],
+    blank: { mode: 'skill', skill: 'stealth', helpers: 2, success_effects: [], fail_effects: [] },
+  },
+  opposed_check: {
+    label: 'Противоборство навыком (ветвление)',
+    fields: [
+      { key: 'skill', label: 'Навык героя', kind: 'skillRef' },
+      { key: 'entity', label: 'Оппонент NPC', kind: 'npcRef', optional: true },
+      { key: 'against_skill', label: 'Навык оппонента', kind: 'skillRef', optional: true },
+      { key: 'against_value', label: 'Или порог навыка', kind: 'number', optional: true },
+      { key: 'tie', label: 'При равенстве выигрывает', kind: 'select', options: ['player', 'opponent'], optional: true },
+      { key: 'augment_passion', label: 'Аугмент: id страсти', kind: 'string', optional: true },
+      { key: 'success_effects', label: 'При победе героя', kind: 'effects' },
+      { key: 'fail_effects', label: 'При поражении', kind: 'effects' },
+    ],
+    blank: { skill: '', success_effects: [], fail_effects: [] },
+  },
+  change_luck: {
+    label: 'Изменить удачу',
+    fields: [{ key: 'delta', label: 'Очки удачи (±)', kind: 'number' }],
+    blank: { delta: -1 },
+  },
+  change_fatigue: {
+    label: 'Изменить усталость',
+    fields: [{ key: 'delta', label: 'Очки усталости (±)', kind: 'number' }],
+    blank: { delta: -1 },
+  },
+  change_sanity: {
+    label: 'Изменить рассудок',
+    fields: [{ key: 'delta', label: 'Очки рассудка (±)', kind: 'number' }],
+    blank: { delta: -5 },
+  },
+  change_reputation: {
+    label: 'Изменить репутацию',
+    fields: [{ key: 'delta', label: 'Сдвиг (±)', kind: 'number' }],
+    blank: { delta: 5 },
+  },
+  change_wealth: {
+    label: 'Сдвиг достатка',
+    fields: [{ key: 'levels', label: 'Ступеней (±)', kind: 'number' }],
+    blank: { levels: 1 },
+  },
+  change_passion: {
+    label: 'Изменить страсть',
+    fields: [
+      { key: 'id', label: 'id страсти', kind: 'string' },
+      { key: 'delta', label: 'Сдвиг (±)', kind: 'number' },
+    ],
+    blank: { id: '', delta: 10 },
+  },
+  change_allegiance: {
+    label: 'Изменить причастность',
+    fields: [
+      { key: 'id', label: 'id силы', kind: 'string' },
+      { key: 'points', label: 'Очки (±)', kind: 'number' },
+    ],
+    blank: { id: '', points: 1 },
+  },
+  train_stat: {
+    label: 'Тренировка характеристики',
+    fields: [
+      { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'STR' },
+      { key: 'delta', label: 'Сдвиг (±)', kind: 'number' },
+    ],
+    blank: { stat: 'STR', delta: 1 },
+  },
+  hazard_fall: {
+    label: 'Падение (высота → урон)',
+    fields: [
+      { key: 'meters', label: 'Высота, метров', kind: 'number' },
+      { key: 'skill', label: 'Навык смягчения (ум. dodge)', kind: 'skillRef', optional: true },
+    ],
+    blank: { meters: 10 },
+  },
+  commit_crime: {
+    label: 'Совершить преступление',
+    fields: [
+      { key: 'id', label: 'id преступления', kind: 'string' },
+      { key: 'bounty', label: 'Награда за голову (опц.)', kind: 'number', optional: true },
+    ],
+    blank: { id: '' },
+  },
+  set_price_event: {
+    label: 'Включить ценовое событие',
+    fields: [{ key: 'id', label: 'id события', kind: 'string' }],
+    blank: { id: '' },
+  },
+  clear_price_event: {
+    label: 'Снять ценовое событие',
+    fields: [{ key: 'id', label: 'id события (пусто — все)', kind: 'string', optional: true }],
+    blank: {},
+  },
+  grant_xp: {
+    label: 'Опыт (очки уровней)',
+    fields: [{ key: 'points', label: 'Очки опыта', kind: 'number' }],
+    blank: { points: 50 },
+  },
+  grant_feat: {
+    label: 'Выдать черту',
+    fields: [{ key: 'id', label: 'id черты', kind: 'string' }],
+    blank: { id: '' },
+  },
+  meta_currency: {
+    label: 'Метавалюта (между забегами)',
+    fields: [
+      { key: 'id', label: 'id метавалюты', kind: 'string' },
+      { key: 'amount', label: 'Сумма (±)', kind: 'number' },
+    ],
+    blank: { id: '', amount: 5 },
+  },
+  roll_event_table: {
+    label: 'Событие из таблицы (сейчас)',
+    fields: [
+      { key: 'table', label: 'id таблицы', kind: 'string', placeholder: 'см. вкладку «Генераторы»' },
+      { key: 'ignore_filters', label: 'Игнорировать фильтры (время/локация)', kind: 'boolean', optional: true },
+    ],
+    blank: { table: '' },
+  },
+  generate_variables: {
+    label: 'Генерация переменных (списки)',
+    fields: [
+      { key: 'generator', label: 'id генератора', kind: 'string' },
+      { key: 'seed', label: 'seed (стабильность)', kind: 'string', optional: true },
+      { key: 'pack', label: 'Пакет ключей', kind: 'json' },
+    ],
+    blank: { generator: '', pack: [] },
   },
   start_quest: {
     label: 'Начать квест',

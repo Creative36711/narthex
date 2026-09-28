@@ -13,13 +13,15 @@ interface Props {
   onOpenInventory: () => void
   onOpenCharacter: () => void
   onOpenLog: () => void
+  onOpenMeta?: () => void
   onOpenCraft: () => void
   onOpenCodex: () => void
+  onOpenSaves: () => void
   onOpenHelp: () => void
   onExitToMenu: () => void
 }
 
-export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenCraft, onOpenCodex, onOpenHelp, onExitToMenu }: Props) {
+export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpenLog, onOpenCraft, onOpenCodex, onOpenSaves, onOpenHelp, onOpenMeta, onExitToMenu }: Props) {
   const s = engine.state
   const meta = engine.campaign.meta
   const tod = timeOfDay(s.tick, meta)
@@ -34,6 +36,47 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           <div className="hud-bar-fill" style={{ width: `${(s.player.hp / s.player.max_hp) * 100}%` }} />
           <span>HP {s.player.hp}/{s.player.max_hp}</span>
         </div>
+        {engine.campaign.meta.luck && engine.luckMax() > 0 && (
+          <div
+            className="hud-status-chip"
+            data-tip={`Удача: ${engine.luck()}/${engine.luckMax()} (POW × множитель).\nНа провальном броске вне боя можно потратить удачу и перебросить.\nВосстанавливается на отдыхе (если мастер не отключил).`}
+          >
+            Удача {engine.luck()}
+          </div>
+        )}
+        {engine.fatigueMax() > 0 && (
+          <div
+            className={`hud-bar need ${engine.fatigue() <= 0 ? 'critical' : ''}`}
+            data-tip={`Усталость: ${engine.fatigue()}/${engine.fatigueMax()} (= (STR+CON)×множитель).\nТраты задаёт мастер (бег, тяжёлый труд, бессонница); на нуле — правила кампании решают последствия.\nВосстанавливается на отдыхе (если мастер не отключил).`}
+          >
+            <div className="hud-bar-fill" style={{ width: `${(engine.fatigue() / engine.fatigueMax()) * 100}%` }} />
+            <span>Усталость {engine.fatigue()}</span>
+          </div>
+        )}
+        {engine.sanityMax() > 0 && (
+          <div
+            className="hud-status-chip"
+            data-tip={`Рассудок: ${engine.sanity()}/${engine.sanityMax()} (POW × множитель).\nПотери и исцеление — эффектами мастера; пороги (может, помешательство) — правилами на sanity_le.`}
+          >
+            Рассудок {engine.sanity()}
+          </div>
+        )}
+        {engine.reputationEnabled() && (
+          <div
+            className="hud-status-chip"
+            data-tip={`${engine.reputationLabel()}: ${engine.reputation()}.\nМеняется деяниями героя (эффекты мастера change_reputation).`}
+          >
+            {engine.reputationLabel()} {engine.reputation()}
+          </div>
+        )}
+        {engine.progressionEnabled() && (
+          <div
+            className="hud-status-chip"
+            data-tip={`Уровень ${engine.level()} — опыт ${engine.xp()}${engine.xpToNext() != null ? ` (до след. уровня ${engine.xpToNext()})` : ' (потолок)'}.\nОпыт начисляется за ход событий; за каждый уровень — новая черта в листе персонажа.`}
+          >
+            Ур. {engine.level()}{engine.pendingFeats() > 0 ? ` (+${engine.pendingFeats()})` : ''}
+          </div>
+        )}
         {needsOn && meta.needs.map((n) => {
           const val = s.player.needs[n.id] ?? 0
           const critical = val <= n.critical_threshold
@@ -46,6 +89,15 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
             </div>
           )
         })}
+        {engine.stealthEnabled() && (
+          <button
+            className="hud-status-chip"
+            data-tip={'Скрытность: крадущееся передвижение.\nПри входе и смене сцены — проверка против внимателей.\nБой из скрытности начинается внезапно (первый раунд за вами).'}
+            onClick={() => engine.toggleSneak()}
+          >
+            {engine.isSneaking() ? (engine.isDetected() ? 'Замечен!' : 'Крадётесь') : 'Открыто'}
+          </button>
+        )}
         {(s.player.statuses ?? []).map((st) => {
           const def = engine.statusDef(st.id)
           if (!def) return null
@@ -88,9 +140,18 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         )}
         <button className="hud-btn" onClick={onOpenCharacter} data-tip="Лист персонажа"><Ico n="user" />  Герой</button>
         <button className="hud-btn" onClick={onOpenLog} data-tip="Журнал"><Ico n="scroll" />  Журнал</button>
+        {engine.metaProgressEnabled() && onOpenMeta && (
+          <button className="hud-btn" onClick={onOpenMeta} data-tip="Хроника: достижения, метавалюта и постоянные усиления между забегами"><Ico n="star" />  Хроника</button>
+        )}
+        {engine.campAvailable().ok && (
+          <button className="hud-btn" onClick={() => engine.campRest()} data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}>
+            <Ico n="flame" />  Лагерь
+          </button>
+        )}
         {(s.codex_unlocked ?? []).length > 0 && (
           <button className="hud-btn" onClick={onOpenCodex} data-tip="Разблокированные записи о мире"><Ico n="book" />  Кодекс</button>
         )}
+        <button className="hud-btn" onClick={onOpenSaves} data-tip="Сохранения (слоты)" aria-label="Сохранения"><Ico n="download" /> </button>
         <button className="hud-btn" onClick={onOpenHelp} data-tip="Справка"><Ico n="help" /> </button>
         <button className="hud-btn" onClick={() => setShowSettings(true)} data-tip="Настройки (громкость, озвучка)"><Ico n="settings" /> </button>
         <button

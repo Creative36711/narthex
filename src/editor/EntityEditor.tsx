@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
 import { DEFAULT_EMOTION, equipmentSlots } from '../shared/types'
 import type { EditorStore } from './store'
-import { FlagSelect, ImageUpload, RefSelect, FileAdvancedJson } from './Fields'
+import { ConditionListEditor, EffectListEditor, FlagSelect, ImageUpload, RefSelect, FileAdvancedJson, AnimImageEditor } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { SoundHookMapEditor } from './AudioSection'
 import { askText } from './prompt'
@@ -137,13 +137,175 @@ function ItemForm({
           </label>
         </div>
         <ImageUpload
-          label="Изображение предмета"
+          label="Изображение предмета (в инвентаре и торговле)"
           value={item.image ?? ''}
           dir="assets/img/items"
           store={store}
           onChange={(p) => {
             if (p) item.image = p
             else delete item.image
+            commit()
+          }}
+        />
+      </div>
+
+      <div className="props-group">
+        <h4>Предмет в сцене</h4>
+        <AnimImageEditor
+          label="Спрайт в сцене (картинка предмета в его слоте; без него — слот пуст)"
+          value={item.scene_sprite}
+          dir="assets/img/items"
+          store={store}
+          onChange={(v) => {
+            if (v) item.scene_sprite = v
+            else delete item.scene_sprite
+            commit()
+          }}
+        />
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Спрайт вписывается в слот целиком (как у персонажей): сужается/расширяется,
+          ничего не обрезается. Если спрайта нет — в слоте ничего не рисуется, даже если
+          задано изображение предмета.
+        </div>
+        <label className="fld fld-check">
+          <input
+            type="checkbox"
+            checked={item.shadow !== false}
+            onChange={(e) => {
+              if (e.target.checked) delete item.shadow
+              else item.shadow = false
+              commit()
+            }}
+          />
+          <span>Мягкая тень под спрайтом</span>
+        </label>
+
+        <h4 style={{ marginTop: 14 }}>Портреты предмета (окно действий)</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Клик по предмету в сцене открывает окно действий — как мини-диалог.
+          «Обычный» портрет показывается в этом окне по умолчанию; остальные
+          состояния можно указать у конкретного действия (поле «Состояние портрета»).
+          Без портретов окно показывает только текст.
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          {Object.keys(item.portrait ?? {}).map((k) => (
+            <div key={k} style={{ position: 'relative' }}>
+              <ImageUpload
+                label={emLabelOf(store, k)}
+                value={item.portrait?.[k] ?? ''}
+                dir="assets/img/items"
+                store={store}
+                onChange={(p) => {
+                  item.portrait = { ...(item.portrait ?? {}) }
+                  if (p) item.portrait[k] = p
+                  else if (k !== 'neutral') delete item.portrait[k]
+                  else item.portrait[k] = ''
+                  if (!Object.keys(item.portrait).length) delete item.portrait
+                  commit()
+                }}
+              />
+              {k !== 'neutral' && (
+                <button
+                  className="btn btn-small ce-del"
+                  data-tip="Убрать состояние"
+                  style={{ position: 'absolute', top: 0, right: 0 }}
+                  onClick={() => {
+                    delete item.portrait?.[k]
+                    if (!Object.keys(item.portrait ?? {}).length) delete item.portrait
+                    commit()
+                  }}
+                >
+                  <Ico n="close" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="fld-row">
+          <select
+            value=""
+            data-tip="Добавить состояние портрета предмета"
+            onChange={async (e) => {
+              const v = e.target.value
+              if (!v) return
+              item.portrait = { ...(item.portrait ?? {}) }
+              if (v === '__new__') {
+                const name = await askText('Название нового состояния', 'например «Открыт»')
+                if (!name) return
+                const key = slugify(name) || `state_${Object.keys(item.portrait).length + 1}`
+                if (!store.meta.emotions?.some((x) => x.id === key)) {
+                  if (!store.meta.emotions) store.meta.emotions = []
+                  store.meta.emotions.push({ id: key, label: name })
+                  store.touch('campaign.json')
+                }
+                item.portrait[key] = ''
+                commit()
+                return
+              }
+              item.portrait[v] = ''
+              commit()
+            }}
+          >
+            <option value="">+ состояние портрета…</option>
+            {!Object.keys(item.portrait ?? {}).includes('neutral') && <option value="neutral">Обычный</option>}
+            {emotionsOf(store)
+              .filter((x) => !(item.portrait ?? {})[x.id])
+              .map((x) => (
+                <option key={x.id} value={x.id}>{x.label}</option>
+              ))}
+            <option value="__new__">+ Создать новое состояние…</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Действия с предметом в сцене</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Клик по предмету открывает окно выбора действия (как реплики диалога):
+          «собрать траву», «срезать куст», «поджечь»… У каждого действия — свои
+          условия-ширма и реакции. Без списка срабатывает «простое действие»
+          (либо просто показывается описание).
+        </div>
+        {(item.interact_options ?? []).map((_, i) => (
+          <ItemOptionEditor
+            key={i}
+            index={i}
+            options={item.interact_options!}
+            store={store}
+            portraitKeys={Object.keys(item.portrait ?? {})}
+            onCommit={commit}
+          />
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={() => {
+            item.interact_options = [...(item.interact_options ?? []), { label: 'Осмотреть', effects: [] }]
+            commit()
+          }}
+        >
+          <Ico n="plus" /> Действие
+        </button>
+        {(item.interact_options?.length ?? 0) === 0 && item.on_interact && (
+          <div className="muted small">
+            Есть «простое действие» (старое поле, в JSON): оно сработает без выбора,
+            пока здесь нет ни одного действия.
+          </div>
+        )}
+      </div>
+
+      <div className="props-group">
+        <h4>Условия взаимодействия</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Пока условия не выполнены, предмет остаётся «декорацией»: виден в сцене,
+          но не нажимается и не подсвечивается. Например: колодец нельзя использовать,
+          пока нет верёвки. Пустой список — взаимодействовать можно всегда.
+        </div>
+        <ConditionListEditor
+          store={store}
+          conditions={item.interactable_when ?? []}
+          onChange={(conds) => {
+            if (conds.length) item.interactable_when = conds
+            else delete item.interactable_when
             commit()
           }}
         />
@@ -197,6 +359,73 @@ function ItemForm({
               <input type="checkbox" checked={item.weapon_data.parry_capable} onChange={(e) => ((item.weapon_data!.parry_capable = e.target.checked), commit())} />
               <span>Парирует</span>
             </label>
+            <label className="fld fld-num" data-tip="0 — вечное оружие. Износ: критический провал в бою −1. Слом чинится рецептом «починка».">
+              <span>Прочность (0 — вечное)</span>
+              <input
+                type="number" min={0}
+                value={item.weapon_data.durability ?? 0}
+                onChange={(e) => {
+                  const v = Math.max(0, Number(e.target.value) || 0)
+                  if (v > 0) item.weapon_data!.durability = v
+                  else delete item.weapon_data!.durability
+                  commit()
+                }}
+              />
+            </label>
+            <label className="fld fld-num" data-tip="Дальность в гексах: 1 — руопашная.">
+              <span>Дальность</span>
+              <input
+                type="number" min={1}
+                value={item.weapon_data.range}
+                onChange={(e) => ((item.weapon_data!.range = Math.max(1, Number(e.target.value) || 1)), commit())}
+              />
+            </label>
+            <label className="fld fld-num" data-tip="Сколько атак в раунде делает боец с этим оружием (последующие с штрафом из правил кампании).">
+              <span>Атак в раунде</span>
+              <input
+                type="number" min={1}
+                value={item.weapon_data.attacks_per_round}
+                onChange={(e) => ((item.weapon_data!.attacks_per_round = Math.max(1, Number(e.target.value) || 1)), commit())}
+              />
+            </label>
+            <ItemSelect
+              label="Боеприпасы (id предмета)"
+              store={store}
+              value={item.weapon_data.ammo_item ?? ''}
+              allowNone
+              onChange={(v) => {
+                if (v) item.weapon_data!.ammo_item = v
+                else delete item.weapon_data!.ammo_item
+                commit()
+              }}
+            />
+          </div>
+          <div className="fld-row">
+            {(
+              [
+                ['impale', 'Пронзание (+урон без брони)'],
+                ['knockback', 'Отброс на гекс'],
+                ['disarm', 'Разоружение'],
+                ['grapple', 'Захват (ход потерян)'],
+                ['push_harmless', 'Толчок без урона'],
+              ] as const
+            ).map(([trait, tl]) => (
+              <label key={trait} className="fld fld-check" data-tip="Особый удар: срабатывает при уверенном успехе и критическом.">
+                <input
+                  type="checkbox"
+                  checked={(item.weapon_data!.traits ?? []).includes(trait)}
+                  onChange={(e) => {
+                    const cur = new Set(item.weapon_data!.traits ?? [])
+                    if (e.target.checked) cur.add(trait)
+                    else cur.delete(trait)
+                    if (cur.size) item.weapon_data!.traits = [...cur]
+                    else delete item.weapon_data!.traits
+                    commit()
+                  }}
+                />
+                <span>{tl}</span>
+              </label>
+            ))}
           </div>
         </div>
       )}
@@ -206,6 +435,19 @@ function ItemForm({
           <label className="fld">
             <span>Очки брони (−к урону)</span>
             <input type="number" value={item.armor_data.points} onChange={(e) => ((item.armor_data!.points = Number(e.target.value)), commit())} />
+          </label>
+          <label className="fld fld-num" data-tip="0 — вечная броня. Износ: каждый пробивший удар в бою −1. Слом чинится рецептом «починка».">
+            <span>Прочность (0 — вечная)</span>
+            <input
+              type="number" min={0}
+              value={item.armor_data.durability ?? 0}
+              onChange={(e) => {
+                const v = Math.max(0, Number(e.target.value) || 0)
+                if (v > 0) item.armor_data!.durability = v
+                else delete item.armor_data!.durability
+                commit()
+              }}
+            />
           </label>
         </div>
       )}
@@ -252,6 +494,18 @@ function ItemForm({
 // ─────────────── NPC ───────────────
 
 /** состояния портрета — общий реестр кампании (фидбек 9.14) */
+/** встроенные состояния фигурки боя (поверх — id статусов реестра) */
+const FIGURE_STATES_BASE = [
+  { id: 'dead', label: 'Погиб' },
+  { id: 'down', label: 'Без сознания' },
+]
+
+function figureStateLabel(store: EditorStore, id: string): string {
+  const base = FIGURE_STATES_BASE.find((x) => x.id === id)
+  if (base) return base.label
+  return `в статусе «${store.options('status').find((o) => o.id === id)?.label ?? id}»`
+}
+
 function emotionsOf(store: EditorStore): EmotionDef[] {
   return store.meta.emotions ?? []
 }
@@ -290,6 +544,7 @@ function NpcForm({
   const hasArt =
     Object.values(npc.portrait ?? {}).some(Boolean) ||
     !!npc.scene_sprite ||
+    Object.values(npc.scene_sprite_states ?? {}).some(Boolean) ||
     !!npc.combat_figure ||
     !!npc.token
 
@@ -320,6 +575,7 @@ function NpcForm({
           </label>
           <SlotTypeField e={npc} store={store} commit={commit} />
         </div>
+        <SpeciesApply npc={npc} store={store} commit={commit} />
         <label className="fld fld-block">
           <span>Описание</span>
           <textarea
@@ -347,7 +603,7 @@ function NpcForm({
       <details className="spoiler-block" {...(hasArt ? { open: true } : {})}>
         <summary>Изображения: портреты, спрайт, фигурка</summary>
       <div className="props-group">
-        <h4>Портреты (состояния)</h4>
+        <h4>Портреты</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           «Обычный» показывается по умолчанию; остальные состояния включаются в репликах диалога
           (в конструкторе диалогов — поле «настроение»).
@@ -439,17 +695,89 @@ function NpcForm({
           Изображение с вырезанным фоном (прозрачный PNG), которым персонаж стоит в сцене.
           Если не задано — в сцене используется портрет «Обычный».
         </div>
-        <ImageUpload
+        <AnimImageEditor
           label="Спрайт в сцене"
-          value={npc.scene_sprite ?? ''}
+          value={npc.scene_sprite}
           dir="assets/img/npc"
           store={store}
-          onChange={(p) => {
-            if (p) npc.scene_sprite = p
+          onChange={(v) => {
+            if (v) npc.scene_sprite = v
             else delete npc.scene_sprite
             commit()
           }}
         />
+        {/* состояния спрайта — по образцу «Портретов»: ключи из общего
+            реестра состояний; показ — «Состояние спрайта» в свойствах слота сцены */}
+        <div className="muted small" style={{ margin: '8px 0 8px' }}>
+          Состояния — как у портретов: добавьте варианты спрайта (с мечом, раненый, в движении…),
+          а показывать их поможет выбор «Состояние спрайта» в свойствах слота сцены.
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          {Object.keys(npc.scene_sprite_states ?? {}).map((k) => (
+            <div key={k} style={{ position: 'relative' }}>
+              <AnimImageEditor
+                label={emLabelOf(store, k)}
+                value={npc.scene_sprite_states?.[k]}
+                dir="assets/img/npc"
+                store={store}
+                onChange={(v) => {
+                  npc.scene_sprite_states = { ...(npc.scene_sprite_states ?? {}) }
+                  if (v) npc.scene_sprite_states[k] = v
+                  else delete npc.scene_sprite_states[k]
+                  if (!Object.keys(npc.scene_sprite_states).length) delete npc.scene_sprite_states
+                  commit()
+                }}
+              />
+              <button
+                className="btn btn-small ce-del"
+                data-tip="Убрать состояние"
+                style={{ position: 'absolute', top: 0, right: 0 }}
+                onClick={() => {
+                  delete npc.scene_sprite_states?.[k]
+                  if (npc.scene_sprite_states && !Object.keys(npc.scene_sprite_states).length) delete npc.scene_sprite_states
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="fld-row">
+          <select
+            className="emotion-pick"
+            value=""
+            data-tip="Добавить состояние спрайта — из списка или своё"
+            onChange={async (e) => {
+              const v = e.target.value
+              if (!v) return
+              let key = v
+              let label = emotionsOf(store).find((x) => x.id === v)?.label ?? v
+              if (v === '__new__') {
+                const name = await askText('Название нового состояния спрайта', 'например «Раненый»')
+                if (!name) return
+                key = slugify(name) || `state_${Object.keys(npc.scene_sprite_states ?? {}).length + 1}`
+                label = name
+                if (!store.meta.emotions?.some((x) => x.id === key)) {
+                  if (!store.meta.emotions) store.meta.emotions = []
+                  store.meta.emotions.push({ id: key, label })
+                  store.touch('campaign.json')
+                }
+              }
+              npc.scene_sprite_states = { ...(npc.scene_sprite_states ?? {}), [key]: '' }
+              commit()
+              e.target.value = ''
+            }}
+          >
+            <option value="">+ Добавить состояние спрайта…</option>
+            {emotionsOf(store)
+              .filter((x) => !(x.id in (npc.scene_sprite_states ?? {})))
+              .map((x) => (
+                <option key={x.id} value={x.id}>{x.label}</option>
+              ))}
+            <option value="__new__">+ Создать новое состояние…</option>
+          </select>
+        </div>
         <label className="fld fld-check">
           <input
             type="checkbox"
@@ -470,13 +798,13 @@ function NpcForm({
           Фигурка показывается на арене вместо жетона (без круглой рамки) и разворачивается
           при движении и атаке. Если фигурки нет — рисуется круглый жетон.
         </div>
-        <ImageUpload
+        <AnimImageEditor
           label="Фигурка боя"
-          value={npc.combat_figure ?? ''}
+          value={npc.combat_figure}
           dir="assets/img/npc"
           store={store}
-          onChange={(p) => {
-            if (p) npc.combat_figure = p
+          onChange={(v) => {
+            if (v) npc.combat_figure = v
             else delete npc.combat_figure
             commit()
           }}
@@ -497,6 +825,62 @@ function NpcForm({
             <option value="static">Не разворачивать</option>
           </select>
         </label>
+        <h4 style={{ marginTop: 14 }}>Состояния фигурки боя</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Свои изображения для особых моментов боя: «Погиб» — когда персонаж убит,
+          «Без сознания» — когда выведен из боя, «в статусе …» — пока статус активен.
+          Если изображения нет — фигурка не меняется.
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          {Object.keys(npc.combat_figure_states ?? {}).map((k) => (
+            <div key={k} style={{ position: 'relative' }}>
+              <AnimImageEditor
+                label={figureStateLabel(store, k)}
+                value={npc.combat_figure_states?.[k]}
+                dir="assets/img/npc"
+                store={store}
+                onChange={(v) => {
+                  npc.combat_figure_states = { ...(npc.combat_figure_states ?? {}) }
+                  if (v) npc.combat_figure_states[k] = v
+                  else delete npc.combat_figure_states[k]
+                  if (!Object.keys(npc.combat_figure_states).length) delete npc.combat_figure_states
+                  commit()
+                }}
+              />
+              <button
+                className="btn btn-small ce-del"
+                data-tip="Убрать состояние"
+                style={{ position: 'absolute', top: 0, right: 0 }}
+                onClick={() => {
+                  delete npc.combat_figure_states?.[k]
+                  if (!Object.keys(npc.combat_figure_states ?? {}).length) delete npc.combat_figure_states
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="fld-row">
+          <select
+            value=""
+            data-tip="Добавить состояние фигурки из списка"
+            onChange={(e) => {
+              const v = e.target.value
+              if (!v) return
+              npc.combat_figure_states = { ...(npc.combat_figure_states ?? {}), [v]: '' }
+              commit()
+            }}
+          >
+            <option value="">+ состояние из этой фигурки…</option>
+            {[...FIGURE_STATES_BASE, ...store.options('status').map((o) => ({ id: o.id, label: `в статусе «${o.label}»` }))]
+              .filter((x) => !(npc.combat_figure_states ?? {})[x.id])
+              .map((x) => (
+                <option key={x.id} value={x.id}>{x.label}</option>
+              ))}
+          </select>
+        </div>
         <ImageUpload
           label="Изображение жетона (используется, только если фигурка не задана)"
           value={npc.token ?? ''}
@@ -1143,5 +1527,205 @@ function SkillSelect({
         ))}
       </select>
     </label>
+  )
+}
+
+function ItemSelect({
+  label,
+  store,
+  value,
+  onChange,
+  allowNone,
+}: {
+  label: string
+  store: EditorStore
+  value: string
+  onChange: (v: string) => void
+  allowNone?: boolean
+}) {
+  const options = store.options('item')
+  return (
+    <label className="fld">
+      <span>{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {allowNone && <option value="">— нет —</option>}
+        {!allowNone && !options.some((o) => o.id === value) && <option value={value}>{value}</option>}
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.label}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+
+/**
+ * Одно действие с предметом в сцене (фидбек №8): подпись, подсказка,
+ * состояние портрета, условия показа, реакции, звук, расход предмета.
+ */
+function ItemOptionEditor({
+  index,
+  options,
+  store,
+  portraitKeys,
+  onCommit,
+}: {
+  index: number
+  options: NonNullable<ItemDef['interact_options']>
+  store: EditorStore
+  portraitKeys: string[]
+  onCommit: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const opt = options[index]
+  const patch = (p: Partial<typeof opt>) => {
+    options[index] = { ...opt, ...p }
+    onCommit()
+  }
+  const sounds = [...(store.meta.sounds ?? [])].sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  return (
+    <div className="ce-item">
+      <div className="ce-head" onClick={() => setOpen(!open)}>
+        <span className="ce-summary">
+          {opt.label || '(без названия)'}
+          {(opt.conditions?.length ?? 0) > 0 && ` · условий: ${opt.conditions!.length}`}
+          {opt.consume && ' · расходуется'}
+        </span>
+        <button
+          className="btn btn-small ce-del"
+          onClick={(e) => {
+            e.stopPropagation()
+            options.splice(index, 1)
+            onCommit()
+          }}
+        >
+          <Ico n="close" />
+        </button>
+      </div>
+      {open && (
+        <div className="ce-body">
+          <div className="fld-row">
+            <label className="fld">
+              <span>Подпись кнопки</span>
+              <input value={opt.label} onChange={(e) => patch({ label: e.target.value })} />
+            </label>
+            <label className="fld">
+              <span>Состояние портрета</span>
+              <select
+                value={opt.emotion ?? ''}
+                onChange={(e) => (e.target.value ? patch({ emotion: e.target.value }) : patch({ emotion: undefined }))}
+              >
+                <option value="">Обычный</option>
+                {portraitKeys
+                  .filter((k) => k !== 'neutral')
+                  .map((k) => (
+                    <option key={k} value={k}>{emLabelOf(store, k)}</option>
+                  ))}
+              </select>
+            </label>
+          </div>
+          <label className="fld fld-block">
+            <span>Подсказка под кнопкой (условия, расход, проверка)</span>
+            <input value={opt.hint ?? ''} onChange={(e) => patch({ hint: e.target.value || undefined })} />
+          </label>
+          <label className="fld fld-block">
+            <span>Сообщение после выполнения</span>
+            <textarea rows={2} value={opt.message ?? ''} onChange={(e) => patch({ message: e.target.value || undefined })} />
+          </label>
+          <div className="fld-row">
+            <label className="fld">
+              <span>Звук действия</span>
+              <select
+                value={opt.sound ?? ''}
+                onChange={(e) => (e.target.value ? patch({ sound: e.target.value }) : patch({ sound: undefined }))}
+              >
+                <option value="">По умолчанию (использование/открытие)</option>
+                {sounds.map((s) => (
+                  <option key={s.id} value={s.id}>{s.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="fld fld-check">
+              <input type="checkbox" checked={!!opt.consume} onChange={(e) => patch({ consume: e.target.checked || undefined })} />
+              <span>Предмет исчезает после выполнения</span>
+            </label>
+          </div>
+          <h5 className="ce-subhead">Условия показа (все выполнены — действие видно)</h5>
+          <ConditionListEditor
+            store={store}
+            conditions={opt.conditions ?? []}
+            onChange={(conds) => patch({ conditions: conds.length ? conds : undefined })}
+          />
+          <h5 className="ce-subhead">Что происходит</h5>
+          <EffectListEditor
+            store={store}
+            effects={opt.effects}
+            onChange={(fx) => {
+              opt.effects = fx
+              onCommit()
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** «Применить вид»: шаблоны задаёт сам мастер (Кампания и реестры → Персонажи →
+ *  Шаблоны видов существ). Применение перезаписывает боевую часть NPC. */
+function SpeciesApply({ npc, store, commit }: { npc: NpcDef; store: EditorStore; commit: () => void }) {
+  const presets = store.meta.species ?? []
+  const [sel, setSel] = useState('')
+  const preset = presets.find((p) => p.id === sel)
+  if (!presets.length) {
+    return (
+      <div className="muted small">
+        Шаблоны видов существ не заданы: добавьте их в «Кампания и реестры» →
+        «Персонажи» → «Шаблоны видов существ» — и здесь появится кнопка «Применить вид».
+      </div>
+    )
+  }
+  return (
+    <div className="fld-row" style={{ alignItems: 'flex-end' }}>
+      <label className="fld" data-tip={preset?.description ?? 'Готовый боевой костяк существа из реестра кампании: статы, навыки, броня, природное оружие, способности и мораль'}>
+        <span>Вид существа (шаблон)</span>
+        <select value={sel} onChange={(e) => setSel(e.target.value)}>
+          <option value="">— выбрать вид —</option>
+          {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select>
+      </label>
+      <button
+        className="btn btn-small"
+        disabled={!preset}
+        data-tip="Перезапишет статы, навыки, броню, природное оружие, способности и мораль персонажа"
+        onClick={() => {
+          if (!preset) return
+          if (preset.stats) npc.stats = { STR: 10, CON: 10, SIZ: 10, DEX: 10, INT: 10, POW: 10, CHA: 10, ...preset.stats } as StatBlock
+          if (preset.skills) npc.skills = { ...preset.skills }
+          if (preset.armor !== undefined) npc.armor = preset.armor
+          else delete npc.armor
+          if (preset.natural_weapon) {
+            const w = preset.natural_weapon
+            npc.natural_weapon = {
+              skill: w.skill,
+              damage: w.damage,
+              damage_bonus: w.damage_bonus ?? false,
+              range: w.range ?? 1,
+              attacks_per_round: w.attacks_per_round ?? 1,
+              parry_capable: w.parry_capable ?? false,
+              label: w.label ?? 'Удар',
+            }
+          } else delete npc.natural_weapon
+          if (preset.abilities?.length) npc.abilities = [...preset.abilities]
+          else delete npc.abilities
+          if (preset.morale) npc.morale = { ...preset.morale }
+          else delete npc.morale
+          commit()
+        }}
+      >
+        Применить вид
+      </button>
+      {preset?.description && <span className="muted small" style={{ maxWidth: 320 }}>{preset.description}</span>}
+    </div>
   )
 }

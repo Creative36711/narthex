@@ -720,6 +720,17 @@ function optionsForToken(store: EditorStore, kind: TokenKind): Array<{ id: strin
   if (kind === 'count') return store.options('item')
   if (kind === 'need') return store.options('need')
   if (kind === 'skill') return store.options('skill')
+  if (kind === 'currency') return store.options('currency')
+  if (kind === 'stat')
+    return [
+      { id: 'STR', label: 'Сила (СИЛ)' },
+      { id: 'CON', label: 'Выносливость (ВЫН)' },
+      { id: 'SIZ', label: 'Размер (РАЗ)' },
+      { id: 'DEX', label: 'Ловкость (ЛОВ)' },
+      { id: 'INT', label: 'Интеллект (ИНТ)' },
+      { id: 'POW', label: 'Дух (ДУХ)' },
+      { id: 'CHA', label: 'Харизма (ХАР)' },
+    ]
   return []
 }
 
@@ -1068,7 +1079,7 @@ function CheckEditor({
         <button
           className="btn btn-small"
           onClick={() => {
-            check.mods = [...(check.mods ?? []), { conds: [blankCond('flag')], value: check.difficulty - 20 }]
+            check.mods = [...(check.mods ?? []), { conds: [blankCond('flag')], value: typeof check.difficulty === 'number' ? check.difficulty - 20 : 30 }]
             commit()
           }}
         >

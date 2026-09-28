@@ -7,19 +7,18 @@
    "label": "Начало разговора",
    "sections": [
     {
-     "steps": [
-      {
-       "kind": "line",
-       "line": {
-        "text": "Ты испытываешь моё терпение, наёмник.",
-        "emotion": "neutral"
-       }
-      }
-     ],
      "conds": [
       {
        "type": "flag",
        "flag": "yorek_met"
+      }
+     ],
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Ты испытываешь моё терпение, наёмник."
+       }
       }
      ],
      "else_steps": [
@@ -39,8 +38,7 @@
       {
        "kind": "line",
        "line": {
-        "text": "Седой воин с клейморой за спиной неспешно поднимается от костра. Вокруг из палаток выходят люди — с ножами и дубинами.",
-        "action": true
+        "text": "Седой воин с клейморой за спиной неспешно поднимается от костра. Вокруг из палаток выходят люди — с ножами и дубинами. # action"
        }
       },
       {
@@ -58,23 +56,23 @@
      "once": true,
      "sections": [
       {
-       "steps": [
-        {
-         "kind": "line",
-         "line": {
-          "text": "Йорек мрачно оглядывается: вы пришли из его собственного тыла, и он это понимает. Лагерь не так неприступен, как он думал.",
-          "action": true
-         }
-        }
-       ],
        "conds": [
         {
          "type": "flag",
          "flag": "secret_path_used"
         }
+       ],
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Йорек мрачно оглядывается: вы пришли из его собственного тыла, и он это понимает. Лагерь не так неприступен, как он думал. # action"
+         }
+        }
        ]
       }
      ],
+     "goto": "stay",
      "check": {
       "skill": "persuade",
       "difficulty": 60,
@@ -89,29 +87,6 @@
         "value": 40
        }
       ],
-      "fail": {
-       "sections": [
-        {
-         "steps": [
-          {
-           "kind": "line",
-           "line": {
-            "text": "Йорек долго смотрит на вас… и сплёвывает.",
-            "emotion": "neutral",
-            "action": true
-           }
-          },
-          {
-           "kind": "line",
-           "line": {
-            "text": "Языкатых я вешаю на осинах вдоль тракта."
-           }
-          }
-         ]
-        }
-       ],
-       "goto": "fight_starts"
-      },
       "success": {
        "sections": [
         {
@@ -119,25 +94,24 @@
           {
            "kind": "line",
            "line": {
-            "text": "Йорек щурится. Долгая пауза.",
-            "action": true
+            "text": "Йорек щурится. Долгая пауза. # action"
            }
           }
          ]
         },
         {
+         "conds": [
+          {
+           "type": "in_party",
+           "npc": "npc_guard_aldric"
+          }
+         ],
          "steps": [
           {
            "kind": "line",
            "line": {
             "text": "Стража уже в моём лагере… Значит, город всерьёз взялся за нас."
            }
-          }
-         ],
-         "conds": [
-          {
-           "type": "in_party",
-           "npc": "npc_guard_aldric"
           }
          ]
         },
@@ -166,9 +140,29 @@
         }
        ],
        "goto": "end"
+      },
+      "fail": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Йорек долго смотрит на вас… и сплёвывает. # action"
+           }
+          },
+          {
+           "kind": "line",
+           "line": {
+            "text": "Языкатых я вешаю на осинах вдоль тракта."
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "fight_starts"
       }
-     },
-     "goto": "stay"
+     }
     },
     {
      "text": "«Сто марок серебром — и вы уходите». (100 SM)",
@@ -193,8 +187,7 @@
         {
          "kind": "line",
          "line": {
-          "text": "Йорек взвешивает кошель на ладони.",
-          "action": true
+          "text": "Йорек взвешивает кошель на ладони. # action"
          }
         },
         {
@@ -243,6 +236,12 @@
    "label": "Бой начинается",
    "sections": [
     {
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "secret_path_used"
+      }
+     ],
      "steps": [
       {
        "kind": "effect",
@@ -252,12 +251,7 @@
        }
       }
      ],
-     "conds": [
-      {
-       "type": "flag",
-       "flag": "secret_path_used"
-      }
-     ],
+     "goto": "end",
      "else_steps": [
       {
        "kind": "effect",
@@ -266,7 +260,8 @@
         "rule": "encounter_camp_fight"
        }
       }
-     ]
+     ],
+     "else_goto": "end"
     }
    ],
    "choices": [],

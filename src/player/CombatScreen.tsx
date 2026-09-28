@@ -6,16 +6,23 @@ import { hexKey, hexToPixel, hexCorners, gridPixelSize, hexDistance } from '../c
 import { assetUrl } from '../core/loader'
 import { tipSeen, markTip } from './tips'
 import { featureOn } from '../shared/types'
+import { LiveImg } from './frames'
+import type { ImageValue } from '../shared/types'
 
 interface Props {
   engine: GameEngine
 }
 
-/** класс строки лога по содержимому — для читаемости */
-function logLineClass(l: string): string {
+/** класс строки лога: свои/враги — разными цветами, системное — как раньше.
+ *  Имена бойцов известны: строки летописи начинаются с них («Наёмник: …»). */
+function logLineClass(l: string, own: string[], foe: string[]): string {
   if (l.startsWith('— Раунд')) return 'log-round'
-  if (l.startsWith('')) return 'log-death'
-  if (l.startsWith('')) return 'log-win'
+  const startsActor = (names: string[]) =>
+    names.some((n) => l.startsWith(n + ':') || l.startsWith(n + ' ') || l === n)
+  if (l.startsWith('Вы ') || l.startsWith('Вы,') || startsActor(own)) return 'log-own'
+  if (startsActor(foe)) return 'log-enemy'
+  if (l.includes('погибает') || l.includes('убит') || l.includes('без сознания') || l.includes('"смерть')) return 'log-death'
+  if (l.includes('Победа') || l.includes('бегство!')) return 'log-win'
   if (l.includes('Промах') || l.includes('промах') || l.includes('уклоняется') || l.includes('парирует'))
     return 'log-miss'
   if (l.includes('урона') || l.includes('Крит')) return 'log-hit'
@@ -25,6 +32,17 @@ function logLineClass(l: string): string {
 /** Экран тактического боя: арена + гекс-сетка + токены (ТЗ 6.1 «Бой»). */
 export function CombatScreen({ engine }: Props) {
   const combat = engine.combat!
+  const logOwn = useMemo(
+    () => combat.combatants.filter((c) => c.side === 'player').map((c) => c.label).sort((a, b) => b.length - a.length),
+    // метки участников не меняются внутри боя
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [combat],
+  )
+  const logFoe = useMemo(
+    () => combat.combatants.filter((c) => c.side !== 'player').map((c) => c.label).sort((a, b) => b.length - a.length),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [combat],
+  )
   const arena = combat.arena
   const canvas = arena.canvas ?? { w: 1280, h: 720 }
   const size = arena.hex_grid.hex_size
@@ -37,7 +55,7 @@ export function CombatScreen({ engine }: Props) {
   const previousHp = useRef<Map<string, number> | null>(null)
   const [recentDamage, setRecentDamage] = useState<Set<string>>(() => new Set())
   const [damagePopups, setDamagePopups] = useState<Array<{ id: string; target: string; amount: number }>>([])
-  const [rollFeedback, setRollFeedback] = useState<{ text: string; actor: string } | null>(null)
+  const [rollFeedback, setRollFeedback] = useState<{ text: string; actor: string; id: string; at: number } | null>(null)
   const latestCombatLog = combat.log.at(-1) ?? ''
   const hpStamp = combat.combatants.map((c) => `${c.id}:${c.hp}`).join('|')
 
@@ -62,13 +80,17 @@ export function CombatScreen({ engine }: Props) {
     return () => window.clearTimeout(timer)
   }, [hpStamp, combat])
 
+  // бейдж броска гасится по абсолютному времени (а не по таймеру-на-рендер):
+  // при частых notify (режим отладки/ускорение хода ИИ) прежняя версия
+  // переустанавливала таймер и «зависала» на экране
   useEffect(() => {
     const match = latestCombatLog.match(/^(.+?): атака .*d100=(\d+)/)
     if (!match) return
     const actor = combat.combatants.find((c) => c.label === match[1])
     if (!actor) return
-    setRollFeedback({ actor: actor.id, text: `d100 · ${match[2]}` })
-    const timer = window.setTimeout(() => setRollFeedback(null), 600)
+    const id = `${combat.log.length}`
+    setRollFeedback((cur) => (cur?.id === id ? cur : { id, actor: actor.id, text: `d100 · ${match[2]}`, at: performance.now() }))
+    const timer = window.setTimeout(() => setRollFeedback((cur) => (cur && cur.id === id ? null : cur)), 750)
     return () => window.clearTimeout(timer)
   }, [latestCombatLog, combat])
 
@@ -157,6 +179,7 @@ export function CombatScreen({ engine }: Props) {
                 const c = hexToPixel(h, size, origin)
                 const blocked = combat.isBlocked(h)
                 const difficult = combat.isDifficult(h)
+                const cover = combat.isCover(h)
                 const inReach = reach.has(k)
                 const occ = combat.occupantAt(h)
                 const abilityTarget = !!pendingAbility && !!occ && abilityTargetIds.has(occ.id)
@@ -168,6 +191,7 @@ export function CombatScreen({ engine }: Props) {
                 else if (attackable) cls += ' hex-attack'
                 else if (inReach) cls += ' hex-reach'
                 else if (difficult) cls += ' hex-difficult'
+                else if (cover) cls += ' hex-cover'
                 if (hoverHex === k && (inReach || attackable || abilityTarget)) cls += ' hex-hover'
                 return (
                   <polygon
@@ -192,11 +216,22 @@ export function CombatScreen({ engine }: Props) {
               const statusText = c.statuses.length
                 ? '\n' + c.statuses.map((s) => `${combat.statusLabel(s.id)}: ещё ${s.left} раунд(а)`).join('\n')
                 : ''
-              const tip = `${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}${statusText}`
+              const tip = `${c.label}${engine.descOf(c.entityId) ? `\n${engine.descOf(c.entityId)}` : ''}\nHP ${Math.max(0, c.hp)}/${c.maxHp}${statusText}${c.down && !c.dead ? '\nБЕЗ СОЗНАНИЯ (выбыл из боя, жив)' : ''}`
               // фигурка боя вместо жетона (блок 3 ТЗ): без круглой маски и
               // рамки стороны; разворот по направлению движения/атаки
-              if (c.figure) {
+                if (c.figure) {
                 const mode = c.figure_mode ?? 'topdown'
+                // состояния фигурки боя (фидбек №7): погиб/без сознания/статус — своя картинка
+                const fstates = (() => {
+                  if (!c.entityId) return undefined
+                  const def = engine.campaign.entities[c.entityId]
+                  return def && (def as { combat_figure_states?: Record<string, ImageValue> }).combat_figure_states
+                })()
+                const statusOverride = fstates
+                  ? c.statuses.map((s) => fstates[s.id]).find((p) => !!p)
+                  : undefined
+                const figureSrc =
+                  (c.dead ? fstates?.['dead'] : c.down ? fstates?.['down'] : statusOverride) ?? c.figure
                 const transform =
                   mode === 'topdown'
                     ? `rotate(${c.facing}deg)`
@@ -206,14 +241,16 @@ export function CombatScreen({ engine }: Props) {
                 return (
                   <div
                     key={c.id}
-                    className={`token-figure figure-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'figure-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
+                    className={`token-figure figure-${c.side} ${c.dead || c.down ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead && !c.down ? 'figure-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
                     style={posStyle}
                     data-tip={tip}
                     onClick={() => onHexClick(c.pos)}
                   >
                     {c.figure_shadow !== false && !c.dead && <span className="figure-shadow" />}
-                    <img
-                      src={assetUrl(engine.campaign, c.figure)}
+                    <LiveImg
+                      value={figureSrc}
+                      tickKey={`${c.entityId ?? ''}:${c.dead ? 'dead' : c.down ? 'down' : c.statuses[0]?.id ?? ''}`}
+                      urlOf={(f) => assetUrl(engine.campaign, f)}
                       alt={c.label}
                       draggable={false}
                       style={transform ? { transform } : undefined}
@@ -227,7 +264,7 @@ export function CombatScreen({ engine }: Props) {
               return (
                 <div
                   key={c.id}
-                  className={`token token-${c.side} ${c.dead ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead ? 'token-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
+                  className={`token token-${c.side} ${c.dead || c.down ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead && !c.down ? 'token-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
                   style={posStyle}
                   data-tip={tip}
                   onClick={() => onHexClick(c.pos)}
@@ -247,7 +284,7 @@ export function CombatScreen({ engine }: Props) {
               )
             })}
 
-            {rollFeedback && <div className="combat-roll-feedback" aria-live="polite">{rollFeedback.text}</div>}
+            {rollFeedback && performance.now() - rollFeedback.at < 700 && <div className="combat-roll-feedback" aria-live="polite">{rollFeedback.text}</div>}
             {damagePopups.map((popup) => {
               const target = combat.combatants.find((c) => c.id === popup.target)
               if (!target) return null
@@ -284,7 +321,8 @@ export function CombatScreen({ engine }: Props) {
               {playerTurn ? (
                 <>
                   <div className="combat-hint">
-                    Движение: <b>{activePlayer.movLeft}</b> гекс. · MP: <b>{activePlayer.mp}</b> ·{''}
+                    Движение: <b>{activePlayer.movLeft}</b> гекс. · Атак: <b>{activePlayer.attacksLeft}</b>
+                    {activePlayer.attacksLeft > 1 ? ' (следующая со штрафом)' : ''} · MP: <b>{activePlayer.mp}</b> ·{''}
                     {activePlayer.attacked ? ' действие израсходовано' : ` атака: «${activePlayer.weaponLabel}»`}
                   </div>
                   <div className="combat-hint muted">
@@ -307,6 +345,27 @@ export function CombatScreen({ engine }: Props) {
                       ))}
                     </div>
                   )}
+                  {combat.companionOrders().length > 0 && (
+                    <details className="combat-items">
+                      <summary>Приказы отряду</summary>
+                      {combat.companionOrders().map((o) => (
+                        <div key={o.entityId} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '4px 0' }}>
+                          <span className="small" style={{ flex: 1 }}>{o.label}</span>
+                          <select
+                            className="btn btn-small"
+                            value={o.order}
+                            data-tip={'Сам — выбирает действия сам, как обычный боец ИИ.\nСледовать — держится в паре гексов от вас, не нападает.\nДержать позицию — стоит, бьёт только в досягаемости.\nОтступать — держится подальше от врагов.'}
+                            onChange={(e) => combat.setCompanionOrder(o.entityId, e.target.value as 'free' | 'follow' | 'hold' | 'retreat')}
+                          >
+                            <option value="free">Сам</option>
+                            <option value="follow">Следовать</option>
+                            <option value="hold">Позиция</option>
+                            <option value="retreat">Отступать</option>
+                          </select>
+                        </div>
+                      ))}
+                    </details>
+                  )}
                   {!activePlayer.attacked && featureOn(engine.campaign.meta, 'inventory') && combat.usableItems().length > 0 && (
                     <details className="combat-items">
                       <summary>Использовать предмет (действие)</summary>
@@ -316,6 +375,40 @@ export function CombatScreen({ engine }: Props) {
                         </button>
                       ))}
                     </details>
+                  )}
+                  {combat.canHide() && (
+                    <button
+                      className="btn"
+                      disabled={activePlayer.attacked || activePlayer.hidden}
+                      data-tip={'Скрытность (действие за ход).\nПроверка скрытности против лучшей внимательности врагов.\nСкрытый герой не выбирается целью; первая атака из скрытности бьёт без защиты.'}
+                      onClick={() => combat.playerHide()}
+                    >
+                      {activePlayer.hidden ? 'Вы скрыты' : 'Скрыться'}
+                    </button>
+                  )}
+                  {combat.aimEnabled() && (
+                    <button
+                      className="btn"
+                      disabled={activePlayer.attacked || (activePlayer.aimBonus ?? 0) > 0 || activePlayer.attacksLeft <= 0}
+                       data-tip={'Прицельная атака.\nТратит одну атаку за ход; следующая атака получает бонус (умолчание +20%).'}
+                      onClick={() => combat.playerAim()}
+                    >
+                      {(activePlayer.aimBonus ?? 0) > 0 ? `Прицел (+${activePlayer.aimBonus}%)` : 'Прицелиться'}
+                    </button>
+                  )}
+                  {activePlayer.weapon.ammo_item && (
+                    <div className="combat-ammo" data-tip="Боеприпасы текущего оружия: каждая атака тратит 1 шт. Нет патронов — оружие не стреляет.">
+                      Боеприпасы: <b>{engine.itemCount(activePlayer.weapon.ammo_item)}</b>
+                    </div>
+                  )}
+                  {combat.canFlee() && (
+                    <button
+                      className="btn"
+                      data-tip={'Отступление из боя.\nВраги в досягаемости ударят напоследок, затем проверка навыка отступления (уклонение или DEX×5).\nПровал — ход потерян.'}
+                      onClick={() => combat.playerFlee()}
+                    >
+                      Бежать из боя
+                    </button>
                   )}
                   <button
                     className="btn btn-primary"
@@ -354,10 +447,30 @@ export function CombatScreen({ engine }: Props) {
                     Продолжить
                   </button>
                 </div>
+              ) : combat.result === 'fled' ? (
+                <div className="combat-victory">
+                  <h3>Вы отступили</h3>
+                  <p className="muted small">Бой позади. Противники остались на своих позициях.</p>
+                  <button className="btn btn-primary" onClick={() => engine.endCombat()}>
+                    Продолжить
+                  </button>
+                </div>
               ) : combat.result === 'defeat' ? (
                 <div className="combat-defeat">
-                  <h3><Ico n="skull" />  Вы пали в бою</h3>
-                  <p className="muted small">Забег окончен…</p>
+                  {engine.state.game_over ? (
+                    <>
+                      <h3><Ico n="skull" />  Вы пали в бою</h3>
+                      <p className="muted small">Забег окончен…</p>
+                    </>
+                  ) : (
+                    <>
+                      <h3>Вы теряете сознание</h3>
+                      <p className="muted small">Бой проигран — но герой жив.</p>
+                      <button className="btn btn-primary" onClick={() => engine.endCombat()}>
+                        Продолжить
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="combat-hint">Ход противника…</div>
@@ -365,7 +478,7 @@ export function CombatScreen({ engine }: Props) {
             </div>
             <div className="combat-log" ref={logRef}>
               {combat.log.map((l, i) => (
-                <div key={i} className={`combat-log-line ${logLineClass(l)}`}>{l}</div>
+                <div key={i} className={`combat-log-line ${logLineClass(l, logOwn, logFoe)}`}>{l}</div>
               ))}
             </div>
             <div className="combat-roster">
@@ -373,6 +486,7 @@ export function CombatScreen({ engine }: Props) {
                 <div key={c.id} className={`roster-row ${c.dead ? 'dead' : ''} side-${c.side}`}>
                   <span>
                     {c.label}
+                    {c.down && !c.dead && <span className="roster-status" data-tip="Выбыл из боя, но жив">без сознания</span>}
                     {c.statuses.map((s) => (
                       <span key={s.id} className="roster-status" data-tip={combat.statusLabel(s.id)}>
                         {combat.statusLabel(s.id)} ({s.left})

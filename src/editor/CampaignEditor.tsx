@@ -3,16 +3,24 @@ import { Ico } from '../shared/icons'
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { EditorStore } from './store'
-import { AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect } from './Fields'
+import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
-import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FontDef, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
+import { ParticleListEditor } from './AtmosEditors'
+import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, GenWeightedItem, ImageValue, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
+import { campaignFingerprint } from '../shared/fingerprint'
+import { exportMonolith } from './monolith'
 import { brightenHex } from '../shared/theme'
 import { PROFILE_GROUPS, VISUAL_PROFILES, resolveProfile, contrastRatio } from '../shared/profiles'
 
 import { askText, askConfirm } from './prompt'
+import { showList, showAlert } from '../shared/modals'
+import { applyPublish, loadCompat, planPublish, storeInventory, type PublishPlan } from './compatPublish'
+import { diffReportLines } from '../shared/compat'
+import { ENGINE_VERSION, PACKAGE_FORMAT, bumpVersion } from '../shared/versions'
+import type { CampaignCompat } from '../shared/types'
 import { migrateNeedCondition } from '../shared/migrate'
 import { AudioRegistries, SoundHookMapEditor } from './AudioSection'
 
@@ -515,6 +523,108 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
       </div>
 
       <div className="props-group">
+        <h4>Тоны поверхностей и рамка-«кадр»</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Докрутка палитры профиля: панели, карточки и кнопки, колодцы полей, фон журнала.
+          Пустое поле — тон профиля. Рамка-«кадр» обрамляет все панели игры: PNG с
+          изображением-изображением (прозрачная сердцевина, орнамент по краям).
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          {([
+            ['panel', 'Панели'],
+            ['cards', 'Карточки и кнопки'],
+            ['inset', 'Колодцы полей'],
+            ['log', 'Фон журнала'],
+          ] as const).map(([key, label]) => (
+            <label key={key} className="fld" data-tip="Пусто — тон визуального профиля">
+              <span>{label}</span>
+              <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={theme.tokens?.[key] ?? '#888888'}
+                  onChange={(e) => {
+                    theme.tokens = { ...(theme.tokens ?? {}), [key]: e.target.value }
+                    commit()
+                  }}
+                  disabled={!theme.tokens?.[key]}
+                />
+                <input
+                  type="checkbox"
+                  checked={!!theme.tokens?.[key]}
+                  data-tip={`Свой тон «${label}»`}
+                  onChange={(e) => {
+                    const next = { ...(theme.tokens ?? {}) }
+                    if (e.target.checked) next[key] = '#2a2f3c'
+                    else delete next[key]
+                    theme.tokens = Object.keys(next).length ? next : undefined
+                    commit()
+                  }}
+                />
+              </span>
+            </label>
+          ))}
+        </div>
+        <ImageUpload
+          label="Рамка-«кадр» для панелей (PNG, орнамент по краям)"
+          value={theme.frame?.image ?? ''}
+          dir="assets/img/ui"
+          store={store}
+          onChange={(path) => {
+            if (path) theme.frame = { ...(theme.frame ?? {}), image: path }
+            else if (theme.frame) { delete theme.frame.image; if (!theme.frame.image && !theme.frame.slice && !theme.frame.width) delete theme.frame }
+            commit()
+          }}
+        />
+        {theme.frame?.image && (
+          <div className="fld-row">
+            <label className="fld fld-num" data-tip="Какую часть картинки от края считать орнаментом (px, умолчание 30)">
+              <span>Глубина среза, px</span>
+              <input
+                type="number" min={4} max={120}
+                value={theme.frame.slice ?? 30}
+                onChange={(e) => { theme.frame!.slice = Number(e.target.value) || undefined; commit() }}
+              />
+            </label>
+            <label className="fld fld-num" data-tip="Видимая толщина рамки на панели (px, умолчание 20)">
+              <span>Толщина рамки, px</span>
+              <input
+                type="number" min={4} max={60}
+                value={theme.frame.width ?? 20}
+                onChange={(e) => { theme.frame!.width = Number(e.target.value) || undefined; commit() }}
+              />
+            </label>
+          </div>
+        )}
+      </div>
+
+      <div className="props-group">
+        <h4>Полный CSS мастера (продвинутое оформление)</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Свой CSS применяется <b>только к игре</b> (редактор остаётся в фирменном стиле).
+          Пишите правила для селекторов внутри контейнера игры, например{' '}
+          <code>.cf-themed .btn {'{ … }'}</code>. Движок не гарантирует стабильность классов между
+          версиями — слой на совести мастера; сначала попробуйте токены и рамки выше,
+          они почти всегда закрывают нужный наряд. Эта возможность готовится как отдельная опция —
+          в будущем может стать платной «премиум-темой».
+        </div>
+        <label className="fld">
+          <span>Свои CSS-правила</span>
+          <textarea
+            rows={10}
+            style={{ fontFamily: 'monospace' }}
+            placeholder={'.cf-themed .panel { box-shadow: 0 0 24px rgba(0,0,0,.5); }'}
+            value={theme.custom_css ?? ''}
+            onChange={(e) => {
+              if (e.target.value.trim()) theme.custom_css = e.target.value
+              else delete theme.custom_css
+              commit()
+            }}
+          />
+        </label>
+        <div className="muted small">Проверить результат сразу можно через кнопку «Плейтест» — CSS подхватывается без перезапуска.</div>
+      </div>
+
+      <div className="props-group">
         <h4>Шрифты кампании</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Загруженные шрифты применяются ко всей игре: диалогам, панелям, меню. Редактор остаётся
@@ -694,6 +804,127 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
   )
 }
 
+
+/** Редактор глав кампании: id получаются автоматически (переименовывать не надо), мастер задаёт название/порядок/описание. */
+function ChaptersEditor({ m, commit }: { m: CampaignMeta; commit: () => void }) {
+  const chapters = m.chapters ?? []
+  const sorted = [...chapters].sort((a, b) => (a.order ?? chapters.indexOf(a)) - (b.order ?? chapters.indexOf(b)))
+  const upd = (id: string, patch: Partial<(typeof chapters)[number]>) => {
+    m.chapters = chapters.map((c) => (c.id === id ? { ...c, ...patch } : c))
+    commit()
+  }
+  return (
+    <div className="props-group">
+      <h4>Главы кампании</h4>
+      <p className="muted small" style={{ marginTop: 0 }}>
+        Группировка контента по частям: сцены, правила, квесты и катсцены помечают выбором «Глава» в своих формах;
+        списки слева фильтруются по ней. Сам движок глав не различает — это сборка для мастера и будущей выкладки «бесплатный пролог → продолжение».
+      </p>
+      {sorted.map((c) => (
+        <div key={c.id} className="panel" style={{ padding: 8, marginBottom: 8 }}>
+          <div className="fld-row">
+            <label className="fld">
+              <span>Название главы</span>
+              <input value={c.label} onChange={(e) => upd(c.id, { label: e.target.value })} />
+            </label>
+            <label className="fld" data-tip="Меньше — раньше">
+              <span>Порядок</span>
+              <input type="number" value={c.order ?? sorted.indexOf(c) + 1} onChange={(e) => upd(c.id, { order: Number(e.target.value) || undefined })} />
+            </label>
+            <span className="muted small" data-tip={`id: ${c.id} (техническое имя, не меняется)`} style={{ alignSelf: 'end', paddingBottom: 8 }}>
+              {c.id}
+            </span>
+            <button
+              className="btn btn-small ce-del"
+              style={{ alignSelf: 'end' }}
+              data-tip="Сцены/правила этой главы останутся — просто потеряют пометку"
+              onClick={() => { m.chapters = chapters.filter((x) => x.id !== c.id); commit() }}
+            >
+              <Ico n="close" />
+            </button>
+          </div>
+          <label className="fld fld-block">
+            <span>О чём глава (кратко)</span>
+            <input value={c.description ?? ''} placeholder="первая ночь в городе, завязка конфликта…" onChange={(e) => upd(c.id, { description: e.target.value || undefined })} />
+          </label>
+        </div>
+      ))}
+      <button
+        className="btn btn-small"
+        onClick={() => {
+          const id = makeId('chapter', 'глава', chapters.map((x) => x.id))
+          m.chapters = [...chapters, { id, label: 'Новая глава', order: chapters.length + 1 }]
+          commit()
+        }}
+      >
+        <Ico n="plus" /> глава
+      </button>
+    </div>
+  )
+}
+
+/** Отпечаток кампании — по клику (монолит пересобирается, тяжело для рендера-на-каплю). */
+function AttributionEditor({ m, commit, store }: { m: CampaignMeta; commit: () => void; store: EditorStore }) {
+  const [print, setPrint] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const a = m.attribution ?? {}
+  const upd = (patch: Partial<typeof a>) => {
+    const next = { ...a, ...patch }
+    const empty = !next.author && !next.origin_url && !next.published_at && !next.note
+    m.attribution = empty ? undefined : next
+    commit()
+  }
+  return (
+    <div className="props-group">
+      <h4>Авторство и публикация</h4>
+      <div className="fld-row">
+        <label className="fld">
+          <span>Автор (как на титуле публикации)</span>
+          <input value={a.author ?? ''} onChange={(e) => upd({ author: e.target.value || undefined })} />
+        </label>
+        <label className="fld" data-tip="Каноническая копия — репозиторий мастера; история коммитов доказывает первую публикацию">
+          <span>Канонический адрес (GitHub)</span>
+          <input value={a.origin_url ?? ''} placeholder="https://github.com/автор/кампания" onChange={(e) => upd({ origin_url: e.target.value || undefined })} />
+        </label>
+      </div>
+      <div className="fld-row">
+        <label className="fld">
+          <span>Вышла (дата, ISO)</span>
+          <input value={a.published_at ?? ''} placeholder="2026-09-28" onChange={(e) => upd({ published_at: e.target.value || undefined })} />
+        </label>
+      </div>
+      <label className="fld fld-block">
+        <span>Сноска о происхождении (источники, вдохновение)</span>
+        <input value={a.note ?? ''} onChange={(e) => upd({ note: e.target.value || undefined })} />
+      </label>
+      <div className="fld-row" style={{ alignItems: 'center' }}>
+        {print ? (
+          <code className="small" style={{ wordBreak: 'break-all' }}>отпечаток: {print}</code>
+        ) : (
+          <button
+            className="btn btn-small"
+            disabled={busy}
+            data-tip="SHA-256 канонической формы кампании без полей публикации: смена «автора» не поменяет подпись"
+            onClick={async () => {
+              setBusy(true)
+              try {
+                const { doc } = exportMonolith(store)
+                const hex = await campaignFingerprint(doc)
+                setPrint(`${hex.slice(0, 16)}…${hex.slice(-8)}`)
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            Показать отпечаток кампании
+          </button>
+        )}
+        <span className="muted small">Мастерская сравнит его со своими кампаниями — совпадение до полей публикации означает перелив.</span>
+      </div>
+    </div>
+  )
+}
+
 export function CampaignEditor({ store }: { store: EditorStore }) {
   const m = store.meta
   // дефолты для необязательных полей (без touch — просто нормализация)
@@ -709,7 +940,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
     store.touch('campaign.json')
     force((n) => n + 1)
   }
-  type CeTab = 'main' | 'mechanics' | 'look' | 'statuses' | 'people' | 'items' | 'flags' | 'audio' | 'json'
+  type CeTab = 'main' | 'creation' | 'versions' | 'chronicle' | 'mechanics' | 'look' | 'statuses' | 'people' | 'items' | 'flags' | 'audio' | 'json' | 'generators'
+
   const [tab, setTab] = useState<CeTab>('main')
 
   const sceneOpts = store.options('scene')
@@ -719,16 +951,287 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
 
   return (
     <div className="rule-editor">
-      <div className="ce-tabs">
-        {([['main', 'Основное'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['statuses', 'Статусы и способности'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['json', 'JSON']] as const).map(([id, lab]) => (
-          <button key={id} type="button" className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
+      <div className="ce-tabs" role="tablist" aria-label="Вкладки кампании">
+        {([['main', 'Основное'], ['creation', 'Создание героя'], ['versions', 'Версии'], ['mechanics', 'Механики'], ['look', 'Оформление'], ['statuses', 'Статусы и способности'], ['people', 'Персонажи'], ['items', 'Предметы и слоты'], ['flags', 'Флаги'], ['audio', 'Звук и музыка'], ['generators', 'События и генераторы'], ['chronicle', 'Хроника'], ['json', 'JSON']] as const).map(([id, lab]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} className={`ce-tab ${tab === id ? 'on' : ''}`} onClick={() => setTab(id)}>
             {lab}
           </button>
         ))}
       </div>
 
+      {tab === 'versions' && <VersionsTab store={store} commit={commit} />}
+
+      {tab === 'chronicle' && (
+        <div className="ce-page">
+      <div className="props-group">
+        <h4>Хроника: прогресс между забегами</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Необязательный «надзабеговой» слой: достижения, метавалюты и магазин
+          постоянных усилений. Включён — в игре в HUD появляется кнопка «Хроника».
+          Всё хранится на устройстве игрока отдельной записью между забегами.
+        </div>
+        <div className="fld-row">
+          <label className="fld fld-check">
+            <input type="checkbox" checked={!!m.metaprogress} onChange={(e) => { if (e.target.checked) { m.metaprogress = { currencies: [{ id: 'ember', label: 'Угли' }], achievements: [], unlocks: [] } } else { delete m.metaprogress } commit() }} />
+            <span>Хроника включена</span>
+          </label>
+        </div>
+        {m.metaprogress && (
+          <>
+            <h4>Метавалюты</h4>
+            <div className="muted small" style={{ marginBottom: 8 }}>
+              Копятся между забегами и тратятся в магазине усилений.
+            </div>
+            {(m.metaprogress.currencies ?? []).map((c, ci) => (
+              <div key={c.id} className="fld-row" style={{ alignItems: 'center' }}>
+                <input
+                  style={{ flex: 1 }}
+                  value={c.label}
+                  placeholder="Название метавалюты (например «Угли»)"
+                  onChange={(e) => { m.metaprogress!.currencies![ci] = { ...c, label: e.target.value }; commit() }}
+                />
+                <button
+                  className="btn btn-small btn-danger"
+                  data-tip="Убрать метавалюту (цены контента скинутся на первую по списку)"
+                  onClick={() => {
+                    m.metaprogress!.currencies = (m.metaprogress!.currencies ?? []).filter((_, j) => j !== ci)
+                    if (!(m.metaprogress!.currencies ?? []).length) m.metaprogress!.currencies = [{ id: 'ember', label: 'Угли' }]
+                    commit()
+                  }}
+                ><Ico n="trash" /></button>
+              </div>
+            ))}
+            <div className="fld-row">
+              <button className="btn btn-small" onClick={() => { m.metaprogress!.currencies = [...(m.metaprogress!.currencies ?? []), { id: makeId('meta', `валюта ${(m.metaprogress!.currencies?.length ?? 0) + 1}`, (m.metaprogress!.currencies ?? []).map((x) => x.id)), label: '' }]; commit() }}><Ico n="plus" /> метавалюта</button>
+            </div>
+
+            <h4 style={{ marginTop: 14 }}>Достижения</h4>
+            <div className="muted small" style={{ marginBottom: 8 }}>
+              Награды/заметки пути. У каждого — условие спокойствия: либо счётчик
+              действий за все забеги, либо условия (как у правил). «Тайное»
+              скрытое в хронике, пока не открыто.
+            </div>
+            <div className="fld-row">
+              <button
+                className="btn btn-small"
+                onClick={() => {
+                  m.metaprogress!.achievements = [...(m.metaprogress!.achievements ?? []), { id: makeId('ach', `достижение ${(m.metaprogress!.achievements?.length ?? 0) + 1}`, (m.metaprogress!.achievements ?? []).map((x) => x.id)), label: 'Новое достижение' }]
+                  commit()
+                }}
+              ><Ico n="plus" /> достижение</button>
+            </div>
+            {(m.metaprogress.achievements ?? []).map((a, ai) => (
+              <div key={a.id} className="panel" style={{ padding: 8, marginTop: 6 }}>
+                <div className="fld-row">
+                  <input style={{ flex: 1 }} value={a.label} placeholder="Название достижения"
+                    onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, label: e.target.value }; m.metaprogress!.achievements = arr; commit() }} />
+                  <button className="btn btn-small btn-danger" onClick={() => { m.metaprogress!.achievements = (m.metaprogress!.achievements ?? []).filter((_, j) => j !== ai); commit() }}><Ico n="trash" /></button>
+                </div>
+                <div className="fld-row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                  <label className="fld fld-check" data-tip="Открывается автоматически, когда сумма действий за все забеги достигнет цели">
+                    <input
+                      type="checkbox"
+                      checked={!!a.counter}
+                      onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a }; if (e.target.checked) arr[ai].counter = { stat: 'kills', target: 10 }; else delete arr[ai].counter; m.metaprogress!.achievements = arr; commit() }}
+                    />
+                    <span>открывается счётчиком</span>
+                  </label>
+                  {a.counter && (
+                    <>
+                      <select
+                        value={a.counter.stat}
+                        onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, counter: { stat: e.target.value as never, target: a.counter?.target ?? 10 } }; m.metaprogress!.achievements = arr; commit() }}
+                      >
+                        <option value="kills">убийств в бою</option>
+                        <option value="travels">переходов между сценами</option>
+                        <option value="dialogues">начатых разговоров</option>
+                        <option value="ticks_survived">прожитых минут</option>
+                        <option value="quests_completed">завершённых квестов</option>
+                      </select>
+                      <label className="fld" data-tip="Цель: сколько раз нужно выполнить действие (суммарно за все забеги)">
+                        <span>цель</span>
+                        <input type="number" min={1} value={a.counter.target}
+                          onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, counter: { stat: a.counter!.stat, target: Math.max(1, +e.target.value || 1) } }; m.metaprogress!.achievements = arr; commit() }} />
+                      </label>
+                    </>
+                  )}
+                  <label className="fld fld-check" data-tip="Не показывать в хронике до открытия">
+                    <input type="checkbox" checked={!!a.hidden}
+                      onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, hidden: e.target.checked || undefined }; m.metaprogress!.achievements = arr; commit() }} />
+                    <span>тайное</span>
+                  </label>
+                </div>
+                <div className="fld-row" style={{ flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span className="fld-label">Награда:</span>
+                  <label className="fld">
+                    <span>метавалюта</span>
+                    <select value={a.reward?.currency ?? ''} onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a }; if (e.target.value) { arr[ai].reward = { ...(arr[ai].reward ?? {}), currency: e.target.value, amount: arr[ai].reward?.amount ?? 5 } } else if (arr[ai].reward) { delete arr[ai].reward!.currency; delete arr[ai].reward!.amount; if (!Object.keys(arr[ai].reward!).length) delete arr[ai].reward } m.metaprogress!.achievements = arr; commit() }}>
+                      <option value="">— не нужна —</option>
+                      {(m.metaprogress!.currencies ?? []).map((c) => <option key={c.id} value={c.id}>{c.label || 'Без названия'}</option>)}
+                    </select>
+                  </label>
+                  {a.reward?.currency && (
+                    <label className="fld">
+                      <span>сумма</span>
+                      <input type="number" min={1} value={a.reward.amount ?? 5} onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, reward: { ...(arr[ai].reward ?? {}), amount: Math.max(1, +e.target.value || 1) } }; m.metaprogress!.achievements = arr; commit() }} />
+                    </label>
+                  )}
+                  <label className="fld" data-tip="Очки опыта на шаг развития (0 — без опыта)">
+                    <span>опыт</span>
+                    <input type="number" min={0} value={a.reward?.xp ?? 0} onChange={(e) => { const v = Math.max(0, +e.target.value || 0); const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a }; if (v > 0) arr[ai].reward = { ...(arr[ai].reward ?? {}), xp: v }; else if (arr[ai].reward) { delete arr[ai].reward!.xp; if (!Object.keys(arr[ai].reward!).length) delete arr[ai].reward } m.metaprogress!.achievements = arr; commit() }} />
+                  </label>
+                </div>
+                <div className="fld-row">
+                  <label className="fld fld-check" data-tip="Дополнительные условия (как у правил): открывается, когда все выполнены">
+                    <input type="checkbox" checked={!!a.conditions?.length} onChange={(e) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a }; if (e.target.checked) arr[ai].conditions = [{ type: 'flag_set', flag: '' }]; else delete arr[ai].conditions; m.metaprogress!.achievements = arr; commit() }} />
+                    <span>Открытие по условиям забега</span>
+                  </label>
+                </div>
+                {a.conditions?.length ? (
+                  <ConditionListEditor
+                    store={store}
+                    conditions={a.conditions}
+                    onChange={(conds) => { const arr = [...(m.metaprogress!.achievements ?? [])]; arr[ai] = { ...a, conditions: conds.length ? conds : undefined }; m.metaprogress!.achievements = arr; commit() }}
+                  />
+                ) : null}
+              </div>
+            ))}
+
+            <h4 style={{ marginTop: 14 }}>Магазин постоянных усилений</h4>
+            <div className="muted small" style={{ marginBottom: 8 }}>
+              Усиления, которые игрок покупает за метавалюту из «Хроники» и получает
+              на старте каждого следующего забега.
+            </div>
+            <div className="fld-row">
+              <button
+                className="btn btn-small"
+                onClick={() => { m.metaprogress!.unlocks = [...(m.metaprogress!.unlocks ?? []), { id: makeId('unlock', 'новое усиление', (m.metaprogress?.unlocks ?? []).map((x) => x.id)), label: 'Новое усиление', cost: [{ currency: m.metaprogress!.currencies?.[0]?.id ?? 'ember', amount: 10 }], grants: [] }]; commit() }}
+              ><Ico n="plus" /> усиление</button>
+            </div>
+            {(m.metaprogress.unlocks ?? []).map((u, ui) => (
+              <div key={u.id} className="panel" style={{ padding: 8, marginTop: 6 }}>
+                <div className="fld-row">
+                  <input value={u.label} onChange={(e) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, label: e.target.value }; m.metaprogress!.unlocks = arr; commit() }} style={{ flex: 1 }} placeholder="Название усиления" />
+                  <button className="btn btn-small btn-danger" onClick={() => { m.metaprogress!.unlocks = (m.metaprogress?.unlocks ?? []).filter((_, j) => j !== ui); commit() }}><Ico n="trash" /></button>
+                </div>
+                <label className="fld" style={{ marginTop: 4 }}>
+                  <span>Описание (что игрок получит на старте забега)</span>
+                  <input value={u.description ?? ''} onChange={(e) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, description: e.target.value || undefined }; m.metaprogress!.unlocks = arr; commit() }} />
+                </label>
+                <div className="fld-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span className="fld-label">Цена:</span>
+                  {u.cost.map((c, ci) => (
+                    <span key={ci} className="fld-row" style={{ alignItems: 'center', gap: 4 }}>
+                      <input type="number" min={1} value={c.amount} style={{ width: 76 }}
+                        onChange={(e) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; const cost = [...u.cost]; cost[ci] = { ...c, amount: Math.max(1, +e.target.value || 1) }; arr[ui] = { ...u, cost }; m.metaprogress!.unlocks = arr; commit() }} />
+                      <select value={c.currency}
+                        onChange={(e) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; const cost = [...u.cost]; cost[ci] = { ...c, currency: e.target.value }; arr[ui] = { ...u, cost }; m.metaprogress!.unlocks = arr; commit() }}>
+                        {(m.metaprogress!.currencies ?? []).map((x) => <option key={x.id} value={x.id}>{x.label || 'Без названия'}</option>)}
+                      </select>
+                      {u.cost.length > 1 && (
+                        <button className="btn btn-small" onClick={() => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, cost: u.cost.filter((_, j) => j !== ci) }; m.metaprogress!.unlocks = arr; commit() }}><Ico n="close" /></button>
+                      )}
+                    </span>
+                  ))}
+                  <button className="btn btn-small" data-tip="Цена в нескольких метавалютах" onClick={() => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, cost: [...u.cost, { currency: m.metaprogress!.currencies?.[0]?.id ?? 'ember', amount: 1 }] }; m.metaprogress!.unlocks = arr; commit() }}>+ цена</button>
+                </div>
+                <span className="fld-label">Что даст на старте каждого забега</span>
+                <EffectListEditor
+                  store={store}
+                  effects={u.grants}
+                  onChange={(grants) => { const arr = [...(m.metaprogress!.unlocks ?? [])]; arr[ui] = { ...u, grants }; m.metaprogress!.unlocks = arr; commit() }}
+                />
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+        </div>
+      )}
+
       {tab === 'mechanics' && (
         <div className="props-group">
+          <h4>New Game+: повторный забег с наследием</h4>
+          <div className="muted small" style={{ marginBottom: 8 }}>
+            Победивший герой может начать забег заново, сохранив часть накопленного.
+            Каждый такой «круг» ужесточает мир на заданные шаги — до бесконечности.
+            Выключено (по умолчанию) — финал означает финал.
+          </div>
+          <div className="fld-row">
+            <label className="fld fld-check">
+              <input
+                type="checkbox"
+                checked={!!m.new_game_plus}
+                onChange={(e) => { if (e.target.checked) m.new_game_plus = {}; else delete m.new_game_plus; commit() }}
+              />
+              <span>New Game+ разрешён</span>
+            </label>
+          </div>
+          {m.new_game_plus && (() => {
+            const ng = m.new_game_plus!
+            const ALL_KEEPS: Array<{ id: string; label: string }> = [
+              { id: 'skills', label: 'Навыки' },
+              { id: 'skill_marks', label: 'Галочки роста' },
+              { id: 'stats', label: 'Характеристики и запасы здоровья/каналы' },
+              { id: 'inventory', label: 'Инвентарь и экипировка' },
+              { id: 'feats', label: 'Опыт, уровень и черты' },
+              { id: 'prepared', label: 'Подготовленные способности' },
+            ]
+            const keep = new Set(ng.keep ?? ALL_KEEPS.map((k) => k.id))
+            const toggleKeep = (id: string, on: boolean) => {
+              const next = new Set(keep)
+              if (on) next.add(id)
+              else next.delete(id)
+              ng.keep = next.size === ALL_KEEPS.length ? undefined : [...next]
+              commit()
+            }
+            const boost = ng.boost ?? {}
+            const setBoost = (key: 'enemy_damage_step' | 'need_decay_step' | 'prices_step', v: number | undefined) => {
+              const next = { ...boost }
+              if (v === undefined || v <= 0) delete next[key]
+              else next[key] = v
+              ng.boost = Object.keys(next).length ? next : undefined
+              commit()
+            }
+            return (
+              <div className="panel" style={{ padding: 8 }}>
+                <label className="fld" style={{ maxWidth: 320 }}>
+                  <span>Подпись кнопки на экране финала</span>
+                  <input
+                    value={ng.label ?? ''}
+                    placeholder="Новая игра+"
+                    onChange={(e) => { ng.label = e.target.value || undefined; commit() }}
+                  />
+                </label>
+                <div style={{ margin: '8px 0 4px' }}>Что переносится герой в новый круг:</div>
+                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                  {ALL_KEEPS.map((k) => (
+                    <label key={k.id} className="fld fld-check">
+                      <input type="checkbox" checked={keep.has(k.id)} onChange={(e) => toggleKeep(k.id, e.target.checked)} />
+                      <span>{k.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div style={{ margin: '8px 0 4px' }}>Ужесточение мира за каждый круг (поверх выбранной сложности):</div>
+                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                  <label className="fld" data-tip="+N% к урону врагов за каждый круг (0 — не менять)">
+                    <span>Урон врагов, %/круг</span>
+                    <input type="number" min={0} max={200} value={Math.round((boost.enemy_damage_step ?? 0) * 100)} onChange={(e) => setBoost('enemy_damage_step', (+e.target.value || 0) / 100)} />
+                  </label>
+                  <label className="fld" data-tip="+N% к расходу потребностей за каждый круг">
+                    <span>Расход потребностей, %/круг</span>
+                    <input type="number" min={0} max={200} value={Math.round((boost.need_decay_step ?? 0) * 100)} onChange={(e) => setBoost('need_decay_step', (+e.target.value || 0) / 100)} />
+                  </label>
+                  <label className="fld" data-tip="+N% к ценам за каждый круг">
+                    <span>Цены, %/круг</span>
+                    <input type="number" min={0} max={200} value={Math.round((boost.prices_step ?? 0) * 100)} onChange={(e) => setBoost('prices_step', (+e.target.value || 0) / 100)} />
+                  </label>
+                </div>
+              </div>
+            )
+          })()}
+
           <h4>Профиль механик кампании</h4>
           <p className="muted small">
             Всё включено по умолчанию. Снимите галочку, чтобы убрать подсистему из этой
@@ -784,6 +1287,45 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </label>
       </div>
 
+      <ChaptersEditor m={m} commit={commit} />
+
+      <div className="props-group">
+        <h4>Серия и части (DLC)</h4>
+        <div className="fld-row">
+          <label className="fld" data-tip="id базовой кампании (без него — эта кампания основная часть)">
+            <span>Продолжает кампанию</span>
+            <input
+              value={m.series?.base ?? ''}
+              placeholder="id базовой кампании (пусто — основная)"
+              onChange={(e) => ((m.series = { ...(m.series ?? {}), base: e.target.value || undefined }), commit())}
+            />
+          </label>
+          <label className="fld" data-tip="Основная игра — 1">
+            <span>Номер части</span>
+            <input
+              type="number"
+              min={1}
+              value={m.series?.part ?? 1}
+              onChange={(e) => ((m.series = { ...(m.series ?? {}), part: Number(e.target.value) || 1 }), commit())}
+            />
+          </label>
+          <label className="fld">
+            <span>Название части</span>
+            <input
+              value={m.series?.label ?? ''}
+              placeholder="например «Пролог»"
+              onChange={(e) => ((m.series = { ...(m.series ?? {}), label: e.target.value || undefined }), commit())}
+            />
+          </label>
+        </div>
+        <p className="muted small" style={{ margin: 0 }}>
+          Как продавать «бесплатный пролог, дальше — платно»: пролог — первая часть без «Продолжает кампанию»,
+          продолжение — второй пакет с указанием id пролога. Платёжный гейт появится с мастерской; здесь — только данные.
+        </p>
+      </div>
+
+      <AttributionEditor m={m} commit={commit} store={store} />
+
       <div className="props-group">
         <h4>Время</h4>
         <div className="fld-row">
@@ -805,6 +1347,406 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       </div>
 
       <DiceRulesEditor value={m.dice_rules!} commit={commit} />
+
+      <div className="props-group">
+        <h4>Отдых и удача</h4>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld" data-tip="Кости лечения HP за сон; «0» — сон не лечит">
+            <span>Лечение за сон</span>
+            <input
+              value={m.rest?.hp ?? '1d3'}
+              placeholder="1d3"
+              onChange={(e) => {
+                const r = { ...(m.rest ?? {}), hp: e.target.value || '1d3' }
+                m.rest = r
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld fld-check">
+            <input
+              type="checkbox"
+              checked={m.rest?.mp_full !== false}
+              onChange={(e) => ((m.rest = { ...(m.rest ?? {}), mp_full: e.target.checked || undefined }), commit())}
+            />
+            <span>Сон восстанавливает MP полностью</span>
+          </label>
+          <label className="fld fld-num" data-tip="Максимум удачи = POW × множитель. 0 — удача выключена">
+            <span>Множитель удачи (×POW)</span>
+            <input
+              type="number" min={0}
+              value={m.luck?.multiplier ?? 5}
+              onChange={(e) => {
+                const v = Math.max(0, Number(e.target.value) || 0)
+                m.luck = { ...(m.luck ?? {}), multiplier: v === 5 && !m.luck ? undefined : v }
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld fld-num" data-tip="Стоимость переброска провального броска вне боя">
+            <span>Цена переброска</span>
+            <input
+              type="number" min={1}
+              value={m.luck?.reroll_cost ?? 1}
+              onChange={(e) => ((m.luck = { ...(m.luck ?? {}), reroll_cost: Math.max(1, Number(e.target.value) || 1) }), commit())}
+            />
+          </label>
+          <label className="fld fld-check" data-tip="По книге удача не восстанавливается; для рогалика обычно мягче">
+            <input
+              type="checkbox"
+              checked={m.luck?.rest_luck !== false}
+              onChange={(e) => ((m.luck = { ...(m.luck ?? {}), rest_luck: e.target.checked || undefined }), commit())}
+            />
+            <span>Удача восстанавливается на отдыхе</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Производные опции (усталость, рассудок, слава, достаток, страсти, причастность)</h4>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld fld-check" data-tip="Очки усталости = (STR+CON). Траты задаёте эффектами change_fatigue; на нуле срабатывают правила">
+            <input
+              type="checkbox"
+              checked={!!m.vitals?.fatigue}
+              onChange={(e) => {
+                const v = { ...(m.vitals ?? {}) }
+                if (e.target.checked) v.fatigue = true
+                else delete v.fatigue
+                if (Object.keys(v).length) m.vitals = v
+                else delete m.vitals
+                commit()
+              }}
+            />
+            <span>Очки усталости (STR+CON)</span>
+          </label>
+          <label className="fld fld-check" data-tip="Рассудок = POW×5. Потери — change_sanity, пороги — правилами на sanity_le">
+            <input
+              type="checkbox"
+              checked={!!m.vitals?.sanity}
+              onChange={(e) => {
+                const v = { ...(m.vitals ?? {}) }
+                if (e.target.checked) v.sanity = true
+                else delete v.sanity
+                if (Object.keys(v).length) m.vitals = v
+                else delete m.vitals
+                commit()
+              }}
+            />
+            <span>Рассудок (POW×5)</span>
+          </label>
+          <label className="fld fld-check" data-tip="Репутация героя — счётчик славы; чип в HUD и влияние на мир через условия reputation_ge">
+            <input
+              type="checkbox"
+              checked={!!m.reputation}
+              onChange={(e) => {
+                if (e.target.checked) m.reputation = true
+                else delete m.reputation
+                commit()
+              }}
+            />
+            <span>Репутация</span>
+          </label>
+          <label className="fld" data-tip="Названия ступеней достатка через запятую, от низшей к высшей: Нищий, Бедный, Свободный, Знатный. Пусто — системы нет">
+            <span>Шкала достатка</span>
+            <input
+              value={(m.wealth_levels ?? []).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean)
+                if (arr.length) m.wealth_levels = arr
+                else delete m.wealth_levels
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="id=Название страстей через запятую: honor=Честь, loyalty=Верность">
+            <span>Страсти</span>
+            <input
+              value={(m.passions_list ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [id, label] = x.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id }
+                }).filter((x) => x.id)
+                if (arr.length) m.passions_list = arr
+                else delete m.passions_list
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="id=Название сил причастности через запятую: storm_goddess=Богиня Грозы">
+            <span>Причастность</span>
+            <input
+              value={(m.allegiances ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [id, label] = x.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id }
+                }).filter((x) => x.id)
+                if (arr.length) m.allegiances = arr
+                else delete m.allegiances
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Книжный уровень мощи кампании; для heroic+ используйте формулы 2d6+6 в генерации характеристик">
+            <span>Уровень мощи</span>
+            <select
+              value={m.power_level ?? 'normal'}
+              onChange={(e) => {
+                if (e.target.value === 'normal') delete m.power_level
+                else m.power_level = e.target.value as 'heroic' | 'epic' | 'superhuman'
+                commit()
+              }}
+            >
+              <option value="normal">Обычный (умолчание)</option>
+              <option value="heroic">Героический</option>
+              <option value="epic">Эпический</option>
+              <option value="superhuman">Сверхчеловеческий</option>
+            </select>
+          </label>
+          <label className="fld fld-num" data-tip="Порог страсти/навыка-союзника для аугмента (умолчание 50; книжно +20 при ≥50)">
+            <span>Порог аугмента</span>
+            <input
+              type="number" min={1}
+              value={m.augments?.threshold ?? 50}
+              onChange={(e) => ((m.augments = { ...(m.augments ?? {}), threshold: Math.max(1, Number(e.target.value) || 50) }), commit())}
+            />
+          </label>
+          <label className="fld fld-num" data-tip="Прибавка к броску при аугменте/подмоге (умолчание +20)">
+            <span>Бонус аугмента</span>
+            <input
+              type="number" min={0}
+              value={m.augments?.bonus ?? 20}
+              onChange={(e) => ((m.augments = { ...(m.augments ?? {}), bonus: Math.max(0, Number(e.target.value) || 20) }), commit())}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Опыт, уровни и черты</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Необязательный рост героя: действия начисляют опыт (реакции правил и
+          диалогов), за уровни герой выбирает «черты» — маленькие усиления.
+          Выключено — герой растёт только тренировкой навыков при отдыхе.
+        </div>
+        <div className="fld-row">
+          <label className="fld fld-check" data-tip="Вкл — в игре копится опыт, герой получает уровни и выбирает черты. Выкл — рост только навыками при отдыхе">
+            <input type="checkbox" checked={!!m.progression} onChange={(e) => { if (e.target.checked) { m.progression = { xp_per_level: 100, feats_per_level: 1 } } else { delete m.progression } commit() }} />
+            <span>Уровни и опыт</span>
+          </label>
+          {m.progression && (
+            <>
+              <label className="fld" data-tip="Стоимость каждого N-го уровня: базовое × N (накопительно). Например 100: 2-й уровень при 100 опыта, 3-й при 300, 4-й при 600">
+                <span>Опыта за уровень</span>
+                <input type="number" min={1} value={m.progression.xp_per_level ?? 100} onChange={(e) => { m.progression!.xp_per_level = +e.target.value || 100; commit() }} />
+              </label>
+              <label className="fld" data-tip="Сколько черт герой выбирает за каждый новый уровень (вкладка персонажа)">
+                <span>Черт на уровень</span>
+                <input type="number" min={0} value={m.progression.feats_per_level ?? 1} onChange={(e) => { m.progression!.feats_per_level = +e.target.value || 0; commit() }} />
+              </label>
+              <label className="fld" data-tip="Пусто — без потолка. На потолке опыт перестаёт копиться">
+                <span>Максимальный уровень</span>
+                <input type="number" min={1} value={m.progression.max_level ?? ''} onChange={(e) => { if (e.target.value === '') { delete m.progression!.max_level } else { m.progression!.max_level = +e.target.value || 1 } commit() }} />
+              </label>
+            </>
+          )}
+        </div>
+        {m.progression && (
+          <div className="fld-row" style={{ flexDirection: 'column', gap: 8 }}>
+            <label className="fld" data-tip="Одна черта на строку. Новые строки создают черты; удалённые строки удаляют черту вместе с её модификаторами и условиями">
+              <span>Черты (по строке)</span>
+              <textarea
+                rows={(m.progression.feats?.length ?? 0) + 2}
+                value={(m.progression.feats ?? []).map((f) => `${f.id}=${f.label}`).join('\n')}
+                onChange={(e) => {
+                  const lines = e.target.value.split('\n')
+                  const next: FeatDef[] = []
+                  for (const line of lines) {
+                    if (!line.trim()) continue
+                    const [id, ...rest] = line.split('=')
+                    const fid = (id ?? '').trim()
+                    if (!fid) continue
+                    const flabel = rest.join('=').trim() || fid
+                    const prev = (m.progression!.feats ?? []).find((f) => f.id === fid)
+                    next.push(prev ? { ...prev, label: flabel } : { id: fid, label: flabel })
+                  }
+                  m.progression!.feats = next
+                  commit()
+                }}
+              />
+            </label>
+            {(m.progression.feats ?? []).map((f, i) => (
+              <div key={f.id} className="panel" style={{ padding: 8 }}>
+                <div className="fld-row">
+                  <b>{f.label}</b>
+                </div>
+                <div className="fld-row">
+                  <label className="fld" style={{ flex: 1 }}>
+                    <span>Описание</span>
+                    <input
+                      value={f.description ?? ''}
+                      onChange={(e) => { const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); m.progression!.feats = feats; commit() }}
+                    />
+                  </label>
+                  <label className="fld" data-tip="Что даёт черта. Формат через запятую: skill:Навык=+5 — прибавка к навыку, stat:СИЛ=+1 — к характеристике, hp=+2 — к здоровью, mp=+2 — к мане, mov=+1 — к скорости. Пример: skill:melee=+5, hp=+2">
+                    <span>Модификаторы</span>
+                    <input
+                      defaultValue={[
+                        ...Object.entries(f.mods?.skills ?? {}).map(([k, v]) => `skill:${k}=${v >= 0 ? '+' : ''}${v}`),
+                        ...Object.entries(f.mods?.stats ?? {}).map(([k, v]) => `stat:${k}=${v >= 0 ? '+' : ''}${v}`),
+                        ...(f.mods?.hp ? [`hp=+${f.mods.hp}`] : []),
+                        ...(f.mods?.mp ? [`mp=+${f.mods.mp}`] : []),
+                        ...(f.mods?.mov ? [`mov=+${f.mods.mov}`] : []),
+                      ].join(', ')}
+                      placeholder="skill:melee=+5, hp=+2"
+                      onBlur={(e) => {
+                        const skills: Record<string, number> = {}
+                        const stats: Record<string, number> = {}
+                        let hp = 0; let mp = 0; let mov = 0
+                        for (const part of e.target.value.split(',')) {
+                          const [k, v] = part.split('='); const n = parseInt(v ?? '', 10)
+                          if (!k || Number.isNaN(n)) continue
+                          const key = k.trim()
+                          if (key.startsWith('skill:')) skills[key.slice(6)] = n
+                          else if (key.startsWith('stat:')) stats[key.slice(5)] = n
+                          else if (key === 'hp') hp = n
+                          else if (key === 'mp') mp = n
+                          else if (key === 'mov') mov = n
+                        }
+                        const mods: NonNullable<FeatDef['mods']> = {}
+                        if (Object.keys(skills).length) mods.skills = skills
+                        if (Object.keys(stats).length) mods.stats = stats
+                        if (hp) mods.hp = hp
+                        if (mp) mods.mp = mp
+                        if (mov) mods.mov = mov
+                        const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, mods: Object.keys(mods).length ? mods : undefined } : x)
+                        m.progression!.feats = feats
+                        commit()
+                      }}
+                    />
+                  </label>
+                  <label className="fld" data-tip="Кто может взять черту (через запятую). level_ge:3 — уровень 3 и выше; has_feat:keen — уже есть черта; has_item:id — есть предмет; flag_set:key — взведён флаг; skill_ge:melee=60 — навык от 60; variable_compare:var>=5 — переменная от 5">
+                    <span>Требования</span>
+                    <input
+                      defaultValue={(f.requires ?? []).map((c) => c.type === 'level_ge' ? `level_ge:${c.level}`
+                        : c.type === 'has_feat' ? `has_feat:${c.id}`
+                        : c.type === 'has_item' ? `has_item:${c.item}`
+                        : c.type === 'flag_set' ? `flag_set:${c.flag}`
+                        : c.type === 'skill_ge' ? `skill_ge:${c.skill}=${c.threshold}`
+                        : c.type === 'variable_compare' ? `variable_compare:${c.var}${c.operator}${String(c.value)}`
+                        : c.type).join(', ')}
+                      placeholder="level_ge:3, has_feat:keen"
+                      onBlur={(e) => {
+                        const reqs: NonNullable<FeatDef['requires']> = []
+                        for (const part of e.target.value.split(',')) {
+                          const [t, ...rest] = part.trim().split(':'); const v = rest.join(':')
+                          if (t === 'level_ge') reqs.push({ type: 'level_ge', level: parseInt(v, 10) || 1 })
+                          else if (t === 'has_feat' && v) reqs.push({ type: 'has_feat', id: v })
+                          else if (t === 'has_item' && v) reqs.push({ type: 'has_item', item: v })
+                          else if (t === 'flag_set' && v) reqs.push({ type: 'flag_set', flag: v })
+                          else if (t === 'skill_ge') { const [sk, n] = (v || '').split('='); if (sk) reqs.push({ type: 'skill_ge', skill: sk, threshold: parseInt(n, 10) || 0 }) }
+                          else if (t === 'variable_compare') { const mch = (v || '').match(/^([A-Za-z_0-9-]+)(==|!=|>=|<=|>|<)(-?\d+)$/); if (mch) reqs.push({ type: 'variable_compare', var: mch[1], operator: mch[2] as '==' | '!=' | '<' | '>' | '<=' | '>=', value: parseInt(mch[3], 10) }) }
+                        }
+                        const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, requires: reqs.length ? reqs : undefined } : x)
+                        m.progression!.feats = feats
+                        commit()
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="props-group">
+        <h4>Лагерь, опасности, преступления, цены</h4>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld fld-check" data-tip="Кнопка «Разбить лагерь» в HUD на локациях с отметкой camp">
+            <input
+              type="checkbox"
+              checked={!!m.camping}
+              onChange={(e) => {
+                if (e.target.checked) m.camping = { ticks: 8 }
+                else delete m.camping
+                commit()
+              }}
+            />
+            <span>Лагерь и ночлег</span>
+          </label>
+          {m.camping && (
+            <>
+              <label className="fld fld-num" data-tip="Сколько тиков идёт отдых">
+                <span>Длительность, тиков</span>
+                <input
+                  type="number" min={1}
+                  value={m.camping.ticks ?? 8}
+                  onChange={(e) => ((m.camping!.ticks = Math.max(1, Number(e.target.value) || 8)), commit())}
+                />
+              </label>
+              <label className="fld fld-num" data-tip="Шанс ночной засады 0..1. Мастер сам решает последствия — через правило засады">
+                <span>Шанс засады (0..1)</span>
+                <input
+                  type="number" min={0} max={1} step={0.05}
+                  value={m.camping.ambush_chance ?? 0}
+                  onChange={(e) => ((m.camping!.ambush_chance = Math.max(0, Math.min(1, Number(e.target.value) || 0))), commit())}
+                />
+              </label>
+              <label className="fld" data-tip="Id правила из реестра, отвечающего за вылазку (спавн врагов, бой, плен)">
+                <span>Правило засады</span>
+                <input
+                  value={m.camping.ambush_rule ?? ''}
+                  onChange={(e) => ((m.camping!.ambush_rule = e.target.value || undefined), commit())}
+                />
+              </label>
+            </>
+          )}
+          <label className="fld fld-num" data-tip="Метров падения на один кубик урона (книжное умолчание 3)">
+            <span>Падение: м/кубик</span>
+            <input
+              type="number" min={1}
+              value={m.hazards?.fall_meters_per_die ?? 3}
+              onChange={(e) => ((m.hazards = { ...(m.hazards ?? {}), fall_meters_per_die: Math.max(1, Number(e.target.value) || 3) }), commit())}
+            />
+          </label>
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld" data-tip="Реестр преступлений: id=Название через запятую (theft=Кража, murder=Убийство); совершаются эффектом commit_crime">
+            <span>Преступления</span>
+            <input
+              value={(m.crimes ?? []).map((c) => `${c.id}=${c.label}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [id, label] = x.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id }
+                }).filter((x) => x.id)
+                if (arr.length) m.crimes = arr
+                else delete m.crimes
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Ценовые события: id=Название*множитель через запятую (war=Война*1.5); задать фильтры по предметам/категориям можно в JSON; включаются эффектом set_price_event">
+            <span>Ценовые события</span>
+            <input
+              value={(m.price_events ?? []).map((e2) => `${e2.id}=${e2.label}*${e2.multiplier}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [pair, mult] = x.split('*')
+                  const [id, label] = pair.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id, multiplier: Number(mult) || 1.5 }
+                }).filter((x) => x.id)
+                if (arr.length) m.price_events = arr
+                else delete m.price_events
+                commit()
+              }}
+            />
+          </label>
+        </div>
+      </div>
 
       <div className="props-group">
         <h4>Старт игры</h4>
@@ -837,453 +1779,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
 
         </>
       )}
-      {tab === 'people' && (
+      {tab === 'creation' && (
         <>
-      <div className="props-group">
-        <h4>Потребности</h4>
-        {m.needs.map((n, i) => (
-          <div key={i} className="fld-row need-row">
-            <label className="fld">
-              <span>Название</span>
-              <input value={n.label} onChange={(e) => ((n.label = e.target.value), commit())} />
-            </label>
-            <label className="fld">
-              <span>Максимум</span>
-              <input type="number" value={n.max} onChange={(e) => ((n.max = Number(e.target.value)), commit())} />
-            </label>
-            <label className="fld">
-              <span>Убыль за тик</span>
-              <input type="number" step="0.1" value={n.decay_per_tick} onChange={(e) => ((n.decay_per_tick = Number(e.target.value)), commit())} />
-            </label>
-            <label className="fld" data-tip="Ниже этого значения полоска подсвечивается красным — предупреждение игроку">
-              <span>Тревога ниже</span>
-              <input type="number" value={n.critical_threshold} onChange={(e) => ((n.critical_threshold = Number(e.target.value)), commit())} />
-            </label>
-            <label className="fld" data-tip="Что случится, когда потребность упадёт до нуля">
-              <span>При нуле</span>
-              <select
-                value={n.on_zero_effect ?? 'death'}
-                onChange={(e) => ((n.on_zero_effect = e.target.value), commit())}
-              >
-                <option value="death">Смерть героя</option>
-                {store.options('rule').map((r) => (
-                  <option key={r.id} value={r.id}>Правило: {r.label}</option>
-                ))}
-              </select>
-            </label>
-            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}><Ico n="close" /> </button>
-          </div>
-        ))}
-        {m.needs.map((n, i) => (
-          <details key={`cond_${i}`} className="need-conds">
-            <summary>
-              {n.label}: условия убывания и восстановление
-              {n.decay_when?.length ? ` · убывает при ${n.decay_when.length} усл.` : '· убывает всегда'}
-              {n.restore_per_tick ? ` · восстанавливается +${n.restore_per_tick}/тик` : ''}
-            </summary>
-            <div className="fld-block">
-              <span className="fld-caption">Убывает, только когда выполнены ВСЕ условия (пусто — убывает всегда)</span>
-              <NeedCondEditor
-                conds={n.decay_when ?? []}
-                store={store}
-                commit={commit}
-                onChange={(c) => {
-                  if (c.length) n.decay_when = c
-                  else delete n.decay_when
-                  commit()
-                }}
-              />
-            </div>
-            <div className="fld-block" style={{ marginTop: 10 }}>
-              <label className="fld fld-inline">
-                <span>Восстановление за тик (0 — нет)</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={n.restore_per_tick ?? 0}
-                  onChange={(e) => {
-                    const v = Number(e.target.value)
-                    if (v > 0) n.restore_per_tick = v
-                    else {
-                      delete n.restore_per_tick
-                      delete n.restore_when
-                    }
-                    commit()
-                  }}
-                />
-              </label>
-              {!!n.restore_per_tick && (
-                <>
-                  <span className="fld-caption">…когда выполнены ВСЕ условия (пусто — всегда)</span>
-                  <NeedCondEditor
-                    conds={n.restore_when ?? []}
-                    store={store}
-                    commit={commit}
-                    onChange={(c) => {
-                      if (c.length) n.restore_when = c
-                      else delete n.restore_when
-                      commit()
-                    }}
-                  />
-                </>
-              )}
-            </div>
-          </details>
-        ))}
-        <button
-          className="btn btn-small"
-          onClick={async () => {
-            const label = await askText('Название потребности', 'например «Тепло»')
-            if (!label) return
-            m.needs.push({ id: makeId('need_', label, m.needs.map((x) => x.id)), label, max: 100, decay_per_tick: 1, critical_threshold: 25, on_zero_effect: 'death' })
-            commit()
-          }}
-        >
-          + потребность
-        </button>
-      </div>
-
-      <div className="props-group">
-        <h4>Фракции</h4>
-        {m.factions!.map((f, i) => (
-          <div key={i} className="fld-row need-row">
-            <label className="fld">
-              <span>Название</span>
-              <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
-            </label>
-            <label className="fld">
-              <span>Описание фракции</span>
-              <input value={f.description ?? ''} onChange={(e) => ((f.description = e.target.value || undefined), commit())} />
-            </label>
-            <label className="fld">
-              <span>Отношение к игроку</span>
-              <input type="number" value={f.base_disposition} onChange={(e) => ((f.base_disposition = Number(e.target.value)), commit())} />
-            </label>
-            <label className="fld fld-check" data-tip="Для служебных фракций (дикие твари и т.п.): отношение не имеет смысла, игрок её не увидит">
-              <input
-                type="checkbox"
-                checked={!!f.hidden}
-                onChange={(e) => {
-                  if (e.target.checked) f.hidden = true
-                  else delete f.hidden
-                  commit()
-                }}
-              />
-              <span>Скрытая (не показывать в игре)</span>
-            </label>
-            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.factions!.splice(i, 1), commit())}><Ico n="close" /> </button>
-          </div>
-        ))}
-        <button
-          className="btn btn-small"
-          onClick={async () => {
-            const label = await askText('Название фракции', 'например «Гильдия воров»')
-            if (!label) return
-            m.factions!.push({ id: makeId('faction_', label, m.factions!.map((x) => x.id)), label, base_disposition: 0 })
-            commit()
-          }}
-        >
-          + фракция
-        </button>
-      </div>
-
-      <div className="props-group">
-        <h4>Навыки игры</h4>
-        <div className="muted small" style={{ marginBottom: 8 }}>
-          Единый список навыков кампании: он используется в листе персонажа, в проверках,
-          в бою и во всех выпадающих списках редактора.
-        </div>
-        {(m.skills ?? []).map((sk, i) => (
-          <div key={i} className="fld-row need-row">
-            <label className="fld">
-              <span>Название</span>
-              <input value={sk.label} onChange={(e) => ((sk.label = e.target.value), commit())} />
-            </label>
-            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}><Ico n="close" /> </button>
-          </div>
-        ))}
-        <button
-          className="btn btn-small"
-          onClick={async () => {
-            const label = await askText('Название навыка', 'например «Стрельба из лука»')
-            if (!label) return
-            if (!m.skills) m.skills = []
-            // если название совпадает со стандартным — используем стандартный id (у него есть встроенный перевод)
-            const builtin = Object.entries(BUILTIN_SKILL_LABELS).find(([, l]) => l.toLowerCase() === label.toLowerCase())?.[0]
-            m.skills.push({ id: builtin ?? makeId('skill_', label, m.skills.map((x) => x.id)), label })
-            commit()
-          }}
-        >
-          + навык
-        </button>
-      </div>
-
-
-        </>
-      )}
-      {tab === 'items' && (
-        <>
-      <div className="props-group">
-        <h4>Типы слотов сцены</h4>
-        <div className="muted small" style={{ marginBottom: 8 }}>
-          Что можно ставить в слоты на сценах. Каждой сущности назначается тип
-          в её карточке — по нему фильтруется выбор «кто/что стоит в слоте».
-          Встроенных типов нет — добавьте свои: «Персонаж», «Предмет»,
-          «Мебель», «Робот», «Дух»… любые, какие нужны вашей истории.
-        </div>
-        {(m.slot_types ?? []).map((t, i) => (
-          <div key={i} className="fld-row need-row">
-            <label className="fld">
-              <span>Название</span>
-              <input value={t.label} onChange={(e) => ((t.label = e.target.value), commit())} />
-            </label>
-            <details style={{ flex: '1 1 100%' }}>
-              <summary><Ico n="sound" />  Звуки действий предметов в этом типе слота</summary>
-              <SoundHookMapEditor
-                store={store}
-                value={t.sounds ?? (t.sounds = {})}
-                onChange={commit}
-                heading="Звуки действий (для этого типа слота)"
-              />
-            </details>
-            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.slot_types!.splice(i, 1), commit())}><Ico n="close" /> </button>
-          </div>
-        ))}
-        <button
-          className="btn btn-small"
-          onClick={async () => {
-            const label = await askText('Название типа слота', 'например «Робот»')
-            if (!label) return
-            if (!m.slot_types) m.slot_types = []
-            m.slot_types.push({ id: makeId('slot_', label, m.slot_types.map((x) => x.id)), label })
-            commit()
-          }}
-        >
-          + тип слота
-        </button>
-      </div>
-
-      <div className="props-group">
-        <h4>Слоты экипировки</h4>
-        <div className="muted small" style={{ marginBottom: 8 }}>
-          Куда персонаж надевает предметы. Встроенных слотов нет — создайте
-          свои: «Оружие», «Броня», «Амулет», «Имплант»… Броня всех надетых
-          слотов суммируется в бою.
-        </div>
-        {(m.equipment_slots ?? []).map((s, i) => (
-          <div key={i} className="fld-row need-row">
-            <label className="fld">
-              <span>Название</span>
-              <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
-            </label>
-            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.equipment_slots!.splice(i, 1), commit())}><Ico n="close" /> </button>
-          </div>
-        ))}
-        <button
-          className="btn btn-small"
-          onClick={async () => {
-            const label = await askText('Название слота экипировки', 'например «Амулет»')
-            if (!label) return
-            if (!m.equipment_slots) m.equipment_slots = []
-            m.equipment_slots.push({ id: makeId('slot_', label, m.equipment_slots.map((x) => x.id)), label })
-            commit()
-          }}
-        >
-          + слот экипировки
-        </button>
-      </div>
-
-      <div className="props-group">
-        <h4>Календарь</h4>
-        <div className="muted small" style={{ marginBottom: 8 }}>
-          Свои месяцы и дни недели: дата появится в игре под часами. Названия
-          пишутся через запятую и циклятся. Без календаря — обычные «День N».
-        </div>
-        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-          <label className="fld">
-            <span>Название летоисчисления</span>
-            <input
-              value={m.calendar?.year_label ?? ''}
-              placeholder="например «Летопись Каэрдена»"
-              onChange={(e) => {
-                if (!m.calendar) m.calendar = {}
-                if (e.target.value) m.calendar.year_label = e.target.value
-                else delete m.calendar.year_label
-                commit()
-              }}
-            />
-          </label>
-          <label className="fld">
-            <span>Начальный год</span>
-            <input
-              type="number"
-              value={m.calendar?.start_year ?? 1}
-              onChange={(e) => {
-                if (!m.calendar) m.calendar = {}
-                m.calendar.start_year = Number(e.target.value) || 1
-                commit()
-              }}
-            />
-          </label>
-          <label className="fld">
-            <span>Дней в месяце</span>
-            <input
-              type="number"
-              value={m.calendar?.days_per_month ?? 30}
-              onChange={(e) => {
-                if (!m.calendar) m.calendar = {}
-                m.calendar.days_per_month = Math.max(1, Number(e.target.value) || 30)
-                commit()
-              }}
-            />
-          </label>
-        </div>
-        <label className="fld">
-          <span>Месяцы (через запятую)</span>
-          <input
-            value={(m.calendar?.months ?? []).join(', ')}
-            placeholder="Верескень, Листопад, Грудень…"
-            onChange={(e) => {
-              if (!m.calendar) m.calendar = {}
-              const months = e.target.value.split(',').map((x) => x.trim()).filter(Boolean)
-              if (months.length) m.calendar.months = months
-              else delete m.calendar.months
-              commit()
-            }}
-          />
-        </label>
-        <label className="fld">
-          <span>Дни недели (через запятую)</span>
-          <input
-            value={(m.calendar?.day_names ?? []).join(', ')}
-            placeholder="Светодень, Ветродень…"
-            onChange={(e) => {
-              if (!m.calendar) m.calendar = {}
-              const names = e.target.value.split(',').map((x) => x.trim()).filter(Boolean)
-              if (names.length) m.calendar.day_names = names
-              else delete m.calendar.day_names
-              commit()
-            }}
-          />
-        </label>
-        {m.calendar && (
-          <button
-            className="btn btn-small"
-            onClick={() => {
-              delete m.calendar
-              commit()
-            }}
-          >
-            Убрать календарь
-          </button>
-        )}
-      </div>
-
-      <div className="props-group">
-        <h4>Погода</h4>
-        <div className="muted small" style={{ marginBottom: 8 }}>
-          Типы погоды с визуальным слоем и зацикленными звуками. Погоду меняют
-          эффекты «Сменить погоду»; условия «Погода сейчас» доступны правилам,
-          слотам и музыке. Список слоёв — целиком ваш: движок умеет рисовать
-          дождь, снег, туман и пепел, свои id подключаются классом weather-&lt;id&gt;.
-        </div>
-        {/* id скрыт от мастера: видно только название, как во всех реестрах */}
-        <div className="prof-sec" style={{ marginTop: 0 }}>Слои погоды (реестр кампании):</div>
-        {(m.overlay_layers ?? []).map((l, i) => (
-          <div className="prof-line" key={i}>
-            <span className="prof-line-label">{l.label}</span>
-            <button className="btn btn-small ce-del" data-tip="Удалить слой" onClick={() => ((m.overlay_layers = m.overlay_layers!.filter((_, x) => x !== i)), commit())}><Ico n="close" /></button>
-          </div>
-        ))}
-        <button className="btn btn-small" onClick={async () => {
-          const label = await askText('Название слоя погоды', 'например «Огненный дождь»')
-          if (!label) return
-          ;(m.overlay_layers ??= []).push({ id: makeId('overlay_', label, m.overlay_layers.map((x) => x.id)), label })
-          commit()
-        }}>+ слой погоды</button>
-        {(m.overlay_layers ?? []).length === 0 && (
-          <div className="muted small" style={{ marginTop: 4 }}>Без реестра селект «Слой» у погоды будет пустым.</div>
-        )}
-        {(m.weathers ?? []).map((w, i) => (
-          <div key={i} className="props-group" style={{ border: '1px solid var(--border)', padding: 10, borderRadius: 8, marginBottom: 8 }}>
-            <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-              <label className="fld">
-                <span>Название</span>
-                <input value={w.label} onChange={(e) => ((w.label = e.target.value), commit())} />
-              </label>
-              <label className="fld">
-                <span>Слой</span>
-                <select
-                  value={w.overlay ?? 'none'}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    if (v && v !== 'none') w.overlay = v
-                    else delete w.overlay
-                    commit()
-                  }}
-                >
-                  {/* список слоёв — из реестра кампании, а не из движка */}
-                  {w.overlay && !(m.overlay_layers ?? []).some((l) => l.id === w.overlay) && (
-                    <option value={w.overlay}>{w.overlay} (вне реестра)</option>
-                  )}
-                  <option value="none">Без слоя</option>
-                  {(m.overlay_layers ?? []).map((l) => (
-                    <option key={l.id} value={l.id}>{l.label}</option>
-                  ))}
-                </select>
-              </label>
-              <button className="btn btn-small ce-del" data-tip="Удалить погоду" onClick={() => (m.weathers!.splice(i, 1), commit())}><Ico n="close" /> </button>
-            </div>
-            <label className="fld">
-              <span>Зацикленные звуки погоды</span>
-              <select
-                value=""
-                onChange={(e) => {
-                  const id = e.target.value
-                  if (!id) return
-                  if (!w.ambient) w.ambient = []
-                  if (!w.ambient.includes(id)) w.ambient.push(id)
-                  commit()
-                }}
-              >
-                <option value="">+ добавить звук…</option>
-                {(m.sounds ?? [])
-                  .filter((s) => !(w.ambient ?? []).includes(s.id))
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>{s.label || s.id}</option>
-                  ))}
-              </select>
-            </label>
-            <div className="chips">
-              {(w.ambient ?? []).map((id) => (
-                <span key={id} className="chip">
-                  {(m.sounds ?? []).find((s) => s.id === id)?.label || id}
-                  <button className="chip-del" data-tip="Убрать звук" onClick={() => ((w.ambient = (w.ambient ?? []).filter((x) => x !== id)), commit())}><Ico n="close" /> </button>
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
-        <button
-          className="btn btn-small"
-          onClick={async () => {
-            const label = await askText('Название погоды', 'например «Моросящий дождь»')
-            if (!label) return
-            if (!m.weathers) m.weathers = []
-            m.weathers.push({ id: makeId('weather_', label, m.weathers.map((x) => x.id)), label })
-            commit()
-          }}
-        >
-          + погода
-        </button>
-      </div>
-
       <div className="props-group">
         <h4>Создание персонажа</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Экран перед новым забегом: игрок распределяет характеристики,
           выбирает происхождение и навыки. Выключено — забег стартует
-          готовым персонажем-шаблоном, как раньше.
+          сразу готовым персонажем-шаблоном.
         </div>
         <label className="fld fld-check">
           <input
@@ -1365,6 +1868,81 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <input type="checkbox" checked={!!m.char_creation.choose_name} onChange={(e) => ((m.char_creation!.choose_name = e.target.checked || undefined), commit())} />
               <span>Игрок вводит имя героя</span>
             </label>
+            <label className="fld fld-check">
+              <input type="checkbox" checked={!!m.char_creation.choose_age} onChange={(e) => ((m.char_creation!.choose_age = e.target.checked || undefined), commit())} />
+              <span>Игрок задаёт возраст</span>
+            </label>
+            <label className="fld fld-check" data-tip="Короткая предыстория героя своими словами — видна в листе персонажа">
+              <input type="checkbox" checked={!!m.char_creation.choose_bio} onChange={(e) => ((m.char_creation!.choose_bio = e.target.checked || undefined), commit())} />
+              <span>Игрок пишет биографию</span>
+            </label>
+
+            <HeroPortraitsEditor m={m} store={store} commit={commit} />
+
+            <label className="fld fld-check">
+              <input
+                type="checkbox"
+                checked={!!m.char_creation.roll}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    m.char_creation!.roll = { notation: '3d6', per_stat: { INT: '2d6+6', SIZ: '2d6+6' }, arrays: 1, rerolls: 0, redistribute: 3 }
+                  } else delete m.char_creation!.roll
+                  commit()
+                }}
+              />
+              <span data-tip="Базовый метод BRP: характеристики бросаются кубиками, а не покупаются за очки. Распределение характеристик происхождений в этом режиме игнорируется.">
+                Характеристики — броски кубиков (вместо бюджета очков)
+              </span>
+            </label>
+            {m.char_creation.roll && (
+              <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                <label className="fld">
+                  <span>Базовая формула броска</span>
+                  <input
+                    value={m.char_creation.roll.notation ?? '3d6'}
+                    placeholder="3d6"
+                    onChange={(e) => ((m.char_creation!.roll!.notation = e.target.value || '3d6'), commit())}
+                  />
+                </label>
+                <label className="fld fld-num" data-tip="Сколько наборов бросается, игрок выбирает один">
+                  <span>Наборов на выбор</span>
+                  <input type="number" min={1} value={m.char_creation.roll.arrays ?? 1} onChange={(e) => ((m.char_creation!.roll!.arrays = Math.max(1, Number(e.target.value) || 1)), commit())} />
+                </label>
+                <label className="fld fld-num" data-tip="Сколько характеристик можно перебросить по одной штуке">
+                  <span>Перебросов</span>
+                  <input type="number" min={0} value={m.char_creation.roll.rerolls ?? 0} onChange={(e) => ((m.char_creation!.roll!.rerolls = Math.max(0, Number(e.target.value) || 0)), commit())} />
+                </label>
+                <label className="fld fld-num" data-tip="Очков сверх выброшенного набора для докрутки (BRP: до 3)">
+                  <span>Докрутка очков</span>
+                  <input type="number" min={0} value={m.char_creation.roll.redistribute ?? 0} onChange={(e) => ((m.char_creation!.roll!.redistribute = Math.max(0, Number(e.target.value) || 0)), commit())} />
+                </label>
+              </div>
+            )}
+            {m.char_creation.roll && (
+              <div className="fld" style={{ marginBottom: 10 }}>
+                <span className="muted small" style={{ display: 'block', marginBottom: 4 }}>
+                  Свои формулы по характеристикам (пусто — базовая). BRP: INT и SIZ бросаются 2d6+6.
+                </span>
+                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                  {(['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const).map((k) => (
+                    <label key={k} className="fld" style={{ maxWidth: 90 }}>
+                      <span>{k}</span>
+                      <input
+                        value={m.char_creation!.roll!.per_stat?.[k] ?? ''}
+                        placeholder={m.char_creation!.roll!.notation ?? '3d6'}
+                        onChange={(e) => {
+                          const per = { ...(m.char_creation!.roll!.per_stat ?? {}) }
+                          if (e.target.value.trim()) per[k] = e.target.value.trim()
+                          else delete per[k]
+                          m.char_creation!.roll!.per_stat = Object.keys(per).length ? per : undefined
+                          commit()
+                        }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* навыки-переключатели: клик по навыку включает/выключает его роль */}
             <div className="fld" style={{ marginBottom: 10 }}>
@@ -1553,6 +2131,582 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           </>
         )}
       </div>
+        </>
+      )}
+
+      {tab === 'people' && (
+        <>
+      <div className="props-group">
+        <h4>Потребности</h4>
+        {m.needs.map((n, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={n.label} onChange={(e) => ((n.label = e.target.value), commit())} />
+            </label>
+            <label className="fld">
+              <span>Максимум</span>
+              <input type="number" value={n.max} onChange={(e) => ((n.max = Number(e.target.value)), commit())} />
+            </label>
+            <label className="fld">
+              <span>Убыль за тик</span>
+              <input type="number" step="0.1" value={n.decay_per_tick} onChange={(e) => ((n.decay_per_tick = Number(e.target.value)), commit())} />
+            </label>
+            <label className="fld" data-tip="Ниже этого значения полоска подсвечивается красным — предупреждение игроку">
+              <span>Тревога ниже</span>
+              <input type="number" value={n.critical_threshold} onChange={(e) => ((n.critical_threshold = Number(e.target.value)), commit())} />
+            </label>
+            <label className="fld" data-tip="Что случится, когда потребность упадёт до нуля">
+              <span>При нуле</span>
+              <select
+                value={n.on_zero_effect ?? 'death'}
+                onChange={(e) => ((n.on_zero_effect = e.target.value), commit())}
+              >
+                <option value="death">Смерть героя</option>
+                {store.options('rule').map((r) => (
+                  <option key={r.id} value={r.id}>Правило: {r.label}</option>
+                ))}
+              </select>
+            </label>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}><Ico n="close" /> </button>
+          </div>
+        ))}
+        {m.needs.map((n, i) => (
+          <details key={`cond_${i}`} className="need-conds">
+            <summary>
+              {n.label}: условия убывания и восстановление
+              {n.decay_when?.length ? ` · убывает при ${n.decay_when.length} усл.` : '· убывает всегда'}
+              {n.restore_per_tick ? ` · восстанавливается +${n.restore_per_tick}/тик` : ''}
+            </summary>
+            <div className="fld-block">
+              <span className="fld-caption">Убывает, только когда выполнены ВСЕ условия (пусто — убывает всегда)</span>
+              <NeedCondEditor
+                conds={n.decay_when ?? []}
+                store={store}
+                commit={commit}
+                onChange={(c) => {
+                  if (c.length) n.decay_when = c
+                  else delete n.decay_when
+                  commit()
+                }}
+              />
+            </div>
+            <div className="fld-block" style={{ marginTop: 10 }}>
+              <label className="fld fld-inline">
+                <span>Восстановление за тик (0 — нет)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={n.restore_per_tick ?? 0}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    if (v > 0) n.restore_per_tick = v
+                    else {
+                      delete n.restore_per_tick
+                      delete n.restore_when
+                    }
+                    commit()
+                  }}
+                />
+              </label>
+              {!!n.restore_per_tick && (
+                <>
+                  <span className="fld-caption">…когда выполнены ВСЕ условия (пусто — всегда)</span>
+                  <NeedCondEditor
+                    conds={n.restore_when ?? []}
+                    store={store}
+                    commit={commit}
+                    onChange={(c) => {
+                      if (c.length) n.restore_when = c
+                      else delete n.restore_when
+                      commit()
+                    }}
+                  />
+                </>
+              )}
+            </div>
+          </details>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название потребности', 'например «Тепло»')
+            if (!label) return
+            m.needs.push({ id: makeId('need_', label, m.needs.map((x) => x.id)), label, max: 100, decay_per_tick: 1, critical_threshold: 25, on_zero_effect: 'death' })
+            commit()
+          }}
+        >
+          + потребность
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Фракции</h4>
+        {m.factions!.map((f, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
+            </label>
+            <label className="fld">
+              <span>Описание фракции</span>
+              <input value={f.description ?? ''} onChange={(e) => ((f.description = e.target.value || undefined), commit())} />
+            </label>
+            <label className="fld">
+              <span>Отношение к игроку</span>
+              <input type="number" value={f.base_disposition} onChange={(e) => ((f.base_disposition = Number(e.target.value)), commit())} />
+            </label>
+            <label className="fld fld-check" data-tip="Для служебных фракций (дикие твари и т.п.): отношение не имеет смысла, игрок её не увидит">
+              <input
+                type="checkbox"
+                checked={!!f.hidden}
+                onChange={(e) => {
+                  if (e.target.checked) f.hidden = true
+                  else delete f.hidden
+                  commit()
+                }}
+              />
+              <span>Скрытая (не показывать в игре)</span>
+            </label>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.factions!.splice(i, 1), commit())}><Ico n="close" /> </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название фракции', 'например «Гильдия воров»')
+            if (!label) return
+            m.factions!.push({ id: makeId('faction_', label, m.factions!.map((x) => x.id)), label, base_disposition: 0 })
+            commit()
+          }}
+        >
+          + фракция
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Навыки игры</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Единый список навыков кампании: он используется в листе персонажа, в проверках,
+          в бою и во всех выпадающих списках редактора.
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap', marginBottom: 6 }}>
+          <label className="fld" data-tip="id=Название категорий навыков через запятую: combat=Бой, social=Общение. Пусто — без категорий">
+            <span>Категории навыков</span>
+            <input
+              value={(m.skill_categories ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
+              onChange={(e) => {
+                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                  const [id, label] = x.split('=').map((y) => y.trim())
+                  return { id: id || '', label: label || id }
+                }).filter((x) => x.id)
+                if (arr.length) m.skill_categories = arr
+                else delete m.skill_categories
+                commit()
+              }}
+            />
+          </label>
+        </div>
+        {(m.skills ?? []).map((sk, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={sk.label} onChange={(e) => ((sk.label = e.target.value), commit())} />
+            </label>
+            {(m.skill_categories?.length ?? 0) > 0 && (
+              <label className="fld" data-tip="Категория для группировки в листе персонажа">
+                <span>Категория</span>
+                <select
+                  value={sk.category ?? ''}
+                  onChange={(e) => {
+                    if (e.target.value) sk.category = e.target.value
+                    else delete sk.category
+                    commit()
+                  }}
+                >
+                  <option value="">—</option>
+                  {(m.skill_categories ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="fld" data-tip="Базовый шанс без обучения: число (25) или формула (DEX×2, INT×5). Пусто — 0%">
+              <span>Базовый шанс</span>
+              <input
+                value={sk.base ?? ''}
+                placeholder="0"
+                onChange={(e) => {
+                  const v = e.target.value.trim()
+                  if (!v) delete sk.base
+                  else sk.base = /^\d+$/.test(v) ? Number(v) : v
+                  commit()
+                }}
+              />
+            </label>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}><Ico n="close" /> </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название навыка', 'например «Стрельба из лука»')
+            if (!label) return
+            if (!m.skills) m.skills = []
+            // если название совпадает со стандартным — используем стандартный id (у него есть встроенный перевод)
+            const builtin = Object.entries(BUILTIN_SKILL_LABELS).find(([, l]) => l.toLowerCase() === label.toLowerCase())?.[0]
+            m.skills.push({ id: builtin ?? makeId('skill_', label, m.skills.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + навык
+        </button>
+      </div>
+
+      <SpeciesRegistry m={m} store={store} commit={commit} />
+
+        </>
+      )}
+      {tab === 'items' && (
+        <>
+      <div className="props-group">
+        <h4>Типы слотов сцены</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Что можно ставить в слоты на сценах. Каждой сущности назначается тип
+          в её карточке — по нему фильтруется выбор «кто/что стоит в слоте».
+          Встроенных типов нет — добавьте свои: «Персонаж», «Предмет»,
+          «Мебель», «Робот», «Дух»… любые, какие нужны вашей истории.
+        </div>
+        {(m.slot_types ?? []).map((t, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={t.label} onChange={(e) => ((t.label = e.target.value), commit())} />
+            </label>
+            <details style={{ flex: '1 1 100%' }}>
+              <summary><Ico n="sound" />  Звуки действий предметов в этом типе слота</summary>
+              <SoundHookMapEditor
+                store={store}
+                value={t.sounds ?? (t.sounds = {})}
+                onChange={commit}
+                heading="Звуки действий (для этого типа слота)"
+              />
+            </details>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.slot_types!.splice(i, 1), commit())}><Ico n="close" /> </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название типа слота', 'например «Робот»')
+            if (!label) return
+            if (!m.slot_types) m.slot_types = []
+            m.slot_types.push({ id: makeId('slot_', label, m.slot_types.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + тип слота
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Слоты экипировки</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Куда персонаж надевает предметы. Встроенных слотов нет — создайте
+          свои: «Оружие», «Броня», «Амулет», «Имплант»… Броня всех надетых
+          слотов суммируется в бою.
+        </div>
+        {(m.equipment_slots ?? []).map((s, i) => (
+          <div key={i} className="fld-row need-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={s.label} onChange={(e) => ((s.label = e.target.value), commit())} />
+            </label>
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.equipment_slots!.splice(i, 1), commit())}><Ico n="close" /> </button>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название слота экипировки', 'например «Амулет»')
+            if (!label) return
+            if (!m.equipment_slots) m.equipment_slots = []
+            m.equipment_slots.push({ id: makeId('slot_', label, m.equipment_slots.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + слот экипировки
+        </button>
+      </div>
+
+      <div className="props-group">
+        <h4>Календарь</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Свои месяцы и дни недели: дата появится в игре под часами. Названия
+          пишутся через запятую и циклятся. Без календаря — обычные «День N».
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld">
+            <span>Название летоисчисления</span>
+            <input
+              value={m.calendar?.year_label ?? ''}
+              placeholder="например «Летопись Каэрдена»"
+              onChange={(e) => {
+                if (!m.calendar) m.calendar = {}
+                if (e.target.value) m.calendar.year_label = e.target.value
+                else delete m.calendar.year_label
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld">
+            <span>Начальный год</span>
+            <input
+              type="number"
+              value={m.calendar?.start_year ?? 1}
+              onChange={(e) => {
+                if (!m.calendar) m.calendar = {}
+                m.calendar.start_year = Number(e.target.value) || 1
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld">
+            <span>Дней в месяце</span>
+            <input
+              type="number"
+              value={m.calendar?.days_per_month ?? 30}
+              onChange={(e) => {
+                if (!m.calendar) m.calendar = {}
+                m.calendar.days_per_month = Math.max(1, Number(e.target.value) || 30)
+                commit()
+              }}
+            />
+          </label>
+        </div>
+        <label className="fld">
+          <span>Месяцы (через запятую)</span>
+          <input
+            value={(m.calendar?.months ?? []).join(', ')}
+            placeholder="Верескень, Листопад, Грудень…"
+            onChange={(e) => {
+              if (!m.calendar) m.calendar = {}
+              const months = e.target.value.split(',').map((x) => x.trim()).filter(Boolean)
+              if (months.length) m.calendar.months = months
+              else delete m.calendar.months
+              commit()
+            }}
+          />
+        </label>
+        <label className="fld">
+          <span>Дни недели (через запятую)</span>
+          <input
+            value={(m.calendar?.day_names ?? []).join(', ')}
+            placeholder="Светодень, Ветродень…"
+            onChange={(e) => {
+              if (!m.calendar) m.calendar = {}
+              const names = e.target.value.split(',').map((x) => x.trim()).filter(Boolean)
+              if (names.length) m.calendar.day_names = names
+              else delete m.calendar.day_names
+              commit()
+            }}
+          />
+        </label>
+        {m.calendar && (
+          <button
+            className="btn btn-small"
+            onClick={() => {
+              delete m.calendar
+              commit()
+            }}
+          >
+            Убрать календарь
+          </button>
+        )}
+      </div>
+
+      <div className="props-group">
+        <h4>Погода</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Типы погоды с визуальным слоем и зацикленными звуками. Погоду меняют
+          эффекты «Сменить погоду»; условия «Погода сейчас» доступны правилам,
+          слотам и музыке. Список слоёв — целиком ваш: движок умеет рисовать
+          дождь, снег, туман и пепел, свои id подключаются классом weather-&lt;id&gt;.
+        </div>
+        {/* id скрыт от мастера: видно только название, как во всех реестрах */}
+        <div className="prof-sec" style={{ marginTop: 0 }}>Слои погоды (реестр кампании):</div>
+        {(m.overlay_layers ?? []).map((l, i) => (
+          <div className="prof-line" key={i}>
+            <span className="prof-line-label">{l.label}</span>
+            <button className="btn btn-small ce-del" data-tip="Удалить слой" onClick={() => ((m.overlay_layers = m.overlay_layers!.filter((_, x) => x !== i)), commit())}><Ico n="close" /></button>
+          </div>
+        ))}
+        <button className="btn btn-small" onClick={async () => {
+          const label = await askText('Название слоя погоды', 'например «Огненный дождь»')
+          if (!label) return
+          ;(m.overlay_layers ??= []).push({ id: makeId('overlay_', label, m.overlay_layers.map((x) => x.id)), label })
+          commit()
+        }}>+ слой погоды</button>
+        {(m.overlay_layers ?? []).length === 0 && (
+          <div className="muted small" style={{ marginTop: 4 }}>Без реестра селект «Слой» у погоды будет пустым.</div>
+        )}
+        <h4 style={{ marginTop: 10 }}>Мастерская спецэффектов (слои из файлов)</h4>
+        <div className="muted small" style={{ marginBottom: 6 }}>
+          Атмосферные слои из картинки-«частицы»: дождь из собственного файла, листопад,
+          пыль, искры, мухи, туманная взвесь. Ключ слоя вписывается в поле «Слой» у погоды
+          ниже — движок сам его отрисует поверх сцены. Встроенные слои rain/snow/fog/ash работают без реестра.
+        </div>
+        <ParticleListEditor list={m.atmospherics ?? (m.atmospherics = [])} store={store} commit={commit} />
+
+        {(m.weathers ?? []).map((w, i) => (
+          <div key={i} className="props-group" style={{ border: '1px solid var(--border)', padding: 10, borderRadius: 8, marginBottom: 8 }}>
+            <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+              <label className="fld">
+                <span>Название</span>
+                <input value={w.label} onChange={(e) => ((w.label = e.target.value), commit())} />
+              </label>
+              <label className="fld">
+                <span>Слой</span>
+                <select
+                  value={w.overlay ?? 'none'}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v && v !== 'none') w.overlay = v
+                    else delete w.overlay
+                    commit()
+                  }}
+                >
+                  {/* список слоёв — из реестра кампании, а не из движка */}
+                  {w.overlay && !(m.overlay_layers ?? []).some((l) => l.id === w.overlay) && (
+                    <option value={w.overlay}>{w.overlay} (вне реестра)</option>
+                  )}
+                  <option value="none">Без слоя</option>
+                  <optgroup label="Встроенные движком">
+                    <option value="rain">Дождь (встроенный)</option>
+                    <option value="snow">Снег (встроенный)</option>
+                    <option value="fog">Туман (встроенный)</option>
+                    <option value="ash">Пепел (встроенный)</option>
+                  </optgroup>
+                  <optgroup label="Слои кампании (реестр выше)">
+                    {(m.overlay_layers ?? []).map((l) => (
+                      <option key={l.id} value={l.id}>{l.label}</option>
+                    ))}
+                  </optgroup>
+                  {(m.atmospherics?.length ?? 0) > 0 && (
+                    <optgroup label="Мастерская спецэффектов (из файлов)">
+                      {m.atmospherics!.map((a) => (
+                        <option key={a.id} value={a.id}>{a.label || a.id}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </label>
+              <button className="btn btn-small ce-del" data-tip="Удалить погоду" onClick={() => (m.weathers!.splice(i, 1), commit())}><Ico n="close" /> </button>
+            </div>
+            <label className="fld">
+              <span>Зацикленные звуки погоды</span>
+              <select
+                value=""
+                onChange={(e) => {
+                  const id = e.target.value
+                  if (!id) return
+                  if (!w.ambient) w.ambient = []
+                  if (!w.ambient.includes(id)) w.ambient.push(id)
+                  commit()
+                }}
+              >
+                <option value="">+ добавить звук…</option>
+                {(m.sounds ?? [])
+                  .filter((s) => !(w.ambient ?? []).includes(s.id))
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>{s.label || s.id}</option>
+                  ))}
+              </select>
+            </label>
+            <div className="chips">
+              {(w.ambient ?? []).map((id) => (
+                <span key={id} className="chip">
+                  {(m.sounds ?? []).find((s) => s.id === id)?.label || id}
+                  <button className="chip-del" data-tip="Убрать звук" onClick={() => ((w.ambient = (w.ambient ?? []).filter((x) => x !== id)), commit())}><Ico n="close" /> </button>
+                </span>
+              ))}
+            </div>
+            <div className="fld-row" style={{ flexWrap: 'wrap' }} data-tip="Влияние этой погоды на бой: действует на обе стороны">
+              <label className="fld fld-num" data-tip="Общий штраф всему движению (и бойцам игрока, и врагам); итог не ниже 1">
+                <span>Штраф движения в бою</span>
+                <input
+                  type="number" min={0}
+                  value={w.combat?.mov_penalty ?? 0}
+                  onChange={(e) => {
+                    const v = Math.max(0, Number(e.target.value) || 0)
+                    if (v > 0) w.combat = { ...(w.combat ?? {}), mov_penalty: v }
+                    else if (w.combat) delete w.combat.mov_penalty
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld fld-num" data-tip="Срезание дальности оружия (туман, темнота); итог ≥ 1">
+                <span>Срезание дальности</span>
+                <input
+                  type="number" min={0}
+                  value={w.combat?.range_penalty ?? 0}
+                  onChange={(e) => {
+                    const v = Math.max(0, Number(e.target.value) || 0)
+                    if (v > 0) w.combat = { ...(w.combat ?? {}), range_penalty: v }
+                    else if (w.combat) delete w.combat.range_penalty
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld" data-tip="Сдвиг навыков под погодой: навык=±сдвиг через запятую (dodge=-10, ranged=-20)">
+                <span>Сдвиг навыков</span>
+                <input
+                  value={(w.combat?.skill_mods ?? []).map((x) => `${x.skill}=${x.delta}`).join(', ')}
+                  onChange={(e) => {
+                    const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+                      const [skill, delta] = x.split('=').map((y) => y.trim())
+                      return { skill: skill || '', delta: Number(delta) || 0 }
+                    }).filter((x) => x.skill)
+                    if (arr.length) w.combat = { ...(w.combat ?? {}), skill_mods: arr }
+                    else if (w.combat) delete w.combat.skill_mods
+                    commit()
+                  }}
+                />
+              </label>
+              <label className="fld" data-tip="Статус, который действует на всех бойцов в бою под этой погодой (мороз, пар)">
+                <span>Статус в бою</span>
+                <select
+                  value={w.combat?.status ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v) w.combat = { ...(w.combat ?? {}), status: v }
+                    else if (w.combat) delete w.combat.status
+                    commit()
+                  }}
+                >
+                  <option value="">— нет —</option>
+                  {(m.statuses ?? []).map((st) => (
+                    <option key={st.id} value={st.id}>{st.label || st.id}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={async () => {
+            const label = await askText('Название погоды', 'например «Моросящий дождь»')
+            if (!label) return
+            if (!m.weathers) m.weathers = []
+            m.weathers.push({ id: makeId('weather_', label, m.weathers.map((x) => x.id)), label })
+            commit()
+          }}
+        >
+          + погода
+        </button>
+      </div>
+
 
       <div className="props-group">
         <h4>Финальные экраны (концовки)</h4>
@@ -1821,6 +2975,214 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
 
         </>
       )}
+      {tab === 'generators' && (() => {
+        const g = m.generators ?? { event_tables: [], npc: [], scenes: [], adventures: [] }
+        const setG = (next: typeof g) => { m.generators = next; commit() }
+        const ruleIds = new Set(store.ids('rule'))
+        const ruleExists = (rid: string) => ruleIds.has(rid)
+        const tables = g.event_tables ?? []
+        return (
+          <div className="props-group">
+            <h4>Таблицы случайных событий</h4>
+            <p className="muted small">
+              Включены — время от времени в мире случаются события: шаг мира,
+              бросок на шанс, затем выбор случайного подходящего правила
+              (проверяются условия, как у обычных правил). Отдельную таблицу можно
+              временно выключить. Событие можно вызвать и вручную — реакцией
+              «бросить таблицу случайных событий» у правил или в диалогах.
+            </p>
+            {tables.map((t, i) => (
+              <div key={t.id} className="panel" style={{ padding: 10, marginBottom: 10 }}>
+                <div className="fld-row">
+                  <input value={t.label} placeholder="Название таблицы (например «Пящие в деревне»)" onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, label: e.target.value } : x); setG({ ...g, event_tables: nt }) }} style={{ flex: 1 }} />
+                  <label className="fld fld-check" data-tip="Выключить таблицу (не удаляя)">
+                    <input type="checkbox" checked={!t.disabled} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, disabled: !e.target.checked || undefined } : x); setG({ ...g, event_tables: nt }) }} />
+                    <span>вкл</span>
+                  </label>
+                  <button className="btn btn-small btn-danger" onClick={() => setG({ ...g, event_tables: tables.filter((_, j) => j !== i) })}><Ico n="trash" /></button>
+                </div>
+                <div className="fld-row">
+                  <label className="fld" data-tip="Каждые N шагов мира (минут по умолчанию) — один бросок на событие">
+                    <span>ШАГ мира, минут</span>
+                    <input type="number" min={1} value={t.interval_ticks} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, interval_ticks: Math.max(1, +e.target.value || 1) } : x); setG({ ...g, event_tables: nt }) }} />
+                  </label>
+                  <label className="fld" data-tip="Вероятность события на шаге: 1 — каждый шаг, 0.5 — каждый второй в среднем">
+                    <span>Шанс 0..1</span>
+                    <input type="number" min={0} max={1} step={0.05} value={t.chance ?? 1} onChange={(e) => { const nt = tables.map((x, j) => j === i ? { ...x, chance: +e.target.value } : x); setG({ ...g, event_tables: nt }) }} />
+                  </label>
+                </div>
+                <span className="fld-label">Время суток события <span className="muted">(ничего не отмечено — в любое время)</span></span>
+                <div className="chips" style={{ margin: '4px 0 10px' }}>
+                  {(['morning', 'day', 'evening', 'night'] as const).map((tod) => {
+                    const labels = { morning: 'утро', day: 'день', evening: 'вечер', night: 'ночь' }
+                    const on = (t.time_of_day ?? []).includes(tod)
+                    return (
+                      <button key={tod} type="button" className={`chip ${on ? 'chip-on' : ''}`}
+                        onClick={() => {
+                          const cur = new Set(t.time_of_day ?? [])
+                          if (on) cur.delete(tod); else cur.add(tod)
+                          const nt = tables.map((x, j) => j === i ? { ...x, time_of_day: cur.size ? [...cur] : undefined } : x)
+                          setG({ ...g, event_tables: nt })
+                        }}>{labels[tod]}</button>
+                    )
+                  })}
+                </div>
+                <span className="fld-label">Только в локациях <span className="muted">(ничего не отмечено — везде)</span></span>
+                <div className="chips" style={{ margin: '4px 0 10px' }}>
+                  {locOpts.map((o) => {
+                    const on = (t.locations ?? []).includes(o.id)
+                    return (
+                      <button key={o.id} type="button" className={`chip ${on ? 'chip-on' : ''}`}
+                        onClick={() => {
+                          const cur = new Set(t.locations ?? [])
+                          if (on) cur.delete(o.id); else cur.add(o.id)
+                          const nt = tables.map((x, j) => j === i ? { ...x, locations: cur.size ? [...cur] : undefined } : x)
+                          setG({ ...g, event_tables: nt })
+                        }}>{o.label}</button>
+                    )
+                  })}
+                </div>
+                <span className="fld-label">Правила-кандидаты <span className="muted">(из них выбирается одно на событие; условия у правила сужают выбор)</span></span>
+                <div className="chips" style={{ margin: '4px 0 6px' }}>
+                  {store.options('rule').map((o) => {
+                    const on = t.rules.includes(o.id)
+                    return (
+                      <button key={o.id} type="button" className={`chip ${on ? 'chip-on' : ''}`}
+                        onClick={() => {
+                          const cur = new Set(t.rules)
+                          if (on) cur.delete(o.id); else cur.add(o.id)
+                          const nt = tables.map((x, j) => j === i ? { ...x, rules: [...cur] } : x)
+                          setG({ ...g, event_tables: nt })
+                        }}>{o.label}</button>
+                    )
+                  })}
+                </div>
+                {t.rules.some((r) => !ruleExists(r)) && (
+                  <div className="muted small" style={{ color: 'var(--danger, #d66)' }}>В списке есть отсутствующие правила — перевыберите их выше.</div>
+                )}
+              </div>
+            ))}
+            <button
+              className="btn btn-small"
+              onClick={() => {
+                const id = makeId('table', 'таблица', tables.map((x) => x.id))
+                setG({ ...g, event_tables: [...tables, { id, label: 'Новая таблица', interval_ticks: 6, chance: 0.5, rules: [] }] })
+              }}
+            >
+              <Ico n="plus" /> таблица событий
+            </button>
+            {tables.some((t) => (t.locations ?? []).some((l) => !locOpts.some((o) => o.id === l))) && (
+              <p className="muted small" style={{ color: 'var(--danger, #d66)' }}>Есть отметки по удалённым локациям — снимите их в таблицах выше.</p>
+            )}
+
+            <h4 style={{ marginTop: 18 }}>Генераторы лиц и мест</h4>
+            <p className="muted small">
+              Генераторы — это взвешенные списки значений мастера: движок выбирает
+              из них случайные имена, описания, детали мест и цели приключений.
+              Значение возвращают эффект «сгенерировать переменные» и вызовы в
+              диалогах; повторный вызов с тем же зерном даёт тот же результат.
+            </p>
+            <GeneratorKindSection
+              title="Лица (NPC)"
+              hint="Случайные имена, чины и характеры для встреч в мире."
+              items={g.npc ?? []}
+              onChange={(npc) => setG({ ...g, npc: npc.length ? npc : undefined })}
+              makeNew={(existing) => ({ id: makeId('gennpc', 'генератор лиц', existing.map((x) => x.id)), label: 'Новый генератор лиц', lists: {}, name: [] })}
+              store={store}
+              fields={<span>Складывание имени: подряд идут части — либо выбор из вашего списка, либо фиксированный текст. Поля — пары «что заполнить → из какого списка брать» (например: description — описание, disposition_label — метка расположения, stats.STR, skills.stealth).</span>}
+              renderBody={(gen, update, _store) => (
+                <>
+                  <GenListsEditor lists={gen.lists} onChange={(lists) => update({ ...gen, lists })} />
+                  <span className="fld-label">Имя из частей</span>
+                  {(gen.name ?? []).map((part, pi) => (
+                    <div key={pi} className="fld-row" style={{ alignItems: 'center' }}>
+                      <select value={part.list !== undefined ? 'list' : 'literal'} onChange={(e) => { const name = (gen.name ?? []).map((x, j) => j === pi ? (e.target.value === 'list' ? { list: Object.keys(gen.lists)[0] ?? '' } : { literal: ((x as { literal?: string }).literal ?? ' ') }) : x); update({ ...gen, name }) }}>
+                        <option value="list">выбор из списка</option>
+                        <option value="literal">фиксированный текст</option>
+                      </select>
+                      {part.list !== undefined ? (
+                        <select value={part.list} onChange={(e) => { const name = (gen.name ?? []).map((x, j) => j === pi ? ({ list: e.target.value }) : x); update({ ...gen, name }) }}>
+                          {Object.keys(gen.lists).map((k) => <option key={k} value={k}>{k}</option>)}
+                        </select>
+                      ) : (
+                        <input value={part.literal ?? ''} placeholder="текст (пробел, «-ог»…)" onChange={(e) => { const name = (gen.name ?? []).map((x, j) => j === pi ? ({ literal: e.target.value }) : x); update({ ...gen, name }) }} />
+                      )}
+                      <button className="btn btn-small" onClick={() => update({ ...gen, name: (gen.name ?? []).filter((_, j) => j !== pi) })}><Ico n="close" /></button>
+                    </div>
+                  ))}
+                  <button className="btn btn-small" onClick={() => update({ ...gen, name: [...(gen.name ?? []), { list: Object.keys(gen.lists)[0] ?? '' }] })} disabled={!Object.keys(gen.lists).length}><Ico n="plus" /> часть имени</button>
+                  <span className="fld-label" style={{ marginTop: 8 }}>Прочие поля персонажа</span>
+                  {Object.entries(gen.fields ?? {}).map(([fld, key]) => (
+                    <div key={fld} className="fld-row" style={{ alignItems: 'center' }}>
+                      <input value={genFieldLabel(fld)} disabled style={{ width: 230 }} data-tip={"Техническое имя поля: " + fld} />
+                      <select value={key} onChange={(e) => update({ ...gen, fields: { ...(gen.fields ?? {}), [fld]: e.target.value } })}>
+                        {Object.keys(gen.lists).map((k) => <option key={k} value={k}>{k}</option>)}
+                      </select>
+                      <button className="btn btn-small" onClick={() => { const fields = { ...(gen.fields ?? {}) }; delete fields[fld]; update({ ...gen, fields }) }}><Ico n="close" /></button>
+                    </div>
+                  ))}
+                  <div className="fld-row" style={{ alignItems: 'center' }}>
+                    <GenFieldAdder existing={gen.lists} onAdd={(fld, key) => update({ ...gen, fields: { ...(gen.fields ?? {}), [fld]: key } })} />
+                  </div>
+                </>
+              )}
+            />
+            <GeneratorKindSection
+              title="Места (описания сцен)"
+              hint="Случайные детали места в слотах сцены: «в углу —…», «пахнет —…»."
+              items={g.scenes ?? []}
+              onChange={(scenes) => setG({ ...g, scenes: scenes.length ? scenes : undefined })}
+              makeNew={(existing) => ({ id: makeId('gensc', 'генератор мест', existing.map((x) => x.id)), label: 'Новый генератор мест', lists: {}, slots: {} })}
+              store={store}
+              fields={<span>Слоты: «идентификатор слота сцены → какой список», значение ставится описанием слота.</span>}
+              renderBody={(gen, update, store) => (
+                <>
+                  <GenListsEditor lists={gen.lists} onChange={(lists) => update({ ...gen, lists })} />
+                  <span className="fld-label">Наполнение слотов сцены</span>
+                  {Object.entries(gen.slots ?? {}).map(([slotId, key]) => (
+                    <div key={slotId} className="fld-row" style={{ alignItems: 'center' }}>
+                      <GenSlotSelect slotId={slotId} store={store} onChange={(v) => { const slots = { ...(gen.slots ?? {}) }; delete slots[slotId]; slots[v] = key; update({ ...gen, slots }) }} />
+                      <select value={key} onChange={(e) => update({ ...gen, slots: { ...(gen.slots ?? {}), [slotId]: e.target.value } })}>
+                        {Object.keys(gen.lists).map((k) => <option key={k} value={k}>{k}</option>)}
+                      </select>
+                      <button className="btn btn-small" onClick={() => { const slots = { ...(gen.slots ?? {}) }; delete slots[slotId]; update({ ...gen, slots }) }}><Ico n="close" /></button>
+                    </div>
+                  ))}
+                  <GenSlotAdder store={store} gen={gen} onAdd={(slotId, key) => update({ ...gen, slots: { ...(gen.slots ?? {}), [slotId]: key } })} />
+                </>
+              )}
+            />
+            <GeneratorKindSection
+              title="Приключения (цепочки целей)"
+              hint="Цели квеста: строка с подстановками из ваших списков {список:ключ}."
+              items={g.adventures ?? []}
+              onChange={(adventures) => setG({ ...g, adventures: adventures.length ? adventures : undefined })}
+              makeNew={(existing) => ({ id: makeId('genadv', 'генератор приключений', existing.map((x) => x.id)), label: 'Новый генератор приключений', lists: {}, goals: [] })}
+              store={store}
+              fields={<span>Цели — строки, по одной. Подстановки пишите как {'{список:ключ}'} — их пункты выбираются из ваших списков.</span>}
+              renderBody={(gen, update) => (
+                <>
+                  <GenListsEditor lists={gen.lists} onChange={(lists) => update({ ...gen, lists })} />
+                  <label className="fld" data-tip="Одна цель на строку. Подстановка: {список:ключ} — выбирает пункт из списка">
+                    <span>Цели приключений (по строке)</span>
+                    <textarea
+                      rows={(gen.goals?.length ?? 0) + 2}
+                      value={(gen.goals ?? []).join('\n')}
+                      placeholder="Добыть в {список:места} трофей {список:трофеи}"
+                      onChange={(e) => update({ ...gen, goals: e.target.value.split('\n').filter((x) => x.trim()) })}
+                    />
+                  </label>
+                </>
+              )}
+            />
+            <div className="fld-row">
+              <button className="btn btn-small btn-danger" disabled={!m.generators} onClick={() => { delete m.generators; commit() }}>
+                Удалить весь блок
+              </button>
+            </div>
+          </div>
+        )
+      })()}
       {tab === 'json' && (
         <div className="advanced-json-page">
           <JsonField
@@ -1904,6 +3266,48 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                 <span>Длительность</span>
                 <input type="number" min={1} value={s.duration} onChange={(e) => ((s.duration = Math.max(1, Number(e.target.value) || 1)), commit())} />
               </label>
+            </div>
+            <div className="fld-row" style={{ alignItems: 'center' }}>
+              <label className="fld fld-check" data-tip="Болезни и яды с течением: каждую стадию — спасбросок CON; провал — тяжесть ↑ (урон и модификаторы ×тяжесть), успех — тяжесть ↓, при нуле выздоровление">
+                <input
+                  type="checkbox"
+                  checked={!!s.disease}
+                  onChange={(e) => {
+                    if (e.target.checked) s.disease = { interval_ticks: 24 }
+                    else delete s.disease
+                    commit()
+                  }}
+                />
+                <span>Болезнь / яд с течением</span>
+              </label>
+              {s.disease && (
+                <>
+                  <label className="fld fld-num" data-tip="Период стадий в мировых тиках">
+                    <span>Стадия каждые, тиков</span>
+                    <input
+                      type="number" min={1}
+                      value={s.disease.interval_ticks}
+                      onChange={(e) => ((s.disease!.interval_ticks = Math.max(1, Number(e.target.value) || 24)), commit())}
+                    />
+                  </label>
+                  <label className="fld fld-num" data-tip="Спасбросок CON × множитель (умолчание 5)">
+                    <span>Множитель CON</span>
+                    <input
+                      type="number" min={1}
+                      value={s.disease.con_multiplier ?? 5}
+                      onChange={(e) => ((s.disease!.con_multiplier = Math.max(1, Number(e.target.value) || 5)), commit())}
+                    />
+                  </label>
+                  <label className="fld fld-num" data-tip="Предел тяжести (умолчание 5)">
+                    <span>Предел тяжести</span>
+                    <input
+                      type="number" min={1}
+                      value={s.disease.severity_max ?? 5}
+                      onChange={(e) => ((s.disease!.severity_max = Math.max(1, Number(e.target.value) || 5)), commit())}
+                    />
+                  </label>
+                </>
+              )}
             </div>
             <label className="fld">
               <span>Описание (видно игроку)</span>
@@ -2128,7 +3532,49 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                   <input value={a.heal ?? ''} placeholder="1d6" onChange={(e) => ((a.heal = e.target.value || undefined), commit())} />
                 </label>
               )}
+              <label className="fld fld-check" data-tip="Заклинание действует только подготовленное в слот (слоты задаются ниже — «Слоты подготовки магии»)">
+                <input type="checkbox" checked={!!a.prepare} onChange={(e) => ((a.prepare = e.target.checked || undefined), commit())} />
+                <span>Требует подготовки</span>
+              </label>
             </div>
+            <details className="need-conds">
+              <summary>Откат при критическом провале ({(a.backlash_table ?? []).length ? `${a.backlash_table!.length} записей` : 'нет — просто промах'})</summary>
+              <div className="muted small" style={{ margin: '4px 0 6px' }}>
+                Магическое нарушение: срабатывает при критическом провале броска навыка применения; запись бьёт по заклинателю.
+              </div>
+              {(a.backlash_table ?? []).map((b, j) => (
+                <div className="fld-row" key={j} style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <label className="fld fld-num">
+                    <span>Вес</span>
+                    <input type="number" min={1} value={b.weight} onChange={(e) => ((b.weight = Math.max(1, Number(e.target.value) || 1)), commit())} />
+                  </label>
+                  <label className="fld fld-num" data-tip="Знаковое: −2 — заклинатель теряет 2 HP">
+                    <span>HP ±</span>
+                    <input value={b.hp_delta ?? ''} placeholder="0" onChange={(e) => ((b.hp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
+                  </label>
+                  <label className="fld fld-num" data-tip="Знаковое: −3 — заклинатель теряет 3 MP">
+                    <span>MP ±</span>
+                    <input value={b.mp_delta ?? ''} placeholder="0" onChange={(e) => ((b.mp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
+                  </label>
+                  <RefSelect
+                    label="Статус заклинателю"
+                    kind="status"
+                    store={store}
+                    value={b.status ?? ''}
+                    optional
+                    onChange={(v) => ((b.status = v || undefined), commit())}
+                  />
+                  <label className="fld" style={{ flex: 1, minWidth: 160 }}>
+                    <span>Строка в журнал</span>
+                    <input value={b.text ?? ''} onChange={(e) => ((b.text = e.target.value || undefined), commit())} />
+                  </label>
+                  <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => { a.backlash_table = a.backlash_table!.filter((_, k) => k !== j); if (!a.backlash_table.length) delete a.backlash_table; commit() }}><Ico n="close" /> </button>
+                </div>
+              ))}
+              <button className="btn btn-small" onClick={() => (((a.backlash_table ??= []).push({ weight: 1, hp_delta: -2 })), commit())}>
+                <Ico n="plus" /> Запись отката
+              </button>
+            </details>
           </details>
         ))}
         <button
@@ -2142,7 +3588,710 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
         >
           + способность
         </button>
+        <label className="fld fld-num" data-tip="Сколько способностей с галочкой «Требует подготовки» герой держит в голове одновременно. Пусто — подготовка не требуется">
+          <span>Слоты подготовки магии</span>
+          <input
+            type="number" min={0} value={m.magic?.slots ?? ''} placeholder="выключено"
+            onChange={(e) => {
+              const v = Number(e.target.value) || 0
+              if (v > 0) m.magic = { ...(m.magic ?? {}), slots: v }
+              else delete m.magic
+              commit()
+            }}
+          />
+        </label>
       </div>
     </>
+  )
+}
+
+/**
+ * Вкладка «Версии» (фаза B совместимости): версия кампании, минимальный
+ * движок, публикация обновления с контрактом `compat.json`.
+ *
+ * Совместимость считается автоматически: редактор сравнивает пакет с
+ * предыдущей публикацией и предлагает `save_base_version`. Мастер только
+ * подтверждает — вручную таблицы совместимости вести не нужно.
+ */
+function VersionsTab({ store, commit }: { store: EditorStore; commit: () => void }) {
+  const m = store.meta
+  const [, force] = useState(0)
+  const [compat, setCompat] = useState<CampaignCompat | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    void loadCompat(store).then((c) => setCompat(c))
+  }, [store])
+
+  const publish = async () => {
+    setBusy(true)
+    try {
+      const plan: PublishPlan = await planPublish(store)
+      const lines = diffReportLines(plan.diff)
+      await showList(
+        plan.previous ? `Обновление ${plan.previous.version} → ${plan.suggestedVersion}` : 'Первая публикация версии',
+        lines,
+        plan.diff.breaking
+          ? `Есть ломающие изменения: сохранения до версии ${plan.suggestedBase} поддерживаться не будут. Игрок увидит это до обновления кампании.`
+          : 'Ломающих изменений нет: сохранения игроков продолжат работать.',
+        { label: 'Скопировать отчёт', text: lines.join('\n') },
+      )
+      const nextVersion =
+        (await askText(
+          'Версия кампании',
+          'например 1.5.0',
+          plan.suggestedVersion,
+          'Опубликовать',
+        )) ?? ''
+      if (!nextVersion.trim()) return
+      const notes = (await askText('Что изменилось (видно игроку)', 'например «переписана глава 3»', plan.compat.notes ?? '', 'Записать')) ?? undefined
+      const paths = applyPublish(store, plan, nextVersion.trim(), notes)
+      await store.saveToDisk(paths)
+      setCompat(await loadCompat(store))
+      commit()
+      force((n) => n + 1)
+      await showAlert('Версия опубликована', `Записаны ${paths.join(', ')}. Сохраните кампанию, чтобы изменения попали на диск.`)
+    } catch (e) {
+      await showAlert('Не удалось опубликовать версию', String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const inventory = storeInventory(store)
+
+  return (
+    <>
+      <div className="props-group">
+        <h4>Версии</h4>
+        <p className="muted small">
+          Версия кампании — для игрока и для совместимости сохранений. Версия движка
+          и формат пакета подставляются сами: их задаёт Chronicle Forge, не мастер.
+        </p>
+        <div className="fld-row">
+          <label className="fld">
+            <span>Версия кампании</span>
+            <input value={m.version} onChange={(e) => ((m.version = e.target.value), commit())} />
+          </label>
+          <label className="fld" data-tip="Минимальная версия движка, на которой кампания работает корректно">
+            <span>Мин. движок</span>
+            <input
+              value={m.min_engine ?? ''}
+              placeholder={ENGINE_VERSION}
+              onChange={(e) => ((m.min_engine = e.target.value || undefined), commit())}
+            />
+          </label>
+          <div className="fld">
+            <span>Движок сейчас</span>
+            <input value={ENGINE_VERSION} readOnly />
+          </div>
+          <div className="fld">
+            <span>Формат пакета</span>
+            <input value={`v${PACKAGE_FORMAT}`} readOnly />
+          </div>
+        </div>
+        <div className="fld-row">
+          <label className="fld" data-tip="Сохранения от какой версии кампании ещё поддерживаются. Заполняется при публикации обновления.">
+            <span>Сохранения поддерживаются с версии</span>
+            <input
+              value={m.save_base_version ?? ''}
+              placeholder="поддерживаются все"
+              onChange={(e) => ((m.save_base_version = e.target.value || undefined), commit())}
+            />
+          </label>
+          <div className="fld">
+            <span>Быстро поднять версию</span>
+            <span className="btn-row">
+              <button className="btn btn-small" onClick={() => ((m.version = bumpVersion(m.version, 'patch')), commit())}>+_patch</button>
+              <button className="btn btn-small" onClick={() => ((m.version = bumpVersion(m.version, 'minor')), commit())}>+minor</button>
+              <button className="btn btn-small" onClick={() => ((m.version = bumpVersion(m.version, 'major')), commit())}>+major</button>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Контракт совместимости (compat.json)</h4>
+        {compat ? (
+          <p className="muted small">
+            Опубликована версия {compat.version}
+            {compat.save_base_version ? `; сохранения поддерживаются с ${compat.save_base_version}` : '; поддерживаются все сохранения'}
+            {compat.updated_at ? `; обновлено ${new Date(compat.updated_at).toLocaleString('ru-RU')}` : ''}
+            {compat.breaks?.length ? `; ломающих изменений: ${compat.breaks.length}` : ''}.
+          </p>
+        ) : (
+          <p className="muted small">
+            Контракта ещё нет: кампания не публиковалась. При первой публикации
+            редактор зафиксирует текущее состояние пакета как точку отсчёта.
+          </p>
+        )}
+        <p className="muted small">
+          Объектов в пакете: {Object.values(inventory.ids).reduce((n, list) => n + list.length, 0)} ·
+          отпечаток инвентаризации: <code>{inventory.digest}</code>
+        </p>
+        <button className="btn btn-primary" disabled={busy} onClick={() => void publish()}>
+          {busy ? 'Сравнение…' : 'Проверить совместимость и опубликовать версию'}
+        </button>
+      </div>
+    </>
+  )
+}
+
+
+// ─────────────── генераторы: конструкторы без JSON (фидбек «без техно-форм») ───────────────
+
+type GenBase = { id: string; label: string; description?: string; lists: Record<string, GenWeightedItem[]> }
+
+/** Панель генератора одного вида (лица/места/приключения): заготовка + фабрика. */
+function GeneratorKindSection<T extends GenBase>({
+  title,
+  hint,
+  items,
+  onChange,
+  makeNew,
+  fields,
+  store,
+  renderBody,
+}: {
+  title: string
+  hint: string
+  items: T[]
+  onChange: (next: T[]) => void
+  makeNew: (existing: T[]) => T
+  fields: React.ReactNode
+  store: EditorStore
+  renderBody: (gen: T, update: (g: T) => void, store: EditorStore) => React.ReactNode
+}) {
+  return (
+    <div className="props-group" style={{ borderTop: '1px dashed var(--border-soft)', marginTop: 12, paddingTop: 10 }}>
+      <h5 className="ce-subhead">{title}</h5>
+      <div className="muted small" style={{ marginBottom: 6 }}>{hint}</div>
+      {items.map((gen, i) => (
+        <div key={gen.id} className="panel" style={{ padding: 8, marginBottom: 8 }}>
+          <div className="fld-row">
+            <input value={gen.label} placeholder="Название генератора" style={{ flex: 1 }}
+              onChange={(e) => { const arr = items.map((x, j) => j === i ? { ...x, label: e.target.value } : x); onChange(arr) }} />
+            <button className="btn btn-small btn-danger" onClick={() => onChange(items.filter((_, j) => j !== i))}><Ico n="trash" /></button>
+          </div>
+          <label className="fld">
+            <span>Описание (для себя)</span>
+            <input value={gen.description ?? ''} onChange={(e) => { const arr = items.map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); onChange(arr) }} />
+          </label>
+          <div className="muted small" style={{ margin: '4px 0' }}>{fields}</div>
+          {renderBody(gen, (g2) => { const arr = items.map((x, j) => j === i ? g2 : x); onChange(arr) }, store)}
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={() => onChange([...items, makeNew(items)])}><Ico n="plus" /> {title.toLowerCase()}</button>
+    </div>
+  )
+}
+
+/** Списки генератора: ключ → строки «значение | вес» (вес опционален). */
+function GenListsEditor({
+  lists,
+  onChange,
+}: {
+  lists: Record<string, GenWeightedItem[]>
+  onChange: (next: Record<string, GenWeightedItem[]>) => void
+}) {
+  const addList = () => {
+    let n = 1
+    while (lists[`список_${n}`]) n++
+    onChange({ ...lists, [`список_${n}`]: [] })
+  }
+  return (
+    <>
+      <span className="fld-label">Списки значений (вес через «|»: «Суровый | 2»)</span>
+      {Object.entries(lists).map(([key, items]) => (
+        <div key={key} className="panel" style={{ padding: 8, marginBottom: 6 }}>
+          <div className="fld-row" style={{ alignItems: 'center' }}>
+            <input
+              value={key}
+              data-tip="Ключ списка — в подстановках {список:ключ} и привязках полей"
+              style={{ width: 170 }}
+              onChange={(e) => {
+                const nk = e.target.value.trim()
+                const next: Record<string, GenWeightedItem[]> = {}
+                for (const [k, v] of Object.entries(lists)) next[k === key && nk ? nk : k] = v
+                onChange(next)
+              }}
+            />
+            <button className="btn btn-small" onClick={() => { const next = { ...lists }; delete next[key]; onChange(next) }}><Ico n="close" /></button>
+          </div>
+          <textarea
+            rows={Math.min(6, items.length + 1)}
+            value={items.map((x) => (x.weight && x.weight !== 1 ? `${x.value} | ${x.weight}` : x.value)).join('\n')}
+            placeholder="один вариант на строку; реже/чаще — «вариант | вес»"
+            onChange={(e) => {
+              const items: GenWeightedItem[] = e.target.value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => {
+                const m = l.match(/^(.*?)\s*\|\s*(\d+)\s*$/)
+                return m ? { value: m[1] ?? '', weight: Math.max(1, +m![2] || 1) } : { value: l }
+              })
+              onChange({ ...lists, [key]: items })
+            }}
+          />
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={addList}><Ico n="plus" /> список значений</button>
+    </>
+  )
+}
+
+/** Русские подписи технических полей лица (имена в данных не переименовываем) */
+const GEN_FIELD_LABELS: Record<string, string> = {
+  description: 'описание',
+  disposition_label: 'метка расположения',
+}
+/** «описание (description)» — по-русски, с техническим именем рядом */
+export function genFieldLabel(field: string): string {
+  return GEN_FIELD_LABELS[field] ? `${GEN_FIELD_LABELS[field]} (${field})` : field
+}
+
+/** Добавление пары «поле → список» для лиц. */
+function GenFieldAdder({ existing, onAdd }: { existing: Record<string, GenWeightedItem[]>; onAdd: (field: string, key: string) => void }) {
+  const [field, setField] = useState('')
+  const keys = Object.keys(existing)
+  const [key, setKey] = useState(keys[0] ?? '')
+  return (
+    <>
+      <input
+        value={field}
+        placeholder="имя поля"
+        data-tip="Техническое имя поля лица: description (описание), disposition_label (метка расположения), stats.STR, skills.stealth, item.weapon…"
+        onChange={(e) => setField(e.target.value)}
+      />
+      <select value={keys.includes(key) ? key : keys[0] ?? ''} onChange={(e) => setKey(e.target.value)}>
+        {keys.map((k) => <option key={k} value={k}>{k}</option>)}
+      </select>
+      <button className="btn btn-small" disabled={!field.trim() || !keys.length} onClick={() => onAdd(field.trim(), keys.includes(key) ? key : keys[0] ?? '')}><Ico n="plus" /> поле</button>
+    </>
+  )
+}
+
+function GenSlotSelect({ slotId, store, onChange }: { slotId: string; store: EditorStore; onChange: (v: string) => void }) {
+  const opts = collectSlotOptions(store)
+  const known = opts.some((o) => o.id === slotId)
+  return (
+    <select value={slotId} onChange={(e) => onChange(e.target.value)} style={{ width: 200 }}>
+      {!known && <option value={slotId}>{slotId}</option>}
+      {opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+    </select>
+  )
+}
+
+function GenSlotAdder({ store, gen, onAdd }: { store: EditorStore; gen: { lists: Record<string, GenWeightedItem[]>; slots: Record<string, string> }; onAdd: (slotId: string, key: string) => void }) {
+  const opts = collectSlotOptions(store).filter((o) => !(gen.slots ?? {})[o.id])
+  const keys = Object.keys(gen.lists)
+  const [slotId, setSlotId] = useState(opts[0]?.id ?? '')
+  const [key, setKey] = useState(keys[0] ?? '')
+  if (!opts.length || !keys.length) return null
+  return (
+    <div className="fld-row" style={{ alignItems: 'center' }}>
+      <select value={opts.some((o) => o.id === slotId) ? slotId : opts[0]!.id} onChange={(e) => setSlotId(e.target.value)}>
+        {opts.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+      </select>
+      <select value={keys.includes(key) ? key : keys[0]} onChange={(e) => setKey(e.target.value)}>
+        {keys.map((k) => <option key={k} value={k}>{k}</option>)}
+      </select>
+      <button className="btn btn-small" onClick={() => onAdd(opts.some((o) => o.id === slotId) ? slotId : opts[0]!.id, keys.includes(key) ? key : keys[0]!)}><Ico n="plus" /> слот</button>
+    </div>
+  )
+}
+
+
+
+/** Все слоты всех сцен кампании: «сцена · слот» (значение — id слота). */
+function collectSlotOptions(store: EditorStore): Array<{ id: string; label: string }> {
+  const seen = new Set<string>()
+  const out: Array<{ id: string; label: string }> = []
+  for (const p of store.scenePaths()) {
+    const sc = store.scene(p)
+    if (!sc) continue
+    for (const sl of sc.slots ?? []) {
+      if (seen.has(sl.id)) continue
+      seen.add(sl.id)
+      out.push({ id: sl.id, label: `${sc.label}: ${sl.label ?? sl.id}` })
+    }
+  }
+  return out.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+}
+
+/**
+ * Реестр шаблонов видов существ (вместо встроенных пресетов движка):
+ * мастер описывает виды своей кампании, редактор персонажа предлагает
+ * «Применить вид» — перезаписывает статы/навыки/броню/оружие/мораль NPC.
+ */
+function SpeciesRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorStore; commit: () => void }) {
+  const list = (m.species ??= [])
+  return (
+    <div className="props-group">
+      <h4>Шаблоны видов существ</h4>
+      <div className="muted small" style={{ marginBottom: 8 }}>
+        Заготовки боевого костяка для персонажей: крыса, скелет, наёмник… В редакторе
+        персонажа кнопка «Применить вид» перезаписывает эти поля значениями шаблона.
+      </div>
+      {list.map((sp, i) => (
+        <details key={sp.id} className="need-conds">
+          <summary><b>{sp.label}</b>{sp.description ? <span className="muted small"> — {sp.description}</span> : null}</summary>
+          <div className="fld-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={sp.label} onChange={(e) => ((sp.label = e.target.value), commit())} />
+            </label>
+            <label className="fld" style={{ flex: 1 }}>
+              <span>Комментарий для мастера</span>
+              <input value={sp.description ?? ''} onChange={(e) => ((sp.description = e.target.value || undefined), commit())} />
+            </label>
+            <button className="btn btn-small ce-del" data-tip="Удалить вид" onClick={() => (list.splice(i, 1), commit())}><Ico n="close" /> </button>
+          </div>
+          <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+            {(['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const).map((k) => (
+              <label key={k} className="fld fld-num">
+                <span>{k}</span>
+                <input
+                  type="number" min={1} max={99}
+                  value={sp.stats?.[k] ?? 10}
+                  onChange={(e) => (((sp.stats ??= {})[k] = Number(e.target.value) || 10), commit())}
+                />
+              </label>
+            ))}
+            <label className="fld fld-num" data-tip="Очки брони без предмета (шкура, кости, кираса рода)">
+              <span>Броня</span>
+              <input type="number" min={0} value={sp.armor ?? 0} onChange={(e) => ((sp.armor = Number(e.target.value) || undefined), commit())} />
+            </label>
+          </div>
+          <div className="fld-block">
+            <span className="fld-caption">Навыки вида</span>
+            {Object.entries(sp.skills ?? {}).map(([skill, val], j) => (
+              <div className="fld-row" key={j}>
+                <RefSelect label="Навык" kind="skill" store={store} value={skill} optional={false} onChange={(v) => {
+                  const sk = { ...(sp.skills ?? {}) }
+                  delete sk[skill]
+                  sk[v ?? ''] = val
+                  sp.skills = sk
+                  commit()
+                }} />
+                <label className="fld fld-num">
+                  <span>%</span>
+                  <input type="number" min={0} max={200} value={val} onChange={(e) => (((sp.skills ??= {})[skill] = Number(e.target.value) || 0), commit())} />
+                </label>
+                <button className="btn btn-small ce-del" data-tip="Убрать навык" onClick={() => {
+                  const sk = { ...(sp.skills ?? {}) }
+                  delete sk[skill]
+                  sp.skills = sk
+                  commit()
+                }}><Ico n="close" /> </button>
+              </div>
+            ))}
+            <button className="btn btn-small" onClick={() => {
+              const sk = { ...(sp.skills ?? {}) }
+              const free = store.options('skill').find((o) => !(o.id in sk))
+              sk[free?.id ?? 'spot'] = 30
+              sp.skills = sk
+              commit()
+            }}>+ навык</button>
+          </div>
+          <div className="fld-block">
+            <span className="fld-caption">Природное оружие (укус, когти — необязательно)</span>
+            <label className="fld fld-check" style={{ marginBottom: 6 }}>
+              <input
+                type="checkbox"
+                checked={!!sp.natural_weapon}
+                onChange={(e) => {
+                  if (e.target.checked) sp.natural_weapon = { skill: store.options('skill')[0]?.id ?? 'brawl', damage: '1d4', label: 'Удар' }
+                  else delete sp.natural_weapon
+                  commit()
+                }}
+              />
+              <span>У вида есть природное оружие</span>
+            </label>
+            {sp.natural_weapon && (
+              <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                <RefSelect label="Навык атаки" kind="skill" store={store} value={sp.natural_weapon.skill} optional={false} onChange={(v) => ((sp.natural_weapon!.skill = v ?? ''), commit())} />
+                <label className="fld">
+                  <span>Урон</span>
+                  <input value={sp.natural_weapon.damage} onChange={(e) => ((sp.natural_weapon!.damage = e.target.value), commit())} />
+                </label>
+                <label className="fld">
+                  <span>Название удара</span>
+                  <input value={sp.natural_weapon.label ?? ''} onChange={(e) => ((sp.natural_weapon!.label = e.target.value || undefined), commit())} />
+                </label>
+                <label className="fld fld-check" data-tip="Прибавлять бонус повреждения от силы к урону">
+                  <input type="checkbox" checked={!!sp.natural_weapon.damage_bonus} onChange={(e) => ((sp.natural_weapon!.damage_bonus = e.target.checked || undefined), commit())} />
+                  <span>+ бонус силы</span>
+                </label>
+              </div>
+            )}
+          </div>
+          <div className="fld-block">
+            <span className="fld-caption">Способности вида (из реестра «Статусы и способности»)</span>
+            <div className="chips">
+              {(m.abilities ?? []).map((a) => {
+                const on = (sp.abilities ?? []).includes(a.id)
+                return (
+                  <button key={a.id} type="button" className={`chip ${on ? 'chip-on' : ''}`} onClick={() => {
+                    const set = new Set(sp.abilities ?? [])
+                    if (on) set.delete(a.id); else set.add(a.id)
+                    if (set.size) sp.abilities = [...set]; else delete sp.abilities
+                    commit()
+                  }}>{a.label || a.id}</button>
+                )
+              })}
+              {(m.abilities ?? []).length === 0 && <span className="muted small">В кампании пока нет способностей.</span>}
+            </div>
+          </div>
+          <div className="fld-row">
+            <label className="fld fld-num" data-tip="Ниже этого % здоровья существо может бросить бой">
+              <span>Порог бегства, % HP</span>
+              <input
+                type="number" min={0} max={100}
+                value={sp.morale?.below_hp_pct ?? ''} placeholder="не сбегает"
+                onChange={(e) => {
+                  const v = Number(e.target.value) || 0
+                  if (v > 0) sp.morale = { below_hp_pct: v, flee_chance: sp.morale?.flee_chance ?? 50 }
+                  else delete sp.morale
+                  commit()
+                }}
+              />
+            </label>
+            {sp.morale && (
+              <label className="fld fld-num" data-tip="Шанс побега в начале хода (0–100%)">
+                <span>Шанс побега, %</span>
+                <input type="number" min={0} max={100} value={sp.morale.flee_chance} onChange={(e) => ((sp.morale!.flee_chance = Number(e.target.value) || 0), commit())} />
+              </label>
+            )}
+          </div>
+        </details>
+      ))}
+      <button
+        className="btn btn-small"
+        onClick={async () => {
+          const label = await askText('Название вида', 'например «Горная крыса»')
+          if (!label) return
+          list.push({ id: makeId('species_', label, list.map((x) => x.id)), label, stats: { STR: 10, CON: 10, SIZ: 10, DEX: 10, INT: 10, POW: 10, CHA: 10 } })
+          commit()
+        }}
+      >
+        + вид
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Портреты героя (пункт «портрет героя»): галерея готовых карточек и/или
+ * составной облик по сегментам («лицо», «волосы», «одежда»). Игрок выбирает
+ * на экране создания персонажа; портрет едет в лист персонажа. У каждого
+ * варианта — состояния облика: ранен (< половины HP), устал (потребность ≤ 25),
+ * обычный, либо любой статус из реестра (пока он активен на герое).
+ */
+function HeroPortraitsEditor({ m, store, commit }: { m: CampaignMeta; store: EditorStore; commit: () => void }) {
+  const cc = (m.char_creation ??= ({} as CampaignMeta['char_creation']))!
+  if (!cc.total_points) return null // блок выключен — портретам неоткуда жить
+  const emotions = m.emotions ?? []
+  const statuses = m.statuses ?? []
+  let uid = 1 + (cc.portraits?.length ?? 0) + (cc.portrait_layers?.reduce((n, l) => n + l.options.length, 0) ?? 0)
+  const nextId = (prefix: string) => `${prefix}_${uid++}`
+
+  /** конструктор состояний облика: выбор ключа + свой кадр */
+  function StatesEditor({ states, dir, onChange }: { states: Record<string, ImageValue> | undefined; dir: string; onChange: (v: Record<string, ImageValue> | undefined) => void }) {
+    const cur = states ?? {}
+    const stdKeys: Array<{ id: string; label: string }> = [
+      { id: 'wounded', label: 'Ранен (HP < 50%)' },
+      { id: 'tired', label: 'Устал (потребность ≤ 25)' },
+      { id: 'neutral', label: 'Обычный (по умолчанию)' },
+    ]
+    const statusKeys = statuses.map((st) => ({ id: st.id, label: `Статус «${st.label || st.id}»` }))
+    const allKeys = [...stdKeys, ...statusKeys]
+    return (
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        {Object.keys(cur).map((k) => (
+          <div key={k} style={{ position: 'relative' }}>
+            <AnimImageEditor
+              label={allKeys.find((x) => x.id === k)?.label ?? k}
+              value={cur[k]}
+              dir={dir}
+              store={store}
+              onChange={(v) => {
+                const next = { ...cur }
+                if (v) next[k] = v
+                else delete next[k]
+                onChange(Object.keys(next).length ? next : undefined)
+              }}
+            />
+            <button
+              className="btn btn-small ce-del"
+              data-tip="Убрать состояние"
+              style={{ position: 'absolute', top: 0, right: 0 }}
+              onClick={() => {
+                const next = { ...cur }
+                delete next[k]
+                onChange(Object.keys(next).length ? next : undefined)
+              }}
+            >
+              <Ico n="close" />
+            </button>
+          </div>
+        ))}
+        <select
+          className="btn btn-small"
+          value=""
+          data-tip="Добавить состояние облика — отдельный кадр для этого случая"
+          onChange={(e) => {
+            const k = e.target.value
+            if (!k) return
+            onChange({ ...cur, [k]: '' })
+          }}
+        >
+          <option value="">+ состояние…</option>
+          {allKeys.filter((k) => !(k.id in cur)).map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+        </select>
+        {emotions.length > 0 && (
+          <span className="muted small" style={{ alignSelf: 'center' }}>свои ключи состояний — из реестра «Состояния» выше</span>
+        )}
+      </div>
+    )
+  }
+
+  /** карточка портрета галереи */
+  function PortraitRow({ p }: { p: NonNullable<typeof cc.portraits>[number] }) {
+    const list = cc.portraits!
+    return (
+      <details className="need-conds">
+        <summary>
+          {p.label || '(без названия)'}
+          <button
+            className="btn btn-small ce-del"
+            data-tip="Удалить портрет"
+            onClick={(e) => {
+              e.preventDefault(); e.stopPropagation()
+              list.splice(list.indexOf(p), 1)
+              if (!list.length) delete cc.portraits
+              commit()
+            }}
+          >
+            <Ico n="close" />
+          </button>
+        </summary>
+        <div className="fld-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <label className="fld" style={{ minWidth: 160 }}>
+            <span>Название</span>
+            <input value={p.label} onChange={(e) => ((p.label = e.target.value), commit())} />
+          </label>
+          <AnimImageEditor
+            label="Портрет"
+            value={p.image}
+            dir="assets/img/hero"
+            store={store}
+            onChange={(v) => ((p.image = v ?? ''), commit())}
+          />
+        </div>
+        <div className="muted small" style={{ margin: '4px 0' }}>Состояния облика (необязательно):</div>
+        <StatesEditor
+          states={p.states}
+          dir="assets/img/hero"
+          onChange={(v) => ((p.states = v), commit())}
+        />
+      </details>
+    )
+  }
+
+  /** сегмент составного портрета */
+  function LayerGroup({ layer }: { layer: { id: string; label: string; options: Array<{ id: string; label: string; image: ImageValue; states?: Record<string, ImageValue> }> } }) {
+    const layers = cc.portrait_layers!
+    return (
+      <details className="need-conds">
+        <summary>
+          {layer.label || '(сегмент)'} · вариантов: {layer.options.length}
+          <button
+            className="btn btn-small ce-del"
+            data-tip="Удалить сегмент"
+            onClick={(e) => {
+              e.preventDefault(); e.stopPropagation()
+              layers.splice(layers.indexOf(layer), 1)
+              if (!layers.length) delete cc.portrait_layers
+              commit()
+            }}
+          >
+            <Ico n="close" />
+          </button>
+        </summary>
+        <label className="fld" style={{ maxWidth: 260 }}>
+          <span>Название сегмента (видит игрок)</span>
+          <input value={layer.label} onChange={(e) => ((layer.label = e.target.value), commit())} />
+        </label>
+        {layer.options.map((o) => (
+          <details key={o.id} className="need-conds" style={{ marginLeft: 8 }}>
+            <summary>
+              {o.label || '(вариант)'}
+              <button
+                className="btn btn-small ce-del"
+                data-tip="Удалить вариант"
+                onClick={(e) => {
+                  e.preventDefault(); e.stopPropagation()
+                  layer.options.splice(layer.options.indexOf(o), 1)
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </summary>
+            <div className="fld-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <label className="fld" style={{ minWidth: 140 }}>
+                <span>Название варианта</span>
+                <input value={o.label} onChange={(e) => ((o.label = e.target.value), commit())} />
+              </label>
+              <AnimImageEditor
+                label="Изображение слоя"
+                value={o.image}
+                dir="assets/img/hero"
+                store={store}
+                onChange={(v) => ((o.image = v ?? ''), commit())}
+              />
+            </div>
+            <StatesEditor
+              states={o.states}
+              dir="assets/img/hero"
+              onChange={(v) => ((o.states = v), commit())}
+            />
+          </details>
+        ))}
+        <button
+          className="btn btn-small"
+          onClick={() => (layer.options.push({ id: nextId('opt'), label: 'Вариант', image: '' }), commit())}
+        >
+          <Ico n="plus" /> Вариант
+        </button>
+      </details>
+    )
+  }
+
+  return (
+    <div className="props-group" style={{ marginTop: 8 }}>
+      <h4>Портрет героя</h4>
+      <div className="muted small" style={{ marginBottom: 8 }}>
+        Задайте готовые портреты (игрок выберет карточку) и/или сегменты для
+        составного облика (игрок соберёт себя из вариантов: лицо + волосы + одежда).
+        В обоих случаях можно дать отдельные кадры для состояний: «ранен», «устал»,
+        либо под конкретный статус из реестра — облик будет меняться по ходу игры.
+      </div>
+      {(cc.portraits ?? []).map((p) => <PortraitRow key={p.id} p={p} />)}
+      <button
+        className="btn btn-small"
+        onClick={() => ((cc.portraits ??= []).push({ id: nextId('portrait'), label: 'Портрет', image: '' }), commit())}
+      >
+        <Ico n="plus" /> Готовый портрет
+      </button>
+      <div className="muted small" style={{ margin: '10px 0 6px' }}>Составной облик по сегментам:</div>
+      {(cc.portrait_layers ?? []).map((l) => <LayerGroup key={l.id} layer={l} />)}
+      <div>
+        <button
+          className="btn btn-small"
+          onClick={() => ((cc.portrait_layers ??= []).push({ id: nextId('layer'), label: 'Сегмент', options: [{ id: nextId('opt'), label: 'Вариант', image: '' }] }), commit())}
+        >
+          <Ico n="plus" /> Сегмент облика
+        </button>
+      </div>
+    </div>
   )
 }

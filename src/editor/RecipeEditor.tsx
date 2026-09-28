@@ -149,6 +149,14 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
             }}
           />
         </label>
+        <label className="fld fld-check" data-tip="Результат — не новый предмет, а полная прочность изношенного экземпляра. Нужен изношенный экземпляр результата.">
+          <input
+            type="checkbox"
+            checked={!!recipe.repair}
+            onChange={(e) => ((recipe.repair = e.target.checked || undefined), commit())}
+          />
+          <span>Рецепт починки (восстанавливает прочность)</span>
+        </label>
         <label className="fld">
           <span>Сообщение об успехе (пусто — стандартное)</span>
           <input value={recipe.message ?? ''} onChange={(e) => ((recipe.message = e.target.value || undefined), commit())} />

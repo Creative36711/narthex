@@ -53,6 +53,25 @@ export function injectCampaignFonts(campaign: CampaignData | null): void {
     .join('\n')
 }
 
+const CUSTOM_CSS_ID = 'cf-campaign-custom-css'
+
+/**
+ * Вставить (или заменить) полный CSS мастера (theme.custom_css).
+ * Зона видимости — только игра: селекторы автора работают внутри `.cf-themed`
+ * в браузере естественным образом; редактор не покрывается. Пустой — стиль
+ * удаляется.
+ */
+export function injectCampaignCustomCss(campaign: CampaignData | null): void {
+  if (typeof document === 'undefined') return
+  let el = document.getElementById(CUSTOM_CSS_ID) as HTMLStyleElement | null
+  if (!el) {
+    el = document.createElement('style')
+    el.id = CUSTOM_CSS_ID
+    document.head.appendChild(el)
+  }
+  el.textContent = campaign?.meta.theme?.custom_css ?? ''
+}
+
 /** найти шрифт реестра по id */
 function fontById(campaign: CampaignData | null, id?: string) {
   return campaign?.meta.fonts?.find((f) => f.id === id)
@@ -74,8 +93,25 @@ export function themeVars(campaign: CampaignData | null, textScale = 1): CSSProp
     vars['--gold'] = theme.accent
     vars['--gold-bright'] = brightenHex(theme.accent)
   }
+  // тоны поверхностей (мастерская докрутка): панели/карточки/колодцы/журнал
+  const tok = theme?.tokens
+  if (tok?.panel) vars['--panel'] = tok.panel
+  if (tok?.cards) vars['--panel-2'] = tok.cards
+  if (tok?.inset) vars['--inset'] = tok.inset
+  if (tok?.log) vars['--log-bg'] = tok.log
+  // рамка-«кадр» вокруг панелей (9-срез изображения)
+  if (theme?.frame?.image && campaign) {
+    vars['--cf-frame-src'] = `url('${assetUrl(campaign, theme.frame.image)}')`
+    vars['--cf-frame-slice'] = String(theme.frame.slice ?? 30)
+    vars['--cf-frame-w'] = `${theme.frame.width ?? 20}px`
+  }
   if (textScale !== 1) vars['--cf-text-scale'] = String(textScale)
   return vars as CSSProperties
+}
+
+/** у темы задана рамка-«кадр»? (класс cf-has-frame на контейнере) */
+export function themeHasFrame(campaign: CampaignData | null): boolean {
+  return !!campaign?.meta.theme?.frame?.image
 }
 
 /** фон меню/финала как CSS-значение (или пусто) */

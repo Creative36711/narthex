@@ -354,6 +354,14 @@ function LocationProps({
           }} />
           <span>Скрыта до открытия</span>
         </label>
+        <label className="fld fld-check" data-tip="Здесь можно разбить лагерь и переночевать; конфиг ночлега — в настройках кампании (meta.camping)">
+          <input type="checkbox" checked={!!loc.camp} onChange={(e) => {
+            if (e.target.checked) loc.camp = true
+            else delete loc.camp
+            commit()
+          }} />
+          <span>Можно разбить лагерь</span>
+        </label>
       </div>
 
       <div className="fld-block">

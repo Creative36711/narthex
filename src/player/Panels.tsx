@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Ico } from '../shared/icons'
+import { PlayerPortrait } from './PlayerPortrait'
 import { askConfirm } from '../shared/modals'
 import type { GameEngine } from '../core/engine'
-import { featureOn, type Effect, type ItemDef, type RecipeDef } from '../shared/types'
+import { featureOn, type Effect, type ItemDef, type NpcDef, type RecipeDef } from '../shared/types'
 import { damageBonus, movement } from '../core/brp'
-import { playInteraction } from '../shared/audio'
+import { playInteraction, playUi } from '../shared/audio'
 
 /** человекочитаемое описание эффектов on_use (фидбек №7: «сколько HP лечит мазь») */
 function describeUseEffects(engine: GameEngine, effects: Effect[]): string {
@@ -24,19 +25,82 @@ function describeUseEffects(engine: GameEngine, effects: Effect[]): string {
 const EQUIP_FILTERS = ['all', 'equipped', 'unequipped'] as const
 
 /** Инвентарь (ТЗ 4.6 — базовая часть Фазы 0: список, вес, использование). */
+/** Все определения предметов в инвентаре героя (для составления фильтра категорий). */
+function inventoryDefs(engine: GameEngine): Array<ItemDef | undefined> {
+  return engine.state.player.inventory.map((e) => engine.campaign.entities[e.item] as ItemDef | undefined)
+}
+
+/** Категории предметов, которые реально встречаются в списке: [[id, название], ...] + флаг «есть без категории». */
+export function presentItemCategories(engine: GameEngine, defs: Array<ItemDef | undefined>) {
+  const names = new Map<string, string>()
+  let misc = false
+  for (const d of defs) {
+    if (!d || d.type !== 'item') continue
+    if (!d.category) { misc = true; continue }
+    if (!names.has(d.category)) {
+      const rec = engine.campaign.meta.item_categories?.find((c) => c.id === d.category)
+      names.set(d.category, rec?.label ?? d.category)
+    }
+  }
+  return {
+    cats: [...names.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ru')),
+    misc,
+  }
+}
+
+/** Чипы фильтра по категориям (инвентарь и торговля). Появляются, только если категорий больше одной. */
+export function ItemCategoryChips({ engine, defs, cat, setCat }: {
+  engine: GameEngine
+  defs: Array<ItemDef | undefined>
+  cat: string
+  setCat: (v: string) => void
+}) {
+  const { cats, misc } = presentItemCategories(engine, defs)
+  if (cats.length + (misc ? 1 : 0) < 2) return null
+  return (
+    <div className="chips inv-cat-chips" aria-label="Фильтр по категориям">
+      <button key="all" type="button" className={`chip ${cat === 'all' ? 'chip-on' : ''}`} onClick={() => setCat('all')}>
+        Все категории
+      </button>
+      {cats.map(([id, label]) => (
+        <button key={id} type="button" className={`chip ${cat === id ? 'chip-on' : ''}`} onClick={() => setCat(id)}>
+          {label}
+        </button>
+      ))}
+      {misc && (
+        <button key="__misc" type="button" className={`chip ${cat === '__misc' ? 'chip-on' : ''}`} onClick={() => setCat('__misc')}>
+          Прочее
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
   const [q, setQ] = useState('')
   const [equipFilter, setEquipFilter] = useState<(typeof EQUIP_FILTERS)[number]>('all')
+  const [cat, setCat] = useState<string>('all')
+  const [sort, setSort] = useState<'name' | 'weight' | 'got'>('name')
   const inv = engine.state.player.inventory
   const items = inv
     .map((e) => ({ entry: e, def: engine.campaign.entities[e.item] as ItemDef | undefined }))
     .filter((x) => x.def?.type === 'item')
     .filter((x) => {
       if (q.trim() && !(x.def!.label ?? '').toLowerCase().includes(q.trim().toLowerCase())) return false
-      if (equipFilter === 'all') return true
-      const on = engine.isEquipped(x.entry.item)
-      return equipFilter === 'equipped' ? on : !on
+      if (equipFilter !== 'all') {
+        const on = engine.isEquipped(x.entry.item)
+        if (equipFilter === 'equipped' ? !on : on) return false
+      }
+      if (cat !== 'all') {
+        if (cat === '__misc' ? !!x.def!.category : x.def!.category !== cat) return false
+      }
+      return true
     })
+  // сортировка: по названию (по умолчанию), по весу стопки или в порядке получения
+  if (sort === 'name') items.sort((a, b) => (a.def!.label ?? '').localeCompare(b.def!.label ?? '', 'ru'))
+  else if (sort === 'weight') {
+    items.sort((a, b) => (b.def!.weight ?? 0) * b.entry.quantity - (a.def!.weight ?? 0) * a.entry.quantity)
+  }
   const totalWeight = items.reduce((sum, x) => sum + (x.def!.weight ?? 0) * x.entry.quantity, 0)
   const currencies = engine.campaign.meta.currencies
 
@@ -69,6 +133,14 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
               </button>
             ))}
           </div>
+          <ItemCategoryChips engine={engine} defs={inventoryDefs(engine)} cat={cat} setCat={setCat} />
+          <div className="chips inv-sort-chips" aria-label="Сортировка">
+            {([['name', 'По названию'], ['weight', 'По весу'], ['got', 'По порядку получения']] as const).map(([k, lbl]) => (
+              <button key={k} type="button" className={`chip ${sort === k ? 'chip-on' : ''}`} onClick={() => setSort(k)}>
+                {lbl}
+              </button>
+            ))}
+          </div>
         </div>
         <h3>Экипировка</h3>
         <div className="equip-slots">
@@ -93,7 +165,7 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
         {items.length === 0 && <p className="muted">Пусто.</p>}
         <ul className="inv-list">
           {items.map(({ entry, def }) => (
-            <li key={entry.item} className="inv-item">
+            <li key={`${entry.item}:${entry.durability ?? "full"}:${(def!.weight ?? 0)}`} className="inv-item">
               <div className="inv-item-main">
                 <b>{def!.label}</b>
                 {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
@@ -106,6 +178,17 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                   <div className="muted small">
                     Оружие: {def!.weapon_data.damage}
                     {def!.weapon_data.damage_bonus ? '+ бонус силы' : ''} · навык «{engine.skillLabel(def!.weapon_data.skill)}»
+                    {def!.weapon_data.durability !== undefined && (
+                      <> · прочность {entry.durability ?? def!.weapon_data.durability}/{def!.weapon_data.durability}
+                        {(entry.durability ?? def!.weapon_data.durability) === 0 && <b> (СЛОМАНО)</b>}
+                      </>
+                    )}
+                  </div>
+                )}
+                {def!.armor_data && def!.armor_data.durability !== undefined && (
+                  <div className="muted small">
+                    Прочность брони: {entry.durability ?? def!.armor_data.durability}/{def!.armor_data.durability}
+                    {(entry.durability ?? def!.armor_data.durability) === 0 && <b> (СЛОМАНО)</b>}
                   </div>
                 )}
                 {def!.armor_data && <div className="muted small">Броня: −{def!.armor_data.points} к урону</div>}
@@ -176,9 +259,25 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>{def?.label ?? 'Герой'}</h2>
+          <h2>{p.name ? `${p.name} · ${def?.label ?? 'Герой'}` : (def?.label ?? 'Герой')}</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
+        {(() => {
+          const portrait = <PlayerPortrait engine={engine} size={104} />
+          const dossier = (p.age !== undefined || p.bio) && (
+            <div className="char-dossier">
+              {p.age !== undefined && <div className="muted small">Возраст: {p.age}</div>}
+              {p.bio && <div className="char-bio small">{p.bio}</div>}
+            </div>
+          )
+          if (!portrait) return dossier
+          return (
+            <div className="char-hero-card">
+              {portrait}
+              {dossier && <div className="char-hero-card-side">{dossier}</div>}
+            </div>
+          )
+        })()}
         <h3>Характеристики</h3>
         <div className="stat-grid">
           {statNames.map((s) => (
@@ -188,6 +287,50 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
             </div>
           ))}
         </div>
+        {(() => {
+          // способности героя и слоты подготовки магии (meta.magic.slots)
+          const entDef = engine.campaign.entities[p.entity] as NpcDef | undefined
+          const abs = (entDef?.abilities ?? [])
+            .map((id) => meta.abilities?.find((a) => a.id === id))
+            .filter(Boolean) as Array<{ id: string; label: string; description?: string; mp_cost: number; prepare?: boolean }>
+          if (!abs.length) return null
+          const slots = meta.magic?.slots
+          const prepared = p.prepared_abilities ?? []
+          return (
+            <>
+              <h3>Способности</h3>
+              {slots !== undefined && (
+                <div className="muted small" style={{ marginBottom: 6 }}>
+                  Слоты подготовки: {prepared.filter((id) => abs.some((a) => a.id === id && a.prepare)).length} / {slots} — чаровать можно только вне боя.
+                </div>
+              )}
+              <ul className="status-list">
+                {abs.map((a) => (
+                  <li key={a.id} className="status-item">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <b>{a.label}</b>
+                      <span className="muted small">MP {a.mp_cost}</span>
+                      {slots !== undefined && a.prepare && (
+                        <button
+                          className={`chip ${prepared.includes(a.id) ? 'chip-on' : ''}`}
+                          style={{ marginLeft: 'auto' }}
+                          data-tip={prepared.includes(a.id) ? 'Убрать из подготовленных' : 'Подготовить в слот'}
+                          onClick={() => {
+                            if (!engine.togglePreparedAbility(a.id)) playUi('error')
+                            engine.notify()
+                          }}
+                        >
+                          {prepared.includes(a.id) ? 'Подготовлена' : 'В слот'}
+                        </button>
+                      )}
+                    </div>
+                    {a.description && <div className="muted small">{a.description}</div>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )
+        })()}
         {(p.statuses ?? []).length > 0 && (
           <>
             <h3>Состояния</h3>
@@ -240,20 +383,123 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
           </div>
         )}
 
-        {skillsOn && (
+        {engine.progressionEnabled() && (
           <>
-            <h3>Навыки <span className="muted small">(<Ico n="check" />  — готов к росту после сна)</span></h3>
+            <h3>Прокачка</h3>
+            <div className="derived-row">
+              <span>Уровень {engine.level()}</span>
+              <span>Опыт {engine.xp()}{engine.xpToNext() != null ? ` / +${engine.xpToNext()} до след.` : ' (потолок)'}</span>
+              {engine.pendingFeats() > 0 && <span className="skill-mark">Доступно черт: {engine.pendingFeats()}</span>}
+            </div>
+            {(p.feats ?? []).length > 0 && (
+              <ul className="skill-list">
+                {(p.feats ?? []).map((fid) => {
+                  const f = engine.campaign.meta.progression?.feats?.find((x) => x.id === fid)
+                  return (
+                    <li key={fid} data-tip={f?.description || undefined}>
+                      <span><Ico n="star" />  {f?.label ?? fid}</span>
+                      <span className="skill-val">черта</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+            {engine.pendingFeats() > 0 && (
+              <div className="feat-picks">
+                <h4 className="skill-cat">Выберите черту:</h4>
+                <ul className="skill-list">
+                  {engine.availableFeats().filter((f) => engine.featEligible(f)).map((f) => (
+                    <li key={f.id} data-tip={f.description || undefined}>
+                      <span>{f.label}</span>
+                      <button className="btn btn-small" onClick={() => engine.takeFeat(f.id)}>Взять</button>
+                    </li>
+                  ))}
+                  {engine.availableFeats().filter((f) => !engine.featEligible(f)).map((f) => (
+                    <li key={f.id} className="muted" data-tip={`${f.description ?? ''}\n(требования не выполнены)`}>
+                      <span>{f.label} — недоступна</span>
+                      <span className="skill-val">—</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {(engine.wealthLevels().length > 0 || engine.reputationEnabled() || Object.keys(p.passions ?? {}).length > 0 || Object.keys(p.allegiance ?? {}).length > 0) && (
+          <>
+            <h3>Мир и характер</h3>
             <ul className="skill-list">
-              {Object.entries(p.skills).sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (
-                <li key={id}>
-                  <span>
-                    {engine.skillLabel(id)}
-                    {p.skill_marks?.[id] && <span className="skill-mark"> <Ico n="check" /> </span>}
-                  </span>
+              {engine.wealthLevels().length > 0 && (
+                <li data-tip={'Уровень достатка на шкале мастера (meta.wealth_levels).\nМеняется эффектами change_wealth.'}>
+                  <span><Ico n="coin" />  Достаток</span>
+                  <span className="skill-val">{engine.wealthLevelLabel()}</span>
+                </li>
+              )}
+              {engine.reputationEnabled() && (
+                <li data-tip="Репутация героя; меняется деяниями (эффекты change_reputation).">
+                  <span><Ico n="star" />  {engine.reputationLabel()}</span>
+                  <span className="skill-val">{engine.reputation()}</span>
+                </li>
+              )}
+              {Object.entries(p.passions ?? {}).map(([id, val]) => (
+                <li key={`passion-${id}`} data-tip={`Страсть: при значении ≥ заданного порога даёт бонус к подходящим проверкам (порог задаёт автор кампании).`}>
+                  <span><Ico n="heart" />  {engine.passionLabel(id)} (страсть)</span>
                   <span className="skill-val">{val}%</span>
                 </li>
               ))}
+              {Object.entries(p.allegiance ?? {}).map(([id, val]) => (
+                <li key={`all-${id}`} data-tip="Причастность силе: поступки в её духе (+1 очко) — эффекты change_allegiance; 100+ — знаки силы.">
+                  <span><Ico n="flame" />  {engine.allegianceLabel(id)} (причастность)</span>
+                  <span className="skill-val">{val}</span>
+                </li>
+              ))}
             </ul>
+          </>
+        )}
+
+        {skillsOn && (
+          <>
+            <h3>Навыки <span className="muted small">(<Ico n="check" />  — готов к росту после сна)</span></h3>
+            {(meta.skill_categories?.length ?? 0) > 0 ? (
+              (() => {
+                const catLabels = new Map((meta.skill_categories ?? []).map((c) => [c.id, c.label]))
+                const groups = new Map<string, Array<[string, number]>>()
+                for (const [id, val] of Object.entries(p.skills)) {
+                  const cat = meta.skills?.find((s) => s.id === id)?.category ?? ''
+                  if (!groups.has(cat)) groups.set(cat, [])
+                  groups.get(cat)!.push([id, val])
+                }
+                return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([cat, rows]) => (
+                  <div key={cat || '__none'}>
+                    <h4 className="skill-cat">{cat ? (catLabels.get(cat) ?? cat) : 'Прочее'}</h4>
+                    <ul className="skill-list">
+                      {rows.sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (
+                        <li key={id}>
+                          <span>
+                            {engine.skillLabel(id)}
+                            {p.skill_marks?.[id] && <span className="skill-mark"> <Ico n="check" /> </span>}
+                          </span>
+                          <span className="skill-val">{val}%</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              })()
+            ) : (
+              <ul className="skill-list">
+                {Object.entries(p.skills).sort(([a], [b]) => a.localeCompare(b)).map(([id, val]) => (
+                  <li key={id}>
+                    <span>
+                      {engine.skillLabel(id)}
+                      {p.skill_marks?.[id] && <span className="skill-mark"> <Ico n="check" /> </span>}
+                    </span>
+                    <span className="skill-val">{val}%</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </>
         )}
         {relationshipsOn && factions.length > 0 && (
@@ -362,6 +608,7 @@ export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose
         <ul className="craft-list">
           {recipes.map((r) => {
             const missing = engine.recipeMissing(r)
+            if (r.repair && !engine.hasDamaged(r.output.item)) missing.push(`нет изношенного «${engine.campaign.entities[r.output.item]?.label ?? r.output.item}» — чинить нечего`)
             return <CraftRow key={r.id} engine={engine} recipe={r} missing={missing} />
           })}
         </ul>
@@ -377,6 +624,7 @@ function CraftRow({ engine, recipe, missing }: { engine: GameEngine; recipe: Rec
     <li className={`craft-row ${canCraft ? '' : 'craft-blocked'}`}>
       <div className="inv-item-main">
         <b>{recipe.label}</b>
+        {recipe.repair && <span className="equipped-badge" data-tip="Восстанавливает прочность изношенного предмета до максимума">починка</span>}
         {recipe.description && <div className="muted small">{recipe.description}</div>}
         {recipe.inputs.length > 0 && (
           <div className="muted small">
@@ -401,7 +649,7 @@ function CraftRow({ engine, recipe, missing }: { engine: GameEngine; recipe: Rec
       <div className="inv-item-side">
         <div className="muted small craft-out">{out?.label ?? recipe.output.item}{recipe.output.quantity > 1 ? ` ×${recipe.output.quantity}` : ''}</div>
         <button className="btn btn-small" disabled={!canCraft} onClick={() => engine.craft(recipe.id)}>
-          <Ico n="hammer" />  Изготовить
+          <Ico n="hammer" />  {recipe.repair ? 'Починить' : 'Изготовить'}
         </button>
       </div>
     </li>

@@ -45,6 +45,7 @@ import { migrateMeta, migrateNavigation, migrateNeedConditions } from '../shared
 import { generateInk, migrateDlgDoc } from './dialogueDoc'
 import type { EditorStore, ManifestDef } from './store'
 import { slugify } from './ids'
+import { ENGINE_VERSION, PACKAGE_FORMAT } from '../shared/versions'
 
 // ─────────────── служебное ───────────────
 
@@ -326,7 +327,10 @@ export function repairMonolith(raw: unknown): { doc: MonolithDoc; warnings: stri
   meta.id = typeof meta.id === 'string' && meta.id ? meta.id : 'imported_campaign'
   meta.title = typeof meta.title === 'string' && meta.title ? meta.title : 'Импортированная кампания'
   meta.version = typeof meta.version === 'string' && meta.version ? meta.version : '0.1.0'
-  meta.engine_version = typeof meta.engine_version === 'string' && meta.engine_version ? meta.engine_version : '1.0'
+  // минимальная версия движка: устаревшее engine_version и новое min_engine
+  meta.engine_version = typeof meta.engine_version === 'string' && meta.engine_version ? meta.engine_version : ENGINE_VERSION
+  if (typeof meta.min_engine !== 'string' || !meta.min_engine) meta.min_engine = meta.engine_version
+  if (typeof meta.package_format !== 'number') meta.package_format = PACKAGE_FORMAT
   meta.author = typeof meta.author === 'string' ? meta.author : ''
   meta.description = typeof meta.description === 'string' ? meta.description : ''
   meta.tick_label = typeof meta.tick_label === 'string' && meta.tick_label ? meta.tick_label : 'час'
@@ -804,6 +808,26 @@ function fixEffect(ctx: RepairCtx, e: Effect, where: string, keep: (e: Effect | 
       break
     case 'skill_check_gate':
       registerSkill(ctx, e.skill)
+      e.success_effects = fixEffectList(ctx, e.success_effects ?? [], where)
+      e.fail_effects = fixEffectList(ctx, e.fail_effects ?? [], where)
+      break
+    case 'stat_check':
+      e.success_effects = fixEffectList(ctx, e.success_effects ?? [], where)
+      e.fail_effects = fixEffectList(ctx, e.fail_effects ?? [], where)
+      break
+    case 'start_pursuit':
+      if (e.skill) registerSkill(ctx, e.skill)
+      e.on_fail = fixEffectList(ctx, e.on_fail ?? [], where)
+      break
+    case 'group_stat_check':
+      if (e.skill) registerSkill(ctx, e.skill)
+      e.success_effects = fixEffectList(ctx, e.success_effects ?? [], where)
+      e.fail_effects = fixEffectList(ctx, e.fail_effects ?? [], where)
+      break
+    case 'opposed_check':
+      registerSkill(ctx, e.skill)
+      if (e.against_skill) registerSkill(ctx, e.against_skill)
+      if (e.entity) entityReferenced(e.entity, 'npc', ctx)
       e.success_effects = fixEffectList(ctx, e.success_effects ?? [], where)
       e.fail_effects = fixEffectList(ctx, e.fail_effects ?? [], where)
       break

@@ -1,5 +1,6 @@
 import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
 import { isExternalUrl } from '../core/loader'
+import { compareVersions } from '../shared/versions'
 import type {
   ArenaDef,
   CampaignManifest,
@@ -32,6 +33,7 @@ export type EditorSection =
   | 'dialogues'
   | 'arenas'
   | 'cutscenes'
+  | 'combat'
   | 'recipes'
   | 'codex'
 
@@ -213,9 +215,11 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
-    if (kind === 'entity' || kind === 'item' || kind === 'npc') {
+    if (kind === 'currency') {
+      for (const c of this.meta.currencies ?? []) out.push({ id: c.id, label: c.label })
+    } else if (kind === 'entity' || kind === 'item' || kind === 'npc') {
       for (const p of this.entityPaths()) {
         const e = this.entity(p)
         if (!e) continue
@@ -397,6 +401,22 @@ export class EditorStore {
    */
   validateContent(): string[] {
     const issues: string[] = []
+
+    // версии и совместимость (docs/compatibility.md)
+    const semver = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/
+    if (!this.meta.version) issues.push('Кампания: не заполнена версия (нужна для обновлений и совместимости сохранений)')
+    else if (!semver.test(this.meta.version)) issues.push(`Кампания: версия «${this.meta.version}» не похожа на semver (ожидается вид 1.4.2)`)
+    const minEngine = this.meta.min_engine ?? this.meta.engine_version
+    if (minEngine && !/^\d+(\.\d+){0,2}(?:-[0-9A-Za-z.-]+)?$/.test(minEngine)) {
+      issues.push(`Кампания: минимальный движок «${minEngine}» не похож на номер версии`)
+    }
+    if (this.meta.save_base_version) {
+      if (!semver.test(this.meta.save_base_version)) issues.push(`Кампания: граница сохранений «${this.meta.save_base_version}» не похожа на semver`)
+      else if (compareVersions(this.meta.save_base_version, this.meta.version) > 0) {
+        issues.push(`Кампания: граница сохранений ${this.meta.save_base_version} новее версии кампании ${this.meta.version} — так сохранения не откроются ни у кого`)
+      }
+    }
+
     const scenes: Record<string, SceneDef> = {}
     for (const p of this.scenePaths()) {
       const sc = this.scene(p)

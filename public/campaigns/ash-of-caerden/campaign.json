@@ -3,6 +3,8 @@
   "title": "Пепел Каэрдена",
   "version": "0.1.0",
   "engine_version": "0.1.0",
+  "min_engine": "0.1.0",
+  "package_format": 1,
   "author": "Chronicle Forge",
   "description": "Низкое фэнтези, позднее средневековье. Вы — наёмник, прибывший в приграничный город Каэрден в поисках работы. Караваны не доходят до города: на дорогах хозяйничает банда с холмов. Голод и жажда не ждут — как и бандиты.",
   "tick_label": "ч",
@@ -224,7 +226,9 @@
           "first_aid": 35
         }
       }
-    ]
+    ],
+    "choose_age": true,
+    "choose_bio": true
   },
   "roguelike": {
     "permadeath": true,
@@ -309,6 +313,15 @@
     {
       "id": "shield",
       "label": "Щиты"
+    },
+    {
+      "id": "locks",
+      "label": "Взлом",
+      "base": 5
+    },
+    {
+      "id": "pyromancy",
+      "label": "Пиромантия"
     }
   ],
   "item_categories": [
@@ -1372,6 +1385,40 @@
         "hp": 2
       },
       "apply_message": "Яд крысы разливается по жилам."
+    },
+    {
+      "id": "status_staggered",
+      "label": "Ошеломлён",
+      "description": "Напуган или контужен: боевые навыки −20%.",
+      "scope": "combat",
+      "duration": 1,
+      "skill_mods": [
+        {
+          "skill": "sword",
+          "delta": -20
+        },
+        {
+          "skill": "spear",
+          "delta": -20
+        },
+        {
+          "skill": "brawl",
+          "delta": -20
+        },
+        {
+          "skill": "club",
+          "delta": -20
+        },
+        {
+          "skill": "shield",
+          "delta": -20
+        },
+        {
+          "skill": "dodge",
+          "delta": -20
+        }
+      ],
+      "apply_message": "Противник ошеломлён и растерян."
     }
   ],
   "abilities": [
@@ -1385,6 +1432,47 @@
       "kind": "status",
       "status": "status_rat_poison",
       "status_duration": 3
+    },
+    {
+      "id": "ability_flame_bolt",
+      "label": "Огненный болт",
+      "description": "Сгусток пламени: 1d8 урона по цели до 4 гексов. Требует подготовки в слотах магии; критическая неудача обжигает самого.",
+      "mp_cost": 3,
+      "range": 4,
+      "skill": "pyromancy",
+      "kind": "damage",
+      "damage": "1d8",
+      "prepare": true,
+      "backlash_table": [
+        {
+          "weight": 2,
+          "text": "Пламя лизнуло руки заклинателя.",
+          "hp_delta": -2
+        },
+        {
+          "weight": 1,
+          "text": "Огонь вырвался вспышкой — одежда тлеет!",
+          "hp_delta": -4,
+          "status": "status_staggered",
+          "status_duration": 1
+        },
+        {
+          "weight": 1,
+          "text": "Заклинание развеялось, высосав силы.",
+          "mp_delta": -2
+        }
+      ]
+    },
+    {
+      "id": "ability_war_cry",
+      "label": "Боевой клич",
+      "description": "Громовой рёв деморализует врага рядом: −20% к его навыку на 1 раунд. Подготовка не нужна.",
+      "mp_cost": 1,
+      "range": 1,
+      "skill": "persuade",
+      "kind": "status",
+      "status": "status_staggered",
+      "status_duration": 1
     }
   ],
   "calendar": {
@@ -1525,5 +1613,245 @@
   ],
   "theme": {
     "profile": "dark-fantasy"
-  }
+  },
+  "metaprogress": {
+    "currencies": [
+      {
+        "id": "ash",
+        "label": "Пепел",
+        "description": "Крупицы пепла Кэрдена — память прошлых забегов. Копится между попытками, тратится в Хронике."
+      }
+    ],
+    "achievements": [
+      {
+        "id": "rat_catcher",
+        "label": "Крысолов",
+        "description": "Зачистить подвал таверны от крыс.",
+        "conditions": [
+          {
+            "type": "flag_set",
+            "flag": "rats_done"
+          }
+        ],
+        "reward": {
+          "currency": "ash",
+          "amount": 5
+        }
+      },
+      {
+        "id": "ash_survivor",
+        "label": "Прижился в золе",
+        "description": "Прожить 50 тиков за один забег.",
+        "counter": {
+          "stat": "ticks_survived",
+          "target": 50
+        },
+        "reward": {
+          "currency": "ash",
+          "amount": 10
+        }
+      },
+      {
+        "id": "slayer5",
+        "label": "Пятеро не вернутся",
+        "description": "Победить пятерых врагов (суммарно по всем забегам).",
+        "counter": {
+          "stat": "kills",
+          "target": 5
+        },
+        "reward": {
+          "currency": "ash",
+          "amount": 5,
+          "xp": 0
+        }
+      },
+      {
+        "id": "chronicler",
+        "label": "Слушатель хроник",
+        "description": "Поговорить со всеми жителями (10 диалогов суммарно).",
+        "counter": {
+          "stat": "dialogues",
+          "target": 10
+        },
+        "hidden": true,
+        "reward": {
+          "currency": "ash",
+          "amount": 8
+        }
+      }
+    ],
+    "unlocks": [
+      {
+        "id": "heirloom_silver",
+        "label": "Наследная марка",
+        "description": "В начале каждого нового забега герой находит в кармане две серебряные марки — последнее, что осталось от прошлых попыток.",
+        "cost": [
+          {
+            "currency": "ash",
+            "amount": 8
+          }
+        ],
+        "grants": [
+          {
+            "type": "add_item",
+            "item": "item_silver",
+            "quantity": 2
+          }
+        ]
+      }
+    ]
+  },
+  "generators": {
+    "event_tables": [
+      {
+        "id": "shrine_whispers",
+        "label": "Шёпот святилища",
+        "description": "В храме порой слышится эхо пепла — мелкие злоключения и подарки.",
+        "interval_ticks": 12,
+        "chance": 0.35,
+        "locations": [
+          "loc_temple"
+        ],
+        "rules": [
+          "gen_whisper_blessing",
+          "gen_whisper_chill",
+          "gen_whisper_protest"
+        ]
+      }
+    ],
+    "npc": [
+      {
+        "id": "traveller",
+        "label": "Попутчик",
+        "description": "Генератор случайного путника: имя, облик, занятие.",
+        "name": [
+          {
+            "list": "имя"
+          },
+          {
+            "literal": " "
+          },
+          {
+            "list": "фамилия"
+          }
+        ],
+        "lists": {
+          "имя": [
+            {
+              "value": "Агата"
+            },
+            {
+              "value": "Борис"
+            },
+            {
+              "value": "Веста"
+            },
+            {
+              "value": "Ганс"
+            },
+            {
+              "value": "Дарья"
+            }
+          ],
+          "фамилия": [
+            {
+              "value": "Ворожейкина"
+            },
+            {
+              "value": "Жарков"
+            },
+            {
+              "value": "Зольникова"
+            },
+            {
+              "value": "Искрин"
+            }
+          ],
+          "облик": [
+            {
+              "value": "в запёпелённом плаще"
+            },
+            {
+              "value": "с обгоревшей шляпой"
+            },
+            {
+              "value": "с посохом из плоти ясеня"
+            }
+          ],
+          "ремесло": [
+            {
+              "value": "сборщик золы"
+            },
+            {
+              "value": "писец хроник"
+            },
+            {
+              "value": "кузнец-подмастерье"
+            }
+          ]
+        }
+      }
+    ],
+    "adventures": [
+      {
+        "id": "side_gigs",
+        "label": "Мелкие поручения",
+        "lists": {
+          "враги": [
+            {
+              "value": "крыс"
+            },
+            {
+              "value": "грабителей"
+            },
+            {
+              "value": "упырей"
+            }
+          ],
+          "места": [
+            {
+              "value": "подвале таверны"
+            },
+            {
+              "value": "старых штольнях"
+            },
+            {
+              "value": "пепельном огороде"
+            }
+          ]
+        },
+        "goals": [
+          "Отбить {список:места} от {список:враги}",
+          "Пересчитать {список:враги} в {список:места}",
+          "Выяснить, кто завёл {список:враги} в {список:места}"
+        ]
+      }
+    ]
+  },
+  "magic": {
+    "slots": 2
+  },
+  "difficulties": [
+    {
+      "id": "wanderer",
+      "label": "Странник",
+      "description": "Спокойное путешествие: враги бьют вполсилы, цены ниже.",
+      "enemy_damage": 0.5,
+      "prices": 0.85
+    },
+    {
+      "id": "caerden",
+      "label": "Пепел Каэрдена",
+      "description": "Как задумано автором."
+    },
+    {
+      "id": "iron",
+      "label": "Железный человек",
+      "description": "Враги жестоки, голод неумолим, торговцы ломят цену. Без автосохранений.",
+      "enemy_damage": 1.5,
+      "need_decay": 1.5,
+      "prices": 1.25,
+      "no_autosave": true
+    }
+  ]
 }
