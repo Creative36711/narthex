@@ -18,6 +18,7 @@ import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { stopMusic } from '../shared/music'
 import { themeVars } from '../shared/theme'
+import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { profileClass, atmosphereOn } from '../shared/profiles'
 import { AiWizard, aiFixReport } from './AiWizard'
 import { makeId, slugify } from './ids'
@@ -310,7 +311,17 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const listFor = (s: EditorSection): Array<{ path: string; title: string; group?: string; groupOrder?: string }> => {
     switch (s) {
       case 'scenes':
-        return store.scenePaths().map((p) => ({ path: p, title: store.scene(p)?.label ?? p }))
+        // группировка по локациям: мастеру проще искать нужную сцену (ревизия левой панели)
+        return store.scenePaths().map((p) => {
+          const sc = store.scene(p)
+          const loc = sc?.location ? store.labelFor('location', sc.location) : ''
+          return {
+            path: p,
+            title: sc?.label ?? p,
+            group: loc || 'Без локации',
+            groupOrder: loc ? `0${loc}` : '1',
+          }
+        })
       case 'entities':
         // группировка: персонажи, затем предметы по категориям (фидбек №8)
         return store.entityPaths().map((p) => {
@@ -330,10 +341,29 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         return store.arenaPaths().map((p) => ({ path: p, title: store.arena(p)?.label ?? p }))
       case 'cutscenes':
         return store.cutscenePaths().map((p) => ({ path: p, title: store.cutscene(p)?.label ?? p }))
-      case 'recipes':
-        return store.recipePaths().map((p) => ({ path: p, title: store.recipe(p)?.label ?? p }))
+      case 'recipes': {
+        // группировка: починка отдельно, изготовление — по категории результата
+        const out = []
+        for (const p of store.recipePaths()) {
+          const r = store.recipe(p)
+          if (!r) { out.push({ path: p, title: p }); continue }
+          if (r.repair) out.push({ path: p, title: r.label || p, group: 'Починка вещей', groupOrder: '1' })
+          else {
+            const item = r.output?.item ? store.entity(`entities/${r.output.item}.json`) : undefined
+            const cat = item?.category ? store.labelFor('itemCategory', item.category) : ''
+            out.push({ path: p, title: r.label || p, group: cat || 'Без категории', groupOrder: `0${cat}` })
+          }
+        }
+        return out
+      }
       case 'codex':
-        return store.codexPaths().map((p) => ({ path: p, title: store.codexEntry(p)?.label ?? p }))
+        // группировка по категориям кодекса (свои из меты, иначе встроенные; ядро — «Хроники»)
+        return store.codexPaths().map((p) => {
+          const ce = store.codexEntry(p)
+          const cats = store.meta.codex_categories ?? BUILTIN_CODEX_CATEGORIES
+          const cat = ce?.category ? (cats.find((c) => c.id === ce.category)?.label ?? ce.category) : 'Хроники'
+          return { path: p, title: ce?.label ?? p, group: cat, groupOrder: cat }
+        })
       default:
         return []
     }
@@ -562,6 +592,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   })
   const hasList = !['campaign', 'world'].includes(section)
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
+  // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
+  const groupCounts = new Map<string, number>()
+  for (const it of items) if (it.group) groupCounts.set(it.group, (groupCounts.get(it.group) ?? 0) + 1)
 
   return (
     <div className={`editor-root ed-theme-${edTheme}`}>
@@ -716,7 +749,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             )}
             {items.map((it, i) => (
               <div key={it.path}>
-                {it.group && it.group !== items[i - 1]?.group && <div className="editor-list-group">{it.group}</div>}
+                {it.group && it.group !== items[i - 1]?.group && (
+                  <div className="editor-list-group">{it.group} <span className="editor-list-count">{groupCounts.get(it.group)}</span></div>
+                )}
                 <button
                   className={`editor-list-item ${sel === it.path ? 'on' : ''} ${store.dirty.has(it.path) ? 'dirty' : ''}`}
                   onClick={() => setSelected(it.path)}

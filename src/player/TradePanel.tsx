@@ -3,12 +3,15 @@ import { useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { ItemDef } from '../shared/types'
 import { assetUrl } from '../core/loader'
+import { ItemCategoryChips } from './Panels'
 
 /** Торговля (ТЗ 4.7): цены зависят от репутации и навыка торговли. */
 export function TradePanel({ engine }: { engine: GameEngine }) {
   const npc = engine.trade!
   const trader = npc.trader!
   const [tab, setTab] = useState<'buy' | 'sell'>('buy')
+  const [catBuy, setCatBuy] = useState<string>('all')
+  const [catSell, setCatSell] = useState<string>('all')
   const currency = engine.campaign.meta.currencies[0]
   const currencyLabel = currency?.label ?? 'Серебро'
   const currencySymbol = currency?.symbol ?? 'SM'
@@ -26,6 +29,14 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
         // надетое снаряжение не продаётся (сначала «Снять» в инвентаре)
         !engine.isEquipped(x.e.item),
     )
+    .filter((x) => matchCat(x.def!, catSell))
+    .sort((a, b) => (a.def!.label ?? '').localeCompare(b.def!.label ?? '', 'ru'))
+
+  /** список продаж торговца, отфильтрованный по категории и по алфавиту */
+  const buyables = trader.sells
+    .map((s) => ({ s, def: engine.campaign.entities[s.item] as ItemDef | undefined }))
+    .filter((x) => x.def && matchCat(x.def, catBuy))
+    .sort((a, b) => (a.def!.label ?? '').localeCompare(b.def!.label ?? '', 'ru'))
 
   return (
     <div className="overlay panel-overlay">
@@ -52,9 +63,12 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
         </div>
 
         {tab === 'buy' && (
+          <>
+            <div className="panel-tools">
+              <ItemCategoryChips engine={engine} defs={trader.sells.map((s) => engine.campaign.entities[s.item] as ItemDef | undefined)} cat={catBuy} setCat={setCatBuy} />
+            </div>
           <ul className="inv-list">
-            {trader.sells.map((s) => {
-              const def = engine.campaign.entities[s.item] as ItemDef | undefined
+            {buyables.map(({ s, def }) => {
               if (!def) return null
               const price = engine.buyPrice(npc, s.item, s.price)
               const affordable = balance >= price
@@ -79,9 +93,14 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
               )
             })}
           </ul>
+          </>
         )}
 
         {tab === 'sell' && (
+          <>
+            <div className="panel-tools">
+              <ItemCategoryChips engine={engine} defs={sellableDefsAll(engine)} cat={catSell} setCat={setCatSell} />
+            </div>
           <ul className="inv-list">
             {sellables.length === 0 && <p className="muted">Нечего продать.</p>}
             {sellables.map(({ e, def }) => {
@@ -102,8 +121,27 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
               )
             })}
           </ul>
+          </>
         )}
       </div>
     </div>
   )
+}
+
+/** совпадение предмета с выбранной категорией фильтра ('__misc' — без категории) */
+function matchCat(def: ItemDef, cat: string): boolean {
+  if (cat === 'all') return true
+  if (cat === '__misc') return !def.category
+  return def.category === cat
+}
+
+/** все продаваемые определения предметов (для набора чипов категорий: не скрыт фильтром) */
+function sellableDefsAll(engine: GameEngine): Array<ItemDef | undefined> {
+  const npc = engine.trade!
+  const currencyItem = engine.currencyItemId()
+  return engine.state.player.inventory
+    .filter(
+      (e) => e.item !== currencyItem && !engine.isEquipped(e.item) && (engine.sellPrice(npc, e.item) > 0),
+    )
+    .map((e) => engine.campaign.entities[e.item] as ItemDef | undefined)
 }

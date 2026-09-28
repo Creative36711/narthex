@@ -24,19 +24,82 @@ function describeUseEffects(engine: GameEngine, effects: Effect[]): string {
 const EQUIP_FILTERS = ['all', 'equipped', 'unequipped'] as const
 
 /** Инвентарь (ТЗ 4.6 — базовая часть Фазы 0: список, вес, использование). */
+/** Все определения предметов в инвентаре героя (для составления фильтра категорий). */
+function inventoryDefs(engine: GameEngine): Array<ItemDef | undefined> {
+  return engine.state.player.inventory.map((e) => engine.campaign.entities[e.item] as ItemDef | undefined)
+}
+
+/** Категории предметов, которые реально встречаются в списке: [[id, название], ...] + флаг «есть без категории». */
+export function presentItemCategories(engine: GameEngine, defs: Array<ItemDef | undefined>) {
+  const names = new Map<string, string>()
+  let misc = false
+  for (const d of defs) {
+    if (!d || d.type !== 'item') continue
+    if (!d.category) { misc = true; continue }
+    if (!names.has(d.category)) {
+      const rec = engine.campaign.meta.item_categories?.find((c) => c.id === d.category)
+      names.set(d.category, rec?.label ?? d.category)
+    }
+  }
+  return {
+    cats: [...names.entries()].sort((a, b) => a[1].localeCompare(b[1], 'ru')),
+    misc,
+  }
+}
+
+/** Чипы фильтра по категориям (инвентарь и торговля). Появляются, только если категорий больше одной. */
+export function ItemCategoryChips({ engine, defs, cat, setCat }: {
+  engine: GameEngine
+  defs: Array<ItemDef | undefined>
+  cat: string
+  setCat: (v: string) => void
+}) {
+  const { cats, misc } = presentItemCategories(engine, defs)
+  if (cats.length + (misc ? 1 : 0) < 2) return null
+  return (
+    <div className="chips inv-cat-chips" aria-label="Фильтр по категориям">
+      <button key="all" type="button" className={`chip ${cat === 'all' ? 'chip-on' : ''}`} onClick={() => setCat('all')}>
+        Все категории
+      </button>
+      {cats.map(([id, label]) => (
+        <button key={id} type="button" className={`chip ${cat === id ? 'chip-on' : ''}`} onClick={() => setCat(id)}>
+          {label}
+        </button>
+      ))}
+      {misc && (
+        <button key="__misc" type="button" className={`chip ${cat === '__misc' ? 'chip-on' : ''}`} onClick={() => setCat('__misc')}>
+          Прочее
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
   const [q, setQ] = useState('')
   const [equipFilter, setEquipFilter] = useState<(typeof EQUIP_FILTERS)[number]>('all')
+  const [cat, setCat] = useState<string>('all')
+  const [sort, setSort] = useState<'name' | 'weight' | 'got'>('name')
   const inv = engine.state.player.inventory
   const items = inv
     .map((e) => ({ entry: e, def: engine.campaign.entities[e.item] as ItemDef | undefined }))
     .filter((x) => x.def?.type === 'item')
     .filter((x) => {
       if (q.trim() && !(x.def!.label ?? '').toLowerCase().includes(q.trim().toLowerCase())) return false
-      if (equipFilter === 'all') return true
-      const on = engine.isEquipped(x.entry.item)
-      return equipFilter === 'equipped' ? on : !on
+      if (equipFilter !== 'all') {
+        const on = engine.isEquipped(x.entry.item)
+        if (equipFilter === 'equipped' ? !on : on) return false
+      }
+      if (cat !== 'all') {
+        if (cat === '__misc' ? !!x.def!.category : x.def!.category !== cat) return false
+      }
+      return true
     })
+  // сортировка: по названию (по умолчанию), по весу стопки или в порядке получения
+  if (sort === 'name') items.sort((a, b) => (a.def!.label ?? '').localeCompare(b.def!.label ?? '', 'ru'))
+  else if (sort === 'weight') {
+    items.sort((a, b) => (b.def!.weight ?? 0) * b.entry.quantity - (a.def!.weight ?? 0) * a.entry.quantity)
+  }
   const totalWeight = items.reduce((sum, x) => sum + (x.def!.weight ?? 0) * x.entry.quantity, 0)
   const currencies = engine.campaign.meta.currencies
 
@@ -65,6 +128,14 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
           <div className="chips">
             {([['all', 'Все'], ['equipped', 'Надето'], ['unequipped', 'Не надето']] as const).map(([k, lbl]) => (
               <button key={k} type="button" className={`chip ${equipFilter === k ? 'chip-on' : ''}`} onClick={() => setEquipFilter(k)}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+          <ItemCategoryChips engine={engine} defs={inventoryDefs(engine)} cat={cat} setCat={setCat} />
+          <div className="chips inv-sort-chips" aria-label="Сортировка">
+            {([['name', 'По названию'], ['weight', 'По весу'], ['got', 'По порядку получения']] as const).map(([k, lbl]) => (
+              <button key={k} type="button" className={`chip ${sort === k ? 'chip-on' : ''}`} onClick={() => setSort(k)}>
                 {lbl}
               </button>
             ))}
