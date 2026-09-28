@@ -126,7 +126,7 @@ for (const campaignId of dirs) {
   }
 
   for (const file of moduleFiles(manifest, 'encounters')) {
-    const rel = `encounters/${file}`
+    const rel = `rules/${file}`
     registerJson(rel)
     const value = json(join(base, rel))
     validate('EncounterFileDef', value, `${campaignId}/${rel}`)
