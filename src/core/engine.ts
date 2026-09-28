@@ -2892,6 +2892,56 @@ export class GameEngine {
     return fresh
   }
 
+  /** New Game+ доступен? (мастер разрешил, забег завершён победой) */
+  newGamePlusAvailable(): boolean {
+    return !!this.campaign.meta.new_game_plus && this.state.game_over?.type === 'victory'
+  }
+
+  /**
+   * New Game+: победивший герой возвращается в новый забег с наследием
+   * (keep мастера), круг +1 — множители сложности растут на boost-шаги.
+   * Пермадет-семантика сохранена: NG+ только за победу.
+   */
+  newGamePlus(): GameEngine | null {
+    const cfg = this.campaign.meta.new_game_plus
+    if (!this.newGamePlusAvailable() || !cfg) return null
+    const prev = this.state
+    deleteSave(this.campaign.meta.id)
+    const fresh = new GameEngine(this.campaign)
+    if (prev.char_choice) {
+      fresh.applyCharCreation({ ...prev.char_choice, calling: prev.char_choice.calling ?? '' })
+    }
+    fresh.start()
+    const keep = new Set(cfg.keep ?? ['skills', 'skill_marks', 'stats', 'inventory', 'feats', 'prepared'])
+    const pp = prev.player
+    const np = fresh.state.player
+    if (keep.has('skills')) np.skills = JSON.parse(JSON.stringify(pp.skills)) as typeof np.skills
+    if (keep.has('skill_marks')) np.skill_marks = { ...pp.skill_marks }
+    if (keep.has('stats')) {
+      np.stats = { ...pp.stats }
+      // базовые производные взяты из шаблона — подтянем к статам наследия
+      np.max_hp = pp.max_hp
+      np.max_mp = pp.max_mp
+    }
+    if (keep.has('inventory')) {
+      np.inventory = JSON.parse(JSON.stringify(pp.inventory)) as typeof np.inventory
+      np.equipment = { ...pp.equipment }
+    }
+    if (keep.has('feats')) {
+      np.xp = pp.xp
+      np.level = pp.level
+      np.feats = pp.feats?.slice()
+    }
+    if (keep.has('prepared')) np.prepared_abilities = pp.prepared_abilities?.slice()
+    // облик и сложность идентичны прошлому забегу
+    np.portrait_choice = pp.portrait_choice && JSON.parse(JSON.stringify(pp.portrait_choice))
+    np.difficulty = pp.difficulty
+    np.hp = np.max_hp
+    np.mp = np.max_mp
+    fresh.state.ng_cycle = (prev.ng_cycle ?? 0) + 1
+    return fresh
+  }
+
   // ─────────────── мета-прогресс между забегами (аудит B8b) ───────────────
 
   /** мета-прогресс включён мастером (блок meta.metaprogress) */
@@ -3222,11 +3272,23 @@ export class GameEngine {
    * кампании и версией движка — без этого нельзя ни перенести сейв, ни
    * объяснить игроку, почему он не подошёл после обновления.
    */
-  /** выбранный игроком уровень сложности (мастерские пресеты meta.difficulties) */
+  /** выбранный игроком уровень сложности (мастерские пресеты meta.difficulties) с накруткой круга New Game+ */
   difficultyDef(): DifficultyPreset | null {
     const list = this.campaign.meta.difficulties
     if (!list?.length) return null
-    return list.find((d) => d.id === this.state.player.difficulty) ?? list[0]
+    const base = list.find((d) => d.id === this.state.player.difficulty) ?? list[0]
+    const cycle = this.state.ng_cycle ?? 0
+    const boost = this.campaign.meta.new_game_plus?.boost
+    if (!cycle || !boost) return base
+    // круг New Game+ ужесточает мир: шаги множителей поверх выбранного пресета
+    const withStep = (v: number | undefined, step: number | undefined) =>
+      v === undefined || !step ? v : Math.round(v * (1 + step * cycle) * 100) / 100
+    return {
+      ...base,
+      enemy_damage: withStep(base.enemy_damage, boost.enemy_damage_step),
+      need_decay: withStep(base.need_decay, boost.need_decay_step),
+      prices: withStep(base.prices, boost.prices_step),
+    }
   }
 
   autosave(): void {

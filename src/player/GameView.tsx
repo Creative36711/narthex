@@ -22,6 +22,7 @@ import { Ico } from '../shared/icons'
 interface Props {
   engine: GameEngine
   onRestart: () => void
+  onNewGamePlus?: (next: GameEngine) => void
   onExitToMenu: () => void
   /** Загрузить забег из слота сохранений (аудит §5.6 п.9) — пересобирает движок */
   onLoadSlot?: (slot: import('../core/savemigrate').SaveSlot) => void
@@ -31,7 +32,7 @@ interface Props {
 
 type PanelId = 'map' | 'inventory' | 'character' | 'log' | 'help' | 'craft' | 'codex' | 'saves' | 'meta' | null
 
-export function GameView({ engine, onRestart, onExitToMenu, onLoadSlot, debugPanelOpen = false, onGamePanelOpen }: Props) {
+export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoadSlot, debugPanelOpen = false, onGamePanelOpen }: Props) {
   const [panel, setPanel] = useState<PanelId>(null)
   // GameView owns the subscription so embedded playtests update just like the normal player.
   const [, invalidate] = useState(0)
@@ -170,7 +171,7 @@ export function GameView({ engine, onRestart, onExitToMenu, onLoadSlot, debugPan
       )}
 
       {!cutscene && engine.state.game_over && !engine.dialogue && (
-        <EndScreen engine={engine} onRestart={onRestart} onExitToMenu={onExitToMenu} />
+        <EndScreen engine={engine} onRestart={onRestart} onExitToMenu={onExitToMenu} onNewGamePlus={onNewGamePlus} />
       )}
 
       {!cutscene && engine.luckOffer && !engine.combat && (

@@ -276,6 +276,7 @@ export default function App() {
       <GameView
         engine={engine}
         onRestart={() => setEngine(engine.restart())}
+        onNewGamePlus={(next) => setEngine(next)}
         onExitToMenu={() => setEngine(null)}
         onLoadSlot={(slot) => {
           // загрузка из слота: пересобираем движок из состояния слота

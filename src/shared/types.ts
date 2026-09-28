@@ -727,6 +727,19 @@ export interface CampaignMeta {
    * Первый уровень — умолчание.
    */
   difficulties?: DifficultyPreset[]
+  /**
+   * New Game+ (решение мастера): при победе игрок может начать заново с
+   * наследием. keep — что переносится (строки: 'skills', 'skill_marks',
+   * 'stats', 'inventory', 'feats', 'prepared'); пусто — все из списка.
+   * boost — шаги множителей за каждый круг повторного забега (на действующий
+   * пресет сложности): 0.25 = +25% урона врагов за круг.
+   */
+  new_game_plus?: {
+    /** подпись кнопки на экране финала (умолчание «Новая игра+») */
+    label?: string
+    keep?: string[]
+    boost?: { enemy_damage_step?: number; need_decay_step?: number; prices_step?: number }
+  }
   /** шаблоны видов существ — мастерские заготовки боевых параметров NPC (контент, не движок) */
   species?: SpeciesTemplate[]
   /** реестр слотов экипировки (блок 7 ТЗ); встроенные Оружие/Броня есть всегда */
@@ -2560,6 +2573,8 @@ export interface GameState {
    * Активное преследование (эффект start_pursuit, аудит §5.6):
    * тикает при ходе времени, провалом цепочки маскировки настигает.
    */
+  /** круг New Game+ (0 — первый забег; растёт при каждом повторном старте) */
+  ng_cycle?: number
   pursuit?: {
     label?: string
     skill: string

@@ -1001,6 +1001,86 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
 
       {tab === 'mechanics' && (
         <div className="props-group">
+          <h4>New Game+: повторный забег с наследием</h4>
+          <div className="muted small" style={{ marginBottom: 8 }}>
+            Победивший герой может начать забег заново, сохранив часть накопленного.
+            Каждый такой «круг» ужесточает мир на заданные шаги — до бесконечности.
+            Выключено (по умолчанию) — финал означает финал.
+          </div>
+          <div className="fld-row">
+            <label className="fld fld-check">
+              <input
+                type="checkbox"
+                checked={!!m.new_game_plus}
+                onChange={(e) => { if (e.target.checked) m.new_game_plus = {}; else delete m.new_game_plus; commit() }}
+              />
+              <span>New Game+ разрешён</span>
+            </label>
+          </div>
+          {m.new_game_plus && (() => {
+            const ng = m.new_game_plus!
+            const ALL_KEEPS: Array<{ id: string; label: string }> = [
+              { id: 'skills', label: 'Навыки' },
+              { id: 'skill_marks', label: 'Галочки роста' },
+              { id: 'stats', label: 'Характеристики и запасы здоровья/каналы' },
+              { id: 'inventory', label: 'Инвентарь и экипировка' },
+              { id: 'feats', label: 'Опыт, уровень и черты' },
+              { id: 'prepared', label: 'Подготовленные способности' },
+            ]
+            const keep = new Set(ng.keep ?? ALL_KEEPS.map((k) => k.id))
+            const toggleKeep = (id: string, on: boolean) => {
+              const next = new Set(keep)
+              if (on) next.add(id)
+              else next.delete(id)
+              ng.keep = next.size === ALL_KEEPS.length ? undefined : [...next]
+              commit()
+            }
+            const boost = ng.boost ?? {}
+            const setBoost = (key: 'enemy_damage_step' | 'need_decay_step' | 'prices_step', v: number | undefined) => {
+              const next = { ...boost }
+              if (v === undefined || v <= 0) delete next[key]
+              else next[key] = v
+              ng.boost = Object.keys(next).length ? next : undefined
+              commit()
+            }
+            return (
+              <div className="panel" style={{ padding: 8 }}>
+                <label className="fld" style={{ maxWidth: 320 }}>
+                  <span>Подпись кнопки на экране финала</span>
+                  <input
+                    value={ng.label ?? ''}
+                    placeholder="Новая игра+"
+                    onChange={(e) => { ng.label = e.target.value || undefined; commit() }}
+                  />
+                </label>
+                <div style={{ margin: '8px 0 4px' }}>Что переносится герой в новый круг:</div>
+                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                  {ALL_KEEPS.map((k) => (
+                    <label key={k.id} className="fld fld-check">
+                      <input type="checkbox" checked={keep.has(k.id)} onChange={(e) => toggleKeep(k.id, e.target.checked)} />
+                      <span>{k.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div style={{ margin: '8px 0 4px' }}>Ужесточение мира за каждый круг (поверх выбранной сложности):</div>
+                <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                  <label className="fld" data-tip="+N% к урону врагов за каждый круг (0 — не менять)">
+                    <span>Урон врагов, %/круг</span>
+                    <input type="number" min={0} max={200} value={Math.round((boost.enemy_damage_step ?? 0) * 100)} onChange={(e) => setBoost('enemy_damage_step', (+e.target.value || 0) / 100)} />
+                  </label>
+                  <label className="fld" data-tip="+N% к расходу потребностей за каждый круг">
+                    <span>Расход потребностей, %/круг</span>
+                    <input type="number" min={0} max={200} value={Math.round((boost.need_decay_step ?? 0) * 100)} onChange={(e) => setBoost('need_decay_step', (+e.target.value || 0) / 100)} />
+                  </label>
+                  <label className="fld" data-tip="+N% к ценам за каждый круг">
+                    <span>Цены, %/круг</span>
+                    <input type="number" min={0} max={200} value={Math.round((boost.prices_step ?? 0) * 100)} onChange={(e) => setBoost('prices_step', (+e.target.value || 0) / 100)} />
+                  </label>
+                </div>
+              </div>
+            )
+          })()}
+
           <h4>Профиль механик кампании</h4>
           <p className="muted small">
             Всё включено по умолчанию. Снимите галочку, чтобы убрать подсистему из этой

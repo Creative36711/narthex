@@ -8,6 +8,8 @@ interface Props {
   engine: GameEngine
   onRestart: () => void
   onExitToMenu: () => void
+  /** New Game+ (движок нового забега с наследием) */
+  onNewGamePlus?: (next: GameEngine) => void
 }
 
 /**
@@ -15,7 +17,7 @@ interface Props {
  * исходу и условиям — показывается её заголовок, текст и фон; иначе стандартный
  * экран исхода. Статистика забега — всегда (ТЗ 4.10, 6.1 + фидбек «разные финалы»).
  */
-export function EndScreen({ engine, onRestart, onExitToMenu }: Props) {
+export function EndScreen({ engine, onRestart, onExitToMenu, onNewGamePlus }: Props) {
   const go = engine.state.game_over
   if (!go) return null
   const s = engine.state
@@ -83,6 +85,18 @@ export function EndScreen({ engine, onRestart, onExitToMenu }: Props) {
           )
         })()}
         <div className="row-buttons">
+          {engine.newGamePlusAvailable() && onNewGamePlus && (
+            <button
+              className="btn btn-primary"
+              data-tip="Герой вернётся в новый забег с наследием — и мир станет суровее"
+              onClick={() => {
+                const e = engine.newGamePlus()
+                if (e) onNewGamePlus(e)
+              }}
+            >
+              {(engine.campaign.meta.new_game_plus?.label ?? 'Новая игра+') + ` (круг ${(engine.state.ng_cycle ?? 0) + 2})`}
+            </button>
+          )}
           <button className="btn btn-primary" onClick={onRestart}>Начать новый забег</button>
           <button className="btn" onClick={onExitToMenu}>В меню</button>
         </div>
