@@ -894,6 +894,69 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "group_stat_check",
+              "description": "Групповая сцепленная проверка (аудит §5.6): бросает герой и до\n`helpers` союзников из партии — одной цепью. Если успешных бросков\nсреди всех участников ≥ `need` (умолчание — большинство), срабатывает\nОДНА ветвь успеха, иначе — ветвь провала. Подходит для тихих\nобходов (все крадутся), рывков (вспомнили вместе), следопытства."
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "skill",
+                "stat"
+              ],
+              "description": "чем бросаем: навыком (умолчание) или характеристикой ×множитель"
+            },
+            "skill": {
+              "type": "string",
+              "description": "навык (mode='skill')"
+            },
+            "stat": {
+              "type": "string",
+              "description": "характеристика (mode='stat')"
+            },
+            "multiplier": {
+              "type": "number",
+              "description": "множитель характеристики (умолчание 5)"
+            },
+            "difficulty": {
+              "$ref": "#/$defs/SkillDifficulty",
+              "description": "сложность броска навыка у всех участников"
+            },
+            "modifier": {
+              "type": "number",
+              "description": "дополнительный модификатор к цели характеристики"
+            },
+            "helpers": {
+              "type": "number",
+              "description": "сколько первых союзников из партии участвует (умолчание 2)"
+            },
+            "need": {
+              "type": "number",
+              "description": "сколько успешных бросков нужно (умолчание — большинство участников)"
+            },
+            "success_effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            },
+            "fail_effects": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "success_effects",
+            "fail_effects"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "change_luck"
             },
             "delta": {
@@ -1048,6 +1111,51 @@
           "required": [
             "type",
             "meters"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "start_pursuit",
+              "description": "Начать преследование героя (аудит §5.6): пока активно, каждые\n`every_ticks` тиков (умолчание 4) герой и до двух союзников партии\nпроверяют цепочкой навык `skill` (умолчание stealth). Цепочка\nпровалов подряд ≥ fails_to_catch (умолчание 1) — погоня настигла:\nсрабатывают `on_fail` (обычно start_combat), преследование гаснет.\nОстановить заранее можно эффектом stop_pursuit (оторвались в сцене)."
+            },
+            "label": {
+              "type": "string",
+              "description": "кто гонится (для подписи в журнале)"
+            },
+            "skill": {
+              "type": "string"
+            },
+            "every_ticks": {
+              "type": "number"
+            },
+            "fails_to_catch": {
+              "type": "number"
+            },
+            "on_fail": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "on_fail"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "stop_pursuit"
+            }
+          },
+          "required": [
+            "type"
           ],
           "additionalProperties": false
         },
@@ -1603,6 +1711,42 @@
         "heal": {
           "type": "string",
           "description": "для kind 'heal', напр. '1d6'"
+        },
+        "prepare": {
+          "type": "boolean",
+          "description": "Требует подготовки в слот (аудит §5.6, магия): работает, когда у кампании\nзадано meta.magic.slots — герой использует способность, только если она\nподготовлена заранее (в листе персонажа, вне боя). Без слотов кампании —\nполе ни на что не влияет."
+        },
+        "backlash_table": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "weight": {
+                "type": "number"
+              },
+              "text": {
+                "type": "string",
+                "description": "строка в журнал (нет — стандартная «Нарушение силы»)"
+              },
+              "hp_delta": {
+                "type": "number"
+              },
+              "mp_delta": {
+                "type": "number"
+              },
+              "status": {
+                "type": "string"
+              },
+              "status_duration": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "weight"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Откат силы при критическом провале броска навыка применения (магический\nbacklash, аудит §5.6): бросок по весам, запись действует на ЗАКЛИНАТЕЛЯ.\nhp_delta/mp_delta — знаковые (минус — урон/потеря), status — из реестра.\nНет таблицы — критический провал остаётся просто промахом."
         }
       },
       "required": [
@@ -1614,6 +1758,134 @@
       ],
       "additionalProperties": false,
       "description": "Способность бойца: тратит MP, имеет кулдаун, бьёт/лечит/вешает статус.\nРеестр — в `campaign.json` (meta.abilities); НПС получают `abilities: [id…]`."
+    },
+    "DifficultyPreset": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "что это значит — видно игроку при выборе"
+        },
+        "enemy_damage": {
+          "type": "number",
+          "description": "множитель урона врагов по герою в бою (умолчание 1; 0.5 — мягкий бой, 1.5 — лихо)"
+        },
+        "need_decay": {
+          "type": "number",
+          "description": "множитель скорости убыли потребностей (умолчание 1)"
+        },
+        "prices": {
+          "type": "number",
+          "description": "множитель цен при покупке/продаже (умолчание 1; у торговца дороже)"
+        },
+        "no_autosave": {
+          "type": "boolean",
+          "description": "на этом уровне автосохранения выключены (путь железного человека)"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Уровень сложности, который мастер предлагает игроку (meta.difficulties)."
+    },
+    "SpeciesTemplate": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "подсказка мастеру: чем этот вид примечателен"
+        },
+        "stats": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "skills": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "armor": {
+          "type": "number",
+          "description": "броня в очках (нет — 0)"
+        },
+        "natural_weapon": {
+          "type": "object",
+          "properties": {
+            "skill": {
+              "type": "string"
+            },
+            "damage": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "damage_bonus": {
+              "type": "boolean"
+            },
+            "range": {
+              "type": "number"
+            },
+            "attacks_per_round": {
+              "type": "number"
+            },
+            "parry_capable": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "skill",
+            "damage"
+          ],
+          "additionalProperties": false
+        },
+        "abilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "id способностей из реестра кампании"
+        },
+        "morale": {
+          "type": "object",
+          "properties": {
+            "below_hp_pct": {
+              "type": "number"
+            },
+            "flee_chance": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "below_hp_pct",
+            "flee_chance"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Шаблон вида существа (meta.species): боевой костяк NPC по нажатию\n«Применить вид» в редакторе персонажа. Встроенных видов в движке нет —\nвиды задаёт мастер под свою кампанию (контент, не код)."
     },
     "WeatherDef": {
       "type": "object",
@@ -2983,6 +3255,48 @@
         "accent": {
           "type": "string",
           "description": "акцентный цвет интерфейса (заменяет золото темы)"
+        },
+        "tokens": {
+          "type": "object",
+          "properties": {
+            "panel": {
+              "type": "string",
+              "description": "фон панелей и шапок (панель, колодцы диалогов)"
+            },
+            "cards": {
+              "type": "string",
+              "description": "карточки, кнопки, ячейки статов, чипы"
+            },
+            "inset": {
+              "type": "string",
+              "description": "углубления (поля ввода, прогресс-полосы)"
+            },
+            "log": {
+              "type": "string",
+              "description": "фон списка журнала событий"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Тоны поверхностей (мастерская докрутка палитры): панели, карточки/кнопки,\nколодцы, фон строк журнала. HEX (#rrggbb). Пусто — тон профиля."
+        },
+        "frame": {
+          "type": "object",
+          "properties": {
+            "image": {
+              "type": "string",
+              "description": "файл пакета или ссылка (PNG с прозрачной сердцевиной, орнамент по краям)"
+            },
+            "slice": {
+              "type": "number",
+              "description": "толщина среза рамки в px (умолчание 30)"
+            },
+            "width": {
+              "type": "number",
+              "description": "видимая толщина рамки в px (умолчание 20)"
+            }
+          },
+          "additionalProperties": false,
+          "description": "рамка-«кадр» вокруг панелей: изображение 9-срез (border-image)"
         }
       },
       "additionalProperties": false,
@@ -3071,6 +3385,116 @@
       "additionalProperties": false,
       "description": "«Призвание» — второй шаблон создания персонажа (фидбек 19): если\nпроисхождение распределяет характеристики, то призвание — стартовые\nНАВЫКИ. Мастер обязан распределить весь бюджет skill_points (значения —\nабсолютные стартовые проценты, считая от нижнего порога), игрок после\nвыбора может убавлять/прибавлять в рамках бюджета."
     },
+    "ImageValue": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "frames": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "fps": {
+              "type": "number"
+            },
+            "loop": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "frames"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "изображение пакета либо цикл кадров для «живых» сцен (frame-swap анимация):\nстрока — статично (все старые кампании); массив строк — кадры без настроек;\nобъект — кадры + темп (кадр/с, умолч. 2) + зацикленность (умолч. true)."
+    },
+    "HeroPortraitOption": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "image": {
+          "$ref": "#/$defs/ImageValue"
+        },
+        "states": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ImageValue"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "image"
+      ],
+      "additionalProperties": false,
+      "description": "Портрет героя из галереи мастера (char_creation.portraits): игрок выбирает\nкарточку при создании персонажа. states — варианты облика по состоянию\n(ключи из общего реестра meta.emotions: «ранен», «устал»…)."
+    },
+    "HeroPortraitLayerDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string",
+          "description": "подпись сегмента для игрока («Лицо»)"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "image": {
+                "$ref": "#/$defs/ImageValue"
+              },
+              "states": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/$defs/ImageValue"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "label",
+              "image"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "options"
+      ],
+      "additionalProperties": false,
+      "description": "Слой составного портрета (char_creation.portrait_layers): «лицо»,\n«волосы», «одежда» — игрок собирает облик из вариантов слоёв мастера,\nитог — стек изображений по порядку слоёв."
+    },
     "CharCreationDef": {
       "type": "object",
       "properties": {
@@ -3139,6 +3563,28 @@
           "type": "boolean",
           "description": "ввод имени героя"
         },
+        "choose_age": {
+          "type": "boolean",
+          "description": "поле «Возраст» при создании героя (аудит §5.6)"
+        },
+        "choose_bio": {
+          "type": "boolean",
+          "description": "поле «Биография» — короткая предыстория своими словами"
+        },
+        "portraits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HeroPortraitOption"
+          },
+          "description": "Галерея портретов героя (пункт «портрет героя»): игрок выбирает одну\nкарточку. Пусто — экран портрета не появляется."
+        },
+        "portrait_layers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HeroPortraitLayerDef"
+          },
+          "description": "Составной портрет по сегментам («лицо», «волосы», «одежда»): игрок\nсобирает облик из вариантов мастера. Можно сочетать с галереей —\nсобранный портрет перекрывает выбранную карточку, если сделан выбор\nхотя бы в одном сегменте."
+        },
         "roll": {
           "type": "object",
           "properties": {
@@ -3174,8 +3620,7 @@
         "total_points",
         "stat_limits"
       ],
-      "additionalProperties": false,
-      "description": "Создание персонажа (блок 11 ТЗ). Всё задаёт мастер кампании —\nвстроенных значений и «происхождений по умолчанию» в движке нет.\nНет самого блока `char_creation` — забег стартует готовым шаблоном."
+      "additionalProperties": false
     },
     "CombatRulesDef": {
       "type": "object",
@@ -3252,6 +3697,136 @@
             "additionalProperties": false
           },
           "description": "Таблица критических провалов мастера: бросок по весам при fumble.\nНет — fumble лишь промах (и износ оружия, если задана прочность)."
+        },
+        "crit_table": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "weight": {
+                "type": "number"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "max_damage",
+                  "double_damage",
+                  "disarm",
+                  "status"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "description": "id статуса реестра (kind='status')"
+              },
+              "duration": {
+                "type": "number",
+                "description": "длительность статуса в ходах (нет — как записано в реестре)"
+              },
+              "text": {
+                "type": "string",
+                "description": "строка для журнала (нет — стандартная)"
+              }
+            },
+            "required": [
+              "weight",
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Таблица критических успехов мастера (близнец fumble_table): бросок\nпо весам при критическом ударе.\n- max_damage — книжный крит: максимум костей, броня не спасает (как обычно);\n- double_damage — урон бросается обычно и удваивается (броня учитывается);\n- disarm — книжный крит + цель разоружена;\n- status — книжный крит + на цель статус из реестра.\nНет — крит всегда книжный (max_damage)."
+        },
+        "flank": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "arc": {
+                  "type": "number"
+                },
+                "damage_bonus": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "Удар в спину / фланговый удар (аудит §5.6): атака из задней дуги цели\n(за направлением её взгляда; дуга по умолчанию 120° — задний гекс и два\nзадне-фланговых) лишает цель защиты, а при damage_bonus добавляет\nкости урона («1d4»). false/нет — механика выключена."
+        },
+        "cover": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "penalty": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "Укрытия на арене: дальнобойная атака (дальность оружия > 1) по бойцу,\nстоящему на гексе укрытия (cover_hexes в разметке арены), получает\nштраф к навыку (умолчание −20). На движение укрытия не влияют.\nfalse/нет — механика выключена."
+        },
+        "hit_locations": {
+          "type": "object",
+          "properties": {
+            "table": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "number"
+                  },
+                  "to": {
+                    "type": "number"
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "название локации («голова», «тело», «правая рука»…)"
+                  },
+                  "damage_mult": {
+                    "type": "number",
+                    "description": "множитель урона локации (умолчание ×1)"
+                  },
+                  "armor": {
+                    "type": "number",
+                    "description": "броня локации в очках (нет — общая броня защитника)"
+                  },
+                  "status_on_hit": {
+                    "type": "string",
+                    "description": "статус цели при пробившем ударе"
+                  },
+                  "status_on_crit": {
+                    "type": "string",
+                    "description": "статус цели при критическом ударе"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "строка журнала (нет — «Попадание: <label>»)"
+                  }
+                },
+                "required": [
+                  "from",
+                  "to",
+                  "label"
+                ],
+                "additionalProperties": false
+              },
+              "description": "процентная таблица; диапазоны [from..to] должны покрыть 1..100"
+            }
+          },
+          "required": [
+            "table"
+          ],
+          "additionalProperties": false,
+          "description": "Хит-локации (книжная опция, аудит §5.6 — РЕШЕНИЕ МАСТЕРА).\nПри удачном ударе бросается d100 и выбирается локацию попадания:\nу неё свой множитель урона, своя броня (нет — общая) и статусы\nпри ранении/крите. Умолчание — ВЫКЛЮЧЕНО (единое тело)."
         },
         "death": {
           "type": "object",
@@ -3828,6 +4403,62 @@
             "$ref": "#/$defs/AbilityDef"
           },
           "description": "реестр боевых способностей (блок 6 ТЗ)"
+        },
+        "magic": {
+          "type": "object",
+          "properties": {
+            "slots": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Магия кампании (аудит §5.6): slots — число «слотов подготовки» героя.\nЗадано — способности с prepare:true действуют лишь подготовленные\n(подготовка в листе персонажа). Нет — подготовка выключена."
+        },
+        "difficulties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DifficultyPreset"
+          },
+          "description": "Уровни сложности, которые мастер предлагает игроку при старте забега\n(аудит §5.6 — решение мастера). Список задан — на экране создания\nпоявляется выбор; пусто — сложность одна, «как задумано».\nПервый уровень — умолчание."
+        },
+        "new_game_plus": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "подпись кнопки на экране финала (умолчание «Новая игра+»)"
+            },
+            "keep": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "boost": {
+              "type": "object",
+              "properties": {
+                "enemy_damage_step": {
+                  "type": "number"
+                },
+                "need_decay_step": {
+                  "type": "number"
+                },
+                "prices_step": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "description": "New Game+ (решение мастера): при победе игрок может начать заново с\nнаследием. keep — что переносится (строки: 'skills', 'skill_marks',\n'stats', 'inventory', 'feats', 'prepared'); пусто — все из списка.\nboost — шаги множителей за каждый круг повторного забега (на действующий\nпресет сложности): 0.25 = +25% урона врагов за круг."
+        },
+        "species": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpeciesTemplate"
+          },
+          "description": "шаблоны видов существ — мастерские заготовки боевых параметров NPC (контент, не движок)"
         },
         "equipment_slots": {
           "type": "array",
@@ -5067,41 +5698,6 @@
       ],
       "additionalProperties": false
     },
-    "ImageValue": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        {
-          "type": "object",
-          "properties": {
-            "frames": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "fps": {
-              "type": "number"
-            },
-            "loop": {
-              "type": "boolean"
-            }
-          },
-          "required": [
-            "frames"
-          ],
-          "additionalProperties": false
-        }
-      ],
-      "description": "изображение пакета либо цикл кадров для «живых» сцен (frame-swap анимация):\nстрока — статично (все старые кампании); массив строк — кадры без настроек;\nобъект — кадры + темп (кадр/с, умолч. 2) + зацикленность (умолч. true)."
-    },
     "SceneCondition": {
       "type": "object",
       "properties": {
@@ -6230,6 +6826,13 @@
               "items": {
                 "$ref": "#/$defs/HexCoord"
               }
+            },
+            "cover_hexes": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/HexCoord"
+              },
+              "description": "гексы-укрытия (мастер размечает кистью «Укрытие»); влияют на стрельбу, если в правилах боя включены укрытия"
             }
           },
           "required": [
@@ -6670,6 +7273,10 @@
         "text": {
           "type": "string",
           "description": "основной текст"
+        },
+        "creature_entity": {
+          "type": "string",
+          "description": "Бестиарий (аудит §5.6): id существа-NPC, о котором запись.\nЗаполнено — у записи в кодексе появляется боевая сводка\n(характеристики, броня, природное оружие, способности, мораль)."
         },
         "image": {
           "type": "string",

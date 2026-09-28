@@ -67,7 +67,8 @@
     "rule_weather_ashfall.json",
     "rule_weather_ravine_rain.json",
     "gen_whisper_blessing.json",
-    "gen_whisper_chill.json"
+    "gen_whisper_chill.json",
+    "gen_whisper_protest.json"
   ],
   "dialogues": [
     "aldric.ink",
