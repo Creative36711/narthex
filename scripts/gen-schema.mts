@@ -10,7 +10,7 @@
  * и рекурсивно отражаем все ссылочные типы shared/types.ts в $defs.
  */
 import ts from 'typescript'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -231,3 +231,10 @@ const schema = {
 mkdirSync(dirname(outFile), { recursive: true })
 writeFileSync(outFile, JSON.stringify(schema, null, 2) + '\n')
 console.log(`OK: ${outFile} ($defs: ${Object.keys(defs).length})`)
+
+// дублируем схему в публичный «чемодан для ИИ-агента» (синхронный образ public/ai)
+const aiKit = join(process.cwd(), 'public', 'ai')
+mkdirSync(aiKit, { recursive: true })
+writeFileSync(join(aiKit, 'campaign.schema.json'), JSON.stringify(schema, null, 2) + '\n')
+writeFileSync(join(aiKit, 'campaign-guide.md'), readFileSync(join(process.cwd(), 'docs', 'ai-campaign-guide.md'), 'utf8'))
+console.log('OK: public/ai/campaign.schema.json + campaign-guide.md — синк')

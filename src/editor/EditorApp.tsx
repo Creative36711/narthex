@@ -15,6 +15,7 @@ import { WorldEditor } from './WorldEditor'
 import { CutsceneEditor, newCutscene } from './CutsceneEditor'
 import { RecipeEditor, newRecipe } from './RecipeEditor'
 import { CodexEditor, newCodexEntry } from './CodexEditor'
+import JSZip from 'jszip'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { stopMusic } from '../shared/music'
@@ -557,6 +558,40 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  /**
+   * «Чемодан для ИИ-агента»: zip с кампанией монолитом + гайдом движка,
+   * JSON Schema и инструкцией к агентному чату. Работа с ИИ внешняя:
+   * мастер загружает файлы в свой сервис и возвращает правленый JSON.
+   */
+  const doExportAiKit = async () => {
+    setBusy('Собираю чемодан для ИИ-агента…')
+    try {
+      const { doc } = exportMonolith(store)
+      const zip = new JSZip()
+      zip.file('campaign.json', JSON.stringify(doc, null, 2))
+      const kitFiles: Array<[string, string]> = [
+        ['campaign-guide.md', 'Полный гайд по движку (системный промпт агента)'],
+        ['campaign.schema.json', 'JSON Schema всех полей формата'],
+        ['НАЧНИ_С_ЭТОГО.txt', 'Сопроводительный текст: пошаговая инструкция и правила для агента'],
+      ]
+      for (const [name] of kitFiles) {
+        const res = await fetch(`ai/${encodeURIComponent(name)}`)
+        if (!res.ok) throw new Error(`Не найден файл набора: ai/${name} (${res.status})`)
+        zip.file(name, await res.text())
+      }
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
+      downloadBlob(blob, `${doc.campaign.id || 'campaign'}-ai-kit.zip`)
+      void showAlert(
+        'Чемодан для ИИ-агента собран',
+        'Загрузите campaign.json, campaign-guide.md и campaign.schema.json в чат вашего ИИ-сервиса. Пошаговая инструкция и правила для агента — в НАЧНИ_С_ЭТОГО.txt.',
+      )
+    } catch (e) {
+      void showAlert('Не удалось собрать чемодан', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   /** импорт из JSON: файл ИЛИ вставленный текст (кампания может прийти от ИИ) */
   const doImportJson = async () => {
     const text = await askTextArea('Импорт кампании из JSON', {
@@ -648,6 +683,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             <div className="editor-toolbar-divider" />
             <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт .chronicle</button>
             <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON</button>
+            <button className="editor-toolbar-item" onClick={doExportAiKit}><Ico n="sparkle" /> Чемодан для ИИ-агента</button>
             <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle</button>
             <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
           </div>
