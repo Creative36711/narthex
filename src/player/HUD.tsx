@@ -148,10 +148,10 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
             <Ico n="flame" />  Лагерь
           </button>
         )}
-        <button className="hud-btn" onClick={onOpenSaves} data-tip="Сохранения (слоты)" aria-label="Сохранения"><Ico n="download" /> </button>
         {(s.codex_unlocked ?? []).length > 0 && (
           <button className="hud-btn" onClick={onOpenCodex} data-tip="Разблокированные записи о мире"><Ico n="book" />  Кодекс</button>
         )}
+        <button className="hud-btn" onClick={onOpenSaves} data-tip="Сохранения (слоты)" aria-label="Сохранения"><Ico n="download" /> </button>
         <button className="hud-btn" onClick={onOpenHelp} data-tip="Справка"><Ico n="help" /> </button>
         <button className="hud-btn" onClick={() => setShowSettings(true)} data-tip="Настройки (громкость, озвучка)"><Ico n="settings" /> </button>
         <button

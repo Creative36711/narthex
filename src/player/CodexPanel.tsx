@@ -25,8 +25,8 @@ export function CodexPanel({ engine, onClose }: { engine: GameEngine; onClose: (
   const sel = active?.items.find((e) => e.id === selId) ?? active?.items[0]
 
   return (
-    <div className="overlay panel-overlay" onClick={onClose}>
-      <div className="panel side-panel codex-panel" onClick={(e) => e.stopPropagation()}>
+    <div className="overlay" onClick={onClose}>
+      <div className="panel codex-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
           <h2><Ico n="book" />  Кодекс</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>

@@ -2054,9 +2054,11 @@ input[type='range'] {
   color: var(--gold-bright);
 }
 
-/* ── поля поиска и ввода в панелях/редакторе ── */
-input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
-textarea {
+/* ── поля поиска и ввода в игровых панелях (.cf-themed) ──
+   НЕ глобально: правило жёсткое (0,4,1) и в редакторе затирало
+   светлые поля бумажной темы собственной переменной --panel-2. */
+.cf-themed input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+.cf-themed textarea {
   background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--border);
@@ -2065,8 +2067,8 @@ textarea {
   font-family: inherit;
   font-size: 14px;
 }
-input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
-textarea:focus {
+.cf-themed input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+.cf-themed textarea:focus {
   outline: 2px solid var(--focus-ring);
   outline-offset: -1px;
   border-color: var(--gold);
@@ -2461,8 +2463,9 @@ input[type='checkbox'], input[type='radio'] {
 .chip-del svg { width: 12px; height: 12px; }
 
 /* ─────────────── кодекс/бестиарий (блок 10 ТЗ «Гибкий движок») ─────────────── */
-.codex-panel { max-width: 900px; width: min(94vw, 900px); }
-.codex-body { display: flex; gap: 16px; min-height: 340px; }
+.codex-panel { max-width: 900px; width: min(94vw, 900px); max-height: 86vh; display: flex; flex-direction: column; }
+.codex-body { display: flex; gap: 16px; min-height: 340px; flex: 1; min-height: 0; overflow: hidden; }
+.codex-text { flex: 1; overflow-y: auto; }
 .codex-nav { width: 240px; flex-shrink: 0; overflow-y: auto; max-height: 62vh; }
 .codex-cat-group { margin-bottom: 12px; }
 .codex-cat { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 8px 0 4px; }
@@ -2766,3 +2769,9 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
 .char-diff-list { display: flex; flex-direction: column; gap: 6px; }
 .char-diff { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px 12px; }
 .char-diff-label { font-weight: 600; }
+
+/* поля формы на экране создания героя (в редакторе те же классы стилизует editor.css) */
+.cf-themed .fld { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; font-size: 13px; color: var(--text); }
+.cf-themed .fld > span { color: var(--muted); font-size: 12px; }
+.cf-themed .fld textarea { resize: vertical; min-height: 64px; }
+.cf-themed .char-age input { max-width: 120px; }
