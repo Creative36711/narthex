@@ -3561,6 +3561,31 @@
       ],
       "additionalProperties": false
     },
+    "CampaignChapter": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "order": {
+          "type": "number",
+          "description": "порядок в оглавлении (меньше — раньше; умолчание — порядок в списке)"
+        },
+        "description": {
+          "type": "string",
+          "description": "кратко о содержании главы (для мастера и будущей вылож. страницы части)"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Глава кампании: опорная группировка контента для мастера и «пролог бесплатно» —\nсцены/правила/квесты/катсцены помечают полем `chapter`; двигатель не различает главы."
+    },
     "SoundDoc": {
       "type": "object",
       "properties": {
@@ -5489,6 +5514,51 @@
           },
           "description": "реестр музыкальных треков (итерация 8, блок H): файл/ссылка ИЛИ синтез MusicDoc"
         },
+        "chapters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CampaignChapter"
+          },
+          "description": "Книга 2.0 (проектные добавки после фидбека 28-09): главы кампании.\nМеханика «бесплатный пролог → платное продолжение» спроектирована на\nуровне пакетов: пролог — глава(ы), продолжение — пакет с `series.base`,\nплатёжный гейт — с мастерской; здесь только данные и группировка."
+        },
+        "series": {
+          "type": "object",
+          "properties": {
+            "base": {
+              "type": "string"
+            },
+            "part": {
+              "type": "number"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Место кампании в серии (DLC/части): `base` — id базовой кампании,\n`part` — номер части (основная игра — 1), `label` — название части.\nМодульная совместимость сохранений/экспорта не меняется."
+        },
+        "attribution": {
+          "type": "object",
+          "properties": {
+            "author": {
+              "type": "string"
+            },
+            "origin_url": {
+              "type": "string",
+              "description": "канонический адрес публикации (GitHub репозиторий мастера)"
+            },
+            "published_at": {
+              "type": "string",
+              "description": "дата первой публичной версии (ISO)"
+            },
+            "note": {
+              "type": "string",
+              "description": "свободное раскрытие: основание, вдохновение, ссылки на источники"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Блок авторства (публикация): кто придумал и собрал, откуда каноническая\nкопия. Мастерская сверяет отпечатки и показывает этот блок; поля\nвлияют на данные кампании, но не на игровой процесс."
+        },
         "sounds": {
           "type": "array",
           "items": {
@@ -6209,6 +6279,10 @@
             "type": "string"
           },
           "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации)"
+        },
+        "chapter": {
+          "type": "string",
+          "description": "глава (id из meta.chapters) — группировка в редакторе; двигатель значения не ждёт"
         }
       },
       "required": [
@@ -6874,6 +6948,10 @@
           "items": {
             "$ref": "#/$defs/Effect"
           }
+        },
+        "chapter": {
+          "type": "string",
+          "description": "глава (id из meta.chapters) — группировка в редакторе"
         }
       },
       "required": [
@@ -6962,6 +7040,10 @@
           "items": {
             "$ref": "#/$defs/QuestStageDef"
           }
+        },
+        "chapter": {
+          "type": "string",
+          "description": "глава (id из meta.chapters) — группировка в редакторе"
         }
       },
       "required": [
@@ -7199,6 +7281,10 @@
           "items": {
             "$ref": "#/$defs/CutsceneSlide"
           }
+        },
+        "chapter": {
+          "type": "string",
+          "description": "глава (id из meta.chapters) — группировка в редакторе"
         }
       },
       "required": [

@@ -1375,3 +1375,7 @@ body.cf-editor .modal-overlay .fld > span { color: var(--ed-muted, #9aa3b5); }
 
 /* ── слайд-катсцены в редакторе: превью на тёмном арт-холсте ── */
 .cs-thumb-empty { background: var(--ed-art); }
+
+/* фильтр по главе над списком документов */
+.editor-list-chapter { flex: 0 0 auto; margin: 0 8px 6px; background: var(--ed-bg-3); border: 1px solid var(--ed-line-strong); color: var(--ed-text); border-radius: 6px; padding: 5px 8px; font-size: 12.5px; font-family: inherit; }
+.editor-list-chapter:focus { outline: 2px solid var(--ed-select); outline-offset: -1px; }

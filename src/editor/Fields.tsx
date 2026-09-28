@@ -1230,3 +1230,19 @@ export function FileAdvancedJson({ store, path, commit, label = 'Расшире�
     </details>
   )
 }
+
+/** Выбор главы кампании (meta.chapters); пустой реестр → поле не показывается. */
+export function ChapterSelect({ store, value, onChange }: { store: EditorStore; value: string | undefined; onChange: (v: string | undefined) => void }) {
+  const chapters = store.meta.chapters ?? []
+  if (!chapters.length) return null
+  const sorted = [...chapters].sort((a, b) => (a.order ?? chapters.indexOf(a)) - (b.order ?? chapters.indexOf(b)))
+  return (
+    <label className="fld" data-tip="Группировка для мастера; движок главы не различает">
+      <span>Глава</span>
+      <select value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
+        <option value="">без главы</option>
+        {sorted.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+      </select>
+    </label>
+  )
+}

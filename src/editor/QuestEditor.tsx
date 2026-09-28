@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { QuestDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
-import { ConditionListEditor, EffectListEditor, FileAdvancedJson } from './Fields'
+import { ConditionListEditor, EffectListEditor, FileAdvancedJson, ChapterSelect } from './Fields'
 import { askText } from './prompt'
 
 /** Визуальный конструктор квестов (ТЗ 5.2.5): стадии, переходы, журнал. */
@@ -24,6 +24,7 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
             <span>Название</span>
             <input value={quest.label} onChange={(e) => ((quest.label = e.target.value), commit())} />
           </label>
+            <ChapterSelect store={store} value={quest.chapter} onChange={(v) => ((quest.chapter = v), commit())} />
         </div>
         <label className="fld fld-block">
           <span>Описание</span>

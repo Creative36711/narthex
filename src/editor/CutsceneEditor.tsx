@@ -2,7 +2,7 @@ import { Ico } from '../shared/icons'
 import { useCallback, useState } from 'react'
 import type { ArtDoc, CutsceneDef, CutsceneSlide, CutsceneTransition } from '../shared/types'
 import type { EditorStore } from './store'
-import { AssetUpload, AudioUpload, ImageUpload, JsonField } from './Fields'
+import { AssetUpload, AudioUpload, ImageUpload, JsonField, ChapterSelect } from './Fields'
 import { MusicTrackSelect } from './AudioSection'
 import { ArtView } from '../shared/ArtView'
 import { CameraEditor } from './AtmosEditors'
@@ -86,6 +86,7 @@ export function CutsceneEditor({ store, path }: { store: EditorStore; path: stri
           <span>Название</span>
           <input value={cs.label} onChange={(e) => ((cs.label = e.target.value), commit())} />
         </label>
+        <ChapterSelect store={store} value={cs.chapter} onChange={(v) => ((cs.chapter = v), commit())} />
         <div className="fld fld-block">
           <span>Музыка на всю катсцену (необязательно)</span>
           <div className="muted small" style={{ marginBottom: 4 }}>

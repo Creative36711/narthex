@@ -15,7 +15,7 @@ function inline(text: string, onNavigate: (file: string) => void, keyPrefix: str
     } else if (token.startsWith('[')) {
       const parts = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
       if (parts) {
-        const isBookFile = /(?:^|\/)(?:README|0[1-6]-[a-z-]+)\.md(?:#.*)?$/.test(parts[2])
+        const isBookFile = /(?:^|\/)(?:README|0[1-9]-[a-z-]+)\.md(?:#.*)?$/.test(parts[2])
         out.push(isBookFile
           ? <button key={`${keyPrefix}-${index++}`} className="book-inline-link" onClick={() => onNavigate(parts[2].split('/').pop()!.split('#')[0])}>{parts[1]}</button>
           : <a key={`${keyPrefix}-${index++}`} href={parts[2]} target="_blank" rel="noreferrer">{parts[1]}</a>)

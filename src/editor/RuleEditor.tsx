@@ -2,7 +2,7 @@ import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { RuleDef } from '../shared/types'
 import type { EditorStore } from './store'
-import { ConditionListEditor, EffectListEditor, FileAdvancedJson } from './Fields'
+import { ConditionListEditor, EffectListEditor, FileAdvancedJson, ChapterSelect } from './Fields'
 
 /** Визуальный конструктор правил (ТЗ 5.2.4): условия + эффекты. */
 export function RuleEditor({ store, path }: { store: EditorStore; path: string }) {
@@ -21,6 +21,7 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
           <span>Название</span>
           <input value={rule.label} onChange={(e) => ((rule.label = e.target.value), commit())} />
         </label>
+        <ChapterSelect store={store} value={rule.chapter} onChange={(v) => ((rule.chapter = v), commit())} />
         <div className="fld-row">
           <label className="fld fld-check">
             <input type="checkbox" checked={rule.once} onChange={(e) => ((rule.once = e.target.checked), commit())} />
