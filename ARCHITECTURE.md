@@ -1069,6 +1069,13 @@ markdown (`MarkdownView.tsx`); иллюстрации — статик `public/b
   - Эффект `fire_rule { rule }` в `Effect` (правила и слоты/предметы) с защитой от зацикливания (глубина ≤ 2 и проверка циклов в `validateContent`).
   - Условие `meta_counter { key, ge }` для проверки счётчиков хроники игрока (включая `ng_cycle` и `victories` для New Game+).
   - Смоук — `scripts/p0-validator-collision-smoke.mts`.
+- **P3 — «напряжение во времени» (три уровня)**:
+  - Уровень 1 (полей не добавляет): мировой дедлайн собирается из правил по условию `tick_elapsed`.
+  - Уровень 2: `DlgNode.choice_deadline_ticks` / `choice_deadline_to` / `choice_deadline_pick` и `campaign.dialogue_tick_seconds` (0 — таймеры выключены). Генератор диалогов объявляет дедлайн в ink (`~ set_choice_deadline(...)`, внешняя функция в `bindExternals`), импорт ink возвращает поля в модель (`inkImport.ts`). Движок: `setChoiceDeadline` / `expireChoiceDeadline` (автовыбор варианта или переход в узел-развязку), отсчёт — в `player/DialogueOverlay.tsx`, стартует только когда варианты уже на экране.
+  - Уровень 3: эффекты `start_crisis` / `extend_crisis` / `end_crisis`, состояние `GameState.crisis` (`CrisisState`), тик в `advanceTicks` (эскалации `on_escalate` каждые `every` тиков, развязка `on_deadline`), условия `crisis_active` / `crisis_ticks_le` / `crisis_ticks_ge`, отсчёт в `player/HUD.tsx`.
+  - Редактор: схемы полей (`schemas.ts`), блок «Таймер ответа (Уровень 2)» в узле диалога, настройка «Секунд на диалоговый тик» во вкладке «Основное», диагностика в `validateContent` и автопочинка в `fixChoiceDeadline` (`monolith.ts`).
+  - Документация: гайд §14к, «Книга мастера» §5.9, `docs/compatibility.md` §9 (запрос на глобальный таймер остаётся отклонённым), смоук `npm run smoke:time-pressure`.
+- **Протокол работы ИИ-разработчика**: `docs/ai-workflow.md` — обязательный к обновлению набор файлов в каждом изменении и периодичность коммитов/пушей (чтобы поломка песочницы или протухший токен не теряли прогресс).
 
 ## 11. Что осталось
 
