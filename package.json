@@ -15,7 +15,9 @@
     "smoke:ink-import": "tsx scripts/ink-import-smoke.mts",
     "smoke:fingerprint": "tsx scripts/fingerprint-smoke.mts",
     "smoke:book-md": "tsx scripts/book-md-smoke.mts",
-    "smoke:campaign-index": "tsx scripts/campaign-index-smoke.mts"
+    "smoke:campaign-index": "tsx scripts/campaign-index-smoke.mts",
+    "smoke:guide": "tsx scripts/guide-schema-guard.mts",
+    "smoke:p2": "tsx scripts/p2-mechanics-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

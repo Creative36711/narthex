@@ -133,7 +133,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {featureOn(meta, 'inventory') && (
           <button className="hud-btn" onClick={onOpenInventory} data-tip="Инвентарь"><Ico n="bag" />  Вещи</button>
         )}
-        {featureOn(meta, 'inventory') && Object.keys(engine.campaign.recipes).length > 0 && (
+        {featureOn(meta, 'inventory') && engine.knownRecipes().length > 0 && (
           <button className="hud-btn" onClick={onOpenCraft} data-tip="Изготовление предметов по рецептам">
             <Ico n="hammer" />  Крафт
           </button>

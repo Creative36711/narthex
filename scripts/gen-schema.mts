@@ -232,9 +232,59 @@ mkdirSync(dirname(outFile), { recursive: true })
 writeFileSync(outFile, JSON.stringify(schema, null, 2) + '\n')
 console.log(`OK: ${outFile} ($defs: ${Object.keys(defs).length})`)
 
-// дублируем схему в публичный «чемодан для ИИ-агента» (синхронный образ public/ai)
+// ── синхронизируемые куски гайда ────────────────────────────────────────────
+// Часть гайда и файл чемодана должны быть одним текстом: мастер копирует
+// «НАЧНИ_С_ЭТОГО.txt» в чат, агент читает §0 гайда. Держим один источник
+// (docs/ai-start-instruction.md, docs/ai-design-template.md) и раскладываем
+// его при генерации — руками эти куски не правим.
+const docsDir = join(process.cwd(), 'docs')
 const aiKit = join(process.cwd(), 'public', 'ai')
 mkdirSync(aiKit, { recursive: true })
+
+const startInstruction = readFileSync(join(docsDir, 'ai-start-instruction.md'), 'utf8').trim()
+const designTemplate = readFileSync(join(docsDir, 'ai-design-template.md'), 'utf8').trim()
+
+/** опустить заголовки вложенного документа на два уровня (гайд уже на ##) */
+function demoteHeadings(md: string): string {
+  return md.replace(/^(#{1,6}) /gm, (_m, h: string) => '#'.repeat(Math.min(6, h.length + 2)) + ' ')
+}
+
+/** вставить/обновить раздел между маркерами BEGIN/END в тексте */
+function upsertSection(text: string, key: string, title: string, body: string): string {
+  const begin = `<!-- ${key}:BEGIN -->`
+  const end = `<!-- ${key}:END -->`
+  const block = `${begin}\n${title}\n\n${body}\n${end}`
+  const re = new RegExp(`${begin}[\\s\\S]*?${end}`)
+  if (re.test(text)) return text.replace(re, block)
+  return text.replace(/\n---\n\n## 1\. Главные правила/, `\n---\n\n${block}\n\n---\n\n## 1. Главные правила`)
+}
+
+const guidePath = join(docsDir, 'ai-campaign-guide.md')
+let guide = readFileSync(guidePath, 'utf8')
+guide = upsertSection(
+  guide,
+  'START-INSTRUCTION',
+  '## 0. С чего начать (этот же текст лежит файлом `НАЧНИ_С_ЭТОГО.txt` в чемодане)',
+  demoteHeadings(startInstruction),
+)
+guide = upsertSection(
+  guide,
+  'DESIGN-TEMPLATE',
+  '## 0б. Бланк дизайн-документа (файл `design-template.md` в чемодане)',
+  demoteHeadings(designTemplate),
+)
+writeFileSync(guidePath, guide)
+
+// дублируем схему и гайд в публичный «чемодан для ИИ-агента»
 writeFileSync(join(aiKit, 'campaign.schema.json'), JSON.stringify(schema, null, 2) + '\n')
-writeFileSync(join(aiKit, 'campaign-guide.md'), readFileSync(join(process.cwd(), 'docs', 'ai-campaign-guide.md'), 'utf8'))
-console.log('OK: public/ai/campaign.schema.json + campaign-guide.md — синк')
+writeFileSync(join(aiKit, 'campaign-guide.md'), guide)
+writeFileSync(join(aiKit, 'design-template.md'), designTemplate + '\n')
+// НАЧНИ_С_ЭТОГО.txt — тот же текст, что §0 гайда, с короткой шапкой
+writeFileSync(
+  join(aiKit, 'НАЧНИ_С_ЭТОГО.txt'),
+  `# Как работать с кампанией Chronicle Forge через ИИ-агента\n\n` +
+    `Файл для вставки первым сообщением в чат агента. Его полный текст —\n` +
+    `первый раздел campaign-guide.md (тот же источник: docs/ai-start-instruction.md).\n\n` +
+    `${startInstruction}\n`,
+)
+console.log('OK: public/ai/campaign.schema.json + campaign-guide.md + design-template.md + НАЧНИ_С_ЭТОГО.txt — синк')

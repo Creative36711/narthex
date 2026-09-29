@@ -1,8 +1,10 @@
 import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
 import { isExternalUrl } from '../core/loader'
 import { compareVersions } from '../shared/versions'
+import { DEFAULT_EMOTION } from '../shared/types'
 import type {
   ArenaDef,
+  Effect,
   CampaignManifest,
   CampaignMeta,
   CodexEntryDef,
@@ -22,6 +24,34 @@ import type {
  */
 
 export type ManifestDef = CampaignManifest
+
+/**
+ * Глубина вложенных вызовов правил (эффект fire_rule). Продублировано из
+ * GameEngine: редактор должен сказать мастеру о петле ДО запуска игры.
+ */
+export const FIRE_RULE_MAX_DEPTH = 2
+
+/** обойти эффекты (в том числе вложенные списки внутри ветвлений) */
+function walkEffects(effects: Effect[], fn: (e: Effect) => void): void {
+  for (const e of effects ?? []) {
+    fn(e)
+    if (e.type === 'skill_check_gate') {
+      walkEffects(e.success_effects ?? [], fn)
+      walkEffects(e.fail_effects ?? [], fn)
+    } else if (e.type === 'stat_check') {
+      walkEffects(e.success_effects ?? [], fn)
+      walkEffects(e.fail_effects ?? [], fn)
+    } else if (e.type === 'opposed_check') {
+      walkEffects(e.success_effects ?? [], fn)
+      walkEffects(e.fail_effects ?? [], fn)
+    } else if (e.type === 'group_stat_check') {
+      walkEffects(e.success_effects ?? [], fn)
+      walkEffects(e.fail_effects ?? [], fn)
+    } else if (e.type === 'start_pursuit') {
+      walkEffects(e.on_fail ?? [], fn)
+    }
+  }
+}
 
 export type EditorSection =
   | 'campaign'
@@ -194,6 +224,68 @@ export class EditorStore {
     return this.jsonFiles.get(path) as CodexEntryDef
   }
 
+  /** id всех рецептов кампании (для ссылок unlock_recipe) */
+  recipeIds(): Set<string> {
+    return new Set(this.recipePaths().map((p) => this.recipe(p)?.id).filter((x): x is string => !!x))
+  }
+
+  /**
+   * Ключи состояний облика НПЦ: его собственные портреты и спрайты сцены
+   * плюс общий реестр состояний meta.emotions. Пустая строка — обычный облик.
+   */
+  entityStateKeys(entityId: string): Set<string> {
+    const out = new Set<string>(['', DEFAULT_EMOTION.id])
+    for (const e of this.meta.emotions ?? []) out.add(e.id)
+    const npc = this.entityPaths().map((p) => this.entity(p)).find((e) => e?.id === entityId)
+    if (npc && npc.type === 'npc') {
+      for (const k of Object.keys(npc.portrait ?? {})) out.add(k)
+      for (const k of Object.keys(npc.scene_sprite_states ?? {})) out.add(k)
+      for (const k of Object.keys(npc.combat_figure_states ?? {})) out.add(k)
+    }
+    return out
+  }
+
+  /**
+   * Циклы правил через эффект fire_rule (прямой вызов себя и транзитивные
+   * петли). Возвращает список замкнутых цепочек для отчёта «Проверить кампанию».
+   */
+  fireRuleCycles(): string[][] {
+    const edges = new Map<string, string[]>()
+    for (const p of this.rulePaths()) {
+      const r = this.rule(p)
+      if (!r) continue
+      const to: string[] = []
+      walkEffects(r.effects ?? [], (e) => {
+        if (e.type === 'fire_rule') to.push(e.rule)
+      })
+      edges.set(r.id, to)
+    }
+    const cycles: string[][] = []
+    const state = new Map<string, 0 | 1 | 2>() // 0 нет, 1 в стеке, 2 обработан
+    const stack: string[] = []
+    const labels = new Map<string, string>()
+    for (const p of this.rulePaths()) {
+      const r = this.rule(p)
+      if (r) labels.set(r.id, r.label || r.id)
+    }
+    const visit = (id: string): void => {
+      const st = state.get(id) ?? 0
+      if (st === 2) return
+      if (st === 1) {
+        const from = stack.indexOf(id)
+        if (from >= 0) cycles.push([...stack.slice(from), id])
+        return
+      }
+      state.set(id, 1)
+      stack.push(id)
+      for (const next of edges.get(id) ?? []) visit(next)
+      stack.pop()
+      state.set(id, 2)
+    }
+    for (const id of edges.keys()) visit(id)
+    return cycles.map((c) => c.map((id) => `«${labels.get(id) ?? id}»`))
+  }
+
   /** списки id для подсказок в полях */
   /** все флаги, упомянутые в правилах/квестах/ink — для подсказок в конструкторах */
   knownFlags(): string[] {
@@ -215,7 +307,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency' | 'recipe' | 'emotion'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'currency') {
       for (const c of this.meta.currencies ?? []) out.push({ id: c.id, label: c.label })
@@ -281,6 +373,15 @@ export class EditorStore {
         const c = this.codexEntry(p)
         if (c) out.push({ id: c.id, label: c.label || c.id })
       }
+    } else if (kind === 'recipe') {
+      for (const p of this.recipePaths()) {
+        const r = this.recipe(p)
+        if (r) out.push({ id: r.id, label: r.label || r.id })
+      }
+    } else if (kind === 'emotion') {
+      // состояния портретов: встроенное «Обычный» + реестр кампании
+      out.push({ id: DEFAULT_EMOTION.id, label: DEFAULT_EMOTION.label })
+      for (const e of this.meta.emotions ?? []) out.push({ id: e.id, label: e.label || e.id })
     } else if (kind === 'disposition') {
       // отношение можно менять и к фракции, и к отдельному NPC
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: `${f.label || f.id} (фракция)` })
@@ -522,7 +623,31 @@ export class EditorStore {
         if (ef.type === 'play_cutscene' && !cutsceneIds.has(ef.cutscene)) {
           issues.push(`Правило «${r.label}»: катсцена «${ef.cutscene}» не найдена`)
         }
+        if (ef.type === 'fire_rule' && !ruleIds.has(ef.rule)) {
+          issues.push(`Правило «${r.label}»: эффект вызывает несуществующее правило «${ef.rule}»`)
+        }
+        if (ef.type === 'unlock_recipe' && !this.recipeIds().has(ef.recipe)) {
+          issues.push(`Правило «${r.label}»: открывается несуществующий рецепт «${ef.recipe}»`)
+        }
+        if (ef.type === 'set_entity_state') {
+          if (!entityIds.has(ef.entity)) {
+            issues.push(`Правило «${r.label}»: состояние облика назначается несуществующему персонажу «${ef.entity}»`)
+          } else if (ef.state && !this.entityStateKeys(ef.entity).has(ef.state)) {
+            issues.push(
+              `Правило «${r.label}»: у персонажа «${ef.entity}» нет состояния облика «${ef.state}» ` +
+                `(есть: ${[...this.entityStateKeys(ef.entity)].join(', ') || '—'})`,
+            )
+          }
+        }
       }
+    }
+    // петли правил через fire_rule: прямое и транзитивноеself-вызовы запрещены
+    for (const cyc of this.fireRuleCycles()) {
+      issues.push(
+        `Правила вызывают друг друга по кругу: ${cyc.join(' → ')}. ` +
+          `Разорвите цепочку: вложенных вызовов правил может быть не больше ${FIRE_RULE_MAX_DEPTH}, ` +
+          `а правило не должно возвращаться в себя.`,
+      )
     }
     for (const p of this.questPaths()) {
       const q = this.quest(p)

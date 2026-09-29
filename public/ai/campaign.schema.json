@@ -701,6 +701,42 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "unlock_recipe"
+            },
+            "recipe": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "recipe"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_entity_state"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "set_variable"
             },
             "var": {
@@ -1519,6 +1555,22 @@
           },
           "required": [
             "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "fire_rule"
+            },
+            "rule": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "rule"
           ],
           "additionalProperties": false
         },
@@ -2928,6 +2980,26 @@
           "required": [
             "type",
             "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "meta_counter"
+            },
+            "key": {
+              "type": "string"
+            },
+            "ge": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "key",
+            "ge"
           ],
           "additionalProperties": false
         },
@@ -7566,6 +7638,10 @@
         "message": {
           "type": "string",
           "description": "сообщение об успехе (нет — стандартное)"
+        },
+        "known": {
+          "type": "boolean",
+          "description": "`false` — рецепт скрыт от игрока до эффекта `unlock_recipe` (правило,\nдиалог, событие). Старые кампании и сейвы не трогаем: поля нет — рецепт\nизвестен с самого начала."
         }
       },
       "required": [
@@ -8137,6 +8213,22 @@
           "required": [
             "type",
             "entry"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "unlock_recipe"
+            },
+            "recipe": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "recipe"
           ],
           "additionalProperties": false
         }

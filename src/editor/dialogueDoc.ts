@@ -312,6 +312,7 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'remove_status': return `${indent}~ remove_status(${q(e.status)})`
     case 'set_weather': return `${indent}~ set_weather(${q(e.weather)})`
     case 'unlock_codex': return `${indent}~ unlock_codex(${q(e.entry)})`
+    case 'unlock_recipe': return `${indent}~ unlock_recipe(${q(e.recipe)})`
   }
 }
 

@@ -16,7 +16,10 @@ export function slugify(label: string): string {
   for (const ch of lower) {
     if (/[a-z0-9]/.test(ch)) out += ch
     else if (RU[ch] !== undefined) out += RU[ch]
-    else if (/[\s\-—–.,/\\]/.test(ch)) out += '_'
+    // подчёркивание — тоже разделитель: иначе id вроде scene_old_map
+    // терял его и превращался в файл scenegatesfront, а scene_old_map и
+    // scene_oldmap давали одно имя файла (см. fileNameFor в monolith.ts)
+    else if (/[\s_\-—–.,/\\]/.test(ch)) out += '_'
     // прочие символы отбрасываем
   }
   out = out.replace(/_+/g, '_').replace(/^_|_$/g, '')

@@ -157,6 +157,18 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
           />
           <span>Рецепт починки (восстанавливает прочность)</span>
         </label>
+        <label className="fld fld-check" data-tip="Пока не открыт эффектом unlock_recipe (правило, диалог, событие), рецепта нет во вкладке «Крафт». Приём «открыть по ходу игры».">
+          <input
+            type="checkbox"
+            checked={recipe.known === false}
+            onChange={(e) => {
+              if (e.target.checked) recipe.known = false
+              else delete recipe.known
+              commit()
+            }}
+          />
+          <span>Открыть по ходу игры (эффектом unlock_recipe)</span>
+        </label>
         <label className="fld">
           <span>Сообщение об успехе (пусто — стандартное)</span>
           <input value={recipe.message ?? ''} onChange={(e) => ((recipe.message = e.target.value || undefined), commit())} />

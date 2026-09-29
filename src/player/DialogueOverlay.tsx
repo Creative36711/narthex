@@ -156,7 +156,9 @@ export function DialogueOverlay({ engine }: Props) {
     }
   }
 
-  const emotion = activeLine?.emotion ?? 'neutral'
+  // эмоция реплики, но если правило задало состояние облика (set_entity_state) —
+  // оно главнее: персонаж «злой» даже на нейтральной реплике
+  const emotion = engine.entityState(d.npc.id) ?? activeLine?.emotion ?? 'neutral'
   const portrait = d.npc.portrait[emotion] ?? d.npc.portrait['neutral']
   const hasChoices = d.choices.length > 0
   const allShown = revealed >= lines.length

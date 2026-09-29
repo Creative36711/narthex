@@ -35,6 +35,8 @@ export type FieldKind =
   | 'statusRef' // статус из реестра кампании (блок 5 ТЗ)
   | 'weatherRef' // погода из реестра кампании (блок 9 ТЗ)
   | 'codexRef' // запись кодекса (блок 10 ТЗ)
+  | 'recipeRef' // рецепт крафта (открытие по ходу игры)
+  | 'npcStateRef' // состояние облика НПЦ: его портреты/спрайты + реестр эмоций
   | 'portraitPick' // портрет: из персонажа или своё изображение
 
 export interface FieldSpec {
@@ -54,6 +56,19 @@ export interface TypeSchema {
 }
 
 // ─────────────── условия ───────────────
+
+/** ключи счётчиков хроники, которые читает условие meta_counter */
+export const META_COUNTER_KEYS = [
+  'endings_seen',
+  'runs',
+  'deaths',
+  'victories',
+  'kills',
+  'quests_completed',
+  'ticks_survived',
+  'travels',
+  'dialogues',
+]
 
 export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   player_enters_location: {
@@ -229,6 +244,14 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'id', label: 'id достижения', kind: 'string' }],
     blank: { id: '' },
   },
+  meta_counter: {
+    label: 'Счётчик хроники ≥',
+    fields: [
+      { key: 'key', label: 'Счётчик', kind: 'select', options: META_COUNTER_KEYS },
+      { key: 'ge', label: 'Не меньше', kind: 'number' },
+    ],
+    blank: { key: 'endings_seen', ge: 2 },
+  },
   need_le: {
     label: 'Потребность ≤',
     fields: [
@@ -365,6 +388,26 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Открыть запись кодекса',
     fields: [{ key: 'entry', label: 'Запись', kind: 'codexRef' }],
     blank: { entry: '' },
+  },
+  unlock_recipe: {
+    label: 'Открыть рецепт крафта',
+    fields: [{ key: 'recipe', label: 'Рецепт', kind: 'recipeRef' }],
+    blank: { recipe: '' },
+  },
+  set_entity_state: {
+    label: 'Сменить состояние облика (эмоцию)',
+    fields: [
+      { key: 'entity', label: 'Персонаж', kind: 'npcRef' },
+      { key: 'state', label: 'Состояние', kind: 'npcStateRef' },
+    ],
+    blank: { entity: '', state: '' },
+  },
+  fire_rule: {
+    label: 'Вызвать правило',
+    fields: [
+      { key: 'rule', label: 'Правило', kind: 'ruleRef' },
+    ],
+    blank: { rule: '' },
   },
   set_variable: {
     label: 'Установить переменную',
@@ -787,6 +830,8 @@ const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
   statusRef: 'status',
   weatherRef: 'weather',
   codexRef: 'codex',
+  recipeRef: 'recipe',
+  npcStateRef: 'emotion',
 }
 
 /** Человекочитаемое значение одного поля (русские названия вместо id). */
