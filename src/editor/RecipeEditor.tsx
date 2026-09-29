@@ -32,6 +32,18 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
           <span>Описание (видно игроку)</span>
           <textarea value={recipe.description ?? ''} onChange={(e) => ((recipe.description = e.target.value || undefined), commit())} />
         </label>
+        <label className="fld fld-check" data-tip="Если включено, рецепт скрыт во вкладке крафта до тех пор, пока его не откроет эффект «Открыть рецепт крафта» (unlock_recipe) в правиле или диалоге.">
+          <input
+            type="checkbox"
+            checked={recipe.known === false}
+            onChange={(e) => {
+              if (e.target.checked) recipe.known = false
+              else delete recipe.known
+              commit()
+            }}
+          />
+          <span>Открыть по ходу игры (скрыт со старта до эффекта unlock_recipe)</span>
+        </label>
       </div>
 
       <div className="props-group">

@@ -100,6 +100,8 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.metaCurrency(c.currency) >= c.threshold
     case 'meta_achievement':
       return engine.metaAchievementDone(c.id)
+    case 'meta_counter':
+      return engine.metaCounterValue(c.key) >= c.ge
     case 'has_feat':
       return (engine.state.player.feats ?? []).includes(c.id)
     case 'and':

@@ -52,6 +52,7 @@ export function Field({
     statusRef: 'status',
     weatherRef: 'weather',
     codexRef: 'codex',
+    recipeRef: 'recipe',
   }
 
   if (spec.kind === 'number') {

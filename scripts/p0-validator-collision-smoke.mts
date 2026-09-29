@@ -8,10 +8,13 @@
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { repairMonolith, importMonolith } from '../src/editor/monolith'
+import { repairMonolith, importMonolith, exportMonolith } from '../src/editor/monolith'
 import { EditorStore } from '../src/editor/store'
 import { decideCampaignCollision } from '../src/editor/newCampaign'
 import { buildCfFeedbackIssue, parseCfFeedback } from '../src/editor/cfFeedback'
+import { campaignFromMonolith } from '../src/editor/playtest'
+import { GameEngine } from '../src/core/engine'
+import { evalCondition } from '../src/core/conditions'
 
 // ── Задача 2: документация рецепта ──
 const guide = readFileSync('docs/ai-campaign-guide.md', 'utf8')
@@ -238,4 +241,152 @@ assert.ok(
 )
 assert.ok(ghIssue.body.includes('| `missing-effect:set_mood` | `missing_effect` | **mid** |'), 'Body должен содержать markdown-таблицу')
 console.log('✓ Задача 7: cf-feedback разбирается, склеивает дубли по id и собирает GitHub Issue URL')
-console.log('\nВСЕ ПРОВЕРКИ P0 + P1 ПРОЙДЕНЫ')
+
+// ── Задачи 8–11 (P2): unlock_recipe, set_entity_state, fire_rule (с защитой от циклов), meta_counter ──
+const p2Monolith = structuredClone(fixture) as Record<string, any>
+p2Monolith.entities.npc_guard = {
+  id: 'npc_guard',
+  type: 'npc',
+  label: 'Стражник',
+  description: 'У ворот.',
+  portrait: { neutral: 'portraits/g.png', angry: 'portraits/g_angry.png' },
+  stats: { STR: 50, CON: 50, SIZ: 50, DEX: 50, INT: 50, POW: 50, CHA: 50 },
+  skills: {},
+  inventory: [],
+  equipment: {},
+}
+p2Monolith.entities.item_herb = {
+  id: 'item_herb',
+  type: 'item',
+  category: 'misc',
+  label: 'Трава',
+  description: 'Лечебный лист.',
+  weight: 1,
+  value: { silver: 5 },
+  stackable: true,
+}
+p2Monolith.recipes = {
+  rec_open: {
+    id: 'rec_open',
+    label: 'Открытый отвар',
+    inputs: [{ item: 'item_herb', quantity: 1 }],
+    output: { item: 'item_herb', quantity: 1 },
+  },
+  rec_secret: {
+    id: 'rec_secret',
+    label: 'Тайный эликсир',
+    known: false,
+    inputs: [{ item: 'item_herb', quantity: 1 }],
+    output: { item: 'item_herb', quantity: 1 },
+  },
+}
+p2Monolith.rules = {
+  rule_step1: {
+    id: 'rule_step1',
+    label: 'Шаг 1',
+    trigger: { type: 'manual' },
+    conditions: [],
+    effects: [
+      { type: 'set_flag', flag: 'step1_done' },
+      { type: 'fire_rule', rule: 'rule_step2' },
+    ],
+    once: true,
+  },
+  rule_step2: {
+    id: 'rule_step2',
+    label: 'Шаг 2',
+    trigger: { type: 'manual' },
+    conditions: [],
+    effects: [
+      { type: 'set_flag', flag: 'step2_done' },
+      { type: 'unlock_recipe', recipe: 'rec_secret' },
+      { type: 'set_entity_state', entity: 'npc_guard', state: 'angry' },
+      { type: 'fire_rule', rule: 'rule_step3' },
+    ],
+    once: true,
+  },
+  rule_step3: {
+    id: 'rule_step3',
+    label: 'Шаг 3 (предел глубины 2)',
+    trigger: { type: 'manual' },
+    conditions: [],
+    effects: [
+      { type: 'set_flag', flag: 'step3_done' },
+      { type: 'fire_rule', rule: 'rule_step4_too_deep' },
+    ],
+    once: true,
+  },
+  rule_step4_too_deep: {
+    id: 'rule_step4_too_deep',
+    label: 'Шаг 4 (превышение глубины > 2, не должен сработать)',
+    trigger: { type: 'manual' },
+    conditions: [],
+    effects: [{ type: 'set_flag', flag: 'step4_should_not_fire' }],
+    once: true,
+  },
+  rule_cycle_a: {
+    id: 'rule_cycle_a',
+    label: 'Цикл А',
+    trigger: { type: 'manual' },
+    conditions: [],
+    effects: [
+      { type: 'change_variable', var: 'cycle_hits', delta: 1 },
+      { type: 'fire_rule', rule: 'rule_cycle_b' },
+    ],
+    once: false,
+  },
+  rule_cycle_b: {
+    id: 'rule_cycle_b',
+    label: 'Цикл Б',
+    trigger: { type: 'manual' },
+    conditions: [],
+    effects: [
+      { type: 'change_variable', var: 'cycle_hits', delta: 1 },
+      { type: 'fire_rule', rule: 'rule_cycle_a' },
+    ],
+    once: false,
+  },
+}
+
+const p2Store = new EditorStore('/campaigns/kruzhilikha_test')
+const p2Repaired = repairMonolith(p2Monolith)
+importMonolith(p2Store, p2Repaired.doc)
+
+// Проверим, что валидатор ловит цикл fire_rule и цепочку глубже 2
+const p2Issues = p2Store.validateContent()
+assert.ok(
+  p2Issues.some((w) => w.includes('обнаружен цикл вызова fire_rule')),
+  `validateContent должен ловить цикл fire_rule: ${JSON.stringify(p2Issues)}`,
+)
+assert.ok(
+  p2Issues.some((w) => w.includes('глубина цепочки fire_rule превышает 2')),
+  `validateContent должен предупреждать о глубине > 2: ${JSON.stringify(p2Issues)}`,
+)
+
+// Проверим рантайм: рецепты, состояния сущностей, цепочка fire_rule и meta_counter
+const eng = new GameEngine(campaignFromMonolith(exportMonolith(p2Store).doc))
+assert.equal(eng.allRecipes().length, 1, 'Скрытый рецепт known:false не должен быть в списке до разблокировки')
+assert.equal(eng.allRecipes()[0].id, 'rec_open')
+assert.equal(eng.entityState('npc_guard'), undefined)
+
+// Запускаем rule_step1 → цепочкой вызывает rule_step2 (глубина 1) и rule_step3 (глубина 2), но НЕ rule_step4_too_deep (глубина 3)
+eng.fireRule('rule_step1')
+assert.equal(eng.state.flags.step1_done, true)
+assert.equal(eng.state.flags.step2_done, true)
+assert.equal(eng.state.flags.step3_done, true)
+assert.equal(eng.state.flags.step4_should_not_fire, undefined, 'Глубина > 2 не должна выполняться')
+assert.equal(eng.allRecipes().length, 2, 'После unlock_recipe секретный рецепт должен появиться в списке')
+assert.equal(eng.entityState('npc_guard'), 'angry', 'После set_entity_state состояние стражника должно стать angry')
+
+// Проверим защиту от цикла в рантайме (rule_cycle_a ↔ rule_cycle_b не уходит в бесконечную рекурсию)
+eng.fireRule('rule_cycle_a')
+assert.equal(eng.state.variables.cycle_hits, 2, 'Цикл A -> B должен остановиться на повторном входе в A')
+
+// Проверим условие meta_counter
+assert.equal(evalCondition({ type: 'meta_counter', key: 'victories', ge: 1 }, eng), false)
+assert.equal(evalCondition({ type: 'meta_counter', key: 'runs', ge: 0 }, eng), true)
+eng.state.ng_cycle = 2
+assert.equal(evalCondition({ type: 'meta_counter', key: 'ng_cycle', ge: 2 }, eng), true)
+console.log('✓ Задачи 8–11 (P2): unlock_recipe, set_entity_state, fire_rule (глубина ≤ 2 + защита от циклов) и meta_counter работают')
+
+console.log('\nВСЕ ПРОВЕРКИ P0 + P1 + P2 ПРОЙДЕНЫ')

@@ -701,6 +701,58 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "unlock_recipe"
+            },
+            "recipe": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "recipe"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_entity_state"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "fire_rule"
+            },
+            "rule": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "rule"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "set_variable"
             },
             "var": {
@@ -2928,6 +2980,26 @@
           "required": [
             "type",
             "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "meta_counter"
+            },
+            "key": {
+              "type": "string"
+            },
+            "ge": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "key",
+            "ge"
           ],
           "additionalProperties": false
         },
@@ -7487,6 +7559,10 @@
         "description": {
           "type": "string"
         },
+        "known": {
+          "type": "boolean",
+          "description": "Известен ли рецепт с самого начала игры (Задача 8). По умолчанию `true`\n(открыт сразу); `false` — скрыт во вкладке крафта до разблокировки\nэффектом `unlock_recipe`."
+        },
         "inputs": {
           "type": "array",
           "items": {
@@ -8137,6 +8213,42 @@
           "required": [
             "type",
             "entry"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "unlock_recipe"
+            },
+            "recipe": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "recipe"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_entity_state"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "state"
           ],
           "additionalProperties": false
         }

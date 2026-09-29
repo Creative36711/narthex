@@ -156,8 +156,9 @@ export function DialogueOverlay({ engine }: Props) {
     }
   }
 
-  const emotion = activeLine?.emotion ?? 'neutral'
-  const portrait = d.npc.portrait[emotion] ?? d.npc.portrait['neutral']
+  const defaultState = engine.entityState(d.npc.id) ?? 'neutral'
+  const emotion = activeLine?.emotion && activeLine.emotion !== 'neutral' ? activeLine.emotion : defaultState
+  const portrait = d.npc.portrait[emotion] ?? d.npc.portrait[defaultState] ?? d.npc.portrait['neutral']
   const hasChoices = d.choices.length > 0
   const allShown = revealed >= lines.length
 

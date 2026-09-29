@@ -1875,6 +1875,10 @@ export type DlgEffect =
   | { type: 'set_weather'; weather: string }
   /** разблокировать запись кодекса (повтор — no-op; блок 10 ТЗ) */
   | { type: 'unlock_codex'; entry: string }
+  /** разблокировать рецепт крафта (для рецептов с known: false; Задача 8) */
+  | { type: 'unlock_recipe'; recipe: string }
+  /** переключить состояние портрета/спрайта сущности (Задача 9) */
+  | { type: 'set_entity_state'; entity: string; state: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -1975,6 +1979,12 @@ export interface RecipeDef {
   id: string
   label: string
   description?: string
+  /**
+   * Известен ли рецепт с самого начала игры (Задача 8). По умолчанию `true`
+   * (открыт сразу); `false` — скрыт во вкладке крафта до разблокировки
+   * эффектом `unlock_recipe`.
+   */
+  known?: boolean
   /** расходуемые компоненты */
   inputs: Array<{ item: string; quantity: number }>
   /** инструменты: нужны в инвентаре, НЕ расходуются */
@@ -2119,6 +2129,8 @@ export type Condition =
   | { type: 'meta_currency_ge'; currency: string; threshold: number }
   /** достижение открыто (аудит B8b) */
   | { type: 'meta_achievement'; id: string }
+  /** счётчик мета-хроники игрока не меньше порога (runs, victories, deaths, kills, ng_cycle и др.; Задача 11) */
+  | { type: 'meta_counter'; key: string; ge: number }
   /** черта взята (аудит B8) */
   | { type: 'has_feat'; id: string }
   /** страсть не ниже значения (аудит B6) */
@@ -2152,6 +2164,12 @@ export type Effect =
   | { type: 'set_weather'; weather: string }
   /** разблокировать запись кодекса (повтор — no-op; блок 10 ТЗ) */
   | { type: 'unlock_codex'; entry: string }
+  /** разблокировать рецепт крафта (для рецептов с known: false; Задача 8) */
+  | { type: 'unlock_recipe'; recipe: string }
+  /** переключить состояние портрета/спрайта сущности вне конкретной реплики (Задача 9) */
+  | { type: 'set_entity_state'; entity: string; state: string }
+  /** запустить правило по id с защитой от зацикливания (глубина ≤ 2; Задача 10) */
+  | { type: 'fire_rule'; rule: string }
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
@@ -2693,6 +2711,10 @@ export interface GameState {
   stealth?: { sneaking: boolean; detected: boolean }
   /** разблокированные записи кодекса (блок 10 ТЗ) */
   codex_unlocked?: string[]
+  /** разблокированные рецепты крафта (для рецептов с known: false; Задача 8) */
+  unlocked_recipes?: string[]
+  /** активные состояния портрета/спрайта сущностей (эффект set_entity_state; Задача 9) */
+  entity_states?: Record<string, string>
   /** выбор создания персонажа (блок 11 ТЗ): имя, характеристики, навыки, происхождение и призвание */
   char_choice?: {
     name: string

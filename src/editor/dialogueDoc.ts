@@ -312,6 +312,8 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'remove_status': return `${indent}~ remove_status(${q(e.status)})`
     case 'set_weather': return `${indent}~ set_weather(${q(e.weather)})`
     case 'unlock_codex': return `${indent}~ unlock_codex(${q(e.entry)})`
+    case 'unlock_recipe': return `${indent}~ unlock_recipe(${q(e.recipe)})`
+    case 'set_entity_state': return `${indent}~ set_entity_state(${q(e.entity)}, ${q(e.state)})`
   }
 }
 
@@ -409,7 +411,8 @@ export function generateInk(docRaw: DlgDoc): string {
     'skill_check', 'get_disposition', 'change_disposition', 'in_party', 'join_party',
     'open_trade', 'fire_rule', 'start_quest', 'quest_stage', 'advance_time',
     'change_need', 'change_hp', 'get_hp', 'sleep', 'get_need', 'get_stat', 'get_skill',
-    'play_cutscene',
+    'play_cutscene', 'set_description', 'apply_status', 'remove_status',
+    'set_weather', 'unlock_codex', 'unlock_recipe', 'set_entity_state',
   ]
   const SIG: Record<string, string> = {
     get_flag: '(f)', set_flag: '(f)', add_item: '(id, n)', remove_item: '(id, n)',
@@ -418,7 +421,9 @@ export function generateInk(docRaw: DlgDoc): string {
     fire_rule: '(id)', start_quest: '(q)', quest_stage: '(q)', advance_time: '(t)',
     change_need: '(id, d)', change_hp: '(d)', get_hp: '()', sleep: '(t)',
     get_need: '(id)', get_stat: '(s)', get_skill: '(s)',
-    play_cutscene: '(id)',
+    play_cutscene: '(id)', set_description: '(id, text)', apply_status: '(id, dur)',
+    remove_status: '(id)', set_weather: '(id)', unlock_codex: '(id)',
+    unlock_recipe: '(id)', set_entity_state: '(id, st)',
   }
   const externals = FNS.filter((f) => body.includes(`${f}(`)).map((f) => `EXTERNAL ${f}${SIG[f]}`)
   return `${externals.join('\n')}\n\n${body}`

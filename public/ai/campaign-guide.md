@@ -675,6 +675,7 @@ id — ломающее изменение для сохранений игро�
 "recipe_bandage": {
   "id": "recipe_bandage", "label": "Бинт из ткани",
   "description": "Простая повязка из подручной ткани.",
+  "known": false,
   "inputs": [ { "item": "item_cloth", "quantity": 2 } ],
   "tools": [ "item_knife" ],
   "requires": [ { "type": "flag_set", "flag": "learned_first_aid" } ],
@@ -685,6 +686,10 @@ id — ломающее изменение для сохранений игро�
 }
 ```
 
+- `known` — открыт ли рецепт с начала забега (по умолчанию `true` — виден сразу).
+  Если задать `"known": false`, рецепт скрыт во вкладке крафта до тех пор, пока
+  его явно не разблокирует эффект `{ "type": "unlock_recipe", "recipe": "recipe_bandage" }`
+  (доступен и в правилах `Effect`, и в диалогах `DlgEffect`; сохраняется в `state.unlocked_recipes`).
 - `inputs` — компоненты, **расходуются**. `tools` — инструменты, нужны в
   инвентаре, **не расходуются**.
 - `requires` — обычные условия (как в правилах): крафт доступен, только когда
@@ -1224,10 +1229,26 @@ id — ломающее изменение для сохранений игро�
 
 Эти поля уже в типах и в схеме; их можно (и нужно, где уместно) использовать:
 
-- **Состояния облика существа**: `EntityStateDef.variants` (эмоции NPC,
-  `meta.emotions` — реестр «сердит/счастлив/испуган») → спрайт меняется по
-  `mood`, задаваемому правилами (`set_mood`), диалогами и статусами.
-  Состояния по здоровью (ранен/устал) подбираются автоматически.
+- **Состояния облика и портрета существа (`set_entity_state`)**: чтобы сменить
+  выражение портрета (`portrait[state]`) или спрайта в сцене (`scene_sprite_states[state]`)
+  у НПС вне конкретной реплики (из правила, предмета или шага диалога), используй
+  эффект `{ "type": "set_entity_state", "entity": "npc_guard", "state": "angry" }`
+  (доступен в `Effect` и `DlgEffect`; `"state": "neutral"` возвращает к обычному виду).
+  В конкретной реплике диалога эмоция по-прежнему задаётся полем `line.emotion`
+  (ключи из `meta.emotions` и `npc.portrait`). У портрета самого героя
+  (`char_creation.portraits[]` / `portrait_layers[]`) кадры `states` переключаются
+  автоматически по активным статусам из `meta.statuses`, ранению (`wounded`) и
+  усталости (`tired`).
+- **Цепочки правил (`fire_rule`)**: эффект `{ "type": "fire_rule", "rule": "rule_alarm" }`
+  доступен не только в диалогах (`DlgEffect`), но и в `Effect` — в `rules[id].effects`,
+  в `scene.slots[].use_with[].effects` и в `item.on_interact.effects` / `interact_options[].effects`.
+  Соблюдает `once`-семантику и условия вызываемого правила; защищён от зацикливания
+  (глубина цепочки `fire_rule` ≤ 2, вызов правила из самого себя запрещён и
+  отлавливается валидатором).
+- **Разблокировка рецептов (`unlock_recipe`)**: у рецепта (`RecipeDef`) опциональное
+  поле `"known": false` скрывает рецепт со старта забега; эффект
+  `{ "type": "unlock_recipe", "recipe": "recipe_bandage" }` (в `Effect` и `DlgEffect`)
+  открывает его игроку во вкладке крафта.
 - **Преследования**: эффект `start_pursuit { label, skill, every_ticks, fails_to_catch, on_fail }` —
   каждые `every_ticks` тиков герой (и до двух спутников) проходит проверку
   навыка `skill` (по умолчанию `stealth`); когда число провалов подряд достигает
@@ -1257,8 +1278,25 @@ id — ломающее изменение для сохранений игро�
   одиночный — «как задумано».
 - **Самочувствие NPC**: статусы-модули с `wellness` — параметр настроения
   переговоров, ловятся правилами.
-- **New Game+**: `meta.new_game_plus { keep, boost }` — победа открывает
+- **New Game+ и условия мета-хроники (`meta_counter`)**: `meta.new_game_plus { keep, boost }` — победа открывает
   «новый круг» с переносом наследия; `boost` — шаги ужесточения за круг.
+  В правилах и квестах доступны три мета-условия:
+  - `{ "type": "meta_currency_ge", "currency": "shards", "threshold": 10 }` — баланс метавалюты;
+  - `{ "type": "meta_achievement", "id": "ach_first_win" }` — открыто ли достижение;
+  - `{ "type": "meta_counter", "key": "victories", "ge": 1 }` — счётчик хроники игрока
+    (`key`: `"runs"`, `"victories"`, `"deaths"`, `"ng_cycle"`, `"kills"`, `"travels"`,
+    `"dialogues"`, `"ticks_survived"`, `"quests_completed"`).
+  Пример правила, которое срабатывает только в New Game+ (на втором круге или после первой победы):
+
+```json
+{
+  "type": "or",
+  "conditions": [
+    { "type": "meta_counter", "key": "ng_cycle", "ge": 1 },
+    { "type": "meta_counter", "key": "victories", "ge": 1 }
+  ]
+}
+```
 - **Оформление кампании тонче**: `theme.tokens` (панели/карточки/колодцы/журнал)
   и `theme.frame` — PNG-рамка панелей 9-срезом.
 - **Портрет героя**: `char_creation.portraits[]` (галерея мастера) и
@@ -1306,6 +1344,7 @@ id — ломающее изменение для сохранений игро�
 - `{"type":"level_ge","level":2}`
 - `{"type":"meta_currency_ge","currency":"shards","threshold":30}`
 - `{"type":"meta_achievement","id":"id_example"}`
+- `{"type":"meta_counter","key":"endings_seen","ge":1}`
 - `{"type":"has_feat","id":"id_example"}`
 - `{"type":"passion_ge","id":"id_example","value":10}`
 - `{"type":"allegiance_ge","id":"id_example","points":10}`
@@ -1332,6 +1371,9 @@ id — ломающее изменение для сохранений игро�
 - `{"type":"remove_status","target":"player","status":"status_poison"}`
 - `{"type":"set_weather","weather":"weather_ashfall"}`
 - `{"type":"unlock_codex","entry":"codex_lore"}`
+- `{"type":"unlock_recipe","recipe":"recipe_bandage"}`
+- `{"type":"set_entity_state","entity":"npc_guard","state":"state_default"}`
+- `{"type":"fire_rule","rule":"rule_event"}`
 - `{"type":"set_variable","var":"counter","value":10}`
 - `{"type":"change_variable","var":"counter","delta":5}`
 - `{"type":"start_dialogue","entity":"npc_guard"}` *(необяз.: `dialogue_knot`)*
@@ -1420,5 +1462,7 @@ id — ломающее изменение для сохранений игро�
 - `{"type":"remove_status","status":"status_poison"}`
 - `{"type":"set_weather","weather":"weather_ashfall"}`
 - `{"type":"unlock_codex","entry":"codex_lore"}`
+- `{"type":"unlock_recipe","recipe":"recipe_bandage"}`
+- `{"type":"set_entity_state","entity":"npc_guard","state":"state_default"}`
 
 <!-- AUTO-SCHEMA-CATALOG:END -->

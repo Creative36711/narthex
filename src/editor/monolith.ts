@@ -817,6 +817,19 @@ function fixEffect(ctx: RepairCtx, e: Effect, where: string, keep: (e: Effect | 
     case 'set_description':
       ensureEntity(ctx, e.entity, e.entity.startsWith('item') ? 'item' : 'npc')
       break
+    case 'set_entity_state':
+      ensureEntity(ctx, e.entity, e.entity.startsWith('item') ? 'item' : 'npc')
+      break
+    case 'unlock_recipe':
+      if (!ctx.doc.recipes?.[e.recipe]) {
+        ctx.warn(`${where}: действие ссылается на несуществующий рецепт «${e.recipe}» — действие удалено`)
+        keep(null)
+        return
+      }
+      break
+    case 'fire_rule':
+      ensureRule(ctx, e.rule)
+      break
     case 'change_need':
       if (!ctx.doc.campaign.needs.some((n) => n.id === e.need)) {
         ctx.warn(`${where}: действие ссылается на несуществующую потребность «${e.need}» — действие удалено`)
@@ -1248,6 +1261,15 @@ function fixDlgGotos(ctx: RepairCtx, nodes: DlgNode[], where: string): void {
         return e
       case 'set_description':
         ensureEntity(ctx, e.entity, e.entity.startsWith('item') ? 'item' : 'npc')
+        return e
+      case 'set_entity_state':
+        ensureEntity(ctx, e.entity, e.entity.startsWith('item') ? 'item' : 'npc')
+        return e
+      case 'unlock_recipe':
+        if (!ctx.doc.recipes?.[e.recipe]) {
+          ctx.warn(`${where}: действие ссылается на несуществующий рецепт «${e.recipe}» — удалено`)
+          return null
+        }
         return e
       default:
         return e

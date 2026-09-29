@@ -35,6 +35,7 @@ export type FieldKind =
   | 'statusRef' // статус из реестра кампании (блок 5 ТЗ)
   | 'weatherRef' // погода из реестра кампании (блок 9 ТЗ)
   | 'codexRef' // запись кодекса (блок 10 ТЗ)
+  | 'recipeRef' // рецепт крафта (Задача 8)
   | 'portraitPick' // портрет: из персонажа или своё изображение
 
 export interface FieldSpec {
@@ -229,6 +230,19 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'id', label: 'id достижения', kind: 'string' }],
     blank: { id: '' },
   },
+  meta_counter: {
+    label: 'Счётчик мета-хроники ≥',
+    fields: [
+      {
+        key: 'key',
+        label: 'Ключ счётчика (runs / victories / deaths / kills / travels / dialogues / ticks_survived / quests_completed / ng_cycle)',
+        kind: 'string',
+        placeholder: 'victories',
+      },
+      { key: 'ge', label: 'Порог (≥)', kind: 'number' },
+    ],
+    blank: { key: 'victories', ge: 1 },
+  },
   need_le: {
     label: 'Потребность ≤',
     fields: [
@@ -365,6 +379,24 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Открыть запись кодекса',
     fields: [{ key: 'entry', label: 'Запись', kind: 'codexRef' }],
     blank: { entry: '' },
+  },
+  unlock_recipe: {
+    label: 'Открыть рецепт крафта',
+    fields: [{ key: 'recipe', label: 'Рецепт', kind: 'recipeRef' }],
+    blank: { recipe: '' },
+  },
+  set_entity_state: {
+    label: 'Сменить состояние портрета/спрайта сущности',
+    fields: [
+      { key: 'entity', label: 'Сущность (NPC)', kind: 'npcRef' },
+      { key: 'state', label: 'Ключ состояния (например angry, wounded, neutral)', kind: 'string', placeholder: 'angry' },
+    ],
+    blank: { entity: '', state: 'neutral' },
+  },
+  fire_rule: {
+    label: 'Запустить правило (глубина ≤ 2)',
+    fields: [{ key: 'rule', label: 'Правило', kind: 'ruleRef' }],
+    blank: { rule: '' },
   },
   set_variable: {
     label: 'Установить переменную',
@@ -787,6 +819,7 @@ const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
   statusRef: 'status',
   weatherRef: 'weather',
   codexRef: 'codex',
+  recipeRef: 'recipe',
 }
 
 /** Человекочитаемое значение одного поля (русские названия вместо id). */

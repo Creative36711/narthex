@@ -97,6 +97,8 @@ function parseEffectLine(line: string, warnings: string[], where: string): DlgEf
     case 'remove_status': return { type: 'remove_status', status: str(0) }
     case 'set_weather': return { type: 'set_weather', weather: str(0) }
     case 'unlock_codex': return { type: 'unlock_codex', entry: str(0) }
+    case 'unlock_recipe': return { type: 'unlock_recipe', recipe: str(0) }
+    case 'set_entity_state': return { type: 'set_entity_state', entity: str(0), state: str(1) }
     default:
       warnings.push(`${where}: неизвестный эффект «${fn}(…)»`)
       return null

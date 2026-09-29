@@ -7,6 +7,7 @@ import type {
   CampaignMeta,
   CodexEntryDef,
   CutsceneDef,
+  Effect,
   EntityDef,
   QuestDef,
   RecipeDef,
@@ -215,7 +216,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'recipe' | 'currency'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'currency') {
       for (const c of this.meta.currencies ?? []) out.push({ id: c.id, label: c.label })
@@ -280,6 +281,11 @@ export class EditorStore {
       for (const p of this.codexPaths()) {
         const c = this.codexEntry(p)
         if (c) out.push({ id: c.id, label: c.label || c.id })
+      }
+    } else if (kind === 'recipe') {
+      for (const p of this.recipePaths()) {
+        const r = this.recipe(p)
+        if (r) out.push({ id: r.id, label: r.label || r.id })
       }
     } else if (kind === 'disposition') {
       // отношение можно менять и к фракции, и к отдельному NPC
@@ -429,6 +435,7 @@ export class EditorStore {
     const arenaIds = new Set(this.ids('arena'))
     const ruleIds = new Set(this.ids('rule'))
     const cutsceneIds = new Set(this.ids('cutscene'))
+    const recipeIds = new Set(this.ids('recipe'))
     const entitiesById = new Map<string, EntityDef>()
     for (const p of this.entityPaths()) {
       const e = this.entity(p)
@@ -515,9 +522,26 @@ export class EditorStore {
     }
 
     // правила и квесты
+    const collectEffects = (list: Effect[] | undefined): Effect[] => {
+      const acc: Effect[] = []
+      for (const ef of list ?? []) {
+        acc.push(ef)
+        if (ef.type === 'skill_check_gate' || ef.type === 'stat_check' || ef.type === 'opposed_check' || ef.type === 'group_stat_check') {
+          acc.push(...collectEffects(ef.success_effects), ...collectEffects(ef.fail_effects))
+        } else if (ef.type === 'start_combat') {
+          acc.push(...collectEffects(ef.on_victory), ...collectEffects(ef.on_fled), ...collectEffects(ef.on_defeat))
+        } else if (ef.type === 'start_pursuit') {
+          acc.push(...collectEffects(ef.on_fail))
+        }
+      }
+      return acc
+    }
+    const rulesById = new Map<string, RuleDef>()
+    const fireEdges = new Map<string, string[]>()
     for (const p of this.rulePaths()) {
       const r = this.rule(p)
       if (!r) continue
+      rulesById.set(r.id, r)
       for (const cond of r.conditions ?? []) {
         if (cond.type === 'player_enters_scene' && !sceneIds.has(cond.scene)) {
           issues.push(`Правило «${r.label}»: условие ссылается на несуществующую сцену «${cond.scene}»`)
@@ -526,12 +550,27 @@ export class EditorStore {
           itemUsedAsNpc.add(cond.entity)
         }
       }
-      for (const ef of r.effects ?? []) {
+      const allEf = collectEffects(r.effects)
+      const targets: string[] = []
+      for (const ef of allEf) {
         if (ef.type === 'start_quest' && !questIds.has(ef.quest)) {
           issues.push(`Правило «${r.label}»: квест «${ef.quest}» не найден`)
         }
         if (ef.type === 'play_cutscene' && !cutsceneIds.has(ef.cutscene)) {
           issues.push(`Правило «${r.label}»: катсцена «${ef.cutscene}» не найдена`)
+        }
+        if (ef.type === 'unlock_recipe' && !recipeIds.has(ef.recipe)) {
+          issues.push(`Правило «${r.label}»: рецепт «${ef.recipe}» не найден`)
+        }
+        if (ef.type === 'set_entity_state' && !entityIds.has(ef.entity)) {
+          issues.push(`Правило «${r.label}»: сущность «${ef.entity}» не найдена`)
+        }
+        if (ef.type === 'fire_rule') {
+          if (!ruleIds.has(ef.rule)) {
+            issues.push(`Правило «${r.label}»: правило «${ef.rule}» не найдено`)
+          } else {
+            targets.push(ef.rule)
+          }
         }
         if ((ef.type === 'start_dialogue' || ef.type === 'join_party' || ef.type === 'leave_party') && entitiesById.get(ef.entity)?.type === 'item') {
           itemUsedAsNpc.add(ef.entity)
@@ -542,6 +581,28 @@ export class EditorStore {
           }
         }
       }
+      if (targets.length) fireEdges.set(r.id, [...new Set(targets)])
+    }
+    // проверка циклов и глубины цепочки fire_rule (Задача 10: запрет циклов и глубина ≤ 2)
+    for (const [startId, r] of rulesById) {
+      const walk = (curId: string, path: string[]) => {
+        for (const nextId of fireEdges.get(curId) ?? []) {
+          if (path.includes(nextId)) {
+            if (nextId === startId) {
+              issues.push(`Правило «${r.label}»: обнаружен цикл вызова fire_rule (${[...path, nextId].join(' → ')})`)
+            }
+            continue
+          }
+          const nextPath = [...path, nextId]
+          // path содержит [startId, hop1, hop2, ...]: число переходов fire_rule = nextPath.length - 1
+          if (nextPath.length - 1 > 2) {
+            issues.push(`Правило «${r.label}»: глубина цепочки fire_rule превышает 2 (${nextPath.join(' → ')})`)
+            continue
+          }
+          walk(nextId, nextPath)
+        }
+      }
+      walk(startId, [startId])
     }
     for (const p of this.questPaths()) {
       const q = this.quest(p)

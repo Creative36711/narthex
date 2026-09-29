@@ -540,7 +540,7 @@ TypeScript; перегенерировать после правок типов)
 `open`, `talk`, `drop`, `travel`; у `NpcDef`/`ItemDef`/`ItemCategoryDef`/
 `slot_types[i]` — `sounds: SoundHookMap`. Зацикленные слои: `playLoop/
 stopLoop/refreshAmbient` — каналы по id, повторный запуск no-op, разовые
-звуки поверх. Громкости — настройки игрока. Headless (смоуки) — все вызовы
+звуки поверх. Громкости — настройки игрока. В **режиме редактора** (вне встроенного плейтеста `.playtest-shell`) звуки интерфейса, эмбиенты и музыка отключены (`setEditorAudioSuppressed`), чтобы не мешать мастеру работать и предпрослушивать треки/звуки кнопкой `▶`. Headless (смоуки) — все вызовы
 безопасные no-op.
 
 Редактор (`src/editor/AudioSection.tsx`): реестры треков/звуков с
@@ -1051,6 +1051,24 @@ markdown (`MarkdownView.tsx`); иллюстрации — статик `public/b
   обновления».
 - Смоуки — `saves-compat-smoke.mts`, `compat-publish-smoke.mts`; документация
   — `docs/compatibility.md`, `docs/workshop.md`, `docs/book/07-versions.md`.
+
+### 10.10 Цикл «ИИ-агент делает кампанию» (P0–P2) и звук в редакторе
+
+- **Тишина в редакторе**: `setEditorAudioSuppressed(true)` при входе в Editor Mode (вне встроенного плейтеста `.playtest-shell`) отключает клики/переходы интерфейса и фоновые петли погоды, оставляя только явное предпрослушивание `▶` в конструкторах звука и музыки.
+- **P0 — баги платформы и сторож гайда**:
+  - `scripts/guide-schema-guard.mts` (`npm run smoke:guide`) проверяет все JSON-примеры и inline-сигнатуры эффектов/условий в `docs/ai-campaign-guide.md` против `docs/campaign.schema.json` и контроллирует 100%-е покрытие типов из схемы (`AUTO-SCHEMA-CATALOG` в `gen-schema.mts`).
+  - Рецепт «интерактивный проп» (говорящий объект `npc` vs осматриваемый предмет `item` в слоте сцены) в гайде (§8.1), «Книге мастера» (§3.2) и подсказках валидатора.
+  - Схлопывание одинаковых предупреждений `itemUsedAsNpc` в сводку (`formatItemUsedAsNpcWarning`) и обучающая расшифровка для `goto: "stay"` в узлах диалога.
+  - Разрешение коллизий при импорте `.chronicle` (`decideCampaignCollision` по `campaignFingerprint`: тихое обновление при совпадении отпечатка или модалка «Заменить / Установить рядом (`<id>_2`) / Отмена»).
+- **P1 — структура ИИ-комплекта и обратная связь**:
+  - Единый источник `НАЧНИ_С_ЭТОГО.txt`, встроенный в начало `campaign-guide.md` (`AUTO-START-HERE`), и двухфазный протокол работы (Фаза 1: дизайн-документ по шаблону `design-template.md` → Фаза 2: монолит JSON).
+  - Конвенция блока ```` ```cf-feedback ```` и окно редактора «Инструменты → Заметки ИИ для разработчиков» (`editor/cfFeedback.ts`, `CfFeedbackModal.tsx`) с генерацией предзаполненного GitHub issue (`labels=ai-feedback`).
+- **P2 — расширения формата**:
+  - `RecipeDef.known?: boolean` и эффект `unlock_recipe` (в `Effect` и `DlgEffect`) для открытия рецептов по ходу игры.
+  - Эффект `set_entity_state { entity, state }` (в `Effect` и `DlgEffect`) для переключения состояния портрета/спрайта НПС вне реплики.
+  - Эффект `fire_rule { rule }` в `Effect` (правила и слоты/предметы) с защитой от зацикливания (глубина ≤ 2 и проверка циклов в `validateContent`).
+  - Условие `meta_counter { key, ge }` для проверки счётчиков хроники игрока (включая `ng_cycle` и `victories` для New Game+).
+  - Смоук — `scripts/p0-validator-collision-smoke.mts`.
 
 ## 11. Что осталось
 

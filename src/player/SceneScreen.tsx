@@ -107,10 +107,14 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             const item = entity.type === 'item' ? (entity as ItemDef) : null
             // спрайт: НПС — sprite в сцене (с откатом на портрет «Обычный» ниже),
             // предмет — только своя картинка; без неё в слоте не рисуется ничего.
-            // Состояние спрайта выбирает мастер в свойствах слота (как «настроение» в диалоге).
+            // Состояние спрайта: динамическое состояние сущности (set_entity_state, Задача 9)
+            // либо заданное мастером в свойствах слота.
+            const entityState = engine.entityState(entity.id) || slot.sprite_state
             const sprite = npc
-              ? (slot.sprite_state && npc.scene_sprite_states?.[slot.sprite_state]) || npc.scene_sprite
+              ? (entityState && npc.scene_sprite_states?.[entityState]) || npc.scene_sprite
               : item?.scene_sprite
+            const portraitFallback =
+              npc && ((entityState && npc.portrait?.[entityState]) || npc.portrait?.neutral)
             const scale = slot.sprite_scale ?? 1
             // предмет под условием блокировки — «декорация»: виден, но не кликается (№8)
             const interactable = !item || engine.itemInteractable(item)
@@ -152,18 +156,18 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                       <LiveImg
                         className="slot-sprite"
                         value={sprite}
-                        tickKey={slot.sprite_state ?? ''}
+                        tickKey={entityState ?? ''}
                         urlOf={(f) => assetUrl(engine.campaign, f)}
                         alt={entity.label}
                       />
                     </span>
                   </>
                 ) : (
-                  npc?.portrait?.neutral && (
+                  portraitFallback && (
                     <img
                       className="slot-portrait"
-                      src={assetUrl(engine.campaign, npc.portrait.neutral)}
-                      alt={npc.label}
+                      src={assetUrl(engine.campaign, portraitFallback)}
+                      alt={npc?.label ?? entity.label}
                       draggable={false}
                     />
                   )

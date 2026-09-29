@@ -1903,14 +1903,37 @@ export class GameEngine {
     return (this.campaign.entities[id] as ItemDef | undefined)?.label ?? id
   }
 
-  /** все рецепты кампании, по алфавиту (русский) */
+  /** все открытые игроку рецепты кампании, по алфавиту (русский); рецепты с known: false скрыты до unlock_recipe */
   allRecipes(): RecipeDef[] {
-    return Object.values(this.campaign.recipes).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+    return Object.values(this.campaign.recipes)
+      .filter((r) => this.isRecipeKnown(r))
+      .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  }
+
+  /** известен ли рецепт игроку (Задача 8: по умолчанию открыт сразу; known: false — до unlock_recipe) */
+  isRecipeKnown(r: RecipeDef): boolean {
+    return r.known !== false || (this.state.unlocked_recipes ?? []).includes(r.id)
+  }
+
+  /** разблокировать рецепт крафта (эффект unlock_recipe; повтор — no-op) */
+  unlockRecipe(recipeId: string): void {
+    const r = this.campaign.recipes[recipeId]
+    if (!r) return
+    const s = this.state
+    if (!s.unlocked_recipes) s.unlocked_recipes = []
+    if (s.unlocked_recipes.includes(recipeId)) return
+    s.unlocked_recipes.push(recipeId)
+    this.messages.push({ text: `Открыт рецепт: «${r.label}».` })
+    this.pushLog(`Изучен рецепт: «${r.label}».`)
+    playInteraction('pickup', {})
+    this.notify()
+    this.autosave()
   }
 
   /** чего не хватает для рецепта: компоненты, инструменты, условия */
   recipeMissing(r: RecipeDef): string[] {
     const missing: string[] = []
+    if (!this.isRecipeKnown(r)) missing.push('рецепт ещё не открыт')
     for (const need of r.inputs ?? []) {
       const have = this.itemCount(need.item)
       if (have < need.quantity) missing.push(`${this.itemTitle(need.item)} ×${need.quantity} (есть ${have})`)
@@ -2218,7 +2241,7 @@ export class GameEngine {
     const loc = this.findLocation(locationId)?.location
     if (!loc?.on_enter_rules) return
     for (const ruleId of loc.on_enter_rules) {
-      this.tryFireRule(ruleId)
+      this.runRuleById(ruleId, false)
     }
   }
 
@@ -2226,7 +2249,7 @@ export class GameEngine {
   checkRules(): void {
     for (const rule of Object.values(this.campaign.rules)) {
       if (rule.manual) continue
-      this.tryFireRule(rule.id)
+      this.runRuleById(rule.id, false)
     }
     this.checkQuestTransitions()
   }
@@ -2239,16 +2262,66 @@ export class GameEngine {
     return groups.some((g) => !g.length || g.every((c) => evalCondition(c, this)))
   }
 
-  private tryFireRule(ruleId: string): void {
+  /** стек выполняемых правил (защита от циклов) и глубина цепочки fire_rule (Задача 10: ≤ 2 вложенных вызова) */
+  private ruleCallStack: string[] = []
+  private fireRuleDepth = 0
+
+  /**
+   * Выполнить правило по id: условия → эффекты. `isFireRuleHop` — вызов из
+   * эффекта `fire_rule` (диалог, предмет, слот, другое правило): такие вызовы
+   * ограничены глубиной 2 вложений и защищены от циклов.
+   */
+  private runRuleById(ruleId: string, isFireRuleHop: boolean): void {
     const rule = this.campaign.rules[ruleId]
     if (!rule) return
+    // зацикливание: правило вызывает само себя прямо или транзитивно
+    if (this.ruleCallStack.includes(rule.id)) {
+      this.pushLog(`Предупреждение: прерван цикл вызова правила «${rule.id}».`)
+      return
+    }
+    if (isFireRuleHop && this.fireRuleDepth > 2) {
+      this.pushLog(`Предупреждение: глубина цепочки fire_rule превысила 2 на правиле «${rule.id}».`)
+      return
+    }
     if (rule.once && this.state.fired_rules.includes(rule.id)) return
     if (!this.ruleConditionsOk(rule)) return
-    this.state.fired_rules.push(rule.id)
-    this.applyEffects(rule.effects)
+    if (!this.state.fired_rules.includes(rule.id)) this.state.fired_rules.push(rule.id)
+    this.ruleCallStack.push(rule.id)
+    if (isFireRuleHop) this.fireRuleDepth += 1
+    try {
+      this.applyEffects(rule.effects)
+    } finally {
+      if (isFireRuleHop) this.fireRuleDepth -= 1
+      this.ruleCallStack.pop()
+    }
+  }
+
+  /** Запустить правило по id как эффект `fire_rule` (правила, предметы, слоты, диалоги). */
+  fireRule(ruleId: string): void {
+    this.runRuleById(ruleId, true)
   }
 
   // ─────────────── эффекты ───────────────
+
+  /** активное состояние портрета/спрайта сущности (эффект set_entity_state; Задача 9) */
+  entityState(entityId: string): string | undefined {
+    return this.state.entity_states?.[entityId]
+  }
+
+  /** переключить состояние портрета/спрайта сущности ('' или 'neutral' — сброс к обычному) */
+  setEntityState(entityId: string, state: string): void {
+    const s = this.state
+    const clean = state.trim()
+    if (!clean || clean === 'neutral') {
+      if (s.entity_states) {
+        delete s.entity_states[entityId]
+        if (!Object.keys(s.entity_states).length) delete s.entity_states
+      }
+    } else {
+      s.entity_states = { ...(s.entity_states ?? {}), [entityId]: clean }
+    }
+    this.notify()
+  }
 
   /** актуальное описание сущности (с учётом динамических изменений set_description) */
   descOf(entityId: string): string {
@@ -2362,6 +2435,9 @@ export class GameEngine {
         break
       }
       case 'unlock_codex': this.unlockCodex(e.entry); break
+      case 'unlock_recipe': this.unlockRecipe(e.recipe); break
+      case 'set_entity_state': this.setEntityState(e.entity, e.state); break
+      case 'fire_rule': this.fireRule(e.rule); break
       case 'set_variable': s.variables[e.var] = e.value; break
       case 'change_variable':
         s.variables[e.var] = Number(s.variables[e.var] ?? 0) + e.delta
@@ -2840,11 +2916,6 @@ export class GameEngine {
     this.notify()
   }
 
-  /** Публичный запуск manual-правила (для Ink external fire_rule). */
-  fireRule(ruleId: string): void {
-    this.tryFireRule(ruleId)
-  }
-
   // ─────────────── диалоги ───────────────
 
   startDialogue(entityId: string, knot?: string): void {
@@ -3058,6 +3129,21 @@ export class GameEngine {
   /** открыто ли достижение */
   metaAchievementDone(id: string): boolean {
     return !!this.metaStore().achievements[id]
+  }
+
+  /**
+   * Значение счётчика мета-хроники игрока (Задача 11: условие meta_counter).
+   * Читает runs / victories / deaths / ng_cycle и суммарные счётчики статистики
+   * (прошлые забеги из хроники + текущий забег).
+   */
+  metaCounterValue(key: string): number {
+    if (key === 'ng_cycle') return this.state.ng_cycle ?? 0
+    const st = this.metaStore()
+    if (key === 'runs') return st.runs
+    if (key === 'victories') return st.victories
+    if (key === 'deaths') return st.deaths
+    const runStat = (this.state.stats_run as unknown as Record<string, number | undefined>)[key] ?? 0
+    return (st.counters[key] ?? 0) + runStat
   }
 
   /** достижения с состоянием (для экрана) */
