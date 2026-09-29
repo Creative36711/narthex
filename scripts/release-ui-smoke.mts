@@ -60,5 +60,6 @@ check('Катсцена занимает весь экран и заполняе
 check('Обучающие подсказки хранятся отдельно по кампаниям', read('src/player/tips.ts').includes('`${KEY}:${campaignId}`') && read('src/player/DialogueOverlay.tsx').includes("tipSeen('dialogue', campaignId)"))
 check('Подсказка диалога не зависит от русских названий навыков автора', dialogue.includes('const hasChoices = d.choices.length > 0') && !dialogue.includes('hasCheckChoice'))
 check('Боевой урок описывает правила движка и учитывает содержимое кампании', read('src/player/CombatScreen.tsx').includes("combat.usableItems().length > 0") && read('src/player/CombatScreen.tsx').includes('правилам этой кампании'))
+check('В редакторе (вне плейтеста) отключены звуки интерфейса и фоновые лупы', read('src/shared/audio.ts').includes('inEditorWithoutPlaytest') && read('src/App.tsx').includes("if (editor && !t?.closest('.playtest-shell')) return") && read('src/editor/EditorApp.tsx').includes('stopAllLoops()'))
 console.log(failed ? `ПРОВАЛЕНО: ${failed}` : 'ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')
 process.exit(failed ? 1 : 0)

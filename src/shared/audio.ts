@@ -39,9 +39,17 @@ function pickSource(src: SoundSource | SoundSource[]): SoundSource {
   return src
 }
 
+function inEditorWithoutPlaytest(): boolean {
+  return (
+    typeof document !== 'undefined' &&
+    document.body.classList.contains('cf-editor') &&
+    !document.querySelector('.playtest-shell')
+  )
+}
+
 /** проиграть звук реестра по id */
 export function playSoundId(id: string, volume = 1): void {
-  if (!id || !campaign) return
+  if (!id || !campaign || inEditorWithoutPlaytest()) return
   const def = soundDef(id)
   if (!def) return
   playSource(pickSource(def.src), volume)
@@ -132,7 +140,7 @@ const loops = new Map<string, LoopChannel>()
 
 /** запустить зацикленный слой (id звука с loop-источником); повторный вызов — no-op */
 export function playLoop(id: string, volume = 1): void {
-  if (!campaign || !id || loops.has(id)) return
+  if (!campaign || !id || loops.has(id) || inEditorWithoutPlaytest()) return
   const def = soundDef(id)
   if (!def) return
   const src = pickSource(def.src)

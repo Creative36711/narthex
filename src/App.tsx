@@ -90,15 +90,18 @@ export default function App() {
       })
   }, [campaignId])
 
-  // аудио: разблокировка WebAudio по первому жесту + общий «клик» по кнопкам (блок H)
+  // аудио: разблокировка WebAudio по первому жесту + общий «клик» по кнопкам (блок H).
+  // В редакторе (вне плейтеста) звуки интерфейса и фоновая музыка отключены,
+  // чтобы не мешать предпрослушиванию звуков и треков.
   useEffect(() => {
     const unlock = () => {
       unlockAudio()
       // первый жест разрешает автоплей — запускаем музыку, которая уже должна звучать
-      refreshMusic(engine)
+      if (!editor) refreshMusic(engine)
     }
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null
+      if (editor && !t?.closest('.playtest-shell')) return
       if (t?.closest('button')) playUi('click', 0.55)
     }
     window.addEventListener('pointerdown', unlock, { once: true })
@@ -107,7 +110,7 @@ export default function App() {
       window.removeEventListener('pointerdown', unlock)
       window.removeEventListener('click', onClick)
     }
-  }, [engine])
+  }, [engine, editor])
 
   useEffect(() => {
     const onHash = () => setEditor(window.location.hash === '#editor')

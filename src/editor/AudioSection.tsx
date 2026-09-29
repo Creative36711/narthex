@@ -24,7 +24,7 @@ import type {
   SoundSource,
   TimeOfDay,
 } from '../shared/types'
-import { isSoundDoc, playSource } from '../shared/audio'
+import { isSoundDoc, playSource, stopAllLoops } from '../shared/audio'
 import { isMusicDoc } from '../shared/synth'
 import { startTrackSource, stopMusic, type TrackHandle } from '../shared/music'
 import type { EditorStore } from './store'
@@ -81,8 +81,9 @@ const ZZFX_LABELS = [
 /** предпрослушивание музыки (▶): один активный фрагмент за раз */
 let previewTrackHandle: TrackHandle | null = null
 export function previewMusicSource(src: MusicSource, volume = 0.9): void {
-  // в редакторе нет фоновой музыки: превью гасит и её, и предыдущее превью
+  // в редакторе нет фоновой музыки и звуков: превью гасит и их, и предыдущее превью
   stopMusic(0.15)
+  stopAllLoops()
   if (previewTrackHandle) {
     previewTrackHandle.stop(0.15)
     previewTrackHandle = null
@@ -92,6 +93,17 @@ export function previewMusicSource(src: MusicSource, volume = 0.9): void {
     previewTrackHandle?.stop(0.4)
     previewTrackHandle = null
   }, 7000)
+}
+
+/** предпрослушивание звука (▶): гасит музыку/фоновые слои и предыдущее превью трека */
+export function previewSoundSource(src: SoundSource, volume = 1): void {
+  stopMusic(0.15)
+  stopAllLoops()
+  if (previewTrackHandle) {
+    previewTrackHandle.stop(0.15)
+    previewTrackHandle = null
+  }
+  playSource(src, volume)
 }
 
 function sourceKind(src: SoundSource | MusicSource): 'file' | 'synth' {
@@ -282,7 +294,7 @@ function SourceEditor({
           onClick={() => {
             if (!value) return
             if (what === 'музыка') previewMusicSource(value as MusicSource)
-            else playSource(value as SoundSource)
+            else previewSoundSource(value as SoundSource)
           }}
         >
           <Ico n="play" />  Прослушать
@@ -423,7 +435,7 @@ export function SoundSelect({
         if (!def) return
         const srcs = Array.isArray(def.src) ? def.src : [def.src]
         const src = srcs[Math.floor(Math.random() * srcs.length)]
-        if (src) playSource(src)
+        if (src) previewSoundSource(src)
       }}
     />
   )
@@ -517,10 +529,10 @@ export function SoundMultiSelect({
               onClick={() => {
                 const srcs = Array.isArray(s.src) ? s.src : [s.src]
                 const src = srcs[Math.floor(Math.random() * srcs.length)]
-                if (src) playSource(src)
+                if (src) previewSoundSource(src)
               }}
             >
-              ▶
+              <Ico n="play" />
             </button>
           </span>
         )
@@ -884,7 +896,7 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
                 onClick={() => {
                   const arr = srcs(s)
                   const src = arr[Math.floor(Math.random() * arr.length)]
-                  if (src) playSource(src)
+                  if (src) previewSoundSource(src)
                 }}
               >
                 <Ico n="play" /> 

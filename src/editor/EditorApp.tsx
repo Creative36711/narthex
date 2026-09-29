@@ -19,6 +19,7 @@ import JSZip from 'jszip'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
 import { stopMusic } from '../shared/music'
+import { stopAllLoops } from '../shared/audio'
 import { themeVars } from '../shared/theme'
 import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { profileClass, atmosphereOn } from '../shared/profiles'
@@ -134,8 +135,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   useEffect(() => {
     setError(null)
     setSelected(null)
-    // в редакторе фоновой музыки нет (фидбек 9): превью звуков — само по себе
+    // в редакторе фоновой музыки и фоновых звуков нет (фидбек 9): превью звуков — само по себе
     stopMusic(0.2)
+    stopAllLoops()
     store
       .load()
       .then(() => setReadyStore(store))
@@ -281,6 +283,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
   if (testCampaign) {
     const leaveTest = () => {
+      stopMusic(0.2)
+      stopAllLoops()
       deleteSave(testCampaign.meta.id)
       setTestEngine(null)
       setTestCampaign(null)
