@@ -314,6 +314,9 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'unlock_codex': return `${indent}~ unlock_codex(${q(e.entry)})`
     case 'unlock_recipe': return `${indent}~ unlock_recipe(${q(e.recipe)})`
     case 'set_entity_state': return `${indent}~ set_entity_state(${q(e.entity)}, ${q(e.state)})`
+    case 'start_crisis': return `${indent}~ start_crisis(${e.ticks ?? 24}, ${q(e.label ?? '')}, ${e.every ?? 0})`
+    case 'end_crisis': return `${indent}~ end_crisis()`
+    case 'extend_crisis': return `${indent}~ extend_crisis(${e.ticks})`
   }
 }
 
@@ -375,6 +378,13 @@ export function generateInk(docRaw: DlgDoc): string {
       continue
     }
     out.push(`-> ${node.id}_hub`, '', `=== ${node.id}_hub ===`)
+    // Уровень 2 «Таймер реплики»: дедлайн объявляется на каждом показе вариантов
+    if (node.choice_deadline_ticks && node.choice_deadline_ticks > 0) {
+      out.push(
+        `~ set_choice_deadline(${Math.round(node.choice_deadline_ticks)}, ${q(node.choice_deadline_to ?? 'end')}, ${node.choice_deadline_pick ?? -1})`,
+      )
+    }
+
     // защита от зависания: должен существовать всегда доступный вариант
     const hasAlways = node.choices.some((c) => !c.once && (!c.conds || c.conds.length === 0))
     for (const c of node.choices) {
@@ -413,6 +423,7 @@ export function generateInk(docRaw: DlgDoc): string {
     'change_need', 'change_hp', 'get_hp', 'sleep', 'get_need', 'get_stat', 'get_skill',
     'play_cutscene', 'set_description', 'apply_status', 'remove_status',
     'set_weather', 'unlock_codex', 'unlock_recipe', 'set_entity_state',
+    'set_choice_deadline', 'start_crisis', 'end_crisis', 'extend_crisis',
   ]
   const SIG: Record<string, string> = {
     get_flag: '(f)', set_flag: '(f)', add_item: '(id, n)', remove_item: '(id, n)',
@@ -424,6 +435,8 @@ export function generateInk(docRaw: DlgDoc): string {
     play_cutscene: '(id)', set_description: '(id, text)', apply_status: '(id, dur)',
     remove_status: '(id)', set_weather: '(id)', unlock_codex: '(id)',
     unlock_recipe: '(id)', set_entity_state: '(id, st)',
+    set_choice_deadline: '(t, to, pick)', start_crisis: '(t, label, every)',
+    end_crisis: '()', extend_crisis: '(t)',
   }
   const externals = FNS.filter((f) => body.includes(`${f}(`)).map((f) => `EXTERNAL ${f}${SIG[f]}`)
   return `${externals.join('\n')}\n\n${body}`

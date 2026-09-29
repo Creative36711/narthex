@@ -792,6 +792,13 @@ export interface CampaignMeta {
     ambush_rule?: string
   }
   /**
+   * Уровень 2 «Таймер реплики»: сколько секунд реального времени длится один
+   * ДИАЛОГОВЫЙ тик (`choice_deadline_ticks` в узлах диалога). Умолчание 1.
+   * 0 — таймеры реплик выключены совсем (режим доступности: игра без спешки).
+   * Мировые тики (`tick_elapsed`, кризис Уровня 3) этим не затрагиваются.
+   */
+  dialogue_tick_seconds?: number
+  /**
    * Числа опасностей (аудит B7): падение — по {fall_meters_per_die} метрам
    * на один кубик урона {fall_damage} (книжное умолчание 3 м на 1d6);
    * навык смягчения — эффектом (умолчание dodge).
@@ -1879,6 +1886,20 @@ export type DlgEffect =
   | { type: 'unlock_recipe'; recipe: string }
   /** переключить состояние портрета/спрайта сущности (Задача 9) */
   | { type: 'set_entity_state'; entity: string; state: string }
+  /** Уровень 3: объявить кризисный режим с обратным отсчётом (эскалации и дедлайн) */
+  | {
+      type: 'start_crisis'
+      ticks?: number
+      label?: string
+      every?: number
+      severity?: number
+      on_escalate?: Effect[]
+      on_deadline?: Effect[]
+    }
+  /** Уровень 3: снять кризис досрочно */
+  | { type: 'end_crisis' }
+  /** Уровень 3: отсрочить дедлайн кризиса на тики */
+  | { type: 'extend_crisis'; ticks: number }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -1930,6 +1951,18 @@ export interface DlgNode {
   choices: DlgChoice[]
   /** узел без вариантов: куда перейти после реплик ('end' по умолчанию) */
   goto?: string
+  /**
+   * Уровень 2 «Таймер реплики»: сколько ДИАЛОГОВЫХ тиков игрок может думать
+   * над ответом (1 тик = `campaign.dialogue_tick_seconds` секунд реального
+   * времени, по умолчанию 1 с). 0/нет — таймера нет: вдумчивое чтение и
+   * озвучка не торопятся (docs/book/08-limits.md §8.8). Таймер работает
+   * только в узлах с вариантами ответа и перезапускается при возврате в них.
+   */
+  choice_deadline_ticks?: number
+  /** куда увести разговор, когда время вышло: id узла или 'end' (ум. 'end') */
+  choice_deadline_to?: string
+  /** или автоматически выбрать вариант ответа с таким индексом (вместо перехода) */
+  choice_deadline_pick?: number
 }
 
 export interface DlgDoc {
@@ -2131,6 +2164,12 @@ export type Condition =
   | { type: 'meta_achievement'; id: string }
   /** счётчик мета-хроники игрока не меньше порога (runs, victories, deaths, kills, ng_cycle и др.; Задача 11) */
   | { type: 'meta_counter'; key: string; ge: number }
+  /** Уровень 3: кризисный режим активен (эффект start_crisis) */
+  | { type: 'crisis_active' }
+  /** Уровень 3: до дедлайна кризиса осталось не больше тиков (напряжение растёт) */
+  | { type: 'crisis_ticks_le'; threshold: number }
+  /** Уровень 3: до дедлайна кризиса осталось не меньше тиков (ещё есть запас) */
+  | { type: 'crisis_ticks_ge'; threshold: number }
   /** черта взята (аудит B8) */
   | { type: 'has_feat'; id: string }
   /** страсть не ниже значения (аудит B6) */
@@ -2326,6 +2365,30 @@ export type Effect =
     }
   /** преследование окончено до облавы (отряд оторвался/нашёл укрытие) */
   | { type: 'stop_pursuit' }
+  /**
+   * Уровень 3 «Кризисный режим»: объявить мировой дедлайн с обратным
+   * отсчётом (осада, эпидемия, налёт). `ticks` — сколько мировых тиков до
+   * дедлайна (по умолчанию 24 — сутки при стандартных настройках);
+   * `every` — через сколько тиков повторять эскалацию (`on_escalate`);
+   * `on_deadline` срабатывает по истечении, после чего кризис гаснет сам.
+   * Повторный вызов перезапускает отсчёт. Условия кризиса — `crisis_active`,
+   * `crisis_ticks_le`, `crisis_ticks_ge`; снять досрочно — `end_crisis`,
+   * отсрочить — `extend_crisis`.
+   */
+  | {
+      type: 'start_crisis'
+      ticks?: number
+      label?: string
+      every?: number
+      /** «опасность» 0..3 — оформление HUD (умолчание 1) */
+      severity?: number
+      on_escalate?: Effect[]
+      on_deadline?: Effect[]
+    }
+  /** кризис снят досрочно (герой справился): отсчёт и эффекты остановлены */
+  | { type: 'end_crisis' }
+  /** отсрочка дедлайна кризиса: +ticks мировых тиков (0/нет — ничего) */
+  | { type: 'extend_crisis'; ticks: number }
   /** совершить зарегистрированное преступление (аудит B7) */
   | { type: 'commit_crime'; id: string; bounty?: number }
   /** включить ценовое событие (аудит B7) */
@@ -2693,6 +2756,27 @@ export function equipmentSlots(meta: { equipment_slots?: Array<{ id: string; lab
   return (meta.equipment_slots ?? []).map((s) => ({ ...s }))
 }
 
+/**
+ * Активный кризисный режим (Уровень 3, эффект `start_crisis`): мировой
+ * дедлайн с обратным отсчётом. `left` тикает вместе с миром; каждые `every`
+ * тиков срабатывают `on_escalate`, на нуле — `on_deadline`, после чего кризис
+ * гаснет сам. Состояние живёт в сейве — отсчёт переживает выход в меню.
+ */
+export interface CrisisState {
+  /** подпись для HUD и журнала («Налёт», «Осада», «Чума») */
+  label?: string
+  /** сколько мировых тиков осталось до дедлайна */
+  left: number
+  /** интервал эскалации в тиках (0/нет — только финальный on_deadline) */
+  every?: number
+  /** «опасность» 0..3 — оформление HUD (умолчание 1) */
+  severity?: number
+  /** эффекты на каждой эскалации */
+  on_escalate?: Effect[]
+  /** эффекты по истечении дедлайна */
+  on_deadline?: Effect[]
+}
+
 export interface GameState {
   save_version?: number
   campaign_id: string
@@ -2764,6 +2848,11 @@ export interface GameState {
     left: number
     on_fail: Effect[]
   }
+  /**
+   * Кризисный режим (Уровень 3, эффект start_crisis): мировой дедлайн с
+   * обратным отсчётом. Тикает вместе с временем, см. CrisisState.
+   */
+  crisis?: CrisisState
   blocked_paths: string[]
   log: string[]
   game_over: null | { type: 'death' | 'victory'; reason: string; ending?: string }

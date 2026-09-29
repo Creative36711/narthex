@@ -37,6 +37,12 @@ export interface DialogueUI {
   lines: DialogueLine[]
   choices: { index: number; text: string }[]
   finished: boolean
+  /**
+   * Уровень 2 «Таймер реплики»: узел объявил дедлайн на ответ — `ticks`
+   * диалоговых тиков (по `campaign.dialogue_tick_seconds` секунд каждый).
+   * Нет — варианты можно обдумывать сколько угодно.
+   */
+  deadline?: { ticks: number; to: string; pick: number }
 }
 
 /**
@@ -162,6 +168,18 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('unlock_codex', (id: string) => { engine.applyEffects([{ type: 'unlock_codex', entry: id }]); return 0 })
   bind('unlock_recipe', (id: string) => { engine.unlockRecipe(id); return 0 })
   bind('set_entity_state', (entityId: string, state: string) => { engine.setEntityState(entityId, state); return 0 })
+  // ── Уровни 2–3: таймер реплики и кризисный режим (мировой дедлайн) ──
+  // конструктор диалогов объявляет дедлайн на узел с вариантами ответа
+  bind('set_choice_deadline', (ticks: number, to: string, pick: number) => {
+    engine.setChoiceDeadline(ticks, to, pick)
+    return 0
+  })
+  bind('start_crisis', (ticks: number, label: string, every: number) => {
+    engine.applyEffects([{ type: 'start_crisis', ticks, label, every }])
+    return 0
+  })
+  bind('end_crisis', () => { engine.applyEffects([{ type: 'end_crisis' }]); return 0 })
+  bind('extend_crisis', (ticks: number) => { engine.applyEffects([{ type: 'extend_crisis', ticks }]); return 0 })
 }
 
 /** Прочитать все доступные строки до выбора/конца. */

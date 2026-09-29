@@ -65,6 +65,9 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'unlock_codex', label: 'Открыть запись кодекса' },
   { id: 'unlock_recipe', label: 'Открыть рецепт крафта' },
   { id: 'set_entity_state', label: 'Сменить состояние портрета/спрайта НПС' },
+  { id: 'start_crisis', label: 'Кризисный режим: объявить дедлайн' },
+  { id: 'extend_crisis', label: 'Кризисный режим: отсрочить дедлайн' },
+  { id: 'end_crisis', label: 'Кризисный режим: снять (герой справился)' },
   { id: 'open_trade', label: 'Открыть торговлю (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
 ]
@@ -91,6 +94,9 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'unlock_codex': return { type, entry: '' }
     case 'unlock_recipe': return { type, recipe: '' }
     case 'set_entity_state': return { type, entity: '', state: 'neutral' }
+    case 'start_crisis': return { type, ticks: 24, label: '' }
+    case 'extend_crisis': return { type, ticks: 8 }
+    case 'end_crisis': return { type }
   }
 }
 
@@ -938,6 +944,46 @@ function EffectRow({
         <>
           <InlineRef kind="npc" store={store} value={e.entity} onChange={(v) => ((e.entity = v), commit())} />
           <input value={e.state} placeholder="Ключ состояния (например angry)" onChange={(ev) => ((e.state = ev.target.value), commit())} />
+        </>
+      )}
+      {e.type === 'start_crisis' && (
+        <>
+          <input
+            type="number"
+            min={1}
+            value={e.ticks ?? 24}
+            data-tip="Сколько мировых тиков до дедлайна"
+            onChange={(ev) => ((e.ticks = Math.max(1, Number(ev.target.value) || 1)), commit())}
+          />
+          <span className="muted small">{store.meta.tick_label ?? 'тик'} до дедлайна</span>
+          <input
+            value={e.label ?? ''}
+            placeholder="Подпись кризиса («Осада»)"
+            onChange={(ev) => {
+              if (ev.target.value) e.label = ev.target.value
+              else delete e.label
+              commit()
+            }}
+          />
+          <input
+            type="number"
+            min={0}
+            value={e.every ?? 0}
+            data-tip="Через сколько тиков повторять эскалацию (0 — только финальный дедлайн)"
+            onChange={(ev) => {
+              const v = Math.max(0, Number(ev.target.value) || 0)
+              if (v > 0) e.every = v
+              else delete e.every
+              commit()
+            }}
+          />
+          <span className="muted small">эскалация каждые (0 — нет)</span>
+        </>
+      )}
+      {e.type === 'extend_crisis' && (
+        <>
+          <input type="number" min={0} value={e.ticks} onChange={(ev) => ((e.ticks = Math.max(0, Number(ev.target.value) || 0)), commit())} />
+          <span className="muted small">{store.meta.tick_label ?? 'тик'} отсрочки</span>
         </>
       )}
       <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>

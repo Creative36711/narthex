@@ -945,6 +945,24 @@ html.cf-profile-modern {
 .hud-tod { font-size: 12px; color: var(--muted); }
 .hud-date { font-size: 11px; color: var(--faint); }
 .hud-weather { font-size: 11px; color: var(--blue-bright); opacity: 0.9; }
+/* кризисный режим (Уровень 3): мировой дедлайн в HUD */
+.hud-crisis {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--red-bright);
+  border: 1px solid var(--red);
+  border-radius: var(--radius);
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+.hud-crisis.sev-0 { color: var(--gold-bright); border-color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.hud-crisis.sev-2 { color: #ff9d8a; border-color: var(--red-bright); }
+.hud-crisis.sev-3 { color: #ff8f78; border-color: var(--red-bright); background: color-mix(in srgb, var(--red) 22%, transparent); }
+.hud-crisis.urgent { animation: pulse 1s infinite; }
 
 .hud-right { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .hud-btn {
@@ -1459,6 +1477,29 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .dialogue-tip-text p { margin: 0 0 6px; }
 .dialogue-tip-text p:last-child { margin-bottom: 0; }
 .dialogue-tip .btn { flex: 0 0 auto; align-self: center; }
+
+/* Уровень 2 «Таймер реплики»: обратный отсчёт на ответ */
+.dialogue-deadline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--gold-bright);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+}
+.dialogue-deadline.urgent { color: var(--red-bright); border-color: var(--red); animation: pulse 1s infinite; }
+.dialogue-deadline-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--inset);
+  overflow: hidden;
+}
+.dialogue-deadline-fill { height: 100%; background: currentColor; transition: width 0.2s linear; }
 
 .help-panel { max-width: 640px; }
 .help-section { border: 1px solid var(--border-soft); border-radius: var(--radius); margin-bottom: 8px; background: var(--panel-2); }

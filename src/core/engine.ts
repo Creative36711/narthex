@@ -84,6 +84,12 @@ export class GameEngine {
   private activeNpc: NpcDef | null = null
   /** Ink-истории этого забега (состояние once-выборов живёт в пределах забега) */
   dialogue: DialogueUI | null = null
+  /**
+   * Уровень 2 «Таймер реплики»: объявленный узлом дедлайн на текущий выбор.
+   * Не в сейве — живёт в рамках разговора (это давление на решение игрока,
+   * а не состояние мира).
+   */
+  private choiceDeadline: { ticks: number; to: string; pick: number } | null = null
   combat: CombatController | null = null
   /** открытая торговля: id NPC-торговца */
   trade: NpcDef | null = null
@@ -412,6 +418,8 @@ export class GameEngine {
         this.state.pursuit.left -= 1
         if (this.state.pursuit.left <= 0) this.tickPursuit()
       }
+      // кризисный режим (Уровень 3, start_crisis): мировой дедлайн с отсчётом
+      if (this.state.crisis) this.tickCrisis()
       // смена суток: самочувствие NPC (спал по расписанию / не спал)
       const tpd = meta.ticks_per_day ?? 24
       if (tpd > 0 && this.state.tick > 0 && this.state.tick % tpd === 0) this.tickNpcMood()
@@ -2388,6 +2396,79 @@ export class GameEngine {
     this.applyEffects(effects)
   }
 
+  // ─────────────── кризисный режим (Уровень 3: мировой дедлайн) ───────────────
+
+  /** кризисный режим активен? (эффект start_crisis) */
+  crisisActive(): boolean {
+    return !!this.state.crisis
+  }
+
+  /** сколько мировых тиков осталось до дедлайна кризиса (нет кризиса — null) */
+  crisisTicksLeft(): number | null {
+    return this.state.crisis ? this.state.crisis.left : null
+  }
+
+  /** секунда на диалоговый тик (Уровень 2): умолчание 1, 0 — таймеры выключены */
+  dialogueTickSeconds(): number {
+    const v = this.campaign.meta.dialogue_tick_seconds
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 1
+  }
+
+  /** объявить (или перезапустить) кризис: мировой дедлайн с обратным отсчётом */
+  startCrisis(e: Extract<Effect, { type: 'start_crisis' }>): void {
+    const s = this.state
+    const ticks = Math.max(1, Math.round(e.ticks ?? 24))
+    s.crisis = {
+      label: e.label,
+      left: ticks,
+      every: e.every && e.every > 0 ? Math.max(1, Math.round(e.every)) : undefined,
+      severity: Math.max(0, Math.min(3, Math.round(e.severity ?? 1))),
+      on_escalate: e.on_escalate,
+      on_deadline: e.on_deadline,
+    }
+    this.pushLog(
+      `${e.label ? `«${e.label}»: ` : ''}время пошло — до дедлайна ${ticks} ${this.campaign.meta.tick_label}.`,
+    )
+  }
+
+  /** отсрочка дедлайна: +ticks мировых тиков (кризиса нет — тихо) */
+  extendCrisis(ticks: number): void {
+    const c = this.state.crisis
+    if (!c) return
+    const add = Math.max(0, Math.round(ticks))
+    if (add <= 0) return
+    c.left += add
+    this.pushLog(`Дедлайн отложен: ещё ${add} ${this.campaign.meta.tick_label}.`)
+  }
+
+  /** снять кризис: resolved=true — дедлайн истёк (срабатывают on_deadline) */
+  endCrisis(resolved: boolean): void {
+    const c = this.state.crisis
+    if (!c) return
+    delete this.state.crisis
+    if (resolved) {
+      this.pushLog(`${c.label ? `«${c.label}»: ` : ''}дедлайн настал.`)
+      if (c.on_deadline?.length) this.applyEffects(c.on_deadline)
+    } else {
+      this.pushLog(`${c.label ? `«${c.label}»: ` : ''}напряжённый час миновал.`)
+    }
+  }
+
+  /** один мировой тик кризиса: отсчёт, эскалации, финальный дедлайн */
+  private tickCrisis(): void {
+    const c = this.state.crisis
+    if (!c) return
+    c.left -= 1
+    if (c.left > 0) {
+      if (c.every && c.left % c.every === 0) {
+        if (c.label) this.pushLog(`${c.label}: до дедлайна ${c.left} ${this.campaign.meta.tick_label}.`)
+        if (c.on_escalate?.length) this.applyEffects(c.on_escalate)
+      }
+      return
+    }
+    this.endCrisis(true)
+  }
+
   /** подготовка способности в слот магии (meta.magic.slots): true — получилось */
   togglePreparedAbility(id: string): boolean {
     const s = this.state
@@ -2661,6 +2742,15 @@ export class GameEngine {
         }
         break
       }
+      case 'start_crisis':
+        this.startCrisis(e)
+        break
+      case 'end_crisis':
+        this.endCrisis(false)
+        break
+      case 'extend_crisis':
+        this.extendCrisis(e.ticks)
+        break
       case 'remove_entity':
         if (!s.removed_entities.includes(e.entity)) s.removed_entities.push(e.entity)
         break
@@ -2937,6 +3027,7 @@ export class GameEngine {
     this.activeStory = story
     this.activeNpc = npc
     this.state.stats_run.dialogues += 1
+    this.choiceDeadline = null
     const drained = drainStory(story)
     if (this.combat) {
       // диалог сразу запустил бой — не показываем окно
@@ -2944,7 +3035,7 @@ export class GameEngine {
       this.activeStory = null
       this.activeNpc = null
     } else {
-      this.dialogue = { npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
+      this.dialogue = { npc, lines: drained.lines, choices: drained.choices, finished: drained.finished, deadline: this.choiceDeadline ?? undefined }
     }
     this.notify()
   }
@@ -2953,6 +3044,8 @@ export class GameEngine {
     const story = this.activeStory
     const npc = this.activeNpc
     if (!story || !npc) return
+    // таймер реплики снят: узел объявит свой собственный (или не объявит)
+    this.choiceDeadline = null
     story.ChooseChoiceIndex(index)
     const drained = drainStory(story)
     if (this.combat || this.trade) {
@@ -2968,6 +3061,77 @@ export class GameEngine {
       lines: drained.lines,
       choices: drained.choices,
       finished: drained.finished,
+      deadline: this.choiceDeadline ?? undefined,
+    }
+    this.checkRules()
+    this.notify()
+  }
+
+  /**
+   * Уровень 2 «Таймер реплики»: узел диалога объявляет дедлайн на ответ.
+   * Вызывается из сгенерированного ink (`~ set_choice_deadline(...)`).
+   * `ticks` ≤ 0 или `dialogue_tick_seconds = 0` — таймер не ставится.
+   */
+  setChoiceDeadline(ticks: number, to: string, pick: number): void {
+    const t = Math.round(ticks)
+    if (!Number.isFinite(t) || t <= 0 || this.dialogueTickSeconds() <= 0) {
+      this.choiceDeadline = null
+      return
+    }
+    this.choiceDeadline = {
+      ticks: t,
+      to: (to || 'end').trim() || 'end',
+      pick: Number.isFinite(pick) ? Math.round(pick) : -1,
+    }
+  }
+
+  /** активный таймер реплики (для HUD диалога); нет — null */
+  choiceDeadlineInfo(): { ticks: number; to: string; pick: number } | null {
+    return this.choiceDeadline
+  }
+
+  /**
+   * Время на ответ вышло (вызывает UI по истечении отсчёта). Движок либо сам
+   * выбирает заготовленный мастером вариант (`choice_deadline_pick`), либо
+   * уводит разговор в узел-развязку (`choice_deadline_to`), либо заканчивает
+   * разговор — по тому, что задано в узле.
+   */
+  expireChoiceDeadline(): void {
+    const dl = this.choiceDeadline
+    if (!dl) return
+    this.choiceDeadline = null
+    const npc = this.activeNpc
+    const story = this.activeStory
+    if (!npc || !story) return
+    this.pushLog('Время на ответ вышло.')
+    if (dl.pick >= 0 && this.dialogue?.choices.some((c) => c.index === dl.pick)) {
+      this.chooseDialogueOption(dl.pick)
+      return
+    }
+    if (dl.to === 'end') {
+      this.endDialogue()
+      return
+    }
+    try {
+      story.ChoosePathString(dl.to)
+    } catch {
+      this.endDialogue()
+      return
+    }
+    const drained = drainStory(story)
+    if (this.combat || this.trade) {
+      this.dialogue = null
+      this.activeStory = null
+      this.activeNpc = null
+      this.notify()
+      return
+    }
+    this.dialogue = {
+      npc,
+      lines: drained.lines,
+      choices: drained.choices,
+      finished: drained.finished,
+      deadline: this.choiceDeadline ?? undefined,
     }
     this.checkRules()
     this.notify()
@@ -2977,6 +3141,7 @@ export class GameEngine {
     this.dialogue = null
     this.activeStory = null
     this.activeNpc = null
+    this.choiceDeadline = null
     this.checkRules()
     this.autosave()
     this.notify()

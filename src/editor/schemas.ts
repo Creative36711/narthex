@@ -243,6 +243,21 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     ],
     blank: { key: 'victories', ge: 1 },
   },
+  crisis_active: {
+    label: 'Кризисный режим активен (Уровень 3)',
+    fields: [],
+    blank: {},
+  },
+  crisis_ticks_le: {
+    label: 'До дедлайна кризиса ≤ тиков (напряжение растёт)',
+    fields: [{ key: 'threshold', label: 'Порог (тиков мира)', kind: 'number' }],
+    blank: { threshold: 6 },
+  },
+  crisis_ticks_ge: {
+    label: 'До дедлайна кризиса ≥ тиков (ещё есть запас)',
+    fields: [{ key: 'threshold', label: 'Порог (тиков мира)', kind: 'number' }],
+    blank: { threshold: 12 },
+  },
   need_le: {
     label: 'Потребность ≤',
     fields: [
@@ -533,6 +548,28 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Преследование окончено (оторвались)',
     fields: [],
     blank: {},
+  },
+  start_crisis: {
+    label: 'Кризисный режим: объявить дедлайн (Уровень 3)',
+    fields: [
+      { key: 'ticks', label: 'Тиков мира до дедлайна (ум. 24)', kind: 'number', optional: true },
+      { key: 'label', label: 'Подпись кризиса («Осада»)', kind: 'string', optional: true },
+      { key: 'every', label: 'Эскалация каждые N тиков (0 — нет)', kind: 'number', optional: true },
+      { key: 'severity', label: 'Опасность 0..3 (оформление HUD)', kind: 'number', optional: true },
+      { key: 'on_escalate', label: 'На каждой эскалации', kind: 'effects', optional: true },
+      { key: 'on_deadline', label: 'Когда дедлайн настал', kind: 'effects', optional: true },
+    ],
+    blank: { ticks: 24, label: '', every: 0, severity: 1, on_escalate: [], on_deadline: [] },
+  },
+  end_crisis: {
+    label: 'Кризисный режим: снять (герой справился)',
+    fields: [],
+    blank: {},
+  },
+  extend_crisis: {
+    label: 'Кризисный режим: отсрочить дедлайн',
+    fields: [{ key: 'ticks', label: 'Отсрочка (тиков мира)', kind: 'number' }],
+    blank: { ticks: 8 },
   },
   group_stat_check: {
     label: 'Групповая сцепленная проверка (герой + союзники)',

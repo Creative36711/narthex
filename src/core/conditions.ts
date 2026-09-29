@@ -102,6 +102,16 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.metaAchievementDone(c.id)
     case 'meta_counter':
       return engine.metaCounterValue(c.key) >= c.ge
+    case 'crisis_active':
+      return engine.crisisActive()
+    case 'crisis_ticks_le': {
+      const left = engine.crisisTicksLeft()
+      return left !== null && left <= c.threshold
+    }
+    case 'crisis_ticks_ge': {
+      const left = engine.crisisTicksLeft()
+      return left !== null && left >= c.threshold
+    }
     case 'has_feat':
       return (engine.state.player.feats ?? []).includes(c.id)
     case 'and':

@@ -123,6 +123,14 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
               const w = meta.weathers?.find((x) => x.id === s.weather)
               return w ? <div className="hud-weather">{w.label}</div> : null
             })()}
+            {s.crisis && (
+              <div
+                className={`hud-crisis sev-${s.crisis.severity ?? 1}${s.crisis.left <= 3 ? ' urgent' : ''}`}
+                data-tip={`Кризисный режим (${s.crisis.label ?? 'дедлайн мира'}): до развязки ${s.crisis.left} ${meta.tick_label}.\nОтсчёт идёт вместе с мировым временем — правила кампании решают, чем всё кончится.`}
+              >
+                <Ico n="warn" /> {s.crisis.label ?? 'Дедлайн'} — {s.crisis.left} {meta.tick_label}
+              </div>
+            )}
           </>
         )}
       </div>

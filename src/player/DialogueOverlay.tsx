@@ -38,6 +38,12 @@ export function DialogueOverlay({ engine }: Props) {
   /** озвучка текущей реплики закончилась (или её нет) — как в катсценах,
    *  диалог не идёт дальше, пока фраза не договорена (фидбек 21) */
   const [lineDone, setLineDone] = useState(true)
+  /**
+   * Уровень 2 «Таймер реплики»: сколько диалоговых тиков осталось на ответ.
+   * null — таймера нет. Отсчёт идёт реальным временем (по
+   * `campaign.dialogue_tick_seconds` на тик) и не зависит от темпа печати.
+   */
+  const [deadlineLeft, setDeadlineLeft] = useState<number | null>(null)
 
   const clearLineAudio = () => {
     audioRef.current?.pause()
@@ -66,6 +72,8 @@ export function DialogueOverlay({ engine }: Props) {
     if (revealed !== 0) setRevealed(0)
     if (typed !== 0) setTyped(0)
     if (!lineDone) setLineDone(true)
+    // новый узел — свой таймер реплики (или его отсутствие)
+    setDeadlineLeft(d?.deadline && d.choices.length > 0 ? d.deadline.ticks : null)
   }
 
   const lines: DialogueLine[] = d?.lines ?? []
@@ -140,6 +148,25 @@ export function DialogueOverlay({ engine }: Props) {
     return () => clearTimeout(t)
   }, [current, typed, full.length, lineDone])
 
+  /**
+   * Уровень 2 «Таймер реплики»: отсчёт идёт реальным временем (по
+   * `campaign.dialogue_tick_seconds` на тик) и только когда варианты ответа
+   * уже на экране — пока реплика печатается или её добивает озвучка, таймер
+   * не бежит: он про решение игрока, а не про скорость чтения.
+   */
+  const deadlineTickSeconds = Math.max(0.05, engine.dialogueTickSeconds())
+  const choicesOnScreen = revealed >= lines.length
+  useEffect(() => {
+    if (deadlineLeft === null || !choicesOnScreen) return
+    if (deadlineLeft <= 0) {
+      setDeadlineLeft(null)
+      engine.expireChoiceDeadline()
+      return
+    }
+    const t = setTimeout(() => setDeadlineLeft((n) => (n === null ? null : n - 1)), deadlineTickSeconds * 1000)
+    return () => clearTimeout(t)
+  }, [deadlineLeft, choicesOnScreen, deadlineTickSeconds, engine])
+
   if (!d) return null
 
   /**
@@ -202,6 +229,20 @@ export function DialogueOverlay({ engine }: Props) {
               >
                 Понятно
               </button>
+            </div>
+          )}
+          {allShown && deadlineLeft !== null && hasChoices && (
+            <div className={`dialogue-deadline${deadlineLeft <= 3 ? ' urgent' : ''}`}>
+              <Ico n="warn" />
+              <span>
+                Время на ответ: {Math.max(0, deadlineLeft)} — иначе разговор решит сам
+              </span>
+              <div className="dialogue-deadline-bar">
+                <div
+                  className="dialogue-deadline-fill"
+                  style={{ width: `${Math.max(0, Math.min(100, (deadlineLeft / Math.max(1, d.deadline?.ticks ?? 1)) * 100))}%` }}
+                />
+              </div>
             </div>
           )}
           {allShown && (

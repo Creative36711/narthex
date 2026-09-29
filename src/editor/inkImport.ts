@@ -99,6 +99,10 @@ function parseEffectLine(line: string, warnings: string[], where: string): DlgEf
     case 'unlock_codex': return { type: 'unlock_codex', entry: str(0) }
     case 'unlock_recipe': return { type: 'unlock_recipe', recipe: str(0) }
     case 'set_entity_state': return { type: 'set_entity_state', entity: str(0), state: str(1) }
+    case 'start_crisis': return { type: 'start_crisis', ticks: num(0) || undefined, label: str(1) || undefined, every: num(2) || undefined }
+    case 'end_crisis': return { type: 'end_crisis' }
+    case 'extend_crisis': return { type: 'extend_crisis', ticks: num(0) }
+
     default:
       warnings.push(`${where}: неизвестный эффект «${fn}(…)»`)
       return null
@@ -449,6 +453,17 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
     if (hub) {
       const raws = splitChoices(hub.lines, warnings, `узел ${knot.name}`)
       node.choices = raws.map((c) => parseChoice(c, knot.name, warnings, `ответ «${c.head.slice(0, 40)}»`))
+      // Уровень 2 «Таймер реплики»: дедлайн объявляется в шапке хаба
+      const dlLine = hub.lines.find((l) => /^~\s*set_choice_deadline\(/.test(l.trim()))
+      if (dlLine) {
+        const m = /set_choice_deadline\(\s*(-?\d+)\s*,\s*"([^"]*)"\s*,\s*(-?\d+)\s*\)/.exec(dlLine)
+        if (m) {
+          node.choice_deadline_ticks = Number(m[1]) || undefined
+          node.choice_deadline_to = m[2] || 'end'
+          const pick = Number(m[3])
+          node.choice_deadline_pick = pick >= 0 ? pick : undefined
+        }
+      }
       // хвост узла перед хабом повторяется генератором автоматически: не переносим,
       // но иной (не в хаб) переход — редкий; фиксируем
       if (flow.tail && flow.tail !== `${knot.name}_hub`) {
