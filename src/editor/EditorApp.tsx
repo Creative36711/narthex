@@ -139,11 +139,17 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     // щелчок по кнопке и гул локации перебивают предпрослушивание синтеза
     stopMusic(0.2)
     setAmbientAudioEnabled(false)
+    // пустой base — на диске нет ни одной кампании: грузить нечего, снизу
+    // покажем экран «Кампаний пока нет» с кнопкой создания
+    if (!base) {
+      setReadyStore(null)
+      return
+    }
     store
       .load()
       .then(() => setReadyStore(store))
       .catch((e) => setError(String(e)))
-  }, [store])
+  }, [store, base])
 
   useEffect(() => store.subscribe(() => force((n) => n + 1)), [store])
 
@@ -269,13 +275,43 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       })
       if (!saveRes.ok) throw new Error(`${saveRes.status} ${await saveRes.text()}`)
       setCampaigns(next)
-      setBase(`/campaigns/${next[0].id}`)
+      // удалили последнюю — редактор покажет пустой экран, а не путь в никуда
+      setBase(next.length ? `/campaigns/${next[0].id}` : '')
     } catch (e) {
       void showAlert('Не удалось удалить кампанию', `${e}\n(Удаление работает в dev-режиме vite / Tauri.)`)
     } finally {
       setBusy(null)
     }
   }
+
+  // нет ни одной кампании (свежая сборка или удалили последнюю): редактор
+  // остаётся рабочим — создаём новую кампанию прямо отсюда
+  if (!base)
+    return (
+      <div className="screen-center">
+        <div className="panel no-campaign-panel">
+          <div className="brand-row">
+            <span className="brand">
+              <Ico n="forge" /> Редактор Chronicle Forge
+            </span>
+          </div>
+          <h2>Кампаний пока нет</h2>
+          <p>
+            В <code>public/campaigns</code> пусто. Создайте первую кампанию — движок
+            подставит стартовую сцену, а остальное вы опишете сами. Готовую кампанию
+            можно импортировать файлом <code>.chronicle</code> из главного меню.
+          </p>
+          <div className="menu-buttons">
+            <button className="btn btn-primary" onClick={() => void newCampaign()} disabled={!!busy}>
+              {busy ?? 'Создать кампанию'}
+            </button>
+            <button className="btn" onClick={onExit}>
+              В главное меню
+            </button>
+          </div>
+        </div>
+      </div>
+    )
 
   if (error)
     return (

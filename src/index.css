@@ -79,6 +79,17 @@ button { font-family: inherit; }
 .error-panel { max-width: 560px; color: var(--red-bright); }
 .error-panel h2 { color: var(--red-bright); }
 
+/* пустой реестр кампаний: ни одной кампании на диске (свежая сборка или
+   удалили последнюю) — показываем путь «создать» и «импортировать» */
+.no-campaign-panel { max-width: 620px; text-align: center; }
+.no-campaign-panel .brand-row { margin-bottom: 12px; }
+.no-campaign-panel .brand-row::before,
+.no-campaign-panel .brand-row::after { display: none; }
+.no-campaign-panel h2 { margin: 18px 0 8px; }
+.no-campaign-panel p { color: var(--muted); line-height: 1.5; }
+.no-campaign-panel code { color: var(--gold-bright); }
+.no-campaign-panel .menu-buttons { justify-content: center; margin-top: 18px; }
+
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
 

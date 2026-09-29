@@ -62,7 +62,20 @@ const index = json(join(campaignsDir, 'index.json')) as Array<{ id?: unknown }>
 assert.ok(Array.isArray(index), 'public/campaigns/index.json должен быть массивом')
 for (const [i, entry] of index.entries()) validate('CampaignIndexEntry', entry, `campaigns/index.json[${i}]`)
 assert.equal(new Set(index.map((entry) => entry.id)).size, index.length, 'В campaigns/index.json повторяются id кампаний')
-assert.deepEqual(index.map((entry) => entry.id).sort(), dirs, 'public/campaigns/index.json и каталоги кампаний не синхронизированы')
+// Реестр — это то, что доступно ИГРОКУ. На диске рядом может лежать
+// полигон для смоуков: каталог без записи в index.json, но обязательно с
+// маркером smoke-fixture.json (иначе это забытая, а не убранная кампания).
+const registered = index.map((entry) => entry.id as string)
+for (const id of registered) {
+  assert.ok(dirs.includes(id), `Кампания «${id}» внесена в campaigns/index.json, но каталога нет`)
+}
+for (const id of dirs) {
+  if (registered.includes(id)) continue
+  const marker = join(campaignsDir, id, 'smoke-fixture.json')
+  assert.ok(existsSync(marker), `Каталог campaigns/${id} не внесён в реестр и не помечен как полигон смоуков (smoke-fixture.json)`)
+  const fixture = json(marker) as { reason?: unknown }
+  assert.ok(typeof fixture.reason === 'string' && fixture.reason, `campaigns/${id}/smoke-fixture.json: нет описания, зачем лежит каталог`)
+}
 let moduleCount = 0
 for (const campaignId of dirs) {
   const base = join(campaignsDir, campaignId)
@@ -151,7 +164,9 @@ for (const campaignId of dirs) {
     }
     moduleCount++
   }
-  const allJson = walkJsonFiles(base).sort()
+  // smoke-fixture.json — служебная пометка каталога (полигон смоуков), не
+  // модуль пакета: в manifest.json её не быть не может
+  const allJson = walkJsonFiles(base).filter((rel) => rel !== 'smoke-fixture.json').sort()
   assert.deepEqual(allJson, [...referencedJson].sort(), `${campaignId}: JSON-файлы и manifest.json не синхронизированы (есть сироты/пропуски)` )
 
   const issues = store.validateContent()

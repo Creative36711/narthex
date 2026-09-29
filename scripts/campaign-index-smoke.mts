@@ -27,7 +27,13 @@ const read = (p: string) => readFileSync(p, 'utf8')
   const res = await fetch('/campaigns/index.json')
   check('реестр кампаний отдаётся dev-сервером', res.ok)
   const index = (await res.json()) as Array<{ id: string; title: string; description?: string }>
-  check('реестр не пуст', index.length > 0)
+  check('реестр — массив', Array.isArray(index))
+  // свежая сборка едет без кампаний для игрока: полигон смоуков на диске есть,
+  // но в реестр не внесён. Пустой реестр — штатное состояние, не ошибка.
+  check('полигон смоуков не внесён в реестр', !index.some((c) => c.id === 'ash-of-caerden'))
+  check('в реестре нет битых записей (у каждой есть каталог)', await Promise.all(index.map(async (c) => (await fetch(`/campaigns/${c.id}/campaign.json`)).ok)))
+  const empty = await hydrateCampaignIndex([])
+  check('пустой реестр переживает гидратацию', Array.isArray(empty) && empty.length === 0)
 
   // подставка: запись реестра намеренно устаревшая
   const stale = [{ id: 'ash-of-caerden', title: 'Пепел Караэна', description: 'Долину душит банда Серого Йорека.' }]
@@ -62,7 +68,9 @@ const read = (p: string) => readFileSync(p, 'utf8')
   check('в выпадающем списке редактора живое название открытой кампании', ed.includes('c.id === store.meta.id ? store.meta.title : c.title'))
   const app = read('src/App.tsx')
   check('меню дописывает текущую кампанию в список из файла', app.includes('const entry = {\n      id: campaign.meta.id,') || app.includes('title: campaign.meta.title'))
-  check('запасное название вынесено в константу с комментарием', app.includes('DEFAULT_CAMPAIGN_TITLE'))
+  // захардкоженной «демо-кампании» больше нет: выбор идёт из реестра
+  check('в приложении нет захардкоженной кампании по умолчанию', !app.includes('DEFAULT_CAMPAIGN'))
+  check('выбор кампании идёт через реестр (pickCampaign)', app.includes('function pickCampaign(') && app.includes('setCampaignId((cur) => pickCampaign(idx, cur))'))
 }
 
 console.log(failed ? `\nПРОВАЛЕНО: ${failed}` : '\nвсе проверки зелёные')
