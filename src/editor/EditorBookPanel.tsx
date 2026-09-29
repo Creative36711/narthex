@@ -5,6 +5,7 @@ import { MarkdownView } from './MarkdownView'
 const files = import.meta.glob('../../docs/book/*.md', { query: '?raw', import: 'default' }) as Record<string, () => Promise<string>>
 const targets: Partial<Record<EditorSection, { file: string; heading: string }>> = {
   campaign: { file: '02-editor.md', heading: 'Раздел «Проект»' },
+  design: { file: '07-ai.md', heading: 'Дизайн-документ' },
   world: { file: '03-content.md', heading: 'Мир и навигация' },
   scenes: { file: '03-content.md', heading: 'Сцены, состояния и слоты' },
   entities: { file: '03-content.md', heading: 'Персонажи и поведения' },

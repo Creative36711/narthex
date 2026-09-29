@@ -221,6 +221,34 @@
 .rule-editor > .ce-tabs { margin: 0 -18px 14px; padding: 12px 18px 0; }
 .rule-editor:has(.ce-tabs) { padding-top: 0; }
 
+/* ─────────── «Дизайн-документ»: просмотр и ручные правки design_doc ─────────── */
+.design-doc-panel { display: flex; flex-direction: column; gap: 10px; min-height: 100%; }
+.design-doc-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.design-doc-head .muted { min-width: 220px; }
+.design-doc-empty {
+  background: var(--ed-paper-card);
+  border: 1px dashed var(--ed-paper-line-strong);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--ed-paper-muted);
+  line-height: 1.5;
+}
+.design-doc-empty code { background: var(--ed-paper-input); border: 1px solid var(--ed-paper-line); border-radius: 4px; padding: 0 4px; }
+.design-doc-text {
+  flex: 1;
+  width: 100%;
+  min-height: 55vh;
+  box-sizing: border-box;
+  resize: vertical;
+  background: var(--ed-paper-input);
+  color: var(--ed-paper-text);
+  border: 1px solid var(--ed-paper-line-strong);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font: 14px/1.6 ui-monospace, 'Cascadia Mono', Menlo, monospace;
+}
+.design-doc-text:focus { outline: 2px solid var(--ed-focus); outline-offset: -1px; }
+
 /* ─────────── базовые контролы на бумаге ─────────── */
 
 .editor-root .muted { color: var(--ed-paper-muted); }

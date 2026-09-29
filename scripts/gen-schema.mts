@@ -233,10 +233,11 @@ writeFileSync(outFile, JSON.stringify(schema, null, 2) + '\n')
 console.log(`OK: ${outFile} ($defs: ${Object.keys(defs).length})`)
 
 // ── синхронизируемые куски гайда ────────────────────────────────────────────
-// Часть гайда и файл чемодана должны быть одним текстом: мастер копирует
-// «НАЧНИ_С_ЭТОГО.txt» в чат, агент читает §0 гайда. Держим один источник
-// (docs/ai-start-instruction.md, docs/ai-design-template.md) и раскладываем
-// его при генерации — руками эти куски не правим.
+// Часть гайда и файлы чемодана должны быть одним текстом: инструкция агенту —
+// это §0 гайда (первый раздел архива, скидывается в чат целиком), бланк
+// дизайн-документа — §0б. Держим один источник (docs/ai-start-instruction.md,
+// docs/ai-design-template.md) и раскладываем его при генерации — руками эти
+// куски не правим.
 const docsDir = join(process.cwd(), 'docs')
 const aiKit = join(process.cwd(), 'public', 'ai')
 mkdirSync(aiKit, { recursive: true })
@@ -264,27 +265,20 @@ let guide = readFileSync(guidePath, 'utf8')
 guide = upsertSection(
   guide,
   'START-INSTRUCTION',
-  '## 0. С чего начать (этот же текст лежит файлом `НАЧНИ_С_ЭТОГО.txt` в чемодане)',
+  '## 0. С чего начать (это первое, что читает агент)',
   demoteHeadings(startInstruction),
 )
 guide = upsertSection(
   guide,
   'DESIGN-TEMPLATE',
-  '## 0б. Бланк дизайн-документа (файл `design-template.md` в чемодане)',
+  '## 0б. Бланк гейм-дизайнерского документа (файл `design-template.md` в чемодане)',
   demoteHeadings(designTemplate),
 )
 writeFileSync(guidePath, guide)
 
-// дублируем схему и гайд в публичный «чемодан для ИИ-агента»
+// дублируем схему и гайд в публичный «чемодан для ИИ-агента» (состав задаёт
+// манифест AI_KIT_FILES в src/editor/aiKit.ts — его же проверяет аудит)
 writeFileSync(join(aiKit, 'campaign.schema.json'), JSON.stringify(schema, null, 2) + '\n')
 writeFileSync(join(aiKit, 'campaign-guide.md'), guide)
 writeFileSync(join(aiKit, 'design-template.md'), designTemplate + '\n')
-// НАЧНИ_С_ЭТОГО.txt — тот же текст, что §0 гайда, с короткой шапкой
-writeFileSync(
-  join(aiKit, 'НАЧНИ_С_ЭТОГО.txt'),
-  `# Как работать с кампанией Chronicle Forge через ИИ-агента\n\n` +
-    `Файл для вставки первым сообщением в чат агента. Его полный текст —\n` +
-    `первый раздел campaign-guide.md (тот же источник: docs/ai-start-instruction.md).\n\n` +
-    `${startInstruction}\n`,
-)
-console.log('OK: public/ai/campaign.schema.json + campaign-guide.md + design-template.md + НАЧНИ_С_ЭТОГО.txt — синк')
+console.log('OK: public/ai/campaign.schema.json + campaign-guide.md + design-template.md — синк')

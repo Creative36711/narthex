@@ -37,6 +37,8 @@ import { CharacterCreation } from '../player/CharacterCreation'
 import { PlaytestDebugPanel } from './PlaytestDebugPanel'
 import type { CharChoice } from '../core/charcreate'
 import { EditorBookPanel } from './EditorBookPanel'
+import { DesignDocPanel } from './DesignDocPanel'
+import { AI_KIT_FILES, startInstructionOf } from './aiKit'
 
 /**
  * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
@@ -50,7 +52,10 @@ const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
   {
     id: 'project',
     label: 'Проект',
-    items: [{ id: 'campaign', label: 'Кампания и реестры' }],
+    items: [
+      { id: 'campaign', label: 'Кампания и реестры' },
+      { id: 'design', label: 'Дизайн-документ' },
+    ],
   },
   {
     id: 'world',
@@ -629,8 +634,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
   /**
    * «Чемодан для ИИ-агента»: zip с кампанией монолитом + гайдом движка,
-   * JSON Schema и инструкцией к агентному чату. Работа с ИИ внешняя:
-   * мастер загружает файлы в свой сервис и возвращает правленый JSON.
+   * JSON Schema и бланком дизайн-документа — ровно 4 файла по манифесту
+   * AI_KIT_FILES (src/editor/aiKit.ts). Работа с ИИ внешняя: мастер скидывает
+   * архив в чат целиком и получает назад правленый campaign.json.
    */
   const doExportAiKit = async () => {
     setBusy('Собираю чемодан для ИИ-агента…')
@@ -638,21 +644,27 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       const { doc } = exportMonolith(store)
       const zip = new JSZip()
       zip.file('campaign.json', JSON.stringify(doc, null, 2))
-      const kitFiles: Array<[string, string]> = [
-        ['campaign-guide.md', 'Полный гайд по движку (системный промпт агента)'],
-        ['campaign.schema.json', 'JSON Schema всех полей формата'],
-        ['НАЧНИ_С_ЭТОГО.txt', 'Сопроводительный текст: пошаговая инструкция и правила для агента'],
-      ]
-      for (const [name] of kitFiles) {
+      // файлы набора — только из манифеста: его же читают аудит и текст окна,
+      // поэтому ручной список здесь держать запрещено (§R2)
+      let guideText = ''
+      for (const { name } of AI_KIT_FILES) {
         const res = await fetch(`ai/${encodeURIComponent(name)}`)
         if (!res.ok) throw new Error(`Не найден файл набора: ai/${name} (${res.status})`)
-        zip.file(name, await res.text())
+        const text = await res.text()
+        zip.file(name, text)
+        if (name.endsWith('-guide.md')) guideText = text
       }
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
       downloadBlob(blob, `${doc.campaign.id || 'campaign'}-ai-kit.zip`)
-      void showAlert(
+      // Окно после скачивания (§R4): одна фраза без перечисления файлов и
+      // копирование §0 для чатов, которые не принимают архивы — иначе у
+      // мастера не осталось бы файла для первого сообщения агенту.
+      const instruction = startInstructionOf(guideText) || guideText.trim()
+      void showList(
         'Чемодан для ИИ-агента собран',
-        'Загрузите campaign.json, campaign-guide.md и campaign.schema.json в чат вашего ИИ-сервиса. Пошаговая инструкция и правила для агента — в НАЧНИ_С_ЭТОГО.txt.',
+        [],
+        'Скиньте архив целиком в чат агента — инструкция начинается с первого раздела гайда внутри.',
+        { label: 'Скопировать инструкцию для ИИ', text: instruction },
       )
     } catch (e) {
       void showAlert('Не удалось собрать чемодан', String(e))
@@ -719,7 +731,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     return true
   })
-  const hasList = !['campaign', 'world', 'combat'].includes(section)
+  const hasList = !['campaign', 'world', 'combat', 'design'].includes(section)
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
   // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
   const groupCounts = new Map<string, number>()
@@ -928,6 +940,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
         <main className="editor-main">
           {section === 'campaign' && <CampaignEditor key={`c-${base}`} store={store} />}
+          {section === 'design' && <DesignDocPanel key={`d-${base}`} store={store} />}
           {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
           {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} />}

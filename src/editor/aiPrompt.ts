@@ -26,6 +26,7 @@ export function buildAiCampaignPrompt(brief: AiCampaignBrief, guide: string): st
   return [
     `Ты создаёшь кампанию Chronicle Forge в формате MonolithDoc. Обязательные ключи верхнего уровня: ${required}. Необязательные ключи: ${optional}.`,
     'СТРОГО следуй техническому руководству ниже и схеме MonolithDoc. Выведи ТОЛЬКО JSON — без markdown-обёрток, комментариев и пояснений.',
+    'Сначала заполни campaign.design_doc человеческим языком (по бланку design-template.md из чемодана) и дождись «ок» мастера, затем наполняй остальную кампанию; на каждой последующей итерации обновляй design_doc раньше правок кампании.',
     '',
     '=== ТЕХНИЧЕСКОЕ РУКОВОДСТВО (ai-campaign-guide.md) ===',
     guide.trim(),
