@@ -1,0 +1,424 @@
+{
+  "id": "scene_office",
+  "label": "Кабинет директора",
+  "location": "loc_admin",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_office_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#212619"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#161a12"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "rect",
+              "x": 900,
+              "y": 130,
+              "w": 260,
+              "h": 190,
+              "fill": {
+                "gradient": {
+                  "from": "#2b3a40",
+                  "to": "#161d20",
+                  "angle": 90
+                }
+              },
+              "stroke": "#0c110f",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 1030,
+              "cy": 220,
+              "rx": 260,
+              "ry": 160,
+              "fill": "#cfe0b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "сейф",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 300,
+              "w": 160,
+              "h": 200,
+              "fill": "#2f332c",
+              "stroke": "#0a0c09",
+              "stroke_width": 6,
+              "radius": 3
+            }
+          },
+          {
+            "label": "сейф скважина",
+            "shape": {
+              "type": "ellipse",
+              "cx": 240,
+              "cy": 400,
+              "rx": 12,
+              "ry": 12,
+              "fill": "#0a0c09"
+            }
+          },
+          {
+            "label": "стол",
+            "shape": {
+              "type": "rect",
+              "x": 500,
+              "y": 420,
+              "w": 310,
+              "h": 160,
+              "fill": "#3a2f21",
+              "stroke": "#0d0b08",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "стопка дел",
+            "shape": {
+              "type": "rect",
+              "x": 530,
+              "y": 380,
+              "w": 120,
+              "h": 46,
+              "fill": "#c9c2a4"
+            }
+          },
+          {
+            "label": "полка",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 110,
+              "w": 200,
+              "h": 150,
+              "fill": "#2b2418",
+              "stroke": "#0b0906",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "кресло гостя",
+            "shape": {
+              "type": "rect",
+              "x": 850,
+              "y": 420,
+              "w": 180,
+              "h": 190,
+              "fill": "#2e2a1d",
+              "radius": 6
+            }
+          },
+          {
+            "label": "кресло директора",
+            "shape": {
+              "type": "rect",
+              "x": 1090,
+              "y": 320,
+              "w": 150,
+              "h": 270,
+              "fill": "#2a2620",
+              "radius": 6
+            }
+          },
+          {
+            "label": "дверь",
+            "shape": {
+              "type": "rect",
+              "x": 330,
+              "y": 520,
+              "w": 160,
+              "h": 120,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "выход",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 560,
+              "w": 180,
+              "h": 110,
+              "fill": "#241b12",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "табличка",
+            "shape": {
+              "type": "text",
+              "x": 520,
+              "y": 118,
+              "text": "НАЧАЛЬНИК ЛАГЕРЯ П. И. ГУБАРЬ",
+              "size": 20,
+              "color": "#c8d3c4"
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Кабинет директора · сейф, архив, окно на озеро",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_office_safe",
+      "label": "Сейф",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 120,
+      "y": 300,
+      "w": 160,
+      "h": 200,
+      "default_entity": "item_safe",
+      "use_with": [
+        {
+          "item": "item_safe_key",
+          "consume": false,
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_safe_open"
+            },
+            {
+              "type": "show_message",
+              "text": "Ключ от сейфа сел как родной."
+            }
+          ]
+        },
+        {
+          "item": "item_bobby_pin",
+          "consume": false,
+          "effects": [
+            {
+              "type": "skill_check_gate",
+              "skill": "repair",
+              "difficulty": "difficult",
+              "success_effects": [
+                {
+                  "type": "set_flag",
+                  "flag": "flag_safe_open"
+                },
+                {
+                  "type": "show_message",
+                  "text": "Замок щёлкнул."
+                }
+              ],
+              "fail_effects": [
+                {
+                  "type": "change_need",
+                  "need": "need_noise",
+                  "delta": 25
+                },
+                {
+                  "type": "show_message",
+                  "text": "Отмычка сломалась в замке."
+                }
+              ]
+            },
+            {
+              "type": "advance_time",
+              "ticks": 1
+            }
+          ]
+        }
+      ],
+      "condition": null
+    },
+    {
+      "id": "slot_office_desk",
+      "label": "Стол и стопка дел",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 500,
+      "y": 420,
+      "w": 310,
+      "h": 160,
+      "default_entity": "item_director_desk",
+      "condition": null
+    },
+    {
+      "id": "slot_office_window",
+      "label": "Окно на озеро",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 900,
+      "y": 130,
+      "w": 260,
+      "h": 190,
+      "default_entity": "item_office_window",
+      "condition": null
+    },
+    {
+      "id": "slot_office_shelf",
+      "label": "Полка с канцелярией",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 60,
+      "y": 110,
+      "w": 200,
+      "h": 150,
+      "default_entity": "item_shelf",
+      "condition": null
+    },
+    {
+      "id": "slot_office_guest",
+      "label": "Кресло для посетителя",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 850,
+      "y": 420,
+      "w": 180,
+      "h": 190,
+      "default_entity": "npc_zoya",
+      "condition": {
+        "flag": "flag_zoya_arrived",
+        "not_flag": "flag_zoya_left"
+      }
+    },
+    {
+      "id": "slot_office_director",
+      "label": "Кресло директора",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 1090,
+      "y": 320,
+      "w": 150,
+      "h": 270,
+      "default_entity": "npc_director",
+      "condition": {
+        "flag": "flag_director_arrived"
+      }
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В методкабинет",
+      "area": {
+        "x": 330,
+        "y": 520,
+        "w": 160,
+        "h": 120
+      },
+      "go_to_scene": "scene_method"
+    },
+    {
+      "label": "Выйти из флигеля (карта)",
+      "area": {
+        "x": 60,
+        "y": 560,
+        "w": 180,
+        "h": 110
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_gate"
+      ],
+      "conditions": [
+        {
+          "time_of_day": [
+            "day",
+            "morning"
+          ]
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_night"
+      ]
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "rule_director_arrives",
+  "label": "Приезд Губаря",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 50
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_director_arrived"
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_inna",
+      "state": "smile"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_inna"
+    },
+    {
+      "type": "banner",
+      "text": "Пётр Ильич Губарь приехал за архивом",
+      "preset": "заголовок"
+    },
+    {
+      "type": "show_message",
+      "text": "Он вышел из машины с тем же лицом, с каким в 1986-м выходил из учительской: деловитым и ничего не ждущим."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

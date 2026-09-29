@@ -1,0 +1,48 @@
+{
+  "id": "rule_buried",
+  "label": "Правда осталась в лагере",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_protocol_burned"
+        },
+        {
+          "type": "flag_set",
+          "flag": "flag_obey_inna"
+        }
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "type": "fail_quest",
+      "quest": "quest_shift"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_shift",
+      "stage": "stage_lost"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_buried"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_dawn"
+    },
+    {
+      "type": "game_over_victory"
+    },
+    {
+      "type": "show_message",
+      "text": "Ты сам подписал себе это: в описях, в протоколе и в тишине — всё на свои места."
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "item_cabinet_key",
+  "type": "item",
+  "category": "key",
+  "label": "Ключ от метод-шкафа",
+  "description": "Ключ от «шкафа тишины». Тридцать три года лежал у человека, который считал себя воспитателем.",
+  "image": "",
+  "weight": 0.04,
+  "stackable": false,
+  "sounds": {
+    "use": "sfx_lock"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "item_lamp_made",
+  "type": "item",
+  "category": "light",
+  "label": "Коптилка из банки",
+  "description": "Банка, тряпка, керосин. Света на четыре шага, зато без батареек и без щелчка.",
+  "image": "",
+  "weight": 0.6,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "set_flag",
+        "flag": "flag_basement_lit"
+      },
+      {
+        "type": "change_scene_state",
+        "scene": "scene_basement",
+        "state": "state_bas_lit"
+      },
+      {
+        "type": "show_message",
+        "text": "Коптилка занялась. Подвал стал меньше на глаз, но не ближе."
+      }
+    ],
+    "consume": false,
+    "message": "Коптилка горит; светло ровно на четыре шага."
+  },
+  "sounds": {
+    "use": "sfx_fire"
+  }
+}

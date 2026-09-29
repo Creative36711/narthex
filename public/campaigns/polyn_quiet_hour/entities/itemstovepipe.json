@@ -1,0 +1,62 @@
+{
+  "id": "item_stovepipe",
+  "type": "item",
+  "category": "misc",
+  "label": "Печь и трубы",
+  "description": "Котёл под потолком, трубы по стене. По ним в 86-м стучали: три раза — «тихо», два — «иду», один — не отвечай.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Стукнуть три раза",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "flag_pipe_signal"
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 12
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_quiet"
+        },
+        {
+          "type": "show_message",
+          "text": "Сверху ответили. И не из трубы, а из-под пола."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Открыть заслонку",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_kerosene",
+          "quantity": 1
+        },
+        {
+          "type": "set_weather",
+          "weather": "weather_fog"
+        },
+        {
+          "type": "show_message",
+          "text": "Из заслонки потянуло туманом — не дымом, а тем самым, что по утрам лежит над водой."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

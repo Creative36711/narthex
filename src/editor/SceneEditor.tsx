@@ -114,8 +114,10 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   const st = scene.states[Math.min(stateIdx, scene.states.length - 1)]
   // фон: ArtDoc рисуем как SVG-подложку под прозрачным Konva-холстом,
   // обычное изображение — внутри Konva (итерация 8, блок D)
+  // ArtDoc рисуется как SVG-подложка, но показывается ВНУТРИ холста Konva:
+  // отдельный <img> поверх стейджа перекрывался фоном стейджа и не был виден
   const artUrl = st?.art ? artToDataUrl(st.art) : ''
-  const img = useImage(!st?.art && st?.image ? store.assetSrc(firstFrame(st.image)) : null)
+  const img = useImage(artUrl || (st?.image ? store.assetSrc(firstFrame(st.image)) : null))
 
   useEffect(() => {
     // после отката (или удаления) выбранный объект мог исчезнуть — не
@@ -238,12 +240,11 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
           )}
         </div>
         <div className="scene-stage-wrap" style={{ width: VIEW_W, height: VIEW_H }}>
-          {artUrl && <img className="scene-stage-art" src={artUrl} alt="" draggable={false} />}
           <Stage width={VIEW_W} height={VIEW_H} className="scene-stage" onClick={(e) => {
             if (e.target === e.target.getStage() || e.target.className === 'Image') setSel(null)
           }}>
           <Layer>
-            {img && <KImage image={img} width={VIEW_W} height={VIEW_H} />}
+            {img && <KImage image={img} width={VIEW_W} height={VIEW_H} listening={false} />}
             {scene.navigation.map((n, i) => (
               <Group key={`nav${i}`}>
                 <Rect

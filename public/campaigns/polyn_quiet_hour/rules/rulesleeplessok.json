@@ -1,0 +1,29 @@
+{
+  "id": "rule_sleepless_ok",
+  "label": "Выспался",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "need_ge",
+      "need": "need_rest",
+      "threshold": 45
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_sleepless_on"
+    }
+  ],
+  "effects": [
+    {
+      "type": "remove_status",
+      "status": "status_sleepless",
+      "target": "player"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_sleepless_on"
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

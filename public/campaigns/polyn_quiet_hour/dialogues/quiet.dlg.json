@@ -1,0 +1,142 @@
+{
+  "version": 2,
+  "label": "Тихий Час",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Он в конце коридора",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Он не идёт. Он стоит там, где ты оставил свет: в конце коридора, лицом к шкафу, спиной к тебе, и держит в руке обходной журнал без обложек.",
+                "action": true
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Он не оборачивается. Он ждёт, что ты сам назовёшь причину своего шума. На это у тебя ровно столько, сколько нужно, чтобы не дышать.",
+                "emotion": "neutral"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Лечь на пол, закрыть глаза, не дышать.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "flag_quiet_obeyed"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_need",
+                    "need": "need_noise",
+                    "delta": -35
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_bridge_calm"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ты лежишь на холодном линолеуме и ждёшь. Он стоит над тобой три минуты — ты считаешь, потому что иначе нельзя. Потом уходит, не закрыв журнал.",
+                    "emotion": "calm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Сказать вслух: «я не твой дежурный».",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "apply_status",
+                    "status": "status_numbed",
+                    "duration": 10
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_need",
+                    "need": "need_nerve",
+                    "delta": -20
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_bridge_scare"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Он оборачивается — ты этого не видишь, но слышишь, как поворачивается шея: тихо, кожа по ткани. Свет в коридоре становится желтее.",
+                    "action": true
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Встать и пойти ему навстречу.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_catch_take"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_bridge_scare"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ты делаешь три шага. Четвёртый шаг ты делаешь уже в бытовке, у своей койки, в сухих сапогах, с чьим-то журналом под мышкой.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "id": "item_wardrobe",
+  "type": "item",
+  "category": "container",
+  "label": "Детские шкафчики",
+  "description": "Двенадцать ячеек. В девяти пусто; в трёх — поделки: глиняный баран, аппликация «полынь», открытка «бабушке, что я дома».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Открыть тринадцатую ячейку",
+      "effects": [
+        {
+          "type": "change_sanity",
+          "delta": -5
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_names"
+        },
+        {
+          "type": "postcard",
+          "text": "Тринадцатой ячейки не существует: ряд из двенадцати. И всё-таки она есть — и внутри два билета «в одну сторону»: Ветрова П. и Ветров А."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Открыть двенадцатый шкафчик",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_flask",
+          "quantity": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Алюминиевая фляга, под ней — записка: «не для питья, для памяти». Геннадич не обернулся, хотя дверь не закрывал."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Забрать косынку с гвоздика",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_wormwood",
+          "quantity": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Ты сорвал косынку; на гвоздике осталась затяжка, как от чьей-то шеи."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

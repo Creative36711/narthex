@@ -1,0 +1,41 @@
+{
+  "id": "rule_basement_light",
+  "label": "Свет в подвале",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_basement"
+    },
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_flashlight"
+        },
+        {
+          "type": "flag_set",
+          "flag": "flag_light_on"
+        }
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_basement_lit"
+    },
+    {
+      "type": "change_scene_state",
+      "scene": "scene_basement",
+      "state": "state_bas_lit"
+    },
+    {
+      "type": "show_message",
+      "text": "Подвал стал помещением, а не колодцем: видно стеллаж, ливневый лоток и край воды."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

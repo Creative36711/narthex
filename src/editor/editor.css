@@ -856,15 +856,8 @@
 /* ── итерация 8, блок D: ArtDoc в редакторе сцен ── */
 
 .scene-stage-wrap { position: relative; }
-.scene-stage-art {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: fill;
-  border: 1px solid var(--ed-art-line);
-  border-radius: 4px;
-}
+/* отдельного <img class="scene-stage-art"> больше нет: фон сцены рисуется
+   картинкой внутри полотна (KImage) — слой полотна перекрывал его (фидбек 29-09, п.3) */
 .art-preview {
   width: 100%;
   aspect-ratio: 16 / 9;

@@ -1,0 +1,35 @@
+{
+  "id": "item_coffee",
+  "type": "item",
+  "category": "food",
+  "label": "Кофе у Геннадича",
+  "description": "Цикорий, сахар и сухое молоко. Горький, зато горячий.",
+  "image": "",
+  "weight": 0.3,
+  "stackable": false,
+  "value": {
+    "rubles": 30
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_nerve",
+        "delta": 10
+      },
+      {
+        "type": "change_need",
+        "need": "need_rest",
+        "delta": -6
+      },
+      {
+        "type": "show_message",
+        "text": "Кофе был как аптека: противно и помогает."
+      }
+    ],
+    "consume": true
+  },
+  "sounds": {
+    "use": "sfx_sip"
+  }
+}

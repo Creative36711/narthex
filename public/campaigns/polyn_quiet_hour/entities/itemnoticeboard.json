@@ -1,0 +1,70 @@
+{
+  "id": "item_notice_board",
+  "type": "item",
+  "category": "misc",
+  "label": "Стенд «Полынь — 1986»",
+  "description": "Стекло треснуто пополам, левая половина висит криво: так бывает, когда бьют изнутри.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Рассмотреть",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_wall"
+        },
+        {
+          "type": "postcard",
+          "text": "Кружки, стенгазета, фото смены. Под стеклом записка: «И. А. просит не будить детей после 15:00»."
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Одна фотография вырезана по контуру — ножницами, аккуратно."
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_lelya"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "За стеклом только твоё отражение и кто-то за плечом."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Выбить стекло",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 35
+        },
+        {
+          "type": "change_sanity",
+          "delta": -3
+        },
+        {
+          "type": "show_message",
+          "text": "Стекло осыпалось; эхо прокатилось по двору, как по трубе."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

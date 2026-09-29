@@ -1,0 +1,38 @@
+{
+  "id": "rule_ch3",
+  "label": "Глава III. Вода",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_truth"
+        },
+        {
+          "type": "quest_at_stage",
+          "quest": "quest_shift",
+          "stage": "stage_confession"
+        }
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_ch3"
+    },
+    {
+      "type": "banner",
+      "text": "Глава III. Вода",
+      "preset": "глава"
+    },
+    {
+      "type": "show_message",
+      "text": "Водолазы должны прийти утром. До утра в лагере можно сделать ровно одно дело — то, ради которого ты сюда приехал."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

@@ -1,0 +1,40 @@
+{
+  "id": "rule_sanity_10",
+  "label": "Рассудок 10: режим становится твоим",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "sanity_le",
+      "threshold": 10
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_sanity10"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_sanity10"
+    },
+    {
+      "type": "apply_status",
+      "status": "status_numbed",
+      "duration": 6,
+      "target": "player"
+    },
+    {
+      "type": "banner",
+      "text": "Ты лёг на койку сам, без команды, и тебе это понравилось.",
+      "preset": "проклятье",
+      "seconds": 8
+    },
+    {
+      "type": "change_scene_state",
+      "scene": "scene_corridor",
+      "state": "state_corr_his"
+    }
+  ],
+  "chapter": "ch_3_water"
+}

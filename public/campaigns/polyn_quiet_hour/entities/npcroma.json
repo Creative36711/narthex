@@ -1,0 +1,41 @@
+{
+  "id": "npc_roma",
+  "type": "npc",
+  "label": "Рома Гладков",
+  "description": "Пионер, двенадцать лет. Говорит вполголоса и всё время смотрит на дверь: его учили, что в коридорах слышно, как ты дышишь.",
+  "portrait": {
+    "neutral": "",
+    "afraid": "",
+    "calm": "",
+    "crying": ""
+  },
+  "stats": {
+    "STR": 5,
+    "CON": 6,
+    "SIZ": 5,
+    "DEX": 12,
+    "INT": 10,
+    "POW": 11,
+    "CHA": 8
+  },
+  "skills": {
+    "listen": 70,
+    "stealth": 65,
+    "spot": 60,
+    "persuade": 20,
+    "psychology": 30
+  },
+  "equipment": {},
+  "inventory": [],
+  "scene_sprite_states": {
+    "afraid": "",
+    "calm": ""
+  },
+  "dialogue": "dialogues/roma.ink",
+  "perception": 70,
+  "sounds": {
+    "talk": "sfx_steps"
+  },
+  "schedule": [],
+  "presence_overrides": []
+}

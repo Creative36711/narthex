@@ -1,11 +1,11 @@
-EXTERNAL get_flag(f)
-EXTERNAL set_flag(f)
+EXTERNAL item_count(id)
 EXTERNAL add_item(id, n)
 EXTERNAL remove_item(id, n)
-EXTERNAL item_count(id)
-EXTERNAL fire_rule(id)
-EXTERNAL advance_time(t)
 EXTERNAL change_need(id, d)
+EXTERNAL get_flag(f)
+EXTERNAL set_flag(f)
+EXTERNAL advance_time(t)
+EXTERNAL fire_rule(id)
 EXTERNAL sleep(t)
 
 === main ===
@@ -72,7 +72,6 @@ EXTERNAL sleep(t)
     Вот люк, вот лестница. Осторожнее там!
     ~ fire_rule("encounter_cellar_rats")
     -> DONE
-    -> DONE
 + [Крысы? Нет уж, уволь.]
     Эх... А с виду такой храбрец.
     -> main
@@ -84,7 +83,6 @@ EXTERNAL sleep(t)
 === rats_remind_hub ===
 + [Спускаюсь в подвал прямо сейчас. (бой)]
     ~ fire_rule("encounter_cellar_rats")
-    -> DONE
     -> DONE
 + [Позже.]
     -> main

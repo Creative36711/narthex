@@ -1,0 +1,31 @@
+{
+  "id": "rule_woke_up",
+  "label": "Пробуждение после крепкого сна",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "advance_time",
+      "ticks": 0
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 40
+    },
+    {
+      "type": "change_sanity",
+      "delta": -4
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_cot_slept"
+    },
+    {
+      "type": "show_message",
+      "text": "Пока ты спал, в актовом зале переставили все двадцать четыре стула. Теперь они стоят лицом к твоей койке."
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

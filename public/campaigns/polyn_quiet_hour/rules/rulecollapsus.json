@@ -1,0 +1,37 @@
+{
+  "id": "rule_collapsus",
+  "label": "Обморок от недосыпа",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "apply_status",
+      "status": "status_sleepless",
+      "duration": 24,
+      "target": "player"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_sleepless_on"
+    },
+    {
+      "type": "change_need",
+      "need": "need_rest",
+      "delta": 25
+    },
+    {
+      "type": "change_sanity",
+      "delta": -5
+    },
+    {
+      "type": "change_hp",
+      "delta": -2
+    },
+    {
+      "type": "show_message",
+      "text": "Ты отключился прямо на ходу и очнулся на чужой койке. Кто-то снял с тебя сапоги. Ты их не находил."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

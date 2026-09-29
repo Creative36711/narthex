@@ -1,0 +1,68 @@
+{
+  "id": "item_shelf",
+  "type": "item",
+  "category": "container",
+  "label": "Полка с канцелярией",
+  "description": "Чернила, гроссбух, три пачки бумаги, коробка с ключами от всего — кроме того, что заперто насовсем.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Перебрать ключи",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_key_basement",
+              "quantity": 1
+            },
+            {
+              "type": "show_message",
+              "text": "Бирки: «склад», «кочегарка», «подвал», а ячейка с подписью «method» пуста."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": -4
+            },
+            {
+              "type": "show_message",
+              "text": "Ключи перепутались; ты закрыл коробку и оставил её в покое."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Взять бумагу",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_notebook",
+          "quantity": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Ты оторвал три листа: описи кончаются, а записи нет."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

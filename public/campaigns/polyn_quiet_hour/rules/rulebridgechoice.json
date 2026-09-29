@@ -1,0 +1,27 @@
+{
+  "id": "rule_bridge_choice",
+  "label": "Мост: выбор сделан",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "advance_quest",
+      "quest": "quest_shift",
+      "stage": "stage_choice"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_endgame"
+    },
+    {
+      "type": "reveal_location",
+      "location": "loc_dam"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_dam_open"
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

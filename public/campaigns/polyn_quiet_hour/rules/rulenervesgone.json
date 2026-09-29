@@ -1,0 +1,40 @@
+{
+  "id": "rule_nerves_gone",
+  "label": "Срыв (потребность «Выдержка» = 0)",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": 30
+    },
+    {
+      "type": "change_sanity",
+      "delta": -10
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 30
+    },
+    {
+      "type": "apply_status",
+      "status": "status_numbed",
+      "duration": 6,
+      "target": "player"
+    },
+    {
+      "type": "banner",
+      "text": "Ты сорвался. Лагерь это записал.",
+      "preset": "проклятье",
+      "seconds": 7
+    },
+    {
+      "type": "show_message",
+      "text": "Ты долго стоял, упершись лбом в стену, и не мог заставить себя повернуть назад. Когда смог — время прошло."
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

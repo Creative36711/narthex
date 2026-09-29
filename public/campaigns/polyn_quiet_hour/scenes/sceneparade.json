@@ -1,0 +1,825 @@
+{
+  "id": "scene_parade",
+  "label": "Плац",
+  "location": "loc_camp",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_parade_flood",
+      "label": "Вода на плацу",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a1113",
+        "layers": [
+          {
+            "label": "небо",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 300,
+              "fill": {
+                "gradient": {
+                  "from": "#1d2a2c",
+                  "to": "#0c1110",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "заросли",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                300,
+                180,
+                240,
+                420,
+                290,
+                700,
+                250,
+                980,
+                300,
+                1280,
+                260,
+                1280,
+                400,
+                0,
+                400
+              ],
+              "fill": "#101a12"
+            }
+          },
+          {
+            "label": "асфальт",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 400,
+              "w": 1280,
+              "h": 320,
+              "fill": "#141d1f"
+            }
+          },
+          {
+            "label": "трещины",
+            "shape": {
+              "type": "line",
+              "x1": 120,
+              "y1": 700,
+              "x2": 700,
+              "y2": 470,
+              "color": "#0d100d",
+              "width": 4
+            }
+          },
+          {
+            "label": "корпус",
+            "shape": {
+              "type": "rect",
+              "x": 280,
+              "y": 120,
+              "w": 940,
+              "h": 320,
+              "fill": "#242b22",
+              "stroke": "#0d100c",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "окна корпуса",
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 160,
+              "w": 900,
+              "h": 60,
+              "fill": {
+                "gradient": {
+                  "from": "#3a4a3a",
+                  "to": "#131a13",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "вывеска",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 92,
+              "w": 380,
+              "h": 44,
+              "fill": "#3d2b1b",
+              "radius": 4
+            }
+          },
+          {
+            "label": "вывеска текст",
+            "shape": {
+              "type": "text",
+              "x": 410,
+              "y": 124,
+              "text": "СМЕНА «СОЛНЫШКО»",
+              "size": 22,
+              "color": "#c9b98a",
+              "bold": true
+            }
+          },
+          {
+            "label": "костровище",
+            "shape": {
+              "type": "ellipse",
+              "cx": 295,
+              "cy": 580,
+              "rx": 96,
+              "ry": 44,
+              "fill": "#1c1a16",
+              "stroke": "#33302a",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "костровище текст",
+            "shape": {
+              "type": "text",
+              "x": 150,
+              "y": 660,
+              "text": "КОСТРОВИЩЕ",
+              "size": 18,
+              "color": "#8b9a86"
+            }
+          },
+          {
+            "label": "стенд",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 170,
+              "w": 250,
+              "h": 170,
+              "fill": "#5d5133",
+              "stroke": "#191410",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "стенд бумага",
+            "shape": {
+              "type": "rect",
+              "x": 82,
+              "y": 196,
+              "w": 190,
+              "h": 100,
+              "fill": "#d5cfae"
+            }
+          },
+          {
+            "label": "флагшток",
+            "shape": {
+              "type": "rect",
+              "x": 586,
+              "y": 110,
+              "w": 10,
+              "h": 330,
+              "fill": "#4a4a44"
+            }
+          },
+          {
+            "label": "фал",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                596,
+                120,
+                700,
+                150,
+                596,
+                190
+              ],
+              "fill": "#7d2f28",
+              "opacity": 0.7
+            }
+          },
+          {
+            "label": "доска расписания",
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 160,
+              "w": 220,
+              "h": 150,
+              "fill": "#2a2f26",
+              "stroke": "#0b0e0a",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "расписание текст",
+            "shape": {
+              "type": "text",
+              "x": 894,
+              "y": 194,
+              "text": "ТИХИЙ ЧАС 13:00—15:00",
+              "size": 18,
+              "color": "#c8d3c4"
+            }
+          },
+          {
+            "label": "дверь корпуса",
+            "shape": {
+              "type": "rect",
+              "x": 360,
+              "y": 330,
+              "w": 140,
+              "h": 250,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "актовый вход",
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 350,
+              "w": 140,
+              "h": 230,
+              "fill": "#33261b",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "столовая вход",
+            "shape": {
+              "type": "rect",
+              "x": 660,
+              "y": 340,
+              "w": 130,
+              "h": 240,
+              "fill": "#302518",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "люк в подвал",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 560,
+              "w": 170,
+              "h": 110,
+              "fill": "#171a15",
+              "stroke": "#3b3a30",
+              "stroke_width": 5,
+              "radius": 3
+            }
+          },
+          {
+            "label": "ворота",
+            "shape": {
+              "type": "rect",
+              "x": 1000,
+              "y": 560,
+              "w": 200,
+              "h": 120,
+              "fill": "#241b12",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "вода на плацу",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": {
+                "gradient": {
+                  "from": "#1d2f36",
+                  "to": "#0a1114",
+                  "angle": 90
+                }
+              },
+              "opacity": 0.9
+            }
+          },
+          {
+            "label": "отражение",
+            "shape": {
+              "type": "ellipse",
+              "cx": 700,
+              "cy": 600,
+              "rx": 400,
+              "ry": 90,
+              "fill": "#7f9a6b",
+              "opacity": 0.06
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 700,
+              "text": "Плац · костровище, стенд, три входа",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_flooded"
+      }
+    },
+    {
+      "id": "state_parade_default",
+      "label": "Плац",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "небо",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 300,
+              "fill": {
+                "gradient": {
+                  "from": "#1d2a2c",
+                  "to": "#0c1110",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "заросли",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                300,
+                180,
+                240,
+                420,
+                290,
+                700,
+                250,
+                980,
+                300,
+                1280,
+                260,
+                1280,
+                400,
+                0,
+                400
+              ],
+              "fill": "#101a12"
+            }
+          },
+          {
+            "label": "асфальт",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 400,
+              "w": 1280,
+              "h": 320,
+              "fill": "#1b1e1a"
+            }
+          },
+          {
+            "label": "трещины",
+            "shape": {
+              "type": "line",
+              "x1": 120,
+              "y1": 700,
+              "x2": 700,
+              "y2": 470,
+              "color": "#0d100d",
+              "width": 4
+            }
+          },
+          {
+            "label": "корпус",
+            "shape": {
+              "type": "rect",
+              "x": 280,
+              "y": 120,
+              "w": 940,
+              "h": 320,
+              "fill": "#242b22",
+              "stroke": "#0d100c",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "окна корпуса",
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 160,
+              "w": 900,
+              "h": 60,
+              "fill": {
+                "gradient": {
+                  "from": "#3a4a3a",
+                  "to": "#131a13",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "вывеска",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 92,
+              "w": 380,
+              "h": 44,
+              "fill": "#3d2b1b",
+              "radius": 4
+            }
+          },
+          {
+            "label": "вывеска текст",
+            "shape": {
+              "type": "text",
+              "x": 410,
+              "y": 124,
+              "text": "СМЕНА «СОЛНЫШКО»",
+              "size": 22,
+              "color": "#c9b98a",
+              "bold": true
+            }
+          },
+          {
+            "label": "костровище",
+            "shape": {
+              "type": "ellipse",
+              "cx": 295,
+              "cy": 580,
+              "rx": 96,
+              "ry": 44,
+              "fill": "#1c1a16",
+              "stroke": "#33302a",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "костровище текст",
+            "shape": {
+              "type": "text",
+              "x": 150,
+              "y": 660,
+              "text": "КОСТРОВИЩЕ",
+              "size": 18,
+              "color": "#8b9a86"
+            }
+          },
+          {
+            "label": "стенд",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 170,
+              "w": 250,
+              "h": 170,
+              "fill": "#5d5133",
+              "stroke": "#191410",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "стенд бумага",
+            "shape": {
+              "type": "rect",
+              "x": 82,
+              "y": 196,
+              "w": 190,
+              "h": 100,
+              "fill": "#d5cfae"
+            }
+          },
+          {
+            "label": "флагшток",
+            "shape": {
+              "type": "rect",
+              "x": 586,
+              "y": 110,
+              "w": 10,
+              "h": 330,
+              "fill": "#4a4a44"
+            }
+          },
+          {
+            "label": "фал",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                596,
+                120,
+                700,
+                150,
+                596,
+                190
+              ],
+              "fill": "#7d2f28",
+              "opacity": 0.7
+            }
+          },
+          {
+            "label": "доска расписания",
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 160,
+              "w": 220,
+              "h": 150,
+              "fill": "#2a2f26",
+              "stroke": "#0b0e0a",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "расписание текст",
+            "shape": {
+              "type": "text",
+              "x": 894,
+              "y": 194,
+              "text": "ТИХИЙ ЧАС 13:00—15:00",
+              "size": 18,
+              "color": "#c8d3c4"
+            }
+          },
+          {
+            "label": "дверь корпуса",
+            "shape": {
+              "type": "rect",
+              "x": 360,
+              "y": 330,
+              "w": 140,
+              "h": 250,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "актовый вход",
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 350,
+              "w": 140,
+              "h": 230,
+              "fill": "#33261b",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "столовая вход",
+            "shape": {
+              "type": "rect",
+              "x": 660,
+              "y": 340,
+              "w": 130,
+              "h": 240,
+              "fill": "#302518",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "люк в подвал",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 560,
+              "w": 170,
+              "h": 110,
+              "fill": "#171a15",
+              "stroke": "#3b3a30",
+              "stroke_width": 5,
+              "radius": 3
+            }
+          },
+          {
+            "label": "ворота",
+            "shape": {
+              "type": "rect",
+              "x": 1000,
+              "y": 560,
+              "w": 200,
+              "h": 120,
+              "fill": "#241b12",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 700,
+              "text": "Плац · костровище, стенд, три входа",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_parade_fire",
+      "label": "Костровище",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 200,
+      "y": 520,
+      "w": 190,
+      "h": 120,
+      "default_entity": "item_campfire_ring",
+      "condition": null
+    },
+    {
+      "id": "slot_parade_stand",
+      "label": "Стенд",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 60,
+      "y": 170,
+      "w": 250,
+      "h": 170,
+      "default_entity": "item_parade_stand",
+      "condition": null
+    },
+    {
+      "id": "slot_parade_pole",
+      "label": "Флагшток и бочонок",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 110,
+      "w": 60,
+      "h": 330,
+      "default_entity": "item_flag_pole",
+      "condition": null
+    },
+    {
+      "id": "slot_parade_schedule",
+      "label": "Доска расписания",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 880,
+      "y": 160,
+      "w": 220,
+      "h": 150,
+      "default_entity": "item_wall_schedule",
+      "condition": null
+    },
+    {
+      "id": "slot_parade_hatch",
+      "label": "Люк в подвал",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 60,
+      "y": 560,
+      "w": 170,
+      "h": 110,
+      "default_entity": "item_hatch_cover",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Спальный корпус",
+      "area": {
+        "x": 360,
+        "y": 330,
+        "w": 140,
+        "h": 250
+      },
+      "go_to_scene": "scene_corridor"
+    },
+    {
+      "label": "Столовая",
+      "area": {
+        "x": 660,
+        "y": 340,
+        "w": 130,
+        "h": 240
+      },
+      "go_to_scene": "scene_dining"
+    },
+    {
+      "label": "Актовый зал",
+      "area": {
+        "x": 1080,
+        "y": 350,
+        "w": 140,
+        "h": 230
+      },
+      "go_to_scene": "scene_club"
+    },
+    {
+      "label": "Спуск в подвал",
+      "area": {
+        "x": 60,
+        "y": 560,
+        "w": 170,
+        "h": 110
+      },
+      "go_to_scene": "scene_basement"
+    },
+    {
+      "label": "К воротам (на карту)",
+      "area": {
+        "x": 1000,
+        "y": 560,
+        "w": 200,
+        "h": 120
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_quiet"
+      ],
+      "conditions": [
+        {
+          "flag": "flag_quiet_hour"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_night"
+      ],
+      "conditions": [
+        {
+          "time_of_day": [
+            "night",
+            "evening"
+          ]
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_day"
+      ]
+    }
+  ],
+  "ambient": [
+    "sfx_hum"
+  ],
+  "chapter": "ch_1_shift"
+}

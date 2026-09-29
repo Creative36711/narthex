@@ -83,7 +83,13 @@ const art: ArtDoc = {
   const scr = readFileSync('src/player/SceneScreen.tsx', 'utf8')
   check('D экран сцены игрока рендерит ArtView', scr.includes('<ArtView') && scr.includes('state.art'))
   const ed = readFileSync('src/editor/SceneEditor.tsx', 'utf8')
-  check('D редактор сцен: art как фон', ed.includes('artToDataUrl') && ed.includes('scene-stage-art'))
+  // фон сцены в редакторе — картинка внутри полотна (KImage), а не отдельный
+  // <img> поверх полотна: слой полотна перекрывал его, и ArtDoc не было видно
+  // (фидбек 29-09, п.3)
+  check(
+    'D редактор сцен: art как фон',
+    ed.includes('artToDataUrl') && ed.includes('<KImage') && ed.includes('useImage('),
+  )
   check('D редактор сцен: «заменить изображением»', ed.includes('Заменить изображением'))
   check('D редактор сцен: расширенный JSON', ed.includes('Расширенный JSON') && ed.includes('ArtDoc'))
   const map = readFileSync('src/player/MapScreen.tsx', 'utf8')

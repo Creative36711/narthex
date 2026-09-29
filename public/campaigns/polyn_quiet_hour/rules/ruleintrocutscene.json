@@ -1,0 +1,33 @@
+{
+  "id": "rule_intro_cutscene",
+  "label": "Пролог: дорога к чаше",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 21
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_ch1"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_intro"
+    },
+    {
+      "type": "banner",
+      "text": "Полынь · 21:00 · смена началась",
+      "preset": "глава"
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 0
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

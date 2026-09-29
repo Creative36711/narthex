@@ -1,0 +1,817 @@
+{
+  "id": "scene_dorm",
+  "label": "Спальная «Солнышко»",
+  "location": "loc_camp",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_dorm_wrong",
+      "label": "Коек больше, чем было",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0b100c",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1e261e"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#151a12"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "rect",
+              "x": 980,
+              "y": 150,
+              "w": 210,
+              "h": 170,
+              "fill": {
+                "gradient": {
+                  "from": "#2b3a40",
+                  "to": "#161d20",
+                  "angle": 90
+                }
+              },
+              "stroke": "#0c110f",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 200,
+              "rx": 320,
+              "ry": 140,
+              "fill": "#cfe0b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "кровати",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 420,
+              "w": 320,
+              "h": 190,
+              "fill": "#2a3528",
+              "stroke": "#0d100b",
+              "stroke_width": 4,
+              "radius": 6
+            }
+          },
+          {
+            "label": "одеяло 1",
+            "shape": {
+              "type": "rect",
+              "x": 210,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#c8c9b4",
+              "opacity": 0.6
+            }
+          },
+          {
+            "label": "одеяло 2",
+            "shape": {
+              "type": "rect",
+              "x": 312,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#c0c1ac",
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "одеяло 3",
+            "shape": {
+              "type": "rect",
+              "x": 414,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#b6b8a4",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "матрац у окна",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 430,
+              "w": 120,
+              "h": 120,
+              "fill": "#33402f",
+              "radius": 4
+            }
+          },
+          {
+            "label": "шкафчики",
+            "shape": {
+              "type": "rect",
+              "x": 700,
+              "y": 170,
+              "w": 210,
+              "h": 320,
+              "fill": "#2b2418",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "дверца 1",
+            "shape": {
+              "type": "rect",
+              "x": 712,
+              "y": 186,
+              "w": 88,
+              "h": 280,
+              "fill": "#1d1a12"
+            }
+          },
+          {
+            "label": "дверца 2",
+            "shape": {
+              "type": "rect",
+              "x": 810,
+              "y": 186,
+              "w": 88,
+              "h": 280,
+              "fill": "#1d1a12"
+            }
+          },
+          {
+            "label": "дверь в коридор",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 360,
+              "w": 120,
+              "h": 250,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "подоконник",
+            "shape": {
+              "type": "rect",
+              "x": 970,
+              "y": 320,
+              "w": 230,
+              "h": 16,
+              "fill": "#2b2418"
+            }
+          },
+          {
+            "label": "коек стало больше",
+            "shape": {
+              "type": "rect",
+              "x": 530,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#b6b8a4",
+              "opacity": 0.7
+            }
+          },
+          {
+            "label": "детская подпись",
+            "shape": {
+              "type": "text",
+              "x": 720,
+              "y": 158,
+              "text": "ЗДЕСЬ ЛЕЖАТ ВСЕ",
+              "size": 20,
+              "color": "#7f9a6b",
+              "bold": true
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Спальный корпус · 24 кровати",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_sanity30"
+      }
+    },
+    {
+      "id": "state_dorm_quiet",
+      "label": "Тихий час",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#070a08",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1e261e"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#151a12"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "rect",
+              "x": 980,
+              "y": 150,
+              "w": 210,
+              "h": 170,
+              "fill": {
+                "gradient": {
+                  "from": "#2b3a40",
+                  "to": "#161d20",
+                  "angle": 90
+                }
+              },
+              "stroke": "#0c110f",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 200,
+              "rx": 320,
+              "ry": 140,
+              "fill": "#cfe0b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "кровати",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 420,
+              "w": 320,
+              "h": 190,
+              "fill": "#2a3528",
+              "stroke": "#0d100b",
+              "stroke_width": 4,
+              "radius": 6
+            }
+          },
+          {
+            "label": "одеяло 1",
+            "shape": {
+              "type": "rect",
+              "x": 210,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#c8c9b4",
+              "opacity": 0.6
+            }
+          },
+          {
+            "label": "одеяло 2",
+            "shape": {
+              "type": "rect",
+              "x": 312,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#c0c1ac",
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "одеяло 3",
+            "shape": {
+              "type": "rect",
+              "x": 414,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#b6b8a4",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "матрац у окна",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 430,
+              "w": 120,
+              "h": 120,
+              "fill": "#33402f",
+              "radius": 4
+            }
+          },
+          {
+            "label": "шкафчики",
+            "shape": {
+              "type": "rect",
+              "x": 700,
+              "y": 170,
+              "w": 210,
+              "h": 320,
+              "fill": "#2b2418",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "дверца 1",
+            "shape": {
+              "type": "rect",
+              "x": 712,
+              "y": 186,
+              "w": 88,
+              "h": 280,
+              "fill": "#1d1a12"
+            }
+          },
+          {
+            "label": "дверца 2",
+            "shape": {
+              "type": "rect",
+              "x": 810,
+              "y": 186,
+              "w": 88,
+              "h": 280,
+              "fill": "#1d1a12"
+            }
+          },
+          {
+            "label": "дверь в коридор",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 360,
+              "w": 120,
+              "h": 250,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "подоконник",
+            "shape": {
+              "type": "rect",
+              "x": 970,
+              "y": 320,
+              "w": 230,
+              "h": 16,
+              "fill": "#2b2418"
+            }
+          },
+          {
+            "label": "все лежат",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#000000",
+              "opacity": 0.35
+            }
+          },
+          {
+            "label": "ряд глаз",
+            "shape": {
+              "type": "text",
+              "x": 230,
+              "y": 620,
+              "text": "24 кровати · 24 закрытых глаза · 1 пустая",
+              "size": 22,
+              "color": "#c8d3c4"
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Спальный корпус · 24 кровати",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_quiet_hour"
+      }
+    },
+    {
+      "id": "state_dorm_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1e261e"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#151a12"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "rect",
+              "x": 980,
+              "y": 150,
+              "w": 210,
+              "h": 170,
+              "fill": {
+                "gradient": {
+                  "from": "#2b3a40",
+                  "to": "#161d20",
+                  "angle": 90
+                }
+              },
+              "stroke": "#0c110f",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 200,
+              "rx": 320,
+              "ry": 140,
+              "fill": "#cfe0b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "кровати",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 420,
+              "w": 320,
+              "h": 190,
+              "fill": "#2a3528",
+              "stroke": "#0d100b",
+              "stroke_width": 4,
+              "radius": 6
+            }
+          },
+          {
+            "label": "одеяло 1",
+            "shape": {
+              "type": "rect",
+              "x": 210,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#c8c9b4",
+              "opacity": 0.6
+            }
+          },
+          {
+            "label": "одеяло 2",
+            "shape": {
+              "type": "rect",
+              "x": 312,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#c0c1ac",
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "одеяло 3",
+            "shape": {
+              "type": "rect",
+              "x": 414,
+              "y": 440,
+              "w": 96,
+              "h": 150,
+              "fill": "#b6b8a4",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "матрац у окна",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 430,
+              "w": 120,
+              "h": 120,
+              "fill": "#33402f",
+              "radius": 4
+            }
+          },
+          {
+            "label": "шкафчики",
+            "shape": {
+              "type": "rect",
+              "x": 700,
+              "y": 170,
+              "w": 210,
+              "h": 320,
+              "fill": "#2b2418",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "дверца 1",
+            "shape": {
+              "type": "rect",
+              "x": 712,
+              "y": 186,
+              "w": 88,
+              "h": 280,
+              "fill": "#1d1a12"
+            }
+          },
+          {
+            "label": "дверца 2",
+            "shape": {
+              "type": "rect",
+              "x": 810,
+              "y": 186,
+              "w": 88,
+              "h": 280,
+              "fill": "#1d1a12"
+            }
+          },
+          {
+            "label": "дверь в коридор",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 360,
+              "w": 120,
+              "h": 250,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "подоконник",
+            "shape": {
+              "type": "rect",
+              "x": 970,
+              "y": 320,
+              "w": 230,
+              "h": 16,
+              "fill": "#2b2418"
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Спальный корпус · 24 кровати",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_dorm_cots",
+      "label": "Кровать в ряду",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 200,
+      "y": 420,
+      "w": 320,
+      "h": 190,
+      "default_entity": "item_cots",
+      "condition": null
+    },
+    {
+      "id": "slot_dorm_wardrobe",
+      "label": "Детские шкафчики",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 700,
+      "y": 170,
+      "w": 210,
+      "h": 320,
+      "default_entity": "item_wardrobe",
+      "condition": null
+    },
+    {
+      "id": "slot_dorm_window",
+      "label": "Окно",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 980,
+      "y": 150,
+      "w": 210,
+      "h": 170,
+      "default_entity": "item_window",
+      "condition": null
+    },
+    {
+      "id": "slot_dorm_mat",
+      "label": "Матрац у окна",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 430,
+      "w": 120,
+      "h": 120,
+      "default_entity": "item_mat",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В коридор",
+      "area": {
+        "x": 60,
+        "y": 360,
+        "w": 120,
+        "h": 250
+      },
+      "go_to_scene": "scene_corridor"
+    },
+    {
+      "label": "К воротам (на карту)",
+      "area": {
+        "x": 980,
+        "y": 150,
+        "w": 210,
+        "h": 170
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_dorm"
+      ]
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

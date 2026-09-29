@@ -1,0 +1,16 @@
+{
+  "id": "item_flask",
+  "type": "item",
+  "category": "misc",
+  "label": "Фляга Геннадича",
+  "description": "Алюминиевая, в чехле из синей изоленты. Третья часть — не чай, но об этом в описях не пишут.",
+  "image": "",
+  "weight": 0.5,
+  "stackable": false,
+  "value": {
+    "rubles": 40
+  },
+  "sounds": {
+    "pickup": "sfx_steps"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "item_kerosene",
+  "type": "item",
+  "category": "light",
+  "label": "Банка керосина",
+  "description": "Стеклянная, из-под консервов, с привязанной проволокой. Пахнет так, что вспомнишьнастолько лето",
+  "image": "",
+  "weight": 1.4,
+  "stackable": false,
+  "value": {
+    "rubles": 25
+  },
+  "sounds": {
+    "use": "sfx_fire"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "item_key_basement",
+  "type": "item",
+  "category": "key",
+  "label": "Ключ от подвала",
+  "description": "Тяжёлый, ржавый, тёплый на ощупь — так бывает у металла, который долго держали в руке.",
+  "image": "",
+  "weight": 0.08,
+  "stackable": false,
+  "value": {
+    "rubles": 15
+  },
+  "sounds": {
+    "use": "sfx_lock"
+  }
+}

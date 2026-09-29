@@ -1,0 +1,96 @@
+{
+  "id": "item_drain_hatch",
+  "type": "item",
+  "category": "container",
+  "label": "Ливневый люк",
+  "description": "Круглая крышка, приваренная к раме; один болт ржав насквозь. По этой трубе в этом году вода уходит, а в прошлые приходила.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Открутить болт",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 2
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 15
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": "difficult",
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_water_low"
+            },
+            {
+              "type": "reveal_location",
+              "location": "loc_lake"
+            },
+            {
+              "type": "show_message",
+              "text": "Болт подался. Вода в люке упала на две ладони: по трубе можно пролезть."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": -8
+            },
+            {
+              "type": "show_message",
+              "text": "Болт прикипел; ты сорвал грани."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Спуститься по трубе",
+      "effects": [
+        {
+          "type": "teleport_player",
+          "location": "loc_lake",
+          "scene": "scene_shore"
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 20
+        },
+        {
+          "type": "change_sanity",
+          "delta": -4
+        },
+        {
+          "type": "show_message",
+          "text": "Ты вылез на берег по колено в иле и в чьих-то туфлях."
+        }
+      ],
+      "hint": "Только когда вода спала",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_water_low"
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

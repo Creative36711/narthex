@@ -1,0 +1,881 @@
+{
+  "id": "scene_basement",
+  "label": "Подвал (архив и печь)",
+  "location": "loc_camp",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_bas_flood",
+      "label": "Подвал в воде",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#060b0d",
+        "layers": [
+          {
+            "label": "кирпич",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#181b16"
+            }
+          },
+          {
+            "label": "своды",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                0,
+                1280,
+                0,
+                1280,
+                140,
+                640,
+                60,
+                0,
+                140
+              ],
+              "fill": "#101310"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 500,
+              "w": 1280,
+              "h": 220,
+              "fill": "#12140f"
+            }
+          },
+          {
+            "label": "вода",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 500,
+              "w": 1280,
+              "h": 220,
+              "fill": {
+                "gradient": {
+                  "from": "#1b2d33",
+                  "to": "#070c0e",
+                  "angle": 90
+                }
+              },
+              "opacity": 0.95
+            }
+          },
+          {
+            "label": "рябь",
+            "shape": {
+              "type": "line",
+              "x1": 200,
+              "y1": 540,
+              "x2": 1100,
+              "y2": 545,
+              "color": "#3f5c62",
+              "width": 3,
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "ящики",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 380,
+              "w": 210,
+              "h": 160,
+              "fill": "#2b2519",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "крышка ящика",
+            "shape": {
+              "type": "rect",
+              "x": 210,
+              "y": 362,
+              "w": 190,
+              "h": 24,
+              "fill": "#3a3120"
+            }
+          },
+          {
+            "label": "труба",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 180,
+              "w": 130,
+              "h": 260,
+              "fill": "#33352c",
+              "stroke": "#0b0d09",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "труба горизонталь",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 180,
+              "w": 500,
+              "h": 34,
+              "fill": "#2b2d26"
+            }
+          },
+          {
+            "label": "люк",
+            "shape": {
+              "type": "rect",
+              "x": 800,
+              "y": 500,
+              "w": 210,
+              "h": 130,
+              "fill": "#0f1210",
+              "stroke": "#41453a",
+              "stroke_width": 6,
+              "radius": 4
+            }
+          },
+          {
+            "label": "меловые имена",
+            "shape": {
+              "type": "rect",
+              "x": 1010,
+              "y": 190,
+              "w": 210,
+              "h": 260,
+              "fill": "#1f221c",
+              "stroke": "#0a0c08",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 224,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 254,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 284,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 314,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 344,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 374,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 404,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "зачёркнуто",
+            "shape": {
+              "type": "line",
+              "x1": 1024,
+              "y1": 366,
+              "x2": 1180,
+              "y2": 338,
+              "color": "#a8443a",
+              "width": 3
+            }
+          },
+          {
+            "label": "лестница",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 500,
+              "w": 170,
+              "h": 130,
+              "fill": "#242019",
+              "stroke": "#3b3a30",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Подвал · архив, печь, ливневый люк",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_water_in_basement"
+      }
+    },
+    {
+      "id": "state_bas_lit",
+      "label": "Горит коптилка",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#141009",
+        "layers": [
+          {
+            "label": "кирпич",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#181b16"
+            }
+          },
+          {
+            "label": "своды",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                0,
+                1280,
+                0,
+                1280,
+                140,
+                640,
+                60,
+                0,
+                140
+              ],
+              "fill": "#101310"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 500,
+              "w": 1280,
+              "h": 220,
+              "fill": "#12140f"
+            }
+          },
+          {
+            "label": "коптилка",
+            "shape": {
+              "type": "ellipse",
+              "cx": 320,
+              "cy": 470,
+              "rx": 220,
+              "ry": 150,
+              "fill": "#e0c07a",
+              "opacity": 0.16
+            }
+          },
+          {
+            "label": "ящики",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 380,
+              "w": 210,
+              "h": 160,
+              "fill": "#2b2519",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "крышка ящика",
+            "shape": {
+              "type": "rect",
+              "x": 210,
+              "y": 362,
+              "w": 190,
+              "h": 24,
+              "fill": "#3a3120"
+            }
+          },
+          {
+            "label": "труба",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 180,
+              "w": 130,
+              "h": 260,
+              "fill": "#33352c",
+              "stroke": "#0b0d09",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "труба горизонталь",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 180,
+              "w": 500,
+              "h": 34,
+              "fill": "#2b2d26"
+            }
+          },
+          {
+            "label": "люк",
+            "shape": {
+              "type": "rect",
+              "x": 800,
+              "y": 500,
+              "w": 210,
+              "h": 130,
+              "fill": "#0f1210",
+              "stroke": "#41453a",
+              "stroke_width": 6,
+              "radius": 4
+            }
+          },
+          {
+            "label": "меловые имена",
+            "shape": {
+              "type": "rect",
+              "x": 1010,
+              "y": 190,
+              "w": 210,
+              "h": 260,
+              "fill": "#1f221c",
+              "stroke": "#0a0c08",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 224,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 254,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 284,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 314,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 344,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 374,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 404,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "зачёркнуто",
+            "shape": {
+              "type": "line",
+              "x1": 1024,
+              "y1": 366,
+              "x2": 1180,
+              "y2": 338,
+              "color": "#a8443a",
+              "width": 3
+            }
+          },
+          {
+            "label": "лестница",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 500,
+              "w": 170,
+              "h": 130,
+              "fill": "#242019",
+              "stroke": "#3b3a30",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Подвал · архив, печь, ливневый люк",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_basement_lit"
+      }
+    },
+    {
+      "id": "state_bas_default",
+      "label": "Темнота",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#070a08",
+        "layers": [
+          {
+            "label": "кирпич",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#181b16"
+            }
+          },
+          {
+            "label": "своды",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                0,
+                1280,
+                0,
+                1280,
+                140,
+                640,
+                60,
+                0,
+                140
+              ],
+              "fill": "#101310"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 500,
+              "w": 1280,
+              "h": 220,
+              "fill": "#12140f"
+            }
+          },
+          {
+            "label": "ящики",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 380,
+              "w": 210,
+              "h": 160,
+              "fill": "#2b2519",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "крышка ящика",
+            "shape": {
+              "type": "rect",
+              "x": 210,
+              "y": 362,
+              "w": 190,
+              "h": 24,
+              "fill": "#3a3120"
+            }
+          },
+          {
+            "label": "труба",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 180,
+              "w": 130,
+              "h": 260,
+              "fill": "#33352c",
+              "stroke": "#0b0d09",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "труба горизонталь",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 180,
+              "w": 500,
+              "h": 34,
+              "fill": "#2b2d26"
+            }
+          },
+          {
+            "label": "люк",
+            "shape": {
+              "type": "rect",
+              "x": 800,
+              "y": 500,
+              "w": 210,
+              "h": 130,
+              "fill": "#0f1210",
+              "stroke": "#41453a",
+              "stroke_width": 6,
+              "radius": 4
+            }
+          },
+          {
+            "label": "меловые имена",
+            "shape": {
+              "type": "rect",
+              "x": 1010,
+              "y": 190,
+              "w": 210,
+              "h": 260,
+              "fill": "#1f221c",
+              "stroke": "#0a0c08",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 224,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 254,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 284,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 314,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 344,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 374,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "имя",
+            "shape": {
+              "type": "text",
+              "x": 1030,
+              "y": 404,
+              "text": "· · · · ·",
+              "size": 18,
+              "color": "#9aa88f"
+            }
+          },
+          {
+            "label": "зачёркнуто",
+            "shape": {
+              "type": "line",
+              "x1": 1024,
+              "y1": 366,
+              "x2": 1180,
+              "y2": 338,
+              "color": "#a8443a",
+              "width": 3
+            }
+          },
+          {
+            "label": "лестница",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 500,
+              "w": 170,
+              "h": 130,
+              "fill": "#242019",
+              "stroke": "#3b3a30",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Подвал · архив, печь, ливневый люк",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_bas_box",
+      "label": "Ящик архива",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 200,
+      "y": 380,
+      "w": 210,
+      "h": 160,
+      "default_entity": "item_archive_box",
+      "condition": {
+        "not_flag": "flag_water_in_basement"
+      }
+    },
+    {
+      "id": "slot_bas_pipe",
+      "label": "Печь и труба",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 520,
+      "y": 180,
+      "w": 130,
+      "h": 260,
+      "default_entity": "item_stovepipe",
+      "condition": null
+    },
+    {
+      "id": "slot_bas_hatch",
+      "label": "Ливневый люк",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 800,
+      "y": 500,
+      "w": 210,
+      "h": 130,
+      "default_entity": "item_drain_hatch",
+      "condition": null
+    },
+    {
+      "id": "slot_bas_chalk",
+      "label": "Меловые имена на стене",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 1010,
+      "y": 190,
+      "w": 210,
+      "h": 260,
+      "default_entity": "item_chalk_marks",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Наверх, в актовый зал",
+      "area": {
+        "x": 60,
+        "y": 500,
+        "w": 170,
+        "h": 130
+      },
+      "go_to_scene": "scene_club"
+    },
+    {
+      "label": "К воротам (на карту)",
+      "area": {
+        "x": 240,
+        "y": 620,
+        "w": 140,
+        "h": 80
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_basement"
+      ]
+    }
+  ],
+  "ambient": [
+    "sfx_drop"
+  ],
+  "chapter": "ch_2_quiet"
+}

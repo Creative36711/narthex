@@ -1,0 +1,37 @@
+{
+  "id": "rule_roma_taken",
+  "label": "Инна «успокоила» Рому",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 62
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_roma_shows"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_roma_told"
+    }
+  ],
+  "effects": [
+    {
+      "type": "fire_rule",
+      "rule": "rule_bridge_roma_taken"
+    },
+    {
+      "type": "banner",
+      "text": "В актовом зале тише, чем было. Мальчика там больше нет.",
+      "preset": "проклятье",
+      "seconds": 8
+    },
+    {
+      "type": "show_message",
+      "text": "Ты пришёл в актовый к утру: двадцать четыре стула стояли ровно, а на двадцать пятом лежала сложенная косынка и ничего больше."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

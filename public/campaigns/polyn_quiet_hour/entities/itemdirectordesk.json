@@ -1,0 +1,85 @@
+{
+  "id": "item_director_desk",
+  "type": "item",
+  "category": "container",
+  "label": "Стол и стопка дел",
+  "description": "Сукно, лампа под зелёным абажуром, три папки: «личное», «хоз», «ликвидация». В ящике ключ приклеен скотчем ко дну — чтобы не брали без надобности.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Обыскать ящики",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_bobby_pin",
+              "quantity": 1
+            },
+            {
+              "type": "add_item",
+              "item": "item_ruble",
+              "quantity": 40
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_note_276"
+            },
+            {
+              "type": "show_message",
+              "text": "Скрепка, сорок рублей и справка 276-А."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 15
+            },
+            {
+              "type": "show_message",
+              "text": "Ящик заклинило; ты дёрнул сильнее, чем надо."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести кабинет в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Кабинет: стол, сейф (заперт), 27 папок, телефон без трубки."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

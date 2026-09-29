@@ -279,7 +279,10 @@ export async function createCampaign(title: string, author = ''): Promise<string
   // фон первой сцены, чтобы кампания сразу отрисовывалась
   const img = await starterImageBase64()
   if (img) await saveFileBase64(`campaigns/${id}/scenes/img/scene_start.jpg`, img)
-  index.push({ id, title, author })
+  // в реестре кладём и описание: список кампаний в редакторе и в меню должен
+  // быть самодостаточным (фидбек 29-09, п.2)
+  const description = (files['campaign.json'] as { campaign?: { description?: string } })?.campaign?.description
+  index.push({ id, title, author, ...(description ? { description } : {}) })
   await saveFile('campaigns/index.json', JSON.stringify(index, null, 2))
   return id
 }

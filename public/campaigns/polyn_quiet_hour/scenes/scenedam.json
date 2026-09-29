@@ -1,0 +1,599 @@
+{
+  "id": "scene_dam",
+  "label": "Плотина",
+  "location": "loc_dam",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_dam_running",
+      "label": "Насос гудит",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1310",
+        "layers": [
+          {
+            "label": "небо",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 300,
+              "fill": {
+                "gradient": {
+                  "from": "#131d22",
+                  "to": "#080d10",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "гребень",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                300,
+                320,
+                250,
+                720,
+                300,
+                1280,
+                260,
+                1280,
+                720,
+                0,
+                720
+              ],
+              "fill": "#1c201a"
+            }
+          },
+          {
+            "label": "бетон",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 430,
+              "w": 1280,
+              "h": 290,
+              "fill": "#282c26"
+            }
+          },
+          {
+            "label": "шов",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#12150f",
+              "width": 5
+            }
+          },
+          {
+            "label": "вода ниже",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 620,
+              "w": 1280,
+              "h": 100,
+              "fill": {
+                "gradient": {
+                  "from": "#1d2f36",
+                  "to": "#060b0d",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "щит управления",
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 290,
+              "w": 230,
+              "h": 250,
+              "fill": "#2f332c",
+              "stroke": "#0a0c09",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "стрелки",
+            "shape": {
+              "type": "ellipse",
+              "cx": 360,
+              "cy": 360,
+              "rx": 26,
+              "ry": 26,
+              "fill": "#c9c2a4"
+            }
+          },
+          {
+            "label": "стрелки 2",
+            "shape": {
+              "type": "ellipse",
+              "cx": 460,
+              "cy": 360,
+              "rx": 26,
+              "ry": 26,
+              "fill": "#c9c2a4"
+            }
+          },
+          {
+            "label": "рычаг",
+            "shape": {
+              "type": "rect",
+              "x": 700,
+              "y": 330,
+              "w": 150,
+              "h": 210,
+              "fill": "#3a2f21",
+              "stroke": "#0d0b08",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "рукоять",
+            "shape": {
+              "type": "line",
+              "x1": 760,
+              "y1": 330,
+              "x2": 760,
+              "y2": 220,
+              "color": "#5a4a30",
+              "width": 12
+            }
+          },
+          {
+            "label": "будка",
+            "shape": {
+              "type": "rect",
+              "x": 1000,
+              "y": 300,
+              "w": 220,
+              "h": 100,
+              "fill": "#241f18",
+              "radius": 4
+            }
+          },
+          {
+            "label": "лоток",
+            "shape": {
+              "type": "line",
+              "x1": 120,
+              "y1": 640,
+              "x2": 980,
+              "y2": 600,
+              "color": "#3f5c62",
+              "width": 4,
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "перила",
+            "shape": {
+              "type": "rect",
+              "x": 995,
+              "y": 430,
+              "w": 180,
+              "h": 14,
+              "fill": "#3b3a30"
+            }
+          },
+          {
+            "label": "стойка перил",
+            "shape": {
+              "type": "line",
+              "x1": 1000,
+              "y1": 430,
+              "x2": 1000,
+              "y2": 520,
+              "color": "#3b3a30",
+              "width": 6
+            }
+          },
+          {
+            "label": "спецовка на перилах",
+            "shape": {
+              "type": "rect",
+              "x": 1010,
+              "y": 450,
+              "w": 150,
+              "h": 170,
+              "fill": "#161d18",
+              "opacity": 0.9
+            }
+          },
+          {
+            "label": "насос гудит",
+            "shape": {
+              "type": "ellipse",
+              "cx": 415,
+              "cy": 415,
+              "rx": 150,
+              "ry": 90,
+              "fill": "#7f9a6b",
+              "opacity": 0.14
+            }
+          },
+          {
+            "label": "стрелка в красной зоне",
+            "shape": {
+              "type": "line",
+              "x1": 360,
+              "y1": 360,
+              "x2": 386,
+              "y2": 344,
+              "color": "#a8443a",
+              "width": 3
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Плотина · щит управления и рычаг щитов",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_pump_fixed"
+      }
+    },
+    {
+      "id": "state_dam_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "небо",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 300,
+              "fill": {
+                "gradient": {
+                  "from": "#131d22",
+                  "to": "#080d10",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "гребень",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                300,
+                320,
+                250,
+                720,
+                300,
+                1280,
+                260,
+                1280,
+                720,
+                0,
+                720
+              ],
+              "fill": "#1c201a"
+            }
+          },
+          {
+            "label": "бетон",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 430,
+              "w": 1280,
+              "h": 290,
+              "fill": "#282c26"
+            }
+          },
+          {
+            "label": "шов",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#12150f",
+              "width": 5
+            }
+          },
+          {
+            "label": "вода ниже",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 620,
+              "w": 1280,
+              "h": 100,
+              "fill": {
+                "gradient": {
+                  "from": "#1d2f36",
+                  "to": "#060b0d",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "щит управления",
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 290,
+              "w": 230,
+              "h": 250,
+              "fill": "#2f332c",
+              "stroke": "#0a0c09",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "стрелки",
+            "shape": {
+              "type": "ellipse",
+              "cx": 360,
+              "cy": 360,
+              "rx": 26,
+              "ry": 26,
+              "fill": "#c9c2a4"
+            }
+          },
+          {
+            "label": "стрелки 2",
+            "shape": {
+              "type": "ellipse",
+              "cx": 460,
+              "cy": 360,
+              "rx": 26,
+              "ry": 26,
+              "fill": "#c9c2a4"
+            }
+          },
+          {
+            "label": "рычаг",
+            "shape": {
+              "type": "rect",
+              "x": 700,
+              "y": 330,
+              "w": 150,
+              "h": 210,
+              "fill": "#3a2f21",
+              "stroke": "#0d0b08",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "рукоять",
+            "shape": {
+              "type": "line",
+              "x1": 760,
+              "y1": 330,
+              "x2": 760,
+              "y2": 220,
+              "color": "#5a4a30",
+              "width": 12
+            }
+          },
+          {
+            "label": "будка",
+            "shape": {
+              "type": "rect",
+              "x": 1000,
+              "y": 300,
+              "w": 220,
+              "h": 100,
+              "fill": "#241f18",
+              "radius": 4
+            }
+          },
+          {
+            "label": "лоток",
+            "shape": {
+              "type": "line",
+              "x1": 120,
+              "y1": 640,
+              "x2": 980,
+              "y2": 600,
+              "color": "#3f5c62",
+              "width": 4,
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "перила",
+            "shape": {
+              "type": "rect",
+              "x": 995,
+              "y": 430,
+              "w": 180,
+              "h": 14,
+              "fill": "#3b3a30"
+            }
+          },
+          {
+            "label": "стойка перил",
+            "shape": {
+              "type": "line",
+              "x1": 1000,
+              "y1": 430,
+              "x2": 1000,
+              "y2": 520,
+              "color": "#3b3a30",
+              "width": 6
+            }
+          },
+          {
+            "label": "спецовка на перилах",
+            "shape": {
+              "type": "rect",
+              "x": 1010,
+              "y": 450,
+              "w": 150,
+              "h": 170,
+              "fill": "#161d18",
+              "opacity": 0.9
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Плотина · щит управления и рычаг щитов",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_dam_panel",
+      "label": "Щит управления",
+      "type": [
+        "item",
+        "device"
+      ],
+      "shape": "rect",
+      "x": 300,
+      "y": 290,
+      "w": 230,
+      "h": 250,
+      "default_entity": "item_pump_panel",
+      "use_with": [
+        {
+          "item": "item_fuse",
+          "consume": true,
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_pump_fixed"
+            },
+            {
+              "type": "extend_crisis",
+              "ticks": 12
+            },
+            {
+              "type": "advance_quest",
+              "quest": "quest_pump",
+              "stage": "stage_p_done"
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 10
+            },
+            {
+              "type": "show_message",
+              "text": "Насос качнул раз-другой и выровнялся. Стрелка ушла из красной зоны."
+            },
+            {
+              "type": "change_variable",
+              "var": "day_plan",
+              "delta": 0
+            }
+          ],
+          "message": "Предохранитель вставлен, насос дышит ровно."
+        }
+      ],
+      "condition": null
+    },
+    {
+      "id": "slot_dam_lever",
+      "label": "Рычаг щитов",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 700,
+      "y": 330,
+      "w": 150,
+      "h": 210,
+      "default_entity": "item_dam_lever",
+      "condition": null
+    },
+    {
+      "id": "slot_dam_director",
+      "label": "Пётр Ильич у воды",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 1000,
+      "y": 400,
+      "w": 170,
+      "h": 230,
+      "default_entity": "npc_director",
+      "condition": {
+        "flag": "flag_final_walk"
+      }
+    }
+  ],
+  "navigation": [
+    {
+      "label": "К озеру и лагеру (карта)",
+      "area": {
+        "x": 60,
+        "y": 120,
+        "w": 150,
+        "h": 110
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_final"
+      ],
+      "conditions": [
+        {
+          "flag": "flag_endgame"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_lake"
+      ]
+    }
+  ],
+  "ambient": [
+    "sfx_water"
+  ],
+  "chapter": "ch_4_dawn"
+}

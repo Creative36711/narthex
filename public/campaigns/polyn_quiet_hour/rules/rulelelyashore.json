@@ -1,0 +1,32 @@
+{
+  "id": "rule_lelya_shore",
+  "label": "Она на берегу",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_location",
+      "location": "loc_lake"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_called_name"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_lelya_shows"
+    },
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": -6
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_lelya"
+    }
+  ],
+  "chapter": "ch_3_water"
+}

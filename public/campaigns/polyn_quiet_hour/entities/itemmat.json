@@ -1,0 +1,49 @@
+{
+  "id": "item_mat",
+  "type": "item",
+  "category": "misc",
+  "label": "Матрац у окна",
+  "description": "Ватный, в чехле с вышитым номером «13». Пахнет полынью и мокрой солью.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Ощупать вату",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_key_basement",
+              "quantity": 1
+            },
+            {
+              "type": "show_message",
+              "text": "В вату у стенки был вшит ключ. Его вшили, чтобы нашли."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": -5
+            },
+            {
+              "type": "show_message",
+              "text": "Вата сбилась в комки. Ты нашёл только волосы."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

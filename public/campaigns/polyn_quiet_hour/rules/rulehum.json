@@ -1,0 +1,40 @@
+{
+  "id": "rule_hum",
+  "label": "Радиоточка подпевает сама",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "time_of_day",
+      "value": [
+        "night",
+        "evening"
+      ]
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_shift_started"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_entity_state",
+      "entity": "npc_radio",
+      "state": "smile"
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": -10
+    },
+    {
+      "type": "change_luck",
+      "delta": 2
+    },
+    {
+      "type": "show_message",
+      "text": "Из «Весны» сама пошла музыка — что-то танцевальное, сыгранное на одном пальце. Ты не включаешь её уже полчаса."
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

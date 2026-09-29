@@ -1,0 +1,58 @@
+{
+  "id": "item_menu_1986",
+  "type": "item",
+  "category": "document",
+  "label": "Меню-требования",
+  "description": "«Каша 400, хлеб 40, сахар 20». На обороте поварским карандашом: «на 28 человек, готовила на 27».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Прочитать вслух",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 10
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_norma"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты прочитал вслух. Со стола в углу ответил стук ложки о край кружки."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести кухню в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Кухня, склад, раздатка — описано."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

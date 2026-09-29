@@ -158,5 +158,9 @@ export function ArtView({ art, width = '100%', height = '100%', className, style
 export function artToDataUrl(art: ArtDoc | null | undefined): string {
   const svg = artToSvg(art)
   if (!svg) return ''
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+  // явные width/height: SVG без собственных размеров браузер рисует в <canvas>
+  // (Konva) нулевым или непредсказуемым — фон сцены в редакторе пропадал
+  const canvas = art?.canvas ?? { w: 1280, h: 720 }
+  const sized = svg.replace('<svg ', `<svg width="${canvas.w}" height="${canvas.h}" `)
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sized)}`
 }

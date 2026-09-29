@@ -1,0 +1,29 @@
+{
+  "id": "rule_zoya_report_min",
+  "label": "Половина описей сдана",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "variable_compare",
+      "var": "day_plan",
+      "operator": ">=",
+      "value": 4
+    }
+  ],
+  "effects": [
+    {
+      "type": "grant_xp",
+      "points": 30
+    },
+    {
+      "type": "change_luck",
+      "delta": 3
+    },
+    {
+      "type": "show_message",
+      "text": "Зоя приняла четыре листа и вернула два: «Это не описи, это сочинение. Нужно восемь»."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

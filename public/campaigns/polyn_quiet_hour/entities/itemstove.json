@@ -1,0 +1,89 @@
+{
+  "id": "item_stove",
+  "type": "item",
+  "category": "light",
+  "label": "Печка-буржуйка",
+  "description": "Труба в саже, дверца приварена наспех. Пока она горит, в бытовке чем-то согреть руки и есть о чём не думать.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Растопить",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_stove_on"
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 12
+            },
+            {
+              "type": "show_message",
+              "text": "Дрова схватились; печка загудела трубой."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 15
+            },
+            {
+              "type": "show_message",
+              "text": "Спички отсырели. Печка осталась холодной."
+            }
+          ]
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        }
+      ],
+      "hint": "Нужны спички и горючее",
+      "consume": false
+    },
+    {
+      "label": "Поставить чайник",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_sweet_tea",
+          "quantity": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": 6
+        },
+        {
+          "type": "show_message",
+          "text": "Чайник засвистел в трубу — на весь двор."
+        }
+      ],
+      "hint": "Если есть заварка",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_tea"
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

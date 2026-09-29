@@ -1,0 +1,104 @@
+{
+  "id": "cutscene_water_rise",
+  "label": "Подъём воды",
+  "music": "music_lake",
+  "chapter": "ch_4_dawn",
+  "slides": [
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#05090b",
+        "layers": [
+          {
+            "label": "вода",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 200,
+              "w": 1280,
+              "h": 520,
+              "fill": {
+                "gradient": {
+                  "from": "#22343c",
+                  "to": "#05090b",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "корпуса",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 120,
+              "w": 300,
+              "h": 220,
+              "fill": "#1a221a"
+            }
+          },
+          {
+            "label": "крыша",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                200,
+                120,
+                500,
+                120,
+                350,
+                40
+              ],
+              "fill": "#12170f"
+            }
+          }
+        ]
+      },
+      "text": "Храповик отсчитал девять зубьев. Вода вошла в чашу, как в свою обязанность.",
+      "duration": 8,
+      "transition": "panzoom"
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#060b0d",
+        "layers": [
+          {
+            "label": "окна",
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 380,
+              "w": 680,
+              "h": 200,
+              "fill": "#0a1114",
+              "stroke": "#22343c",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "отражение",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 480,
+              "rx": 220,
+              "ry": 60,
+              "fill": "#7f9a6b",
+              "opacity": 0.12
+            }
+          }
+        ]
+      },
+      "text": "Наутро комиссия зафиксирует: пропал инвентарь, пропал охранник. В списке исчезнувших, как тридцать три года назад, не хватает одного имени.",
+      "duration": 9,
+      "transition": "fade"
+    }
+  ]
+}

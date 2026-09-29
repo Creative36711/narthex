@@ -1,0 +1,77 @@
+{
+  "id": "item_stage_curtain",
+  "type": "item",
+  "category": "misc",
+  "label": "Занавес на сцене",
+  "description": "Бархат в пыльцевых разводах. За ним темнота кулис и запах воды, которого в сухом зале быть не должно.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Пройти в кулисы",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "opposed_check",
+          "skill": "stealth",
+          "entity": "npc_quiet_hour",
+          "against_skill": "listen",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Ты прошёл, не задев полотна. Из кулис было видно: в зале кто-то сидит и не смотрит на сцену."
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_quiet"
+            },
+            {
+              "type": "advance_quest",
+              "quest": "quest_roma",
+              "stage": "stage_r_see"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 45
+            },
+            {
+              "type": "change_sanity",
+              "delta": -5
+            },
+            {
+              "type": "show_message",
+              "text": "Ткань чмокнула и не отпустила: ты вырвался, оставив куртку."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Дёрнуть занавес",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 30
+        },
+        {
+          "type": "show_message",
+          "text": "Зал опустел ровно на половину: стулья в первых рядах легли лицом к тебе."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

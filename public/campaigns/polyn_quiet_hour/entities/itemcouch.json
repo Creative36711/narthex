@@ -1,0 +1,62 @@
+{
+  "id": "item_couch",
+  "type": "item",
+  "category": "misc",
+  "label": "Кушетка с ремнями",
+  "description": "Металлическая, с валиком под головой. Ремень один за запястье, второй — «для беспокойных» — над коленом.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Лечь вне расписания",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": -55
+        },
+        {
+          "type": "change_sanity",
+          "delta": -8
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": -10
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_offbed_couch"
+        },
+        {
+          "type": "show_message",
+          "text": "Кушетка отпускает только тех, кто пришёл по расписанию."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Осмотреть ремни",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_method"
+        },
+        {
+          "type": "change_sanity",
+          "delta": -4
+        },
+        {
+          "type": "show_message",
+          "text": "Пряжки потёрты с одной стороны: их застёгивали правой рукой, всегда правой, одним движением."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

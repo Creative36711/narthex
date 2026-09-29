@@ -1,0 +1,31 @@
+{
+  "id": "npc_phone",
+  "type": "npc",
+  "label": "Телефон-автомат медпункта",
+  "description": "Дисковая бакелитовая «модель-9». Провод перерван у стены ещё в девяносто третьем. Дисходит: набирают с той стороны.",
+  "portrait": {
+    "neutral": "",
+    "tense": ""
+  },
+  "stats": {
+    "STR": 1,
+    "CON": 1,
+    "SIZ": 1,
+    "DEX": 1,
+    "INT": 11,
+    "POW": 12,
+    "CHA": 3
+  },
+  "skills": {
+    "listen": 55
+  },
+  "equipment": {},
+  "inventory": [],
+  "dialogue": "dialogues/phone.ink",
+  "slot_type": "device",
+  "sounds": {
+    "talk": "sfx_lock"
+  },
+  "schedule": [],
+  "presence_overrides": []
+}

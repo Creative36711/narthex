@@ -1,0 +1,37 @@
+{
+  "id": "rule_flood_back",
+  "label": "Вода спала: путь к воротам открыт",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_pump_fixed"
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_cut_by_water"
+    }
+  ],
+  "effects": [
+    {
+      "type": "unblock_path",
+      "from": "loc_camp",
+      "to": "loc_gate"
+    },
+    {
+      "type": "unblock_path",
+      "from": "loc_gate",
+      "to": "loc_camp"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_cut_by_water"
+    },
+    {
+      "type": "show_message",
+      "text": "Насос сбросил уровень. Дорога к воротам снова есть — на ней по колено воды и ила."
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

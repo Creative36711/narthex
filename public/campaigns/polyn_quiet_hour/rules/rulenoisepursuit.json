@@ -1,0 +1,91 @@
+{
+  "id": "rule_noise_pursuit",
+  "label": "Шум выше режима",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "need_ge",
+      "need": "need_noise",
+      "threshold": 65
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_his_grasp"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_ch4"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_his_grasp"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -3
+    },
+    {
+      "type": "banner",
+      "text": "Где-то рядом переставили стул. Потом ещё один.",
+      "preset": "шёпот"
+    },
+    {
+      "type": "start_pursuit",
+      "label": "Тихий Час",
+      "skill": "stealth",
+      "every_ticks": 2,
+      "fails_to_catch": 2,
+      "on_fail": [
+        {
+          "type": "apply_status",
+          "status": "status_numbed",
+          "duration": 6,
+          "target": "player"
+        },
+        {
+          "type": "change_sanity",
+          "delta": -8
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": -70
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": -15
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_catch_take"
+        },
+        {
+          "type": "clear_flag",
+          "flag": "flag_his_grasp"
+        },
+        {
+          "type": "stop_pursuit"
+        },
+        {
+          "type": "teleport_player",
+          "location": "loc_gate",
+          "scene": "scene_gatehouse"
+        },
+        {
+          "type": "banner",
+          "text": "Тише. Теперь ты отдыхаешь.",
+          "preset": "проклятье"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты очнулся в бытовке на своей койке, в сухих сапогах. Фонарь горит, дверь заперта изнутри, а в наряде приписано чужим почерком: «отдохнул»."
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

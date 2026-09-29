@@ -1,0 +1,19 @@
+{
+  "id": "rule_flask_quest",
+  "label": "Долг Геннадича",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_gennadich_asked"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_quest",
+      "quest": "quest_gennadich_flask"
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

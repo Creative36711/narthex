@@ -1,0 +1,44 @@
+{
+  "id": "rule_knocks_ignored",
+  "label": "Ты не ответил и он ушёл",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 27
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_knocks_ready"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_knocks_answered"
+    }
+  ],
+  "effects": [
+    {
+      "type": "clear_flag",
+      "flag": "flag_knocks_ready"
+    },
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": -12
+    },
+    {
+      "type": "change_sanity",
+      "delta": -5
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_his_grasp"
+    },
+    {
+      "type": "show_message",
+      "text": "Стукать перестало. На подоконнике снаружи — мокрый след ладони ребёнка и ничего больше."
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

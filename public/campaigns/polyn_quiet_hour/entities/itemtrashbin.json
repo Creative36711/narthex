@@ -1,0 +1,82 @@
+{
+  "id": "item_trash_bin",
+  "type": "item",
+  "category": "container",
+  "label": "Мусорный бачок на кухне",
+  "description": "Алюминиевый, с крышкой, которая не закрывается с той ночи, когда её выпрямляли руками.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Рояться в бачке",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 25
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "easy",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_ruble",
+              "quantity": 12
+            },
+            {
+              "type": "add_item",
+              "item": "item_tea",
+              "quantity": 1
+            },
+            {
+              "type": "give_reward",
+              "items": [
+                {
+                  "item": "item_ammonia",
+                  "quantity": 1
+                }
+              ]
+            },
+            {
+              "type": "show_message",
+              "text": "Двенадцать рублей мелочью, недопитая банка сгущёнки и заварка."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": -6
+            },
+            {
+              "type": "show_message",
+              "text": "Тридцать огрызков и тетрадь с одним незаполненным разворотом."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Захлопнуть крышку",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Крышка села. Стало тише — настолько, что ты услышал шаги не в бачке, а в коридоре."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

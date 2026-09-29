@@ -1,0 +1,57 @@
+{
+  "id": "item_parade_stand",
+  "type": "item",
+  "category": "document",
+  "label": "Стенд у корпуса",
+  "description": "«Дежурный по лагерю», «Норма выдачи», «Режим дня». Бумаги не выцвели за тринадцать лет — так не бывает.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Внести плац в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Плац, костровище, стенд, инвентарь — описано."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Прочитать режим дня",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_regime"
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_rules_known"
+        },
+        {
+          "type": "postcard",
+          "text": "07:30 подъём · 08:00 зарядка · 08:30 завтрак · 13:00–15:00 тихий час (обязателен) · 22:00 отбой · 22:30 обход дежурного взрослого."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

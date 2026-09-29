@@ -1,0 +1,49 @@
+{
+  "id": "item_flashlight",
+  "type": "item",
+  "category": "light",
+  "label": "Фонарь «Жучок»",
+  "description": "Алюминиевый, с намотанной изолентой. Бьёт на двенадцать шагов и всегда чуть в сторону от того, куда смотришь ты.",
+  "image": "",
+  "weight": 0.3,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "skill_check_gate",
+        "skill": "repair",
+        "difficulty": "easy",
+        "success_effects": [
+          {
+            "type": "set_flag",
+            "flag": "flag_torch_on"
+          },
+          {
+            "type": "clear_flag",
+            "flag": "flag_torch_dead"
+          },
+          {
+            "type": "show_message",
+            "text": "Фонарь зажёгся; ты сунул его в карман."
+          }
+        ],
+        "fail_effects": [
+          {
+            "type": "change_need",
+            "need": "need_noise",
+            "delta": 12
+          },
+          {
+            "type": "show_message",
+            "text": "Щёлк-щёлк-щёлк. Батарейка болтается в гнезде — слышно на весь двор."
+          }
+        ]
+      }
+    ],
+    "consume": false,
+    "message": "Фонарь мигнул и остался гореть."
+  },
+  "sounds": {
+    "use": "sfx_torch"
+  }
+}

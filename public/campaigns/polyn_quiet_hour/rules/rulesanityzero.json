@@ -1,0 +1,23 @@
+{
+  "id": "rule_sanity_zero",
+  "label": "Конец: тишина",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "sanity_le",
+      "threshold": 1
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_cabinet_self"
+    },
+    {
+      "type": "game_over_death",
+      "reason": "Рассудок кончился раньше ночи. Ты лёг в «шкаф тишины» сам и закрыл дверцу."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

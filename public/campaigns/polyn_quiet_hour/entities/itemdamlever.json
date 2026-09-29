@@ -1,0 +1,129 @@
+{
+  "id": "item_dam_lever",
+  "type": "item",
+  "category": "misc",
+  "label": "Рычаг подъёма щитов",
+  "description": "Ворот с храповиком на девять зубьев. Каждый зуб — плюс сорок сантиметров воды и минус несколько домов в низине.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Поднять щиты раньше срока",
+      "effects": [
+        {
+          "type": "play_cutscene",
+          "cutscene": "cutscene_water_rise"
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_dam_opened"
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_flooded"
+        },
+        {
+          "type": "set_weather",
+          "weather": "weather_rain"
+        },
+        {
+          "type": "change_scene_state",
+          "scene": "scene_shore",
+          "state": "state_shore_flood"
+        },
+        {
+          "type": "change_scene_state",
+          "scene": "scene_parade",
+          "state": "state_parade_flood"
+        },
+        {
+          "type": "advance_quest",
+          "quest": "quest_shift",
+          "stage": "stage_choice"
+        },
+        {
+          "type": "show_message",
+          "text": "Храповик отсчитал девять зубьев. Вода пошла в чашу раньше, чем ты решил, что успеешь уйти."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Подойти к вороту под его взглядом",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "opposed_check",
+          "skill": "stealth",
+          "entity": "npc_quiet_hour",
+          "against_skill": "listen",
+          "tie": "opponent",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Ты прошёл по гребню, держась за перила со стороны низины: внизу мокрая фанера, и он не слышал твоих шагов."
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 8
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_lake_map"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 40
+            },
+            {
+              "type": "change_sanity",
+              "delta": -6
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": -6
+            },
+            {
+              "type": "show_message",
+              "text": "На середине гребня ветер ударил в щит, и тот загудел на всю чашу. Снизу, из корпуса, к этому гулу добавился ещё один звук: шаг за шагом, по лестнице."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Проверить храповик",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Смазан и работает. Его готовили к затоплению так, как готовят обещание."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "interactable_when": [
+    {
+      "type": "flag_set",
+      "flag": "flag_ch3"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_flooded"
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

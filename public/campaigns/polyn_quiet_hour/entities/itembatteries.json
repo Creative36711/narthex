@@ -1,0 +1,39 @@
+{
+  "id": "item_batteries",
+  "type": "item",
+  "category": "light",
+  "label": "Батарейки «Планета»",
+  "description": "Две плоские, тёплые от кармана.",
+  "image": "",
+  "weight": 0.08,
+  "stackable": true,
+  "value": {
+    "rubles": 20
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "remove_item",
+        "item": "item_batteries",
+        "quantity": 1
+      },
+      {
+        "type": "set_flag",
+        "flag": "flag_torch_on"
+      },
+      {
+        "type": "clear_flag",
+        "flag": "flag_torch_dead"
+      },
+      {
+        "type": "show_message",
+        "text": "Ты вставил свежие батарейки; «Жучок» ожил."
+      }
+    ],
+    "consume": false,
+    "message": "Батарейки перекочевали в фонарь."
+  },
+  "sounds": {
+    "use": "sfx_torch"
+  }
+}

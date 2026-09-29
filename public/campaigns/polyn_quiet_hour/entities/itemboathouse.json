@@ -1,0 +1,82 @@
+{
+  "id": "item_boathouse",
+  "type": "item",
+  "category": "container",
+  "label": "Лодочная станция",
+  "description": "Настилы в воду, два чока, лодка, перевёрнутая килем. На киле мелом «27» и ниже крупнее «28».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Обыскать сарай",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 15
+        },
+        {
+          "type": "add_item",
+          "item": "item_kerosene",
+          "quantity": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_ruble",
+          "quantity": 25
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_fuse",
+              "quantity": 1
+            },
+            {
+              "type": "show_message",
+              "text": "В ящике с вёслами — предохранитель и бинт. Здесь чинили не лодку."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Только мокрые доски и мелкий ёрш."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Перевернуть лодку",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 35
+        },
+        {
+          "type": "change_sanity",
+          "delta": -4
+        },
+        {
+          "type": "show_message",
+          "text": "Из-под киля вытекло три литра воды. Лодка стояла килем вверх и всё равно была наполнена."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

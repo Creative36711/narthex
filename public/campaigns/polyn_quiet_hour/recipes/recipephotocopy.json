@@ -1,0 +1,24 @@
+{
+  "id": "recipe_photo_copy",
+  "label": "Копия с фотографии",
+  "description": "Сурьмяная копирка из уголка вожатого: копия получается хуже, чем оригинал, и именно поэтому её не вычеркнуть из дела.",
+  "known": false,
+  "inputs": [
+    {
+      "item": "item_photo",
+      "quantity": 1
+    }
+  ],
+  "requires": [
+    {
+      "type": "flag_set",
+      "flag": "flag_safe_open"
+    }
+  ],
+  "time_ticks": 1,
+  "output": {
+    "item": "item_photo_copy",
+    "quantity": 1
+  },
+  "message": "Оригинал остался в лагере, копия — в твоём планшете."
+}

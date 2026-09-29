@@ -1,0 +1,336 @@
+{
+  "id": "scene_dining",
+  "label": "Столовая",
+  "location": "loc_camp",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_dining_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1b211b"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#13170f"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 160,
+              "rx": 280,
+              "ry": 120,
+              "fill": "#cfe0b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "раздатка",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 300,
+              "w": 400,
+              "h": 120,
+              "fill": "#2e332a",
+              "stroke": "#0b0d09",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "меню",
+            "shape": {
+              "type": "rect",
+              "x": 320,
+              "y": 140,
+              "w": 280,
+              "h": 150,
+              "fill": "#4a4327",
+              "stroke": "#171410",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "меню текст",
+            "shape": {
+              "type": "text",
+              "x": 340,
+              "y": 180,
+              "text": "ЗАВТРАК 8:00 · ОБЕД 13:00",
+              "size": 18,
+              "color": "#c8d3c4"
+            }
+          },
+          {
+            "label": "окно раздачи",
+            "shape": {
+              "type": "rect",
+              "x": 700,
+              "y": 220,
+              "w": 210,
+              "h": 150,
+              "fill": "#0f1410",
+              "stroke": "#4d5a50",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "бачок",
+            "shape": {
+              "type": "rect",
+              "x": 90,
+              "y": 500,
+              "w": 150,
+              "h": 150,
+              "fill": "#33352c",
+              "stroke": "#0b0d09",
+              "stroke_width": 5,
+              "radius": 6
+            }
+          },
+          {
+            "label": "рояль",
+            "shape": {
+              "type": "rect",
+              "x": 980,
+              "y": 370,
+              "w": 230,
+              "h": 230,
+              "fill": "#241a14",
+              "stroke": "#0b0806",
+              "stroke_width": 6,
+              "radius": 10
+            }
+          },
+          {
+            "label": "клавиатура",
+            "shape": {
+              "type": "rect",
+              "x": 1010,
+              "y": 430,
+              "w": 160,
+              "h": 30,
+              "fill": "#d8d5c0"
+            }
+          },
+          {
+            "label": "крышка рояля",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                980,
+                430,
+                1210,
+                330,
+                1210,
+                430
+              ],
+              "fill": "#2f2118",
+              "opacity": 0.85
+            }
+          },
+          {
+            "label": "дверь",
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 330,
+              "w": 140,
+              "h": 240,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "тарелки",
+            "shape": {
+              "type": "ellipse",
+              "cx": 300,
+              "cy": 360,
+              "rx": 26,
+              "ry": 12,
+              "fill": "#b9bda6",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Столовая · кухня, раздатка, чей-то рояль",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_dining_trash",
+      "label": "Мусорный бачок",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 90,
+      "y": 500,
+      "w": 150,
+      "h": 150,
+      "default_entity": "item_trash_bin",
+      "condition": null
+    },
+    {
+      "id": "slot_dining_menu",
+      "label": "Меню- требования",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 320,
+      "y": 140,
+      "w": 280,
+      "h": 150,
+      "default_entity": "item_menu_1986",
+      "condition": null
+    },
+    {
+      "id": "slot_dining_pass",
+      "label": "Окно раздачи",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 700,
+      "y": 220,
+      "w": 210,
+      "h": 150,
+      "default_entity": "item_pass_hatch",
+      "condition": null
+    },
+    {
+      "id": "slot_dining_piano",
+      "label": "Рояль из актового",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 980,
+      "y": 370,
+      "w": 230,
+      "h": 230,
+      "default_entity": "item_piano",
+      "condition": null
+    },
+    {
+      "id": "slot_dining_counter",
+      "label": "Раздаточный стол",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 120,
+      "y": 300,
+      "w": 400,
+      "h": 120,
+      "default_entity": "item_counter",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В коридор корпуса",
+      "area": {
+        "x": 1080,
+        "y": 330,
+        "w": 140,
+        "h": 240
+      },
+      "go_to_scene": "scene_corridor"
+    },
+    {
+      "label": "На плац (на карту)",
+      "area": {
+        "x": 320,
+        "y": 140,
+        "w": 280,
+        "h": 150
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_club"
+      ],
+      "conditions": [
+        {
+          "flag": "flag_piano_played"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_day"
+      ]
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

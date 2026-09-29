@@ -1,0 +1,64 @@
+{
+  "id": "rule_crisis_start",
+  "label": "Начало отсчёта: подъём воды",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 33
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_crisis",
+      "ticks": 48,
+      "label": "До подъёма воды",
+      "every": 8,
+      "severity": 1,
+      "on_escalate": [
+        {
+          "type": "banner",
+          "text": "Уровень у отметки +2,6. Корпуса мокрые до первого окна.",
+          "preset": "шёпот"
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": -6
+        },
+        {
+          "type": "set_weather",
+          "weather": "weather_fog"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_watermark"
+        }
+      ],
+      "on_deadline": [
+        {
+          "type": "set_flag",
+          "flag": "flag_flooded"
+        },
+        {
+          "type": "play_cutscene",
+          "cutscene": "cutscene_water_rise"
+        },
+        {
+          "type": "game_over_death",
+          "reason": "Вода пришла раньше правды."
+        }
+      ]
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_watermark"
+    },
+    {
+      "type": "show_message",
+      "text": "Щит на плотине включили на пробный пуск. С этого часа уровень считается всё выше: в HUD — часы до подъёма воды."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

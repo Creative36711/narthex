@@ -1,0 +1,36 @@
+{
+  "id": "rule_inna_watches",
+  "label": "Инна наблюдает в методкабинете",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_method"
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_ch2"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_inna_watching"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_inna_watching"
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_inna",
+      "state": "smile"
+    },
+    {
+      "type": "show_message",
+      "text": "Она не подошла. Она сидит у окна, заложив руки, и ждёт, пока ты сам решаешь, кто здесь дежурный взрослый."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

@@ -2803,7 +2803,11 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
 .itemdlg-content { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .itemdlg-title { margin: 0; font-size: 18px; color: var(--gold-bright); }
 .itemdlg-desc { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
-.itemdlg-option { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+/* варианты действий — на всю ширину содержания (как в окне «использовать на»),
+   а «Закрыть» — обычная кнопка: раньше он растягивался на всё окно и выглядел
+   полосой-распоркой (фидбек 29-09, скриншот окна предмета) */
+.itemdlg-option { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; }
+.itemdlg-content > .btn-small { align-self: flex-start; }
 .itemdlg-hint { font-size: 11.5px; color: color-mix(in srgb, var(--ink-bright) 72%, transparent); font-weight: normal; }
 
 /* выбор уровня сложности на создании героя (пресеты мастера) */

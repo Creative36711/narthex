@@ -1,0 +1,615 @@
+{
+  "id": "scene_method",
+  "label": "Методкабинет",
+  "location": "loc_admin",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_method_open",
+      "label": "Дверца шкафа приоткрыта",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0f0b",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1d211d"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#141813"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 300,
+              "cy": 200,
+              "rx": 220,
+              "ry": 140,
+              "fill": "#cfe0b8",
+              "opacity": 0.08
+            }
+          },
+          {
+            "label": "шкаф тишины",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 160,
+              "w": 230,
+              "h": 360,
+              "fill": "#20241f",
+              "stroke": "#0a0c08",
+              "stroke_width": 7,
+              "radius": 4
+            }
+          },
+          {
+            "label": "обивка",
+            "shape": {
+              "type": "rect",
+              "x": 578,
+              "y": 178,
+              "w": 194,
+              "h": 306,
+              "fill": "#141813"
+            }
+          },
+          {
+            "label": "дверца",
+            "shape": {
+              "type": "rect",
+              "x": 568,
+              "y": 170,
+              "w": 40,
+              "h": 340,
+              "fill": "#05070a"
+            }
+          },
+          {
+            "label": "петли",
+            "shape": {
+              "type": "line",
+              "x1": 584,
+              "y1": 190,
+              "x2": 584,
+              "y2": 500,
+              "color": "#3b3a30",
+              "width": 4
+            }
+          },
+          {
+            "label": "кушетка",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 430,
+              "w": 330,
+              "h": 170,
+              "fill": "#39412f",
+              "stroke": "#0d100b",
+              "stroke_width": 5,
+              "radius": 8
+            }
+          },
+          {
+            "label": "ремни",
+            "shape": {
+              "type": "line",
+              "x1": 160,
+              "y1": 460,
+              "x2": 160,
+              "y2": 580,
+              "color": "#5a4a30",
+              "width": 6
+            }
+          },
+          {
+            "label": "ремни 2",
+            "shape": {
+              "type": "line",
+              "x1": 360,
+              "y1": 460,
+              "x2": 360,
+              "y2": 580,
+              "color": "#5a4a30",
+              "width": 6
+            }
+          },
+          {
+            "label": "журнал методики",
+            "shape": {
+              "type": "rect",
+              "x": 860,
+              "y": 420,
+              "w": 270,
+              "h": 150,
+              "fill": "#4a4327",
+              "stroke": "#171410",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "стул вожатой",
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 300,
+              "w": 150,
+              "h": 230,
+              "fill": "#2e2a1d",
+              "radius": 6
+            }
+          },
+          {
+            "label": "дверь",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 520,
+              "w": 170,
+              "h": 120,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "дверь в медпункт",
+            "shape": {
+              "type": "rect",
+              "x": 330,
+              "y": 620,
+              "w": 200,
+              "h": 90,
+              "fill": "#2f2a22",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "плакат",
+            "shape": {
+              "type": "text",
+              "x": 560,
+              "y": 140,
+              "text": "МЕТОДИКА «ТИХИЙ ЧАС» · 1986",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "из шкафа тянет",
+            "shape": {
+              "type": "rect",
+              "x": 500,
+              "y": 240,
+              "w": 340,
+              "h": 260,
+              "fill": "#05070a",
+              "opacity": 0.7
+            }
+          },
+          {
+            "label": "маленькая рука",
+            "shape": {
+              "type": "rect",
+              "x": 600,
+              "y": 360,
+              "w": 30,
+              "h": 90,
+              "fill": "#c8d3c4",
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Методкабинет · «шкаф тишины», кушетка, журнал",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_cabinet_unlocked"
+      }
+    },
+    {
+      "id": "state_method_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1d211d"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#141813"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 300,
+              "cy": 200,
+              "rx": 220,
+              "ry": 140,
+              "fill": "#cfe0b8",
+              "opacity": 0.08
+            }
+          },
+          {
+            "label": "шкаф тишины",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 160,
+              "w": 230,
+              "h": 360,
+              "fill": "#20241f",
+              "stroke": "#0a0c08",
+              "stroke_width": 7,
+              "radius": 4
+            }
+          },
+          {
+            "label": "обивка",
+            "shape": {
+              "type": "rect",
+              "x": 578,
+              "y": 178,
+              "w": 194,
+              "h": 306,
+              "fill": "#141813"
+            }
+          },
+          {
+            "label": "дверца",
+            "shape": {
+              "type": "rect",
+              "x": 656,
+              "y": 170,
+              "w": 90,
+              "h": 340,
+              "fill": "#2a302a"
+            }
+          },
+          {
+            "label": "петли",
+            "shape": {
+              "type": "line",
+              "x1": 584,
+              "y1": 190,
+              "x2": 584,
+              "y2": 500,
+              "color": "#3b3a30",
+              "width": 4
+            }
+          },
+          {
+            "label": "кушетка",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 430,
+              "w": 330,
+              "h": 170,
+              "fill": "#39412f",
+              "stroke": "#0d100b",
+              "stroke_width": 5,
+              "radius": 8
+            }
+          },
+          {
+            "label": "ремни",
+            "shape": {
+              "type": "line",
+              "x1": 160,
+              "y1": 460,
+              "x2": 160,
+              "y2": 580,
+              "color": "#5a4a30",
+              "width": 6
+            }
+          },
+          {
+            "label": "ремни 2",
+            "shape": {
+              "type": "line",
+              "x1": 360,
+              "y1": 460,
+              "x2": 360,
+              "y2": 580,
+              "color": "#5a4a30",
+              "width": 6
+            }
+          },
+          {
+            "label": "журнал методики",
+            "shape": {
+              "type": "rect",
+              "x": 860,
+              "y": 420,
+              "w": 270,
+              "h": 150,
+              "fill": "#4a4327",
+              "stroke": "#171410",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "стул вожатой",
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 300,
+              "w": 150,
+              "h": 230,
+              "fill": "#2e2a1d",
+              "radius": 6
+            }
+          },
+          {
+            "label": "дверь",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 520,
+              "w": 170,
+              "h": 120,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "дверь в медпункт",
+            "shape": {
+              "type": "rect",
+              "x": 330,
+              "y": 620,
+              "w": 200,
+              "h": 90,
+              "fill": "#2f2a22",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "плакат",
+            "shape": {
+              "type": "text",
+              "x": 560,
+              "y": 140,
+              "text": "МЕТОДИКА «ТИХИЙ ЧАС» · 1986",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Методкабинет · «шкаф тишины», кушетка, журнал",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_method_cabinet",
+      "label": "«Шкаф тишины»",
+      "type": [
+        "person",
+        "device"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 160,
+      "w": 230,
+      "h": 360,
+      "default_entity": "npc_cabinet",
+      "use_with": [
+        {
+          "item": "item_cabinet_key",
+          "consume": true,
+          "effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_bridge_cabinet_open"
+            }
+          ],
+          "message": "Ключ сел в скважину легко, как будто его только что смазали."
+        }
+      ],
+      "condition": {
+        "flag": "flag_cabinet_unlocked"
+      }
+    },
+    {
+      "id": "slot_method_couch",
+      "label": "Кушетка с ремнями",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 120,
+      "y": 430,
+      "w": 330,
+      "h": 170,
+      "default_entity": "item_couch",
+      "condition": null
+    },
+    {
+      "id": "slot_method_journal",
+      "label": "Журнал методики",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 860,
+      "y": 420,
+      "w": 270,
+      "h": 150,
+      "default_entity": "item_method_journal",
+      "condition": null
+    },
+    {
+      "id": "slot_method_inna",
+      "label": "Стул вожатой",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 1080,
+      "y": 300,
+      "w": 150,
+      "h": 230,
+      "default_entity": "npc_inna",
+      "condition": {
+        "flag": "flag_ch2"
+      }
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В кабинет",
+      "area": {
+        "x": 60,
+        "y": 520,
+        "w": 170,
+        "h": 120
+      },
+      "go_to_scene": "scene_office"
+    },
+    {
+      "label": "В медпункт",
+      "area": {
+        "x": 330,
+        "y": 620,
+        "w": 200,
+        "h": 90
+      },
+      "go_to_scene": "scene_infirmary"
+    },
+    {
+      "label": "Выйти (карта)",
+      "area": {
+        "x": 40,
+        "y": 120,
+        "w": 130,
+        "h": 90
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_method"
+      ]
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

@@ -1,0 +1,78 @@
+{
+  "id": "item_bell_prop",
+  "type": "item",
+  "category": "misc",
+  "label": "Колокольчик на столе вожатого",
+  "description": "Латунный, на шнурке. Звон — часть режима: два раза «стройся», три — «тихо», один — «иди за мной».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Позвонить один раз",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 25
+        },
+        {
+          "type": "change_sanity",
+          "delta": -4
+        },
+        {
+          "type": "set_entity_state",
+          "entity": "npc_inna",
+          "state": "smile"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты позвонил один раз. В коридоре зашаркали: кто-то вышел «за тобой»."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Позвонить три раза",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": -15
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_quiet_obeyed"
+        },
+        {
+          "type": "change_sanity",
+          "delta": 3
+        },
+        {
+          "type": "show_message",
+          "text": "Три коротких. Зал затих — и ты вместе с ним."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Спрятать в карман",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_bell",
+          "quantity": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Колокольчик лёг в карман, как украденный язык."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

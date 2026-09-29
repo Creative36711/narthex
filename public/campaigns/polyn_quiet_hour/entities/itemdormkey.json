@@ -1,0 +1,16 @@
+{
+  "id": "item_dorm_key",
+  "type": "item",
+  "category": "key",
+  "label": "Ключ «С-2»",
+  "description": "Латунный, с биркой. Под ним шкафчики; под шкафчиками то, что дети прятали от тихого часа.",
+  "image": "",
+  "weight": 0.05,
+  "stackable": false,
+  "value": {
+    "rubles": 10
+  },
+  "sounds": {
+    "use": "sfx_lock"
+  }
+}

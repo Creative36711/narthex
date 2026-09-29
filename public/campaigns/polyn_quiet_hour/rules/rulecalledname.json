@@ -1,0 +1,44 @@
+{
+  "id": "rule_called_name",
+  "label": "Позвал по имени у воды",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_called_name"
+    }
+  ],
+  "effects": [
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 60
+    },
+    {
+      "type": "apply_status",
+      "status": "status_numbed",
+      "duration": 8,
+      "target": "player"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -12
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_lelya_shows"
+    },
+    {
+      "type": "banner",
+      "text": "Ты позвал. Теперь она не одна, и ты — не один.",
+      "preset": "проклятье",
+      "seconds": 8
+    },
+    {
+      "type": "show_message",
+      "text": "Она обернулась. Это было ошибкой не для неё."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

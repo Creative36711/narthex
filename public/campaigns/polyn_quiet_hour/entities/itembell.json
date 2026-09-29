@@ -1,0 +1,31 @@
+{
+  "id": "item_bell",
+  "type": "item",
+  "category": "misc",
+  "label": "Колокольчик вожатого",
+  "description": "Латунный, на шнурке. Два раза — «стройся», три — «тихо», один — «иди за мной».",
+  "image": "",
+  "weight": 0.1,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_noise",
+        "delta": -15
+      },
+      {
+        "type": "change_sanity",
+        "delta": 2
+      },
+      {
+        "type": "show_message",
+        "text": "Ты позвонил в кармане. Из коридора ответили топотом: стройся — так стройся."
+      }
+    ],
+    "consume": false
+  },
+  "sounds": {
+    "use": "sfx_bell"
+  }
+}

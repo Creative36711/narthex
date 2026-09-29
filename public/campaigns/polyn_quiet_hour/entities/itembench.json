@@ -1,0 +1,103 @@
+{
+  "id": "item_bench",
+  "type": "item",
+  "category": "misc",
+  "label": "Скамейка у воды",
+  "description": "Три доски на чугунных ножках, увязших в илу. Под средней доской вырезано перочинным: «ПОЖДИ».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Сесть и подождать",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 2
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": 12
+        },
+        {
+          "type": "change_sanity",
+          "delta": -5
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_lelya_shows"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_lelya"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты просидел два часа. Вода подошла на доску ниже — и села рядом."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Заглянуть под доску",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "easy",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_znachok",
+              "quantity": 1
+            },
+            {
+              "type": "postcard",
+              "text": "В щели под доской — значок и записка: «Роме, если заберут»."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 20
+            },
+            {
+              "type": "show_message",
+              "text": "Доска треснула; ты выгреб что попало, и это была не записка."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести берег в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Берег: скамейка 1, лодочная станция 1, вода — 2,4 м."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

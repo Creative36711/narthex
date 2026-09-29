@@ -1,0 +1,96 @@
+{
+  "id": "quest_gennadich_flask",
+  "label": "Долг Геннадича",
+  "description": "Вернуть предшественнику флягу, оставленную в спальном корпусе, и получить в обмен доступ к складу и лишнюю пару батареек.",
+  "chapter": "ch_1_shift",
+  "journal_entries": {
+    "j_g1": "Геннадич просит флягу из ячейки 12 шкафчиков: «не пить — память. И отдай до утра, а то я не усну».",
+    "j_g2": "Фляга найдена. Отнести в бытовку.",
+    "j_g3": "Фляга у Геннадича. Он сдержал слово: ключ от подвала и расписался в журнале за тебя."
+  },
+  "stages": [
+    {
+      "id": "stage_g_ask",
+      "label": "Обещание",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_gennadich_flask",
+          "text_key": "j_g1"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_g_found",
+          "conditions": [
+            {
+              "type": "has_item",
+              "item": "item_flask"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_g_found",
+      "label": "Фляга найдена",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_gennadich_flask",
+          "text_key": "j_g2"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_g_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_flask_given"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_g_done",
+      "label": "Долг закрыт",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_gennadich_flask",
+          "text_key": "j_g3"
+        },
+        {
+          "type": "give_reward",
+          "items": [
+            {
+              "item": "item_ruble",
+              "quantity": 150
+            },
+            {
+              "item": "item_batteries",
+              "quantity": 2
+            }
+          ]
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_gennadich"
+        },
+        {
+          "type": "change_luck",
+          "delta": 5
+        },
+        {
+          "type": "change_sanity",
+          "delta": 4
+        }
+      ],
+      "transitions": [],
+      "final": true,
+      "outcome": "success"
+    }
+  ]
+}

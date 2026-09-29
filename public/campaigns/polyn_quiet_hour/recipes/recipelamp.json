@@ -1,0 +1,26 @@
+{
+  "id": "recipe_lamp",
+  "label": "Коптилка из банки",
+  "description": "Стеклянная банка, скрученная тряпка, керосин. Дымит, зато не щёлкает.",
+  "known": true,
+  "inputs": [
+    {
+      "item": "item_kerosene",
+      "quantity": 1
+    },
+    {
+      "item": "item_matches",
+      "quantity": 1
+    }
+  ],
+  "skill": {
+    "id": "repair",
+    "difficulty": 40
+  },
+  "time_ticks": 1,
+  "output": {
+    "item": "item_lamp_made",
+    "quantity": 1
+  },
+  "message": "Коптилка горит; подвал стал меньше на глаз, но не ближе."
+}

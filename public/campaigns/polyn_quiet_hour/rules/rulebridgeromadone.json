@@ -1,0 +1,54 @@
+{
+  "id": "rule_bridge_roma_done",
+  "label": "Мост: Рома выслушал",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "remove_item",
+      "item": "item_znachok",
+      "quantity": 1
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_roma_told"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_roma_shows"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_roma",
+      "stage": "stage_r_done"
+    },
+    {
+      "type": "reveal_location",
+      "location": "loc_lake"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_dam_open"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_p_dam"
+    },
+    {
+      "type": "add_item",
+      "item": "item_cabinet_key",
+      "quantity": 1
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_1986"
+    },
+    {
+      "type": "change_sanity",
+      "delta": 6
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

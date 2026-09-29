@@ -822,10 +822,14 @@ export class EditorStore {
       : '/__editor/save'
   }
 
-  /** сохранить на диск через dev-эндпоинт vite */
-  async saveToDisk(paths?: string[]): Promise<void> {
+  /**
+   * сохранить на диск через dev-эндпоинт vite.
+   * `target` — id кампании, если файлы надо положить не в открытую кампанию,
+   * а в другую директорию (импорт пакета: пишем кампанию под её собственным id).
+   */
+  async saveToDisk(paths?: string[], target?: string): Promise<void> {
     const targets = paths ?? [...this.dirty]
-    const campaignRel = this.campaignRel()
+    const campaignRel = target ? `campaigns/${target}` : this.campaignRel()
     for (const p of targets) {
       const res = await fetch(this.saveEndpoint(), {
         method: 'POST',

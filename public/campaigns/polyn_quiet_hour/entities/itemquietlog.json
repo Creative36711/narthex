@@ -1,0 +1,40 @@
+{
+  "id": "item_quiet_log",
+  "type": "item",
+  "category": "document",
+  "label": "Журнал тихого часа",
+  "description": "Сорок страниц: дата, длительность, «замечания». Замечания писала Инна Аркадьевна; почерк у неё ровный, как линеечка.",
+  "image": "",
+  "weight": 0.4,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "postcard",
+        "text": "Журнал «тихого часа», смена «Солнышко».\n\n04.08 — 2 ч, замечаний нет.\n05.08 — 2 ч 10 м, Гладков Р. — разговор, передан в методкабинет.\n17.08 — 2 ч. Ветрова П. — отказ. Применена методика. Передана в методкабинет. Не возвращена."
+      },
+      {
+        "type": "unlock_codex",
+        "entry": "codex_log"
+      },
+      {
+        "type": "advance_quest",
+        "quest": "quest_shift",
+        "stage": "stage_confession"
+      },
+      {
+        "type": "set_flag",
+        "flag": "flag_truth_part"
+      },
+      {
+        "type": "advance_time",
+        "ticks": 1
+      }
+    ],
+    "consume": false,
+    "message": "Страницы слиплись от сырости."
+  },
+  "sounds": {
+    "use": "sfx_page"
+  }
+}

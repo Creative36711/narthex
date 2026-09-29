@@ -1,0 +1,28 @@
+{
+  "id": "item_wormwood",
+  "type": "item",
+  "category": "misc",
+  "label": "Пучок полыни",
+  "description": "Надсохнет и выветрится за сутки. Вожатые говорили: она не любит горькое.",
+  "image": "",
+  "weight": 0.1,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "apply_status",
+        "status": "status_wormwood",
+        "target": "player"
+      },
+      {
+        "type": "show_message",
+        "text": "Ты засунул полынь за пазуху; в носу запершикало."
+      }
+    ],
+    "consume": false,
+    "message": "Пучок убрался в карман."
+  },
+  "sounds": {
+    "use": "sfx_page"
+  }
+}

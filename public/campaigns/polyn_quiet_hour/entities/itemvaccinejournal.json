@@ -1,0 +1,70 @@
+{
+  "id": "item_vaccine_journal",
+  "type": "item",
+  "category": "document",
+  "label": "Прививочный журнал",
+  "description": "Двадцать семь фамилий, дата, номер партии. Вакцину ставили в последний день смены; все двадцать семь — «перенесено».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Сверить фамилии",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "flag_missing_child"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_names"
+        },
+        {
+          "type": "change_sanity",
+          "delta": -3
+        },
+        {
+          "type": "advance_quest",
+          "quest": "quest_shift",
+          "stage": "stage_roster"
+        },
+        {
+          "type": "postcard",
+          "text": "Строка 28 пуста, но в колонке «прививка» стоит прочерк и подпись: «по согласованию с родителями»."
+        },
+        {
+          "type": "show_message",
+          "text": "У двадцати восьми детей были прививки. Двое из них уже не дети."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести медпункт в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Медпункт: кушетка, шкаф, автомат, журнал 1 шт."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

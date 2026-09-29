@@ -1,0 +1,85 @@
+{
+  "id": "item_power_panel",
+  "type": "item",
+  "category": "misc",
+  "label": "Щиток в медпункте",
+  "description": "Пробки, два предохранителя, один стаканчик вывернут. На крышке нацарапано: «НЕ ВЕРТАТЬ ВО ВРЕМЯ ТИХОГО ЧАСА».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Выкрутить предохранитель",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_fuse",
+          "quantity": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 15
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_alarm"
+        },
+        {
+          "type": "show_message",
+          "text": "Лампа в коридоре мигнула и умерла. Где-то выше по этажу кто-то сказал «тихо» — и это был не ты."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Восстановить цепь",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "clear_flag",
+              "flag": "flag_alarm"
+            },
+            {
+              "type": "set_flag",
+              "flag": "flag_light_on"
+            },
+            {
+              "type": "advance_quest",
+              "quest": "quest_pump",
+              "stage": "stage_p_panel"
+            },
+            {
+              "type": "show_message",
+              "text": "Лампа вернулась, пробки держат."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_hp",
+              "delta": -2
+            },
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 20
+            },
+            {
+              "type": "show_message",
+              "text": "Коротнуло; ты отдёрнул руку раньше, чем успел испугаться."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

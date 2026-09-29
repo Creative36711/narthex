@@ -1,0 +1,128 @@
+{
+  "id": "item_hatch_cover",
+  "type": "item",
+  "category": "misc",
+  "label": "Люк в подвал",
+  "description": "Чугунная крышка со щелью на два пальца. Из щели идёт тёплый воздух и керосин.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Открыть",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 25
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Крышка подалась с звоном; тебе показалось, что звякнуло и в воде за плотиной."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Спуститься, держась за скобы",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "opposed_check",
+          "skill": "stealth",
+          "entity": "npc_quiet_hour",
+          "against_skill": "listen",
+          "tie": "opponent",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Ты вошёл в люк и держал крышку на сгибе локтя, пока она не легла без звука. Скобы вниз были тёплые — так не бывает у чугуна в сырости."
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 5
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_quiet"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 45
+            },
+            {
+              "type": "change_sanity",
+              "delta": -5
+            },
+            {
+              "type": "change_hp",
+              "delta": -1
+            },
+            {
+              "type": "show_message",
+              "text": "Крышка сорвалась и хлопнула о бетон. Плац ответил эхом, которого у плаца быть не могло."
+            }
+          ]
+        },
+        {
+          "type": "teleport_player",
+          "location": "loc_camp",
+          "scene": "scene_basement"
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Прислушаться к щели",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "listen",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_pipe_signal"
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_quiet"
+            },
+            {
+              "type": "show_message",
+              "text": "Снизу — три ровных удара, потом ещё три, потом пауза ровно на столько, сколько нужно, чтобы ты начал считать."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Только вода: где-то под бетоном она уже ходит ходуном."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "interactable_when": [
+    {
+      "type": "has_item",
+      "item": "item_key_basement"
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

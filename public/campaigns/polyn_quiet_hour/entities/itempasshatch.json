@@ -1,0 +1,92 @@
+{
+  "id": "item_pass_hatch",
+  "type": "item",
+  "category": "misc",
+  "label": "Окно раздачи",
+  "description": "Отверстие в стене с деревянной полкой. С той стороны — тёмный зал и двадцать четыре ровно поставленных стула.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Стукнуть по трубе под окном",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "listen",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_pipe_signal"
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_quiet"
+            },
+            {
+              "type": "show_message",
+              "text": "Из-под полки ответили три раза, в ритме марша."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Тишина. Потом та же тишина, но уже с нетерпением."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Протиснуться в зал",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "stealth",
+          "difficulty": "difficult",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Ты прошёл, не задев полки. Из кулис было видно: в зале кто-то сидит и не смотрит на сцену."
+            },
+            {
+              "type": "reveal_location",
+              "location": "loc_lake"
+            },
+            {
+              "type": "advance_quest",
+              "quest": "quest_roma",
+              "stage": "stage_r_see"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 40
+            },
+            {
+              "type": "change_hp",
+              "delta": -2
+            },
+            {
+              "type": "show_message",
+              "text": "Полка треснула под весом; стулья в зале легли на бок, как поле."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

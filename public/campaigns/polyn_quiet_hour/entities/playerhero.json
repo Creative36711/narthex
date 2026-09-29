@@ -1,0 +1,59 @@
+{
+  "id": "player_hero",
+  "type": "npc",
+  "label": "Ночной охранник",
+  "description": "Принят на три ночи: обойти, описать, не пускать мародёров и не задавать вопросов. Первые два пункта ты выполнишь. Третий — нет.",
+  "portrait": {
+    "neutral": "",
+    "tense": "",
+    "afraid": "",
+    "hollow": ""
+  },
+  "stats": {
+    "STR": 8,
+    "CON": 8,
+    "SIZ": 8,
+    "DEX": 9,
+    "INT": 10,
+    "POW": 10,
+    "CHA": 8
+  },
+  "skills": {
+    "stealth": 40,
+    "listen": 40,
+    "spot": 40,
+    "psychology": 25,
+    "persuade": 25,
+    "first_aid": 25,
+    "repair": 25
+  },
+  "inventory": [
+    {
+      "item": "item_flashlight",
+      "quantity": 1
+    },
+    {
+      "item": "item_batteries",
+      "quantity": 1
+    },
+    {
+      "item": "item_matches",
+      "quantity": 1
+    },
+    {
+      "item": "item_sweet_tea",
+      "quantity": 1
+    },
+    {
+      "item": "item_ruble",
+      "quantity": 60
+    }
+  ],
+  "equipment": {},
+  "sounds": {
+    "use": "sfx_sip",
+    "pickup": "sfx_page"
+  },
+  "schedule": [],
+  "presence_overrides": []
+}

@@ -1,0 +1,116 @@
+{
+  "id": "rule_quiet_hour_violate",
+  "label": "Ты не лежал в тихий час",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_quiet_hour"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_quiet_obeyed"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_qh_noticed"
+    },
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "player_enters_location",
+          "location": "loc_camp"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_admin"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_lake"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_dam"
+        }
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_qh_noticed"
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 35
+    },
+    {
+      "type": "change_sanity",
+      "delta": -5
+    },
+    {
+      "type": "banner",
+      "text": "Все лежат. Почему ты нет?",
+      "preset": "проклятье"
+    },
+    {
+      "type": "start_pursuit",
+      "label": "Тихий Час",
+      "skill": "stealth",
+      "every_ticks": 2,
+      "fails_to_catch": 2,
+      "on_fail": [
+        {
+          "type": "apply_status",
+          "status": "status_numbed",
+          "duration": 6,
+          "target": "player"
+        },
+        {
+          "type": "change_sanity",
+          "delta": -8
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": -70
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": -15
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_catch_take"
+        },
+        {
+          "type": "clear_flag",
+          "flag": "flag_his_grasp"
+        },
+        {
+          "type": "stop_pursuit"
+        },
+        {
+          "type": "teleport_player",
+          "location": "loc_gate",
+          "scene": "scene_gatehouse"
+        },
+        {
+          "type": "banner",
+          "text": "Тише. Теперь ты отдыхаешь.",
+          "preset": "проклятье"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты очнулся в бытовке на своей койке, в сухих сапогах. Фонарь горит, дверь заперта изнутри, а в наряде приписано чужим почерком: «отдохнул»."
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

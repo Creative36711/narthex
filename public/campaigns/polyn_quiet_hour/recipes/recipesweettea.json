@@ -1,0 +1,32 @@
+{
+  "id": "recipe_sweet_tea",
+  "label": "Сладкий чай",
+  "description": "Заварка, сахар, кипяток из чайника. Восемь минут, и руки снова твои.",
+  "known": true,
+  "inputs": [
+    {
+      "item": "item_tea",
+      "quantity": 1
+    }
+  ],
+  "requires": [
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_stove_on"
+        },
+        {
+          "type": "flag_set",
+          "flag": "flag_basement_lit"
+        }
+      ]
+    }
+  ],
+  "output": {
+    "item": "item_sweet_tea",
+    "quantity": 1
+  },
+  "message": "Чай в кружке держит тепло, как обещание."
+}

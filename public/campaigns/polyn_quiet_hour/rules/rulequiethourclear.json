@@ -1,0 +1,31 @@
+{
+  "id": "rule_quiet_hour_clear",
+  "label": "Подъём после тихого часа",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 38
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_quiet_hour"
+    }
+  ],
+  "effects": [
+    {
+      "type": "clear_flag",
+      "flag": "flag_quiet_hour"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_quiet_obeyed"
+    },
+    {
+      "type": "show_message",
+      "text": "Подъём. В коридоре снова можно дышать."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

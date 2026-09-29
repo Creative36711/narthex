@@ -1,0 +1,158 @@
+{
+  "id": "item_cots",
+  "type": "item",
+  "category": "container",
+  "label": "Кровать в ряду",
+  "description": "Двенадцать коек в два ряда, тумбочки, над каждой гвоздик. На одном гвоздике — косынка, завязанная так, что без узла не снять.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Лечь и закрыть глаза (2 ч)",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 2
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": -45
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": 12
+        },
+        {
+          "type": "change_sanity",
+          "delta": 5
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_quiet_obeyed"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты лёг, как все. Лагерь это одобрил: в коридоре перестали ходить."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Спать крепко (6 ч)",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 6
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_cot_slept"
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 40
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": 25
+        },
+        {
+          "type": "change_sanity",
+          "delta": -4
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_woke_up"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты проспал шесть часов как мёртвый. Проснулся в тех же сапогах, но на другой койке."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Перебрать тумбочки",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_flashlight",
+              "quantity": 1
+            },
+            {
+              "type": "add_item",
+              "item": "item_tea",
+              "quantity": 1
+            },
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 18
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_1986"
+            },
+            {
+              "type": "show_message",
+              "text": "В третьей тумбочке — фонарь, заварка и пионерский календарь с заложенной страницей."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 26
+            },
+            {
+              "type": "show_message",
+              "text": "Тумбочки рассыпались по полу. Это слышно на всех трёх этажах."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести спальню в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Двенадцать коек, двенадцать тумбочек, тринадцать гвоздиков. «Тринадцать» ты написал и не смог стереть."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

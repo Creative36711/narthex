@@ -1,0 +1,35 @@
+{
+  "id": "item_photo",
+  "type": "item",
+  "category": "document",
+  "label": "Фотография 1986 года",
+  "description": "Двадцать семь детей в ряд; второй ряд чуть ниже. На левом краю — девочка, которая смотрит не в объектив, а на человека за камерой. За камерой стоял ты.",
+  "image": "",
+  "weight": 0.02,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "postcard",
+        "text": "Оборот: «Солнышко, 17.08.86. Смена перед тихим часом. Инна Аркадьевна — справа»."
+      },
+      {
+        "type": "unlock_codex",
+        "entry": "codex_wall"
+      },
+      {
+        "type": "change_sanity",
+        "delta": 4
+      },
+      {
+        "type": "advance_time",
+        "ticks": 1
+      }
+    ],
+    "consume": false,
+    "message": "Ты посмотрел на неё дольше, чем следовало."
+  },
+  "sounds": {
+    "use": "sfx_page"
+  }
+}

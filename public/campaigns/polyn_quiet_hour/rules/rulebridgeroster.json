@@ -1,0 +1,23 @@
+{
+  "id": "rule_bridge_roster",
+  "label": "Мост: список смены найден",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_missing_child"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_shift",
+      "stage": "stage_roster"
+    },
+    {
+      "type": "grant_xp",
+      "points": 25
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

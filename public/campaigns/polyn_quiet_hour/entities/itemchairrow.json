@@ -1,0 +1,85 @@
+{
+  "id": "item_chair_row",
+  "type": "item",
+  "category": "container",
+  "label": "Ряд стульев",
+  "description": "Двадцать четыре стула, расставленных по нитке. Двадцать пятый стоит в проходе и всегда оказывается у тебя за спиной.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Расставить как было",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "stealth",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": -20
+            },
+            {
+              "type": "change_sanity",
+              "delta": 4
+            },
+            {
+              "type": "remove_status",
+              "status": "status_shakes",
+              "target": "player"
+            },
+            {
+              "type": "show_message",
+              "text": "Ты поставил двадцать четвёртый на место. Лагерь выдохнул."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 30
+            },
+            {
+              "type": "show_message",
+              "text": "Дерево скрипит — а когда оно скрипит двадцать раз подряд, это аплодисменты."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести зал в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Актовый зал: стулья 24, сцена, рояль. «Пятого ряда нет», — написал ты и вычеркнул."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

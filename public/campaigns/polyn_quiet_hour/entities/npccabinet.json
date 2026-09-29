@@ -1,0 +1,34 @@
+{
+  "id": "npc_cabinet",
+  "type": "npc",
+  "label": "«Шкаф тишины»",
+  "description": "Металлический шкаф для «срывающихся» детей, обитый изнутри дерматином. Вентиляция — три отверстия на высоте роста взрослого. Внутри до сих пор тепло.",
+  "portrait": {
+    "neutral": "",
+    "hollow": "",
+    "calm": ""
+  },
+  "stats": {
+    "STR": 6,
+    "CON": 14,
+    "SIZ": 8,
+    "DEX": 4,
+    "INT": 10,
+    "POW": 16,
+    "CHA": 2
+  },
+  "skills": {
+    "listen": 70,
+    "stealth": 70
+  },
+  "equipment": {},
+  "inventory": [],
+  "dialogue": "dialogues/cabinet.ink",
+  "slot_type": "device",
+  "perception": 75,
+  "sounds": {
+    "talk": "sfx_creak"
+  },
+  "schedule": [],
+  "presence_overrides": []
+}

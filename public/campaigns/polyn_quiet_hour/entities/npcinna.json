@@ -1,0 +1,43 @@
+{
+  "id": "npc_inna",
+  "type": "npc",
+  "label": "Инна Аркадьевна Ветрова",
+  "description": "Старшая вожатая смены августа 1986 года. Говорит ровно, улыбается не вовремя и уверена, что тишина — это не отсутствие звука, а присутствие порядка.",
+  "portrait": {
+    "neutral": "",
+    "smile": "",
+    "hollow": "",
+    "angry": "",
+    "calm": ""
+  },
+  "stats": {
+    "STR": 8,
+    "CON": 9,
+    "SIZ": 9,
+    "DEX": 10,
+    "INT": 13,
+    "POW": 15,
+    "CHA": 12
+  },
+  "skills": {
+    "persuade": 60,
+    "psychology": 65,
+    "listen": 55,
+    "spot": 45,
+    "stealth": 45
+  },
+  "equipment": {},
+  "inventory": [],
+  "scene_sprite_states": {
+    "smile": "",
+    "hollow": ""
+  },
+  "dialogue": "dialogues/inna.ink",
+  "perception": 60,
+  "sounds": {
+    "talk": "sfx_breath"
+  },
+  "base_disposition": -10,
+  "schedule": [],
+  "presence_overrides": []
+}

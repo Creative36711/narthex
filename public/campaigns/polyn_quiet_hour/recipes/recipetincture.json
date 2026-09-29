@@ -1,0 +1,21 @@
+{
+  "id": "recipe_tincture",
+  "label": "Валериана на сахаре",
+  "description": "Шесть капель на кусок сахара — лагерная норма «для беспокойных». Делать только по расписанию: дважды в сутки.",
+  "known": false,
+  "inputs": [
+    {
+      "item": "item_valerian",
+      "quantity": 1
+    }
+  ],
+  "skill": {
+    "id": "first_aid",
+    "difficulty": 45
+  },
+  "output": {
+    "item": "item_valerian",
+    "quantity": 1
+  },
+  "message": "Ты отсчитал шесть капель. Больше — уже не методика, а убийство."
+}

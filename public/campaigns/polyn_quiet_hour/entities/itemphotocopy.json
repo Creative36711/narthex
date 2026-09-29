@@ -1,0 +1,39 @@
+{
+  "id": "item_photo_copy",
+  "type": "item",
+  "category": "document",
+  "label": "Копия фотографии",
+  "description": "Сурьмяная, зернистая, с полями. На копиях лица всегда получаются хуже — или честнее.",
+  "image": "",
+  "weight": 0.02,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "set_flag",
+        "flag": "flag_prosecutor"
+      },
+      {
+        "type": "advance_quest",
+        "quest": "quest_shift",
+        "stage": "stage_choice"
+      },
+      {
+        "type": "unlock_codex",
+        "entry": "codex_wall"
+      },
+      {
+        "type": "change_sanity",
+        "delta": 3
+      },
+      {
+        "type": "show_message",
+        "text": "Копия легла в планшет. Оригинал ты оставил там, где его найдут только с лопатой."
+      }
+    ],
+    "consume": false
+  },
+  "sounds": {
+    "use": "sfx_page"
+  }
+}

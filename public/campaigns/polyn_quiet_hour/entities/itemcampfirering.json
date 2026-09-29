@@ -1,0 +1,93 @@
+{
+  "id": "item_campfire_ring",
+  "type": "item",
+  "category": "light",
+  "label": "Костровище",
+  "description": "Круг кирпичей, внутри уголь и зола. Здесь в 86-м жгли значки, когда лагерь расформировывали впервые.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Сжечь приказ №276",
+      "effects": [
+        {
+          "type": "remove_item",
+          "item": "item_order_1986",
+          "quantity": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_protocol_burned"
+        },
+        {
+          "type": "clear_flag",
+          "flag": "flag_truth"
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": 10
+        },
+        {
+          "type": "change_sanity",
+          "delta": -6
+        },
+        {
+          "type": "advance_quest",
+          "quest": "quest_shift",
+          "stage": "stage_choice"
+        },
+        {
+          "type": "show_message",
+          "text": "Бумага сгорела за две секунды. В корпусах сразу стало спокойнее — и стыдно за это спокойнее всего."
+        }
+      ],
+      "hint": "Нужен приказ",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_order_1986"
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Разворошить угли",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 12
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "easy",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_znachok",
+              "quantity": 1
+            },
+            {
+              "type": "show_message",
+              "text": "В золе — оплавленный гвоздик от значка."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Только зола и чьи-то полусожжённые бумаги."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

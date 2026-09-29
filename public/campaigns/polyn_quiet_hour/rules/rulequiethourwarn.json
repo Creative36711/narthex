@@ -1,0 +1,29 @@
+{
+  "id": "rule_quiet_hour_warn",
+  "label": "Напоминание о тихом часе",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 32
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_quiet_hour"
+    }
+  ],
+  "effects": [
+    {
+      "type": "banner",
+      "text": "В 13:00 — тихий час. Лагерь начнёт считать, кто стоит.",
+      "preset": "шёпот",
+      "seconds": 7
+    },
+    {
+      "type": "show_message",
+      "text": "До подъёма воды осталось меньше суток; до тихого часа — пять часов."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

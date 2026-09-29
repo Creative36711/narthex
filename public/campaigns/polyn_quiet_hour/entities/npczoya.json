@@ -1,0 +1,42 @@
+{
+  "id": "npc_zoya",
+  "type": "npc",
+  "label": "Зоя Романовна Тес",
+  "description": "Завхоз ликвидационной комиссии. Три папки, две подписи и одна фраза: «мы здесь не за историями, мы здесь за описями».",
+  "portrait": {
+    "neutral": "",
+    "tense": "",
+    "angry": "",
+    "calm": ""
+  },
+  "stats": {
+    "STR": 9,
+    "CON": 11,
+    "SIZ": 11,
+    "DEX": 9,
+    "INT": 12,
+    "POW": 10,
+    "CHA": 11
+  },
+  "skills": {
+    "persuade": 55,
+    "psychology": 45,
+    "spot": 50,
+    "listen": 35
+  },
+  "equipment": {},
+  "inventory": [
+    {
+      "item": "item_ruble",
+      "quantity": 300
+    }
+  ],
+  "dialogue": "dialogues/zoya.ink",
+  "sounds": {
+    "talk": "sfx_page"
+  },
+  "faction": "faction_liquidkom",
+  "base_disposition": 10,
+  "schedule": [],
+  "presence_overrides": []
+}

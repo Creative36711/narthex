@@ -1,0 +1,45 @@
+{
+  "id": "item_inf_door",
+  "type": "item",
+  "category": "misc",
+  "label": "Дверь в кабинет",
+  "description": "Межкомнатная, с мутным «триплексом». Стекло пронизано паутиной трещин — изнутри.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Подёргать ручку",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 10
+        },
+        {
+          "type": "show_message",
+          "text": "Дверь открыта. Она всегда открыта: лагерь не запирает то, что никуда не выйдет."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Посмотреть сквозь стекло",
+      "effects": [
+        {
+          "type": "change_sanity",
+          "delta": -2
+        },
+        {
+          "type": "show_message",
+          "text": "В фактуре стекла проступил силуэт: кто-то прижался к нему с той стороны, когда ты только вошёл."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

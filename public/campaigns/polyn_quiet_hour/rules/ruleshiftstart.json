@@ -1,0 +1,29 @@
+{
+  "id": "rule_shift_start",
+  "label": "Первое сообщение о режиме",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_gatehouse"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_shift_started"
+    }
+  ],
+  "effects": [
+    {
+      "type": "banner",
+      "text": "Правила дежурного: не бегать после отбоя · свет в коридоре обязателен · три стука не открывать",
+      "preset": "шёпот",
+      "seconds": 9
+    },
+    {
+      "type": "show_message",
+      "text": "На столе — наряд-расписка. Пока ты не подпишешь, для лагеря ты никто."
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

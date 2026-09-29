@@ -1,0 +1,48 @@
+{
+  "id": "npc_director",
+  "type": "npc",
+  "label": "Пётр Ильич Губарь",
+  "description": "Начальник лагеря в 1986-м, председатель комиссии по ликвидации в 1999-м. Сорок лет подписывает бумаги, в которых детей записывают «выбывшими».",
+  "portrait": {
+    "neutral": "",
+    "tense": "",
+    "afraid": "",
+    "angry": "",
+    "hollow": ""
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 10,
+    "SIZ": 13,
+    "DEX": 8,
+    "INT": 12,
+    "POW": 13,
+    "CHA": 10
+  },
+  "skills": {
+    "persuade": 55,
+    "psychology": 50,
+    "spot": 40,
+    "listen": 35,
+    "first_aid": 20
+  },
+  "equipment": {},
+  "inventory": [
+    {
+      "item": "item_cabinet_key",
+      "quantity": 1
+    },
+    {
+      "item": "item_ruble",
+      "quantity": 250
+    }
+  ],
+  "dialogue": "dialogues/director.ink",
+  "sounds": {
+    "talk": "sfx_lock"
+  },
+  "faction": "faction_liquidkom",
+  "base_disposition": -5,
+  "schedule": [],
+  "presence_overrides": []
+}

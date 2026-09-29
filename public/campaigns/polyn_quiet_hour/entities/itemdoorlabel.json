@@ -1,0 +1,30 @@
+{
+  "id": "item_door_label",
+  "type": "item",
+  "category": "misc",
+  "label": "Табличка на двери спальной",
+  "description": "«Солнышко · смена 27 · дежурный взрослый: Ветрова И. А.»",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Стереть фамилию дежурного",
+      "effects": [
+        {
+          "type": "change_sanity",
+          "delta": -2
+        },
+        {
+          "type": "show_message",
+          "text": "Мел под табличкой проступил сквозь палец: «Ветрова», и ниже детским почерком: «ИНА, ТЫ ОБЕЩАЛА»."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "id": "item_breaker",
+  "type": "item",
+  "category": "misc",
+  "label": "Щиток освещения",
+  "description": "Два рубильника, восемь пробок, одна выкручена и заткнута бумагой. Бумага — страничка из журнала прививаний.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Заглянуть в щиток",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_norma"
+        },
+        {
+          "type": "show_message",
+          "text": "В гнезде лежал предохранитель, завёрнутый в лист с детскими фамилиями. Так прячут то, что не хотят вернуть на место."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Выкрутить пробки",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 20
+        },
+        {
+          "type": "clear_flag",
+          "flag": "flag_light_on"
+        },
+        {
+          "type": "change_scene_state",
+          "scene": "scene_basement",
+          "state": "state_bas_default"
+        },
+        {
+          "type": "show_message",
+          "text": "Этаж умер. В темноте слышно, как в актовом переставляют стулья."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "rule_piano_roma",
+  "label": "Рояль позвал мальчика",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_piano_played"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_roma_shows"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_roma_shows"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_roma",
+      "stage": "stage_r_see"
+    },
+    {
+      "type": "show_message",
+      "text": "После такта в актовом стало тесно: на двадцать пятом стуле кто-то сидел спиной к залу."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

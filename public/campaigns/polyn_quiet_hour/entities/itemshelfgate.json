@@ -1,0 +1,87 @@
+{
+  "id": "item_shelf_gate",
+  "type": "item",
+  "category": "container",
+  "label": "Полка снабжения",
+  "description": "Спички, керосин, моток изоленты, два стакана со сколами — и чей-то школьный пенал, которому здесь не место.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Обыскать",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 15
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_kerosene",
+              "quantity": 1
+            },
+            {
+              "type": "add_item",
+              "item": "item_matches",
+              "quantity": 2
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_regime"
+            },
+            {
+              "type": "show_message",
+              "text": "Банка керосина и два коробка спичек — как нельзя кстати."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Ты смахнул стаканы; звук был слишком весёлый для этого дома."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Взять пенал",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_znachok",
+          "quantity": 1
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_lelya"
+        },
+        {
+          "type": "show_message",
+          "text": "На дне пенала — значок и сложенный вчетверо лист: расписание звонков 1986 года."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "interactable_when": [
+    {
+      "type": "flag_set",
+      "flag": "flag_shift_started"
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

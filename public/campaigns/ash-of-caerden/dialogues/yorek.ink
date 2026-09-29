@@ -1,10 +1,10 @@
+EXTERNAL item_count(id)
+EXTERNAL remove_item(id, n)
+EXTERNAL skill_check(s, d)
 EXTERNAL get_flag(f)
 EXTERNAL set_flag(f)
-EXTERNAL remove_item(id, n)
-EXTERNAL item_count(id)
-EXTERNAL skill_check(s, d)
-EXTERNAL in_party(id)
 EXTERNAL fire_rule(id)
+EXTERNAL in_party(id)
 
 === main ===
 { get_flag("yorek_met"):

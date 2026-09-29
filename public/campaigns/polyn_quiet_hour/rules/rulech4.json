@@ -1,0 +1,80 @@
+{
+  "id": "rule_ch4",
+  "label": "Глава IV. Рассвет",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "quest_at_stage",
+      "quest": "quest_shift",
+      "stage": "stage_choice"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_ch4"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_endgame"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_final_walk"
+    },
+    {
+      "type": "banner",
+      "text": "Глава IV. Рассвет",
+      "preset": "глава",
+      "seconds": 7
+    },
+    {
+      "type": "start_crisis",
+      "ticks": 10,
+      "label": "Последние часы лагеря",
+      "every": 3,
+      "severity": 3,
+      "on_escalate": [
+        {
+          "type": "banner",
+          "text": "Вода в коридоре.",
+          "preset": "проклятье"
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": -8
+        },
+        {
+          "type": "change_sanity",
+          "delta": -3
+        },
+        {
+          "type": "change_scene_state",
+          "scene": "scene_corridor",
+          "state": "state_corr_dim"
+        }
+      ],
+      "on_deadline": [
+        {
+          "type": "set_flag",
+          "flag": "flag_flooded"
+        },
+        {
+          "type": "play_cutscene",
+          "cutscene": "cutscene_water_rise"
+        },
+        {
+          "type": "game_over_death",
+          "reason": "Рассвет не дождался: чаша заполнилась на последнем обходе."
+        }
+      ]
+    },
+    {
+      "type": "show_message",
+      "text": "Всё, что должно было остаться в «Полыни», сейчас в одной комнате: шкаф, архив, Инна, Губарь и вода."
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

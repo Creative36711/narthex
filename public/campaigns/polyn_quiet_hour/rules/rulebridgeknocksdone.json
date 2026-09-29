@@ -1,0 +1,18 @@
+{
+  "id": "rule_bridge_knocks_done",
+  "label": "Мост: стук закрыт",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_knocks_answered"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_knocks_ready"
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

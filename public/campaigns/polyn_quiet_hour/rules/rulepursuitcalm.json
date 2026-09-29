@@ -1,0 +1,31 @@
+{
+  "id": "rule_pursuit_calm",
+  "label": "Тихо — отпустило",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "need_le",
+      "need": "need_noise",
+      "threshold": 25
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_his_grasp"
+    }
+  ],
+  "effects": [
+    {
+      "type": "clear_flag",
+      "flag": "flag_his_grasp"
+    },
+    {
+      "type": "stop_pursuit"
+    },
+    {
+      "type": "show_message",
+      "text": "Ты снова просто человек в пустом коридоре. Пока не начнёшь шуметь."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

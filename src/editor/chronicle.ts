@@ -6,6 +6,15 @@ import type { EditorStore } from './store'
  * со структурой Campaign Package, включая ассеты.
  */
 
+/** id и название кампании из архива — до того, как тронуть магазин редактора */
+export async function peekChronicleMeta(file: File): Promise<{ id: string; title: string }> {
+  const zip = await JSZip.loadAsync(file)
+  const f = zip.files['campaign.json']
+  if (!f) throw new Error('в архиве нет campaign.json — это не пакет кампании')
+  const meta = JSON.parse(await f.async('text')) as { id?: string; title?: string }
+  return { id: String(meta.id ?? '').trim(), title: String(meta.title ?? '').trim() || String(meta.id ?? '').trim() }
+}
+
 /** собрать список путей ассетов, упомянутых в JSON-документах ("assets/...") */
 export function collectAssetPaths(store: EditorStore): string[] {
   const found = new Set<string>()
@@ -44,11 +53,15 @@ export function downloadBlob(blob: Blob, filename: string): void {
 /**
  * Импорт .chronicle: распаковка в память редактора; ассеты пишутся на диск
  * через dev-эндпоинт (только в vite dev).
+ *
+ * `targetId` — id кампании, под которым пакет ложится на диск. Если он не
+ * задан, файлы идут в открытую кампанию (прежнее поведение: «заменить
+ * содержимое текущей кампании»).
  */
-export async function importChronicle(store: EditorStore, file: File): Promise<string[]> {
+export async function importChronicle(store: EditorStore, file: File, targetId?: string): Promise<string[]> {
   const zip = await JSZip.loadAsync(file)
   const warnings: string[] = []
-  const campaignRel = store.campaignRel()
+  const campaignRel = targetId ? `campaigns/${targetId}` : store.campaignRel()
   const entries = Object.keys(zip.files).filter((p) => !zip.files[p].dir)
 
   // Сначала разбираем и проверяем структуру архива, чтобы ошибка JSON не

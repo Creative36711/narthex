@@ -1,0 +1,32 @@
+{
+  "id": "rule_zoya_arrives",
+  "label": "Приезд Зои Романовны",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 36
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_zoya_arrived"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_pump"
+    },
+    {
+      "type": "banner",
+      "text": "Завхоз комиссии на месте: требует описи",
+      "preset": "заголовок"
+    },
+    {
+      "type": "show_message",
+      "text": "У флигеля «Волга» с номерами области. Зоя Романовна уже в кабинете и уже ищет тебя."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

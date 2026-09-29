@@ -1,0 +1,37 @@
+{
+  "id": "rule_cabinet_opened",
+  "label": "Шкаф отпёрт",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_cabinet_unlocked"
+    }
+  ],
+  "effects": [
+    {
+      "type": "unlock_codex",
+      "entry": "codex_method"
+    },
+    {
+      "type": "change_sanity",
+      "delta": 6
+    },
+    {
+      "type": "change_luck",
+      "delta": 5
+    },
+    {
+      "type": "banner",
+      "text": "Шкаф открыт: тридцать три года тишины вышли в коридор",
+      "preset": "заголовок"
+    },
+    {
+      "type": "change_scene_state",
+      "scene": "scene_method",
+      "state": "state_method_open"
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

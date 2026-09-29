@@ -1,0 +1,32 @@
+{
+  "id": "npc_door",
+  "type": "npc",
+  "label": "Дверь бытовки",
+  "description": "Крашеная, вздутая от влажности, с цепочкой, которую сняли и вернули не той стороной. Стучат в неё по расписанию.",
+  "portrait": {
+    "neutral": "",
+    "tense": "",
+    "afraid": ""
+  },
+  "stats": {
+    "STR": 1,
+    "CON": 1,
+    "SIZ": 1,
+    "DEX": 1,
+    "INT": 5,
+    "POW": 9,
+    "CHA": 1
+  },
+  "skills": {
+    "listen": 40
+  },
+  "equipment": {},
+  "inventory": [],
+  "dialogue": "dialogues/door.ink",
+  "slot_type": "device",
+  "sounds": {
+    "talk": "sfx_knock"
+  },
+  "schedule": [],
+  "presence_overrides": []
+}

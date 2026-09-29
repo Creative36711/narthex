@@ -1,0 +1,33 @@
+{
+  "id": "rule_bridge_name",
+  "label": "Мост: имя названо в шкафу",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_cabinet_name"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_protocol_saved"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_shift",
+      "stage": "stage_done"
+    },
+    {
+      "type": "end_crisis"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_dawn"
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

@@ -1,0 +1,87 @@
+{
+  "id": "quest_pump",
+  "label": "Насос",
+  "description": "Если подключить насос на плотине, подъём воды можно отсреть на двенадцать часов. Нужен предохранитель на 10 ампер.",
+  "chapter": "ch_3_water",
+  "journal_entries": {
+    "j_p1": "Зоя: «Насосы заклинило в девяносто восьмом, предохранитель кто-то выкрутил. Пять часов туда-сюда, и ты получишь сутки».",
+    "j_p2": "Предохранитель в кармане. Дальше — плотина; спуск к ней от лодочной станции.",
+    "j_p3": "Насос дышит. Отсрочка получена: у лагеря и у тебя есть ещё двенадцать часов."
+  },
+  "stages": [
+    {
+      "id": "stage_p_panel",
+      "label": "Найти предохранитель",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_pump",
+          "text_key": "j_p1"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_p_dam",
+          "conditions": [
+            {
+              "type": "has_item",
+              "item": "item_fuse"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_p_dam",
+      "label": "Дойти до плотины",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_pump",
+          "text_key": "j_p2"
+        },
+        {
+          "type": "reveal_location",
+          "location": "loc_dam"
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_dam_open"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_p_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_pump_fixed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_p_done",
+      "label": "Насос подключён",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_pump",
+          "text_key": "j_p3"
+        },
+        {
+          "type": "grant_xp",
+          "points": 50
+        },
+        {
+          "type": "change_sanity",
+          "delta": 5
+        }
+      ],
+      "transitions": [],
+      "final": true,
+      "outcome": "success"
+    }
+  ]
+}

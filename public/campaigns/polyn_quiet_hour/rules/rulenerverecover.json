@@ -1,0 +1,33 @@
+{
+  "id": "rule_nerve_recover",
+  "label": "Руки успокоились",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "need_ge",
+      "need": "need_nerve",
+      "threshold": 45
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_shakes_on"
+    }
+  ],
+  "effects": [
+    {
+      "type": "remove_status",
+      "status": "status_shakes",
+      "target": "player"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_shakes_on"
+    },
+    {
+      "type": "show_message",
+      "text": "Дрожь отпустила."
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

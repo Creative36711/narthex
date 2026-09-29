@@ -1,0 +1,39 @@
+{
+  "id": "item_cigarettes",
+  "type": "item",
+  "category": "food",
+  "label": "Пачка «Примы» с иглой",
+  "description": "Десять штук, мятая пачка, в кармане игла. Курить у воды — плохая примета.",
+  "image": "",
+  "weight": 0.15,
+  "stackable": true,
+  "value": {
+    "rubles": 15
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_nerve",
+        "delta": 8
+      },
+      {
+        "type": "change_sanity",
+        "delta": -1
+      },
+      {
+        "type": "change_need",
+        "need": "need_rest",
+        "delta": -2
+      },
+      {
+        "type": "show_message",
+        "text": "Ты затянулся дважды; челюсть отпустило."
+      }
+    ],
+    "consume": true
+  },
+  "sounds": {
+    "use": "sfx_fire"
+  }
+}

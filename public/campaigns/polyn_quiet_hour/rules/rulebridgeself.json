@@ -1,0 +1,22 @@
+{
+  "id": "rule_bridge_self",
+  "label": "Мост: ты лёг в шкаф сам",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_cabinet_self"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_water_rise"
+    },
+    {
+      "type": "game_over_death",
+      "reason": "Ты закрыл дверцу изнутри. В «Полыни» это всегда считалось образцовым поведением."
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

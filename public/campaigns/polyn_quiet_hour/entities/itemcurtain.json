@@ -1,0 +1,110 @@
+{
+  "id": "item_curtain",
+  "type": "item",
+  "category": "misc",
+  "label": "Занавеска в конце коридора",
+  "description": "Ситцевая, выцветшая, с вышитым крапивой числом «17». За ней ни окна, ни стены: просто темнее.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Отдёрнуть",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_dorm_key",
+              "quantity": 1
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_names"
+            },
+            {
+              "type": "show_message",
+              "text": "В нише висела связка ключей. Один — «С-2», спальная."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 30
+            },
+            {
+              "type": "show_message",
+              "text": "За занавеской стена. Ты дёрнул сильнее, чем надо; в коридоре это слышно."
+            }
+          ]
+        }
+      ],
+      "hint": "Можно нарваться на шум",
+      "consume": false
+    },
+    {
+      "label": "Пройти под занавеской в спальную, не задев полотна",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "opposed_check",
+          "skill": "stealth",
+          "entity": "npc_quiet_hour",
+          "against_skill": "listen",
+          "tie": "opponent",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Ты поднял полу занавески двумя пальцами и прошёл под ней, не задев ситца. Со стороны выглядело так, будто коридор тебя пропустил."
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 6
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_quiet"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 40
+            },
+            {
+              "type": "change_sanity",
+              "delta": -4
+            },
+            {
+              "type": "show_message",
+              "text": "Ткань шуршнула на всю длину коридора. Ответом был стул, который передвинули ровно на одном уровне с твоей грудью."
+            }
+          ]
+        },
+        {
+          "type": "teleport_player",
+          "location": "loc_camp",
+          "scene": "scene_dorm"
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

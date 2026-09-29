@@ -1,0 +1,751 @@
+{
+  "id": "scene_club",
+  "label": "Актовый зал",
+  "location": "loc_camp",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_club_child",
+      "label": "На сцене кто-то сидит",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0c110d",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#20261e"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#171b12"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 140,
+              "rx": 300,
+              "ry": 140,
+              "fill": "#cfe0b8",
+              "opacity": 0.12
+            }
+          },
+          {
+            "label": "сцена",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 170,
+              "w": 480,
+              "h": 250,
+              "fill": "#2e2a1d",
+              "stroke": "#0d0b07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "бордюр",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 406,
+              "w": 480,
+              "h": 14,
+              "fill": "#4a4327"
+            }
+          },
+          {
+            "label": "занавес",
+            "shape": {
+              "type": "rect",
+              "x": 890,
+              "y": 140,
+              "w": 130,
+              "h": 290,
+              "fill": "#4a2e28",
+              "stroke": "#150d0b",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "уголок вожатого",
+            "shape": {
+              "type": "rect",
+              "x": 90,
+              "y": 150,
+              "w": 230,
+              "h": 230,
+              "fill": "#2b2f24",
+              "stroke": "#0b0d09",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "портрет",
+            "shape": {
+              "type": "rect",
+              "x": 130,
+              "y": 180,
+              "w": 150,
+              "h": 150,
+              "fill": "#8a7b52"
+            }
+          },
+          {
+            "label": "стулья",
+            "shape": {
+              "type": "rect",
+              "x": 280,
+              "y": 470,
+              "w": 720,
+              "h": 150,
+              "fill": "#241d16",
+              "opacity": 0.85
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 280,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 640,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 760,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "дверь в подвал",
+            "shape": {
+              "type": "rect",
+              "x": 1030,
+              "y": 500,
+              "w": 180,
+              "h": 130,
+              "fill": "#171a14",
+              "stroke": "#3b3a30",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "выход",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 520,
+              "w": 180,
+              "h": 120,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "столик вожатого",
+            "shape": {
+              "type": "rect",
+              "x": 910,
+              "y": 460,
+              "w": 110,
+              "h": 90,
+              "fill": "#2b2418",
+              "radius": 4
+            }
+          },
+          {
+            "label": "колокольчик",
+            "shape": {
+              "type": "ellipse",
+              "cx": 955,
+              "cy": 470,
+              "rx": 26,
+              "ry": 20,
+              "fill": "#c9a94a"
+            }
+          },
+          {
+            "label": "плакат",
+            "shape": {
+              "type": "text",
+              "x": 420,
+              "y": 150,
+              "text": "ПЛАНЕРКА · СБОР · ТИШИНА",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "мальчик на сцене",
+            "shape": {
+              "type": "rect",
+              "x": 540,
+              "y": 240,
+              "w": 60,
+              "h": 170,
+              "fill": "#0a0d0b",
+              "opacity": 0.95
+            }
+          },
+          {
+            "label": "белая рубашка",
+            "shape": {
+              "type": "rect",
+              "x": 546,
+              "y": 280,
+              "w": 48,
+              "h": 70,
+              "fill": "#cfd6c4",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "тихо",
+            "shape": {
+              "type": "text",
+              "x": 560,
+              "y": 620,
+              "text": "Тише. Он сидит на сцене и ждёт, пока ты заметишь.",
+              "size": 22,
+              "color": "#c8d3c4",
+              "italic": true
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Актовый зал · сцена, 24 стула, уголок вожатого",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_roma_shows"
+      }
+    },
+    {
+      "id": "state_club_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#20261e"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#171b12"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 140,
+              "rx": 300,
+              "ry": 140,
+              "fill": "#cfe0b8",
+              "opacity": 0.12
+            }
+          },
+          {
+            "label": "сцена",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 170,
+              "w": 480,
+              "h": 250,
+              "fill": "#2e2a1d",
+              "stroke": "#0d0b07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "бордюр",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 406,
+              "w": 480,
+              "h": 14,
+              "fill": "#4a4327"
+            }
+          },
+          {
+            "label": "занавес",
+            "shape": {
+              "type": "rect",
+              "x": 890,
+              "y": 140,
+              "w": 130,
+              "h": 290,
+              "fill": "#4a2e28",
+              "stroke": "#150d0b",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "уголок вожатого",
+            "shape": {
+              "type": "rect",
+              "x": 90,
+              "y": 150,
+              "w": 230,
+              "h": 230,
+              "fill": "#2b2f24",
+              "stroke": "#0b0d09",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "портрет",
+            "shape": {
+              "type": "rect",
+              "x": 130,
+              "y": 180,
+              "w": 150,
+              "h": 150,
+              "fill": "#8a7b52"
+            }
+          },
+          {
+            "label": "стулья",
+            "shape": {
+              "type": "rect",
+              "x": 280,
+              "y": 470,
+              "w": 720,
+              "h": 150,
+              "fill": "#241d16",
+              "opacity": 0.85
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 280,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 640,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 760,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "ряд стульев",
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 490,
+              "w": 90,
+              "h": 90,
+              "fill": "#3a2f21",
+              "radius": 4,
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "дверь в подвал",
+            "shape": {
+              "type": "rect",
+              "x": 1030,
+              "y": 500,
+              "w": 180,
+              "h": 130,
+              "fill": "#171a14",
+              "stroke": "#3b3a30",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "выход",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 520,
+              "w": 180,
+              "h": 120,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "столик вожатого",
+            "shape": {
+              "type": "rect",
+              "x": 910,
+              "y": 460,
+              "w": 110,
+              "h": 90,
+              "fill": "#2b2418",
+              "radius": 4
+            }
+          },
+          {
+            "label": "колокольчик",
+            "shape": {
+              "type": "ellipse",
+              "cx": 955,
+              "cy": 470,
+              "rx": 26,
+              "ry": 20,
+              "fill": "#c9a94a"
+            }
+          },
+          {
+            "label": "плакат",
+            "shape": {
+              "type": "text",
+              "x": 420,
+              "y": 150,
+              "text": "ПЛАНЕРКА · СБОР · ТИШИНА",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Актовый зал · сцена, 24 стула, уголок вожатого",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_club_stage",
+      "label": "Сцена",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 540,
+      "y": 240,
+      "w": 170,
+      "h": 190,
+      "default_entity": "npc_roma",
+      "condition": {
+        "flag": "flag_roma_shows"
+      }
+    },
+    {
+      "id": "slot_club_corner",
+      "label": "Уголок вожатого",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 90,
+      "y": 150,
+      "w": 230,
+      "h": 230,
+      "default_entity": "item_leader_corner",
+      "condition": null
+    },
+    {
+      "id": "slot_club_curtain",
+      "label": "Занавес",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 890,
+      "y": 140,
+      "w": 130,
+      "h": 290,
+      "default_entity": "item_stage_curtain",
+      "condition": null
+    },
+    {
+      "id": "slot_club_chairs",
+      "label": "Ряд стульев",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 280,
+      "y": 470,
+      "w": 720,
+      "h": 150,
+      "default_entity": "item_chair_row",
+      "condition": null
+    },
+    {
+      "id": "slot_club_bell",
+      "label": "Колокольчик вожатого",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 920,
+      "y": 460,
+      "w": 100,
+      "h": 90,
+      "default_entity": "item_bell_prop",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В подвал",
+      "area": {
+        "x": 1030,
+        "y": 500,
+        "w": 180,
+        "h": 130
+      },
+      "go_to_scene": "scene_basement"
+    },
+    {
+      "label": "На плац",
+      "area": {
+        "x": 60,
+        "y": 520,
+        "w": 180,
+        "h": 120
+      },
+      "go_to_scene": "scene_parade"
+    },
+    {
+      "label": "К воротам (на карту)",
+      "area": {
+        "x": 40,
+        "y": 120,
+        "w": 120,
+        "h": 90
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_club"
+      ]
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

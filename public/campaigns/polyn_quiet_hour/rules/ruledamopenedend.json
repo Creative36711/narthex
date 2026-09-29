@@ -1,0 +1,27 @@
+{
+  "id": "rule_dam_opened_end",
+  "label": "Ты поднял щиты сам",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_dam_opened"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_cabinet_name"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_flooded"
+    },
+    {
+      "type": "game_over_death",
+      "reason": "Вода пошла в чашу по твоей руке. Храповик отсчитал девять зубьев, и больше в этом месте ничего считать некому."
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

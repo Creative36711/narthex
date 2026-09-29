@@ -1,0 +1,80 @@
+{
+  "id": "item_first_aid_case",
+  "type": "item",
+  "category": "container",
+  "label": "Аптечка",
+  "description": "Стеклянная дверца, вата на полке, пузырёк на верёвочке. Внутри на стенке: «шесть капель, не больше, иначе не разбудишь».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Взять, что есть",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_ammonia",
+          "quantity": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_valerian",
+          "quantity": 1
+        },
+        {
+          "type": "remove_status",
+          "status": "status_sleepless",
+          "target": "player"
+        },
+        {
+          "type": "unlock_recipe",
+          "recipe": "recipe_tincture"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_norma"
+        },
+        {
+          "type": "show_message",
+          "text": "Нашатырь, валериана, бинт — и рецепт, написанный на салфетке."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Обработать руки",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "first_aid",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "change_sanity",
+              "delta": 6
+            },
+            {
+              "type": "change_hp",
+              "delta": 4
+            },
+            {
+              "type": "show_message",
+              "text": "Ты обработал ссадины. Стало меньше холода."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Аптечка кончилась быстрее, чем надежда."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

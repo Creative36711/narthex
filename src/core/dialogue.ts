@@ -1,6 +1,7 @@
 import { Compiler, Story } from 'inkjs/full'
 import type { GameEngine } from './engine'
 import type { NpcDef } from '../shared/types'
+import { DIALOGUE_EXTERNAL_NAMES } from '../shared/dialogueExternals'
 
 /**
  * Dialogue Engine — Ink runtime (ТЗ 4.5).
@@ -67,7 +68,13 @@ export function clearDialogueCache(): void {
 }
 
 export function bindExternals(story: Story, engine: GameEngine): void {
+  // имена привязанных функций сверяются с общей таблицей подписей
+  // (shared/dialogueExternals.ts): её же использует генератор ink, чтобы
+  // объявлять EXTERNAL. Новая функция движка = строка в той таблице, иначе
+  // смоук ink-import-smoke скажет о рассинхронизации.
+  const bound = new Set<string>()
   const bind = (name: string, fn: (...args: never[]) => unknown) => {
+    bound.add(name)
     try {
       story.BindExternalFunction(name, fn as (...args: unknown[]) => unknown, false)
     } catch {
@@ -180,6 +187,11 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   })
   bind('end_crisis', () => { engine.applyEffects([{ type: 'end_crisis' }]); return 0 })
   bind('extend_crisis', (ticks: number) => { engine.applyEffects([{ type: 'extend_crisis', ticks }]); return 0 })
+
+  const missing = DIALOGUE_EXTERNAL_NAMES.filter((name) => !bound.has(name))
+  if (missing.length) {
+    console.warn(`[chronicle] внешние функции диалога не привязаны: ${missing.join(', ')}`)
+  }
 }
 
 /** Прочитать все доступные строки до выбора/конца. */

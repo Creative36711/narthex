@@ -1,0 +1,39 @@
+{
+  "id": "rule_bridge_director",
+  "label": "Мост: признание Губаря",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_director_confessed"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_truth"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_shift",
+      "stage": "stage_truth"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_inna"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -8
+    },
+    {
+      "type": "change_luck",
+      "delta": -5
+    },
+    {
+      "type": "grant_xp",
+      "points": 50
+    }
+  ],
+  "chapter": "ch_3_water"
+}

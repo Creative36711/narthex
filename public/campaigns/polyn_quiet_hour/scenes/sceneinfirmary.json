@@ -1,0 +1,343 @@
+{
+  "id": "scene_infirmary",
+  "label": "Медпункт",
+  "location": "loc_admin",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_inf_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1f2620"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#151a14"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 150,
+              "rx": 260,
+              "ry": 120,
+              "fill": "#cfe0b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "аптечка",
+            "shape": {
+              "type": "rect",
+              "x": 100,
+              "y": 210,
+              "w": 170,
+              "h": 210,
+              "fill": "#c9cfc0",
+              "stroke": "#0d100b",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "крест",
+            "shape": {
+              "type": "rect",
+              "x": 160,
+              "y": 260,
+              "w": 50,
+              "h": 16,
+              "fill": "#a8443a"
+            }
+          },
+          {
+            "label": "крест 2",
+            "shape": {
+              "type": "rect",
+              "x": 177,
+              "y": 243,
+              "w": 16,
+              "h": 50,
+              "fill": "#a8443a"
+            }
+          },
+          {
+            "label": "телефон-автомат",
+            "shape": {
+              "type": "rect",
+              "x": 500,
+              "y": 420,
+              "w": 190,
+              "h": 130,
+              "fill": "#2b2f26",
+              "stroke": "#0a0c09",
+              "stroke_width": 5,
+              "radius": 6
+            }
+          },
+          {
+            "label": "дисковый набор",
+            "shape": {
+              "type": "ellipse",
+              "cx": 560,
+              "cy": 480,
+              "rx": 42,
+              "ry": 42,
+              "fill": "#d8d5c0"
+            }
+          },
+          {
+            "label": "трубка",
+            "shape": {
+              "type": "rect",
+              "x": 610,
+              "y": 444,
+              "w": 70,
+              "h": 26,
+              "fill": "#141813",
+              "radius": 10
+            }
+          },
+          {
+            "label": "щиток",
+            "shape": {
+              "type": "rect",
+              "x": 800,
+              "y": 190,
+              "w": 150,
+              "h": 190,
+              "fill": "#33352c",
+              "stroke": "#0b0d09",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "пробки",
+            "shape": {
+              "type": "rect",
+              "x": 830,
+              "y": 230,
+              "w": 90,
+              "h": 110,
+              "fill": "#171a14"
+            }
+          },
+          {
+            "label": "журнал прививок",
+            "shape": {
+              "type": "rect",
+              "x": 1000,
+              "y": 430,
+              "w": 230,
+              "h": 150,
+              "fill": "#4a4327",
+              "stroke": "#171410",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "дверь",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 520,
+              "w": 170,
+              "h": 120,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "выход",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 610,
+              "w": 160,
+              "h": 90,
+              "fill": "#241b12",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Медпункт · аптечка, телефон, щиток, прививочный журнал",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_inf_aidbox",
+      "label": "Аптечка",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 100,
+      "y": 210,
+      "w": 170,
+      "h": 210,
+      "default_entity": "item_first_aid_case",
+      "condition": null
+    },
+    {
+      "id": "slot_inf_phone",
+      "label": "Телефон-автомат",
+      "type": [
+        "person",
+        "device"
+      ],
+      "shape": "rect",
+      "x": 500,
+      "y": 420,
+      "w": 190,
+      "h": 130,
+      "default_entity": "npc_phone",
+      "condition": null
+    },
+    {
+      "id": "slot_inf_panel",
+      "label": "Щиток освещения",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 800,
+      "y": 190,
+      "w": 150,
+      "h": 190,
+      "default_entity": "item_power_panel",
+      "condition": null
+    },
+    {
+      "id": "slot_inf_vaccine",
+      "label": "Прививочный журнал",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 1000,
+      "y": 430,
+      "w": 230,
+      "h": 150,
+      "default_entity": "item_vaccine_journal",
+      "condition": null
+    },
+    {
+      "id": "slot_inf_door",
+      "label": "Дверь в кабинет",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 60,
+      "y": 520,
+      "w": 170,
+      "h": 120,
+      "default_entity": "item_inf_door",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В методкабинет",
+      "area": {
+        "x": 60,
+        "y": 520,
+        "w": 170,
+        "h": 120
+      },
+      "go_to_scene": "scene_method"
+    },
+    {
+      "label": "Выйти из флигеля (карта)",
+      "area": {
+        "x": 400,
+        "y": 610,
+        "w": 160,
+        "h": 90
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_method"
+      ],
+      "conditions": [
+        {
+          "flag": "flag_lelya_shows"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_gate"
+      ]
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

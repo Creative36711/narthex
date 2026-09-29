@@ -1,0 +1,299 @@
+{
+  "version": 2,
+  "label": "Дверь бытовки",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Три стука",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Стучат три раза. Ровно, как стучат в казарме: костяшками, не ладонью. Потом тишина, в которой слышно, что кто-то не уходит.",
+                "action": true
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Сквозняком из-под двери шевельнуло бумажку. На бумажке напечатано: «проверка на голос».",
+                "emotion": "neutral"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Открыть — сунуть руку к задвижке.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ты берёшься за задвижку. С той стороны задвижку держат — так, как держат, чтобы ты понял: здесь тоже кто-то дежурит.",
+                    "emotion": "afraid"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "node_open"
+        },
+        {
+          "text": "Молчать. Дышать в ладонь.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ты стоишь, не дыша, сорок секунд. Стучат ещё раз, ждут ответа и уходят: каблук за каблуком, ровно, как обход.",
+                    "emotion": "calm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "node_silent"
+        },
+        {
+          "text": "Спросить: «кто там?»",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "«Дежурный по лагерю», — отвечают твоим собственным голосом. Не похоже на эхо: похоже на то, как кто-то учится им пользоваться.",
+                    "emotion": "hollow"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "node_answer"
+        }
+      ],
+      "choice_deadline_ticks": 12,
+      "choice_deadline_pick": 2,
+      "choice_deadline_to": "end"
+    },
+    {
+      "id": "node_open",
+      "label": "Дверь открыта",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "apply_status",
+                "status": "status_numbed",
+                "duration": 8
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "flag_knocks_opened"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "За дверью никого нет. Пол устлан мокрыми сосновыми иглами — в лагере нет сосен, — и на них отпечатки: детские, идущие от стены к твоей койке и не обратно.",
+                "action": true
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Закрыть дверь и сесть у печки.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_bridge_scare"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_bridge_knocks_done"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ты запер дверь на два оборота. Это ничего не меняет: здесь важно не заперто, а тихо.",
+                    "emotion": "tense"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Пойти по следам до койки.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Следы кончаются на койке. Под подушкой лежит расписка — твоя, той же ночи, где приписано чужим почерком: «остался до утра».",
+                    "emotion": "hollow"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    },
+    {
+      "id": "node_silent",
+      "label": "Ты выдержал",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "flag_knocks_silent"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Тишина кончилась сама: с той стороны убрали что-то тяжёлое с подоконника и унесли. Ты не посмотрел. Это единственное, за что лагерь сегодня не стал тебя считать.",
+                "emotion": "calm"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Выдохнуть.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_bridge_calm"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_bridge_knocks_done"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ты выдохнул. Печка треснула — единственное, что здесь умеет шуметь для компании.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    },
+    {
+      "id": "node_answer",
+      "label": "Ты ответил",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "flag_knocks_answered"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "В ответ тебе за дверью записали в журнал. Ты слышишь этот звук: карандаш по бумаге, и он идёт быстрее, чем человек успевает думать.",
+                "action": true
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Открыть и всё-таки посмотреть.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "За дверью стоял Геннадич: спит на своей койке и храпит. Всё остальное легло на подоконник.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Не открывать. Лечь.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "flag_quiet_obeyed"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_bridge_scare"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ты лёг, не раздеваясь, и пролежал с открытыми глазами до шестого.",
+                    "emotion": "afraid"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    }
+  ]
+}

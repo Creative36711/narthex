@@ -1,10 +1,10 @@
-EXTERNAL get_flag(f)
-EXTERNAL set_flag(f)
 EXTERNAL add_item(id, n)
 EXTERNAL skill_check(s, d)
+EXTERNAL get_flag(f)
+EXTERNAL set_flag(f)
 EXTERNAL get_disposition(t)
-EXTERNAL in_party(id)
 EXTERNAL join_party(id)
+EXTERNAL in_party(id)
 EXTERNAL quest_stage(q)
 
 === main ===

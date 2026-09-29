@@ -1,0 +1,40 @@
+{
+  "id": "rule_rest_low",
+  "label": "Сон на исходе",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "need_le",
+      "need": "need_rest",
+      "threshold": 22
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_sleepless_on"
+    }
+  ],
+  "effects": [
+    {
+      "type": "apply_status",
+      "status": "status_sleepless",
+      "duration": 12,
+      "target": "player"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_sleepless_on"
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 10
+    },
+    {
+      "type": "banner",
+      "text": "Ты держишь глаза открытыми только из упрямства.",
+      "preset": "шёпот"
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

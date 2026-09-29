@@ -1,0 +1,46 @@
+{
+  "id": "item_window_gate",
+  "type": "item",
+  "category": "misc",
+  "label": "Окно на ворота",
+  "description": "За окном будка, шлагбаум и дорога к насыпи. Калитка заперена новым висячим замком — новым, в лагере, который сдают под снос.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Смотреть на дорогу",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": -4
+        },
+        {
+          "type": "show_message",
+          "text": "Ни одной машины. Фары были бы видны за поворотом; ты ждёшь не их."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Постучать по стеклу",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Тук. Эхо вернулось не из двора, а снизу — из-под пола бытовки."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

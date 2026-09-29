@@ -1,0 +1,37 @@
+{
+  "id": "rule_bridge_obey",
+  "label": "Мост: методика принята",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_obey_inna"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -14
+    },
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": 25
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": -40
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_protocol_burned"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_shift",
+      "stage": "stage_choice"
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

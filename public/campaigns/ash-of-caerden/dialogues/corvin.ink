@@ -1,11 +1,11 @@
-EXTERNAL get_flag(f)
-EXTERNAL set_flag(f)
-EXTERNAL remove_item(id, n)
 EXTERNAL has_item(id)
-EXTERNAL start_quest(q)
-EXTERNAL quest_stage(q)
+EXTERNAL remove_item(id, n)
 EXTERNAL change_hp(d)
 EXTERNAL get_hp()
+EXTERNAL get_flag(f)
+EXTERNAL set_flag(f)
+EXTERNAL start_quest(q)
+EXTERNAL quest_stage(q)
 
 === main ===
 { get_flag("relic_returned"):

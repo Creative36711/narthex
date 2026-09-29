@@ -155,8 +155,10 @@ export type {
   DlgChoice,
   DlgNode,
   DlgDoc,
+  SkillDifficulty,
 } from '../shared/types'
-import type { DlgCond, DlgDoc, DlgEffect, DlgLine, DlgSection, DlgStep } from '../shared/types'
+import type { DlgCond, DlgDoc, DlgEffect, DlgLine, DlgSection, DlgStep, SkillDifficulty } from '../shared/types'
+import { externalDeclarations } from '../shared/dialogueExternals'
 
 export function newDlgDoc(label?: string): DlgDoc {
   return {
@@ -325,6 +327,12 @@ function isTerminalEffect(e: DlgEffect): boolean {
   return e.type === 'open_trade' || e.type === 'fire_rule'
 }
 
+/** сложность проверки в ink: число — как есть, книжный уровень — строкой
+ *  (иначе ink ищет переменную с таким именем и падает с «Unresolved variable») */
+function inkDifficulty(d: SkillDifficulty): string {
+  return typeof d === 'number' ? String(d) : JSON.stringify(d)
+}
+
 export function generateInk(docRaw: DlgDoc): string {
   const doc = migrateDlgDoc(docRaw)
   const out: string[] = []
@@ -351,7 +359,9 @@ export function generateInk(docRaw: DlgDoc): string {
     return false
   }
 
-  const emitSections = (nodeId: string, sections: DlgSection[], indent: string): void => {
+  /** шаги; возвращает true, если поток завершён (терминальный эффект) */
+  const emitSections = (nodeId: string, sections: DlgSection[], indent: string): boolean => {
+    let finished = false
     for (const sec of sections) {
       if (sec.conds && sec.conds.length > 0) {
         out.push(`${indent}{ ${condsInk(sec.conds)}:`)
@@ -363,11 +373,14 @@ export function generateInk(docRaw: DlgDoc): string {
           if (!edone && sec.else_goto) out.push(`${indent}    -> ${target(nodeId, sec.else_goto, sec.else_goto)}`)
         }
         out.push(`${indent}}`)
+        if (done) finished = true
       } else {
         const done = emitSteps(sec.steps, indent)
         if (!done && sec.goto) out.push(`${indent}-> ${target(nodeId, sec.goto, sec.goto)}`)
+        if (done) finished = true
       }
     }
+    return finished
   }
 
   for (const node of doc.nodes) {
@@ -391,9 +404,10 @@ export function generateInk(docRaw: DlgDoc): string {
       const condStr = c.conds && c.conds.length > 0 ? `{ ${condsInk(c.conds)} } ` : ''
       const marker = c.once ? '*' : '+'
       out.push(`${marker} ${condStr}[${c.text.replace(/\s+/g, ' ').trim()}]`)
-      emitSections(node.id, c.sections, '    ')
+      const closed = emitSections(node.id, c.sections, '    ')
+      if (closed) continue
       if (c.check) {
-        out.push(`    ~ temp d = ${c.check.difficulty}`)
+        out.push(`    ~ temp d = ${inkDifficulty(c.check.difficulty)}`)
         for (const m of c.check.mods ?? []) {
           out.push(`    { ${condsInk(m.conds)}:`, `        ~ d = ${m.value}`, '    }')
         }
@@ -415,29 +429,7 @@ export function generateInk(docRaw: DlgDoc): string {
 
   const body = out.join('\n')
 
-  // EXTERNAL-декларации — только для использованных функций
-  const FNS = [
-    'get_flag', 'set_flag', 'add_item', 'remove_item', 'item_count', 'has_item',
-    'skill_check', 'get_disposition', 'change_disposition', 'in_party', 'join_party',
-    'open_trade', 'fire_rule', 'start_quest', 'quest_stage', 'advance_time',
-    'change_need', 'change_hp', 'get_hp', 'sleep', 'get_need', 'get_stat', 'get_skill',
-    'play_cutscene', 'set_description', 'apply_status', 'remove_status',
-    'set_weather', 'unlock_codex', 'unlock_recipe', 'set_entity_state',
-    'set_choice_deadline', 'start_crisis', 'end_crisis', 'extend_crisis',
-  ]
-  const SIG: Record<string, string> = {
-    get_flag: '(f)', set_flag: '(f)', add_item: '(id, n)', remove_item: '(id, n)',
-    item_count: '(id)', has_item: '(id)', skill_check: '(s, d)', get_disposition: '(t)',
-    change_disposition: '(t, d)', in_party: '(id)', join_party: '(id)', open_trade: '(id)',
-    fire_rule: '(id)', start_quest: '(q)', quest_stage: '(q)', advance_time: '(t)',
-    change_need: '(id, d)', change_hp: '(d)', get_hp: '()', sleep: '(t)',
-    get_need: '(id)', get_stat: '(s)', get_skill: '(s)',
-    play_cutscene: '(id)', set_description: '(id, text)', apply_status: '(id, dur)',
-    remove_status: '(id)', set_weather: '(id)', unlock_codex: '(id)',
-    unlock_recipe: '(id)', set_entity_state: '(id, st)',
-    set_choice_deadline: '(t, to, pick)', start_crisis: '(t, label, every)',
-    end_crisis: '()', extend_crisis: '(t)',
-  }
-  const externals = FNS.filter((f) => body.includes(`${f}(`)).map((f) => `EXTERNAL ${f}${SIG[f]}`)
-  return `${externals.join('\n')}\n\n${body}`
+  // EXTERNAL-декларации — только для использованных функций, подписи общие с
+  // движком (shared/dialogueExternals.ts): иначе ink не компилируется
+  return `${externalDeclarations(body).join('\n')}\n\n${body}`
 }

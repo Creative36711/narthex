@@ -1,0 +1,86 @@
+{
+  "encounter_tables": [
+    {
+      "id": "enc_woods",
+      "rolls": 1,
+      "entries": [
+        {
+          "weight": 4,
+          "type": "nothing"
+        },
+        {
+          "weight": 3,
+          "type": "event",
+          "message": "В чаще над насыпью кто-то идёт в ногу с тобой и отстаёт только на поворотах.",
+          "effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 12
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": -5
+            },
+            {
+              "type": "change_sanity",
+              "delta": -2
+            },
+            {
+              "type": "banner",
+              "text": "Не оборачивайся. Шум — это тоже шаги.",
+              "preset": "шёпот"
+            }
+          ]
+        },
+        {
+          "weight": 2,
+          "type": "skill_check",
+          "skill": "listen",
+          "difficulty": 50,
+          "message": "Ты останавливаешься и слушаешь: тропа, вода, детский смех без звука.",
+          "success_effects": [
+            {
+              "type": "unlock_codex",
+              "entry": "codex_shore_view"
+            },
+            {
+              "type": "change_luck",
+              "delta": 3
+            },
+            {
+              "type": "show_message",
+              "text": "Смех оборвался ровно там, где тропа выходит к берегу."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_sanity",
+              "delta": -4
+            },
+            {
+              "type": "show_message",
+              "text": "Ты не услышал ничего. Это хуже, чем услышать."
+            }
+          ]
+        },
+        {
+          "weight": 2,
+          "type": "event",
+          "message": "Кто-то идёт впереди и расчищает тропу от сучьев, оставляя их по правую руку — так делают, когда ведут.",
+          "effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_walker"
+            },
+            {
+              "type": "advance_time",
+              "ticks": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

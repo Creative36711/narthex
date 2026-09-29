@@ -1,0 +1,1997 @@
+{
+  "id": "polyn_quiet_hour",
+  "title": "Полынь. Ночная смена",
+  "version": "0.1.0",
+  "engine_version": "0.7.0",
+  "min_engine": "0.7.0",
+  "package_format": 1,
+  "author": "Хроника (сборка ИИ-агента)",
+  "description": "Психологический хоррор о трёх ночах в лагере «Полынь», который через 60 часов уходит под воду. Боя нет: ужас здесь — это расписание 1986 года, и оно требует, чтобы ты его соблюдал. Шум, Выдержка и Рассудок — три шкалы, которые лагерь читает вместо твоего лица.",
+  "tick_label": "час",
+  "ticks_per_day": 24,
+  "time_of_day": {
+    "morning": 6,
+    "day": 10,
+    "evening": 19,
+    "night": 23
+  },
+  "starting_region": "region_polyn",
+  "starting_location": "loc_gate",
+  "starting_scene": "scene_gatehouse",
+  "starting_tick": 21,
+  "dialogue_tick_seconds": 2,
+  "save_slots": 1,
+  "skills": [
+    {
+      "id": "stealth",
+      "label": "Не шуметь",
+      "base": 25
+    },
+    {
+      "id": "listen",
+      "label": "Прислушаться",
+      "base": 35
+    },
+    {
+      "id": "spot",
+      "label": "Заметить",
+      "base": 35
+    },
+    {
+      "id": "psychology",
+      "label": "Читать людей",
+      "base": 15
+    },
+    {
+      "id": "persuade",
+      "label": "Уговорить",
+      "base": 20
+    },
+    {
+      "id": "first_aid",
+      "label": "Самопомощь",
+      "base": 20
+    },
+    {
+      "id": "repair",
+      "label": "Наладить",
+      "base": 20
+    }
+  ],
+  "needs": [
+    {
+      "id": "need_noise",
+      "label": "Шум",
+      "max": 100,
+      "decay_per_tick": 7,
+      "critical_threshold": 0,
+      "restore_when": [
+        {
+          "type": "flag",
+          "flag": "flag_quiet_obeyed"
+        }
+      ],
+      "restore_per_tick": 4
+    },
+    {
+      "id": "need_nerve",
+      "label": "Выдержка",
+      "max": 100,
+      "decay_per_tick": 0.8,
+      "critical_threshold": 25,
+      "on_zero_effect": "rule_nerves_gone",
+      "restore_when": [
+        {
+          "type": "flag",
+          "flag": "flag_stove_on"
+        },
+        {
+          "type": "in_location",
+          "locations": [
+            "loc_gate"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "need_rest",
+      "label": "Сон",
+      "max": 100,
+      "decay_per_tick": 1.2,
+      "critical_threshold": 20,
+      "on_zero_effect": "rule_collapsus"
+    }
+  ],
+  "statuses": [
+    {
+      "id": "status_shakes",
+      "label": "Дрожь в руках",
+      "scope": "world",
+      "duration": 18,
+      "description": "Пальцы не слушаются: сложно быть тихим и сложно чинить.",
+      "skill_mods": [
+        {
+          "skill": "stealth",
+          "delta": -20
+        },
+        {
+          "skill": "repair",
+          "delta": -20
+        },
+        {
+          "skill": "listen",
+          "delta": -10
+        }
+      ],
+      "apply_message": "Руки ходят ходуном; ты держишь фонарь двумя ладонями.",
+      "expire_message": "Дрожь отпустила."
+    },
+    {
+      "id": "status_sleepless",
+      "label": "Бессонница",
+      "scope": "world",
+      "duration": 24,
+      "description": "Веки тяжелеют, тени начинают шевелиться сами.",
+      "skill_mods": [
+        {
+          "skill": "spot",
+          "delta": -15
+        },
+        {
+          "skill": "listen",
+          "delta": -15
+        },
+        {
+          "skill": "stealth",
+          "delta": -10
+        }
+      ],
+      "apply_message": "Ты засыпаешь на ходу — и от этого слышишь лишнее.",
+      "expire_message": "Сон вернулся в тело."
+    },
+    {
+      "id": "status_numbed",
+      "label": "Оцепенение",
+      "scope": "world",
+      "duration": 6,
+      "description": "Тело слушается чужой команды, а не твоей.",
+      "skill_mods": [
+        {
+          "skill": "stealth",
+          "delta": -30
+        },
+        {
+          "skill": "listen",
+          "delta": -10
+        }
+      ],
+      "mov_mod": -1,
+      "apply_message": "Ты стоишь посреди коридора и не можешь пошевелиться.",
+      "on_expire": [
+        {
+          "type": "show_message",
+          "text": "Онемение схлынуло. Ты снова там, где тебя поставили."
+        }
+      ]
+    },
+    {
+      "id": "status_wormwood",
+      "label": "Запах полыни",
+      "scope": "world",
+      "duration": 12,
+      "description": "Пучок полыни за пазухой. Она не любит горькое.",
+      "skill_mods": [
+        {
+          "skill": "spot",
+          "delta": 5
+        },
+        {
+          "skill": "listen",
+          "delta": 5
+        }
+      ],
+      "apply_message": "Ты засунул за пазуху горькую полынь. Голова прояснилась."
+    }
+  ],
+  "item_categories": [
+    {
+      "id": "food",
+      "label": "Еда и питьё",
+      "restores_needs": [
+        "need_nerve"
+      ]
+    },
+    {
+      "id": "medicine",
+      "label": "Лекарства",
+      "restores_hp": true
+    },
+    {
+      "id": "light",
+      "label": "Свет и огонь"
+    },
+    {
+      "id": "tool",
+      "label": "Инструменты"
+    },
+    {
+      "id": "document",
+      "label": "Документы"
+    },
+    {
+      "id": "key",
+      "label": "Ключи"
+    },
+    {
+      "id": "currency",
+      "label": "Валюта"
+    },
+    {
+      "id": "container",
+      "label": "Контейнер"
+    },
+    {
+      "id": "device",
+      "label": "Механика и ток"
+    },
+    {
+      "id": "misc",
+      "label": "Разное"
+    }
+  ],
+  "slot_types": [
+    {
+      "id": "person",
+      "label": "Человек"
+    },
+    {
+      "id": "item",
+      "label": "Предмет"
+    },
+    {
+      "id": "container",
+      "label": "Контейнер"
+    },
+    {
+      "id": "device",
+      "label": "Прибор"
+    }
+  ],
+  "emotions": [
+    {
+      "id": "neutral",
+      "label": "Обычное"
+    },
+    {
+      "id": "tense",
+      "label": "Напряжено"
+    },
+    {
+      "id": "afraid",
+      "label": "Испуганно"
+    },
+    {
+      "id": "crying",
+      "label": "Плачет"
+    },
+    {
+      "id": "angry",
+      "label": "Злится"
+    },
+    {
+      "id": "smile",
+      "label": "Улыбается"
+    },
+    {
+      "id": "hollow",
+      "label": "Пусто"
+    },
+    {
+      "id": "calm",
+      "label": "Спокойно"
+    }
+  ],
+  "flags": [
+    {
+      "id": "flag_ch1",
+      "label": "Глава I. Смена принята"
+    },
+    {
+      "id": "flag_ch2",
+      "label": "Глава II. Тихий час"
+    },
+    {
+      "id": "flag_ch3",
+      "label": "Глава III. Вода"
+    },
+    {
+      "id": "flag_ch4",
+      "label": "Глава IV. Рассвет"
+    },
+    {
+      "id": "flag_shift_started",
+      "label": "Расписка в наряде подписана"
+    },
+    {
+      "id": "flag_rules_known",
+      "label": "Режим лагеря выучен"
+    },
+    {
+      "id": "flag_first_round",
+      "label": "Первый обход сделан"
+    },
+    {
+      "id": "flag_stove_on",
+      "label": "Печка в бытовке топится"
+    },
+    {
+      "id": "flag_torch_on",
+      "label": "Фонарь включён"
+    },
+    {
+      "id": "flag_torch_dead",
+      "label": "Батарейка села"
+    },
+    {
+      "id": "flag_light_on",
+      "label": "Свет в корпусе включён"
+    },
+    {
+      "id": "flag_knocks_ready",
+      "label": "Стучат в дверь бытовки"
+    },
+    {
+      "id": "flag_knocks_opened",
+      "label": "Дверь открыта"
+    },
+    {
+      "id": "flag_knocks_silent",
+      "label": "Промолчал трём стукам"
+    },
+    {
+      "id": "flag_quiet_hour",
+      "label": "Идёт тихий час"
+    },
+    {
+      "id": "flag_quiet_obeyed",
+      "label": "Лежал в тихий час"
+    },
+    {
+      "id": "flag_qh_noticed",
+      "label": "Тебя заметили в тихий час"
+    },
+    {
+      "id": "flag_his_grasp",
+      "label": "Тихий Час обратил внимание"
+    },
+    {
+      "id": "flag_shakes_on",
+      "label": "Состояние: дрожь в руках"
+    },
+    {
+      "id": "flag_sleepless_on",
+      "label": "Состояние: бессонница"
+    },
+    {
+      "id": "flag_sanity40",
+      "label": "Рассудок просел до 40"
+    },
+    {
+      "id": "flag_sanity30",
+      "label": "Рассудок просел до 30"
+    },
+    {
+      "id": "flag_sanity20",
+      "label": "Рассудок просел до 20"
+    },
+    {
+      "id": "flag_sanity10",
+      "label": "Рассудок просел до 10"
+    },
+    {
+      "id": "flag_roma_shows",
+      "label": "Рома показывается"
+    },
+    {
+      "id": "flag_roma_told",
+      "label": "Рома рассказал про ключ"
+    },
+    {
+      "id": "flag_roma_taken",
+      "label": "Рому забрали"
+    },
+    {
+      "id": "flag_inna_watching",
+      "label": "Инна наблюдает"
+    },
+    {
+      "id": "flag_inna_offended",
+      "label": "Инна оскорблена"
+    },
+    {
+      "id": "flag_obey_inna",
+      "label": "Принята «методика» Инны"
+    },
+    {
+      "id": "flag_defied_inna",
+      "label": "Отказано Инне"
+    },
+    {
+      "id": "flag_lelya_shows",
+      "label": "Она показывается у воды"
+    },
+    {
+      "id": "flag_cabinet_name",
+      "label": "Названо её имя"
+    },
+    {
+      "id": "flag_cabinet_unlocked",
+      "label": "Шкаф тишины отперт"
+    },
+    {
+      "id": "flag_called_name",
+      "label": "Позвал её по имени у воды"
+    },
+    {
+      "id": "flag_zoya_arrived",
+      "label": "Зоя Романовна в лагере"
+    },
+    {
+      "id": "flag_zoya_left",
+      "label": "Зоя уехала"
+    },
+    {
+      "id": "flag_zoya_confirmed",
+      "label": "Справка 276-А получена"
+    },
+    {
+      "id": "flag_report_done",
+      "label": "Описи сданы в срок"
+    },
+    {
+      "id": "flag_director_arrived",
+      "label": "Директор Губарь приехал"
+    },
+    {
+      "id": "flag_director_confessed",
+      "label": "Признание директора"
+    },
+    {
+      "id": "flag_director_burned",
+      "label": "Директор сжёг архив"
+    },
+    {
+      "id": "flag_fence_open",
+      "label": "Проулок к озеру открыт"
+    },
+    {
+      "id": "flag_dam_open",
+      "label": "К плотине есть доступ"
+    },
+    {
+      "id": "flag_dam_opened",
+      "label": "Щиты подняты раньше срока"
+    },
+    {
+      "id": "flag_pump_fixed",
+      "label": "Насос подключён — вода отсрочена"
+    },
+    {
+      "id": "flag_water_in_basement",
+      "label": "Подвал затоплен"
+    },
+    {
+      "id": "flag_water_low",
+      "label": "Вода в ливневом люке спала"
+    },
+    {
+      "id": "flag_flooded",
+      "label": "Вода пришла в лагерь"
+    },
+    {
+      "id": "flag_cut_by_water",
+      "label": "Дорога к воротам отрезана"
+    },
+    {
+      "id": "flag_protocol_burned",
+      "label": "Приказ №276 сожжён"
+    },
+    {
+      "id": "flag_protocol_saved",
+      "label": "Приказ вынесен из лагеря"
+    },
+    {
+      "id": "flag_prosecutor",
+      "label": "Копия ушла в прокуратуру"
+    },
+    {
+      "id": "flag_truth",
+      "label": "Правда собрана"
+    },
+    {
+      "id": "flag_gennadich_asked",
+      "label": "Геннадич попросил найти флягу"
+    },
+    {
+      "id": "flag_flask_given",
+      "label": "Фляга возвращена"
+    },
+    {
+      "id": "flag_pipe_signal",
+      "label": "Условный стук по трубе"
+    },
+    {
+      "id": "flag_knocks_answered",
+      "label": "Реакция на три стука зафиксирована"
+    },
+    {
+      "id": "flag_knocks_rule_known",
+      "label": "Правило трёх стуков известно"
+    },
+    {
+      "id": "flag_truth_part",
+      "label": "Есть только часть правды"
+    },
+    {
+      "id": "flag_piano_played",
+      "label": "На рояле играли"
+    },
+    {
+      "id": "flag_sang_waltz",
+      "label": "Спел «Прощальный вальс»"
+    },
+    {
+      "id": "flag_shutter_nailed",
+      "label": "Стапень забита"
+    },
+    {
+      "id": "flag_lelya_name_read",
+      "label": "Имя на меловой доске прочитано"
+    },
+    {
+      "id": "flag_offbed_couch",
+      "label": "Спал не на своей койке"
+    },
+    {
+      "id": "flag_inna_hostile",
+      "label": "Инна считает тебя нарушителем"
+    },
+    {
+      "id": "flag_zoya_dates",
+      "label": "Зоя показала даты подъёма воды"
+    },
+    {
+      "id": "flag_phone_hung",
+      "label": "Трубку положил первым"
+    },
+    {
+      "id": "flag_buried",
+      "label": "Правда осталась в «Полыни»"
+    },
+    {
+      "id": "flag_cabinet_self",
+      "label": "Ты лёг в «шкаф тишины» сам"
+    },
+    {
+      "id": "flag_missing_child",
+      "label": "В списке не хватает имени"
+    },
+    {
+      "id": "flag_alarm",
+      "label": "Сработала сигнализация щитка"
+    },
+    {
+      "id": "flag_safe_open",
+      "label": "Сейф открыт"
+    },
+    {
+      "id": "flag_log_partial",
+      "label": "Страницы журнала размокли"
+    },
+    {
+      "id": "flag_basement_lit",
+      "label": "В подвале горит коптилка"
+    },
+    {
+      "id": "flag_cot_slept",
+      "label": "Спал в спальном корпусе"
+    },
+    {
+      "id": "flag_endgame",
+      "label": "Начался последний обход"
+    },
+    {
+      "id": "flag_left_polyn",
+      "label": "Уехал из «Полыни»"
+    },
+    {
+      "id": "flag_final_walk",
+      "label": "Последний обход: Инна и директор у воды"
+    }
+  ],
+  "currencies": [
+    {
+      "id": "rubles",
+      "label": "Рубли",
+      "symbol": "р.",
+      "item_id": "item_ruble"
+    }
+  ],
+  "factions": [
+    {
+      "id": "faction_liquidkom",
+      "label": "Ликвидкомиссия",
+      "base_disposition": 0,
+      "description": "Три человека и одна папка: лагерь должен быть описан, вывезен и затоплен без шума."
+    }
+  ],
+  "default_player": "player_hero",
+  "max_companions": 0,
+  "dice_rules": {
+    "critical_divisor": 5,
+    "special_divisor": 2,
+    "fumble_from": 96
+  },
+  "vitals": {
+    "sanity": {
+      "multiplier": 5
+    }
+  },
+  "luck": {
+    "multiplier": 5,
+    "reroll_cost": 5,
+    "rest_luck": false
+  },
+  "hazards": {
+    "fall_meters_per_die": 3,
+    "fall_damage": "1d6"
+  },
+  "stealth": {
+    "skill": "stealth",
+    "perception_skill": "listen"
+  },
+  "rest": {
+    "hp": "1",
+    "mp_full": false
+  },
+  "progression": {
+    "xp_per_level": 120,
+    "feats_per_level": 0,
+    "max_level": 3,
+    "feats": []
+  },
+  "features": {
+    "map": true,
+    "inventory": true,
+    "needs": true,
+    "skills": true,
+    "relationships": false,
+    "trade": true,
+    "combat": false,
+    "time": true
+  },
+  "calendar": {
+    "year_label": "год",
+    "start_year": 1999,
+    "days_per_month": 31,
+    "months": [
+      "Август"
+    ],
+    "day_names": [
+      "вторник",
+      "среда",
+      "четверг",
+      "пятница",
+      "суббота",
+      "воскресенье",
+      "понедельник"
+    ]
+  },
+  "weathers": [
+    {
+      "id": "weather_fog",
+      "label": "Туман с воды",
+      "overlay": "fog",
+      "ambient": [
+        "sfx_lake_hush"
+      ]
+    },
+    {
+      "id": "weather_rain",
+      "label": "Морось над чашей",
+      "overlay": "rain",
+      "ambient": [
+        "sfx_rain"
+      ]
+    }
+  ],
+  "overlay_layers": [
+    {
+      "id": "fog",
+      "label": "Туман"
+    },
+    {
+      "id": "rain",
+      "label": "Морось"
+    }
+  ],
+  "music_tracks": [
+    {
+      "id": "music_menu",
+      "label": "Полынь: тема меню",
+      "src": {
+        "mood": "тревожная",
+        "tempo": 52,
+        "key": "A",
+        "scale": "минор",
+        "layers": [
+          "пад-аккорды"
+        ],
+        "progression": [
+          "i",
+          "VI",
+          "III",
+          "VII"
+        ],
+        "seed": 11
+      },
+      "volume": 0.55,
+      "loop": true
+    },
+    {
+      "id": "music_gate",
+      "label": "Бытовка у печки",
+      "src": {
+        "mood": "спокойная",
+        "tempo": 58,
+        "key": "D",
+        "scale": "минор",
+        "layers": [
+          "пад-аккорды",
+          "арпеджио"
+        ],
+        "progression": [
+          "i",
+          "iv",
+          "VI",
+          "v"
+        ],
+        "seed": 3
+      },
+      "volume": 0.55,
+      "loop": true
+    },
+    {
+      "id": "music_night",
+      "label": "Ночной плац",
+      "src": {
+        "mood": "таинственная",
+        "tempo": 44,
+        "key": "E",
+        "scale": "фригийский",
+        "layers": [
+          "пад-аккорды",
+          "бас"
+        ],
+        "progression": [
+          "i",
+          "II",
+          "i",
+          "VI"
+        ],
+        "seed": 7
+      },
+      "volume": 0.7,
+      "loop": true
+    },
+    {
+      "id": "music_day",
+      "label": "Пустой лагерь днём",
+      "src": {
+        "mood": "спокойная",
+        "tempo": 66,
+        "key": "G",
+        "scale": "дорийский",
+        "layers": [
+          "арпеджио",
+          "пад-аккорды"
+        ],
+        "progression": [
+          "i",
+          "VII",
+          "VI",
+          "VII"
+        ],
+        "seed": 5
+      },
+      "volume": 0.5,
+      "loop": true
+    },
+    {
+      "id": "music_quiet",
+      "label": "Тихий час",
+      "src": {
+        "mood": "тревожная",
+        "tempo": 40,
+        "key": "C",
+        "scale": "фригийский",
+        "layers": [
+          "бас",
+          "пад-аккорды"
+        ],
+        "progression": [
+          "i",
+          "i",
+          "II",
+          "i"
+        ],
+        "seed": 13
+      },
+      "volume": 0.75,
+      "loop": true
+    },
+    {
+      "id": "music_corridor",
+      "label": "Коридор спального",
+      "src": {
+        "mood": "тревожная",
+        "tempo": 48,
+        "key": "F#",
+        "scale": "минор",
+        "layers": [
+          "пад-аккорды",
+          "перкуссия"
+        ],
+        "progression": [
+          "i",
+          "VI",
+          "II",
+          "V"
+        ],
+        "seed": 17
+      },
+      "volume": 0.7,
+      "loop": true
+    },
+    {
+      "id": "music_dorm",
+      "label": "Спальный корпус",
+      "src": {
+        "mood": "таинственная",
+        "tempo": 54,
+        "key": "A",
+        "scale": "пентатоника",
+        "layers": [
+          "пад-аккорды"
+        ],
+        "progression": [
+          "i",
+          "III",
+          "VII",
+          "i"
+        ],
+        "seed": 19
+      },
+      "volume": 0.6,
+      "loop": true
+    },
+    {
+      "id": "music_club",
+      "label": "Актовый зал",
+      "src": {
+        "mood": "таинственная",
+        "tempo": 60,
+        "key": "D",
+        "scale": "дорийский",
+        "layers": [
+          "арпеджио"
+        ],
+        "progression": [
+          "i",
+          "VII",
+          "VI",
+          "VII"
+        ],
+        "seed": 23
+      },
+      "volume": 0.6,
+      "loop": true
+    },
+    {
+      "id": "music_basement",
+      "label": "Подвал и архив",
+      "src": {
+        "mood": "тревожная",
+        "tempo": 36,
+        "key": "C",
+        "scale": "минор",
+        "layers": [
+          "бас",
+          "пад-аккорды"
+        ],
+        "progression": [
+          "i",
+          "i",
+          "VI",
+          "VII"
+        ],
+        "seed": 29
+      },
+      "volume": 0.7,
+      "loop": true
+    },
+    {
+      "id": "music_lake",
+      "label": "Вода поднимается",
+      "src": {
+        "mood": "тревожная",
+        "tempo": 42,
+        "key": "E",
+        "scale": "минор",
+        "layers": [
+          "пад-аккорды",
+          "бас"
+        ],
+        "progression": [
+          "i",
+          "VI",
+          "VII",
+          "i"
+        ],
+        "seed": 31
+      },
+      "volume": 0.75,
+      "loop": true
+    },
+    {
+      "id": "music_method",
+      "label": "Методкабинет",
+      "src": {
+        "mood": "таинственная",
+        "tempo": 34,
+        "key": "G#",
+        "scale": "фригийский",
+        "layers": [
+          "бас",
+          "перкуссия"
+        ],
+        "progression": [
+          "i",
+          "II",
+          "i",
+          "II"
+        ],
+        "seed": 37
+      },
+      "volume": 0.7,
+      "loop": true
+    },
+    {
+      "id": "music_final",
+      "label": "Рассвет, которого не будет",
+      "src": {
+        "mood": "торжественная",
+        "tempo": 64,
+        "key": "A",
+        "scale": "минор",
+        "layers": [
+          "пад-аккорды",
+          "бас",
+          "перкуссия"
+        ],
+        "progression": [
+          "i",
+          "VI",
+          "VII",
+          "i"
+        ],
+        "seed": 41
+      },
+      "volume": 0.8,
+      "loop": true
+    },
+    {
+      "id": "music_tension",
+      "label": "Он идёт на звук",
+      "src": {
+        "mood": "боевая",
+        "tempo": 96,
+        "key": "D",
+        "scale": "фригийский",
+        "layers": [
+          "перкуссия",
+          "бас"
+        ],
+        "progression": [
+          "i",
+          "i",
+          "II",
+          "i"
+        ],
+        "seed": 43
+      },
+      "volume": 0.8,
+      "loop": true
+    }
+  ],
+  "sounds": [
+    {
+      "id": "sfx_click",
+      "label": "Щелчок",
+      "src": {
+        "zzfx": [
+          1.4,
+          0,
+          900,
+          0,
+          0.02,
+          0.03,
+          1,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.5,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_knock",
+      "label": "Три стука",
+      "src": [
+        {
+          "zzfx": [
+            2.2,
+            0.05,
+            130,
+            0.001,
+            0.05,
+            0.09,
+            4,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9,
+            0,
+            0,
+            0,
+            0.6,
+            0,
+            0
+          ]
+        },
+        {
+          "zzfx": [
+            2.2,
+            0.08,
+            112,
+            0.001,
+            0.06,
+            0.11,
+            4,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9,
+            0,
+            0,
+            0,
+            0.6,
+            0,
+            0
+          ]
+        },
+        {
+          "zzfx": [
+            2.2,
+            0.03,
+            148,
+            0.001,
+            0.04,
+            0.08,
+            4,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9,
+            0,
+            0,
+            0,
+            0.6,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sfx_creak",
+      "label": "Скрип двери",
+      "src": [
+        {
+          "zzfx": [
+            1.6,
+            0.2,
+            220,
+            0.02,
+            0.12,
+            0.2,
+            2,
+            -1.1,
+            8,
+            0.1,
+            0,
+            0,
+            0,
+            0.3,
+            0.4,
+            0,
+            0.2,
+            0.4,
+            0,
+            0
+          ]
+        },
+        {
+          "zzfx": [
+            1.6,
+            0.3,
+            180,
+            0.03,
+            0.14,
+            0.24,
+            2,
+            -1.4,
+            6,
+            0.12,
+            0,
+            0,
+            0,
+            0.3,
+            0.5,
+            0,
+            0.2,
+            0.4,
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sfx_static",
+      "label": "Помехи радиоточки",
+      "src": {
+        "zzfx": [
+          1.1,
+          0.4,
+          60,
+          0.01,
+          0.5,
+          0.6,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          1,
+          0,
+          0,
+          0,
+          0.2,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_drop",
+      "label": "Капля",
+      "src": {
+        "zzfx": [
+          1.8,
+          0.1,
+          900,
+          0,
+          0.02,
+          0.14,
+          0,
+          -8,
+          300,
+          0.3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.2,
+          0.5,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_breath",
+      "label": "Дыхание за стеной",
+      "src": {
+        "zzfx": [
+          1,
+          0.5,
+          90,
+          0.15,
+          0.4,
+          0.5,
+          4,
+          0.3,
+          -20,
+          0.05,
+          0,
+          0,
+          0,
+          1,
+          0.2,
+          0,
+          0,
+          0.3,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_page",
+      "label": "Шелест бумаги",
+      "src": {
+        "zzfx": [
+          1.2,
+          0.3,
+          1400,
+          0.005,
+          0.05,
+          0.1,
+          4,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0.4,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_torch",
+      "label": "Фонарь",
+      "src": {
+        "zzfx": [
+          1.4,
+          0,
+          700,
+          0,
+          0.02,
+          0.04,
+          3,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.4,
+          0,
+          0,
+          0,
+          0.4,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_bell",
+      "label": "Далекий звонок",
+      "src": {
+        "zzfx": [
+          1.6,
+          0.05,
+          520,
+          0.01,
+          0.4,
+          0.8,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.6,
+          0,
+          0.5,
+          0.6,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_heart",
+      "label": "Сердце",
+      "src": {
+        "zzfx": [
+          2,
+          0,
+          62,
+          0.005,
+          0.06,
+          0.12,
+          0,
+          -2,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          0.6,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_steps",
+      "label": "Шаги по линолеуму",
+      "src": {
+        "zzfx": [
+          1.3,
+          0.2,
+          240,
+          0.004,
+          0.03,
+          0.06,
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.8,
+          0,
+          0,
+          0,
+          0.4,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_water",
+      "label": "Вода о борт",
+      "src": {
+        "zzfx": [
+          1.4,
+          0.3,
+          160,
+          0.08,
+          0.3,
+          0.5,
+          4,
+          -0.8,
+          -10,
+          0.06,
+          0,
+          0,
+          0,
+          1,
+          0.3,
+          0,
+          0.3,
+          0.3,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_fire",
+      "label": "Огонь в печке",
+      "src": {
+        "zzfx": [
+          1,
+          0.5,
+          70,
+          0.05,
+          0.4,
+          0.5,
+          4,
+          0.2,
+          0,
+          0.04,
+          0,
+          0,
+          1,
+          1,
+          0.1,
+          0,
+          0,
+          0.3,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_sip",
+      "label": "Глоток",
+      "src": {
+        "zzfx": [
+          1.3,
+          0.1,
+          420,
+          0.01,
+          0.06,
+          0.1,
+          2,
+          -3,
+          120,
+          0.2,
+          0,
+          0,
+          0,
+          0.4,
+          0,
+          0,
+          0,
+          0.4,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_lock",
+      "label": "Секретный замок",
+      "src": {
+        "zzfx": [
+          1.6,
+          0.1,
+          300,
+          0.002,
+          0.02,
+          0.05,
+          3,
+          4,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0.6,
+          0,
+          0,
+          0,
+          0.4,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "id": "sfx_hum",
+      "label": "Гул лампы",
+      "src": {
+        "zzfx": [
+          0.7,
+          0.1,
+          100,
+          0.2,
+          1,
+          1.2,
+          0,
+          0.05,
+          0,
+          0.01,
+          0,
+          0,
+          0,
+          0.1,
+          0,
+          0,
+          0,
+          0.2,
+          0,
+          0
+        ]
+      },
+      "loop": true
+    },
+    {
+      "id": "sfx_rain",
+      "label": "Морось",
+      "src": {
+        "zzfx": [
+          0.8,
+          0.6,
+          700,
+          0.2,
+          1,
+          1,
+          4,
+          0,
+          0,
+          0.01,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0.2,
+          0,
+          0
+        ]
+      },
+      "loop": true
+    },
+    {
+      "id": "sfx_lake_hush",
+      "label": "Тихая вода",
+      "src": {
+        "zzfx": [
+          0.9,
+          0.5,
+          130,
+          0.3,
+          1,
+          1,
+          4,
+          -0.2,
+          -6,
+          0.02,
+          0,
+          0,
+          0,
+          1,
+          0.2,
+          0,
+          0,
+          0.2,
+          0,
+          0
+        ]
+      },
+      "loop": true
+    },
+    {
+      "id": "sfx_chime",
+      "label": "Кто-то тронул струну",
+      "src": {
+        "zzfx": [
+          1.4,
+          0.05,
+          392,
+          0.01,
+          0.5,
+          0.9,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.7,
+          0,
+          0.6,
+          0.5,
+          0,
+          0
+        ]
+      }
+    }
+  ],
+  "ui_sounds": {
+    "menu_music": "music_menu",
+    "click": "sfx_click",
+    "panel_open": "sfx_page",
+    "panel_close": "sfx_click",
+    "message": "sfx_drop",
+    "travel_depart": "sfx_steps",
+    "travel_arrive": "sfx_steps",
+    "scene_transition": "sfx_creak",
+    "death": "sfx_heart",
+    "victory": "sfx_chime",
+    "defeat": "sfx_heart",
+    "quest_started": "sfx_page",
+    "quest_completed": "sfx_chime",
+    "skill_up": "sfx_torch",
+    "coin": "sfx_lock"
+  },
+  "default_music": [
+    "music_menu"
+  ],
+  "combat_music": [
+    "music_tension"
+  ],
+  "codex_categories": [
+    {
+      "id": "regime",
+      "label": "Режим"
+    },
+    {
+      "id": "notes",
+      "label": "Записки"
+    },
+    {
+      "id": "people",
+      "label": "Люди"
+    },
+    {
+      "id": "places",
+      "label": "Места"
+    }
+  ],
+  "generators": {
+    "event_tables": [
+      {
+        "id": "table_night_sounds",
+        "label": "Ночные шорохи",
+        "description": "Лагерь не спит: каждые 3 часа он проверяет, бодрствуешь ли ты.",
+        "interval_ticks": 3,
+        "chance": 0.55,
+        "time_of_day": [
+          "evening",
+          "night"
+        ],
+        "locations": [
+          "loc_camp",
+          "loc_gate",
+          "loc_admin"
+        ],
+        "rules": [
+          "rule_walk_steps",
+          "rule_baby_cry",
+          "rule_pipe_knock",
+          "rule_inna_in_door",
+          "rule_walker",
+          "rule_hum"
+        ]
+      }
+    ]
+  },
+  "chapters": [
+    {
+      "id": "ch_1_shift",
+      "label": "I. Смена",
+      "order": 1,
+      "description": "21:00 — утро второго дня. Принять дела, выучить режим, пережить три стука."
+    },
+    {
+      "id": "ch_2_quiet",
+      "label": "II. Тихий час",
+      "order": 2,
+      "description": "День второго и ночь второго: инвентаризация превращается в расследование."
+    },
+    {
+      "id": "ch_3_water",
+      "label": "III. Вода",
+      "order": 3,
+      "description": "Третий день: правда есть, и все её версии портят документы."
+    },
+    {
+      "id": "ch_4_dawn",
+      "label": "IV. Рассвет",
+      "order": 4,
+      "description": "Последние 12 часов: шкаф тишины и имя."
+    }
+  ],
+  "series": {
+    "part": 1,
+    "label": "Полынь. Ночная смена"
+  },
+  "attribution": {
+    "author": "Хроника (сборка ИИ-агента)",
+    "note": "Сгенерировано Chronicle Forge, Фаза 2 по дизайн-документу."
+  },
+  "endings": [
+    {
+      "id": "ending_name",
+      "label": "Имя (истинная)",
+      "title": "ИМЯ",
+      "text": "Ты назвал её по имени вслух — в шкафу, где тридцать три года держали тишину. Дверь не захлопнулась. Утром водолазы нашли в затопленном методкабинете детский ботинок, а в твоей сумке — список смены августа 1986-го, где напротив строки «Ветрова Полина, 9 лет» вместо «выбыла» написано одно слово: «домой». Лагерь ушёл под воду. Тебя — нет.",
+      "tone": "victory",
+      "on": "victory",
+      "image": "",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_cabinet_name"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "flag_protocol_burned"
+        },
+        {
+          "type": "quest_at_stage",
+          "quest": "quest_shift",
+          "stage": "stage_done"
+        }
+      ]
+    },
+    {
+      "id": "ending_become",
+      "label": "Новая вожатая (подчинение)",
+      "title": "РЕЖИМ СОБЛЮДЁН",
+      "text": "Ты сжёг приказ в костровище, убрал журнал на место и лёг ровно в тринадцать ноль-ноль, как положено. Комиссия получила чистые описи, лагерь — тишину. В новой форме журнала тихого часа есть подпись дежурного взрослого. Она твоя. Дети будут лежать с закрытыми глазами долго.",
+      "tone": "neutral",
+      "on": "victory",
+      "image": "",
+      "conditions": [
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_obey_inna"
+            },
+            {
+              "type": "flag_set",
+              "flag": "flag_protocol_burned"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ending_run",
+      "label": "Уехал и не оглянулся",
+      "title": "ТЫ ВЫБРАЛСЯ",
+      "text": "Машина завела с полоборота, и ни одно зеркало не показало, что сзади кто-то стоит. Ты выжил, не потерял рассудок и не узнал ничего. Через год водохранилище затопит корпуса, и в архиве останется дело без единого листа: никто не сможет ни подтвердить, ни опровергнуть. Это тоже ответ. Не твой.",
+      "tone": "neutral",
+      "on": "victory",
+      "image": "",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_left_polyn"
+        }
+      ]
+    },
+    {
+      "id": "ending_water",
+      "label": "Вода приняла",
+      "title": "ВОДА ПРИШЛА",
+      "text": "Насосы включились раньше, чем ты дошёл. Вода вошла в коридор ровно и без спешки — ей не нужно никого догонять. Наутро комиссия зафиксировала: пропал инвентарь, пропал охранник. В списке исчезнувших, как и тридцать три года назад, не хватает одного имени.",
+      "tone": "death",
+      "on": "death",
+      "image": "",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_flooded"
+        }
+      ]
+    },
+    {
+      "id": "ending_quiet",
+      "label": "Тишина (срыв/шкаф)",
+      "title": "ТИХО",
+      "text": "Ты перестал спорить с расписанием. Тишина — это ведь не страшно, тишина — это когда никто больше не кричит в шкафу. Тебя нашли бы, если бы искали: в методкабинете, свернувшись внутри, с ладонями на ушах и улыбкой, от которой у Инны Аркадьевны стало спокойно.",
+      "tone": "death",
+      "on": "death",
+      "image": ""
+    }
+  ],
+  "difficulties": [
+    {
+      "id": "diff_quiet",
+      "label": "Тихая смена",
+      "description": "Мягче: потребности убывают медленнее, в лавке дешевле. Для тех, кто пришёл читать, а не выживать.",
+      "need_decay": 0.6,
+      "prices": 0.8
+    },
+    {
+      "id": "diff_normal",
+      "label": "Как задумано",
+      "description": "Три ночи, 60 часов до подъёма воды, полная цена ошибки."
+    },
+    {
+      "id": "diff_worn",
+      "label": "Изнуряющая смена",
+      "description": "Шум и усталость копятся быстрее, автосохранение выключено. Один неверный шаг в коридоре — и лагерь запомнит твоё имя.",
+      "need_decay": 1.5,
+      "enemy_damage": 1.25,
+      "no_autosave": true
+    }
+  ],
+  "theme": {
+    "profile": "cosmic-horror",
+    "atmosphere": true,
+    "accent": "#7f9a6b",
+    "menu": {
+      "dim": 0.6,
+      "ken_burns": true
+    },
+    "tokens": {
+      "panel": "#101613",
+      "cards": "#161e1a",
+      "inset": "#0b100d",
+      "log": "#0d1311"
+    },
+    "end": {
+      "background": ""
+    }
+  },
+  "char_creation": {
+    "total_points": 35,
+    "stat_limits": {
+      "min": 3,
+      "max": 18
+    },
+    "skill_points": 60,
+    "skill_cap": 75,
+    "skill_floor": 20,
+    "mandatory_skills": [
+      "listen",
+      "stealth"
+    ],
+    "forbidden_skills": [],
+    "choose_name": true,
+    "choose_age": true,
+    "choose_bio": true,
+    "professions": [
+      {
+        "id": "origin_local",
+        "label": "Мальчишка с Полыни",
+        "description": "Ты вырос в посёлке за насыпью и знаешь здесь каждую щель. Тебя водили в этот лагерь три смены подряд — четвёртую ты не помнишь.",
+        "stats": {
+          "STR": 7,
+          "CON": 8,
+          "SIZ": 7,
+          "DEX": 9,
+          "INT": 8,
+          "POW": 11,
+          "CHA": 6
+        },
+        "skill_bonus": {
+          "stealth": 5
+        },
+        "items": [
+          {
+            "item": "item_matches",
+            "quantity": 1
+          }
+        ]
+      },
+      {
+        "id": "origin_press",
+        "label": "Корреспондент районки",
+        "description": "Ты приехал писать «светлую заметку о сносе» и вёз с собой диктофон и дурную привычку задавать вопросы не тем людям.",
+        "stats": {
+          "STR": 6,
+          "CON": 7,
+          "SIZ": 7,
+          "DEX": 8,
+          "INT": 11,
+          "POW": 8,
+          "CHA": 9
+        },
+        "skill_bonus": {
+          "persuade": 5
+        },
+        "items": [
+          {
+            "item": "item_notebook",
+            "quantity": 1
+          },
+          {
+            "item": "item_ruble",
+            "quantity": 60
+          }
+        ]
+      },
+      {
+        "id": "origin_medic",
+        "label": "Фельдшер на побегушках",
+        "description": "Комиссии нужен был человек, который умеет смотреть на мёртвых детей и не бледнеть. Этим человеком оказался ты.",
+        "stats": {
+          "STR": 7,
+          "CON": 9,
+          "SIZ": 8,
+          "DEX": 8,
+          "INT": 10,
+          "POW": 8,
+          "CHA": 6
+        },
+        "skill_bonus": {
+          "first_aid": 5
+        },
+        "items": [
+          {
+            "item": "item_ammonia",
+            "quantity": 1
+          }
+        ]
+      }
+    ],
+    "callings": [
+      {
+        "id": "calling_watcher",
+        "label": "Сторож",
+        "description": "Ночи, обходы, тишина как профессия.",
+        "skills": {
+          "stealth": 45,
+          "spot": 35,
+          "listen": 30,
+          "repair": 30
+        }
+      },
+      {
+        "id": "calling_reporter",
+        "label": "Репортёр",
+        "description": "Спрашивать, слушать, докрутить, записать.",
+        "skills": {
+          "persuade": 45,
+          "psychology": 35,
+          "spot": 30,
+          "listen": 30
+        }
+      },
+      {
+        "id": "calling_order",
+        "label": "Порядок",
+        "description": "Тебя учили: сначала — не навредить, потом — не бояться.",
+        "skills": {
+          "first_aid": 45,
+          "psychology": 35,
+          "listen": 30,
+          "spot": 30
+        }
+      }
+    ]
+  },
+  "roguelike": {
+    "permadeath": true,
+    "meta_progress": [],
+    "randomize_on_restart": [
+      "seed"
+    ]
+  }
+}

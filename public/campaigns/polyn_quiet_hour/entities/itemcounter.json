@@ -1,0 +1,49 @@
+{
+  "id": "item_counter",
+  "type": "item",
+  "category": "misc",
+  "label": "Раздаточный стол",
+  "description": "Крашеный, с тарелками отбитого края. На скатерти двадцать восемь следов от кружек и один лишний.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Посчитать следы",
+      "effects": [
+        {
+          "type": "change_sanity",
+          "delta": -3
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_names"
+        },
+        {
+          "type": "show_message",
+          "text": "Двадцать девять. В списке двадцать семь. На одного лишнего рассчитывали заранее."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Перевернуть стол",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 35
+        },
+        {
+          "type": "show_message",
+          "text": "Стол лёг на бок; из-под него выкатилась кружка и покатила ровно в сторону актового зала."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

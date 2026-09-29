@@ -1,0 +1,72 @@
+{
+  "id": "item_flag_pole",
+  "type": "item",
+  "category": "misc",
+  "label": "Флагшток и бочонок",
+  "description": "Столб с ржавыми кольцами. У основания вкопан бочонок из-под консервов: дети закапывали в него то, что нельзя сдавать в опись.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Выкопать бочонок",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_photo",
+              "quantity": 1
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_wall"
+            },
+            {
+              "type": "show_message",
+              "text": "В бочонке, в полиэтилене, фотография смены. Она лежала здесь тринадцать лет, чтобы ты сунул её в карман."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 20
+            },
+            {
+              "type": "show_message",
+              "text": "Ты ковырял землю руками и услышал, как по двору прокатился металлический звон."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Постучать по столбу",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 30
+        },
+        {
+          "type": "show_message",
+          "text": "Звон ушёл по металлу к верхушке и не оборвался — как будто конец кто-то держит."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "rule_bridge_lelya_hush",
+  "label": "Мост: она ушла с берега",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "clear_flag",
+      "flag": "flag_lelya_shows"
+    },
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": 6
+    }
+  ],
+  "chapter": "ch_3_water"
+}

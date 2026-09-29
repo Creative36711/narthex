@@ -1,0 +1,44 @@
+{
+  "id": "item_ammonia",
+  "type": "item",
+  "category": "medicine",
+  "label": "Нашатырный спирт",
+  "description": "Пузырёк на верёвочке. Запах, после которого снова больно.",
+  "image": "",
+  "weight": 0.12,
+  "stackable": true,
+  "value": {
+    "rubles": 20
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_hp",
+        "delta": 5
+      },
+      {
+        "type": "change_need",
+        "need": "need_nerve",
+        "delta": 6
+      },
+      {
+        "type": "remove_status",
+        "status": "status_numbed",
+        "target": "player"
+      },
+      {
+        "type": "remove_status",
+        "status": "status_shakes",
+        "target": "player"
+      },
+      {
+        "type": "show_message",
+        "text": "Ты дал себе нашатырь. Глаза наполнились водой, зато ты снова здесь."
+      }
+    ],
+    "consume": true
+  },
+  "sounds": {
+    "use": "sfx_sip"
+  }
+}

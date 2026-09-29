@@ -1,0 +1,58 @@
+{
+  "id": "rule_first_round",
+  "label": "Первый обход засчитан",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_shift_started"
+    },
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "player_enters_scene",
+          "scene": "scene_corridor"
+        },
+        {
+          "type": "player_enters_scene",
+          "scene": "scene_dorm"
+        },
+        {
+          "type": "player_enters_scene",
+          "scene": "scene_parade"
+        }
+      ]
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_first_round"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_first_round"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_shift",
+      "stage": "stage_roster"
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_shift",
+      "text_key": "j_round"
+    },
+    {
+      "type": "grant_xp",
+      "points": 20
+    },
+    {
+      "type": "show_message",
+      "text": "Три точки обойдены. В журнале обходов твоя запись выглядит точно так же, как остальные четыреста до неё."
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

@@ -1,0 +1,68 @@
+{
+  "id": "rule_basement_dark",
+  "label": "Спуск в подвал без света",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_basement"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_light_on"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_basement_lit"
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "has_item",
+        "item": "item_flashlight"
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "stat_check",
+      "stat": "DEX",
+      "success_effects": [
+        {
+          "type": "show_message",
+          "text": "Ты ухватился за трубу на уровне пояса и остался стоять."
+        },
+        {
+          "type": "change_luck",
+          "delta": -5
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "hazard_fall",
+          "meters": 3,
+          "skill": "dodge"
+        },
+        {
+          "type": "change_sanity",
+          "delta": -4
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Ступень подломилась. Ты съехал по битому кирпичу до воды и услышал, как сверху, в актового зале, кто-то сел на стул."
+        }
+      ]
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_lake_map"
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "item_bobby_pin",
+  "type": "item",
+  "category": "tool",
+  "label": "Скрепка, разогнутая вдвое",
+  "description": "Из канцелярской полки. Замков в лагере шесть, и все сводятся к одному движению.",
+  "image": "",
+  "weight": 0.02,
+  "stackable": true,
+  "value": {
+    "rubles": 5
+  },
+  "sounds": {
+    "use": "sfx_lock"
+  }
+}

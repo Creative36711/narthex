@@ -1,0 +1,50 @@
+{
+  "id": "rule_ch2",
+  "label": "Глава II. Тихий час",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "quest_at_stage",
+          "quest": "quest_shift",
+          "stage": "stage_roster"
+        },
+        {
+          "type": "tick_elapsed",
+          "min_tick": 30
+        }
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_ch2"
+    },
+    {
+      "type": "reveal_location",
+      "location": "loc_lake"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_fence_open"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_roma"
+    },
+    {
+      "type": "banner",
+      "text": "Глава II. Тихий час",
+      "preset": "глава"
+    },
+    {
+      "type": "show_message",
+      "text": "Инвентаризация кончается: в описях остаётся графа «не подпадает под ликвидацию», и ты начинаешь её заполнять."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

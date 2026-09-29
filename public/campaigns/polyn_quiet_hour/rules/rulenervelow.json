@@ -1,0 +1,35 @@
+{
+  "id": "rule_nerve_low",
+  "label": "Выдержка на исходе",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "need_le",
+      "need": "need_nerve",
+      "threshold": 25
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_shakes_on"
+    }
+  ],
+  "effects": [
+    {
+      "type": "apply_status",
+      "status": "status_shakes",
+      "duration": 18,
+      "target": "player"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_shakes_on"
+    },
+    {
+      "type": "banner",
+      "text": "Руки ходят ходуном. Не бери ничего хрупкого.",
+      "preset": "шёпот"
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

@@ -1,0 +1,33 @@
+{
+  "id": "rule_knocks_ready",
+  "label": "Три стука в дверь бытовки",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 24
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_knocks_ready"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_knocks_opened"
+    },
+    {
+      "type": "banner",
+      "text": "Стучат. Три раза. Медленно.",
+      "preset": "шёпот",
+      "seconds": 6
+    },
+    {
+      "type": "show_message",
+      "text": "В дверь бытовки постучали. Три раза — и теперь ждут."
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

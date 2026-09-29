@@ -1,0 +1,23 @@
+{
+  "id": "rule_bridge_calm",
+  "label": "Мост: +спокойствие",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_sanity",
+      "delta": 7
+    },
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": 12
+    },
+    {
+      "type": "change_luck",
+      "delta": 4
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

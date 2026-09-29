@@ -1,0 +1,31 @@
+{
+  "id": "item_notebook",
+  "type": "item",
+  "category": "misc",
+  "label": "Блокнот с карандашом",
+  "description": "Сорок восемь листов, исписано шесть. На седьмом — чистый лист и строка: «что я видел в 22:40».",
+  "image": "",
+  "weight": 0.15,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_sanity",
+        "delta": 2
+      },
+      {
+        "type": "advance_time",
+        "ticks": 1
+      },
+      {
+        "type": "postcard",
+        "text": "Ты записал ровно то, что было. Строка вышла короче, чем ты ждал."
+      }
+    ],
+    "consume": false,
+    "message": "Ты дописал ещё две строки."
+  },
+  "sounds": {
+    "use": "sfx_page"
+  }
+}

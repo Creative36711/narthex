@@ -1,0 +1,35 @@
+{
+  "id": "item_matches",
+  "type": "item",
+  "category": "light",
+  "label": "Спички «Полынь»",
+  "description": "Коробок с этикеткой, набитой вручную. Двадцать штук, три мокрые.",
+  "image": "",
+  "weight": 0.05,
+  "stackable": true,
+  "value": {
+    "rubles": 5
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_noise",
+        "delta": 10
+      },
+      {
+        "type": "set_flag",
+        "flag": "flag_basement_lit"
+      },
+      {
+        "type": "show_message",
+        "text": "Спичка вспыхнула и обожгла пальцы. В подвале стало светло на шаг."
+      }
+    ],
+    "consume": true,
+    "message": "Чиркнул спичкой."
+  },
+  "sounds": {
+    "use": "sfx_fire"
+  }
+}

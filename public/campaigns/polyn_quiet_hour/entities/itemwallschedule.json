@@ -1,0 +1,58 @@
+{
+  "id": "item_wall_schedule",
+  "type": "item",
+  "category": "misc",
+  "label": "Доска расписания",
+  "description": "Мел, выведенный набело: «ТИХИЙ ЧАС 13:00—15:00 · ОБХОД 22:30 · ВОДА 08:00, 15:00 · ОТБОЙ 22:00». Под «ВОДА» приписано другим почерком: «09:00, 4 день».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Списать расписание",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_regime"
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_rules_known"
+        },
+        {
+          "type": "add_item",
+          "item": "item_notebook",
+          "quantity": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Режим лег в блокнот. Теперь он у тебя в кармане — и в голове."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Стереть мел",
+      "effects": [
+        {
+          "type": "change_sanity",
+          "delta": -4
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": 6
+        },
+        {
+          "type": "show_message",
+          "text": "Ты стёр строку. Через минуту она появилась снова, на той же доске, тем же почерком."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

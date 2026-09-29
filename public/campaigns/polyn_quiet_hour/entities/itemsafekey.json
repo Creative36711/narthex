@@ -1,0 +1,16 @@
+{
+  "id": "item_safe_key",
+  "type": "item",
+  "category": "key",
+  "label": "Ключ от сейфа",
+  "description": "Маленький, с биркой «дир.». Запасной носит Зоя Романовна, но об этом в описях не пишут.",
+  "image": "",
+  "weight": 0.03,
+  "stackable": false,
+  "value": {
+    "rubles": 40
+  },
+  "sounds": {
+    "use": "sfx_lock"
+  }
+}

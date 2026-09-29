@@ -1,0 +1,120 @@
+{
+  "id": "item_chalk_marks",
+  "type": "item",
+  "category": "misc",
+  "label": "Меловые имена на стене",
+  "description": "Двадцать семь имён, выведенных по линейке. Двадцать восьмое дописано поверх и зачёркнуто не мелом, а йодом.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Найти своё имя",
+      "effects": [
+        {
+          "type": "change_sanity",
+          "delta": -6
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_truth_part"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_names"
+        },
+        {
+          "type": "show_message",
+          "text": "«Ветров А., 12 лет» — написано не твоей рукой. Твою фамилию вписали в список детей."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Стереть зачёркнутое",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "first_aid",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_lelya_name_read"
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_lelya"
+            },
+            {
+              "type": "change_sanity",
+              "delta": 5
+            },
+            {
+              "type": "postcard",
+              "text": "Под йодом, в штукатурке, выдавлено ногтем: «ИНА, ТЫ ОБЕЩАЛА»."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_sanity",
+              "delta": -4
+            },
+            {
+              "type": "show_message",
+              "text": "Йод сошёл, штукатурка нет: буквы остались рельефом."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Дописать двадцать девятое",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": -10
+        },
+        {
+          "type": "change_sanity",
+          "delta": -8
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 25
+        },
+        {
+          "type": "show_message",
+          "text": "Мел сломался об стену, а стена съела его целиком."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "interactable_when": [
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_flashlight"
+        },
+        {
+          "type": "flag_set",
+          "flag": "flag_basement_lit"
+        },
+        {
+          "type": "flag_set",
+          "flag": "flag_light_on"
+        }
+      ]
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

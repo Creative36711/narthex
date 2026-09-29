@@ -1,0 +1,139 @@
+{
+  "id": "item_archive_box",
+  "type": "item",
+  "category": "container",
+  "label": "Ящик архива",
+  "description": "Фанерный, перевязанный бечёвкой. Внутри личные дела детей, оплавленные с одного края.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Забрать журнал тихого часа",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_quiet_log",
+          "quantity": 1
+        },
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "advance_quest",
+          "quest": "quest_shift",
+          "stage": "stage_log"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_log"
+        },
+        {
+          "type": "show_message",
+          "text": "Журнал лежал сверху, как подложенный."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Выгрузить всё",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 2
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 20
+        },
+        {
+          "type": "add_item",
+          "item": "item_quiet_log",
+          "quantity": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_photo",
+          "quantity": 1
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_1986"
+        },
+        {
+          "type": "show_message",
+          "text": "Две папки, фотография и тридцать три личных дела, из каждого вырвана страница 47."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Разобрать завал у стенки",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_roster",
+          "quantity": 1
+        },
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_names"
+        },
+        {
+          "type": "show_message",
+          "text": "Под личными делами — список смены «Солнышко» за восемнадцатое августа. Двадцать восемь имен; напротив одного приписано: «выбыла»."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Закрыть крышку",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Бечёвка затянулась вдвое туже сама."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "interactable_when": [
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_flashlight"
+        },
+        {
+          "type": "flag_set",
+          "flag": "flag_basement_lit"
+        },
+        {
+          "type": "flag_set",
+          "flag": "flag_light_on"
+        }
+      ]
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

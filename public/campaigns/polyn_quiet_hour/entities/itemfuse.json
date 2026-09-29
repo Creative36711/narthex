@@ -1,0 +1,16 @@
+{
+  "id": "item_fuse",
+  "type": "item",
+  "category": "tool",
+  "label": "Предохранитель на 10 ампер",
+  "description": "Керамический стаканчик, вывернутый из щитка медпункта. Свет — тоже расходник.",
+  "image": "",
+  "weight": 0.2,
+  "stackable": false,
+  "value": {
+    "rubles": 30
+  },
+  "sounds": {
+    "use": "sfx_lock"
+  }
+}

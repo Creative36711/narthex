@@ -1,0 +1,13 @@
+{
+  "id": "item_ruble",
+  "type": "item",
+  "category": "currency",
+  "label": "Рубль",
+  "description": "Мятая бумага с водяным знаком, который никто не проверял.",
+  "image": "",
+  "weight": 0.01,
+  "stackable": true,
+  "value": {
+    "rubles": 1
+  }
+}

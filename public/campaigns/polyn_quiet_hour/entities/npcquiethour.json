@@ -1,0 +1,34 @@
+{
+  "id": "npc_quiet_hour",
+  "type": "npc",
+  "label": "Тихий Час",
+  "description": "Не существо, а порядок: то, что выходит в коридор, когда шум превышает режим. Не агрессивен и не говорлив — он просто уводит туда, где тихо.",
+  "portrait": {
+    "neutral": "",
+    "hollow": ""
+  },
+  "stats": {
+    "STR": 14,
+    "CON": 16,
+    "SIZ": 12,
+    "DEX": 13,
+    "INT": 8,
+    "POW": 18,
+    "CHA": 1
+  },
+  "skills": {
+    "stealth": 80,
+    "listen": 90,
+    "spot": 70
+  },
+  "equipment": {},
+  "inventory": [],
+  "dialogue": "dialogues/quiet.ink",
+  "perception": 70,
+  "sounds": {
+    "talk": "sfx_breath"
+  },
+  "base_disposition": -40,
+  "schedule": [],
+  "presence_overrides": []
+}

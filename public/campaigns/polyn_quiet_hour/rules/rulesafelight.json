@@ -1,0 +1,33 @@
+{
+  "id": "rule_safe_light",
+  "label": "Свет горит — шкаф в коридоре виден",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_light_on"
+    },
+    {
+      "type": "has_status",
+      "status": "status_numbed"
+    }
+  ],
+  "effects": [
+    {
+      "type": "remove_status",
+      "status": "status_numbed",
+      "target": "player"
+    },
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": 8
+    },
+    {
+      "type": "show_message",
+      "text": "Свет — это тоже дисциплина. Пока горит лампа, он не выходит в коридор."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

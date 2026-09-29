@@ -1,0 +1,41 @@
+{
+  "id": "rule_bridge_spravka",
+  "label": "Мост: справка 276-А",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_zoya_confirmed"
+    },
+    {
+      "type": "add_item",
+      "item": "item_safe_key",
+      "quantity": 1
+    },
+    {
+      "type": "change_disposition",
+      "target": "faction_liquidkom",
+      "delta": 10
+    },
+    {
+      "type": "extend_crisis",
+      "ticks": 6
+    },
+    {
+      "type": "reveal_location",
+      "location": "loc_dam"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_p_dam"
+    },
+    {
+      "type": "grant_xp",
+      "points": 30
+    }
+  ],
+  "chapter": "ch_3_water"
+}

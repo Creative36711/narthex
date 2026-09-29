@@ -1,0 +1,57 @@
+{
+  "id": "item_window",
+  "type": "item",
+  "category": "misc",
+  "label": "Окно спального корпуса",
+  "description": "Двойное, замазанное на зиму в сентябре. За ним плац, забор и линия воды, поднявшаяся за ночь на палец.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Посмотреть на озеро",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_shore_view"
+        },
+        {
+          "type": "change_sanity",
+          "delta": -3
+        },
+        {
+          "type": "postcard",
+          "text": "У воды, ровно там, где утонул флагшток, стоят дети. Много. Они не двинулись, пока ты их считал."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Заколотить ставню",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 30
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_shutter_nailed"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты прибил доску. В комнате стало темнее — и, как ни странно, безопаснее."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "id": "rule_baby_cry",
+  "label": "Кто-то плачет в спальном",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "time_of_day",
+      "value": [
+        "night"
+      ]
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_lelya_shows"
+    }
+  ],
+  "effects": [
+    {
+      "type": "change_sanity",
+      "delta": -2
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_roma",
+      "state": "afraid"
+    },
+    {
+      "type": "show_message",
+      "text": "Тихий плач из-за занавески. Не детский, но и не взрослый: тот, которому запретили быть громче."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

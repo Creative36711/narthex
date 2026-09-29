@@ -1,0 +1,29 @@
+{
+  "id": "rule_catch_take",
+  "label": "Он выворачивает карманы",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "remove_item",
+      "item": "item_order_1986",
+      "quantity": 1
+    },
+    {
+      "type": "remove_item",
+      "item": "item_quiet_log",
+      "quantity": 1
+    },
+    {
+      "type": "remove_item",
+      "item": "item_roster",
+      "quantity": 1
+    },
+    {
+      "type": "show_message",
+      "text": "Утром в карманах не окажется бумаг. Ты найдёшь их наутро в луже у крыльца — мокрые, но читаемые: лагерь не прячет, лагерь откладывает."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

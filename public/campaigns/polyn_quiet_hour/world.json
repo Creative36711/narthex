@@ -1,0 +1,486 @@
+{
+  "regions": [
+    {
+      "id": "region_polyn",
+      "label": "Чаша Полыни",
+      "map_image": "",
+      "map_art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0b100d",
+        "layers": [
+          {
+            "label": "чаша",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#151d16",
+                  "to": "#0b100d",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "водохранилище",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                760,
+                120,
+                1280,
+                90,
+                1280,
+                640,
+                880,
+                700,
+                700,
+                420
+              ],
+              "fill": "#16262c"
+            }
+          },
+          {
+            "label": "озеро",
+            "shape": {
+              "type": "ellipse",
+              "cx": 1000,
+              "cy": 600,
+              "rx": 260,
+              "ry": 150,
+              "fill": "#1a2f36",
+              "opacity": 0.9
+            }
+          },
+          {
+            "label": "дамба",
+            "shape": {
+              "type": "rect",
+              "x": 1120,
+              "y": 180,
+              "w": 60,
+              "h": 120,
+              "fill": "#4a4a44"
+            }
+          },
+          {
+            "label": "лес",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                300,
+                200,
+                240,
+                420,
+                300,
+                600,
+                250,
+                700,
+                380,
+                520,
+                520,
+                180,
+                480,
+                0,
+                430
+              ],
+              "fill": "#0f1710"
+            }
+          },
+          {
+            "label": "дорога",
+            "shape": {
+              "type": "line",
+              "x1": 80,
+              "y1": 640,
+              "x2": 250,
+              "y2": 560,
+              "color": "#3a3527",
+              "width": 8
+            }
+          },
+          {
+            "label": "дорога к лагерю",
+            "shape": {
+              "type": "line",
+              "x1": 250,
+              "y1": 560,
+              "x2": 610,
+              "y2": 430,
+              "color": "#3a3527",
+              "width": 8
+            }
+          },
+          {
+            "label": "тропа к флигелю",
+            "shape": {
+              "type": "line",
+              "x1": 610,
+              "y1": 430,
+              "x2": 830,
+              "y2": 330,
+              "color": "#332f24",
+              "width": 5
+            }
+          },
+          {
+            "label": "тропа к озеру",
+            "shape": {
+              "type": "line",
+              "x1": 610,
+              "y1": 430,
+              "x2": 990,
+              "y2": 610,
+              "color": "#332f24",
+              "width": 5
+            }
+          },
+          {
+            "label": "корпуса",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 380,
+              "w": 120,
+              "h": 70,
+              "fill": "#2b3325",
+              "stroke": "#0c100b",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "актовый",
+            "shape": {
+              "type": "rect",
+              "x": 690,
+              "y": 400,
+              "w": 70,
+              "h": 50,
+              "fill": "#2b3325",
+              "stroke": "#0c100b",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "флигель",
+            "shape": {
+              "type": "rect",
+              "x": 800,
+              "y": 300,
+              "w": 80,
+              "h": 50,
+              "fill": "#2b3325",
+              "stroke": "#0c100b",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "КПП",
+            "shape": {
+              "type": "rect",
+              "x": 230,
+              "y": 540,
+              "w": 50,
+              "h": 40,
+              "fill": "#2b3325",
+              "stroke": "#0c100b",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "надпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 60,
+              "text": "ПОЛЫНЬ · ЧАША",
+              "size": 40,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "подпись озера",
+            "shape": {
+              "type": "text",
+              "x": 960,
+              "y": 560,
+              "text": "ОЗЕРО ПОЛЫНЬ · отметка +2,4 м",
+              "size": 20,
+              "color": "#8b9a86"
+            }
+          },
+          {
+            "label": "подпись дамбы",
+            "shape": {
+              "type": "text",
+              "x": 1080,
+              "y": 170,
+              "text": "ПЛОТИНА",
+              "size": 20,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "map_size": {
+        "w": 1280,
+        "h": 720
+      },
+      "parent_region": null,
+      "locations": [
+        {
+          "id": "loc_gate",
+          "label": "КПП и сторожка",
+          "position": {
+            "x": 250,
+            "y": 560
+          },
+          "travel_connections": [
+            {
+              "to": "loc_camp",
+              "cost_ticks": 1,
+              "random_encounter_table": "enc_woods",
+              "requirements": []
+            }
+          ],
+          "scenes": [
+            "scene_gatehouse"
+          ],
+          "arrival_scene": "scene_gatehouse",
+          "music": [
+            {
+              "tracks": [
+                "music_gate"
+              ]
+            }
+          ],
+          "on_enter_rules": []
+        },
+        {
+          "id": "loc_camp",
+          "label": "Лагерь «Полынь»",
+          "position": {
+            "x": 610,
+            "y": 430
+          },
+          "travel_connections": [
+            {
+              "to": "loc_gate",
+              "cost_ticks": 1,
+              "random_encounter_table": "enc_woods",
+              "requirements": []
+            },
+            {
+              "to": "loc_admin",
+              "cost_ticks": 1,
+              "requirements": []
+            },
+            {
+              "to": "loc_lake",
+              "cost_ticks": 2,
+              "requirements": [
+                {
+                  "type": "flag_set",
+                  "flag": "flag_fence_open"
+                }
+              ]
+            }
+          ],
+          "scenes": [
+            "scene_parade",
+            "scene_corridor",
+            "scene_dorm",
+            "scene_dining",
+            "scene_club",
+            "scene_basement"
+          ],
+          "arrival_scene": "scene_parade",
+          "ambient": [
+            "sfx_hum"
+          ],
+          "music": [
+            {
+              "tracks": [
+                "music_quiet"
+              ],
+              "conditions": [
+                {
+                  "flag": "flag_quiet_hour"
+                }
+              ]
+            },
+            {
+              "tracks": [
+                "music_tension"
+              ],
+              "conditions": [
+                {
+                  "flag": "flag_his_grasp"
+                }
+              ]
+            },
+            {
+              "tracks": [
+                "music_night"
+              ],
+              "conditions": [
+                {
+                  "time_of_day": [
+                    "night",
+                    "evening"
+                  ]
+                }
+              ]
+            },
+            {
+              "tracks": [
+                "music_day"
+              ]
+            }
+          ],
+          "on_enter_rules": []
+        },
+        {
+          "id": "loc_admin",
+          "label": "Административный флигель",
+          "position": {
+            "x": 830,
+            "y": 330
+          },
+          "travel_connections": [
+            {
+              "to": "loc_camp",
+              "cost_ticks": 1,
+              "requirements": []
+            },
+            {
+              "to": "loc_lake",
+              "cost_ticks": 2,
+              "requirements": []
+            }
+          ],
+          "scenes": [
+            "scene_office",
+            "scene_method",
+            "scene_infirmary"
+          ],
+          "arrival_scene": "scene_office",
+          "music": [
+            {
+              "tracks": [
+                "music_method"
+              ],
+              "conditions": [
+                {
+                  "flag": "flag_ch4"
+                }
+              ]
+            },
+            {
+              "tracks": [
+                "music_gate"
+              ]
+            }
+          ],
+          "on_enter_rules": []
+        },
+        {
+          "id": "loc_lake",
+          "label": "Озеро и лодочная станция",
+          "position": {
+            "x": 990,
+            "y": 610
+          },
+          "travel_connections": [
+            {
+              "to": "loc_camp",
+              "cost_ticks": 2,
+              "requirements": []
+            },
+            {
+              "to": "loc_admin",
+              "cost_ticks": 2,
+              "requirements": []
+            },
+            {
+              "to": "loc_dam",
+              "cost_ticks": 1,
+              "requirements": [
+                {
+                  "type": "flag_set",
+                  "flag": "flag_dam_open"
+                }
+              ]
+            }
+          ],
+          "scenes": [
+            "scene_shore"
+          ],
+          "arrival_scene": "scene_shore",
+          "hidden": true,
+          "ambient": [
+            "sfx_lake_hush"
+          ],
+          "music": [
+            {
+              "tracks": [
+                "music_lake"
+              ]
+            }
+          ],
+          "on_enter_rules": []
+        },
+        {
+          "id": "loc_dam",
+          "label": "Плотина и насосная",
+          "position": {
+            "x": 1150,
+            "y": 220
+          },
+          "travel_connections": [
+            {
+              "to": "loc_lake",
+              "cost_ticks": 1,
+              "requirements": []
+            }
+          ],
+          "scenes": [
+            "scene_dam"
+          ],
+          "arrival_scene": "scene_dam",
+          "hidden": true,
+          "ambient": [
+            "sfx_water"
+          ],
+          "music": [
+            {
+              "tracks": [
+                "music_final"
+              ],
+              "conditions": [
+                {
+                  "flag": "flag_endgame"
+                }
+              ]
+            },
+            {
+              "tracks": [
+                "music_lake"
+              ]
+            }
+          ],
+          "on_enter_rules": []
+        }
+      ]
+    }
+  ]
+}

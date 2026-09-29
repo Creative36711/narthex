@@ -1,0 +1,92 @@
+{
+  "id": "cutscene_child",
+  "label": "Детский обход",
+  "music": "music_club",
+  "chapter": "ch_2_quiet",
+  "slides": [
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0c110d",
+        "layers": [
+          {
+            "label": "стулья",
+            "shape": {
+              "type": "rect",
+              "x": 280,
+              "y": 470,
+              "w": 720,
+              "h": 120,
+              "fill": "#241d16"
+            }
+          },
+          {
+            "label": "сцена",
+            "shape": {
+              "type": "rect",
+              "x": 400,
+              "y": 180,
+              "w": 480,
+              "h": 240,
+              "fill": "#2e2a1d"
+            }
+          },
+          {
+            "label": "силуэт",
+            "shape": {
+              "type": "rect",
+              "x": 540,
+              "y": 240,
+              "w": 60,
+              "h": 170,
+              "fill": "#05070a"
+            }
+          }
+        ]
+      },
+      "text": "В зале кто-то сидит. Он не плачет и не зовёт — он ждёт, пока ты заметишь, и ставит условие: негромко.",
+      "duration": 8,
+      "transition": "fade"
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0f0b",
+        "layers": [
+          {
+            "label": "значок",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 360,
+              "rx": 40,
+              "ry": 40,
+              "fill": "#c9a94a"
+            }
+          },
+          {
+            "label": "гвоздик",
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 400,
+              "x2": 640,
+              "y2": 460,
+              "color": "#5a4a30",
+              "width": 4
+            }
+          }
+        ]
+      },
+      "text": "«Ты тоже не в списке, — говорит он. — Ты ещё живой. Это разные списки».",
+      "duration": 9,
+      "transition": "panzoom"
+    }
+  ]
+}

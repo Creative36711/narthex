@@ -1,0 +1,1158 @@
+{
+  "id": "scene_gatehouse",
+  "label": "Бытовка у ворот",
+  "location": "loc_gate",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_gate_warm",
+      "label": "Топится",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#161d18"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#12170f"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "rect",
+              "x": 640,
+              "y": 120,
+              "w": 220,
+              "h": 140,
+              "fill": {
+                "gradient": {
+                  "from": "#2b3a40",
+                  "to": "#161d20",
+                  "angle": 90
+                }
+              },
+              "stroke": "#0c110f",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 196,
+              "cy": 470,
+              "rx": 190,
+              "ry": 130,
+              "fill": "#cfe0b8",
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "печка",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 400,
+              "w": 150,
+              "h": 180,
+              "fill": "#2c2a26",
+              "stroke": "#0b0c0a",
+              "stroke_width": 4,
+              "radius": 6
+            }
+          },
+          {
+            "label": "дверца печки",
+            "shape": {
+              "type": "rect",
+              "x": 150,
+              "y": 460,
+              "w": 90,
+              "h": 70,
+              "fill": {
+                "gradient": {
+                  "from": "#ff9c3c",
+                  "to": "#7a2f10",
+                  "angle": 90
+                }
+              },
+              "radius": 4
+            }
+          },
+          {
+            "label": "труба",
+            "shape": {
+              "type": "rect",
+              "x": 175,
+              "y": 0,
+              "w": 40,
+              "h": 400,
+              "fill": "#22201c"
+            }
+          },
+          {
+            "label": "стол",
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 470,
+              "w": 260,
+              "h": 120,
+              "fill": "#3a2f21",
+              "stroke": "#0d0b08",
+              "stroke_width": 4,
+              "radius": 4
+            }
+          },
+          {
+            "label": "журнал на столе",
+            "shape": {
+              "type": "rect",
+              "x": 530,
+              "y": 436,
+              "w": 130,
+              "h": 42,
+              "fill": "#cfc9ae",
+              "radius": 2
+            }
+          },
+          {
+            "label": "полка",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 170,
+              "w": 200,
+              "h": 90,
+              "fill": "#2b2418",
+              "radius": 3
+            }
+          },
+          {
+            "label": "стенд",
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 120,
+              "w": 300,
+              "h": 150,
+              "fill": "#6a5c3a",
+              "stroke": "#1d1810",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "бумаги на стенде",
+            "shape": {
+              "type": "rect",
+              "x": 324,
+              "y": 142,
+              "w": 96,
+              "h": 74,
+              "fill": "#d8d2b8"
+            }
+          },
+          {
+            "label": "бумаги 2",
+            "shape": {
+              "type": "rect",
+              "x": 440,
+              "y": 160,
+              "w": 90,
+              "h": 62,
+              "fill": "#c4bda1"
+            }
+          },
+          {
+            "label": "радиоточка",
+            "shape": {
+              "type": "rect",
+              "x": 820,
+              "y": 300,
+              "w": 130,
+              "h": 90,
+              "fill": "#2f2a22",
+              "stroke": "#0b0a08",
+              "stroke_width": 4,
+              "radius": 6
+            }
+          },
+          {
+            "label": "решётка приёмника",
+            "shape": {
+              "type": "rect",
+              "x": 838,
+              "y": 320,
+              "w": 58,
+              "h": 48,
+              "fill": "#131210"
+            }
+          },
+          {
+            "label": "лампа приёмника",
+            "shape": {
+              "type": "ellipse",
+              "cx": 920,
+              "cy": 330,
+              "rx": 10,
+              "ry": 10,
+              "fill": "#c8e07a"
+            }
+          },
+          {
+            "label": "койка",
+            "shape": {
+              "type": "rect",
+              "x": 900,
+              "y": 500,
+              "w": 300,
+              "h": 140,
+              "fill": "#243026",
+              "stroke": "#0b0f0b",
+              "stroke_width": 4,
+              "radius": 8
+            }
+          },
+          {
+            "label": "дверь в сени",
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 290,
+              "w": 130,
+              "h": 270,
+              "fill": "#3d2b1b",
+              "stroke": "#0d0a07",
+              "stroke_width": 6,
+              "radius": 4
+            }
+          },
+          {
+            "label": "косяк",
+            "shape": {
+              "type": "rect",
+              "x": 1068,
+              "y": 278,
+              "w": 12,
+              "h": 282,
+              "fill": "#241a11"
+            }
+          },
+          {
+            "label": "табличка «СМЕНА»",
+            "shape": {
+              "type": "text",
+              "x": 340,
+              "y": 104,
+              "text": "РЕЖИМ ДНЯ · ПОЛЫНЬ · 1986",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "тепло от печки",
+            "shape": {
+              "type": "ellipse",
+              "cx": 240,
+              "cy": 560,
+              "rx": 260,
+              "ry": 130,
+              "fill": "#ffb05a",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "свет лампы",
+            "shape": {
+              "type": "ellipse",
+              "cx": 700,
+              "cy": 300,
+              "rx": 300,
+              "ry": 180,
+              "fill": "#cfe0b8",
+              "opacity": 0.07
+            }
+          },
+          {
+            "label": "подпись сцены",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Бытовка охранника · КПП «Полынь»",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_stove_on"
+      }
+    },
+    {
+      "id": "state_gate_dark",
+      "label": "Без огня",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e0c",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#0f1412"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#12170f"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "rect",
+              "x": 640,
+              "y": 120,
+              "w": 220,
+              "h": 140,
+              "fill": {
+                "gradient": {
+                  "from": "#2b3a40",
+                  "to": "#161d20",
+                  "angle": 90
+                }
+              },
+              "stroke": "#0c110f",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "печка",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 400,
+              "w": 150,
+              "h": 180,
+              "fill": "#2c2a26",
+              "stroke": "#0b0c0a",
+              "stroke_width": 4,
+              "radius": 6
+            }
+          },
+          {
+            "label": "дверца печки",
+            "shape": {
+              "type": "rect",
+              "x": 150,
+              "y": 460,
+              "w": 90,
+              "h": 70,
+              "fill": "#0b0b09",
+              "radius": 4
+            }
+          },
+          {
+            "label": "труба",
+            "shape": {
+              "type": "rect",
+              "x": 175,
+              "y": 0,
+              "w": 40,
+              "h": 400,
+              "fill": "#22201c"
+            }
+          },
+          {
+            "label": "стол",
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 470,
+              "w": 260,
+              "h": 120,
+              "fill": "#3a2f21",
+              "stroke": "#0d0b08",
+              "stroke_width": 4,
+              "radius": 4
+            }
+          },
+          {
+            "label": "журнал на столе",
+            "shape": {
+              "type": "rect",
+              "x": 530,
+              "y": 436,
+              "w": 130,
+              "h": 42,
+              "fill": "#cfc9ae",
+              "radius": 2
+            }
+          },
+          {
+            "label": "полка",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 170,
+              "w": 200,
+              "h": 90,
+              "fill": "#2b2418",
+              "radius": 3
+            }
+          },
+          {
+            "label": "стенд",
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 120,
+              "w": 300,
+              "h": 150,
+              "fill": "#6a5c3a",
+              "stroke": "#1d1810",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "бумаги на стенде",
+            "shape": {
+              "type": "rect",
+              "x": 324,
+              "y": 142,
+              "w": 96,
+              "h": 74,
+              "fill": "#d8d2b8"
+            }
+          },
+          {
+            "label": "бумаги 2",
+            "shape": {
+              "type": "rect",
+              "x": 440,
+              "y": 160,
+              "w": 90,
+              "h": 62,
+              "fill": "#c4bda1"
+            }
+          },
+          {
+            "label": "радиоточка",
+            "shape": {
+              "type": "rect",
+              "x": 820,
+              "y": 300,
+              "w": 130,
+              "h": 90,
+              "fill": "#2f2a22",
+              "stroke": "#0b0a08",
+              "stroke_width": 4,
+              "radius": 6
+            }
+          },
+          {
+            "label": "решётка приёмника",
+            "shape": {
+              "type": "rect",
+              "x": 838,
+              "y": 320,
+              "w": 58,
+              "h": 48,
+              "fill": "#131210"
+            }
+          },
+          {
+            "label": "лампа приёмника",
+            "shape": {
+              "type": "ellipse",
+              "cx": 920,
+              "cy": 330,
+              "rx": 10,
+              "ry": 10,
+              "fill": "#3d4a2c"
+            }
+          },
+          {
+            "label": "койка",
+            "shape": {
+              "type": "rect",
+              "x": 900,
+              "y": 500,
+              "w": 300,
+              "h": 140,
+              "fill": "#243026",
+              "stroke": "#0b0f0b",
+              "stroke_width": 4,
+              "radius": 8
+            }
+          },
+          {
+            "label": "дверь в сени",
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 290,
+              "w": 130,
+              "h": 270,
+              "fill": "#3d2b1b",
+              "stroke": "#0d0a07",
+              "stroke_width": 6,
+              "radius": 4
+            }
+          },
+          {
+            "label": "косяк",
+            "shape": {
+              "type": "rect",
+              "x": 1068,
+              "y": 278,
+              "w": 12,
+              "h": 282,
+              "fill": "#241a11"
+            }
+          },
+          {
+            "label": "табличка «СМЕНА»",
+            "shape": {
+              "type": "text",
+              "x": 340,
+              "y": 104,
+              "text": "РЕЖИМ ДНЯ · ПОЛЫНЬ · 1986",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "подпись сцены",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Бытовка охранника · КПП «Полынь»",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "not_flag": "flag_stove_on"
+      }
+    },
+    {
+      "id": "state_gate_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#161d18"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#12170f"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "rect",
+              "x": 640,
+              "y": 120,
+              "w": 220,
+              "h": 140,
+              "fill": {
+                "gradient": {
+                  "from": "#2b3a40",
+                  "to": "#161d20",
+                  "angle": 90
+                }
+              },
+              "stroke": "#0c110f",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 196,
+              "cy": 470,
+              "rx": 190,
+              "ry": 130,
+              "fill": "#cfe0b8",
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "печка",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 400,
+              "w": 150,
+              "h": 180,
+              "fill": "#2c2a26",
+              "stroke": "#0b0c0a",
+              "stroke_width": 4,
+              "radius": 6
+            }
+          },
+          {
+            "label": "дверца печки",
+            "shape": {
+              "type": "rect",
+              "x": 150,
+              "y": 460,
+              "w": 90,
+              "h": 70,
+              "fill": {
+                "gradient": {
+                  "from": "#ff9c3c",
+                  "to": "#7a2f10",
+                  "angle": 90
+                }
+              },
+              "radius": 4
+            }
+          },
+          {
+            "label": "труба",
+            "shape": {
+              "type": "rect",
+              "x": 175,
+              "y": 0,
+              "w": 40,
+              "h": 400,
+              "fill": "#22201c"
+            }
+          },
+          {
+            "label": "стол",
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 470,
+              "w": 260,
+              "h": 120,
+              "fill": "#3a2f21",
+              "stroke": "#0d0b08",
+              "stroke_width": 4,
+              "radius": 4
+            }
+          },
+          {
+            "label": "журнал на столе",
+            "shape": {
+              "type": "rect",
+              "x": 530,
+              "y": 436,
+              "w": 130,
+              "h": 42,
+              "fill": "#cfc9ae",
+              "radius": 2
+            }
+          },
+          {
+            "label": "полка",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 170,
+              "w": 200,
+              "h": 90,
+              "fill": "#2b2418",
+              "radius": 3
+            }
+          },
+          {
+            "label": "стенд",
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 120,
+              "w": 300,
+              "h": 150,
+              "fill": "#6a5c3a",
+              "stroke": "#1d1810",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "бумаги на стенде",
+            "shape": {
+              "type": "rect",
+              "x": 324,
+              "y": 142,
+              "w": 96,
+              "h": 74,
+              "fill": "#d8d2b8"
+            }
+          },
+          {
+            "label": "бумаги 2",
+            "shape": {
+              "type": "rect",
+              "x": 440,
+              "y": 160,
+              "w": 90,
+              "h": 62,
+              "fill": "#c4bda1"
+            }
+          },
+          {
+            "label": "радиоточка",
+            "shape": {
+              "type": "rect",
+              "x": 820,
+              "y": 300,
+              "w": 130,
+              "h": 90,
+              "fill": "#2f2a22",
+              "stroke": "#0b0a08",
+              "stroke_width": 4,
+              "radius": 6
+            }
+          },
+          {
+            "label": "решётка приёмника",
+            "shape": {
+              "type": "rect",
+              "x": 838,
+              "y": 320,
+              "w": 58,
+              "h": 48,
+              "fill": "#131210"
+            }
+          },
+          {
+            "label": "лампа приёмника",
+            "shape": {
+              "type": "ellipse",
+              "cx": 920,
+              "cy": 330,
+              "rx": 10,
+              "ry": 10,
+              "fill": "#c8e07a"
+            }
+          },
+          {
+            "label": "койка",
+            "shape": {
+              "type": "rect",
+              "x": 900,
+              "y": 500,
+              "w": 300,
+              "h": 140,
+              "fill": "#243026",
+              "stroke": "#0b0f0b",
+              "stroke_width": 4,
+              "radius": 8
+            }
+          },
+          {
+            "label": "дверь в сени",
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 290,
+              "w": 130,
+              "h": 270,
+              "fill": "#3d2b1b",
+              "stroke": "#0d0a07",
+              "stroke_width": 6,
+              "radius": 4
+            }
+          },
+          {
+            "label": "косяк",
+            "shape": {
+              "type": "rect",
+              "x": 1068,
+              "y": 278,
+              "w": 12,
+              "h": 282,
+              "fill": "#241a11"
+            }
+          },
+          {
+            "label": "табличка «СМЕНА»",
+            "shape": {
+              "type": "text",
+              "x": 340,
+              "y": 104,
+              "text": "РЕЖИМ ДНЯ · ПОЛЫНЬ · 1986",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "тепло от печки",
+            "shape": {
+              "type": "ellipse",
+              "cx": 240,
+              "cy": 560,
+              "rx": 260,
+              "ry": 130,
+              "fill": "#ffb05a",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "свет лампы",
+            "shape": {
+              "type": "ellipse",
+              "cx": 700,
+              "cy": 300,
+              "rx": 300,
+              "ry": 180,
+              "fill": "#cfe0b8",
+              "opacity": 0.07
+            }
+          },
+          {
+            "label": "подпись сцены",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Бытовка охранника · КПП «Полынь»",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_gate_stool",
+      "label": "У печки",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 900,
+      "y": 500,
+      "w": 300,
+      "h": 140,
+      "default_entity": "npc_gennadich",
+      "condition": null
+    },
+    {
+      "id": "slot_gate_radio",
+      "label": "Радиоточка «Весна»",
+      "type": [
+        "person",
+        "device"
+      ],
+      "shape": "rect",
+      "x": 820,
+      "y": 300,
+      "w": 130,
+      "h": 90,
+      "default_entity": "npc_radio",
+      "condition": null
+    },
+    {
+      "id": "slot_gate_door",
+      "label": "Дверь бытовки",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 1080,
+      "y": 290,
+      "w": 130,
+      "h": 270,
+      "default_entity": "npc_door",
+      "condition": {
+        "flag": "flag_knocks_ready"
+      }
+    },
+    {
+      "id": "slot_gate_stove",
+      "label": "Печка-буржуйка",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 120,
+      "y": 400,
+      "w": 150,
+      "h": 180,
+      "default_entity": "item_stove",
+      "use_with": [
+        {
+          "item": "item_kerosene",
+          "consume": false,
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_stove_on"
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 10
+            },
+            {
+              "type": "show_message",
+              "text": "Ты плеснул керосину в печку; та чихнула и взялась."
+            }
+          ],
+          "message": "Печка приняла керосин."
+        },
+        {
+          "item": "item_matches",
+          "consume": false,
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_stove_on"
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 8
+            }
+          ]
+        }
+      ],
+      "condition": null
+    },
+    {
+      "id": "slot_gate_table",
+      "label": "Стол с нарядом",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 470,
+      "y": 470,
+      "w": 260,
+      "h": 120,
+      "default_entity": "item_shift_log",
+      "condition": null
+    },
+    {
+      "id": "slot_gate_board",
+      "label": "Стенд «Полынь — 1986»",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 300,
+      "y": 120,
+      "w": 300,
+      "h": 150,
+      "default_entity": "item_notice_board",
+      "condition": null
+    },
+    {
+      "id": "slot_gate_shelf",
+      "label": "Полка снабжения",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 60,
+      "y": 170,
+      "w": 200,
+      "h": 90,
+      "default_entity": "item_shelf_gate",
+      "condition": null
+    },
+    {
+      "id": "slot_gate_window",
+      "label": "Окно на ворота",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 640,
+      "y": 120,
+      "w": 220,
+      "h": 140,
+      "default_entity": "item_window_gate",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "К воротам и дальше — на карту",
+      "area": {
+        "x": 1080,
+        "y": 290,
+        "w": 130,
+        "h": 270
+      },
+      "open_map": true,
+      "cost_ticks": 0
+    },
+    {
+      "label": "Выход во двор (на карту)",
+      "area": {
+        "x": 60,
+        "y": 170,
+        "w": 200,
+        "h": 90
+      },
+      "open_map": true,
+      "cost_ticks": 0
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_gate"
+      ],
+      "conditions": [
+        {
+          "flag": "flag_stove_on"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_gate"
+      ]
+    }
+  ],
+  "ambient": [
+    "sfx_fire",
+    "sfx_hum"
+  ],
+  "chapter": "ch_1_shift"
+}

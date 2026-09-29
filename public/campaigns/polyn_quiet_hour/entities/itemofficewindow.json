@@ -1,0 +1,54 @@
+{
+  "id": "item_office_window",
+  "type": "item",
+  "category": "misc",
+  "label": "Окно на озеро",
+  "description": "Открыто на две створки, хотя на улице сыро. На подоконнике — ряд мокрых следов от кружек, начинающийся от окна.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Посмотреть на воду",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_lake_map"
+        },
+        {
+          "type": "reveal_location",
+          "location": "loc_lake"
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": -5
+        },
+        {
+          "type": "postcard",
+          "text": "Отметка на бетоне дамбы: +2,4 м. Вода у первого камня корпусов. Через сутки — у второго."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Закрыть окно",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": 8
+        },
+        {
+          "type": "show_message",
+          "text": "Створки легли плотно, с удовольствием. Стало слышно только часы."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

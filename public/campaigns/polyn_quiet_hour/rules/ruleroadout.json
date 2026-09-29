@@ -1,0 +1,19 @@
+{
+  "id": "rule_road_out",
+  "label": "Дорога наверх: возможность уйти",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_location",
+      "location": "loc_gate"
+    }
+  ],
+  "effects": [
+    {
+      "type": "reveal_location",
+      "location": "loc_gate"
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

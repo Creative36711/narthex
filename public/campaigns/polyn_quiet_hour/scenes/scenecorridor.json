@@ -1,0 +1,1224 @@
+{
+  "id": "scene_corridor",
+  "label": "Коридор спального корпуса",
+  "location": "loc_camp",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_corr_his",
+      "label": "Он в конце коридора",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#05070a",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1c241d"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#141811"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "двери",
+            "shape": {
+              "type": "rect",
+              "x": 140,
+              "y": 300,
+              "w": 140,
+              "h": 260,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "дверь зала",
+            "shape": {
+              "type": "rect",
+              "x": 1000,
+              "y": 300,
+              "w": 140,
+              "h": 260,
+              "fill": "#33261b",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "умывальник",
+            "shape": {
+              "type": "rect",
+              "x": 340,
+              "y": 230,
+              "w": 120,
+              "h": 170,
+              "fill": "#2b3530",
+              "stroke": "#4d5a50",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "зеркало",
+            "shape": {
+              "type": "rect",
+              "x": 354,
+              "y": 244,
+              "w": 92,
+              "h": 120,
+              "fill": {
+                "gradient": {
+                  "from": "#3d4d4a",
+                  "to": "#101613",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "занавеска",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 190,
+              "w": 150,
+              "h": 310,
+              "fill": "#3a4636",
+              "stroke": "#12170f",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "занавеска складки",
+            "shape": {
+              "type": "line",
+              "x1": 610,
+              "y1": 190,
+              "x2": 610,
+              "y2": 500,
+              "color": "#232b1f",
+              "width": 6
+            }
+          },
+          {
+            "label": "занавеска складки 2",
+            "shape": {
+              "type": "line",
+              "x1": 660,
+              "y1": 190,
+              "x2": 660,
+              "y2": 500,
+              "color": "#232b1f",
+              "width": 6
+            }
+          },
+          {
+            "label": "щиток",
+            "shape": {
+              "type": "rect",
+              "x": 770,
+              "y": 250,
+              "w": 110,
+              "h": 130,
+              "fill": "#2c2f28",
+              "stroke": "#0a0c09",
+              "stroke_width": 4,
+              "radius": 3
+            }
+          },
+          {
+            "label": "щиток дверца",
+            "shape": {
+              "type": "rect",
+              "x": 790,
+              "y": 268,
+              "w": 70,
+              "h": 90,
+              "fill": "#171a14"
+            }
+          },
+          {
+            "label": "шкаф в конце",
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 210,
+              "w": 110,
+              "h": 350,
+              "fill": "#26201a",
+              "stroke": "#0b0906",
+              "stroke_width": 6,
+              "radius": 3
+            }
+          },
+          {
+            "label": "дверь наружу",
+            "shape": {
+              "type": "rect",
+              "x": 40,
+              "y": 560,
+              "w": 200,
+              "h": 110,
+              "fill": "#1d1a14",
+              "stroke": "#3b3226",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "табличка",
+            "shape": {
+              "type": "text",
+              "x": 160,
+              "y": 290,
+              "text": "СПАЛЬНЫЙ КОРПУС «СОЛНЫШКО»",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "он в конце коридора",
+            "shape": {
+              "type": "rect",
+              "x": 600,
+              "y": 220,
+              "w": 150,
+              "h": 340,
+              "fill": "#05070a",
+              "opacity": 0.95
+            }
+          },
+          {
+            "label": "не те руки",
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 300,
+              "x2": 640,
+              "y2": 520,
+              "color": "#05070a",
+              "width": 3
+            }
+          },
+          {
+            "label": "занавеска дышит",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 210,
+              "w": 150,
+              "h": 300,
+              "fill": "#2a3528",
+              "opacity": 0.55
+            }
+          },
+          {
+            "label": "надпись",
+            "shape": {
+              "type": "text",
+              "x": 430,
+              "y": 380,
+              "text": "ТИШЕ",
+              "size": 46,
+              "color": "#7f9a6b"
+            }
+          },
+          {
+            "label": "мрак",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#000000",
+              "opacity": 0.45
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Коридор спального корпуса · 4 двери, лампа, шкаф",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_his_grasp"
+      }
+    },
+    {
+      "id": "state_corr_dim",
+      "label": "Без света",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#070a08",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1c241d"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#141811"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "двери",
+            "shape": {
+              "type": "rect",
+              "x": 140,
+              "y": 300,
+              "w": 140,
+              "h": 260,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "дверь зала",
+            "shape": {
+              "type": "rect",
+              "x": 1000,
+              "y": 300,
+              "w": 140,
+              "h": 260,
+              "fill": "#33261b",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "умывальник",
+            "shape": {
+              "type": "rect",
+              "x": 340,
+              "y": 230,
+              "w": 120,
+              "h": 170,
+              "fill": "#2b3530",
+              "stroke": "#4d5a50",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "зеркало",
+            "shape": {
+              "type": "rect",
+              "x": 354,
+              "y": 244,
+              "w": 92,
+              "h": 120,
+              "fill": {
+                "gradient": {
+                  "from": "#3d4d4a",
+                  "to": "#101613",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "занавеска",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 190,
+              "w": 150,
+              "h": 310,
+              "fill": "#3a4636",
+              "stroke": "#12170f",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "занавеска складки",
+            "shape": {
+              "type": "line",
+              "x1": 610,
+              "y1": 190,
+              "x2": 610,
+              "y2": 500,
+              "color": "#232b1f",
+              "width": 6
+            }
+          },
+          {
+            "label": "занавеска складки 2",
+            "shape": {
+              "type": "line",
+              "x1": 660,
+              "y1": 190,
+              "x2": 660,
+              "y2": 500,
+              "color": "#232b1f",
+              "width": 6
+            }
+          },
+          {
+            "label": "щиток",
+            "shape": {
+              "type": "rect",
+              "x": 770,
+              "y": 250,
+              "w": 110,
+              "h": 130,
+              "fill": "#2c2f28",
+              "stroke": "#0a0c09",
+              "stroke_width": 4,
+              "radius": 3
+            }
+          },
+          {
+            "label": "щиток дверца",
+            "shape": {
+              "type": "rect",
+              "x": 790,
+              "y": 268,
+              "w": 70,
+              "h": 90,
+              "fill": "#171a14"
+            }
+          },
+          {
+            "label": "шкаф в конце",
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 210,
+              "w": 110,
+              "h": 350,
+              "fill": "#26201a",
+              "stroke": "#0b0906",
+              "stroke_width": 6,
+              "radius": 3
+            }
+          },
+          {
+            "label": "дверь наружу",
+            "shape": {
+              "type": "rect",
+              "x": 40,
+              "y": 560,
+              "w": 200,
+              "h": 110,
+              "fill": "#1d1a14",
+              "stroke": "#3b3226",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "табличка",
+            "shape": {
+              "type": "text",
+              "x": 160,
+              "y": 290,
+              "text": "СПАЛЬНЫЙ КОРПУС «СОЛНЫШКО»",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "мрак",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#000000",
+              "opacity": 0.62
+            }
+          },
+          {
+            "label": "фонарь",
+            "shape": {
+              "type": "ellipse",
+              "cx": 240,
+              "cy": 420,
+              "rx": 200,
+              "ry": 160,
+              "fill": "#d8e8b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Коридор спального корпуса · 4 двери, лампа, шкаф",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "not_flag": "flag_light_on"
+      }
+    },
+    {
+      "id": "state_corr_lit",
+      "label": "Горит лампа",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0e1310",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1c241d"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#141811"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 120,
+              "rx": 260,
+              "ry": 120,
+              "fill": "#cfe0b8",
+              "opacity": 0.13
+            }
+          },
+          {
+            "label": "двери",
+            "shape": {
+              "type": "rect",
+              "x": 140,
+              "y": 300,
+              "w": 140,
+              "h": 260,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "дверь зала",
+            "shape": {
+              "type": "rect",
+              "x": 1000,
+              "y": 300,
+              "w": 140,
+              "h": 260,
+              "fill": "#33261b",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "умывальник",
+            "shape": {
+              "type": "rect",
+              "x": 340,
+              "y": 230,
+              "w": 120,
+              "h": 170,
+              "fill": "#2b3530",
+              "stroke": "#4d5a50",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "зеркало",
+            "shape": {
+              "type": "rect",
+              "x": 354,
+              "y": 244,
+              "w": 92,
+              "h": 120,
+              "fill": {
+                "gradient": {
+                  "from": "#3d4d4a",
+                  "to": "#101613",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "занавеска",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 190,
+              "w": 150,
+              "h": 310,
+              "fill": "#3a4636",
+              "stroke": "#12170f",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "занавеска складки",
+            "shape": {
+              "type": "line",
+              "x1": 610,
+              "y1": 190,
+              "x2": 610,
+              "y2": 500,
+              "color": "#232b1f",
+              "width": 6
+            }
+          },
+          {
+            "label": "занавеска складки 2",
+            "shape": {
+              "type": "line",
+              "x1": 660,
+              "y1": 190,
+              "x2": 660,
+              "y2": 500,
+              "color": "#232b1f",
+              "width": 6
+            }
+          },
+          {
+            "label": "щиток",
+            "shape": {
+              "type": "rect",
+              "x": 770,
+              "y": 250,
+              "w": 110,
+              "h": 130,
+              "fill": "#2c2f28",
+              "stroke": "#0a0c09",
+              "stroke_width": 4,
+              "radius": 3
+            }
+          },
+          {
+            "label": "щиток дверца",
+            "shape": {
+              "type": "rect",
+              "x": 790,
+              "y": 268,
+              "w": 70,
+              "h": 90,
+              "fill": "#171a14"
+            }
+          },
+          {
+            "label": "шкаф в конце",
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 210,
+              "w": 110,
+              "h": 350,
+              "fill": "#26201a",
+              "stroke": "#0b0906",
+              "stroke_width": 6,
+              "radius": 3
+            }
+          },
+          {
+            "label": "дверь наружу",
+            "shape": {
+              "type": "rect",
+              "x": 40,
+              "y": 560,
+              "w": 200,
+              "h": 110,
+              "fill": "#1d1a14",
+              "stroke": "#3b3226",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "табличка",
+            "shape": {
+              "type": "text",
+              "x": 160,
+              "y": 290,
+              "text": "СПАЛЬНЫЙ КОРПУС «СОЛНЫШКО»",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Коридор спального корпуса · 4 двери, лампа, шкаф",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_light_on"
+      }
+    },
+    {
+      "id": "state_corr_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "стены",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#1c241d"
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 470,
+              "w": 1280,
+              "h": 250,
+              "fill": "#141811"
+            }
+          },
+          {
+            "label": "потолок",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": "#0b0f0d"
+            }
+          },
+          {
+            "label": "плинтус",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 470,
+              "x2": 1280,
+              "y2": 470,
+              "color": "#0a0d0b",
+              "width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 120,
+              "rx": 260,
+              "ry": 120,
+              "fill": "#cfe0b8",
+              "opacity": 0.13
+            }
+          },
+          {
+            "label": "двери",
+            "shape": {
+              "type": "rect",
+              "x": 140,
+              "y": 300,
+              "w": 140,
+              "h": 260,
+              "fill": "#3a2a1c",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "дверь зала",
+            "shape": {
+              "type": "rect",
+              "x": 1000,
+              "y": 300,
+              "w": 140,
+              "h": 260,
+              "fill": "#33261b",
+              "stroke": "#0d0a07",
+              "stroke_width": 5,
+              "radius": 4
+            }
+          },
+          {
+            "label": "умывальник",
+            "shape": {
+              "type": "rect",
+              "x": 340,
+              "y": 230,
+              "w": 120,
+              "h": 170,
+              "fill": "#2b3530",
+              "stroke": "#4d5a50",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "зеркало",
+            "shape": {
+              "type": "rect",
+              "x": 354,
+              "y": 244,
+              "w": 92,
+              "h": 120,
+              "fill": {
+                "gradient": {
+                  "from": "#3d4d4a",
+                  "to": "#101613",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "занавеска",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 190,
+              "w": 150,
+              "h": 310,
+              "fill": "#3a4636",
+              "stroke": "#12170f",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "занавеска складки",
+            "shape": {
+              "type": "line",
+              "x1": 610,
+              "y1": 190,
+              "x2": 610,
+              "y2": 500,
+              "color": "#232b1f",
+              "width": 6
+            }
+          },
+          {
+            "label": "занавеска складки 2",
+            "shape": {
+              "type": "line",
+              "x1": 660,
+              "y1": 190,
+              "x2": 660,
+              "y2": 500,
+              "color": "#232b1f",
+              "width": 6
+            }
+          },
+          {
+            "label": "щиток",
+            "shape": {
+              "type": "rect",
+              "x": 770,
+              "y": 250,
+              "w": 110,
+              "h": 130,
+              "fill": "#2c2f28",
+              "stroke": "#0a0c09",
+              "stroke_width": 4,
+              "radius": 3
+            }
+          },
+          {
+            "label": "щиток дверца",
+            "shape": {
+              "type": "rect",
+              "x": 790,
+              "y": 268,
+              "w": 70,
+              "h": 90,
+              "fill": "#171a14"
+            }
+          },
+          {
+            "label": "шкаф в конце",
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 210,
+              "w": 110,
+              "h": 350,
+              "fill": "#26201a",
+              "stroke": "#0b0906",
+              "stroke_width": 6,
+              "radius": 3
+            }
+          },
+          {
+            "label": "дверь наружу",
+            "shape": {
+              "type": "rect",
+              "x": 40,
+              "y": 560,
+              "w": 200,
+              "h": 110,
+              "fill": "#1d1a14",
+              "stroke": "#3b3226",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "табличка",
+            "shape": {
+              "type": "text",
+              "x": 160,
+              "y": 290,
+              "text": "СПАЛЬНЫЙ КОРПУС «СОЛНЫШКО»",
+              "size": 20,
+              "color": "#c8d3c4",
+              "bold": true
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Коридор спального корпуса · 4 двери, лампа, шкаф",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_corr_mirror",
+      "label": "Умывальник с зеркалом",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 340,
+      "y": 230,
+      "w": 120,
+      "h": 170,
+      "default_entity": "item_mirror",
+      "condition": null
+    },
+    {
+      "id": "slot_corr_curtain",
+      "label": "Занавеска",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 190,
+      "w": 150,
+      "h": 310,
+      "default_entity": "item_curtain",
+      "condition": null
+    },
+    {
+      "id": "slot_corr_breaker",
+      "label": "Щиток освещения",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 770,
+      "y": 250,
+      "w": 110,
+      "h": 130,
+      "default_entity": "item_breaker",
+      "use_with": [
+        {
+          "item": "item_fuse",
+          "consume": true,
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_light_on"
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 8
+            },
+            {
+              "type": "show_message",
+              "text": "Лампа на этаже замигала и осталась гореть."
+            }
+          ],
+          "message": "Предохранитель сел в гнёзда; этаж залило белым светом."
+        }
+      ],
+      "condition": null
+    },
+    {
+      "id": "slot_corr_wardrobe",
+      "label": "Шкаф в конце коридора",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 880,
+      "y": 210,
+      "w": 110,
+      "h": 350,
+      "default_entity": "item_hall_wardrobe",
+      "condition": null
+    },
+    {
+      "id": "slot_corr_end",
+      "label": "Место в конце коридора",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 600,
+      "y": 220,
+      "w": 150,
+      "h": 340,
+      "default_entity": "npc_quiet_hour",
+      "condition": {
+        "flag": "flag_his_grasp"
+      }
+    },
+    {
+      "id": "slot_corr_door_dorm",
+      "label": "Дверь спальной",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 140,
+      "y": 300,
+      "w": 140,
+      "h": 260,
+      "default_entity": "item_door_label",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В спальную «Солнышко»",
+      "area": {
+        "x": 140,
+        "y": 300,
+        "w": 140,
+        "h": 260
+      },
+      "go_to_scene": "scene_dorm"
+    },
+    {
+      "label": "В актовый зал",
+      "area": {
+        "x": 1000,
+        "y": 300,
+        "w": 140,
+        "h": 260
+      },
+      "go_to_scene": "scene_club"
+    },
+    {
+      "label": "На плац",
+      "area": {
+        "x": 40,
+        "y": 560,
+        "w": 200,
+        "h": 110
+      },
+      "go_to_scene": "scene_parade"
+    },
+    {
+      "label": "К воротам (на карту)",
+      "area": {
+        "x": 1160,
+        "y": 560,
+        "w": 100,
+        "h": 110
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_tension"
+      ],
+      "conditions": [
+        {
+          "flag": "flag_his_grasp"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_quiet"
+      ],
+      "conditions": [
+        {
+          "flag": "flag_quiet_hour"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_corridor"
+      ]
+    }
+  ],
+  "ambient": [
+    "sfx_hum"
+  ],
+  "chapter": "ch_1_shift"
+}

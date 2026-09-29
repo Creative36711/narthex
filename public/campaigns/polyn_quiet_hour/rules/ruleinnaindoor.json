@@ -1,0 +1,39 @@
+{
+  "id": "rule_inna_in_door",
+  "label": "Инна в проёме",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "time_of_day",
+      "value": [
+        "night"
+      ]
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_ch2"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_obey_inna"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_entity_state",
+      "entity": "npc_inna",
+      "state": "smile"
+    },
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": -5
+    },
+    {
+      "type": "show_message",
+      "text": "В проёме стоит Инна Аркадьевна. Не входит и не зовёт: просто показывает рукой — на часы, на койку."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

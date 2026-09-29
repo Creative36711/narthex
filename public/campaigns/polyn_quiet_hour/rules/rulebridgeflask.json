@@ -1,0 +1,38 @@
+{
+  "id": "rule_bridge_flask",
+  "label": "Мост: фляга возвращена",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "remove_item",
+      "item": "item_flask",
+      "quantity": 1
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_flask_given"
+    },
+    {
+      "type": "add_item",
+      "item": "item_key_basement",
+      "quantity": 1
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_gennadich_flask",
+      "stage": "stage_g_found"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_gennadich_flask",
+      "stage": "stage_g_done"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_gennadich"
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

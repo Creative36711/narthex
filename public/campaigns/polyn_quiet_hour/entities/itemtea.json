@@ -1,0 +1,37 @@
+{
+  "id": "item_tea",
+  "type": "item",
+  "category": "food",
+  "label": "Заварка в жестянке",
+  "description": "Чёрная, крупная, с пылью. В лагере её берегли больше, чем сахар.",
+  "image": "",
+  "weight": 0.4,
+  "stackable": false,
+  "value": {
+    "rubles": 15
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "remove_item",
+        "item": "item_tea",
+        "quantity": 1
+      },
+      {
+        "type": "add_item",
+        "item": "item_sweet_tea",
+        "quantity": 1
+      },
+      {
+        "type": "advance_time",
+        "ticks": 1
+      },
+      {
+        "type": "show_message",
+        "text": "Ты заварил пол-ложки в кружке. Пахнет детством."
+      }
+    ],
+    "consume": true,
+    "message": "Чай готов."
+  }
+}

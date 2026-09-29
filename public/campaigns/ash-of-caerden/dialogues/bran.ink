@@ -1,8 +1,8 @@
+EXTERNAL item_count(id)
+EXTERNAL add_item(id, n)
+EXTERNAL skill_check(s, d)
 EXTERNAL get_flag(f)
 EXTERNAL set_flag(f)
-EXTERNAL add_item(id, n)
-EXTERNAL item_count(id)
-EXTERNAL skill_check(s, d)
 EXTERNAL open_trade(id)
 
 === main ===
@@ -20,7 +20,6 @@ EXTERNAL open_trade(id)
 + [Показывай товар. (торговля)]
     Выбирай, всё лучшее — на прилавке.
     ~ open_trade("npc_bran")
-    -> DONE
     -> DONE
 * { not get_flag("bran_bargained") } [Цены у тебя грабительские. (Торговля)]
     ~ set_flag("bran_bargained")

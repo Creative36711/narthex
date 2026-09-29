@@ -1,0 +1,71 @@
+{
+  "id": "item_mirror",
+  "type": "item",
+  "category": "misc",
+  "label": "Умывальник с зеркалом",
+  "description": "Зеркало в раме, пожелтевшее по краям. На раме нацарапано: «СМОТРИ ДОЛЬШЕ».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Осмотреться",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "difficult",
+          "success_effects": [
+            {
+              "type": "change_sanity",
+              "delta": -4
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_shore_view"
+            },
+            {
+              "type": "show_message",
+              "text": "Отражение мигнуло на полсекунды позже, чем ты. Ты сделал вид, что не заметил."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 4
+            },
+            {
+              "type": "show_message",
+              "text": "Обычное лицо. Чужое именно потому, что обычное."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Разбить зеркало",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 40
+        },
+        {
+          "type": "change_sanity",
+          "delta": -8
+        },
+        {
+          "type": "show_message",
+          "text": "Осколки легли на кафель и зашевелились без тебя."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

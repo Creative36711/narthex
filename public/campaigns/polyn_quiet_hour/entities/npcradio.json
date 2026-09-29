@@ -1,0 +1,32 @@
+{
+  "id": "npc_radio",
+  "type": "npc",
+  "label": "Радиоточка «Весна»",
+  "description": "Висит на стене бытовки и работает без сети. Передаёт режим дня, иногда — чужие фамилии. Любит, когда подпевают: за песню платит подсказкой.",
+  "portrait": {
+    "neutral": "",
+    "smile": "",
+    "hollow": ""
+  },
+  "stats": {
+    "STR": 1,
+    "CON": 1,
+    "SIZ": 1,
+    "DEX": 1,
+    "INT": 12,
+    "POW": 13,
+    "CHA": 5
+  },
+  "skills": {
+    "listen": 60
+  },
+  "equipment": {},
+  "inventory": [],
+  "dialogue": "dialogues/radio.ink",
+  "slot_type": "device",
+  "sounds": {
+    "talk": "sfx_static"
+  },
+  "schedule": [],
+  "presence_overrides": []
+}

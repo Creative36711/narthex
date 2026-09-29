@@ -1,0 +1,259 @@
+{
+  "version": 2,
+  "label": "Радиоточка «Весна»",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Голос Полыни",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Внимание. Смена «Солнышко». Режим: подъём 7:30, отбой 22:00, проверка шкафа 22:45. Дежурный взрослый — Сомов Г. П. Гость. У вас {удача} очков удачи. Мы считаем, что это много.",
+                "emotion": "hollow"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Кто говорит?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Администрация лагеря «Полынь». Режим передаётся круглосуточно, чтобы вам было спокойнее.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "node_deal"
+        },
+        {
+          "text": "Что будет, если я нарушу режим?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ничего страшного. Будет тихо. Тишину обеспечивают на месте.",
+                    "emotion": "smile"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "node_deal"
+        },
+        {
+          "text": "Спеть то, что вы просите.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Пойте. За песню мы выдаём подсказку.",
+                    "emotion": "calm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "node_song"
+        },
+        {
+          "text": "Выключить её совсем.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "apply_status",
+                    "status": "status_shakes",
+                    "duration": 12
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Провод перерван у стены; приёмник молчит ровно три секунды. Потом продолжает с того же слова.",
+                    "action": true
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    },
+    {
+      "id": "node_deal",
+      "label": "Подсказка за тишину",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Мы назовём вам фамилию, которую вы ищете, и номер ячейки. Мы попросим взамен одну минуту тишины: шестьдесят секунд, стоя, лицом к стене.",
+                "emotion": "neutral"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Шестьдесят секунд. Согласен.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_bridge_calm"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_1986"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "advance_time",
+                    "ticks": 1
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ветрова Полина, девять лет. Ячейка тринадцать. Ячейки тринадцать нет. Ищите там, где нет.",
+                    "emotion": "hollow"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Называйте фамилию бесплатно.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "advance_time",
+                    "ticks": 1
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Бесплатно мы передаём только режим.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    },
+    {
+      "id": "node_song",
+      "label": "Прощальный вальс",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ты поёшь вполголоса, потому что в полный здесь не умеют. Из решётки тебя подхватывают на подпевке — и подпевают верно."
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "«Спасибо. Подсказка: второй ключ носит Инна Аркадьевна в левом рукаве. Просьба: не говорите, что вам сказали.»",
+                "action": true
+              }
+            }
+          ]
+        },
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Спасибо. Подсказка: второй ключ носит Инна Аркадьевна в левом рукаве. Просьба: не говорите, что вам сказали.",
+                "emotion": "calm"
+              }
+            }
+          ],
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "flag_piano_played"
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Ещё одну подсказку.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Песня была одна. Услуга оказана одна.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Спасибо.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_entity_state",
+                    "entity": "npc_radio",
+                    "state": "smile"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    }
+  ]
+}

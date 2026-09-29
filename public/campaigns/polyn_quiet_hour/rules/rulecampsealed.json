@@ -1,0 +1,44 @@
+{
+  "id": "rule_camp_sealed",
+  "label": "Вода отрезала дорогу к воротам",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "crisis_ticks_le",
+      "threshold": 6
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_cut_by_water"
+    },
+    {
+      "type": "block_path",
+      "from": "loc_camp",
+      "to": "loc_gate"
+    },
+    {
+      "type": "block_path",
+      "from": "loc_gate",
+      "to": "loc_camp"
+    },
+    {
+      "type": "change_scene_state",
+      "scene": "scene_parade",
+      "state": "state_parade_flood"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -5
+    },
+    {
+      "type": "banner",
+      "text": "У входа в бытовку — вода по щиколотку. Машин здесь нет.",
+      "preset": "проклятье",
+      "seconds": 8
+    }
+  ],
+  "chapter": "ch_4_dawn"
+}

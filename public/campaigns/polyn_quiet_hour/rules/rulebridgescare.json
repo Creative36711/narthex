@@ -1,0 +1,24 @@
+{
+  "id": "rule_bridge_scare",
+  "label": "Мост: -спокойствие",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_sanity",
+      "delta": -9
+    },
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": -12
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 15
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

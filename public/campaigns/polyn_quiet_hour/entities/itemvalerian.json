@@ -1,0 +1,39 @@
+{
+  "id": "item_valerian",
+  "type": "item",
+  "category": "medicine",
+  "label": "Настойка валерианы",
+  "description": "Флакон тёмного стекла. В лагере раздавали по режиму: шесть капель на сахар, дважды в сутки.",
+  "image": "",
+  "weight": 0.2,
+  "stackable": false,
+  "value": {
+    "rubles": 45
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_nerve",
+        "delta": 20
+      },
+      {
+        "type": "remove_status",
+        "status": "status_shakes",
+        "target": "player"
+      },
+      {
+        "type": "change_sanity",
+        "delta": -2
+      },
+      {
+        "type": "show_message",
+        "text": "Стало не страшно. Хуже: стало всё равно."
+      }
+    ],
+    "consume": true
+  },
+  "sounds": {
+    "use": "sfx_sip"
+  }
+}

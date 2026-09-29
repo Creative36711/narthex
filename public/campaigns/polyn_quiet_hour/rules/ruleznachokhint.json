@@ -1,0 +1,23 @@
+{
+  "id": "rule_znachok_hint",
+  "label": "Значок в кармане",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "has_item",
+      "item": "item_znachok"
+    },
+    {
+      "type": "flag_set",
+      "flag": "flag_roma_shows"
+    }
+  ],
+  "effects": [
+    {
+      "type": "show_message",
+      "text": "Значок в кармане теплее, чем должен быть. Рома это почувствует раньше, чем ты дойдёшь до актового."
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

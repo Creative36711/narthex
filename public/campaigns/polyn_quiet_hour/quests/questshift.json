@@ -1,0 +1,196 @@
+{
+  "id": "quest_shift",
+  "label": "Ночная смена",
+  "description": "Три ночи в «Полыни»: обойти, описать, вывезти правду — и не нарушать режим громче, чем позволяет вода.",
+  "chapter": "ch_1_shift",
+  "journal_entries": {
+    "j_start": "Наряд принят. Три ночи, пять объектов, одна подпись в каждом журнале. Геннадич советует не задерживаться в коридорах после 22:30 и не отвечать на три стука.",
+    "j_round": "Обход: бытовка → плац → спальный корпус. Проверить щиток, занавеску в конце коридора, шкафчики. Не забыть внести в опись — иначе Зоя Романовна вычтет из расчёта.",
+    "j_roster": "Ищу список смены августа 1986-го. В бытовке говорили: он в детских шкафчиках, в ячейке, которой нет. Привыкай: здесь всё лежит не там, где надо.",
+    "j_log": "В подвале, в ящике архива, лежит журнал тихого часа. В подвал — без фонаря нельзя: там выбитая ступень и вода по щиколотку.",
+    "j_confession": "Журнал говорит об одном: 17 августа Ветрова П. «передана в методкабинет» и «не возвращена». Нужен приказ №276 — он в сейфе кабинета директора.",
+    "j_truth": "Правда собрана: методика «тихий час», шкаф, двадцать восемь детей, двести подписей. Осталось решить, что с этим делать, пока вода не закрыла архив.",
+    "j_choice": "Три выхода: увезти документы, сжечь их в костровище или оставить Инне Аркадьевне — «чтобы лагерь остался цел». Выбор надо сделать до рассвета.",
+    "j_done": "Смена закрыта. Описи сданы, документы — там, где их найдут.",
+    "j_lost": "Лагерь получил то, чего хотел: тишину и подписанные бумаги."
+  },
+  "stages": [
+    {
+      "id": "stage_round1",
+      "label": "Первый обход",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_shift",
+          "text_key": "j_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_roster",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_first_round"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_roster",
+      "label": "Список смены 1986 года",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_shift",
+          "text_key": "j_round"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_log",
+          "conditions": [
+            {
+              "type": "has_item",
+              "item": "item_roster"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_log",
+      "label": "Журнал тихого часа",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_shift",
+          "text_key": "j_roster"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_confession",
+          "conditions": [
+            {
+              "type": "has_item",
+              "item": "item_quiet_log"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_confession",
+      "label": "Приказ №276",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_shift",
+          "text_key": "j_log"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_truth",
+          "conditions": [
+            {
+              "type": "has_item",
+              "item": "item_order_1986"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_truth",
+      "label": "Правда",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_shift",
+          "text_key": "j_confession"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_choice",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_truth"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_choice",
+      "label": "Что делать с правдой",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_shift",
+          "text_key": "j_truth"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_done",
+          "conditions": [
+            {
+              "type": "or",
+              "conditions": [
+                {
+                  "type": "flag_set",
+                  "flag": "flag_cabinet_unlocked"
+                },
+                {
+                  "type": "flag_set",
+                  "flag": "flag_protocol_burned"
+                },
+                {
+                  "type": "flag_set",
+                  "flag": "flag_prosecutor"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_done",
+      "label": "Смена закрыта",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_shift",
+          "text_key": "j_done"
+        },
+        {
+          "type": "grant_xp",
+          "points": 80
+        }
+      ],
+      "transitions": [],
+      "final": true,
+      "outcome": "success"
+    },
+    {
+      "id": "stage_lost",
+      "label": "Как и все предыдущие",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_shift",
+          "text_key": "j_lost"
+        }
+      ],
+      "transitions": [],
+      "final": true,
+      "outcome": "failure"
+    }
+  ]
+}

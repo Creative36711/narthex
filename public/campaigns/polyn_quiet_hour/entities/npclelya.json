@@ -1,0 +1,39 @@
+{
+  "id": "npc_lelya",
+  "type": "npc",
+  "label": "Девочка у воды",
+  "description": "Мокрая, бледная и слишком взрослая для девяти лет. Не тонет: её не выпускали из воды тридцать три года.",
+  "portrait": {
+    "neutral": "",
+    "crying": "",
+    "calm": "",
+    "afraid": ""
+  },
+  "stats": {
+    "STR": 3,
+    "CON": 12,
+    "SIZ": 5,
+    "DEX": 11,
+    "INT": 11,
+    "POW": 17,
+    "CHA": 9
+  },
+  "skills": {
+    "listen": 90,
+    "stealth": 85,
+    "spot": 80,
+    "psychology": 60,
+    "persuade": 10
+  },
+  "equipment": {},
+  "inventory": [],
+  "scene_sprite": "",
+  "dialogue": "dialogues/lelya.ink",
+  "perception": 85,
+  "sounds": {
+    "talk": "sfx_water"
+  },
+  "shadow": false,
+  "schedule": [],
+  "presence_overrides": []
+}

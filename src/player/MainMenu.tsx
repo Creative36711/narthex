@@ -10,6 +10,7 @@ import { setAudioCampaign } from '../shared/audio'
 import { refreshMusic, setMenuMode } from '../shared/music'
 import { themeBackgroundUrl } from '../shared/theme'
 import { assetUrl } from '../core/loader'
+import { campaignDescription } from '../shared/campaigns'
 
 interface Props {
   campaign: CampaignData
@@ -35,6 +36,9 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   const m = campaign.meta
   const [showList, setShowList] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  // описания кампаний в списке: источник истины — campaign.json пакета,
+  // реестр index.json только резерв (фидбек 29-09, п.2)
+  const [descs, setDescs] = useState<Record<string, string>>({})
   const [importBusy, setImportBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const saveRef = useRef<HTMLInputElement>(null)
@@ -46,6 +50,20 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
     refreshMusic(null)
     return () => setMenuMode(false)
   }, [campaign])
+
+  // описания подгружаются при открытии списка: запросов ровно на кампанию
+  useEffect(() => {
+    if (!showList) return
+    let alive = true
+    void Promise.all(
+      campaigns.map(async (c) => [c.id, await campaignDescription(c.id, c)] as const),
+    ).then((rows) => {
+      if (alive) setDescs(Object.fromEntries(rows))
+    })
+    return () => {
+      alive = false
+    }
+  }, [showList, campaigns])
 
   const doImport = async (file: File) => {
     setImportBusy(true)
@@ -176,7 +194,9 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                   >
                     <span className="campaign-card-title">{c.title}</span>
                     {c.author && <span className="campaign-card-author">{c.author}</span>}
-                    {c.description && <span className="campaign-card-desc">{c.description}</span>}
+                    {(descs[c.id] || c.description) && (
+                      <span className="campaign-card-desc">{descs[c.id] || c.description}</span>
+                    )}
                   </button>
                   <button
                     className="btn btn-small campaign-del"

@@ -1,0 +1,745 @@
+{
+  "id": "scene_shore",
+  "label": "Берег озера",
+  "location": "loc_lake",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_shore_flood",
+      "label": "Вода у скамейки",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#05090b",
+        "layers": [
+          {
+            "label": "небо",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 330,
+              "fill": {
+                "gradient": {
+                  "from": "#101a22",
+                  "to": "#0b1012",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "заросли на горизонте",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                330,
+                300,
+                250,
+                640,
+                300,
+                1000,
+                240,
+                1280,
+                320,
+                1280,
+                430,
+                0,
+                430
+              ],
+              "fill": "#0e160f"
+            }
+          },
+          {
+            "label": "берег",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 400,
+              "w": 1280,
+              "h": 90,
+              "fill": "#2a2b20"
+            }
+          },
+          {
+            "label": "вода",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 430,
+              "w": 1280,
+              "h": 290,
+              "fill": {
+                "gradient": {
+                  "from": "#1d2f36",
+                  "to": "#060b0d",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "отражение луны",
+            "shape": {
+              "type": "ellipse",
+              "cx": 1000,
+              "cy": 520,
+              "rx": 120,
+              "ry": 26,
+              "fill": "#cfe0b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "рябь",
+            "shape": {
+              "type": "line",
+              "x1": 120,
+              "y1": 520,
+              "x2": 520,
+              "y2": 516,
+              "color": "#3f5c62",
+              "width": 2,
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "рябь 2",
+            "shape": {
+              "type": "line",
+              "x1": 600,
+              "y1": 600,
+              "x2": 1150,
+              "y2": 592,
+              "color": "#3f5c62",
+              "width": 2,
+              "opacity": 0.4
+            }
+          },
+          {
+            "label": "скамейка",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 370,
+              "w": 210,
+              "h": 130,
+              "fill": "#33291c",
+              "stroke": "#0b0906",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "лодочная станция",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 220,
+              "w": 270,
+              "h": 210,
+              "fill": "#241f18",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "опоры",
+            "shape": {
+              "type": "line",
+              "x1": 560,
+              "y1": 430,
+              "x2": 560,
+              "y2": 620,
+              "color": "#1a1712",
+              "width": 8
+            }
+          },
+          {
+            "label": "опоры 2",
+            "shape": {
+              "type": "line",
+              "x1": 760,
+              "y1": 430,
+              "x2": 760,
+              "y2": 620,
+              "color": "#1a1712",
+              "width": 8
+            }
+          },
+          {
+            "label": "причал",
+            "shape": {
+              "type": "rect",
+              "x": 820,
+              "y": 420,
+              "w": 120,
+              "h": 40,
+              "fill": "#2b2418"
+            }
+          },
+          {
+            "label": "вода пришла",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 400,
+              "w": 1280,
+              "h": 320,
+              "fill": {
+                "gradient": {
+                  "from": "#22343c",
+                  "to": "#05090b",
+                  "angle": 90
+                }
+              },
+              "opacity": 0.9
+            }
+          },
+          {
+            "label": "выход",
+            "shape": {
+              "type": "rect",
+              "x": 1130,
+              "y": 120,
+              "w": 120,
+              "h": 110,
+              "fill": "#171a14",
+              "stroke": "#3b3a30",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Берег · вода у скамейки, лодочная станция",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "flag": "flag_flooded"
+      }
+    },
+    {
+      "id": "state_shore_night",
+      "label": "Ночь на воде",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#070c0f",
+        "layers": [
+          {
+            "label": "небо",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 330,
+              "fill": {
+                "gradient": {
+                  "from": "#101a22",
+                  "to": "#0b1012",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "заросли на горизонте",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                330,
+                300,
+                250,
+                640,
+                300,
+                1000,
+                240,
+                1280,
+                320,
+                1280,
+                430,
+                0,
+                430
+              ],
+              "fill": "#0e160f"
+            }
+          },
+          {
+            "label": "берег",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 400,
+              "w": 1280,
+              "h": 90,
+              "fill": "#2a2b20"
+            }
+          },
+          {
+            "label": "вода",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 430,
+              "w": 1280,
+              "h": 290,
+              "fill": {
+                "gradient": {
+                  "from": "#1d2f36",
+                  "to": "#060b0d",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "отражение луны",
+            "shape": {
+              "type": "ellipse",
+              "cx": 1000,
+              "cy": 520,
+              "rx": 120,
+              "ry": 26,
+              "fill": "#cfe0b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "рябь",
+            "shape": {
+              "type": "line",
+              "x1": 120,
+              "y1": 520,
+              "x2": 520,
+              "y2": 516,
+              "color": "#3f5c62",
+              "width": 2,
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "рябь 2",
+            "shape": {
+              "type": "line",
+              "x1": 600,
+              "y1": 600,
+              "x2": 1150,
+              "y2": 592,
+              "color": "#3f5c62",
+              "width": 2,
+              "opacity": 0.4
+            }
+          },
+          {
+            "label": "скамейка",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 370,
+              "w": 210,
+              "h": 130,
+              "fill": "#33291c",
+              "stroke": "#0b0906",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "лодочная станция",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 220,
+              "w": 270,
+              "h": 210,
+              "fill": "#241f18",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "опоры",
+            "shape": {
+              "type": "line",
+              "x1": 560,
+              "y1": 430,
+              "x2": 560,
+              "y2": 620,
+              "color": "#1a1712",
+              "width": 8
+            }
+          },
+          {
+            "label": "опоры 2",
+            "shape": {
+              "type": "line",
+              "x1": 760,
+              "y1": 430,
+              "x2": 760,
+              "y2": 620,
+              "color": "#1a1712",
+              "width": 8
+            }
+          },
+          {
+            "label": "причал",
+            "shape": {
+              "type": "rect",
+              "x": 820,
+              "y": 420,
+              "w": 120,
+              "h": 40,
+              "fill": "#2b2418"
+            }
+          },
+          {
+            "label": "выход",
+            "shape": {
+              "type": "rect",
+              "x": 1130,
+              "y": 120,
+              "w": 120,
+              "h": 110,
+              "fill": "#171a14",
+              "stroke": "#3b3a30",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Берег · вода у скамейки, лодочная станция",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": {
+        "time_of_day": [
+          "night",
+          "evening"
+        ]
+      }
+    },
+    {
+      "id": "state_shore_default",
+      "label": "Обычное",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0d1210",
+        "layers": [
+          {
+            "label": "небо",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 330,
+              "fill": {
+                "gradient": {
+                  "from": "#2a3a3c",
+                  "to": "#0b1012",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "заросли на горизонте",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                330,
+                300,
+                250,
+                640,
+                300,
+                1000,
+                240,
+                1280,
+                320,
+                1280,
+                430,
+                0,
+                430
+              ],
+              "fill": "#0e160f"
+            }
+          },
+          {
+            "label": "берег",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 400,
+              "w": 1280,
+              "h": 90,
+              "fill": "#2a2b20"
+            }
+          },
+          {
+            "label": "вода",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 430,
+              "w": 1280,
+              "h": 290,
+              "fill": {
+                "gradient": {
+                  "from": "#1d2f36",
+                  "to": "#060b0d",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "отражение луны",
+            "shape": {
+              "type": "ellipse",
+              "cx": 1000,
+              "cy": 520,
+              "rx": 120,
+              "ry": 26,
+              "fill": "#cfe0b8",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "рябь",
+            "shape": {
+              "type": "line",
+              "x1": 120,
+              "y1": 520,
+              "x2": 520,
+              "y2": 516,
+              "color": "#3f5c62",
+              "width": 2,
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "рябь 2",
+            "shape": {
+              "type": "line",
+              "x1": 600,
+              "y1": 600,
+              "x2": 1150,
+              "y2": 592,
+              "color": "#3f5c62",
+              "width": 2,
+              "opacity": 0.4
+            }
+          },
+          {
+            "label": "скамейка",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 370,
+              "w": 210,
+              "h": 130,
+              "fill": "#33291c",
+              "stroke": "#0b0906",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "лодочная станция",
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 220,
+              "w": 270,
+              "h": 210,
+              "fill": "#241f18",
+              "stroke": "#0b0906",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "опоры",
+            "shape": {
+              "type": "line",
+              "x1": 560,
+              "y1": 430,
+              "x2": 560,
+              "y2": 620,
+              "color": "#1a1712",
+              "width": 8
+            }
+          },
+          {
+            "label": "опоры 2",
+            "shape": {
+              "type": "line",
+              "x1": 760,
+              "y1": 430,
+              "x2": 760,
+              "y2": 620,
+              "color": "#1a1712",
+              "width": 8
+            }
+          },
+          {
+            "label": "причал",
+            "shape": {
+              "type": "rect",
+              "x": 820,
+              "y": 420,
+              "w": 120,
+              "h": 40,
+              "fill": "#2b2418"
+            }
+          },
+          {
+            "label": "выход",
+            "shape": {
+              "type": "rect",
+              "x": 1130,
+              "y": 120,
+              "w": 120,
+              "h": 110,
+              "fill": "#171a14",
+              "stroke": "#3b3a30",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "подпись",
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 690,
+              "text": "Берег · вода у скамейки, лодочная станция",
+              "size": 22,
+              "color": "#8b9a86"
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_shore_girl",
+      "label": "Она у воды",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 860,
+      "y": 420,
+      "w": 170,
+      "h": 230,
+      "default_entity": "npc_lelya",
+      "condition": {
+        "flag": "flag_lelya_shows"
+      }
+    },
+    {
+      "id": "slot_shore_bench",
+      "label": "Скамейка",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 200,
+      "y": 370,
+      "w": 210,
+      "h": 130,
+      "default_entity": "item_bench",
+      "condition": null
+    },
+    {
+      "id": "slot_shore_boathouse",
+      "label": "Лодочная станция",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 520,
+      "y": 220,
+      "w": 270,
+      "h": 210,
+      "default_entity": "item_boathouse",
+      "condition": null
+    },
+    {
+      "id": "slot_shore_water",
+      "label": "Кромка воды",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 0,
+      "y": 430,
+      "w": 1280,
+      "h": 290,
+      "default_entity": "item_lake_water",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "К лагеру и плотине (карта)",
+      "area": {
+        "x": 1130,
+        "y": 120,
+        "w": 120,
+        "h": 110
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_lake"
+      ],
+      "conditions": [
+        {
+          "flag": "flag_lelya_shows"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_night"
+      ]
+    }
+  ],
+  "ambient": [
+    "sfx_lake_hush"
+  ],
+  "chapter": "ch_3_water"
+}

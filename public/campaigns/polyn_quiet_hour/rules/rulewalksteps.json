@@ -1,0 +1,32 @@
+{
+  "id": "rule_walk_steps",
+  "label": "Обход без дежурного",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "time_of_day",
+      "value": [
+        "night",
+        "evening"
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": -3
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 8
+    },
+    {
+      "type": "show_message",
+      "text": "По коридору кто-то ходит размеренно, с паузами у каждой двери. Так ходят с обходным журналом."
+    }
+  ],
+  "chapter": "ch_1_shift"
+}

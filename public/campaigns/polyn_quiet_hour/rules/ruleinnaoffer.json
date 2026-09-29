@@ -1,0 +1,28 @@
+{
+  "id": "rule_inna_offer",
+  "label": "Инна выходит на разговор",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "quest_at_stage",
+      "quest": "quest_shift",
+      "stage": "stage_confession"
+    },
+    {
+      "type": "entity_alive",
+      "entity": "npc_inna"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_dialogue",
+      "entity": "npc_inna"
+    },
+    {
+      "type": "show_message",
+      "text": "Она стоит в дверях и ждёт, пока ты закончишь."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

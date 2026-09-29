@@ -1,0 +1,35 @@
+{
+  "id": "item_roster",
+  "type": "item",
+  "category": "document",
+  "label": "Список смены, август 1986",
+  "description": "Две страницы печатной таблички и от руки вписанные «выбытия». Напротив «Ветрова Полина, 9 лет» стоит «выбыла» без даты.",
+  "image": "",
+  "weight": 0.05,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "postcard",
+        "text": "Список смены «Солнышко», 1986 г.\n\n1. Абрамова Даша — на месте\n2. Гладков Рома — «выбыл»\n…\n19. Ветрова Полина — «выбыла», дата не указана\n\nНа полях карандашом: «не найдена»."
+      },
+      {
+        "type": "unlock_codex",
+        "entry": "codex_1986"
+      },
+      {
+        "type": "fire_rule",
+        "rule": "rule_bridge_roster"
+      },
+      {
+        "type": "advance_time",
+        "ticks": 1
+      }
+    ],
+    "consume": false,
+    "message": "Ты перечитал список дважды."
+  },
+  "sounds": {
+    "use": "sfx_page"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "rule_zoya_leaves",
+  "label": "Зоя уехала с неполными описями",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 64
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_report_done"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_zoya_left"
+    },
+    {
+      "type": "change_disposition",
+      "target": "faction_liquidkom",
+      "delta": -15
+    },
+    {
+      "type": "show_message",
+      "text": "Не дождавшись половины описей, она уехала. «Ставлю прочерк, — сказала она. — Прочерк — тоже документ»."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

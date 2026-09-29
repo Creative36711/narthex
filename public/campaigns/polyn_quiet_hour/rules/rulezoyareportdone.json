@@ -1,0 +1,55 @@
+{
+  "id": "rule_zoya_report_done",
+  "label": "Опись закрыта: восемь объектов",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "variable_compare",
+      "var": "day_plan",
+      "operator": ">=",
+      "value": 8
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_report_done"
+    },
+    {
+      "type": "give_reward",
+      "items": [
+        {
+          "item": "item_ruble",
+          "quantity": 120
+        },
+        {
+          "item": "item_coffee",
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "type": "change_disposition",
+      "target": "faction_liquidkom",
+      "delta": 10
+    },
+    {
+      "type": "grant_xp",
+      "points": 40
+    },
+    {
+      "type": "change_sanity",
+      "delta": 5
+    },
+    {
+      "type": "show_message",
+      "text": "«Восемь — и ты свободен, — сказала Зоя и помолчала. — Тебе никто не мешает уехать сегодня»."
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_lake_map"
+    }
+  ],
+  "chapter": "ch_3_water"
+}

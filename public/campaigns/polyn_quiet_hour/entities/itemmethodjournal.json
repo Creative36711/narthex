@@ -1,0 +1,102 @@
+{
+  "id": "item_method_journal",
+  "type": "item",
+  "category": "document",
+  "label": "Журнал методики «Тихий час»",
+  "description": "Гроссбух в дерматиновой обложке. Колонки: дата, ФИО, длительность, «состояние на выходе», подпись взрослого.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Читать до конца",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 2
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_method"
+        },
+        {
+          "type": "change_sanity",
+          "delta": -9
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_truth"
+        },
+        {
+          "type": "advance_quest",
+          "quest": "quest_shift",
+          "stage": "stage_truth"
+        },
+        {
+          "type": "postcard",
+          "text": "17.08, Ветрова П., 25 мин, «не реагирует», подпись: И. Ветрова.\n\nНиже, тем же почерком, другими чернилами: «продолжить, дети услышат»."
+        },
+        {
+          "type": "show_message",
+          "text": "В последней колонке 27 раз одна фамилия. В 28-й — чистое место и вмятина от пера."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Вырвать страницу",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_quiet_log",
+          "quantity": 1
+        },
+        {
+          "type": "change_sanity",
+          "delta": -3
+        },
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 20
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_log"
+        },
+        {
+          "type": "show_message",
+          "text": "Страница 28 вышла целиком — как будто её держали с другой стороны."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести методкабинет в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Методкабинет: кушетка, шкаф металлический (заперт), журнал, стул. «Назначение не указано»."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

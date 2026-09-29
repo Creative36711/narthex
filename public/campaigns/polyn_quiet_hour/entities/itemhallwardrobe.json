@@ -1,0 +1,123 @@
+{
+  "id": "item_hall_wardrobe",
+  "type": "item",
+  "category": "container",
+  "label": "Шкаф в конце коридора",
+  "description": "Трёхстворчатый, для постельного. Внутри вместо белья четыре пары детской обуви, повёрнутой носками к стене.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Осмотреть обувь",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_names"
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "difficult",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_valerian",
+              "quantity": 1
+            },
+            {
+              "type": "advance_quest",
+              "quest": "quest_roma",
+              "stage": "stage_r_hear"
+            },
+            {
+              "type": "show_message",
+              "text": "Под третьей парой лежал пузырёк. Обувь расставили так, чтобы обязательно нашли."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_sanity",
+              "delta": -6
+            },
+            {
+              "type": "show_message",
+              "text": "Ты перевернул все пары. Теперь в стену смотрят каблуки — и ты знаешь, что их так поставил не ты."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Выйти в коридор спиной к шкафу",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "opposed_check",
+          "skill": "stealth",
+          "entity": "npc_quiet_hour",
+          "against_skill": "listen",
+          "tie": "opponent",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Ты вышел спиной вперёд и не обернулся на шкаф. Обувь внутри осталась смотреть в стену — так, как её поставил ты, когда заходил."
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 5
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 35
+            },
+            {
+              "type": "change_sanity",
+              "delta": -4
+            },
+            {
+              "type": "show_message",
+              "text": "Ты задел дверцу. Из шкафа пахнуло нагретым сукном, и четыре пары обуви повернулись носками к тебе."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести постельное в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Двенадцать комплектов, восемь ветхих. «В норме» — написал ты."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

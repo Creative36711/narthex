@@ -1,0 +1,62 @@
+{
+  "id": "item_shift_log",
+  "type": "item",
+  "category": "document",
+  "label": "Наряд-расписка на три ночи",
+  "description": "«Принял смену. Обязуюсь: обход, опись, порядок. Ответственность за сохранность имущества и за свою жизнь — на мне».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Подписать и принять смену",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "flag_shift_started"
+        },
+        {
+          "type": "start_quest",
+          "quest": "quest_shift"
+        },
+        {
+          "type": "journal_update",
+          "quest": "quest_shift",
+          "text_key": "j_start"
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "banner",
+          "text": "Глава I. Смена",
+          "preset": "глава"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты расписался. Часы в бытовке идут на час вперёд — ты это заметил не сразу."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Прочитать подпись предыдущего",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_gennadich"
+        },
+        {
+          "type": "postcard",
+          "text": "Последняя строка августа 1986-го обведена трижды: «Сомов Г. П., принял дела». Ниже, тем же почерком: «не оставайся до утра»."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

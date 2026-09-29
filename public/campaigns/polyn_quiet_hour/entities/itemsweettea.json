@@ -1,0 +1,37 @@
+{
+  "id": "item_sweet_tea",
+  "type": "item",
+  "category": "food",
+  "label": "Сладкий чай в кружке",
+  "description": "Крепкий и приторный; горячий ровно столько, сколько нужно, чтобы руки перестали дрожать.",
+  "image": "",
+  "weight": 0.3,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_nerve",
+        "delta": 14
+      },
+      {
+        "type": "remove_status",
+        "status": "status_shakes",
+        "target": "player"
+      },
+      {
+        "type": "change_luck",
+        "delta": 2
+      },
+      {
+        "type": "show_message",
+        "text": "Ты выпил маленькими глотками. Сердце стало биться реже."
+      }
+    ],
+    "consume": true,
+    "message": "Кружка осталась в руке пустой."
+  },
+  "sounds": {
+    "use": "sfx_sip"
+  }
+}

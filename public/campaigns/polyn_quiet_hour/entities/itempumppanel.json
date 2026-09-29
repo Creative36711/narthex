@@ -1,0 +1,91 @@
+{
+  "id": "item_pump_panel",
+  "type": "item",
+  "category": "device",
+  "label": "Щит насосной",
+  "description": "Шкаф с рубильниками, стрелки амперметров на нуле. На двери инструкция и приписка шариковой ручкой: «без предохранителя не суйся, услышат».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Открыть щит",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "advance_quest",
+              "quest": "quest_pump",
+              "stage": "stage_p_panel"
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_pump"
+            },
+            {
+              "type": "show_message",
+              "text": "Дверца открыта. Гнёзда пустуют, справа подписано «10 А»."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 25
+            },
+            {
+              "type": "show_message",
+              "text": "Замок был забит землёй; ты ковырял его ногтем, и в корпусах стукнуло."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести плотину в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Плотина: щит управления, насос 2 шт., лоток. «Состояние рабочее» — написал ты и не поверил себе."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "interactable_when": [
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_dam_open"
+        },
+        {
+          "type": "flag_set",
+          "flag": "flag_zoya_confirmed"
+        }
+      ]
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

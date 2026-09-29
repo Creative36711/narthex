@@ -1,0 +1,79 @@
+{
+  "id": "item_lake_water",
+  "type": "item",
+  "category": "misc",
+  "label": "Кромка воды",
+  "description": "Вода стоит на три пальца выше вчерашнего и не дрожит, хотя ветер есть.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Позвать её по имени",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "flag_called_name"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты сказал вслух: «Лёля». Водоём не ответил эхом — он ответил шагами у тебя за спиной."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Зачерпнуть воды",
+      "effects": [
+        {
+          "type": "change_hp",
+          "delta": -2
+        },
+        {
+          "type": "change_sanity",
+          "delta": -6
+        },
+        {
+          "type": "apply_status",
+          "status": "status_numbed",
+          "duration": 4,
+          "target": "player"
+        },
+        {
+          "type": "show_message",
+          "text": "Вода была тёплая, как ванна, из которой только что вышли."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Не смотреть на воду",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": 6
+        },
+        {
+          "type": "change_sanity",
+          "delta": 3
+        },
+        {
+          "type": "show_message",
+          "text": "Ты отвёл глаза первым. В этом лагере считается, что это вежливость."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "interactable_when": [
+    {
+      "type": "flag_not_set",
+      "flag": "flag_quiet_hour"
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "id": "rule_sanity_20",
+  "label": "Рассудок 20: она выходит на берег",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "sanity_le",
+      "threshold": 20
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_sanity20"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_sanity20"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_lelya_shows"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_lelya"
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_roma",
+      "state": "calm"
+    },
+    {
+      "type": "show_message",
+      "text": "Теперь ты её видишь и днём: у воды, у забора, в отражении умывальника. Она не приближается. Она ждёт, что ты подойдёшь."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

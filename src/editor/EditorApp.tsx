@@ -16,8 +16,8 @@ import { CutsceneEditor, newCutscene } from './CutsceneEditor'
 import { RecipeEditor, newRecipe } from './RecipeEditor'
 import { CodexEditor, newCodexEntry } from './CodexEditor'
 import JSZip from 'jszip'
-import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
-import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
+import { exportChronicle, downloadBlob, importChronicle, peekChronicleMeta } from './chronicle'
+import { createCampaign, fetchCampaignIndex, nextAvailableCampaignId, type CampaignIndexEntry } from './newCampaign'
 import { stopMusic } from '../shared/music'
 import { stopAllLoops } from '../shared/audio'
 import { themeVars } from '../shared/theme'
@@ -176,6 +176,23 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     fetchCampaignIndex().then(setCampaigns)
   }, [base])
 
+  // реестр кампаний мог измениться вне редактора (импорт из плеера, распаковка
+  // «чемоданчика» вручную) — обновляем список, когда окно снова получает фокус
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'hidden') return
+      void fetchCampaignIndex().then((idx) => {
+        if (idx.length) setCampaigns((prev) => (idx.length === prev.length && idx.every((c, i) => c.id === prev[i]?.id) ? prev : idx))
+      })
+    }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [])
+
   // undo: Ctrl+Z везде в редакторе НАЖИМАЕТ кнопку «Отменить» (фидбек №10:
   // «принцип простой — Ctrl+Z просто нажимает кнопку “Отменить”»). Родной
   // откат браузера в текстовых полях всё равно мёртв: каждое нажатие сразу
@@ -201,6 +218,71 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [store])
+
+  /**
+   * Импортированный пакет приносит собственный id. Если он не совпадает с
+   * открытой кампанией, кладём пакет в campaigns/<id>/ и открываем его: иначе
+   * он «растворялся» внутри чужой директории и не появлялся в списке кампаний
+   * (фидбек 29-09, п.1). Возвращает true, если кампанию открыли заново.
+   */
+  /**
+   * Импортированный пакет приносит собственный id. Если он не совпадает с
+   * открытой кампанией, спрашиваем мастера и кладём пакет в campaigns/<id>/,
+   * регистрируем в index.json и открываем: иначе он «растворялся» внутри чужой
+   * директории и не появлялся в списке кампаний (фидбек 29-09, п.1).
+   * `write(target)` кладёт файлы пакета в campaigns/<target>/.
+   * Возвращает true, если кампания установлена и открыта заново.
+   */
+  const installImportedPackage = async (id: string, title: string, write: (target: string) => Promise<string[]>): Promise<boolean> => {
+    if (!id || `/campaigns/${id}` === base) return false
+    const idx = await fetchCampaignIndex()
+    const clash = idx.find((c) => c.id === id && c.title !== title)
+    const target = clash ? nextAvailableCampaignId(id, idx.map((c) => c.id)) : id
+    const ok = await askConfirm(
+      `Кампания «${title}» будет записана в campaigns/${target}/ и открыта в редакторе.` +
+        (target !== id ? ` (id «${id}» уже занят другой кампанией)` : ''),
+      'Записать и открыть',
+    )
+    if (!ok) return false
+    setBusy('Запись кампании на диск…')
+    try {
+      const warns = await write(target)
+      await store.saveToDisk(store.allPaths(), target)
+      const entry: CampaignIndexEntry = {
+        id: target,
+        title,
+        author: store.meta.author,
+        ...(store.meta.description ? { description: store.meta.description } : {}),
+      }
+      const next = idx.map((c) => (c.id === target ? { ...c, ...entry } : c))
+      if (!next.some((c) => c.id === target)) next.push(entry)
+      const res = await fetch('/__editor/save', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path: 'campaigns/index.json', text: JSON.stringify(next, null, 2) }),
+      })
+      if (!res.ok) throw new Error(`${res.status} ${await res.text()}`)
+      // подождать, пока dev-сервер начнёт отдавать новые файлы (иначе пустой экран)
+      for (let i = 0; i < 10; i++) {
+        const ready = await fetch(`/campaigns/${target}/campaign.json?t=${Date.now()}`).then((r) => r.ok).catch(() => false)
+        if (ready) break
+        await new Promise((r) => setTimeout(r, 250))
+      }
+      setCampaigns(next)
+      setBase(`/campaigns/${target}`)
+      if (warns.length) {
+        void showList('Импортировано с предупреждениями', warns, `Кампания «${title}» записана в campaigns/${target}/ и открыта.`, {
+          label: 'Скопировать отчёт для ИИ',
+          text: aiFixReport(warns),
+        })
+      } else {
+        void showAlert('Импортировано', `Кампания «${title}» записана в campaigns/${target}/ и открыта в редакторе.`)
+      }
+      return true
+    } finally {
+      setBusy(null)
+    }
+  }
 
   const newCampaign = async () => {
     const title = await askText('Название новой кампании', 'например «Тени Северного тракта»')
@@ -539,6 +621,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const doImport = async (file: File) => {
     setBusy('Импорт…')
     try {
+      // пакет с чужим id ставится отдельной кампанией (см. installImportedPackage)
+      const incoming = await peekChronicleMeta(file)
+      const installed = await installImportedPackage(incoming.id, incoming.title, (target) =>
+        importChronicle(store, file, target),
+      )
+      if (installed) return
       const warns = await importChronicle(store, file)
       if (warns.length) {
         void showList('Импортировано с предупреждениями', warns, 'Нажмите «Сохранить», чтобы записать файлы на диск.', {
@@ -619,6 +707,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     setBusy('Импорт JSON…')
     try {
       const warns = importMonolithText(store, text)
+      const installed = await installImportedPackage(
+        String(store.meta.id ?? '').trim(),
+        store.meta.title,
+        async () => warns,
+      )
+      if (installed) return
       void showList(
         warns.length ? `Импортировано с ${warns.length} предупреждениями` : 'Импортировано без предупреждений',
         warns,

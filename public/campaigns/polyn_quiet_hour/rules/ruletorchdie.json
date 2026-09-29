@@ -1,0 +1,35 @@
+{
+  "id": "rule_torch_die",
+  "label": "Батарейка села",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 58
+    },
+    {
+      "type": "has_item",
+      "item": "item_flashlight"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_torch_dead"
+    }
+  ],
+  "effects": [
+    {
+      "type": "clear_flag",
+      "flag": "flag_torch_on"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flag_torch_dead"
+    },
+    {
+      "type": "show_message",
+      "text": "«Жучок» мигнул два раза и погас. Геннадич всегда говорил: фонарь живёт ровно одну смену."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

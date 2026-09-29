@@ -1,0 +1,37 @@
+{
+  "id": "rule_bridge_defy",
+  "label": "Мост: Инне отказано",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_defied_inna"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_inna_watching"
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_inna",
+      "state": "hollow"
+    },
+    {
+      "type": "change_sanity",
+      "delta": 6
+    },
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 20
+    },
+    {
+      "type": "change_need",
+      "need": "need_nerve",
+      "delta": -8
+    }
+  ],
+  "chapter": "ch_3_water"
+}

@@ -1,0 +1,45 @@
+{
+  "id": "rule_walker",
+  "label": "Кто-то ведёт по тропе",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_ch2"
+    }
+  ],
+  "effects": [
+    {
+      "type": "change_need",
+      "need": "need_noise",
+      "delta": 10
+    },
+    {
+      "type": "skill_check_gate",
+      "skill": "listen",
+      "difficulty": "normal",
+      "success_effects": [
+        {
+          "type": "show_message",
+          "text": "Ты услышал, где заканчиваются его шаги: у кромки воды."
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_shore_view"
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "show_message",
+          "text": "Тропа шла впереди тебя сама — сучья ложились, ветки отводились. Ты шёл за тем, кого не видел, и это было приятно."
+        }
+      ]
+    },
+    {
+      "type": "change_luck",
+      "delta": -2
+    }
+  ],
+  "chapter": "ch_3_water"
+}

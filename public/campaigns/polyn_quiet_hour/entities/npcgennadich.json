@@ -1,0 +1,103 @@
+{
+  "id": "npc_gennadich",
+  "type": "npc",
+  "label": "Геннадий Петрович Сомов",
+  "description": "Предшествующий охранник. Одиннадцать лет ходил по этим коридорам с фонарём и ни разу не поднял голос. Отдаёт смену как долг: неохотно и по бумагам.",
+  "portrait": {
+    "neutral": "",
+    "tense": "",
+    "angry": "",
+    "afraid": "",
+    "calm": ""
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 11,
+    "SIZ": 12,
+    "DEX": 8,
+    "INT": 11,
+    "POW": 12,
+    "CHA": 9
+  },
+  "skills": {
+    "persuade": 45,
+    "listen": 50,
+    "spot": 45,
+    "stealth": 35,
+    "repair": 40
+  },
+  "equipment": {},
+  "inventory": [
+    {
+      "item": "item_ruble",
+      "quantity": 400
+    },
+    {
+      "item": "item_coffee",
+      "quantity": 4
+    },
+    {
+      "item": "item_kerosene",
+      "quantity": 3
+    },
+    {
+      "item": "item_batteries",
+      "quantity": 6
+    },
+    {
+      "item": "item_matches",
+      "quantity": 5
+    },
+    {
+      "item": "item_cigarettes",
+      "quantity": 3
+    }
+  ],
+  "dialogue": "dialogues/gennadich.ink",
+  "schedule": [
+    {
+      "time_range": [
+        0,
+        24
+      ],
+      "location": "loc_gate",
+      "scene": "scene_gatehouse",
+      "slot": "slot_gate_stool"
+    }
+  ],
+  "sounds": {
+    "talk": "sfx_sip"
+  },
+  "faction": "faction_liquidkom",
+  "trader": {
+    "sells": [
+      {
+        "item": "item_coffee",
+        "price": 30
+      },
+      {
+        "item": "item_batteries",
+        "price": 20
+      },
+      {
+        "item": "item_kerosene",
+        "price": 25
+      },
+      {
+        "item": "item_matches",
+        "price": 5
+      },
+      {
+        "item": "item_cigarettes",
+        "price": 15
+      },
+      {
+        "item": "item_valerian",
+        "price": 45
+      }
+    ],
+    "buys": true,
+    "buy_rate": 0.5
+  },
+  "presence_overrides": []
+}

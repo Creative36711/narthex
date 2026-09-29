@@ -1,0 +1,84 @@
+{
+  "id": "item_safe",
+  "type": "item",
+  "category": "container",
+  "label": "Сейф СМ-11",
+  "description": "Скреплён с полом. Верхняя полка пустая, нижняя — запаянный конверт «276».",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Повозиться с замком",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 2
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": "difficult",
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_safe_open"
+            },
+            {
+              "type": "show_message",
+              "text": "Секретный замок поддался на третьем оборотке."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 35
+            },
+            {
+              "type": "advance_time",
+              "ticks": 1
+            },
+            {
+              "type": "show_message",
+              "text": "Замок ответил лязгом, слышным на улице."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Достать приказ",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_order_1986",
+          "quantity": 1
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_note_276"
+        },
+        {
+          "type": "advance_quest",
+          "quest": "quest_shift",
+          "stage": "stage_confession"
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Конверт запаян не воском, а парафином — тем, которым мажут щели в окнах спального корпуса."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

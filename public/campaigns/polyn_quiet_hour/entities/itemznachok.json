@@ -1,0 +1,16 @@
+{
+  "id": "item_znachok",
+  "type": "item",
+  "category": "misc",
+  "label": "Пионерский значок",
+  "description": "Октябрёнок, звёздочка, гвоздик сорван. На обороте нацарапано: «Р.Г., 4 б».",
+  "image": "",
+  "weight": 0.01,
+  "stackable": false,
+  "value": {
+    "rubles": 5
+  },
+  "sounds": {
+    "pickup": "sfx_lock"
+  }
+}

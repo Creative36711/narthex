@@ -1,0 +1,29 @@
+{
+  "id": "rule_quiet_hour_start",
+  "label": "Начало тихого часа",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 34
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_quiet_hour"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_quiet_hour"
+    },
+    {
+      "type": "banner",
+      "text": "13:00. Тихий час. Лежать, глаза закрыть.",
+      "preset": "глава",
+      "seconds": 8
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

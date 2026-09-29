@@ -1,0 +1,36 @@
+{
+  "id": "rule_water_in_basement",
+  "label": "Вода вошла в подвал",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 62
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_water_in_basement"
+    },
+    {
+      "type": "change_scene_state",
+      "scene": "scene_basement",
+      "state": "state_bas_flood"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_watermark"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "flag_basement_lit"
+    },
+    {
+      "type": "show_message",
+      "text": "Из ливневого люка потянуло водой: подвал больше не архив, а часть водохранилища."
+    }
+  ],
+  "chapter": "ch_3_water"
+}

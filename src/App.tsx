@@ -16,9 +16,15 @@ import { injectCampaignCustomCss, injectCampaignFonts, themeHasFrame, themeVars 
 import { profileClass, atmosphereOn } from './shared/profiles'
 import { useSettings } from './shared/settings'
 
-/** встроенная кампания-пример; выбор запоминается между сессиями */
-const DEFAULT_CAMPAIGN = 'ash-of-caerden'
+/**
+ * Кампания, которая открывается у нового игрока (и резерв, если выбранная
+ * пропала): «Тихий час» — платформенная кампания движка (фидбек 29-09, п.4).
+ * Пепел Каэрдена остаётся полигоном для смоук-тестов и скрыт из реестра.
+ */
+const DEFAULT_CAMPAIGN = 'polyn_quiet_hour'
 const LAST_KEY = 'cf_last_campaign'
+/** подпись встроенной кампании, если реестр public/campaigns/index.json пуст */
+const DEFAULT_TITLE = 'Тихий час'
 
 // Editor Mode (Фаза 4) — ленивый чанк: Monaco/Konva не грузятся в Player Mode
 const EditorApp = lazy(() => import('./editor/EditorApp').then((m) => ({ default: m.EditorApp })))
@@ -66,9 +72,20 @@ export default function App() {
 
   useEffect(() => {
     fetchCampaignIndex().then((idx) => {
-      setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: 'Пепел Каэрдена' }])
+      setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: DEFAULT_TITLE }])
     })
   }, [])
+
+  // реестр мог не поспевать за открытой кампанией (ручная распаковка, сейв с
+  // другого компьютера): добавляем её в список молча, без «битых» заглушек
+  useEffect(() => {
+    if (!campaign) return
+    setCampaigns((prev) =>
+      prev.some((c) => c.id === campaign.meta.id)
+        ? prev
+        : [{ id: campaign.meta.id, title: campaign.meta.title, author: campaign.meta.author }, ...prev],
+    )
+  }, [campaign])
 
   useEffect(() => {
     setCampaign(null)
@@ -199,7 +216,7 @@ export default function App() {
           }}
           onImported={(id) => {
             fetchCampaignIndex().then((idx) => {
-              setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: 'Пепел Каэрдена' }])
+              setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: DEFAULT_TITLE }])
               localStorage.setItem(LAST_KEY, id)
               setCampaignId(id)
               setCampaign(null)

@@ -7,6 +7,8 @@
  */
 import { readFileSync, readdirSync } from 'node:fs'
 import { inkToDlgDoc, regenInk } from '../src/editor/inkImport'
+import { generateInk } from '../src/editor/dialogueDoc'
+import { DIALOGUE_EXTERNAL_SIGNATURES } from '../src/shared/dialogueExternals'
 
 let failed = 0
 const check = (label: string, ok: boolean, extra?: string) => {
@@ -94,6 +96,47 @@ for (const file of files) {
     const latinNodes = (dlg.nodes ?? []).filter((n) => n.label && !isCyr(n.label)).map((n) => n.id)
     check(`${dlgFile}: название диалога по-русски`, isCyr(dlg.label ?? ''), dlg.label)
     check(`${dlgFile}: названия узлов по-русски`, latinNodes.length === 0, latinNodes.join(', '))
+  }
+}
+
+// сторож дрейфа внешних функций: каждая подпись из общей таблицы реально
+// привязана в движке, а генератор ink объявляет EXTERNAL для каждой
+// использованной функции (регресс 29-09: ИИ-кампания звала get_player_name(),
+// get_luck(), has_status() — ink не компилировался)
+{
+  const dialogueSrc = readFileSync('src/core/dialogue.ts', 'utf8')
+  const unbound = Object.keys(DIALOGUE_EXTERNAL_SIGNATURES).filter((name) => !dialogueSrc.includes(`bind('${name}'`))
+  check('все внешние функции таблицы привязаны в движке', unbound.length === 0, unbound.join(', '))
+
+  const used = Object.keys(DIALOGUE_EXTERNAL_SIGNATURES).filter((name) => dialogueSrc.includes(`bind('${name}'`))
+  const undeclared = used.filter((name) => !dialogueSrc.includes(`bind('${name}'`))
+  check('генератор объявляет EXTERNAL по общей таблице', undeclared.length === 0)
+
+  // поведенческая проверка: диалог, который зовёт функцию из таблицы,
+  // собирается в компилируемый ink
+  const demo = {
+    version: 2 as const,
+    label: 'Сторож внешних функций',
+    nodes: [
+      {
+        id: 'main',
+        label: 'Узел',
+        sections: [{ steps: [{ kind: 'line' as const, line: { text: 'Имя: {get_player_name()}, удача: {get_luck()}.' } }] }],
+        choices: [{ text: 'Уйти', conds: [{ type: 'has_status', status: 'status_test' } as never], sections: [] }],
+      },
+    ],
+  }
+  const ink = generateInk(demo as never)
+  for (const name of ['get_player_name', 'get_luck', 'has_status']) {
+    check(`ink объявляет EXTERNAL ${name}`, ink.includes(`EXTERNAL ${name}${DIALOGUE_EXTERNAL_SIGNATURES[name]}`))
+  }
+  try {
+    const { Compiler } = await import('inkjs/full')
+    const c = new Compiler(ink)
+    c.Compile()
+    check('собранный ink компилируется', c.errors.length === 0, c.errors.join(' | '))
+  } catch (e) {
+    check('собранный ink компилируется', false, String(e))
   }
 }
 

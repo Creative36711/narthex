@@ -1,0 +1,32 @@
+{
+  "id": "rule_roma_shows",
+  "label": "Рома показывается в актовом",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 40
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_roma_taken"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_roma_shows"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_roma",
+      "stage": "stage_r_see"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_child"
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

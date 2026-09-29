@@ -1,0 +1,89 @@
+{
+  "id": "item_leader_corner",
+  "type": "item",
+  "category": "container",
+  "label": "Уголок вожатого",
+  "description": "Портрет, стенд «лучшая смена», полка с методичками. Всё аккуратно до той степени, какая возможна только под угрозой.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Разобрать методички",
+      "effects": [
+        {
+          "type": "unlock_recipe",
+          "recipe": "recipe_photo_copy"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_method"
+        },
+        {
+          "type": "show_message",
+          "text": "Из «Методики режимного воспитания» вырезана страница 47; остались колонтитулы: «…не выпускать до полного успокоения…»"
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Снять портрет",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": "normal",
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_safe_key",
+              "quantity": 1
+            },
+            {
+              "type": "show_message",
+              "text": "За портретом — гвоздь и ключ. Кто-то прятал его сюда, зная, что портрет снимут последним."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Гвоздь выскочил с куском штукатурки; портрет повис на одном углу и посмотрел вниз."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Внести зал в опись",
+      "effects": [
+        {
+          "type": "change_variable",
+          "var": "day_plan",
+          "delta": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "show_message",
+          "text": "Актовый зал: сцена, занавес, уголок вожатого."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

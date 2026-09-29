@@ -1,0 +1,135 @@
+{
+  "id": "quest_roma",
+  "label": "Тише, Рома",
+  "description": "В актовом зале живёт мальчик, которого нет в списке. Ему нужен значок, а тебе — его доверие.",
+  "chapter": "ch_2_quiet",
+  "journal_entries": {
+    "j_r1": "По ночам в актовом зале кто-то садится на стул и встаёт, не дождавшись команды. Геннадич называет это «детский обход».",
+    "j_r2": "Рома показывается на сцене. Громко — не с ним: он слышит, как ты дышишь, и отвечает тем же.",
+    "j_r3": "У него есть значок. Он обещал рассказать про «двадцать девятое имя».",
+    "j_r4": "Ты отдал Рома-значок; он сказал про «двадцать девятое имя»."
+  },
+  "stages": [
+    {
+      "id": "stage_r_hear",
+      "label": "Слышать",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_roma",
+          "text_key": "j_r1"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_r_see",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_roma_shows"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_r_see",
+      "label": "Увидеть",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_roma",
+          "text_key": "j_r2"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_r_give",
+          "conditions": [
+            {
+              "type": "has_item",
+              "item": "item_znachok"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_r_give",
+      "label": "Значок",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_roma",
+          "text_key": "j_r3"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_r_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_roma_told"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_r_done",
+      "label": "Он рассказал",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_roma",
+          "text_key": "j_r4"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_1986"
+        },
+        {
+          "type": "change_luck",
+          "delta": 5
+        },
+        {
+          "type": "reveal_location",
+          "location": "loc_lake"
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_dam_open"
+        },
+        {
+          "type": "grant_xp",
+          "points": 40
+        }
+      ],
+      "transitions": [],
+      "final": true,
+      "outcome": "success"
+    },
+    {
+      "id": "stage_r_taken",
+      "label": "Его забрали",
+      "on_enter_effects": [
+        {
+          "type": "change_sanity",
+          "delta": -8
+        },
+        {
+          "type": "clear_flag",
+          "flag": "flag_roma_shows"
+        },
+        {
+          "type": "show_message",
+          "text": "В актовом зале остался только перевёрнутый стул."
+        }
+      ],
+      "transitions": [],
+      "final": true,
+      "outcome": "failure"
+    }
+  ]
+}

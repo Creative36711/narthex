@@ -1,0 +1,112 @@
+{
+  "id": "item_piano",
+  "type": "item",
+  "category": "misc",
+  "label": "Рояль «Украина»",
+  "description": "Расстроен на четверть тона, крышка не держится. На пюпитре — «Прощальный вальс», выведенный не детской рукой.",
+  "image": "",
+  "weight": 6,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Сыграть",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": "easy",
+          "success_effects": [
+            {
+              "type": "change_sanity",
+              "delta": 8
+            },
+            {
+              "type": "change_need",
+              "need": "need_nerve",
+              "delta": 10
+            },
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 40
+            },
+            {
+              "type": "set_flag",
+              "flag": "flag_piano_played"
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_1986"
+            },
+            {
+              "type": "show_message",
+              "text": "Ты сыграл. В коридорах открылись двери — не хлопая, а ровно, как по команде."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_need",
+              "need": "need_noise",
+              "delta": 45
+            },
+            {
+              "type": "change_sanity",
+              "delta": -4
+            },
+            {
+              "type": "show_message",
+              "text": "Средняя ля дала фальшь, и в подвале кто-то начал считать вслух."
+            }
+          ]
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Спеть «Прощальный вальс»",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_noise",
+          "delta": 50
+        },
+        {
+          "type": "change_sanity",
+          "delta": -6
+        },
+        {
+          "type": "change_need",
+          "need": "need_nerve",
+          "delta": -8
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_sang_waltz"
+        },
+        {
+          "type": "show_message",
+          "text": "Петь в лагере разрешалось только после отбоя. Значит, сейчас не то время."
+        }
+      ],
+      "consume": false
+    },
+    {
+      "label": "Опустить крышку",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Ты закрыл крышку на свои пальцы. Звук вышел правильный, как замок."
+        }
+      ],
+      "consume": false
+    }
+  ],
+  "sounds": {
+    "open": "sfx_creak",
+    "use": "sfx_page"
+  }
+}

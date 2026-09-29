@@ -1,0 +1,15 @@
+{
+  "id": "rule_bridge_znachok",
+  "label": "Мост: значок отдан",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "advance_quest",
+      "quest": "quest_roma",
+      "stage": "stage_r_give"
+    }
+  ],
+  "chapter": "ch_2_quiet"
+}

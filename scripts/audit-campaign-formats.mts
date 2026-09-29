@@ -57,7 +57,16 @@ for (const typeName of ['CampaignMeta', 'WorldDef', 'CampaignManifest', 'Campaig
   assert.ok(schema.$defs[typeName], `В JSON Schema отсутствует модульный тип ${typeName}`)
 }
 
-const dirs = readdirSync(campaignsDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort()
+/**
+ * Кампании-полигоны: лежат в public/campaigns/, но в index.json не показываются
+ * (мастер их не видит в списке) — они нужны только смоукам и автодидактике.
+ * Дефолтная кампания платформы живёт в index.json первой строкой.
+ */
+const HIDDEN_CAMPAIGNS = ['ash-of-caerden']
+const dirs = readdirSync(campaignsDir, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && !HIDDEN_CAMPAIGNS.includes(entry.name))
+  .map((entry) => entry.name)
+  .sort()
 const index = json(join(campaignsDir, 'index.json')) as Array<{ id?: unknown }>
 assert.ok(Array.isArray(index), 'public/campaigns/index.json должен быть массивом')
 for (const [i, entry] of index.entries()) validate('CampaignIndexEntry', entry, `campaigns/index.json[${i}]`)
@@ -112,14 +121,23 @@ for (const campaignId of dirs) {
   assert.equal(new Set(currencyIds).size, currencyIds.length, `${campaignId}/campaign.json: id валют повторяется`)
   const currencyItems = meta.currencies.map((currency: { id: string; item_id?: string }) => currency.item_id || `item_${currency.id}`)
   assert.equal(new Set(currencyItems).size, currencyItems.length, `${campaignId}/campaign.json: несколько валют привязаны к одному предмету`)
-  const entityIds = new Set(moduleFiles(manifest, 'entities').map((file) => file.replace(/\.json$/, '')))
+  // id сущности живёт внутри файла (fileSlug мог срезать подчёркивания в имени
+  // файла — ориентируемся на поле id, а не на имя файла)
+  const entityFileById = new Map<string, string>()
+  for (const file of moduleFiles(manifest, 'entities')) {
+    const rel = `entities/${file}`
+    const def = json(join(base, rel)) as { id?: string }
+    assert.ok(def.id, `${campaignId}/${rel}: у сущности нет id`)
+    assert.ok(!entityFileById.has(def.id), `${campaignId}: id сущности ${def.id} повторяется`)
+    entityFileById.set(def.id, file)
+  }
   for (const [index, currency] of meta.currencies.entries()) {
     const itemId = currencyItems[index]
-    assert.ok(entityIds.has(itemId), `${campaignId}/campaign.json: валюта ${currency.id} ссылается на отсутствующий предмет ${itemId}`)
-    assert.equal(store.jsonFiles.get(`entities/${itemId}.json`)?.type, 'item', `${campaignId}/campaign.json: ${itemId} должен быть предметом-монетой`)
+    assert.ok(entityFileById.has(itemId), `${campaignId}/campaign.json: валюта ${currency.id} ссылается на отсутствующий предмет ${itemId}`)
+    assert.equal(store.jsonFiles.get(`entities/${entityFileById.get(itemId)}`)?.type, 'item', `${campaignId}/campaign.json: ${itemId} должен быть предметом-монетой`)
   }
-  for (const entityId of entityIds) {
-    const item = store.jsonFiles.get(`entities/${entityId}.json`)
+  for (const [entityId, file] of entityFileById) {
+    const item = store.jsonFiles.get(`entities/${file}`)
     for (const valueCurrency of Object.keys(item?.value ?? {})) {
       assert.ok(currencyIds.includes(valueCurrency), `${campaignId}/entities/${entityId}: value содержит неизвестный id валюты ${valueCurrency}`)
     }
