@@ -120,7 +120,10 @@ const DPM = meta.calendar!.days_per_month! // 30
   check('4 HUD: строка даты под часами', hud.includes('hud-date') && hud.includes('formatDate'))
   check('4 HUD: метка погоды', hud.includes('hud-weather'))
   const scene = readFileSync('src/player/SceneScreen.tsx', 'utf8')
-  check('4 сцена: слой погоды', scene.includes('weather-overlay') && scene.includes('weather?.overlay'))
+  // слой погоды рисует AtmosphereLayer (src/player/Atmosphere.tsx): сцена отдаёт
+  // ему имя оверлея из реестра, класс собирается уже там
+  const atmos = readFileSync('src/player/Atmosphere.tsx', 'utf8')
+  check('4 сцена: слой погоды', scene.includes('<AtmosphereLayer') && scene.includes('weather?.overlay') && atmos.includes('weather-overlay'))
   const css = readFileSync('src/index.css', 'utf8')
   check('4 CSS: четыре оверлея', css.includes('.weather-rain') && css.includes('.weather-snow') && css.includes('.weather-fog') && css.includes('.weather-ash'))
   check('4 CSS: оверлеи не ловят клики', /\.weather-overlay[^}]*pointer-events: none/.test(css))

@@ -596,7 +596,9 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
 
 /** Крафт (блок 4 ТЗ): список рецептов, недостающие компоненты, изготовление. */
 export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
-  const recipes = engine.allRecipes()
+  // закрытые рецепты (RecipeDef.known = false) игроку не показываем — пока
+  // их не открыл эффект unlock_recipe
+  const recipes = engine.knownRecipes()
   return (
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>

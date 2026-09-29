@@ -410,7 +410,12 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
   e.start()
   check('13 скрытность opt-in: есть блок — есть механика', e.stealthEnabled())
   check('13 старт — открыто, не крадётся', !e.isSneaking())
+  // детерминизм смоука: крит-провал выключен, а генератор засеян ДО
+  // toggleSneak() — он сам бросает проверку обнаружения. Иначе «бой из
+  // скрытности» флакал примерно в 1 прогоне из 10 и ронял весь прогон.
+  c.meta.dice_rules = { ...c.meta.dice_rules!, fumble_from: 101 }
   e.state.player.skills = { ...e.state.player.skills, stealth: 200 }
+  ;(e as any).rng = new PRNG('cr-stealth-sneak')
   e.toggleSneak()
   check('13 красться включилось', e.isSneaking())
   check('13 высокая скрытность незаметна', e.detectCheck('тест') || !e.isDetected(), '')

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { groupIssues, groupNote } from './issueReport'
 
 /**
  * Стилизованные диалоги вместо браузерных prompt()/confirm()/alert()
@@ -108,7 +109,16 @@ export function showList(
   body?: string,
   copy?: { label: string; text: string },
 ): Promise<void> {
-  return new Promise((resolve) => submit({ kind: 'list', title, body, items, copy, resolve }))
+  // 30 одинаковых строк мастер не прочитает: повторы схлопываем в сводку
+  const grouped = groupIssues(items)
+  const note = groupNote(grouped)
+  const text = [body, note].filter(Boolean).join('\n')
+  // кнопка «скопировать» отдаёт готовый текст как есть (отчёт для ИИ уже
+  // собран целиком на месте вызова — дублировать строки нельзя)
+  const full = copy
+  return new Promise((resolve) =>
+    submit({ kind: 'list', title, body: text || undefined, items: grouped.lines, copy: full, resolve }),
+  )
 }
 
 export function ModalHost() {

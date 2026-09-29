@@ -107,9 +107,12 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             const item = entity.type === 'item' ? (entity as ItemDef) : null
             // спрайт: НПС — sprite в сцене (с откатом на портрет «Обычный» ниже),
             // предмет — только своя картинка; без неё в слоте не рисуется ничего.
-            // Состояние спрайта выбирает мастер в свойствах слота (как «настроение» в диалоге).
+            // Состояние спрайта: сначала правило (set_entity_state), иначе —
+            // свойство слота (как «настроение» в диалоге), иначе обычный спрайт.
+            const forced = npc ? engine.entityState(npc.id) : undefined
+            const stateOfSprite = forced ?? slot.sprite_state
             const sprite = npc
-              ? (slot.sprite_state && npc.scene_sprite_states?.[slot.sprite_state]) || npc.scene_sprite
+              ? (stateOfSprite && npc.scene_sprite_states?.[stateOfSprite]) || npc.scene_sprite
               : item?.scene_sprite
             const scale = slot.sprite_scale ?? 1
             // предмет под условием блокировки — «декорация»: виден, но не кликается (№8)
@@ -152,7 +155,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                       <LiveImg
                         className="slot-sprite"
                         value={sprite}
-                        tickKey={slot.sprite_state ?? ''}
+                        tickKey={stateOfSprite ?? ''}
                         urlOf={(f) => assetUrl(engine.campaign, f)}
                         alt={entity.label}
                       />

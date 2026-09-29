@@ -66,18 +66,45 @@ function fileSlug(id: string): string {
   return slugify(id).replace(/[^a-z0-9_]/g, '') || 'unnamed'
 }
 
+/**
+ * Имя файла объекта внутри пакета. Имя — это id после «очистки» символов,
+ * поэтому `item_old-map` и `item_oldmap` дали бы один и тот же файл: второй
+ * объект молча затёр бы первый. Такие совпадения разводим суффиксом и говорим
+ * об этом в отчёте — содержимое не теряется.
+ */
+function fileNameFor(id: string, used: Set<string>, kind: string, warnings: string[]): string {
+  const base = fileSlug(id)
+  let name = base
+  let n = 2
+  while (used.has(name)) name = `${base}_${n++}`
+  if (name !== base) {
+    warnings.push(`${kind} «${id}»: имя файла ${base}.json уже занято другим объектом — записан как ${name}.json`)
+  }
+  used.add(name)
+  return name
+}
+
 // ─────────────── экспорт: store → MonolithDoc ───────────────
 
 function collectById<T extends { id: string }>(list: Array<[string, T | undefined]>, kind: string, warnings: string[]): Record<string, T> {
   const out: Record<string, T> = {}
+  const origins = new Map<string, string>()
   for (const [path, def] of list) {
     if (!def || typeof def !== 'object') {
       warnings.push(`Файл ${path} повреждён и не попал в JSON-экспорт`)
       continue
     }
     const id = def.id || path.split('/').pop()!.replace(/\.json$/, '')
-    if (out[id]) warnings.push(`Дубликат id «${id}» (${kind}): взято первое определение`)
-    else out[id] = def
+    const takenFrom = origins.get(id)
+    if (takenFrom) {
+      // содержимое не теряем: предупреждение называет оба файла, чтобы автор
+      // сам решил, какой из объектов переименовать (ссылки в кампании сейчас
+      // ведут к первому)
+      warnings.push(`Дубликат id «${id}» (${kind}): ${path} не попал в JSON-экспорт, определение из ${takenFrom} остаётся рабочим`)
+    } else {
+      out[id] = def
+      origins.set(id, path)
+    }
   }
   return out
 }
@@ -423,7 +450,10 @@ function normalizeDefs(ctx: RepairCtx): void {
         let n = 2
         while (used.has(`${id}_${n}`)) n++
         const newId = `${id}_${n}`
-        ctx.warn(`${kind}: дубликат id «${id}» переименован в «${newId}»`)
+        ctx.warn(
+          `${kind}: дубликат id «${id}» — это определение переименовано в «${newId}», ` +
+            `ссылки кампании по-прежнему ведут к первому`,
+        )
         id = newId
         def.id = id
       }
@@ -673,6 +703,37 @@ function ensureRule(ctx: RepairCtx, id: string): RuleDef {
   return r
 }
 
+function ensureRecipe(ctx: RepairCtx, id: string): RecipeDef {
+  const existing = ctx.doc.recipes?.[id]
+  if (existing) return existing
+  const r: RecipeDef = { id, label: id, inputs: [], output: { item: '', quantity: 1 }, known: false }
+  ;(ctx.doc.recipes ??= {})[id] = r
+  ctx.warn(`Рецепт «${id}» не найден — создана заглушка (закрыт до открытия в игре)`)
+  return r
+}
+
+/**
+ * Состояние облика НПЦ (set_entity_state): если у персонажа нет такого
+ * портрета/спрайта, добавляем пустую запись и говорим мастеру — иначе
+ * эффект молча ничего не делал бы.
+ */
+function ensureEntityState(ctx: RepairCtx, entityId: string, state: string): void {
+  const npc = ctx.doc.entities[entityId]
+  if (!npc || npc.type !== 'npc') return
+  const known = new Set<string>([
+    ...Object.keys(npc.portrait ?? {}),
+    ...Object.keys(npc.scene_sprite_states ?? {}),
+    ...Object.keys(npc.combat_figure_states ?? {}),
+  ])
+  for (const e of ctx.doc.campaign.emotions ?? []) known.add(e.id)
+  if (known.has(state)) return
+  npc.portrait = { ...(npc.portrait ?? {}), [state]: '' }
+  ctx.warn(
+    `У персонажа «${npc.label}» не было состояния облика «${state}» — добавлено пустое ` +
+      `(загрузите картинку состояния в «Персонажи → Портрет»)`,
+  )
+}
+
 // ── условия и эффекты ──
 
 /**
@@ -894,6 +955,18 @@ function fixEffect(ctx: RepairCtx, e: Effect, where: string, keep: (e: Effect | 
     }
     case 'play_cutscene':
       ensureCutscene(ctx, e.cutscene)
+      break
+    case 'fire_rule':
+      // петли правил чиним на импорте: вызов наружу из цепочки обрываем
+      ensureRule(ctx, e.rule)
+      break
+    case 'unlock_recipe':
+      ensureRecipe(ctx, e.recipe)
+      break
+    case 'set_entity_state':
+      entityReferenced(e.entity, 'npc', ctx)
+      ensureEntity(ctx, e.entity, 'npc')
+      if (e.state) ensureEntityState(ctx, e.entity, e.state)
       break
     default:
       break
@@ -1204,6 +1277,9 @@ function fixDlgGotos(ctx: RepairCtx, nodes: DlgNode[], where: string): void {
       case 'fire_rule':
         ensureRule(ctx, e.rule)
         return e
+      case 'unlock_recipe':
+        ensureRecipe(ctx, e.recipe)
+        return e
       case 'join_party':
       case 'open_trade':
         entityReferenced(e.npc, 'npc', ctx)
@@ -1429,50 +1505,63 @@ export function importMonolith(store: EditorStore, raw: unknown): string[] {
     dialogues: [],
   }
 
+  // по одному множеству на каталог: разные каталоги могут звать файл одинаково
+  const usedNames = {
+    scenes: new Set<string>(),
+    entities: new Set<string>(),
+    rules: new Set<string>(),
+    quests: new Set<string>(),
+    arenas: new Set<string>(),
+    cutscenes: new Set<string>(),
+    recipes: new Set<string>(),
+    codex: new Set<string>(),
+    dialogues: new Set<string>(),
+  }
+
   for (const sc of Object.values(doc.scenes)) {
-    const f = `${fileSlug(sc.id)}.json`
+    const f = `${fileNameFor(sc.id, usedNames.scenes, 'Сцена', warnings)}.json`
     manifest.scenes.push(f)
     store.jsonFiles.set(`scenes/${f}`, sc)
     store.dirty.add(`scenes/${f}`)
   }
   for (const e of Object.values(doc.entities)) {
-    const f = `${fileSlug(e.id)}.json`
+    const f = `${fileNameFor(e.id, usedNames.entities, 'Сущность', warnings)}.json`
     manifest.entities.push(f)
     store.jsonFiles.set(`entities/${f}`, e)
     store.dirty.add(`entities/${f}`)
   }
   for (const r of Object.values(doc.rules)) {
-    const f = `${fileSlug(r.id)}.json`
+    const f = `${fileNameFor(r.id, usedNames.rules, 'Правило', warnings)}.json`
     manifest.rules.push(f)
     store.jsonFiles.set(`rules/${f}`, r)
     store.dirty.add(`rules/${f}`)
   }
   for (const q of Object.values(doc.quests)) {
-    const f = `${fileSlug(q.id)}.json`
+    const f = `${fileNameFor(q.id, usedNames.quests, 'Квест', warnings)}.json`
     manifest.quests!.push(f)
     store.jsonFiles.set(`quests/${f}`, q)
     store.dirty.add(`quests/${f}`)
   }
   for (const a of Object.values(doc.arenas)) {
-    const f = `${fileSlug(a.id)}.json`
+    const f = `${fileNameFor(a.id, usedNames.arenas, 'Арена', warnings)}.json`
     manifest.arenas!.push(f)
     store.jsonFiles.set(`arenas/${f}`, a)
     store.dirty.add(`arenas/${f}`)
   }
   for (const c of Object.values(doc.cutscenes)) {
-    const f = `${fileSlug(c.id)}.json`
+    const f = `${fileNameFor(c.id, usedNames.cutscenes, 'Катсцена', warnings)}.json`
     manifest.cutscenes!.push(f)
     store.jsonFiles.set(`cutscenes/${f}`, c)
     store.dirty.add(`cutscenes/${f}`)
   }
   for (const r of Object.values(doc.recipes ?? {})) {
-    const f = `${fileSlug(r.id)}.json`
+    const f = `${fileNameFor(r.id, usedNames.recipes, 'Рецепт', warnings)}.json`
     manifest.recipes!.push(f)
     store.jsonFiles.set(`recipes/${f}`, r)
     store.dirty.add(`recipes/${f}`)
   }
   for (const c of Object.values(doc.codex ?? {})) {
-    const f = `${fileSlug(c.id)}.json`
+    const f = `${fileNameFor(c.id, usedNames.codex, 'Запись кодекса', warnings)}.json`
     manifest.codex!.push(f)
     store.jsonFiles.set(`codex/${f}`, c)
     store.dirty.add(`codex/${f}`)
@@ -1484,7 +1573,7 @@ export function importMonolith(store: EditorStore, raw: unknown): string[] {
     store.dirty.add('rules/encounters.json')
   }
   for (const [key, val] of Object.entries(doc.dialogues)) {
-    const base = fileSlug(key)
+    const base = fileNameFor(key, usedNames.dialogues, 'Диалог', warnings)
     manifest.dialogues.push(`${base}.ink`)
     if (isRawInk(val)) {
       store.textFiles.set(`dialogues/${base}.ink`, val.ink)

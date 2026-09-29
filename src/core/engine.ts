@@ -2239,13 +2239,13 @@ export class GameEngine {
     return groups.some((g) => !g.length || g.every((c) => evalCondition(c, this)))
   }
 
-  private tryFireRule(ruleId: string): void {
+  private tryFireRule(ruleId: string, depth = 0): void {
     const rule = this.campaign.rules[ruleId]
     if (!rule) return
     if (rule.once && this.state.fired_rules.includes(rule.id)) return
     if (!this.ruleConditionsOk(rule)) return
     this.state.fired_rules.push(rule.id)
-    this.applyEffects(rule.effects)
+    this.applyEffects(rule.effects, depth)
   }
 
   // ─────────────── эффекты ───────────────
@@ -2338,13 +2338,37 @@ export class GameEngine {
     s.desc_overrides = { ...(s.desc_overrides ?? {}), [entityId]: text }
   }
 
-  applyEffects(effects: Effect[]): void {
-    for (const e of effects) this.applyEffect(e)
+  applyEffects(effects: Effect[], depth = 0): void {
+    for (const e of effects) this.applyEffect(e, depth)
   }
 
-  applyEffect(e: Effect): void {
+  /**
+   * Глубина вложенных вызовов правил (эффект fire_rule). Больше двух — стоп:
+   * иначе «правило вызывает правило вызывает правило» зациклит забег. Прямые и
+   * транзитивные петли ловит «Проверить кампанию» (см. store.validateContent).
+   */
+  private static readonly FIRE_RULE_MAX_DEPTH = 2
+
+  applyEffect(e: Effect, depth = 0): void {
     const s = this.state
     switch (e.type) {
+      case 'fire_rule':
+        if (depth >= GameEngine.FIRE_RULE_MAX_DEPTH) {
+          this.pushLog('Правило не вызвано: превышена глубина цепочки вызовов.')
+          break
+        }
+        this.tryFireRule(e.rule, depth + 1)
+        break
+      case 'unlock_recipe':
+        this.unlockRecipe(e.recipe)
+        break
+      case 'set_entity_state': {
+        const m = (s.entity_states ??= {})
+        if (e.state) m[e.entity] = e.state
+        else delete m[e.entity]
+        this.notify()
+        break
+      }
       case 'set_flag': s.flags[e.flag] = true; break
       case 'set_description':
         this.setEntityDescription(e.entity, e.text)
@@ -2639,6 +2663,44 @@ export class GameEngine {
   }
 
   /**
+   * Открыть рецепт крафта «по ходу игры». Рецепты без `known: false` открыты
+   * всегда; этот эффект лишь снимает «закрытость» и один раз радует игрока.
+   */
+  unlockRecipe(recipeId: string): void {
+    const r = this.campaign.recipes[recipeId]
+    if (!r) return
+    const s = this.state
+    if (!s.recipes_unlocked) s.recipes_unlocked = []
+    if (s.recipes_unlocked.includes(recipeId)) return
+    s.recipes_unlocked.push(recipeId)
+    this.messages.push({ text: `Новый рецепт: ${r.label}.` })
+    this.pushLog(`Открыт рецепт: ${r.label}.`)
+    playInteraction('pickup', {})
+    this.notify()
+    this.autosave()
+  }
+
+  /** рецепт виден игроку? (неизвестные закрыты до unlock_recipe) */
+  recipeKnown(id: string): boolean {
+    const r = this.campaign.recipes[id]
+    if (!r) return false
+    if (r.known !== false) return true
+    return !!this.state.recipes_unlocked?.includes(id)
+  }
+
+  /** список рецептов, доступных игроку (вкладка «Крафт») */
+  knownRecipes(): RecipeDef[] {
+    return Object.values(this.campaign.recipes)
+      .filter((r) => this.recipeKnown(r.id))
+      .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  }
+
+  /** состояние облика сущности, заданное правилом (set_entity_state) */
+  entityState(id: string): string | undefined {
+    return this.state.entity_states?.[id] || undefined
+  }
+
+  /**
    * Разблокировать запись кодекса (блок 10 ТЗ): повтор — no-op.
    * При первой разблокировке — сообщение «Новая запись в кодексе: …».
    */
@@ -2928,6 +2990,7 @@ export class GameEngine {
         (en.conditions ?? []).every((c) => evalCondition(c, this)),
     )
     this.state.game_over = { type, reason, ending: ending?.id }
+    if (ending?.id) this.rememberEnding(ending.id)
     this.finalizeRunMeta(type === 'victory')
     if (type === 'death') {
       this.dialogue = null
@@ -3058,6 +3121,31 @@ export class GameEngine {
   /** открыто ли достижение */
   metaAchievementDone(id: string): boolean {
     return !!this.metaStore().achievements[id]
+  }
+
+  /**
+   * Счётчик хроники для условия meta_counter: «сколько раз это уже было»
+   * между забегами. Служебные ключи (runs/deaths/victories/endings_seen)
+   * читаются из хранилища как есть; любой другой ключ — накопленный счётчик
+   * stats_run плюс вклад текущего забега (как у достижений).
+   */
+  metaCounter(key: string): number {
+    const st = this.metaStore()
+    switch (key) {
+      case 'runs': return st.runs
+      case 'deaths': return st.deaths
+      case 'victories': return st.victories
+      case 'endings_seen': return (st.endings ?? []).length
+      default: return (st.counters[key] ?? 0) + (this.state.stats_run[key as keyof typeof this.state.stats_run] ?? 0)
+    }
+  }
+
+  /** записать концовку в хронику (истина — впервые увидена) */
+  private rememberEnding(endingId: string): void {
+    const st = this.metaStore()
+    st.endings ??= []
+    if (st.endings.includes(endingId)) return
+    st.endings.push(endingId)
   }
 
   /** достижения с состоянием (для экрана) */

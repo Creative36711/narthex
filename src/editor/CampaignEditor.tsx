@@ -3083,7 +3083,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               диалогах; повторный вызов с тем же зерном даёт тот же результат.
             </p>
             <GeneratorKindSection
-              title="Лица (NPC)"
+              heading="Лица (NPC)"
               hint="Случайные имена, чины и характеры для встреч в мире."
               items={g.npc ?? []}
               onChange={(npc) => setG({ ...g, npc: npc.length ? npc : undefined })}
@@ -3128,7 +3128,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               )}
             />
             <GeneratorKindSection
-              title="Места (описания сцен)"
+              heading="Места (описания сцен)"
               hint="Случайные детали места в слотах сцены: «в углу —…», «пахнет —…»."
               items={g.scenes ?? []}
               onChange={(scenes) => setG({ ...g, scenes: scenes.length ? scenes : undefined })}
@@ -3153,7 +3153,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               )}
             />
             <GeneratorKindSection
-              title="Приключения (цепочки целей)"
+              heading="Приключения (цепочки целей)"
               hint="Цели квеста: строка с подстановками из ваших списков {список:ключ}."
               items={g.adventures ?? []}
               onChange={(adventures) => setG({ ...g, adventures: adventures.length ? adventures : undefined })}
@@ -3744,7 +3744,7 @@ type GenBase = { id: string; label: string; description?: string; lists: Record<
 
 /** Панель генератора одного вида (лица/места/приключения): заготовка + фабрика. */
 function GeneratorKindSection<T extends GenBase>({
-  title,
+  heading,
   hint,
   items,
   onChange,
@@ -3753,7 +3753,9 @@ function GeneratorKindSection<T extends GenBase>({
   store,
   renderBody,
 }: {
-  title: string
+  /** прописано как heading, а не title: у секции нет нативного тултипа —
+   *  весь смысл подписи виден в заголовке (правка фидбека №9) */
+  heading: string
   hint: string
   items: T[]
   onChange: (next: T[]) => void
@@ -3764,7 +3766,7 @@ function GeneratorKindSection<T extends GenBase>({
 }) {
   return (
     <div className="props-group" style={{ borderTop: '1px dashed var(--border-soft)', marginTop: 12, paddingTop: 10 }}>
-      <h5 className="ce-subhead">{title}</h5>
+      <h5 className="ce-subhead">{heading}</h5>
       <div className="muted small" style={{ marginBottom: 6 }}>{hint}</div>
       {items.map((gen, i) => (
         <div key={gen.id} className="panel" style={{ padding: 8, marginBottom: 8 }}>
@@ -3781,7 +3783,7 @@ function GeneratorKindSection<T extends GenBase>({
           {renderBody(gen, (g2) => { const arr = items.map((x, j) => j === i ? g2 : x); onChange(arr) }, store)}
         </div>
       ))}
-      <button className="btn btn-small" onClick={() => onChange([...items, makeNew(items)])}><Ico n="plus" /> {title.toLowerCase()}</button>
+      <button className="btn btn-small" onClick={() => onChange([...items, makeNew(items)])}><Ico n="plus" /> {heading.toLowerCase()}</button>
     </div>
   )
 }

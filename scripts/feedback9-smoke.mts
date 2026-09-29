@@ -31,6 +31,8 @@ const fields = read('src/editor/Fields.tsx')
 const speech = read('src/shared/speech.ts')
 const settingsPanel = read('src/shared/SettingsPanel.tsx')
 const dialogue = read('src/editor/DialogueBuilder.tsx')
+const audioSrc = read('src/shared/audio.ts')
+const toolbarSrc = read('src/editor/EditorApp.tsx')
 
 // 1 — фильтр «надето»
 const panels = read('src/player/Panels.tsx')
@@ -83,6 +85,11 @@ check('8 RegistryPicker + поиск звука', /function RegistryPicker/.test
 check('2б живой поиск списков (редактор + игрок)', /Поиск по названию/.test(app) && /Поиск по названию/.test(panels))
 // 9 — превью гасит музыку; счётчик только testMode
 check('9 превью гасит музыку', /previewMusicSource/.test(audioSec) && /stopMusic\(0\.15\)/.test(audioSec))
+// Фоновые ЗВУКИ в редакторе тоже мешали предпрослушиванию синтеза: их выключили
+// тем же приёмом, что и музыку. Явное playSource (кнопка «Прослушать») не глушится.
+check('9 в редакторе выключены фоновые звуки движка', /setAmbientAudioEnabled/.test(toolbarSrc) && /if \(!campaign \|\| !id \|\| loops\.has\(id\) \|\| !ambientEnabled\) return/.test(audioSrc) && /if \(!id \|\| !campaign \|\| !ambientEnabled\) return/.test(audioSrc))
+check('9 глушитель гасит уже играющие слои', /if \(!on\) stopAllLoops\(\)/.test(audioSrc))
+check('9 плейтест возвращает звуки', /setAmbientAudioEnabled\(\!\!testCampaign\)/.test(toolbarSrc))
 check('9 счётчик/badge только testMode', /if \(testMode\)/.test(cutscene) && /console\.time/.test(cutscene) && /console\.count/.test(cutscene) && /slide-\$\{index\}/.test(cutscene))
 check('9 субтитры YouTube выключены', /cc_load_policy=0/.test(cutscene) && /iv_load_policy=3/.test(cutscene))
 check('9 конец YouTube-ролика (ENDED)', /YoutubeSlide/.test(cutscene) && /loadYtApi/.test(cutscene) && /e\.data === 0/.test(cutscene))

@@ -191,6 +191,8 @@ export interface MetaStoreState {
   achievements: Record<string, string>
   unlocks: string[]
   counters: Record<string, number>
+  /** id концовок, которые игрок уже видел (meta_counter: endings_seen) */
+  endings?: string[]
 }
 
 /** Конфиг мета-прогресса кампании (включён самим наличием блока). */
@@ -1875,6 +1877,11 @@ export type DlgEffect =
   | { type: 'set_weather'; weather: string }
   /** разблокировать запись кодекса (повтор — no-op; блок 10 ТЗ) */
   | { type: 'unlock_codex'; entry: string }
+  /**
+   * Открыть рецепт крафта «по ходу игры» (RecipeDef.known = false).
+   * Повтор — no-op; рецепт без `known: false` открыт с самого начала.
+   */
+  | { type: 'unlock_recipe'; recipe: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -1995,6 +2002,12 @@ export interface RecipeDef {
   output: { item: string; quantity: number }
   /** сообщение об успехе (нет — стандартное) */
   message?: string
+  /**
+   * `false` — рецепт скрыт от игрока до эффекта `unlock_recipe` (правило,
+   * диалог, событие). Старые кампании и сейвы не трогаем: поля нет — рецепт
+   * известен с самого начала.
+   */
+  known?: boolean
 }
 
 // ───────────────────────── квесты (ТЗ 3.7) ─────────────────────────
@@ -2119,6 +2132,15 @@ export type Condition =
   | { type: 'meta_currency_ge'; currency: string; threshold: number }
   /** достижение открыто (аудит B8b) */
   | { type: 'meta_achievement'; id: string }
+  /**
+   * Счётчик хроники игрока (мета-прогресс `meta.metaprogress`): «а сколько
+   * раз это уже было» — между забегами. Ключи: `runs`, `deaths`,
+   * `victories`, `endings_seen` (сколько разных концовок видел игрок) и
+   * любой счётчик `stats_run` (`kills`, `quests_completed`,
+   * `ticks_survived`, `travels`, `dialogues`) — для них берётся сумма
+   * прошлых забегов ПЛЮС текущий.
+   */
+  | { type: 'meta_counter'; key: string; ge: number }
   /** черта взята (аудит B8) */
   | { type: 'has_feat'; id: string }
   /** страсть не ниже значения (аудит B6) */
@@ -2152,6 +2174,18 @@ export type Effect =
   | { type: 'set_weather'; weather: string }
   /** разблокировать запись кодекса (повтор — no-op; блок 10 ТЗ) */
   | { type: 'unlock_codex'; entry: string }
+  /**
+   * Открыть рецепт крафта «по ходу игры» (RecipeDef.known = false): до этого
+   * эффекта рецепта нет во вкладке «Крафт». Повтор — no-op.
+   */
+  | { type: 'unlock_recipe'; recipe: string }
+  /**
+   * Сменить состояние облика сущности (ключ из `portrait` НПЦ или
+   * `scene_sprite_states`): правило переводит персонажа в «злой/испуганный/
+   * раненый». Пустая строка state возвращает обычный облик. Опечатку в
+   * состоянии ловит «Проверить кампанию» — иначе она тихо ничего не делала бы.
+   */
+  | { type: 'set_entity_state'; entity: string; state: string }
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
@@ -2308,6 +2342,15 @@ export type Effect =
     }
   /** преследование окончено до облавы (отряд оторвался/нашёл укрытие) */
   | { type: 'stop_pursuit' }
+  /**
+   * Вызвать другое правило по id (раунд «Кружилиха»). Нужен, чтобы предмет или
+   * слот не тащил за собой пару «поставить флаг → правило на flag_set»:
+   * правило прямо зовёт продолжение. Защита от петель: глубина вложенных
+   * вызовов ≤ FIRE_RULE_MAX_DEPTH (2) и правило не вызывает себя напрямую и
+   * транзитивно — цикл диагностирует «Проверить кампанию». Семантика `once`
+   * вызываемого правила сохраняется: повторный вызов — no-op.
+   */
+  | { type: 'fire_rule'; rule: string }
   /** совершить зарегистрированное преступление (аудит B7) */
   | { type: 'commit_crime'; id: string; bounty?: number }
   /** включить ценовое событие (аудит B7) */
@@ -2693,6 +2736,10 @@ export interface GameState {
   stealth?: { sneaking: boolean; detected: boolean }
   /** разблокированные записи кодекса (блок 10 ТЗ) */
   codex_unlocked?: string[]
+  /** рецепты, открытые эффектом unlock_recipe (RecipeDef.known = false) */
+  recipes_unlocked?: string[]
+  /** состояние облика НПЦ, заданное правилом (set_entity_state): id → ключ */
+  entity_states?: Record<string, string>
   /** выбор создания персонажа (блок 11 ТЗ): имя, характеристики, навыки, происхождение и призвание */
   char_choice?: {
     name: string

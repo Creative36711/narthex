@@ -107,10 +107,17 @@ console.log(`Кампания: ${campaign.meta.title}`)
 }
 
 // ── №14: реестр кампаний доступен ──
+// Реестр читается всегда; он бывает пустым — поставка едет без демо-кампании
+// (полигон ash-of-caerden лежит на диске, но игроку не предложен). Пустой
+// реестр — штатное состояние, отдельный контракт проверяет no-campaign-smoke.
 {
   const res = await fetch('http://localhost:5173/campaigns/index.json')
   const idx = (await res.json()) as any[]
-  check('№14 index.json кампаний читается', Array.isArray(idx) && idx.length > 0, `${idx.length} кампаний`)
+  check('№14 index.json кампаний читается и это массив', Array.isArray(idx), `${idx.length} кампаний`)
+  const broken = (await Promise.all(idx.map(async (c) => (await fetch(`http://localhost:5173/campaigns/${c.id}/campaign.json`)).ok))).filter(
+    (ok) => !ok,
+  )
+  check('№14 у каждой записи реестра есть файлы на диске', broken.length === 0, broken.join(','))
 }
 
 console.log(failed ? `\nПРОВАЛЕНО ПРОВЕРОК: ${failed}` : '\nВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')

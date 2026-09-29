@@ -63,6 +63,7 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'remove_status', label: 'Снять статус' },
   { id: 'set_weather', label: 'Сменить погоду' },
   { id: 'unlock_codex', label: 'Открыть запись кодекса' },
+  { id: 'unlock_recipe', label: 'Открыть рецепт крафта' },
   { id: 'open_trade', label: 'Открыть торговлю (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
 ]
@@ -87,6 +88,7 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'remove_status': return { type, status: '' }
     case 'set_weather': return { type, weather: '' }
     case 'unlock_codex': return { type, entry: '' }
+    case 'unlock_recipe': return { type, recipe: '' }
   }
 }
 
@@ -926,6 +928,9 @@ function EffectRow({
       )}
       {e.type === 'unlock_codex' && (
         <InlineRef kind="codex" store={store} value={e.entry} onChange={(v) => ((e.entry = v), commit())} />
+      )}
+      {e.type === 'unlock_recipe' && (
+        <InlineRef kind="recipe" store={store} value={e.recipe} onChange={(v) => ((e.recipe = v), commit())} />
       )}
       <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>
     </div>

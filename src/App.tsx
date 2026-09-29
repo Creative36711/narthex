@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { CampaignData } from './shared/types'
 import { loadCampaign } from './core/loader'
 import { GameEngine, hasSave, openSave, exportSaveText, preserveSave } from './core/engine'
@@ -6,6 +6,7 @@ import type { OpenedSave } from './core/engine'
 import { checkEngine } from './shared/versions'
 import { SaveReportModal } from './player/SaveReportModal'
 import { MainMenu } from './player/MainMenu'
+import { NoCampaignScreen } from './player/NoCampaignScreen'
 import { GameView } from './player/GameView'
 import { HelpPanel } from './player/HelpPanel'
 import { CharacterCreation } from './player/CharacterCreation'
@@ -16,16 +17,36 @@ import { injectCampaignCustomCss, injectCampaignFonts, themeHasFrame, themeVars 
 import { profileClass, atmosphereOn } from './shared/profiles'
 import { useSettings } from './shared/settings'
 
-/** встроенная кампания-пример; выбор запоминается между сессиями */
-const DEFAULT_CAMPAIGN = 'ash-of-caerden'
+/**
+ * Выбор кампании запоминается между сессиями, но список кампаний — это
+ * public/campaigns/index.json. Захардкоженной «демо-кампании» больше нет:
+ * полигон ash-of-caerden живёт на диске, но в реестр не внесён и игроку не
+ * виден (нужен только смоукам). Пустой реестр — не ошибка, а штатное
+ * состояние свежей сборки: показываем экран «Кампаний пока нет».
+ */
 const LAST_KEY = 'cf_last_campaign'
+
+/**
+ * Какую кампанию открыть: запомненную, если она ещё в реестре, иначе первую.
+ * `skip` — id, который только что не загрузился (чтобы не выбрать его снова).
+ */
+function pickCampaign(index: CampaignIndexEntry[], wanted: string | null, skip?: string): string | null {
+  if (wanted && index.some((c) => c.id === wanted)) return wanted
+  return index.find((c) => c.id !== skip)?.id ?? null
+}
 
 // Editor Mode (Фаза 4) — ленивый чанк: Monaco/Konva не грузятся в Player Mode
 const EditorApp = lazy(() => import('./editor/EditorApp').then((m) => ({ default: m.EditorApp })))
 
 export default function App() {
-  const [campaignId, setCampaignId] = useState(() => localStorage.getItem(LAST_KEY) ?? DEFAULT_CAMPAIGN)
+  // id кампании подставляется из реестра: запомненный открывается, только если
+  // он всё ещё в списке, иначе — первая доступная (при пустом реестре null)
+  const [campaignId, setCampaignId] = useState<string | null>(null)
   const [campaigns, setCampaigns] = useState<CampaignIndexEntry[]>([])
+  const [indexReady, setIndexReady] = useState(false)
+  // id, которые уже не загрузились: иначе битые кампании гоняют друг друга
+  // по кругу (A не открылась → пробуем B → не открылась → снова A)
+  const broken = useRef<Set<string>>(new Set())
   const [campaign, setCampaign] = useState<CampaignData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [engine, setEngine] = useState<GameEngine | null>(null)
@@ -65,14 +86,39 @@ export default function App() {
   }, [editor, campaign])
 
   useEffect(() => {
-    fetchCampaignIndex().then((idx) => {
-      setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: 'Пепел Каэрдена' }])
+    void fetchCampaignIndex().then((idx) => {
+      setCampaigns(idx)
+      setCampaignId((cur) => pickCampaign(idx, cur))
+      setIndexReady(true)
     })
   }, [])
+
+  // Текущая кампания в списке всегда такая, какая она на диске: после импорта
+  // чужой версии мастер видит её новое название и описание, а не запись,
+  // оставшуюся в index.json с момента создания.
+  useEffect(() => {
+    if (!campaign) return
+    const entry = {
+      id: campaign.meta.id,
+      title: campaign.meta.title,
+      author: campaign.meta.author,
+      description: campaign.meta.description,
+    }
+    setCampaigns((list) => {
+      const i = list.findIndex((c) => c.id === entry.id)
+      if (i < 0) return [...list, entry]
+      const same = list[i].title === entry.title && list[i].author === entry.author && list[i].description === entry.description
+      if (same) return list
+      const next = list.slice()
+      next[i] = entry
+      return next
+    })
+  }, [campaign])
 
   useEffect(() => {
     setCampaign(null)
     setError(null)
+    if (!campaignId) return
     loadCampaign(`/campaigns/${campaignId}`)
       .then((c) => {
         setCampaign(c)
@@ -82,13 +128,16 @@ export default function App() {
         injectCampaignCustomCss(c) // продвинутое оформление мастера (полный CSS)
       })
       .catch((e) => {
-        // выбранная кампания могла исчезнуть — откат на встроенную
-        if (campaignId !== DEFAULT_CAMPAIGN) {
-          localStorage.setItem(LAST_KEY, DEFAULT_CAMPAIGN)
-          setCampaignId(DEFAULT_CAMPAIGN)
+        // выбранной кампании больше нет (или она повреждена) — пробуем следующую
+        // из реестра ровно один раз, иначе битые кампании гонят друг друга
+        broken.current.add(campaignId)
+        const other = campaigns.find((c) => !broken.current.has(c.id))?.id ?? null
+        if (other) {
+          localStorage.setItem(LAST_KEY, other)
+          setCampaignId(other)
         } else setError(String(e))
       })
-  }, [campaignId])
+  }, [campaignId, campaigns])
 
   // аудио: разблокировка WebAudio по первому жесту + общий «клик» по кнопкам (блок H)
   useEffect(() => {
@@ -128,7 +177,7 @@ export default function App() {
     return (
       <Suspense fallback={<div className="screen-center"><div className="loading">Загрузка редактора…</div></div>}>
         <EditorApp
-          campaignPath={`/campaigns/${campaignId}`}
+          campaignPath={campaignId ? `/campaigns/${campaignId}` : ''}
           onExit={() => {
             window.location.hash = ''
             // перезагрузка, чтобы Player Mode подхватил изменённые файлы кампании
@@ -145,8 +194,49 @@ export default function App() {
         <div className="panel error-panel">
           <h2>Ошибка загрузки кампании</h2>
           <p>{error}</p>
+          <div className="fld-row" style={{ marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn"
+              onClick={() => {
+                // пересканировать реестр: кампанию могли починить или долить
+                broken.current.clear()
+                setError(null)
+                setIndexReady(false)
+                void fetchCampaignIndex().then((idx) => {
+                  setCampaigns(idx)
+                  setCampaignId((cur) => pickCampaign(idx, cur))
+                  setIndexReady(true)
+                })
+              }}
+            >
+              Пересканировать кампании
+            </button>
+            <button className="btn" onClick={() => { window.location.hash = '#editor' }}>
+              Открыть редактор
+            </button>
+          </div>
         </div>
       </div>
+    )
+  }
+
+  // ни одной кампании на диске: не ошибка, а штатное состояние (свежая
+  // сборка без демо-кампании или мастер удалил последнюю)
+  if (!campaignId && indexReady) {
+    return (
+      <NoCampaignScreen
+        onEditor={() => {
+          window.location.hash = '#editor'
+        }}
+        onImported={(id) => {
+          void fetchCampaignIndex().then((idx) => {
+            setCampaigns(idx)
+            broken.current.delete(id)
+            localStorage.setItem(LAST_KEY, id)
+            setCampaignId(id)
+          })
+        }}
+      />
     )
   }
 
@@ -191,12 +281,13 @@ export default function App() {
           campaign={campaign}
           campaigns={campaigns}
           onSelectCampaign={(id) => {
+            broken.current.delete(id)
             localStorage.setItem(LAST_KEY, id)
             setCampaignId(id)
           }}
           onImported={(id) => {
             fetchCampaignIndex().then((idx) => {
-              setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: 'Пепел Каэрдена' }])
+              setCampaigns(idx)
               localStorage.setItem(LAST_KEY, id)
               setCampaignId(id)
               setCampaign(null)

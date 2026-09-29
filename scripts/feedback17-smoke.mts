@@ -80,8 +80,11 @@ const demo = await loadCampaign(base)
   })())
   const ce = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
   check('3 редактор погоды: слои — реестр кампании', ce.includes('Слои погоды (реестр кампании)') && ce.includes('overlay_layers'))
+  // слой погоды вынесен в Atmosphere.tsx (AtmosphereLayer) — проверяем фактическое
+  // место сборки класса и то, что сцена отдаёт ему погоду кампании
+  const atmos = readFileSync('src/player/Atmosphere.tsx', 'utf8')
   const player = readFileSync('src/player/SceneScreen.tsx', 'utf8')
-  check('3 плеер рисует класс по имени оверлея', player.includes('weather-'))
+  check('3 плеер рисует класс по имени оверлея', atmos.includes('weather-${overlay}') && player.includes('<AtmosphereLayer') && player.includes('weather?.overlay'))
 }
 
 // ── 4. JSON-окна до низа ──

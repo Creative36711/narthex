@@ -17,8 +17,9 @@ import { RecipeEditor, newRecipe } from './RecipeEditor'
 import { CodexEditor, newCodexEntry } from './CodexEditor'
 import JSZip from 'jszip'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
-import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './newCampaign'
+import { createCampaign, fetchCampaignIndex, syncIndexEntry, type CampaignIndexEntry } from './newCampaign'
 import { stopMusic } from '../shared/music'
+import { setAmbientAudioEnabled } from '../shared/audio'
 import { themeVars } from '../shared/theme'
 import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { profileClass, atmosphereOn } from '../shared/profiles'
@@ -134,15 +135,28 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   useEffect(() => {
     setError(null)
     setSelected(null)
-    // в редакторе фоновой музыки нет (фидбек 9): превью звуков — само по себе
+    // в редакторе фоновой музыки нет (фидбек 9) и фоновых звуков тоже: иначе
+    // щелчок по кнопке и гул локации перебивают предпрослушивание синтеза
     stopMusic(0.2)
+    setAmbientAudioEnabled(false)
+    // пустой base — на диске нет ни одной кампании: грузить нечего, снизу
+    // покажем экран «Кампаний пока нет» с кнопкой создания
+    if (!base) {
+      setReadyStore(null)
+      return
+    }
     store
       .load()
       .then(() => setReadyStore(store))
       .catch((e) => setError(String(e)))
-  }, [store])
+  }, [store, base])
 
   useEffect(() => store.subscribe(() => force((n) => n + 1)), [store])
+
+  // плейтест — это уже игра: возвращаем фоновые звуки движка, в редакторе их нет
+  useEffect(() => {
+    setAmbientAudioEnabled(!!testCampaign)
+  }, [testCampaign])
 
   useEffect(() => {
     if (!openMenu) return
@@ -165,15 +179,34 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [])
 
+  // реестр кампаний перечитывается при смене кампании: названия и описания
+  // берём из файлов кампаний, поэтому импорт с новым названием сразу виден
   useEffect(() => {
     fetchCampaignIndex().then(setCampaigns)
   }, [base])
+
+  /** обновить строку реестра текущей кампании (после импорта/правки метаданных) */
+  const pushIndex = async (patch?: Partial<CampaignIndexEntry>) => {
+    await syncIndexEntry({
+      id: store.meta.id,
+      title: store.meta.title,
+      author: store.meta.author,
+      description: store.meta.description,
+      ...patch,
+    })
+    setCampaigns(await fetchCampaignIndex())
+  }
 
   // undo: Ctrl+Z везде в редакторе НАЖИМАЕТ кнопку «Отменить» (фидбек №10:
   // «принцип простой — Ctrl+Z просто нажимает кнопку “Отменить”»). Родной
   // откат браузера в текстовых полях всё равно мёртв: каждое нажатие сразу
   // коммитится в магазин и переписывает DOM, стек браузера ломается.
-  // Исключение — Monaco (у него своя полноценная история).
+  // Исключение — текстовые поля: там Ctrl+Z должен отменять правку текста
+  // (правка фидбека №18), иначе мастер не может стереть опечатку.
+  const textLike = useMemo(
+    () => new Set(['text', 'search', 'url', 'tel', 'email', 'password', 'number']),
+    [],
+  )
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // e.key на кириллической раскладке даёт «я» — сравниваем физическую
@@ -181,6 +214,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       if (!(e.ctrlKey || e.metaKey) || e.code !== 'KeyZ' || e.shiftKey) return
       const t = e.target as HTMLElement
       if (t.closest('.monaco-editor')) return
+      // текстовое поле / textarea: отменяет сам браузер, магазин не трогаем
+      if (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && textLike.has((t as HTMLInputElement).type))) return
       if (store.canUndo()) {
         e.preventDefault()
         e.stopPropagation()
@@ -189,7 +224,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [store])
+  }, [store, textLike])
 
   const newCampaign = async () => {
     const title = await askText('Название новой кампании', 'например «Тени Северного тракта»')
@@ -240,13 +275,43 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       })
       if (!saveRes.ok) throw new Error(`${saveRes.status} ${await saveRes.text()}`)
       setCampaigns(next)
-      setBase(`/campaigns/${next[0].id}`)
+      // удалили последнюю — редактор покажет пустой экран, а не путь в никуда
+      setBase(next.length ? `/campaigns/${next[0].id}` : '')
     } catch (e) {
       void showAlert('Не удалось удалить кампанию', `${e}\n(Удаление работает в dev-режиме vite / Tauri.)`)
     } finally {
       setBusy(null)
     }
   }
+
+  // нет ни одной кампании (свежая сборка или удалили последнюю): редактор
+  // остаётся рабочим — создаём новую кампанию прямо отсюда
+  if (!base)
+    return (
+      <div className="screen-center">
+        <div className="panel no-campaign-panel">
+          <div className="brand-row">
+            <span className="brand">
+              <Ico n="forge" /> Редактор Chronicle Forge
+            </span>
+          </div>
+          <h2>Кампаний пока нет</h2>
+          <p>
+            В <code>public/campaigns</code> пусто. Создайте первую кампанию — движок
+            подставит стартовую сцену, а остальное вы опишете сами. Готовую кампанию
+            можно импортировать файлом <code>.chronicle</code> из главного меню.
+          </p>
+          <div className="menu-buttons">
+            <button className="btn btn-primary" onClick={() => void newCampaign()} disabled={!!busy}>
+              {busy ?? 'Создать кампанию'}
+            </button>
+            <button className="btn" onClick={onExit}>
+              В главное меню
+            </button>
+          </div>
+        </div>
+      </div>
+    )
 
   if (error)
     return (
@@ -456,6 +521,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     setBusy('Сохранение…')
     try {
       await store.saveToDisk()
+      // название/описание могли поменяться — список кампаний обязан увидеть то же
+      await pushIndex()
       setBusy(null)
     } catch (e) {
       setBusy(null)
@@ -527,6 +594,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     setBusy('Импорт…')
     try {
       const warns = await importChronicle(store, file)
+      await pushIndex()
       if (warns.length) {
         void showList('Импортировано с предупреждениями', warns, 'Нажмите «Сохранить», чтобы записать файлы на диск.', {
           label: 'Скопировать отчёт для ИИ',
@@ -605,6 +673,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     setBusy('Импорт JSON…')
     try {
       const warns = importMonolithText(store, text)
+      // монолит мог прийти с другим названием — сразу обновляем список кампаний
+      setCampaigns((c) =>
+        c.map((e) =>
+          e.id === store.meta.id
+            ? { ...e, title: store.meta.title, author: store.meta.author, description: store.meta.description }
+            : e,
+        ),
+      )
       void showList(
         warns.length ? `Импортировано с ${warns.length} предупреждениями` : 'Импортировано без предупреждений',
         warns,
@@ -678,7 +754,11 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             data-tip="Кампания"
           >
             {campaigns.map((c) => (
-              <option key={c.id} value={`/campaigns/${c.id}`}>{c.title}</option>
+              // у открытой кампании показываем живое название из редактора: правка
+              // «Кампания → название» видна в списке сразу, без «Сохранить»
+              <option key={c.id} value={`/campaigns/${c.id}`}>
+                {c.id === store.meta.id ? store.meta.title : c.title}
+              </option>
             ))}
             {!campaigns.some((c) => `/campaigns/${c.id}` === base) && <option value={base}>{store.meta.title}</option>}
           </select>

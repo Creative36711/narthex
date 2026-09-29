@@ -109,7 +109,8 @@ const f = (p: string) => readFileSync(p, 'utf8')
   const demo = f('public/campaigns/ash-of-caerden/scenes/scene_gates_front.json')
   check('6в тип ImageValue (строка/массив/{frames,fps,loop})', /type ImageValue\s*=\s*string\s*\|\s*string\[\]\s*\|\s*\{\s*frames:\s*string\[\];/.test(types))
   check('6в проигрыватель кадров по таймеру', frames.includes('useCurrentFrame') && frames.includes('setInterval'))
-  check('6в статика без таймера (один кадр)', frames.includes('playableNow.length < 2'))
+  // реальный сторож в frames.tsx: пустой кадр/одиночный кадр — таймер не поднимаем
+  check('6в статика без таймера (один кадр)', frames.includes('if (!info || total < 2) return') && frames.includes('setInterval'))
   check('6в сценовый фон через LiveImg', scene.includes('LiveImg') && scene.includes('state.image'))
   check('6в спрайт слота через LiveImg', scene.includes('className="slot-sprite"'))
   check('6в фигурка боя через LiveImg', combat.includes('LiveImg') && combat.includes('figureSrc'))
@@ -157,8 +158,11 @@ const f = (p: string) => readFileSync(p, 'utf8')
 {
   const css = f('src/index.css')
   const quest = f('src/editor/QuestEditor.tsx')
-  check('9 строки списка красятся по значению', /select\.sel-outcome option\[value="success"\]/.test(css) && /select\.sel-outcome option\[value="failure"\]/.test(css))
-  check('9 «успех» — галочка, «провал» — крестик', quest.includes('sel-outcome-success') && quest.includes('✖ провал'))
+  check('9 строки списка красятся по значению', /\.sel-outcome option\[value="success"\]/.test(css) && /\.sel-outcome option\[value="failure"\]/.test(css))
+  // Конфликт двух фидбеков (#9 просил глифы ✔/✖, проект запрещает эмодзи) решён
+  // в пользу запрета: смысл несёт цвет CSS по значению option, dingbat-глифов в
+  // разметке нет. Причина выписана комментарием в QuestEditor.
+  check('9 «успех»/«провал» без dingbat-глифов, цвет — по value', quest.includes('<option value="success">успех</option>') && quest.includes('<option value="failure">провал</option>') && !/[✔✖]/.test(quest))
 }
 
 // ── 10. Ctrl+Z = «Отменить» ──
@@ -166,7 +170,9 @@ const f = (p: string) => readFileSync(p, 'utf8')
   const app = f('src/editor/EditorApp.tsx')
   const handler = app.match(/useEffect\(\(\) => \{\s*const onKey[\s\S]{0,600}?window\.addEventListener\('keydown'[^)]*\)/)
   check('10 Ctrl+Z перехватывается глобально (capture)', /addEventListener\('keydown', onKey, true\)/.test(app ?? ''))
-  check('10 исключений для input/textarea больше нет', !/t\.tagName === 'TEXTAREA'/.test(app))
+  // Позднейший фидбек №18 уточнил №10: в текстовых полях Ctrl+Z отменяет
+  // правку текста, магазин не трогаем. Проверяем именно этот узкий набор.
+  check('10 исключение только для текстовых полей (фидбек 18)', app.includes('textLike') && app.includes("t.tagName === 'INPUT' && textLike.has"))
   check('10 Monaco не ломаем', app.includes(".monaco-editor"))
 }
 
