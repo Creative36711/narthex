@@ -15,7 +15,8 @@
     "smoke:ink-import": "tsx scripts/ink-import-smoke.mts",
     "smoke:fingerprint": "tsx scripts/fingerprint-smoke.mts",
     "smoke:book-md": "tsx scripts/book-md-smoke.mts",
-    "smoke:guide": "tsx scripts/guide-schema-guard.mts"
+    "smoke:guide": "tsx scripts/guide-schema-guard.mts",
+    "smoke:time-pressure": "tsx scripts/time-pressure-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

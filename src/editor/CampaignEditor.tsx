@@ -1337,6 +1337,16 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             <span>Тиков в сутках</span>
             <input type="number" value={m.ticks_per_day} onChange={(e) => ((m.ticks_per_day = Number(e.target.value)), commit())} />
           </label>
+          <label className="fld" data-tip="Уровень 2 «Таймер реплики»: секунд реального времени на один диалоговый тик (choice_deadline_ticks в узлах диалога). 0 — таймеры ответа выключены (режим доступности).">
+            <span>Секунд на диалоговый тик</span>
+            <input
+              type="number"
+              min={0}
+              step={0.5}
+              value={m.dialogue_tick_seconds ?? 1}
+              onChange={(e) => ((m.dialogue_tick_seconds = Math.max(0, Number(e.target.value) || 0)), commit())}
+            />
+          </label>
           {(['morning', 'day', 'evening', 'night'] as const).map((k) => (
             <label key={k} className="fld">
               <span>{{ morning: 'Утро с', day: 'День с', evening: 'Вечер с', night: 'Ночь с' }[k]}</span>

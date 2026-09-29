@@ -1578,6 +1578,71 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "start_crisis"
+            },
+            "ticks": {
+              "type": "number"
+            },
+            "label": {
+              "type": "string"
+            },
+            "every": {
+              "type": "number"
+            },
+            "severity": {
+              "type": "number",
+              "description": "«опасность» 0..3 — оформление HUD (умолчание 1)"
+            },
+            "on_escalate": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            },
+            "on_deadline": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "end_crisis"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "extend_crisis"
+            },
+            "ticks": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "ticks"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "commit_crime"
             },
             "id": {
@@ -3000,6 +3065,50 @@
             "type",
             "key",
             "ge"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "crisis_active"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "crisis_ticks_le"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "crisis_ticks_ge"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "threshold"
           ],
           "additionalProperties": false
         },
@@ -5199,6 +5308,10 @@
           },
           "additionalProperties": false,
           "description": "Лагерь и ночлег (аудит B7): действие «Разбить лагерь» в HUD, когда\nгерой в локации с `camp: true`. Отсутствие блока — кнопки нет ни где!\nMaster решает длительность (ticks, умолчание 8), риск вылазки опасности\n(ambush_chance 0..1, умолчание 0 — безопасный лагерь) и сюжет засады\n(ambush_rule — правило из реестра rules)."
+        },
+        "dialogue_tick_seconds": {
+          "type": "number",
+          "description": "Уровень 2 «Таймер реплики»: сколько секунд реального времени длится один\nДИАЛОГОВЫЙ тик (`choice_deadline_ticks` в узлах диалога). Умолчание 1.\n0 — таймеры реплик выключены совсем (режим доступности: игра без спешки).\nМировые тики (`tick_elapsed`, кризис Уровня 3) этим не затрагиваются."
         },
         "hazards": {
           "type": "object",
@@ -8251,6 +8364,70 @@
             "state"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "start_crisis"
+            },
+            "ticks": {
+              "type": "number"
+            },
+            "label": {
+              "type": "string"
+            },
+            "every": {
+              "type": "number"
+            },
+            "severity": {
+              "type": "number"
+            },
+            "on_escalate": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            },
+            "on_deadline": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              }
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "end_crisis"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "extend_crisis"
+            },
+            "ticks": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "ticks"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -8470,6 +8647,18 @@
         "goto": {
           "type": "string",
           "description": "узел без вариантов: куда перейти после реплик ('end' по умолчанию)"
+        },
+        "choice_deadline_ticks": {
+          "type": "number",
+          "description": "Уровень 2 «Таймер реплики»: сколько ДИАЛОГОВЫХ тиков игрок может думать\nнад ответом (1 тик = `campaign.dialogue_tick_seconds` секунд реального\nвремени, по умолчанию 1 с). 0/нет — таймера нет: вдумчивое чтение и\nозвучка не торопятся (docs/book/08-limits.md §8.8). Таймер работает\nтолько в узлах с вариантами ответа и перезапускается при возврате в них."
+        },
+        "choice_deadline_to": {
+          "type": "string",
+          "description": "куда увести разговор, когда время вышло: id узла или 'end' (ум. 'end')"
+        },
+        "choice_deadline_pick": {
+          "type": "number",
+          "description": "или автоматически выбрать вариант ответа с таким индексом (вместо перехода)"
         }
       },
       "required": [

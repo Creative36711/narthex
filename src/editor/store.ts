@@ -638,7 +638,19 @@ export class EditorStore {
     // диалоги конструктора: структурный переход stay
     for (const f of this.manifest.dialogues ?? []) {
       const key = f.replace(/\.ink$/, '')
-      const doc = this.jsonFiles.get(`dialogues/${key}.dlg.json`) as { nodes?: Array<{ id: string; goto?: string; sections?: Array<{ goto?: string; else_goto?: string }> }> } | undefined
+      const doc = this.jsonFiles.get(`dialogues/${key}.dlg.json`) as
+        | {
+            nodes?: Array<{
+              id: string
+              goto?: string
+              choices?: unknown[]
+              choice_deadline_ticks?: number
+              choice_deadline_to?: string
+              choice_deadline_pick?: number
+              sections?: Array<{ goto?: string; else_goto?: string }>
+            }>
+          }
+        | undefined
       if (!doc || !Array.isArray(doc.nodes)) continue
       const nodeIds = new Set(doc.nodes.map((n) => n.id))
       for (const n of doc.nodes) {
@@ -653,6 +665,23 @@ export class EditorStore {
         if (n.goto && n.goto !== 'end' && !nodeIds.has(n.goto)) {
           const stayHint = n.goto === 'stay' ? ' («stay» допустим только в вариантах ответа)' : ''
           issues.push(`Диалог «${key}»: переход «${n.goto}» ведёт в несуществующий узел диалога — заменён на «конец»${stayHint}`)
+        }
+        // Уровень 2 «Таймер реплики»: дедлайн имеет смысл только на узле с вариантами
+        const nChoices = Array.isArray((n as { choices?: unknown[] }).choices) ? ((n as { choices: unknown[] }).choices) : []
+        if (n.choice_deadline_ticks && n.choice_deadline_ticks > 0) {
+          if (nChoices.length === 0) {
+            issues.push(`Диалог «${key}»: узел «${n.id}» — таймер ответа снят: в узле нет вариантов ответа`)
+          } else {
+            if (n.choice_deadline_pick !== undefined && (n.choice_deadline_pick < 0 || n.choice_deadline_pick >= nChoices.length)) {
+              issues.push(
+                `Диалог «${key}»: узел «${n.id}» — таймер ответа выбирает несуществующий вариант №${n.choice_deadline_pick + 1} — будет конец разговора`,
+              )
+            }
+            const to = (n.choice_deadline_to ?? 'end').trim()
+            if (to && to !== 'end' && !nodeIds.has(to)) {
+              issues.push(`Диалог «${key}»: узел «${n.id}» — таймер ответа ведёт в несуществующий узел «${to}» — будет конец разговора`)
+            }
+          }
         }
       }
     }

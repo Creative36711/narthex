@@ -1309,6 +1309,50 @@ function fixDlgGotos(ctx: RepairCtx, nodes: DlgNode[], where: string): void {
       else fixGoto(c.goto, true, (v) => (c.goto = v))
     }
     if (node.goto !== undefined) fixGoto(node.goto, false, (v) => (node.goto = v))
+    fixChoiceDeadline(ctx, node, ids, where)
+  }
+}
+
+/**
+ * Уровень 2 «Таймер реплики»: автопочинка полей дедлайна узла. Таймер имеет
+ * смысл только там, где игрок хоть что-то выбирает; неверные поля молча
+ * приводятся к рабочему виду с отчётом мастеру.
+ */
+function fixChoiceDeadline(ctx: RepairCtx, node: DlgNode, ids: Set<string>, where: string): void {
+  const hasAny =
+    node.choice_deadline_ticks !== undefined ||
+    node.choice_deadline_to !== undefined ||
+    node.choice_deadline_pick !== undefined
+  if (!hasAny) return
+  const ticks = Math.round(Number(node.choice_deadline_ticks))
+  if (!Number.isFinite(ticks) || ticks <= 0 || node.choices.length === 0) {
+    delete node.choice_deadline_ticks
+    delete node.choice_deadline_to
+    delete node.choice_deadline_pick
+    if (node.choices.length === 0) {
+      ctx.warn(`${where}: узел «${node.label}» — таймер ответа снят, в узле нет вариантов ответа`)
+    }
+    return
+  }
+  node.choice_deadline_ticks = ticks
+  if (node.choice_deadline_pick !== undefined) {
+    const pick = Math.round(Number(node.choice_deadline_pick))
+    if (!Number.isFinite(pick) || pick < 0 || pick >= node.choices.length) {
+      ctx.warn(
+        `${where}: узел «${node.label}» — таймер ответа не может выбрать несуществующий вариант №${(node.choice_deadline_pick ?? 0) + 1} — по истечении разговор закончится`,
+      )
+      delete node.choice_deadline_pick
+      node.choice_deadline_to = 'end'
+    } else {
+      node.choice_deadline_pick = pick
+    }
+  }
+  const to = (node.choice_deadline_to ?? 'end').trim()
+  if (!to || to === 'end') {
+    node.choice_deadline_to = 'end'
+  } else if (!ids.has(to)) {
+    ctx.warn(`${where}: узел «${node.label}» — таймер ответа вёл в несуществующий узел «${to}» — по истечении разговор закончится`)
+    node.choice_deadline_to = 'end'
   }
 }
 

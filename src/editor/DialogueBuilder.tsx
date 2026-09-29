@@ -289,6 +289,62 @@ function NodeForm({
       </div>
 
       <div className="props-group">
+        <h4>Таймер ответа (Уровень 2)</h4>
+        {node.choices.length === 0 ? (
+          <div className="muted small">
+            Таймер работает только в узлах с вариантами ответа: он давит на решение игрока, а не на чтение реплик.
+          </div>
+        ) : (
+          <>
+            <label className="fld fld-inline">
+              <span>Сколько даётся на ответ (диалоговых тиков, 0 — без таймера)</span>
+              <input
+                type="number"
+                min={0}
+                value={node.choice_deadline_ticks ?? 0}
+                data-tip={`1 тик = ${store.meta.dialogue_tick_seconds ?? 1} с реального времени (настройка кампании «dialogue_tick_seconds»; 0 — таймеры выключены)`}
+                onChange={(e) => {
+                  const v = Math.max(0, Math.round(Number(e.target.value) || 0))
+                  if (v > 0) node.choice_deadline_ticks = v
+                  else delete node.choice_deadline_ticks
+                  commit()
+                }}
+              />
+            </label>
+            {!!node.choice_deadline_ticks && (
+              <>
+                <GotoSelect
+                  label="Когда время вышло — куда увести разговор"
+                  doc={doc}
+                  value={node.choice_deadline_to ?? 'end'}
+                  allowStay={false}
+                  onChange={(v) => ((node.choice_deadline_to = v), commit())}
+                />
+                <label className="fld fld-inline">
+                  <span>…или сразу выбрать вариант ответа № (0 — не выбирать)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={(node.choice_deadline_pick ?? -1) + 1}
+                    data-tip="Нумерация с 1, как в списке вариантов. Например: вариант «Промолчать» — движок выберет его сам."
+                    onChange={(e) => {
+                      const v = Math.round(Number(e.target.value) || 1) - 1
+                      if (v >= 0 && v < node.choices.length) node.choice_deadline_pick = v
+                      else delete node.choice_deadline_pick
+                      commit()
+                    }}
+                  />
+                </label>
+                <div className="muted small">
+                  Если задан номер варианта — по истечении движок выберет его; иначе разговор уйдёт в выбранный узел (или закончится).
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="props-group">
         <h4>Варианты ответа игрока</h4>
         {node.choices.length > 0 &&
           !node.choices.some((c) => !c.once && (!c.conds || c.conds.length === 0)) && (
