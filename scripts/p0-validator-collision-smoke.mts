@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs'
 import { repairMonolith, importMonolith } from '../src/editor/monolith'
 import { EditorStore } from '../src/editor/store'
 import { decideCampaignCollision } from '../src/editor/newCampaign'
+import { buildCfFeedbackIssue, parseCfFeedback } from '../src/editor/cfFeedback'
 
 // ── Задача 2: документация рецепта ──
 const guide = readFileSync('docs/ai-campaign-guide.md', 'utf8')
@@ -202,4 +203,39 @@ const resCancel = await decideCampaignCollision({
 })
 assert.equal(resCancel.resolution, 'cancel')
 console.log('✓ Задача 4: decideCampaignCollision корректно обрабатывает все ветки (update / replace / side_by_side / cancel)')
-console.log('\nВСЕ ПРОВЕРКИ P0 ПРОЙДЕНЫ')
+
+// ── Задача 7: cf-feedback разбор, склейка дублей и ссылка на GitHub Issue ──
+const sampleFeedback = `
+Вот готовая кампания.
+
+\`\`\`cf-feedback
+[
+  {
+    "id": "missing-effect:set_mood",
+    "kind": "missing_effect",
+    "detail": "Не хватило прямого переключения состояния портрета NPC",
+    "workaround": "Выдал статус",
+    "severity": "mid"
+  },
+  {
+    "id": "missing-effect:set_mood",
+    "kind": "missing_effect",
+    "detail": "Дубль того же id должен склеиться",
+    "workaround": "Выдал статус",
+    "severity": "mid"
+  }
+]
+\`\`\`
+`
+const parsedFb = parseCfFeedback(sampleFeedback)
+assert.equal(parsedFb.error, undefined)
+assert.equal(parsedFb.items.length, 1, 'Дубли с одинаковым id должны склеиваться')
+assert.equal(parsedFb.items[0].id, 'missing-effect:set_mood')
+const ghIssue = buildCfFeedbackIssue(parsedFb.items, 'Тестовая кампания')
+assert.ok(
+  ghIssue.url.startsWith('https://github.com/Creative36711/chronicle-forge/issues/new?labels=ai-feedback'),
+  'URL должен вести на создание GitHub Issue с меткой ai-feedback',
+)
+assert.ok(ghIssue.body.includes('| `missing-effect:set_mood` | `missing_effect` | **mid** |'), 'Body должен содержать markdown-таблицу')
+console.log('✓ Задача 7: cf-feedback разбирается, склеивает дубли по id и собирает GitHub Issue URL')
+console.log('\nВСЕ ПРОВЕРКИ P0 + P1 ПРОЙДЕНЫ')

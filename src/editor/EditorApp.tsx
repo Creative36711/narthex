@@ -24,6 +24,7 @@ import { themeVars } from '../shared/theme'
 import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { profileClass, atmosphereOn } from '../shared/profiles'
 import { AiWizard, aiFixReport } from './AiWizard'
+import { CfFeedbackModal } from './CfFeedbackModal'
 import { makeId, slugify } from './ids'
 import './editor.css'
 import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from './prompt'
@@ -103,6 +104,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [section, setSection] = useState<EditorSection>('scenes')
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [aiWizard, setAiWizard] = useState(false)
+  const [cfFeedbackOpen, setCfFeedbackOpen] = useState(false)
   const [q, setQ] = useState('')
   const [kindF, setKindF] = useState<'all' | 'npc' | 'item'>('all')
   const [chapterF, setChapterF] = useState('')
@@ -577,6 +579,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       const kitFiles: Array<[string, string]> = [
         ['campaign-guide.md', 'Полный гайд по движку (системный промпт агента)'],
         ['campaign.schema.json', 'JSON Schema всех полей формата'],
+        ['design-template.md', 'Бланк дизайн-документа кампании (Фаза 1)'],
         ['НАЧНИ_С_ЭТОГО.txt', 'Сопроводительный текст: пошаговая инструкция и правила для агента'],
       ]
       for (const [name] of kitFiles) {
@@ -720,6 +723,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               }}
             ><Ico n="check" /> Проверить кампанию</button>
             <button className="editor-toolbar-item" onClick={() => setAiWizard(true)}><Ico n="sparkle" /> Кампания с ИИ</button>
+            <button className="editor-toolbar-item" onClick={() => setCfFeedbackOpen(true)}><Ico n="message" /> Заметки ИИ для разработчиков</button>
             <button className="editor-toolbar-item" onClick={() => { setBookFile('README.md'); setBookContextual(false); setBookOpen(true) }}><Ico n="book" /> Книга мастера</button>
           </div>
         </details>
@@ -869,6 +873,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         </main>
       </div>
       {aiWizard && <AiWizard onClose={() => setAiWizard(false)} />}
+      {cfFeedbackOpen && <CfFeedbackModal campaignTitle={store.meta.title} onClose={() => setCfFeedbackOpen(false)} />}
       {bookOpen && <EditorBookPanel section={section} sectionLabel={navLabelOf(section)} initialFile={bookFile} contextual={bookContextual} onClose={() => setBookOpen(false)} />}
     </div>
   )

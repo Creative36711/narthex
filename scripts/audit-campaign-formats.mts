@@ -205,6 +205,15 @@ console.log(`✓ Проверена JSON Schema Draft 2020-12: ${Object.keys(sch
     assert.ok(existsSync(dst), `public/ai: отсутствует ${dst}`)
     assert.equal(readFileSync(dst, 'utf8'), src, `public/ai/${dst.split('/').pop()} рассинхронизирован: запустите npx tsx scripts/gen-schema.mts`)
   }
+  const startHerePath = join(root, 'public/ai/НАЧНИ_С_ЭТОГО.txt')
+  const designTplPath = join(root, 'public/ai/design-template.md')
+  assert.ok(existsSync(startHerePath), 'public/ai/НАЧНИ_С_ЭТОГО.txt отсутствует')
+  assert.ok(existsSync(designTplPath), 'public/ai/design-template.md отсутствует')
+  assert.ok(guide.includes('## 0. НАЧНИ С ЭТОГО'), 'В начале campaign-guide.md должна быть секция «НАЧНИ С ЭТОГО» (Задача 5)')
+  assert.ok(guide.includes('Двухфазный протокол') && guide.includes('design-template.md'), 'В campaign-guide.md должен быть двухфазный протокол и ссылка на design-template.md (Задача 6)')
+  assert.ok(guide.includes('cf-feedback'), 'В campaign-guide.md должна быть описана конвенция cf-feedback (Задача 7)')
+  const tplText = readFileSync(designTplPath, 'utf8')
+  assert.ok(tplText.includes('meta.chapters') && tplText.includes('Фаза 1'), 'design-template.md должен содержать разделы дизайн-документа Фазы 1')
 }
 console.log(`✓ Проверены отдельные JSON/Ink-модули и ссылки: ${moduleCount} файлов в ${dirs.length} кампаниях`)
 console.log('✓ Campaign Package ↔ MonolithDoc: round-trip без потерь и предупреждений')
