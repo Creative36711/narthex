@@ -12,6 +12,7 @@ import { exportMonolith, importMonolith, repairMonolith } from '../src/editor/mo
 import { importChronicle } from '../src/editor/chronicle'
 import { generateInk } from '../src/editor/dialogueDoc'
 import { buildAiCampaignPrompt } from '../src/editor/aiPrompt'
+import { AI_KIT_FILES } from '../src/editor/aiKit'
 
 const root = process.cwd()
 const campaignsDir = join(root, 'public/campaigns')
@@ -209,17 +210,28 @@ assert.ok(copiedPrompt.includes('ТОЛЬКО JSON'), 'Копируемый prom
 assert.ok(copiedPrompt.includes('campaign.schema.json'), 'Копируемый prompt не отсылает к JSON Schema')
 
 console.log(`✓ Проверена JSON Schema Draft 2020-12: ${Object.keys(schema.$defs).length} типов`)
-// образы «чемодана для ИИ-агента» в public/ai должны совпадать с первоисточником
+// образы «чемодана для ИИ-агента» в public/ai: состав — ровно манифест
+// AI_KIT_FILES (файл в public/ai, но не в архиве — больше невозможно молча),
+// содержимое — копии первоисточников из docs/
 {
   const guide = readFileSync(join(root, 'docs/ai-campaign-guide.md'), 'utf8')
   const schemaText = readFileSync(join(root, 'docs/campaign.schema.json'), 'utf8')
+  const designTemplate = readFileSync(join(root, 'docs/ai-design-template.md'), 'utf8')
   for (const [src, dst] of [
     [guide, join(root, 'public/ai/campaign-guide.md')],
     [schemaText, join(root, 'public/ai/campaign.schema.json')],
+    [designTemplate.trim() + '\n', join(root, 'public/ai/design-template.md')],
   ]) {
-    assert.ok(existsSync(dst), `public/ai: отсутствует ${dst}`)
+    assert.ok(existsSync(dst), `public/ai: отсутствует ${dst} (файл из манифеста AI_KIT_FILES)`)
     assert.equal(readFileSync(dst, 'utf8'), src, `public/ai/${dst.split('/').pop()} рассинхронизирован: запустите npx tsx scripts/gen-schema.mts`)
   }
+  // состав каталога ↔ манифест: лишний файл или пропуск — падение (§R3)
+  const actual = readdirSync(join(root, 'public/ai')).sort()
+  const manifest = AI_KIT_FILES.map((f) => f.name).sort()
+  const extra = actual.filter((name) => !manifest.includes(name))
+  const missing = manifest.filter((name) => !actual.includes(name))
+  assert.deepEqual(extra, [], `public/ai: файлы вне манифеста чемодана AI_KIT_FILES: ${extra.join(', ')}`)
+  assert.deepEqual(missing, [], `public/ai: файлы манифеста AI_KIT_FILES отсутствуют: ${missing.join(', ')}`)
 }
 console.log(`✓ Проверены отдельные JSON/Ink-модули и ссылки: ${moduleCount} файлов в ${dirs.length} кампаниях`)
 console.log('✓ Campaign Package ↔ MonolithDoc: round-trip без потерь и предупреждений')

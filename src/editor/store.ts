@@ -55,6 +55,7 @@ function walkEffects(effects: Effect[], fn: (e: Effect) => void): void {
 
 export type EditorSection =
   | 'campaign'
+  | 'design'
   | 'world'
   | 'scenes'
   | 'entities'
@@ -677,6 +678,28 @@ export class EditorStore {
     for (const need of this.meta.needs ?? []) {
       if (need.on_zero_effect && need.on_zero_effect !== 'death' && !ruleIds.has(need.on_zero_effect)) {
         issues.push(`Потребность «${need.label}»: правило «${need.on_zero_effect}» не найдено`)
+      }
+    }
+
+    // дизайн-документ (§R10): непустой документ обязан описывать хоть что-то
+    // из этой кампании — иначе мастер читает черновик не про её сцены.
+    // Обратного требования нет: упомянуто лишнее — нормально (черновик с
+    // планами). Кампании без design_doc (и с пустым) не получают замечаний.
+    const designDoc = (this.meta.design_doc ?? '').trim()
+    if (designDoc) {
+      const npcIds = new Set<string>()
+      for (const p of this.entityPaths()) {
+        const e = this.entity(p)
+        if (e?.type === 'npc') npcIds.add(e.id)
+      }
+      const known = [...sceneIds, ...questIds, ...npcIds]
+      if (known.length && !known.some((id) => designDoc.includes(id))) {
+        const firstScene = this.scene(this.scenePaths()[0] ?? '')
+        issues.push(
+          firstScene
+            ? `Дизайн-документ не описывает сцену «${firstScene.label}»: попросите агента дополнить`
+            : 'Дизайн-документ не описывает ни одной сцены, персонажа или квеста кампании: попросите агента дополнить',
+        )
       }
     }
     return issues
