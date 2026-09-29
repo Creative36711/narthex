@@ -46,6 +46,9 @@ import { EditorBookPanel } from './EditorBookPanel'
 
 type SectionItem = { id: EditorSection; label: string }
 
+/** поля, в которых Ctrl+Z должен работать как обычная отмена ввода (фидбек №18) */
+const textLike = new Set(['text', 'search', 'email', 'url', 'password', 'number', 'tel'])
+
 /** верхнее меню — категории (фидбек 4): плоский список из 9 кнопок захламлял шапку */
 const MENUS: Array<{ id: string; label: string; items: SectionItem[] }> = [
   {
@@ -177,7 +180,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   // «принцип простой — Ctrl+Z просто нажимает кнопку “Отменить”»). Родной
   // откат браузера в текстовых полях всё равно мёртв: каждое нажатие сразу
   // коммитится в магазин и переписывает DOM, стек браузера ломается.
-  // Исключение — Monaco (у него своя полноценная история).
+  // Исключения — Monaco (у него своя полноценная история) и текстовые input:
+  // там Ctrl+Z лазит внутри набранного текста (фидбек №18); галочек, списков и
+  // кнопок это не касается (фидбек №25).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // e.key на кириллической раскладке даёт «я» — сравниваем физическую
@@ -185,6 +190,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       if (!(e.ctrlKey || e.metaKey) || e.code !== 'KeyZ' || e.shiftKey) return
       const t = e.target as HTMLElement
       if (t.closest('.monaco-editor')) return
+      // галочки, списки, кнопки и прочие не-текстовые элементы — отдаём стору
+      if (t.tagName === 'INPUT' && textLike.has((t as HTMLInputElement).type)) return
       if (store.canUndo()) {
         e.preventDefault()
         e.stopPropagation()

@@ -109,7 +109,8 @@ const f = (p: string) => readFileSync(p, 'utf8')
   const demo = f('public/campaigns/ash-of-caerden/scenes/scene_gates_front.json')
   check('6в тип ImageValue (строка/массив/{frames,fps,loop})', /type ImageValue\s*=\s*string\s*\|\s*string\[\]\s*\|\s*\{\s*frames:\s*string\[\];/.test(types))
   check('6в проигрыватель кадров по таймеру', frames.includes('useCurrentFrame') && frames.includes('setInterval'))
-  check('6в статика без таймера (один кадр)', frames.includes('playableNow.length < 2'))
+  // статика (меньше двух играемых кадров) таймер не поднимает — смотри useFrameIndex
+  check('6в статика без таймера (один кадр)', /if \(!info \|\| total < 2\) return/.test(frames) && frames.includes('window.setInterval'))
   check('6в сценовый фон через LiveImg', scene.includes('LiveImg') && scene.includes('state.image'))
   check('6в спрайт слота через LiveImg', scene.includes('className="slot-sprite"'))
   check('6в фигурка боя через LiveImg', combat.includes('LiveImg') && combat.includes('figureSrc'))
@@ -158,7 +159,9 @@ const f = (p: string) => readFileSync(p, 'utf8')
   const css = f('src/index.css')
   const quest = f('src/editor/QuestEditor.tsx')
   check('9 строки списка красятся по значению', /select\.sel-outcome option\[value="success"\]/.test(css) && /select\.sel-outcome option\[value="failure"\]/.test(css))
-  check('9 «успех» — галочка, «провал» — крестик', quest.includes('sel-outcome-success') && quest.includes('✖ провал'))
+  // цвет решает всё: глифы ✔/✖ убраны по правилу «без эмодзи» (фидбек 9),
+  // зелёный/красный задан CSS по значению option — см. первую проверку пункта
+  check('9 «успех» — галочка, «провал» — крестик', quest.includes('sel-outcome-success') && quest.includes('sel-outcome-failure') && !/[\u2714\u2716]/.test(quest))
 }
 
 // ── 10. Ctrl+Z = «Отменить» ──
