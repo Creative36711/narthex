@@ -1077,6 +1077,15 @@ markdown (`MarkdownView.tsx`); иллюстрации — статик `public/b
   - Документация: гайд §14к, «Книга мастера» §5.9, `docs/compatibility.md` §9 (запрос на глобальный таймер остаётся отклонённым), смоук `npm run smoke:time-pressure`.
 - **Протокол работы ИИ-разработчика**: `docs/ai-workflow.md` — обязательный к обновлению набор файлов в каждом изменении и периодичность коммитов/пушей (чтобы поломка песочницы или протухший токен не теряли прогресс).
 
+### 10.11 Фидбек 29-09: платформенная кампания, реестр, ArtDoc в редакторе
+
+- **Платформенная кампания**: `public/campaigns/polyn_quiet_hour/` (233 файла) ставится скриптом `scripts/install-campaign.mts` — монолит `_backlog/campaign.json` проходит `repairMonolith` + `importMonolith` и раскладывается в Campaign Package; скрипт идемпотентен и переписывает запись в `index.json` из манифеста кампании. `DEFAULT_CAMPAIGN` (`src/App.tsx`) = `polyn_quiet_hour`; `ash-of-caerden` остался полигоном смоуков и убран из реестра (фильтр `HIDDEN_CAMPAIGNS` в `audit-campaign-formats.mts`).
+- **Реестр кампаний** (`public/campaigns/index.json`) — производный: описание, имя и автор читаются из `campaign.json` пакета новым хелпером `shared/campaigns.ts` (`campaignDescription`), запись реестра остаётся резервом. `MainMenu` подгружает описания при открытии списка; `App` дополняет список открытой кампанией, если реестр отстал.
+- **Импорт в редакторе** (`EditorApp.tsx`): реестр перечитывается при возврате фокуса окну (`focus` / `visibilitychange`), а пакет с чужим `id` встаёт отдельной кампанией — `installImportedPackage` спрашивает мастера, пишет файлы в `campaigns/<id>/` (`store.saveToDisk(paths, target)`, ассеты `.chronicle` — через `importChronicle(store, file, target)`), дописывает запись в реестр и открывает кампанию. Коллизия id с другой кампанией → суффикс `_2`.
+- **ArtDoc как фон сцены в редакторе** (`SceneEditor.tsx`): картинка грузится хуком `useImage` и рисуется `<KImage>` внутри полотна Konva; прежний абсолютный `<img class="scene-stage-art">` перекрывался фоном стейджа и не был виден. `shared/ArtView.tsx` (`artToDataUrl`) подставляет `width`/`height` из `art.canvas` — без внутренних размеров SVG рисовался пустым.
+- **Окно предмета** (`src/index.css`, `.itemdlg-*`): варианты действий занимают всю ширину содержания, кнопка «Закрыть» — обычной ширины (растягивалась полосой на всё окно как элемент flex-колонки).
+- **Внешние функции ink** собраны в `shared/dialogueExternals.ts` (`DIALOGUE_EXTERNAL_SIGNATURES`, `externalDeclarations`): генератор (`editor/dialogueDoc.ts`) и движок (`core/dialogue.ts`) объявляют один и тот же список, нерасшифрованные имена движок называет в предупреждении. Сторож в `scripts/ink-import-smoke.mts` сверяет таблицу с `bind(` в `core/dialogue.ts` и компилирует сгенерированный ink.
+
 ## 11. Что осталось
 
 **Совместимость (фазы A–B) — сделано:** контракт версий, обёртка сейва,

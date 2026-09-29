@@ -58,7 +58,8 @@ const entry = {
 }
 const nextIndex = index.filter((c) => c.id !== id)
 nextIndex.push(entry)
-writeFileSync(indexPath, `${JSON.stringify(nextIndex, null, 2)}\n`, 'utf8')
+// без завершающего перевода строки: так же, как пишут реестр редактор и смоуки
+writeFileSync(indexPath, JSON.stringify(nextIndex, null, 2), 'utf8')
 
 console.log(`Кампания «${title}» (${id}) установлена: ${written.length} файлов в public/campaigns/${id}/`)
 for (const p of written) console.log(`  ${p}`)
