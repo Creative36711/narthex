@@ -49,6 +49,7 @@ export default function App() {
   const broken = useRef<Set<string>>(new Set())
   const [campaign, setCampaign] = useState<CampaignData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [campaignNotice, setCampaignNotice] = useState<string | null>(null)
   const [engine, setEngine] = useState<GameEngine | null>(null)
   const [editor, setEditor] = useState(() => window.location.hash === '#editor')
   const [help, setHelp] = useState(false)
@@ -127,15 +128,23 @@ export default function App() {
         injectCampaignFonts(c) // тема кампании: свои шрифты (блок 2 ТЗ)
         injectCampaignCustomCss(c) // продвинутое оформление мастера (полный CSS)
       })
-      .catch((e) => {
-        // выбранной кампании больше нет (или она повреждена) — пробуем следующую
-        // из реестра ровно один раз, иначе битые кампании гонят друг друга
+      .catch(() => {
+        // Выбранной кампании больше нет (или пакет неполон) — пробуем следующую
+        // из реестра ровно один раз, иначе битые кампании гонят друг друга.
         broken.current.add(campaignId)
         const other = campaigns.find((c) => !broken.current.has(c.id))?.id ?? null
         if (other) {
+          setCampaignNotice(null)
           localStorage.setItem(LAST_KEY, other)
           setCampaignId(other)
-        } else setError(String(e))
+        } else {
+          // Ни одной доступной кампании не осталось. Это не экран ошибки JSON:
+          // показываем обычный пустой экран с импортом готового пакета.
+          setCampaigns([])
+          setCampaignId(null)
+          setError(null)
+          setCampaignNotice('Не удалось загрузить файлы кампании. Проверьте пакет или импортируйте готовую кампанию.')
+        }
       })
   }, [campaignId, campaigns])
 
@@ -201,6 +210,7 @@ export default function App() {
                 // пересканировать реестр: кампанию могли починить или долить
                 broken.current.clear()
                 setError(null)
+                setCampaignNotice(null)
                 setIndexReady(false)
                 void fetchCampaignIndex().then((idx) => {
                   setCampaigns(idx)
@@ -228,10 +238,13 @@ export default function App() {
         onEditor={() => {
           window.location.hash = '#editor'
         }}
+        notice={campaignNotice}
         onImported={(id) => {
           void fetchCampaignIndex().then((idx) => {
-            setCampaigns(idx)
             broken.current.delete(id)
+            setCampaigns(idx.filter((entry) => !broken.current.has(entry.id)))
+            setCampaignNotice(null)
+            setError(null)
             localStorage.setItem(LAST_KEY, id)
             setCampaignId(id)
           })

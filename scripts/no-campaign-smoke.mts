@@ -10,7 +10,7 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { createCampaign, fetchCampaignIndex } from '../src/editor/newCampaign'
+import { createCampaign, fetchCampaignIndex, hydrateCampaignIndex } from '../src/editor/newCampaign'
 
 // в Node нет базового адреса: ведём относительные пути на dev-сервер, чтобы
 // проверять настоящий код реестра, а не его копию
@@ -69,8 +69,10 @@ const read = (p: string) => readFileSync(p, 'utf8')
   check('показан экран «Кампаний пока нет»', app.includes('<NoCampaignScreen') && existsSync('src/player/NoCampaignScreen.tsx'))
   const screen = read('src/player/NoCampaignScreen.tsx')
   check('экран предлагает создать кампанию', screen.includes('Создать кампанию'))
-  check('экран предлагает импорт .chronicle', screen.includes('.chronicle') && screen.includes('importChroniclePackage'))
+  check('экран предлагает загрузить .chronicle', screen.includes('Загрузить кампанию') && screen.includes('.chronicle') && screen.includes('importChroniclePackage'))
   check('экран не показывает «Новый забег» без кампании', !screen.includes('Новый забег'))
+  check('ошибка загрузки всех пакетов ведёт на экран импорта', app.includes('setCampaignId(null)') && app.includes('Не удалось загрузить файлы кампании'))
+  check('реестр фильтрует отсутствующие/HTML-кампании', read('src/editor/newCampaign.ts').includes('if (!res.ok) return null') && read('src/editor/newCampaign.ts').includes('return hydrated.filter'))
   check('реестр ждёт загрузки, а не мигает пустотой', app.includes('indexReady'))
   check('битые кампании не гоняют друг друга по кругу', app.includes('const broken = useRef<Set<string>>') && app.includes('campaigns.find((c) => !broken.current.has(c.id))'))
   check('из ошибки загрузки есть выход (пересканировать/редактор)', app.includes('Пересканировать кампании') && app.includes('Открыть редактор'))
@@ -90,6 +92,8 @@ const read = (p: string) => readFileSync(p, 'utf8')
 {
   const idx = await fetchCampaignIndex()
   check('fetchCampaignIndex отдаёт пустой массив', Array.isArray(idx) && idx.length === 0, JSON.stringify(idx))
+  const missing = await hydrateCampaignIndex([{ id: 'no-such-campaign', title: 'Призрак' }])
+  check('отсутствующая кампания не считается доступной', missing.length === 0)
 
   // создаём кампанию через настоящий код и сразу убираем её обратно
   const id = await createCampaign('Пробная пустая долина', 'Смоук')

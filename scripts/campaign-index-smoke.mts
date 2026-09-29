@@ -47,9 +47,10 @@ const read = (p: string) => readFileSync(p, 'utf8')
   check('в списке нет устаревшего текста про банду Серого Йорека', !String(fresh[0].description).includes('Йорека'))
   check('id сохраняется', fresh[0].id === 'ash-of-caerden')
 
-  // несуществующая кампания не ломает реестр
+  // запись без файла campaign.json — не доступная кампания; некоторые хостинги
+  // вместо 404 отдают index.html с кодом 200, что тоже должно отфильтроваться.
   const mixed = await hydrateCampaignIndex([{ id: 'ash-of-caerden', title: 'x' }, { id: 'no-such-campaign', title: 'Призрак' }])
-  check('несуществующая кампания не роняет реестр', mixed.length === 2 && mixed[1].title === 'Призрак')
+  check('несуществующая кампания отфильтровывается', mixed.length === 1 && mixed[0].id === 'ash-of-caerden')
 }
 
 // ── 2. создание кампании пишет описание в реестр ──

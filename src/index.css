@@ -87,6 +87,7 @@ button { font-family: inherit; }
 .no-campaign-panel .brand-row::after { display: none; }
 .no-campaign-panel h2 { margin: 18px 0 8px; }
 .no-campaign-panel p { color: var(--muted); line-height: 1.5; }
+.no-campaign-panel .no-campaign-notice { color: var(--gold-bright); margin: 12px 0 0; }
 .no-campaign-panel code { color: var(--gold-bright); }
 .no-campaign-panel .menu-buttons { justify-content: center; margin-top: 18px; }
 

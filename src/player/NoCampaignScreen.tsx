@@ -7,6 +7,8 @@ interface Props {
   /** импорт пакета .chronicle, если игрок принёс свою кампанию */
   onImported: (id: string) => void
   onEditor: () => void
+  /** необязательное пояснение, если записи были, но ни один пакет не открылся */
+  notice?: string | null
 }
 
 /**
@@ -17,7 +19,7 @@ interface Props {
  * Движок в этом состоянии обязан не падать, а показать два пути: создать
  * кампанию в редакторе или импортировать готовый пакет .chronicle.
  */
-export function NoCampaignScreen({ onImported, onEditor }: Props) {
+export function NoCampaignScreen({ onImported, onEditor, notice }: Props) {
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -45,21 +47,22 @@ export function NoCampaignScreen({ onImported, onEditor }: Props) {
         <p>
           Ни одной кампании в <code>public/campaigns</code>. Создайте свою в
           редакторе — движок подставит стартовую сцену, а вы опишете правила,
-          квесты и диалоги. Готовую кампанию можно импортировать файлом
+          квесты и диалоги. Или загрузите готовую кампанию из файла
           <code> .chronicle</code>.
         </p>
+        {notice && <p className="no-campaign-notice" role="status">{notice}</p>}
         <div className="menu-buttons">
           <button className="btn btn-primary" onClick={onEditor}>
             <Ico n="hammer" /> Создать кампанию
           </button>
           <button className="btn" onClick={() => fileRef.current?.click()} disabled={busy}>
-            {busy ? 'Импортирую…' : 'Импортировать .chronicle'}
+            {busy ? 'Загружаю…' : 'Загрузить кампанию (.chronicle)'}
           </button>
         </div>
         <input
           ref={fileRef}
           type="file"
-          accept=".chronicle,application/json"
+          accept=".chronicle,.zip"
           style={{ display: 'none' }}
           onChange={(e) => {
             const f = e.target.files?.[0]
