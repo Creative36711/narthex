@@ -28,6 +28,14 @@ type ModalRequest =
       copy?: { label: string; text: string }
       resolve: () => void
     }
+  | {
+      kind: 'choice'
+      title: string
+      body?: string
+      options: Array<{ id: string; label: string; primary?: boolean }>
+      cancelId: string
+      resolve: (id: string) => void
+    }
 
 let pushRequest: ((r: ModalRequest) => void) | null = null
 const queue: ModalRequest[] = []
@@ -111,6 +119,28 @@ export function showList(
   return new Promise((resolve) => submit({ kind: 'list', title, body, items, copy, resolve }))
 }
 
+/**
+ * Диалог с несколькими вариантами выбора (например, коллизия id при импорте пакета:
+ * «Заменить», «Установить рядом», «Отмена»).
+ */
+export function askChoice<T extends string>(
+  title: string,
+  body: string,
+  options: Array<{ id: T; label: string; primary?: boolean }>,
+  cancelId: T,
+): Promise<T> {
+  return new Promise((resolve) =>
+    submit({
+      kind: 'choice',
+      title,
+      body,
+      options,
+      cancelId,
+      resolve: (id) => resolve(id as T),
+    }),
+  )
+}
+
 export function ModalHost() {
   const [req, setReq] = useState<ModalRequest | null>(null)
   const [value, setValue] = useState('')
@@ -165,6 +195,7 @@ export function ModalHost() {
     lastChecked = checked
     if (req.kind === 'text' || req.kind === 'textarea') req.resolve(null)
     else if (req.kind === 'confirm') req.resolve(false)
+    else if (req.kind === 'choice') req.resolve(req.cancelId)
     else req.resolve()
     close()
   }
@@ -177,6 +208,7 @@ export function ModalHost() {
       if (!value.trim()) return
       req.resolve(value)
     } else if (req.kind === 'confirm') req.resolve(true)
+    else if (req.kind === 'choice') req.resolve(req.options.find((o) => o.primary)?.id ?? req.cancelId)
     else req.resolve()
     close()
   }
@@ -186,6 +218,7 @@ export function ModalHost() {
       <div className="modal-box" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.key === 'Escape' && cancel()}>
         <div className="modal-title">{req.title}</div>
         {req.kind === 'alert' && req.body && <div className="modal-body">{req.body}</div>}
+        {req.kind === 'choice' && req.body && <div className="modal-body">{req.body}</div>}
         {req.kind === 'list' && (
           <>
             {req.body && <div className="modal-body">{req.body}</div>}
@@ -265,19 +298,37 @@ export function ModalHost() {
           </>
         )}
         <div className="modal-buttons">
-          {req.kind !== 'alert' && (
-            <button className="btn btn-small" onClick={cancel}>
-              {req.kind === 'confirm' ? req.cancel : 'Отмена'}
-            </button>
+          {req.kind === 'choice' ? (
+            req.options.map((opt) => (
+              <button
+                key={opt.id}
+                ref={opt.primary ? okRef : undefined}
+                className={`btn btn-small ${opt.primary ? 'btn-primary' : ''}`}
+                onClick={() => {
+                  req.resolve(opt.id)
+                  close()
+                }}
+              >
+                {opt.label}
+              </button>
+            ))
+          ) : (
+            <>
+              {req.kind !== 'alert' && (
+                <button className="btn btn-small" onClick={cancel}>
+                  {req.kind === 'confirm' ? req.cancel : 'Отмена'}
+                </button>
+              )}
+              <button
+                ref={okRef}
+                className="btn btn-small btn-primary"
+                disabled={(req.kind === 'text' || req.kind === 'textarea') && !value.trim()}
+                onClick={confirm}
+              >
+                {req.kind === 'text' || req.kind === 'textarea' ? req.ok : req.kind === 'confirm' ? req.ok : 'Понятно'}
+              </button>
+            </>
           )}
-          <button
-            ref={okRef}
-            className="btn btn-small btn-primary"
-            disabled={(req.kind === 'text' || req.kind === 'textarea') && !value.trim()}
-            onClick={confirm}
-          >
-            {req.kind === 'text' || req.kind === 'textarea' ? req.ok : req.kind === 'confirm' ? req.ok : 'Понятно'}
-          </button>
         </div>
       </div>
     </div>

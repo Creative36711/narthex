@@ -7,7 +7,14 @@
  *
  * Совместимость: отпечаток не меняет файловый формат; вычисляется на лету.
  */
-export const FINGERPRINT_STRIP_PATHS = new Set(['meta.author', 'meta.attribution', 'meta.series'])
+export const FINGERPRINT_STRIP_PATHS = new Set([
+  'meta.author',
+  'meta.attribution',
+  'meta.series',
+  'campaign.author',
+  'campaign.attribution',
+  'campaign.series',
+])
 
 /** канонизация: объекты с отсортированными ключами, без исключённых путей */
 export function canonicalize(value: unknown, path = '', strip: Set<string> = FINGERPRINT_STRIP_PATHS): unknown {

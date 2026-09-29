@@ -1,1 +1,1 @@
-export { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from '../shared/modals'
+export { askText, askConfirm, showAlert, showList, askChecked, askTextArea, askChoice } from '../shared/modals'

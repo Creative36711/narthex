@@ -301,11 +301,29 @@ function stubDialogue(): DlgDoc {
 
 // ─────────────── автопочинка ───────────────
 
+export const PROP_RECIPE_HINT = 'Как правильно: см. рецепт «интерактивный проп» в гайде'
+
+/**
+ * Схлопывание однотипных предупреждений «предмет используется как персонаж» (Задача 3):
+ * вместо N одинаковых строк выдаёт одну сводку с обучающей отсылкой к рецепту в гайде.
+ */
+export function formatItemUsedAsNpcWarning(ids: Iterable<string>): string | null {
+  const list = [...new Set(ids)]
+  if (list.length === 0) return null
+  if (list.length === 1) {
+    return `Сущность «${list[0]}» используется как персонаж, но описана как предмет — оставлено как есть. ${PROP_RECIPE_HINT}`
+  }
+  const shown = list.length > 5 ? `${list.slice(0, 5).join(', ')}, …` : list.join(', ')
+  return `Сущности ${shown} (${list.length} шт.) используются как персонажи, но описаны как предметы — оставлено как есть. ${PROP_RECIPE_HINT}`
+}
+
 interface RepairCtx {
   doc: MonolithDoc
   warnings: string[]
   /** id сущности → какой заглушкой его создавать при разных ссылках */
   entityKind: Map<string, 'npc' | 'item'>
+  /** id предметов, на которые ссылаются как на персонажей (схлопываются в одну сводку) */
+  itemUsedAsNpc: Set<string>
   warn(msg: string): void
 }
 
@@ -376,7 +394,7 @@ export function repairMonolith(raw: unknown): { doc: MonolithDoc; warnings: stri
     dialogues: pickMap(src.dialogues) as Record<string, MonolithDialogue>,
   }
 
-  const ctx: RepairCtx = { doc, warnings, entityKind: new Map(), warn }
+  const ctx: RepairCtx = { doc, warnings, entityKind: new Map(), itemUsedAsNpc: new Set(), warn }
 
   // ── 1. нормализация самих определений (id, обязательные поля) ──
   normalizeDefs(ctx)
@@ -390,6 +408,9 @@ export function repairMonolith(raw: unknown): { doc: MonolithDoc; warnings: stri
   repairEncounters(ctx)
   repairDialogues(ctx)
   repairMeta(ctx)
+
+  const propSummary = formatItemUsedAsNpcWarning(ctx.itemUsedAsNpc)
+  if (propSummary) warn(propSummary)
 
   return { doc, warnings }
 }
@@ -627,7 +648,7 @@ function ensureEntity(ctx: RepairCtx, id: string, kind: 'npc' | 'item'): EntityD
   const existing = ctx.doc.entities[id]
   if (existing) {
     if (kind === 'npc' && existing.type === 'item') {
-      ctx.warn(`Сущность «${id}» используется как персонаж, но описана как предмет — оставлено как есть`)
+      ctx.itemUsedAsNpc.add(id)
     }
     return existing
   }
@@ -1162,7 +1183,8 @@ function fixDlgGotos(ctx: RepairCtx, nodes: DlgNode[], where: string): void {
     const t = (g ?? 'end').trim()
     if (t === '' || t === 'end' || (allowStay && (t === 'stay' || t === ''))) return
     if (ids.has(t)) return
-    ctx.warn(`${where}: переход «${t}» ведёт в несуществующий узел диалога — заменён на «конец»`)
+    const stayHint = t === 'stay' ? ' («stay» допустим только в вариантах ответа)' : ''
+    ctx.warn(`${where}: переход «${t}» ведёт в несуществующий узел диалога — заменён на «конец»${stayHint}`)
     set('end')
   }
   const fixCond = (c: DlgCond): void => {

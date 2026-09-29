@@ -429,6 +429,12 @@ export class EditorStore {
     const arenaIds = new Set(this.ids('arena'))
     const ruleIds = new Set(this.ids('rule'))
     const cutsceneIds = new Set(this.ids('cutscene'))
+    const entitiesById = new Map<string, EntityDef>()
+    for (const p of this.entityPaths()) {
+      const e = this.entity(p)
+      if (e) entitiesById.set(e.id, e)
+    }
+    const itemUsedAsNpc = new Set<string>()
 
     // катсцены: слайды
     for (const p of this.cutscenePaths()) {
@@ -475,6 +481,8 @@ export class EditorStore {
       for (const slot of sc.slots) {
         if (slot.default_entity && !entityIds.has(slot.default_entity)) {
           issues.push(`Сцена «${sc.label}»: в слоте стоит несуществующая сущность «${slot.default_entity}»`)
+        } else if (slot.default_entity && !slot.default_entity.startsWith('item') && entitiesById.get(slot.default_entity)?.type === 'item') {
+          itemUsedAsNpc.add(slot.default_entity)
         }
       }
       if (!sc.states.length) issues.push(`Сцена «${sc.label}»: нет ни одного состояния (фона)`)
@@ -514,6 +522,9 @@ export class EditorStore {
         if (cond.type === 'player_enters_scene' && !sceneIds.has(cond.scene)) {
           issues.push(`Правило «${r.label}»: условие ссылается на несуществующую сцену «${cond.scene}»`)
         }
+        if ((cond.type === 'entity_alive' || cond.type === 'entity_dead' || cond.type === 'in_party') && entitiesById.get(cond.entity)?.type === 'item') {
+          itemUsedAsNpc.add(cond.entity)
+        }
       }
       for (const ef of r.effects ?? []) {
         if (ef.type === 'start_quest' && !questIds.has(ef.quest)) {
@@ -521,6 +532,14 @@ export class EditorStore {
         }
         if (ef.type === 'play_cutscene' && !cutsceneIds.has(ef.cutscene)) {
           issues.push(`Правило «${r.label}»: катсцена «${ef.cutscene}» не найдена`)
+        }
+        if ((ef.type === 'start_dialogue' || ef.type === 'join_party' || ef.type === 'leave_party') && entitiesById.get(ef.entity)?.type === 'item') {
+          itemUsedAsNpc.add(ef.entity)
+        }
+        if (ef.type === 'start_combat') {
+          for (const en of [...(ef.enemies ?? []), ...(ef.allies ?? [])]) {
+            if (entitiesById.get(en.entity)?.type === 'item') itemUsedAsNpc.add(en.entity)
+          }
         }
       }
     }
@@ -552,6 +571,39 @@ export class EditorStore {
     for (const need of this.meta.needs ?? []) {
       if (need.on_zero_effect && need.on_zero_effect !== 'death' && !ruleIds.has(need.on_zero_effect)) {
         issues.push(`Потребность «${need.label}»: правило «${need.on_zero_effect}» не найдено`)
+      }
+    }
+
+    // диалоги конструктора: структурный переход stay
+    for (const f of this.manifest.dialogues ?? []) {
+      const key = f.replace(/\.ink$/, '')
+      const doc = this.jsonFiles.get(`dialogues/${key}.dlg.json`) as { nodes?: Array<{ id: string; goto?: string; sections?: Array<{ goto?: string; else_goto?: string }> }> } | undefined
+      if (!doc || !Array.isArray(doc.nodes)) continue
+      const nodeIds = new Set(doc.nodes.map((n) => n.id))
+      for (const n of doc.nodes) {
+        for (const s of n.sections ?? []) {
+          for (const g of [s.goto, s.else_goto]) {
+            if (g && g !== 'end' && !nodeIds.has(g)) {
+              const stayHint = g === 'stay' ? ' («stay» допустим только в вариантах ответа)' : ''
+              issues.push(`Диалог «${key}»: переход «${g}» ведёт в несуществующий узел диалога — заменён на «конец»${stayHint}`)
+            }
+          }
+        }
+        if (n.goto && n.goto !== 'end' && !nodeIds.has(n.goto)) {
+          const stayHint = n.goto === 'stay' ? ' («stay» допустим только в вариантах ответа)' : ''
+          issues.push(`Диалог «${key}»: переход «${n.goto}» ведёт в несуществующий узел диалога — заменён на «конец»${stayHint}`)
+        }
+      }
+    }
+
+    if (itemUsedAsNpc.size > 0) {
+      const list = [...itemUsedAsNpc]
+      const hint = 'Как правильно: см. рецепт «интерактивный проп» в гайде'
+      if (list.length === 1) {
+        issues.push(`Сущность «${list[0]}» используется как персонаж, но описана как предмет — оставлено как есть. ${hint}`)
+      } else {
+        const shown = list.length > 5 ? `${list.slice(0, 5).join(', ')}, …` : list.join(', ')
+        issues.push(`Сущности ${shown} (${list.length} шт.) используются как персонажи, но описаны как предметы — оставлено как есть. ${hint}`)
       }
     }
     return issues

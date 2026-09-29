@@ -61,5 +61,6 @@ check('Обучающие подсказки хранятся отдельно �
 check('Подсказка диалога не зависит от русских названий навыков автора', dialogue.includes('const hasChoices = d.choices.length > 0') && !dialogue.includes('hasCheckChoice'))
 check('Боевой урок описывает правила движка и учитывает содержимое кампании', read('src/player/CombatScreen.tsx').includes("combat.usableItems().length > 0") && read('src/player/CombatScreen.tsx').includes('правилам этой кампании'))
 check('В редакторе (вне плейтеста) отключены звуки интерфейса и фоновые лупы', read('src/shared/audio.ts').includes('inEditorWithoutPlaytest') && read('src/App.tsx').includes("if (editor && !t?.closest('.playtest-shell')) return") && read('src/editor/EditorApp.tsx').includes('stopAllLoops()'))
+check('Импорт .chronicle при коллизии id сверяет отпечатки и спрашивает мастера (Заменить / Установить рядом / Отмена)', read('src/editor/newCampaign.ts').includes('Установлена другая кампания с этим id') && read('src/editor/newCampaign.ts').includes('Заменить') && read('src/editor/newCampaign.ts').includes('Установить рядом') && read('src/editor/newCampaign.ts').includes('Отмена') && read('src/editor/newCampaign.ts').includes('decideCampaignCollision'))
 console.log(failed ? `ПРОВАЛЕНО: ${failed}` : 'ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ')
 process.exit(failed ? 1 : 0)

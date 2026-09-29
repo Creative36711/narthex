@@ -232,9 +232,160 @@ mkdirSync(dirname(outFile), { recursive: true })
 writeFileSync(outFile, JSON.stringify(schema, null, 2) + '\n')
 console.log(`OK: ${outFile} ($defs: ${Object.keys(defs).length})`)
 
+// ── Автогенерация каталога форм Effect / Condition / DlgEffect / DlgCond в гайд ──
+function sampleValue(propName: string, propSchema: Schema, depth = 0): unknown {
+  if ('const' in propSchema) return propSchema.const
+  if (Array.isArray(propSchema.enum) && propSchema.enum.length > 0) return propSchema.enum[0]
+  if (typeof propSchema.$ref === 'string') {
+    const refName = propSchema.$ref.replace('#/$defs/', '')
+    if (refName === 'TimeOfDay') return 'night'
+    if (refName === 'SkillDifficulty') return 50
+    if (refName === 'Condition') return { type: 'flag_set', flag: 'flag_example' }
+    if (refName === 'Effect') return { type: 'set_flag', flag: 'flag_example' }
+    if (refName === 'ArtDoc') return { background: '#1a2230', layers: [] }
+    if (refName === 'CameraDoc') return { zoom: 1.1, duration: 6 }
+    const target = defs[refName]
+    if (target && depth < 2) return sampleValue(propName, target, depth + 1)
+    return 'example'
+  }
+  if (Array.isArray(propSchema.anyOf) && propSchema.anyOf.length > 0) {
+    return sampleValue(propName, propSchema.anyOf[0] as Schema, depth + 1)
+  }
+  if (propSchema.type === 'string') {
+    const byName: Record<string, string> = {
+      flag: 'flag_done',
+      skill: 'stealth',
+      against_skill: 'spot',
+      entity: 'npc_guard',
+      npc: 'npc_guard',
+      target: 'faction_town',
+      item: 'item_bread',
+      quest: 'quest_main',
+      stage: 'stage_start',
+      text_key: 'j_start',
+      scene: 'scene_tavern',
+      state: 'state_default',
+      location: 'loc_town',
+      from: 'loc_town',
+      to: 'loc_forest',
+      arena: 'arena_road',
+      cutscene: 'cutscene_intro',
+      status: 'status_poison',
+      weather: 'weather_ashfall',
+      entry: 'codex_lore',
+      recipe: 'recipe_bandage',
+      rule: 'rule_event',
+      stat: 'STR',
+      need: 'need_hunger',
+      var: 'counter',
+      currency: 'shards',
+      table: 'table_road',
+      generator: 'gen_npc',
+      key: 'endings_seen',
+      id: 'id_example',
+      label: 'Стража',
+      text: 'Текст сообщения',
+    }
+    return byName[propName] ?? `${propName}_id`
+  }
+  if (propSchema.type === 'number') {
+    const byName: Record<string, number> = {
+      probability: 0.5,
+      delta: 5,
+      threshold: 30,
+      value: 10,
+      count: 1,
+      qty: 1,
+      quantity: 1,
+      min_tick: 1,
+      ticks: 2,
+      every_ticks: 3,
+      fails_to_catch: 2,
+      meters: 6,
+      points: 10,
+      amount: 1,
+      level: 2,
+      levels: 1,
+      ge: 1,
+    }
+    return byName[propName] ?? 1
+  }
+  if (propSchema.type === 'boolean') return true
+  if (propSchema.type === 'array') {
+    const itemSchema = (propSchema.items as Schema) ?? { type: 'string' }
+    return [sampleValue(propName, itemSchema, depth + 1)]
+  }
+  if (propSchema.type === 'object') {
+    const props = (propSchema.properties as Record<string, Schema>) ?? {}
+    const req = new Set<string>(Array.isArray(propSchema.required) ? (propSchema.required as string[]) : Object.keys(props))
+    const obj: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(props)) {
+      if (req.has(k) || Object.keys(props).length <= 4) {
+        obj[k] = sampleValue(k, v, depth + 1)
+      }
+    }
+    return obj
+  }
+  return 'example'
+}
+
+function buildAutoCatalogMarkdown(): string {
+  const groups: Array<{ key: string; title: string }> = [
+    { key: 'Condition', title: 'Условия правил и квестов (`Condition`)' },
+    { key: 'Effect', title: 'Эффекты правил, предметов и событий (`Effect`)' },
+    { key: 'DlgCond', title: 'Условия в диалогах (`DlgCond`)' },
+    { key: 'DlgEffect', title: 'Эффекты в диалогах (`DlgEffect`)' },
+  ]
+  const lines: string[] = [
+    '## 21. Полный справочник форм условий и эффектов (автогенерация из схемы)',
+    '',
+    'Раздел синхронизируется автоматически скриптом `scripts/gen-schema.mts` из `src/shared/types.ts`. Каждая строка — валидный по `campaign.schema.json` JSON-образец:',
+    '',
+  ]
+  for (const g of groups) {
+    const def = defs[g.key] as { anyOf?: Array<Schema> } | undefined
+    lines.push(`### ${g.title}`, '')
+    for (const variant of def?.anyOf ?? []) {
+      const props = (variant.properties as Record<string, Schema>) ?? {}
+      const req = new Set<string>(Array.isArray(variant.required) ? (variant.required as string[]) : [])
+      const sample: Record<string, unknown> = {}
+      // Сначала type, затем обязательные поля, а если обязательных кроме type нет — информативные опциональные
+      if (props.type) sample.type = sampleValue('type', props.type)
+      for (const [k, v] of Object.entries(props)) {
+        if (k === 'type') continue
+        if (req.has(k)) sample[k] = sampleValue(k, v)
+      }
+      if (Object.keys(sample).length === 1) {
+        for (const [k, v] of Object.entries(props)) {
+          if (k === 'type') continue
+          sample[k] = sampleValue(k, v)
+          break
+        }
+      }
+      const optionalKeys = Object.keys(props).filter((k) => k !== 'type' && !req.has(k) && !(k in sample))
+      const optNote = optionalKeys.length ? ` *(необяз.: ${optionalKeys.map((k) => `\`${k}\``).join(', ')})*` : ''
+      lines.push(`- \`${JSON.stringify(sample)}\`${optNote}`)
+    }
+    lines.push('')
+  }
+  return lines.join('\n').trimEnd()
+}
+
+const guideFile = join(process.cwd(), 'docs', 'ai-campaign-guide.md')
+let guideText = readFileSync(guideFile, 'utf8')
+const catalogStart = '<!-- AUTO-SCHEMA-CATALOG:START -->'
+const catalogEnd = '<!-- AUTO-SCHEMA-CATALOG:END -->'
+if (guideText.includes(catalogStart) && guideText.includes(catalogEnd)) {
+  const startIdx = guideText.indexOf(catalogStart) + catalogStart.length
+  const endIdx = guideText.indexOf(catalogEnd)
+  guideText = guideText.slice(0, startIdx) + '\n\n' + buildAutoCatalogMarkdown() + '\n\n' + guideText.slice(endIdx)
+  writeFileSync(guideFile, guideText)
+  console.log('OK: docs/ai-campaign-guide.md — автокаталог синхронизирован')
+}
+
 // дублируем схему в публичный «чемодан для ИИ-агента» (синхронный образ public/ai)
 const aiKit = join(process.cwd(), 'public', 'ai')
 mkdirSync(aiKit, { recursive: true })
 writeFileSync(join(aiKit, 'campaign.schema.json'), JSON.stringify(schema, null, 2) + '\n')
-writeFileSync(join(aiKit, 'campaign-guide.md'), readFileSync(join(process.cwd(), 'docs', 'ai-campaign-guide.md'), 'utf8'))
+writeFileSync(join(aiKit, 'campaign-guide.md'), guideText)
 console.log('OK: public/ai/campaign.schema.json + campaign-guide.md — синк')

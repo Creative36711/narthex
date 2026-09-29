@@ -389,8 +389,8 @@ id — ломающее изменение для сохранений игро�
     "label": "Собрать траву",
     "hint": "можно только в ясную погоду",
     "emotion": "open",
-    "conditions": [ { "type": "weather_is", "value": "clear" } ],
-    "effects": [ { "type": "add_item", "item": "item_herb", "qty": 1 } ],
+    "conditions": [ { "type": "weather_is", "weather": "clear" } ],
+    "effects": [ { "type": "add_item", "item": "item_herb", "quantity": 1 } ],
     "message": "Набрали охапку пахучей зелени.",
     "consume": true,
     "sound": "use"
@@ -400,6 +400,28 @@ id — ломающее изменение для сохранений игро�
 
 Если `interact_options` не задан — работает старое одно действие `on_interact`
 (либо просто показывается описание).
+
+### 8.1 Рецепт: интерактивный проп / говорящий предмет
+
+Частая ошибка генераторов — создать сущность `prop_*` с `"type": "item"`, но
+подключить к ней диалог или использовать в местах, где движок ждёт персонажа.
+В Chronicle Forge есть **два канонических пути** для интерактивных объектов сцены:
+
+1. **Говорящий объект** (колодец, зеркало, радиоточка, селектор, терминал):
+   объявляется как `"type": "npc"` (префикс `npc_`) — стационарный (стоит в
+   слоте сцены через `default_entity` или расписание без перемещений), без боя;
+   диалог задаётся полем `"dialogue": "dialogues/<id>.ink"` или запускается
+   эффектом `start_dialogue` по клику. Клик по объекту на сцене сразу ведёт в
+   полноценный ветвящийся диалог, как задумано дизайном.
+2. **Осматриваемый объект** (сейф, доска объявлений, пульт, шкаф):
+   объявляется как `"type": "item"` (префикс `item_`) и ставится в слот сцены;
+   реакции при клике и применении предметов строятся через `description`,
+   `interact_options` / `on_interact`, `use_with` на слоте сцены и
+   правила-триггеры.
+
+Не смешивайте эти две роли: если объекту нужны реплики и выбор ответов в окне
+диалога — делайте его `type: "npc"`; если это предмет окружения с осмотром и
+действиями — делайте `type: "item"` с префиксом `item_`.
 
 ## 9. rules — правила
 
@@ -1130,8 +1152,30 @@ id — ломающее изменение для сохранений игро�
   `meta.emotions` — реестр «сердит/счастлив/испуган») → спрайт меняется по
   `mood`, задаваемому правилами (`set_mood`), диалогами и статусами.
   Состояния по здоровью (ранен/устал) подбираются автоматически.
-- **Преследования**: эффект `start_pursuit { chance_warns, arena, hunters }` —
-  игрока «ведут» с нарастающими знаками до облавы на арене.
+- **Преследования**: эффект `start_pursuit { label, skill, every_ticks, fails_to_catch, on_fail }` —
+  каждые `every_ticks` тиков герой (и до двух спутников) проходит проверку
+  навыка `skill` (по умолчанию `stealth`); когда число провалов подряд достигает
+  `fails_to_catch`, погоня настигает и выполняются эффекты `on_fail` (обычно
+  `start_combat`). Снять погоню досрочно — эффект `{ "type": "stop_pursuit" }`.
+  Пример (из «Пепла Каэрдена» — `stealth` каждые 3 тика, провал → `start_combat`):
+
+```json
+{
+  "type": "start_pursuit",
+  "label": "Стража",
+  "skill": "stealth",
+  "every_ticks": 3,
+  "fails_to_catch": 2,
+  "on_fail": [
+    {
+      "type": "start_combat",
+      "enemies": [ { "entity": "npc_guard", "count": 2 } ],
+      "arena": "arena_market",
+      "intro": "Стража настигла вас!"
+    }
+  ]
+}
+```
 - **Уровни сложности игрока**: `meta.difficulties[]` — пресеты множителей
   (урон/потребности/цены). Большой список — выбор на создании персонажа;
   одиночный — «как задумано».
@@ -1152,3 +1196,153 @@ id — ломающее изменение для сохранений игро�
 - id менять запрещено: «устаревшее» поле помечай, создавай новое.
 - Контент не хардкодить: всё — через реестры (статусы, навыки, профессии,
   виды, погода, эмоции, сложности, портреты).
+
+<!-- AUTO-SCHEMA-CATALOG:START -->
+
+## 21. Полный справочник форм условий и эффектов (автогенерация из схемы)
+
+Раздел синхронизируется автоматически скриптом `scripts/gen-schema.mts` из `src/shared/types.ts`. Каждая строка — валидный по `campaign.schema.json` JSON-образец:
+
+### Условия правил и квестов (`Condition`)
+
+- `{"type":"player_enters_location","location":"loc_town"}`
+- `{"type":"player_enters_scene","scene":"scene_tavern"}`
+- `{"type":"flag_set","flag":"flag_done"}`
+- `{"type":"flag_not_set","flag":"flag_done"}`
+- `{"type":"variable_compare","var":"counter","operator":"==","value":10}`
+- `{"type":"time_of_day","value":"night"}`
+- `{"type":"tick_elapsed","min_tick":1}`
+- `{"type":"quest_at_stage","quest":"quest_main","stage":"stage_start"}`
+- `{"type":"has_item","item":"item_bread"}` *(необяз.: `min_quantity`)*
+- `{"type":"skill_ge","skill":"stealth","threshold":30}`
+- `{"type":"stat_ge","stat":"STR","threshold":30}`
+- `{"type":"hp_le","threshold":30}`
+- `{"type":"hp_ge","threshold":30}`
+- `{"type":"luck_ge","threshold":30}`
+- `{"type":"fatigue_ge","threshold":30}`
+- `{"type":"fatigue_le","threshold":30}`
+- `{"type":"sanity_ge","threshold":30}`
+- `{"type":"sanity_le","threshold":30}`
+- `{"type":"reputation_ge","threshold":30}`
+- `{"type":"wealth_ge","level":2}`
+- `{"type":"crime_committed","id":"id_example"}` *(необяз.: `min_bounty`)*
+- `{"type":"bounty_total_ge","threshold":30}`
+- `{"type":"level_ge","level":2}`
+- `{"type":"meta_currency_ge","currency":"shards","threshold":30}`
+- `{"type":"meta_achievement","id":"id_example"}`
+- `{"type":"has_feat","id":"id_example"}`
+- `{"type":"passion_ge","id":"id_example","value":10}`
+- `{"type":"allegiance_ge","id":"id_example","points":10}`
+- `{"type":"power_level_ge","level":"normal"}`
+- `{"type":"need_le","need":"need_hunger","threshold":30}`
+- `{"type":"need_ge","need":"need_hunger","threshold":30}`
+- `{"type":"entity_alive","entity":"npc_guard"}`
+- `{"type":"entity_dead","entity":"npc_guard"}`
+- `{"type":"disposition_ge","target":"faction_town","threshold":30}`
+- `{"type":"disposition_le","target":"faction_town","threshold":30}`
+- `{"type":"in_party","entity":"npc_guard"}`
+- `{"type":"random_chance","probability":0.5}`
+- `{"type":"has_status","status":"status_poison"}`
+- `{"type":"weather_is","weather":"weather_ashfall"}`
+- `{"type":"and","conditions":[{"type":"flag_set","flag":"flag_example"}]}`
+- `{"type":"or","conditions":[{"type":"flag_set","flag":"flag_example"}]}`
+- `{"type":"not","condition":{"type":"flag_set","flag":"flag_example"}}`
+
+### Эффекты правил, предметов и событий (`Effect`)
+
+- `{"type":"set_flag","flag":"flag_done"}`
+- `{"type":"clear_flag","flag":"flag_done"}`
+- `{"type":"apply_status","target":"player","status":"status_poison"}` *(необяз.: `duration`)*
+- `{"type":"remove_status","target":"player","status":"status_poison"}`
+- `{"type":"set_weather","weather":"weather_ashfall"}`
+- `{"type":"unlock_codex","entry":"codex_lore"}`
+- `{"type":"set_variable","var":"counter","value":10}`
+- `{"type":"change_variable","var":"counter","delta":5}`
+- `{"type":"start_dialogue","entity":"npc_guard"}` *(необяз.: `dialogue_knot`)*
+- `{"type":"start_combat","enemies":[{"entity":"npc_guard","count":1}],"arena":"arena_road"}` *(необяз.: `allies`, `intro`, `on_victory`, `no_flee`, `no_hide`, `surprise`, `on_fled`, `on_defeat`)*
+- `{"type":"teleport_player","location":"loc_town"}` *(необяз.: `scene`)*
+- `{"type":"change_scene_state","scene":"scene_tavern","state":"state_default"}`
+- `{"type":"add_item","item":"item_bread"}` *(необяз.: `quantity`)*
+- `{"type":"remove_item","item":"item_bread"}` *(необяз.: `quantity`)*
+- `{"type":"change_need","need":"need_hunger","delta":5}`
+- `{"type":"change_hp","delta":5}`
+- `{"type":"change_skill","skill":"stealth","delta":5}`
+- `{"type":"skill_check_gate","skill":"stealth","difficulty":50,"success_effects":[{"type":"set_flag","flag":"flag_example"}],"fail_effects":[{"type":"set_flag","flag":"flag_example"}]}`
+- `{"type":"change_disposition","target":"faction_town","delta":5}`
+- `{"type":"start_quest","quest":"quest_main"}`
+- `{"type":"advance_quest","quest":"quest_main","stage":"stage_start"}`
+- `{"type":"fail_quest","quest":"quest_main"}`
+- `{"type":"journal_update","quest":"quest_main","text_key":"j_start"}`
+- `{"type":"give_reward","items":[{"item":"item_bread","quantity":1}]}`
+- `{"type":"stat_check","stat":"STR","success_effects":[{"type":"set_flag","flag":"flag_example"}],"fail_effects":[{"type":"set_flag","flag":"flag_example"}]}` *(необяз.: `multiplier`, `modifier`, `augment_passion`, `assist_entity`, `assist_skill`)*
+- `{"type":"opposed_check","skill":"stealth","success_effects":[{"type":"set_flag","flag":"flag_example"}],"fail_effects":[{"type":"set_flag","flag":"flag_example"}]}` *(необяз.: `entity`, `against_skill`, `against_value`, `tie`, `augment_passion`)*
+- `{"type":"group_stat_check","success_effects":[{"type":"set_flag","flag":"flag_example"}],"fail_effects":[{"type":"set_flag","flag":"flag_example"}]}` *(необяз.: `mode`, `skill`, `stat`, `multiplier`, `difficulty`, `modifier`, `helpers`, `need`)*
+- `{"type":"change_luck","delta":5}`
+- `{"type":"change_fatigue","delta":5}`
+- `{"type":"change_sanity","delta":5}`
+- `{"type":"change_reputation","delta":5}`
+- `{"type":"change_wealth","levels":1}`
+- `{"type":"change_passion","id":"id_example"}` *(необяз.: `delta`, `set`)*
+- `{"type":"change_allegiance","id":"id_example","points":10}`
+- `{"type":"train_stat","stat":"STR","delta":5}`
+- `{"type":"hazard_fall","meters":6}` *(необяз.: `skill`)*
+- `{"type":"start_pursuit","on_fail":[{"type":"set_flag","flag":"flag_example"}]}` *(необяз.: `label`, `skill`, `every_ticks`, `fails_to_catch`)*
+- `{"type":"stop_pursuit"}`
+- `{"type":"commit_crime","id":"id_example"}` *(необяз.: `bounty`)*
+- `{"type":"set_price_event","id":"id_example"}`
+- `{"type":"clear_price_event","id":"id_example"}`
+- `{"type":"banner","text":"Текст сообщения"}` *(необяз.: `preset`, `enter`, `seconds`, `position`, `accent`)*
+- `{"type":"postcard","image":"image_id"}` *(необяз.: `art`, `text`, `preset`, `seconds`, `camera`)*
+- `{"type":"grant_xp","points":10}`
+- `{"type":"meta_currency","id":"id_example","amount":1}`
+- `{"type":"roll_event_table","table":"table_road"}` *(необяз.: `ignore_filters`)*
+- `{"type":"generate_variables","generator":"gen_npc","pack":[{"key":"endings_seen","as":"as_id"}]}` *(необяз.: `seed`)*
+- `{"type":"grant_feat","id":"id_example"}`
+- `{"type":"join_party","entity":"npc_guard"}`
+- `{"type":"leave_party","entity":"npc_guard"}`
+- `{"type":"block_path","from":"loc_town","to":"loc_forest"}`
+- `{"type":"unblock_path","from":"loc_town","to":"loc_forest"}`
+- `{"type":"show_message","text":"Текст сообщения"}` *(необяз.: `portrait`)*
+- `{"type":"reveal_location","location":"loc_town"}`
+- `{"type":"advance_time","ticks":2}`
+- `{"type":"remove_entity","entity":"npc_guard"}`
+- `{"type":"spawn_entity","entity":"npc_guard","scene":"scene_tavern","slot":"slot_id"}`
+- `{"type":"set_description","entity":"npc_guard","text":"Текст сообщения"}`
+- `{"type":"game_over_victory"}`
+- `{"type":"game_over_death","reason":"reason_id"}`
+- `{"type":"play_cutscene","cutscene":"cutscene_intro"}`
+
+### Условия в диалогах (`DlgCond`)
+
+- `{"type":"flag","flag":"flag_done"}` *(необяз.: `not`)*
+- `{"type":"item_ge","item":"item_bread","count":1}` *(необяз.: `not`)*
+- `{"type":"has_item","item":"item_bread"}` *(необяз.: `not`)*
+- `{"type":"disp_ge","target":"faction_town","value":10}` *(необяз.: `not`)*
+- `{"type":"quest","quest":"quest_main","stage":"stage_start"}` *(необяз.: `not`)*
+- `{"type":"in_party","npc":"npc_guard"}` *(необяз.: `not`)*
+- `{"type":"hp_ge","value":10}` *(необяз.: `not`)*
+- `{"type":"has_status","status":"status_poison"}` *(необяз.: `not`)*
+- `{"type":"weather_is","weather":"weather_ashfall"}` *(необяз.: `not`)*
+
+### Эффекты в диалогах (`DlgEffect`)
+
+- `{"type":"set_flag","flag":"flag_done"}`
+- `{"type":"add_item","item":"item_bread","qty":1}`
+- `{"type":"remove_item","item":"item_bread","qty":1}`
+- `{"type":"fire_rule","rule":"rule_event"}`
+- `{"type":"join_party","npc":"npc_guard"}`
+- `{"type":"open_trade","npc":"npc_guard"}`
+- `{"type":"start_quest","quest":"quest_main"}`
+- `{"type":"advance_time","ticks":2}`
+- `{"type":"change_need","need":"need_hunger","delta":5}`
+- `{"type":"change_hp","delta":5}`
+- `{"type":"sleep","ticks":2}`
+- `{"type":"change_disposition","target":"faction_town","delta":5}`
+- `{"type":"play_cutscene","cutscene":"cutscene_intro"}`
+- `{"type":"set_description","entity":"npc_guard","text":"Текст сообщения"}`
+- `{"type":"apply_status","status":"status_poison"}` *(необяз.: `duration`)*
+- `{"type":"remove_status","status":"status_poison"}`
+- `{"type":"set_weather","weather":"weather_ashfall"}`
+- `{"type":"unlock_codex","entry":"codex_lore"}`
+
+<!-- AUTO-SCHEMA-CATALOG:END -->

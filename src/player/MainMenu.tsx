@@ -51,6 +51,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
     setImportBusy(true)
     try {
       const entry = await importChroniclePackage(file)
+      if (!entry) return
       onImported(entry.id)
       setShowList(false)
     } catch (e) {

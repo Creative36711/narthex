@@ -1,5 +1,9 @@
 import { slugify } from './ids'
 import { ENGINE_VERSION, PACKAGE_FORMAT, checkEngine, checkPackage } from '../shared/versions'
+import { campaignFingerprint } from '../shared/fingerprint'
+import { askChoice } from '../shared/modals'
+import { EditorStore } from './store'
+import { exportMonolith } from './monolith'
 import type { CampaignIndexEntry } from '../shared/types'
 export type { CampaignIndexEntry } from '../shared/types'
 
@@ -179,15 +183,95 @@ async function starterImageBase64(): Promise<string> {
   }
 }
 
+/** подобрать следующий свободный id вида <base>_2, <base>_3, … */
+export function nextAvailableCampaignId(baseId: string, existingIds: Iterable<string>): string {
+  const set = new Set(existingIds)
+  if (!set.has(baseId)) return baseId
+  let n = 2
+  while (set.has(`${baseId}_${n}`)) n++
+  return `${baseId}_${n}`
+}
+
+export type CollisionChoice = 'replace' | 'side_by_side' | 'cancel'
+export type CollisionResolution = 'install' | 'update' | 'replace' | 'side_by_side' | 'cancel'
+
+export const COLLISION_MODAL_TITLE_PREFIX = 'Установлена другая кампания с этим id'
+export const COLLISION_MODAL_BODY =
+  'Отпечаток входящего пакета отличается от установленной кампании. Если выбрать «Заменить», старые сохранения этой id-кампании могут уехать в миграцию или починку под новый контент.'
+
+/**
+ * Модалка разрешения коллизии id при импорте .chronicle (Задача 4):
+ * «Установлена другая кампания с этим id (название/версия)» и три кнопки:
+ * Заменить / Установить рядом / Отмена.
+ */
+export async function askCampaignCollisionModal(info: {
+  id: string
+  existingTitle: string
+  existingVersion?: string
+}): Promise<CollisionChoice> {
+  const ver = info.existingVersion ? `/${info.existingVersion}` : ''
+  return askChoice<CollisionChoice>(
+    `${COLLISION_MODAL_TITLE_PREFIX} (${info.existingTitle}${ver})`,
+    COLLISION_MODAL_BODY,
+    [
+      { id: 'replace', label: 'Заменить', primary: true },
+      { id: 'side_by_side', label: 'Установить рядом' },
+      { id: 'cancel', label: 'Отмена' },
+    ],
+    'cancel',
+  )
+}
+
+/**
+ * Чистая функция решения коллизии id при импорте кампании (Задача 4):
+ * 1) нет установленной кампании с этим id → 'install';
+ * 2) отпечатки совпали → 'update' (обновление без вопросов);
+ * 3) отпечатки отличаются → выбор мастера ('replace' | 'side_by_side' | 'cancel').
+ */
+export async function decideCampaignCollision(opts: {
+  incomingDoc: unknown
+  existingDoc: unknown | null
+  existingIds?: Iterable<string>
+  askUser?: (info: { id: string; existingTitle: string; existingVersion?: string }) => Promise<CollisionChoice>
+}): Promise<{
+  resolution: CollisionResolution
+  targetId: string
+  incomingFp: string
+  existingFp: string | null
+}> {
+  const incMeta = (opts.incomingDoc as { campaign?: { id?: string; title?: string } })?.campaign
+  const baseId = incMeta?.id || 'imported_campaign'
+  const incomingFp = await campaignFingerprint(opts.incomingDoc)
+  if (!opts.existingDoc) {
+    return { resolution: 'install', targetId: baseId, incomingFp, existingFp: null }
+  }
+  const existingFp = await campaignFingerprint(opts.existingDoc)
+  if (incomingFp === existingFp) {
+    return { resolution: 'update', targetId: baseId, incomingFp, existingFp }
+  }
+  const exMeta = (opts.existingDoc as { campaign?: { title?: string; version?: string } })?.campaign
+  const ask = opts.askUser ?? askCampaignCollisionModal
+  const choice = await ask({
+    id: baseId,
+    existingTitle: exMeta?.title || baseId,
+    existingVersion: exMeta?.version,
+  })
+  if (choice === 'cancel') {
+    return { resolution: 'cancel', targetId: baseId, incomingFp, existingFp }
+  }
+  if (choice === 'side_by_side') {
+    const used = new Set(opts.existingIds ?? [baseId])
+    used.add(baseId)
+    const targetId = nextAvailableCampaignId(baseId, used)
+    return { resolution: 'side_by_side', targetId, incomingFp, existingFp }
+  }
+  return { resolution: 'replace', targetId: baseId, incomingFp, existingFp }
+}
+
 /** создать кампанию на диске и вернуть её id */
 export async function createCampaign(title: string, author = ''): Promise<string> {
   const index = await fetchCampaignIndex()
-  let id = slugify(title)
-  if (index.some((c) => c.id === id)) {
-    let n = 2
-    while (index.some((c) => c.id === `${id}_${n}`)) n++
-    id = `${id}_${n}`
-  }
+  const id = nextAvailableCampaignId(slugify(title), index.map((c) => c.id))
   const files = scaffold(id, title, author)
   for (const [rel, data] of Object.entries(files)) {
     await saveFile(`campaigns/${id}/${rel}`, JSON.stringify(data, null, 2))
@@ -203,9 +287,10 @@ export async function createCampaign(title: string, author = ''): Promise<string
 /**
  * Импорт пакета .chronicle из главного меню: распаковывает архив прямо
  * в public/campaigns/<id>/ через dev-эндпоинт и регистрирует кампанию
- * в index.json. Если кампания с таким id уже есть — файлы обновляются.
+ * в index.json. При совпадении id сверяет отпечатки: совпали — тихое
+ * обновление, отличаются — модалка «Заменить / Установить рядом / Отмена».
  */
-export async function importChroniclePackage(file: File): Promise<CampaignIndexEntry> {
+export async function importChroniclePackage(file: File): Promise<CampaignIndexEntry | null> {
   const JSZip = (await import('jszip')).default
   const zip = await JSZip.loadAsync(file)
   const metaFile = zip.files['campaign.json']
@@ -219,10 +304,49 @@ export async function importChroniclePackage(file: File): Promise<CampaignIndexE
   if (!pkg.ok) throw new Error(pkg.message)
   const engine = checkEngine(meta.min_engine ?? meta.engine_version)
   if (!engine.ok) console.warn(`[chronicle] ${engine.message}`)
-  const id = meta.id
+
+  // собираем монолит входящего пакета для расчёта отпечатка
+  const incomingStore = new EditorStore(`/campaigns/${meta.id}`)
+  incomingStore.meta = meta as never
+  if (zip.files['world.json'] && !zip.files['world.json'].dir) {
+    incomingStore.world = JSON.parse(await zip.files['world.json'].async('text'))
+  }
+  if (zip.files['manifest.json'] && !zip.files['manifest.json'].dir) {
+    incomingStore.manifest = JSON.parse(await zip.files['manifest.json'].async('text'))
+  }
+  for (const [p, f] of Object.entries(zip.files)) {
+    if (f.dir || p === 'campaign.json' || p === 'world.json' || p === 'manifest.json') continue
+    if (p.endsWith('.ink')) incomingStore.textFiles.set(p, await f.async('text'))
+    else if (p.endsWith('.json')) incomingStore.jsonFiles.set(p, JSON.parse(await f.async('text')))
+  }
+  const incomingDoc = exportMonolith(incomingStore).doc
+
+  const index = await fetchCampaignIndex()
+  let existingDoc: unknown | null = null
+  if (index.some((c) => c.id === meta.id)) {
+    try {
+      const existingStore = new EditorStore(`/campaigns/${meta.id}`)
+      await existingStore.load()
+      existingDoc = exportMonolith(existingStore).doc
+    } catch {
+      existingDoc = null
+    }
+  }
+
+  const decision = await decideCampaignCollision({
+    incomingDoc,
+    existingDoc,
+    existingIds: index.map((c) => c.id),
+  })
+  if (decision.resolution === 'cancel') return null
+
+  const id = decision.targetId
   for (const [p, f] of Object.entries(zip.files)) {
     if (f.dir) continue
-    if (p.endsWith('.json') || p.endsWith('.ink')) {
+    if (p === 'campaign.json') {
+      const nextMeta = { ...meta, id }
+      await saveFile(`campaigns/${id}/campaign.json`, JSON.stringify(nextMeta, null, 2))
+    } else if (p.endsWith('.json') || p.endsWith('.ink')) {
       await saveFile(`campaigns/${id}/${p}`, await f.async('text'))
     } else {
       const b64 = await f.async('base64')
@@ -234,7 +358,6 @@ export async function importChroniclePackage(file: File): Promise<CampaignIndexE
       if (!res.ok) throw new Error(`${p}: ${res.status}`)
     }
   }
-  const index = await fetchCampaignIndex()
   const entry: CampaignIndexEntry = { id, title: meta.title || id, author: meta.author, description: meta.description }
   const i = index.findIndex((c) => c.id === id)
   if (i >= 0) index[i] = entry
