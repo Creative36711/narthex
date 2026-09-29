@@ -375,6 +375,10 @@
 .ce-tools { display: flex; gap: 4px; }
 .ce-del { color: var(--ed-danger); }
 .ce-body { padding: 10px; border-top: 1px solid var(--ed-paper-line); }
+/* исход финальной стадии квеста: смысл несёт цвет по значению, а не глифы
+   (правило проекта — без эмодзи/dingbat в интерфейсе) */
+.sel-outcome option[value="success"] { color: var(--ed-ok); }
+.sel-outcome option[value="failure"] { color: var(--ed-danger); }
 .schema-form { margin-top: 6px; }
 
 /* ─────────── редактор сцен ─────────── */

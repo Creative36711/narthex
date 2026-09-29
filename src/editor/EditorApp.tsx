@@ -173,7 +173,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   // «принцип простой — Ctrl+Z просто нажимает кнопку “Отменить”»). Родной
   // откат браузера в текстовых полях всё равно мёртв: каждое нажатие сразу
   // коммитится в магазин и переписывает DOM, стек браузера ломается.
-  // Исключение — Monaco (у него своя полноценная история).
+  // Исключение — текстовые поля: там Ctrl+Z должен отменять правку текста
+  // (правка фидбека №18), иначе мастер не может стереть опечатку.
+  const textLike = useMemo(
+    () => new Set(['text', 'search', 'url', 'tel', 'email', 'password', 'number']),
+    [],
+  )
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // e.key на кириллической раскладке даёт «я» — сравниваем физическую
@@ -181,6 +186,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       if (!(e.ctrlKey || e.metaKey) || e.code !== 'KeyZ' || e.shiftKey) return
       const t = e.target as HTMLElement
       if (t.closest('.monaco-editor')) return
+      // текстовое поле / textarea: отменяет сам браузер, магазин не трогаем
+      if (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && textLike.has((t as HTMLInputElement).type))) return
       if (store.canUndo()) {
         e.preventDefault()
         e.stopPropagation()
@@ -189,7 +196,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [store])
+  }, [store, textLike])
 
   const newCampaign = async () => {
     const title = await askText('Название новой кампании', 'например «Тени Северного тракта»')
