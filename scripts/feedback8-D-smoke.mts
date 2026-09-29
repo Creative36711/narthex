@@ -83,7 +83,10 @@ const art: ArtDoc = {
   const scr = readFileSync('src/player/SceneScreen.tsx', 'utf8')
   check('D экран сцены игрока рендерит ArtView', scr.includes('<ArtView') && scr.includes('state.art'))
   const ed = readFileSync('src/editor/SceneEditor.tsx', 'utf8')
-  check('D редактор сцен: art как фон', ed.includes('artToDataUrl') && ed.includes('scene-stage-art'))
+  // фон ArtDoc в редакторе рисуется тем же ArtView, что и в игре (правка раунда:
+  // data-URL-SVG внутри <img> в превью не отображался) и лежит под Konva
+  const edCss = readFileSync('src/editor/editor.css', 'utf8')
+  check('D редактор сцен: art как фон', ed.includes('<ArtView className="scene-stage-art"') && ed.includes('scene-stage-with-art') && edCss.includes('.scene-stage.scene-stage-with-art { background: transparent;'))
   check('D редактор сцен: «заменить изображением»', ed.includes('Заменить изображением'))
   check('D редактор сцен: расширенный JSON', ed.includes('Расширенный JSON') && ed.includes('ArtDoc'))
   const map = readFileSync('src/player/MapScreen.tsx', 'utf8')

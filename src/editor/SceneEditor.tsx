@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Rect, Text, Transformer, Group } from 'react-konva'
 import type Konva from 'konva'
 import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
-import { ArtView, artToDataUrl } from '../shared/ArtView'
+import { ArtView } from '../shared/ArtView'
 import type { EditorStore } from './store'
 import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, AnimImageEditor, ChapterSelect } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
@@ -112,10 +112,12 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   const VIEW_H = canvas.h * k
 
   const st = scene.states[Math.min(stateIdx, scene.states.length - 1)]
-  // фон: ArtDoc рисуем как SVG-подложку под прозрачным Konva-холстом,
-  // обычное изображение — внутри Konva (итерация 8, блок D)
-  const artUrl = st?.art ? artToDataUrl(st.art) : ''
-  const img = useImage(!st?.art && st?.image ? store.assetSrc(firstFrame(st.image)) : null)
+  // Фон состояния: синтезированный рисунок (ArtDoc) рисуем тем же компонентом
+  // ArtView, что и игрок, — иначе превью и забег расходятся (и data-URL-SVG
+  // внутри <img> ведёт себя иначе, чем инлайновый SVG). ArtDoc кладём под
+  // прозрачный Konva-холст, обычное изображение — внутри Konva.
+  const hasArt = !!st?.art?.layers?.length
+  const img = useImage(!hasArt && st?.image ? store.assetSrc(firstFrame(st.image)) : null)
 
   useEffect(() => {
     // после отката (или удаления) выбранный объект мог исчезнуть — не
@@ -238,8 +240,8 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
           )}
         </div>
         <div className="scene-stage-wrap" style={{ width: VIEW_W, height: VIEW_H }}>
-          {artUrl && <img className="scene-stage-art" src={artUrl} alt="" draggable={false} />}
-          <Stage width={VIEW_W} height={VIEW_H} className="scene-stage" onClick={(e) => {
+          {hasArt && <ArtView className="scene-stage-art" art={st!.art} />}
+          <Stage width={VIEW_W} height={VIEW_H} className={`scene-stage${hasArt ? ' scene-stage-with-art' : ''}`} onClick={(e) => {
             if (e.target === e.target.getStage() || e.target.className === 'Image') setSel(null)
           }}>
           <Layer>

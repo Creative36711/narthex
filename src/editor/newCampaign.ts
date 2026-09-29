@@ -10,13 +10,40 @@ export type { CampaignIndexEntry } from '../shared/types'
  */
 
 export async function fetchCampaignIndex(): Promise<CampaignIndexEntry[]> {
+  let index: CampaignIndexEntry[] = []
   try {
     const res = await fetch(`/campaigns/index.json?t=${Date.now()}`)
-    if (!res.ok) return []
-    return (await res.json()) as CampaignIndexEntry[]
+    if (res.ok) index = (await res.json()) as CampaignIndexEntry[]
   } catch {
-    return []
+    index = []
   }
+  return hydrateCampaignIndex(index)
+}
+
+/**
+ * Реестр кампаний — это список id, а названия и описания берём из самих
+ * файлов `campaign.json`. Иначе index.json со временем расходится с кампанией
+ * (после импорта чужой версии в списке остаётся старое название), и мастер
+ * видит в меню чужой текст. Здесь title/author/description всегда актуальны.
+ */
+export async function hydrateCampaignIndex(index: CampaignIndexEntry[]): Promise<CampaignIndexEntry[]> {
+  return Promise.all(
+    index.map(async (e) => {
+      try {
+        const res = await fetch(`/campaigns/${e.id}/campaign.json?t=${Date.now()}`)
+        if (!res.ok) return e
+        const meta = (await res.json()) as { title?: string; author?: string; description?: string }
+        return {
+          id: e.id,
+          title: meta.title || e.title,
+          author: meta.author ?? e.author,
+          description: meta.description ?? e.description,
+        }
+      } catch {
+        return e
+      }
+    }),
+  )
 }
 
 function scaffold(id: string, title: string, author: string) {
@@ -195,9 +222,23 @@ export async function createCampaign(title: string, author = ''): Promise<string
   // фон первой сцены, чтобы кампания сразу отрисовывалась
   const img = await starterImageBase64()
   if (img) await saveFileBase64(`campaigns/${id}/scenes/img/scene_start.jpg`, img)
-  index.push({ id, title, author })
+  const meta = files['campaign.json'] as { description?: string }
+  index.push({ id, title, author, description: meta.description })
   await saveFile('campaigns/index.json', JSON.stringify(index, null, 2))
   return id
+}
+
+/**
+ * Обновить строку реестра у уже существующей кампании (после правки названия
+ * или описания в редакторе). Без этого список кампаний в меню и в редакторе
+ * продолжает показывать то, что было записано при создании.
+ */
+export async function syncIndexEntry(entry: CampaignIndexEntry): Promise<void> {
+  const index = await fetchCampaignIndex()
+  const i = index.findIndex((c) => c.id === entry.id)
+  if (i >= 0) index[i] = { ...index[i], ...entry }
+  else index.push(entry)
+  await saveFile('campaigns/index.json', JSON.stringify(index, null, 2))
 }
 
 /**

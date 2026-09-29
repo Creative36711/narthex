@@ -14,7 +14,8 @@
     "smoke:currency": "tsx scripts/currency-smoke.mts",
     "smoke:ink-import": "tsx scripts/ink-import-smoke.mts",
     "smoke:fingerprint": "tsx scripts/fingerprint-smoke.mts",
-    "smoke:book-md": "tsx scripts/book-md-smoke.mts"
+    "smoke:book-md": "tsx scripts/book-md-smoke.mts",
+    "smoke:campaign-index": "tsx scripts/campaign-index-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

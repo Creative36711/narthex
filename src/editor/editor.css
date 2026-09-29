@@ -860,15 +860,22 @@
 /* ── итерация 8, блок D: ArtDoc в редакторе сцен ── */
 
 .scene-stage-wrap { position: relative; }
+/* Синтезированный фон (ArtDoc) лежит ПОД прозрачным холстом Konva, чтобы рамки
+   слотов и зон оставались видны и кликабельны. Раньше он был <img> с data-URL,
+   который то не отображался, то перекрывал рамки. */
 .scene-stage-art {
   position: absolute;
   inset: 0;
+  z-index: 0;
   width: 100%;
   height: 100%;
-  object-fit: fill;
   border: 1px solid var(--ed-art-line);
   border-radius: 4px;
+  pointer-events: none;
 }
+.scene-stage-art svg { display: block; width: 100%; height: 100%; }
+.scene-stage { position: relative; z-index: 1; }
+.scene-stage.scene-stage-with-art { background: transparent; box-shadow: none; }
 .art-preview {
   width: 100%;
   aspect-ratio: 16 / 9;

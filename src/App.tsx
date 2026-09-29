@@ -19,6 +19,8 @@ import { useSettings } from './shared/settings'
 /** встроенная кампания-пример; выбор запоминается между сессиями */
 const DEFAULT_CAMPAIGN = 'ash-of-caerden'
 const LAST_KEY = 'cf_last_campaign'
+/** запасная подпись, если реестр campaigns/index.json не читается */
+const DEFAULT_CAMPAIGN_TITLE = 'Пепел Каэрдена'
 
 // Editor Mode (Фаза 4) — ленивый чанк: Monaco/Konva не грузятся в Player Mode
 const EditorApp = lazy(() => import('./editor/EditorApp').then((m) => ({ default: m.EditorApp })))
@@ -66,9 +68,31 @@ export default function App() {
 
   useEffect(() => {
     fetchCampaignIndex().then((idx) => {
-      setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: 'Пепел Каэрдена' }])
+      setCampaigns(idx.length ? idx : [{ id: DEFAULT_CAMPAIGN, title: DEFAULT_CAMPAIGN_TITLE }])
     })
   }, [])
+
+  // Текущая кампания в списке всегда такая, какая она на диске: после импорта
+  // чужой версии мастер видит её новое название и описание, а не запись,
+  // оставшуюся в index.json с момента создания.
+  useEffect(() => {
+    if (!campaign) return
+    const entry = {
+      id: campaign.meta.id,
+      title: campaign.meta.title,
+      author: campaign.meta.author,
+      description: campaign.meta.description,
+    }
+    setCampaigns((list) => {
+      const i = list.findIndex((c) => c.id === entry.id)
+      if (i < 0) return [...list, entry]
+      const same = list[i].title === entry.title && list[i].author === entry.author && list[i].description === entry.description
+      if (same) return list
+      const next = list.slice()
+      next[i] = entry
+      return next
+    })
+  }, [campaign])
 
   useEffect(() => {
     setCampaign(null)

@@ -17,6 +17,26 @@ export { unlockAudio, audioCtx } from './synth'
 
 let campaign: CampaignData | null = null
 
+/**
+ * Фоновые звуки движка (тема кампании, эмбиент локации/погоды, звуки
+ * нажатий) можно глушить — редактору это нужно, чтобы мастер слушал
+ * ПРЕДПРОСЛУШИВАНИЕ звука из раздела «Звук и музыка» и слышал только его.
+ * Явные вызовы playSource (кнопка «Прослушать») глушитель не трогает.
+ */
+let ambientEnabled = true
+
+/** вкл/выкл фоновые звуки движка (редактор — выкл, плейтест — вкл) */
+export function setAmbientAudioEnabled(on: boolean): void {
+  if (ambientEnabled === on) return
+  ambientEnabled = on
+  if (!on) stopAllLoops()
+}
+
+/** фоновые звуки сейчас разрешены? */
+export function ambientAudioEnabled(): boolean {
+  return ambientEnabled
+}
+
 /** вызывается при выборе/загрузке кампании (и при выходе в меню) */
 export function setAudioCampaign(c: CampaignData | null): void {
   campaign = c
@@ -41,7 +61,7 @@ function pickSource(src: SoundSource | SoundSource[]): SoundSource {
 
 /** проиграть звук реестра по id */
 export function playSoundId(id: string, volume = 1): void {
-  if (!id || !campaign) return
+  if (!id || !campaign || !ambientEnabled) return
   const def = soundDef(id)
   if (!def) return
   playSource(pickSource(def.src), volume)
@@ -98,7 +118,7 @@ export function playInteraction(
   info: { entity?: EntityDef; slotType?: string } = {},
   volume = 1,
 ): void {
-  if (!campaign) return
+  if (!campaign || !ambientEnabled) return
   const meta = campaign.meta
   const fromEntity = info.entity?.sounds?.[hook]
   if (fromEntity) return playSoundId(fromEntity, volume)
@@ -132,7 +152,7 @@ const loops = new Map<string, LoopChannel>()
 
 /** запустить зацикленный слой (id звука с loop-источником); повторный вызов — no-op */
 export function playLoop(id: string, volume = 1): void {
-  if (!campaign || !id || loops.has(id)) return
+  if (!campaign || !id || loops.has(id) || !ambientEnabled) return
   const def = soundDef(id)
   if (!def) return
   const src = pickSource(def.src)
