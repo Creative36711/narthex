@@ -208,6 +208,9 @@ for (const key of [...MONOLITH_REQUIRED_KEYS, ...MONOLITH_OPTIONAL_KEYS]) {
 }
 assert.ok(copiedPrompt.includes('ТОЛЬКО JSON'), 'Копируемый prompt не запрещает markdown/текст вокруг JSON')
 assert.ok(copiedPrompt.includes('campaign.schema.json'), 'Копируемый prompt не отсылает к JSON Schema')
+assert.ok(copiedPrompt.includes('не задавай уточняющих вопросов'), 'Копируемый prompt допускает дополнительные вопросы')
+assert.ok(copiedPrompt.includes('в этом же ответе'), 'Копируемый prompt не требует выполнить задачу целиком сразу')
+assert.ok(!/дождись «ок»|пока мастер не сказал «ок»|только после\s+«ок»/i.test(copiedPrompt), 'Копируемый prompt всё ещё требует подтверждения «ок»')
 
 console.log(`✓ Проверена JSON Schema Draft 2020-12: ${Object.keys(schema.$defs).length} типов`)
 // образы «чемодана для ИИ-агента» в public/ai: состав — ровно манифест
