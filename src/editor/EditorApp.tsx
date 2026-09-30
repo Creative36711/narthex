@@ -27,6 +27,8 @@ import { stopMusic } from '../shared/music'
 import { setAmbientAudioEnabled } from '../shared/audio'
 import { themeVars } from '../shared/theme'
 import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
+import { ENGINE_VERSION, checkEngine } from '../shared/versions'
+import { canOfferEngineVersionRepair, setCurrentEngineRequirement } from './engineVersionRepair'
 import { profileClass, atmosphereOn } from '../shared/profiles'
 import { AiWizard, aiFixReport } from './AiWizard'
 import { CampaignAuditDialog } from './CampaignAuditDialog'
@@ -811,14 +813,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         setCampaigns(await fetchCampaignIndex())
         setSection('scenes')
         setBase(`/campaigns/${entry.id}`)
-        if (entry.manifestWarnings?.length) {
-          void showList(
-            'Пакет импортирован с исправлениями',
-            entry.manifestWarnings,
-            [entry.idWarning, 'Имена модулей в manifest.json были нормализованы, чтобы редактор мог открыть файлы.'].filter(Boolean).join('\n\n'),
-          )
-        } else if (entry.idWarning) {
-          void showAlert('Кампания импортирована', entry.idWarning)
+        if (entry.manifestWarnings?.length || entry.idWarning) {
+          const details = [
+            entry.idWarning,
+            entry.manifestWarnings?.length
+              ? `${entry.manifestWarnings.length} ссылок в manifest.json автоматически нормализованы; содержимое файлов сохранено.`
+              : '',
+          ].filter(Boolean).join('\n\n')
+          void showAlert('Кампания импортирована', details)
         }
         return
       }
@@ -839,20 +841,42 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           const detail = entry.alreadyInstalled
             ? `«${entry.title}» уже установлена; повторная копия не создана.`
             : `«${entry.title}» добавлена в список кампаний с ID «${entry.id}». Выберите её в списке кампаний сверху, чтобы открыть.`
-          if (entry.manifestWarnings?.length) {
-            void showList(
-              'Пакет импортирован с исправлениями',
-              entry.manifestWarnings,
-              [detail, entry.idWarning, 'Имена модулей в manifest.json были нормализованы.'].filter(Boolean).join('\n\n'),
-            )
-          } else {
-            void showAlert(entry.alreadyInstalled ? 'Кампания уже импортирована' : 'Кампания импортирована', [detail, entry.idWarning].filter(Boolean).join('\n\n'))
-          }
+          const importedDetails = [
+            detail,
+            entry.idWarning,
+            entry.manifestWarnings?.length
+              ? `${entry.manifestWarnings.length} ссылок в manifest.json автоматически нормализованы; содержимое файлов сохранено.`
+              : '',
+          ].filter(Boolean).join('\n\n')
+          void showAlert(entry.alreadyInstalled ? 'Кампания уже импортирована' : 'Кампания импортирована', importedDetails)
           return
         }
       }
 
-      const warns = await importChronicle(store, file)
+      const { warnings: warns, corrections } = await importChronicle(store, file)
+      let engineNotice = ''
+      const requiredEngine = store.meta.min_engine ?? store.meta.engine_version
+      const engineStatus = checkEngine(requiredEngine)
+      if (!engineStatus.ok) {
+        const contentIssues = store.validateContent()
+        if (canOfferEngineVersionRepair(store.meta, contentIssues)) {
+          const correctVersion = await askConfirm(
+            `В пакете версия кампании ${store.meta.version} совпадает с min_engine «${requiredEngine}», но Chronicle Forge сейчас ${ENGINE_VERSION}. Формат пакета поддерживается, а проверка содержимого не нашла ошибок. Похоже, генератор скопировал версию кампании в поле версии движка. Заменить min_engine и устаревшее engine_version на ${ENGINE_VERSION}? Версия кампании останется ${store.meta.version}.`,
+            `Исправить на ${ENGINE_VERSION}`,
+            'Оставить требование',
+          )
+          if (correctVersion) {
+            setCurrentEngineRequirement(store.meta)
+            store.touch('campaign.json')
+            engineNotice = `min_engine и engine_version исправлены на ${ENGINE_VERSION}; версия кампании ${store.meta.version} сохранена.`
+          } else {
+            warns.push(engineStatus.message)
+          }
+        } else {
+          warns.push(engineStatus.message)
+        }
+      }
+
       let idNotice = ''
       if (normalizeCampaignId(store.meta.id) !== normalizeCampaignId(stableId)) {
         const incomingId = store.meta.id
@@ -860,7 +884,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         idNotice = `Редактор сохранил ID открытой кампании «${stableId}» и автоматически привёл к нему ID «${incomingId || 'не задан'}» из архива. Остальное содержимое пакета импортировано.`
       }
       updateCurrentCampaignDisplay()
-      const summary = ['Нажмите «Сохранить», чтобы записать файлы на диск.', idNotice].filter(Boolean).join('\n\n')
+      const correctionNotice = corrections.length
+        ? `${corrections.length} ссылок в manifest.json автоматически нормализованы; содержимое файлов сохранено.`
+        : ''
+      const summary = ['Нажмите «Сохранить», чтобы записать файлы на диск.', idNotice, correctionNotice, engineNotice].filter(Boolean).join('\n\n')
       if (warns.length) {
         void showList('Импортировано с предупреждениями', warns, summary, {
           label: 'Скопировать отчёт для ИИ',

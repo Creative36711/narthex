@@ -1506,26 +1506,27 @@ body.cf-editor .ai-wizard > .modal-buttons { align-items: center; }
 body.cf-editor .ai-wizard .copy-status { flex: 1 1 180px; min-width: 0; }
 
 /* Дизайн-документ читается на светлом полотне редактора; MarkdownView общий с книгой. */
-.editor-root .design-doc-render.book-markdown { width: 100%; max-width: none; box-sizing: border-box; color: var(--ed-paper-text); }
-.editor-root .design-doc-render.book-markdown h1,
-.editor-root .design-doc-render.book-markdown h2,
-.editor-root .design-doc-render.book-markdown h3,
-.editor-root .design-doc-render.book-markdown h4 { color: var(--ed-accent); }
-.editor-root .design-doc-render.book-markdown blockquote { color: var(--ed-paper-muted); }
-.editor-root .design-doc-render.book-markdown code,
-.editor-root .design-doc-render.book-markdown .book-code {
+.editor-root .design-doc-render { width: 100%; min-width: 0; }
+.editor-root .design-doc-render .book-markdown { width: 100%; max-width: none; box-sizing: border-box; color: var(--ed-paper-text); }
+.editor-root .design-doc-render .book-markdown h1,
+.editor-root .design-doc-render .book-markdown h2,
+.editor-root .design-doc-render .book-markdown h3,
+.editor-root .design-doc-render .book-markdown h4 { color: var(--ed-accent); }
+.editor-root .design-doc-render .book-markdown blockquote { color: var(--ed-paper-muted); }
+.editor-root .design-doc-render .book-markdown code,
+.editor-root .design-doc-render .book-markdown .book-code {
   background: color-mix(in srgb, var(--ed-paper-text) 7%, var(--ed-paper-card));
   border-color: var(--ed-paper-line);
   color: var(--ed-paper-text);
 }
-.editor-root .design-doc-render.book-markdown a,
-.editor-root .design-doc-render.book-markdown .book-inline-link { color: #176978; }
-.editor-root .design-doc-render.book-markdown .book-table th {
+.editor-root .design-doc-render .book-markdown a,
+.editor-root .design-doc-render .book-markdown .book-inline-link { color: #176978; }
+.editor-root .design-doc-render .book-markdown .book-table th {
   color: var(--ed-paper-text);
   background: var(--ed-paper-2);
 }
-.editor-root .design-doc-render.book-markdown .book-table td { border-color: var(--ed-paper-line); }
-.editor-root .design-doc-render.book-markdown .book-inline-image { max-width: 100%; }
+.editor-root .design-doc-render .book-markdown .book-table td { border-color: var(--ed-paper-line); }
+.editor-root .design-doc-render .book-markdown .book-inline-image { max-width: 100%; }
 .design-doc-heading { display: flex; flex-direction: column; gap: 4px; min-width: min(280px, 100%); }
 .design-doc-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .design-doc-empty p { margin: 0; }

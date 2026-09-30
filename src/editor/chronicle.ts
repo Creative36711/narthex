@@ -57,9 +57,10 @@ export function downloadBlob(blob: Blob, filename: string): void {
  * Импорт .chronicle: распаковка в память редактора; ассеты пишутся на диск
  * через dev-эндпоинт (только в vite dev).
  */
-export async function importChronicle(store: EditorStore, file: File): Promise<string[]> {
+export async function importChronicle(store: EditorStore, file: File): Promise<{ warnings: string[]; corrections: string[] }> {
   const zip = await JSZip.loadAsync(file)
   const warnings: string[] = []
+  const corrections: string[] = []
   const campaignRel = store.campaignRel()
   const archiveEntries = Object.keys(zip.files).filter((p) => !zip.files[p].dir)
 
@@ -86,11 +87,10 @@ export async function importChronicle(store: EditorStore, file: File): Promise<s
     else assets.push(p)
   }
 
-  // Исправляем распространённую ошибку AI-генераторов: в массивы манифеста
-  // записываются пути с повтором каталога (entities/entities/...), а для
-  // диалогов — путь к .dlg.json вместо ожидаемого .ink.
+  // Исправляем ссылки манифеста с префиксом каталога и записи диалогов,
+  // ошибочно указывающие на визуальный .dlg.json вместо .ink.
   const normalized = normalizeChronicleManifest(manifest, jsonFiles, textFiles)
-  warnings.push(...normalized.notes)
+  corrections.push(...normalized.notes)
   if (normalized.changed) jsonFiles.set('manifest.json', normalized.manifest)
   for (const p of textFiles.keys()) if (!entries.includes(p)) entries.push(p)
 
@@ -116,5 +116,5 @@ export async function importChronicle(store: EditorStore, file: File): Promise<s
     if (!res || !res.ok) warnings.push(`ассет не сохранён: ${p}`)
   }
   store.notify()
-  return warnings
+  return { warnings, corrections }
 }
