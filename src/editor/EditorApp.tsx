@@ -289,6 +289,68 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  /** Импорт JSON: файл или вставленный текст. В пустом редакторе сразу создаём пакет. */
+  const doImportJson = async () => {
+    const text = await askTextArea('Импорт кампании из JSON', {
+      body: 'Вставьте текст JSON-кампании целиком или выберите файл.\nИмпорт заменит содержимое текущей кампании; ошибки не прерывают импорт — битое отключается, недостающее достраивается заглушками.',
+      placeholder: '{ "campaign": { … }, "world": { … }, "scenes": { … } }',
+      ok: 'Импортировать',
+      fileLabel: 'Выбрать файл JSON…',
+    })
+    if (text === null) return
+    const creatingCampaign = !base
+    const previousBasePath = store.basePath
+    setBusy('Импорт JSON…')
+    try {
+      const warns = importMonolithText(store, text)
+      if (creatingCampaign) {
+        // В пустом редакторе JSON становится новой кампанией сразу: сохраняем
+        // файлы в её каталог и регистрируем id до возврата к экрану редактора.
+        const index = await fetchCampaignIndex()
+        const id = makeId('', store.meta.id || store.meta.title || 'imported_campaign', index.map((entry) => entry.id))
+        store.setCampaignId(id)
+        store.setBasePath(`/campaigns/${id}`)
+        await store.saveToDisk()
+        await pushIndex()
+        setSection('scenes')
+        setSelected(null)
+        setBase(`/campaigns/${id}`)
+      }
+
+      // Показываем актуальное имя сразу и добавляем пакет, даже если его ещё не
+      // было в реестре редактора (например, после импорта в пустую кампанию).
+      const entry: CampaignIndexEntry = {
+        id: store.meta.id,
+        title: store.meta.title,
+        author: store.meta.author,
+        description: store.meta.description,
+      }
+      setCampaigns((list) => {
+        const i = list.findIndex((item) => item.id === entry.id)
+        if (i < 0) return [...list, entry]
+        const next = list.slice()
+        next[i] = entry
+        return next
+      })
+      const resultMessage = creatingCampaign
+        ? 'Кампания сохранена и добавлена в список.'
+        : 'Нажмите «Сохранить», чтобы записать файлы кампании на диск.'
+      if (warns.length) {
+        void showList(`Импортировано с ${warns.length} предупреждениями`, warns, resultMessage, {
+          label: 'Скопировать отчёт для ИИ',
+          text: aiFixReport(warns),
+        })
+      } else {
+        void showAlert('Импортировано', resultMessage)
+      }
+    } catch (e) {
+      if (creatingCampaign) store.setBasePath(previousBasePath)
+      void showAlert('Ошибка импорта', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   // нет ни одной кампании (свежая сборка или удалили последнюю): редактор
   // остаётся рабочим — создаём новую кампанию прямо отсюда
   if (!base)
@@ -302,15 +364,17 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           </div>
           <h2>Кампаний пока нет</h2>
           <p>
-            В <code>public/campaigns</code> пусто. Создайте первую кампанию — движок
-            подставит стартовую сцену, а остальное вы опишете сами. Готовую кампанию
-            можно импортировать файлом <code>.chronicle</code> из главного меню.
+            В <code>public/campaigns</code> пока нет кампаний. Создайте первую или импортируйте готовую из JSON;
+            файл <code>.chronicle</code> можно загрузить из главного меню.
           </p>
           <div className="menu-buttons">
             <button className="btn btn-primary" onClick={() => void newCampaign()} disabled={!!busy}>
               {busy ?? 'Создать кампанию'}
             </button>
-            <button className="btn" onClick={onExit}>
+            <button className="btn" onClick={() => void doImportJson()} disabled={!!busy}>
+              Импортировать JSON
+            </button>
+            <button className="btn" onClick={onExit} disabled={!!busy}>
               В главное меню
             </button>
           </div>
@@ -668,39 +732,6 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       )
     } catch (e) {
       void showAlert('Не удалось собрать чемодан', String(e))
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  /** импорт из JSON: файл ИЛИ вставленный текст (кампания может прийти от ИИ) */
-  const doImportJson = async () => {
-    const text = await askTextArea('Импорт кампании из JSON', {
-      body: 'Вставьте текст JSON-кампании целиком или выберите файл.\nИмпорт заменит содержимое текущей кампании; ошибки не прерывают импорт — битое отключается, недостающее достраивается заглушками.',
-      placeholder: '{ "campaign": { … }, "world": { … }, "scenes": { … } }',
-      ok: 'Импортировать',
-      fileLabel: 'Выбрать файл JSON…',
-    })
-    if (text === null) return
-    setBusy('Импорт JSON…')
-    try {
-      const warns = importMonolithText(store, text)
-      // монолит мог прийти с другим названием — сразу обновляем список кампаний
-      setCampaigns((c) =>
-        c.map((e) =>
-          e.id === store.meta.id
-            ? { ...e, title: store.meta.title, author: store.meta.author, description: store.meta.description }
-            : e,
-        ),
-      )
-      void showList(
-        warns.length ? `Импортировано с ${warns.length} предупреждениями` : 'Импортировано без предупреждений',
-        warns,
-        'Нажмите «Сохранить», чтобы записать файлы кампании на диск.',
-        warns.length ? { label: 'Скопировать отчёт для ИИ', text: aiFixReport(warns) } : undefined,
-      )
-    } catch (e) {
-      void showAlert('Ошибка импорта', String(e))
     } finally {
       setBusy(null)
     }

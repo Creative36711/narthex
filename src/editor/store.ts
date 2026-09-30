@@ -815,6 +815,18 @@ export class EditorStore {
     ]
   }
 
+  /** Сменить каталог назначения (используется при импорте новой кампании). */
+  setBasePath(basePath: string): void {
+    this.basePath = basePath
+  }
+
+  /** Задать id новой кампании и пометить метаданные для сохранения. */
+  setCampaignId(id: string): void {
+    this.meta.id = id
+    this.dirty.add('campaign.json')
+    this.notify()
+  }
+
   /** "campaigns/<id>" — относительный путь пакета внутри public/ */
   campaignRel(): string {
     const path = this.basePath.startsWith('http') ? new URL(this.basePath).pathname : this.basePath

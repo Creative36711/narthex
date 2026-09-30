@@ -4,9 +4,10 @@ import { showAlert } from '../shared/modals'
 import { importChroniclePackage } from '../editor/newCampaign'
 
 interface Props {
+  /** создаёт новую кампанию и открывает её в редакторе */
+  onCreate: () => Promise<void>
   /** импорт пакета .chronicle, если игрок принёс свою кампанию */
   onImported: (id: string) => void
-  onEditor: () => void
   /** необязательное пояснение, если записи были, но ни один пакет не открылся */
   notice?: string | null
 }
@@ -19,18 +20,27 @@ interface Props {
  * Движок в этом состоянии обязан не падать, а показать два пути: создать
  * кампанию в редакторе или импортировать готовый пакет .chronicle.
  */
-export function NoCampaignScreen({ onImported, onEditor, notice }: Props) {
-  const [busy, setBusy] = useState(false)
+export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
+  const [busy, setBusy] = useState<'create' | 'import' | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const doCreate = async () => {
+    setBusy('create')
+    try {
+      await onCreate()
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const doImport = async (file: File) => {
-    setBusy(true)
+    setBusy('import')
     try {
       onImported((await importChroniclePackage(file)).id)
     } catch (e) {
       void showAlert('Не удалось импортировать кампанию', String(e))
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
@@ -45,18 +55,18 @@ export function NoCampaignScreen({ onImported, onEditor, notice }: Props) {
         <div className="brand-sub">движок тактических визуальных новелл</div>
         <h2>Кампаний пока нет</h2>
         <p>
-          Ни одной кампании в <code>public/campaigns</code>. Создайте свою в
-          редакторе — движок подставит стартовую сцену, а вы опишете правила,
-          квесты и диалоги. Или загрузите готовую кампанию из файла
-          <code> .chronicle</code>.
+          Ни одной кампании в <code>public/campaigns</code>. Создайте кампанию —
+          сначала задайте ей название, затем откроется редактор. Движок подставит
+          стартовую сцену, а вы опишете правила, квесты и диалоги. Или загрузите
+          готовую кампанию из файла <code> .chronicle</code>.
         </p>
         {notice && <p className="no-campaign-notice" role="status">{notice}</p>}
         <div className="menu-buttons">
-          <button className="btn btn-primary" onClick={onEditor}>
-            <Ico n="hammer" /> Создать кампанию
+          <button className="btn btn-primary" onClick={() => void doCreate()} disabled={busy !== null}>
+            <Ico n="hammer" /> {busy === 'create' ? 'Создаю кампанию…' : 'Создать кампанию'}
           </button>
-          <button className="btn" onClick={() => fileRef.current?.click()} disabled={busy}>
-            {busy ? 'Загружаю…' : 'Загрузить кампанию (.chronicle)'}
+          <button className="btn" onClick={() => fileRef.current?.click()} disabled={busy !== null}>
+            {busy === 'import' ? 'Загружаю…' : 'Загрузить кампанию (.chronicle)'}
           </button>
         </div>
         <input
