@@ -83,7 +83,7 @@ export function SettingsPanel({ open, onClose }: Props) {
 
         {ttsSupported() ? (
           <>
-            <Row label="Озвучивать реплики без файла синтезатором">
+            <Row label="Озвучивать реплики и подписи катсцен без файла синтезатором">
               <label className="fld-check small">
                 <input type="checkbox" checked={s.tts_enabled} onChange={(e) => patch({ tts_enabled: e.target.checked })} />
                 <span>включить</span>

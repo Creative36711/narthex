@@ -2448,15 +2448,18 @@ input[type='checkbox'], input[type='radio'] {
 .menu-dim { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .menu-title-art { max-width: min(420px, 80%); margin: 0 auto 18px; display: block; filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6)); }
 .main-menu.with-bg .main-menu-inner {
+  max-width: 860px;
   max-height: none;
   overflow: visible;
   padding: clamp(18px, 3vh, 34px) clamp(18px, 3vw, 40px);
-  background: color-mix(in srgb, var(--bg-deep) 78%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border-strong) 55%, transparent);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-2);
-  backdrop-filter: blur(6px);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
 }
+.main-menu.with-bg .campaign-current { max-width: 760px; margin-inline: auto; }
+.main-menu.with-bg .campaign-desc { text-shadow: 0 1px 5px color-mix(in srgb, var(--bg-deep) 85%, transparent); }
 
 /* Сжимай декоративные отступы и заголовок вместо прокрутки карточки меню. */
 @media (max-height: 860px) {

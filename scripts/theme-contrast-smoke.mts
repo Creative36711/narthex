@@ -65,7 +65,7 @@ assert.match(css, /\.campaigns-overlay\s*\{[\s\S]*?position:\s*fixed;/, 'campaig
 assert.doesNotMatch(css, /\.main-menu\.with-bg[^{}]*campaigns-overlay[^{}]*position:\s*relative/, 'menu layering does not redefine overlay positioning')
 assert.match(css, /\.char-create-inner[^\n]*max-height:\s*calc\(100vh - 48px\)/, 'character creation scrolls within short screens')
 assert.match(css, /\.campaigns-box \.campaign-list\s*\{[^}]*width:\s*100%/, 'campaign rows use the available modal width')
-assert.match(css, /\.main-menu\.with-bg \.main-menu-inner\s*\{[^}]*backdrop-filter:\s*blur/, 'campaign menu content is separated from busy artwork')
+assert.match(css, /\.main-menu\.with-bg \.main-menu-inner\s*\{[^}]*background:\s*transparent;[^}]*border:\s*0;[^}]*box-shadow:\s*none;[^}]*backdrop-filter:\s*none/, 'campaign menu is full-screen and has no framed content card')
 const mainMenu = readFileSync('src/player/MainMenu.tsx', 'utf8')
 assert.match(mainMenu, /titleArt !== menuBg/, 'same menu image is not rendered twice as title art')
 

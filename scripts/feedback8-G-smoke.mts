@@ -67,7 +67,7 @@ function check(name: string, ok: boolean, extra = '') {
   check('G3 синтезатор по умолчанию выключен', DEFAULT_SETTINGS.tts_enabled === false)
   const panel = readFileSync('src/shared/SettingsPanel.tsx', 'utf8')
   check('G3 громкость общая/музыка/эффекты/голос', ['volume', 'music_volume', 'sfx_volume', 'voice_volume'].every((k) => panel.includes(k)))
-  check('G3 галочка «Озвучивать … синтезатором»', panel.includes('tts_enabled') && panel.includes('Озвучивать реплики без файла'))
+  check('G3 галочка «Озвучивать … синтезатором»', panel.includes('tts_enabled') && panel.includes('Озвучивать реплики и подписи катсцен без файла'))
   check('G3 выбор голоса из доступных в системе', panel.includes('useTtsVoices') && panel.includes('tts_voice'))
   check('G3 выключатель озвучки', panel.includes('voice_muted'))
   const settings = readFileSync('src/shared/settings.ts', 'utf8')
