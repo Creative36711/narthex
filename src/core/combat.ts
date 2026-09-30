@@ -172,6 +172,7 @@ export class CombatController {
 
     const pw = e.playerWeapon()
     const pa = e.playerArmor()
+    const appearanceFigure = e.heroCombatFigure()
     const weapon = pw.weapon
     const weaponLabel = pw.label
     const overloaded = e.isOverloaded()
@@ -181,8 +182,8 @@ export class CombatController {
       label: playerDef.label,
       side: 'player',
       portrait: [playerDef.token, playerDef.portrait?.neutral].map(s => (s ?? '').trim()).find(Boolean) || undefined,
-      figure: playerDef.combat_figure,
-      figure_mode: playerDef.figure_mode ?? 'topdown',
+      figure: appearanceFigure.figure ?? playerDef.combat_figure,
+      figure_mode: appearanceFigure.mode ?? playerDef.figure_mode ?? 'topdown',
       figure_shadow: playerDef.shadow,
       facing: 90,
       flip: false,

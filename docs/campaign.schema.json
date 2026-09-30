@@ -4094,6 +4094,18 @@
           "additionalProperties": {
             "$ref": "#/$defs/ImageValue"
           }
+        },
+        "combat_figure": {
+          "$ref": "#/$defs/ImageValue",
+          "description": "необязательная постоянная фигурка боя, выбираемая только при создании героя"
+        },
+        "combat_figure_mode": {
+          "type": "string",
+          "enum": [
+            "topdown",
+            "side",
+            "static"
+          ]
         }
       },
       "required": [
@@ -4112,7 +4124,21 @@
         },
         "label": {
           "type": "string",
-          "description": "подпись сегмента для игрока («Лицо»)"
+          "description": "подпись сегмента для игрока («Лицо», «Цвет кожи», «Татуировка»)"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "identity",
+            "skin",
+            "build",
+            "face",
+            "hair",
+            "clothing",
+            "markings",
+            "other"
+          ],
+          "description": "необязательная категория для группировки настроек на экране создания"
         },
         "options": {
           "type": "array",
@@ -4133,6 +4159,18 @@
                 "additionalProperties": {
                   "$ref": "#/$defs/ImageValue"
                 }
+              },
+              "combat_figure": {
+                "$ref": "#/$defs/ImageValue",
+                "description": "постоянная фигурка боя, если этот выбор характеризует стартовый облик"
+              },
+              "combat_figure_mode": {
+                "type": "string",
+                "enum": [
+                  "topdown",
+                  "side",
+                  "static"
+                ]
               }
             },
             "required": [
@@ -6953,6 +6991,22 @@
         "equip_slot": {
           "type": "string",
           "description": "слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;\nнет — не экипируется. Старым предметам выставляется миграцией."
+        },
+        "hero_appearance": {
+          "type": "object",
+          "properties": {
+            "overlay": {
+              "$ref": "#/$defs/ImageValue"
+            },
+            "order": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "overlay"
+          ],
+          "additionalProperties": false,
+          "description": "прозрачный слой поверх портрета героя, когда этот предмет надет"
         },
         "on_interact": {
           "$ref": "#/$defs/UseEffectDef",

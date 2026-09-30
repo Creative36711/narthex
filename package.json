@@ -23,7 +23,8 @@
     "smoke:p2": "tsx scripts/p2-mechanics-smoke.mts",
     "smoke:ai-runtime": "tsx scripts/ai-runtime-smoke.mts",
     "smoke:ai-task": "tsx scripts/ai-task-smoke.mts",
-    "smoke:no-campaign": "tsx scripts/no-campaign-smoke.mts"
+    "smoke:no-campaign": "tsx scripts/no-campaign-smoke.mts",
+    "smoke:hero-appearance": "tsx scripts/hero-appearance-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

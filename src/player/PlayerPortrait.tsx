@@ -1,6 +1,6 @@
 import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
-import { framesOf } from './frames'
+import { LiveImg } from './frames'
 import type { ImageValue } from '../shared/types'
 
 /**
@@ -20,7 +20,5 @@ export function PlayerPortrait({ engine, size = 96 }: { engine: GameEngine; size
 }
 
 function HeroPortraitFrame({ engine, img }: { engine: GameEngine; img: ImageValue }) {
-  const first = typeof img === 'string' ? img : (framesOf(img)?.frames[0] ?? '')
-  if (!first) return null
-  return <img className="hero-portrait-frame" src={assetUrl(engine.campaign, first)} alt="" />
+  return <LiveImg value={img} urlOf={(frame) => assetUrl(engine.campaign, frame)} alt="" className="hero-portrait-frame" />
 }

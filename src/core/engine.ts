@@ -932,27 +932,44 @@ export class GameEngine {
   heroPortraitImages(): ImageValue[] {
     const meta = this.campaign.meta
     const choice = this.state.player.portrait_choice
-    if (!choice) return []
     const key = this.heroPortraitStateKey()
-    const withState = (img: ImageValue, states?: Record<string, ImageValue>): ImageValue => {
-      const hit = states?.[key]
-      if (hit) return hit
-      return img
-    }
-    if (choice.layers && meta.char_creation?.portrait_layers?.length) {
-      const out: ImageValue[] = []
+    const withState = (img: ImageValue, states?: Record<string, ImageValue>): ImageValue => states?.[key] || img
+    const out: ImageValue[] = []
+    if (choice?.layers && meta.char_creation?.portrait_layers?.length) {
       for (const layer of meta.char_creation.portrait_layers) {
         const opt = layer.options.find((o) => o.id === choice.layers![layer.id]) ?? layer.options[0]
-        if (!opt) continue
-        out.push(withState(opt.image, opt.states))
+        if (opt) out.push(withState(opt.image, opt.states))
       }
-      if (out.length) return out
-    }
-    if (choice.gallery) {
+    } else if (choice?.gallery) {
       const def = meta.char_creation?.portraits?.find((p) => p.id === choice.gallery)
-      if (def) return [withState(def.image, def.states)]
+      if (def) out.push(withState(def.image, def.states))
     }
-    return []
+    // Текущая экипировка меняет только портрет на листе героя, не боевую фигурку.
+    const overlays = Object.entries(this.state.player.equipment ?? {}).flatMap(([slot, id], index) => {
+      const item = this.campaign.entities[id] as ItemDef | undefined
+      return item?.type === 'item' && item.hero_appearance?.overlay
+        ? [{ slot, index, order: item.hero_appearance.order ?? index, image: item.hero_appearance.overlay }]
+        : []
+    }).sort((a, b) => a.order - b.order || a.index - b.index)
+    out.push(...overlays.map((x) => x.image))
+    return out
+  }
+
+  /** Статичная боевая фигурка выбирается только из постоянного облика при создании. */
+  heroCombatFigure(): { figure?: ImageValue; mode?: 'topdown' | 'side' | 'static' } {
+    const meta = this.campaign.meta.char_creation
+    const choice = this.state.player.portrait_choice
+    if (!meta || !choice) return {}
+    if (choice.layers && meta.portrait_layers?.length) {
+      for (const layer of meta.portrait_layers) {
+        const option = layer.options.find((o) => o.id === choice.layers![layer.id])
+        if (option?.combat_figure) return { figure: option.combat_figure, mode: option.combat_figure_mode }
+      }
+    }
+    const portrait = meta.portraits?.find((p) => p.id === choice.gallery)
+    return portrait?.combat_figure
+      ? { figure: portrait.combat_figure, mode: portrait.combat_figure_mode }
+      : {}
   }
 
   npcMood(entityId: string): number {

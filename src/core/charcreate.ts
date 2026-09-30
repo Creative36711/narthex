@@ -141,7 +141,11 @@ export function newCharChoice(creation: CharCreationDef, template: NpcDef, meta:
   }
   // список навыков: реестр кампании + навыки шаблона
   const ids = new Set<string>([...allSkillIds(meta).map((s) => s.id), ...Object.keys(template.skills)])
-  const choice: CharChoice = { name: template.label, stats, profession: first?.id ?? '', calling: firstCall?.id ?? '', skills: {} }
+  const choice: CharChoice = {
+    name: template.label, stats, profession: first?.id ?? '', calling: firstCall?.id ?? '', skills: {},
+    ...(creation.portraits?.[0] ? { portrait: creation.portraits[0].id } : {}),
+    ...(creation.portrait_layers?.length ? { portrait_layers: Object.fromEntries(creation.portrait_layers.filter((l) => l.options[0]).map((l) => [l.id, l.options[0].id])) } : {}),
+  }
   for (const id of ids) choice.skills[id] = skillMinVal(creation, choice, id)
   return withCalling(creation, choice, choice.calling)
 }
