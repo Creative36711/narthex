@@ -150,6 +150,15 @@ const ENGINE_VOCABULARY = new Map<string, string>([
   ['has_meta_achievement', 'внешняя функция Ink: есть ли достижение хроники'],
   ['chance_warns', 'устаревшее поле start_pursuit — в формате отсутствует'],
   ['hunters', 'устаревшее поле start_pursuit — в формате отсутствует'],
+  // рантайм-фолбэки (пустой schedule, knot ≠ main, EXTERNAL, пустые asset)
+  ['n_start', 'id стартового knot диалога (альтернатива main)'],
+  ['main', 'канонический id стартового knot диалога'],
+  ['EXTERNAL', 'объявление внешней функции в сыром Ink'],
+  ['generateInk', 'генератор ink из DlgDoc конструктора'],
+  ['default_entity', 'сущность по умолчанию в слоте сцены'],
+  ['assetUrlOrNull', 'URL ассета или null при пустой строке'],
+  ['firstInkKnot', 'первый knot ink-текста (фолбэк входа)'],
+  ['img', 'HTML-тег картинки (не ставить битый src)'],
 ])
 
 // ── (а) JSON-литералы эффектов и условий ──
