@@ -3012,8 +3012,8 @@ export class GameEngine {
     this.activeNpc = npc
     this.state.stats_run.dialogues += 1
     const drained = drainStory(story)
-    if (this.combat) {
-      // диалог сразу запустил бой — не показываем окно
+    if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
+      // external в первой же реплике: бой / торговля / финал — окна диалога нет
       this.dialogue = null
       this.activeStory = null
       this.activeNpc = null
@@ -3029,8 +3029,9 @@ export class GameEngine {
     if (!story || !npc) return
     story.ChooseChoiceIndex(index)
     const drained = drainStory(story)
-    if (this.combat || this.trade) {
-      // external запустил бой или торговлю — диалог закрыт, не восстанавливаем
+    // external мог закрыть забег/открыть бой/торговлю (game_over чистит
+    // activeStory — но drainStory уже отработал). Не восстанавливаем окно.
+    if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
       this.dialogue = null
       this.activeStory = null
       this.activeNpc = null
@@ -3044,6 +3045,12 @@ export class GameEngine {
       finished: drained.finished,
     }
     this.checkRules()
+    // правило на checkRules тоже могло вызвать game_over
+    if (this.state.game_over) {
+      this.dialogue = null
+      this.activeStory = null
+      this.activeNpc = null
+    }
     this.notify()
   }
 
@@ -3075,10 +3082,14 @@ export class GameEngine {
     this.state.game_over = { type, reason, ending: ending?.id }
     if (ending?.id) this.rememberEnding(ending.id)
     this.finalizeRunMeta(type === 'victory')
-    if (type === 'death') {
-      this.dialogue = null
-      this.activeStory = null
-    }
+    // Финал всегда закрывает диалог (и при победе, и при гибели). Иначе
+    // GameView держит DialogueOverlay поверх и не показывает EndScreen:
+    // `game_over && !dialogue` — типичный путь fire_rule/tick_elapsed →
+    // game_over_victory из ink оставлял story «висящей».
+    this.dialogue = null
+    this.activeStory = null
+    this.activeNpc = null
+    this.trade = null
     // забег завершён в любом исходе — сейв стирается, «Продолжить» исчезает (фидбек №10)
     deleteSave(this.campaign.meta.id)
     this.notify()

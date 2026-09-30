@@ -9,7 +9,12 @@
  *  3. startDialogue: knot main → firstInkKnot; bare id dlg → path;
  *  4. createStory: ошибка компиляции содержит id диалога;
  *  5. assetUrlOrNull: пустая/пробельная строка → null (нет битого <img>);
- *  6. ash-of-caerden: живые диалоги с main открываются.
+ *  6. ash-of-caerden: живые диалоги с main открываются;
+ *  7. generateInk: EXTERNAL get_player_name для токена {имя};
+ *  8. disposition: личный сдвиг NPC + фракция; faction target отдельно;
+ *  9. presence_overrides по флагу важнее schedule;
+ * 10. game_over (tick / fire_rule) закрывает dialogue (EndScreen не блокируется);
+ * 11. advanceTicks → checkRules (tick_elapsed).
  *
  * Запуск: npx tsx scripts/ai-runtime-smoke.mts
  */
@@ -349,6 +354,210 @@ function miniCampaign(opts: {
   } catch (e) {
     check('6 bran.dlg → ink', false, String(e))
   }
+}
+
+// ── 7. generateInk EXTERNAL для токена {имя} ──
+{
+  const doc: DlgDoc = {
+    version: 2,
+    label: 't',
+    nodes: [
+      {
+        id: 'main',
+        label: 'm',
+        sections: [{ steps: [{ kind: 'line', line: { text: 'Здравствуй, {имя}.' } }] }],
+        choices: [{ text: 'Пока', sections: [], goto: 'end' }],
+      },
+    ],
+  }
+  const ink = generateInk(doc)
+  check('7 EXTERNAL get_player_name', /EXTERNAL get_player_name\(\)/.test(ink))
+  clearDialogueCache()
+  try {
+    createStory(ink, 'dlg_name_token')
+    check('7 ink с {имя} компилируется', true)
+  } catch (e) {
+    check('7 ink с {имя} компилируется', false, String(e))
+  }
+}
+
+// ── 8. disposition: NPC personal + faction ──
+{
+  const npc: NpcDef = {
+    id: 'npc_x',
+    type: 'npc',
+    label: 'X',
+    faction: 'faction_town',
+    base_disposition: 5,
+    stats: { STR: 5, CON: 5, SIZ: 5, DEX: 5, INT: 5, POW: 5, CHA: 5 },
+    skills: {},
+  }
+  const campaign = miniCampaign({
+    id: 't_disp',
+    npc,
+    scene: {
+      id: 'sc',
+      label: 'S',
+      location: 'loc',
+      states: [{ id: 's0', label: 'ok', condition: null }],
+      slots: [],
+      navigation: [],
+    },
+  })
+  campaign.meta.factions = [{ id: 'faction_town', label: 'Город', base_disposition: 0 }]
+  const eng = new GameEngine(campaign)
+  eng.start()
+  eng.changeDisposition('npc_x', 7)
+  eng.changeDisposition('faction_town', 3)
+  check('8 personal на id NPC', eng.state.dispositions.npc_x === 7)
+  check('8 faction отдельно', eng.state.dispositions.faction_town === 3)
+  check('8 getDisposition = personal+faction+base', eng.getDisposition('npc_x') === 15, String(eng.getDisposition('npc_x')))
+}
+
+// ── 9. presence_overrides ──
+{
+  const npc: NpcDef = {
+    id: 'npc_p',
+    type: 'npc',
+    label: 'P',
+    stats: { STR: 5, CON: 5, SIZ: 5, DEX: 5, INT: 5, POW: 5, CHA: 5 },
+    skills: {},
+    schedule: [{ scene: 'other', slot: 's', time_range: [0, 24] as [number, number] }],
+    presence_overrides: [{ flag: 'here', scene: 'sc', slot: 'slot_a' }],
+  }
+  const scene: SceneDef = {
+    id: 'sc',
+    label: 'S',
+    location: 'loc',
+    states: [{ id: 's0', label: 'ok', condition: null }],
+    slots: [
+      {
+        id: 'slot_a',
+        label: 'A',
+        type: ['person'],
+        shape: 'rect',
+        x: 0,
+        y: 0,
+        w: 10,
+        h: 10,
+        condition: null,
+        default_entity: 'npc_p',
+      },
+    ],
+    navigation: [],
+  }
+  const campaign = miniCampaign({ id: 't_pres', npc, scene })
+  campaign.scenes.other = {
+    id: 'other',
+    label: 'O',
+    location: 'loc',
+    states: [{ id: 's0', label: 'ok', condition: null }],
+    slots: [
+      {
+        id: 's',
+        label: 'S',
+        type: ['person'],
+        shape: 'rect',
+        x: 0,
+        y: 0,
+        w: 10,
+        h: 10,
+        condition: null,
+      },
+    ],
+    navigation: [],
+  }
+  ;(campaign.world.regions[0]!.locations[0] as { scenes: string[] }).scenes.push('other')
+  const eng = new GameEngine(campaign)
+  eng.start()
+  let hit = eng.slotOccupants(eng.currentScene()).find((o) => o.slot.id === 'slot_a')
+  check('9 без флага — не на sc', !hit?.entity, hit?.entity?.id)
+  eng.state.flags.here = true
+  hit = eng.slotOccupants(eng.currentScene()).find((o) => o.slot.id === 'slot_a')
+  check('9 флаг → presence на sc', hit?.entity?.id === 'npc_p', hit?.entity?.id)
+}
+
+// ── 10–11. game_over закрывает dialogue; tick_elapsed после advanceTicks ──
+{
+  const ink = `EXTERNAL fire_rule(id)\n\n=== main ===\nGo.\n+ [End]\n    ~ fire_rule("rule_end")\n    -> DONE\n`
+  const npc: NpcDef = {
+    id: 'npc_e',
+    type: 'npc',
+    label: 'E',
+    stats: { STR: 5, CON: 5, SIZ: 5, DEX: 5, INT: 5, POW: 5, CHA: 5 },
+    skills: {},
+    dialogue: 'dialogues/e.ink',
+  }
+  const scene: SceneDef = {
+    id: 'sc',
+    label: 'S',
+    location: 'loc',
+    states: [{ id: 's0', label: 'ok', condition: null }],
+    slots: [
+      {
+        id: 'slot_e',
+        label: 'E',
+        type: ['person'],
+        shape: 'rect',
+        x: 0,
+        y: 0,
+        w: 10,
+        h: 10,
+        condition: null,
+        default_entity: 'npc_e',
+      },
+    ],
+    navigation: [],
+  }
+  const campaign = miniCampaign({
+    id: 't_go',
+    npc,
+    scene,
+    dialogues: { 'dialogues/e.ink': ink },
+  })
+  campaign.meta.starting_tick = 10
+  campaign.meta.endings = [
+    {
+      id: 'ending_flag',
+      label: 'F',
+      title: 'F',
+      on: 'victory',
+      conditions: [{ type: 'flag_set', flag: 'ended' }],
+    },
+  ]
+  campaign.rules = {
+    rule_end: {
+      id: 'rule_end',
+      label: 'end',
+      once: true,
+      manual: true,
+      conditions: [],
+      effects: [{ type: 'set_flag', flag: 'ended' }, { type: 'game_over_victory' }],
+    },
+    rule_tick: {
+      id: 'rule_tick',
+      label: 'tick',
+      once: true,
+      conditions: [{ type: 'tick_elapsed', min_tick: 12 }],
+      effects: [{ type: 'set_flag', flag: 'ticked' }],
+    },
+  }
+  clearDialogueCache()
+  const eng = new GameEngine(campaign)
+  eng.start()
+  eng.advanceTicks(3) // 10→13
+  check('11 tick_elapsed после advanceTicks', !!eng.state.flags.ticked)
+
+  clearDialogueCache()
+  const eng2 = new GameEngine(campaign)
+  eng2.start()
+  eng2.startDialogue('npc_e')
+  const ix = eng2.dialogue?.choices.findIndex((c) => /End/i.test(c.text)) ?? -1
+  check('10 диалог открыт', ix >= 0 && !!eng2.dialogue)
+  if (ix >= 0) eng2.chooseDialogueOption(ix)
+  check('10 game_over victory', eng2.state.game_over?.type === 'victory')
+  check('10 ending по флагу', eng2.state.game_over?.ending === 'ending_flag', String(eng2.state.game_over?.ending))
+  check('10 dialogue закрыт после game_over', !eng2.dialogue)
 }
 
 console.log(failed ? `\n${failed} failed` : '\nall ok')
