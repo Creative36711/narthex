@@ -1,6 +1,7 @@
 /**
- * Автогенерация id из человекочитаемых названий (ТЗ 5: мастер задаёт названия,
- * id движок придумывает сам). Кириллица транслитерируется.
+ * Автогенерация внутренних id документов из человекочитаемых названий.
+ * ID самой кампании — исключение: это неизменяемая UUID-идентичность,
+ * не связанная с названием (см. createCampaignUuid ниже).
  */
 
 const RU: Record<string, string> = {
@@ -35,14 +36,16 @@ export function normalizeCampaignId(id: string): string {
   return /^[a-z0-9][a-z0-9_-]*$/.test(lower) ? lower : slugify(lower)
 }
 
-/** Уникальный id кампании в локальном реестре; при конфликте добавляет _2, _3… */
-export function uniqueCampaignId(id: string, existing: string[]): string {
-  const base = normalizeCampaignId(id)
-  const used = new Set(existing.map(normalizeCampaignId))
-  if (!used.has(base)) return base
-  let n = 2
-  while (used.has(`${base}_${n}`)) n++
-  return `${base}_${n}`
+/** Случайный RFC 4122 UUID v4 — устойчивая идентичность новой кампании. */
+export function createCampaignUuid(): string {
+  const cryptoApi = globalThis.crypto
+  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID()
+  if (!cryptoApi?.getRandomValues) throw new Error('Для создания id кампании нужен криптографический генератор случайных чисел.')
+  const bytes = cryptoApi.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 0x0f) | 0x40
+  bytes[8] = (bytes[8] & 0x3f) | 0x80
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 
 /** уникальный id: prefix + slug (+ порядковый номер при коллизии) */
