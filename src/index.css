@@ -1032,8 +1032,8 @@ html.cf-profile-modern {
   text-overflow: ellipsis;
 }
 .hud-bar.need { flex: 1 1 150px; min-width: min(132px, 24vw); max-width: 200px; }
-.hud-bar.need > .hud-bar-text { justify-content: flex-start; gap: 6px; padding: 0 7px; }
-.hud-need-label { position: static; display: block; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.hud-bar.need > .hud-bar-text { justify-content: center; gap: 6px; padding: 0 7px; }
+.hud-need-label { position: static; display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .hud-need-value { position: static; flex: 0 0 auto; font-weight: 700; }
 .hud-bar-fill { height: 100%; transition: width var(--dur-slow) var(--ease); }
 .hud-bar.hp .hud-bar-fill { background: linear-gradient(180deg, color-mix(in srgb, var(--red) 82%, white 8%), color-mix(in srgb, var(--red) 70%, black 18%)); }
