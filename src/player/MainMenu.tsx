@@ -97,6 +97,9 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   // тема кампании (блок 2 ТЗ): фон меню, затемнение, кен-бёрнс, арт-заголовок
   const menuBg = themeBackgroundUrl(campaign, 'menu')
   const menuTheme = m.theme?.menu
+  const titleArt = menuTheme?.title_art ? assetUrl(campaign, menuTheme.title_art) : ''
+  // Reusing the menu background as title art paints the same poster twice.
+  const showTitleArt = !!titleArt && titleArt !== menuBg
 
   return (
     <div className={`main-menu ${menuBg ? 'with-bg' : ''}`}>
@@ -124,8 +127,8 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
         <div className="brand-sub">движок тактических визуальных новелл</div>
 
         <div className="campaign-current">
-          {menuTheme?.title_art && (
-            <img className="menu-title-art" src={assetUrl(campaign, menuTheme.title_art)} alt={m.title} draggable={false} />
+          {showTitleArt && (
+            <img className="menu-title-art" src={titleArt} alt={m.title} draggable={false} />
           )}
           <h1 className="campaign-title">{m.title}</h1>
           <p className="campaign-desc">{m.description}</p>
