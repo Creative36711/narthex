@@ -1,9 +1,0 @@
-{
-  "id": "item_keycard",
-  "type": "item",
-  "category": "quest",
-  "label": "Жетон бортинженера",
-  "description": "Личный жетон бортинженера Лин. Открывает сервисные панели и гнёзда чёрных ящиков.",
-  "weight": 0.05,
-  "stackable": false
-}
