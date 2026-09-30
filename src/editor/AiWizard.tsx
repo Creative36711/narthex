@@ -136,7 +136,7 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
         ? 'Пакет контекста скачан. ИИ вернёт MonolithDoc JSON; для новой кампании редактор назначит ID при импорте.'
         : mode === 'edit'
           ? 'Пакет задания .chronicle скачан. Отправьте его ИИ и попросите вернуть готовый .chronicle.'
-          : `Пакет задания скачан. ИИ получит ID ${bundle.assignedCampaignId}; попросите вернуть готовый .chronicle.`)
+          : `Пакет задания скачан. ИИ получит окончательный ID ${bundle.assignedCampaignId}; попросите вернуть его без изменений в campaign.json. При импорте в редактор выберите «Импортировать отдельно», если это новая кампания.`)
     } catch (error) {
       void showAlert('Не удалось собрать пакет задания', String(error))
     } finally {
