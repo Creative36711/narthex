@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import type { CampaignData } from '../src/shared/types'
 import { themeVars } from '../src/shared/theme'
+import { VISUAL_PROFILES } from '../src/shared/profiles'
 
 function luminance(hex: string): number {
   const value = Number.parseInt(hex.replace('#', ''), 16)
@@ -61,6 +62,26 @@ assert.ok(contrast('#1d2026', String(darkVars['--cf-panel-text'])) >= 4.5, 'dark
 assert.equal(themeVars(null)['--cf-panel-text'], undefined, 'campaigns without custom surfaces keep profile tokens')
 
 const css = readFileSync('src/index.css', 'utf8')
+assert.equal(VISUAL_PROFILES.length, 13, 'all visual profiles are covered by the audit')
+for (const profile of VISUAL_PROFILES) {
+  const start = css.indexOf(`.cf-profile-${profile.id} {`)
+  assert.ok(start >= 0, `${profile.id}: theme selector exists`)
+  const end = css.indexOf('\n}', start)
+  const rule = css.slice(start, end)
+  const panel = rule.match(/--panel:\s*(#[0-9a-f]{6})/i)?.[1]
+  const text = rule.match(/--text:\s*(#[0-9a-f]{6})/i)?.[1]
+  assert.ok(panel && text, `${profile.id}: opaque panel and text tokens exist`)
+  assert.ok(contrast(panel, text) >= 4.5, `${profile.id}: default panel text meets 4.5:1 contrast`)
+  assert.equal(panel.toLowerCase(), profile.swatches.panel.toLowerCase(), `${profile.id}: editor swatch matches in-game panel`)
+}
+const itemDialogStart = css.indexOf('.itemdlg-box {')
+const itemDialogRule = css.slice(itemDialogStart, css.indexOf('\n}', itemDialogStart))
+assert.match(itemDialogRule, /background:\s*var\(--panel,\s*#1b1f27\)/, 'item action window uses an opaque theme surface')
+assert.match(itemDialogRule, /box-shadow:\s*var\(--shadow-2,/, 'item action window uses a defined profile shadow')
+assert.doesNotMatch(css, /var\(--bg-paper\)|var\(--shadow-panel\)/, 'removed surface tokens cannot invalidate window styles')
+assert.match(css, /\.brand\s*\{[^}]*color:\s*var\(--gold-bright\)[^}]*font-family:\s*var\(--cf-font-display/, 'brand color and display font follow the campaign theme')
+assert.match(css, /\.brand-sub\s*\{[^}]*color:\s*var\(--text\)[^}]*font-family:\s*var\(--cf-font-body/, 'brand tagline follows themed body typography and text color')
+assert.match(css, /\.menu-meta\s*\{[^}]*color:\s*var\(--text\)[^}]*text-shadow:/, 'menu metadata remains legible over campaign artwork')
 assert.match(css, /\.campaigns-overlay\s*\{[\s\S]*?position:\s*fixed;/, 'campaign overlay remains viewport-fixed')
 assert.doesNotMatch(css, /\.main-menu\.with-bg[^{}]*campaigns-overlay[^{}]*position:\s*relative/, 'menu layering does not redefine overlay positioning')
 assert.match(css, /\.char-create-inner[^\n]*max-height:\s*calc\(100vh - 48px\)/, 'character creation scrolls within short screens')

@@ -842,7 +842,7 @@ html.cf-profile-modern {
 /* с списком кампаний меню шире, колонки не ломаются (фидбек №23) */
 .main-menu-inner.with-list { max-width: 1020px; }
 
-/* брендовая строка: подпись по центру, штрихи-рамки слева и справа */
+/* брендовая строка: типографика и акцент наследуются от темы кампании */
 .brand-row {
   display: flex;
   align-items: center;
@@ -854,23 +854,29 @@ html.cf-profile-modern {
   content: '';
   height: 1px;
   width: min(120px, 16vw);
-  background: linear-gradient(90deg, transparent, var(--border-strong));
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--gold-bright) 86%, transparent));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gold) 55%, transparent));
 }
-.brand-row::after { background: linear-gradient(270deg, transparent, var(--border-strong)); }
+.brand-row::after { background: linear-gradient(270deg, transparent, color-mix(in srgb, var(--gold-bright) 86%, transparent)); }
 .brand {
-  letter-spacing: 6px;
-  color: var(--muted);
+  color: var(--gold-bright);
+  font-family: var(--cf-font-display, var(--cf-font-body, Georgia, serif));
   font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.98), 0 0 10px rgba(0, 0, 0, 0.9);
 }
 .brand-sub {
   display: block;
-  color: var(--faint);
+  color: var(--text);
+  font-family: var(--cf-font-body, Georgia, serif);
   font-size: 12.5px;
-  letter-spacing: 1.5px;
+  letter-spacing: 0.11em;
   margin-top: 6px;
   text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.98), 0 0 9px rgba(0, 0, 0, 0.88);
 }
 
 .campaign-title {
@@ -879,10 +885,9 @@ html.cf-profile-modern {
   margin: 0 0 18px;
   color: var(--gold-bright);
   line-height: 1.12;
-  text-shadow: 0 2px 18px color-mix(in srgb, var(--gold) 22%, transparent);
+  text-shadow: 0 2px 7px rgba(0, 0, 0, 0.92), 0 0 18px color-mix(in srgb, var(--gold) 28%, transparent);
 }
-.cf-profile-gothic-horror .campaign-title { text-shadow: none; letter-spacing: 0.1em; }
-.cf-profile-wilderness .campaign-title { text-shadow: none; }
+.cf-profile-gothic-horror .campaign-title { letter-spacing: 0.1em; }
 
 .campaign-desc {
   color: var(--text);
@@ -890,6 +895,7 @@ html.cf-profile-modern {
   margin: 0 auto 34px;
   max-width: 580px;
   font-size: 15.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.96), 0 0 8px rgba(0, 0, 0, 0.8);
 }
 
 .menu-buttons {
@@ -908,7 +914,14 @@ html.cf-profile-modern {
   margin-top: 14px;
 }
 .menu-secondary .btn { width: 100%; text-align: left; display: inline-flex; align-items: center; gap: 8px; justify-content: flex-start; }
-.menu-meta { margin-top: 44px; color: var(--faint); font-size: 12.5px; letter-spacing: 0.4px; }
+.menu-meta {
+  margin-top: 44px;
+  color: var(--text);
+  font-family: var(--cf-font-body, Georgia, serif);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.98), 0 0 8px rgba(0, 0, 0, 0.82);
+}
 .menu-save-note { margin-top: 4px; }
 /* кампания требует более новый движок (min_engine) — предупреждение в меню */
 .menu-warning {
@@ -2379,11 +2392,11 @@ select.sel-outcome.failure {
 /* строки выпадающего списка тоже цветные: «успех» всегда зелёный, «провал» — красный */
 select.sel-outcome option[value="success"] {
   color: var(--green-bright);
-  background: var(--bg-paper);
+  background: var(--panel, #1b1f27);
 }
 select.sel-outcome option[value="failure"] {
   color: var(--red-bright);
-  background: var(--bg-paper);
+  background: var(--panel, #1b1f27);
 }
 
 /* выбор состояния портрета */
@@ -2957,11 +2970,13 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
   gap: 20px;
   max-width: 640px;
   width: min(92vw, 640px);
-  background: var(--bg-paper);
+  /* --bg-paper/--shadow-panel были удалены из профилей: неизвестный token
+     делает CSS-декларацию недействительной и оставляет окно прозрачным. */
+  background: var(--panel, #1b1f27);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 20px;
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-2, 0 16px 48px rgba(0, 0, 0, 0.62));
 }
 .itemdlg-portrait {
   flex: 0 0 160px;
