@@ -1,5 +1,6 @@
 import { createCampaignUuid, normalizeCampaignId } from './ids'
 import { AI_TASK_DIR } from './aiKit'
+import { normalizeChronicleZip } from './chronicleManifest'
 import { canonicalJson } from '../shared/fingerprint'
 import type JSZip from 'jszip'
 import { ENGINE_VERSION, PACKAGE_FORMAT, checkEngine, checkPackage } from '../shared/versions'
@@ -327,6 +328,7 @@ export type ChronicleImportResult = CampaignIndexEntry & {
   idWarning?: string
   alreadyInstalled?: boolean
   cancelled?: boolean
+  manifestWarnings?: string[]
 }
 
 async function packageMatchesInstalled(zip: JSZip, campaignId: string): Promise<boolean> {
@@ -457,7 +459,9 @@ export async function importChroniclePackage(
   }
 
   const importedMeta = { ...meta, id }
+  let manifestWarnings: string[] = []
   try {
+    manifestWarnings = await normalizeChronicleZip(zip)
     for (const [path, entryFile] of Object.entries(zip.files)) {
       if (entryFile.dir || path.startsWith(AI_TASK_DIR)) continue
       if (path.endsWith('.json') || path.endsWith('.ink')) {
@@ -483,7 +487,7 @@ export async function importChroniclePackage(
     const next = index.filter((entry) => entry.id !== id)
     next.push(result)
     await saveFile('campaigns/index.json', JSON.stringify(next, null, 2))
-    return { ...result, idWarning }
+    return { ...result, idWarning, manifestWarnings: manifestWarnings.length ? manifestWarnings : undefined }
   } catch (error) {
     if (idReserved) await deleteCampaignFolder(id).catch(() => undefined)
     throw error

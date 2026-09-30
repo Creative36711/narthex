@@ -24,6 +24,7 @@
     "smoke:ai-runtime": "tsx scripts/ai-runtime-smoke.mts",
     "smoke:ai-task": "tsx scripts/ai-task-smoke.mts",
     "smoke:no-campaign": "tsx scripts/no-campaign-smoke.mts",
+    "smoke:chronicle-manifest": "tsx scripts/chronicle-manifest-smoke.mts",
     "smoke:hero-appearance": "tsx scripts/hero-appearance-smoke.mts"
   },
   "dependencies": {

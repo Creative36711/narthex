@@ -96,7 +96,15 @@ function useImage(src: string | null): HTMLImageElement | null {
 type Sel = { kind: 'slot'; index: number } | { kind: 'nav'; index: number } | null
 
 export function SceneEditor({ store, path }: { store: EditorStore; path: string }) {
-  const scene = store.scene(path)
+  const loadedScene = store.scene(path)
+  const scene = loadedScene ?? ({
+    id: path,
+    label: path,
+    canvas: { w: 1280, h: 720 },
+    states: [],
+    slots: [],
+    navigation: [],
+  } as unknown as SceneDef)
   const [stateIdx, setStateIdx] = useState(0)
   const [sel, setSel] = useState<Sel>(null)
   const [, force] = useState(0)
@@ -177,6 +185,15 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
 
   const selSlot = sel?.kind === 'slot' ? scene.slots[sel.index] : null
   const selNav = sel?.kind === 'nav' ? scene.navigation[sel.index] : null
+
+  if (!loadedScene) {
+    return (
+      <div className="editor-empty-main">
+        <h3 className="editor-empty-title">Сцена не найдена</h3>
+        <p className="muted">Модуль «{path}» отсутствует в загруженной кампании или не указан корректно в manifest.json.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="scene-editor">

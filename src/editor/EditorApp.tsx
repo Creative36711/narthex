@@ -461,6 +461,20 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             <button className="btn" onClick={() => void doImportJson()} disabled={!!busy}>
               Импортировать JSON
             </button>
+            <button className="btn" onClick={() => fileInput.current?.click()} disabled={!!busy}>
+              Импортировать .chronicle
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".chronicle,application/zip"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (file) void doImport(file)
+              }}
+            />
             <button className="btn" onClick={() => openAiTask()} disabled={!!busy}>
               Подготовить задание для ИИ
             </button>
@@ -773,14 +787,42 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  const resolveChronicleConflict = async (conflict: import('./newCampaign').ChronicleIdConflict) => {
+    const update = await askConfirm(
+      `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}», а содержимое пакета отличается. Обновить существующую кампанию?`,
+      'Обновить существующую',
+    )
+    if (update) return 'update' as const
+    const copy = await askConfirm(
+      `Импортировать «${conflict.incomingTitle}» как отдельную копию с новым ID?`,
+      'Импортировать копию',
+    )
+    return copy ? 'copy' as const : 'cancel' as const
+  }
+
   const doImport = async (file: File) => {
     setBusy('Импорт…')
     try {
       const stableId = campaignIdFromPath(base)
-      const [{ importChroniclePackage }, { readChronicleCampaignIdentity }] = await Promise.all([
-        import('./newCampaign'),
-        import('./chronicleIdentity'),
-      ])
+      const { importChroniclePackage } = await import('./newCampaign')
+      if (!stableId) {
+        const entry = await importChroniclePackage(file, resolveChronicleConflict)
+        if (entry.cancelled) return
+        setCampaigns(await fetchCampaignIndex())
+        setSection('scenes')
+        setBase(`/campaigns/${entry.id}`)
+        if (entry.manifestWarnings?.length) {
+          void showList(
+            'Пакет импортирован с исправлениями',
+            entry.manifestWarnings,
+            [entry.idWarning, 'Имена модулей в manifest.json были нормализованы, чтобы редактор мог открыть файлы.'].filter(Boolean).join('\n\n'),
+          )
+        } else if (entry.idWarning) {
+          void showAlert('Кампания импортирована', entry.idWarning)
+        }
+        return
+      }
+      const { readChronicleCampaignIdentity } = await import('./chronicleIdentity')
       const identity = await readChronicleCampaignIdentity(file)
       const sameId = !!identity.id && normalizeCampaignId(identity.id) === normalizeCampaignId(stableId)
       if (!sameId) {
@@ -790,25 +832,22 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           'Обновить открытую',
         )
         if (importSeparately) {
-          const entry = await importChroniclePackage(file, async (conflict) => {
-            const update = await askConfirm(
-              `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}», а содержимое пакета отличается. Обновить существующую кампанию?`,
-              'Обновить существующую',
-            )
-            if (update) return 'update'
-            const copy = await askConfirm(
-              `Импортировать «${conflict.incomingTitle}» как отдельную копию с новым ID?`,
-              'Импортировать копию',
-            )
-            return copy ? 'copy' : 'cancel'
-          })
+          const entry = await importChroniclePackage(file, resolveChronicleConflict)
           if (entry.cancelled) return
           setCampaigns(await fetchCampaignIndex())
           setSection('scenes')
           const detail = entry.alreadyInstalled
             ? `«${entry.title}» уже установлена; повторная копия не создана.`
             : `«${entry.title}» добавлена в список кампаний с ID «${entry.id}». Выберите её в списке кампаний сверху, чтобы открыть.`
-          void showAlert(entry.alreadyInstalled ? 'Кампания уже импортирована' : 'Кампания импортирована', [detail, entry.idWarning].filter(Boolean).join('\n\n'))
+          if (entry.manifestWarnings?.length) {
+            void showList(
+              'Пакет импортирован с исправлениями',
+              entry.manifestWarnings,
+              [detail, entry.idWarning, 'Имена модулей в manifest.json были нормализованы.'].filter(Boolean).join('\n\n'),
+            )
+          } else {
+            void showAlert(entry.alreadyInstalled ? 'Кампания уже импортирована' : 'Кампания импортирована', [detail, entry.idWarning].filter(Boolean).join('\n\n'))
+          }
           return
         }
       }

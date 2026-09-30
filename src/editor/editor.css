@@ -1506,7 +1506,7 @@ body.cf-editor .ai-wizard > .modal-buttons { align-items: center; }
 body.cf-editor .ai-wizard .copy-status { flex: 1 1 180px; min-width: 0; }
 
 /* Дизайн-документ читается на светлом полотне редактора; MarkdownView общий с книгой. */
-.editor-root .design-doc-render.book-markdown { max-width: 980px; color: var(--ed-paper-text); }
+.editor-root .design-doc-render.book-markdown { width: 100%; max-width: none; box-sizing: border-box; color: var(--ed-paper-text); }
 .editor-root .design-doc-render.book-markdown h1,
 .editor-root .design-doc-render.book-markdown h2,
 .editor-root .design-doc-render.book-markdown h3,

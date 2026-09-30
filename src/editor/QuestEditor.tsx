@@ -16,6 +16,17 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
     force((n) => n + 1)
   }
 
+  if (!quest) {
+    return (
+      <div className="rule-editor">
+        <div className="editor-empty-main">
+          <h3 className="editor-empty-title">Квест не найден</h3>
+          <p className="muted">Модуль «{path}» отсутствует в загруженной кампании или не указан корректно в manifest.json.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="rule-editor">
       <div className="props-group">

@@ -1,4 +1,6 @@
 import JSZip from 'jszip'
+import { normalizeChronicleManifest } from './chronicleManifest'
+export { normalizeChronicleManifest } from './chronicleManifest'
 import type { EditorStore } from './store'
 import { collectCampaignMedia } from './campaignAudit'
 import { AI_TASK_DIR } from './aiKit'
@@ -8,6 +10,7 @@ export { AI_TASK_DIR } from './aiKit'
  * Экспорт/импорт пакета кампании `.chronicle` (ТЗ 3.11, 5.4) — zip-архив
  * со структурой Campaign Package, включая ассеты.
  */
+
 
 /** собрать все локальные пути изображений, звука, видео и шрифтов кампании */
 export function collectAssetPaths(store: EditorStore): string[] {
@@ -83,15 +86,24 @@ export async function importChronicle(store: EditorStore, file: File): Promise<s
     else assets.push(p)
   }
 
+  // Исправляем распространённую ошибку AI-генераторов: в массивы манифеста
+  // записываются пути с повтором каталога (entities/entities/...), а для
+  // диалогов — путь к .dlg.json вместо ожидаемого .ink.
+  const normalized = normalizeChronicleManifest(manifest, jsonFiles, textFiles)
+  warnings.push(...normalized.notes)
+  if (normalized.changed) jsonFiles.set('manifest.json', normalized.manifest)
+  for (const p of textFiles.keys()) if (!entries.includes(p)) entries.push(p)
+
   // Архив — полная замена пакета. Удаляем из памяти модули, которых в новом
   // manifest больше нет, иначе они оставались бы «сиротами» и попадали в экспорт.
   store.meta = meta
   store.world = world
-  store.manifest = manifest
+  store.manifest = normalized.manifest
   store.jsonFiles = jsonFiles
   store.textFiles = textFiles
   store.dirty.clear()
-  for (const p of entries) if (p.endsWith('.json') || p.endsWith('.ink')) store.dirty.add(p)
+  for (const p of store.allPaths()) if (p.endsWith('.json') || p.endsWith('.ink')) store.dirty.add(p)
+  if (normalized.changed) store.dirty.add('manifest.json')
 
   for (const p of assets) {
     // бинарный ассет → на диск через dev-эндпоинт
