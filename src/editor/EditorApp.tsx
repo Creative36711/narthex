@@ -265,6 +265,30 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     return () => window.removeEventListener('keydown', onKey, true)
   }, [store, textLike])
 
+  // Автовыбор первой записи при входе в раздел.
+  // ХУК — до любых early return (`!base` / error / !loaded / playtest):
+  // иначе «Кампаний пока нет» → «Создать» даёт React «Rendered more hooks…».
+  useEffect(() => {
+    if (!loaded || !base || error || testCampaign) return
+    if (['campaign', 'world', 'combat', 'design'].includes(section)) return
+    if (selected) return
+    let first: string | undefined
+    try {
+      if (section === 'scenes') first = store.scenePaths()[0]
+      else if (section === 'entities') first = store.entityPaths()[0]
+      else if (section === 'rules') first = store.rulePaths()[0]
+      else if (section === 'quests') first = store.questPaths()[0]
+      else if (section === 'dialogues') first = store.dialoguePaths()[0]
+      else if (section === 'arenas') first = store.arenaPaths()[0]
+      else if (section === 'cutscenes') first = store.cutscenePaths()[0]
+      else if (section === 'recipes') first = store.recipePaths()[0]
+      else if (section === 'codex') first = store.codexPaths()[0]
+    } catch {
+      return
+    }
+    if (first) setSelected(first)
+  }, [loaded, base, error, testCampaign, section, selected, store])
+
   const newCampaign = async () => {
     const title = await askText('Название новой кампании', 'например «Тени Северного тракта»')
     if (!title) return
@@ -876,13 +900,6 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
   const groupCounts = new Map<string, number>()
   for (const it of items) if (it.group) groupCounts.set(it.group, (groupCounts.get(it.group) ?? 0) + 1)
-
-  // Автовыбор первой записи при входе в раздел: иначе мастер видит пустой
-  // холст и ищет «куда кликнуть» (особенно после «Новая кампания»).
-  useEffect(() => {
-    if (!hasList || sel || items.length === 0) return
-    setSelected(items[0]!.path)
-  }, [hasList, section, items, sel])
 
   return (
     <div className={`editor-root ed-theme-${edTheme}`}>
