@@ -163,6 +163,22 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('unlock_recipe', (id: string) => { engine.applyEffects([{ type: 'unlock_recipe', recipe: id }]); return 0 })
 }
 
+/**
+ * Узел, с которого начинается разговор.
+ *
+ * Исторически диалоги писали с узла `main`, но конструктор диалогов называет
+ * узлы сам (`n_start`, `n_offer`, …) и `main` не создаёт. Жёстко зашитый
+ * `ChoosePathString('main')` ронял такой разговор в тишину: клик по НПС не
+ * давал ничего. Берём явно заданный узел, иначе `main`, иначе первый узел
+ * истории — он и есть точка входа сгенерированного диалога.
+ */
+export function entryKnotOf(story: Story, preferred?: string): string {
+  const names = [...(story.mainContentContainer?.namedContent?.keys() ?? [])]
+  if (preferred && names.includes(preferred)) return preferred
+  if (names.includes('main')) return 'main'
+  return names[0] ?? 'main'
+}
+
 /** Прочитать все доступные строки до выбора/конца. */
 export function drainStory(story: Story): { lines: DialogueLine[]; choices: { index: number; text: string }[]; finished: boolean } {
   const lines: DialogueLine[] = []

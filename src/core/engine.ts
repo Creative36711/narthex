@@ -56,7 +56,7 @@ import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
 import type { CharChoice } from './charcreate'
 import type { Story } from 'inkjs'
-import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
+import { bindExternals, createStory, drainStory, entryKnotOf, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
 import { playUi, playInteraction } from '../shared/audio'
 import type { SoundHook } from '../shared/types'
@@ -2923,9 +2923,12 @@ export class GameEngine {
     // а «навсегда» вещи хранятся только во флагах. (фидбек №3)
     const story = createStory(source, npc.dialogue)
     bindExternals(story, this)
+    // точка входа: заданный узел → «main» → первый узел истории (см. entryKnotOf)
+    const entry = entryKnotOf(story, knot)
     try {
-      story.ChoosePathString(knot ?? 'main')
-    } catch {
+      story.ChoosePathString(entry)
+    } catch (e) {
+      console.warn(`[chronicle] диалог «${npc.label}»: не найден узел «${entry}» (${(e as Error).message})`)
       return
     }
     this.activeStory = story
