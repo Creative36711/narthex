@@ -7,6 +7,7 @@ import { makeId } from './ids'
 import type { EditorStore } from './store'
 import { isExternalUrl } from '../core/loader'
 import { askText, showAlert } from '../shared/modals'
+import { journalEntryOptionLabel } from './questJournal'
 import { checkExternalUrl, reportAssetError, type AssetKind, type UrlCheck } from './assets'
 import {
   CONDITION_SCHEMAS,
@@ -330,10 +331,10 @@ function QuestSubRef({
   const options: Array<{ id: string; label: string }> = quest
     ? mode === 'stage'
       ? quest.stages.map((st) => ({ id: st.id, label: st.label ?? st.id }))
-      : Object.keys(quest.journal_entries).map((k) => {
-          const st = quest.stages.find((s) => s.id === k)
-          return { id: k, label: st?.label ?? k }
-        })
+      : Object.keys(quest.journal_entries).map((k) => ({
+          id: k,
+          label: journalEntryOptionLabel(quest, k),
+        }))
     : []
   return (
     <label className="fld">
@@ -341,7 +342,9 @@ function QuestSubRef({
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         {!quest && <option value={value}>{value || '— сначала выберите квест —'}</option>}
         {quest && value === '' && <option value="">— не выбрано —</option>}
-        {quest && value !== '' && !options.some((o) => o.id === value) && <option value={value}>{value}</option>}
+        {quest && value !== '' && !options.some((o) => o.id === value) && (
+          <option value={value}>{mode === 'journal' ? 'Запись не найдена — проверьте ключ' : value}</option>
+        )}
         {options.map((o) => (
           <option key={o.id} value={o.id}>{o.label}</option>
         ))}

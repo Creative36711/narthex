@@ -495,25 +495,31 @@
   background: color-mix(in srgb, var(--ed-paper-card) 60%, var(--ed-paper));
 }
 .journal-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: flex-start; }
-.journal-key {
-  width: 160px;
-  background: var(--ed-paper-input);
-  border: 1px solid var(--ed-paper-line);
-  border-radius: 5px;
-  color: var(--ed-accent);
+.journal-entry-label {
+  flex: 0 0 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   padding: 6px 8px;
+  color: var(--ed-paper-text);
   font-size: 12px;
-  font-weight: 600;
 }
+.journal-entry-label span { color: var(--ed-paper-muted); font-size: 11px; }
 .journal-row textarea, .journal-row select {
   flex: 1;
   background: var(--ed-paper-input);
   border: 1px solid var(--ed-paper-line);
   border-radius: 5px;
   color: var(--ed-paper-text);
+  min-width: 0;
   padding: 6px 8px;
   font-size: 12px;
   font-family: inherit;
+}
+@media (max-width: 560px) {
+  .journal-row { flex-wrap: wrap; }
+  .journal-entry-label { flex-basis: 100%; padding: 2px 4px; }
+  .journal-row textarea { flex-basis: calc(100% - 44px); }
 }
 
 /* ─────────── monaco (тёмный «инструмент» на бумаге) ─────────── */
