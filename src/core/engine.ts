@@ -2124,8 +2124,11 @@ export class GameEngine {
       // 3. default_entity (сущности без расписания и активных событий)
       if (!entity && slot.default_entity) {
         const def = this.campaign.entities[slot.default_entity]
+        // пустой массив расписания (`schedule: []`) — это «расписания нет»,
+        // а не «персонаж занят в другом месте»: иначе НПС без расписания
+        // никогда не появлялся в своём слоте (массив-пустышка истинна в JS)
         const busyElsewhere =
-          def?.type === 'npc' && (!!def.schedule || !!this.activePresenceOverride(def))
+          def?.type === 'npc' && ((def.schedule?.length ?? 0) > 0 || !!this.activePresenceOverride(def))
         const gone =
           this.state.dead_entities.includes(slot.default_entity) ||
           this.state.removed_entities.includes(slot.default_entity) ||
