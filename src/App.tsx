@@ -398,7 +398,7 @@ export default function App() {
             onClose={() => setSaveReview(null)}
           />
         )}
-        {help && <HelpPanel onClose={() => setHelp(false)} />}
+        {help && <HelpPanel campaign={campaign} onClose={() => setHelp(false)} />}
       </div>
     )
   }

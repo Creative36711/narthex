@@ -44,8 +44,12 @@ for (const f of files) {
   // (легальный новый абзац мастер начинает с заглавной/болда/цифры)
   check(`${f}: за списками не болтаются обрывки`, !/<\/[uo]l><p>[а-яё]/u.test(html))
 }
-// вложенный маркер получает класс вложенности
-check('вложенный пункт списка получает book-li-nested', render(readFileSync('docs/book/07-ai.md', 'utf8')).includes('book-li-nested'))
+// В design_doc используются те же типовые Markdown-конструкции, что и в книге.
+const designDoc = render(`# Паспорт **кампании**\n\nКороткое описание с *акцентом* и \`кодом\`.\n\n## Решения\n\n- Первый пункт\n  - Вложенный пункт\n\n> Важное ограничение.\n\n| Поле | Значение |\n| --- | --- |\n| Тон | Мрачный |\n\n\`\`\`json\n{ "id": "stable" }\n\`\`\``)
+check('дизайн-документ отображает заголовки и inline Markdown', designDoc.includes('<h1>Паспорт <strong>кампании</strong></h1>') && designDoc.includes('<em>акцентом</em>') && designDoc.includes('<code>кодом</code>'))
+check('дизайн-документ отображает списки, цитату, таблицу и fenced code', designDoc.includes('book-li-nested') && designDoc.includes('<blockquote>') && designDoc.includes('<table') && designDoc.includes('<pre'))
+const editorCss = readFileSync('src/editor/editor.css', 'utf8')
+check('форма задания ИИ ограничена высотой окна и имеет внутреннюю прокрутку', editorCss.includes('.modal-box.ai-wizard') && editorCss.includes('max-height: calc(100dvh - 24px)') && editorCss.includes('.ai-wizard-content') && editorCss.includes('overflow-y: auto'))
 
 console.log(failed ? `\nПРОВАЛЕНО: ${failed}` : '\nвсе проверки зелёные')
 process.exit(failed ? 1 : 0)

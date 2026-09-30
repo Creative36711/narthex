@@ -159,6 +159,7 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
           Соберите контекст и задачу для внешнего ИИ. Режим редактирования приложит кампанию целиком, включая найденные медиа; режим создания выдаст новый ID от редактора. ИИ работает во внешнем чате — приложение не отправляет кампанию в сеть.
         </div>
 
+        <div className="ai-wizard-content">
         <div className="fld fld-block">
           <span>Что делаем?</span>
           <div className="chips">
@@ -211,6 +212,7 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
           <textarea className="modal-textarea" rows={6} value={idea} onChange={(event) => setIdea(event.target.value)} placeholder={mode === 'new' ? 'О чём кампания, кто герой и чем может закончиться история…' : 'Например: исправь ссылки из отчёта, сохрани стиль и не переписывай остальные квесты…'} />
         </label>
         {initialReport && <div className="ai-report-note">К пакету будет приложен отчёт проверки, из которого вы открыли это окно.</div>}
+        </div>
         <div className="modal-buttons" onClick={(event) => event.stopPropagation()}>
           <span className="copy-status">{copyState}</span>
           <button className="btn" onClick={onClose}>Закрыть</button>

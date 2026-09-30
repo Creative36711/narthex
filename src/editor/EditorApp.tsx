@@ -899,7 +899,6 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             <div className="editor-toolbar-divider" />
             <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт .chronicle</button>
             <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON</button>
-            <button className="editor-toolbar-item" onClick={() => openAiTask()}><Ico n="sparkle" /> Задание для ИИ: создать или изменить</button>
             <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle</button>
             <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
           </div>
@@ -1044,7 +1043,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
         <main className="editor-main">
           {section === 'campaign' && <CampaignEditor key={`c-${base}`} store={store} />}
-          {section === 'design' && <DesignDocPanel key={`d-${base}`} store={store} />}
+          {section === 'design' && <DesignDocPanel key={`d-${base}`} store={store} onEditWithAi={() => openAiTask()} />}
           {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
           {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} />}
