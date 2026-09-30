@@ -36,7 +36,9 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
   const doImport = async (file: File) => {
     setBusy('import')
     try {
-      onImported((await importChroniclePackage(file)).id)
+      const entry = await importChroniclePackage(file)
+      onImported(entry.id)
+      if (entry.idWarning) void showAlert('ID кампании', entry.idWarning)
     } catch (e) {
       void showAlert('Не удалось импортировать кампанию', String(e))
     } finally {

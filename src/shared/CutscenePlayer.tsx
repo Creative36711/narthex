@@ -147,10 +147,10 @@ function SlideMedia({
 }) {
   const [videoFailed, setVideoFailed] = useState(false)
   const yt = slide.video ? youtubeId(slide.video) : null
+  const camStyle = useCameraStyle(slide.camera ?? null)
   if (slide.video && !videoFailed && yt) {
     return <YoutubeSlide key={yt} ytId={yt} onVideoEnd={onVideoEnd} onFallback={onNeedUser} />
   }
-  const camStyle = useCameraStyle(slide.camera ?? null)
   const style: React.CSSProperties = panzoomMs
     ? { animationDuration: `${panzoomMs}ms`, transformOrigin: panzoomOrigin }
     : {}

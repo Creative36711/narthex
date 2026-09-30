@@ -48,6 +48,79 @@ function editorSavePlugin(): Plugin {
         res.end(req.method === 'HEAD' ? undefined : fs.readFileSync(target))
       })
 
+      // проверка существования каталога, включая папки без записи в index.json
+      server.middlewares.use('/__editor/campaign-exists', (req, res) => {
+        if (req.method !== 'GET') {
+          res.statusCode = 405
+          res.end('method not allowed')
+          return
+        }
+        try {
+          const id = new URL(req.url ?? '/', 'http://vite.local').searchParams.get('id')
+          if (!id || /[\\/\0]/.test(id) || id === '.' || id === '..') {
+            res.statusCode = 400
+            res.end('invalid campaign id')
+            return
+          }
+          const campaignsDir = path.resolve(server.config.root, 'public/campaigns')
+          const target = path.resolve(campaignsDir, id)
+          const exists = target.startsWith(campaignsDir + path.sep) && fs.existsSync(target)
+          res.setHeader('content-type', 'application/json')
+          res.end(JSON.stringify({ exists }))
+        } catch (e) {
+          res.statusCode = 500
+          res.end(String(e))
+        }
+      })
+
+      // при импорте JSON ИИ может назначить новый id. Клонируем текущий каталог,
+      // чтобы сохранить ассеты и оставить исходную кампанию нетронутой до сохранения.
+      server.middlewares.use('/__editor/copy-campaign', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end('method not allowed')
+          return
+        }
+        let body = ''
+        req.on('data', (c) => (body += c))
+        req.on('end', () => {
+          try {
+            const { from, to } = JSON.parse(body) as { from: string; to: string }
+            const validId = (id: unknown): id is string =>
+              typeof id === 'string' && !!id && !/[\\/\0]/.test(id) && id !== '.' && id !== '..'
+            if (!validId(from) || !validId(to) || from === to) {
+              res.statusCode = 400
+              res.end('invalid campaign id')
+              return
+            }
+            const campaignsDir = path.resolve(server.config.root, 'public/campaigns')
+            const source = path.resolve(campaignsDir, from)
+            const target = path.resolve(campaignsDir, to)
+            if (![source, target].every((dir) => dir.startsWith(campaignsDir + path.sep))) {
+              res.statusCode = 400
+              res.end('path outside campaigns dir')
+              return
+            }
+            if (!fs.existsSync(source) || !fs.statSync(source).isDirectory()) {
+              res.statusCode = 404
+              res.end('source campaign not found')
+              return
+            }
+            if (fs.existsSync(target)) {
+              res.statusCode = 409
+              res.end('target campaign id already exists')
+              return
+            }
+            fs.cpSync(source, target, { recursive: true, errorOnExist: true, force: false })
+            res.setHeader('content-type', 'application/json')
+            res.end(JSON.stringify({ ok: true }))
+          } catch (e) {
+            res.statusCode = 500
+            res.end(String(e))
+          }
+        })
+      })
+
       // удаление тестовых/ненужных кампаний (используется смоуками для уборки)
       server.middlewares.use('/__editor/delete', (req, res) => {
         if (req.method !== 'POST') {

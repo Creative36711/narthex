@@ -1484,21 +1484,8 @@ export function parseMonolith(text: string): MonolithDoc {
 export function importMonolith(store: EditorStore, raw: unknown): string[] {
   const { doc, warnings } = repairMonolith(raw)
 
-  // При замене кампании в редакторе id папки — постоянный идентификатор
-  // пакета. Не переносим сюда id из чужого MonolithDoc: файлы сохраняются
-  // именно в текущую папку, иначе реестр будет указывать на несуществующий путь.
-  const pathParts = store.campaignRel().split('/').filter(Boolean)
-  const folderId = pathParts[pathParts.length - 1]
-  // Чистый EditorStore используется при создании/тестировании новой кампании;
-  // в таком сторе сохранённого назначения ещё нет, поэтому принимаем id JSON.
-  const destinationId = store.meta.id
-    ? (folderId && folderId !== 'campaigns' ? folderId : store.meta.id)
-    : ''
-  if (destinationId && doc.campaign.id !== destinationId) {
-    warnings.push(`ID кампании «${doc.campaign.id}» заменён на «${destinationId}», чтобы сохранить текущую папку кампании.`)
-    doc.campaign.id = destinationId
-  }
-
+  // id и название принадлежат импортируемому проекту. В редакторе каталог будет
+  // безопасно перенесён при сохранении; здесь не подменяем авторский id.
   // полная замена содержимого пакета (кампания приходит целиком)
   store.jsonFiles.clear()
   store.textFiles.clear()

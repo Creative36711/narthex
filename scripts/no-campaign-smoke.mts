@@ -10,9 +10,19 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { createCampaign, fetchCampaignIndex, hydrateCampaignIndex, syncIndexEntry } from '../src/editor/newCampaign'
-import { makeId } from '../src/editor/ids'
-import { importMonolith, exportMonolith } from '../src/editor/monolith'
+import {
+  copyCampaignFolder,
+  createCampaign,
+  deleteCampaignFolder,
+  fetchCampaignIndex,
+  hydrateCampaignIndex,
+  importChroniclePackage,
+  replaceCampaignIndexEntry,
+  syncIndexEntry,
+  uniqueAvailableCampaignId,
+} from '../src/editor/newCampaign'
+import { uniqueCampaignId } from '../src/editor/ids'
+import { importMonolithText, exportMonolith } from '../src/editor/monolith'
 import { EditorStore } from '../src/editor/store'
 import { loadCampaign } from '../src/core/loader'
 
@@ -92,21 +102,28 @@ const read = (p: string) => readFileSync(p, 'utf8')
   check('из пустого редактора можно импортировать JSON', ed.includes('onClick={() => void doImportJson()}') && ed.includes('Импортировать JSON'))
   check('импорт обновляет или добавляет название кампании в селектор', ed.includes('const i = list.findIndex((item) => item.id === entry.id)') && ed.includes('next[i] = entry'))
   check('после JSON из пустого редактора файлы сохраняются до регистрации', ed.includes('await store.saveToDisk()') && ed.includes('await pushIndex()') && ed.includes('setBase(`/campaigns/${id}`)'))
-  check('импорт в пакет сохраняет id его каталога', read('src/editor/monolith.ts').includes('const destinationId = store.meta.id'))
+  check('импорт JSON сохраняет id ИИ до сохранения и переносит каталог при Save', read('src/editor/monolith.ts').includes('здесь не подменяем авторский id') && ed.includes('copyCampaignFolder(fromId, targetId)') && ed.includes('replaceCampaignIndexEntry(move.fromId'))
+  check('занятый id кампании получает локальный суффикс', read('src/editor/ids.ts').includes('uniqueCampaignId') && read('src/editor/newCampaign.ts').includes('uniqueAvailableCampaignId'))
+  check('пустой JSON-импорт предупреждает о локальном конфликте id', ed.includes('campaignIdWarning = `ID «${normalizedId}» уже занят') && ed.includes('campaignIdWarning ?'))
   check('удаление последней кампании не строит путь в никуда', ed.includes("setBase(next.length ? `/campaigns/${next[0].id}` : '')"))
   check('создание кампании работает и при пустом реестре', read('src/editor/newCampaign.ts').includes('index.push({ id, title, author, description: meta.description })'))
 }
 
-// ── 5. живая проверка: пустой реестр, JSON-импорт, регистрация ───────
+// ── 5. живая проверка: авторский id, перенос папки и коллизии ────────
 {
   const idx = await fetchCampaignIndex()
   check('fetchCampaignIndex отдаёт пустой массив', Array.isArray(idx) && idx.length === 0, JSON.stringify(idx))
   const missing = await hydrateCampaignIndex([{ id: 'no-such-campaign', title: 'Призрак' }])
   check('отсутствующая кампания не считается доступной', missing.length === 0)
 
-  // Создаём пакет назначения, затем импортируем JSON с чужим id и новым названием.
+  // В пустышку импортируем JSON с авторскими названием и id, отличающимися от временных.
   const id = await createCampaign('Пробная пустая долина', 'Смоук')
+  let destinationId: string | undefined
+  let collisionId: string | undefined
+  let placeholderId: string | undefined
+  let conflictMoveId: string | undefined
   let directId: string | undefined
+  let chronicleId: string | undefined
   try {
     const after = await fetchCampaignIndex()
     check('созданная кампания попала в реестр', after.some((c) => c.id === id), after.map((c) => c.id).join(', '))
@@ -117,36 +134,82 @@ const read = (p: string) => readFileSync(p, 'utf8')
     const store = new EditorStore(`/campaigns/${id}`)
     await store.load()
     const doc = exportMonolith(store).doc
-    doc.campaign.id = 'ai_generated_other_id'
-    doc.campaign.title = 'Название из импортированного JSON'
-    const warnings = importMonolith(store, doc)
-    check('импорт сохраняет id папки кампании', store.meta.id === id, store.meta.id)
+    doc.campaign.id = 'tishina_orfeya'
+    doc.campaign.title = 'Тишина Орфея'
+    importMonolithText(store, JSON.stringify(doc))
+    check('импорт сохраняет авторский id до сохранения', store.meta.id === 'tishina_orfeya', store.meta.id)
     check('импорт сразу обновляет название в сторе', store.meta.title === doc.campaign.title, store.meta.title)
-    check('смена чужого id объяснена в отчёте', warnings.some((warning) => warning.includes('ID кампании') && warning.includes(id)))
 
+    const currentIndex = await fetchCampaignIndex()
+    destinationId = await uniqueAvailableCampaignId(store.meta.id, currentIndex.filter((entry) => entry.id !== id).map((entry) => entry.id))
+    check('свободный авторский id сохраняется без суффикса', destinationId === 'tishina_orfeya', destinationId)
+    check('исходная папка клонируется до сохранения', await copyCampaignFolder(id, destinationId))
+    store.setCampaignId(destinationId)
+    store.setBasePath(`/campaigns/${destinationId}`)
     await store.saveToDisk()
-    await syncIndexEntry({
+    await replaceCampaignIndexEntry(id, {
       id: store.meta.id,
       title: store.meta.title,
       author: store.meta.author,
       description: store.meta.description,
     })
-    const afterImport = await fetchCampaignIndex()
-    check('импортированная кампания осталась в реестре по id папки', afterImport.some((c) => c.id === id), afterImport.map((c) => c.id).join(', '))
-    check('новое название попало в реестр', afterImport.find((c) => c.id === id)?.title === doc.campaign.title, afterImport.find((c) => c.id === id)?.title)
-    const savedMeta = await (await fetch(`/campaigns/${id}/campaign.json`)).json() as { id?: string; title?: string }
-    check('campaign.json сохранён в папке с тем же id', savedMeta.id === id, `${savedMeta.id} / ${id}`)
-    const playable = await loadCampaign(`/campaigns/${id}`)
-    check('после перезагрузки игрок загружает импортированную кампанию', playable.meta.id === id && playable.meta.title === doc.campaign.title, playable.meta.title)
+    await deleteCampaignFolder(id)
 
-    // Проверяем и пользовательский путь без заранее созданного пакета: импорт
-    // присваивает безопасный id, сохраняет каталог и регистрирует его.
+    const afterImport = await fetchCampaignIndex()
+    check('новый id зарегистрирован, старый удалён из реестра', afterImport.some((c) => c.id === destinationId) && !afterImport.some((c) => c.id === id), afterImport.map((c) => c.id).join(', '))
+    check('авторское название попало в реестр', afterImport.find((c) => c.id === destinationId)?.title === doc.campaign.title, afterImport.find((c) => c.id === destinationId)?.title)
+    const savedMeta = await (await fetch(`/campaigns/${destinationId}/campaign.json`)).json() as { id?: string; title?: string }
+    check('campaign.json совпадает с новым каталогом', savedMeta.id === destinationId && savedMeta.title === doc.campaign.title, `${savedMeta.id} / ${destinationId}`)
+    const playable = await loadCampaign(`/campaigns/${destinationId}`)
+    check('после перезагрузки игрок загружает импортированную кампанию', playable.meta.id === destinationId && playable.meta.title === doc.campaign.title, playable.meta.title)
+
+    // Импортируем из пустышки JSON с id уже существующей кампании: Save должен
+    // перенести пакет в новый каталог, не трогая кампанию другого мастера.
+    collisionId = await createCampaign('Коллизия ID кампании', 'Другой мастер')
+    placeholderId = await createCampaign('Временная пустышка', 'Смоук')
+    const conflictStore = new EditorStore(`/campaigns/${placeholderId}`)
+    await conflictStore.load()
+    const conflictDoc = JSON.parse(JSON.stringify(doc)) as typeof doc
+    conflictDoc.campaign.id = collisionId
+    conflictDoc.campaign.title = 'Импорт с конфликтующим ID'
+    importMonolithText(conflictStore, JSON.stringify(conflictDoc))
+    check('импорт в пустышку сохраняет конфликтный id до Save', conflictStore.meta.id === collisionId, conflictStore.meta.id)
+    const beforeMove = await fetchCampaignIndex()
+    const usedIds = beforeMove.filter((entry) => entry.id !== placeholderId).map((entry) => entry.id)
+    let targetId = uniqueCampaignId(conflictStore.meta.id, usedIds)
+    let copied = false
+    for (let attempt = 0; attempt < 100; attempt++) {
+      copied = await copyCampaignFolder(placeholderId, targetId)
+      if (copied) break
+      usedIds.push(targetId)
+      targetId = uniqueCampaignId(conflictStore.meta.id, usedIds)
+    }
+    conflictMoveId = targetId
+    check('конфликтный id переносится в свободную папку', copied && conflictMoveId !== collisionId, conflictMoveId)
+    conflictStore.setCampaignId(conflictMoveId)
+    conflictStore.setBasePath(`/campaigns/${conflictMoveId}`)
+    await conflictStore.saveToDisk()
+    await replaceCampaignIndexEntry(placeholderId, {
+      id: conflictStore.meta.id,
+      title: conflictStore.meta.title,
+      author: conflictStore.meta.author,
+      description: conflictStore.meta.description,
+    })
+    await deleteCampaignFolder(placeholderId)
+    const afterMove = await fetchCampaignIndex()
+    check('существующая кампания не перезаписана', afterMove.find((entry) => entry.id === collisionId)?.title === 'Коллизия ID кампании', afterMove.find((entry) => entry.id === collisionId)?.title)
+    check('конфликтная кампания зарегистрирована под новым id', afterMove.find((entry) => entry.id === conflictMoveId)?.title === 'Импорт с конфликтующим ID', conflictMoveId)
+    const playableConflict = await loadCampaign(`/campaigns/${conflictMoveId}`)
+    check('после выхода конфликтный импорт тоже загружается', playableConflict.meta.id === conflictMoveId && playableConflict.meta.title === 'Импорт с конфликтующим ID', playableConflict.meta.title)
+
+    // Проверяем и импорт с пустого экрана: тот же занятый id получает следующий суффикс.
     const emptyStore = new EditorStore('')
     const directDoc = JSON.parse(JSON.stringify(doc)) as typeof doc
-    directDoc.campaign.id = 'json_only_import'
+    directDoc.campaign.id = collisionId
     directDoc.campaign.title = 'Прямая JSON кампания'
-    importMonolith(emptyStore, directDoc)
-    directId = makeId('', emptyStore.meta.id || emptyStore.meta.title || 'campaign', (await fetchCampaignIndex()).map((entry) => entry.id))
+    importMonolithText(emptyStore, JSON.stringify(directDoc))
+    directId = await uniqueAvailableCampaignId(emptyStore.meta.id, (await fetchCampaignIndex()).map((entry) => entry.id))
+    check('коллизия ID при импорте с пустого экрана получает новый id', directId !== collisionId && directId !== conflictMoveId, directId)
     emptyStore.setCampaignId(directId)
     emptyStore.setBasePath(`/campaigns/${directId}`)
     await emptyStore.saveToDisk()
@@ -156,12 +219,25 @@ const read = (p: string) => readFileSync(p, 'utf8')
       author: emptyStore.meta.author,
       description: emptyStore.meta.description,
     })
-    const directEntry = (await fetchCampaignIndex()).find((entry) => entry.id === directId)
-    check('JSON без исходной кампании сохраняется и регистрируется', !!directEntry, directId)
-    check('название прямого JSON-импорта доступно игроку', directEntry?.title === 'Прямая JSON кампания', directEntry?.title)
+    const afterCollision = await fetchCampaignIndex()
+    check('оригинал с занятым id сохранён', afterCollision.find((entry) => entry.id === collisionId)?.title === 'Коллизия ID кампании', afterCollision.find((entry) => entry.id === collisionId)?.title)
+    check('конфликтный JSON тоже доступен игроку', afterCollision.find((entry) => entry.id === directId)?.title === 'Прямая JSON кампания', directId)
+
+    // Импорт .chronicle применяет такую же защиту для общего локального реестра.
+    const packageMeta = await (await fetch(`/campaigns/${collisionId}/campaign.json`)).json() as Record<string, unknown>
+    const zip = new (await import('jszip')).default()
+    zip.file('campaign.json', JSON.stringify(packageMeta))
+    zip.file('world.json', '{}')
+    const archive = new File([await zip.generateAsync({ type: 'uint8array' })], 'duplicate.chronicle')
+    const packageResult = await importChroniclePackage(archive)
+    chronicleId = packageResult.id
+    check('.chronicle получает уникальный id при локальной коллизии', chronicleId !== collisionId && chronicleId !== directId, chronicleId)
+    check('.chronicle предупреждает о замене занятого id', packageResult.idWarning?.includes('уже занят'), packageResult.idWarning)
+    const afterChronicle = await fetchCampaignIndex()
+    check('.chronicle не изменяет исходную кампанию', afterChronicle.find((entry) => entry.id === collisionId)?.title === 'Коллизия ID кампании', afterChronicle.find((entry) => entry.id === collisionId)?.title)
   } finally {
-    // возвращаем поставку к пустому реестру после проверки обоих вариантов импорта
-    for (const removeId of [id, directId].filter((value): value is string => !!value)) {
+    // возвращаем поставку к пустому реестру после всех проверок
+    for (const removeId of [id, destinationId, collisionId, placeholderId, conflictMoveId, directId, chronicleId].filter((value): value is string => !!value)) {
       await fetch('/__editor/delete', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
