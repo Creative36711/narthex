@@ -1,0 +1,36 @@
+{
+  "id": "recipe_suit_repair",
+  "label": "Ремонт скафандра",
+  "description": "Лента и лом возвращают скафандру очки поглощения.",
+  "inputs": [
+    {
+      "item": "item_tape",
+      "quantity": 2
+    },
+    {
+      "item": "item_scrap",
+      "quantity": 1
+    }
+  ],
+  "tools": [
+    "item_multitool"
+  ],
+  "requires": [
+    {
+      "type": "flag_set",
+      "flag": "locker_open"
+    }
+  ],
+  "skill": {
+    "id": "engineering",
+    "difficulty": 35
+  },
+  "time_ticks": 1,
+  "output": {
+    "item": "item_suit",
+    "quantity": 1
+  },
+  "message": "Скафандр снова держит удар.",
+  "known": false,
+  "repair": true
+}

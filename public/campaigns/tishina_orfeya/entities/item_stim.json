@@ -1,0 +1,22 @@
+{
+  "id": "item_stim",
+  "type": "item",
+  "category": "medicine",
+  "label": "Стимулятор",
+  "description": "Медицинский стимулятор: вена наполняется теплом, раны перестают ныть.",
+  "weight": 0.2,
+  "stackable": true,
+  "value": {
+    "credits": 25
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_hp",
+        "delta": 6
+      }
+    ],
+    "consume": true,
+    "message": "Стимулятор разливается по жилам теплом."
+  }
+}

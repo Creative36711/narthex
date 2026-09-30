@@ -1,0 +1,19 @@
+{
+  "id": "item_journal_lin",
+  "type": "item",
+  "category": "quest",
+  "label": "Личный журнал Лин",
+  "description": "Электронный дневник бортинженера. Последние записи — про лёд, который «считает».",
+  "weight": 0.3,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "unlock_codex",
+        "entry": "codex_crew"
+      }
+    ],
+    "consume": false,
+    "message": "Записи Лин: лёд, который считает, и экипаж, который слушает."
+  }
+}

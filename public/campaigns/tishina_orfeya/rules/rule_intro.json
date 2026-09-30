@@ -1,0 +1,35 @@
+{
+  "id": "rule_intro",
+  "label": "Пролог: стыковка",
+  "once": true,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 0
+    }
+  ],
+  "effects": [
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_intro"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_comms"
+    },
+    {
+      "type": "set_weather",
+      "weather": "weather_storm"
+    },
+    {
+      "type": "banner",
+      "text": "ГЛАВА 1 · СТЫКОВКА",
+      "seconds": 5
+    },
+    {
+      "type": "show_message",
+      "text": "Шаттл «Корсак» причаливает к «Орфею». Связь с экипажем не отвечает уже девять часов."
+    }
+  ],
+  "chapter": "chapter_dock"
+}

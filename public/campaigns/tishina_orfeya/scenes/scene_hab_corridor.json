@@ -1,0 +1,900 @@
+{
+  "id": "scene_hab_corridor",
+  "label": "Коридор жилого отсека",
+  "location": "loc_habitation",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_dark",
+      "label": "Без света",
+      "condition": {
+        "not_flag": "power_hab_restored"
+      },
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#141a22",
+                  "to": "#05070a",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 72,
+              "fill": "#ff4d3d"
+            },
+            "opacity": 0.2,
+            "label": "свет"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 560,
+              "w": 1280,
+              "h": 160,
+              "fill": "#070a0e"
+            },
+            "label": "пол"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 560,
+              "x2": 1280,
+              "y2": 560,
+              "color": "#3a2a2a",
+              "width": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 120,
+              "w": 120,
+              "h": 440,
+              "fill": "#101620"
+            },
+            "label": "стена"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 120,
+              "w": 400,
+              "h": 440,
+              "fill": "#101620"
+            },
+            "label": "стена"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 240,
+              "w": 200,
+              "h": 300,
+              "fill": "#161e2a",
+              "stroke": "#33475c",
+              "stroke_width": 2,
+              "radius": 6
+            },
+            "label": "автомат ПС-9"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 900,
+              "y": 276,
+              "w": 160,
+              "h": 116,
+              "fill": "#0a1119"
+            },
+            "label": "витрина"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 912,
+              "y": 292,
+              "w": 60,
+              "h": 40,
+              "fill": "#1d3a4a",
+              "radius": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 986,
+              "y": 292,
+              "w": 60,
+              "h": 40,
+              "fill": "#2a2438",
+              "radius": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 900,
+              "y": 224,
+              "text": "ПС-9",
+              "size": 22,
+              "color": "#7fd4ff",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 900,
+              "y": 552,
+              "text": "ВОДА 6 · РАЦИОН 10",
+              "size": 13,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 130,
+              "y": 250,
+              "w": 170,
+              "h": 240,
+              "fill": "#141d29",
+              "stroke": "#2f4256",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "терминал"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 150,
+              "y": 292,
+              "w": 130,
+              "h": 140,
+              "fill": "#0a1119"
+            },
+            "label": "экран"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 196,
+              "y": 440,
+              "w": 38,
+              "h": 50,
+              "fill": "#26343f",
+              "radius": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 146,
+              "y": 232,
+              "text": "ТЕРМИНАЛ ОРИОНА",
+              "size": 14,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 200,
+              "w": 140,
+              "h": 360,
+              "fill": "#0f151f",
+              "stroke": "#2b3947",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "дверь в каюты"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 316,
+              "y": 186,
+              "text": "КАЮТЫ",
+              "size": 13,
+              "color": "#8fa4b8"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 200,
+              "w": 140,
+              "h": 360,
+              "fill": "#0f151f",
+              "stroke": "#2b3947",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "дверь в медотсек"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 576,
+              "y": 186,
+              "text": "МЕДОТСЕК",
+              "size": 13,
+              "color": "#8fa4b8"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 740,
+              "y": 232,
+              "w": 120,
+              "h": 328,
+              "fill": "#0d1219",
+              "stroke": "#26313d",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "арка к машинному"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 752,
+              "y": 218,
+              "text": "МАШИННЫЙ",
+              "size": 12,
+              "color": "#8fa4b8"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 340,
+              "y": 462,
+              "w": 110,
+              "h": 48,
+              "fill": "#18222e",
+              "stroke": "#2b3947",
+              "stroke_width": 2,
+              "radius": 6
+            },
+            "label": "планшет на полу"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1112,
+              "y": 220,
+              "w": 128,
+              "h": 180,
+              "fill": "#141d29",
+              "stroke": "#2f4256",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "автомат питания"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1128,
+              "y": 248,
+              "w": 96,
+              "h": 74,
+              "fill": "#0d1420"
+            },
+            "label": "окошко"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1140,
+              "y": 262,
+              "w": 34,
+              "h": 34,
+              "fill": "#3a1d1d",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1186,
+              "y": 262,
+              "w": 26,
+              "h": 34,
+              "fill": "#1d3a2a",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1128,
+              "y": 338,
+              "w": 96,
+              "h": 18,
+              "fill": "#18222e",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1128,
+              "y": 366,
+              "w": 72,
+              "h": 18,
+              "fill": "#18222e",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 1118,
+              "y": 206,
+              "text": "АВАРИЙНОЕ ПИТАНИЕ",
+              "size": 12,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 356,
+              "y": 470,
+              "w": 44,
+              "h": 12,
+              "fill": "#2f6f8a",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 46,
+              "text": "ЖИЛОЙ ОТСЕК · КОРИДОР",
+              "size": 28,
+              "color": "#ff8a7a",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 82,
+              "text": "СВЕТ ПОГАС · РУЧНЫЕ ФОНАРИ",
+              "size": 15,
+              "color": "#7a5a5a"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "state_lit",
+      "label": "Свет поднят",
+      "condition": {
+        "flag": "power_hab_restored"
+      },
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#141a22",
+                  "to": "#05070a",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 72,
+              "fill": "#8fb4cc"
+            },
+            "opacity": 0.1,
+            "label": "свет"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 560,
+              "w": 1280,
+              "h": 160,
+              "fill": "#0a0e13"
+            },
+            "label": "пол"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 560,
+              "x2": 1280,
+              "y2": 560,
+              "color": "#3a4c5e",
+              "width": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 120,
+              "w": 120,
+              "h": 440,
+              "fill": "#131a24"
+            },
+            "label": "стена"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 120,
+              "w": 400,
+              "h": 440,
+              "fill": "#131a24"
+            },
+            "label": "стена"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 240,
+              "w": 200,
+              "h": 300,
+              "fill": "#1b2534",
+              "stroke": "#33475c",
+              "stroke_width": 2,
+              "radius": 6
+            },
+            "label": "автомат ПС-9"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 900,
+              "y": 276,
+              "w": 160,
+              "h": 116,
+              "fill": "#0e1a26"
+            },
+            "label": "витрина"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 912,
+              "y": 292,
+              "w": 60,
+              "h": 40,
+              "fill": "#1d3a4a",
+              "radius": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 986,
+              "y": 292,
+              "w": 60,
+              "h": 40,
+              "fill": "#2a2438",
+              "radius": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 900,
+              "y": 224,
+              "text": "ПС-9",
+              "size": 22,
+              "color": "#7fd4ff",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 900,
+              "y": 552,
+              "text": "ВОДА 6 · РАЦИОН 10",
+              "size": 13,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 130,
+              "y": 250,
+              "w": 170,
+              "h": 240,
+              "fill": "#141d29",
+              "stroke": "#2f4256",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "терминал"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 150,
+              "y": 292,
+              "w": 130,
+              "h": 140,
+              "fill": "#0e1a26"
+            },
+            "label": "экран"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 196,
+              "y": 440,
+              "w": 38,
+              "h": 50,
+              "fill": "#26343f",
+              "radius": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 146,
+              "y": 232,
+              "text": "ТЕРМИНАЛ ОРИОНА",
+              "size": 14,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 200,
+              "w": 140,
+              "h": 360,
+              "fill": "#0f151f",
+              "stroke": "#2b3947",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "дверь в каюты"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 316,
+              "y": 186,
+              "text": "КАЮТЫ",
+              "size": 13,
+              "color": "#8fa4b8"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 200,
+              "w": 140,
+              "h": 360,
+              "fill": "#0f151f",
+              "stroke": "#2b3947",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "дверь в медотсек"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 576,
+              "y": 186,
+              "text": "МЕДОТСЕК",
+              "size": 13,
+              "color": "#8fa4b8"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 740,
+              "y": 232,
+              "w": 120,
+              "h": 328,
+              "fill": "#0d1219",
+              "stroke": "#26313d",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "арка к машинному"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 752,
+              "y": 218,
+              "text": "МАШИННЫЙ",
+              "size": 12,
+              "color": "#8fa4b8"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 340,
+              "y": 462,
+              "w": 110,
+              "h": 48,
+              "fill": "#18222e",
+              "stroke": "#2b3947",
+              "stroke_width": 2,
+              "radius": 6
+            },
+            "label": "планшет на полу"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1112,
+              "y": 220,
+              "w": 128,
+              "h": 180,
+              "fill": "#141d29",
+              "stroke": "#2f4256",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "автомат питания"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1128,
+              "y": 248,
+              "w": 96,
+              "h": 74,
+              "fill": "#0d1420"
+            },
+            "label": "окошко"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1140,
+              "y": 262,
+              "w": 34,
+              "h": 34,
+              "fill": "#3a1d1d",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1186,
+              "y": 262,
+              "w": 26,
+              "h": 34,
+              "fill": "#1d3a2a",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1128,
+              "y": 338,
+              "w": 96,
+              "h": 18,
+              "fill": "#18222e",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1128,
+              "y": 366,
+              "w": 72,
+              "h": 18,
+              "fill": "#18222e",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 1118,
+              "y": 206,
+              "text": "АВАРИЙНОЕ ПИТАНИЕ",
+              "size": 12,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 356,
+              "y": 470,
+              "w": 44,
+              "h": 12,
+              "fill": "#2f6f8a",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 46,
+              "text": "ЖИЛОЙ ОТСЕК · КОРИДОР",
+              "size": 28,
+              "color": "#cfe0ee",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 82,
+              "text": "АВАРИЙНОЕ ПИТАНИЕ ПОДНЯТО",
+              "size": 15,
+              "color": "#8fa4b8"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_vendor",
+      "label": "Автомат снабжения ПС-9",
+      "type": [
+        "terminal"
+      ],
+      "shape": "rect",
+      "x": 876,
+      "y": 232,
+      "w": 208,
+      "h": 316,
+      "condition": null,
+      "default_entity": "npc_vendor"
+    },
+    {
+      "id": "slot_orion_terminal",
+      "label": "Терминал ОРИОНа",
+      "type": [
+        "terminal"
+      ],
+      "shape": "rect",
+      "x": 120,
+      "y": 240,
+      "w": 190,
+      "h": 258,
+      "condition": null,
+      "default_entity": "npc_orion"
+    },
+    {
+      "id": "slot_trace",
+      "label": "Планшет на полу",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 330,
+      "y": 448,
+      "w": 130,
+      "h": 76,
+      "condition": null,
+      "default_entity": "item_trace"
+    },
+    {
+      "id": "slot_breaker",
+      "label": "Автомат аварийного питания",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 1102,
+      "y": 210,
+      "w": 148,
+      "h": 200,
+      "condition": null,
+      "default_entity": "item_breaker"
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В каюты экипажа",
+      "area": {
+        "x": 300,
+        "y": 200,
+        "w": 140,
+        "h": 360
+      },
+      "go_to_scene": "scene_hab_quarters"
+    },
+    {
+      "label": "В медотсек и столовую",
+      "area": {
+        "x": 560,
+        "y": 200,
+        "w": 140,
+        "h": 360
+      },
+      "go_to_scene": "scene_hab_med"
+    },
+    {
+      "label": "К карте корабля",
+      "area": {
+        "x": 740,
+        "y": 232,
+        "w": 120,
+        "h": 328
+      },
+      "open_map": true
+    }
+  ],
+  "chapter": "chapter_hab"
+}

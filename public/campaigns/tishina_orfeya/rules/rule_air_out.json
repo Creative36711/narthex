@@ -1,0 +1,19 @@
+{
+  "id": "rule_air_out",
+  "label": "Воздух кончился",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_hypoxia",
+      "duration": 6
+    },
+    {
+      "type": "show_message",
+      "text": "Воздуха больше нет. Скафандр молчит, в ушах начинает гудеть."
+    }
+  ],
+  "manual": true
+}

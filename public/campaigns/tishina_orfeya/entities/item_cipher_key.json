@@ -1,0 +1,18 @@
+{
+  "id": "item_cipher_key",
+  "type": "item",
+  "category": "quest",
+  "label": "Ключ шифра от ОРИОНа",
+  "description": "Небольшой ключ-файл от ОРИОНа. С ним судовой журнал наконец можно прочитать.",
+  "weight": 0,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "show_message",
+        "text": "Ключ активен. Терминал судового журнала на рубке теперь ответит."
+      }
+    ],
+    "consume": false
+  }
+}

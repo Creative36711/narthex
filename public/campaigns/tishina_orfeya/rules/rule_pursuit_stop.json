@@ -1,0 +1,28 @@
+{
+  "id": "rule_pursuit_stop",
+  "label": "Погоня окончена",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_eng_reactor"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "pursuit_done"
+    }
+  ],
+  "effects": [
+    {
+      "type": "stop_pursuit"
+    },
+    {
+      "type": "set_flag",
+      "flag": "pursuit_done"
+    },
+    {
+      "type": "show_message",
+      "text": "Дрон остался в коридоре. Его жужжание за спиной стихает."
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "id": "item_leak",
+  "type": "item",
+  "category": "misc",
+  "label": "Течь в стыке",
+  "description": "Струя конденсата из-под стыка магистрали. Воздух уходит быстрее, чем должен.",
+  "weight": 0,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Заделать течь лентой",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "leak_sealed"
+        },
+        {
+          "type": "remove_item",
+          "item": "item_tape",
+          "quantity": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_air",
+          "delta": 15
+        },
+        {
+          "type": "add_item",
+          "item": "item_scrap",
+          "quantity": 1
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_tape"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "leak_sealed"
+        }
+      ],
+      "message": "Лента держит. Воздух возвращается в скафандр.",
+      "hint": "нужна суперая лента"
+    },
+    {
+      "label": "Заделать течь мультитулом",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "leak_sealed"
+        },
+        {
+          "type": "change_need",
+          "need": "need_air",
+          "delta": 15
+        },
+        {
+          "type": "add_item",
+          "item": "item_scrap",
+          "quantity": 1
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_multitool"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "leak_sealed"
+        }
+      ],
+      "message": "Мультитул затягивает стык. Течь прекращается.",
+      "hint": "нужен мультитул"
+    },
+    {
+      "label": "Осмотреть стык",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Трещина свежая — будто её сделали чем-то очень аккуратным."
+        }
+      ]
+    }
+  ]
+}

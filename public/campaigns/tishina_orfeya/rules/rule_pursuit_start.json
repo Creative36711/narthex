@@ -1,0 +1,58 @@
+{
+  "id": "rule_pursuit_start",
+  "label": "Охота в машинном коридоре",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_eng_corridor"
+    }
+  ],
+  "effects": [
+    {
+      "type": "banner",
+      "text": "ГЛАВА 4 · МАШИННОЕ ОТДЕЛЕНИЕ",
+      "seconds": 5
+    },
+    {
+      "type": "change_need",
+      "need": "need_air",
+      "delta": -6
+    },
+    {
+      "type": "show_message",
+      "text": "В стыке магистрали течь: воздух уходит быстрее, чем должен."
+    },
+    {
+      "type": "start_pursuit",
+      "label": "Дрон охотится в коридоре",
+      "skill": "stealth",
+      "every_ticks": 3,
+      "fails_to_catch": 1,
+      "on_fail": [
+        {
+          "type": "start_combat",
+          "enemies": [
+            {
+              "entity": "npc_drone",
+              "count": 2
+            }
+          ],
+          "arena": "arena_corridor",
+          "intro": "Из темноты выскакивают два дрона: «ТЕПЛО. ТЕПЛО ОБНАРУЖЕНО.»",
+          "on_victory": [
+            {
+              "type": "set_flag",
+              "flag": "pursuit_done"
+            },
+            {
+              "type": "show_message",
+              "text": "Дроны замерли. В коридоре снова тихо."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "chapter": "chapter_eng"
+}

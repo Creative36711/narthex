@@ -1,0 +1,73 @@
+{
+  "id": "item_ice_core",
+  "type": "item",
+  "category": "quest",
+  "label": "Ледяное ядро",
+  "description": "Кусок льда из ядра луны. Внутри — не трещины, а узор, и он движется.",
+  "weight": 3,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "show_message",
+        "text": "Лёд тёплый. Он всегда был тёплым."
+      }
+    ],
+    "consume": false
+  },
+  "interact_options": [
+    {
+      "label": "Извлечь ядро из контура",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "core_taken"
+        },
+        {
+          "type": "set_flag",
+          "flag": "has_core"
+        },
+        {
+          "type": "add_item",
+          "item": "item_ice_core",
+          "quantity": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "codex_all"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_core"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_signal"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "kastor_talked"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "core_taken"
+        }
+      ],
+      "message": "Ядро выходит из контура. Оно тёплое и пахнет озоном.",
+      "hint": "нужно знать, что делать — спросите Кастора",
+      "consume": true,
+      "sound": "open"
+    },
+    {
+      "label": "Потушить ядро в контуре",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Вода закипает вокруг льда и не остывает."
+        }
+      ]
+    }
+  ]
+}

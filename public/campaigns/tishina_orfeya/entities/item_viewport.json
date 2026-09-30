@@ -1,0 +1,33 @@
+{
+  "id": "item_viewport",
+  "type": "item",
+  "category": "misc",
+  "label": "Иллюминатор",
+  "description": "Толстое стекло иллюминатора. За ним — газовый гигант и его ледяная луна.",
+  "weight": 0,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Смотреть на луну",
+      "effects": [
+        {
+          "type": "change_sanity",
+          "delta": -3
+        },
+        {
+          "type": "show_message",
+          "text": "На ледяной луне светится точка — и мигает в такт чужому счёту."
+        }
+      ]
+    },
+    {
+      "label": "Отвести взгляд",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Отзеркаленное стекло возвращает собственное лицо. Оно выглядит усталым."
+        }
+      ]
+    }
+  ]
+}

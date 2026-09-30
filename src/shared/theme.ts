@@ -10,7 +10,7 @@
 
 import type { CSSProperties } from 'react'
 import type { CampaignData } from './types'
-import { assetUrl } from '../core/loader'
+import { assetUrl, assetUrlOrNull } from '../core/loader'
 
 /** осветлить hex (для пары «акцент / яркий акцент», когда автор меняет акцент) */
 export function brightenHex(hex: string, amount = 0.28): string {
@@ -118,5 +118,6 @@ export function themeHasFrame(campaign: CampaignData | null): boolean {
 export function themeBackgroundUrl(campaign: CampaignData, which: 'menu' | 'end'): string {
   const theme = campaign.meta.theme
   const src = which === 'end' ? (theme?.end?.background ?? theme?.menu?.background) : theme?.menu?.background
-  return src ? assetUrl(campaign, src) : ''
+  // пустая строка в theme.*.background — не URL (иначе <img src="">)
+  return assetUrlOrNull(campaign, src) ?? ''
 }

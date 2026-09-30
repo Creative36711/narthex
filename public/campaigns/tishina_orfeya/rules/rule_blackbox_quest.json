@@ -1,0 +1,23 @@
+{
+  "id": "rule_blackbox_quest",
+  "label": "Задание: чёрный ящик",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_bridge_gate"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_quest",
+      "quest": "quest_blackbox"
+    },
+    {
+      "type": "banner",
+      "text": "ГЛАВА 3 · РУБКА",
+      "seconds": 5
+    }
+  ],
+  "chapter": "chapter_bridge"
+}

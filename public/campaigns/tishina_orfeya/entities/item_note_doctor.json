@@ -1,0 +1,21 @@
+{
+  "id": "item_note_doctor",
+  "type": "item",
+  "category": "misc",
+  "label": "Записка врача",
+  "description": "Смятый листок на столе: «Не спите. Оно считает, когда вы спите. Л.”",
+  "weight": 0,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Прочитать записку",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_crew"
+        }
+      ],
+      "message": "Почерк врача. Последняя буква сорвана — будто писали на ходу."
+    }
+  ]
+}

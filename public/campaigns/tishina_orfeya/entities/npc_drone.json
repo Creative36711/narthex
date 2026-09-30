@@ -1,0 +1,45 @@
+{
+  "id": "npc_drone",
+  "type": "npc",
+  "label": "ТЭХ-3, дрон обслуживания",
+  "description": "Ремонтный дрон на трёх ногах. Сигнал занял его сервоприводы: теперь он ищет тепло — а тепло теперь только у людей.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 10,
+    "SIZ": 8,
+    "DEX": 12,
+    "INT": 6,
+    "POW": 6,
+    "CHA": 1
+  },
+  "skills": {
+    "brawl": 45,
+    "dodge": 40
+  },
+  "slot_type": "person",
+  "schedule": [],
+  "natural_weapon": {
+    "skill": "brawl",
+    "damage": "1d6",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": false
+  },
+  "abilities": [
+    "ability_zap"
+  ],
+  "armor": 2,
+  "loot_table": [
+    {
+      "item": "item_scrap",
+      "chance": 0.7,
+      "min": 1,
+      "max": 2
+    }
+  ],
+  "presence_overrides": []
+}

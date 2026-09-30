@@ -1,0 +1,12 @@
+{
+  "id": "item_credits",
+  "type": "item",
+  "category": "currency",
+  "label": "Кредиты",
+  "description": "Платёжная единица станции. На борту принимают без разговоров.",
+  "weight": 0.01,
+  "stackable": true,
+  "value": {
+    "credits": 1
+  }
+}

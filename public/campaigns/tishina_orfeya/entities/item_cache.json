@@ -1,0 +1,63 @@
+{
+  "id": "item_cache",
+  "type": "item",
+  "category": "misc",
+  "label": "Ящик снабжения",
+  "description": "Ящик со инструментом, припоротенный к полу. Крышка помята, но держится.",
+  "weight": 0,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Вскрыть ящик",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "engineering",
+          "difficulty": 30,
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "cache_looted"
+            },
+            {
+              "type": "add_item",
+              "item": "item_tape",
+              "quantity": 2
+            },
+            {
+              "type": "add_item",
+              "item": "item_scrap",
+              "quantity": 1
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_drone"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Крышка не поддаётся. Руки слишком трясутся."
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "cache_looted"
+        }
+      ],
+      "hint": "инженерия"
+    },
+    {
+      "label": "Осмотреть ящик",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "На боку ящика — маркировка «ТЭХ-3, ЗИП». Внутри что-то гремит."
+        }
+      ]
+    }
+  ]
+}

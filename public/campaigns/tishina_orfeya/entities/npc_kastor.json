@@ -1,0 +1,32 @@
+{
+  "id": "npc_kastor",
+  "type": "npc",
+  "label": "Кастор, техник машинного отделения",
+  "description": "Техник машинного отделения. Девять часов просидел в нише за трубами и считал, чем всё это кончится. Дрожит, но ещё не сломан.",
+  "portrait": {
+    "neutral": "",
+    "afraid": "",
+    "desperate": "",
+    "steady": ""
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 12,
+    "SIZ": 12,
+    "DEX": 11,
+    "INT": 12,
+    "POW": 10,
+    "CHA": 9
+  },
+  "skills": {
+    "engineering": 55,
+    "computers": 30,
+    "first_aid": 40,
+    "brawl": 35,
+    "dodge": 30
+  },
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/dlg_kastor.ink",
+  "presence_overrides": []
+}

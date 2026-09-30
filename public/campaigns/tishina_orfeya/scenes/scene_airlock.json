@@ -1,0 +1,289 @@
+{
+  "id": "scene_airlock",
+  "label": "Шлюзовая камера",
+  "location": "loc_airlock",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_emergency",
+      "label": "Аварийный свет",
+      "condition": null,
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#1c0e11",
+                  "to": "#05070a",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 96,
+              "fill": {
+                "gradient": {
+                  "from": "#ff4d3d",
+                  "to": "#2a0d0d",
+                  "angle": 90
+                }
+              }
+            },
+            "opacity": 0.28,
+            "label": "аварийный свет"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 600,
+              "w": 1280,
+              "h": 120,
+              "fill": "#06080b"
+            },
+            "label": "пол"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 600,
+              "x2": 1280,
+              "y2": 600,
+              "color": "#43262a",
+              "width": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 90,
+              "w": 340,
+              "h": 470,
+              "fill": "#141d29",
+              "stroke": "#33475c",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "внутренний шлюз"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 500,
+              "y": 130,
+              "w": 280,
+              "h": 390,
+              "fill": "#0e141c"
+            },
+            "label": "створка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 618,
+              "y": 470,
+              "w": 44,
+              "h": 90,
+              "fill": "#26343f",
+              "radius": 4
+            },
+            "label": "ручка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 90,
+              "y": 300,
+              "w": 180,
+              "h": 260,
+              "fill": "#141d29",
+              "stroke": "#2f4256",
+              "stroke_width": 2
+            },
+            "label": "стойка снаряжения"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 100,
+              "y": 282,
+              "text": "СТОЙКА СНАРЯЖЕНИЯ",
+              "size": 13,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 140,
+              "y": 372,
+              "w": 80,
+              "h": 128,
+              "fill": "#27414f",
+              "radius": 10
+            },
+            "label": "баллон"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 152,
+              "y": 398,
+              "w": 56,
+              "h": 18,
+              "fill": "#3f6b7d",
+              "radius": 6
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1060,
+              "y": 190,
+              "w": 180,
+              "h": 230,
+              "fill": "#10161f",
+              "stroke": "#26313d",
+              "stroke_width": 2
+            },
+            "label": "щит с табличкой"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 1072,
+              "y": 172,
+              "text": "АВАРИЙНАЯ ТАБЛИЧКА",
+              "size": 13,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "polygon",
+              "points": [
+                1150,
+                218,
+                1118,
+                282,
+                1182,
+                282
+              ],
+              "fill": "#ffb347"
+            },
+            "opacity": 0.85,
+            "label": "знак"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 1150,
+              "y": 268,
+              "text": "!",
+              "size": 34,
+              "color": "#1a1208",
+              "bold": true,
+              "align": "middle"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 46,
+              "text": "ШЛЮЗОВАЯ ПАЛУБА",
+              "size": 30,
+              "color": "#ff8a7a",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 80,
+              "text": "АВАРИЙНОЕ ОСВЕЩЕНИЕ · ДАВЛЕНИЕ НОРМА",
+              "size": 15,
+              "color": "#9a6a6a"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 660,
+              "text": "ШАТТЛ «КОРСАК» ПРИСТЫКОВАН",
+              "size": 14,
+              "color": "#6f7f92"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_canister",
+      "label": "Баллон на стойке",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 130,
+      "y": 352,
+      "w": 100,
+      "h": 160,
+      "condition": null,
+      "default_entity": "item_air_canister"
+    },
+    {
+      "id": "slot_notice",
+      "label": "Аварийная табличка",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 1046,
+      "y": 176,
+      "w": 208,
+      "h": 258,
+      "condition": null,
+      "default_entity": "item_notice"
+    }
+  ],
+  "navigation": [
+    {
+      "label": "К карте корабля",
+      "area": {
+        "x": 470,
+        "y": 90,
+        "w": 340,
+        "h": 470
+      },
+      "open_map": true
+    }
+  ],
+  "chapter": "chapter_dock"
+}

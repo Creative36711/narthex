@@ -1,0 +1,50 @@
+{
+  "id": "rule_heavy_drone",
+  "label": "ТЭХ-4 выходит на охоту",
+  "once": true,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "has_core"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "heavy_drone_dead"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_drone_heavy",
+          "count": 1
+        }
+      ],
+      "arena": "arena_reactor",
+      "intro": "Из-за реактора выходит тяжёлый дрон. Он не спешит: ему некуда спешить.",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "heavy_drone_dead"
+        },
+        {
+          "type": "show_message",
+          "text": "ТЭХ-4 оседает на пол. Гидравлический рычаг больше не поднимается."
+        }
+      ],
+      "no_flee": true,
+      "no_hide": true,
+      "on_defeat": [
+        {
+          "type": "set_flag",
+          "flag": "merged"
+        },
+        {
+          "type": "show_message",
+          "text": "Тьма. Последнее, что слышно, — ровный чужой счёт."
+        }
+      ]
+    }
+  ]
+}

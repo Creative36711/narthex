@@ -1,0 +1,23 @@
+{
+  "id": "item_ration",
+  "type": "item",
+  "category": "food",
+  "label": "Рацион",
+  "description": "Сухой паёк: не вкусно, но держит на ногах ещё несколько часов.",
+  "weight": 0.5,
+  "stackable": true,
+  "value": {
+    "credits": 10
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_energy",
+        "delta": 35
+      }
+    ],
+    "consume": true,
+    "message": "Паёк съеден. Стало чуть теплее."
+  }
+}

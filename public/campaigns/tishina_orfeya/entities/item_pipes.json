@@ -1,0 +1,33 @@
+{
+  "id": "item_pipes",
+  "type": "item",
+  "category": "misc",
+  "label": "Трубный пучок",
+  "description": "Пучок труб магистрали охлаждения. Два вентиля и густой запах горячей смазки.",
+  "weight": 0,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Постучать по трубам",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Трубы отвечают глухо. Где-то за стеной капает — и не от конденсата."
+        }
+      ]
+    },
+    {
+      "label": "Открутить вентиль",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_scrap",
+          "quantity": 1
+        }
+      ],
+      "message": "Вентиль откручен. Из него течёт тёплый конденсат.",
+      "consume": true,
+      "sound": "open"
+    }
+  ]
+}

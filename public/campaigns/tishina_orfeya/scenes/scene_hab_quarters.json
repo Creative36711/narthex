@@ -1,0 +1,397 @@
+{
+  "id": "scene_hab_quarters",
+  "label": "Каюты экипажа",
+  "location": "loc_habitation",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Обычное",
+      "condition": null,
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#131922",
+                  "to": "#05070a",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 540,
+              "w": 1280,
+              "h": 180,
+              "fill": "#070a0e"
+            },
+            "label": "пол"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 540,
+              "x2": 1280,
+              "y2": 540,
+              "color": "#33475c",
+              "width": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 40,
+              "y": 200,
+              "w": 170,
+              "h": 380,
+              "fill": "#0f151f",
+              "stroke": "#2b3947",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "дверь в коридор"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 56,
+              "y": 186,
+              "text": "КОРИДОР",
+              "size": 13,
+              "color": "#8fa4b8"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 260,
+              "y": 120,
+              "w": 240,
+              "h": 300,
+              "fill": "#131c28",
+              "stroke": "#2f4256",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "койка 1"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 272,
+              "y": 142,
+              "w": 216,
+              "h": 120,
+              "fill": "#1b2635"
+            },
+            "label": "матрас"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 272,
+              "y": 286,
+              "w": 216,
+              "h": 110,
+              "fill": "#101822"
+            },
+            "label": "ящик под койкой"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 540,
+              "y": 120,
+              "w": 240,
+              "h": 300,
+              "fill": "#131c28",
+              "stroke": "#2f4256",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "койка 2"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 552,
+              "y": 142,
+              "w": 216,
+              "h": 120,
+              "fill": "#1b2635"
+            },
+            "label": "матрас"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 552,
+              "y": 286,
+              "w": 216,
+              "h": 110,
+              "fill": "#101822"
+            },
+            "label": "ящик под койкой"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 860,
+              "y": 160,
+              "w": 170,
+              "h": 360,
+              "fill": "#10161f",
+              "stroke": "#2b3947",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "шкафчик"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 872,
+              "y": 146,
+              "text": "ШКАФЧИК",
+              "size": 14,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 880,
+              "y": 200,
+              "w": 130,
+              "h": 200,
+              "fill": "#0d1420"
+            },
+            "label": "дверца"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 940,
+              "y": 300,
+              "w": 20,
+              "h": 60,
+              "fill": "#26343f",
+              "radius": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 300,
+              "w": 120,
+              "h": 220,
+              "fill": "#10161f",
+              "stroke": "#2b3947",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "проектор"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1140,
+              "cy": 300,
+              "rx": 62,
+              "ry": 92,
+              "fill": "#4fd6ff"
+            },
+            "opacity": 0.12,
+            "label": "голограмма"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1140,
+              "cy": 300,
+              "rx": 30,
+              "ry": 46,
+              "fill": "#9fe8ff"
+            },
+            "opacity": 0.16,
+            "label": "голограмма"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 1086,
+              "y": 286,
+              "text": "ЗАПИСЬ",
+              "size": 13,
+              "color": "#7fd4ff"
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 700,
+              "cy": 545,
+              "rx": 100,
+              "ry": 26,
+              "fill": "#1b2635"
+            },
+            "label": "тело на полу"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 646,
+              "y": 486,
+              "w": 140,
+              "h": 58,
+              "fill": "#22303f",
+              "radius": 8
+            },
+            "label": "торс"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 628,
+              "cy": 505,
+              "rx": 22,
+              "ry": 18,
+              "fill": "#2b3947"
+            },
+            "label": "голова"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 600,
+              "y": 470,
+              "w": 90,
+              "h": 20,
+              "fill": "#3a2a2a"
+            },
+            "opacity": 0.5,
+            "label": "лужа"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 60,
+              "y": 60,
+              "text": "КАЮТЫ ЭКИПАЖА",
+              "size": 28,
+              "color": "#cfe0ee",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 60,
+              "y": 94,
+              "text": "СЕМЬ КОЕК · ШЕСТЬ ПУСТЫ",
+              "size": 15,
+              "color": "#8fa4b8"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 60,
+              "y": 122,
+              "text": "КОРАБЛЬ ДЕРЖИТСЯ НА АВАРИЙНОМ ПИТАНИИ",
+              "size": 13,
+              "color": "#6f7f92"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_body_lin",
+      "label": "Тело бортинженера",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 590,
+      "y": 452,
+      "w": 220,
+      "h": 130,
+      "condition": null,
+      "default_entity": "item_body_lin"
+    },
+    {
+      "id": "slot_locker",
+      "label": "Шкафчик",
+      "type": [
+        "container"
+      ],
+      "shape": "rect",
+      "x": 850,
+      "y": 150,
+      "w": 190,
+      "h": 380,
+      "condition": null,
+      "default_entity": "item_locker"
+    },
+    {
+      "id": "slot_echo",
+      "label": "Запись капитана",
+      "type": [
+        "terminal"
+      ],
+      "shape": "rect",
+      "x": 1060,
+      "y": 280,
+      "w": 160,
+      "h": 250,
+      "condition": null,
+      "default_entity": "npc_echo"
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В коридор",
+      "area": {
+        "x": 40,
+        "y": 200,
+        "w": 170,
+        "h": 380
+      },
+      "go_to_scene": "scene_hab_corridor"
+    },
+    {
+      "label": "К карте корабля",
+      "area": {
+        "x": 1090,
+        "y": 120,
+        "w": 150,
+        "h": 180
+      },
+      "open_map": true
+    }
+  ],
+  "chapter": "chapter_hab"
+}

@@ -1,0 +1,27 @@
+{
+  "id": "rule_sanity_low",
+  "label": "След сигнала",
+  "once": true,
+  "conditions": [
+    {
+      "type": "sanity_le",
+      "threshold": 25
+    }
+  ],
+  "effects": [
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_imprint",
+      "duration": 24
+    },
+    {
+      "type": "set_flag",
+      "flag": "signal_aware"
+    },
+    {
+      "type": "show_message",
+      "text": "В голове зазвучал чужой счёт — ровный, вежливый и неотвратимый."
+    }
+  ]
+}

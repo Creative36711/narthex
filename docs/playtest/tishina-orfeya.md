@@ -151,3 +151,38 @@ npx tsx scripts/play-tishina.mts
 - `scripts/play-tishina.mts` — headless-прогон  
 - `scripts/tishina-engine-smoke.mts` — регрессии  
 - `docs/playtest/*` — этот отчёт + лог  
+
+---
+
+## Визуальный проход (HTML/CSS), 2026-09-30
+
+**Ограничение среды:** headless Chromium/Firefox скачать нельзя (TLS/сеть),
+системного браузера нет. Live preview dev-сервера поднят
+(`npm run dev` :5173, кампания `tishina_orfeya` в `public/campaigns/` + index).
+Аудит — по коду UI + CSS + данным кампании (ArtDoc-only, пустые portrait).
+
+### Найденные и исправленные визуальные баги движка
+
+| # | Симптом | Причина | Фикс |
+| --- | --- | --- | --- |
+| **V1** | Слоты на сцене «невидимы» (нет спрайта/портрета) | ИИ-кампания: только ArtDoc, `portrait: ""`, нет `scene_sprite`. Hotspot прозрачный, `.slot-label { opacity: 0 }` всегда | Маркер `.slot-marker` + подпись всегда видна без спрайта |
+| **V2** | Диалог: чёрная/битая колонка портрета 200×220 | `portrait.neutral: ""` truthy → `<img src="/campaigns/…/">` | `assetUrlOrNull` + placeholder + компактная колонка |
+| **V3** | То же для item-диалога, message, end-bg, combat token | Пустые строки везде | `assetUrlOrNull` + combat portrait trim |
+| **V4** | Карта: горизонтальный скролл страницы | `.map-screen { width: 100vw }` + scrollbar | `width/height: 100%` от overlay |
+| **V5** | HUD: длинные needs («Воздух скафандра 88») обрезаются | `.hud-bar { width: 132px; overflow: hidden }` | auto width, min/max, ellipsis; flex sides |
+
+### Не баги (дизайн / кампания)
+
+- Нав-зоны с `opacity: 0.55` до hover — задумано.  
+- Погода `spark` поверх ArtDoc — ок.  
+- Жёсткий HUD справа (много кнопок) — wrap на ≤1100px уже есть.  
+- Пустые портреты в данных — контент; движок теперь деградирует gracefully.
+
+### Пакет для ручного просмотра
+
+```
+public/campaigns/tishina_orfeya/   # распакованный монолит
+public/campaigns/index.json       # id зарегистрирован
+```
+
+Открыть preview → «Тишина Орфея» → Новый забег → пройти глазами.

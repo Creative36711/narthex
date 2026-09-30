@@ -1,0 +1,17 @@
+{
+  "id": "rule_echo_count",
+  "label": "ЭХО считает вместе с героем",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_sanity",
+      "delta": -3
+    },
+    {
+      "type": "show_message",
+      "text": "Счёт въёдается в голову. Он считает ваши шаги, ваши удары, ваши дни."
+    }
+  ],
+  "manual": true
+}

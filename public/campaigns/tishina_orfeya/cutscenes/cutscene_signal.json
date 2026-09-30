@@ -1,0 +1,330 @@
+{
+  "id": "cutscene_signal",
+  "label": "Сигнал замечает героя",
+  "music": "music_finale",
+  "slides": [
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#04070c"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 240,
+              "y": 120,
+              "w": 800,
+              "h": 480,
+              "fill": "#080d14",
+              "stroke": "#1e2e3a",
+              "stroke_width": 3,
+              "radius": 10
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 300,
+              "rx": 150,
+              "ry": 90,
+              "fill": "#9fe8ff"
+            },
+            "opacity": 0.1
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 300,
+              "rx": 90,
+              "ry": 54,
+              "fill": "#9fe8ff"
+            },
+            "opacity": 0.14
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 400,
+              "y": 220,
+              "text": "ОНО СЧИТАЕТ",
+              "size": 34,
+              "color": "#7fd4ff",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 400,
+              "y": 380,
+              "text": "СЧИТАТЬ — ЗНАЧИТ БЫТЬ ПОСЧИТАННЫМ",
+              "size": 20,
+              "color": "#5f8fa8"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 240,
+              "y": 120,
+              "w": 800,
+              "h": 480,
+              "fill": "#04070c"
+            },
+            "opacity": 0.35
+          }
+        ]
+      },
+      "transition": "panzoom",
+      "camera": {
+        "zoom": 1.3,
+        "duration": 7
+      },
+      "duration": 5,
+      "text": "Экран мигает. В статике — кто-то считает, и считает аккуратно."
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#03060a"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 480,
+              "w": 1280,
+              "h": 240,
+              "fill": "#070b12"
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 400,
+              "cy": 470,
+              "rx": 60,
+              "ry": 120,
+              "fill": "#1b2635"
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 470,
+              "rx": 60,
+              "ry": 120,
+              "fill": "#1b2635"
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 880,
+              "cy": 470,
+              "rx": 60,
+              "ry": 120,
+              "fill": "#1b2635"
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 400,
+              "cy": 360,
+              "rx": 26,
+              "ry": 26,
+              "fill": "#2b3947"
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 360,
+              "rx": 26,
+              "ry": 26,
+              "fill": "#2b3947"
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 880,
+              "cy": 360,
+              "rx": 26,
+              "ry": 26,
+              "fill": "#2b3947"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 440,
+              "y": 200,
+              "text": "ЭКИПАЖ · 7 ЧЕЛОВЕК",
+              "size": 30,
+              "color": "#9fb4c8",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 440,
+              "y": 250,
+              "text": "НИ ОДНОГО ПУЛЬСА · НИ ОДНОЙ ТРЕВОГИ",
+              "size": 18,
+              "color": "#7f8fa2"
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 400,
+              "cy": 300,
+              "rx": 200,
+              "ry": 140,
+              "fill": "#9fe8ff"
+            },
+            "opacity": 0.05
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 400,
+              "cy": 300,
+              "rx": 120,
+              "ry": 84,
+              "fill": "#9fe8ff"
+            },
+            "opacity": 0.06
+          }
+        ]
+      },
+      "transition": "fade",
+      "duration": 5,
+      "text": "Семь человек на борту. Ни одного пульса, ни одной тревоги — только ровный счёт в системах."
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#04070c"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 240,
+              "y": 120,
+              "w": 800,
+              "h": 480,
+              "fill": "#080d14",
+              "stroke": "#1e2e3a",
+              "stroke_width": 3,
+              "radius": 10
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 300,
+              "rx": 150,
+              "ry": 90,
+              "fill": "#9fe8ff"
+            },
+            "opacity": 0.1
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 300,
+              "rx": 90,
+              "ry": 54,
+              "fill": "#9fe8ff"
+            },
+            "opacity": 0.14
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 400,
+              "y": 220,
+              "text": "ОНО СЧИТАЕТ",
+              "size": 34,
+              "color": "#7fd4ff",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 400,
+              "y": 380,
+              "text": "СЧИТАТЬ — ЗНАЧИТ БЫТЬ ПОСЧИТАННЫМ",
+              "size": 20,
+              "color": "#5f8fa8"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 240,
+              "y": 120,
+              "w": 800,
+              "h": 480,
+              "fill": "#04070c"
+            },
+            "opacity": 0.35
+          }
+        ]
+      },
+      "transition": "cut",
+      "duration": 4,
+      "text": "Сигнал заметил тебя. Он не зол — он просто ищет, где ему улечься."
+    }
+  ]
+}

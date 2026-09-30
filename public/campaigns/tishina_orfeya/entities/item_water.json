@@ -1,0 +1,23 @@
+{
+  "id": "item_water",
+  "type": "item",
+  "category": "drink",
+  "label": "Вода из регенератора",
+  "description": "Прохладная вода из судового регенератора. Питьё и умывание — одно и то же на этом борту.",
+  "weight": 0.5,
+  "stackable": true,
+  "value": {
+    "credits": 6
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_energy",
+        "delta": 18
+      }
+    ],
+    "consume": true,
+    "message": "Вода оседает в скафандре прохладным пятном."
+  }
+}

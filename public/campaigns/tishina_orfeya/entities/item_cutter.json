@@ -1,0 +1,24 @@
+{
+  "id": "item_cutter",
+  "type": "item",
+  "category": "weapon",
+  "label": "Плазменный резак",
+  "description": "Малый резак для срочного вскрытия: режет металл, а также заклинившие приводы и гнезда.",
+  "weight": 2.4,
+  "stackable": false,
+  "value": {
+    "credits": 45
+  },
+  "weapon_data": {
+    "skill": "brawl",
+    "damage": "1d6",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": false,
+    "traits": [
+      "impale"
+    ]
+  },
+  "equip_slot": "weapon"
+}

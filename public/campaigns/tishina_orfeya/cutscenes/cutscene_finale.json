@@ -1,0 +1,205 @@
+{
+  "id": "cutscene_finale",
+  "label": "Девятый час",
+  "music": "music_finale",
+  "slides": [
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#0a1410",
+                  "to": "#02060a",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 380,
+              "rx": 300,
+              "ry": 300,
+              "fill": "#2affa0"
+            },
+            "opacity": 0.16
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 520,
+              "y": 180,
+              "w": 240,
+              "h": 400,
+              "fill": "#0f1a18",
+              "stroke": "#2b5a4a",
+              "stroke_width": 2,
+              "radius": 10
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 380,
+              "rx": 100,
+              "ry": 180,
+              "fill": "#2affa0"
+            },
+            "opacity": 0.3
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 640,
+              "y": 60,
+              "text": "РЕАКТОР",
+              "size": 30,
+              "color": "#7fe0c0",
+              "bold": true,
+              "align": "middle"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 640,
+              "y": 660,
+              "text": "СБРОС",
+              "size": 26,
+              "color": "#7fe0c0",
+              "bold": true,
+              "align": "middle"
+            }
+          }
+        ]
+      },
+      "transition": "panzoom",
+      "camera": {
+        "zoom": 1.2,
+        "duration": 7
+      },
+      "duration": 5,
+      "text": "Девять часов закончились. Реактор уходит на сброс, и корабль больше не ждёт."
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#050a14",
+                  "to": "#01030a",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 940,
+              "cy": 300,
+              "rx": 210,
+              "ry": 170,
+              "fill": {
+                "gradient": {
+                  "from": "#3f6480",
+                  "to": "#122436",
+                  "angle": 60
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 300,
+              "cy": 560,
+              "rx": 320,
+              "ry": 240,
+              "fill": {
+                "gradient": {
+                  "from": "#4a6f8c",
+                  "to": "#101f30",
+                  "angle": 60
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 600,
+              "y": 420,
+              "w": 180,
+              "h": 60,
+              "fill": "#1b2635",
+              "radius": 16
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 690,
+              "cy": 490,
+              "rx": 50,
+              "ry": 16,
+              "fill": "#7fd4ff"
+            },
+            "opacity": 0.4
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 80,
+              "y": 120,
+              "text": "ШАТТЛ «КОРСАК»",
+              "size": 28,
+              "color": "#9fb4c8",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 80,
+              "y": 160,
+              "text": "КУРС НА СТАНЦИЮ · ГРУЗ НА БОРТУ",
+              "size": 17,
+              "color": "#7f8fa2"
+            }
+          }
+        ]
+      },
+      "transition": "fade",
+      "duration": 5,
+      "text": "То, что было на борту, получает ответ — какой бы он ни был."
+    }
+  ]
+}

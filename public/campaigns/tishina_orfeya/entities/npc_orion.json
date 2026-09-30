@@ -1,0 +1,31 @@
+{
+  "id": "npc_orion",
+  "type": "npc",
+  "label": "ОРИОН, бортовой интеллект",
+  "description": "Бортовой интеллект «Орфея». Говорит ровно и вежливо, никуда не спешит и считает сигнал просто ценным грузом, который надо довезти до станции.",
+  "portrait": {
+    "neutral": "",
+    "calm": "",
+    "broken": "",
+    "cold": ""
+  },
+  "stats": {
+    "STR": 8,
+    "CON": 12,
+    "SIZ": 8,
+    "DEX": 8,
+    "INT": 16,
+    "POW": 12,
+    "CHA": 10
+  },
+  "skills": {
+    "computers": 85,
+    "engineering": 60,
+    "spot": 70,
+    "persuade": 45
+  },
+  "slot_type": "terminal",
+  "schedule": [],
+  "dialogue": "dialogues/dlg_orion.ink",
+  "presence_overrides": []
+}

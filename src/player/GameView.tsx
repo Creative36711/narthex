@@ -12,7 +12,7 @@ import { TradePanel } from './TradePanel'
 import { EndScreen } from './EndScreen'
 import { HelpPanel } from './HelpPanel'
 import { CombatScreen } from './CombatScreen'
-import { assetUrl } from '../core/loader'
+import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { CutscenePlayer } from '../shared/CutscenePlayer'
 import { BannerLayer, PostcardLayer } from './Atmosphere'
 import { setAudioCampaign, playUi, refreshAmbient, stopAllLoops } from '../shared/audio'
@@ -162,9 +162,10 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
       {!cutscene && message && (
         <div className="overlay message-overlay" onClick={() => engine.dismissMessage()}>
           <div className="message-box" onClick={(e) => e.stopPropagation()}>
-            {message.portrait && (
-              <img className="message-portrait" src={assetUrl(engine.campaign, message.portrait)} alt="" />
-            )}
+            {(() => {
+              const src = assetUrlOrNull(engine.campaign, message.portrait)
+              return src ? <img className="message-portrait" src={src} alt="" /> : null
+            })()}
             <p>{message.text}</p>
             <button className="btn btn-small" onClick={() => engine.dismissMessage()}>Ок</button>
           </div>

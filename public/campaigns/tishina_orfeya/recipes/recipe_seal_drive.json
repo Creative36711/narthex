@@ -1,0 +1,35 @@
+{
+  "id": "recipe_seal_drive",
+  "label": "Изолированный накопитель",
+  "description": "Экранированная обойма на готовом накопителе: сигнал можно запереть и вынести с корабля.",
+  "inputs": [
+    {
+      "item": "item_scrap",
+      "quantity": 2
+    },
+    {
+      "item": "item_tape",
+      "quantity": 1
+    }
+  ],
+  "tools": [
+    "item_multitool"
+  ],
+  "requires": [
+    {
+      "type": "flag_set",
+      "flag": "truth_known"
+    }
+  ],
+  "skill": {
+    "id": "computers",
+    "difficulty": 40
+  },
+  "time_ticks": 2,
+  "output": {
+    "item": "item_drive_seal",
+    "quantity": 1
+  },
+  "message": "Обойма смыкается. Накопитель гудит тихо и ровно.",
+  "known": false
+}

@@ -2,7 +2,7 @@
 campaign id=tishina_orfeya title=Тишина Орфея v=1.1.0
 scenes=8 entities=42
 dialogues=4
-seed=z9voa0n7
+seed=zrak8okl
   «катсцена» Пролог: стыковка
   msg: Новый квест: «Связь с бортом»
   msg: Шаттл «Корсак» причаливает к «Орфею». Связь с экипажем не отвечает уже девять часов.
@@ -180,25 +180,28 @@ seed=z9voa0n7
     move → 7,2 (dist to foe 1)
     attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 13)
     attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 13)
-    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 13)
-    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 7)
-    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 7)
-    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 7)
-    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 7)
-  ⚔ result=victory round=7
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 10)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 10)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 10)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 10)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 10)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 6)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 6)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 6)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 5)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 5)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 5)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 3)
+  ⚔ result=victory round=14
   msg: ТЭХ-4 оседает на пол. Гидравлический рычаг больше не поднимается.
   useItem item_air_canister
   msg: Клапан щёлкает, скафандр наполняется воздухом.
-[after core] tick=11 scene=scene_eng_reactor loc=loc_engineering hp=14/14 air=89 energy=83 sanity=49 game_over=false
+  useItem item_stim
+  msg: Стимулятор разливается по жилам теплом.
+[after core] tick=11 scene=scene_eng_reactor loc=loc_engineering hp=9/14 air=89 energy=83 sanity=49 game_over=false
   flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, codex_all, core_taken, echo_met, finale_forced, has_core, heavy_drone_dead, kastor_revealed, kastor_talked, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, pursuit_done, reactor_lit, scene_state:scene_eng_reactor:state_lit, scene_state:scene_hab_corridor:state_lit, truth_known
-  inv: item_baton×1, item_cutter×1, item_air_canister×1, item_water×1, item_cipher_key×1, item_scrap×6, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1, item_ice_core×1
+  inv: item_baton×1, item_cutter×1, item_air_canister×1, item_water×1, item_cipher_key×1, item_scrap×3, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_blackbox×1, item_ice_core×1
   quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed, quest_core:stage_core/active
-  craft recipe_seal_drive
-  craft → false
-  msg: Не получилось изготовить «Изолированный накопитель». Материалы остались целы.
-  craft recipe_seal_drive
-  craft → false
-  msg: Не получилось изготовить «Изолированный накопитель». Материалы остались целы.
   craft recipe_seal_drive
   craft → true
   msg: Обойма смыкается. Накопитель гудит тихо и ровно.
@@ -206,11 +209,11 @@ seed=z9voa0n7
 ═══ ФИНАЛ ═══
   interact item_reactor_console: «Запереть сигнал в изолированном накопителе»
   msg: Квест завершён: «Сердце Орфея»
-[after finale action] tick=13 scene=scene_eng_reactor loc=loc_engineering hp=14/14 air=78 energy=79 sanity=49 game_over=victory/ending_silence «Кампания пройдена!»
+[after finale action] tick=13 scene=scene_eng_reactor loc=loc_engineering hp=9/14 air=78 energy=79 sanity=49 game_over=victory/ending_silence «Кампания пройдена!»
   flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, codex_all, core_taken, echo_met, finale_forced, finale_silence, has_core, heavy_drone_dead, kastor_revealed, kastor_talked, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, pursuit_done, reactor_lit, scene_state:scene_eng_reactor:state_lit, scene_state:scene_hab_corridor:state_lit, truth_known
-  inv: item_baton×1, item_cutter×1, item_air_canister×1, item_water×1, item_cipher_key×1, item_scrap×4, item_multitool×1, item_tape×3, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1, item_ice_core×1, item_drive_seal×1
+  inv: item_baton×1, item_cutter×1, item_air_canister×1, item_water×1, item_cipher_key×1, item_scrap×1, item_multitool×1, item_tape×3, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_blackbox×1, item_ice_core×1, item_drive_seal×1
   quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed, quest_core:stage_done/completed
-[END] tick=13 scene=scene_eng_reactor loc=loc_engineering hp=14/14 air=78 energy=79 sanity=49 game_over=victory/ending_silence «Кампания пройдена!»
+[END] tick=13 scene=scene_eng_reactor loc=loc_engineering hp=9/14 air=78 energy=79 sanity=49 game_over=victory/ending_silence «Кампания пройдена!»
   flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, codex_all, core_taken, echo_met, finale_forced, finale_silence, has_core, heavy_drone_dead, kastor_revealed, kastor_talked, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, pursuit_done, reactor_lit, scene_state:scene_eng_reactor:state_lit, scene_state:scene_hab_corridor:state_lit, truth_known
-  inv: item_baton×1, item_cutter×1, item_air_canister×1, item_water×1, item_cipher_key×1, item_scrap×4, item_multitool×1, item_tape×3, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1, item_ice_core×1, item_drive_seal×1
+  inv: item_baton×1, item_cutter×1, item_air_canister×1, item_water×1, item_cipher_key×1, item_scrap×1, item_multitool×1, item_tape×3, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_blackbox×1, item_ice_core×1, item_drive_seal×1
   quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed, quest_core:stage_done/completed

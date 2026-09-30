@@ -1,0 +1,401 @@
+{
+  "id": "scene_eng_corridor",
+  "label": "Машинный коридор",
+  "location": "loc_engineering",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Обычное",
+      "condition": null,
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0a0e14",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#07100e",
+                  "to": "#02050a",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                0,
+                300,
+                190,
+                300,
+                530,
+                0,
+                720
+              ],
+              "fill": "#0a1210"
+            },
+            "label": "левая стена"
+          },
+          {
+            "shape": {
+              "type": "polygon",
+              "points": [
+                1280,
+                0,
+                980,
+                190,
+                980,
+                530,
+                1280,
+                720
+              ],
+              "fill": "#0a1210"
+            },
+            "label": "правая стена"
+          },
+          {
+            "shape": {
+              "type": "polygon",
+              "points": [
+                300,
+                190,
+                980,
+                190,
+                900,
+                250,
+                380,
+                250
+              ],
+              "fill": "#060b0a"
+            },
+            "label": "потолок"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 240,
+              "w": 160,
+              "h": 280,
+              "fill": "#08110e",
+              "stroke": "#1e3a32",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "дверь реакторного зала"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 600,
+              "y": 250,
+              "w": 80,
+              "h": 260,
+              "fill": "#060d0b"
+            },
+            "label": "створка"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 640,
+              "y": 226,
+              "text": "РЕАКТОРНЫЙ ЗАЛ",
+              "size": 14,
+              "color": "#7fe0c0",
+              "bold": true,
+              "align": "middle"
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 210,
+              "w": 40,
+              "h": 330,
+              "fill": "#0d1613",
+              "stroke": "#1e2e28",
+              "stroke_width": 1
+            },
+            "label": "трубы"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 170,
+              "y": 230,
+              "w": 34,
+              "h": 300,
+              "fill": "#0d1613",
+              "stroke": "#1e2e28",
+              "stroke_width": 1
+            },
+            "label": "трубы"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1120,
+              "y": 210,
+              "w": 40,
+              "h": 330,
+              "fill": "#0d1613",
+              "stroke": "#1e2e28",
+              "stroke_width": 1
+            },
+            "label": "трубы"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1076,
+              "y": 230,
+              "w": 34,
+              "h": 300,
+              "fill": "#0d1613",
+              "stroke": "#1e2e28",
+              "stroke_width": 1
+            },
+            "label": "трубы"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 430,
+              "rx": 46,
+              "ry": 22,
+              "fill": "#6bffb0"
+            },
+            "opacity": 0.35,
+            "label": "течь"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 612,
+              "y": 418,
+              "w": 56,
+              "h": 26,
+              "fill": "#0f1a18",
+              "stroke": "#2b5a4a",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "стык"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 628,
+              "y": 444,
+              "w": 24,
+              "h": 40,
+              "fill": "#6bffb0"
+            },
+            "opacity": 0.25,
+            "label": "струя"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 500,
+              "rx": 70,
+              "ry": 22,
+              "fill": "#6bffb0"
+            },
+            "opacity": 0.12,
+            "label": "лужа"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 260,
+              "y": 470,
+              "w": 140,
+              "h": 110,
+              "fill": "#131c28",
+              "stroke": "#2f4256",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "ящик снабжения"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 276,
+              "y": 486,
+              "w": 108,
+              "h": 78,
+              "fill": "#0e1520"
+            },
+            "label": "крышка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 300,
+              "y": 500,
+              "w": 60,
+              "h": 12,
+              "fill": "#2f6f8a",
+              "radius": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 30,
+              "y": 480,
+              "w": 180,
+              "h": 200,
+              "fill": "#0a1014",
+              "stroke": "#1e2e34",
+              "stroke_width": 2,
+              "radius": 4
+            },
+            "label": "аварийный люк"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 46,
+              "y": 520,
+              "text": "АВАРИЙНЫЙ ЛЮК",
+              "size": 13,
+              "color": "#8fa4b8"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 46,
+              "y": 544,
+              "text": "НАЗАД · К КАРТЕ",
+              "size": 12,
+              "color": "#6f7f92"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 46,
+              "text": "МАШИННЫЙ КОРИДОР",
+              "size": 28,
+              "color": "#7fe0c0",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 40,
+              "y": 80,
+              "text": "ТЕМНОТА · ГДЕ-ТО КАПАЕТ · ЧТО-ТО ЖУЖЖИТ",
+              "size": 15,
+              "color": "#5a7a6a"
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 430,
+              "rx": 300,
+              "ry": 260,
+              "fill": "#ff4d3d"
+            },
+            "opacity": 0.03,
+            "label": "наводка"
+          }
+        ]
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_leak",
+      "label": "Течь в стыке",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 600,
+      "y": 400,
+      "w": 90,
+      "h": 74,
+      "condition": null,
+      "default_entity": "item_leak"
+    },
+    {
+      "id": "slot_cache",
+      "label": "Ящик снабжения",
+      "type": [
+        "container"
+      ],
+      "shape": "rect",
+      "x": 250,
+      "y": 460,
+      "w": 160,
+      "h": 130,
+      "condition": null,
+      "default_entity": "item_cache"
+    },
+    {
+      "id": "slot_hatch",
+      "label": "Аварийный люк",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 20,
+      "y": 470,
+      "w": 200,
+      "h": 220,
+      "condition": null,
+      "default_entity": "item_hatch"
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В реакторный зал",
+      "area": {
+        "x": 560,
+        "y": 240,
+        "w": 160,
+        "h": 280
+      },
+      "go_to_scene": "scene_eng_reactor"
+    },
+    {
+      "label": "К карте корабля",
+      "area": {
+        "x": 30,
+        "y": 480,
+        "w": 180,
+        "h": 200
+      },
+      "open_map": true
+    }
+  ],
+  "chapter": "chapter_eng"
+}

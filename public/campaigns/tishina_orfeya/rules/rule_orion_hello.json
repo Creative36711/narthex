@@ -1,0 +1,22 @@
+{
+  "id": "rule_orion_hello",
+  "label": "ОРИОН выходит на связь",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_hab_corridor"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "orion_hello"
+    },
+    {
+      "type": "show_message",
+      "text": "Терминал в коридоре мигает: «ОРИОН на связи. Экипаж недоступен. Добро пожаловать на борт»."
+    }
+  ],
+  "chapter": "chapter_hab"
+}

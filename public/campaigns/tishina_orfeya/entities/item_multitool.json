@@ -1,0 +1,13 @@
+{
+  "id": "item_multitool",
+  "type": "item",
+  "category": "tech",
+  "label": "Мультитул",
+  "description": "Инженерный мультитул: пассатижи, отвёртки, диагностический зонд. Без него не собрать накопитель.",
+  "weight": 0.8,
+  "stackable": false,
+  "value": {
+    "credits": 40
+  },
+  "equip_slot": "tool"
+}

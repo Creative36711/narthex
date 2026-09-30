@@ -1,0 +1,98 @@
+{
+  "id": "quest_comms",
+  "label": "Связь с бортом",
+  "description": "Подняться на борт «Орфея», поднять аварийное питание и выяснить, почему экипаж не выходит на связь.",
+  "journal_entries": {
+    "j_start": "Я на борту. Нужно поднять аварийное питание в жилом отсеке и найти хоть один терминал.",
+    "j_power": "Питание поднято. ОРИОН вышел на связь и говорит подозрительно спокойно.",
+    "j_logs": "Судовой журнал расшифрован: экипаж привёз изо льда сигнал, который «считает». ОРИОН считает его просто грузом.",
+    "j_done": "Правда найдена: люди на борту не погибли — их записали в шум систем корабля. Сигналу нужен новый носитель."
+  },
+  "stages": [
+    {
+      "id": "stage_start",
+      "label": "На борту",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_comms",
+          "text_key": "j_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_power",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "power_hab_restored"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_power",
+      "label": "Питание поднято",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_comms",
+          "text_key": "j_power"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_logs",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "logs_decoded"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_logs",
+      "label": "Журнал расшифрован",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_comms",
+          "text_key": "j_logs"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "truth_known"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_done",
+      "label": "Правда найдена",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_comms",
+          "text_key": "j_done"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_signal"
+        }
+      ],
+      "final": true,
+      "outcome": "success",
+      "transitions": []
+    }
+  ],
+  "chapter": "chapter_hab"
+}

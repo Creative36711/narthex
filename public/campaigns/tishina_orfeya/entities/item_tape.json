@@ -1,0 +1,12 @@
+{
+  "id": "item_tape",
+  "type": "item",
+  "category": "tech",
+  "label": "Суперая лента",
+  "description": "Серая лента, которая держит что угодно: течи, провода и надежды.",
+  "weight": 0.2,
+  "stackable": true,
+  "value": {
+    "credits": 4
+  }
+}

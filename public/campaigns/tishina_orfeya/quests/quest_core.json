@@ -1,0 +1,130 @@
+{
+  "id": "quest_core",
+  "label": "Сердце Орфея",
+  "description": "Добраться до реакторного зала, найти техника Кастора и забрать ледяное ядро из контура охлаждения.",
+  "journal_entries": {
+    "j_start": "Машинное отделение. Где-то в коридоре охотится оживший дрон.",
+    "j_kastor": "Кастор найден. Он знает, где сигнал и чем его можно закрыть.",
+    "j_core": "Ледяное ядро у меня. Осталось решить, что с ним сделать.",
+    "j_done": "Решение принято. Орфей получает ответ."
+  },
+  "stages": [
+    {
+      "id": "stage_start",
+      "label": "Добраться до реакторного зала",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_core",
+          "text_key": "j_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_kastor",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "kastor_talked"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_kastor",
+      "label": "Кастор найден",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_core",
+          "text_key": "j_kastor"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_core",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "has_core"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_core",
+      "label": "Ядро у героя",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_core",
+          "text_key": "j_core"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "finale_burn"
+            }
+          ]
+        },
+        {
+          "to": "stage_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "finale_network"
+            }
+          ]
+        },
+        {
+          "to": "stage_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "finale_silence"
+            }
+          ]
+        },
+        {
+          "to": "stage_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "finale_remember"
+            }
+          ]
+        },
+        {
+          "to": "stage_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "merged"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_done",
+      "label": "Финал",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_core",
+          "text_key": "j_done"
+        }
+      ],
+      "final": true,
+      "outcome": "success",
+      "transitions": []
+    }
+  ],
+  "chapter": "chapter_eng"
+}

@@ -2,7 +2,7 @@ import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { DialogueLine } from '../core/dialogue'
-import { assetUrl } from '../core/loader'
+import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { tipSeen, markTip } from './tips'
 import { useSettings, voiceVolume } from '../shared/settings'
 import { speak } from '../shared/speech'
@@ -159,15 +159,25 @@ export function DialogueOverlay({ engine }: Props) {
   // эмоция реплики, но если правило задало состояние облика (set_entity_state) —
   // оно главнее: персонаж «злой» даже на нейтральной реплике
   const emotion = engine.entityState(d.npc.id) ?? activeLine?.emotion ?? 'neutral'
-  const portrait = d.npc.portrait[emotion] ?? d.npc.portrait['neutral']
+  // пустая строка portrait.neutral: '' — не URL (assetUrlOrNull → null)
+  const portraitSrc = assetUrlOrNull(
+    engine.campaign,
+    d.npc.portrait?.[emotion] ?? d.npc.portrait?.['neutral'],
+  )
   const hasChoices = d.choices.length > 0
   const allShown = revealed >= lines.length
 
   return (
     <div className="overlay dialogue-overlay">
-      <div className="dialogue-box" onClick={skip}>
-        <div className="dialogue-portrait">
-          {portrait && <img src={assetUrl(engine.campaign, portrait)} alt={d.npc.label} />}
+      <div className={`dialogue-box${portraitSrc ? '' : ' dialogue-box-noportrait'}`} onClick={skip}>
+        <div className={`dialogue-portrait${portraitSrc ? '' : ' dialogue-portrait-empty'}`}>
+          {portraitSrc ? (
+            <img src={portraitSrc} alt={d.npc.label} draggable={false} />
+          ) : (
+            <div className="dialogue-portrait-placeholder" aria-hidden>
+              <Ico n="user" />
+            </div>
+          )}
           <div className="dialogue-npc-name">
             {d.npc.label}
             {(() => {

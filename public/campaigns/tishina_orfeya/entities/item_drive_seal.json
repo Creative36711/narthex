@@ -1,0 +1,18 @@
+{
+  "id": "item_drive_seal",
+  "type": "item",
+  "category": "quest",
+  "label": "Изолированный накопитель",
+  "description": "Накопитель в экранированной обойме: внутри можно запереть сигнал и вынести его с корабля.",
+  "weight": 0.5,
+  "stackable": false,
+  "on_use": {
+    "effects": [
+      {
+        "type": "show_message",
+        "text": "Накопитель тихо гудит. Он ждёт."
+      }
+    ],
+    "consume": false
+  }
+}

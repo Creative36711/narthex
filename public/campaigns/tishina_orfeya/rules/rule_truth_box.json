@@ -1,0 +1,35 @@
+{
+  "id": "rule_truth_box",
+  "label": "Правда о сигнале: чёрный ящик",
+  "once": true,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "blackbox_taken"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "truth_known"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_comms",
+      "stage": "stage_done"
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_orion",
+      "state": "broken"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_signal"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_crew"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "rule_finale_burn",
+  "label": "Финал: сжечь",
+  "once": true,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "finale_burn"
+    }
+  ],
+  "effects": [
+    {
+      "type": "advance_quest",
+      "quest": "quest_core",
+      "stage": "stage_done"
+    },
+    {
+      "type": "banner",
+      "text": "ОРФЕЙ ОТВЕЧАЕТ",
+      "seconds": 5
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "chapter": "chapter_final"
+}

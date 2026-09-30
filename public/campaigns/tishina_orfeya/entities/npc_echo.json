@@ -1,0 +1,29 @@
+{
+  "id": "npc_echo",
+  "type": "npc",
+  "label": "Запись капитана Роя",
+  "description": "Голограмма последнего доклада капитана. Крутится по кругу уже девять часов — и с каждым кругом говорит чуть не то.",
+  "portrait": {
+    "neutral": "",
+    "calm": "",
+    "broken": "",
+    "whisper": ""
+  },
+  "stats": {
+    "STR": 6,
+    "CON": 10,
+    "SIZ": 6,
+    "DEX": 6,
+    "INT": 12,
+    "POW": 10,
+    "CHA": 12
+  },
+  "skills": {
+    "persuade": 30,
+    "computers": 20
+  },
+  "slot_type": "terminal",
+  "schedule": [],
+  "dialogue": "dialogues/dlg_echo.ink",
+  "presence_overrides": []
+}

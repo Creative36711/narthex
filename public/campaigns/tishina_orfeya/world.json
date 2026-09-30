@@ -1,0 +1,404 @@
+{
+  "regions": [
+    {
+      "id": "region_orfey",
+      "label": "Грузовой корабль «Орфей»",
+      "map_image": "",
+      "map_art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#04070b",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#0b1118",
+                  "to": "#04070b",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 56,
+              "y": 56,
+              "w": 1168,
+              "h": 608,
+              "fill": "#0a1016",
+              "stroke": "#22303e",
+              "stroke_width": 3
+            },
+            "label": "корпус"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 110,
+              "y": 90,
+              "w": 180,
+              "h": 150,
+              "fill": "#131c28",
+              "stroke": "#2f4256",
+              "stroke_width": 2
+            },
+            "label": "шлюзовая палуба"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 430,
+              "y": 80,
+              "w": 320,
+              "h": 180,
+              "fill": "#131c28",
+              "stroke": "#2f4256",
+              "stroke_width": 2
+            },
+            "label": "жилой отсек"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 860,
+              "y": 180,
+              "w": 240,
+              "h": 180,
+              "fill": "#131c28",
+              "stroke": "#2f4256",
+              "stroke_width": 2
+            },
+            "label": "рубка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 380,
+              "y": 420,
+              "w": 320,
+              "h": 220,
+              "fill": "#12202a",
+              "stroke": "#2f5a56",
+              "stroke_width": 2
+            },
+            "label": "машинное отделение"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 290,
+              "y1": 165,
+              "x2": 430,
+              "y2": 165,
+              "color": "#3a5064",
+              "width": 10
+            },
+            "label": "коридор"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 750,
+              "y1": 170,
+              "x2": 860,
+              "y2": 270,
+              "color": "#3a5064",
+              "width": 10
+            },
+            "label": "коридор"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 590,
+              "y1": 260,
+              "x2": 590,
+              "y2": 420,
+              "color": "#3a5064",
+              "width": 10
+            },
+            "label": "коридор"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 750,
+              "y1": 530,
+              "x2": 860,
+              "y2": 360,
+              "color": "#3a5064",
+              "width": 10
+            },
+            "label": "коридор"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 300,
+              "rx": 210,
+              "ry": 170,
+              "fill": "#ff4d3d"
+            },
+            "opacity": 0.06,
+            "label": "наводка сигнала"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 300,
+              "rx": 120,
+              "ry": 96,
+              "fill": "#ff4d3d"
+            },
+            "opacity": 0.08,
+            "label": "наводка сигнала"
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 60,
+              "y": 40,
+              "text": "ГРУЗОВОЙ КОРАБЛЬ «ОРФЕЙ» · ПЛАН ПАЛУБ",
+              "size": 26,
+              "color": "#8fb4cc",
+              "bold": true
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 120,
+              "y": 170,
+              "text": "ШЛЮЗ",
+              "size": 18,
+              "color": "#9fb4c8",
+              "bold": true,
+              "align": "middle"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 590,
+              "y": 165,
+              "text": "ЖИЛОЙ ОТСЕК",
+              "size": 20,
+              "color": "#9fb4c8",
+              "bold": true,
+              "align": "middle"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 980,
+              "y": 275,
+              "text": "РУБКА",
+              "size": 18,
+              "color": "#9fb4c8",
+              "bold": true,
+              "align": "middle"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 540,
+              "y": 535,
+              "text": "МАШИННОЕ ОТДЕЛЕНИЕ",
+              "size": 18,
+              "color": "#7fe0c0",
+              "bold": true,
+              "align": "middle"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 60,
+              "y": 600,
+              "text": "СВЯЗЬ ПРЕРВАНА 9 ЧАСОВ НАЗАД",
+              "size": 14,
+              "color": "#c96a5a"
+            }
+          },
+          {
+            "shape": {
+              "type": "text",
+              "x": 60,
+              "y": 630,
+              "text": "ОРБИТА НЕУСТОЙЧИВА · РЕАКТОР НА СХОДУ",
+              "size": 14,
+              "color": "#c96a5a"
+            }
+          }
+        ]
+      },
+      "map_size": {
+        "w": 1280,
+        "h": 720
+      },
+      "parent_region": null,
+      "locations": [
+        {
+          "id": "loc_airlock",
+          "label": "Шлюзовая палуба",
+          "position": {
+            "x": 200,
+            "y": 165
+          },
+          "travel_connections": [
+            {
+              "to": "loc_habitation",
+              "cost_ticks": 2,
+              "requirements": []
+            }
+          ],
+          "scenes": [
+            "scene_airlock"
+          ],
+          "arrival_scene": "scene_airlock",
+          "ambient": [
+            "snd_storm_hum"
+          ],
+          "music": [
+            {
+              "tracks": [
+                "music_airlock"
+              ],
+              "shuffle": false,
+              "conditions": []
+            }
+          ],
+          "on_enter_rules": []
+        },
+        {
+          "id": "loc_habitation",
+          "label": "Жилой отсек",
+          "position": {
+            "x": 590,
+            "y": 170
+          },
+          "travel_connections": [
+            {
+              "to": "loc_airlock",
+              "cost_ticks": 2,
+              "requirements": []
+            },
+            {
+              "to": "loc_bridge",
+              "cost_ticks": 2,
+              "requirements": []
+            },
+            {
+              "to": "loc_engineering",
+              "cost_ticks": 3,
+              "random_encounter_table": "enc_corridor",
+              "requirements": []
+            }
+          ],
+          "scenes": [
+            "scene_hab_corridor",
+            "scene_hab_quarters",
+            "scene_hab_med"
+          ],
+          "arrival_scene": "scene_hab_corridor",
+          "music": [
+            {
+              "tracks": [
+                "music_hab"
+              ],
+              "shuffle": false,
+              "conditions": []
+            }
+          ],
+          "on_enter_rules": []
+        },
+        {
+          "id": "loc_bridge",
+          "label": "Рубка",
+          "position": {
+            "x": 980,
+            "y": 270
+          },
+          "travel_connections": [
+            {
+              "to": "loc_habitation",
+              "cost_ticks": 2,
+              "requirements": []
+            },
+            {
+              "to": "loc_engineering",
+              "cost_ticks": 3,
+              "requirements": []
+            }
+          ],
+          "scenes": [
+            "scene_bridge_gate",
+            "scene_bridge"
+          ],
+          "arrival_scene": "scene_bridge_gate",
+          "music": [
+            {
+              "tracks": [
+                "music_bridge"
+              ],
+              "shuffle": false,
+              "conditions": []
+            }
+          ],
+          "on_enter_rules": []
+        },
+        {
+          "id": "loc_engineering",
+          "label": "Машинное отделение",
+          "position": {
+            "x": 540,
+            "y": 530
+          },
+          "travel_connections": [
+            {
+              "to": "loc_habitation",
+              "cost_ticks": 3,
+              "requirements": []
+            },
+            {
+              "to": "loc_bridge",
+              "cost_ticks": 3,
+              "requirements": []
+            }
+          ],
+          "scenes": [
+            "scene_eng_corridor",
+            "scene_eng_reactor"
+          ],
+          "arrival_scene": "scene_eng_corridor",
+          "ambient": [
+            "snd_storm_hum"
+          ],
+          "music": [
+            {
+              "tracks": [
+                "music_corridor"
+              ],
+              "shuffle": false,
+              "conditions": []
+            }
+          ],
+          "on_enter_rules": []
+        }
+      ]
+    }
+  ]
+}
