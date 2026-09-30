@@ -55,12 +55,12 @@ export function SettingsPanel({ open, onClose }: Props) {
         <VolumeSlider label="Общая громкость" value={s.volume} onChange={(v) => patch({ volume: v })} />
         <VolumeSlider label="Музыка" value={s.music_volume} onChange={(v) => { patch({ music_volume: v }); applyMusicVolume() }} />
         <VolumeSlider label="Звуковые эффекты" value={s.sfx_volume} onChange={(v) => patch({ sfx_volume: v })} />
-        <VolumeSlider label="Голос (озвучка реплик)" value={s.voice_volume} onChange={(v) => patch({ voice_volume: v })} />
+        <VolumeSlider label="Голос (озвучка реплик и ремарок)" value={s.voice_volume} onChange={(v) => patch({ voice_volume: v })} />
 
         <Row label="Озвучка">
           <label className="fld-check small">
             <input type="checkbox" checked={!s.voice_muted} onChange={(e) => patch({ voice_muted: !e.target.checked })} />
-            <span>включена (файлы озвучки реплик и слайдов)</span>
+            <span>включена (файлы озвучки реплик, ремарок и слайдов)</span>
           </label>
         </Row>
 
@@ -83,7 +83,7 @@ export function SettingsPanel({ open, onClose }: Props) {
 
         {ttsSupported() ? (
           <>
-            <Row label="Озвучивать реплики и подписи катсцен без файла синтезатором">
+            <Row label="Озвучивать реплики, ремарки и подписи катсцен без файла синтезатором">
               <label className="fld-check small">
                 <input type="checkbox" checked={s.tts_enabled} onChange={(e) => patch({ tts_enabled: e.target.checked })} />
                 <span>включить</span>

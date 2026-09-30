@@ -71,14 +71,14 @@ export function DialogueOverlay({ engine }: Props) {
   const activeLine = current ?? lines[revealed - 1]
 
   /**
-   * Озвучка реплики — по образцу катсцены (фидбек 21): одна фраза звучит
+   * Озвучка реплики или ремарки — по образцу катсцены: одна строка звучит
    * одна (без накопления в очереди), а её окончание двигает диалог дальше.
    */
   const playLine = (line: DialogueLine | undefined) => {
     clearLineAudio()
     setLineDone(false)
     const done = () => setLineDone(true)
-    if (!line || line.action) {
+    if (!line) {
       done()
       return
     }

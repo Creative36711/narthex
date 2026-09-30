@@ -810,7 +810,7 @@ function LineRow({
         </label>
         <button
           className={`btn btn-small ${line.voice ? 'btn-primary' : ''}`}
-          data-tip={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики: файл или ссылка'}
+          data-tip={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики или ремарки: файл или ссылка'}
           onClick={() => setVoiceOpen(!voiceOpen)}
         >
           <Ico n="mic" />{line.voice ? '' : ''}
@@ -822,7 +822,7 @@ function LineRow({
       {voiceOpen && (
         <div className="dlg-line-voice">
           <AudioUpload
-            label="Озвучка реплики (файл или ссылка; без неё возможен синтезатор в настройках игрока)"
+            label="Озвучка реплики или ремарки (файл или ссылка; без файла возможен синтезатор в настройках игрока)"
             value={line.voice ?? ''}
             dir="assets/voice"
             store={store}

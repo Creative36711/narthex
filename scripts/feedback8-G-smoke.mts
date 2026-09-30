@@ -32,9 +32,13 @@ function check(name: string, ok: boolean, extra = '') {
 // ── G1: тег voice: .dlg.json → ink → движок ──
 {
   const doc: DlgDoc = newDlgDoc('Тест')
-  doc.nodes[0].sections[0].steps.push({ kind: 'line', line: { text: 'Вторая реплика', voice: 'assets/voice/t_02.ogg' } })
+  doc.nodes[0].sections[0].steps.push(
+    { kind: 'line', line: { text: 'Вторая реплика', voice: 'assets/voice/t_02.ogg' } },
+    { kind: 'line', line: { text: 'Ремарка с озвучкой', action: true, voice: 'assets/voice/narration.ogg' } },
+  )
   const ink = generateInk(doc)
   check('G1 generateInk пишет тег # voice', ink.includes('# voice: assets/voice/t_02.ogg'), ink.split('\n')[3] ?? '')
+  check('G1 generateInk сохраняет озвучку ремарки', ink.includes('# action # voice: assets/voice/narration.ogg'))
   const story = new Compiler(ink).Compile()
   check('G1 ink с озвучкой компилируется', !!story)
 
@@ -45,6 +49,7 @@ function check(name: string, ok: boolean, extra = '') {
   run.ChoosePathString('main') // как движок при старте разговора
   const { lines } = drainStory(run)
   check('G1 drainStory доносит voice до UI', lines.some((l) => l.voice === 'assets/voice/t_02.ogg'), JSON.stringify(lines.map((l) => l.voice)))
+  check('G1 drainStory сохраняет action + voice ремарки', lines.some((l) => l.action && l.voice === 'assets/voice/narration.ogg'))
   check('G1 у реплики без файла voice не заполнен', lines[0].voice === undefined)
 }
 
@@ -54,6 +59,7 @@ function check(name: string, ok: boolean, extra = '') {
   check('G2 файл озвучки играет при показе реплики', overlay.includes('new Audio(assetUrl(engine.campaign, line.voice))'))
   check('G2 повтор реплики убран (фидбек 17)', !overlay.includes("'replay'") && !overlay.includes('прослушать ещё раз'))
   check('G2 фолбэк на синтезатор', overlay.includes('speak(line.text') && overlay.includes('tts_enabled'))
+  check('G2 ремарка не исключается из озвучки (файл и TTS)', !overlay.includes('if (!line || line.action)') && overlay.includes('if (!line)'))
   check('G2 громкость из настроек', overlay.includes('voiceVolume(settings)'))
   check('G2 звук снимается при закрытии', overlay.includes('pause()') && overlay.includes('useEffect'))
   const player = readFileSync('src/shared/CutscenePlayer.tsx', 'utf8')
@@ -67,7 +73,7 @@ function check(name: string, ok: boolean, extra = '') {
   check('G3 синтезатор по умолчанию выключен', DEFAULT_SETTINGS.tts_enabled === false)
   const panel = readFileSync('src/shared/SettingsPanel.tsx', 'utf8')
   check('G3 громкость общая/музыка/эффекты/голос', ['volume', 'music_volume', 'sfx_volume', 'voice_volume'].every((k) => panel.includes(k)))
-  check('G3 галочка «Озвучивать … синтезатором»', panel.includes('tts_enabled') && panel.includes('Озвучивать реплики и подписи катсцен без файла'))
+  check('G3 галочка «Озвучивать … синтезатором»', panel.includes('tts_enabled') && panel.includes('Озвучивать реплики, ремарки и подписи катсцен без файла'))
   check('G3 выбор голоса из доступных в системе', panel.includes('useTtsVoices') && panel.includes('tts_voice'))
   check('G3 выключатель озвучки', panel.includes('voice_muted'))
   const settings = readFileSync('src/shared/settings.ts', 'utf8')
