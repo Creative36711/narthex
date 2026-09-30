@@ -11,14 +11,16 @@
  *     документ до генерации кампании и упоминает обновление на каждой
  *     итерации (§R6);
  *  4) §0 гайда дословно синхронизирован с первоисточником инструкции;
- *  5) манифест чемодана (AI_KIT_FILES) совпадает с содержимым public/ai;
+ *  5) манифест справочных файлов совпадает с public/ai, а единый архив задания
+ *     содержит campaign package, brief, медиа и отчёт проверки;
  *  6) в docs/campaign.schema.json поле design_doc есть в CampaignMeta
  *     и необязательно (§R5).
  *
  * Прогон: npx tsx scripts/design-doc-guard.mts  (npm run smoke:design-doc)
  */
 import { readdirSync, readFileSync } from 'node:fs'
-import { AI_KIT_FILES } from '../src/editor/aiKit'
+import { AI_KIT_FILES, AI_TASK_DIR } from '../src/editor/aiKit'
+import { readFileSync as readEditorFile } from 'node:fs'
 
 let failed = 0
 const check = (label: string, ok: boolean, extra?: string) => {
@@ -105,8 +107,10 @@ check(
     && !/пока мастер не сказал «ок»|только после\s+«ок»/i.test(template),
 )
 check(
-  'инструкция: возвращается campaign.json через «Файл → Импорт из JSON»',
-  /«Файл → Импорт из JSON»/.test(instruction),
+  'инструкция: полный результат — .chronicle, JSON оставлен для правок без медиа',
+  /готовый `.chronicle`/.test(instruction)
+    && /«Файл → Импорт из JSON»/.test(instruction)
+    && /бинарные медиа/.test(instruction),
 )
 
 // ── 4) §0 гайда = первоисточник (demoteHeadings + заголовок §0) ──
@@ -130,10 +134,19 @@ check(
   const manifest = AI_KIT_FILES.map((f) => f.name).sort()
   const extra = actual.filter((name) => !manifest.includes(name))
   const missing = manifest.filter((name) => !actual.includes(name))
+  const taskBundle = readEditorFile('src/editor/aiTask.ts', 'utf8')
   check(
-    'манифест чемодана совпадает с содержимым public/ai (ровно 4 файла в архиве с campaign.json)',
+    'манифест справочных файлов совпадает с public/ai',
     extra.length === 0 && missing.length === 0,
     extra.length || missing.length ? `лишние: ${extra.join(', ') || '—'}; нет: ${missing.join(', ') || '—'}` : undefined,
+  )
+  check(
+    'задание ИИ собирает контекст кампании, бриф, руководство и отчёт проверки',
+    AI_TASK_DIR === '__chronicle_ai__/'
+      && taskBundle.includes('exportChronicle(store, { allowMissingMedia: true })')
+      && taskBundle.includes("aiDir('TASK.md')")
+      && taskBundle.includes("aiDir('validation-report.md')")
+      && taskBundle.includes('AI_KIT_FILES'),
   )
 }
 

@@ -1,34 +1,43 @@
 import JSZip from 'jszip'
 import type { EditorStore } from './store'
+import { collectCampaignMedia } from './campaignAudit'
+import { AI_TASK_DIR } from './aiKit'
+export { AI_TASK_DIR } from './aiKit'
 
 /**
  * Экспорт/импорт пакета кампании `.chronicle` (ТЗ 3.11, 5.4) — zip-архив
  * со структурой Campaign Package, включая ассеты.
  */
 
-/** собрать список путей ассетов, упомянутых в JSON-документах ("assets/...") */
+/** собрать все локальные пути изображений, звука, видео и шрифтов кампании */
 export function collectAssetPaths(store: EditorStore): string[] {
-  const found = new Set<string>()
-  const scan = (text: string) => {
-    for (const m of text.matchAll(/"(assets\/[^"\\]+)"/g)) found.add(m[1])
-  }
-  scan(JSON.stringify(store.meta))
-  scan(JSON.stringify(store.world))
-  for (const [, v] of store.jsonFiles) scan(JSON.stringify(v))
-  return [...found].sort()
+  return collectCampaignMedia(store).local
 }
 
-export async function exportChronicle(store: EditorStore): Promise<Blob> {
+export async function exportChronicle(
+  store: EditorStore,
+  options: { allowMissingMedia?: boolean } = {},
+): Promise<Blob> {
   const zip = new JSZip()
   for (const p of store.allPaths()) zip.file(p, store.fileText(p))
-  // ассеты — бинарно
   const assets = collectAssetPaths(store)
-  await Promise.all(
-    assets.map(async (a) => {
-      const res = await fetch(`${store.basePath}/${a}`)
-      if (res.ok) zip.file(a, await res.arrayBuffer())
-    }),
-  )
+  const missing: string[] = []
+  await Promise.all(assets.map(async (assetPath) => {
+    const url = `${store.basePath}/${assetPath.split('/').map(encodeURIComponent).join('/')}`
+    try {
+      const response = await fetch(url)
+      if (!response.ok || (response.headers.get('content-type') ?? '').toLowerCase().includes('text/html')) {
+        missing.push(assetPath)
+        return
+      }
+      zip.file(assetPath, await response.arrayBuffer())
+    } catch {
+      missing.push(assetPath)
+    }
+  }))
+  if (missing.length && !options.allowMissingMedia) {
+    throw new Error(`Пакет не собран: не найдены медиафайлы (${missing.length}):\n${missing.join('\n')}`)
+  }
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
 }
 
@@ -49,13 +58,15 @@ export async function importChronicle(store: EditorStore, file: File): Promise<s
   const zip = await JSZip.loadAsync(file)
   const warnings: string[] = []
   const campaignRel = store.campaignRel()
-  const entries = Object.keys(zip.files).filter((p) => !zip.files[p].dir)
+  const archiveEntries = Object.keys(zip.files).filter((p) => !zip.files[p].dir)
 
   // Сначала разбираем и проверяем структуру архива, чтобы ошибка JSON не
-  // оставляла редактор частично перезаписанным.
-  for (const p of entries) {
+  // оставляла редактор частично перезаписанным. Метаданные AI-набора лежат
+  // отдельно и никогда не попадают в файлы кампании.
+  for (const p of archiveEntries) {
     if (p.startsWith('/') || p.split('/').includes('..')) throw new Error(`Недопустимый путь в архиве: ${p}`)
   }
+  const entries = archiveEntries.filter((path) => !path.startsWith(AI_TASK_DIR))
   for (const required of ['campaign.json', 'world.json', 'manifest.json']) {
     if (!zip.files[required] || zip.files[required].dir) throw new Error(`В архиве нет обязательного файла ${required}`)
   }

@@ -1484,9 +1484,9 @@ export function parseMonolith(text: string): MonolithDoc {
 export function importMonolith(store: EditorStore, raw: unknown): string[] {
   const { doc, warnings } = repairMonolith(raw)
 
-  // id и название принадлежат импортируемому проекту. В редакторе каталог будет
-  // безопасно перенесён при сохранении; здесь не подменяем авторский id.
-  // полная замена содержимого пакета (кампания приходит целиком)
+  // Импортёр разбирает ID из документа, но владелец идентичности — вызывающий
+  // поток: новая кампания выдаёт UUID, обновление сохраняет ID текущей папки.
+  // Полная замена содержимого пакета (кампания приходит целиком).
   store.jsonFiles.clear()
   store.textFiles.clear()
   store.dirty.clear()

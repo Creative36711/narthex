@@ -50,9 +50,22 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   const doImport = async (file: File) => {
     setImportBusy(true)
     try {
-      const entry = await importChroniclePackage(file)
+      const entry = await importChroniclePackage(file, async (conflict) => {
+        const update = await askConfirm(
+          `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}», а содержимое пакета отличается. Обновить существующую кампанию «${conflict.incomingTitle}» под тем же ID?`,
+          'Обновить кампанию',
+        )
+        if (update) return 'update'
+        const copy = await askConfirm(
+          `Импортировать «${conflict.incomingTitle}» как отдельную копию с новым ID?`,
+          'Импортировать копию',
+        )
+        return copy ? 'copy' : 'cancel'
+      })
+      if (entry.cancelled) return
       onImported(entry.id)
       setShowList(false)
+      if (entry.alreadyInstalled) void showAlert('Кампания уже импортирована', `«${entry.title}» уже установлена; вторая копия не создана.`)
       if (entry.idWarning) void showAlert('ID кампании', entry.idWarning)
     } catch (e) {
       void showAlert('Не удалось импортировать кампанию', String(e))

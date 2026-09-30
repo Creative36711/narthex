@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Ico } from '../shared/icons'
-import { showAlert } from '../shared/modals'
+import { askConfirm, showAlert } from '../shared/modals'
 import { importChroniclePackage } from '../editor/newCampaign'
 
 interface Props {
@@ -36,8 +36,21 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
   const doImport = async (file: File) => {
     setBusy('import')
     try {
-      const entry = await importChroniclePackage(file)
+      const entry = await importChroniclePackage(file, async (conflict) => {
+        const update = await askConfirm(
+          `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}», а содержимое пакета отличается. Обновить её из «${conflict.incomingTitle}»?`,
+          'Обновить кампанию',
+        )
+        if (update) return 'update'
+        const copy = await askConfirm(
+          `Импортировать «${conflict.incomingTitle}» как отдельную копию с новым ID?`,
+          'Импортировать копию',
+        )
+        return copy ? 'copy' : 'cancel'
+      })
+      if (entry.cancelled) return
       onImported(entry.id)
+      if (entry.alreadyInstalled) void showAlert('Кампания уже импортирована', `«${entry.title}» уже установлена; вторая копия не создана.`)
       if (entry.idWarning) void showAlert('ID кампании', entry.idWarning)
     } catch (e) {
       void showAlert('Не удалось импортировать кампанию', String(e))
