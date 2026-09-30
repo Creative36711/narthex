@@ -31,7 +31,7 @@ import { profileClass, atmosphereOn } from '../shared/profiles'
 import { AiWizard, aiFixReport } from './AiWizard'
 import { CampaignAuditDialog } from './CampaignAuditDialog'
 import { campaignContentHash, type PlaytestRecord } from './campaignAudit'
-import { makeId, slugify } from './ids'
+import { makeId, normalizeCampaignId, slugify } from './ids'
 import './editor.css'
 import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from './prompt'
 import { collectExternalUrls, embedExternalAssets } from './assets'
@@ -777,20 +777,58 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     setBusy('Импорт…')
     try {
       const stableId = campaignIdFromPath(base)
+      const [{ importChroniclePackage }, { readChronicleCampaignIdentity }] = await Promise.all([
+        import('./newCampaign'),
+        import('./chronicleIdentity'),
+      ])
+      const identity = await readChronicleCampaignIdentity(file)
+      const sameId = !!identity.id && normalizeCampaignId(identity.id) === normalizeCampaignId(stableId)
+      if (!sameId) {
+        const importSeparately = await askConfirm(
+          `.chronicle содержит ID «${identity.id || 'не задан'}» для «${identity.title}», а сейчас открыта кампания «${store.meta.title}» с ID «${stableId}». Импортировать файл как отдельную кампанию? При выборе обновления содержимое заменится, но ID открытой кампании сохранится.`,
+          'Импортировать отдельно',
+          'Обновить открытую',
+        )
+        if (importSeparately) {
+          const entry = await importChroniclePackage(file, async (conflict) => {
+            const update = await askConfirm(
+              `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}», а содержимое пакета отличается. Обновить существующую кампанию?`,
+              'Обновить существующую',
+            )
+            if (update) return 'update'
+            const copy = await askConfirm(
+              `Импортировать «${conflict.incomingTitle}» как отдельную копию с новым ID?`,
+              'Импортировать копию',
+            )
+            return copy ? 'copy' : 'cancel'
+          })
+          if (entry.cancelled) return
+          setCampaigns(await fetchCampaignIndex())
+          setSection('scenes')
+          const detail = entry.alreadyInstalled
+            ? `«${entry.title}» уже установлена; повторная копия не создана.`
+            : `«${entry.title}» добавлена в список кампаний с ID «${entry.id}». Выберите её в списке кампаний сверху, чтобы открыть.`
+          void showAlert(entry.alreadyInstalled ? 'Кампания уже импортирована' : 'Кампания импортирована', [detail, entry.idWarning].filter(Boolean).join('\n\n'))
+          return
+        }
+      }
+
       const warns = await importChronicle(store, file)
-      if (store.meta.id !== stableId) {
+      let idNotice = ''
+      if (normalizeCampaignId(store.meta.id) !== normalizeCampaignId(stableId)) {
         const incomingId = store.meta.id
         store.setCampaignId(stableId)
-        warns.push(`ID кампании «${incomingId || 'не задан'}» из .chronicle не применён: обновление сохраняет ID «${stableId}».`)
+        idNotice = `Редактор сохранил ID открытой кампании «${stableId}» и автоматически привёл к нему ID «${incomingId || 'не задан'}» из архива. Остальное содержимое пакета импортировано.`
       }
       updateCurrentCampaignDisplay()
+      const summary = ['Нажмите «Сохранить», чтобы записать файлы на диск.', idNotice].filter(Boolean).join('\n\n')
       if (warns.length) {
-        void showList('Импортировано с предупреждениями', warns, 'Нажмите «Сохранить», чтобы записать файлы на диск.', {
+        void showList('Импортировано с предупреждениями', warns, summary, {
           label: 'Скопировать отчёт для ИИ',
           text: aiFixReport(warns),
         })
       } else {
-        void showAlert('Импортировано', 'Нажмите «Сохранить», чтобы записать файлы на диск.')
+        void showAlert('Кампания обновлена', summary)
       }
     } catch (e) {
       void showAlert('Ошибка импорта', String(e))
