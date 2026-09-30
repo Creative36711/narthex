@@ -94,6 +94,11 @@ export function previewMusicSource(src: MusicSource, volume = 0.9): void {
   }, 7000)
 }
 
+/** В редакторе пути ассетов относительны корню кампании. */
+function previewCampaignMusic(store: EditorStore, src: MusicSource, volume = 0.9): void {
+  previewMusicSource(typeof src === 'string' ? store.assetSrc(src) : src, volume)
+}
+
 function sourceKind(src: SoundSource | MusicSource): 'file' | 'synth' {
   return typeof src === 'object' && src !== null && (isSoundDoc(src) || isMusicDoc(src)) ? 'synth' : 'file'
 }
@@ -281,7 +286,7 @@ function SourceEditor({
           data-tip="Прослушать, как звучит сейчас"
           onClick={() => {
             if (!value) return
-            if (what === 'музыка') previewMusicSource(value as MusicSource)
+            if (what === 'музыка') previewCampaignMusic(store, value as MusicSource)
             else playSource(value as SoundSource)
           }}
         >
@@ -447,7 +452,7 @@ export function MusicTrackSelect({
       placeholder="нет трека"
       onPlay={(id) => {
         const t = store.meta.music_tracks?.find((x) => x.id === id)
-        if (t) previewMusicSource(t.src, 0.9 * (t.volume ?? 1))
+        if (t) previewCampaignMusic(store, t.src, 0.9 * (t.volume ?? 1))
       }}
     />
   )
@@ -476,7 +481,7 @@ export function MusicTrackMultiSelect({
             >
               {t.label}
             </button>
-            <button type="button" className="chip-play" data-tip="Прослушать" onClick={() => previewMusicSource(t.src, 0.9 * (t.volume ?? 1))}>
+            <button type="button" className="chip-play" data-tip="Прослушать" onClick={() => previewCampaignMusic(store, t.src, 0.9 * (t.volume ?? 1))}>
               <Ico n="play" /> 
             </button>
           </span>
@@ -765,7 +770,7 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
               <button type="button" className="btn btn-small" onClick={() => setOpenTrack(openTrack === t.id ? null : t.id)}>
                 {openTrack === t.id ? '▾' : '▸'} {t.label || 'Трек без названия'}
               </button>
-              <button type="button" className="btn btn-small" data-tip="Прослушать" onClick={() => previewMusicSource(t.src, 0.9 * (t.volume ?? 1))}><Ico n="play" /> </button>
+              <button type="button" className="btn btn-small" data-tip="Прослушать" onClick={() => previewCampaignMusic(store, t.src, 0.9 * (t.volume ?? 1))}><Ico n="play" /> </button>
               <button className="btn btn-small ce-del" data-tip="Удалить трек (назначения станут пустыми)" onClick={() => {
                 m.music_tracks!.splice(i, 1)
                 commit()

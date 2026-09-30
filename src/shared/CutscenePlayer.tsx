@@ -248,7 +248,9 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
     const m = cutscene.music
     if (!m) return
     const track = resolveTrackRef.current?.(m)
-    const src: MusicSource = track ? track.src : resolveRef.current(m)
+    const src: MusicSource = track
+      ? typeof track.src === 'string' ? resolveRef.current(track.src) : track.src
+      : resolveRef.current(m)
     const vol = musicVolume(getSettings()) * (track?.volume ?? 1)
     const h = startTrackSource(src, vol, true)
     musicRef.current = h

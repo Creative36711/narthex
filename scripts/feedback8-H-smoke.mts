@@ -17,7 +17,7 @@ import { GameEngine } from '../src/core/engine'
 import { migrateMusicRules } from '../src/shared/migrate'
 import { isMusicDoc } from '../src/shared/synth'
 import { isSoundDoc, setAudioCampaign, playSoundId, playUi, playInteraction } from '../src/shared/audio'
-import { refreshMusic, setMenuMode, applyMusicVolume, stopMusic, startTrackSource } from '../src/shared/music'
+import { refreshMusic, setMenuMode, applyMusicVolume, stopMusic, startTrackSource, resolveMusicSource, setMusicCampaign } from '../src/shared/music'
 import type { MusicDoc, MusicRule, SoundDoc } from '../src/shared/types'
 
 const mem = new Map<string, string>()
@@ -67,6 +67,15 @@ const campaign = await loadCampaign('http://localhost:5173/campaigns/ash-of-caer
   check('H1 вариативность: три скрипа двери под одним id', Array.isArray(door?.src) && door.src.length === 3)
   check('H1 isSoundDoc определяет SoundDoc', isSoundDoc({ zzfx: [1] }) && !isSoundDoc({ mood: 'боевая', layers: [] }))
   check('H1 isMusicDoc определяет MusicDoc', isMusicDoc({ mood: 'боевая', layers: ['бас'] }))
+
+  setMusicCampaign(campaign)
+  const sampleMusicPath = 'assets/music/smoke-test.ogg'
+  check(
+    'H1 локальный трек резолвится относительно кампании',
+    resolveMusicSource(sampleMusicPath) === `${campaign.basePath}/${sampleMusicPath}`,
+    sampleMusicPath,
+  )
+  check('H1 внешняя ссылка на трек остаётся без изменений', resolveMusicSource('https://example.com/theme.ogg') === 'https://example.com/theme.ogg')
 
   // ссылки реестров не битые
   for (const [hook, id] of Object.entries(m.ui_sounds ?? {})) {
@@ -152,7 +161,7 @@ const campaign = await loadCampaign('http://localhost:5173/campaigns/ash-of-caer
   const menu = readFileSync('src/player/MainMenu.tsx', 'utf8')
   check('H4 музыка меню (setMenuMode + refreshMusic)', menu.includes('setMenuMode(true)') && menu.includes('refreshMusic(null)'))
   const cut = readFileSync('src/shared/CutscenePlayer.tsx', 'utf8')
-  check('H2 музыка катсцены резолвится как id трека', cut.includes('resolveTrack') && cut.includes('startTrackSource'))
+  check('H2 музыка катсцены резолвит файл из реестра', cut.includes('resolveTrack') && cut.includes('resolveRef.current(track.src)') && cut.includes('startTrackSource'))
   const audioSrc = readFileSync('src/shared/audio.ts', 'utf8')
   check('H3 цепочка: сущность → категория → слот → тема', audioSrc.includes('meta.item_categories') && audioSrc.includes('meta.slot_types') && audioSrc.includes('meta.ui_sounds'))
   check('H3 alias travel → scene_transition (без двойного звука)', audioSrc.includes('scene_transition'))
@@ -184,7 +193,7 @@ const campaign = await loadCampaign('http://localhost:5173/campaigns/ash-of-caer
 {
   const audio = readFileSync('src/editor/AudioSection.tsx', 'utf8')
   check('H6 реестры треков и звуков', audio.includes('AudioRegistries') && audio.includes('+ трек') && audio.includes('+ звук'))
-  check('H6 предпрослушивание ▶', audio.includes('▶') && audio.includes('previewMusicSource'))
+  check('H6 предпрослушивание ▶ разрешает путь кампании', audio.includes('▶') && audio.includes('previewCampaignMusic') && audio.includes('store.assetSrc(src)'))
   check('H6 вариативность звуков в редакторе', audio.includes('+ вариант'))
   check('H6 конструктор SoundDoc (параметры zzfx)', audio.includes('SoundDocEditor') && audio.includes('ZZFX_LABELS'))
   check('H6 конструктор MusicDoc (настроение/гамма/слои)', audio.includes('MusicDocEditor') && audio.includes('МОOD_DEFAULTS'.replace('О', 'O')) || audio.includes('MOODS'))

@@ -105,17 +105,24 @@ export function setMenuMode(on: boolean): void {
   refreshMusic(null)
 }
 
+let currentCampaignBase = ''
+function absolute(u: string): string {
+  return /^(https?:)?\/\//i.test(u) || /^(data:|blob:)/i.test(u) ? u : `${currentCampaignBase}/${u}`
+}
+
+/** Привязать путь локального трека к кампании; URL и генеративные треки не меняются. */
+export function resolveMusicSource(src: MusicSource): MusicSource {
+  return typeof src === 'string' && src ? absolute(src) : src
+}
+
 function resolveTrack(id: string): { src: MusicSource; volume: number; loop: boolean } | null {
   // id из реестра music_tracks; иначе — прямая ссылка/файл (легаси)
   const doc = currentCampaign?.meta.music_tracks?.find((t) => t.id === id)
-  if (doc) return { src: doc.src, volume: doc.volume ?? 1, loop: doc.loop !== false }
-  if (/^https?:|^data:|^blob:|^assets\//i.test(id)) return { src: absolute(id), volume: 1, loop: true }
+  if (doc) return { src: resolveMusicSource(doc.src), volume: doc.volume ?? 1, loop: doc.loop !== false }
+  if (/^https?:|^(https?:)?\/\//i.test(id) || /^data:|^blob:|^assets\//i.test(id)) {
+    return { src: resolveMusicSource(id), volume: 1, loop: true }
+  }
   return null
-}
-
-let currentCampaignBase = ''
-function absolute(u: string): string {
-  return /^https?:|^data:|^blob:/i.test(u) ? u : `${currentCampaignBase}/${u}`
 }
 
 let currentCampaign: GameEngine['campaign'] | null = null
