@@ -50,6 +50,7 @@ check('дизайн-документ отображает заголовки и 
 check('дизайн-документ отображает списки, цитату, таблицу и fenced code', designDoc.includes('book-li-nested') && designDoc.includes('<blockquote>') && designDoc.includes('<table') && designDoc.includes('<pre'))
 const editorCss = readFileSync('src/editor/editor.css', 'utf8')
 check('форма задания ИИ ограничена высотой окна и имеет внутреннюю прокрутку', editorCss.includes('.modal-box.ai-wizard') && editorCss.includes('max-height: calc(100dvh - 24px)') && editorCss.includes('.ai-wizard-content') && editorCss.includes('overflow-y: auto'))
+check('чипы задания ИИ используют одну контрастную палитру во всех темах редактора', editorCss.includes('.modal-overlay .ai-wizard .chip {') && editorCss.includes('background: #2a303d;') && editorCss.includes('color: #c8ced8;') && editorCss.includes('.modal-overlay .ai-wizard .chip.chip-on'))
 
 console.log(failed ? `\nПРОВАЛЕНО: ${failed}` : '\nвсе проверки зелёные')
 process.exit(failed ? 1 : 0)

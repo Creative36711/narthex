@@ -1535,3 +1535,28 @@ body.cf-editor .ai-wizard .copy-status { flex: 1 1 180px; min-width: 0; }
   body.cf-editor .ai-wizard > .modal-title { margin-bottom: 6px; }
   body.cf-editor .ai-wizard > .modal-body { margin-bottom: 8px; }
 }
+
+/* Чипы мастера ИИ не должны наследовать цвет полотна редактора: сама модалка
+   намеренно остаётся в единой тёмной теме во всех режимах «Бумага/Тёмная/Графит». */
+body.cf-editor .modal-overlay .ai-wizard .chip {
+  background: #2a303d;
+  border: 1px solid #414a5c;
+  border-radius: 999px;
+  color: #c8ced8;
+  padding: 4px 12px;
+  font-size: 12.5px;
+  user-select: none;
+}
+body.cf-editor .modal-overlay .ai-wizard .chip:hover:not(:disabled) {
+  background: #303847;
+  border-color: #8fd6e4;
+  color: #8fd6e4;
+}
+body.cf-editor .modal-overlay .ai-wizard .chip.chip-on {
+  background: color-mix(in srgb, #58b7c9 18%, #212530);
+  border-color: #58b7c9;
+  color: #8fd6e4;
+  font-weight: 600;
+}
+body.cf-editor .modal-overlay .ai-wizard .chip:disabled { opacity: 0.45; cursor: not-allowed; }
+body.cf-editor .modal-overlay .ai-wizard input[type='range'] { accent-color: #58b7c9; }
