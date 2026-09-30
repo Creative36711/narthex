@@ -18,6 +18,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import Ajv2020 from 'ajv/dist/2020'
+import { ENGINE_VERSION } from '../src/shared/versions'
 
 let failed = 0
 const check = (label: string, ok: boolean, extra?: string) => {
@@ -30,6 +31,11 @@ const guide = readFileSync(GUIDE, 'utf8')
 const schema = JSON.parse(readFileSync('docs/campaign.schema.json', 'utf8')) as {
   $defs: Record<string, { anyOf?: Array<Record<string, any>> }>
 }
+check(
+  'пример версии движка в гайде синхронизирован с ENGINE_VERSION',
+  guide.includes(`\"engine_version\": \"${ENGINE_VERSION}\"`) && guide.includes(`\"min_engine\": \"${ENGINE_VERSION}\"`),
+  `ожидается ${ENGINE_VERSION}; не путать с version кампании`,
+)
 
 // ── индексы схемы ──
 const TYPE_DEFS = ['Effect', 'Condition', 'DlgEffect', 'DlgCond'] as const

@@ -64,8 +64,8 @@ const read = (p: string) => readFileSync(p, 'utf8')
 // ── 3. редактор и меню обновляют список сами ──
 {
   const ed = read('src/editor/EditorApp.tsx')
-  check('редактор обновляет реестр после сохранения или переноса id', ed.includes('await store.saveToDisk()') && ed.includes('await pushIndex()') && ed.includes('await replaceCampaignIndexEntry(move.fromId'))
-  check('импорт .chronicle обновляет подпись, а регистрацию оставляет до сохранения', ed.includes('updateCurrentCampaignDisplay()') && ed.includes('await replaceCampaignIndexEntry(move.fromId'))
+  check('редактор сохраняет кампанию под неизменным ID из папки', ed.includes('const stableId = campaignIdFromPath(base)') && ed.includes('await store.saveToDisk()') && ed.includes('await pushIndex()'))
+  check('импорт .chronicle обновляет подпись, сохраняя ID текущей папки', ed.includes('updateCurrentCampaignDisplay()') && ed.includes('ID кампании') && ed.includes('store.setCampaignId(stableId)'))
   check('в выпадающем списке редактора живое название открытой папки', ed.includes('`/campaigns/${c.id}` === base ? store.meta.title : c.title'))
   const app = read('src/App.tsx')
   check('меню дописывает текущую кампанию в список из файла', app.includes('const entry = {\n      id: campaign.meta.id,') || app.includes('title: campaign.meta.title'))

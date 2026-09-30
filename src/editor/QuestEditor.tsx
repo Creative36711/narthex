@@ -5,6 +5,7 @@ import type { EditorStore } from './store'
 import { makeId } from './ids'
 import { ConditionListEditor, EffectListEditor, FileAdvancedJson, ChapterSelect } from './Fields'
 import { askText } from './prompt'
+import { journalEntryStageLabels, nextJournalEntryKey } from './questJournal'
 
 /** Визуальный конструктор квестов (ТЗ 5.2.5): стадии, переходы, журнал. */
 export function QuestEditor({ store, path }: { store: EditorStore; path: string }) {
@@ -13,6 +14,17 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
   const commit = () => {
     store.touch(path)
     force((n) => n + 1)
+  }
+
+  if (!quest) {
+    return (
+      <div className="rule-editor">
+        <div className="editor-empty-main">
+          <h3 className="editor-empty-title">Квест не найден</h3>
+          <p className="muted">Модуль «{path}» отсутствует в загруженной кампании или не указан корректно в manifest.json.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -39,50 +51,39 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
       <div className="props-group">
         <h4>Журнальные записи</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
-          Каждая запись привязана к стадии: когда квест доходит до стадии, текст появляется
-          в журнале игрока.
+          Записи имеют собственные внутренние ключи. Стадии добавляют их в журнал эффектом; ключ записи
+          не обязан совпадать с id стадии.
         </div>
-        {Object.entries(quest.journal_entries).map(([key, text]) => (
-          <div key={key} className="journal-row">
-            <select
-              className="journal-key"
-              value={key}
-              onChange={(e) => {
-                const entries = Object.entries(quest.journal_entries)
-                quest.journal_entries = Object.fromEntries(
-                  entries.map(([k, v]) => (k === key ? [e.target.value, v] : [k, v])),
-                )
-                commit()
-              }}
-            >
-              {!quest.stages.some((st) => st.id === key) && <option value={key}>{key}</option>}
-              {quest.stages.map((st) => (
-                <option key={st.id} value={st.id} disabled={st.id !== key && quest.journal_entries[st.id] !== undefined}>
-                  {st.label ?? st.id}
-                </option>
-              ))}
-            </select>
-            <textarea
-              rows={1}
-              value={text}
-              onChange={(e) => ((quest.journal_entries[key] = e.target.value), commit())}
-            />
-            <button
-              className="btn btn-small ce-del"
-              onClick={() => {
-                delete quest.journal_entries[key]
-                commit()
-              }}
-            >
-              <Ico n="close" /> 
-            </button>
-          </div>
-        ))}
+        {Object.entries(quest.journal_entries).map(([key, text], index) => {
+          const stages = journalEntryStageLabels(quest, key)
+          return (
+            <div key={key} className="journal-row">
+              <div className="journal-entry-label" title={`Внутренний ключ: ${key}`}>
+                <strong>Запись {index + 1}</strong>
+                {stages.length > 0 && <span>{stages.join(' / ')}</span>}
+              </div>
+              <textarea
+                rows={1}
+                aria-label={`Текст журнальной записи ${index + 1}`}
+                value={text}
+                onChange={(e) => ((quest.journal_entries[key] = e.target.value), commit())}
+              />
+              <button
+                className="btn btn-small ce-del"
+                onClick={() => {
+                  delete quest.journal_entries[key]
+                  commit()
+                }}
+              >
+                <Ico n="close" />
+              </button>
+            </div>
+          )
+        })}
         <button
           className="btn btn-small"
           onClick={() => {
-            const free = quest.stages.find((st) => quest.journal_entries[st.id] === undefined)
-            quest.journal_entries[free?.id ?? `entry_${Object.keys(quest.journal_entries).length + 1}`] = ''
+            quest.journal_entries[nextJournalEntryKey(quest.journal_entries)] = ''
             commit()
           }}
         >

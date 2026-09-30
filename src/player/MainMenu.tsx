@@ -50,9 +50,22 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   const doImport = async (file: File) => {
     setImportBusy(true)
     try {
-      const entry = await importChroniclePackage(file)
+      const entry = await importChroniclePackage(file, async (conflict) => {
+        const update = await askConfirm(
+          `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}», а содержимое пакета отличается. Обновить существующую кампанию «${conflict.incomingTitle}» под тем же ID?`,
+          'Обновить кампанию',
+        )
+        if (update) return 'update'
+        const copy = await askConfirm(
+          `Импортировать «${conflict.incomingTitle}» как отдельную копию с новым ID?`,
+          'Импортировать копию',
+        )
+        return copy ? 'copy' : 'cancel'
+      })
+      if (entry.cancelled) return
       onImported(entry.id)
       setShowList(false)
+      if (entry.alreadyInstalled) void showAlert('Кампания уже импортирована', `«${entry.title}» уже установлена; вторая копия не создана.`)
       if (entry.idWarning) void showAlert('ID кампании', entry.idWarning)
     } catch (e) {
       void showAlert('Не удалось импортировать кампанию', String(e))
@@ -84,6 +97,9 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   // тема кампании (блок 2 ТЗ): фон меню, затемнение, кен-бёрнс, арт-заголовок
   const menuBg = themeBackgroundUrl(campaign, 'menu')
   const menuTheme = m.theme?.menu
+  const titleArt = menuTheme?.title_art ? assetUrl(campaign, menuTheme.title_art) : ''
+  // Reusing the menu background as title art paints the same poster twice.
+  const showTitleArt = !!titleArt && titleArt !== menuBg
 
   return (
     <div className={`main-menu ${menuBg ? 'with-bg' : ''}`}>
@@ -111,8 +127,8 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
         <div className="brand-sub">движок тактических визуальных новелл</div>
 
         <div className="campaign-current">
-          {menuTheme?.title_art && (
-            <img className="menu-title-art" src={assetUrl(campaign, menuTheme.title_art)} alt={m.title} draggable={false} />
+          {showTitleArt && (
+            <img className="menu-title-art" src={titleArt} alt={m.title} draggable={false} />
           )}
           <h1 className="campaign-title">{m.title}</h1>
           <p className="campaign-desc">{m.description}</p>

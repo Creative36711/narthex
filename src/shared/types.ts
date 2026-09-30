@@ -434,6 +434,9 @@ export interface HeroPortraitOption {
   label: string
   image: ImageValue
   states?: Record<string, ImageValue>
+  /** необязательная постоянная фигурка боя, выбираемая только при создании героя */
+  combat_figure?: ImageValue
+  combat_figure_mode?: 'topdown' | 'side' | 'static'
 }
 
 /**
@@ -443,9 +446,19 @@ export interface HeroPortraitOption {
  */
 export interface HeroPortraitLayerDef {
   id: string
-  /** подпись сегмента для игрока («Лицо») */
+  /** подпись сегмента для игрока («Лицо», «Цвет кожи», «Татуировка») */
   label: string
-  options: Array<{ id: string; label: string; image: ImageValue; states?: Record<string, ImageValue> }>
+  /** необязательная категория для группировки настроек на экране создания */
+  category?: 'identity' | 'skin' | 'build' | 'face' | 'hair' | 'clothing' | 'markings' | 'other'
+  options: Array<{
+    id: string
+    label: string
+    image: ImageValue
+    states?: Record<string, ImageValue>
+    /** постоянная фигурка боя, если этот выбор характеризует стартовый облик */
+    combat_figure?: ImageValue
+    combat_figure_mode?: 'topdown' | 'side' | 'static'
+  }>
 }
 
 export interface CharCreationDef {
@@ -614,8 +627,8 @@ export type VisualProfileId =
 
 /**
  * Тема оформления кампании (блок 2 ТЗ). Применяется ТОЛЬКО к Player Mode;
- * редактор остаётся в фирменном стиле. Палитра переопределяется ограниченно —
- * только акцентный цвет, чтобы мастер не сломал контрасты.
+ * редактор остаётся в фирменном стиле. Палитра переопределяется ограниченно:
+ * акцент и несколько тонов поверхностей; движок подбирает читаемые текстовые роли.
  */
 export interface ThemeDoc {
   /**
@@ -696,6 +709,11 @@ export interface CampaignChapter {
 }
 
 export interface CampaignMeta {
+  /**
+   * Стабильная личность кампании, а не имя/slug. Новые кампании получают UUID
+   * от редактора; сохраняй id при обновлении, пересылке и переименовании.
+   * Для отдельной копии новый id выдаёт приложение.
+   */
   id: string
   title: string
   /** версия кампании (semver). Задаёт мастер; на ней завязана совместимость сохранений */
@@ -1678,6 +1696,8 @@ export interface ItemDef {
   /** слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;
    *  нет — не экипируется. Старым предметам выставляется миграцией. */
   equip_slot?: string
+  /** прозрачный слой поверх портрета героя, когда этот предмет надет */
+  hero_appearance?: { overlay: ImageValue; order?: number }
   /** взаимодействие в сцене (бочка с водой и т.п.) */
   on_interact?: UseEffectDef
   /** использование из инвентаря */

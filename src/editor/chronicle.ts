@@ -1,34 +1,46 @@
 import JSZip from 'jszip'
+import { normalizeChronicleManifest } from './chronicleManifest'
+export { normalizeChronicleManifest } from './chronicleManifest'
 import type { EditorStore } from './store'
+import { collectCampaignMedia } from './campaignAudit'
+import { AI_TASK_DIR } from './aiKit'
+export { AI_TASK_DIR } from './aiKit'
 
 /**
  * Экспорт/импорт пакета кампании `.chronicle` (ТЗ 3.11, 5.4) — zip-архив
  * со структурой Campaign Package, включая ассеты.
  */
 
-/** собрать список путей ассетов, упомянутых в JSON-документах ("assets/...") */
+
+/** собрать все локальные пути изображений, звука, видео и шрифтов кампании */
 export function collectAssetPaths(store: EditorStore): string[] {
-  const found = new Set<string>()
-  const scan = (text: string) => {
-    for (const m of text.matchAll(/"(assets\/[^"\\]+)"/g)) found.add(m[1])
-  }
-  scan(JSON.stringify(store.meta))
-  scan(JSON.stringify(store.world))
-  for (const [, v] of store.jsonFiles) scan(JSON.stringify(v))
-  return [...found].sort()
+  return collectCampaignMedia(store).local
 }
 
-export async function exportChronicle(store: EditorStore): Promise<Blob> {
+export async function exportChronicle(
+  store: EditorStore,
+  options: { allowMissingMedia?: boolean } = {},
+): Promise<Blob> {
   const zip = new JSZip()
   for (const p of store.allPaths()) zip.file(p, store.fileText(p))
-  // ассеты — бинарно
   const assets = collectAssetPaths(store)
-  await Promise.all(
-    assets.map(async (a) => {
-      const res = await fetch(`${store.basePath}/${a}`)
-      if (res.ok) zip.file(a, await res.arrayBuffer())
-    }),
-  )
+  const missing: string[] = []
+  await Promise.all(assets.map(async (assetPath) => {
+    const url = `${store.basePath}/${assetPath.split('/').map(encodeURIComponent).join('/')}`
+    try {
+      const response = await fetch(url)
+      if (!response.ok || (response.headers.get('content-type') ?? '').toLowerCase().includes('text/html')) {
+        missing.push(assetPath)
+        return
+      }
+      zip.file(assetPath, await response.arrayBuffer())
+    } catch {
+      missing.push(assetPath)
+    }
+  }))
+  if (missing.length && !options.allowMissingMedia) {
+    throw new Error(`Пакет не собран: не найдены медиафайлы (${missing.length}):\n${missing.join('\n')}`)
+  }
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
 }
 
@@ -45,17 +57,20 @@ export function downloadBlob(blob: Blob, filename: string): void {
  * Импорт .chronicle: распаковка в память редактора; ассеты пишутся на диск
  * через dev-эндпоинт (только в vite dev).
  */
-export async function importChronicle(store: EditorStore, file: File): Promise<string[]> {
+export async function importChronicle(store: EditorStore, file: File): Promise<{ warnings: string[]; corrections: string[] }> {
   const zip = await JSZip.loadAsync(file)
   const warnings: string[] = []
+  const corrections: string[] = []
   const campaignRel = store.campaignRel()
-  const entries = Object.keys(zip.files).filter((p) => !zip.files[p].dir)
+  const archiveEntries = Object.keys(zip.files).filter((p) => !zip.files[p].dir)
 
   // Сначала разбираем и проверяем структуру архива, чтобы ошибка JSON не
-  // оставляла редактор частично перезаписанным.
-  for (const p of entries) {
+  // оставляла редактор частично перезаписанным. Метаданные AI-набора лежат
+  // отдельно и никогда не попадают в файлы кампании.
+  for (const p of archiveEntries) {
     if (p.startsWith('/') || p.split('/').includes('..')) throw new Error(`Недопустимый путь в архиве: ${p}`)
   }
+  const entries = archiveEntries.filter((path) => !path.startsWith(AI_TASK_DIR))
   for (const required of ['campaign.json', 'world.json', 'manifest.json']) {
     if (!zip.files[required] || zip.files[required].dir) throw new Error(`В архиве нет обязательного файла ${required}`)
   }
@@ -72,15 +87,23 @@ export async function importChronicle(store: EditorStore, file: File): Promise<s
     else assets.push(p)
   }
 
+  // Исправляем ссылки манифеста с префиксом каталога и записи диалогов,
+  // ошибочно указывающие на визуальный .dlg.json вместо .ink.
+  const normalized = normalizeChronicleManifest(manifest, jsonFiles, textFiles)
+  corrections.push(...normalized.notes)
+  if (normalized.changed) jsonFiles.set('manifest.json', normalized.manifest)
+  for (const p of textFiles.keys()) if (!entries.includes(p)) entries.push(p)
+
   // Архив — полная замена пакета. Удаляем из памяти модули, которых в новом
   // manifest больше нет, иначе они оставались бы «сиротами» и попадали в экспорт.
   store.meta = meta
   store.world = world
-  store.manifest = manifest
+  store.manifest = normalized.manifest
   store.jsonFiles = jsonFiles
   store.textFiles = textFiles
   store.dirty.clear()
-  for (const p of entries) if (p.endsWith('.json') || p.endsWith('.ink')) store.dirty.add(p)
+  for (const p of store.allPaths()) if (p.endsWith('.json') || p.endsWith('.ink')) store.dirty.add(p)
+  if (normalized.changed) store.dirty.add('manifest.json')
 
   for (const p of assets) {
     // бинарный ассет → на диск через dev-эндпоинт
@@ -93,5 +116,5 @@ export async function importChronicle(store: EditorStore, file: File): Promise<s
     if (!res || !res.ok) warnings.push(`ассет не сохранён: ${p}`)
   }
   store.notify()
-  return warnings
+  return { warnings, corrections }
 }

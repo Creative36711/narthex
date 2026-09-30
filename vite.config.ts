@@ -21,6 +21,21 @@ const MIME: Record<string, string> = {
   '.webp': 'image/webp',
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
+  '.avif': 'image/avif',
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.aac': 'audio/aac',
+  '.ogg': 'audio/ogg',
+  '.opus': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.flac': 'audio/flac',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
 }
 
 function editorSavePlugin(): Plugin {
@@ -73,50 +88,86 @@ function editorSavePlugin(): Plugin {
         }
       })
 
-      // при импорте JSON ИИ может назначить новый id. Клонируем текущий каталог,
-      // чтобы сохранить ассеты и оставить исходную кампанию нетронутой до сохранения.
-      server.middlewares.use('/__editor/copy-campaign', (req, res) => {
+      // Список файлов нужен, чтобы отличить точный повтор .chronicle от пакета,
+      // в котором изменились не только файлы, но и их состав.
+      server.middlewares.use('/__editor/campaign-files', (req, res) => {
+        if (req.method !== 'GET') {
+          res.statusCode = 405
+          res.end('method not allowed')
+          return
+        }
+        try {
+          const id = new URL(req.url ?? '/', 'http://vite.local').searchParams.get('id')
+          if (!id || !/^[a-z0-9][a-z0-9_-]*$/i.test(id)) {
+            res.statusCode = 400
+            res.end('invalid campaign id')
+            return
+          }
+          const campaignsDir = path.resolve(server.config.root, 'public/campaigns')
+          const target = path.resolve(campaignsDir, id)
+          if (!target.startsWith(campaignsDir + path.sep) || !fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
+            res.statusCode = 404
+            res.end('campaign directory not found')
+            return
+          }
+          const files: string[] = []
+          const walk = (directory: string): void => {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              const file = path.join(directory, entry.name)
+              if (entry.isDirectory()) walk(file)
+              else if (entry.isFile()) files.push(path.relative(target, file).split(path.sep).join('/'))
+            }
+          }
+          walk(target)
+          files.sort()
+          res.setHeader('content-type', 'application/json')
+          res.end(JSON.stringify({ files }))
+        } catch (error) {
+          res.statusCode = 500
+          res.end(String(error))
+        }
+      })
+
+      // Атомарное резервирование локального ID: mkdirSync без recursive
+      // сериализует два окна/процесса, выбравших одну и ту же случайную строку.
+      server.middlewares.use('/__editor/reserve-campaign', (req, res) => {
         if (req.method !== 'POST') {
           res.statusCode = 405
           res.end('method not allowed')
           return
         }
         let body = ''
-        req.on('data', (c) => (body += c))
+        req.on('data', (chunk) => (body += chunk))
         req.on('end', () => {
           try {
-            const { from, to } = JSON.parse(body) as { from: string; to: string }
-            const validId = (id: unknown): id is string =>
-              typeof id === 'string' && !!id && !/[\\/\0]/.test(id) && id !== '.' && id !== '..'
-            if (!validId(from) || !validId(to) || from === to) {
+            const { id } = JSON.parse(body) as { id: string }
+            if (typeof id !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/i.test(id)) {
               res.statusCode = 400
               res.end('invalid campaign id')
               return
             }
             const campaignsDir = path.resolve(server.config.root, 'public/campaigns')
-            const source = path.resolve(campaignsDir, from)
-            const target = path.resolve(campaignsDir, to)
-            if (![source, target].every((dir) => dir.startsWith(campaignsDir + path.sep))) {
+            const target = path.resolve(campaignsDir, id)
+            if (!target.startsWith(campaignsDir + path.sep)) {
               res.statusCode = 400
               res.end('path outside campaigns dir')
               return
             }
-            if (!fs.existsSync(source) || !fs.statSync(source).isDirectory()) {
-              res.statusCode = 404
-              res.end('source campaign not found')
-              return
+            try {
+              fs.mkdirSync(target)
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+                res.statusCode = 409
+                res.end('campaign id already exists')
+                return
+              }
+              throw error
             }
-            if (fs.existsSync(target)) {
-              res.statusCode = 409
-              res.end('target campaign id already exists')
-              return
-            }
-            fs.cpSync(source, target, { recursive: true, errorOnExist: true, force: false })
             res.setHeader('content-type', 'application/json')
-            res.end(JSON.stringify({ ok: true }))
-          } catch (e) {
+            res.end(JSON.stringify({ reserved: true }))
+          } catch (error) {
             res.statusCode = 500
-            res.end(String(e))
+            res.end(String(error))
           }
         })
       })

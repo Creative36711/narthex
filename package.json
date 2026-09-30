@@ -18,9 +18,17 @@
     "smoke:campaign-index": "tsx scripts/campaign-index-smoke.mts",
     "smoke:guide": "tsx scripts/guide-schema-guard.mts",
     "smoke:design-doc": "tsx scripts/design-doc-guard.mts",
+    "smoke:quest-journal": "tsx scripts/quest-journal-smoke.mts",
+    "smoke:quest-journal-runtime": "tsx scripts/quest-journal-runtime-smoke.mts",
     "smoke:p2": "tsx scripts/p2-mechanics-smoke.mts",
     "smoke:ai-runtime": "tsx scripts/ai-runtime-smoke.mts",
-    "smoke:no-campaign": "tsx scripts/no-campaign-smoke.mts"
+    "smoke:ai-task": "tsx scripts/ai-task-smoke.mts",
+    "smoke:char-templates": "tsx scripts/char-template-smoke.mts",
+    "smoke:no-campaign": "tsx scripts/no-campaign-smoke.mts",
+    "smoke:chronicle-manifest": "tsx scripts/chronicle-manifest-smoke.mts",
+    "smoke:engine-version": "tsx scripts/engine-version-smoke.mts",
+    "smoke:hero-appearance": "tsx scripts/hero-appearance-smoke.mts",
+    "smoke:theme-contrast": "tsx scripts/theme-contrast-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

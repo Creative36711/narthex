@@ -154,7 +154,7 @@ function validChoice(): CharChoice {
   check('4 App открывает экран создания', app.includes('CharacterCreation') && app.includes('applyCharCreation'))
   const ui = readFileSync('src/player/CharacterCreation.tsx', 'utf8')
   // шаги реального экрана (список приведён к CharacterCreation.tsx)
-  const steps = ['Герой', 'Облик героя', 'Происхождение', 'Призвание', 'Характеристики', 'Навыки', 'Сложность', 'Начать забег']
+  const steps = ['Герой', 'Внешность героя', 'Происхождение', 'Призвание', 'Характеристики', 'Навыки', 'Сложность', 'Начать забег']
   const missing = steps.filter((s) => !ui.includes(s))
   check('4 экран: все шаги', missing.length === 0, missing.join(', '))
   check('4 экран: кнопка по валидации', ui.includes('charChoiceProblems') && ui.includes('disabled={problems.length > 0}'))

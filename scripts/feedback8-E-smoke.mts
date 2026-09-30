@@ -9,6 +9,7 @@ import { GameEngine } from '../src/core/engine'
 import { EditorStore } from '../src/editor/store'
 import { generateInk, type DlgDoc } from '../src/editor/dialogueDoc'
 import { autoDurationMs, youtubeId } from '../src/shared/CutscenePlayer'
+import { cutsceneTtsEligible } from '../src/shared/cutsceneTts'
 import { EFFECT_SCHEMAS } from '../src/editor/schemas'
 import type { CampaignData, CutsceneDef } from '../src/shared/types'
 
@@ -142,6 +143,18 @@ const campaign: CampaignData = await loadCampaign(base)
   check('E подпись печатается', player.includes('TYPE_MS') && player.includes('cs-caption'))
   check('E видео: YouTube через embed, mp4 через <video>', player.includes('youtube.com/embed') && player.includes('<video'))
   check('E музыка и озвучка', player.includes('cutscene.music') && player.includes('slide.voice'))
+  const fixedTextSlide = { text: 'Тестовая подпись', duration: 12, transition: 'cut' } as const
+  check('E TTS читает текстовый слайд даже с заданной длительностью', cutsceneTtsEligible(fixedTextSlide, { tts_enabled: true, voice_muted: false }, 0.8))
+  check('E TTS соблюдает отключение, громкость и приоритет файла',
+    !cutsceneTtsEligible(fixedTextSlide, { tts_enabled: false, voice_muted: false }, 0.8)
+      && !cutsceneTtsEligible(fixedTextSlide, { tts_enabled: true, voice_muted: true }, 0.8)
+      && !cutsceneTtsEligible(fixedTextSlide, { tts_enabled: true, voice_muted: false }, 0)
+      && !cutsceneTtsEligible({ ...fixedTextSlide, voice: 'voice.ogg' }, { tts_enabled: true, voice_muted: false }, 0.8))
+  const timerAudio = player.slice(player.indexOf('const hasFixedDuration'), player.indexOf('return () => {', player.indexOf('const hasFixedDuration')))
+  check('E слайд ждёт и заданную длительность, и окончание озвучки',
+    timerAudio.includes('minimumElapsed = true')
+      && timerAudio.includes('!minimumElapsed || !voiceComplete')
+      && timerAudio.includes('onEnd: () => finishVoice(600)'))
   const view = readFileSync('src/player/GameView.tsx', 'utf8')
   check('E экран игры: катсцена поверх всего, прочие экраны ждут', view.includes('<CutscenePlayer') && view.includes('!cutscene && engine.dialogue'))
 }

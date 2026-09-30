@@ -150,6 +150,28 @@ function ItemForm({
       </div>
 
       <div className="props-group">
+        <h4>Слой внешности героя при экипировке</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Необязательно: прозрачный PNG поверх портрета героя, пока предмет надет. Обновляется вместе с экипировкой и никак не меняет боевую фигурку.
+        </div>
+        <AnimImageEditor
+          label="Слой поверх портрета"
+          value={item.hero_appearance?.overlay}
+          dir="assets/img/hero"
+          store={store}
+          onChange={(v) => {
+            if (v) item.hero_appearance = { ...(item.hero_appearance ?? {}), overlay: v }
+            else delete item.hero_appearance
+            commit()
+          }}
+        />
+        {!!item.hero_appearance && <label className="fld" style={{ maxWidth: 220 }}>
+          <span>Порядок слоя (меньше — ближе к фону)</span>
+          <input type="number" value={item.hero_appearance.order ?? 0} onChange={(e) => { item.hero_appearance = { ...item.hero_appearance!, order: Number(e.target.value) }; commit() }} />
+        </label>}
+      </div>
+
+      <div className="props-group">
         <h4>Предмет в сцене</h4>
         <AnimImageEditor
           label="Спрайт в сцене (картинка предмета в его слоте; без него — слот пуст)"

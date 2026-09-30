@@ -638,6 +638,71 @@ html.cf-profile-modern {
   color: var(--text);
   font-family: var(--cf-font-body, Georgia, 'Times New Roman', serif);
   font-size: calc(100% * var(--cf-text-scale, 1));
+  /* Preserve the profile's foregrounds while readable roles are scoped to
+     author-customized surfaces below. */
+  --cf-base-text: var(--text);
+  --cf-base-muted: var(--muted);
+  --cf-base-faint: var(--faint);
+  --cf-base-gold: var(--gold);
+  --cf-base-gold-bright: var(--gold-bright);
+  --cf-base-red-bright: var(--red-bright);
+  --cf-base-green-bright: var(--green-bright);
+  --cf-base-blue-bright: var(--blue-bright);
+}
+
+/* Custom surface tokens can be light even when the selected profile is dark.
+   Derive foreground roles per surface so panels, cards, fields and dialogs
+   remain readable without changing text over the illustrated scene. */
+.cf-themed :is(.panel, .modal-box, .campaigns-box, .end-panel, .message-box,
+  .dialogue-box, .combat-panel, .itemdlg-box) {
+  --text: var(--cf-panel-text, var(--cf-base-text));
+  --muted: var(--cf-panel-muted, var(--cf-base-muted));
+  --faint: var(--cf-panel-faint, var(--cf-base-faint));
+  --gold: var(--cf-panel-accent, var(--cf-base-gold));
+  --gold-bright: var(--cf-panel-accent-bright, var(--cf-base-gold-bright));
+  --red-bright: var(--cf-panel-red-bright, var(--cf-base-red-bright));
+  --green-bright: var(--cf-panel-green-bright, var(--cf-base-green-bright));
+  --blue-bright: var(--cf-panel-blue-bright, var(--cf-base-blue-bright));
+  color: var(--text);
+}
+.cf-themed :is(.btn, .campaign-card, .char-prof-card, .hero-gallery-card,
+  .help-section, .end-stats > div, .modal-list li, .char-budget, .char-dossier,
+  .checks-row, .chip, .travel-confirm, .menu-warning, .hud-btn, .map-labels-toggle,
+  .inventory-currency, .inv-item, .stat-cell, .equip-slot, .quest-card, .status-item,
+  .meta-summary > div, .meta-currency, .meta-unlocks li, .meta-achievements li,
+  .props-group, .hero-portrait, .hero-look-preview,
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  textarea, select) {
+  --text: var(--cf-card-text, var(--cf-base-text));
+  --muted: var(--cf-card-muted, var(--cf-base-muted));
+  --faint: var(--cf-card-faint, var(--cf-base-faint));
+  --gold: var(--cf-card-accent, var(--cf-base-gold));
+  --gold-bright: var(--cf-card-accent-bright, var(--cf-base-gold-bright));
+  --red-bright: var(--cf-card-red-bright, var(--cf-base-red-bright));
+  --green-bright: var(--cf-card-green-bright, var(--cf-base-green-bright));
+  --blue-bright: var(--cf-card-blue-bright, var(--cf-base-blue-bright));
+  color: var(--text);
+}
+.cf-themed :is(.dialogue-portrait-placeholder, .dialogue-portrait, .hud-bar,
+  .help-body pre, .combat-log, .wizard-preview) {
+  --text: var(--cf-inset-text, var(--cf-base-text));
+  --muted: var(--cf-inset-muted, var(--cf-base-muted));
+  --gold: var(--cf-inset-accent, var(--cf-base-gold));
+  --gold-bright: var(--cf-inset-accent-bright, var(--cf-base-gold-bright));
+  --red-bright: var(--cf-inset-red-bright, var(--cf-base-red-bright));
+  --green-bright: var(--cf-inset-green-bright, var(--cf-base-green-bright));
+  --blue-bright: var(--cf-inset-blue-bright, var(--cf-base-blue-bright));
+  color: var(--text);
+}
+.cf-themed .log-list {
+  --text: var(--cf-log-text, var(--cf-base-text));
+  --muted: var(--cf-log-muted, var(--cf-base-muted));
+  --gold: var(--cf-log-accent, var(--cf-base-gold));
+  --gold-bright: var(--cf-log-accent-bright, var(--cf-base-gold-bright));
+  --red-bright: var(--cf-log-red-bright, var(--cf-base-red-bright));
+  --green-bright: var(--cf-log-green-bright, var(--cf-base-green-bright));
+  --blue-bright: var(--cf-log-blue-bright, var(--cf-base-blue-bright));
+  color: var(--text);
 }
 
 /* «редакционные» заголовки: дисплейная роль + характер профиля */
@@ -777,7 +842,7 @@ html.cf-profile-modern {
 /* с списком кампаний меню шире, колонки не ломаются (фидбек №23) */
 .main-menu-inner.with-list { max-width: 1020px; }
 
-/* брендовая строка: подпись по центру, штрихи-рамки слева и справа */
+/* брендовая строка: типографика и акцент наследуются от темы кампании */
 .brand-row {
   display: flex;
   align-items: center;
@@ -789,23 +854,29 @@ html.cf-profile-modern {
   content: '';
   height: 1px;
   width: min(120px, 16vw);
-  background: linear-gradient(90deg, transparent, var(--border-strong));
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--gold-bright) 86%, transparent));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gold) 55%, transparent));
 }
-.brand-row::after { background: linear-gradient(270deg, transparent, var(--border-strong)); }
+.brand-row::after { background: linear-gradient(270deg, transparent, color-mix(in srgb, var(--gold-bright) 86%, transparent)); }
 .brand {
-  letter-spacing: 6px;
-  color: var(--muted);
+  color: var(--gold-bright);
+  font-family: var(--cf-font-display, var(--cf-font-body, Georgia, serif));
   font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.98), 0 0 10px rgba(0, 0, 0, 0.9);
 }
 .brand-sub {
   display: block;
-  color: var(--faint);
+  color: var(--text);
+  font-family: var(--cf-font-body, Georgia, serif);
   font-size: 12.5px;
-  letter-spacing: 1.5px;
+  letter-spacing: 0.11em;
   margin-top: 6px;
   text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.98), 0 0 9px rgba(0, 0, 0, 0.88);
 }
 
 .campaign-title {
@@ -814,10 +885,9 @@ html.cf-profile-modern {
   margin: 0 0 18px;
   color: var(--gold-bright);
   line-height: 1.12;
-  text-shadow: 0 2px 18px color-mix(in srgb, var(--gold) 22%, transparent);
+  text-shadow: 0 2px 7px rgba(0, 0, 0, 0.92), 0 0 18px color-mix(in srgb, var(--gold) 28%, transparent);
 }
-.cf-profile-gothic-horror .campaign-title { text-shadow: none; letter-spacing: 0.1em; }
-.cf-profile-wilderness .campaign-title { text-shadow: none; }
+.cf-profile-gothic-horror .campaign-title { letter-spacing: 0.1em; }
 
 .campaign-desc {
   color: var(--text);
@@ -825,6 +895,7 @@ html.cf-profile-modern {
   margin: 0 auto 34px;
   max-width: 580px;
   font-size: 15.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.96), 0 0 8px rgba(0, 0, 0, 0.8);
 }
 
 .menu-buttons {
@@ -843,7 +914,14 @@ html.cf-profile-modern {
   margin-top: 14px;
 }
 .menu-secondary .btn { width: 100%; text-align: left; display: inline-flex; align-items: center; gap: 8px; justify-content: flex-start; }
-.menu-meta { margin-top: 44px; color: var(--faint); font-size: 12.5px; letter-spacing: 0.4px; }
+.menu-meta {
+  margin-top: 44px;
+  color: var(--text);
+  font-family: var(--cf-font-body, Georgia, serif);
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.98), 0 0 8px rgba(0, 0, 0, 0.82);
+}
 .menu-save-note { margin-top: 4px; }
 /* кампания требует более новый движок (min_engine) — предупреждение в меню */
 .menu-warning {
@@ -938,7 +1016,7 @@ html.cf-profile-modern {
   overflow: hidden;
   flex: 0 1 auto;
 }
-.hud-bar span {
+.hud-bar > span {
   position: absolute;
   inset: 0;
   display: flex;
@@ -953,6 +1031,10 @@ html.cf-profile-modern {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.hud-bar.need { flex: 1 1 150px; min-width: min(132px, 24vw); max-width: 200px; }
+.hud-bar.need > .hud-bar-text { justify-content: center; gap: 6px; padding: 0 7px; }
+.hud-need-label { position: static; display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.hud-need-value { position: static; flex: 0 0 auto; font-weight: 700; }
 .hud-bar-fill { height: 100%; transition: width var(--dur-slow) var(--ease); }
 .hud-bar.hp .hud-bar-fill { background: linear-gradient(180deg, color-mix(in srgb, var(--red) 82%, white 8%), color-mix(in srgb, var(--red) 70%, black 18%)); }
 .hud-bar.need .hud-bar-fill { background: linear-gradient(180deg, color-mix(in srgb, var(--green) 85%, white 8%), color-mix(in srgb, var(--green) 68%, black 22%)); }
@@ -1011,19 +1093,22 @@ html.cf-profile-modern {
 
 .scene-header {
   display: flex;
-  gap: 14px;
+  gap: 8px 14px;
   align-items: baseline;
+  flex-wrap: wrap;
+  min-width: 0;
   padding: 4px 2px 8px;
   width: 100%;
 }
 .scene-location {
+  min-width: 0;
   color: var(--gold-bright);
   font-size: 19px;
   font-family: var(--cf-font-display, var(--cf-font-body, Georgia, serif));
   letter-spacing: 0.02em;
 }
 .cf-profile-wilderness .scene-location { text-transform: uppercase; letter-spacing: 0.05em; font-size: 16px; }
-.scene-name { color: var(--muted); font-size: 13px; }
+.scene-name { min-width: 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 
 .scene-stage {
   position: relative;
@@ -1340,7 +1425,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   display: flex;
   gap: 0;
   width: min(920px, 94vw);
-  background: linear-gradient(180deg, var(--panel), var(--bg-deep));
+  background: var(--panel);
   border: 1px solid var(--border-strong);
   border-top: 3px solid var(--gold);
   border-radius: var(--radius-lg);
@@ -1856,7 +1941,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   width: min(560px, 92vw);
-  max-height: 80vh;
+  max-height: min(80vh, 760px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-2);
@@ -1869,6 +1955,12 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 }
 .campaigns-head h2 { margin: 0; font-size: 20px; color: var(--gold-bright); }
 .campaigns-box .campaign-list {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  min-height: 0;
+  max-height: min(60vh, 420px);
+  flex: 0 1 auto;
   overflow-y: auto;
   padding: 8px 20px;
   display: flex;
@@ -1896,6 +1988,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 }
 .modal-box {
   background: var(--panel, #1b1f27); /* страховка: неразрешённая переменная = непрозрачный дефолт */
+  max-height: min(90vh, 820px);
+  overflow-y: auto;
   border: 1px solid var(--border-strong);
   border-top: 3px solid var(--gold);
   border-radius: var(--radius-lg);
@@ -2298,11 +2392,11 @@ select.sel-outcome.failure {
 /* строки выпадающего списка тоже цветные: «успех» всегда зелёный, «провал» — красный */
 select.sel-outcome option[value="success"] {
   color: var(--green-bright);
-  background: var(--bg-paper);
+  background: var(--panel, #1b1f27);
 }
 select.sel-outcome option[value="failure"] {
   color: var(--red-bright);
-  background: var(--bg-paper);
+  background: var(--panel, #1b1f27);
 }
 
 /* выбор состояния портрета */
@@ -2354,7 +2448,7 @@ input[type='checkbox'], input[type='radio'] {
 /* ─────────────── тема кампании: фон меню/финала, кен-бёрнс ─────────────── */
 
 /* фон главного меню: картинка + затемнение + медленный зум */
-.main-menu.with-bg > .main-menu-inner, .main-menu.with-bg > .campaigns-overlay { position: relative; z-index: 2; }
+.main-menu.with-bg > .main-menu-inner { position: relative; z-index: 2; }
 .menu-bg {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; z-index: 0; pointer-events: none;
@@ -2366,6 +2460,43 @@ input[type='checkbox'], input[type='radio'] {
 }
 .menu-dim { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .menu-title-art { max-width: min(420px, 80%); margin: 0 auto 18px; display: block; filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6)); }
+.main-menu.with-bg .main-menu-inner {
+  max-width: 860px;
+  max-height: none;
+  overflow: visible;
+  padding: clamp(18px, 3vh, 34px) clamp(18px, 3vw, 40px);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.main-menu.with-bg .campaign-current { max-width: 760px; margin-inline: auto; }
+.main-menu.with-bg .campaign-desc { text-shadow: 0 1px 5px color-mix(in srgb, var(--bg-deep) 85%, transparent); }
+
+/* Сжимай декоративные отступы и заголовок вместо прокрутки карточки меню. */
+@media (max-height: 860px) {
+  .main-menu.with-bg .main-menu-inner { padding-block: 18px; }
+  .main-menu.with-bg .brand-row { margin-bottom: 10px; }
+  .main-menu.with-bg .menu-title-art { max-width: min(330px, 70%); max-height: 14vh; margin-bottom: 8px; object-fit: contain; }
+  .main-menu.with-bg .campaign-title { font-size: clamp(28px, 4.2vh, 42px); line-height: 1.05; margin-bottom: 10px; }
+  .main-menu.with-bg .campaign-desc { max-width: 540px; font-size: 14px; line-height: 1.42; margin-bottom: 16px; }
+  .main-menu.with-bg .menu-secondary { margin-top: 10px; }
+  .main-menu.with-bg .menu-meta { margin-top: 18px; }
+}
+@media (max-height: 700px) {
+  .main-menu.with-bg .main-menu-inner { padding-block: 10px; }
+  .main-menu.with-bg .brand-row { margin-bottom: 4px; }
+  .main-menu.with-bg .brand-sub { display: none; }
+  .main-menu.with-bg .menu-title-art { max-height: 10vh; margin-bottom: 5px; }
+  .main-menu.with-bg .campaign-title { font-size: clamp(22px, 4.4vh, 32px); line-height: 1.02; margin-bottom: 6px; }
+  .main-menu.with-bg .campaign-desc { font-size: 12px; line-height: 1.3; margin-bottom: 10px; }
+  .main-menu.with-bg .menu-meta { margin-top: 10px; }
+}
+@media (max-height: 560px) {
+  .main-menu.with-bg { overflow-y: auto; align-items: flex-start; }
+  .main-menu.with-bg .main-menu-inner { margin: auto; }
+}
 
 /* фон экрана финала — поверх затемнения оверлея */
 .end-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; opacity: 0.5; }
@@ -2602,7 +2733,7 @@ input[type='checkbox'], input[type='radio'] {
   text-transform: uppercase;
 }
 .cf-themed .props-group p { color: var(--muted); font-size: 13px; line-height: 1.5; }
-.char-create-inner { width: min(860px, 96vw); max-height: none; overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 24px; box-shadow: var(--shadow-1); color: var(--text); }
+.char-create-inner { width: min(860px, 96vw); max-height: calc(100vh - 48px); overflow-y: auto; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px 24px; box-shadow: var(--shadow-1); color: var(--text); }
 .char-name { font-size: 18px; width: 100%; }
 .char-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 18px; margin-bottom: 8px; }
 .char-stat-row { display: flex; align-items: center; gap: 8px; }
@@ -2755,14 +2886,14 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
   background: var(--panel-2); border: 1px solid var(--border-soft);
   border-radius: var(--radius); padding: 6px 10px;
 }
-.meta-currency span { color: var(--accent, #e8c46b); font-weight: 700; font-variant-numeric: tabular-nums; }
+.meta-currency span { color: var(--gold-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
 .meta-unlocks, .meta-achievements { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .meta-unlocks li {
   display: flex; align-items: center; gap: 10px; justify-content: space-between;
   background: var(--panel-2); border: 1px solid var(--border-soft);
   border-radius: var(--radius); padding: 8px 10px;
 }
-.meta-unlocks li.owned { border-color: var(--accent, #e8c46b); }
+.meta-unlocks li.owned { border-color: var(--gold); }
 .meta-unlock-info { display: flex; flex-direction: column; gap: 2px; }
 .meta-unlock-cost { font-size: 12px; color: var(--muted); }
 .meta-achievements li {
@@ -2771,11 +2902,11 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
   border-radius: var(--radius); padding: 8px 10px;
 }
 .meta-achievements li.locked { opacity: 0.65; }
-.meta-achievements li.done { border-color: var(--accent, #e8c46b); }
-.meta-ach-icon { color: var(--accent, #e8c46b); padding-top: 2px; }
+.meta-achievements li.done { border-color: var(--gold); }
+.meta-ach-icon { color: var(--gold-bright); padding-top: 2px; }
 .meta-ach-info { display: flex; flex-direction: column; gap: 2px; }
 .meta-ach-progress { font-size: 12px; color: var(--muted); }
-.meta-ach-reward { font-size: 12px; color: var(--accent, #e8c46b); }
+.meta-ach-reward { font-size: 12px; color: var(--gold-bright); }
 .meta-totals { font-size: 12px; }
 .end-meta { margin: 12px 0; text-align: left; }
 .end-meta h4 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 0 6px; }
@@ -2839,11 +2970,13 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
   gap: 20px;
   max-width: 640px;
   width: min(92vw, 640px);
-  background: var(--bg-paper);
+  /* --bg-paper/--shadow-panel были удалены из профилей: неизвестный token
+     делает CSS-декларацию недействительной и оставляет окно прозрачным. */
+  background: var(--panel, #1b1f27);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 20px;
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-2, 0 16px 48px rgba(0, 0, 0, 0.62));
 }
 .itemdlg-portrait {
   flex: 0 0 160px;
@@ -2948,3 +3081,22 @@ img.scene-bg { object-fit: fill; }
 .cs-cam-window { position: absolute; inset: 0; overflow: hidden; }
 .cs-cam-strip { position: absolute; inset: -6%; width: 112%; height: 112%; will-change: transform; }
 .cs-cam-strip .cs-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+
+/* Keep dialogs usable on narrow screens and short viewports. */
+@media (max-width: 560px) {
+  .modal-box {
+    width: calc(100vw - 24px);
+    min-width: 0;
+    max-width: none;
+    padding: 16px;
+  }
+  .settings-box { min-width: 0; }
+  .settings-row { align-items: flex-start; flex-wrap: wrap; gap: 6px; }
+  .settings-label { flex: 1 0 100%; }
+  .settings-control { flex: 1 1 100%; }
+  .side-panel { width: 100vw; }
+  .char-create { padding: 10px 8px; }
+  .char-create-inner { width: 100%; max-height: calc(100vh - 20px); padding: 16px; }
+  .campaigns-box { width: calc(100vw - 24px); max-height: 88vh; }
+}

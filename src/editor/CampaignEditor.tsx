@@ -8,7 +8,7 @@ import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
 import { ParticleListEditor } from './AtmosEditors'
-import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, GenWeightedItem, ImageValue, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
+import type { CampaignFeatures, CampaignMeta, DiceRules, EndingDef, FeatDef, FontDef, GenWeightedItem, HeroPortraitLayerDef, ImageValue, NeedCondition, StatusDef, TimeOfDay } from '../shared/types'
 import { CLASSIC_DICE_RULES, DEFAULT_DICE_RULES } from '../shared/types'
 import { campaignFingerprint } from '../shared/fingerprint'
 import { exportMonolith } from './monolith'
@@ -4189,6 +4189,14 @@ function HeroPortraitsEditor({ m, store, commit }: { m: CampaignMeta; store: Edi
             onChange={(v) => ((p.image = v ?? ''), commit())}
           />
         </div>
+        <AnimImageEditor
+          label="Статическая фигурка боя для этого постоянного облика (не меняется от экипировки)"
+          value={p.combat_figure}
+          dir="assets/img/hero"
+          store={store}
+          onChange={(v) => { if (v) p.combat_figure = v; else delete p.combat_figure; commit() }}
+        />
+        {!!p.combat_figure && <label className="fld" style={{ maxWidth: 240 }}><span>Разворот фигурки</span><select value={p.combat_figure_mode ?? ''} onChange={(e) => { if (e.target.value) p.combat_figure_mode = e.target.value as 'topdown' | 'side' | 'static'; else delete p.combat_figure_mode; commit() }}><option value="">Как у шаблона героя</option><option value="topdown">Сверху (поворачивать)</option><option value="side">Сбоку (зеркалить)</option><option value="static">Статичная</option></select></label>}
         <div className="muted small" style={{ margin: '4px 0' }}>Состояния облика (необязательно):</div>
         <StatesEditor
           states={p.states}
@@ -4200,7 +4208,7 @@ function HeroPortraitsEditor({ m, store, commit }: { m: CampaignMeta; store: Edi
   }
 
   /** сегмент составного портрета */
-  function LayerGroup({ layer }: { layer: { id: string; label: string; options: Array<{ id: string; label: string; image: ImageValue; states?: Record<string, ImageValue> }> } }) {
+  function LayerGroup({ layer }: { layer: HeroPortraitLayerDef }) {
     const layers = cc.portrait_layers!
     return (
       <details className="need-conds">
@@ -4219,10 +4227,18 @@ function HeroPortraitsEditor({ m, store, commit }: { m: CampaignMeta; store: Edi
             <Ico n="close" />
           </button>
         </summary>
-        <label className="fld" style={{ maxWidth: 260 }}>
-          <span>Название сегмента (видит игрок)</span>
-          <input value={layer.label} onChange={(e) => ((layer.label = e.target.value), commit())} />
-        </label>
+        <div className="fld-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <label className="fld" style={{ maxWidth: 260 }}>
+            <span>Название настройки (видит игрок)</span>
+            <input value={layer.label} onChange={(e) => ((layer.label = e.target.value), commit())} />
+          </label>
+          <label className="fld" style={{ minWidth: 190 }}>
+            <span>Категория внешности</span>
+            <select value={layer.category ?? 'other'} onChange={(e) => { layer.category = e.target.value as HeroPortraitLayerDef['category']; commit() }}>
+              <option value="other">Другое</option><option value="identity">Пол / представление</option><option value="skin">Цвет кожи</option><option value="build">Телосложение</option><option value="face">Лицо</option><option value="hair">Волосы</option><option value="clothing">Одежда</option><option value="markings">Татуировки и отметины</option>
+            </select>
+          </label>
+        </div>
         {layer.options.map((o) => (
           <details key={o.id} className="need-conds" style={{ marginLeft: 8 }}>
             <summary>
@@ -4257,6 +4273,14 @@ function HeroPortraitsEditor({ m, store, commit }: { m: CampaignMeta; store: Edi
               dir="assets/img/hero"
               onChange={(v) => ((o.states = v), commit())}
             />
+            <AnimImageEditor
+              label="Статическая фигурка боя для этого постоянного варианта (не зависит от экипировки)"
+              value={o.combat_figure}
+              dir="assets/img/hero"
+              store={store}
+              onChange={(v) => { if (v) o.combat_figure = v; else delete o.combat_figure; commit() }}
+            />
+            {!!o.combat_figure && <label className="fld" style={{ maxWidth: 240 }}><span>Разворот фигурки</span><select value={o.combat_figure_mode ?? ''} onChange={(e) => { if (e.target.value) o.combat_figure_mode = e.target.value as 'topdown' | 'side' | 'static'; else delete o.combat_figure_mode; commit() }}><option value="">Как у шаблона героя</option><option value="topdown">Сверху (поворачивать)</option><option value="side">Сбоку (зеркалить)</option><option value="static">Статичная</option></select></label>}
           </details>
         ))}
         <button
@@ -4273,10 +4297,7 @@ function HeroPortraitsEditor({ m, store, commit }: { m: CampaignMeta; store: Edi
     <div className="props-group" style={{ marginTop: 8 }}>
       <h4>Портрет героя</h4>
       <div className="muted small" style={{ marginBottom: 8 }}>
-        Задайте готовые портреты (игрок выберет карточку) и/или сегменты для
-        составного облика (игрок соберёт себя из вариантов: лицо + волосы + одежда).
-        В обоих случаях можно дать отдельные кадры для состояний: «ранен», «устал»,
-        либо под конкретный статус из реестра — облик будет меняться по ходу игры.
+        Включайте только нужные настройки: готовые портреты и/или сегменты внешности (цвет кожи, телосложение, волосы, татуировки и любые собственные категории). Без вариантов этот раздел игроку не показывается. Фигурку боя можно задать как постоянный вариант начального облика; экипировка на неё не влияет.
       </div>
       {(cc.portraits ?? []).map((p) => <PortraitRow key={p.id} p={p} />)}
       <button
@@ -4290,7 +4311,7 @@ function HeroPortraitsEditor({ m, store, commit }: { m: CampaignMeta; store: Edi
       <div>
         <button
           className="btn btn-small"
-          onClick={() => ((cc.portrait_layers ??= []).push({ id: nextId('layer'), label: 'Сегмент', options: [{ id: nextId('opt'), label: 'Вариант', image: '' }] }), commit())}
+          onClick={() => ((cc.portrait_layers ??= []).push({ id: nextId('layer'), label: 'Сегмент', category: 'other', options: [{ id: nextId('opt'), label: 'Вариант', image: '' }] }), commit())}
         >
           <Ico n="plus" /> Сегмент облика
         </button>

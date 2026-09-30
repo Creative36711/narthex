@@ -14,6 +14,7 @@ import type { CutsceneDef, CutsceneSlide, MusicTrackDef, MusicSource } from './t
 import { ArtView } from './ArtView'
 import { useCameraStyle } from '../player/Atmosphere'
 import { getSettings, musicVolume, useSettings, voiceVolume } from './settings'
+import { cutsceneTtsEligible } from './cutsceneTts'
 import { speak } from './speech'
 import { startTrackSource, type TrackHandle } from './music'
 
@@ -48,8 +49,6 @@ export function autoDurationMs(slide: CutsceneSlide): number {
   if (!len) return 4000
   return Math.min(16000, Math.max(3500, len * TYPE_MS + 2600))
 }
-
-
 
 // ── YouTube: IFrame Player API — слайд знает, когда видео кончилось ──
 let ytApiPromise: Promise<any> | null = null
@@ -249,7 +248,9 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
     const m = cutscene.music
     if (!m) return
     const track = resolveTrackRef.current?.(m)
-    const src: MusicSource = track ? track.src : resolveRef.current(m)
+    const src: MusicSource = track
+      ? typeof track.src === 'string' ? resolveRef.current(track.src) : track.src
+      : resolveRef.current(m)
     const vol = musicVolume(getSettings()) * (track?.volume ?? 1)
     const h = startTrackSource(src, vol, true)
     musicRef.current = h
@@ -288,35 +289,65 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
     const settings = getSettings()
     const resolve = resolveRef.current
     const vol = voiceVolume(settings)
-    if (slide.duration && slide.duration > 0) {
-      after(slide.duration * 1000)
-    } else if (slide.video && !slide.art && !slide.image) {
-      // видео: mp4 — по окончании (onVideoEnd), YouTube — ждём игрока
-    } else if (slide.voice && vol > 0) {
-      const a = new Audio(resolve(slide.voice))
-      a.volume = vol
-      a.onended = () => after(700)
-      a.onerror = () => after(autoDurationMs(slide))
-      void a.play().catch(() => after(autoDurationMs(slide)))
-      stopVoice = () => a.pause()
-    } else if (settings.tts_enabled && !settings.voice_muted && slide.text) {
-      stopVoice = speak(slide.text, {
+    const hasFixedDuration = !!slide.duration && slide.duration > 0
+    const videoOnly = !!slide.video && !slide.art && !slide.image
+    let minimumElapsed = !hasFixedDuration
+    let voiceComplete = true
+    let advanceScheduled = false
+    const scheduleNext = (delay = 0) => {
+      if (cancelled || !minimumElapsed || !voiceComplete || advanceScheduled) return
+      advanceScheduled = true
+      after(delay)
+    }
+    const finishVoice = (delay = 0) => {
+      voiceComplete = true
+      scheduleNext(delay)
+    }
+
+    if (hasFixedDuration) {
+      timers.push(setTimeout(() => {
+        minimumElapsed = true
+        scheduleNext()
+      }, slide.duration! * 1000))
+    }
+
+    const speakWithTts = () => {
+      if (!cutsceneTtsEligible(slide, settings, vol)) {
+        if (!hasFixedDuration && !videoOnly) after(autoDurationMs(slide))
+        return
+      }
+      voiceComplete = false
+      stopVoice = speak(slide.text!, {
         voice: settings.tts_voice,
         rate: settings.tts_rate,
         volume: vol,
-        onEnd: () => after(600),
+        onEnd: () => finishVoice(600),
       })
-      // страховка: синтезатор может молча не заговорить
-      after(autoDurationMs(slide) + 8000)
-    } else {
-      after(autoDurationMs(slide))
     }
-    // озвучка при заданной длительности тоже звучит (просто не управляет таймером)
-    if (slide.duration && slide.voice && vol > 0) {
+
+    if (slide.voice && vol > 0) {
       const a = new Audio(resolve(slide.voice))
       a.volume = vol
-      void a.play().catch(() => undefined)
+      let settled = false
+      const finishAudio = (delay = 0) => {
+        if (settled) return
+        settled = true
+        finishVoice(delay)
+      }
+      const failed = () => {
+        a.pause()
+        if (hasFixedDuration) finishAudio()
+        else finishAudio(autoDurationMs(slide))
+      }
+      voiceComplete = false
+      a.onended = () => finishAudio(700)
+      a.onerror = failed
+      void a.play().catch(failed)
       stopVoice = () => a.pause()
+    } else if (cutsceneTtsEligible(slide, settings, vol)) {
+      speakWithTts()
+    } else if (!hasFixedDuration && !videoOnly) {
+      after(autoDurationMs(slide))
     }
     return () => {
       cancelled = true

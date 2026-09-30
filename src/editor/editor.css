@@ -495,25 +495,31 @@
   background: color-mix(in srgb, var(--ed-paper-card) 60%, var(--ed-paper));
 }
 .journal-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: flex-start; }
-.journal-key {
-  width: 160px;
-  background: var(--ed-paper-input);
-  border: 1px solid var(--ed-paper-line);
-  border-radius: 5px;
-  color: var(--ed-accent);
+.journal-entry-label {
+  flex: 0 0 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   padding: 6px 8px;
+  color: var(--ed-paper-text);
   font-size: 12px;
-  font-weight: 600;
 }
+.journal-entry-label span { color: var(--ed-paper-muted); font-size: 11px; }
 .journal-row textarea, .journal-row select {
   flex: 1;
   background: var(--ed-paper-input);
   border: 1px solid var(--ed-paper-line);
   border-radius: 5px;
   color: var(--ed-paper-text);
+  min-width: 0;
   padding: 6px 8px;
   font-size: 12px;
   font-family: inherit;
+}
+@media (max-width: 560px) {
+  .journal-row { flex-wrap: wrap; }
+  .journal-entry-label { flex-basis: 100%; padding: 2px 4px; }
+  .journal-row textarea { flex-basis: calc(100% - 44px); }
 }
 
 /* ─────────── monaco (тёмный «инструмент» на бумаге) ─────────── */
@@ -1416,6 +1422,31 @@ body.cf-editor .modal-overlay .modal-list li {
 }
 /* поля форм (AiWizard и прочие .fld в модалках редактора) — хром, не бумага */
 body.cf-editor .modal-overlay .fld > span { color: var(--ed-muted, #9aa3b5); }
+body.cf-editor .campaign-audit-modal { width: min(900px, 96vw); max-height: 90vh; display: flex; flex-direction: column; }
+body.cf-editor .campaign-audit-modal .modal-body { flex: 0 0 auto; }
+body.cf-editor .audit-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+body.cf-editor .audit-count { padding: 4px 8px; border: 1px solid #414a5c; border-radius: 999px; color: #c8ced8; font-size: 12px; }
+body.cf-editor .audit-count.is-error { border-color: #d96c5a; color: #ff9d8c; }
+body.cf-editor .audit-count.is-warning { border-color: #d8a24a; color: #f2ca7c; }
+body.cf-editor .audit-sections { overflow: auto; min-height: 0; padding: 0 2px 8px; }
+body.cf-editor .audit-section { padding: 8px 0; border-top: 1px solid #2d3340; }
+body.cf-editor .audit-section h3 { display: flex; justify-content: space-between; margin: 0 0 7px; color: #e2ab6c; font-size: 14px; }
+body.cf-editor .audit-section h3 span { color: #9aa3b5; font-weight: 400; }
+body.cf-editor .audit-finding { display: grid; grid-template-columns: 118px minmax(0, 1fr); gap: 8px; padding: 5px 8px; border-radius: 4px; color: #c8ced8; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+body.cf-editor .audit-finding:nth-child(odd) { background: #1a1d25; }
+body.cf-editor .audit-finding.severity-error b { color: #ff9d8c; }
+body.cf-editor .audit-finding.severity-warning b { color: #f2ca7c; }
+body.cf-editor .audit-finding.severity-info b { color: #8fd6e4; }
+body.cf-editor .audit-loading, body.cf-editor .audit-error, body.cf-editor .ai-report-note { margin: 10px 0; color: #9aa3b5; font-size: 13px; }
+body.cf-editor .audit-error { color: #ff9d8c; }
+body.cf-editor .audit-actions { flex-wrap: wrap; }
+body.cf-editor .audit-actions .copy-status { min-width: 120px; }
+
+@media (max-width: 650px) {
+  body.cf-editor .campaign-audit-modal { width: 96vw; max-height: 94vh; }
+  body.cf-editor .audit-finding { grid-template-columns: 1fr; gap: 2px; }
+  body.cf-editor .audit-actions .copy-status { width: 100%; }
+}
 
 @media (max-width: 760px) {
   .editor-brand { letter-spacing: 1px; }
@@ -1445,3 +1476,91 @@ body.cf-editor .modal-overlay .fld > span { color: var(--ed-muted, #9aa3b5); }
 /* фильтр по главе над списком документов */
 .editor-list-chapter { flex: 0 0 auto; margin: 0 8px 6px; background: var(--ed-bg-3); border: 1px solid var(--ed-line-strong); color: var(--ed-text); border-radius: 6px; padding: 5px 8px; font-size: 12.5px; font-family: inherit; }
 .editor-list-chapter:focus { outline: 2px solid var(--ed-select); outline-offset: -1px; }
+
+/* Задание ИИ остаётся в пределах окна: форма прокручивается, шапка и действия доступны. */
+body.cf-editor .modal-overlay .modal-box.ai-wizard {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 24px));
+  min-width: 0;
+  max-width: none;
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 16px 20px;
+}
+body.cf-editor .ai-wizard > .modal-title,
+body.cf-editor .ai-wizard > .modal-body,
+body.cf-editor .ai-wizard > .modal-buttons { flex: 0 0 auto; }
+body.cf-editor .ai-wizard-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 6px 8px 0;
+}
+body.cf-editor .ai-wizard-content .fld-row { flex-wrap: wrap; }
+body.cf-editor .ai-optional-toggle { justify-content: flex-start; gap: 8px; margin: 8px 0; }
+body.cf-editor .ai-optional-toggle input { flex: 0 0 auto; margin: 0; }
+body.cf-editor .ai-battle-range { align-items: center; }
+body.cf-editor .modal-box.ai-wizard textarea { min-height: 120px; }
+body.cf-editor .ai-wizard > .modal-buttons { align-items: center; }
+body.cf-editor .ai-wizard .copy-status { flex: 1 1 180px; min-width: 0; }
+
+/* Дизайн-документ читается на светлом полотне редактора; MarkdownView общий с книгой. */
+.editor-root .design-doc-render { width: 100%; min-width: 0; }
+.editor-root .design-doc-render .book-markdown { width: 100%; max-width: none; box-sizing: border-box; color: var(--ed-paper-text); }
+.editor-root .design-doc-render .book-markdown h1,
+.editor-root .design-doc-render .book-markdown h2,
+.editor-root .design-doc-render .book-markdown h3,
+.editor-root .design-doc-render .book-markdown h4 { color: var(--ed-accent); }
+.editor-root .design-doc-render .book-markdown blockquote { color: var(--ed-paper-muted); }
+.editor-root .design-doc-render .book-markdown code,
+.editor-root .design-doc-render .book-markdown .book-code {
+  background: color-mix(in srgb, var(--ed-paper-text) 7%, var(--ed-paper-card));
+  border-color: var(--ed-paper-line);
+  color: var(--ed-paper-text);
+}
+.editor-root .design-doc-render .book-markdown a,
+.editor-root .design-doc-render .book-markdown .book-inline-link { color: #176978; }
+.editor-root .design-doc-render .book-markdown .book-table th {
+  color: var(--ed-paper-text);
+  background: var(--ed-paper-2);
+}
+.editor-root .design-doc-render .book-markdown .book-table td { border-color: var(--ed-paper-line); }
+.editor-root .design-doc-render .book-markdown .book-inline-image { max-width: 100%; }
+.design-doc-heading { display: flex; flex-direction: column; gap: 4px; min-width: min(280px, 100%); }
+.design-doc-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.design-doc-empty p { margin: 0; }
+
+@media (max-height: 560px) {
+  body.cf-editor .modal-overlay .modal-box.ai-wizard { padding: 10px 14px; }
+  body.cf-editor .ai-wizard > .modal-title { margin-bottom: 6px; }
+  body.cf-editor .ai-wizard > .modal-body { margin-bottom: 8px; }
+}
+
+/* Чипы мастера ИИ не должны наследовать цвет полотна редактора: сама модалка
+   намеренно остаётся в единой тёмной теме во всех режимах «Бумага/Тёмная/Графит». */
+body.cf-editor .modal-overlay .ai-wizard .chip {
+  background: #2a303d;
+  border: 1px solid #414a5c;
+  border-radius: 999px;
+  color: #c8ced8;
+  padding: 4px 12px;
+  font-size: 12.5px;
+  user-select: none;
+}
+body.cf-editor .modal-overlay .ai-wizard .chip:hover:not(:disabled) {
+  background: #303847;
+  border-color: #8fd6e4;
+  color: #8fd6e4;
+}
+body.cf-editor .modal-overlay .ai-wizard .chip.chip-on {
+  background: color-mix(in srgb, #58b7c9 18%, #212530);
+  border-color: #58b7c9;
+  color: #8fd6e4;
+  font-weight: 600;
+}
+body.cf-editor .modal-overlay .ai-wizard .chip:disabled { opacity: 0.45; cursor: not-allowed; }
+body.cf-editor .modal-overlay .ai-wizard input[type='range'] { accent-color: #58b7c9; }

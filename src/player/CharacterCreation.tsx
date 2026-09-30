@@ -160,7 +160,10 @@ export function CharacterCreation({
         {/* облик героя: галерея портретов и/или составные сегменты мастера */}
         {((creation.portraits?.length ?? 0) > 0 || (creation.portrait_layers?.length ?? 0) > 0) && (
           <div className="props-group">
-            <h4>Облик героя</h4>
+            <h4>Внешность героя</h4>
+            <div className="muted small" style={{ marginBottom: 8 }}>
+              Выберите постоянные черты внешности. Набор и варианты настроены мастером; надетые предметы обновят портрет в листе героя.
+            </div>
             <div className="hero-look">
               <div className="hero-look-preview">
                 {(() => {
@@ -203,7 +206,7 @@ export function CharacterCreation({
                 )}
                 {(creation.portrait_layers ?? []).map((layer) => (
                   <div key={layer.id} className="hero-layer-row">
-                    <span className="muted small">{layer.label}</span>
+                    <span className="muted small">{layer.category && layer.category !== 'other' ? `${({identity:'Пол / представление',skin:'Цвет кожи',build:'Телосложение',face:'Лицо',hair:'Волосы',clothing:'Одежда',markings:'Татуировки и отметины'} as Record<string,string>)[layer.category]} · ` : ''}{layer.label}</span>
                     <div className="hero-layer-opts">
                       {layer.options.map((o) => {
                         const active = choice.portrait_layers?.[layer.id] === o.id

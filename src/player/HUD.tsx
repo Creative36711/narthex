@@ -81,10 +81,11 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           const val = s.player.needs[n.id] ?? 0
           const critical = val <= n.critical_threshold
           return (
-            <div key={n.id} className={`hud-bar need ${critical ? 'critical' : ''}`} data-tip={n.label}>
+            <div key={n.id} className={`hud-bar need ${critical ? 'critical' : ''}`} data-tip={n.label} aria-label={`${n.label}: ${Math.round(val)}`}>
               <div className="hud-bar-fill" style={{ width: `${(val / n.max) * 100}%` }} />
-              <span>
-                {n.label} {Math.round(val)}
+              <span className="hud-bar-text">
+                <span className="hud-need-label">{n.label}</span>
+                <b className="hud-need-value">{Math.round(val)}</b>
               </span>
             </div>
           )

@@ -14,10 +14,7 @@ interface Props {
 const TYPE_MS = 24 // скорость печати, мс на символ (как в катсценах)
 const LINE_PAUSE_MS = 420 // пауза между репликами
 
-/**
- * страховка на случай «немого» синтезатора: сколько максимум ждать озвучку
- * реплики, прежде чем диалог пойдёт дальше сам (как в катсценах)
- */
+/** Страховка для аудиофайла реплики, если браузер не прислал onended/onerror. */
 function fallbackReadMs(text: string): number {
   return Math.min(30000, text.length * 70 + 4000)
 }
@@ -74,24 +71,25 @@ export function DialogueOverlay({ engine }: Props) {
   const activeLine = current ?? lines[revealed - 1]
 
   /**
-   * Озвучка реплики — по образцу катсцены (фидбек 21): одна фраза звучит
+   * Озвучка реплики или ремарки — по образцу катсцены: одна строка звучит
    * одна (без накопления в очереди), а её окончание двигает диалог дальше.
    */
   const playLine = (line: DialogueLine | undefined) => {
     clearLineAudio()
     setLineDone(false)
     const done = () => setLineDone(true)
-    if (!line || line.action) {
+    if (!line) {
       done()
       return
     }
-    // страховочный таймер: если звук так и не отчитался — диалог не виснет
-    fallbackRef.current = setTimeout(() => {
-      fallbackRef.current = null
-      done()
-    }, fallbackReadMs(line.text))
     const vol = voiceVolume(settings)
     if (line.voice && vol > 0) {
+      // Страховка нужна файлу, но не TTS: синтезатор сам сообщает onEnd,
+      // а его длинный watchdog находится в shared/speech.ts.
+      fallbackRef.current = setTimeout(() => {
+        fallbackRef.current = null
+        done()
+      }, fallbackReadMs(line.text))
       const a = new Audio(assetUrl(engine.campaign, line.voice))
       a.volume = vol
       a.onended = done
