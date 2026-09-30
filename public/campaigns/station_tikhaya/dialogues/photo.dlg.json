@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "label": "Старое фото",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Снимок",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "saw_photo"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "change_need",
+                "need": "need_grief",
+                "delta": 4
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Трое на мосту: ты, Лена, Борис. Лето, которое казалось бесконечным. У Лены в волосах листок."
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Убрать фото.",
+          "sections": [],
+          "goto": "end"
+        }
+      ]
+    }
+  ]
+}

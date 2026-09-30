@@ -1,0 +1,19 @@
+{
+  "id": "item_tea",
+  "type": "item",
+  "category": "drink",
+  "label": "Стакан чая",
+  "description": "Горячий, сладкий, как в детстве на перроне.",
+  "weight": 0.3,
+  "stackable": true,
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_warmth",
+        "delta": 20
+      }
+    ],
+    "consume": true
+  }
+}

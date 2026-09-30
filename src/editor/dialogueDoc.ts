@@ -417,6 +417,9 @@ export function generateInk(docRaw: DlgDoc): string {
     // DlgEffect, добавленные позже блоков статусов/погоды/кодекса/рецептов
     'set_description', 'apply_status', 'remove_status', 'set_weather',
     'unlock_codex', 'unlock_recipe',
+    // токены реплик ({имя}, {здоровье_макс}, …) — без EXTERNAL inkjs не компилирует
+    'get_player_name', 'get_hp_max', 'get_mp', 'get_mp_max', 'get_luck',
+    'get_level', 'get_xp', 'get_run_day', 'get_currency',
   ]
   const SIG: Record<string, string> = {
     get_flag: '(f)', set_flag: '(f)', add_item: '(id, n)', remove_item: '(id, n)',
@@ -428,6 +431,8 @@ export function generateInk(docRaw: DlgDoc): string {
     play_cutscene: '(id)',
     set_description: '(id, t)', apply_status: '(id, d)', remove_status: '(id)',
     set_weather: '(id)', unlock_codex: '(id)', unlock_recipe: '(id)',
+    get_player_name: '()', get_hp_max: '()', get_mp: '()', get_mp_max: '()',
+    get_luck: '()', get_level: '()', get_xp: '()', get_run_day: '()', get_currency: '(id)',
   }
   const externals = FNS.filter((f) => body.includes(`${f}(`)).map((f) => `EXTERNAL ${f}${SIG[f]}`)
   return `${externals.join('\n')}\n\n${body}`

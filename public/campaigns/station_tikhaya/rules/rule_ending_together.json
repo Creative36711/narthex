@@ -1,0 +1,22 @@
+{
+  "id": "rule_ending_together",
+  "label": "Финал: вдвоём",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "advance_quest",
+      "quest": "quest_homecoming",
+      "stage": "completed"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_lena",
+      "stage": "completed"
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ]
+}

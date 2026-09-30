@@ -20,6 +20,7 @@
     "smoke:design-doc": "tsx scripts/design-doc-guard.mts",
     "smoke:p2": "tsx scripts/p2-mechanics-smoke.mts",
     "smoke:ai-runtime": "tsx scripts/ai-runtime-smoke.mts",
+    "smoke:station": "tsx scripts/station-tikhaya-smoke.mts",
     "smoke:no-campaign": "tsx scripts/no-campaign-smoke.mts"
   },
   "dependencies": {

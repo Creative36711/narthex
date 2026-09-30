@@ -1,0 +1,9 @@
+{
+  "id": "item_ticket",
+  "type": "item",
+  "category": "quest",
+  "label": "Билет на последний поезд",
+  "description": "Картон steртый на сгибе. Время отправления — 22:00.",
+  "weight": 0,
+  "stackable": false
+}

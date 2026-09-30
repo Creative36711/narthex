@@ -1,0 +1,28 @@
+{
+  "id": "rule_train_warn",
+  "label": "Скоро поезд",
+  "once": true,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 21
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "train_warned"
+    },
+    {
+      "type": "banner",
+      "text": "Скоро гудок. Последний поезд на перроне.",
+      "preset": "шёпот",
+      "seconds": 4
+    },
+    {
+      "type": "teleport_player",
+      "location": "loc_station",
+      "scene": "scene_platform_night"
+    }
+  ]
+}

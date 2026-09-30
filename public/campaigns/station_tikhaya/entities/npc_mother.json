@@ -1,0 +1,31 @@
+{
+  "id": "npc_mother",
+  "type": "npc",
+  "label": "Мать",
+  "description": "Держит дом так, будто отец вот-вот вернётся с смены. Чай слишком крепкий.",
+  "portrait": {
+    "neutral": "",
+    "soft": "",
+    "hurt": "",
+    "warm": ""
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 10,
+    "INT": 12,
+    "POW": 12,
+    "CHA": 12
+  },
+  "skills": {
+    "persuade": 35,
+    "spot": 40
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "base_disposition": 20,
+  "dialogue": "dialogues/mother.ink"
+}

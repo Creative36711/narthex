@@ -877,6 +877,13 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const groupCounts = new Map<string, number>()
   for (const it of items) if (it.group) groupCounts.set(it.group, (groupCounts.get(it.group) ?? 0) + 1)
 
+  // Автовыбор первой записи при входе в раздел: иначе мастер видит пустой
+  // холст и ищет «куда кликнуть» (особенно после «Новая кампания»).
+  useEffect(() => {
+    if (!hasList || sel || items.length === 0) return
+    setSelected(items[0]!.path)
+  }, [hasList, section, items, sel])
+
   return (
     <div className={`editor-root ed-theme-${edTheme}`}>
       <header className="editor-topbar">
@@ -1105,7 +1112,32 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           {section === 'recipes' && sel && <RecipeEditor key={sel} store={store} path={sel} />}
           {section === 'codex' && sel && <CodexEditor key={sel} store={store} path={sel} />}
           {hasList && !sel && (
-            <div className="screen-center muted">Выберите элемент слева или создайте новый.</div>
+            <div className="editor-empty-main">
+              <p className="editor-empty-title">
+                {items.length === 0 ? 'В этом разделе пока пусто' : 'Ничего не выбрано'}
+              </p>
+              <p className="muted small">
+                {items.length === 0
+                  ? 'Создайте первую запись — или импортируйте JSON / чемодан ИИ.'
+                  : 'Выберите элемент слева или создайте новый.'}
+              </p>
+              <div className="editor-empty-actions">
+                {section === 'entities' ? (
+                  <>
+                    <button type="button" className="btn btn-primary" onClick={() => createNew('npc')}>
+                      + Персонаж
+                    </button>
+                    <button type="button" className="btn" onClick={() => createNew('item')}>
+                      + Предмет
+                    </button>
+                  </>
+                ) : (
+                  <button type="button" className="btn btn-primary" onClick={() => createNew()}>
+                    + Создать
+                  </button>
+                )}
+              </div>
+            </div>
           )}
         </main>
       </div>

@@ -1,0 +1,276 @@
+{
+  "version": 2,
+  "label": "Лена, кафе на станции",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Начало",
+      "sections": [
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_lena"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Снова ты. Чай ещё горячий — если не убежал на перрон.",
+                "emotion": "soft"
+              }
+            }
+          ],
+          "else_steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_lena"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "change_disposition",
+                "target": "npc_lena",
+                "delta": 5
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "…{имя}. Ты всё-таки приехал. Я думала — только на похороны и сразу обратно.",
+                "emotion": "hurt"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Садись. Чай по старым ценам. Разговор — бесплатно, если честный.",
+                "emotion": "soft"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Мне жаль, что так вышло. Правда жаль.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "lena_apology",
+              "not": true
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "lena_apology"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_lena",
+                    "delta": 15
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_need",
+                    "need": "need_grief",
+                    "delta": -8
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она молчит дольше, чем удобно. Потом кивает — коротко, будто ставит печать.",
+                    "emotion": "soft"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Жаль — это слово дешёвое. Но ты хотя бы произнёс его вслух. Спасибо.",
+                    "emotion": "warm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Помнишь наш мост? Можно сходить.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "lena_bridge_invite",
+              "not": true
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "lena_bridge_invite"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_lena",
+                    "delta": 8
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Мост… Там всё ещё скрипит перила. Я иногда хожу, когда смена кончается.",
+                    "emotion": "soft"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Если дойдёшь — буду. Не обещаю, что будет легко.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Поедем вместе. Последний поезд — не приговор.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "lena_apology"
+            },
+            {
+              "type": "disp_ge",
+              "target": "npc_lena",
+              "value": 40
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "lena_will_go"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_lena",
+                    "delta": 20
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_lena_warm"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ты серьёзно? После стольких лет — «поедем»?",
+                    "emotion": "warm"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "…Хорошо. Сумку соберу. Если передумаешь на перроне — я пойму. Но скажи сразу.",
+                    "emotion": "warm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Мне нужно время. Я ещё вернусь до отправления.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Времени у нас ровно столько, сколько до гудка. Не больше.",
+                    "emotion": "soft"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Просто посидеть. Без разговоров.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_need",
+                    "need": "need_warmth",
+                    "delta": 12
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_need",
+                    "need": "need_grief",
+                    "delta": -5
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "advance_time",
+                    "ticks": 1
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она наливает чай. Молчание не пустое — оно как одеяло, которое наконец разрешили надеть.",
+                    "emotion": "warm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    }
+  ]
+}

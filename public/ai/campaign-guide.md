@@ -627,6 +627,9 @@ id — ломающее изменение для сохранений игро�
   Такой НПС показывается через `default_entity` слота (как стационарный
   проп). Непустой `schedule` с другой сценой **блокирует** `default_entity`
   в текущей — не дублируй одну и ту же сущность и слотом, и расписанием.
+- `base_disposition` — стартовое отношение к NPC. Диалоги/эффекты
+  `change_disposition` копят **личный** сдвиг по id персонажа (фракция
+  необязательна). Итог в проверках: base + личный + фракция + настроение.
 - `loot_table` — что выпадет после боя: `[{ "item", "chance", "min"?, "max"? }]`.
 - `natural_weapon` — когти/зубы: `{ "skill": "brawl", "damage": "1d6",
   "damage_bonus": true, "range": 1, "attacks_per_round": 1, "parry_capable": false }`.
@@ -794,7 +797,7 @@ id — ломающее изменение для сохранений игро�
 | `flag_not_set` | `flag` | флаг не поднят |
 | `variable_compare` | `var`, `operator` (`==`/`!=`/`<`/`>`/`<=`/`>=`), `value` | сравнение переменной |
 | `time_of_day` | `value` (строка или список: `"night"`, `["evening","night"]`) | сейчас такое время суток |
-| `tick_elapsed` | `min_tick` | прошло не меньше тиков от старта |
+| `tick_elapsed` | `min_tick` | прошло ≥ N тиков (проверяется после `advanceTicks`/переходов) |
 | `weather_is` | `weather` (`""` — ясно) | текущая погода равна |
 | `has_item` | `item`, `min_quantity?` | у героя есть предмет (количество ≥) |
 | `entity_alive` / `entity_dead` | `entity` | сущность жива / в списке мёртвых |
@@ -902,7 +905,7 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 | `change_wealth` | `levels` | ступень достатка ± |
 | `change_passion` | `id`, `delta?`/`set?` | страсть ± |
 | `change_allegiance` | `id`, `points` | привязанность/принадлежность ± |
-| `change_disposition` | `target` (фракция или NPC), `delta` | отношение ± |
+| `change_disposition` | `target` (фракция **или id NPC**), `delta` | отношение ± (у NPC — личный сдвиг + base + фракция) |
 | `apply_status` / `remove_status` | `target` (`"player"`), `status`, `duration?` | наложить/снять статус из реестра |
 | `grant_feat` | `id` | выдать черту |
 | `grant_xp` | `points` | опыт |
@@ -1049,8 +1052,9 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 - Конструктор (`generateInk`) **обязан** объявить `EXTERNAL` для каждой
   команды, которую вызывает `~ …` в сгенерированном ink: в том числе
   `unlock_recipe`, `unlock_codex`, `apply_status`, `set_weather`,
-  `set_description` и прочие из таблицы ниже. Без `EXTERNAL` inkjs не
-  скомпилирует файл — диалог не откроется.
+  `set_description`, **токены реплик** (`get_player_name` для `{имя}`,
+  `get_hp_max`, `get_currency`…) и прочие из таблицы ниже. Без `EXTERNAL`
+  inkjs не скомпилирует файл — диалог не откроется.
 
 ### 13.2 Сырой Ink: внешние команды
 
@@ -1065,7 +1069,7 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 | `~ add_item("item_x", 2)` / `~ remove_item("item_x", 1)` | выдать/забрать |
 | `~ fire_rule("rule_open_safe")` | вызвать правило (вложенность та же) |
 | `~ start_quest("quest_x")` | начать квест |
-| `~ change_disposition("npc_maeva", 5)` | отношение ± |
+| `~ change_disposition("npc_maeva", 5)` | личное отношение к NPC (±); + base + фракция |
 | `~ apply_status("poisoned", 12)` | статус на 12 тиков |
 | `~ set_weather("rain")` / `{ weather_is("rain"): … }` | погода и проверка |
 | `~ unlock_codex("codex_rat")` / `~ unlock_recipe("recipe_tonic")` | кодекс и рецепт |

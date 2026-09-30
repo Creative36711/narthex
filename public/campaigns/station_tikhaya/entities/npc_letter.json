@@ -1,0 +1,28 @@
+{
+  "id": "npc_letter",
+  "type": "npc",
+  "label": "Письмо отца",
+  "description": "Конверт без марки, будто его оставили руками, а не почтой.",
+  "portrait": {
+    "neutral": "",
+    "soft": "",
+    "hurt": "",
+    "warm": ""
+  },
+  "stats": {
+    "STR": 5,
+    "CON": 5,
+    "SIZ": 5,
+    "DEX": 5,
+    "INT": 5,
+    "POW": 5,
+    "CHA": 5
+  },
+  "skills": {},
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "prop",
+  "schedule": [],
+  "base_disposition": 0,
+  "dialogue": "dialogues/letter.ink"
+}

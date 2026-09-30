@@ -1,0 +1,205 @@
+{
+  "version": 2,
+  "label": "Борис, старый друг",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "На мосту",
+      "sections": [
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_boris"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Куришь? Я уж бросил. Почти.",
+                "emotion": "soft"
+              }
+            }
+          ],
+          "else_steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_boris"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Смотри кто явился. Столица тебя не съела — значит, ещё живой.",
+                "emotion": "warm"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Я тут каждый вечер. Мост помнит нас лучше, чем мы сами.",
+                "emotion": "soft"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Как ты… всё это время?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "boris_story"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_boris",
+                    "delta": 10
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Работаю на сортировке. Жена уехала в область. Дочка пишет иногда. Нормальная жизнь — только тихая.",
+                    "emotion": "soft"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "А ты бегал от тишины. Теперь она догнала. Не обижайся — я без злости.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Лена всё ещё здесь. Ты с ней…",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "boris_about_lena"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она не ждала. Просто жила. Это другое. Не ломай ей вечер геройством.",
+                    "emotion": "soft"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Если скажешь правду — она услышит. Если спектакль — почувствует.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Посоветуй. Остаться или уехать?",
+          "check": {
+            "skill": "persuade",
+            "difficulty": 45,
+            "success": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "set_flag",
+                        "flag": "boris_advice_good"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "change_need",
+                        "need": "need_grief",
+                        "delta": -10
+                      }
+                    },
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Остаться — не значит сдаться. Уехать — не значит предать. Смотри, кого ты предаёшь, когда выбираешь.",
+                        "emotion": "warm"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "end"
+            },
+            "fail": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Брат, я не оракул. Я просто стою на мосту и курю то, чего нет.",
+                        "emotion": "soft"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "end"
+            }
+          },
+          "sections": [],
+          "goto": "end"
+        },
+        {
+          "text": "Пойду. Спасибо, что ждал.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_boris",
+                    "delta": 5
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Я никого не ждал. Просто здесь ветрено — и видно поезда.",
+                    "emotion": "warm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    }
+  ]
+}

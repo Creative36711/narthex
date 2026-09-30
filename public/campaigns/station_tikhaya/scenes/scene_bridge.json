@@ -1,0 +1,316 @@
+{
+  "id": "scene_bridge",
+  "label": "Мост над путями",
+  "location": "loc_bridge",
+  "chapter": "chapter_people",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Сумерки",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#141820",
+        "layers": [
+          {
+            "label": "небо",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 400,
+              "fill": {
+                "gradient": {
+                  "from": "#1a2030",
+                  "to": "#4a5868",
+                  "angle": 90
+                }
+              },
+              "opacity": 1
+            }
+          },
+          {
+            "label": "река",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                500,
+                1280,
+                480,
+                1280,
+                720,
+                0,
+                720
+              ],
+              "fill": {
+                "gradient": {
+                  "from": "#2a4050",
+                  "to": "#1a2830",
+                  "angle": 90
+                }
+              },
+              "opacity": 1
+            }
+          },
+          {
+            "label": "мост",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 380,
+              "w": 1280,
+              "h": 40,
+              "fill": "#3a3a40",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "перила",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 360,
+              "w": 1280,
+              "h": 8,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 40,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 140,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 240,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 340,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 440,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 540,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 640,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 740,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 840,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 940,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 1040,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "стойка",
+            "shape": {
+              "type": "rect",
+              "x": 1140,
+              "y": 320,
+              "w": 8,
+              "h": 50,
+              "fill": "#5a5a60",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "путьвнизу",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 560,
+              "w": 880,
+              "h": 12,
+              "fill": "#1a1510",
+              "opacity": 1
+            }
+          },
+          {
+            "label": "фонарьмоста",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 300,
+              "rx": 16,
+              "ry": 22,
+              "fill": "#e8d0a0",
+              "opacity": 0.9
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 340,
+              "rx": 120,
+              "ry": 40,
+              "fill": "#e8d0a0",
+              "opacity": 0.12
+            }
+          },
+          {
+            "label": "берег",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                480,
+                200,
+                520,
+                0,
+                560
+              ],
+              "fill": "#2a3020",
+              "opacity": 1
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_boris",
+      "label": "Борис у перил",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 280,
+      "w": 140,
+      "h": 200,
+      "condition": null,
+      "default_entity": "npc_boris"
+    }
+  ],
+  "navigation": [
+    {
+      "area": {
+        "x": 40,
+        "y": 500,
+        "w": 140,
+        "h": 120
+      },
+      "open_map": true,
+      "label": "К станции"
+    }
+  ]
+}

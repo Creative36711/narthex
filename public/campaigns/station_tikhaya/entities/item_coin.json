@@ -1,0 +1,9 @@
+{
+  "id": "item_coin",
+  "type": "item",
+  "category": "currency",
+  "label": "Монеты",
+  "description": "Мелочь на чай.",
+  "weight": 0,
+  "stackable": true
+}

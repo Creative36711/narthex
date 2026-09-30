@@ -1,0 +1,224 @@
+{
+  "version": 2,
+  "label": "Мать",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Дома",
+      "sections": [
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_mother"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ты опять ходишь по кругу. Садись, суп ещё тёплый.",
+                "emotion": "soft"
+              }
+            }
+          ],
+          "else_steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_mother"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "change_disposition",
+                "target": "npc_mother",
+                "delta": 5
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ну вот. Приехал. Я знала по шагам на крыльце — чужие бы так не скрипели.",
+                "emotion": "soft"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Отец… Он ждал письма. Не звонка — письма. Ты так и не написал.",
+                "emotion": "hurt"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Я должен был быть здесь. Прости.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "mother_forgiven",
+              "not": true
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "mother_forgiven"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_mother",
+                    "delta": 25
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_need",
+                    "need": "need_grief",
+                    "delta": -15
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_mother_warm"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она вытирает руки о фартук — жест из детства, когда не знала, куда деть слова.",
+                    "emotion": "hurt"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Прощать умею. Забыть — нет. Но раз ты здесь… останься хотя бы на чай. Настоящий.",
+                    "emotion": "warm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Расскажи, как он… в последние дни.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "heard_father"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_need",
+                    "need": "need_grief",
+                    "delta": 5
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_father"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Спал мало. Слушал радио. Спрашивал, не идёт ли поезд с юга — будто ждал не письма, а тебя живьём.",
+                    "emotion": "soft"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Перед тишиной сказал: «Пусть не винит себя. Станция никого не держит силой».",
+                    "emotion": "warm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Я могу остаться. Не на день — по-настоящему.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "mother_forgiven"
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "promise_stay_mother"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_mother",
+                    "delta": 15
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Не обещай на бегу. Поезд не прощает громких слов. Если останешься — останься. Если нет — напиши хоть раз.",
+                    "emotion": "soft"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Мне пора. Я ещё зайду.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Дверь за тобой не хлопает. Она просто тихо закрывается — как всегда.",
+                    "emotion": "neutral"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        }
+      ]
+    }
+  ]
+}

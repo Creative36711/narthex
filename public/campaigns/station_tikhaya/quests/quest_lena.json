@@ -1,0 +1,85 @@
+{
+  "id": "quest_lena",
+  "label": "Лена",
+  "description": "Найти слова, которые стоило сказать годы назад.",
+  "journal_entries": {
+    "started": "Лена в кафе. Голос ровный. Это не значит, что легко.",
+    "apology": "Я извинился. Она услышала.",
+    "together": "Она готова ехать. Или хотя бы попробовать.",
+    "completed": "Мы выбрали одно направление — на эту ночь."
+  },
+  "stages": [
+    {
+      "id": "started",
+      "label": "Кафе",
+      "transitions": [
+        {
+          "to": "apology",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "lena_apology"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apology",
+      "label": "После извинения",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_lena",
+          "text_key": "apology"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "completed",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "lena_will_go"
+            }
+          ]
+        },
+        {
+          "to": "completed_soft",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "boarded_alone"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "completed",
+      "label": "Вместе",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_lena",
+          "text_key": "together"
+        }
+      ]
+    },
+    {
+      "id": "completed_soft",
+      "label": "Разные пути",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_lena",
+          "text_key": "completed"
+        }
+      ]
+    }
+  ]
+}

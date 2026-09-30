@@ -159,6 +159,10 @@ const ENGINE_VOCABULARY = new Map<string, string>([
   ['assetUrlOrNull', 'URL ассета или null при пустой строке'],
   ['firstInkKnot', 'первый knot ink-текста (фолбэк входа)'],
   ['img', 'HTML-тег картинки (не ставить битый src)'],
+  ['get_player_name', 'токен {имя} / внешняя функция Ink'],
+  ['get_hp_max', 'токен {здоровье_макс}'],
+  ['get_currency', 'токен валюты в реплике'],
+  ['base_disposition', 'стартовое отношение к NPC'],
 ])
 
 // ── (а) JSON-литералы эффектов и условий ──

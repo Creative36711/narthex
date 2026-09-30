@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "label": "Письмо отца",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Конверт",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "read_letter"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "change_need",
+                "need": "need_grief",
+                "delta": 8
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "unlock_codex",
+                "entry": "codex_letter"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Почерк дрожит к концу страницы. «Не торопись доказывать миру, что уехал. Докажи себе, что умеешь возвращаться»."
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Внизу — адрес станции. Будто он знал, что письмо найдут именно здесь."
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Сложить письмо.",
+          "sections": [],
+          "goto": "end"
+        }
+      ]
+    }
+  ]
+}

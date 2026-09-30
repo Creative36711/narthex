@@ -1,0 +1,31 @@
+{
+  "id": "npc_boris",
+  "type": "npc",
+  "label": "Борис",
+  "description": "Друг детства. Курит на мосту то, чего давно нет. Говорит коротко и в точку.",
+  "portrait": {
+    "neutral": "",
+    "soft": "",
+    "hurt": "",
+    "warm": ""
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 10,
+    "INT": 12,
+    "POW": 12,
+    "CHA": 12
+  },
+  "skills": {
+    "persuade": 45,
+    "spot": 40
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "base_disposition": 25,
+  "dialogue": "dialogues/boris.ink"
+}

@@ -420,6 +420,9 @@ export class GameEngine {
     this.checkAchievements()
     // таблицы случайных событий ходят тем же шагом, что и тики мира (аудит B9)
     this.tickEventTables()
+    // правила на tick_elapsed / need_* (поезд ушёл, таймеры драм) — иначе
+    // «последний поезд в 22:00» срабатывал только после смены сцены/диалога
+    this.checkRules()
   }
 
   /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
@@ -887,14 +890,20 @@ export class GameEngine {
 
   // ─────────────── репутация и фракции (ТЗ 4.8) ───────────────
 
-  /** target: id фракции или id NPC (у NPC — фракция + личный сдвиг). */
+  /**
+   * target: id фракции или id NPC.
+   * У NPC: base_disposition + личный сдвиг (dispositions[npc.id]) + фракция
+   * (если задана) + самочувствие. Личный сдвиг нужен накигэ/драмам, где
+   * отношение к человеку важнее «города» — раньше без faction delta глотался.
+   */
   getDisposition(target: string): number {
     const npc = this.campaign.entities[target] as NpcDef | undefined
     if (npc && npc.type === 'npc') {
+      const personal = this.state.dispositions[target] ?? 0
       const factionValue = npc.faction ? (this.state.dispositions[npc.faction] ?? 0) : 0
       // самочувствие NPC (выспался/устал) подкрашивает отношение: ±25
       const moodShift = Math.round((this.npcMood(target) - 50) / 2)
-      return factionValue + (npc.base_disposition ?? 0) + moodShift
+      return personal + factionValue + (npc.base_disposition ?? 0) + moodShift
     }
     return this.state.dispositions[target] ?? 0
   }
@@ -958,12 +967,21 @@ export class GameEngine {
 
   changeDisposition(target: string, delta: number): void {
     const npc = this.campaign.entities[target] as NpcDef | undefined
-    const faction = npc && npc.type === 'npc' ? npc.faction : target
-    if (!faction) return
-    const cur = this.state.dispositions[faction] ?? 0
-    this.state.dispositions[faction] = Math.max(-100, Math.min(100, cur + delta))
-    const label = this.campaign.meta.factions?.find((f) => f.id === faction)?.label ?? faction
-    this.pushLog(`Отношение «${label}»: ${delta > 0 ? '+' : ''}${delta} (теперь ${this.state.dispositions[faction]}).`)
+    // Личный сдвиг на id NPC (или id фракции, если target — фракция).
+    // Раньше NPC без faction молча игнорировался — диалоги «+отношение»
+    // ничего не меняли (критично для драм/накигэ).
+    const key = target
+    if (npc && npc.type !== 'npc' && npc.type !== undefined) {
+      // предметы и пр. — не цель отношения
+      return
+    }
+    const cur = this.state.dispositions[key] ?? 0
+    this.state.dispositions[key] = Math.max(-100, Math.min(100, cur + delta))
+    const label =
+      (npc && npc.type === 'npc' ? npc.label : undefined) ??
+      this.campaign.meta.factions?.find((f) => f.id === key)?.label ??
+      key
+    this.pushLog(`Отношение «${label}»: ${delta > 0 ? '+' : ''}${delta} (теперь ${this.getDisposition(key)}).`)
   }
 
   // ─────────────── квесты (ТЗ 3.7) ───────────────

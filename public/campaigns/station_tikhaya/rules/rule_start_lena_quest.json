@@ -1,0 +1,17 @@
+{
+  "id": "rule_start_lena_quest",
+  "label": "Квест Лены",
+  "once": true,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "met_lena"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_quest",
+      "quest": "quest_lena"
+    }
+  ]
+}

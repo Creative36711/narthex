@@ -1,0 +1,17 @@
+{
+  "id": "rule_ending_stay",
+  "label": "Финал: остаюсь",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "advance_quest",
+      "quest": "quest_homecoming",
+      "stage": "completed"
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ]
+}
