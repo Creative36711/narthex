@@ -915,16 +915,28 @@ html.cf-profile-modern {
   flex: 0 0 auto;
 }
 
-.hud-left { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.hud-left {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 1 1 280px;
+  min-width: 0;
+}
 
 .hud-bar {
   position: relative;
-  width: 132px;
+  /* min-width: длинные русские подписи («Воздух скафандра 88») не режутся */
+  width: auto;
+  min-width: 132px;
+  max-width: 200px;
   height: 24px;
+  padding: 0 8px;
   background: var(--inset);
   border: 1px solid var(--border-soft);
   border-radius: 4px;
   overflow: hidden;
+  flex: 0 1 auto;
 }
 .hud-bar span {
   position: absolute;
@@ -937,6 +949,9 @@ html.cf-profile-modern {
   text-shadow: 0 1px 2px #000;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .hud-bar-fill { height: 100%; transition: width var(--dur-slow) var(--ease); }
 .hud-bar.hp .hud-bar-fill { background: linear-gradient(180deg, color-mix(in srgb, var(--red) 82%, white 8%), color-mix(in srgb, var(--red) 70%, black 18%)); }
@@ -958,7 +973,14 @@ html.cf-profile-modern {
 .hud-date { font-size: 11px; color: var(--faint); }
 .hud-weather { font-size: 11px; color: var(--blue-bright); opacity: 0.9; }
 
-.hud-right { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.hud-right {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex: 1 1 280px;
+  min-width: 0;
+}
 .hud-btn {
   display: inline-flex;
   align-items: center;
@@ -1096,6 +1118,49 @@ div.scene-bg svg { width: 100%; height: 100%; display: block; }
   opacity: 0;
   transition: opacity 0.15s;
   pointer-events: none;
+  z-index: 2;
+  max-width: min(220px, 40vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* без спрайта/портрета подпись всегда видна — иначе слот не найти на ArtDoc */
+.slot-hotspot:not(.slot-sprited):not(.slot-inert) .slot-label {
+  opacity: 0.92;
+  bottom: 4px;
+  transform: translate(-50%, 0);
+}
+.slot-hotspot:not(.slot-sprited):hover .slot-label,
+.slot-hotspot:not(.slot-sprited):focus-visible .slot-label {
+  opacity: 1;
+  border-color: var(--gold-bright);
+}
+/* маркер сущности без ассетов (прозрачный hotspot иначе невидим) */
+.slot-marker {
+  position: absolute;
+  inset: 8%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px dashed color-mix(in srgb, var(--gold) 55%, transparent);
+  background:
+    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--gold) 22%, transparent), transparent 65%),
+    color-mix(in srgb, var(--bg-deep) 45%, transparent);
+  pointer-events: none;
+}
+.slot-marker-npc {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--blue-bright) 50%, var(--gold) 20%);
+}
+.slot-marker-glyph {
+  font-size: clamp(14px, 2.2vw, 22px);
+  color: var(--gold-bright);
+  text-shadow: 0 1px 6px #000;
+  line-height: 1;
+}
+.slot-hotspot:hover .slot-marker {
+  border-color: var(--gold-bright);
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
 }
 /* имя сущности по наведению показывает тултип (имя + описание) — подпись не дублируем */
 
@@ -1162,9 +1227,11 @@ div.scene-bg svg { width: 100%; height: 100%; display: block; }
 /* экран карты — во весь игровой экран (итерация 8, А4) */
 .map-overlay { padding: 0; background: var(--bg-deep); }
 .map-screen {
-  width: 100vw;
-  height: 100vh;
-  max-width: 100vw;
+  /* 100vw включает ширину скроллбара → горизонтальный overflow у body.
+     100% от fixed overlay (.map-overlay inset:0) безопаснее. */
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg-deep);
@@ -1290,6 +1357,23 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   flex-direction: column;
 }
 .dialogue-portrait img { width: 100%; height: 220px; object-fit: cover; object-position: top; }
+/* нет портрета (пустая строка / нет файла): не оставляем чёрную пустую колонку 200×220 */
+.dialogue-portrait-empty {
+  flex: 0 0 148px;
+}
+.dialogue-portrait-placeholder {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 42px;
+  opacity: 0.55;
+  background:
+    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--gold) 12%, transparent), transparent 60%),
+    var(--inset);
+}
+.dialogue-box-noportrait .dialogue-content { min-width: 0; }
 .dialogue-npc-name {
   padding: 8px;
   text-align: center;

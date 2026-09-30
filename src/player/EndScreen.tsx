@@ -1,6 +1,6 @@
 import type { GameEngine } from '../core/engine'
 import { dayNumber } from '../core/time'
-import { assetUrl } from '../core/loader'
+import { assetUrlOrNull } from '../core/loader'
 import { themeBackgroundUrl } from '../shared/theme'
 import { Ico } from '../shared/icons'
 
@@ -27,11 +27,13 @@ export function EndScreen({ engine, onRestart, onExitToMenu, onNewGamePlus }: Pr
   const tone = ending?.tone ?? (isDeath ? 'death' : 'victory')
   const title = ending?.title ?? (isDeath ? 'Забег окончен' : 'Победа')
   const text = ending?.text
-  const bg = ending?.image ? assetUrl(engine.campaign, ending.image) : themeBackgroundUrl(engine.campaign, 'end')
+  const endingBg = assetUrlOrNull(engine.campaign, ending?.image)
+  const themeBg = themeBackgroundUrl(engine.campaign, 'end')
+  const bg = endingBg || themeBg || null
 
   return (
     <div className={`overlay end-overlay ${tone}`}>
-      {bg && <img className="end-bg" src={bg} alt="" draggable={false} />}
+      {bg ? <img className="end-bg" src={bg} alt="" draggable={false} /> : null}
       <div className="end-panel">
         <h1>{title}</h1>
         <p className="end-reason">{text ?? go.reason}</p>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
-import { assetUrl } from '../core/loader'
+import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { timeOfDay } from '../core/time'
 import { ArtView } from '../shared/ArtView'
 import { firstFrame, LiveImg } from './frames'
@@ -162,14 +162,29 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                     </span>
                   </>
                 ) : (
-                  npc?.portrait?.neutral && (
-                    <img
-                      className="slot-portrait"
-                      src={assetUrl(engine.campaign, npc.portrait.neutral)}
-                      alt={npc.label}
-                      draggable={false}
-                    />
-                  )
+                  (() => {
+                    const portraitSrc = npc
+                      ? assetUrlOrNull(engine.campaign, npc.portrait?.neutral)
+                      : null
+                    if (portraitSrc) {
+                      return (
+                        <img
+                          className="slot-portrait"
+                          src={portraitSrc}
+                          alt={npc?.label}
+                          draggable={false}
+                        />
+                      )
+                    }
+                    // нет спрайта и нет портрета — видимый маркер, иначе слот
+                    // невидим (прозрачный button поверх ArtDoc), игрок «не видит»
+                    // терминал/предмет (ИИ-кампании без ассетов)
+                    return (
+                      <span className={`slot-marker slot-marker-${entity.type}`} aria-hidden>
+                        <span className="slot-marker-glyph">{entity.type === 'npc' ? '◆' : '●'}</span>
+                      </span>
+                    )
+                  })()
                 )}
                 <span className="slot-label">{entity.label}</span>
               </button>
@@ -274,13 +289,16 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
 function ItemInteractDialog({ engine, item, onClose }: { engine: GameEngine; item: ItemDef; onClose: () => void }) {
   const [emotion, setEmotion] = useState('neutral')
   const options = engine.itemInteractOptions(item)
-  const portrait = item.portrait?.[emotion] ?? item.portrait?.['neutral']
+  const portraitSrc = assetUrlOrNull(
+    engine.campaign,
+    item.portrait?.[emotion] ?? item.portrait?.['neutral'],
+  )
   return (
     <div className="overlay message-overlay itemdlg-overlay" onClick={onClose}>
       <div className="itemdlg-box" onClick={(e) => e.stopPropagation()}>
-        {portrait && (
+        {portraitSrc && (
           <div className="itemdlg-portrait">
-            <img src={assetUrl(engine.campaign, portrait)} alt={item.label} draggable={false} />
+            <img src={portraitSrc} alt={item.label} draggable={false} />
           </div>
         )}
         <div className="itemdlg-content">

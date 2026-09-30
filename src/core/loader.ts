@@ -122,6 +122,19 @@ export function assetUrl(campaign: CampaignData, path: string): string {
   return `${campaign.basePath}/${path}`
 }
 
+/**
+ * URL портрета/картинки или `null`, если пути нет.
+ * Пустая строка `""` в JSON кампании — частый артефакт ИИ/редактора;
+ * в JS она truthy, и `<img src="">` / `<img src="/campaigns/x/">` даёт
+ * сломанную иконку и пустую колонку диалога. Сюда же сводим trim.
+ */
+export function assetUrlOrNull(campaign: CampaignData, path: string | null | undefined): string | null {
+  if (path == null) return null
+  const t = String(path).trim()
+  if (!t) return null
+  return assetUrl(campaign, t)
+}
+
 /** Это внешняя ссылка, а не файл внутри пакета? */
 export function isExternalUrl(path: string): boolean {
   return /^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')

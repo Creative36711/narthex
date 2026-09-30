@@ -404,13 +404,22 @@ export function generateInk(docRaw: DlgDoc): string {
 
   const body = out.join('\n')
 
-  // EXTERNAL-декларации — только для использованных функций
+  // EXTERNAL-декларации — только для использованных функций.
+  // Список должен покрывать ВСЕ вызовы из inkEffect() и токенов реплик,
+  // иначе inkjs падает с «Compilation failed» на валидном диалоге
+  // (unlock_recipe / unlock_codex / apply_status / set_weather / …).
   const FNS = [
     'get_flag', 'set_flag', 'add_item', 'remove_item', 'item_count', 'has_item',
     'skill_check', 'get_disposition', 'change_disposition', 'in_party', 'join_party',
     'open_trade', 'fire_rule', 'start_quest', 'quest_stage', 'advance_time',
     'change_need', 'change_hp', 'get_hp', 'sleep', 'get_need', 'get_stat', 'get_skill',
     'play_cutscene',
+    // DlgEffect, добавленные позже блоков статусов/погоды/кодекса/рецептов
+    'set_description', 'apply_status', 'remove_status', 'set_weather',
+    'unlock_codex', 'unlock_recipe',
+    // токены реплик ({имя}, {здоровье_макс}, …) — без EXTERNAL inkjs не компилирует
+    'get_player_name', 'get_hp_max', 'get_mp', 'get_mp_max', 'get_luck',
+    'get_level', 'get_xp', 'get_run_day', 'get_currency',
   ]
   const SIG: Record<string, string> = {
     get_flag: '(f)', set_flag: '(f)', add_item: '(id, n)', remove_item: '(id, n)',
@@ -420,6 +429,10 @@ export function generateInk(docRaw: DlgDoc): string {
     change_need: '(id, d)', change_hp: '(d)', get_hp: '()', sleep: '(t)',
     get_need: '(id)', get_stat: '(s)', get_skill: '(s)',
     play_cutscene: '(id)',
+    set_description: '(id, t)', apply_status: '(id, d)', remove_status: '(id)',
+    set_weather: '(id)', unlock_codex: '(id)', unlock_recipe: '(id)',
+    get_player_name: '()', get_hp_max: '()', get_mp: '()', get_mp_max: '()',
+    get_luck: '()', get_level: '()', get_xp: '()', get_run_day: '()', get_currency: '(id)',
   }
   const externals = FNS.filter((f) => body.includes(`${f}(`)).map((f) => `EXTERNAL ${f}${SIG[f]}`)
   return `${externals.join('\n')}\n\n${body}`

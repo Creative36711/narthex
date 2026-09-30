@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { Hex } from '../core/hex'
 import { hexKey, hexToPixel, hexCorners, gridPixelSize, hexDistance } from '../core/hex'
-import { assetUrl } from '../core/loader'
+import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { tipSeen, markTip } from './tips'
 import { featureOn } from '../shared/types'
 import { LiveImg } from './frames'
@@ -269,11 +269,14 @@ export function CombatScreen({ engine }: Props) {
                   data-tip={tip}
                   onClick={() => onHexClick(c.pos)}
                 >
-                  {c.portrait ? (
-                    <img src={assetUrl(engine.campaign, c.portrait)} alt={c.label} draggable={false} />
-                  ) : (
-                    <span className="token-fallback">{c.label[0]}</span>
-                  )}
+                  {(() => {
+                    const src = assetUrlOrNull(engine.campaign, c.portrait)
+                    return src ? (
+                      <img src={src} alt={c.label} draggable={false} />
+                    ) : (
+                      <span className="token-fallback">{c.label[0]}</span>
+                    )
+                  })()}
                   <div className="token-hp">
                     <div
                       className="token-hp-fill"

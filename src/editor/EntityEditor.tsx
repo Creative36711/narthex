@@ -1298,8 +1298,10 @@ function NpcForm({
       <div className="props-group">
         <h4>Особые места (по событиям)</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
-          Пока флаг события установлен, персонаж находится здесь — расписание и
-          обычное место не действуют. Пример: «после налёта — прячется в храме».
+          Пока флаг события установлен, персонаж только здесь: важнее расписания
+          и «существа по умолчанию» в слоте. Пример: «после налёта — в храме» или
+          «Лена на перроне, только если согласилась ехать». Без флага — снова
+          schedule / default_entity.
         </div>
         {(npc.presence_overrides ?? []).map((ov, i) => {
           const scenes = store.scenePaths().map((p) => store.scene(p)).filter((x): x is NonNullable<typeof x> => !!x)

@@ -147,7 +147,7 @@ export const VISUAL_PROFILES: VisualProfile[] = [
     id: 'historical',
     label: 'Историческая хроника',
     group: 'detective',
-    tagline: 'Чернила и бумага: сепия, антиква «документа», мелкие капители заголовков — ощущение летописи или архивного документа.',
+    tagline: 'Чернила и бумага: сепия, антиква «документа» — летопись, письмо, накигэ и камерная драма без боевого пафоса.',
     swatches: { bg: '#191410', panel: '#241d15', text: '#e6dcc4', accent: '#b5793f', frame: '#7a6a4e' },
     fonts: { body: "'Times New Roman', Times, Georgia, serif", display: "'Palatino Linotype', Palatino, Georgia, serif" },
     effect: 'ink',
