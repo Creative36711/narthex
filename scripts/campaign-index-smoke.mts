@@ -47,9 +47,10 @@ const read = (p: string) => readFileSync(p, 'utf8')
   check('в списке нет устаревшего текста про банду Серого Йорека', !String(fresh[0].description).includes('Йорека'))
   check('id сохраняется', fresh[0].id === 'ash-of-caerden')
 
-  // несуществующая кампания не ломает реестр
+  // запись без файла campaign.json — не доступная кампания; некоторые хостинги
+  // вместо 404 отдают index.html с кодом 200, что тоже должно отфильтроваться.
   const mixed = await hydrateCampaignIndex([{ id: 'ash-of-caerden', title: 'x' }, { id: 'no-such-campaign', title: 'Призрак' }])
-  check('несуществующая кампания не роняет реестр', mixed.length === 2 && mixed[1].title === 'Призрак')
+  check('несуществующая кампания отфильтровывается', mixed.length === 1 && mixed[0].id === 'ash-of-caerden')
 }
 
 // ── 2. создание кампании пишет описание в реестр ──
@@ -63,9 +64,9 @@ const read = (p: string) => readFileSync(p, 'utf8')
 // ── 3. редактор и меню обновляют список сами ──
 {
   const ed = read('src/editor/EditorApp.tsx')
-  check('редактор обновляет реестр после сохранения', /await store\.saveToDisk\(\)\s*\n\s*\/\/[\s\S]{0,160}?await pushIndex\(\)/.test(ed))
-  check('редактор обновляет реестр после импорта .chronicle', ed.includes('await pushIndex()'))
-  check('в выпадающем списке редактора живое название открытой кампании', ed.includes('c.id === store.meta.id ? store.meta.title : c.title'))
+  check('редактор обновляет реестр после сохранения или переноса id', ed.includes('await store.saveToDisk()') && ed.includes('await pushIndex()') && ed.includes('await replaceCampaignIndexEntry(move.fromId'))
+  check('импорт .chronicle обновляет подпись, а регистрацию оставляет до сохранения', ed.includes('updateCurrentCampaignDisplay()') && ed.includes('await replaceCampaignIndexEntry(move.fromId'))
+  check('в выпадающем списке редактора живое название открытой папки', ed.includes('`/campaigns/${c.id}` === base ? store.meta.title : c.title'))
   const app = read('src/App.tsx')
   check('меню дописывает текущую кампанию в список из файла', app.includes('const entry = {\n      id: campaign.meta.id,') || app.includes('title: campaign.meta.title'))
   // захардкоженной «демо-кампании» больше нет: выбор идёт из реестра

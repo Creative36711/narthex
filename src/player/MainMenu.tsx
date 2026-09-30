@@ -53,6 +53,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
       const entry = await importChroniclePackage(file)
       onImported(entry.id)
       setShowList(false)
+      if (entry.idWarning) void showAlert('ID кампании', entry.idWarning)
     } catch (e) {
       void showAlert('Не удалось импортировать кампанию', String(e))
     } finally {

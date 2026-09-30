@@ -26,6 +26,25 @@ export function slugify(label: string): string {
   return out || 'unnamed'
 }
 
+/**
+ * Безопасный id кампании для каталога. Готовые латинские id сохраняем как есть
+ * (включая дефисы); всё остальное приводим к slug без разделителей пути.
+ */
+export function normalizeCampaignId(id: string): string {
+  const lower = id.trim().toLowerCase()
+  return /^[a-z0-9][a-z0-9_-]*$/.test(lower) ? lower : slugify(lower)
+}
+
+/** Уникальный id кампании в локальном реестре; при конфликте добавляет _2, _3… */
+export function uniqueCampaignId(id: string, existing: string[]): string {
+  const base = normalizeCampaignId(id)
+  const used = new Set(existing.map(normalizeCampaignId))
+  if (!used.has(base)) return base
+  let n = 2
+  while (used.has(`${base}_${n}`)) n++
+  return `${base}_${n}`
+}
+
 /** уникальный id: prefix + slug (+ порядковый номер при коллизии) */
 export function makeId(prefix: string, label: string, existing: string[]): string {
   const base = `${prefix}${slugify(label)}`

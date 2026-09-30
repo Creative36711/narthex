@@ -10,7 +10,8 @@ import { NoCampaignScreen } from './player/NoCampaignScreen'
 import { GameView } from './player/GameView'
 import { HelpPanel } from './player/HelpPanel'
 import { CharacterCreation } from './player/CharacterCreation'
-import { fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
+import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
+import { askText, showAlert } from './shared/modals'
 import { setAudioCampaign, playUi, unlockAudio } from './shared/audio'
 import { setMusicCampaign, refreshMusic } from './shared/music'
 import { injectCampaignCustomCss, injectCampaignFonts, themeHasFrame, themeVars } from './shared/theme'
@@ -49,6 +50,7 @@ export default function App() {
   const broken = useRef<Set<string>>(new Set())
   const [campaign, setCampaign] = useState<CampaignData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [campaignNotice, setCampaignNotice] = useState<string | null>(null)
   const [engine, setEngine] = useState<GameEngine | null>(null)
   const [editor, setEditor] = useState(() => window.location.hash === '#editor')
   const [help, setHelp] = useState(false)
@@ -127,15 +129,23 @@ export default function App() {
         injectCampaignFonts(c) // тема кампании: свои шрифты (блок 2 ТЗ)
         injectCampaignCustomCss(c) // продвинутое оформление мастера (полный CSS)
       })
-      .catch((e) => {
-        // выбранной кампании больше нет (или она повреждена) — пробуем следующую
-        // из реестра ровно один раз, иначе битые кампании гонят друг друга
+      .catch(() => {
+        // Выбранной кампании больше нет (или пакет неполон) — пробуем следующую
+        // из реестра ровно один раз, иначе битые кампании гонят друг друга.
         broken.current.add(campaignId)
         const other = campaigns.find((c) => !broken.current.has(c.id))?.id ?? null
         if (other) {
+          setCampaignNotice(null)
           localStorage.setItem(LAST_KEY, other)
           setCampaignId(other)
-        } else setError(String(e))
+        } else {
+          // Ни одной доступной кампании не осталось. Это не экран ошибки JSON:
+          // показываем обычный пустой экран с импортом готового пакета.
+          setCampaigns([])
+          setCampaignId(null)
+          setError(null)
+          setCampaignNotice('Не удалось загрузить файлы кампании. Проверьте пакет или импортируйте готовую кампанию.')
+        }
       })
   }, [campaignId, campaigns])
 
@@ -173,6 +183,34 @@ export default function App() {
     setEngine(e)
   }
 
+  const createFirstCampaign = async () => {
+    const title = await askText('Название новой кампании', 'например «Тени Северного тракта»')
+    if (!title?.trim()) return
+    try {
+      const id = await createCampaign(title.trim())
+      // Убедимся, что Vite уже отдаёт созданный файл, прежде чем открыть редактор.
+      let ready = false
+      for (let i = 0; i < 10; i++) {
+        ready = await fetch(`/campaigns/${id}/campaign.json?t=${Date.now()}`).then((res) => res.ok).catch(() => false)
+        if (ready) break
+        await new Promise((resolve) => setTimeout(resolve, 250))
+      }
+      if (!ready) throw new Error('Созданная кампания пока не доступна на диске.')
+
+      const index = await fetchCampaignIndex()
+      broken.current.clear()
+      setCampaigns(index)
+      setCampaignNotice(null)
+      localStorage.setItem(LAST_KEY, id)
+      setCampaignId(id)
+      // Теперь редактор открывается сразу на созданной кампании — без второго
+      // промежуточного экрана «Создать кампанию».
+      window.location.hash = '#editor'
+    } catch (e) {
+      void showAlert('Не удалось создать кампанию', `${e}\n(Создание работает в dev-режиме vite / Tauri.)`)
+    }
+  }
+
   if (editor) {
     return (
       <Suspense fallback={<div className="screen-center"><div className="loading">Загрузка редактора…</div></div>}>
@@ -201,6 +239,7 @@ export default function App() {
                 // пересканировать реестр: кампанию могли починить или долить
                 broken.current.clear()
                 setError(null)
+                setCampaignNotice(null)
                 setIndexReady(false)
                 void fetchCampaignIndex().then((idx) => {
                   setCampaigns(idx)
@@ -225,13 +264,14 @@ export default function App() {
   if (!campaignId && indexReady) {
     return (
       <NoCampaignScreen
-        onEditor={() => {
-          window.location.hash = '#editor'
-        }}
+        onCreate={createFirstCampaign}
+        notice={campaignNotice}
         onImported={(id) => {
           void fetchCampaignIndex().then((idx) => {
-            setCampaigns(idx)
             broken.current.delete(id)
+            setCampaigns(idx.filter((entry) => !broken.current.has(entry.id)))
+            setCampaignNotice(null)
+            setError(null)
             localStorage.setItem(LAST_KEY, id)
             setCampaignId(id)
           })

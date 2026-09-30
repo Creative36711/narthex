@@ -1,4 +1,4 @@
-import { slugify } from './ids'
+import { normalizeCampaignId, uniqueCampaignId } from './ids'
 import { ENGINE_VERSION, PACKAGE_FORMAT, checkEngine, checkPackage } from '../shared/versions'
 import type { CampaignIndexEntry } from '../shared/types'
 export type { CampaignIndexEntry } from '../shared/types'
@@ -10,14 +10,52 @@ export type { CampaignIndexEntry } from '../shared/types'
  */
 
 export async function fetchCampaignIndex(): Promise<CampaignIndexEntry[]> {
-  let index: CampaignIndexEntry[] = []
   try {
     const res = await fetch(`/campaigns/index.json?t=${Date.now()}`)
-    if (res.ok) index = (await res.json()) as CampaignIndexEntry[]
+    if (!res.ok) return []
+
+    const payload: unknown = await res.json()
+    if (!Array.isArray(payload)) return []
+
+    // Старый/повреждённый index.json может содержать мусор. Для выбора кампании
+    // достаточно записи с id; подписи восстановятся из campaign.json ниже.
+    const index: CampaignIndexEntry[] = payload.filter(isCampaignIndexEntry).map((entry) => ({
+      id: entry.id,
+      title: typeof entry.title === 'string' ? entry.title : entry.id,
+      author: typeof entry.author === 'string' ? entry.author : undefined,
+      description: typeof entry.description === 'string' ? entry.description : undefined,
+    }))
+    return await hydrateCampaignIndex(index)
   } catch {
-    index = []
+    // Некоторые статические хостинги отдают index.html (200) вместо отсутствующего
+    // index.json. Это пустой реестр, а не повод показывать SyntaxError игроку.
+    return []
   }
-  return hydrateCampaignIndex(index)
+}
+
+function isCampaignIndexEntry(value: unknown): value is CampaignIndexEntry {
+  return typeof value === 'object' && value !== null
+    && typeof (value as { id?: unknown }).id === 'string'
+    && !!(value as { id: string }).id.trim()
+}
+
+/** Проверить каталог напрямую, чтобы учитывать и не зарегистрированные папки. */
+export async function campaignFolderExists(id: string): Promise<boolean> {
+  const res = await fetch(`/__editor/campaign-exists?id=${encodeURIComponent(id)}`)
+  if (!res.ok) throw new Error(`Не удалось проверить id кампании: ${res.status} ${await res.text()}`)
+  const result = await res.json() as { exists?: unknown }
+  return result.exists === true
+}
+
+/** Подобрать свободный id с учётом и index.json, и каталогов на диске. */
+export async function uniqueAvailableCampaignId(preferred: string, registeredIds: string[]): Promise<string> {
+  const used = [...registeredIds]
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const candidate = uniqueCampaignId(preferred, used)
+    if (!(await campaignFolderExists(candidate))) return candidate
+    used.push(candidate)
+  }
+  throw new Error('Не удалось подобрать свободный id кампании.')
 }
 
 /**
@@ -27,23 +65,32 @@ export async function fetchCampaignIndex(): Promise<CampaignIndexEntry[]> {
  * видит в меню чужой текст. Здесь title/author/description всегда актуальны.
  */
 export async function hydrateCampaignIndex(index: CampaignIndexEntry[]): Promise<CampaignIndexEntry[]> {
-  return Promise.all(
-    index.map(async (e) => {
+  const hydrated: Array<CampaignIndexEntry | null> = await Promise.all(
+    index.map(async (entry): Promise<CampaignIndexEntry | null> => {
       try {
-        const res = await fetch(`/campaigns/${e.id}/campaign.json?t=${Date.now()}`)
-        if (!res.ok) return e
-        const meta = (await res.json()) as { title?: string; author?: string; description?: string }
+        const res = await fetch(`/campaigns/${entry.id}/campaign.json?t=${Date.now()}`)
+        if (!res.ok) return null
+
+        // Не оставляем запись реестра, если сервер вместо отсутствующего
+        // campaign.json вернул SPA index.html с кодом 200.
+        const meta: unknown = await res.json()
+        if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) return null
+        const campaignMeta = meta as { id?: unknown; title?: unknown; author?: unknown; description?: unknown }
+        if (campaignMeta.id !== entry.id) return null
+
         return {
-          id: e.id,
-          title: meta.title || e.title,
-          author: meta.author ?? e.author,
-          description: meta.description ?? e.description,
+          id: entry.id,
+          title: typeof campaignMeta.title === 'string' && campaignMeta.title ? campaignMeta.title : entry.title || entry.id,
+          author: typeof campaignMeta.author === 'string' ? campaignMeta.author : entry.author,
+          description: typeof campaignMeta.description === 'string' ? campaignMeta.description : entry.description,
         }
       } catch {
-        return e
+        // Запись без читаемого campaign.json не является доступной кампанией.
+        return null
       }
     }),
   )
+  return hydrated.filter((entry): entry is CampaignIndexEntry => entry !== null)
 }
 
 function scaffold(id: string, title: string, author: string) {
@@ -209,12 +256,7 @@ async function starterImageBase64(): Promise<string> {
 /** создать кампанию на диске и вернуть её id */
 export async function createCampaign(title: string, author = ''): Promise<string> {
   const index = await fetchCampaignIndex()
-  let id = slugify(title)
-  if (index.some((c) => c.id === id)) {
-    let n = 2
-    while (index.some((c) => c.id === `${id}_${n}`)) n++
-    id = `${id}_${n}`
-  }
+  const id = await uniqueAvailableCampaignId(title, index.map((entry) => entry.id))
   const files = scaffold(id, title, author)
   for (const [rel, data] of Object.entries(files)) {
     await saveFile(`campaigns/${id}/${rel}`, JSON.stringify(data, null, 2))
@@ -241,12 +283,42 @@ export async function syncIndexEntry(entry: CampaignIndexEntry): Promise<void> {
   await saveFile('campaigns/index.json', JSON.stringify(index, null, 2))
 }
 
+/** Скопировать каталог кампании при смене её id; false означает, что id занят. */
+export async function copyCampaignFolder(fromId: string, toId: string): Promise<boolean> {
+  const res = await fetch('/__editor/copy-campaign', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ from: fromId, to: toId }),
+  })
+  if (res.status === 409) return false
+  if (!res.ok) throw new Error(`Не удалось подготовить папку кампании: ${res.status} ${await res.text()}`)
+  return true
+}
+
+/** Удалить старый каталог после успешного переноса и обновления реестра. */
+export async function deleteCampaignFolder(id: string): Promise<void> {
+  const res = await fetch('/__editor/delete', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ path: id }),
+  })
+  if (!res.ok) throw new Error(`Не удалось удалить старую папку кампании: ${res.status} ${await res.text()}`)
+}
+
+/** Заменить id в index.json, сохранив остальные доступные кампании без дубля. */
+export async function replaceCampaignIndexEntry(oldId: string, entry: CampaignIndexEntry): Promise<void> {
+  const index = await fetchCampaignIndex()
+  const next = index.filter((item) => item.id !== oldId && item.id !== entry.id)
+  next.push(entry)
+  await saveFile('campaigns/index.json', JSON.stringify(next, null, 2))
+}
+
 /**
- * Импорт пакета .chronicle из главного меню: распаковывает архив прямо
- * в public/campaigns/<id>/ через dev-эндпоинт и регистрирует кампанию
- * в index.json. Если кампания с таким id уже есть — файлы обновляются.
+ * Импорт пакета .chronicle из главного меню: кладёт его в отдельный каталог
+ * и регистрирует в index.json. Если id уже занят, добавляет суффикс вместо
+ * перезаписи чужой кампании; исходный id пакета сохраняется, когда он свободен.
  */
-export async function importChroniclePackage(file: File): Promise<CampaignIndexEntry> {
+export async function importChroniclePackage(file: File): Promise<CampaignIndexEntry & { idWarning?: string }> {
   const JSZip = (await import('jszip')).default
   const zip = await JSZip.loadAsync(file)
   const metaFile = zip.files['campaign.json']
@@ -260,11 +332,23 @@ export async function importChroniclePackage(file: File): Promise<CampaignIndexE
   if (!pkg.ok) throw new Error(pkg.message)
   const engine = checkEngine(meta.min_engine ?? meta.engine_version)
   if (!engine.ok) console.warn(`[chronicle] ${engine.message}`)
-  const id = meta.id
+
+  const index = await fetchCampaignIndex()
+  const rawRequestedId = meta.id || meta.title || 'campaign'
+  const requestedId = normalizeCampaignId(rawRequestedId)
+  const id = await uniqueAvailableCampaignId(requestedId, index.map((entry) => entry.id))
+  const idWarning = id !== requestedId
+    ? `ID «${requestedId}» уже занят другой кампанией; назначен уникальный ID «${id}».`
+    : meta.id && meta.id !== requestedId
+      ? `ID кампании приведён к безопасному виду: «${meta.id}» → «${id}».`
+      : undefined
+  const importedMeta = { ...meta, id }
   for (const [p, f] of Object.entries(zip.files)) {
     if (f.dir) continue
+    if (p.startsWith('/') || p.split('/').includes('..')) throw new Error(`Недопустимый путь в архиве: ${p}`)
     if (p.endsWith('.json') || p.endsWith('.ink')) {
-      await saveFile(`campaigns/${id}/${p}`, await f.async('text'))
+      const text = p === 'campaign.json' ? JSON.stringify(importedMeta, null, 2) : await f.async('text')
+      await saveFile(`campaigns/${id}/${p}`, text)
     } else {
       const b64 = await f.async('base64')
       const res = await fetch('/__editor/save', {
@@ -275,11 +359,9 @@ export async function importChroniclePackage(file: File): Promise<CampaignIndexE
       if (!res.ok) throw new Error(`${p}: ${res.status}`)
     }
   }
-  const index = await fetchCampaignIndex()
-  const entry: CampaignIndexEntry = { id, title: meta.title || id, author: meta.author, description: meta.description }
-  const i = index.findIndex((c) => c.id === id)
-  if (i >= 0) index[i] = entry
-  else index.push(entry)
-  await saveFile('campaigns/index.json', JSON.stringify(index, null, 2))
-  return entry
+  const entry: CampaignIndexEntry & { idWarning?: string } = { id, title: meta.title || id, author: meta.author, description: meta.description }
+  const next = index.filter((item) => item.id !== id)
+  next.push(entry)
+  await saveFile('campaigns/index.json', JSON.stringify(next, null, 2))
+  return { ...entry, idWarning }
 }

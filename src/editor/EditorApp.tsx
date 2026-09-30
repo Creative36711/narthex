@@ -17,14 +17,23 @@ import { RecipeEditor, newRecipe } from './RecipeEditor'
 import { CodexEditor, newCodexEntry } from './CodexEditor'
 import JSZip from 'jszip'
 import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
-import { createCampaign, fetchCampaignIndex, syncIndexEntry, type CampaignIndexEntry } from './newCampaign'
+import {
+  copyCampaignFolder,
+  createCampaign,
+  deleteCampaignFolder,
+  fetchCampaignIndex,
+  replaceCampaignIndexEntry,
+  syncIndexEntry,
+  uniqueAvailableCampaignId,
+  type CampaignIndexEntry,
+} from './newCampaign'
 import { stopMusic } from '../shared/music'
 import { setAmbientAudioEnabled } from '../shared/audio'
 import { themeVars } from '../shared/theme'
 import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { profileClass, atmosphereOn } from '../shared/profiles'
 import { AiWizard, aiFixReport } from './AiWizard'
-import { makeId, slugify } from './ids'
+import { makeId, normalizeCampaignId, slugify, uniqueCampaignId } from './ids'
 import './editor.css'
 import { askText, askConfirm, showAlert, showList, askChecked, askTextArea } from './prompt'
 import { collectExternalUrls, embedExternalAssets } from './assets'
@@ -99,6 +108,12 @@ function navLabelOf(id: EditorSection): string {
   return id
 }
 
+function campaignIdFromPath(path: string): string {
+  const pathname = path.startsWith('http') ? new URL(path).pathname : path
+  const parts = pathname.split('/').filter(Boolean)
+  return parts[parts.length - 1] ?? ''
+}
+
 export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onExit: () => void }) {
   const [base, setBase] = useState(campaignPath)
   // готовность привязана к конкретному стору: при смене кампании первый же
@@ -132,6 +147,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [bookFile, setBookFile] = useState('README.md')
   const [bookContextual, setBookContextual] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const pendingCampaignMove = useRef<{ fromId: string; toId: string; idNote?: string } | null>(null)
 
   const store = useMemo(() => new EditorStore(base), [base])
 
@@ -200,6 +216,24 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       ...patch,
     })
     setCampaigns(await fetchCampaignIndex())
+  }
+
+  const updateCurrentCampaignDisplay = () => {
+    const id = campaignIdFromPath(base)
+    if (!id) return
+    const entry: CampaignIndexEntry = {
+      id,
+      title: store.meta.title,
+      author: store.meta.author,
+      description: store.meta.description,
+    }
+    setCampaigns((list) => {
+      const i = list.findIndex((item) => item.id === id)
+      if (i < 0) return [...list, entry]
+      const next = list.slice()
+      next[i] = entry
+      return next
+    })
   }
 
   // undo: Ctrl+Z везде в редакторе НАЖИМАЕТ кнопку «Отменить» (фидбек №10:
@@ -289,6 +323,90 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  const exitEditor = async () => {
+    const pending = pendingCampaignMove.current
+    if (pending) {
+      // Если сохранение переноса не завершилось, исходная папка ещё цела.
+      // Убираем только временную копию и возвращаем стор на исходный каталог.
+      await deleteCampaignFolder(pending.toId).catch(() => null)
+      store.setBasePath(`/campaigns/${pending.fromId}`)
+      pendingCampaignMove.current = null
+    }
+    onExit()
+  }
+
+  /** Импорт JSON: файл или вставленный текст. В пустом редакторе сразу создаём пакет. */
+  const doImportJson = async () => {
+    const text = await askTextArea('Импорт кампании из JSON', {
+      body: 'Вставьте текст JSON-кампании целиком или выберите файл.\nИмпорт заменит содержимое текущей кампании; ошибки не прерывают импорт — битое отключается, недостающее достраивается заглушками.',
+      placeholder: '{ "campaign": { … }, "world": { … }, "scenes": { … } }',
+      ok: 'Импортировать',
+      fileLabel: 'Выбрать файл JSON…',
+    })
+    if (text === null) return
+    const creatingCampaign = !base
+    const previousBasePath = store.basePath
+    let campaignIdWarning: string | undefined
+    setBusy('Импорт JSON…')
+    try {
+      const warns = importMonolithText(store, text)
+      if (creatingCampaign) {
+        // В пустом редакторе JSON становится новой кампанией сразу: сохраняем
+        // файлы в её каталог и регистрируем id до возврата к экрану редактора.
+        const index = await fetchCampaignIndex()
+        const requestedId = store.meta.id || store.meta.title || 'imported_campaign'
+        const normalizedId = normalizeCampaignId(requestedId)
+        const id = await uniqueAvailableCampaignId(requestedId, index.map((entry) => entry.id))
+        if (id !== normalizedId) {
+          campaignIdWarning = `ID «${normalizedId}» уже занят другой кампанией; назначен уникальный ID «${id}».`
+        } else if (store.meta.id && store.meta.id !== normalizedId) {
+          campaignIdWarning = `ID кампании приведён к безопасному виду: «${store.meta.id}» → «${id}».`
+        }
+        store.setCampaignId(id)
+        store.setBasePath(`/campaigns/${id}`)
+        await store.saveToDisk()
+        await pushIndex()
+        setSection('scenes')
+        setSelected(null)
+        setBase(`/campaigns/${id}`)
+      }
+
+      // Показываем актуальное имя сразу и добавляем пакет, даже если его ещё не
+      // было в реестре редактора (например, после импорта в пустую кампанию).
+      const entry: CampaignIndexEntry = {
+        // До «Сохранить» пакет всё ещё лежит в исходной папке; обновляем её
+        // подпись, а новый id закрепим при переносе файлов на диск.
+        id: creatingCampaign ? store.meta.id : campaignIdFromPath(base),
+        title: store.meta.title,
+        author: store.meta.author,
+        description: store.meta.description,
+      }
+      setCampaigns((list) => {
+        const i = list.findIndex((item) => item.id === entry.id)
+        if (i < 0) return [...list, entry]
+        const next = list.slice()
+        next[i] = entry
+        return next
+      })
+      const resultMessage = `${creatingCampaign
+        ? 'Кампания сохранена и добавлена в список.'
+        : 'Нажмите «Сохранить», чтобы записать файлы кампании на диск.'}${campaignIdWarning ? `\n\n${campaignIdWarning}` : ''}`
+      if (warns.length) {
+        void showList(`Импортировано с ${warns.length} предупреждениями`, warns, resultMessage, {
+          label: 'Скопировать отчёт для ИИ',
+          text: aiFixReport(warns),
+        })
+      } else {
+        void showAlert('Импортировано', resultMessage)
+      }
+    } catch (e) {
+      if (creatingCampaign) store.setBasePath(previousBasePath)
+      void showAlert('Ошибка импорта', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   // нет ни одной кампании (свежая сборка или удалили последнюю): редактор
   // остаётся рабочим — создаём новую кампанию прямо отсюда
   if (!base)
@@ -302,15 +420,17 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           </div>
           <h2>Кампаний пока нет</h2>
           <p>
-            В <code>public/campaigns</code> пусто. Создайте первую кампанию — движок
-            подставит стартовую сцену, а остальное вы опишете сами. Готовую кампанию
-            можно импортировать файлом <code>.chronicle</code> из главного меню.
+            В <code>public/campaigns</code> пока нет кампаний. Создайте первую или импортируйте готовую из JSON;
+            файл <code>.chronicle</code> можно загрузить из главного меню.
           </p>
           <div className="menu-buttons">
             <button className="btn btn-primary" onClick={() => void newCampaign()} disabled={!!busy}>
               {busy ?? 'Создать кампанию'}
             </button>
-            <button className="btn" onClick={onExit}>
+            <button className="btn" onClick={() => void doImportJson()} disabled={!!busy}>
+              Импортировать JSON
+            </button>
+            <button className="btn" onClick={() => void exitEditor()} disabled={!!busy}>
               В главное меню
             </button>
           </div>
@@ -342,7 +462,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                   Открыть «{c.title}»
                 </button>
               ))}
-            <button className="btn" onClick={onExit}>В главное меню</button>
+            <button className="btn" onClick={() => void exitEditor()}>В главное меню</button>
           </div>
         </div>
       </div>
@@ -525,9 +645,62 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const save = async () => {
     setBusy('Сохранение…')
     try {
+      let move = pendingCampaignMove.current
+      if (!move) {
+        const fromId = campaignIdFromPath(base)
+        const importedId = store.meta.id || fromId
+        const normalizedId = normalizeCampaignId(importedId)
+        if (store.meta.id !== normalizedId) store.setCampaignId(normalizedId)
+
+        if (normalizedId !== fromId) {
+          const index = await fetchCampaignIndex()
+          const usedIds = index.filter((entry) => entry.id !== fromId).map((entry) => entry.id)
+          let targetId = uniqueCampaignId(normalizedId, usedIds)
+          let copied = false
+          for (let attempt = 0; attempt < 100; attempt++) {
+            copied = await copyCampaignFolder(fromId, targetId)
+            if (copied) break
+            usedIds.push(targetId)
+            targetId = uniqueCampaignId(normalizedId, usedIds)
+          }
+          if (!copied) throw new Error('Не удалось подобрать свободный id кампании.')
+
+          const idNote = targetId !== normalizedId
+            ? `ID «${normalizedId}» уже занят другой кампанией; назначен уникальный ID «${targetId}».`
+            : targetId !== importedId
+              ? `ID кампании приведён к безопасному виду: «${importedId}» → «${targetId}».`
+              : undefined
+          if (store.meta.id !== targetId) store.setCampaignId(targetId)
+          store.setBasePath(`/campaigns/${targetId}`)
+          move = { fromId, toId: targetId, idNote }
+          pendingCampaignMove.current = move
+        }
+      }
+
       await store.saveToDisk()
-      // название/описание могли поменяться — список кампаний обязан увидеть то же
-      await pushIndex()
+      move = pendingCampaignMove.current
+      if (move) {
+        await replaceCampaignIndexEntry(move.fromId, {
+          id: store.meta.id,
+          title: store.meta.title,
+          author: store.meta.author,
+          description: store.meta.description,
+        })
+        let cleanupError: unknown
+        try {
+          await deleteCampaignFolder(move.fromId)
+        } catch (e) {
+          cleanupError = e
+        }
+        pendingCampaignMove.current = null
+        setBase(`/campaigns/${move.toId}`)
+        setCampaigns(await fetchCampaignIndex())
+        if (move.idNote) void showAlert('ID кампании', move.idNote)
+        if (cleanupError) void showAlert('Кампания сохранена', `Не удалось удалить старую папку: ${cleanupError}`)
+      } else {
+        // Название/описание могли поменяться — обновляем запись реестра.
+        await pushIndex()
+      }
       setBusy(null)
     } catch (e) {
       setBusy(null)
@@ -599,7 +772,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     setBusy('Импорт…')
     try {
       const warns = await importChronicle(store, file)
-      await pushIndex()
+      updateCurrentCampaignDisplay()
       if (warns.length) {
         void showList('Импортировано с предупреждениями', warns, 'Нажмите «Сохранить», чтобы записать файлы на диск.', {
           label: 'Скопировать отчёт для ИИ',
@@ -673,39 +846,6 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  /** импорт из JSON: файл ИЛИ вставленный текст (кампания может прийти от ИИ) */
-  const doImportJson = async () => {
-    const text = await askTextArea('Импорт кампании из JSON', {
-      body: 'Вставьте текст JSON-кампании целиком или выберите файл.\nИмпорт заменит содержимое текущей кампании; ошибки не прерывают импорт — битое отключается, недостающее достраивается заглушками.',
-      placeholder: '{ "campaign": { … }, "world": { … }, "scenes": { … } }',
-      ok: 'Импортировать',
-      fileLabel: 'Выбрать файл JSON…',
-    })
-    if (text === null) return
-    setBusy('Импорт JSON…')
-    try {
-      const warns = importMonolithText(store, text)
-      // монолит мог прийти с другим названием — сразу обновляем список кампаний
-      setCampaigns((c) =>
-        c.map((e) =>
-          e.id === store.meta.id
-            ? { ...e, title: store.meta.title, author: store.meta.author, description: store.meta.description }
-            : e,
-        ),
-      )
-      void showList(
-        warns.length ? `Импортировано с ${warns.length} предупреждениями` : 'Импортировано без предупреждений',
-        warns,
-        'Нажмите «Сохранить», чтобы записать файлы кампании на диск.',
-        warns.length ? { label: 'Скопировать отчёт для ИИ', text: aiFixReport(warns) } : undefined,
-      )
-    } catch (e) {
-      void showAlert('Ошибка импорта', String(e))
-    } finally {
-      setBusy(null)
-    }
-  }
-
   const chapterOf = (p: string): string | undefined => {
     switch (section) {
       case 'scenes': return store.scene(p)?.chapter
@@ -760,7 +900,19 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             value={base}
             onChange={async (e) => {
               const v = e.target.value
-              if (store.dirty.size && !(await askConfirm('Есть несохранённые изменения. Сменить кампанию без сохранения?', 'Сменить'))) return
+              const pending = pendingCampaignMove.current
+              if ((store.dirty.size || pending) && !(await askConfirm('Есть несохранённые изменения. Сменить кампанию без сохранения?', 'Сменить'))) return
+              if (pending) {
+                try {
+                  await syncIndexEntry({ id: pending.fromId, title: store.meta.title, author: store.meta.author, description: store.meta.description })
+                  await deleteCampaignFolder(pending.toId).catch(() => null)
+                  store.setBasePath(`/campaigns/${pending.fromId}`)
+                  pendingCampaignMove.current = null
+                } catch (error) {
+                  void showAlert('Не удалось отменить смену id', String(error))
+                  return
+                }
+              }
               setBase(v)
             }}
             data-tip="Кампания"
@@ -769,7 +921,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               // у открытой кампании показываем живое название из редактора: правка
               // «Кампания → название» видна в списке сразу, без «Сохранить»
               <option key={c.id} value={`/campaigns/${c.id}`}>
-                {c.id === store.meta.id ? store.meta.title : c.title}
+                {`/campaigns/${c.id}` === base ? store.meta.title : c.title}
               </option>
             ))}
             {!campaigns.some((c) => `/campaigns/${c.id}` === base) && <option value={base}>{store.meta.title}</option>}
@@ -819,7 +971,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           <Ico n="download" /> Сохранить
         </button>
         <button className="btn btn-small editor-playtest-button" onClick={playtest} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" /> Плейтест</button>
-        <button className="btn btn-small" onClick={onExit} data-tip="Выйти в главное меню игры"><Ico n="exit" /> Выйти</button>
+        <button className="btn btn-small" onClick={() => void exitEditor()} data-tip="Выйти в главное меню игры"><Ico n="exit" /> Выйти</button>
         <input
           ref={fileInput}
           type="file"
