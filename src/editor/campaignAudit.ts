@@ -2,6 +2,7 @@ import Ajv2020 from 'ajv/dist/2020.js'
 import campaignSchemaJson from '../../docs/campaign.schema.json' with { type: 'json' }
 import type { ErrorObject, ValidateFunction } from 'ajv'
 import type { EditorStore } from './store'
+import { charCreationTemplateFindings } from '../core/charcreate'
 
 export type AuditSeverity = 'error' | 'warning' | 'info'
 export interface AuditFinding {
@@ -190,6 +191,12 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
     structure.push(...validatePackageSchema(store).map((message) => ({ severity: 'error' as const, message })))
   } catch (error) {
     structure.push({ severity: 'error', message: `Проверка JSON Schema завершилась ошибкой: ${String(error)}` })
+  }
+  if (store.meta.char_creation) {
+    structure.push(...charCreationTemplateFindings(store.meta.char_creation).map((message) => ({
+      severity: 'warning' as const,
+      message: `Шаблон создания персонажа: ${message}`,
+    })))
   }
 
   const mediaRefs = collectCampaignMedia(store)

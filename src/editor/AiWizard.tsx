@@ -7,7 +7,7 @@ import { useState } from 'react'
 import guideRaw from '../../docs/ai-campaign-guide.md?raw'
 import { Ico } from '../shared/icons'
 import { showAlert } from '../shared/modals'
-import { createAiTaskBundle, buildAiTaskPrompt, type AiOutputFormat, type AiTaskMode } from './aiTask'
+import { createAiTaskBundle, buildAiTaskPrompt, buildAiTaskBrief, type AiOutputFormat, type AiTaskMode } from './aiTask'
 import { AI_TASK_DIR } from './aiKit'
 import { createCampaignUuid } from './ids'
 import { downloadBlob } from './chronicle'
@@ -37,8 +37,8 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
   const [genre, setGenre] = useState('')
   const [genreText, setGenreText] = useState('')
   const [tone, setTone] = useState('')
-  const [scale, setScale] = useState('medium')
-  const [battle, setBattle] = useState(50)
+  const [scale, setScale] = useState('')
+  const [battle, setBattle] = useState<number | null>(null)
   const [accents, setAccents] = useState<Record<string, boolean>>({})
   const [must, setMust] = useState('')
   const [mustNot, setMustNot] = useState('')
@@ -48,32 +48,23 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
   const [busy, setBusy] = useState(false)
 
   const taskText = (): string => {
-    const accentsText: string[] = []
-    if (battle <= 20) accentsText.push('акцент на диалоги и историю, боёвки мало или нет')
-    else if (battle >= 80) accentsText.push('акцент на боёвку и тактику, диалогов минимум')
-    else accentsText.push('баланс боёвки и диалогов')
-    if (accents['выживание']) accentsText.push('выживание: еда, тепло и другие потребности')
-    if (accents['торговля']) accentsText.push('торговля и экономика')
-    if (accents['напарники']) accentsText.push('напарники и отряд')
-
-    if (mode === 'edit') {
-      return [
-        idea.trim() || 'Проведи аккуратную проверку текущей кампании и предложи небольшие улучшения.',
-        must.trim() && `Обязательно: ${must.trim()}`,
-        mustNot.trim() && `Не добавлять: ${mustNot.trim()}`,
-      ].filter(Boolean).join('\n')
-    }
     const genreLine = [genre && genre !== 'Своя тема' ? genre : '', genreText.trim()].filter(Boolean).join(' — ')
-    const scaleHint = SCALES.find((item) => item.id === scale)?.hint ?? ''
-    return [
-      idea.trim() || 'Создай интересную законченную кампанию и заполни все необходимые разделы.',
-      genreLine && `Жанр/сеттинг: ${genreLine}`,
-      tone && `Тон: ${tone}`,
-      scaleHint && `Масштаб: ${scaleHint}`,
-      `Акценты: ${accentsText.join('; ')}`,
-      must.trim() && `Обязательно: ${must.trim()}`,
-      mustNot.trim() && `Не добавлять: ${mustNot.trim()}`,
-    ].filter(Boolean).join('\n')
+    const accentsText = [
+      accents['выживание'] && 'выживание: еда, тепло и другие потребности',
+      accents['торговля'] && 'торговля и экономика',
+      accents['напарники'] && 'напарники и отряд',
+    ].filter((value): value is string => !!value)
+    return buildAiTaskBrief({
+      mode,
+      idea,
+      genre: genreLine,
+      tone,
+      scaleHint: SCALES.find((item) => item.id === scale)?.hint,
+      battle,
+      accents: accentsText,
+      must,
+      mustNot,
+    })
   }
 
   const taskPrompt = async (): Promise<string> => {
@@ -193,19 +184,27 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
             </div>
             <div className="fld-row">
               <label className="fld"><span>Тон</span><select value={tone} onChange={(event) => setTone(event.target.value)}><option value="">— любой —</option>{TONES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-              <label className="fld"><span>Масштаб</span><select value={scale} onChange={(event) => setScale(event.target.value)}>{SCALES.map((item) => <option key={item.id} value={item.id}>{item.label} — {item.hint}</option>)}</select></label>
+              <label className="fld"><span>Масштаб (необязательно)</span><select value={scale} onChange={(event) => setScale(event.target.value)}><option value="">Не задавать — решит ИИ</option>{SCALES.map((item) => <option key={item.id} value={item.id}>{item.label} — {item.hint}</option>)}</select></label>
             </div>
             <div className="fld fld-block">
-              <span>Соотношение диалогов и боёвки</span>
-              <label className="settings-row" style={{ gap: 10 }}><span className="muted small">диалоги</span><input type="range" min={0} max={100} value={battle} onChange={(event) => setBattle(Number(event.target.value))} style={{ flex: 1 }} /><span className="muted small">боёвка</span></label>
+              <span>Соотношение диалогов и боёвки (необязательно)</span>
+              <label className="settings-row ai-optional-toggle">
+                <input type="checkbox" checked={battle !== null} onChange={(event) => setBattle(event.target.checked ? 50 : null)} />
+                <span>Задать соотношение</span>
+              </label>
+              {battle === null ? (
+                <div className="muted small">Не задано: ИИ сам решит, учитывать ли этот аспект.</div>
+              ) : (
+                <label className="settings-row ai-battle-range" style={{ gap: 10 }}><span className="muted small">диалоги</span><input aria-label="Соотношение диалогов и боёвки" type="range" min={0} max={100} value={battle} onChange={(event) => setBattle(Number(event.target.value))} style={{ flex: 1 }} /><span className="muted small">боёвка</span><b className="muted small">{battle}%</b></label>
+              )}
               <div className="chips">{['выживание', 'торговля', 'напарники'].map((key) => <button key={key} type="button" className={`chip ${accents[key] ? 'chip-on' : ''}`} onClick={() => toggleAccent(key)}>{key}</button>)}</div>
             </div>
           </>
         )}
 
         <div className="fld-row">
-          <label className="fld"><span>Обязательно должно быть</span><input value={must} placeholder="например, финал с моральным выбором" onChange={(event) => setMust(event.target.value)} /></label>
-          <label className="fld"><span>Чего быть не должно</span><input value={mustNot} placeholder="например, никакой магии" onChange={(event) => setMustNot(event.target.value)} /></label>
+          <label className="fld"><span>Обязательно должно быть (необязательно)</span><input value={must} placeholder="например, финал с моральным выбором" onChange={(event) => setMust(event.target.value)} /></label>
+          <label className="fld"><span>Чего быть не должно (необязательно)</span><input value={mustNot} placeholder="например, никакой магии" onChange={(event) => setMustNot(event.target.value)} /></label>
         </div>
         <label className="fld fld-block">
           <span>{mode === 'new' ? 'Опишите идею кампании' : 'Что изменить в текущей кампании?'}</span>

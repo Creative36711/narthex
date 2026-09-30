@@ -8,6 +8,44 @@ import type { EditorStore } from './store'
 export type AiTaskMode = 'new' | 'edit'
 export type AiOutputFormat = 'chronicle' | 'json'
 
+export interface AiTaskBriefOptions {
+  mode: AiTaskMode
+  idea?: string
+  genre?: string
+  tone?: string
+  scaleHint?: string
+  battle?: number | null
+  accents?: string[]
+  must?: string
+  mustNot?: string
+}
+
+/** Собирает бриф только из явно заданных мастером параметров. */
+export function buildAiTaskBrief(options: AiTaskBriefOptions): string {
+  const battle = options.battle
+  const battleLine = battle == null ? ''
+    : battle <= 20 ? 'Акцент на диалоги и историю, боёвки мало или нет.'
+      : battle >= 80 ? 'Акцент на боёвку и тактику, диалогов минимум.'
+        : 'Примерный баланс диалогов и боёвки.'
+  const lines = options.mode === 'edit'
+    ? [
+        options.idea?.trim() || 'Проведи аккуратную проверку текущей кампании и предложи небольшие улучшения.',
+        options.must?.trim() && `Обязательно: ${options.must.trim()}`,
+        options.mustNot?.trim() && `Не добавлять: ${options.mustNot.trim()}`,
+      ]
+    : [
+        options.idea?.trim() || 'Создай интересную законченную кампанию и заполни все необходимые разделы.',
+        options.genre?.trim() && `Жанр/сеттинг: ${options.genre.trim()}`,
+        options.tone?.trim() && `Тон: ${options.tone.trim()}`,
+        options.scaleHint?.trim() && `Масштаб: ${options.scaleHint.trim()}`,
+        battleLine,
+        options.accents?.length ? `Акценты: ${options.accents.join('; ')}` : '',
+        options.must?.trim() && `Обязательно: ${options.must.trim()}`,
+        options.mustNot?.trim() && `Не добавлять: ${options.mustNot.trim()}`,
+      ]
+  return lines.filter((line): line is string => typeof line === 'string' && !!line.trim()).join('\n')
+}
+
 export interface AiTaskBundle {
   blob: Blob
   filename: string
@@ -24,6 +62,9 @@ export function buildAiTaskPrompt(mode: AiTaskMode, task: string, campaignId: st
   return [
     'Ты работаешь над кампанией Chronicle Forge по приложенному пакету задания.',
     'Сначала прочитай __chronicle_ai__/README.md, __chronicle_ai__/TASK.md и __chronicle_ai__/campaign-guide.md; схема, бланк и отчёт проверки лежат в той же папке.',
+    'Настройки брифа необязательны: учитывай только явно заданные мастером параметры. Пропущенный аспект не является требованием — выбери его сам или не задавай вовсе; никогда не выводи баланс диалогов и боёвки по умолчанию.',
+    'Если задано создание персонажа, каждый шаблон происхождения должен содержать все семь характеристик и распределять ровно total_points, а каждый шаблон призвания — ровно skill_points для каждого происхождения. Считай от минимальных порогов, обязательных навыков и бесплатных skill_bonus происхождения; соблюдай skill_cap и не оставляй ни перерасхода, ни остатка.',
+    'Подписи потребностей, статусов и кнопок видны в компактном HUD: делай их короткими (для потребностей желательно до 18 знаков), не включай число/счётчик в подпись. Визуальные надписи внутри арта держи в безопасных полях и не дублируй заголовок сцены крупным текстом; не закрывай большую часть сцены однотонной плашкой — крупные объекты должны читаться как часть локации и не перекрывать важные точки.',
     identity,
     mode === 'edit'
       ? 'Не создавай новую кампанию с нуля и не удаляй существующий контент, если задача явно этого не требует.'

@@ -1501,6 +1501,9 @@ body.cf-editor .ai-wizard-content {
   padding: 0 6px 8px 0;
 }
 body.cf-editor .ai-wizard-content .fld-row { flex-wrap: wrap; }
+body.cf-editor .ai-optional-toggle { justify-content: flex-start; gap: 8px; margin: 8px 0; }
+body.cf-editor .ai-optional-toggle input { flex: 0 0 auto; margin: 0; }
+body.cf-editor .ai-battle-range { align-items: center; }
 body.cf-editor .modal-box.ai-wizard textarea { min-height: 120px; }
 body.cf-editor .ai-wizard > .modal-buttons { align-items: center; }
 body.cf-editor .ai-wizard .copy-status { flex: 1 1 180px; min-width: 0; }
