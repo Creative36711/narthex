@@ -13,9 +13,9 @@
  *    сразу за асинхронным `cancel()`, молча проглатывается;
  *  - периодический `pause()/resume()` — обход хронического замирания
  *    синтезатора в Chrome при долгой речи;
- *  - повторов нарочно нет (фидбек 19): любые сбои просто двигают очередь
- *    дальше; сторожок 8 с защищает только от ПОЛНОГО зависания синтезатора,
- *    чтобы диалог не молчал вечно;
+ *  - повторов нарочно нет (фидбек 19): ошибки двигают очередь дальше;
+ *    8 с даются на старт синтезатора, а затем watchdog рассчитывает запас
+ *    по длине фразы и скорости, чтобы не обрывать медленную речь;
  *  - прогрев первым жестом пользователя будит «спящий» синтезатор заранее;
  *  - ДО первого жеста очередь НЕ трогает синтезатор вовсе (фидбек 20):
  *    браузеры запрещают озвучку без действия пользователя, и фразы,
@@ -24,6 +24,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import { speechCompletionTimeoutMs } from './speechTiming'
 
 export function ttsSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined'
@@ -98,7 +99,7 @@ let pumpTimer: ReturnType<typeof setTimeout> | null = null
 /** до этого момента не зовём speak(): cancel() в Chrome асинхронный */
 let cooldownUntil = 0
 let keepalive: ReturnType<typeof setInterval> | null = null
-/** таймер полного зависания: нет ни старта, ни финала — идём дальше */
+/** сторожок старта и окончания активной фразы */
 let stallTimer: ReturnType<typeof setTimeout> | null = null
 
 function clearStallTimer(): void {
@@ -216,13 +217,23 @@ function finishItem(item: QueueItem): void {
   pump()
 }
 
-/**
- * Произнести одну фразу. Повторов нарочно НЕТ (фидбек 19: повторы хуже,
- * чем пропущенная фраза): любые события окончания просто двигают очередь.
- * Единственная защита — сторожок полного зависания: если за 8 секунд нет
- * ни старта, ни окончания — снимаем синтезатор и идём дальше, чтобы
- * диалог не молчал вечно.
- */
+/** Запасной таймаут завершения: длиннее оценки по тексту и скорости речи. */
+function armCompletionWatchdog(item: QueueItem, synth: SpeechSynthesis): void {
+  clearStallTimer()
+  stallTimer = setTimeout(() => {
+    stallTimer = null
+    if (active !== item || item.settled) return
+    try {
+      synth.cancel()
+    } catch {
+      /* уже не важно */
+    }
+    cooldownUntil = Math.max(cooldownUntil, Date.now() + 100)
+    finishItem(item)
+  }, speechCompletionTimeoutMs(item.clean, item.opts.rate))
+}
+
+/** Произнести одну фразу; завершение подтверждает onend, watchdog лишь страхует зависание. */
 function speakItem(item: QueueItem): void {
   const synth = window.speechSynthesis
   const u = new SpeechSynthesisUtterance(item.clean)
@@ -236,8 +247,11 @@ function speakItem(item: QueueItem): void {
   u.rate = Math.max(0.5, Math.min(2, item.opts.rate ?? 1))
   u.volume = Math.max(0, Math.min(1, item.opts.volume ?? 1))
   u.onstart = () => {
+    if (active !== item || item.settled) return
     item.started = true
-    clearStallTimer()
+    // Если браузер потеряет onend после начала речи, ждём с запасом по длине
+    // текста и скорости, а не обрываем длинную реплику коротким watchdog'ом.
+    armCompletionWatchdog(item, synth)
   }
   u.onend = () => finishItem(item)
   u.onerror = () => finishItem(item)
@@ -252,11 +266,20 @@ function speakItem(item: QueueItem): void {
   stallTimer = setTimeout(() => {
     stallTimer = null
     if (active === item && !item.started) {
+      // Некоторые движки произносят без onstart. Если синтезатор уже говорит
+      // (или поставил фразу в очередь), используем длинный watchdog, не режем
+      // её по стартовому таймауту.
+      if (synth.speaking || synth.pending) {
+        item.started = true
+        armCompletionWatchdog(item, synth)
+        return
+      }
       try {
         synth.cancel()
       } catch {
         /* уже не важно */
       }
+      cooldownUntil = Math.max(cooldownUntil, Date.now() + 100)
       finishItem(item)
     }
   }, 8000)

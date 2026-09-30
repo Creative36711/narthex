@@ -151,7 +151,10 @@ const campaign: CampaignData = await loadCampaign(base)
       && !cutsceneTtsEligible(fixedTextSlide, { tts_enabled: true, voice_muted: false }, 0)
       && !cutsceneTtsEligible({ ...fixedTextSlide, voice: 'voice.ogg' }, { tts_enabled: true, voice_muted: false }, 0.8))
   const timerAudio = player.slice(player.indexOf('const hasFixedDuration'), player.indexOf('return () => {', player.indexOf('const hasFixedDuration')))
-  check('E таймер не блокирует запуск TTS на слайде с duration', timerAudio.includes('if (hasFixedDuration) after(') && timerAudio.includes('cutsceneTtsEligible(slide, settings, vol)'))
+  check('E слайд ждёт и заданную длительность, и окончание озвучки',
+    timerAudio.includes('minimumElapsed = true')
+      && timerAudio.includes('!minimumElapsed || !voiceComplete')
+      && timerAudio.includes('onEnd: () => finishVoice(600)'))
   const view = readFileSync('src/player/GameView.tsx', 'utf8')
   check('E экран игры: катсцена поверх всего, прочие экраны ждут', view.includes('<CutscenePlayer') && view.includes('!cutscene && engine.dialogue'))
 }

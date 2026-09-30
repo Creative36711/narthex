@@ -289,41 +289,58 @@ export function CutscenePlayer({ cutscene, resolve, resolveTrack, onEnd, startAt
     const vol = voiceVolume(settings)
     const hasFixedDuration = !!slide.duration && slide.duration > 0
     const videoOnly = !!slide.video && !slide.art && !slide.image
-    if (hasFixedDuration) after(slide.duration! * 1000)
+    let minimumElapsed = !hasFixedDuration
+    let voiceComplete = true
+    let advanceScheduled = false
+    const scheduleNext = (delay = 0) => {
+      if (cancelled || !minimumElapsed || !voiceComplete || advanceScheduled) return
+      advanceScheduled = true
+      after(delay)
+    }
+    const finishVoice = (delay = 0) => {
+      voiceComplete = true
+      scheduleNext(delay)
+    }
+
+    if (hasFixedDuration) {
+      timers.push(setTimeout(() => {
+        minimumElapsed = true
+        scheduleNext()
+      }, slide.duration! * 1000))
+    }
 
     const speakWithTts = () => {
       if (!cutsceneTtsEligible(slide, settings, vol)) {
         if (!hasFixedDuration && !videoOnly) after(autoDurationMs(slide))
         return
       }
+      voiceComplete = false
       stopVoice = speak(slide.text!, {
         voice: settings.tts_voice,
         rate: settings.tts_rate,
         volume: vol,
-        ...(!hasFixedDuration ? { onEnd: () => after(600) } : {}),
+        onEnd: () => finishVoice(600),
       })
-      // Без заданной длительности страховка не даёт слайду зависнуть,
-      // если синтезатор молча не заговорит. Фиксированный таймер уже запущен.
-      if (!hasFixedDuration) after(autoDurationMs(slide) + 8000)
     }
 
     if (slide.voice && vol > 0) {
       const a = new Audio(resolve(slide.voice))
       a.volume = vol
-      let failed = false
-      const fallback = () => {
-        if (failed) return
-        failed = true
+      let settled = false
+      const finishAudio = (delay = 0) => {
+        if (settled) return
+        settled = true
+        finishVoice(delay)
+      }
+      const failed = () => {
         a.pause()
-        speakWithTts()
+        if (hasFixedDuration) finishAudio()
+        else finishAudio(autoDurationMs(slide))
       }
-      if (!hasFixedDuration) {
-        a.onended = () => after(700)
-        a.onerror = fallback
-      } else {
-        a.onerror = fallback
-      }
-      void a.play().catch(fallback)
+      voiceComplete = false
+      a.onended = () => finishAudio(700)
+      a.onerror = failed
+      void a.play().catch(failed)
       stopVoice = () => a.pause()
     } else if (cutsceneTtsEligible(slide, settings, vol)) {
       speakWithTts()
