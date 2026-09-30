@@ -49,8 +49,16 @@ const jsonCache = new Map<string, string>()
 export function createStory(source: string, cacheKey: string): Story {
   let json = jsonCache.get(cacheKey)
   if (!json) {
-    const compiled = new Compiler(source).Compile()
-    json = compiled.ToJson() ?? ''
+    try {
+      const compiled = new Compiler(source).Compile()
+      json = compiled.ToJson() ?? ''
+    } catch (err) {
+      // inkjs часто бросает голое «Compilation failed» без строк — добавим ключ
+      // и хвост исходника, чтобы мастер/плейтест видел, какой диалог сломан.
+      const hint = err instanceof Error ? err.message : String(err)
+      const preview = source.split('\n').slice(0, 40).join('\n')
+      throw new Error(`Ink «${cacheKey}»: ${hint}\n--- ink preview ---\n${preview}\n---`)
+    }
     jsonCache.set(cacheKey, json)
   }
   return new Story(json)
@@ -58,6 +66,15 @@ export function createStory(source: string, cacheKey: string): Story {
 
 export function clearDialogueCache(): void {
   jsonCache.clear()
+}
+
+/**
+ * Имя первого knot в ink-исходнике (`=== name ===`). Нужен как фолбэк, когда
+ * у диалога нет канонического `main` (ИИ-кампании часто стартуют с `n_start`).
+ */
+export function firstInkKnot(source: string): string | null {
+  const m = source.match(/===\s*([A-Za-z_][\w]*)\s*===/)
+  return m?.[1] ?? null
 }
 
 export function bindExternals(story: Story, engine: GameEngine): void {

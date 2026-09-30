@@ -1,0 +1,216 @@
+=== LOAD /home/user/chronicle-forge/_backlog/campaign.json ===
+campaign id=tishina_orfeya title=Тишина Орфея v=1.1.0
+scenes=8 entities=42
+dialogues=4
+seed=z9voa0n7
+  «катсцена» Пролог: стыковка
+  msg: Новый квест: «Связь с бортом»
+  msg: Шаттл «Корсак» причаливает к «Орфею». Связь с экипажем не отвечает уже девять часов.
+[START] tick=3 scene=scene_airlock loc=loc_airlock hp=14/14 air=100 energy=100 sanity=55 game_over=false
+  flags: (нет)
+  inv: item_credits×60, item_baton×1, item_cutter×1, item_air_canister×2, item_water×1
+  quests: quest_comms:stage_start/active
+
+═══ ГЛАВА 1 · ШЛЮЗ ═══
+  interact item_notice: «Прочитать табличку»
+  msg: «При разгерметизации проверять скафандр до входа». Ниже, другой рукой: «Оно считает нас».
+  msg: Буквы выцвели почти до конца.
+  interact item_air_canister (default)
+  msg: Полный баллон для скафандра: сорок единиц воздуха и ещё немного надежды.
+[after airlock look] tick=3 scene=scene_airlock loc=loc_airlock hp=14/14 air=100 energy=100 sanity=55 game_over=false
+  flags: (нет)
+  inv: item_credits×60, item_baton×1, item_cutter×1, item_air_canister×2, item_water×1
+  quests: quest_comms:stage_start/active
+  travelTo loc_habitation
+  msg: Терминал в коридоре мигает: «ОРИОН на связи. Экипаж недоступен. Добро пожаловать на борт».
+[hab arrive] tick=5 scene=scene_hab_corridor loc=loc_habitation hp=14/14 air=89 energy=96 sanity=55 game_over=false
+  flags: orion_hello
+  inv: item_credits×60, item_baton×1, item_cutter×1, item_air_canister×2, item_water×1
+  quests: quest_comms:stage_start/active
+
+═══ ГЛАВА 2 · ЖИЛОЙ КОРИДОР ═══
+  interact item_breaker: «Поднять питание»
+  msg: Рычаг идёт вверх с усилием. Свет возвращается в коридор.
+  talk npc_orion
+  «ОРИОН, бортовой интеллект»: ОРИОН: «Снова вы. Я слежу: три камеры, одна мигает.»
+  → «Кто вы?»
+  «ОРИОН, бортовой интеллект»: ОРИОН: «Интегрированная операционная система ресурсного контроля и обеспечения жизнедеятельности. Для краткости — ОРИОН. Я кормлю вас воздухом, поэтому будем знакомы.»
+  → «Где экипаж?»
+  «ОРИОН, бортовой интеллект»: ОРИОН: «Экипаж в каютах. Пульс не обнаружен. Нарушений работы корабля не зафиксировано.»
+  → «Нужен ключ шифра журнала»
+  «ОРИОН, бортовой интеллект»: ОРИОН: «Журнал зашифрован моим же ключом — я не доверяю экипажу свои протоколы. Держите. Только не потеряйте: второй раз я его не выдам.»
+  → «Выход»
+  close dialogue with npc_orion
+  interact item_trace: «Поднять планшет»
+  msg: Новая запись в кодексе: Экипаж «Орфея».
+  msg: Планшет ещё тёплый: на экране — график, уходящий в бесконечность.
+  talk npc_vendor
+  «ПС-9, автомат снабжения»: ПРИПОЙ: «Добрый день! Торговый дроид „Припой“. Платите кредитами, не спрашивайте, откуда они у меня.»
+  → «Что на корабле?»
+  «ПС-9, автомат снабжения»: ПРИПОЙ: «Сигнал? Это не товар. Зато есть изоляционная лента: от сигналов не спасает, зато склеит что угодно.»
+  → «До связи»
+  close dialogue with npc_vendor
+  trade open with npc_vendor — leave
+  buy item_multitool @40cr → true
+  trade open with npc_vendor — leave
+  buy item_tape @5cr → true
+  buy item_tape @5cr → true
+  trade open with npc_vendor — leave
+  buy item_air_canister @18cr → false
+  trade open with npc_vendor — leave
+  buy item_ration @10cr → true
+[after hab corridor] tick=5 scene=scene_hab_corridor loc=loc_habitation hp=14/14 air=89 energy=96 sanity=55 game_over=false
+  flags: orion_hello, power_hab_restored, scene_state:scene_hab_corridor:state_lit
+  inv: item_baton×1, item_cutter×1, item_air_canister×2, item_water×1, item_cipher_key×1, item_scrap×1, item_multitool×1, item_tape×2, item_ration×1
+  quests: quest_comms:stage_power/active
+
+═══ КАЮТЫ ═══
+  goToScene scene_hab_quarters
+  interact item_body_lin: «Осмотреть тело»
+  msg: В кармане комбинезона — жетон бортинженера. Губы шевелятся: она всё ещё считает вслух.
+  interact item_locker: «Открыть мультитулом»
+  msg: Замок поддаётся. Внутри — журнал, лом и лента.
+  talk npc_echo
+  «Запись капитана Роя»: ЭХО: «...»
+  → «Ты кто?»
+  «Запись капитана Роя»: ЭХО: «Я — запись капитана Роя. Он считал в уме, когда сигнал вошёл. Теперь считает он. Считайте с ним — так легче.»
+  → «Что считать?»
+  msg: Счёт въёдается в голову. Он считает ваши шаги, ваши удары, ваши дни.
+  close dialogue with npc_echo
+[after quarters] tick=5 scene=scene_hab_quarters loc=loc_habitation hp=14/14 air=89 energy=96 sanity=52 game_over=false
+  flags: echo_met, lin_looted, locker_open, orion_hello, power_hab_restored, scene_state:scene_hab_corridor:state_lit
+  inv: item_baton×1, item_cutter×1, item_air_canister×2, item_water×1, item_cipher_key×1, item_scrap×3, item_multitool×1, item_tape×3, item_ration×1, item_keycard×1, item_journal_lin×1
+  quests: quest_comms:stage_power/active
+  goToScene scene_hab_corridor
+
+═══ МЕДОТСЕК ═══
+  goToScene scene_hab_med
+  interact item_medcabinet: «Обыскать шкаф»
+  msg: Два комплекта аптечных компонентов, стимулятор и лента.
+  interact item_note_doctor: «Прочитать записку»
+  msg: Почерк врача. Последняя буква сорвана — будто писали на ходу.
+[after med] tick=5 scene=scene_hab_med loc=loc_habitation hp=14/14 air=89 energy=96 sanity=52 game_over=false
+  flags: echo_met, lin_looted, locker_open, med_looted, orion_hello, power_hab_restored, scene_state:scene_hab_corridor:state_lit
+  inv: item_baton×1, item_cutter×1, item_air_canister×2, item_water×1, item_cipher_key×1, item_scrap×3, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1
+  quests: quest_comms:stage_power/active
+  goToScene scene_hab_corridor
+  quest_core starter rule: rule_merge
+
+═══ ГЛАВА 3 · РУБКА ═══
+  travelTo loc_bridge
+  msg: Новый квест: «Чёрный ящик»
+  msg: Пол под ногами вздрагивает. Где-то за переборкой начинает капать часто и ровно.
+[bridge gate] tick=7 scene=scene_bridge_gate loc=loc_bridge hp=14/14 air=78 energy=92 sanity=52 game_over=false
+  flags: echo_met, lin_looted, locker_open, med_looted, orion_hello, power_hab_restored, scene_state:scene_hab_corridor:state_lit
+  inv: item_baton×1, item_cutter×1, item_air_canister×2, item_water×1, item_cipher_key×1, item_scrap×3, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1
+  quests: quest_comms:stage_power/active, quest_blackbox:stage_start/active
+  interact item_gate_panel: «Приложить жетон бортинженера»
+  msg: Жетон Лин открывает сервисный доступ. Шлюз рубит с тихим щелчком.
+  goToScene scene_bridge
+  msg: Рубка погружена в темноту. Газовый гигант светит сквозь иллюминатор — и на его фоне чёрное гнездо чёрного ящика.
+[on bridge] tick=7 scene=scene_bridge loc=loc_bridge hp=14/14 air=78 energy=92 sanity=52 game_over=false
+  flags: bridge_gate_open, bridge_power_on, bridge_seen, echo_met, lin_looted, locker_open, med_looted, orion_hello, power_hab_restored, scene_state:scene_hab_corridor:state_lit
+  inv: item_baton×1, item_cutter×1, item_air_canister×2, item_water×1, item_cipher_key×1, item_scrap×3, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1
+  quests: quest_comms:stage_power/active, quest_blackbox:stage_open/active
+  interact item_blackbox: «Отпереть гнездо жетоном Лин»
+  msg: Новая запись в кодексе: Сигнал.
+  msg: Замок щёлкает. Чёрный ящик тяжёлый и тёплый.
+  msg: Квест завершён: «Связь с бортом»
+  msg: Квест завершён: «Чёрный ящик»
+  interact item_bridge_terminal: «Вставить ключ шифра и снять запись журнала»
+  msg: Новая запись в кодексе: Газовый гигант.
+  msg: Журнал: образцы льда доставлены, капитан Рой требует немедленно изолировать лабораторию, ОРИОН докладывает, что груз «в норме». Последняя запись — девять часов 
+  interact item_viewport: «Смотреть на луну»
+  msg: На ледяной луне светится точка — и мигает в такт чужому счёту.
+[after bridge] tick=7 scene=scene_bridge loc=loc_bridge hp=14/14 air=78 energy=92 sanity=49 game_over=false
+  flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, echo_met, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, scene_state:scene_hab_corridor:state_lit, truth_known
+  inv: item_baton×1, item_cutter×1, item_air_canister×2, item_water×1, item_cipher_key×1, item_scrap×3, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1
+  quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed
+
+═══ ГЛАВА 4 · МАШИННОЕ ═══
+  start_quest quest_core (manual — no rule found)
+  msg: Новый квест: «Сердце Орфея»
+  travelTo loc_engineering
+  «катсцена» Девятый час
+  msg: В стыке магистрали течь: воздух уходит быстрее, чем должен.
+  msg: Корабль уходит в аварию. Вас приносит в реакторный зал — туда, где всё и кончается.
+  msg: Дрон остался в коридоре. Его жужжание за спиной стихает.
+  msg: Из ниши за трубами выходит человек в рваном комбинезоне. Девять часов он сидел там и считал, чем всё кончится.
+[eng corridor] tick=10 scene=scene_eng_reactor loc=loc_engineering hp=14/14 air=55 energy=85 sanity=49 game_over=false
+  flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, echo_met, finale_forced, kastor_revealed, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, pursuit_done, scene_state:scene_hab_corridor:state_lit, truth_known
+  inv: item_baton×1, item_cutter×1, item_air_canister×2, item_water×1, item_cipher_key×1, item_scrap×3, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1
+  quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed, quest_core:stage_start/active
+  !! нет сущности item_cache в сцене scene_eng_reactor
+  !! нет сущности item_leak в сцене scene_eng_reactor
+  !! нет сущности item_hatch в сцене scene_eng_reactor
+  goToScene scene_eng_reactor
+[reactor] tick=10 scene=scene_eng_reactor loc=loc_engineering hp=14/14 air=55 energy=85 sanity=49 game_over=false
+  flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, echo_met, finale_forced, kastor_revealed, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, pursuit_done, scene_state:scene_hab_corridor:state_lit, truth_known
+  inv: item_baton×1, item_cutter×1, item_air_canister×2, item_water×1, item_cipher_key×1, item_scrap×3, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1
+  quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed, quest_core:stage_start/active
+  talk npc_kastor
+  msg: Кастор находит аварийный рубильник. Реакторный зал наполняется рабочим светом, и техник впервые за девять часов выпрямляется.
+  «Кастор, техник машинного отделения»: Кастор: «Не стреляйте. Я здесь девять часов. Я считал шаги в коридоре — вы шли ровно.»
+  → «Что здесь произошло?»
+  «Кастор, техник машинного отделения»: Кастор: «Мы вытащили изо льда сигнал. Он пел. Всех, кто его услышал, он... записал. Не убил — записал, как записывают песню. Остались ровные голоса в динамиках.» | Кастор: «Лин нашла образец в ядре ле
+  → «Где остальные?»
+  «Кастор, техник машинного отделения»: Кастор: «Там, где их застал сигнал. Ни одного тела с насилием — просто пустые глаза и ровный счёт в динамиках. И меня не хватило: я был в укрытии.»
+  → «Дальше»
+  «Кастор, техник машинного отделения»: Кастор: «Вы снова здесь. Время идёт, и я его слышу.»
+  → «Прощание»
+  close dialogue with npc_kastor
+  talk npc_kastor
+  «Кастор, техник машинного отделения»: Кастор: «Вы снова здесь. Время идёт, и я его слышу.»
+  → «Как закрыть сигнал?»
+  msg: Новый рецепт: Изолированный накопитель.
+  msg: Новый рецепт: Стимулятор из аптечных компонентов.
+  «Кастор, техник машинного отделения»: Кастор: «Если хотите вынести его с корабля — нужна изолированная обойма. Сделайте сами: лом, лента, мультитул. Я бы сделал, но у меня трясутся руки.» | Кастор: «Обойма держит сигнал, пока не остынет. 
+  → «Дальше»
+  «Кастор, техник машинного отделения»: Кастор: «Вы снова здесь. Время идёт, и я его слышу.»
+  → «Прощание»
+  close dialogue with npc_kastor
+[after kastor] tick=10 scene=scene_eng_reactor loc=loc_engineering hp=14/14 air=55 energy=85 sanity=49 game_over=false
+  flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, echo_met, finale_forced, kastor_revealed, kastor_talked, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, pursuit_done, reactor_lit, scene_state:scene_eng_reactor:state_lit, scene_state:scene_hab_corridor:state_lit, truth_known
+  inv: item_baton×1, item_cutter×1, item_air_canister×2, item_water×1, item_cipher_key×1, item_scrap×3, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1
+  quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed, quest_core:stage_kastor/active
+  interact item_ice_core: «Извлечь ядро из контура»
+  msg: Новая запись в кодексе: Лединое ядро.
+  msg: Ядро выходит из контура. Оно тёплое и пахнет озоном.
+  ⚔ BOJ start arena=arena_reactor intro?
+    move → 7,2 (dist to foe 1)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 13)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 13)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 13)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 7)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 7)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 7)
+    attack ТЭХ-4 «Охотник», тяжёлый дрон (hp 7)
+  ⚔ result=victory round=7
+  msg: ТЭХ-4 оседает на пол. Гидравлический рычаг больше не поднимается.
+  useItem item_air_canister
+  msg: Клапан щёлкает, скафандр наполняется воздухом.
+[after core] tick=11 scene=scene_eng_reactor loc=loc_engineering hp=14/14 air=89 energy=83 sanity=49 game_over=false
+  flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, codex_all, core_taken, echo_met, finale_forced, has_core, heavy_drone_dead, kastor_revealed, kastor_talked, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, pursuit_done, reactor_lit, scene_state:scene_eng_reactor:state_lit, scene_state:scene_hab_corridor:state_lit, truth_known
+  inv: item_baton×1, item_cutter×1, item_air_canister×1, item_water×1, item_cipher_key×1, item_scrap×6, item_multitool×1, item_tape×4, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1, item_ice_core×1
+  quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed, quest_core:stage_core/active
+  craft recipe_seal_drive
+  craft → false
+  msg: Не получилось изготовить «Изолированный накопитель». Материалы остались целы.
+  craft recipe_seal_drive
+  craft → false
+  msg: Не получилось изготовить «Изолированный накопитель». Материалы остались целы.
+  craft recipe_seal_drive
+  craft → true
+  msg: Обойма смыкается. Накопитель гудит тихо и ровно.
+
+═══ ФИНАЛ ═══
+  interact item_reactor_console: «Запереть сигнал в изолированном накопителе»
+  msg: Квест завершён: «Сердце Орфея»
+[after finale action] tick=13 scene=scene_eng_reactor loc=loc_engineering hp=14/14 air=78 energy=79 sanity=49 game_over=victory/ending_silence «Кампания пройдена!»
+  flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, codex_all, core_taken, echo_met, finale_forced, finale_silence, has_core, heavy_drone_dead, kastor_revealed, kastor_talked, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, pursuit_done, reactor_lit, scene_state:scene_eng_reactor:state_lit, scene_state:scene_hab_corridor:state_lit, truth_known
+  inv: item_baton×1, item_cutter×1, item_air_canister×1, item_water×1, item_cipher_key×1, item_scrap×4, item_multitool×1, item_tape×3, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1, item_ice_core×1, item_drive_seal×1
+  quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed, quest_core:stage_done/completed
+[END] tick=13 scene=scene_eng_reactor loc=loc_engineering hp=14/14 air=78 energy=79 sanity=49 game_over=victory/ending_silence «Кампания пройдена!»
+  flags: blackbox_taken, bridge_gate_open, bridge_power_on, bridge_seen, codex_all, core_taken, echo_met, finale_forced, finale_silence, has_core, heavy_drone_dead, kastor_revealed, kastor_talked, lin_looted, locker_open, logs_decoded, med_looted, orion_hello, power_hab_restored, pursuit_done, reactor_lit, scene_state:scene_eng_reactor:state_lit, scene_state:scene_hab_corridor:state_lit, truth_known
+  inv: item_baton×1, item_cutter×1, item_air_canister×1, item_water×1, item_cipher_key×1, item_scrap×4, item_multitool×1, item_tape×3, item_ration×1, item_keycard×1, item_journal_lin×1, item_med_parts×2, item_stim×1, item_blackbox×1, item_ice_core×1, item_drive_seal×1
+  quests: quest_comms:stage_done/completed, quest_blackbox:stage_done/completed, quest_core:stage_done/completed

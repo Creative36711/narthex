@@ -56,7 +56,7 @@ import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
 import type { CharChoice } from './charcreate'
 import type { Story } from 'inkjs'
-import { bindExternals, createStory, drainStory, type DialogueUI } from './dialogue'
+import { bindExternals, createStory, drainStory, firstInkKnot, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
 import { playUi, playInteraction } from '../shared/audio'
 import type { SoundHook } from '../shared/types'
@@ -2083,6 +2083,19 @@ export class GameEngine {
     )
   }
 
+  /**
+   * Есть ли у NPC реальное расписание (непустой массив). Пустой `schedule: []`
+   * — частый артефакт редактора/ИИ: это «расписания нет», а не «занят всегда
+   * где-то ещё». Иначе default_entity в слоте никогда не появляется.
+   */
+  private npcHasSchedule(def: EntityDef): boolean {
+    return def.type === 'npc' && Array.isArray(def.schedule) && def.schedule.length > 0
+  }
+
+  private npcHasPresenceOverrides(def: EntityDef): boolean {
+    return def.type === 'npc' && Array.isArray(def.presence_overrides) && def.presence_overrides.length > 0
+  }
+
   /** Занятость слотов с учётом расписаний NPC (ТЗ 4.1: обновление расписания). */
   slotOccupants(scene: SceneDef): SlotOccupant[] {
     const hour = hourOfDay(this.state.tick, this.campaign.meta)
@@ -2098,7 +2111,7 @@ export class GameEngine {
       // 2. NPC по событиям (важнее расписания) и по расписанию
       if (!entity) {
         for (const def of Object.values(this.campaign.entities)) {
-          if (def.type !== 'npc' || (!def.schedule && !def.presence_overrides)) continue
+          if (def.type !== 'npc' || (!this.npcHasSchedule(def) && !this.npcHasPresenceOverrides(def))) continue
           if (this.state.dead_entities.includes(def.id)) continue
           if (this.state.removed_entities.includes(def.id)) continue
           if (this.isInParty(def.id)) continue // напарник ходит с игроком
@@ -2124,8 +2137,10 @@ export class GameEngine {
       // 3. default_entity (сущности без расписания и активных событий)
       if (!entity && slot.default_entity) {
         const def = this.campaign.entities[slot.default_entity]
+        // NPC с непустым расписанием/оверрайдом «живёт» только там — default
+        // слот его не дублирует. Пустой schedule[] busyElsewhere НЕ считает.
         const busyElsewhere =
-          def?.type === 'npc' && (!!def.schedule || !!this.activePresenceOverride(def))
+          def?.type === 'npc' && (this.npcHasSchedule(def) || !!this.activePresenceOverride(def))
         const gone =
           this.state.dead_entities.includes(slot.default_entity) ||
           this.state.removed_entities.includes(slot.default_entity) ||
@@ -2909,21 +2924,71 @@ export class GameEngine {
 
   // ─────────────── диалоги ───────────────
 
+  /**
+   * Найти ink-исходник диалога по ссылке NPC. Канон пакета —
+   * `dialogues/<id>.ink`; монолит до repair и ручные правки часто держат
+   * голый id (`dlg_orion`). Без фолбэков диалог «молча не открывался».
+   */
+  resolveDialogueSource(ref: string): { key: string; source: string } | null {
+    const map = this.campaign.dialogues
+    if (!ref) return null
+    if (map[ref]) return { key: ref, source: map[ref]! }
+    const bare = ref.replace(/^dialogues\//, '').replace(/\.(dlg\.json|ink|json)$/i, '')
+    const candidates = [
+      `dialogues/${bare}.ink`,
+      bare,
+      `${bare}.ink`,
+      `dialogues/${bare}`,
+    ]
+    for (const k of candidates) {
+      if (map[k]) return { key: k, source: map[k]! }
+    }
+    // последний шанс: суффикс/окончание ключа
+    for (const [k, src] of Object.entries(map)) {
+      if (k === bare || k.endsWith(`/${bare}.ink`) || k.endsWith(`/${bare}`)) {
+        return { key: k, source: src }
+      }
+    }
+    return null
+  }
+
   startDialogue(entityId: string, knot?: string): void {
     const npc = this.campaign.entities[entityId] as NpcDef | undefined
     if (!npc || npc.type !== 'npc' || !npc.dialogue) return
-    const source = this.campaign.dialogues[npc.dialogue]
-    if (!source) return
+    const resolved = this.resolveDialogueSource(npc.dialogue)
+    if (!resolved) return
+    const { key: dialogueKey, source } = resolved
     playInteraction('talk', { entity: npc })
     // Каждый разговор — свежая Story (компиляция кэширована в dialogue.ts):
     // однократные `*`-ветки исчезают до конца разговора и возвращаются в новом,
     // а «навсегда» вещи хранятся только во флагах. (фидбек №3)
-    const story = createStory(source, npc.dialogue)
-    bindExternals(story, this)
+    let story: Story
     try {
-      story.ChoosePathString(knot ?? 'main')
-    } catch {
+      story = createStory(source, dialogueKey)
+    } catch (err) {
+      // битый ink не должен валить весь рантайм: сообщение мастеру/игроку и выход
+      const msg = err instanceof Error ? err.message : String(err)
+      this.pushLog(`Диалог «${dialogueKey}» не скомпилировался.`)
+      this.messages.push({ text: `Диалог недоступен (${npc.label}).` })
+      console.error(msg)
+      this.notify()
       return
+    }
+    bindExternals(story, this)
+    // Точка входа: явный knot → «main» (канон редактора) → первый knot файла.
+    // ИИ/ручные dlg.json часто зовут стартовый узел n_start — без фолбэка
+    // ChoosePathString молча проваливался и диалог «не открывался».
+    const entryKnot = knot ?? 'main'
+    try {
+      story.ChoosePathString(entryKnot)
+    } catch {
+      const fallback = firstInkKnot(source)
+      if (!fallback || fallback === entryKnot) return
+      try {
+        story.ChoosePathString(fallback)
+      } catch {
+        return
+      }
     }
     this.activeStory = story
     this.activeNpc = npc
