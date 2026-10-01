@@ -896,6 +896,7 @@ html.cf-profile-modern {
   max-width: 580px;
   font-size: 15.5px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.96), 0 0 8px rgba(0, 0, 0, 0.8);
+  overflow-wrap: anywhere;
 }
 
 .menu-buttons {
@@ -1485,6 +1486,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   padding: 7px 12px;
   font-size: 15px;
   transition: all 0.12s;
+  width: 100%;
+  box-sizing: border-box;
 }
 .choice-btn:hover {
   background: color-mix(in srgb, var(--gold) 10%, transparent);
@@ -1972,6 +1975,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   font-size: 12px;
   color: var(--muted);
   margin-top: 4px;
+  overflow-wrap: anywhere;
 }
 .campaigns-foot { padding: 12px 20px 18px; }
 
@@ -2978,6 +2982,10 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
   padding: 20px;
   box-shadow: var(--shadow-2, 0 16px 48px rgba(0, 0, 0, 0.62));
 }
+.itemdlg-content > .btn.btn-small:last-child {
+  align-self: center;
+  margin-top: 8px;
+}
 .itemdlg-portrait {
   flex: 0 0 160px;
   width: 160px;
@@ -2991,8 +2999,9 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
 .itemdlg-content { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .itemdlg-title { margin: 0; font-size: 18px; color: var(--gold-bright); }
 .itemdlg-desc { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
-.itemdlg-option { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.itemdlg-option { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; }
 .itemdlg-hint { font-size: 11.5px; color: color-mix(in srgb, var(--ink-bright) 72%, transparent); font-weight: normal; }
+.usewith-options { display: flex; flex-direction: column; gap: 8px; }
 
 /* выбор уровня сложности на создании героя (пресеты мастера) */
 .char-diff-list { display: flex; flex-direction: column; gap: 6px; }
