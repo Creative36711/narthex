@@ -1,0 +1,39 @@
+{
+  "id": "rule_acid_burn",
+  "label": "Кислотная морось обжигает",
+  "once": false,
+  "conditions": [
+    {
+      "type": "weather_is",
+      "weather": "weather_acid"
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "has_item",
+        "item": "item_coat"
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_burns"
+    }
+  ],
+  "conditions_any": [
+    [
+      {
+        "type": "player_enters_location",
+        "location": "loc_lower"
+      }
+    ],
+    [
+      {
+        "type": "player_enters_location",
+        "location": "loc_foundry"
+      }
+    ]
+  ]
+}

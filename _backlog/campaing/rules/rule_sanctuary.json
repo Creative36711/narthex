@@ -1,0 +1,28 @@
+{
+  "id": "rule_sanctuary",
+  "label": "Собор — убежище",
+  "once": false,
+  "conditions": [
+    {
+      "type": "player_enters_location",
+      "location": "loc_cathedral"
+    },
+    {
+      "type": "flag_set",
+      "flag": "pursued"
+    }
+  ],
+  "effects": [
+    {
+      "type": "stop_pursuit"
+    },
+    {
+      "type": "clear_flag",
+      "flag": "pursued"
+    },
+    {
+      "type": "show_message",
+      "text": "Под сводами Собора серые плащи отстают. Даже Совет не входит сюда с оружием."
+    }
+  ]
+}

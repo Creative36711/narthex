@@ -1,0 +1,65 @@
+{
+  "id": "rule_marrow_ambush",
+  "label": "Засада у мастерской Марроу",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "advance_time",
+      "ticks": 3
+    },
+    {
+      "type": "banner",
+      "text": "Ночь в мастерской",
+      "seconds": 4
+    },
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_spire_agent",
+          "count": 2
+        }
+      ],
+      "arena": "arena_alley",
+      "intro": "Дверь вылетает с петель. Двое в стеклянных масках: «Доктор, вам пора на покой».",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "marrow_saved"
+        },
+        {
+          "type": "add_item",
+          "item": "item_ev_ledger",
+          "quantity": 1
+        },
+        {
+          "type": "unlock_recipe",
+          "recipe": "recipe_stim"
+        },
+        {
+          "type": "add_item",
+          "item": "item_stim",
+          "quantity": 2
+        },
+        {
+          "type": "change_disposition",
+          "target": "npc_marrow",
+          "delta": 25
+        },
+        {
+          "type": "show_message",
+          "text": "Марроу, бледная, протягивает журнал заказов: «Берите. Пусть хоть кто-то знает, что я делала и для кого»."
+        },
+        {
+          "type": "set_description",
+          "entity": "npc_marrow",
+          "text": "Доктор Илзе Марроу. Обязана вам жизнью и больше не прячет глаза."
+        }
+      ],
+      "no_flee": true
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_city"
+}

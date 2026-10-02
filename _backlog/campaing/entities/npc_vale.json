@@ -1,0 +1,30 @@
+{
+  "id": "npc_vale",
+  "type": "npc",
+  "label": "Сестра Вейл, прозектор",
+  "description": "Монахиня-механик из Ордена, приписанная к мертвецкой Палаты. Половина лица — латунная маска, голос — ровный, как метроном.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 9,
+    "CON": 12,
+    "SIZ": 10,
+    "DEX": 14,
+    "INT": 16,
+    "POW": 14,
+    "CHA": 9
+  },
+  "skills": {
+    "medicine": 75,
+    "occult": 50,
+    "mechanics": 55
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/vale.ink",
+  "faction": "faction_order",
+  "base_disposition": 10
+}

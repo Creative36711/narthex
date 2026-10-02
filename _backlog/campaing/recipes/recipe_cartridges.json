@@ -1,0 +1,26 @@
+{
+  "id": "recipe_cartridges",
+  "label": "Патроны кочегаров",
+  "description": "Гильзы из латунного лома, порох Гримма и терпение.",
+  "known": false,
+  "inputs": [
+    {
+      "item": "item_brass_scrap",
+      "quantity": 2
+    },
+    {
+      "item": "item_powder",
+      "quantity": 1
+    }
+  ],
+  "skill": {
+    "id": "mechanics",
+    "difficulty": 35
+  },
+  "time_ticks": 1,
+  "output": {
+    "item": "item_cartridge",
+    "quantity": 5
+  },
+  "message": "Пять кривоватых, но рабочих патронов."
+}

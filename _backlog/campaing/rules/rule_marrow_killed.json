@@ -1,0 +1,42 @@
+{
+  "id": "rule_marrow_killed",
+  "label": "Расплата за кражу журнала",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_location",
+      "location": "loc_lower"
+    },
+    {
+      "type": "flag_set",
+      "flag": "marrow_doomed"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "marrow_saved"
+    }
+  ],
+  "effects": [
+    {
+      "type": "remove_entity",
+      "entity": "npc_marrow"
+    },
+    {
+      "type": "set_flag",
+      "flag": "marrow_dead"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -5
+    },
+    {
+      "type": "fail_quest",
+      "quest": "quest_marrow"
+    },
+    {
+      "type": "show_message",
+      "text": "Дверь мастерской Марроу сорвана с петель. Внутри — разгром и тишина. Пропажу журнала заметили, но спросили не с вас."
+    }
+  ],
+  "chapter": "ch_city"
+}

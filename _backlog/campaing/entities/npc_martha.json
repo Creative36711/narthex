@@ -1,0 +1,29 @@
+{
+  "id": "npc_martha",
+  "type": "npc",
+  "label": "Марта Сол, вдова кочегара",
+  "description": "Жена Томаса Сола, пятой жертвы. Чинит робы кочегаров и ждёт вестей о младшем брате Йенсе, пропавшем неделю назад.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 12,
+    "SIZ": 10,
+    "DEX": 11,
+    "INT": 11,
+    "POW": 13,
+    "CHA": 11
+  },
+  "skills": {
+    "medicine": 30,
+    "insight": 40
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/martha.ink",
+  "faction": "faction_union",
+  "base_disposition": 0
+}

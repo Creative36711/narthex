@@ -1,0 +1,9 @@
+{
+  "id": "item_valve_key",
+  "type": "item",
+  "category": "key",
+  "label": "Ключ-шестерня шлюза",
+  "description": "Бронзовая шестерня с рукоятью: ею кочегары открывали Глубокий шлюз под клапаном №7.",
+  "weight": 0.4,
+  "stackable": false
+}

@@ -1,0 +1,53 @@
+{
+  "id": "item_trash_heap",
+  "type": "item",
+  "category": "scenery",
+  "label": "Куча хлама",
+  "description": "Ржавые обрезки, тряпьё, битое стекло. Кто-то здесь уже рылся — но не всё нашёл.",
+  "weight": 50,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Порыться в хламе (1 час)",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_rag",
+          "quantity": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_charcoal",
+          "quantity": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": 50,
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_brass_scrap",
+              "quantity": 2
+            },
+            {
+              "type": "show_message",
+              "text": "Среди тряпья — горсть латунного лома."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Только тряпки и уголь. Пальцы чёрные до локтей."
+            }
+          ]
+        }
+      ],
+      "hint": "ветошь, уголь и, если повезёт, латунь"
+    }
+  ]
+}

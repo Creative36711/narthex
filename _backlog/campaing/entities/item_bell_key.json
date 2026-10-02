@@ -1,0 +1,9 @@
+{
+  "id": "item_bell_key",
+  "type": "item",
+  "category": "key",
+  "label": "Ключ от сундука звонаря",
+  "description": "Длинный ключ с бородкой в виде колокола.",
+  "weight": 0.1,
+  "stackable": false
+}

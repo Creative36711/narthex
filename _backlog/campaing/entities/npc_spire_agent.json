@@ -1,0 +1,58 @@
+{
+  "id": "npc_spire_agent",
+  "type": "npc",
+  "label": "Агент Шпиля",
+  "description": "Серый плащ, стеклянная маска, пистолет с глушителем. Люди Совета, которых официально не существует.",
+  "portrait": {},
+  "stats": {
+    "STR": 12,
+    "CON": 12,
+    "SIZ": 11,
+    "DEX": 13,
+    "INT": 11,
+    "POW": 10,
+    "CHA": 8
+  },
+  "skills": {
+    "firearms": 45,
+    "melee": 40,
+    "dodge": 35
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "natural_weapon": {
+    "skill": "firearms",
+    "damage": "1d8",
+    "damage_bonus": false,
+    "range": 6,
+    "attacks_per_round": 1,
+    "parry_capable": false,
+    "label": "пистолет с глушителем"
+  },
+  "combat_ai": "aggressive",
+  "faction": "faction_council",
+  "loot_table": [
+    {
+      "item": "item_cartridge",
+      "chance": 0.7,
+      "min": 2,
+      "max": 4
+    },
+    {
+      "item": "item_token",
+      "chance": 0.6,
+      "min": 3,
+      "max": 6
+    },
+    {
+      "item": "item_filter",
+      "chance": 0.3
+    }
+  ],
+  "morale": {
+    "below_hp_pct": 30,
+    "flee_chance": 40
+  }
+}

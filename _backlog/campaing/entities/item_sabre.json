@@ -1,0 +1,22 @@
+{
+  "id": "item_sabre",
+  "type": "item",
+  "category": "weapon",
+  "label": "Гвардейская сабля",
+  "description": "Сабля Гвардии Шпиля с гравировкой полка. Память о прежней службе.",
+  "weight": 1.4,
+  "stackable": false,
+  "value": {
+    "token": 20
+  },
+  "equip_slot": "weapon",
+  "weapon_data": {
+    "skill": "melee",
+    "damage": "1d8",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true,
+    "label": "сабля"
+  }
+}

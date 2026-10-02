@@ -1,0 +1,99 @@
+{
+  "id": "item_lockers",
+  "type": "item",
+  "category": "scenery",
+  "label": "Шкафчики кочегаров",
+  "description": "Жестяные шкафчики ночной смены. На одном сорвана пломба — шкафчик Томаса Сола.",
+  "weight": 100,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Открыть шкафчик Томаса (с разрешения Марты)",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_ev_shift_list",
+          "quantity": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_good_filter",
+          "quantity": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "lockers_opened"
+        },
+        {
+          "type": "show_message",
+          "text": "Внутри — запасная роба, самодельный фильтр и записка: табель ночной смены у клапана №7. Пять имён зачёркнуто."
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "martha_permission"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "lockers_opened"
+        }
+      ]
+    },
+    {
+      "label": "Взломать шкафчик Томаса",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "lockpick",
+          "difficulty": 35,
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_ev_shift_list",
+              "quantity": 1
+            },
+            {
+              "type": "set_flag",
+              "flag": "lockers_opened"
+            },
+            {
+              "type": "set_flag",
+              "flag": "lockers_forced"
+            },
+            {
+              "type": "change_disposition",
+              "target": "npc_martha",
+              "delta": -15
+            },
+            {
+              "type": "show_message",
+              "text": "Дверца поддаётся с визгом. Табель ночной смены — у вас. Марта смотрит молча."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "advance_time",
+              "ticks": 1
+            },
+            {
+              "type": "show_message",
+              "text": "Замок старый, но упрямый."
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "martha_permission"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "lockers_opened"
+        }
+      ],
+      "hint": "проверка Взлома; Марте это не понравится"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "rule_acid_rain",
+  "label": "Погода: кислотная морось",
+  "once": true,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 80
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_weather",
+      "weather": "weather_acid"
+    },
+    {
+      "type": "show_message",
+      "text": "С неба сыплется жёлтая морось. Без плаща в Нижнем городе лучше не показываться."
+    }
+  ]
+}

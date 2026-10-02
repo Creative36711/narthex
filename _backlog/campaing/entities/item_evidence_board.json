@@ -1,0 +1,186 @@
+{
+  "id": "item_evidence_board",
+  "type": "item",
+  "category": "scenery",
+  "label": "Доска улик",
+  "description": "Пробковая доска с записками и красными нитями. Здесь улики складываются в выводы.",
+  "weight": 30,
+  "stackable": false,
+  "portrait": {},
+  "interact_options": [
+    {
+      "label": "Связать: «Мастер сердец»",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "ded_maker"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_case_maker"
+        },
+        {
+          "type": "show_message",
+          "text": "Клеймо «И.М.» на латуни и признание Марроу сходятся: сердца делала она — по заказу, который пришёл сверху. Нить тянется к канцелярии Совета."
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_ev_heart"
+        },
+        {
+          "type": "flag_set",
+          "flag": "marrow_admitted"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "ded_maker"
+        }
+      ],
+      "hint": "нужны: часовое сердце и признание мастера"
+    },
+    {
+      "label": "Связать: «Общая нить жертв»",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "ded_victims"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_case_victims"
+        },
+        {
+          "type": "reveal_location",
+          "location": "loc_undercity"
+        },
+        {
+          "type": "show_message",
+          "text": "Все жертвы — из ночной смены у клапана №7. Даты спусков в шлюз совпадают с датами пропаж. Под литейными есть отстойники — и кто-то водит туда людей."
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_ev_valve_tag"
+        },
+        {
+          "type": "has_item",
+          "item": "item_ev_shift_list"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "ded_victims"
+        }
+      ],
+      "hint": "нужны: журнал спусков и табель смены"
+    },
+    {
+      "label": "Связать: «Смысл обряда»",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "ded_ritual"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_winding"
+        },
+        {
+          "type": "show_message",
+          "text": "Семь сердец — семь колоколов Великого Завода. Гравировка на латуни — строка из «Литании Пробуждения». В ночь Завода тот, кто встанет у ядра, получит Голос машины."
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_ev_litany"
+        },
+        {
+          "type": "flag_set",
+          "flag": "body_engraving_read"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "ded_ritual"
+        }
+      ],
+      "hint": "нужны: страница литании и прочитанная гравировка"
+    },
+    {
+      "label": "Связать: «Заказчик»",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "ded_payer"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_case_payer"
+        },
+        {
+          "type": "show_message",
+          "text": "Номер ордера в журнале Марроу совпадает с ордером, на котором стоит личная печать Голоса Совета. Заказчик — советница Лиара Венн."
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_ev_ledger"
+        },
+        {
+          "type": "has_item",
+          "item": "item_ev_seal"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "ded_payer"
+        }
+      ],
+      "hint": "нужны: журнал заказов и ордер с печатью"
+    },
+    {
+      "label": "Связать: «Голос в трубах»",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "ded_motive"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_venn"
+        },
+        {
+          "type": "show_message",
+          "text": "Голос на валике — Венн. Она не освобождает машину: она хочет стать её голосом. Город будет дышать по её слову."
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_ev_recording"
+        },
+        {
+          "type": "flag_set",
+          "flag": "ded_ritual"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "ded_motive"
+        }
+      ],
+      "hint": "нужны: валик фонографа и разгаданный обряд"
+    },
+    {
+      "label": "Перечитать дело",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Улики приколоты к доске, нити натянуты. Чего не хватает — подскажут подсказки под кнопками. Записи о деле — в кодексе."
+        }
+      ],
+      "hint": "ничего не меняет"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "id": "rule_seal_blessed",
+  "label": "Печать с благословением Галлиана",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "skill_check_gate",
+      "skill": "occult",
+      "difficulty": 30,
+      "success_effects": [
+        {
+          "type": "set_flag",
+          "flag": "ending_sealed"
+        },
+        {
+          "type": "game_over_victory"
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "change_sanity",
+          "delta": -6
+        },
+        {
+          "type": "show_message",
+          "text": "Слова рассыпаются, ядро ревёт. Соберитесь и попробуйте снова."
+        }
+      ]
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_finale"
+}

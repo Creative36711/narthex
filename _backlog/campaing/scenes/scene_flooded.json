@@ -1,0 +1,1121 @@
+{
+  "id": "scene_flooded",
+  "label": "Затопленная галерея",
+  "location": "loc_undercity",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_flooded_open",
+      "label": "Шлюз открыт",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#030604",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#14201c",
+                  "to": "#040806",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "галерея"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 300,
+              "cy": 120,
+              "rx": 170,
+              "ry": 160,
+              "fill": "#0a100e",
+              "stroke": "#2a3a34",
+              "stroke_width": 10
+            },
+            "label": "арка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 130,
+              "y": 120,
+              "w": 30,
+              "h": 480,
+              "fill": "#2a3a34"
+            },
+            "label": "столб арки"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 120,
+              "rx": 170,
+              "ry": 160,
+              "fill": "#0a100e",
+              "stroke": "#2a3a34",
+              "stroke_width": 10
+            },
+            "label": "арка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 120,
+              "w": 30,
+              "h": 480,
+              "fill": "#2a3a34"
+            },
+            "label": "столб арки"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 980,
+              "cy": 120,
+              "rx": 170,
+              "ry": 160,
+              "fill": "#0a100e",
+              "stroke": "#2a3a34",
+              "stroke_width": 10
+            },
+            "label": "арка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 810,
+              "y": 120,
+              "w": 30,
+              "h": 480,
+              "fill": "#2a3a34"
+            },
+            "label": "столб арки"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1210,
+              "y": 120,
+              "w": 30,
+              "h": 480,
+              "fill": "#2a3a34"
+            },
+            "label": "столб арки"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1010,
+              "cy": 360,
+              "rx": 120,
+              "ry": 120,
+              "fill": {
+                "gradient": {
+                  "from": "#6a5a3a",
+                  "to": "#2a2010",
+                  "angle": 90
+                }
+              },
+              "stroke": "#1a140a",
+              "stroke_width": 8
+            },
+            "label": "глубокий шлюз"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1010,
+              "cy": 360,
+              "rx": 80,
+              "ry": 80,
+              "fill": "#3a2e1a"
+            },
+            "label": "крышка шлюза"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 940,
+              "y1": 360,
+              "x2": 1080,
+              "y2": 360,
+              "color": "#b08d4a",
+              "width": 8
+            },
+            "label": "запорная спица"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 1010,
+              "y1": 290,
+              "x2": 1010,
+              "y2": 430,
+              "color": "#b08d4a",
+              "width": 8
+            },
+            "label": "запорная спица"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 985,
+              "y": 335,
+              "w": 50,
+              "h": 50,
+              "fill": "#1a140a",
+              "radius": 6
+            },
+            "label": "замочная скважина-шестерня"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1010,
+              "cy": 360,
+              "rx": 180,
+              "ry": 180,
+              "fill": "#7ad0b0"
+            },
+            "label": "гул из-за шлюза",
+            "opacity": 0.06
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 610,
+              "w": 1280,
+              "h": 110,
+              "fill": {
+                "gradient": {
+                  "from": "#1a4a3a",
+                  "to": "#061410",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "стоячая вода",
+            "opacity": 0.92
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 630,
+              "x2": 60,
+              "y2": 630,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 110,
+              "y1": 666,
+              "x2": 170,
+              "y2": 666,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 220,
+              "y1": 630,
+              "x2": 280,
+              "y2": 630,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 330,
+              "y1": 666,
+              "x2": 390,
+              "y2": 666,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 440,
+              "y1": 630,
+              "x2": 500,
+              "y2": 630,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 550,
+              "y1": 666,
+              "x2": 610,
+              "y2": 666,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 660,
+              "y1": 630,
+              "x2": 720,
+              "y2": 630,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 770,
+              "y1": 666,
+              "x2": 830,
+              "y2": 666,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 880,
+              "y1": 630,
+              "x2": 940,
+              "y2": 630,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 990,
+              "y1": 666,
+              "x2": 1050,
+              "y2": 666,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 1100,
+              "y1": 630,
+              "x2": 1160,
+              "y2": 630,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 1210,
+              "y1": 666,
+              "x2": 1270,
+              "y2": 666,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 380,
+              "y": 550,
+              "w": 180,
+              "h": 50,
+              "fill": "#3a3428"
+            },
+            "label": "обломки мостков",
+            "rotate": -4
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 470,
+              "cy": 545,
+              "rx": 40,
+              "ry": 14,
+              "fill": "#5a5040"
+            },
+            "label": "брошенная куртка кочегара"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 500,
+              "cy": 548,
+              "rx": 8,
+              "ry": 8,
+              "fill": "#c9a24a"
+            },
+            "label": "блеск медальона",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 20,
+              "y": 300,
+              "w": 120,
+              "h": 300,
+              "fill": "#030504"
+            },
+            "label": "проход в коллектор"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 300,
+              "w": 1280,
+              "h": 260,
+              "fill": {
+                "gradient": {
+                  "from": "#4a6a5a",
+                  "to": "#00000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "испарения",
+            "opacity": 0.25
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 80,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 410,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 600,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 930,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1120,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 90,
+              "fill": {
+                "gradient": {
+                  "from": "#000000",
+                  "to": "#00000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "виньетка верх",
+            "opacity": 0.7
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 610,
+              "w": 1280,
+              "h": 110,
+              "fill": {
+                "gradient": {
+                  "from": "#00000000",
+                  "to": "#000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "виньетка низ",
+            "opacity": 0.7
+          }
+        ]
+      },
+      "condition": {
+        "flag": "deep_lock_open"
+      }
+    },
+    {
+      "id": "state_flooded",
+      "label": "Обычно",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#030604",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#14201c",
+                  "to": "#040806",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "галерея"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 300,
+              "cy": 120,
+              "rx": 170,
+              "ry": 160,
+              "fill": "#0a100e",
+              "stroke": "#2a3a34",
+              "stroke_width": 10
+            },
+            "label": "арка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 130,
+              "y": 120,
+              "w": 30,
+              "h": 480,
+              "fill": "#2a3a34"
+            },
+            "label": "столб арки"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 120,
+              "rx": 170,
+              "ry": 160,
+              "fill": "#0a100e",
+              "stroke": "#2a3a34",
+              "stroke_width": 10
+            },
+            "label": "арка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 120,
+              "w": 30,
+              "h": 480,
+              "fill": "#2a3a34"
+            },
+            "label": "столб арки"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 980,
+              "cy": 120,
+              "rx": 170,
+              "ry": 160,
+              "fill": "#0a100e",
+              "stroke": "#2a3a34",
+              "stroke_width": 10
+            },
+            "label": "арка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 810,
+              "y": 120,
+              "w": 30,
+              "h": 480,
+              "fill": "#2a3a34"
+            },
+            "label": "столб арки"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1210,
+              "y": 120,
+              "w": 30,
+              "h": 480,
+              "fill": "#2a3a34"
+            },
+            "label": "столб арки"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1010,
+              "cy": 360,
+              "rx": 120,
+              "ry": 120,
+              "fill": {
+                "gradient": {
+                  "from": "#6a5a3a",
+                  "to": "#2a2010",
+                  "angle": 90
+                }
+              },
+              "stroke": "#1a140a",
+              "stroke_width": 8
+            },
+            "label": "глубокий шлюз"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1010,
+              "cy": 360,
+              "rx": 80,
+              "ry": 80,
+              "fill": "#3a2e1a"
+            },
+            "label": "крышка шлюза"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 940,
+              "y1": 360,
+              "x2": 1080,
+              "y2": 360,
+              "color": "#b08d4a",
+              "width": 8
+            },
+            "label": "запорная спица"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 1010,
+              "y1": 290,
+              "x2": 1010,
+              "y2": 430,
+              "color": "#b08d4a",
+              "width": 8
+            },
+            "label": "запорная спица"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 985,
+              "y": 335,
+              "w": 50,
+              "h": 50,
+              "fill": "#1a140a",
+              "radius": 6
+            },
+            "label": "замочная скважина-шестерня"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1010,
+              "cy": 360,
+              "rx": 180,
+              "ry": 180,
+              "fill": "#7ad0b0"
+            },
+            "label": "гул из-за шлюза",
+            "opacity": 0.06
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 540,
+              "w": 1280,
+              "h": 180,
+              "fill": {
+                "gradient": {
+                  "from": "#1a4a3a",
+                  "to": "#061410",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "стоячая вода",
+            "opacity": 0.92
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 560,
+              "x2": 60,
+              "y2": 560,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 110,
+              "y1": 596,
+              "x2": 170,
+              "y2": 596,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 220,
+              "y1": 560,
+              "x2": 280,
+              "y2": 560,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 330,
+              "y1": 596,
+              "x2": 390,
+              "y2": 596,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 440,
+              "y1": 560,
+              "x2": 500,
+              "y2": 560,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 550,
+              "y1": 596,
+              "x2": 610,
+              "y2": 596,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 660,
+              "y1": 560,
+              "x2": 720,
+              "y2": 560,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 770,
+              "y1": 596,
+              "x2": 830,
+              "y2": 596,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 880,
+              "y1": 560,
+              "x2": 940,
+              "y2": 560,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 990,
+              "y1": 596,
+              "x2": 1050,
+              "y2": 596,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 1100,
+              "y1": 560,
+              "x2": 1160,
+              "y2": 560,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 1210,
+              "y1": 596,
+              "x2": 1270,
+              "y2": 596,
+              "color": "#4a8a7a",
+              "width": 2
+            },
+            "label": "рябь",
+            "opacity": 0.45
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 380,
+              "y": 550,
+              "w": 180,
+              "h": 50,
+              "fill": "#3a3428"
+            },
+            "label": "обломки мостков",
+            "rotate": -4
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 470,
+              "cy": 545,
+              "rx": 40,
+              "ry": 14,
+              "fill": "#5a5040"
+            },
+            "label": "брошенная куртка кочегара"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 500,
+              "cy": 548,
+              "rx": 8,
+              "ry": 8,
+              "fill": "#c9a24a"
+            },
+            "label": "блеск медальона",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 20,
+              "y": 300,
+              "w": 120,
+              "h": 300,
+              "fill": "#030504"
+            },
+            "label": "проход в коллектор"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 300,
+              "w": 1280,
+              "h": 260,
+              "fill": {
+                "gradient": {
+                  "from": "#4a6a5a",
+                  "to": "#00000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "испарения",
+            "opacity": 0.25
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 80,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 410,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 600,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 930,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1120,
+              "cy": 404.0,
+              "rx": 220,
+              "ry": 91.0,
+              "fill": "#4a6a5a"
+            },
+            "label": "испарения клуб",
+            "opacity": 0.175
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 90,
+              "fill": {
+                "gradient": {
+                  "from": "#000000",
+                  "to": "#00000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "виньетка верх",
+            "opacity": 0.7
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 610,
+              "w": 1280,
+              "h": 110,
+              "fill": {
+                "gradient": {
+                  "from": "#00000000",
+                  "to": "#000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "виньетка низ",
+            "opacity": 0.7
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_remains",
+      "label": "Обломки мостков",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 380,
+      "y": 520,
+      "w": 180,
+      "h": 90,
+      "condition": null,
+      "default_entity": "item_jens_jacket"
+    },
+    {
+      "id": "slot_deep_lock",
+      "label": "Глубокий шлюз",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 890,
+      "y": 240,
+      "w": 240,
+      "h": 240,
+      "condition": null,
+      "default_entity": "item_deep_lock",
+      "use_with": [
+        {
+          "item": "item_valve_key",
+          "consume": false,
+          "effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_open_deep_lock"
+            }
+          ],
+          "message": "Ключ-шестерня входит в скважину. Механизм шлюза нехотя проворачивается."
+        }
+      ]
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Назад, в коллектор",
+      "area": {
+        "x": 20,
+        "y": 300,
+        "w": 120,
+        "h": 300
+      },
+      "go_to_scene": "scene_collector"
+    }
+  ],
+  "chapter": "ch_depths"
+}

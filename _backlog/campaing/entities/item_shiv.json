@@ -1,0 +1,22 @@
+{
+  "id": "item_shiv",
+  "type": "item",
+  "category": "weapon",
+  "label": "Заточка",
+  "description": "Заострённая спица от зонта.",
+  "weight": 0.2,
+  "stackable": false,
+  "value": {
+    "token": 1
+  },
+  "equip_slot": "weapon",
+  "weapon_data": {
+    "skill": "melee",
+    "damage": "1d4",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": false,
+    "label": "заточка"
+  }
+}

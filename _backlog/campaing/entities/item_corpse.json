@@ -1,0 +1,147 @@
+{
+  "id": "item_corpse",
+  "type": "item",
+  "category": "scenery",
+  "label": "Тело Томаса Сола",
+  "description": "Кочегар, тридцать восемь лет. Грудь вскрыта и зашита латунной проволокой. Под швом что-то мерно тикает.",
+  "weight": 70,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Извлечь механизм из груди",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "medicine",
+          "difficulty": 50,
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_ev_heart",
+              "quantity": 1
+            },
+            {
+              "type": "set_flag",
+              "flag": "body_heart_taken"
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_clock_heart"
+            },
+            {
+              "type": "show_message",
+              "text": "Вы перерезаете латунные жилы. Механизм в ладони ещё тёплый — и всё ещё тикает."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "advance_time",
+              "ticks": 1
+            },
+            {
+              "type": "change_sanity",
+              "delta": -2
+            },
+            {
+              "type": "show_message",
+              "text": "Пальцы соскальзывают с проволоки. Механизм дёргается, как живой. Нужна передышка."
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "body_heart_taken"
+        }
+      ],
+      "hint": "проверка Медицины; провал стоит часа и капли рассудка"
+    },
+    {
+      "label": "Осмотреть руки и одежду",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": 45,
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "body_soot_found"
+            },
+            {
+              "type": "show_message",
+              "text": "Под ногтями — жирная сажа паропровода высокого давления. На запястье — затёртая бирка смены: «Кл. 7, ночь»."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "advance_time",
+              "ticks": 1
+            },
+            {
+              "type": "show_message",
+              "text": "Обычная сажа, обычные мозоли. Взгляд скользит. Стоит посмотреть ещё раз."
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "body_soot_found"
+        }
+      ],
+      "hint": "проверка Внимательности"
+    },
+    {
+      "label": "Прочесть гравировку на латуни",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "occult",
+          "difficulty": 40,
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "body_engraving_read"
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_order"
+            },
+            {
+              "type": "show_message",
+              "text": "Литургический шрифт Ордена: «И СЕДЬМОЙ КОЛОКОЛ ОБРЕТЁТ ГОЛОС». Это не молитва Шестерни — это строка из запретного свода."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "advance_time",
+              "ticks": 1
+            },
+            {
+              "type": "change_sanity",
+              "delta": -1
+            },
+            {
+              "type": "show_message",
+              "text": "Буквы плывут, сплетаясь в шестерни. Голова гудит."
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "body_heart_taken"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "body_engraving_read"
+        }
+      ],
+      "hint": "нужно извлечённое сердце; проверка Литургики"
+    }
+  ]
+}

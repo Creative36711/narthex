@@ -1,0 +1,9 @@
+{
+  "id": "item_ev_valve_tag",
+  "type": "item",
+  "category": "evidence",
+  "label": "Журнал спусков клапана №7",
+  "description": "Жестяные бирки со стойки клапана. Семь ночных спусков в шлюз — и даты совпадают с днями пропажи жертв.",
+  "weight": 0.2,
+  "stackable": false
+}

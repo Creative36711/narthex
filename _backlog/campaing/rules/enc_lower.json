@@ -1,0 +1,67 @@
+{
+  "encounter_tables": [
+    {
+      "id": "enc_lower",
+      "rolls": 1,
+      "entries": [
+        {
+          "weight": 7,
+          "type": "nothing"
+        },
+        {
+          "weight": 2,
+          "type": "combat",
+          "enemies": [
+            {
+              "entity": "npc_scavenger",
+              "count_min": 1,
+              "count_max": 2
+            }
+          ],
+          "arena": "arena_alley",
+          "intro": "Из подворотни выходят фигуры с обрезками труб."
+        },
+        {
+          "weight": 1,
+          "type": "skill_check",
+          "skill": "spot",
+          "difficulty": 50,
+          "message": "В давке у паровой конки кто-то трётся о ваш карман.",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Вы перехватываете тонкое запястье. Воришка вырывается и исчезает в хмари."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "remove_item",
+              "item": "item_token",
+              "quantity": 3
+            },
+            {
+              "type": "show_message",
+              "text": "Кошель стал легче на три жетона."
+            }
+          ]
+        },
+        {
+          "weight": 1,
+          "type": "event",
+          "message": "У стены — брошенный ящик патрульных.",
+          "effects": [
+            {
+              "type": "add_item",
+              "item": "item_filter",
+              "quantity": 1
+            },
+            {
+              "type": "show_message",
+              "text": "В ящике нашёлся почти целый фильтр."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

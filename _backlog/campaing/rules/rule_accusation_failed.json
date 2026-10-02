@@ -1,0 +1,46 @@
+{
+  "id": "rule_accusation_failed",
+  "label": "Обвинение отвергнуто",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "accusation_failed"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -5
+    },
+    {
+      "type": "banner",
+      "text": "Обвинение отвергнуто",
+      "seconds": 4
+    },
+    {
+      "type": "show_message",
+      "text": "Совет смеётся. Венн качает головой: «Бедный переутомлённый дознаватель». Гвардейцы вышвыривают вас из Шпиля. Путь туда закрыт."
+    },
+    {
+      "type": "block_path",
+      "from": "loc_station",
+      "to": "loc_spire"
+    },
+    {
+      "type": "block_path",
+      "from": "loc_cathedral",
+      "to": "loc_spire"
+    },
+    {
+      "type": "teleport_player",
+      "location": "loc_lower",
+      "scene": "scene_lower_street"
+    },
+    {
+      "type": "advance_time",
+      "ticks": 4
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_city"
+}

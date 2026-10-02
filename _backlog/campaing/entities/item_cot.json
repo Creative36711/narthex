@@ -1,0 +1,47 @@
+{
+  "id": "item_cot",
+  "type": "item",
+  "category": "scenery",
+  "label": "Койка в конторе",
+  "description": "Продавленная казённая койка. Спать на ней можно, высыпаться — нет.",
+  "weight": 30,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Поспать до утра (8 часов)",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 8
+        },
+        {
+          "type": "change_hp",
+          "delta": 2
+        },
+        {
+          "type": "change_sanity",
+          "delta": 2
+        },
+        {
+          "type": "show_message",
+          "text": "Сон без снов. Только тиканье стенных часов."
+        }
+      ],
+      "hint": "8 часов; восстанавливает немного здоровья и рассудка"
+    },
+    {
+      "label": "Вздремнуть (3 часа)",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 3
+        },
+        {
+          "type": "change_hp",
+          "delta": 1
+        }
+      ],
+      "hint": "3 часа"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "rule_martha_key",
+  "label": "Марта отдаёт ключ брата",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "add_item",
+      "item": "item_valve_key",
+      "quantity": 1
+    },
+    {
+      "type": "set_flag",
+      "flag": "martha_gave_key"
+    }
+  ],
+  "manual": true
+}

@@ -1,0 +1,17 @@
+{
+  "id": "rule_pik_join",
+  "label": "Пик присоединяется",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "pik_joined"
+    },
+    {
+      "type": "join_party",
+      "entity": "npc_pik"
+    }
+  ],
+  "manual": true
+}

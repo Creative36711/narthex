@@ -1,0 +1,75 @@
+{
+  "id": "item_jens_jacket",
+  "type": "item",
+  "category": "scenery",
+  "label": "Брошенная куртка кочегара",
+  "description": "Куртка на обломках мостков. Из воды рядом торчит латунная рука — и шевелит пальцами.",
+  "weight": 5,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Позвать Йенса по имени",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "persuade",
+          "difficulty": 45,
+          "success_effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_jens_peace"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_jens_fight"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "jens_song"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "jens_found"
+        }
+      ],
+      "hint": "Марта рассказала о колыбельной; проверка Убеждения"
+    },
+    {
+      "label": "Подойти ближе",
+      "effects": [
+        {
+          "type": "fire_rule",
+          "rule": "rule_jens_fight"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "jens_found"
+        }
+      ],
+      "hint": "будет бой"
+    },
+    {
+      "label": "Осмотреть мостки",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Здесь Йенс отдал свой медальон Марте. Больше ничего не осталось."
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "jens_found"
+        }
+      ]
+    }
+  ]
+}

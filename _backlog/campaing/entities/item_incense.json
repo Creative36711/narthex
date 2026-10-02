@@ -1,0 +1,26 @@
+{
+  "id": "item_incense",
+  "type": "item",
+  "category": "medicine",
+  "label": "Ладанное масло",
+  "description": "Масло, которым монахи смазывают молитвенные барабаны. Его запах проясняет мысли.",
+  "weight": 0.1,
+  "stackable": true,
+  "value": {
+    "token": 5
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "apply_status",
+        "target": "player",
+        "status": "status_clarity"
+      },
+      {
+        "type": "change_sanity",
+        "delta": 2
+      }
+    ],
+    "consume": true
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "id": "item_tribune",
+  "type": "item",
+  "category": "scenery",
+  "label": "Кафедра обвинения",
+  "description": "Отсюда по древнему праву любой может обвинить члена Совета — если готов поставить на кон свою голову.",
+  "weight": 200,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Обвинить советницу Венн — предъявить запись",
+      "effects": [
+        {
+          "type": "fire_rule",
+          "rule": "rule_expose_venn"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "ded_payer"
+        },
+        {
+          "type": "flag_set",
+          "flag": "ded_ritual"
+        },
+        {
+          "type": "has_item",
+          "item": "item_ev_recording"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "venn_exposed"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "accusation_failed"
+        },
+        {
+          "type": "time_of_day",
+          "value": [
+            "morning",
+            "day",
+            "evening"
+          ]
+        }
+      ],
+      "hint": "ордер, обряд и голос Венн на валике — неопровержимо"
+    },
+    {
+      "label": "Обвинить советницу Венн — без записи",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "persuade",
+          "difficulty": 45,
+          "success_effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_expose_venn"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_accusation_failed"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "ded_payer"
+        },
+        {
+          "type": "flag_set",
+          "flag": "ded_ritual"
+        },
+        {
+          "type": "not",
+          "condition": {
+            "type": "has_item",
+            "item": "item_ev_recording"
+          }
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "venn_exposed"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "accusation_failed"
+        },
+        {
+          "type": "time_of_day",
+          "value": [
+            "morning",
+            "day",
+            "evening"
+          ]
+        }
+      ],
+      "hint": "проверка Убеждения; провал — изгнание из Шпиля"
+    },
+    {
+      "label": "Обвинить Архимеханика Галлиана",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "wrong_accused"
+        },
+        {
+          "type": "set_flag",
+          "flag": "gallian_arrested"
+        },
+        {
+          "type": "banner",
+          "text": "Галлиан взят под стражу",
+          "seconds": 3
+        },
+        {
+          "type": "show_message",
+          "text": "Гвардейцы уводят Архимеханика. Венн благодарно кивает вам с подиума. Почему-то от этого кивка холодеет спина."
+        },
+        {
+          "type": "change_sanity",
+          "delta": -3
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "ded_maker"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "ded_payer"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "wrong_accused"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "venn_exposed"
+        }
+      ],
+      "hint": "литургический шрифт — его Орден…"
+    },
+    {
+      "label": "Обвинить бригадира Кальда",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "wrong_accused"
+        },
+        {
+          "type": "set_flag",
+          "flag": "bruno_arrested"
+        },
+        {
+          "type": "banner",
+          "text": "Бруно Кальд взят под стражу",
+          "seconds": 3
+        },
+        {
+          "type": "show_message",
+          "text": "За Бруно приходят ночью. Литейные гудят, как растревоженный улей. Венн улыбается."
+        },
+        {
+          "type": "change_sanity",
+          "delta": -3
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "ded_maker"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "ded_payer"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "wrong_accused"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "venn_exposed"
+        }
+      ],
+      "hint": "все жертвы — его люди…"
+    },
+    {
+      "label": "Осмотреть кафедру",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Латунный рупор, отполированный тысячами рук. Обвинение без доказательств здесь стоит головы обвинителя."
+        }
+      ]
+    }
+  ]
+}

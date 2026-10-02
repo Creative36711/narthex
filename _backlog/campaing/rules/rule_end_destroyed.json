@@ -1,0 +1,17 @@
+{
+  "id": "rule_end_destroyed",
+  "label": "Финал: Сердце остановлено",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "ending_destroyed"
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_finale"
+}

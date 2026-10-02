@@ -1,0 +1,22 @@
+{
+  "id": "item_bread",
+  "type": "item",
+  "category": "food",
+  "label": "Чёрный хлеб",
+  "description": "Плотный хлеб из угольной муки. Скрипит на зубах, но держит.",
+  "weight": 0.3,
+  "stackable": true,
+  "value": {
+    "token": 3
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_food",
+        "delta": 30
+      }
+    ],
+    "consume": true
+  }
+}

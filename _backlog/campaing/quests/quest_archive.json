@@ -1,0 +1,70 @@
+{
+  "id": "quest_archive",
+  "label": "Запретная литания",
+  "chapter": "ch_city",
+  "description": "Из скриптория пропала страница запретного свода. Брат Тобиас знает, где её искать.",
+  "journal_entries": {
+    "j_a_start": "Тобиас уверен: брат Ансель, звонарь, спрятал украденную страницу в своём сундуке на колокольне. Ансель пропал первым. Ключ от сундука — у меня.",
+    "j_a_return": "Страница «Литании Пробуждения» у меня. Тобиас сможет прочесть её.",
+    "j_a_done": "Тобиас прочёл литанию: обряд Пробуждения и слова, которыми Орден когда-то запечатал Сердце."
+  },
+  "stages": [
+    {
+      "id": "stage_a_tower",
+      "label": "Колокольня",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_archive",
+          "text_key": "j_a_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_a_return",
+          "conditions": [
+            {
+              "type": "has_item",
+              "item": "item_ev_litany"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_a_return",
+      "label": "Вернуться к Тобиасу",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_archive",
+          "text_key": "j_a_return"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_a_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "tobias_told"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_a_done",
+      "label": "Литания прочитана",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_archive",
+          "text_key": "j_a_done"
+        }
+      ],
+      "final": true,
+      "outcome": "success"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "recipe_bandage",
+  "label": "Бинт с карболкой",
+  "description": "Ветошь, вываренная в ерше.",
+  "inputs": [
+    {
+      "item": "item_rag",
+      "quantity": 2
+    },
+    {
+      "item": "item_gin",
+      "quantity": 1
+    }
+  ],
+  "skill": {
+    "id": "medicine",
+    "difficulty": 25
+  },
+  "time_ticks": 1,
+  "output": {
+    "item": "item_bandage",
+    "quantity": 2
+  }
+}

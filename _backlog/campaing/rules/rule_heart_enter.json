@@ -1,0 +1,69 @@
+{
+  "id": "rule_heart_enter",
+  "label": "Битва у Сердца",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_engine_hall"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "venn_defeated"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "at_heart"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -5
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_heart"
+    },
+    {
+      "type": "remove_entity",
+      "entity": "npc_venn"
+    },
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_venn_boss",
+          "count": 1
+        },
+        {
+          "entity": "npc_clockman",
+          "count": 2
+        }
+      ],
+      "arena": "arena_heart",
+      "intro": "«Ты опоздал, дознаватель. Сердце уже слышит меня».",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "venn_defeated"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_litany"
+        },
+        {
+          "type": "banner",
+          "text": "Голос Венн умолк",
+          "seconds": 4
+        },
+        {
+          "type": "show_message",
+          "text": "Кабели отпускают тело советницы. В наступившей тишине Сердце бьётся громче — и зовёт вас к ядру."
+        }
+      ],
+      "no_flee": true
+    }
+  ],
+  "chapter": "ch_finale"
+}

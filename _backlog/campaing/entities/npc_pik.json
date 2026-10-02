@@ -1,0 +1,34 @@
+{
+  "id": "npc_pik",
+  "type": "npc",
+  "label": "Пик, уличная девчонка",
+  "description": "Тощая беспризорница в огромных лётных очках. Знает каждый люк Нижнего Ряда и продаёт сведения за еду.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 8,
+    "CON": 10,
+    "SIZ": 7,
+    "DEX": 16,
+    "INT": 13,
+    "POW": 11,
+    "CHA": 12
+  },
+  "skills": {
+    "stealth": 70,
+    "spot": 65,
+    "melee": 35,
+    "dodge": 60,
+    "lockpick": 55
+  },
+  "inventory": [],
+  "equipment": {
+    "weapon": "item_shiv"
+  },
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/pik.ink",
+  "faction": "faction_lower",
+  "base_disposition": 0
+}

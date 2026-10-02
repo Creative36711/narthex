@@ -1,0 +1,22 @@
+{
+  "id": "item_ration",
+  "type": "item",
+  "category": "food",
+  "label": "Паёк Палаты",
+  "description": "Брикет прессованной каши в вощёной бумаге со штампом Палаты Тишины.",
+  "weight": 0.3,
+  "stackable": true,
+  "value": {
+    "token": 4
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_food",
+        "delta": 40
+      }
+    ],
+    "consume": true
+  }
+}

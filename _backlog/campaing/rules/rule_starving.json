@@ -1,0 +1,17 @@
+{
+  "id": "rule_starving",
+  "label": "Голод: истощение",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_hp",
+      "delta": -1
+    },
+    {
+      "type": "show_message",
+      "text": "Желудок сводит судорогой. Нужно поесть."
+    }
+  ],
+  "manual": true
+}

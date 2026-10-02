@@ -1,0 +1,23 @@
+{
+  "id": "rule_gallian_bless",
+  "label": "Благословение Галлиана",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "gallian_blessing"
+    },
+    {
+      "type": "add_item",
+      "item": "item_incense",
+      "quantity": 2
+    },
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_clarity"
+    }
+  ],
+  "manual": true
+}

@@ -1,0 +1,39 @@
+{
+  "id": "npc_drew",
+  "type": "npc",
+  "label": "Кассиан Дрю, секретарь Совета",
+  "description": "Нервный секретарь канцелярии в слишком дорогом сюртуке. Пальцы в чернилах, долги в карточных клубах.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 9,
+    "CON": 9,
+    "SIZ": 10,
+    "DEX": 11,
+    "INT": 14,
+    "POW": 8,
+    "CHA": 10
+  },
+  "skills": {
+    "persuade": 40,
+    "insight": 35
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [
+    {
+      "time_range": [
+        8,
+        20
+      ],
+      "location": "loc_spire",
+      "scene": "scene_chancery",
+      "slot": "slot_drew"
+    }
+  ],
+  "dialogue": "dialogues/drew.ink",
+  "faction": "faction_council",
+  "base_disposition": 0
+}

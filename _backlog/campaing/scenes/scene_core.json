@@ -1,0 +1,728 @@
+{
+  "id": "scene_core",
+  "label": "Ядро Сердца",
+  "location": "loc_heart",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_core",
+      "label": "Сердце бьётся",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#020404",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#081412",
+                  "to": "#020404",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "ядро"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 320,
+              "rx": 330,
+              "ry": 330,
+              "fill": "#00000000",
+              "stroke": "#55927b",
+              "stroke_width": 6
+            },
+            "label": "кольцо ядра",
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 320,
+              "rx": 270,
+              "ry": 270,
+              "fill": "#00000000",
+              "stroke": "#437261",
+              "stroke_width": 6
+            },
+            "label": "кольцо ядра",
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 320,
+              "rx": 210,
+              "ry": 210,
+              "fill": "#00000000",
+              "stroke": "#315346",
+              "stroke_width": 6
+            },
+            "label": "кольцо ядра",
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 777,
+              "y": 294,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 0
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 769,
+              "y": 344,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 18
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 746,
+              "y": 390,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 36
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 710,
+              "y": 426,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 54
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 664,
+              "y": 449,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 72
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 614,
+              "y": 457,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 90
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 563,
+              "y": 449,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 108
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 518,
+              "y": 426,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 126
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 482,
+              "y": 390,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 144
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 459,
+              "y": 344,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 162
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 451,
+              "y": 294,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 180
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 459,
+              "y": 243,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 198
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 482,
+              "y": 198,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 216
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 518,
+              "y": 162,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 234
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 563,
+              "y": 139,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 252
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 614,
+              "y": 131,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 270
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 664,
+              "y": 139,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 288
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 710,
+              "y": 162,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 306
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 746,
+              "y": 198,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 324
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 769,
+              "y": 243,
+              "w": 52,
+              "h": 52,
+              "fill": "#433426"
+            },
+            "label": "венец ядра зуб",
+            "rotate": 342
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 320,
+              "rx": 150,
+              "ry": 150,
+              "fill": "#4a3a2a",
+              "stroke": "#2c2319",
+              "stroke_width": 3
+            },
+            "label": "венец ядра"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 320,
+              "rx": 82.5,
+              "ry": 82.5,
+              "fill": "#30261b"
+            },
+            "label": "венец ядра обод"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 320,
+              "rx": 27.0,
+              "ry": 27.0,
+              "fill": "#80756a"
+            },
+            "label": "венец ядра ось"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 320,
+              "rx": 110,
+              "ry": 130,
+              "fill": {
+                "gradient": {
+                  "from": "#e0fff4",
+                  "to": "#3a8a74",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "Сердце-Двигатель"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 320,
+              "rx": 220,
+              "ry": 220,
+              "fill": "#7ad0b0"
+            },
+            "label": "сияние",
+            "opacity": 0.1
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 1240,
+              "y2": 320,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 1160,
+              "y2": 620,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 940,
+              "y2": 840,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 640,
+              "y2": 920,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 340,
+              "y2": 840,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 120,
+              "y2": 620,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 40,
+              "y2": 320,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 120,
+              "y2": 20,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 340,
+              "y2": -200,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 640,
+              "y2": -280,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 940,
+              "y2": -200,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 320,
+              "x2": 1160,
+              "y2": 20,
+              "color": "#7ad0b0",
+              "width": 2
+            },
+            "label": "силовая жила",
+            "opacity": 0.12
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 245,
+              "cy": 519,
+              "rx": 26,
+              "ry": 30,
+              "fill": "#7a3a2a",
+              "stroke": "#b08d4a",
+              "stroke_width": 3
+            },
+            "label": "латунное сердце жертвы"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 333,
+              "cy": 478,
+              "rx": 26,
+              "ry": 30,
+              "fill": "#7a3a2a",
+              "stroke": "#b08d4a",
+              "stroke_width": 3
+            },
+            "label": "латунное сердце жертвы"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 469,
+              "cy": 450,
+              "rx": 26,
+              "ry": 30,
+              "fill": "#7a3a2a",
+              "stroke": "#b08d4a",
+              "stroke_width": 3
+            },
+            "label": "латунное сердце жертвы"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 633,
+              "cy": 440,
+              "rx": 26,
+              "ry": 30,
+              "fill": "#7a3a2a",
+              "stroke": "#b08d4a",
+              "stroke_width": 3
+            },
+            "label": "латунное сердце жертвы"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 797,
+              "cy": 449,
+              "rx": 26,
+              "ry": 30,
+              "fill": "#7a3a2a",
+              "stroke": "#b08d4a",
+              "stroke_width": 3
+            },
+            "label": "латунное сердце жертвы"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 937,
+              "cy": 475,
+              "rx": 26,
+              "ry": 30,
+              "fill": "#7a3a2a",
+              "stroke": "#b08d4a",
+              "stroke_width": 3
+            },
+            "label": "латунное сердце жертвы"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1029,
+              "cy": 515,
+              "rx": 26,
+              "ry": 30,
+              "fill": "#7a3a2a",
+              "stroke": "#b08d4a",
+              "stroke_width": 3
+            },
+            "label": "латунное сердце жертвы"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 600,
+              "w": 1280,
+              "h": 120,
+              "fill": {
+                "gradient": {
+                  "from": "#101a18",
+                  "to": "#020404",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "кольцевой мост"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 20,
+              "y": 300,
+              "w": 120,
+              "h": 300,
+              "fill": "#030504"
+            },
+            "label": "проход в машинный зал"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 90,
+              "fill": {
+                "gradient": {
+                  "from": "#000000",
+                  "to": "#00000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "виньетка верх",
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 610,
+              "w": 1280,
+              "h": 110,
+              "fill": {
+                "gradient": {
+                  "from": "#00000000",
+                  "to": "#000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "виньетка низ",
+            "opacity": 0.6
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_litany",
+      "label": "Сердце-Двигатель",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 520,
+      "y": 180,
+      "w": 240,
+      "h": 280,
+      "condition": null,
+      "default_entity": "npc_litany"
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Назад, в машинный зал",
+      "area": {
+        "x": 20,
+        "y": 300,
+        "w": 120,
+        "h": 300
+      },
+      "go_to_scene": "scene_engine_hall"
+    }
+  ],
+  "chapter": "ch_finale"
+}

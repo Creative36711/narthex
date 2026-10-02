@@ -1,0 +1,70 @@
+{
+  "id": "quest_marrow",
+  "label": "Долг хирурга",
+  "chapter": "ch_city",
+  "description": "Илзе Марроу делала сердца по заказу Совета. Теперь за ней придут.",
+  "journal_entries": {
+    "j_mar_start": "Марроу призналась: семь сердец заказала канцелярия Совета. Она отдаст журнал заказов, если её защитить — люди Шпиля придут этой ночью.",
+    "j_mar_saved": "Агенты Шпиля мертвы, Марроу жива. Журнал заказов у меня, а доктор научила готовить свой стимулятор.",
+    "j_mar_dead": "Марроу убили. Тот, кто взял журнал, привёл к ней смерть. Это был я."
+  },
+  "stages": [
+    {
+      "id": "stage_mar_protect",
+      "label": "Защитить Марроу",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_marrow",
+          "text_key": "j_mar_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_mar_saved",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "marrow_saved"
+            }
+          ]
+        },
+        {
+          "to": "stage_mar_dead",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "marrow_dead"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_mar_saved",
+      "label": "Марроу спасена",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_marrow",
+          "text_key": "j_mar_saved"
+        }
+      ],
+      "final": true,
+      "outcome": "success"
+    },
+    {
+      "id": "stage_mar_dead",
+      "label": "Марроу мертва",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_marrow",
+          "text_key": "j_mar_dead"
+        }
+      ],
+      "final": true,
+      "outcome": "failure"
+    }
+  ]
+}

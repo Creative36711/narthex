@@ -1,0 +1,36 @@
+{
+  "id": "rule_jens_peace",
+  "label": "Йенс узнаёт своё имя",
+  "once": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "jens_found"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "jens_found"
+    },
+    {
+      "type": "set_flag",
+      "flag": "jens_peace"
+    },
+    {
+      "type": "add_item",
+      "item": "item_locket",
+      "quantity": 1
+    },
+    {
+      "type": "change_sanity",
+      "delta": -2
+    },
+    {
+      "type": "show_message",
+      "text": "Вы напеваете колыбельную, о которой говорила Марта. Йенс замирает. Механизм в груди сбивается, замедляется… Он протягивает вам медальон и закрывает глаза."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_depths"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "recipe_antidote",
+  "label": "Тлен-отвар",
+  "description": "Рецепт сестры Вейл: мох, вываренный в ерше.",
+  "known": false,
+  "inputs": [
+    {
+      "item": "item_tlen_moss",
+      "quantity": 1
+    },
+    {
+      "item": "item_gin",
+      "quantity": 1
+    }
+  ],
+  "skill": {
+    "id": "medicine",
+    "difficulty": 30
+  },
+  "time_ticks": 1,
+  "output": {
+    "item": "item_antidote",
+    "quantity": 1
+  }
+}

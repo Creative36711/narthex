@@ -1,0 +1,29 @@
+{
+  "id": "npc_tobias",
+  "type": "npc",
+  "label": "Брат Тобиас, архивариус",
+  "description": "Подслеповатый хранитель скриптория. Носит три пары очков сразу и помнит, где лежит каждая страница за последние четыреста лет — кроме одной.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 7,
+    "CON": 9,
+    "SIZ": 8,
+    "DEX": 10,
+    "INT": 17,
+    "POW": 14,
+    "CHA": 10
+  },
+  "skills": {
+    "occult": 70,
+    "spot": 55
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/tobias.ink",
+  "faction": "faction_order",
+  "base_disposition": 10
+}

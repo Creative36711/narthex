@@ -1,0 +1,105 @@
+{
+  "id": "item_marrow_cabinet",
+  "type": "item",
+  "category": "scenery",
+  "label": "Запертый шкаф Марроу",
+  "description": "Тяжёлый шкаф с кодовым замком-шестернёй. Марроу не сводит с него глаз.",
+  "weight": 80,
+  "stackable": false,
+  "interact_options": [
+    {
+      "label": "Вскрыть замок, пока Марроу не смотрит",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "lockpick",
+          "difficulty": 45,
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_ev_ledger",
+              "quantity": 1
+            },
+            {
+              "type": "set_flag",
+              "flag": "ledger_stolen"
+            },
+            {
+              "type": "set_flag",
+              "flag": "marrow_doomed"
+            },
+            {
+              "type": "commit_crime",
+              "id": "crime_theft"
+            },
+            {
+              "type": "show_message",
+              "text": "Диск щёлкает. Внутри — журнал заказов. Вы прячете его под плащ. Марроу ничего не заметила… кажется."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "advance_time",
+              "ticks": 1
+            },
+            {
+              "type": "change_disposition",
+              "target": "npc_marrow",
+              "delta": -15
+            },
+            {
+              "type": "show_message",
+              "text": "Замок скрежещет. Марроу оборачивается: «Руки прочь от моих бумаг!»"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "ledger_stolen"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "marrow_saved"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "marrow_dead"
+        }
+      ],
+      "hint": "проверка Взлома; кража — преступление"
+    },
+    {
+      "label": "Забрать журнал из разгромленной мастерской",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_ev_ledger",
+          "quantity": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "ledger_stolen"
+        },
+        {
+          "type": "show_message",
+          "text": "Среди осколков — журнал заказов. Те, кто приходил за Марроу, искали не его."
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "marrow_dead"
+        },
+        {
+          "type": "not",
+          "condition": {
+            "type": "has_item",
+            "item": "item_ev_ledger"
+          }
+        }
+      ]
+    }
+  ]
+}

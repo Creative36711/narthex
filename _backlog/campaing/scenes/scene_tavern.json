@@ -1,0 +1,1120 @@
+{
+  "id": "scene_tavern",
+  "label": "Кабак «Мятый клапан»",
+  "location": "loc_lower",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_tavern",
+      "label": "Обычно",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#140c08",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 460,
+              "fill": {
+                "gradient": {
+                  "from": "#3a2418",
+                  "to": "#1e120c",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "стена кабака"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 90,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 180,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 270,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 360,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 450,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 540,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 630,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 720,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 810,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 900,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 990,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1170,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1260,
+              "y": 0,
+              "w": 12,
+              "h": 460,
+              "fill": "#2a180e"
+            },
+            "label": "балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 90,
+              "w": 1280,
+              "h": 16,
+              "fill": "#24140c"
+            },
+            "label": "поперечная балка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 440,
+              "y": 120,
+              "w": 400,
+              "h": 12,
+              "fill": "#2a180e"
+            },
+            "label": "полка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 440,
+              "y": 200,
+              "w": 400,
+              "h": 12,
+              "fill": "#2a180e"
+            },
+            "label": "полка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 455,
+              "y": 78,
+              "w": 16,
+              "h": 42,
+              "fill": "#3a6a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 457,
+              "y": 160,
+              "w": 14,
+              "h": 40,
+              "fill": "#5a2a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 483,
+              "y": 82,
+              "w": 16,
+              "h": 38,
+              "fill": "#6a3a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 485,
+              "y": 164,
+              "w": 14,
+              "h": 36,
+              "fill": "#3a5a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 511,
+              "y": 86,
+              "w": 16,
+              "h": 34,
+              "fill": "#8a7a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 513,
+              "y": 160,
+              "w": 14,
+              "h": 40,
+              "fill": "#7a6a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 539,
+              "y": 78,
+              "w": 16,
+              "h": 42,
+              "fill": "#2a3a5a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 541,
+              "y": 164,
+              "w": 14,
+              "h": 36,
+              "fill": "#5a2a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 567,
+              "y": 82,
+              "w": 16,
+              "h": 38,
+              "fill": "#3a6a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 569,
+              "y": 160,
+              "w": 14,
+              "h": 40,
+              "fill": "#3a5a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 595,
+              "y": 86,
+              "w": 16,
+              "h": 34,
+              "fill": "#6a3a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 597,
+              "y": 164,
+              "w": 14,
+              "h": 36,
+              "fill": "#7a6a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 623,
+              "y": 78,
+              "w": 16,
+              "h": 42,
+              "fill": "#8a7a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 625,
+              "y": 160,
+              "w": 14,
+              "h": 40,
+              "fill": "#5a2a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 651,
+              "y": 82,
+              "w": 16,
+              "h": 38,
+              "fill": "#2a3a5a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 653,
+              "y": 164,
+              "w": 14,
+              "h": 36,
+              "fill": "#3a5a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 679,
+              "y": 86,
+              "w": 16,
+              "h": 34,
+              "fill": "#3a6a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 681,
+              "y": 160,
+              "w": 14,
+              "h": 40,
+              "fill": "#7a6a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 707,
+              "y": 78,
+              "w": 16,
+              "h": 42,
+              "fill": "#6a3a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 709,
+              "y": 164,
+              "w": 14,
+              "h": 36,
+              "fill": "#5a2a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 735,
+              "y": 82,
+              "w": 16,
+              "h": 38,
+              "fill": "#8a7a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 737,
+              "y": 160,
+              "w": 14,
+              "h": 40,
+              "fill": "#3a5a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 763,
+              "y": 86,
+              "w": 16,
+              "h": 34,
+              "fill": "#2a3a5a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 765,
+              "y": 164,
+              "w": 14,
+              "h": 36,
+              "fill": "#7a6a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 791,
+              "y": 78,
+              "w": 16,
+              "h": 42,
+              "fill": "#3a6a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 793,
+              "y": 160,
+              "w": 14,
+              "h": 40,
+              "fill": "#5a2a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 819,
+              "y": 82,
+              "w": 16,
+              "h": 38,
+              "fill": "#6a3a2a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 821,
+              "y": 164,
+              "w": 14,
+              "h": 36,
+              "fill": "#3a5a3a",
+              "radius": 4
+            },
+            "label": "бутылка",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1000,
+              "cy": 230,
+              "rx": 90,
+              "ry": 110,
+              "fill": {
+                "gradient": {
+                  "from": "#a07040",
+                  "to": "#5a3a1a",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "медный перегонный куб"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 990,
+              "y": 60,
+              "w": 20,
+              "h": 80,
+              "fill": {
+                "gradient": {
+                  "from": "#b89470",
+                  "to": "#68492a",
+                  "angle": 0
+                }
+              },
+              "radius": 6
+            },
+            "label": "змеевик"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 991,
+              "cy": 110.0,
+              "rx": 26,
+              "ry": 20,
+              "fill": "#d8dccf"
+            },
+            "label": "пар куба",
+            "opacity": 0.2
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1009,
+              "cy": 85.0,
+              "rx": 36,
+              "ry": 28,
+              "fill": "#d8dccf"
+            },
+            "label": "пар куба",
+            "opacity": 0.17
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 991,
+              "cy": 60.0,
+              "rx": 46,
+              "ry": 36,
+              "fill": "#d8dccf"
+            },
+            "label": "пар куба",
+            "opacity": 0.13999999999999999
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1009,
+              "cy": 35.0,
+              "rx": 56,
+              "ry": 44,
+              "fill": "#d8dccf"
+            },
+            "label": "пар куба",
+            "opacity": 0.11000000000000001
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 460,
+              "w": 1280,
+              "h": 260,
+              "fill": {
+                "gradient": {
+                  "from": "#3a2618",
+                  "to": "#23170e",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "дощатый пол"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 482,
+              "x2": 1280,
+              "y2": 482,
+              "color": "#1d130c",
+              "width": 2
+            },
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 512,
+              "x2": 1280,
+              "y2": 512,
+              "color": "#1d130c",
+              "width": 2
+            },
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 542,
+              "x2": 1280,
+              "y2": 542,
+              "color": "#1d130c",
+              "width": 2
+            },
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 572,
+              "x2": 1280,
+              "y2": 572,
+              "color": "#1d130c",
+              "width": 2
+            },
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 602,
+              "x2": 1280,
+              "y2": 602,
+              "color": "#1d130c",
+              "width": 2
+            },
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 632,
+              "x2": 1280,
+              "y2": 632,
+              "color": "#1d130c",
+              "width": 2
+            },
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 662,
+              "x2": 1280,
+              "y2": 662,
+              "color": "#1d130c",
+              "width": 2
+            },
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 692,
+              "x2": 1280,
+              "y2": 692,
+              "color": "#1d130c",
+              "width": 2
+            },
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 615.0,
+              "cy": 560,
+              "rx": 77.0,
+              "ry": 14,
+              "fill": "#000000"
+            },
+            "label": "место тень",
+            "opacity": 0.35
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 380,
+              "y": 400,
+              "w": 520,
+              "h": 160,
+              "fill": {
+                "gradient": {
+                  "from": "#5a3820",
+                  "to": "#2a180c",
+                  "angle": 90
+                }
+              },
+              "radius": 6
+            },
+            "label": "барная стойка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 370,
+              "y": 390,
+              "w": 540,
+              "h": 22,
+              "fill": "#6a4428",
+              "radius": 4
+            },
+            "label": "столешница стойки"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 420,
+              "y": 360,
+              "w": 30,
+              "h": 32,
+              "fill": "#b08d4a",
+              "radius": 5
+            },
+            "label": "кружка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 820,
+              "y": 350,
+              "w": 50,
+              "h": 42,
+              "fill": "#7a6a4a",
+              "radius": 8
+            },
+            "label": "бочонок на стойке"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1020.0,
+              "cy": 620,
+              "rx": 77.0,
+              "ry": 14,
+              "fill": "#000000"
+            },
+            "label": "место тень",
+            "opacity": 0.35
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 900,
+              "y": 500,
+              "w": 230,
+              "h": 18,
+              "fill": {
+                "gradient": {
+                  "from": "#6e594d",
+                  "to": "#342216",
+                  "angle": 90
+                }
+              },
+              "radius": 3
+            },
+            "label": "стол в углу"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 910,
+              "y": 518,
+              "w": 12,
+              "h": 110,
+              "fill": "#2c1d13"
+            },
+            "label": "стол в углу ножка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1108,
+              "y": 518,
+              "w": 12,
+              "h": 110,
+              "fill": "#2c1d13"
+            },
+            "label": "стол в углу ножка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1080,
+              "y": 470,
+              "w": 22,
+              "h": 30,
+              "fill": "#3a6a3a",
+              "radius": 5
+            },
+            "label": "бутылка ерша"
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1010,
+              "cy": 420,
+              "rx": 70,
+              "ry": 70,
+              "fill": "#e0a040"
+            },
+            "label": "фонарь ореол",
+            "opacity": 0.13
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 996,
+              "y": 394,
+              "w": 28,
+              "h": 34,
+              "fill": "#2a2622",
+              "radius": 4
+            },
+            "label": "фонарь корпус"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1001,
+              "y": 400,
+              "w": 18,
+              "h": 22,
+              "fill": "#e0a040",
+              "radius": 3
+            },
+            "label": "фонарь огонь"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 32,
+              "y": 292,
+              "w": 136,
+              "h": 308,
+              "fill": "#1a1512"
+            },
+            "label": "дверь на улицу проём"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 40,
+              "y": 300,
+              "w": 120,
+              "h": 300,
+              "fill": {
+                "gradient": {
+                  "from": "#584537",
+                  "to": "#26170d",
+                  "angle": 0
+                }
+              },
+              "radius": 4
+            },
+            "label": "дверь на улицу"
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 100.0,
+              "y1": 306,
+              "x2": 100.0,
+              "y2": 600,
+              "color": "#1d120a",
+              "width": 2
+            }
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 146,
+              "cy": 465.0,
+              "rx": 5,
+              "ry": 5,
+              "fill": "#b08d4a"
+            },
+            "label": "дверь на улицу ручка"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 40,
+              "y": 594,
+              "w": 120,
+              "h": 6,
+              "fill": "#a8a070"
+            },
+            "label": "дверь на улицу полоса света",
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 60,
+              "rx": 400,
+              "ry": 120,
+              "fill": "#f0a050"
+            },
+            "label": "тёплый свет",
+            "opacity": 0.07
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 90,
+              "fill": {
+                "gradient": {
+                  "from": "#000000",
+                  "to": "#00000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "виньетка верх",
+            "opacity": 0.5
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 610,
+              "w": 1280,
+              "h": 110,
+              "fill": {
+                "gradient": {
+                  "from": "#00000000",
+                  "to": "#000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "виньетка низ",
+            "opacity": 0.5
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_grimm",
+      "label": "За стойкой",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 545,
+      "y": 230,
+      "w": 140,
+      "h": 330,
+      "condition": null,
+      "default_entity": "npc_grimm"
+    },
+    {
+      "id": "slot_hesk",
+      "label": "Стол в углу",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 950,
+      "y": 290,
+      "w": 140,
+      "h": 330,
+      "condition": null,
+      "default_entity": "npc_hesk"
+    }
+  ],
+  "navigation": [
+    {
+      "label": "На улицу",
+      "area": {
+        "x": 40,
+        "y": 300,
+        "w": 120,
+        "h": 300
+      },
+      "go_to_scene": "scene_lower_street"
+    }
+  ],
+  "chapter": "ch_city"
+}

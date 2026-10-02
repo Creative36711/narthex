@@ -1,0 +1,60 @@
+{
+  "id": "npc_grimm",
+  "type": "npc",
+  "label": "Гримм, хозяин «Мятого клапана»",
+  "description": "Огромный трактирщик с паровой рукой. Наливает в долг тем, кто платит слухами, и выставляет тех, кто задаёт много вопросов.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 15,
+    "CON": 14,
+    "SIZ": 16,
+    "DEX": 9,
+    "INT": 11,
+    "POW": 10,
+    "CHA": 11
+  },
+  "skills": {
+    "persuade": 55,
+    "melee": 50,
+    "insight": 45
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/grimm.ink",
+  "faction": "faction_lower",
+  "base_disposition": 0,
+  "trader": {
+    "sells": [
+      {
+        "item": "item_stew",
+        "price": 5
+      },
+      {
+        "item": "item_bread",
+        "price": 3
+      },
+      {
+        "item": "item_gin",
+        "price": 3
+      },
+      {
+        "item": "item_tlen_moss",
+        "price": 4
+      },
+      {
+        "item": "item_powder",
+        "price": 4
+      },
+      {
+        "item": "item_filter",
+        "price": 7
+      }
+    ],
+    "buys": true,
+    "buy_rate": 0.5
+  }
+}

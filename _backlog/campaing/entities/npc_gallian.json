@@ -1,0 +1,30 @@
+{
+  "id": "npc_gallian",
+  "type": "npc",
+  "label": "Архимеханик Ворс Галлиан",
+  "description": "Глава Ордена Святой Шестерни. Высокий, сухой, в рясе с латунными рёбрами. Считает Сердце-Двигатель святыней, а вопросы — богохульством.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 11,
+    "SIZ": 13,
+    "DEX": 9,
+    "INT": 16,
+    "POW": 17,
+    "CHA": 13
+  },
+  "skills": {
+    "occult": 80,
+    "persuade": 60,
+    "mechanics": 60
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/gallian.ink",
+  "faction": "faction_order",
+  "base_disposition": -10
+}

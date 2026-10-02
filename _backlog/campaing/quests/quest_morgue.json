@@ -1,0 +1,78 @@
+{
+  "id": "quest_morgue",
+  "label": "Тело на столе",
+  "chapter": "ch_prologue",
+  "description": "Сестра Вейл просит осмотреть тело Томаса Сола вместе с ней.",
+  "journal_entries": {
+    "j_m_start": "Осмотреть тело Томаса Сола в мертвецкой: извлечь механизм, осмотреть руки и одежду, прочесть гравировку на латуни.",
+    "j_m_report": "Тело осмотрено. Вернуться к сестре Вейл и рассказать, что удалось найти.",
+    "j_m_done": "Вейл выслушала доклад и поделилась рецептом тлен-отвара. «Дышите реже там, куда идёте», — сказала она."
+  },
+  "stages": [
+    {
+      "id": "stage_m_examine",
+      "label": "Осмотр",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_morgue",
+          "text_key": "j_m_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_m_report",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "body_heart_taken"
+            },
+            {
+              "type": "flag_set",
+              "flag": "body_soot_found"
+            },
+            {
+              "type": "flag_set",
+              "flag": "body_engraving_read"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_m_report",
+      "label": "Доклад",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_morgue",
+          "text_key": "j_m_report"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_m_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "vale_reported"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_m_done",
+      "label": "Отчёт принят",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_morgue",
+          "text_key": "j_m_done"
+        }
+      ],
+      "final": true,
+      "outcome": "success"
+    }
+  ]
+}

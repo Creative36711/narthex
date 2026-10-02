@@ -1,0 +1,34 @@
+{
+  "id": "npc_jens",
+  "type": "npc",
+  "label": "Йенс, брат Марты",
+  "description": "Молодой кочегар, ставший Часовщиком. Сердце-механизм ещё не прижилось: он вздрагивает, когда слышит своё имя.",
+  "portrait": {},
+  "stats": {
+    "STR": 14,
+    "CON": 13,
+    "SIZ": 12,
+    "DEX": 10,
+    "INT": 8,
+    "POW": 10,
+    "CHA": 6
+  },
+  "skills": {
+    "melee": 40
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "natural_weapon": {
+    "skill": "melee",
+    "damage": "1d6",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": false,
+    "label": "латунные кулаки"
+  },
+  "armor": 1,
+  "combat_ai": "aggressive"
+}

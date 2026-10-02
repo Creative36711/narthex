@@ -1,0 +1,60 @@
+{
+  "id": "rule_marrow_ambush_nl",
+  "label": "Засада у мастерской Марроу (без журнала)",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "advance_time",
+      "ticks": 3
+    },
+    {
+      "type": "banner",
+      "text": "Ночь в мастерской",
+      "seconds": 4
+    },
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_spire_agent",
+          "count": 2
+        }
+      ],
+      "arena": "arena_alley",
+      "intro": "Дверь вылетает с петель. Двое в стеклянных масках: «Доктор, где журнал?»",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "marrow_saved"
+        },
+        {
+          "type": "unlock_recipe",
+          "recipe": "recipe_stim"
+        },
+        {
+          "type": "add_item",
+          "item": "item_stim",
+          "quantity": 2
+        },
+        {
+          "type": "change_disposition",
+          "target": "npc_marrow",
+          "delta": 15
+        },
+        {
+          "type": "show_message",
+          "text": "Марроу долго молчит, потом протягивает вам два стимулятора: «Журнал вы и так забрали. Возьмите хоть это»."
+        },
+        {
+          "type": "set_description",
+          "entity": "npc_marrow",
+          "text": "Доктор Илзе Марроу. Обязана вам жизнью, хотя и не простила кражу."
+        }
+      ],
+      "no_flee": true
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_city"
+}

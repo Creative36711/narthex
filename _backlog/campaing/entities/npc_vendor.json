@@ -1,0 +1,45 @@
+{
+  "id": "npc_vendor",
+  "type": "npc",
+  "label": "Автомат «Щедрый клапан»",
+  "description": "Латунный раздатчик довоенной сборки. Принимает жетоны, хрипит рекламные гимны и иногда говорит то, чего не должен знать.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 8,
+    "CON": 8,
+    "SIZ": 8,
+    "DEX": 8,
+    "INT": 8,
+    "POW": 8,
+    "CHA": 8
+  },
+  "skills": {},
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "prop",
+  "schedule": [],
+  "dialogue": "dialogues/vendor.ink",
+  "trader": {
+    "sells": [
+      {
+        "item": "item_filter",
+        "price": 6
+      },
+      {
+        "item": "item_bread",
+        "price": 3
+      },
+      {
+        "item": "item_cartridge",
+        "price": 2
+      },
+      {
+        "item": "item_bandage",
+        "price": 4
+      }
+    ],
+    "buys": false
+  }
+}

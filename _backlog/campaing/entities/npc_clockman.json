@@ -1,0 +1,42 @@
+{
+  "id": "npc_clockman",
+  "type": "npc",
+  "label": "Часовщик",
+  "description": "Бывший человек с латунным сердцем вместо живого. Двигается рывками, в такт чужому механизму. В глазах — ни боли, ни памяти.",
+  "portrait": {},
+  "stats": {
+    "STR": 15,
+    "CON": 14,
+    "SIZ": 13,
+    "DEX": 8,
+    "INT": 6,
+    "POW": 5,
+    "CHA": 3
+  },
+  "skills": {
+    "melee": 45
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "natural_weapon": {
+    "skill": "melee",
+    "damage": "1d6",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": false,
+    "label": "латунные кулаки"
+  },
+  "armor": 2,
+  "combat_ai": "aggressive",
+  "loot_table": [
+    {
+      "item": "item_brass_scrap",
+      "chance": 0.8,
+      "min": 1,
+      "max": 3
+    }
+  ]
+}

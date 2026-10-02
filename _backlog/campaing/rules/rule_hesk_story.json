@@ -1,0 +1,17 @@
+{
+  "id": "rule_hesk_story",
+  "label": "Рассказ Хеска",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "hesk_told"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -1
+    }
+  ],
+  "manual": true
+}

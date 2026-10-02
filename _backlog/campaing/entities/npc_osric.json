@@ -1,0 +1,30 @@
+{
+  "id": "npc_osric",
+  "type": "npc",
+  "label": "Старший дознаватель Озрик Тальм",
+  "description": "Седой начальник отдела. Курит трубку с угольным фильтром и не верит в совпадения. Ждёт доклада.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 11,
+    "SIZ": 12,
+    "DEX": 9,
+    "INT": 15,
+    "POW": 13,
+    "CHA": 12
+  },
+  "skills": {
+    "insight": 65,
+    "persuade": 50,
+    "firearms": 45
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/osric.ink",
+  "faction": "faction_chamber",
+  "base_disposition": 20
+}

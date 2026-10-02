@@ -1,0 +1,21 @@
+{
+  "id": "rule_grille_whisper",
+  "label": "Шёпот из решётки",
+  "once": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_sanity",
+      "delta": -3
+    },
+    {
+      "type": "set_flag",
+      "flag": "litany_met"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_engine"
+    }
+  ],
+  "manual": true
+}

@@ -1,0 +1,1006 @@
+{
+  "regions": [
+    {
+      "id": "region_karst",
+      "label": "Карст-Гальвана",
+      "map_image": "",
+      "map_art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#1a140c",
+        "layers": [
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#2a2418",
+                  "to": "#141008",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "пергамент"
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 20,
+              "y": 20,
+              "w": 1240,
+              "h": 680,
+              "fill": "#3a3020",
+              "stroke": "#8a6a3a",
+              "stroke_width": 4
+            },
+            "label": "поле карты",
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "polygon",
+              "points": [
+                420,
+                0,
+                860,
+                0,
+                900,
+                200,
+                1040,
+                420,
+                900,
+                720,
+                380,
+                720,
+                220,
+                420,
+                360,
+                200
+              ],
+              "fill": "#1e1a12"
+            },
+            "label": "каньон",
+            "opacity": 0.85
+          },
+          {
+            "shape": {
+              "type": "polygon",
+              "points": [
+                560,
+                0,
+                720,
+                0,
+                700,
+                300,
+                760,
+                520,
+                700,
+                720,
+                560,
+                720,
+                520,
+                520,
+                580,
+                300
+              ],
+              "fill": "#14110a"
+            },
+            "label": "русло",
+            "opacity": 0.9
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 960,
+              "y1": 300,
+              "x2": 790,
+              "y2": 510,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 960,
+              "y1": 300,
+              "x2": 300,
+              "y2": 230,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 960,
+              "y1": 300,
+              "x2": 640,
+              "y2": 100,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 790,
+              "y1": 510,
+              "x2": 330,
+              "y2": 480,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 300,
+              "y1": 230,
+              "x2": 640,
+              "y2": 100,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 330,
+              "y1": 480,
+              "x2": 300,
+              "y2": 230,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 790,
+              "y1": 510,
+              "x2": 560,
+              "y2": 620,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 330,
+              "y1": 480,
+              "x2": 560,
+              "y2": 620,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 560,
+              "y1": 620,
+              "x2": 640,
+              "y2": 380,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 100,
+              "x2": 640,
+              "y2": 380,
+              "color": "#8a6a3a",
+              "width": 3
+            },
+            "label": "дорога",
+            "opacity": 0.55
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 682,
+              "y": 372,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 0
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 677,
+              "y": 394,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 26
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 663,
+              "y": 411,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 51
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 643,
+              "y": 421,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 77
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 621,
+              "y": 421,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 103
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 601,
+              "y": 411,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 129
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 587,
+              "y": 394,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 154
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 582,
+              "y": 372,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 180
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 587,
+              "y": 350,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 206
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 601,
+              "y": 333,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 231
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 621,
+              "y": 323,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 257
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 643,
+              "y": 323,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 283
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 663,
+              "y": 333,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 309
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 677,
+              "y": 350,
+              "w": 16,
+              "h": 16,
+              "fill": "#514326"
+            },
+            "label": "знак Сердца зуб",
+            "opacity": 0.6,
+            "rotate": 334
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 380,
+              "rx": 46,
+              "ry": 46,
+              "fill": "#5a4a2a",
+              "stroke": "#362c19",
+              "stroke_width": 3
+            },
+            "label": "знак Сердца",
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 380,
+              "rx": 25.3,
+              "ry": 25.3,
+              "fill": "#3a301b"
+            },
+            "label": "знак Сердца обод",
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 380,
+              "rx": 8.28,
+              "ry": 8.28,
+              "fill": "#8c806a"
+            },
+            "label": "знак Сердца ось",
+            "opacity": 0.6
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1196,
+              "y": 591,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 0
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1188,
+              "y": 618,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 30
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1168,
+              "y": 638,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 60
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1141,
+              "y": 646,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 90
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1114,
+              "y": 638,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 120
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1094,
+              "y": 618,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 150
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1087,
+              "y": 591,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 180
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1094,
+              "y": 564,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 210
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1114,
+              "y": 544,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 240
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1141,
+              "y": 537,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 270
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1168,
+              "y": 544,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 300
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 1188,
+              "y": 564,
+              "w": 18,
+              "h": 18,
+              "fill": "#5f482b"
+            },
+            "label": "роза ветров зуб",
+            "opacity": 0.5,
+            "rotate": 330
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1150,
+              "cy": 600,
+              "rx": 50,
+              "ry": 50,
+              "fill": "#6a5030",
+              "stroke": "#40301d",
+              "stroke_width": 3
+            },
+            "label": "роза ветров",
+            "opacity": 0.5
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1150,
+              "cy": 600,
+              "rx": 27.500000000000004,
+              "ry": 27.500000000000004,
+              "fill": "#45341f"
+            },
+            "label": "роза ветров обод",
+            "opacity": 0.5
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1150,
+              "cy": 600,
+              "rx": 9.0,
+              "ry": 9.0,
+              "fill": "#97846e"
+            },
+            "label": "роза ветров ось",
+            "opacity": 0.5
+          },
+          {
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 420,
+              "w": 1280,
+              "h": 300,
+              "fill": {
+                "gradient": {
+                  "from": "#7a8a64",
+                  "to": "#00000000",
+                  "angle": 90
+                }
+              }
+            },
+            "label": "хмарь над нижним городом",
+            "opacity": 0.18
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 80,
+              "cy": 540.0,
+              "rx": 220,
+              "ry": 105.0,
+              "fill": "#7a8a64"
+            },
+            "label": "хмарь над нижним городом клуб",
+            "opacity": 0.126
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 410,
+              "cy": 540.0,
+              "rx": 220,
+              "ry": 105.0,
+              "fill": "#7a8a64"
+            },
+            "label": "хмарь над нижним городом клуб",
+            "opacity": 0.126
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 600,
+              "cy": 540.0,
+              "rx": 220,
+              "ry": 105.0,
+              "fill": "#7a8a64"
+            },
+            "label": "хмарь над нижним городом клуб",
+            "opacity": 0.126
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 930,
+              "cy": 540.0,
+              "rx": 220,
+              "ry": 105.0,
+              "fill": "#7a8a64"
+            },
+            "label": "хмарь над нижним городом клуб",
+            "opacity": 0.126
+          },
+          {
+            "shape": {
+              "type": "ellipse",
+              "cx": 1120,
+              "cy": 540.0,
+              "rx": 220,
+              "ry": 105.0,
+              "fill": "#7a8a64"
+            },
+            "label": "хмарь над нижним городом клуб",
+            "opacity": 0.126
+          }
+        ]
+      },
+      "map_size": {
+        "w": 1280,
+        "h": 720
+      },
+      "parent_region": null,
+      "locations": [
+        {
+          "id": "loc_station",
+          "label": "Вокзал Палаты Тишины",
+          "position": {
+            "x": 960,
+            "y": 300
+          },
+          "travel_connections": [
+            {
+              "to": "loc_lower",
+              "cost_ticks": 2,
+              "random_encounter_table": "enc_lower"
+            },
+            {
+              "to": "loc_cathedral",
+              "cost_ticks": 2
+            },
+            {
+              "to": "loc_spire",
+              "cost_ticks": 3
+            }
+          ],
+          "scenes": [
+            "scene_office",
+            "scene_platform",
+            "scene_morgue"
+          ],
+          "arrival_scene": "scene_platform",
+          "camp": true,
+          "music": [
+            {
+              "tracks": [
+                "music_station_night"
+              ],
+              "conditions": [
+                {
+                  "time_of_day": [
+                    "evening",
+                    "night"
+                  ]
+                }
+              ]
+            },
+            {
+              "tracks": [
+                "music_station"
+              ]
+            }
+          ],
+          "ambient": [
+            "amb_steam"
+          ]
+        },
+        {
+          "id": "loc_lower",
+          "label": "Нижний Ряд",
+          "position": {
+            "x": 790,
+            "y": 510
+          },
+          "travel_connections": [
+            {
+              "to": "loc_station",
+              "cost_ticks": 2,
+              "random_encounter_table": "enc_lower"
+            },
+            {
+              "to": "loc_foundry",
+              "cost_ticks": 1,
+              "random_encounter_table": "enc_lower"
+            },
+            {
+              "to": "loc_undercity",
+              "cost_ticks": 2,
+              "random_encounter_table": "enc_undercity"
+            }
+          ],
+          "scenes": [
+            "scene_lower_street",
+            "scene_tavern",
+            "scene_workshop"
+          ],
+          "arrival_scene": "scene_lower_street",
+          "music": [
+            {
+              "tracks": [
+                "music_lower"
+              ]
+            }
+          ],
+          "ambient": [
+            "amb_drip"
+          ]
+        },
+        {
+          "id": "loc_foundry",
+          "label": "Литейные кварталы",
+          "position": {
+            "x": 330,
+            "y": 480
+          },
+          "travel_connections": [
+            {
+              "to": "loc_lower",
+              "cost_ticks": 1,
+              "random_encounter_table": "enc_lower"
+            },
+            {
+              "to": "loc_undercity",
+              "cost_ticks": 2,
+              "random_encounter_table": "enc_undercity"
+            },
+            {
+              "to": "loc_cathedral",
+              "cost_ticks": 2
+            }
+          ],
+          "scenes": [
+            "scene_foundry_floor",
+            "scene_barracks"
+          ],
+          "arrival_scene": "scene_foundry_floor",
+          "music": [
+            {
+              "tracks": [
+                "music_foundry"
+              ]
+            }
+          ],
+          "ambient": [
+            "amb_furnace"
+          ]
+        },
+        {
+          "id": "loc_cathedral",
+          "label": "Собор Святой Шестерни",
+          "position": {
+            "x": 300,
+            "y": 230
+          },
+          "travel_connections": [
+            {
+              "to": "loc_station",
+              "cost_ticks": 2
+            },
+            {
+              "to": "loc_spire",
+              "cost_ticks": 2
+            },
+            {
+              "to": "loc_foundry",
+              "cost_ticks": 2
+            }
+          ],
+          "scenes": [
+            "scene_nave",
+            "scene_archive",
+            "scene_belltower"
+          ],
+          "arrival_scene": "scene_nave",
+          "music": [
+            {
+              "tracks": [
+                "music_cathedral"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "loc_spire",
+          "label": "Верхний Шпиль",
+          "position": {
+            "x": 640,
+            "y": 100
+          },
+          "travel_connections": [
+            {
+              "to": "loc_station",
+              "cost_ticks": 3
+            },
+            {
+              "to": "loc_cathedral",
+              "cost_ticks": 2
+            },
+            {
+              "to": "loc_heart",
+              "cost_ticks": 2
+            }
+          ],
+          "scenes": [
+            "scene_council_hall",
+            "scene_chancery"
+          ],
+          "arrival_scene": "scene_council_hall",
+          "music": [
+            {
+              "tracks": [
+                "music_spire"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "loc_undercity",
+          "label": "Отстойники под клапаном №7",
+          "position": {
+            "x": 560,
+            "y": 620
+          },
+          "hidden": true,
+          "travel_connections": [
+            {
+              "to": "loc_lower",
+              "cost_ticks": 2,
+              "random_encounter_table": "enc_undercity"
+            },
+            {
+              "to": "loc_foundry",
+              "cost_ticks": 2,
+              "random_encounter_table": "enc_undercity"
+            },
+            {
+              "to": "loc_heart",
+              "cost_ticks": 2
+            }
+          ],
+          "scenes": [
+            "scene_collector",
+            "scene_flooded"
+          ],
+          "arrival_scene": "scene_collector",
+          "music": [
+            {
+              "tracks": [
+                "music_undercity"
+              ]
+            }
+          ],
+          "ambient": [
+            "amb_drip"
+          ]
+        },
+        {
+          "id": "loc_heart",
+          "label": "Сердце-Двигатель",
+          "position": {
+            "x": 640,
+            "y": 380
+          },
+          "hidden": true,
+          "travel_connections": [
+            {
+              "to": "loc_undercity",
+              "cost_ticks": 2
+            },
+            {
+              "to": "loc_spire",
+              "cost_ticks": 2
+            }
+          ],
+          "scenes": [
+            "scene_engine_hall",
+            "scene_core"
+          ],
+          "arrival_scene": "scene_engine_hall",
+          "music": [
+            {
+              "tracks": [
+                "music_heart"
+              ]
+            }
+          ],
+          "ambient": [
+            "amb_heartbeat"
+          ]
+        }
+      ]
+    }
+  ]
+}

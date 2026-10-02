@@ -1,0 +1,12 @@
+{
+  "id": "item_brass_scrap",
+  "type": "item",
+  "category": "material",
+  "label": "Латунный лом",
+  "description": "Обрезки латуни: гильзы, шестерёнки, пружины.",
+  "weight": 0.3,
+  "stackable": true,
+  "value": {
+    "token": 1
+  }
+}
