@@ -39,7 +39,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {engine.campaign.meta.luck && engine.luckMax() > 0 && (
           <div
             className="hud-status-chip"
-            data-tip={`Удача: ${engine.luck()}/${engine.luckMax()} (POW × множитель).\nНа провальном броске вне боя можно потратить удачу и перебросить.\nВосстанавливается на отдыхе (если мастер не отключил).`}
+            data-tip={`Удача: ${engine.luck()}/${engine.luckMax()}.\nНа провальном броске вне боя можно потратить удачу и перебросить.\nВосстанавливается на отдыхе.`}
           >
             Удача {engine.luck()}
           </div>
@@ -47,7 +47,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {engine.fatigueMax() > 0 && (
           <div
             className={`hud-bar need ${engine.fatigue() <= 0 ? 'critical' : ''}`}
-            data-tip={`Усталость: ${engine.fatigue()}/${engine.fatigueMax()} (= (STR+CON)×множитель).\nТраты задаёт мастер (бег, тяжёлый труд, бессонница); на нуле — правила кампании решают последствия.\nВосстанавливается на отдыхе (если мастер не отключил).`}
+            data-tip={`Усталость: ${engine.fatigue()}/${engine.fatigueMax()}.\nТраты — от бега, тяжёлого труда, бессонницы; на нуле — последствия по правилам кампании.\nВосстанавливается на отдыхе.`}
           >
             <div className="hud-bar-fill" style={{ width: `${(engine.fatigue() / engine.fatigueMax()) * 100}%` }} />
             <span>Усталость {engine.fatigue()}</span>
@@ -56,7 +56,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {engine.sanityMax() > 0 && (
           <div
             className="hud-status-chip"
-            data-tip={`Рассудок: ${engine.sanity()}/${engine.sanityMax()} (POW × множитель).\nПотери и исцеление — эффектами мастера; пороги (может, помешательство) — правилами на sanity_le.`}
+            data-tip={`Рассудок: ${engine.sanity()}/${engine.sanityMax()}.\nПотери и исцеление — по ходу кампании; на низком уровне возможны последствия.`}
           >
             Рассудок {engine.sanity()}
           </div>
@@ -64,7 +64,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {engine.reputationEnabled() && (
           <div
             className="hud-status-chip"
-            data-tip={`${engine.reputationLabel()}: ${engine.reputation()}.\nМеняется деяниями героя (эффекты мастера change_reputation).`}
+            data-tip={`${engine.reputationLabel()}: ${engine.reputation()}.\nМеняется деяниями героя.`}
           >
             {engine.reputationLabel()} {engine.reputation()}
           </div>
@@ -80,8 +80,9 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {needsOn && meta.needs.map((n) => {
           const val = s.player.needs[n.id] ?? 0
           const critical = val <= n.critical_threshold
+          const tip = n.description ? `${n.label}: ${n.description}` : n.label
           return (
-            <div key={n.id} className={`hud-bar need ${critical ? 'critical' : ''}`} data-tip={n.label} aria-label={`${n.label}: ${Math.round(val)}`}>
+            <div key={n.id} className={`hud-bar need ${critical ? 'critical' : ''}`} data-tip={tip} aria-label={`${n.label}: ${Math.round(val)}`}>
               <div className="hud-bar-fill" style={{ width: `${(val / n.max) * 100}%` }} />
               <span className="hud-bar-text">
                 <span className="hud-need-label">{n.label}</span>

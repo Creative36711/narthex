@@ -59,6 +59,8 @@ export const CLASSIC_DICE_RULES: DiceRules = {
 export interface NeedDef {
   id: string
   label: string
+  /** Описание потребности для игрока (показывается в тултипе) */
+  description?: string
   max: number
   decay_per_tick: number
   critical_threshold: number
