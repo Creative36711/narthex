@@ -431,13 +431,13 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
             <h3>Мир и характер</h3>
             <ul className="skill-list">
               {engine.wealthLevels().length > 0 && (
-                <li data-tip={'Уровень достатка на шкале мастера (meta.wealth_levels).\nМеняется эффектами change_wealth.'}>
+                <li data-tip={'Уровень достатка.\nМеняется по ходу кампании.'}>
                   <span><Ico n="coin" />  Достаток</span>
                   <span className="skill-val">{engine.wealthLevelLabel()}</span>
                 </li>
               )}
               {engine.reputationEnabled() && (
-                <li data-tip="Репутация героя; меняется деяниями (эффекты change_reputation).">
+                <li data-tip="Репутация героя; меняется деяниями.">
                   <span><Ico n="star" />  {engine.reputationLabel()}</span>
                   <span className="skill-val">{engine.reputation()}</span>
                 </li>
@@ -449,7 +449,7 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
                 </li>
               ))}
               {Object.entries(p.allegiance ?? {}).map(([id, val]) => (
-                <li key={`all-${id}`} data-tip="Причастность силе: поступки в её духе (+1 очко) — эффекты change_allegiance; 100+ — знаки силы.">
+                <li key={`all-${id}`} data-tip="Причастность силе: поступки в её духе увеличивают значение; на высоком уровне проявляются знаки силы.">
                   <span><Ico n="flame" />  {engine.allegianceLabel(id)} (причастность)</span>
                   <span className="skill-val">{val}</span>
                 </li>

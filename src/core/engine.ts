@@ -2870,7 +2870,9 @@ export class GameEngine {
       this.checkRules()
       this.notify()
     } else {
-      this.messages.push({ text: item.description || item.label })
+      // Не показываем описание автоматически при клике на предмет без взаимодействия.
+      // Описание видно в тултипе (data-tip в UI).
+      // Если нужно показать описание как сообщение, мастер должен использовать on_interact.message
       this.notify()
     }
     return true
