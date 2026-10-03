@@ -1746,6 +1746,11 @@ export class GameEngine {
     return this.state.stealth?.detected === true
   }
 
+  /** Получает значение навыка игрока (с модификаторами статусов) */
+  playerSkill(skill: string): number {
+    return Math.max(0, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
+  }
+
   /**
    * Переключить красться/идти открыто. Вход в красться — моментальная
    * проверка против всех наблюдателей в сцене; заметили — режим включён,
@@ -1754,10 +1759,17 @@ export class GameEngine {
   toggleSneak(): void {
     if (!this.stealthEnabled()) return
     const st = (this.state.stealth ??= { sneaking: false, detected: false })
-    st.sneaking = !st.sneaking
+    const wasSneaking = st.sneaking
+    st.sneaking = !wasSneaking
     st.detected = false
-    this.pushLog(st.sneaking ? 'Вы переходите на скрытное передвижение.' : 'Вы больше не скрываетесь.')
-    if (st.sneaking) this.detectCheck('вы появляетесь в поле зрения')
+    
+    if (st.sneaking) {
+      this.pushLog('👁️‍🗨️ Вы переходите на скрытное передвижение. Бросок скрытности при смене сцены...')
+      this.detectCheck('вы появляетесь в поле зрения')
+    } else {
+      this.pushLog('👁️ Вы больше не скрываетесь.')
+    }
+    
     this.autosave()
     this.notify()
   }
@@ -1787,11 +1799,10 @@ export class GameEngine {
     const RANK: Record<string, number> = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 }
     const wins = (RANK[mine.result] ?? 1) >= (RANK[theirs.result] ?? 1)
     this.pushLog(
-      `Скрытность (${context}): d100=${mine.roll}/${mine.target} против «${bestNpc.label}» d100=${theirs.roll}/${theirs.target} → ${wins ? 'вас не заметили' : 'ВАС ЗАМЕТИЛИ'}`,
+      `🎲 Скрытность (${context}): ваш бросок d100=${mine.roll}/${hero} против «${bestNpc.label}» d100=${theirs.roll}/${bestNpc.value} → ${wins ? '✅ вас не заметили' : '❌ ВАС ЗАМЕТИЛИ!'}`,
     )
     if (!wins) {
       this.state.stealth!.detected = true
-      this.pushLog(`${bestNpc.label} замечает вас!`)
     }
     return wins
   }
