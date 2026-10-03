@@ -81,11 +81,12 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           const val = s.player.needs[n.id] ?? 0
           const critical = val <= n.critical_threshold
           const tip = n.description ? `${n.label}: ${n.description}` : n.label
+          const displayLabel = n.short_label ?? n.label
           return (
             <div key={n.id} className={`hud-bar need ${critical ? 'critical' : ''}`} data-tip={tip} aria-label={`${n.label}: ${Math.round(val)}`}>
               <div className="hud-bar-fill" style={{ width: `${(val / n.max) * 100}%` }} />
               <span className="hud-bar-text">
-                <span className="hud-need-label">{n.label}</span>
+                <span className="hud-need-label">{displayLabel}</span>
                 <b className="hud-need-value">{Math.round(val)}</b>
               </span>
             </div>
@@ -105,12 +106,13 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {(s.player.statuses ?? []).map((st) => {
           const def = engine.statusDef(st.id)
           if (!def) return null
+          const displayLabel = def.short_label ?? def.label
           return (
             <div key={st.id} className="hud-status-chip" data-tip={`${def.label} — осталось ${st.left} ${meta.tick_label}${def.description ? `. ${def.description}` : ''}`}>
               {def.icon ? (
                 <img className="hud-status-icon" src={assetUrl(engine.campaign, def.icon)} alt="" />
               ) : (
-                def.label
+                displayLabel
               )}
               <span className="hud-status-left">{st.left}</span>
             </div>

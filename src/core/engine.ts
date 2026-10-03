@@ -2840,7 +2840,17 @@ export class GameEngine {
 
   /** доступные сейчас варианты действий с предметом (условия показа) */
   itemInteractOptions(item: ItemDef): ItemInteractOption[] {
-    return (item.interact_options ?? []).filter((o) => (o.conditions ?? []).every((c) => evalCondition(c, this)))
+    const itemOptions = item.interact_options ?? []
+    return itemOptions.filter((o, index) => {
+      // Фильтруем по условиям
+      if (!o.conditions?.every((c) => evalCondition(c, this))) return false
+      // Фильтруем одноразовые варианты
+      if (o.once) {
+        const key = `item:${item.id}:${index}`
+        if (this.state.used_item_interacts?.includes(key)) return false
+      }
+      return true
+    })
   }
 
   /** применить выбранный вариант взаимодействия с предметом */
@@ -2851,6 +2861,18 @@ export class GameEngine {
       this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? 'neutral'] ?? item.portrait?.['neutral'] })
     }
     if (option.consume) this.state.removed_entities.push(item.id)
+    // Одноразовые варианты: добавляем в список использованных
+    if (option.once) {
+      const itemOptions = item.interact_options ?? []
+      const optionIndex = itemOptions.findIndex(o => o === option)
+      if (optionIndex >= 0) {
+        const key = `item:${item.id}:${optionIndex}`
+        if (!this.state.used_item_interacts) this.state.used_item_interacts = []
+        if (!this.state.used_item_interacts.includes(key)) {
+          this.state.used_item_interacts.push(key)
+        }
+      }
+    }
     this.checkRules()
     this.notify()
   }

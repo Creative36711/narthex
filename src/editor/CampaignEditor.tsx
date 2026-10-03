@@ -2177,6 +2177,10 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 ))}
               </select>
             </label>
+            <label className="fld" data-tip="Краткое название для компактного отображения в HUD">
+              <span>Короткое имя</span>
+              <input value={n.short_label ?? ''} onChange={(e) => ((n.short_label = e.target.value || undefined), commit())} placeholder="например: Голод" />
+            </label>
             <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
@@ -3322,6 +3326,10 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
             <label className="fld">
               <span>Описание (видно игроку)</span>
               <input value={s.description ?? ''} onChange={(e) => ((s.description = e.target.value || undefined), commit())} />
+            </label>
+            <label className="fld" data-tip="Краткое название для компактного отображения в HUD">
+              <span>Короткое имя</span>
+              <input value={s.short_label ?? ''} onChange={(e) => ((s.short_label = e.target.value || undefined), commit())} placeholder="например: Отравлен" />
             </label>
             <div className="fld-row">
               <label className="fld" data-tip="Урон за тик (мир) / за раунд (бой). Пусто — без урона.">

@@ -61,6 +61,8 @@ export interface NeedDef {
   label: string
   /** Описание потребности для игрока (показывается в тултипе) */
   description?: string
+  /** Короткая подпись для компактного отображения в HUD */
+  short_label?: string
   max: number
   decay_per_tick: number
   critical_threshold: number
@@ -81,6 +83,8 @@ export interface NeedDef {
 export interface StatusDef {
   id: string
   label: string
+  /** Короткая подпись для компактного отображения в HUD */
+  short_label?: string
   description?: string
   /** иконка-файл/ссылка; нет — текстовый чип */
   icon?: string
@@ -1648,6 +1652,8 @@ export interface ItemInteractOption {
   effects: Effect[]
   /** после применения предмет исчезает со сцены */
   consume?: boolean
+  /** одноразовый вариант: исчезает после выбора (в текущем забеге) */
+  once?: boolean
   /** сообщение после применения (оформлено портретом предмета) */
   message?: string
   /** звуковой хук взаимодействия (умолчание 'use' или 'open' для контейнера) */
@@ -2769,6 +2775,8 @@ export interface GameState {
   codex_unlocked?: string[]
   /** рецепты, открытые эффектом unlock_recipe (RecipeDef.known = false) */
   recipes_unlocked?: string[]
+  /** одноразовые варианты взаимодействия с предметами, использованные в этом забеге: "item:<id>:<option_index>" */
+  used_item_interacts?: string[]
   /** состояние облика НПЦ, заданное правилом (set_entity_state): id → ключ */
   entity_states?: Record<string, string>
   /** выбор создания персонажа (блок 11 ТЗ): имя, характеристики, навыки, происхождение и призвание */
