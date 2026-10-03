@@ -1,0 +1,69 @@
+{
+ "id": "rule_hideout_raid",
+ "label": "Облава на Дырявый ярус",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "echo_3_read"
+  },
+  {
+   "type": "player_enters_location",
+   "location": "loc_tunnels"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "hideout_raid_done"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "hideout_raid_done"
+  },
+  {
+   "type": "set_flag",
+   "flag": "leta_found"
+  },
+  {
+   "type": "banner",
+   "text": "Где-то внизу хлопнула дверь",
+   "preset": "шёпот",
+   "enter": "сбоку",
+   "seconds": 4,
+   "position": "центр"
+  },
+  {
+   "type": "start_combat",
+   "enemies": [
+    {
+     "entity": "npc_thug",
+     "count": 2
+    }
+   ],
+   "arena": "arena_tunnels",
+   "intro": "Двое в серых плащах уже стоят над её матрасом. Девочка держит перед собой гаечный ключ.",
+   "on_victory": [
+    {
+     "type": "set_flag",
+     "flag": "leta_saved"
+    },
+    {
+     "type": "set_flag",
+     "flag": "leta_found"
+    },
+    {
+     "type": "show_message",
+     "text": "Летта опускает ключ и смотрит на вас так, как смотрят на единственного, кто пришёл."
+    },
+    {
+     "type": "advance_quest",
+     "quest": "quest_leta",
+     "stage": "stage_found"
+    }
+   ]
+  }
+ ],
+ "chapter": "ch2"
+}

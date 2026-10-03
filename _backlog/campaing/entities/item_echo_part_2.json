@@ -1,0 +1,31 @@
+{
+ "id": "item_echo_part_2",
+ "type": "item",
+ "category": "clue",
+ "label": "Осколок эха II",
+ "description": "Обрезок цилиндра, обёрнутый в детскую тряпицу.",
+ "weight": 0.2,
+ "stackable": false,
+ "image": "",
+ "value": {
+  "cinder": 0
+ },
+ "interact_options": [
+  {
+   "label": "Считать эхо",
+   "conditions": [],
+   "effects": [
+    {
+     "type": "show_message",
+     "text": "«…Летта, девочка. Ключ у тебя. Не отдавай его никому, кроме того, кто придёт с моим эхом…»"
+    },
+    {
+     "type": "set_flag",
+     "flag": "echo_2_read"
+    }
+   ],
+   "message": "Тёплый голос, шорох бумаги, детское «ну хватит».",
+   "sound": "sfx_echo_hum"
+  }
+ ]
+}

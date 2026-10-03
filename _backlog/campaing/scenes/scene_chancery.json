@@ -1,870 +1,660 @@
 {
-  "id": "scene_chancery",
-  "label": "Канцелярия Совета",
-  "location": "loc_spire",
-  "canvas": {
-    "w": 1280,
-    "h": 720
-  },
-  "states": [
-    {
-      "id": "state_chancery",
-      "label": "Обычно",
-      "art": {
-        "canvas": {
-          "w": 1280,
-          "h": 720
-        },
-        "background": "#100c08",
-        "layers": [
-          {
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 0,
-              "w": 1280,
-              "h": 470,
-              "fill": {
-                "gradient": {
-                  "from": "#3a3428",
-                  "to": "#1c1a14",
-                  "angle": 90
-                }
-              }
-            },
-            "label": "обшитые стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 120,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 240,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 360,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 480,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 600,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 720,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 840,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 960,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1080,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1200,
-              "y": 0,
-              "w": 6,
-              "h": 470,
-              "fill": "#2a2418"
-            },
-            "label": "панель стены"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 200,
-              "y": 0,
-              "w": 24,
-              "h": 330,
-              "fill": {
-                "gradient": {
-                  "from": "#c4aa77",
-                  "to": "#725c30",
-                  "angle": 0
-                }
-              },
-              "radius": 8
-            },
-            "label": "труба пневмопочты"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 260,
-              "y": 0,
-              "w": 24,
-              "h": 330,
-              "fill": {
-                "gradient": {
-                  "from": "#c4aa77",
-                  "to": "#725c30",
-                  "angle": 0
-                }
-              },
-              "radius": 8
-            },
-            "label": "труба пневмопочты"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 320,
-              "y": 0,
-              "w": 24,
-              "h": 330,
-              "fill": {
-                "gradient": {
-                  "from": "#c4aa77",
-                  "to": "#725c30",
-                  "angle": 0
-                }
-              },
-              "radius": 8
-            },
-            "label": "труба пневмопочты"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 180,
-              "y": 330,
-              "w": 180,
-              "h": 60,
-              "fill": "#5a4a2a",
-              "radius": 6
-            },
-            "label": "приёмник пневмопочты"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 620,
-              "y": 120,
-              "w": 220,
-              "h": 330,
-              "fill": "#4a3a24"
-            },
-            "label": "картотека"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 630,
-              "y": 130,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 652,
-              "y": 152,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 700,
-              "y": 130,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 722,
-              "y": 152,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 770,
-              "y": 130,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 792,
-              "y": 152,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 630,
-              "y": 192,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 652,
-              "y": 214,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 700,
-              "y": 192,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 722,
-              "y": 214,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 770,
-              "y": 192,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 792,
-              "y": 214,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 630,
-              "y": 254,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 652,
-              "y": 276,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 700,
-              "y": 254,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 722,
-              "y": 276,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 770,
-              "y": 254,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 792,
-              "y": 276,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 630,
-              "y": 316,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 652,
-              "y": 338,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 700,
-              "y": 316,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 722,
-              "y": 338,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 770,
-              "y": 316,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 792,
-              "y": 338,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 630,
-              "y": 378,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 652,
-              "y": 400,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 700,
-              "y": 378,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 722,
-              "y": 400,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 770,
-              "y": 378,
-              "w": 62,
-              "h": 54,
-              "fill": "#6a5434",
-              "stroke": "#2a1e10",
-              "stroke_width": 2
-            },
-            "label": "ящик картотеки"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 792,
-              "y": 400,
-              "w": 18,
-              "h": 6,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 470,
-              "w": 1280,
-              "h": 250,
-              "fill": {
-                "gradient": {
-                  "from": "#3a2a1e",
-                  "to": "#120c08",
-                  "angle": 90
-                }
-              }
-            },
-            "label": "паркет"
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 490.0,
-              "cy": 610,
-              "rx": 77.0,
-              "ry": 14,
-              "fill": "#000000"
-            },
-            "label": "место тень",
-            "opacity": 0.35
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 800,
-              "y": 430,
-              "w": 260,
-              "h": 30,
-              "fill": {
-                "gradient": {
-                  "from": "#6a4a2a",
-                  "to": "#3a2a14",
-                  "angle": 90
-                }
-              },
-              "radius": 4
-            },
-            "label": "стол секретаря"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 810,
-              "y": 460,
-              "w": 240,
-              "h": 110,
-              "fill": "#3a2a14"
-            },
-            "label": "тумба стола"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1000,
-              "y": 485,
-              "w": 30,
-              "h": 10,
-              "fill": "#b08d4a"
-            },
-            "label": "ручка ящика стола"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 840,
-              "y": 400,
-              "w": 90,
-              "h": 30,
-              "fill": "#d8cfb4"
-            },
-            "label": "бумаги"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 960,
-              "y": 390,
-              "w": 26,
-              "h": 40,
-              "fill": "#7a2a22",
-              "radius": 4
-            },
-            "label": "печать совета"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 32,
-              "y": 292,
-              "w": 126,
-              "h": 308,
-              "fill": "#1a1512"
-            },
-            "label": "дверь в зал проём"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 40,
-              "y": 300,
-              "w": 110,
-              "h": 300,
-              "fill": {
-                "gradient": {
-                  "from": "#584545",
-                  "to": "#261717",
-                  "angle": 0
-                }
-              },
-              "radius": 4
-            },
-            "label": "дверь в зал"
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 95.0,
-              "y1": 306,
-              "x2": 95.0,
-              "y2": 600,
-              "color": "#1d1212",
-              "width": 2
-            }
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 136,
-              "cy": 465.0,
-              "rx": 5,
-              "ry": 5,
-              "fill": "#b08d4a"
-            },
-            "label": "дверь в зал ручка"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 40,
-              "y": 594,
-              "w": 110,
-              "h": 6,
-              "fill": "#c9a24a"
-            },
-            "label": "дверь в зал полоса света",
-            "opacity": 0.6
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 900,
-              "cy": 330,
-              "rx": 70,
-              "ry": 70,
-              "fill": "#f0c070"
-            },
-            "label": "фонарь ореол",
-            "opacity": 0.13
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 886,
-              "y": 304,
-              "w": 28,
-              "h": 34,
-              "fill": "#2a2622",
-              "radius": 4
-            },
-            "label": "фонарь корпус"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 891,
-              "y": 310,
-              "w": 18,
-              "h": 22,
-              "fill": "#f0c070",
-              "radius": 3
-            },
-            "label": "фонарь огонь"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 0,
-              "w": 1280,
-              "h": 90,
-              "fill": {
-                "gradient": {
-                  "from": "#000000",
-                  "to": "#00000000",
-                  "angle": 90
-                }
-              }
-            },
-            "label": "виньетка верх",
-            "opacity": 0.45
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 610,
-              "w": 1280,
-              "h": 110,
-              "fill": {
-                "gradient": {
-                  "from": "#00000000",
-                  "to": "#000000",
-                  "angle": 90
-                }
-              }
-            },
-            "label": "виньетка низ",
-            "opacity": 0.45
-          }
-        ]
-      },
-      "condition": null
-    }
-  ],
-  "slots": [
-    {
-      "id": "slot_drew",
-      "label": "У картотеки",
-      "type": [
-        "person"
-      ],
-      "shape": "rect",
-      "x": 420,
-      "y": 280,
-      "w": 140,
-      "h": 330,
-      "condition": null,
-      "default_entity": "npc_drew"
+ "id": "scene_chancery",
+ "label": "Канцелярия Коллегии",
+ "location": "loc_engine",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "states": [
+  {
+   "id": "state_main",
+   "label": "Кабинет канцлера",
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
     },
-    {
-      "id": "slot_drew_desk",
-      "label": "Стол секретаря",
-      "type": [
-        "item"
-      ],
-      "shape": "rect",
-      "x": 800,
-      "y": 390,
-      "w": 260,
-      "h": 180,
-      "condition": null,
-      "default_entity": "item_drew_desk"
-    }
-  ],
-  "navigation": [
-    {
-      "label": "В зал Совета",
-      "area": {
-        "x": 40,
-        "y": 300,
-        "w": 110,
-        "h": 300
-      },
-      "go_to_scene": "scene_council_hall"
-    }
-  ],
-  "chapter": "ch_city"
+    "background": "#131417",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
+       "fill": {
+        "gradient": {
+         "from": "#242730",
+         "to": "#0c0d10",
+         "angle": 90
+        }
+       }
+      }
+     },
+     {
+      "label": "стена",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 470,
+       "fill": {
+        "gradient": {
+         "from": "#262b34",
+         "to": "#151922",
+         "angle": 90
+        }
+       }
+      }
+     },
+     {
+      "label": "окно",
+      "shape": {
+       "type": "rect",
+       "x": 180,
+       "y": 90,
+       "w": 920,
+       "h": 300,
+       "fill": "#0d1016",
+       "radius": 6
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 90,
+       "x2": 180,
+       "y2": 390,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 364,
+       "y1": 90,
+       "x2": 364,
+       "y2": 390,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 548,
+       "y1": 90,
+       "x2": 548,
+       "y2": 390,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 732,
+       "y1": 90,
+       "x2": 732,
+       "y2": 390,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 916,
+       "y1": 90,
+       "x2": 916,
+       "y2": 390,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 1100,
+       "y1": 90,
+       "x2": 1100,
+       "y2": 390,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 90,
+       "x2": 1100,
+       "y2": 90,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 190,
+       "x2": 1100,
+       "y2": 190,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 290,
+       "x2": 1100,
+       "y2": 290,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 390,
+       "x2": 1100,
+       "y2": 390,
+       "color": "#333a44",
+       "width": 8
+      }
+     },
+     {
+      "label": "шестерня r90",
+      "shape": {
+       "type": "polygon",
+       "points": [
+        730.0,
+        240.0,
+        712.7,
+        252.8,
+        724.6,
+        270.8,
+        703.9,
+        276.9,
+        708.9,
+        297.9,
+        687.4,
+        296.5,
+        685.0,
+        317.9,
+        665.2,
+        309.3,
+        655.6,
+        328.6,
+        640.0,
+        313.8,
+        624.4,
+        328.6,
+        614.8,
+        309.3,
+        595.0,
+        317.9,
+        592.6,
+        296.5,
+        571.1,
+        297.9,
+        576.1,
+        276.9,
+        555.4,
+        270.8,
+        567.3,
+        252.8,
+        550.0,
+        240.0,
+        567.3,
+        227.2,
+        555.4,
+        209.2,
+        576.1,
+        203.1,
+        571.1,
+        182.1,
+        592.6,
+        183.5,
+        595.0,
+        162.1,
+        614.8,
+        170.7,
+        624.4,
+        151.4,
+        640.0,
+        166.2,
+        655.6,
+        151.4,
+        665.2,
+        170.7,
+        685.0,
+        162.1,
+        687.4,
+        183.5,
+        708.9,
+        182.1,
+        703.9,
+        203.1,
+        724.6,
+        209.2,
+        712.7,
+        227.2
+       ],
+       "fill": "#2f2a22",
+       "opacity": 0.9
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 240,
+       "rx": 28.8,
+       "ry": 28.8,
+       "fill": "#1c1913",
+       "opacity": 0.9500000000000001
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 240,
+       "rx": 60,
+       "ry": 50,
+       "fill": "#8a5f22",
+       "opacity": 0.5
+      }
+     },
+     {
+      "label": "стол канцлера",
+      "shape": {
+       "type": "rect",
+       "x": 300,
+       "y": 470,
+       "w": 560,
+       "h": 26,
+       "fill": "#3c2f1e",
+       "radius": 6
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 330,
+       "y": 496,
+       "w": 20,
+       "h": 130,
+       "fill": "#2b2114"
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 810,
+       "y": 496,
+       "w": 20,
+       "h": 130,
+       "fill": "#2b2114"
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 380,
+       "y": 440,
+       "w": 54,
+       "h": 34,
+       "fill": "#c9c2ab",
+       "opacity": 0.9,
+       "rotate": -2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 450,
+       "y": 440,
+       "w": 54,
+       "h": 34,
+       "fill": "#c9c2ab",
+       "opacity": 0.9,
+       "rotate": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 520,
+       "y": 440,
+       "w": 54,
+       "h": 34,
+       "fill": "#c9c2ab",
+       "opacity": 0.9,
+       "rotate": -2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 590,
+       "y": 440,
+       "w": 54,
+       "h": 34,
+       "fill": "#c9c2ab",
+       "opacity": 0.9,
+       "rotate": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 660,
+       "y": 440,
+       "w": 54,
+       "h": 34,
+       "fill": "#c9c2ab",
+       "opacity": 0.9,
+       "rotate": -2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 730,
+       "y": 440,
+       "w": 54,
+       "h": 34,
+       "fill": "#c9c2ab",
+       "opacity": 0.9,
+       "rotate": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 560,
+       "y": 452,
+       "w": 40,
+       "h": 22,
+       "fill": "#8a3b2a",
+       "radius": 3
+      }
+     },
+     {
+      "label": "шкаф",
+      "shape": {
+       "type": "rect",
+       "x": 60,
+       "y": 300,
+       "w": 100,
+       "h": 320,
+       "fill": "#22252c",
+       "radius": 4
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1120,
+       "y": 300,
+       "w": 110,
+       "h": 320,
+       "fill": "#22252c",
+       "radius": 4
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 70,
+       "y": 320,
+       "w": 80,
+       "h": 30,
+       "fill": "#2b2f37"
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 70,
+       "y": 360,
+       "w": 80,
+       "h": 30,
+       "fill": "#2b2f37"
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 70,
+       "y": 400,
+       "w": 80,
+       "h": 30,
+       "fill": "#2b2f37"
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 70,
+       "y": 440,
+       "w": 80,
+       "h": 30,
+       "fill": "#2b2f37"
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 70,
+       "y": 480,
+       "w": 80,
+       "h": 30,
+       "fill": "#2b2f37"
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 70,
+       "y": 520,
+       "w": 80,
+       "h": 30,
+       "fill": "#2b2f37"
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 70,
+       "y": 560,
+       "w": 80,
+       "h": 30,
+       "fill": "#2b2f37"
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 640,
+       "y": 0,
+       "w": 8,
+       "h": 70,
+       "fill": "#1a1c20"
+      }
+     },
+     {
+      "label": "лампа (сияние)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 644,
+       "cy": 92,
+       "rx": 81.6,
+       "ry": 81.6,
+       "fill": "#ffe0a8",
+       "opacity": 0.13999999999999999
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 644,
+       "cy": 92,
+       "rx": 20.4,
+       "ry": 20.4,
+       "fill": "#ffe0a8",
+       "opacity": 0.75
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 644,
+       "cy": 92,
+       "rx": 7.48,
+       "ry": 7.48,
+       "fill": "#fff6dd",
+       "opacity": 0.9
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 620,
+       "w": 1280,
+       "h": 100,
+       "fill": "#191b20"
+      }
+     },
+     {
+      "label": "затемнение сверху",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 90,
+       "fill": "#040508",
+       "opacity": 0.4
+      }
+     },
+     {
+      "label": "затемнение снизу",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 610,
+       "w": 1280,
+       "h": 110,
+       "fill": "#040508",
+       "opacity": 0.4
+      }
+     },
+     {
+      "label": "затемнение слева",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 120,
+       "h": 720,
+       "fill": "#040508",
+       "opacity": 0.3
+      }
+     },
+     {
+      "label": "затемнение справа",
+      "shape": {
+       "type": "rect",
+       "x": 1160,
+       "y": 0,
+       "w": 120,
+       "h": 720,
+       "fill": "#040508",
+       "opacity": 0.3
+      }
+     }
+    ]
+   },
+   "condition": null
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_veil",
+   "label": "За столом",
+   "type": [
+    "person"
+   ],
+   "x": 430,
+   "y": 300,
+   "w": 180,
+   "h": 280,
+   "default_entity": "npc_veil",
+   "condition": null,
+   "shape": "rect"
+  },
+  {
+   "id": "slot_olha",
+   "label": "У окна",
+   "type": [
+    "person"
+   ],
+   "x": 900,
+   "y": 300,
+   "w": 150,
+   "h": 300,
+   "condition": {
+    "flag": "olha_present"
+   },
+   "shape": "rect"
+  },
+  {
+   "id": "slot_papers",
+   "label": "Бумаги",
+   "type": [
+    "item"
+   ],
+   "x": 376,
+   "y": 436,
+   "w": 430,
+   "h": 50,
+   "default_entity": "item_veil_papers",
+   "condition": null,
+   "shape": "rect"
+  }
+ ],
+ "navigation": [
+  {
+   "label": "В зал Матери",
+   "area": {
+    "x": 40,
+    "y": 560,
+    "w": 160,
+    "h": 150
+   },
+   "go_to_scene": "scene_engine_hall"
+  }
+ ],
+ "chapter": "ch3",
+ "music": [
+  {
+   "tracks": [
+    "music_tension"
+   ],
+   "conditions": []
+  }
+ ]
 }

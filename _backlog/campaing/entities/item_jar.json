@@ -1,0 +1,32 @@
+{
+ "id": "item_jar",
+ "type": "item",
+ "category": "misc",
+ "label": "Банки с органами",
+ "description": "Патологос хранит то, что не смог вернуть людям.",
+ "weight": 20,
+ "stackable": false,
+ "image": "",
+ "interact_options": [
+  {
+   "label": "Осмотреть",
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "jars_seen"
+    }
+   ],
+   "effects": [
+    {
+     "type": "set_flag",
+     "flag": "jars_seen"
+    },
+    {
+     "type": "show_message",
+     "text": "Две банки подписаны одним именем: «Крон, А. Сердце — 1» и «Крон, А. Сердце — 2»."
+    }
+   ],
+   "message": "Спирт, стекло и очень аккуратные подписи."
+  }
+ ]
+}

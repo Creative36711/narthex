@@ -1,0 +1,57 @@
+{
+ "id": "rule_pursuit_men",
+ "label": "Плащи Коллегии идут по следу",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "plagued_by_collegium"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "pursuit_started"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "pursuit_started"
+  },
+  {
+   "type": "banner",
+   "text": "За вами идут",
+   "preset": "шёпот",
+   "enter": "сбоку",
+   "seconds": 4,
+   "position": "центр"
+  },
+  {
+   "type": "start_pursuit",
+   "label": "Плащи Коллегии",
+   "skill": "stealth",
+   "every_ticks": 3,
+   "fails_to_catch": 1,
+   "on_fail": [
+    {
+     "type": "start_combat",
+     "enemies": [
+      {
+       "entity": "npc_thug",
+       "count": 2
+      }
+     ],
+     "arena": "arena_tunnels",
+     "intro": "Вас настигают в узком проходе. Плащи не разговаривают.",
+     "on_victory": [
+      {
+       "type": "show_message",
+       "text": "Последний плащ оседает на колени. Из-под капюшона пахнет пылью третьего помола."
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "chapter": "ch2"
+}

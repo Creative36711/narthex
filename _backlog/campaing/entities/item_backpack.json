@@ -1,0 +1,42 @@
+{
+ "id": "item_backpack",
+ "type": "item",
+ "category": "misc",
+ "label": "Угловой стол",
+ "description": "За столом в углу кто-то оставил сумку — и не вернулся за ней.",
+ "weight": 5,
+ "stackable": false,
+ "image": "",
+ "interact_options": [
+  {
+   "label": "Открыть",
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "backpack_open"
+    }
+   ],
+   "effects": [
+    {
+     "type": "set_flag",
+     "flag": "backpack_open"
+    },
+    {
+     "type": "add_item",
+     "item": "item_scalpel",
+     "quantity": 1
+    },
+    {
+     "type": "add_item",
+     "item": "item_ration",
+     "quantity": 1
+    },
+    {
+     "type": "show_message",
+     "text": "На дне сумки — распятие из шестерёнок и записка: «Не возвращайся. Пепел сыпется сверху»."
+    }
+   ],
+   "message": "Внутри — скальпель и еда. Хозяин ушёл очень быстро."
+  }
+ ]
+}

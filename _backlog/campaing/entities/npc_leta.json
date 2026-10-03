@@ -1,0 +1,57 @@
+{
+ "id": "npc_leta",
+ "type": "npc",
+ "label": "Летта",
+ "description": "Подмастерье Крона. Пятнадцать лет, руки в ссадинах, в карманах — чужие пружины.",
+ "portrait": {
+  "neutral": "assets/img/npc/leta.jpg",
+  "scared": "assets/img/npc/leta_scared.jpg",
+  "kind": "assets/img/npc/leta_kind.jpg",
+  "angry": "assets/img/npc/leta_angry.jpg"
+ },
+ "stats": {
+  "STR": 8,
+  "CON": 10,
+  "SIZ": 8,
+  "DEX": 14,
+  "INT": 13,
+  "POW": 13,
+  "CHA": 11
+ },
+ "skills": {
+  "mechanics": 60,
+  "stealth": 55,
+  "spot": 45,
+  "investigate": 40,
+  "brawl": 25
+ },
+ "inventory": [
+  {
+   "item": "item_cinder",
+   "quantity": 4
+  },
+  {
+   "item": "item_litan_key",
+   "quantity": 1
+  }
+ ],
+ "equipment": {
+  "weapon": "item_scalpel"
+ },
+ "dialogue": "dialogues/leta.ink",
+ "slot_type": "person",
+ "faction": "faction_artel",
+ "base_disposition": 0,
+ "schedule": [],
+ "presence_overrides": [
+  {
+   "flag": "leta_found",
+   "location": "loc_tunnels",
+   "scene": "scene_hideout",
+   "slot": "slot_leta"
+  }
+ ],
+ "sounds": {
+  "talk": "sfx_voice_young"
+ }
+}

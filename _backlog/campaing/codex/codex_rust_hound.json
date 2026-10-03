@@ -1,0 +1,8 @@
+{
+ "id": "codex_rust_hound",
+ "label": "Ржавый пёс",
+ "category": "creatures",
+ "text": "Псы, что живут под решётками, дышат пеплом и покрываются коркой. Укус ржавого пса долго не заживает: в ране остаётся пыль, и она продолжает есть человека изнутри.",
+ "image": "assets/img/codex/rust_hound.jpg",
+ "creature_entity": "npc_rust_hound"
+}

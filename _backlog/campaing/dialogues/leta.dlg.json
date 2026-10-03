@@ -1,0 +1,305 @@
+{
+ "version": 2,
+ "label": "Летта, подмастерье Крона",
+ "nodes": [
+  {
+   "id": "main",
+   "label": "В логове",
+   "sections": [
+    {
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "leta_saved"
+      }
+     ],
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Летта откладывает ключ в сторону — впервые за вечер."
+       }
+      }
+     ],
+     "else_steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Летта сидит на матрасе, прижав к груди гаечный ключ, и не двигается."
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "«Ты из Артели. Я знаю, как вы выглядите: плащ, линза, вежливые вопросы. Спрашивай быстро, мне тут не нравится.»"
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "Я ищу правду о смерти Крона.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "leta_told"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Мастер умер не от сердца. У него сердце было железное — он сам его собрал. Он умер, потому что кто-то подсыпал в резонатор дрянь. Я видела, как он кашлял латунью.»"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "«А потом приходили серые. Двое. Женщина с латунной рукой заглядывала в мастерскую — я спряталась под верстаком. Она не искала мастера. Она искала цилиндр.»"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "leta_witness"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "unlock_codex",
+          "entry": "codex_echo"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "once": true,
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "leta_told",
+       "not": true
+      }
+     ]
+    },
+    {
+     "text": "Крон оставил тебе письмо.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "letter_read"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Летта читает молча, шевеля губами, как читают первоклассники. Потом кладёт письмо за пазуху."
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Он пишет, чтобы я не мстила. Как будто месть — это когда есть кому мстить. Ладно. Ты его эхо собираешь?»"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_disposition",
+          "target": "npc_leta",
+          "delta": 15
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "once": true,
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_kron_letter"
+      },
+      {
+       "type": "flag",
+       "flag": "letter_read",
+       "not": true
+      }
+     ]
+    },
+    {
+     "text": "Держи, поешь.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_item",
+          "item": "item_ash_bread",
+          "qty": 1
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "leta_fed"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Она откусывает хлеб и смотрит на вас уже не как на опасность, а как на неприятность, с которой можно жить."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_disposition",
+          "target": "npc_leta",
+          "delta": 10
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "once": true,
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_ash_bread"
+      },
+      {
+       "type": "flag",
+       "flag": "leta_fed",
+       "not": true
+      }
+     ]
+    },
+    {
+     "text": "Отдай ключ-литанию.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Ключ — это мастер. Он отдал его мне, чтобы я не совалась в подъёмник. Отдам тому, кто придёт с его эхом. У тебя есть его эхо? Всё его эхо?»"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "fire_rule",
+          "rule": "rule_leta_gives_key"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "leta_trust",
+       "not": true
+      }
+     ]
+    },
+    {
+     "text": "Пойдёшь со мной, когда всё кончится?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "leta_will_escape"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Куда? — она смотрит на вас внимательно, как механик на деталь. — Ладно. Если ты правда пойдёшь. Только я не буду звать тебя «дядя» или там «господин».»"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_disposition",
+          "target": "npc_leta",
+          "delta": 10
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "once": true,
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "leta_trust"
+      }
+     ]
+    },
+    {
+     "text": "Что ты знаешь о Матери?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Мастер говорил: она не печь. Он однажды взял меня в зал — я слышала, как она поёт. Он тогда сказал: «Летта, если я не вернусь, расскажи всем, что она просила замену». Я никому не рассказала. Ты первый.»"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "leta_mother_known"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "leta_told"
+      }
+     ]
+    },
+    {
+     "text": "Сиди тихо. Я вернусь.",
+     "sections": [
+      {
+       "steps": []
+      }
+     ],
+     "goto": "end"
+    }
+   ]
+  }
+ ]
+}

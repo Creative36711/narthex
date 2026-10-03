@@ -1,0 +1,25 @@
+{
+ "id": "item_lift_lever",
+ "type": "item",
+ "category": "misc",
+ "label": "Пульт подъёмника",
+ "description": "Медный пульт с гнездом под ключ-литанию. Ключ у кого-то другого.",
+ "weight": 8.0,
+ "stackable": false,
+ "image": "",
+ "value": {
+  "cinder": 0
+ },
+ "interact_options": [
+  {
+   "label": "Осмотреть пульт",
+   "conditions": [],
+   "effects": [
+    {
+     "type": "show_message",
+     "text": "Гнездо под ключ пустое. Без ключа-литании кабина не пойдёт."
+    }
+   ]
+  }
+ ]
+}

@@ -1,9 +1,0 @@
-{
-  "id": "item_ev_recording",
-  "type": "item",
-  "category": "evidence",
-  "label": "Валик фонографа",
-  "description": "Восковой валик. На нём — голос Венн, обещающий машине свободу в обмен на «седьмое сердце».",
-  "weight": 0.3,
-  "stackable": false
-}

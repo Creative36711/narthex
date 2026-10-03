@@ -1,0 +1,65 @@
+{
+ "id": "npc_olha",
+ "type": "npc",
+ "label": "Ольха",
+ "description": "Длань Коллегии. Тихая женщина с латунной рукой и списком тех, кто задаёт лишние вопросы.",
+ "portrait": {
+  "neutral": "assets/img/npc/olha.jpg",
+  "angry": "assets/img/npc/olha_angry.jpg"
+ },
+ "stats": {
+  "STR": 14,
+  "CON": 13,
+  "SIZ": 11,
+  "DEX": 14,
+  "INT": 11,
+  "POW": 12,
+  "CHA": 9
+ },
+ "skills": {
+  "blade": 65,
+  "brawl": 55,
+  "stealth": 55,
+  "intimidate": 55,
+  "spot": 45
+ },
+ "inventory": [],
+ "equipment": {
+  "weapon": "item_short_blade",
+  "armor": "item_cuirass"
+ },
+ "dialogue": "dialogues/olha.ink",
+ "slot_type": "person",
+ "faction": "faction_collegium",
+ "base_disposition": -20,
+ "abilities": [
+  "ability_blade_flurry"
+ ],
+ "morale": {
+  "below_hp_pct": 25,
+  "flee_chance": 0
+ },
+ "loot_table": [
+  {
+   "item": "item_short_blade",
+   "chance": 1.0
+  },
+  {
+   "item": "item_cinder",
+   "chance": 1.0,
+   "min": 15,
+   "max": 40
+  }
+ ],
+ "presence_overrides": [
+  {
+   "flag": "olha_present",
+   "location": "loc_engine",
+   "scene": "scene_chancery",
+   "slot": "slot_olha"
+  }
+ ],
+ "sounds": {
+  "talk": "sfx_voice_low"
+ }
+}

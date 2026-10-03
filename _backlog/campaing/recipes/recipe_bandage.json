@@ -1,24 +1,22 @@
 {
-  "id": "recipe_bandage",
-  "label": "Бинт с карболкой",
-  "description": "Ветошь, вываренная в ерше.",
-  "inputs": [
-    {
-      "item": "item_rag",
-      "quantity": 2
-    },
-    {
-      "item": "item_gin",
-      "quantity": 1
-    }
-  ],
-  "skill": {
-    "id": "medicine",
-    "difficulty": 25
-  },
-  "time_ticks": 1,
-  "output": {
-    "item": "item_bandage",
-    "quantity": 2
+ "id": "recipe_bandage",
+ "label": "Бинт из брезента",
+ "description": "Обрывок проваренной ткани, который останавливает кровь.",
+ "inputs": [
+  {
+   "item": "item_cloth",
+   "quantity": 2
   }
+ ],
+ "tools": [],
+ "skill": {
+  "id": "first_aid",
+  "difficulty": 30
+ },
+ "time_ticks": 1,
+ "output": {
+  "item": "item_bandage",
+  "quantity": 1
+ },
+ "message": "Вы туго скатали ткань. Пальцы пахнут смолой."
 }

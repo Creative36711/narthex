@@ -1,0 +1,58 @@
+{
+ "id": "rule_striga_steal",
+ "label": "Взять осколок силой",
+ "once": false,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "skill_check_gate",
+   "skill": "stealth",
+   "difficulty": 50,
+   "success_effects": [
+    {
+     "type": "add_item",
+     "item": "item_echo_part_3",
+     "quantity": 1
+    },
+    {
+     "type": "set_flag",
+     "flag": "striga_echo_sold"
+    },
+    {
+     "type": "set_flag",
+     "flag": "striga_angry"
+    },
+    {
+     "type": "set_flag",
+     "flag": "plagued_by_collegium"
+    },
+    {
+     "type": "change_disposition",
+     "target": "faction_smugglers",
+     "delta": -20
+    },
+    {
+     "type": "show_message",
+     "text": "Вы берёте осколок со стойки так, что Стрига замечает это только через минуту. Поздно."
+    }
+   ],
+   "fail_effects": [
+    {
+     "type": "set_flag",
+     "flag": "striga_angry"
+    },
+    {
+     "type": "change_disposition",
+     "target": "faction_smugglers",
+     "delta": -10
+    },
+    {
+     "type": "show_message",
+     "text": "Стрига перехватывает вашу руку и улыбается: «Не в моей лавке, дознаватель.»"
+    }
+   ]
+  }
+ ],
+ "chapter": "ch2"
+}

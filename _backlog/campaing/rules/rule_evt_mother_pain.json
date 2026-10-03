@@ -1,0 +1,18 @@
+{
+ "id": "rule_evt_mother_pain",
+ "label": "Матерь стонет",
+ "once": false,
+ "manual": false,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "change_need",
+   "need": "need_clarity",
+   "delta": -5
+  },
+  {
+   "type": "show_message",
+   "text": "Матерь выдыхает через все трубы сразу. Свет гаснет и загорается снова."
+  }
+ ]
+}

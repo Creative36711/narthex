@@ -1,0 +1,56 @@
+{
+ "id": "npc_smoked",
+ "type": "npc",
+ "label": "Прокопчённый",
+ "description": "Человек, который слишком долго дышал пеплом. Уже не совсем человек и уже не живой.",
+ "portrait": {
+  "neutral": ""
+ },
+ "stats": {
+  "STR": 12,
+  "CON": 12,
+  "SIZ": 11,
+  "DEX": 9,
+  "INT": 6,
+  "POW": 9,
+  "CHA": 4
+ },
+ "skills": {
+  "brawl": 50,
+  "dodge": 25
+ },
+ "inventory": [],
+ "equipment": {},
+ "slot_type": "person",
+ "faction": "faction_wild",
+ "base_disposition": -40,
+ "natural_weapon": {
+  "skill": "brawl",
+  "damage": "1d6+1",
+  "damage_bonus": true,
+  "range": 1,
+  "attacks_per_round": 1,
+  "parry_capable": false
+ },
+ "abilities": [
+  "ability_ash_spit"
+ ],
+ "morale": {
+  "below_hp_pct": 20,
+  "flee_chance": 0
+ },
+ "loot_table": [
+  {
+   "item": "item_ash_sample",
+   "chance": 0.7
+  },
+  {
+   "item": "item_cinder",
+   "chance": 0.5,
+   "min": 2,
+   "max": 9
+  }
+ ],
+ "armor": 1,
+ "combat_ai": "brute"
+}

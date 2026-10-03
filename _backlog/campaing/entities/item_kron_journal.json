@@ -1,0 +1,34 @@
+{
+ "id": "item_kron_journal",
+ "type": "item",
+ "category": "clue",
+ "label": "Журнал Крона",
+ "description": "Тетрадь мастера: расход пепла и расход людей.",
+ "weight": 0.4,
+ "stackable": false,
+ "image": "",
+ "value": {
+  "cinder": 0
+ },
+ "interact_options": [
+  {
+   "label": "Читать",
+   "conditions": [],
+   "effects": [
+    {
+     "type": "show_message",
+     "text": "«137-й год. Матерь просит не пепла, а сердца. Коллегия отвечает: пусть просит громче. Сегодня в жерло ушёл Ганс. Завтра я скажу им, что знаю.»"
+    },
+    {
+     "type": "set_flag",
+     "flag": "journal_read"
+    },
+    {
+     "type": "unlock_codex",
+     "entry": "codex_ash"
+    }
+   ],
+   "message": "Тетрадь исписана до последней страницы. Последняя строка дрожит."
+  }
+ ]
+}

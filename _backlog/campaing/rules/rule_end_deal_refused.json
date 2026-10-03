@@ -1,0 +1,20 @@
+{
+ "id": "rule_end_deal_refused",
+ "label": "Отказ от договора",
+ "once": true,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "veil_hostile"
+  },
+  {
+   "type": "banner",
+   "text": "Приказ: остановить",
+   "preset": "проклятье",
+   "enter": "молниеносно",
+   "seconds": 5
+  }
+ ]
+}

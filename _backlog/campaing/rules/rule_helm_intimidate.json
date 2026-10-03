@@ -1,0 +1,49 @@
+{
+ "id": "rule_helm_intimidate",
+ "label": "Надавить на патологоса",
+ "once": false,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "skill_check_gate",
+   "skill": "intimidate",
+   "difficulty": 45,
+   "success_effects": [
+    {
+     "type": "set_flag",
+     "flag": "helm_scared"
+    },
+    {
+     "type": "set_flag",
+     "flag": "helm_helpful"
+    },
+    {
+     "type": "set_flag",
+     "flag": "rust_trace_known"
+    },
+    {
+     "type": "add_item",
+     "item": "item_autopsy_note",
+     "quantity": 1
+    },
+    {
+     "type": "show_message",
+     "text": "Хельм бледнеет и выписывает строку дрожащей рукой. «Только не говорите, что это я.»"
+    }
+   ],
+   "fail_effects": [
+    {
+     "type": "change_disposition",
+     "target": "npc_helm",
+     "delta": -5
+    },
+    {
+     "type": "show_message",
+     "text": "Хельм смотрит на вас холодно: «Я тридцать лет режу людей, дознаватель. Меня пугали и похуже.»"
+    }
+   ]
+  }
+ ],
+ "chapter": "ch1"
+}

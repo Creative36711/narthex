@@ -1,0 +1,139 @@
+{
+ "id": "quest_word",
+ "label": "Слово для Матери",
+ "description": "Правда собрана. Осталось решить, что с ней делать: сказать городу, продать, сгореть вместе с ней или уйти.",
+ "chapter": "ch3",
+ "journal_entries": {
+  "j_start": "Матерь-Горн — не печь. Внутри неё — женщина, которую вплавили в машину, чтобы город не замёрз.",
+  "j_choice": "Коллегия кормит Матерь «третьим помолом» и держит город на страхе. У вас на руках правда, ключ и больное сердце.",
+  "j_public": "Вы сказали городу правду вслух — и город услышал.",
+  "j_heart": "Вы отдали своё сердце, чтобы Матерь дожила до весны.",
+  "j_deal": "Вы приняли договор канцлера: правда осталась в сейфе, город остался в тепле.",
+  "j_escape": "Вы ушли из Горна вдвоём, оставив город решать свои дела самому."
+ },
+ "stages": [
+  {
+   "id": "stage_start",
+   "label": "Правда на руках",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_word",
+     "text_key": "j_start"
+    }
+   ],
+   "transitions": [
+    {
+     "to": "stage_choice",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "mother_awake"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "stage_choice",
+   "label": "Решение",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_word",
+     "text_key": "j_choice"
+    }
+   ],
+   "transitions": [
+    {
+     "to": "stage_public",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "truth_told"
+      }
+     ]
+    },
+    {
+     "to": "stage_heart",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "echo_given_heart"
+      }
+     ]
+    },
+    {
+     "to": "stage_deal",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "deal_taken"
+      }
+     ]
+    },
+    {
+     "to": "stage_escape",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "left_city"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "stage_public",
+   "label": "Слово сказано",
+   "final": true,
+   "outcome": "success",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_word",
+     "text_key": "j_public"
+    }
+   ]
+  },
+  {
+   "id": "stage_heart",
+   "label": "Второе сердце",
+   "final": true,
+   "outcome": "success",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_word",
+     "text_key": "j_heart"
+    }
+   ]
+  },
+  {
+   "id": "stage_deal",
+   "label": "Тихий договор",
+   "final": true,
+   "outcome": "success",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_word",
+     "text_key": "j_deal"
+    }
+   ]
+  },
+  {
+   "id": "stage_escape",
+   "label": "Вниз по реке",
+   "final": true,
+   "outcome": "success",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_word",
+     "text_key": "j_escape"
+    }
+   ]
+  }
+ ]
+}

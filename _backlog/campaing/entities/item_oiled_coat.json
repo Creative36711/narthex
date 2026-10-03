@@ -1,0 +1,18 @@
+{
+ "id": "item_oiled_coat",
+ "type": "item",
+ "category": "armor",
+ "label": "Пропитанный плащ",
+ "description": "Плащ, проваренный в смоле: держит дождь, пепел и нож.",
+ "weight": 2.0,
+ "stackable": false,
+ "image": "",
+ "value": {
+  "cinder": 25
+ },
+ "equip_slot": "armor",
+ "armor_data": {
+  "points": 2,
+  "durability": 20
+ }
+}

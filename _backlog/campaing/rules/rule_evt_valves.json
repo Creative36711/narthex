@@ -1,0 +1,13 @@
+{
+ "id": "rule_evt_valves",
+ "label": "Клапаны травят пар",
+ "once": false,
+ "manual": false,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "show_message",
+   "text": "Клапан с грохотом травит пар. В белом облаке на миг проступает человеческий профиль."
+  }
+ ]
+}

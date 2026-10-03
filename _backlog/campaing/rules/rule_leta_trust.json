@@ -1,0 +1,54 @@
+{
+ "id": "rule_leta_trust",
+ "label": "Летта доверилась",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "leta_saved"
+  },
+  {
+   "type": "flag_set",
+   "flag": "letter_read"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "leta_trust"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "leta_trust"
+  },
+  {
+   "type": "change_disposition",
+   "target": "npc_leta",
+   "delta": 20
+  },
+  {
+   "type": "advance_quest",
+   "quest": "quest_leta",
+   "stage": "stage_done"
+  },
+  {
+   "type": "show_message",
+   "text": "Летта долго молчит, потом вытаскивает из-за пазухи ключ-литанию: «Он сказал — отдать тому, кто придёт с его эхом»."
+  },
+  {
+   "type": "give_reward",
+   "items": [
+    {
+     "item": "item_litan_key",
+     "quantity": 1
+    }
+   ]
+  },
+  {
+   "type": "grant_xp",
+   "points": 30
+  }
+ ],
+ "chapter": "ch2"
+}

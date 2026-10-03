@@ -1,0 +1,31 @@
+{
+ "id": "item_echo_part_1",
+ "type": "item",
+ "category": "clue",
+ "label": "Осколок эха I",
+ "description": "Обрезок эхо-цилиндра с косым срезом. Пахнет порохом и дождём.",
+ "weight": 0.2,
+ "stackable": false,
+ "image": "",
+ "value": {
+  "cinder": 0
+ },
+ "interact_options": [
+  {
+   "label": "Считать эхо",
+   "conditions": [],
+   "effects": [
+    {
+     "type": "show_message",
+     "text": "«…меня предупредили. Если ты слышишь это, Стерн, — не верь серым плащам…»"
+    },
+    {
+     "type": "set_flag",
+     "flag": "echo_1_read"
+    }
+   ],
+   "message": "Хрип, дождь, шаги. Эхо обрывается на середине слова.",
+   "sound": "sfx_echo_hum"
+  }
+ ]
+}

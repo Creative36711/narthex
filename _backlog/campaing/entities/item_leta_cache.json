@@ -1,0 +1,43 @@
+{
+ "id": "item_leta_cache",
+ "type": "item",
+ "category": "misc",
+ "label": "Схрон Летты",
+ "description": "Ящик, набитый пружинами, шестерёнками и чужими бумагами.",
+ "weight": 20,
+ "stackable": false,
+ "image": "",
+ "interact_options": [
+  {
+   "label": "Порыться",
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "cache_open"
+    }
+   ],
+   "effects": [
+    {
+     "type": "add_item",
+     "item": "item_cinder",
+     "quantity": 8
+    },
+    {
+     "type": "add_item",
+     "item": "item_hand_lamp",
+     "quantity": 1
+    },
+    {
+     "type": "set_flag",
+     "flag": "cache_open"
+    },
+    {
+     "type": "show_message",
+     "text": "Под пружинами — коробок спичек, фонарь и половина чужого обеда."
+    }
+   ],
+   "message": "В ящике пахнет машинным маслом и сухарями.",
+   "sound": "sfx_coin"
+  }
+ ]
+}

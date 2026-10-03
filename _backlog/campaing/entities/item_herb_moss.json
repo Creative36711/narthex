@@ -1,0 +1,13 @@
+{
+ "id": "item_herb_moss",
+ "type": "item",
+ "category": "ingredient",
+ "label": "Светомох",
+ "description": "Бледный мох, что растёт у тёплых труб. Пахнет озоном.",
+ "weight": 0.1,
+ "stackable": true,
+ "image": "",
+ "value": {
+  "cinder": 4
+ }
+}

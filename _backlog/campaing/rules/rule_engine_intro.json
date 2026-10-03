@@ -1,0 +1,35 @@
+{
+ "id": "rule_engine_intro",
+ "label": "Сердце Горна",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "player_enters_scene",
+   "scene": "scene_engine_hall"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "mother_awake"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "mother_awake"
+  },
+  {
+   "type": "play_cutscene",
+   "cutscene": "cutscene_mother"
+  },
+  {
+   "type": "unlock_codex",
+   "entry": "codex_mother"
+  },
+  {
+   "type": "show_message",
+   "text": "Матерь дышит медленно, как огромный зверь. Или как женщина, которой очень долго не давали говорить."
+  }
+ ],
+ "chapter": "ch3"
+}

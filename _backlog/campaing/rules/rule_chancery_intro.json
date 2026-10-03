@@ -1,0 +1,31 @@
+{
+ "id": "rule_chancery_intro",
+ "label": "Канцелярия",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "player_enters_scene",
+   "scene": "scene_chancery"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "chancery_seen"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "chancery_seen"
+  },
+  {
+   "type": "set_flag",
+   "flag": "olha_present"
+  },
+  {
+   "type": "show_message",
+   "text": "Канцлер не встаёт из-за стола. Ольха стоит у окна и не смотрит на вас — но видит каждое движение."
+  }
+ ],
+ "chapter": "ch3"
+}

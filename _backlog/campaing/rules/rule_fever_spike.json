@@ -1,0 +1,28 @@
+{
+ "id": "rule_fever_spike",
+ "label": "Провал ясности",
+ "once": false,
+ "manual": true,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "intro_done"
+  }
+ ],
+ "effects": [
+  {
+   "type": "apply_status",
+   "target": "player",
+   "status": "status_rust_fever",
+   "duration": 24
+  },
+  {
+   "type": "change_hp",
+   "delta": -4
+  },
+  {
+   "type": "show_message",
+   "text": "Пепел в голове складывается в чужие слова. Это уже не усталость — это ржавая лихорадка."
+  }
+ ]
+}

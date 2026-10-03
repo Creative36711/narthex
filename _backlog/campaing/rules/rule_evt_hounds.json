@@ -1,0 +1,13 @@
+{
+ "id": "rule_evt_hounds",
+ "label": "Шорох в трубах",
+ "once": false,
+ "manual": false,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "show_message",
+   "text": "В трубе над головой просыпается шорох. Ржавые псы идут по вашему запаху."
+  }
+ ]
+}

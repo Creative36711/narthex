@@ -1,0 +1,34 @@
+{
+ "id": "npc_slukhach",
+ "type": "npc",
+ "label": "Слухач",
+ "description": "Сведённый: человек, вплавленный в сеть города. Говорит чужими голосами и чужими словами.",
+ "portrait": {
+  "neutral": "assets/img/npc/slukhach.jpg",
+  "broken": "assets/img/npc/slukhach_broken.jpg"
+ },
+ "stats": {
+  "STR": 6,
+  "CON": 8,
+  "SIZ": 8,
+  "DEX": 3,
+  "INT": 12,
+  "POW": 15,
+  "CHA": 4
+ },
+ "skills": {
+  "echo": 70,
+  "investigate": 40
+ },
+ "inventory": [],
+ "equipment": {},
+ "dialogue": "dialogues/slukhach.ink",
+ "slot_type": "person",
+ "faction": "faction_machine",
+ "base_disposition": 5,
+ "schedule": [],
+ "armor": 2,
+ "sounds": {
+  "talk": "sfx_voice_static"
+ }
+}

@@ -1,0 +1,31 @@
+{
+ "id": "rule_good_ending_hint",
+ "label": "Матерь ждёт ответа",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "echoes_done"
+  },
+  {
+   "type": "player_enters_scene",
+   "scene": "scene_engine_hall"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "final_hint_done"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "final_hint_done"
+  },
+  {
+   "type": "show_message",
+   "text": "Матерь молчит так, как молчат перед важным разговором. У вас есть её эхо, её ключ и её больной вопрос."
+  }
+ ],
+ "chapter": "ch3"
+}

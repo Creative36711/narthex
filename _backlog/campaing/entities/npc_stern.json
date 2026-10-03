@@ -1,0 +1,88 @@
+{
+ "id": "npc_stern",
+ "type": "npc",
+ "label": "Капитан Стерн",
+ "description": "Капитан стражи Горна. Устал, аккуратен и держит в рукаве чужую вину.",
+ "portrait": {
+  "neutral": "assets/img/npc/stern.jpg",
+  "tired": "assets/img/npc/stern_tired.jpg",
+  "angry": "assets/img/npc/stern_angry.jpg"
+ },
+ "stats": {
+  "STR": 13,
+  "CON": 12,
+  "SIZ": 12,
+  "DEX": 10,
+  "INT": 11,
+  "POW": 10,
+  "CHA": 10
+ },
+ "skills": {
+  "brawl": 45,
+  "blade": 55,
+  "intimidate": 50,
+  "spot": 40,
+  "investigate": 30
+ },
+ "inventory": [
+  {
+   "item": "item_cinder",
+   "quantity": 25
+  }
+ ],
+ "equipment": {
+  "weapon": "item_short_blade",
+  "armor": "item_cuirass"
+ },
+ "dialogue": "dialogues/stern.ink",
+ "slot_type": "person",
+ "faction": "faction_watch",
+ "base_disposition": 5,
+ "loot_table": [
+  {
+   "item": "item_short_blade",
+   "chance": 1.0
+  },
+  {
+   "item": "item_cinder",
+   "chance": 1.0,
+   "min": 8,
+   "max": 20
+  }
+ ],
+ "abilities": [
+  "ability_pistol_shot"
+ ],
+ "schedule": [
+  {
+   "time_range": [
+    6,
+    17
+   ],
+   "location": "loc_square",
+   "scene": "scene_square",
+   "slot": "slot_stern"
+  },
+  {
+   "time_range": [
+    18,
+    23
+   ],
+   "location": "loc_gate",
+   "scene": "scene_gate",
+   "slot": "slot_watch"
+  },
+  {
+   "time_range": [
+    0,
+    5
+   ],
+   "location": "loc_gate",
+   "scene": "scene_gate",
+   "slot": "slot_watch"
+  }
+ ],
+ "sounds": {
+  "talk": "sfx_voice_low"
+ }
+}

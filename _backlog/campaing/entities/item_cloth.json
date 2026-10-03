@@ -1,0 +1,13 @@
+{
+ "id": "item_cloth",
+ "type": "item",
+ "category": "ingredient",
+ "label": "Ткань",
+ "description": "Обрывок брезента. Годится и на бинт, и на фильтр.",
+ "weight": 0.2,
+ "stackable": true,
+ "image": "",
+ "value": {
+  "cinder": 2
+ }
+}

@@ -1,9 +1,0 @@
-{
-  "id": "item_locket",
-  "type": "item",
-  "category": "key",
-  "label": "Медальон Йенса",
-  "description": "Жестяной медальон с выцветшим портретом двух детей: мальчика и девочки постарше.",
-  "weight": 0.05,
-  "stackable": false
-}

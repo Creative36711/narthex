@@ -1,0 +1,29 @@
+{
+ "id": "rule_end_escape",
+ "label": "Концовка: вниз по реке",
+ "once": true,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "left_city"
+  },
+  {
+   "type": "banner",
+   "text": "Вниз по реке",
+   "preset": "заголовок",
+   "enter": "тянуть",
+   "seconds": 6,
+   "position": "центр",
+   "accent": "#6fa07a"
+  },
+  {
+   "type": "grant_xp",
+   "points": 70
+  },
+  {
+   "type": "game_over_victory"
+  }
+ ]
+}

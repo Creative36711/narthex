@@ -1,0 +1,102 @@
+{
+ "id": "quest_leta",
+ "label": "Девочка из Дырявого яруса",
+ "description": "Подмастерье Крона пропала. Она видела то, чего видеть не следовало, и знает больше, чем говорит.",
+ "chapter": "ch1",
+ "journal_entries": {
+  "j_start": "Летта, подмастерье Крона, пропала в день его смерти. На доске объявлений за неё дают десять угольков.",
+  "j_found": "Летта нашлась в Дырявом ярусе. Она видела серые плащи у мастерской и хранит ключ Крона.",
+  "j_done": "Летта отдала ключ-литанию и согласилась свидетельствовать. Теперь её нужно вытащить из города."
+ },
+ "stages": [
+  {
+   "id": "stage_start",
+   "label": "Пропала девочка",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_leta",
+     "text_key": "j_start"
+    }
+   ],
+   "transitions": [
+    {
+     "to": "stage_found",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "leta_found"
+      }
+     ]
+    },
+    {
+     "to": "stage_fail",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "leta_failed"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "stage_found",
+   "label": "Летта найдена",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_leta",
+     "text_key": "j_found"
+    },
+    {
+     "type": "show_message",
+     "text": "Летта не плачет. Она просто держит перед собой ключ и смотрит, как вы войдёте."
+    }
+   ],
+   "transitions": [
+    {
+     "to": "stage_done",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "leta_trust"
+      }
+     ]
+    },
+    {
+     "to": "stage_fail",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "leta_failed"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "stage_done",
+   "label": "Ключ у вас",
+   "final": true,
+   "outcome": "success",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_leta",
+     "text_key": "j_done"
+    },
+    {
+     "type": "grant_xp",
+     "points": 50
+    }
+   ]
+  },
+  {
+   "id": "stage_fail",
+   "label": "Не успели",
+   "final": true,
+   "outcome": "failure"
+  }
+ ]
+}

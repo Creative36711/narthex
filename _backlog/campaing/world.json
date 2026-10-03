@@ -1,1006 +1,1340 @@
 {
-  "regions": [
-    {
-      "id": "region_karst",
-      "label": "Карст-Гальвана",
-      "map_image": "",
-      "map_art": {
-        "canvas": {
-          "w": 1280,
-          "h": 720
-        },
-        "background": "#1a140c",
-        "layers": [
-          {
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 0,
-              "w": 1280,
-              "h": 720,
-              "fill": {
-                "gradient": {
-                  "from": "#2a2418",
-                  "to": "#141008",
-                  "angle": 90
-                }
-              }
-            },
-            "label": "пергамент"
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 20,
-              "y": 20,
-              "w": 1240,
-              "h": 680,
-              "fill": "#3a3020",
-              "stroke": "#8a6a3a",
-              "stroke_width": 4
-            },
-            "label": "поле карты",
-            "opacity": 0.6
-          },
-          {
-            "shape": {
-              "type": "polygon",
-              "points": [
-                420,
-                0,
-                860,
-                0,
-                900,
-                200,
-                1040,
-                420,
-                900,
-                720,
-                380,
-                720,
-                220,
-                420,
-                360,
-                200
-              ],
-              "fill": "#1e1a12"
-            },
-            "label": "каньон",
-            "opacity": 0.85
-          },
-          {
-            "shape": {
-              "type": "polygon",
-              "points": [
-                560,
-                0,
-                720,
-                0,
-                700,
-                300,
-                760,
-                520,
-                700,
-                720,
-                560,
-                720,
-                520,
-                520,
-                580,
-                300
-              ],
-              "fill": "#14110a"
-            },
-            "label": "русло",
-            "opacity": 0.9
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 960,
-              "y1": 300,
-              "x2": 790,
-              "y2": 510,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 960,
-              "y1": 300,
-              "x2": 300,
-              "y2": 230,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 960,
-              "y1": 300,
-              "x2": 640,
-              "y2": 100,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 790,
-              "y1": 510,
-              "x2": 330,
-              "y2": 480,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 300,
-              "y1": 230,
-              "x2": 640,
-              "y2": 100,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 330,
-              "y1": 480,
-              "x2": 300,
-              "y2": 230,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 790,
-              "y1": 510,
-              "x2": 560,
-              "y2": 620,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 330,
-              "y1": 480,
-              "x2": 560,
-              "y2": 620,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 560,
-              "y1": 620,
-              "x2": 640,
-              "y2": 380,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "line",
-              "x1": 640,
-              "y1": 100,
-              "x2": 640,
-              "y2": 380,
-              "color": "#8a6a3a",
-              "width": 3
-            },
-            "label": "дорога",
-            "opacity": 0.55
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 682,
-              "y": 372,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 0
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 677,
-              "y": 394,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 26
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 663,
-              "y": 411,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 51
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 643,
-              "y": 421,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 77
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 621,
-              "y": 421,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 103
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 601,
-              "y": 411,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 129
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 587,
-              "y": 394,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 154
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 582,
-              "y": 372,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 180
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 587,
-              "y": 350,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 206
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 601,
-              "y": 333,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 231
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 621,
-              "y": 323,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 257
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 643,
-              "y": 323,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 283
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 663,
-              "y": 333,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 309
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 677,
-              "y": 350,
-              "w": 16,
-              "h": 16,
-              "fill": "#514326"
-            },
-            "label": "знак Сердца зуб",
-            "opacity": 0.6,
-            "rotate": 334
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 640,
-              "cy": 380,
-              "rx": 46,
-              "ry": 46,
-              "fill": "#5a4a2a",
-              "stroke": "#362c19",
-              "stroke_width": 3
-            },
-            "label": "знак Сердца",
-            "opacity": 0.6
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 640,
-              "cy": 380,
-              "rx": 25.3,
-              "ry": 25.3,
-              "fill": "#3a301b"
-            },
-            "label": "знак Сердца обод",
-            "opacity": 0.6
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 640,
-              "cy": 380,
-              "rx": 8.28,
-              "ry": 8.28,
-              "fill": "#8c806a"
-            },
-            "label": "знак Сердца ось",
-            "opacity": 0.6
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1196,
-              "y": 591,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 0
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1188,
-              "y": 618,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 30
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1168,
-              "y": 638,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 60
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1141,
-              "y": 646,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 90
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1114,
-              "y": 638,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 120
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1094,
-              "y": 618,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 150
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1087,
-              "y": 591,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 180
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1094,
-              "y": 564,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 210
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1114,
-              "y": 544,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 240
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1141,
-              "y": 537,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 270
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1168,
-              "y": 544,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 300
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 1188,
-              "y": 564,
-              "w": 18,
-              "h": 18,
-              "fill": "#5f482b"
-            },
-            "label": "роза ветров зуб",
-            "opacity": 0.5,
-            "rotate": 330
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 1150,
-              "cy": 600,
-              "rx": 50,
-              "ry": 50,
-              "fill": "#6a5030",
-              "stroke": "#40301d",
-              "stroke_width": 3
-            },
-            "label": "роза ветров",
-            "opacity": 0.5
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 1150,
-              "cy": 600,
-              "rx": 27.500000000000004,
-              "ry": 27.500000000000004,
-              "fill": "#45341f"
-            },
-            "label": "роза ветров обод",
-            "opacity": 0.5
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 1150,
-              "cy": 600,
-              "rx": 9.0,
-              "ry": 9.0,
-              "fill": "#97846e"
-            },
-            "label": "роза ветров ось",
-            "opacity": 0.5
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 420,
-              "w": 1280,
-              "h": 300,
-              "fill": {
-                "gradient": {
-                  "from": "#7a8a64",
-                  "to": "#00000000",
-                  "angle": 90
-                }
-              }
-            },
-            "label": "хмарь над нижним городом",
-            "opacity": 0.18
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 80,
-              "cy": 540.0,
-              "rx": 220,
-              "ry": 105.0,
-              "fill": "#7a8a64"
-            },
-            "label": "хмарь над нижним городом клуб",
-            "opacity": 0.126
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 410,
-              "cy": 540.0,
-              "rx": 220,
-              "ry": 105.0,
-              "fill": "#7a8a64"
-            },
-            "label": "хмарь над нижним городом клуб",
-            "opacity": 0.126
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 600,
-              "cy": 540.0,
-              "rx": 220,
-              "ry": 105.0,
-              "fill": "#7a8a64"
-            },
-            "label": "хмарь над нижним городом клуб",
-            "opacity": 0.126
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 930,
-              "cy": 540.0,
-              "rx": 220,
-              "ry": 105.0,
-              "fill": "#7a8a64"
-            },
-            "label": "хмарь над нижним городом клуб",
-            "opacity": 0.126
-          },
-          {
-            "shape": {
-              "type": "ellipse",
-              "cx": 1120,
-              "cy": 540.0,
-              "rx": 220,
-              "ry": 105.0,
-              "fill": "#7a8a64"
-            },
-            "label": "хмарь над нижним городом клуб",
-            "opacity": 0.126
-          }
-        ]
-      },
-      "map_size": {
-        "w": 1280,
-        "h": 720
-      },
-      "parent_region": null,
-      "locations": [
-        {
-          "id": "loc_station",
-          "label": "Вокзал Палаты Тишины",
-          "position": {
-            "x": 960,
-            "y": 300
-          },
-          "travel_connections": [
-            {
-              "to": "loc_lower",
-              "cost_ticks": 2,
-              "random_encounter_table": "enc_lower"
-            },
-            {
-              "to": "loc_cathedral",
-              "cost_ticks": 2
-            },
-            {
-              "to": "loc_spire",
-              "cost_ticks": 3
-            }
-          ],
-          "scenes": [
-            "scene_office",
-            "scene_platform",
-            "scene_morgue"
-          ],
-          "arrival_scene": "scene_platform",
-          "camp": true,
-          "music": [
-            {
-              "tracks": [
-                "music_station_night"
-              ],
-              "conditions": [
-                {
-                  "time_of_day": [
-                    "evening",
-                    "night"
-                  ]
-                }
-              ]
-            },
-            {
-              "tracks": [
-                "music_station"
-              ]
-            }
-          ],
-          "ambient": [
-            "amb_steam"
-          ]
-        },
-        {
-          "id": "loc_lower",
-          "label": "Нижний Ряд",
-          "position": {
-            "x": 790,
-            "y": 510
-          },
-          "travel_connections": [
-            {
-              "to": "loc_station",
-              "cost_ticks": 2,
-              "random_encounter_table": "enc_lower"
-            },
-            {
-              "to": "loc_foundry",
-              "cost_ticks": 1,
-              "random_encounter_table": "enc_lower"
-            },
-            {
-              "to": "loc_undercity",
-              "cost_ticks": 2,
-              "random_encounter_table": "enc_undercity"
-            }
-          ],
-          "scenes": [
-            "scene_lower_street",
-            "scene_tavern",
-            "scene_workshop"
-          ],
-          "arrival_scene": "scene_lower_street",
-          "music": [
-            {
-              "tracks": [
-                "music_lower"
-              ]
-            }
-          ],
-          "ambient": [
-            "amb_drip"
-          ]
-        },
-        {
-          "id": "loc_foundry",
-          "label": "Литейные кварталы",
-          "position": {
-            "x": 330,
-            "y": 480
-          },
-          "travel_connections": [
-            {
-              "to": "loc_lower",
-              "cost_ticks": 1,
-              "random_encounter_table": "enc_lower"
-            },
-            {
-              "to": "loc_undercity",
-              "cost_ticks": 2,
-              "random_encounter_table": "enc_undercity"
-            },
-            {
-              "to": "loc_cathedral",
-              "cost_ticks": 2
-            }
-          ],
-          "scenes": [
-            "scene_foundry_floor",
-            "scene_barracks"
-          ],
-          "arrival_scene": "scene_foundry_floor",
-          "music": [
-            {
-              "tracks": [
-                "music_foundry"
-              ]
-            }
-          ],
-          "ambient": [
-            "amb_furnace"
-          ]
-        },
-        {
-          "id": "loc_cathedral",
-          "label": "Собор Святой Шестерни",
-          "position": {
-            "x": 300,
-            "y": 230
-          },
-          "travel_connections": [
-            {
-              "to": "loc_station",
-              "cost_ticks": 2
-            },
-            {
-              "to": "loc_spire",
-              "cost_ticks": 2
-            },
-            {
-              "to": "loc_foundry",
-              "cost_ticks": 2
-            }
-          ],
-          "scenes": [
-            "scene_nave",
-            "scene_archive",
-            "scene_belltower"
-          ],
-          "arrival_scene": "scene_nave",
-          "music": [
-            {
-              "tracks": [
-                "music_cathedral"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "loc_spire",
-          "label": "Верхний Шпиль",
-          "position": {
-            "x": 640,
-            "y": 100
-          },
-          "travel_connections": [
-            {
-              "to": "loc_station",
-              "cost_ticks": 3
-            },
-            {
-              "to": "loc_cathedral",
-              "cost_ticks": 2
-            },
-            {
-              "to": "loc_heart",
-              "cost_ticks": 2
-            }
-          ],
-          "scenes": [
-            "scene_council_hall",
-            "scene_chancery"
-          ],
-          "arrival_scene": "scene_council_hall",
-          "music": [
-            {
-              "tracks": [
-                "music_spire"
-              ]
-            }
-          ]
-        },
-        {
-          "id": "loc_undercity",
-          "label": "Отстойники под клапаном №7",
-          "position": {
-            "x": 560,
-            "y": 620
-          },
-          "hidden": true,
-          "travel_connections": [
-            {
-              "to": "loc_lower",
-              "cost_ticks": 2,
-              "random_encounter_table": "enc_undercity"
-            },
-            {
-              "to": "loc_foundry",
-              "cost_ticks": 2,
-              "random_encounter_table": "enc_undercity"
-            },
-            {
-              "to": "loc_heart",
-              "cost_ticks": 2
-            }
-          ],
-          "scenes": [
-            "scene_collector",
-            "scene_flooded"
-          ],
-          "arrival_scene": "scene_collector",
-          "music": [
-            {
-              "tracks": [
-                "music_undercity"
-              ]
-            }
-          ],
-          "ambient": [
-            "amb_drip"
-          ]
-        },
-        {
-          "id": "loc_heart",
-          "label": "Сердце-Двигатель",
-          "position": {
-            "x": 640,
-            "y": 380
-          },
-          "hidden": true,
-          "travel_connections": [
-            {
-              "to": "loc_undercity",
-              "cost_ticks": 2
-            },
-            {
-              "to": "loc_spire",
-              "cost_ticks": 2
-            }
-          ],
-          "scenes": [
-            "scene_engine_hall",
-            "scene_core"
-          ],
-          "arrival_scene": "scene_engine_hall",
-          "music": [
-            {
-              "tracks": [
-                "music_heart"
-              ]
-            }
-          ],
-          "ambient": [
-            "amb_heartbeat"
-          ]
+ "regions": [
+  {
+   "id": "region_gorn",
+   "label": "Горн",
+   "map_image": "",
+   "map_art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#10141c",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
+       "fill": {
+        "gradient": {
+         "from": "#10141c",
+         "to": "#1d2330",
+         "angle": 90
         }
-      ]
+       }
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 430,
+       "cy": 380,
+       "rx": 330,
+       "ry": 250,
+       "fill": "#242b38",
+       "opacity": 0.9
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 920,
+       "cy": 470,
+       "rx": 300,
+       "ry": 220,
+       "fill": "#1c222d",
+       "opacity": 0.9
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1100,
+       "cy": 240,
+       "rx": 190,
+       "ry": 150,
+       "fill": "#262029",
+       "opacity": 0.85
+      }
+     },
+     {
+      "shape": {
+       "type": "polygon",
+       "points": [
+        430,
+        380,
+        920,
+        470,
+        1100,
+        240,
+        620,
+        300
+       ],
+       "fill": "#2c3442",
+       "opacity": 0.45
+      }
+     },
+     {
+      "shape": {
+       "type": "polygon",
+       "points": [
+        180,
+        560,
+        420,
+        380,
+        620,
+        520,
+        300,
+        650
+       ],
+       "fill": "#2a3140",
+       "opacity": 0.35
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 560,
+       "x2": 420,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 10,
+       "opacity": 0.25
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 186,
+       "y1": 560,
+       "x2": 426,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 10,
+       "opacity": 0.25
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 192,
+       "y1": 560,
+       "x2": 432,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 10,
+       "opacity": 0.25
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 198,
+       "y1": 560,
+       "x2": 438,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 10,
+       "opacity": 0.25
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 204,
+       "y1": 560,
+       "x2": 444,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 10,
+       "opacity": 0.25
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 210,
+       "y1": 560,
+       "x2": 450,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 10,
+       "opacity": 0.25
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 216,
+       "y1": 560,
+       "x2": 456,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 10,
+       "opacity": 0.25
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 420,
+       "y1": 380,
+       "x2": 900,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 9,
+       "opacity": 0.22
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 425,
+       "y1": 380,
+       "x2": 905,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 9,
+       "opacity": 0.22
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 430,
+       "y1": 380,
+       "x2": 910,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 9,
+       "opacity": 0.22
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 435,
+       "y1": 380,
+       "x2": 915,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 9,
+       "opacity": 0.22
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 440,
+       "y1": 380,
+       "x2": 920,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 9,
+       "opacity": 0.22
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 445,
+       "y1": 380,
+       "x2": 925,
+       "y2": 380,
+       "color": "#4a4436",
+       "width": 9,
+       "opacity": 0.22
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": -40,
+       "y": 599,
+       "w": 122,
+       "h": 101,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 9,
+       "y": 545,
+       "w": 13,
+       "h": 54,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 6,
+       "y": 539,
+       "w": 19,
+       "h": 8,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 41,
+       "y": 652,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": -12,
+       "y": 648,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 54,
+       "y": 645,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 5,
+       "y": 614,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": -8,
+       "y": 663,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 104,
+       "y": 617,
+       "w": 139,
+       "h": 83,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 186,
+       "y": 566,
+       "w": 11,
+       "h": 51,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 183,
+       "y": 560,
+       "w": 17,
+       "h": 8,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 182,
+       "y": 661,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 142,
+       "y": 643,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 124,
+       "y": 643,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 185,
+       "y": 659,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 266,
+       "y": 628,
+       "w": 99,
+       "h": 72,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 318,
+       "y": 669,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 288,
+       "y": 660,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 286,
+       "y": 667,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 374,
+       "y": 584,
+       "w": 124,
+       "h": 116,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 399,
+       "y": 642,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 391,
+       "y": 649,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 461,
+       "y": 665,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 412,
+       "y": 658,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 401,
+       "y": 647,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 388,
+       "y": 604,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 524,
+       "y": 545,
+       "w": 95,
+       "h": 155,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 552,
+       "y": 490,
+       "w": 16,
+       "h": 55,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 549,
+       "y": 484,
+       "w": 22,
+       "h": 8,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 591,
+       "y": 631,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 565,
+       "y": 566,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 564,
+       "y": 664,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 575,
+       "y": 571,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 553,
+       "y": 626,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 535,
+       "y": 666,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 636,
+       "y": 587,
+       "w": 186,
+       "h": 113,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 769,
+       "y": 619,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 648,
+       "y": 631,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 842,
+       "y": 530,
+       "w": 104,
+       "h": 170,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 871,
+       "y": 477,
+       "w": 17,
+       "h": 53,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 868,
+       "y": 471,
+       "w": 23,
+       "h": 8,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 885,
+       "y": 570,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 872,
+       "y": 565,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 855,
+       "y": 550,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 968,
+       "y": 592,
+       "w": 188,
+       "h": 108,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1084,
+       "y": 668,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1046,
+       "y": 619,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1084,
+       "y": 643,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1048,
+       "y": 642,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1026,
+       "y": 608,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1102,
+       "y": 615,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1162,
+       "y": 622,
+       "w": 184,
+       "h": 78,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1304,
+       "y": 569,
+       "w": 20,
+       "h": 53,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1301,
+       "y": 563,
+       "w": 26,
+       "h": 8,
+       "fill": "#0b0e14",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1193,
+       "y": 663,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.12
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1199,
+       "y": 660,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1289,
+       "y": 667,
+       "w": 9,
+       "h": 12,
+       "fill": "#ffca85",
+       "opacity": 0.3
+      }
+     },
+     {
+      "shape": {
+       "type": "text",
+       "x": 280,
+       "y": 210,
+       "text": "ВЕРХНИЙ ЯРУС",
+       "size": 22,
+       "color": "#6f7787",
+       "align": "middle",
+       "bold": true,
+       "opacity": 0.8
+      }
+     },
+     {
+      "shape": {
+       "type": "text",
+       "x": 1010,
+       "y": 620,
+       "text": "НИЖНИЙ ЯРУС",
+       "size": 22,
+       "color": "#6f7787",
+       "align": "middle",
+       "bold": true,
+       "opacity": 0.8
+      }
+     },
+     {
+      "shape": {
+       "type": "text",
+       "x": 1105,
+       "y": 130,
+       "text": "ЛИТЕЙНАЯ",
+       "size": 20,
+       "color": "#7a6a7f",
+       "align": "middle",
+       "bold": true,
+       "opacity": 0.8
+      }
+     },
+     {
+      "shape": {
+       "type": "text",
+       "x": 640,
+       "y": 690,
+       "text": "Карта Горна · 137 год Пепла",
+       "size": 18,
+       "color": "#5d6472",
+       "align": "middle",
+       "opacity": 0.9
+      }
+     },
+     {
+      "label": "шестерня r46",
+      "shape": {
+       "type": "polygon",
+       "points": [
+        1206.0,
+        600.0,
+        1196.4,
+        609.8,
+        1199.8,
+        623.0,
+        1186.7,
+        626.7,
+        1183.0,
+        639.8,
+        1169.8,
+        636.4,
+        1160.0,
+        646.0,
+        1150.2,
+        636.4,
+        1137.0,
+        639.8,
+        1133.3,
+        626.7,
+        1120.2,
+        623.0,
+        1123.6,
+        609.8,
+        1114.0,
+        600.0,
+        1123.6,
+        590.2,
+        1120.2,
+        577.0,
+        1133.3,
+        573.3,
+        1137.0,
+        560.2,
+        1150.2,
+        563.6,
+        1160.0,
+        554.0,
+        1169.8,
+        563.6,
+        1183.0,
+        560.2,
+        1186.7,
+        573.3,
+        1199.8,
+        577.0,
+        1196.4,
+        590.2
+       ],
+       "fill": "#2c333f",
+       "opacity": 0.6
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1160,
+       "cy": 600,
+       "rx": 14.72,
+       "ry": 14.72,
+       "fill": "#1a1f27",
+       "opacity": 0.65
+      }
+     }
+    ]
+   },
+   "map_size": {
+    "w": 1280,
+    "h": 720
+   },
+   "parent_region": null,
+   "locations": [
+    {
+     "id": "loc_gate",
+     "label": "Ворота Пепла",
+     "position": {
+      "x": 190,
+      "y": 560
+     },
+     "travel_connections": [
+      {
+       "to": "loc_square",
+       "cost_ticks": 1
+      }
+     ],
+     "scenes": [
+      "scene_gate"
+     ],
+     "arrival_scene": "scene_gate",
+     "music": [
+      {
+       "tracks": [
+        "music_city_night"
+       ],
+       "conditions": [
+        {
+         "time_of_day": [
+          "night"
+         ]
+        }
+       ]
+      },
+      {
+       "tracks": [
+        "music_city_day"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_square",
+     "label": "Площадь Колокола",
+     "position": {
+      "x": 420,
+      "y": 380
+     },
+     "travel_connections": [
+      {
+       "to": "loc_gate",
+       "cost_ticks": 1
+      },
+      {
+       "to": "loc_workshop",
+       "cost_ticks": 1
+      },
+      {
+       "to": "loc_chapel",
+       "cost_ticks": 1
+      },
+      {
+       "to": "loc_market",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_streets"
+      },
+      {
+       "to": "loc_hospice",
+       "cost_ticks": 2
+      }
+     ],
+     "scenes": [
+      "scene_square",
+      "scene_inn"
+     ],
+     "arrival_scene": "scene_square",
+     "music": [
+      {
+       "tracks": [
+        "music_city_day"
+       ],
+       "conditions": [
+        {
+         "time_of_day": [
+          "morning",
+          "day"
+         ]
+        }
+       ]
+      },
+      {
+       "tracks": [
+        "music_city_night"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_workshop",
+     "label": "Мастерская Крона",
+     "position": {
+      "x": 640,
+      "y": 300
+     },
+     "travel_connections": [
+      {
+       "to": "loc_square",
+       "cost_ticks": 1
+      }
+     ],
+     "scenes": [
+      "scene_workshop",
+      "scene_coroner"
+     ],
+     "arrival_scene": "scene_workshop",
+     "music": [
+      {
+       "tracks": [
+        "music_tension"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_chapel",
+     "label": "Часовня Тихого Винта",
+     "position": {
+      "x": 620,
+      "y": 520
+     },
+     "travel_connections": [
+      {
+       "to": "loc_square",
+       "cost_ticks": 1
+      }
+     ],
+     "scenes": [
+      "scene_chapel"
+     ],
+     "arrival_scene": "scene_chapel",
+     "music": [
+      {
+       "tracks": [
+        "music_chapel"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_hospice",
+     "label": "Приют Пепла",
+     "position": {
+      "x": 900,
+      "y": 620
+     },
+     "travel_connections": [
+      {
+       "to": "loc_square",
+       "cost_ticks": 2
+      },
+      {
+       "to": "loc_market",
+       "cost_ticks": 1
+      }
+     ],
+     "scenes": [
+      "scene_hospice"
+     ],
+     "arrival_scene": "scene_hospice",
+     "music": [
+      {
+       "tracks": [
+        "music_hospice"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_market",
+     "label": "Угольный рынок",
+     "position": {
+      "x": 900,
+      "y": 380
+     },
+     "travel_connections": [
+      {
+       "to": "loc_square",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_streets"
+      },
+      {
+       "to": "loc_hospice",
+       "cost_ticks": 1
+      },
+      {
+       "to": "loc_smelter",
+       "cost_ticks": 2
+      },
+      {
+       "to": "loc_tunnels",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_tunnels"
+      }
+     ],
+     "scenes": [
+      "scene_market"
+     ],
+     "arrival_scene": "scene_market",
+     "music": [
+      {
+       "tracks": [
+        "music_market"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_smelter",
+     "label": "Нижняя литейная",
+     "position": {
+      "x": 1150,
+      "y": 250
+     },
+     "travel_connections": [
+      {
+       "to": "loc_market",
+       "cost_ticks": 2
+      },
+      {
+       "to": "loc_tunnels",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_tunnels"
+      }
+     ],
+     "scenes": [
+      "scene_smelter"
+     ],
+     "arrival_scene": "scene_smelter",
+     "music": [
+      {
+       "tracks": [
+        "music_smelter"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_tunnels",
+     "label": "Вентиляционные ходы",
+     "position": {
+      "x": 780,
+      "y": 700
+     },
+     "hidden": true,
+     "travel_connections": [
+      {
+       "to": "loc_market",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_tunnels"
+      },
+      {
+       "to": "loc_smelter",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_tunnels"
+      },
+      {
+       "to": "loc_engine",
+       "cost_ticks": 1,
+       "random_encounter_table": "enc_tunnels"
+      }
+     ],
+     "scenes": [
+      "scene_tunnels",
+      "scene_hideout"
+     ],
+     "arrival_scene": "scene_tunnels",
+     "music": [
+      {
+       "tracks": [
+        "music_tunnels"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_engine",
+     "label": "Сердце Горна",
+     "position": {
+      "x": 1120,
+      "y": 590
+     },
+     "hidden": true,
+     "travel_connections": [
+      {
+       "to": "loc_tunnels",
+       "cost_ticks": 1,
+       "random_encounter_table": "enc_tunnels"
+      }
+     ],
+     "scenes": [
+      "scene_lift",
+      "scene_engine_hall",
+      "scene_chancery",
+      "scene_undercroft"
+     ],
+     "arrival_scene": "scene_lift",
+     "music": [
+      {
+       "tracks": [
+        "music_tension"
+       ],
+       "conditions": [
+        {
+         "flag": "mother_awake"
+        }
+       ]
+      },
+      {
+       "tracks": [
+        "music_engine"
+       ],
+       "conditions": []
+      }
+     ]
     }
-  ]
+   ]
+  }
+ ]
 }

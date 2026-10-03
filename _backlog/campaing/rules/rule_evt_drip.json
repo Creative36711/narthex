@@ -1,0 +1,13 @@
+{
+ "id": "rule_evt_drip",
+ "label": "Капель",
+ "once": false,
+ "manual": false,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "show_message",
+   "text": "С потолка ровно капает. Считая капли, легко пропустить шаги за спиной."
+  }
+ ]
+}

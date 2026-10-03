@@ -1,0 +1,108 @@
+{
+ "id": "quest_ledger",
+ "label": "Накладные на пепел",
+ "description": "Журнал Крона и накладные Угольного рынка покажут, откуда в жерло Матери идёт «пепел третьего помола».",
+ "chapter": "ch2",
+ "journal_entries": {
+  "j_start": "Крон вёл счёт пеплу. Где-то остался его журнал и накладные поставок.",
+  "j_found": "Журнал и накладная сходятся: третий помол привозят из Приюта Пепла.",
+  "j_done": "Улики собраны. Стерн согласился смотреть на них — и на Коллегию — другими глазами."
+ },
+ "stages": [
+  {
+   "id": "stage_start",
+   "label": "Счёт пеплу",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_ledger",
+     "text_key": "j_start"
+    }
+   ],
+   "transitions": [
+    {
+     "to": "stage_found",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "journal_read"
+      },
+      {
+       "type": "flag_set",
+       "flag": "waybill_read"
+      }
+     ]
+    },
+    {
+     "to": "stage_fail",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "ledger_burned"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "stage_found",
+   "label": "Сходятся даты",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_ledger",
+     "text_key": "j_found"
+    }
+   ],
+   "transitions": [
+    {
+     "to": "stage_done",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "evidence_full"
+      }
+     ]
+    },
+    {
+     "to": "stage_fail",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "ledger_burned"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "stage_done",
+   "label": "Улики у стражи",
+   "final": true,
+   "outcome": "success",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_ledger",
+     "text_key": "j_done"
+    },
+    {
+     "type": "grant_xp",
+     "points": 45
+    }
+   ]
+  },
+  {
+   "id": "stage_fail",
+   "label": "Бумаги сгорели",
+   "final": true,
+   "outcome": "failure",
+   "on_enter_effects": [
+    {
+     "type": "show_message",
+     "text": "Бумаги в печи горят быстро и пахнут лучше, чем всё остальное в этом городе."
+    }
+   ]
+  }
+ ]
+}

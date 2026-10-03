@@ -1,0 +1,32 @@
+{
+ "id": "rule_olha_fight",
+ "label": "Ольха достаёт клинок",
+ "once": false,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "start_combat",
+   "enemies": [
+    {
+     "entity": "npc_olha",
+     "count": 1
+    }
+   ],
+   "arena": "arena_square",
+   "no_flee": true,
+   "intro": "Ольха двигается быстро для человека с латунной рукой.",
+   "on_victory": [
+    {
+     "type": "set_flag",
+     "flag": "olha_down"
+    },
+    {
+     "type": "show_message",
+     "text": "Латунная рука падает отдельно от хозяйки. В ней что-то щёлкает и замолкает."
+    }
+   ]
+  }
+ ],
+ "chapter": "ch3"
+}

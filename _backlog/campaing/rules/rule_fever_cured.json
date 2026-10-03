@@ -1,0 +1,50 @@
+{
+ "id": "rule_fever_cured",
+ "label": "Лихорадка отступила",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "tonic_delivered"
+  },
+  {
+   "type": "flag_set",
+   "flag": "serum_delivered"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "fever_done"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "fever_done"
+  },
+  {
+   "type": "advance_quest",
+   "quest": "quest_fever",
+   "stage": "stage_done"
+  },
+  {
+   "type": "change_disposition",
+   "target": "npc_irma",
+   "delta": 15
+  },
+  {
+   "type": "change_disposition",
+   "target": "faction_ashen",
+   "delta": 10
+  },
+  {
+   "type": "show_message",
+   "text": "К вечеру жар спадает. Ирма вытирает руки и говорит: «Теперь ты можешь спросить о Кроне»."
+  },
+  {
+   "type": "grant_xp",
+   "points": 40
+  }
+ ],
+ "chapter": "ch2"
+}

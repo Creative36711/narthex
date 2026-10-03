@@ -1,0 +1,53 @@
+{
+ "id": "rule_veil_fight",
+ "label": "Ольха и плащи",
+ "once": false,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "veil_hostile"
+  },
+  {
+   "type": "set_flag",
+   "flag": "olha_present"
+  },
+  {
+   "type": "set_flag",
+   "flag": "olha_angry"
+  },
+  {
+   "type": "start_combat",
+   "enemies": [
+    {
+     "entity": "npc_olha",
+     "count": 1
+    },
+    {
+     "entity": "npc_thug",
+     "count": 2
+    }
+   ],
+   "arena": "arena_square",
+   "no_flee": true,
+   "intro": "Ольха снимает плащ. Двое в сером достают ключи-гаечники. Канцлер отходит к окну, как зритель.",
+   "on_victory": [
+    {
+     "type": "set_flag",
+     "flag": "olha_down"
+    },
+    {
+     "type": "add_item",
+     "item": "item_veil_papers",
+     "quantity": 1
+    },
+    {
+     "type": "show_message",
+     "text": "Вейл смотрит на вас без страха: «Вы понимаете, что теперь делать с бумагами? Город не умеет читать, дознаватель. Он умеет только мёрзнуть.»"
+    }
+   ]
+  }
+ ],
+ "chapter": "ch3"
+}

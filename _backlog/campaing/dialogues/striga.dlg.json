@@ -1,0 +1,275 @@
+{
+ "version": 2,
+ "label": "Стрига, Угольный рынок",
+ "nodes": [
+  {
+   "id": "main",
+   "label": "За прилавком",
+   "sections": [
+    {
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "striga_angry"
+      }
+     ],
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Стрига здоровается так, что видно: нож у неё не для товара."
+       }
+      }
+     ],
+     "else_steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Стрига перебирает мелочь в ящике, не глядя на монеты."
+       }
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "«Дознаватель Артели. Дорого стою, честно продаю, лишнего не говорю. Тебе что?»"
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "У тебя есть осколок эха Крона.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Есть. Красивый, тяжёлый, дорогой. Крон отдал его за долг, я его держала как залог. Продам — Крона нет, а долг остался.»"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "striga_echo_sold",
+       "not": true
+      }
+     ]
+    },
+    {
+     "text": "Куплю за 60 угольков.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_item",
+          "item": "item_cinder",
+          "qty": 60
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "add_item",
+          "item": "item_echo_part_3",
+          "qty": 1
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "striga_echo_sold"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_disposition",
+          "target": "npc_striga",
+          "delta": 10
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Свободен. Бери и уходи быстро: за такие вещи в Горне убивают медленно.»"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "once": true,
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "striga_echo_sold",
+       "not": true
+      },
+      {
+       "type": "item_ge",
+       "item": "item_cinder",
+       "count": 60
+      }
+     ]
+    },
+    {
+     "text": "Меняю на три пробы пепла.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_item",
+          "item": "item_ash_sample",
+          "qty": 3
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "add_item",
+          "item": "item_echo_part_3",
+          "qty": 1
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "striga_echo_sold"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "striga_helped"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_disposition",
+          "target": "npc_striga",
+          "delta": 5
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Пробы с третьего помола. Хорошо, что мне нужны не они, а то, что в них. Бери осколок, дознаватель, и не спрашивай, зачем мне пепел мёртвых.»"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "once": true,
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "striga_echo_sold",
+       "not": true
+      },
+      {
+       "type": "item_ge",
+       "item": "item_ash_sample",
+       "count": 3
+      }
+     ]
+    },
+    {
+     "text": "Взять осколок, пока она отвернулась.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "fire_rule",
+          "rule": "rule_striga_steal"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "once": true,
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "striga_echo_sold",
+       "not": true
+      },
+      {
+       "type": "flag",
+       "flag": "striga_angry",
+       "not": true
+      }
+     ]
+    },
+    {
+     "text": "Расскажи про Стерна.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Стерн честный. Это в нашем городе самый дорогой недостаток. Он тебе осколок отдаст, если ты ему покажешь бумагу: бумага для него — как путь для слепого.»"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Кто заказывал у тебя чистый пепел?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "«Коллегия. По накладной, аккуратно, с печатью. Приют привозит — я перепродаю. Круг замкнутый, дознаватель: мёртвые греют живых, живые потом едут в помол. Так город и стоит.»"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_ash_waybill"
+      }
+     ]
+    },
+    {
+     "text": "Спасибо. Мне пора.",
+     "sections": [
+      {
+       "steps": []
+      }
+     ],
+     "goto": "end"
+    }
+   ]
+  }
+ ]
+}

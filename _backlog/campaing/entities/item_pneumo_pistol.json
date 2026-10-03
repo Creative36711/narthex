@@ -1,0 +1,25 @@
+{
+ "id": "item_pneumo_pistol",
+ "type": "item",
+ "category": "weapon",
+ "label": "Пневмо-пистолет",
+ "description": "Бьёт латунной пулей из воздушного баллона. Громко и дорого.",
+ "weight": 1.4,
+ "stackable": false,
+ "image": "",
+ "value": {
+  "cinder": 90
+ },
+ "equip_slot": "weapon",
+ "weapon_data": {
+  "skill": "shoot",
+  "damage": "1d8",
+  "damage_bonus": false,
+  "range": 6,
+  "attacks_per_round": 1,
+  "parry_capable": false
+ },
+ "sounds": {
+  "use": "sfx_shot"
+ }
+}

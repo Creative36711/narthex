@@ -1,0 +1,38 @@
+{
+ "id": "rule_end_quiet",
+ "label": "Концовка: тихий договор",
+ "once": true,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "deal_taken"
+  },
+  {
+   "type": "set_flag",
+   "flag": "ledger_burned"
+  },
+  {
+   "type": "banner",
+   "text": "Тихий договор",
+   "preset": "заголовок",
+   "enter": "тянуть",
+   "seconds": 6,
+   "position": "центр",
+   "accent": "#a8863f"
+  },
+  {
+   "type": "grant_xp",
+   "points": 80
+  },
+  {
+   "type": "meta_currency",
+   "id": "sparks",
+   "amount": 5
+  },
+  {
+   "type": "game_over_victory"
+  }
+ ]
+}

@@ -1,0 +1,20 @@
+{
+ "id": "rule_evt_curfew",
+ "label": "Комендантский час",
+ "once": false,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "time_of_day",
+   "value": [
+    "night"
+   ]
+  }
+ ],
+ "effects": [
+  {
+   "type": "show_message",
+   "text": "Патруль стражи проходит мимо, считая окна. Комендантский час отменяет городскую жизнь, но не работу."
+  }
+ ]
+}

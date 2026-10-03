@@ -1,0 +1,36 @@
+{
+ "id": "rule_burn_hospice",
+ "label": "Приют сдан",
+ "once": false,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "hospice_burned"
+  },
+  {
+   "type": "fail_quest",
+   "quest": "quest_fever"
+  },
+  {
+   "type": "change_disposition",
+   "target": "faction_ashen",
+   "delta": -30
+  },
+  {
+   "type": "change_disposition",
+   "target": "npc_irma",
+   "delta": -40
+  },
+  {
+   "type": "change_reputation",
+   "delta": -10
+  },
+  {
+   "type": "show_message",
+   "text": "Утром к приюту придут с проверкой. Вы не будете там, чтобы это увидеть."
+  }
+ ],
+ "chapter": "ch3"
+}

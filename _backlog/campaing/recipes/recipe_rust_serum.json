@@ -1,0 +1,33 @@
+{
+ "id": "recipe_rust_serum",
+ "label": "Сыворотка от ржавчины",
+ "description": "Лекарство Ирмы: настой ясности и щепоть того самого пепла.",
+ "inputs": [
+  {
+   "item": "item_tonic",
+   "quantity": 1
+  },
+  {
+   "item": "item_ash_sample",
+   "quantity": 1
+  }
+ ],
+ "tools": [],
+ "known": false,
+ "requires": [
+  {
+   "type": "flag_set",
+   "flag": "serum_hint"
+  }
+ ],
+ "skill": {
+  "id": "first_aid",
+  "difficulty": 50
+ },
+ "time_ticks": 3,
+ "output": {
+  "item": "item_serum",
+  "quantity": 1
+ },
+ "message": "Сыворотка отдаёт гарью. Ирма говорит, что так и надо — лекарство не должно быть приятным."
+}

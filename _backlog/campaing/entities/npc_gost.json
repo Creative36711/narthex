@@ -1,0 +1,66 @@
+{
+ "id": "npc_gost",
+ "type": "npc",
+ "label": "Вороний Гост",
+ "description": "Хозяин «Пьяного Поршня». Знает, кто приходил, кто ушёл и кто не вернулся.",
+ "portrait": {
+  "neutral": "assets/img/npc/gost.jpg",
+  "sly": "assets/img/npc/gost_sly.jpg"
+ },
+ "stats": {
+  "STR": 10,
+  "CON": 11,
+  "SIZ": 12,
+  "DEX": 9,
+  "INT": 13,
+  "POW": 12,
+  "CHA": 14
+ },
+ "skills": {
+  "bargain": 60,
+  "persuade": 55,
+  "investigate": 35,
+  "spot": 45
+ },
+ "inventory": [],
+ "equipment": {},
+ "dialogue": "dialogues/gost.ink",
+ "slot_type": "person",
+ "faction": "faction_town",
+ "base_disposition": 10,
+ "schedule": [],
+ "trader": {
+  "sells": [
+   {
+    "item": "item_ash_bread",
+    "price": 3,
+    "stock": 6
+   },
+   {
+    "item": "item_brew",
+    "price": 2,
+    "stock": 10
+   },
+   {
+    "item": "item_ration",
+    "price": 6,
+    "stock": 3
+   },
+   {
+    "item": "item_clean_water",
+    "price": 3,
+    "stock": 5
+   },
+   {
+    "item": "item_bandage",
+    "price": 8,
+    "stock": 2
+   }
+  ],
+  "buys": true,
+  "buy_rate": 0.4
+ },
+ "sounds": {
+  "talk": "sfx_voice_mid"
+ }
+}

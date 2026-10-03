@@ -1,0 +1,30 @@
+{
+ "id": "item_tonic",
+ "type": "item",
+ "category": "medicine",
+ "label": "Настой ясности",
+ "description": "Горький настой из светомха. Разгоняет пепел в голове.",
+ "weight": 0.3,
+ "stackable": true,
+ "image": "",
+ "value": {
+  "cinder": 14
+ },
+ "on_use": {
+  "effects": [
+   {
+    "type": "change_need",
+    "need": "need_clarity",
+    "delta": 35
+   },
+   {
+    "type": "change_hp",
+    "delta": 4
+   }
+  ],
+  "consume": true
+ },
+ "sounds": {
+  "use": "sfx_drink"
+ }
+}

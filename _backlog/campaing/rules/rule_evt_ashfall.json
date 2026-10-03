@@ -1,0 +1,17 @@
+{
+ "id": "rule_evt_ashfall",
+ "label": "Начался пеплопад",
+ "once": false,
+ "manual": false,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "set_weather",
+   "weather": "weather_ashfall"
+  },
+  {
+   "type": "show_message",
+   "text": "Небо над Горном густеет. Пеплопад идёт стеной, как всегда внезапно."
+  }
+ ]
+}

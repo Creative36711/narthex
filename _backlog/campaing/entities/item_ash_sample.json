@@ -1,0 +1,13 @@
+{
+ "id": "item_ash_sample",
+ "type": "item",
+ "category": "ingredient",
+ "label": "Проба пепла",
+ "description": "Пепел из-под литейной. Крупится под пальцами и чуть тёплый.",
+ "weight": 0.2,
+ "stackable": true,
+ "image": "",
+ "value": {
+  "cinder": 2
+ }
+}

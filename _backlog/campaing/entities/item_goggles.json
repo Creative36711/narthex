@@ -1,0 +1,18 @@
+{
+ "id": "item_goggles",
+ "type": "item",
+ "category": "tool",
+ "label": "Пепельные очки",
+ "description": "Очки с сеткой и войлочной прокладкой. Глаза целее.",
+ "weight": 0.3,
+ "stackable": false,
+ "image": "",
+ "value": {
+  "cinder": 30
+ },
+ "equip_slot": "eyes",
+ "armor_data": {
+  "points": 1,
+  "durability": 15
+ }
+}

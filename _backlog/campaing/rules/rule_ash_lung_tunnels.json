@@ -1,0 +1,36 @@
+{
+ "id": "rule_ash_lung_tunnels",
+ "label": "Сырой пепел",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "player_enters_scene",
+   "scene": "scene_tunnels"
+  },
+  {
+   "type": "weather_is",
+   "weather": "weather_ashfall"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "tunnel_lung_done"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "tunnel_lung_done"
+  },
+  {
+   "type": "apply_status",
+   "target": "player",
+   "status": "status_ash_lung",
+   "duration": 14
+  },
+  {
+   "type": "show_message",
+   "text": "Пеплопад сверху просеивается сквозь решётки. В ходах дышать ещё труднее, чем на улице."
+  }
+ ]
+}

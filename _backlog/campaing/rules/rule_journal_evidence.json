@@ -1,0 +1,44 @@
+{
+ "id": "rule_journal_evidence",
+ "label": "Улики собраны",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "journal_read"
+  },
+  {
+   "type": "flag_set",
+   "flag": "waybill_read"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "ledger_done"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "ledger_done"
+  },
+  {
+   "type": "set_flag",
+   "flag": "evidence_full"
+  },
+  {
+   "type": "advance_quest",
+   "quest": "quest_ledger",
+   "stage": "stage_done"
+  },
+  {
+   "type": "show_message",
+   "text": "Журнал и накладная сходятся по датам. Пепел третьего помола привозят из приюта — и это не пепел."
+  },
+  {
+   "type": "grant_xp",
+   "points": 40
+  }
+ ],
+ "chapter": "ch2"
+}

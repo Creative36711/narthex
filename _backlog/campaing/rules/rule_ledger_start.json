@@ -1,0 +1,31 @@
+{
+ "id": "rule_ledger_start",
+ "label": "Счёт пеплу",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "journal_read"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "ledger_quest_open"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "ledger_quest_open"
+  },
+  {
+   "type": "start_quest",
+   "quest": "quest_ledger"
+  },
+  {
+   "type": "show_message",
+   "text": "Тетрадь Крона — первая половина счёта. Вторая — накладные: их читают на рынке, у мешков с печатью Коллегии."
+  }
+ ],
+ "chapter": "ch2"
+}

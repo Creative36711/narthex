@@ -1,0 +1,23 @@
+{
+ "id": "rule_frost",
+ "label": "Холод",
+ "once": false,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "change_hp",
+   "delta": -4
+  },
+  {
+   "type": "apply_status",
+   "target": "player",
+   "status": "status_frost",
+   "duration": 12
+  },
+  {
+   "type": "show_message",
+   "text": "Пальцы деревенеют. Пепел на плечах лежит уже не серым, а белым."
+  }
+ ]
+}

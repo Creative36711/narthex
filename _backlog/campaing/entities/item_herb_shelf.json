@@ -1,0 +1,38 @@
+{
+ "id": "item_herb_shelf",
+ "type": "item",
+ "category": "misc",
+ "label": "Связки светомха",
+ "description": "Под потолком сушатся пучки мха. Ирма собирает его на тёплых трубах.",
+ "weight": 3,
+ "stackable": false,
+ "image": "",
+ "interact_options": [
+  {
+   "label": "Взять пучок",
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "herb_taken"
+    }
+   ],
+   "effects": [
+    {
+     "type": "add_item",
+     "item": "item_herb_moss",
+     "quantity": 2
+    },
+    {
+     "type": "set_flag",
+     "flag": "herb_taken"
+    },
+    {
+     "type": "show_message",
+     "text": "Ирма делает вид, что не заметила. Но кивает в сторону выхода: бери, если нужно."
+    }
+   ],
+   "message": "Мох хрустит и пахнет озоном.",
+   "sound": "sfx_cloth"
+  }
+ ]
+}

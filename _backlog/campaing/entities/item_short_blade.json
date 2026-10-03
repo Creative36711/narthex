@@ -1,0 +1,22 @@
+{
+ "id": "item_short_blade",
+ "type": "item",
+ "category": "weapon",
+ "label": "Короткий клинок",
+ "description": "Стражеский тесак: короткий, тяжёлый, без украшений.",
+ "weight": 1.0,
+ "stackable": false,
+ "image": "",
+ "value": {
+  "cinder": 35
+ },
+ "equip_slot": "weapon",
+ "weapon_data": {
+  "skill": "blade",
+  "damage": "1d8",
+  "damage_bonus": true,
+  "range": 1,
+  "attacks_per_round": 1,
+  "parry_capable": true
+ }
+}

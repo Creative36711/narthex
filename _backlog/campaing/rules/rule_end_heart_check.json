@@ -1,0 +1,23 @@
+{
+ "id": "rule_end_heart_check",
+ "label": "Сердце готово",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "has_item",
+   "item": "item_second_heart"
+  },
+  {
+   "type": "flag_set",
+   "flag": "mother_awake"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "heart_ready"
+  }
+ ],
+ "chapter": "ch3"
+}

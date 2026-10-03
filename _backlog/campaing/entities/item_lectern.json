@@ -1,0 +1,37 @@
+{
+ "id": "item_lectern",
+ "type": "item",
+ "category": "misc",
+ "label": "Пюпитр для эха",
+ "description": "Латунная подставка, на которой Артель читает последние минуты чужих жизней.",
+ "weight": 15,
+ "stackable": false,
+ "image": "",
+ "interact_options": [
+  {
+   "label": "Считать общее эхо города",
+   "conditions": [],
+   "effects": [
+    {
+     "type": "change_need",
+     "need": "need_clarity",
+     "delta": -8
+    },
+    {
+     "type": "show_message",
+     "text": "В латуни — хор: тысячи голосов города, и все они говорят одно слово. «Холодно»."
+    },
+    {
+     "type": "unlock_codex",
+     "entry": "codex_echo"
+    },
+    {
+     "type": "set_flag",
+     "flag": "chorus_heard"
+    }
+   ],
+   "message": "Пюпитр тёплый, будто по нему только что гладили рукой.",
+   "sound": "sfx_echo_hum"
+  }
+ ]
+}

@@ -1,0 +1,58 @@
+{
+ "id": "npc_veil",
+ "type": "npc",
+ "label": "Канцлер Борган Вейл",
+ "description": "Глава Коллегии Литейщиков. Держит город тёплым ценой, которую предпочитает не называть.",
+ "portrait": {
+  "neutral": "assets/img/npc/veil.jpg",
+  "sly": "assets/img/npc/veil_sly.jpg",
+  "angry": "assets/img/npc/veil_angry.jpg"
+ },
+ "stats": {
+  "STR": 9,
+  "CON": 10,
+  "SIZ": 11,
+  "DEX": 10,
+  "INT": 15,
+  "POW": 14,
+  "CHA": 13
+ },
+ "skills": {
+  "persuade": 60,
+  "intimidate": 45,
+  "investigate": 40,
+  "bargain": 40
+ },
+ "inventory": [],
+ "equipment": {
+  "weapon": "item_pneumo_pistol",
+  "armor": "item_cuirass"
+ },
+ "dialogue": "dialogues/veil.ink",
+ "slot_type": "person",
+ "faction": "faction_collegium",
+ "base_disposition": -10,
+ "schedule": [],
+ "abilities": [
+  "ability_pistol_shot"
+ ],
+ "morale": {
+  "below_hp_pct": 30,
+  "flee_chance": 40
+ },
+ "loot_table": [
+  {
+   "item": "item_veil_papers",
+   "chance": 1.0
+  },
+  {
+   "item": "item_cinder",
+   "chance": 1.0,
+   "min": 40,
+   "max": 80
+  }
+ ],
+ "sounds": {
+  "talk": "sfx_voice_low"
+ }
+}

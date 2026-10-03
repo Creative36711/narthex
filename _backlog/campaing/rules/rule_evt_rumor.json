@@ -1,0 +1,13 @@
+{
+ "id": "rule_evt_rumor",
+ "label": "Слух на улице",
+ "once": false,
+ "manual": false,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "show_message",
+   "text": "Кто-то говорит громко, чтобы слышали: «Матерь просит не пепла, а сердца. Но кто ж отдаст своё?»"
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+ "id": "item_cart",
+ "type": "item",
+ "category": "misc",
+ "label": "Брошенная телега",
+ "description": "Телега с сорванным колесом. Хозяин ушёл в город и не вернулся.",
+ "weight": 60,
+ "stackable": false,
+ "image": "",
+ "interact_options": [
+  {
+   "label": "Обыскать",
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "cart_searched"
+    }
+   ],
+   "effects": [
+    {
+     "type": "add_item",
+     "item": "item_cinder",
+     "quantity": 5
+    },
+    {
+     "type": "add_item",
+     "item": "item_cloth",
+     "quantity": 2
+    },
+    {
+     "type": "set_flag",
+     "flag": "cart_searched"
+    }
+   ],
+   "message": "Под мешковиной — горсть угольков и обрывок брезента.",
+   "sound": "sfx_cloth"
+  }
+ ]
+}

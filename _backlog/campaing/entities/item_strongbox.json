@@ -1,0 +1,76 @@
+{
+ "id": "item_strongbox",
+ "type": "item",
+ "category": "container",
+ "label": "Сейф Крона",
+ "description": "Кованый сейф с тремя замками. Крон запирал его даже от себя.",
+ "weight": 80,
+ "stackable": false,
+ "image": "",
+ "interact_options": [
+  {
+   "label": "Вскрыть отмычками",
+   "conditions": [
+    {
+     "type": "has_item",
+     "item": "item_lockpicks"
+    },
+    {
+     "type": "flag_not_set",
+     "flag": "strongbox_open"
+    }
+   ],
+   "effects": [
+    {
+     "type": "skill_check_gate",
+     "skill": "mechanics",
+     "difficulty": 45,
+     "success_effects": [
+      {
+       "type": "add_item",
+       "item": "item_kron_letter",
+       "quantity": 1
+      },
+      {
+       "type": "add_item",
+       "item": "item_cinder",
+       "quantity": 15
+      },
+      {
+       "type": "set_flag",
+       "flag": "strongbox_open"
+      }
+     ],
+     "fail_effects": [
+      {
+       "type": "show_message",
+       "text": "Замок щёлкнул и остался стоять. Пальцы соскользнули."
+      }
+     ]
+    }
+   ],
+   "message": "Три замка поддаются один за другим.",
+   "sound": "sfx_lock"
+  },
+  {
+   "label": "Осмотреть замок",
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "strongbox_seen"
+    }
+   ],
+   "effects": [
+    {
+     "type": "set_flag",
+     "flag": "strongbox_seen"
+    },
+    {
+     "type": "show_message",
+     "text": "Замок хитрый, но не военный: Крон делал его сам и не любил ломать."
+    }
+   ],
+   "message": "На крышке процарапано: «Летта, не лезь»."
+  }
+ ]
+}

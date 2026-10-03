@@ -1,23 +1,24 @@
 {
-  "id": "item_filter",
-  "type": "item",
-  "category": "consumable",
-  "label": "Угольный фильтр",
-  "description": "Сменная кассета для респиратора. Без неё хмарь Нижнего города съедает лёгкие за пару дней.",
-  "weight": 0.2,
-  "stackable": true,
-  "value": {
-    "token": 6
-  },
-  "on_use": {
-    "effects": [
-      {
-        "type": "change_need",
-        "need": "need_air",
-        "delta": 45
-      }
-    ],
-    "consume": true,
-    "message": "Щелчок кассеты. Воздух снова пахнет углём, а не смертью."
-  }
+ "id": "item_filter",
+ "type": "item",
+ "category": "tool",
+ "label": "Пепельный фильтр",
+ "description": "Войлочная маска с угольной прокладкой. Дышать легче.",
+ "weight": 0.3,
+ "stackable": false,
+ "image": "",
+ "value": {
+  "cinder": 14
+ },
+ "equip_slot": "face",
+ "on_use": {
+  "effects": [
+   {
+    "type": "remove_status",
+    "target": "player",
+    "status": "status_ash_lung"
+   }
+  ],
+  "consume": false
+ }
 }

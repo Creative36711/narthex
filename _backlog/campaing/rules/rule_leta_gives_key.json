@@ -1,0 +1,46 @@
+{
+ "id": "rule_leta_gives_key",
+ "label": "Летта отдаёт ключ",
+ "once": false,
+ "manual": true,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "echoes_done"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "leta_trust"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "leta_trust"
+  },
+  {
+   "type": "give_reward",
+   "items": [
+    {
+     "item": "item_litan_key",
+     "quantity": 1
+    }
+   ]
+  },
+  {
+   "type": "change_disposition",
+   "target": "npc_leta",
+   "delta": 20
+  },
+  {
+   "type": "advance_quest",
+   "quest": "quest_leta",
+   "stage": "stage_done"
+  },
+  {
+   "type": "show_message",
+   "text": "Летта вытаскивает из-за пазухи латунный стержень: «Мастер сказал — отдать тому, кто придёт с его эхом. Ты пришёл.»"
+  }
+ ],
+ "chapter": "ch2"
+}

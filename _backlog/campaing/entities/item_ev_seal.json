@@ -1,9 +1,0 @@
-{
-  "id": "item_ev_seal",
-  "type": "item",
-  "category": "evidence",
-  "label": "Ордер с печатью Совета",
-  "description": "Копия ордера канцелярии на «особую серию» с личной печатью Голоса Совета — Лиары Венн.",
-  "weight": 0.05,
-  "stackable": false
-}

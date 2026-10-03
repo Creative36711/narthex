@@ -1,0 +1,67 @@
+{
+ "id": "npc_irma",
+ "type": "npc",
+ "label": "Мать Ирма",
+ "description": "Настоятельница Приюта Пепла. Лечит ржавую лихорадку и хранит слишком много чужих тайн.",
+ "portrait": {
+  "neutral": "assets/img/npc/irma.jpg",
+  "kind": "assets/img/npc/irma_kind.jpg",
+  "sad": "assets/img/npc/irma_sad.jpg"
+ },
+ "stats": {
+  "STR": 8,
+  "CON": 11,
+  "SIZ": 9,
+  "DEX": 9,
+  "INT": 14,
+  "POW": 13,
+  "CHA": 12
+ },
+ "skills": {
+  "first_aid": 65,
+  "persuade": 50,
+  "investigate": 35,
+  "spot": 40,
+  "echo": 20
+ },
+ "inventory": [
+  {
+   "item": "item_tonic",
+   "quantity": 3
+  },
+  {
+   "item": "item_bandage",
+   "quantity": 4
+  }
+ ],
+ "equipment": {},
+ "dialogue": "dialogues/irma.ink",
+ "slot_type": "person",
+ "faction": "faction_ashen",
+ "base_disposition": 15,
+ "schedule": [],
+ "trader": {
+  "sells": [
+   {
+    "item": "item_tonic",
+    "price": 14,
+    "stock": 3
+   },
+   {
+    "item": "item_bandage",
+    "price": 7,
+    "stock": 4
+   },
+   {
+    "item": "item_clean_water",
+    "price": 3,
+    "stock": 4
+   }
+  ],
+  "buys": true,
+  "buy_rate": 0.5
+ },
+ "sounds": {
+  "talk": "sfx_voice_soft"
+ }
+}

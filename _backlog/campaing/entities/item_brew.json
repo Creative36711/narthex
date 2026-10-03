@@ -1,0 +1,31 @@
+{
+ "id": "item_brew",
+ "type": "item",
+ "category": "drink",
+ "label": "Мутное пиво",
+ "description": "Тёплое, мутное, с привкусом металла. Горн любит его.",
+ "weight": 0.5,
+ "stackable": true,
+ "image": "",
+ "value": {
+  "cinder": 2
+ },
+ "on_use": {
+  "effects": [
+   {
+    "type": "change_need",
+    "need": "need_warmth",
+    "delta": 20
+   },
+   {
+    "type": "change_need",
+    "need": "need_food",
+    "delta": 8
+   }
+  ],
+  "consume": true
+ },
+ "sounds": {
+  "use": "sfx_drink"
+ }
+}

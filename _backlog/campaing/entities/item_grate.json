@@ -1,0 +1,27 @@
+{
+ "id": "item_grate",
+ "type": "item",
+ "category": "misc",
+ "label": "Решётка вентиляции",
+ "description": "Отсюда вниз идёт тёплый воздух. Решётка отогнута — и не первый раз.",
+ "weight": 15,
+ "stackable": false,
+ "image": "",
+ "interact_options": [
+  {
+   "label": "Осмотреть",
+   "conditions": [],
+   "effects": [
+    {
+     "type": "reveal_location",
+     "location": "loc_tunnels"
+    },
+    {
+     "type": "show_message",
+     "text": "Из-под решётки тянет теплом и сыростью. Люди ходят здесь часто — прутья отогнуты в трёх местах."
+    }
+   ],
+   "message": "В темноте внизу что-то капает."
+  }
+ ]
+}
