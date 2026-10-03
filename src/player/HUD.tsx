@@ -93,9 +93,11 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         })}
         {engine.stealthEnabled() && (
           <button
-            className="hud-stealth-toggle"
-            data-tip={'Скрытность: крадущееся передвижение.\nПри входе и смене сцены — проверка против внимателей.\nБой из скрытности начинается внезапно (первый раунд за вами).'}
+            className={`hud-stealth-toggle stealth-${engine.isDetected() ? 'detected' : engine.isSneaking() ? 'sneaking' : 'open'}`}
+            data-tip={'Скрытность: крадущееся передвижение.\nНажмите, чтобы сменить режим.\nПри входе и смене сцены — проверка против внимателей.\nБой из скрытности начинается внезапно (первый раунд за вами).'}
             onClick={() => engine.toggleSneak()}
+            role="button"
+            aria-label={`Скрытность: ${engine.isSneaking() ? (engine.isDetected() ? 'Замечен!' : 'Крадётесь') : 'Открыто'}`}
           >
             {engine.isSneaking() ? (engine.isDetected() ? 'Замечен!' : 'Крадётесь') : 'Открыто'}
           </button>

@@ -38,16 +38,18 @@ export function CombatRulesEditor({ store }: { store: EditorStore }) {
           </label>
           <label className="fld" data-tip="Навык проверки отступления; пусто — dodge, а при его отсутствии — DEX×5">
             <span>Навык отступления</span>
-            <input
+            <select
               value={typeof m.combat?.flee === 'object' ? (m.combat.flee.skill ?? '') : ''}
-              placeholder="dodge"
               onChange={(e) => {
                 const c = { ...(m.combat ?? {}), flee: { skill: e.target.value || undefined } }
                 if (!e.target.value) (c.flee as { skill?: string }).skill = undefined
                 m.combat = c
                 commit()
               }}
-            />
+            >
+              <option value="">— по умолчанию (dodge/DEX×5) —</option>
+              {store.options('skill').map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
           </label>
           <label className="fld fld-num" data-tip="Штраф каждой следующей атаки за раунд при attacks_per_round > 1">
             <span>Штраф повторных атак</span>
@@ -119,11 +121,15 @@ export function CombatRulesEditor({ store }: { store: EditorStore }) {
             <>
               <label className="fld">
                 <span>Навык скрытности</span>
-                <input value={m.stealth.skill ?? 'stealth'} onChange={(e) => ((m.stealth!.skill = e.target.value || 'stealth'), commit())} />
+                <select value={m.stealth.skill ?? 'stealth'} onChange={(e) => ((m.stealth!.skill = e.target.value || 'stealth'), commit())}>
+                  {store.options('skill').map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
               </label>
               <label className="fld" data-tip="Навык обнаружения NPC; у NPC без него берётся INT×2, либо поле perception самого NPC">
                 <span>Навык внимательности</span>
-                <input value={m.stealth.perception_skill ?? 'perception'} onChange={(e) => ((m.stealth!.perception_skill = e.target.value || 'perception'), commit())} />
+                <select value={m.stealth.perception_skill ?? 'perception'} onChange={(e) => ((m.stealth!.perception_skill = e.target.value || 'perception'), commit())}>
+                  {store.options('skill').map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
               </label>
             </>
           )}

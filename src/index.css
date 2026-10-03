@@ -2608,20 +2608,53 @@ input[type='checkbox'], input[type='radio'] {
 .hud-stealth-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.4em;
-  padding: 3px 10px;
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
-  background: var(--inset);
+  gap: 0.5em;
+  padding: 6px 12px;
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+  background: var(--panel-2);
   color: var(--text);
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   cursor: var(--cur-pointer);
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
+
 .hud-stealth-toggle:hover {
   border-color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 15%, var(--inset));
+  background: color-mix(in srgb, var(--gold) 10%, var(--panel-2));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold) 30%, transparent);
+}
+
+.hud-stealth-toggle:active {
+  transform: scale(0.98);
+}
+
+.hud-stealth-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Состояния тумблера скрытности */
+.hud-stealth-toggle.stealth-open {
+  border-color: color-mix(in srgb, var(--green) 50%, var(--border-soft));
+  background: color-mix(in srgb, var(--green) 10%, var(--panel-2));
+  color: var(--green-bright);
+}
+
+.hud-stealth-toggle.stealth-sneaking {
+  border-color: color-mix(in srgb, var(--blue) 50%, var(--border-soft));
+  background: color-mix(in srgb, var(--blue) 15%, var(--panel-2));
+  color: var(--blue-bright);
+}
+
+.hud-stealth-toggle.stealth-detected {
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 20%, var(--panel-2));
+  color: var(--red-bright);
+  animation: pulse 1s infinite;
 }
 .hud-stealth-toggle:focus-visible {
   outline: 2px solid var(--focus-ring);
