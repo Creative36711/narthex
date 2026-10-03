@@ -2167,7 +2167,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 button, .btn, a, summary, select,
 label[for], [role='button'], .chip, .editor-nav-btn,
 .editor-list-item, .reg-picker-item, .ce-tab, .slider-row,
-.wizard-field-head, .hud-chip, .hud-btn, .map-pin, .log-item,
+.wizard-field-head, .hud-chip, .hud-btn, .hud-stealth-toggle, .map-pin, .log-item,
 .slot, .use-btn, .inv-row, .weapon, .target-btn, .prompt-card,
 .modal-close, .backlink {
   cursor: var(--cur-pointer);
@@ -2603,6 +2603,30 @@ input[type='checkbox'], input[type='radio'] {
 }
 .hud-status-icon { width: 1.2em; height: 1.2em; object-fit: contain; }
 .hud-status-left { color: var(--gold); font-weight: 700; }
+
+/* Тумблер скрытности — визуально отличается от статусов */
+.hud-stealth-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 3px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--inset);
+  color: var(--text);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  cursor: var(--cur-pointer);
+  transition: all 0.15s ease;
+}
+.hud-stealth-toggle:hover {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 15%, var(--inset));
+}
+.hud-stealth-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
 .status-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .status-item { padding: 6px 10px; border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent); border-radius: var(--radius); background: var(--panel-2); }
 .roster-status {

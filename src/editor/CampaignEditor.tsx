@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { EditorStore } from './store'
 import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect } from './Fields'
-import { BUILTIN_SKILL_LABELS } from '../shared/skills'
+import { BUILTIN_SKILL_LABELS, BUILTIN_STAT_LABELS, statLabel } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
 import { ParticleListEditor } from './AtmosEditors'
@@ -1590,17 +1590,17 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                       onChange={(e) => { const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); m.progression!.feats = feats; commit() }}
                     />
                   </label>
-                  <label className="fld" data-tip="Что даёт черта. Формат через запятую: skill:Навык=+5 — прибавка к навыку, stat:СИЛ=+1 — к характеристике, hp=+2 — к здоровью, mp=+2 — к мане, mov=+1 — к скорости. Пример: skill:melee=+5, hp=+2">
+                  <label className="fld" data-tip="Что даёт черта. Формат через запятую: навык=+5 — прибавка к навыку, характеристика=+1 — к характеристике, hp=+2 — к здоровью, mp=+2 — к мане, mov=+1 — к скорости. Пример: внимательность=+5, hp=+2">
                     <span>Модификаторы</span>
                     <input
                       defaultValue={[
-                        ...Object.entries(f.mods?.skills ?? {}).map(([k, v]) => `skill:${k}=${v >= 0 ? '+' : ''}${v}`),
-                        ...Object.entries(f.mods?.stats ?? {}).map(([k, v]) => `stat:${k}=${v >= 0 ? '+' : ''}${v}`),
+                        ...Object.entries(f.mods?.skills ?? {}).map(([k, v]) => `${store.labelFor('skill', k)}=${v >= 0 ? '+' : ''}${v}`),
+                        ...Object.entries(f.mods?.stats ?? {}).map(([k, v]) => `${statLabel(k)}=${v >= 0 ? '+' : ''}${v}`),
                         ...(f.mods?.hp ? [`hp=+${f.mods.hp}`] : []),
                         ...(f.mods?.mp ? [`mp=+${f.mods.mp}`] : []),
                         ...(f.mods?.mov ? [`mov=+${f.mods.mov}`] : []),
                       ].join(', ')}
-                      placeholder="skill:melee=+5, hp=+2"
+                      placeholder="внимательность=+5, hp=+2"
                       onBlur={(e) => {
                         const skills: Record<string, number> = {}
                         const stats: Record<string, number> = {}
@@ -1609,8 +1609,17 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                           const [k, v] = part.split('='); const n = parseInt(v ?? '', 10)
                           if (!k || Number.isNaN(n)) continue
                           const key = k.trim()
-                          if (key.startsWith('skill:')) skills[key.slice(6)] = n
-                          else if (key.startsWith('stat:')) stats[key.slice(5)] = n
+                          // Поддержка как старого формата (skill:навык=+5), так и нового (навык=+5)
+                          const skillKey = key.startsWith('skill:') ? key.slice(6) : key
+                          const statKey = key.startsWith('stat:') ? key.slice(5) : key
+                          // Пробуем найти навык по русскому названию или id
+                          const skillId = store.options('skill').find(s => s.label === key || s.id === skillKey || s.id === key)?.id
+                          // Для характеристик используем встроенные метки
+                          const statEntry = Object.entries(BUILTIN_SKILL_LABELS).find(([id, label]) => label === key) ??
+                            Object.entries(BUILTIN_STAT_LABELS).find(([id, label]) => label === key)
+                          const statId = statEntry?.[0] || store.options('need').find(s => s.label === key || s.id === statKey || s.id === key)?.id
+                          if (skillId) skills[skillId] = n
+                          else if (statId) stats[statId] = n
                           else if (key === 'hp') hp = n
                           else if (key === 'mp') mp = n
                           else if (key === 'mov') mov = n

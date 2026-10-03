@@ -93,7 +93,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         })}
         {engine.stealthEnabled() && (
           <button
-            className="hud-status-chip"
+            className="hud-stealth-toggle"
             data-tip={'Скрытность: крадущееся передвижение.\nПри входе и смене сцены — проверка против внимателей.\nБой из скрытности начинается внезапно (первый раунд за вами).'}
             onClick={() => engine.toggleSneak()}
           >

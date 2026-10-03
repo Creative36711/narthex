@@ -2633,7 +2633,15 @@ export class GameEngine {
         if (i >= 0) s.blocked_paths.splice(i, 1)
         break
       }
-      case 'show_message': this.messages.push({ text: this.fmt(e.text), portrait: e.portrait }); break
+      case 'show_message': {
+        const msgText = this.fmt(e.text)
+        // Не добавляем дублирующиеся сообщения (защита от спама ИИ-кампаний)
+        // и ограничиваем очередь сообщений, чтобы не забивать UI
+        if (!this.messages.some(m => m.text === msgText) && this.messages.length < 5) {
+          this.messages.push({ text: msgText, portrait: e.portrait })
+        }
+        break
+      }
       case 'reveal_location':
         if (!s.revealed_locations.includes(e.location)) s.revealed_locations.push(e.location)
         break
