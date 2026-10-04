@@ -1,7 +1,7 @@
 import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
 import { useEffect, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { EditorStore } from './store'
 import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect, DiceNotationInput } from './Fields'
 import { BUILTIN_SKILL_LABELS, BUILTIN_STAT_LABELS, statLabel } from '../shared/skills'
@@ -62,6 +62,63 @@ function blankNeedCond(key: string): NeedCondition {
     case 'equipped': return { type, items: [], not }
     case 'weather': return { type, weather: '', not }
   }
+}
+
+/**
+ * Реестр строками: название — обычное поле, код id показан справочно и не
+ * редактируется (ломает ссылки), добавление — через диалог имени.
+ * Заменяет прежний ввод «id=Название через запятую»: человек не должен
+ * читать и писать парсерный формат (фидбек 27, п.2 и п.4).
+ */
+function RegistryRows<T extends { id: string; label: string }>({
+  items,
+  onChange,
+  addTitle,
+  prefix = '',
+  render,
+}: {
+  items: T[]
+  onChange: (next: T[]) => void
+  addTitle: string
+  prefix?: string
+  render?: (item: T, patch: (p: Partial<T>) => void) => ReactNode
+}) {
+  const add = async () => {
+    const label = await askText(addTitle, 'например «Кража»')
+    if (!label?.trim()) return
+    onChange([...items, { ...({ id: makeId(prefix, label.trim(), items.map((x) => x.id)), label: label.trim() } as T) }])
+  }
+  return (
+    <div>
+      {items.map((it, i) => (
+        <div key={it.id} className="fld-row need-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <label className="fld" style={{ flex: 2, minWidth: 180 }}>
+            <span>Название</span>
+            <input
+              value={it.label}
+              onChange={(e) => {
+                const next = [...items]
+                next[i] = { ...it, label: e.target.value }
+                onChange(next)
+              }}
+            />
+          </label>
+          <span className="muted small" style={{ paddingBottom: 9, fontFamily: 'monospace', opacity: 0.75 }}>{it.id}</span>
+          {render?.(it, (patch) => {
+            const next = [...items]
+            next[i] = { ...it, ...patch }
+            onChange(next)
+          })}
+          <button className="btn btn-small ce-del" data-tip="Удалить из реестра" onClick={() => onChange(items.filter((_, j) => j !== i))}>
+            <Ico n="close" />
+          </button>
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={() => void add()}>
+        <Ico n="plus" /> добавить
+      </button>
+    </div>
+  )
 }
 
 /**
@@ -901,8 +958,12 @@ function AttributionEditor({ m, commit, store }: { m: CampaignMeta; commit: () =
       </div>
       <div className="fld-row">
         <label className="fld">
-          <span>Вышла (дата, ISO)</span>
-          <input value={a.published_at ?? ''} placeholder="2026-09-28" onChange={(e) => upd({ published_at: e.target.value || undefined })} />
+          <span>Вышла (дата)</span>
+          <input
+            type="date"
+            value={/^\d{4}-\d{2}-\d{2}$/.test(a.published_at ?? '') ? a.published_at : ''}
+            onChange={(e) => upd({ published_at: e.target.value || undefined })}
+          />
         </label>
       </div>
       <label className="fld fld-block">
@@ -1471,36 +1532,24 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               }}
             />
           </label>
-          <label className="fld" data-tip="id=Название страстей через запятую: honor=Честь, loyalty=Верность">
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Реестр страстей: названия видят игрок и редактор; код id используется в эффектах и условиях">
             <span>Страсти</span>
-            <input
-              value={(m.passions_list ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [id, label] = x.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id }
-                }).filter((x) => x.id)
-                if (arr.length) m.passions_list = arr
-                else delete m.passions_list
-                commit()
-              }}
+            <RegistryRows
+              items={m.passions_list ?? []}
+              onChange={(v) => ((m.passions_list = v.length ? v : undefined), commit())}
+              addTitle="Название новой страсти"
+              prefix="passion_"
             />
-          </label>
-          <label className="fld" data-tip="id=Название сил причастности через запятую: storm_goddess=Богиня Грозы">
+          </div>
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Реестр сил причастности: названия видит игрок; код id используется в эффектах">
             <span>Причастность</span>
-            <input
-              value={(m.allegiances ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [id, label] = x.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id }
-                }).filter((x) => x.id)
-                if (arr.length) m.allegiances = arr
-                else delete m.allegiances
-                commit()
-              }}
+            <RegistryRows
+              items={m.allegiances ?? []}
+              onChange={(v) => ((m.allegiances = v.length ? v : undefined), commit())}
+              addTitle="Название новой силы причастности"
+              prefix="power_"
             />
-          </label>
+          </div>
           <label className="fld" data-tip="Книжный уровень мощи кампании; для heroic+ используйте формулы 2d6+6 в генерации характеристик">
             <span>Уровень мощи</span>
             <select
@@ -1567,28 +1616,21 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
         {m.progression && (
           <div className="fld-row" style={{ flexDirection: 'column', gap: 8 }}>
-            <label className="fld" data-tip="Одна черта на строку. Новые строки создают черты; удалённые строки удаляют черту вместе с её модификаторами и условиями">
-              <span>Черты (по строке)</span>
-              <textarea
-                rows={(m.progression.feats?.length ?? 0) + 2}
-                value={(m.progression.feats ?? []).map((f) => `${f.id}=${f.label}`).join('\n')}
-                onChange={(e) => {
-                  const lines = e.target.value.split('\n')
-                  const next: FeatDef[] = []
-                  for (const line of lines) {
-                    if (!line.trim()) continue
-                    const [id, ...rest] = line.split('=')
-                    const fid = (id ?? '').trim()
-                    if (!fid) continue
-                    const flabel = rest.join('=').trim() || fid
-                    const prev = (m.progression!.feats ?? []).find((f) => f.id === fid)
-                    next.push(prev ? { ...prev, label: flabel } : { id: fid, label: flabel })
-                  }
-                  m.progression!.feats = next
-                  commit()
-                }}
+            <div className="fld" data-tip="Черты прокачки: название и описание видит игрок; модификаторы и условия — в JSON-разделе строки">
+              <span>Черты</span>
+              <RegistryRows
+                items={m.progression.feats ?? []}
+                onChange={(v) => ((m.progression!.feats = v.length ? v : undefined), commit())}
+                addTitle="Название новой черты"
+                prefix="feat_"
+                render={(ft, patch) => (
+                  <label className="fld" style={{ flex: 2, minWidth: 220 }}>
+                    <span>Описание (что даёт)</span>
+                    <input value={ft.description ?? ''} onChange={(e) => patch({ description: e.target.value || undefined })} />
+                  </label>
+                )}
               />
-            </label>
+            </div>
             {(m.progression.feats ?? []).map((f, i) => (
               <div key={f.id} className="panel" style={{ padding: 8 }}>
                 <div className="fld-row">
@@ -1716,13 +1758,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                   onChange={(e) => ((m.camping!.ambush_chance = Math.max(0, Math.min(1, Number(e.target.value) || 0))), commit())}
                 />
               </label>
-              <label className="fld" data-tip="Id правила из реестра, отвечающего за вылазку (спавн врагов, бой, плен)">
-                <span>Правило засады</span>
-                <input
-                  value={m.camping.ambush_rule ?? ''}
-                  onChange={(e) => ((m.camping!.ambush_rule = e.target.value || undefined), commit())}
-                />
-              </label>
+              <RefSelect
+                label="Правило засады"
+                kind="rule"
+                store={store}
+                value={m.camping.ambush_rule ?? ''}
+                optional
+                onChange={(v) => ((m.camping!.ambush_rule = v || undefined), commit())}
+              />
             </>
           )}
           <label className="fld fld-num" data-tip="Метров падения на один кубик урона (книжное умолчание 3)">
@@ -1735,37 +1778,45 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           </label>
         </div>
         <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-          <label className="fld" data-tip="Реестр преступлений: id=Название через запятую (theft=Кража, murder=Убийство); совершаются эффектом commit_crime">
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Реестр преступлений: названия видит игрок; совершаются эффектом commit_crime по кодy id">
             <span>Преступления</span>
-            <input
-              value={(m.crimes ?? []).map((c) => `${c.id}=${c.label}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [id, label] = x.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id }
-                }).filter((x) => x.id)
-                if (arr.length) m.crimes = arr
-                else delete m.crimes
-                commit()
-              }}
+            <RegistryRows
+              items={m.crimes ?? []}
+              onChange={(v) => ((m.crimes = v.length ? v : undefined), commit())}
+              addTitle="Название нового преступления"
+              prefix="crime_"
             />
-          </label>
-          <label className="fld" data-tip="Ценовые события: id=Название*множитель через запятую (war=Война*1.5); задать фильтры по предметам/категориям можно в JSON; включаются эффектом set_price_event">
+          </div>
+          <div className="fld" style={{ flex: 1, minWidth: 340 }} data-tip="Ценовые события: множитель и фильтр категорий; включаются эффектом set_price_event">
             <span>Ценовые события</span>
-            <input
-              value={(m.price_events ?? []).map((e2) => `${e2.id}=${e2.label}*${e2.multiplier}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [pair, mult] = x.split('*')
-                  const [id, label] = pair.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id, multiplier: Number(mult) || 1.5 }
-                }).filter((x) => x.id)
-                if (arr.length) m.price_events = arr
-                else delete m.price_events
-                commit()
-              }}
+            <RegistryRows
+              items={m.price_events ?? []}
+              onChange={(v) => ((m.price_events = v.length ? v : undefined), commit())}
+              addTitle="Название нового ценового события"
+              prefix="price_"
+              render={(ev, patch) => (
+                <>
+                  <label className="fld fld-num" data-tip="Множитель цены: 1.5 — выкуп дороже на 50%">
+                    <span>Множитель ×</span>
+                    <input
+                      type="number" step={0.1} min={0.1}
+                      value={ev.multiplier}
+                      onChange={(e) => patch({ multiplier: Math.max(0.1, Number(e.target.value) || 1) })}
+                    />
+                  </label>
+                  <div className="fld" style={{ flex: 2, minWidth: 200 }}>
+                    <span data-tip="Пусто — цены меняются на все предметы">Категории предметов</span>
+                    <ChipMultiSelect
+                      options={store.options('itemCategory')}
+                      value={ev.categories ?? []}
+                      emptyLabel="все категории — нажмите, чтобы ограничить"
+                      onChange={(v) => patch({ categories: v.length ? v : undefined })}
+                    />
+                  </div>
+                </>
+              )}
             />
-          </label>
+          </div>
         </div>
       </div>
 
@@ -2193,6 +2244,10 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Короткое имя</span>
               <input value={n.short_label ?? ''} onChange={(e) => ((n.short_label = e.target.value || undefined), commit())} placeholder="например: Голод" />
             </label>
+            <label className="fld" style={{ flex: 2, minWidth: 220 }} data-tip="Полное описание потребности: игрок видит его в подсказке к полоске">
+              <span>Описание (подсказка игроку)</span>
+              <input value={n.description ?? ''} onChange={(e) => ((n.description = e.target.value || undefined), commit())} placeholder="например: «Без еды слабеешь: падает урон и внимание»" />
+            </label>
             <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
@@ -2316,21 +2371,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           в бою и во всех выпадающих списках редактора.
         </div>
         <div className="fld-row" style={{ flexWrap: 'wrap', marginBottom: 6 }}>
-          <label className="fld" data-tip="id=Название категорий навыков через запятую: combat=Бой, social=Общение. Пусто — без категорий">
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Категории навыков для группировки в листе персонажа: названия видит игрок">
             <span>Категории навыков</span>
-            <input
-              value={(m.skill_categories ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [id, label] = x.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id }
-                }).filter((x) => x.id)
-                if (arr.length) m.skill_categories = arr
-                else delete m.skill_categories
-                commit()
-              }}
+            <RegistryRows
+              items={m.skill_categories ?? []}
+              onChange={(v) => ((m.skill_categories = v.length ? v : undefined), commit())}
+              addTitle="Название новой категории навыков"
             />
-          </label>
+          </div>
         </div>
         {(m.skills ?? []).map((sk, i) => (
           <div key={i} className="fld-row need-row">
