@@ -16,6 +16,7 @@ import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import { generateInk, migrateDlgDoc, newDlgDoc } from '../src/editor/dialogueDoc'
 import { EFFECT_SCHEMAS } from '../src/editor/schemas'
+import { validateCampaign } from '../src/editor/campaignAudit'
 import { Compiler } from 'inkjs/full'
 import type { DlgDoc, NpcDef } from '../src/shared/types'
 
@@ -58,6 +59,29 @@ const NO_KNOT_INK = `EXTERNAL set_dialogue_timer(s, t)
 + [Всё, ухожу.]
     -> DONE
 `
+
+/** Прогнать аудит диалогов кампании (только текст ink, без файловой системы). */
+async function auditDialogue(camp: Awaited<ReturnType<typeof loadCampaign>>, path: string): Promise<string[]> {
+  const store = {
+    meta: camp.meta,
+    textFiles: new Map([[path, camp.dialogues[path] ?? '']]),
+    jsonFiles: new Map(),
+    manifest: { scenes: [], entities: [], rules: [], dialogues: [] },
+    entityPaths: () => [],
+    scenePaths: () => [],
+    rulePaths: () => [],
+    questPaths: () => [],
+    json: () => undefined,
+    entity: () => undefined,
+    scene: () => undefined,
+    rule: () => undefined,
+    quest: () => undefined,
+    text: (p: string) => camp.dialogues[p] ?? '',
+    knownFlags: () => [],
+  }
+  const report = await validateCampaign(store as never)
+  return report.structure.filter((x) => x.message.startsWith(path)).map((x) => x.message)
+}
 
 async function campaignWithDialogue(ink: string, key: string) {
   const base = await loadCampaign('http://localhost:5173/campaigns/ash-of-caerden')
@@ -157,6 +181,43 @@ async function campaignWithDialogue(ink: string, key: string) {
   // миграция документа не теряет таймер
   const migrated = migrateDlgDoc(JSON.parse(JSON.stringify({ ...doc, version: 2 })))
   check('B миграция сохраняет таймер узла', migrated.nodes[0].timer?.seconds === 15)
+}
+
+// ── B2. аудит: таймер с битой целью и слишком короткий дедлайн ──
+{
+  const base = await loadCampaign('http://localhost:5173/campaigns/ash-of-caerden')
+  const camp = structuredClone(base)
+  camp.dialogues['dialogues/__audit_timer.ink'] = [
+    'EXTERNAL set_dialogue_timer(s, t)',
+    '',
+    '=== main ===',
+    '~ set_dialogue_timer(3, "нет_такого_узла")',
+    '+ [Да.]',
+    '    -> DONE',
+    '',
+  ].join('\n')
+  const report = await auditDialogue(camp, 'dialogues/__audit_timer.ink')
+  check('B аудит ругает слишком короткий дедлайн', report.some((m) => m.includes('меньше 5 секунд')), report.join(' | ').slice(0, 120))
+  check('B аудит ругает несуществующий узел таймера', report.some((m) => m.includes('нет_такого_узла')), report.join(' | ').slice(0, 120))
+  camp.dialogues['dialogues/__audit_timer.ink'] = camp.dialogues['dialogues/__audit_timer.ink']
+    .replace('set_dialogue_timer(3, "нет_такого_узла")', 'set_dialogue_timer(12, "silence")')
+    .replace('\n=== main ===', '\n=== silence ===\nМолчишь?\n-> DONE\n\n=== main ===')
+  const ok = await auditDialogue(camp, 'dialogues/__audit_timer.ink')
+  check('B корректный таймер аудит не тревожит', ok.length === 0, ok.join(' | ').slice(0, 120))
+
+  // вызов внешней функции без EXTERNAL — диалог молча не открывается
+  camp.dialogues['dialogues/__audit_ext.ink'] = [
+    '=== main ===',
+    'Привет.',
+    '~ open_craft("recipe_x")',
+    '-> DONE',
+    '',
+  ].join('\n')
+  const bad = await auditDialogue(camp, 'dialogues/__audit_ext.ink')
+  check('B аудит ловит вызов без EXTERNAL', bad.some((m) => m.includes('EXTERNAL') && m.includes('open_craft')), bad.join(' | ').slice(0, 140))
+  camp.dialogues['dialogues/__audit_ext.ink'] = 'EXTERNAL open_craft(id)\n\n' + camp.dialogues['dialogues/__audit_ext.ink']
+  const good = await auditDialogue(camp, 'dialogues/__audit_ext.ink')
+  check('B с EXTERNAL аудит молчит', good.length === 0, good.join(' | ').slice(0, 140))
 }
 
 // ── C. редактор и чемодан ──

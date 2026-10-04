@@ -232,6 +232,23 @@ async function inspectAlphaRoles(store: EditorStore): Promise<AuditFinding[]> {
   return findings
 }
 
+/**
+ * Внешние функции, которые движок отдаёт в ink (`src/core/dialogue.ts`).
+ * Если ink зовёт такую функцию без `EXTERNAL`, inkjs не компилирует файл:
+ * проверяем отдельно, потому что симптом — «диалог просто не открылся».
+ */
+const ENGINE_INK_FNS = new Set([
+  'get_flag', 'set_flag', 'add_item', 'remove_item', 'item_count', 'has_item',
+  'skill_check', 'stat_roll', 'opposed_roll', 'get_disposition', 'change_disposition',
+  'in_party', 'join_party', 'open_trade', 'open_craft', 'fire_rule', 'start_quest',
+  'quest_stage', 'advance_time', 'change_need', 'change_hp', 'get_hp', 'get_hp_max',
+  'get_mp', 'get_mp_max', 'get_luck', 'get_level', 'get_xp', 'get_run_day',
+  'get_currency', 'get_need', 'get_stat', 'get_skill', 'get_player_name', 'sleep',
+  'play_cutscene', 'set_description', 'apply_status', 'remove_status', 'has_status',
+  'set_weather', 'weather_is', 'unlock_codex', 'unlock_recipe', 'roll_table', 'gen',
+  'set_dialogue_timer', 'has_meta_achievement', 'get_meta_counter',
+])
+
 export async function validateCampaign(store: EditorStore, lastPlaytest?: PlaytestRecord | null): Promise<CampaignAuditReport> {
   let structure: AuditFinding[] = []
   try {
@@ -294,6 +311,52 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       }
     }
   }
+  // Вызов внешней функции без объявления EXTERNAL: inkjs не компилирует файл,
+  // и диалог молча не открывается — самая частая ошибка автора и ИИ.
+  for (const [path, text] of store.textFiles) {
+    if (!/^dialogues\/.+\.ink$/.test(path)) continue
+    const declared = new Set([...text.matchAll(/^\s*EXTERNAL\s+([A-Za-z_][A-Za-z0-9_]*)/gm)].map((m) => m[1]))
+    const missing = new Set<string>()
+    for (const m of text.matchAll(/^\s*~\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/gm)) {
+      const fn = m[1]
+      if (ENGINE_INK_FNS.has(fn) && !declared.has(fn)) missing.add(fn)
+    }
+    for (const m of text.matchAll(/\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)) {
+      const fn = m[1]
+      if (ENGINE_INK_FNS.has(fn) && !declared.has(fn)) missing.add(fn)
+    }
+    if (missing.size) {
+      structure.push({
+        severity: 'error',
+        message: `${path}: вызовы без объявления EXTERNAL — ${[...missing].join(', ')}. inkjs не скомпилирует файл, и диалог не откроется. Добавьте в начало файла строки вида «EXTERNAL ${[...missing][0]}(a0)» (число аргументов — как в вызове).`,
+      })
+    }
+  }
+
+  // Дедлайн на раздумье в диалоге (§9): цель обязана существовать в том же
+  // файле, а слишком короткий дедлайн не даёт прочитать варианты — игрок
+  // проигрывает не по решению, а по скорости чтения.
+  for (const [path, text] of store.textFiles) {
+    if (!/^dialogues\/.+\.ink$/.test(path)) continue
+    const knots = new Set([...text.matchAll(/^===\s*([^\s=]+)\s*===/gm)].map((m) => m[1]))
+    for (const m of text.matchAll(/set_dialogue_timer\(\s*(\d+)\s*(?:,\s*"([^"]*)")?\s*\)/g)) {
+      const secs = Number(m[1])
+      const knot = m[2] ?? ''
+      if (secs > 0 && secs < 5) {
+        structure.push({
+          severity: 'warning',
+          message: `${path}: таймер на раздумье — ${secs} с. Это меньше 5 секунд: игрок не успевает прочитать варианты ответа. Возьмите 8–15 секунд или уберите таймер.`,
+        })
+      }
+      if (knot && !knots.has(knot)) {
+        structure.push({
+          severity: 'warning',
+          message: `${path}: таймер ведёт в узел «${knot}», которого в файле нет. Добавьте «=== ${knot} ===» или оставьте второй аргумент пустым ("" — разговор заканчивается).`,
+        })
+      }
+    }
+  }
+
   // Ink: условие выбора, записанное ПОСЛЕ квадратных скобок, часть сборок
   // inkjs печатает как текстовую строку («true» посреди разговора, фидбек 27
   // п.6). Канонично — перед скобками: `+ { cond } [текст]`.
