@@ -15,6 +15,7 @@
     "smoke:ink-import": "tsx scripts/ink-import-smoke.mts",
     "smoke:ink-repair": "tsx scripts/ink-repair-smoke.mts",
     "smoke:save-integrity": "tsx scripts/save-integrity-smoke.mts",
+    "smoke:editor-fields": "tsx scripts/editor-fields-smoke.mts",
     "smoke:fingerprint": "tsx scripts/fingerprint-smoke.mts",
     "smoke:book-md": "tsx scripts/book-md-smoke.mts",
     "smoke:campaign-index": "tsx scripts/campaign-index-smoke.mts",

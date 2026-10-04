@@ -399,7 +399,7 @@ export class EditorStore {
     } else if (kind === 'skill') {
       for (const sk of this.meta.skills ?? []) out.push({ id: sk.id, label: sk.label || skillLabel(sk.id, this.meta.skills) })
     } else if (kind === 'need') {
-      for (const n of this.meta.needs) out.push({ id: n.id, label: n.label || n.id })
+      for (const n of this.meta.needs ?? []) out.push({ id: n.id, label: n.label || n.id })
     } else if (kind === 'status') {
       for (const s of this.meta.statuses ?? []) out.push({ id: s.id, label: s.label || s.id })
     } else if (kind === 'ability') {

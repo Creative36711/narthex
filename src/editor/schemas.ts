@@ -617,7 +617,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'multiplier', label: 'Множитель (ум. 5)', kind: 'number', optional: true },
       { key: 'modifier', label: 'Модификатор к цели', kind: 'number', optional: true },
       { key: 'augment_passion', label: 'Аугмент: страсть', kind: 'passionRef', optional: true },
-      { key: 'assist_entity', label: 'Подмога: id союзника', kind: 'npcRef', optional: true },
+      { key: 'assist_entity', label: 'Подмога: союзник', kind: 'npcRef', optional: true },
       { key: 'assist_skill', label: 'Навык подмоги', kind: 'skillRef', optional: true },
       { key: 'success_effects', label: 'При успехе', kind: 'effects' },
       { key: 'fail_effects', label: 'При провале', kind: 'effects' },
