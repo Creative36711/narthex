@@ -16,12 +16,12 @@ EXTERNAL unlock_codex(a0)
 -> main_hub
 
 === main_hub ===
-+ [Мне нужен Глубокий штрек. Плачу пятнадцать.] { item_count("item_silver") >= 15 and not (get_flag("deep_pass")) }
++ {  item_count("item_silver") >= 15 and not (get_flag("deep_pass"))  } [Мне нужен Глубокий штрек. Плачу пятнадцать.]
     Пятнадцать — цена для ревизии. Хорошо: жестянка с клеймом твоя.
     ~ fire_rule("rule_bossar_paid")
     -> main_hub
 
-+ [Дай допуск в долг.] { not (get_flag("deep_pass")) }
++ {  not (get_flag("deep_pass"))  } [Дай допуск в долг.]
     В долг? Люблю. Тогда слушай: вернёшься и отдашь — или я пришлю человека с ключом.
     ~ fire_rule("rule_bossar_debt")
     -> main_hub
@@ -38,17 +38,17 @@ EXTERNAL unlock_codex(a0)
     ~ fire_rule("rule_bossar_garn")
     -> main_hub
 
-+ [Отойди с дороги.] { not (get_flag("deep_pass")) }
++ {  not (get_flag("deep_pass"))  } [Отойди с дороги.]
     Значит, по-плохому. Ну, инспектор, ты сам выбрал.
     ~ fire_rule("rule_bossar_fight")
     -> DONE
 
-+ [Кто из твоих видел «Тихую»?] { get_flag("bossar_met") }
++ {  get_flag("bossar_met")  } [Кто из твоих видел «Тихую»?]
     Трое. Один теперь пьёт, двое пропали. Поговори с пьющим: он у Марты, под столом, второй месяц не работает.
     ~ fire_rule("rule_bossar_quiet")
     -> main_hub
 
-+ [Отдай бумаги, которые Гарн оставил у тебя.] { get_flag("case_taken") }
++ {  get_flag("case_taken")  } [Отдай бумаги, которые Гарн оставил у тебя.]
     Ничего у меня нет. Что не сдал на участке — то в штреке, под рогожей у третьей крепи. Если не растащили.
     ~ fire_rule("rule_bossar_ledger_hint")
     -> main_hub

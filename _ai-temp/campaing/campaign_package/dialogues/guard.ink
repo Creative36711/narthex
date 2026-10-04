@@ -15,17 +15,17 @@ EXTERNAL unlock_codex(a0)
 -> main_hub
 
 === main_hub ===
-+ [Инспектор Ревизии. Вот служебная бумага.] { not (get_flag("guard_let_in")) }
++ {  not (get_flag("guard_let_in"))  } [Инспектор Ревизии. Вот служебная бумага.]
     Бумага с печатью — ну наконец-то. За неделю второй по счёту, и первый, говорят, уже в ямах лежит.
     ~ fire_rule("rule_guard_papers")
     -> main_hub
 
-+ [Не задерживай. Ревизия не любит ждать.] { not (get_flag("guard_let_in")) }
++ {  not (get_flag("guard_let_in"))  } [Не задерживай. Ревизия не любит ждать.]
     Не люблю и я. Но служба — она для всех служба…
     ~ fire_rule("rule_guard_press")
     -> main_hub
 
-+ [Вот пять марок. Смена длинная.] { item_count("item_silver") >= 5 and not (get_flag("guard_let_in")) }
++ {  item_count("item_silver") >= 5 and not (get_flag("guard_let_in"))  } [Вот пять марок. Смена длинная.]
     Смена длинная, да. Проходите, инспектор, только не через ямы.
     ~ fire_rule("rule_guard_bribe")
     -> main_hub

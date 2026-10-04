@@ -108,7 +108,14 @@ const ctx = (): ReportCtx & { texts: string[] } => {
   const dir = 'public/campaigns/__smoke27'
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(`${dir}/dialogues`, { recursive: true })
-  writeFileSync(`${dir}/campaign.json`, JSON.stringify({ id: 'smoke27', title: 'Smoke 27', version: '1.0.0' }))
+  writeFileSync(`${dir}/campaign.json`, JSON.stringify({
+    id: 'smoke27', title: 'Smoke 27', version: '1.0.0',
+    // «спрятанный» под кодой ярлык реестра — аудит обязан предупредить
+    crimes: [
+      { id: 'crime_intrusion', label: 'crime_intrusion=Проникновение в служебные тоннели' },
+      { id: 'crime_theft', label: 'Кража служебных бумаг' },
+    ],
+  }))
   writeFileSync(`${dir}/world.json`, JSON.stringify({ regions: [] }))
   writeFileSync(`${dir}/manifest.json`, JSON.stringify({ scenes: [], entities: [], rules: [], dialogues: ['bad.ink', 'good.ink'] }))
   writeFileSync(
@@ -125,6 +132,9 @@ const ctx = (): ReportCtx & { texts: string[] } => {
   const bad = report.structure.filter((x) => x.message.includes('bad.ink') && x.message.includes('квадратных скобок'))
   const good = report.structure.filter((x) => x.message.includes('good.ink') && x.message.includes('квадратных скобок'))
   check('6 аудит видит условие после скобок', bad.length === 1, `${bad.length}`)
+  const codey = report.structure.filter((x) => x.message.includes('похожа на служебный код'))
+  check('2 аудит ловит «id=Название» в подписи реестра', codey.length === 1 && codey[0].message.includes('crime_intrusion'), `${codey.length}`)
+  check('2 нормальная подпись не считается кодом', !report.structure.some((x) => x.message.includes('Кража служебных бумаг') && x.message.includes('служебный код')))
   check('6 канонический стиль не считается ошибкой', good.length === 0)
   rmSync(dir, { recursive: true, force: true })
 }

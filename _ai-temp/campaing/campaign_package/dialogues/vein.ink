@@ -12,19 +12,19 @@ EXTERNAL unlock_recipe(a0)
 -> main_hub
 
 === main_hub ===
-+ [Купить сухой паёк (5 см).] { item_count("item_silver") >= 5 }
++ {  item_count("item_silver") >= 5  } [Купить сухой паёк (5 см).]
     ~ remove_item("item_silver", 5)
     ~ add_item("item_food_pack", 1)
     Держи. В штреке жуй медленно — угар жадный.
     -> main_hub
 
-+ [Купить флягу воды (3 см).] { item_count("item_silver") >= 3 }
++ {  item_count("item_silver") >= 3  } [Купить флягу воды (3 см).]
     ~ remove_item("item_silver", 3)
     ~ add_item("item_water", 1)
     Вода чистая, с верхней террасы. Ниже воду не бери, я тебя прошу.
     -> main_hub
 
-+ [Купить стим-ампулу (15 см).] { item_count("item_silver") >= 15 }
++ {  item_count("item_silver") >= 15  } [Купить стим-ампулу (15 см).]
     ~ remove_item("item_silver", 15)
     ~ add_item("item_stimm", 1)
     Последняя. Потом говори: «Клёп, где стим», а Клёп уже и помер.
@@ -53,13 +53,13 @@ EXTERNAL unlock_recipe(a0)
     Если руки прямые — собери сам: ткань, уголь, проволока. Инструмент у меня есть.
     -> DONE
 
-+ [Вот латунный вкладыш. Видел такой?] { get_flag("implant_found") }
++ {  get_flag("implant_found")  } [Вот латунный вкладыш. Видел такой?]
     Видел. Такие приносят из цеха Дирекции — партиями, по номерам. А знаешь, куда идёт этот номер? В череп. Живым.
     Гарн про них спрашивал. Три раза спрашивал, а на четвёртый не вернулся.
     ~ fire_rule("rule_vein_implant")
     -> main_hub
 
-+ [Смотри, что я забрал в штреке.] { get_flag("ledger_taken") }
++ {  get_flag("ledger_taken")  } [Смотри, что я забрал в штреке.]
     Книга. С подписью. Ты, инспектор, или очень смелый, или очень мёртвый.
     Спрячь её под плащ и не показывай больше никому, кроме Ревизии.
     ~ fire_rule("rule_vein_ledger")

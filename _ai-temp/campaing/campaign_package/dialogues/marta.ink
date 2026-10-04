@@ -10,7 +10,7 @@ EXTERNAL unlock_codex(a0)
 -> main_hub
 
 === main_hub ===
-+ [Похлёбка (3 см).] { item_count("item_silver") >= 3 }
++ {  item_count("item_silver") >= 3  } [Похлёбка (3 см).]
     ~ remove_item("item_silver", 3)
     ~ add_item("item_stew", 1)
     Ешь. Мясо настоящее, не крыса. Крысу я в похлёбку не кладу — крыса у меня в подвале живёт, прикормленная.
@@ -37,17 +37,17 @@ EXTERNAL unlock_codex(a0)
     ~ fire_rule("rule_marta_hint")
     -> main_hub
 
-+ [Закрыть долг корчмы (15 см).] { get_flag("debt_taken") and not (get_flag("debt_paid")) and item_count("item_silver") >= 15 }
++ {  get_flag("debt_taken") and not (get_flag("debt_paid")) and item_count("item_silver") >= 15  } [Закрыть долг корчмы (15 см).]
     Ох, инспектор. Вот это по-человечески.
     ~ fire_rule("rule_marta_debt_cleared_choice")
     -> main_hub
 
-+ [Боссар больше не придёт за долгом.] { get_flag("debt_taken") and not (get_flag("debt_paid")) and get_flag("bossar_fought") }
++ {  get_flag("debt_taken") and not (get_flag("debt_paid")) and get_flag("bossar_fought")  } [Боссар больше не придёт за долгом.]
     …Ты его? Ну, инспектор. Не скажу, что мне его жалко, но я помню, кем он был до ям.
     ~ fire_rule("rule_marta_debt_cleared")
     -> main_hub
 
-+ [Что говорят о Ходе?] { get_flag("met_irena") }
++ {  get_flag("met_irena")  } [Что говорят о Ходе?]
     Трубы гудят не в лад. Дед мой работал на верхней террасе и говорил: когда Ход сбивается — Дирекция начинает забирать.
     ~ fire_rule("rule_marta_hod")
     -> main_hub

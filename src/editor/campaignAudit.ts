@@ -260,6 +260,40 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       })
     }
   }
+  // Подписи реестров читает человек — и в редакторе, и в HUD (фидбек 27,
+  // пп. 2 и 4). ИИ-агенты иногда кладут в label служебный код вида
+  // «crime_intrusion=Проникновение в тоннели» или «price_blockade*1.5»:
+  // такой реестр мастеру непонятен, а игроку показывается как есть.
+  const registries: Array<{ what: string; items?: Array<{ id: string; label: string }> }> = [
+    { what: 'навыки', items: store.meta.skills },
+    { what: 'категории навыков', items: store.meta.skill_categories },
+    { what: 'преступления', items: store.meta.crimes },
+    { what: 'ценовые события', items: store.meta.price_events },
+    { what: 'флаги', items: store.meta.flags },
+    { what: 'состояния', items: store.meta.statuses },
+    { what: 'потребности', items: store.meta.needs },
+    { what: 'фракции', items: store.meta.factions },
+    { what: 'страсти', items: store.meta.passions_list },
+    { what: 'приверженности', items: store.meta.allegiances },
+    { what: 'категории предметов', items: store.meta.item_categories },
+  ]
+  for (const reg of registries) {
+    for (const item of reg.items ?? []) {
+      const label = (item.label ?? '').trim()
+      if (!label) continue
+      const codeLike =
+        label.includes('=') ||
+        label.includes('*') ||
+        label === item.id ||
+        /^[a-z0-9_]+$/.test(label) && label.includes('_')
+      if (codeLike) {
+        structure.push({
+          severity: 'warning',
+          message: `Подпись в реестре (${reg.what}) «${label}» похожа на служебный код: в редакторе и в HUD её читает человек. Напишите название обычными словами, код id останется в отдельном поле (${item.id}).`,
+        })
+      }
+    }
+  }
   // Ink: условие выбора, записанное ПОСЛЕ квадратных скобок, часть сборок
   // inkjs печатает как текстовую строку («true» посреди разговора, фидбек 27
   // п.6). Канонично — перед скобками: `+ { cond } [текст]`.

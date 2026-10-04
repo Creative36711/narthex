@@ -12,7 +12,7 @@ EXTERNAL get_flag(a0)
     ~ fire_rule("rule_quiet_talk")
     -> main_hub
 
-+ [Кого ты уже убила?] { get_flag("ledger_taken") }
++ {  get_flag("ledger_taken")  } [Кого ты уже убила?]
     Всех, кого подписали. Гарна — не я: его привели мёртвым. Мне приказали найти бумаги, а не человека.
     ~ fire_rule("rule_quiet_garn")
     -> main_hub

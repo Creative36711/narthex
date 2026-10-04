@@ -13,13 +13,13 @@ EXTERNAL unlock_codex(a0)
 -> main_hub
 
 === main_hub ===
-+ [Подлечите меня (6 см).] { item_count("item_silver") >= 6 }
++ {  item_count("item_silver") >= 6  } [Подлечите меня (6 см).]
     ~ remove_item("item_silver", 6)
     ~ fire_rule("rule_medic_help")
     Готово. Дышите мелко, три часа не спорьте с караулом.
     -> main_hub
 
-+ [Купить осадок от ржави (10 см).] { item_count("item_silver") >= 10 }
++ {  item_count("item_silver") >= 10  } [Купить осадок от ржави (10 см).]
     ~ remove_item("item_silver", 10)
     ~ add_item("item_tonic", 1)
     Пейте сразу, как пальцы начнут не слушаться. Это не лечение, инспектор. Это отсрочка.
@@ -36,12 +36,12 @@ EXTERNAL unlock_codex(a0)
     ~ fire_rule("rule_medic_names")
     -> main_hub
 
-+ [Что у вас от ржави?] { get_flag("clinic_helped") and not (get_flag("recipe_tonic_known")) }
++ {  get_flag("clinic_helped") and not (get_flag("recipe_tonic_known"))  } [Что у вас от ржави?]
     Осадок. Трава-жгунец, спирт и время. Держите, я запишу, как делать.
     ~ fire_rule("rule_medic_recipe")
     -> main_hub
 
-+ [Проверьте, как я дышу.] { get_flag("fume_first") }
++ {  get_flag("fume_first")  } [Проверьте, как я дышу.]
     Лёгкие как у шахтёра: угар есть, но немного. Меняйте уголь в маске каждый день.
     ~ fire_rule("rule_medic_lungs")
     -> main_hub

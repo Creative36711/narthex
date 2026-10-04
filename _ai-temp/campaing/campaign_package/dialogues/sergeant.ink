@@ -12,7 +12,7 @@ EXTERNAL unlock_codex(a0)
 -> main_hub
 
 === main_hub ===
-+ [Покажите материалы Гарна.] { not (get_flag("case_taken")) }
++ {  not (get_flag("case_taken"))  } [Покажите материалы Гарна.]
     ~ fire_rule("rule_sergeant_case")
     Держите. Три улики, ни одного свидетеля. И вкладыш латунный, помеченный «металлолом».
     -> DONE
@@ -33,12 +33,12 @@ EXTERNAL unlock_codex(a0)
     ~ unlock_codex("codex_directorate")
     -> main_hub
 
-+ [Вкладыш с номером. Что это значит?] { get_flag("implant_found") }
++ {  get_flag("implant_found")  } [Вкладыш с номером. Что это значит?]
     Значит, партия из цеха. Значит, был наряд и была подпись. Такие наряды подписывает Валент — лично, своей рукой.
     ~ fire_rule("rule_sergeant_implant")
     -> main_hub
 
-+ [У меня гроссбух Гарна.] { get_flag("ledger_taken") }
++ {  get_flag("ledger_taken")  } [У меня гроссбух Гарна.]
     Тогда вам нужен свидетель, иначе Ревизия похоронит бумаги вместе с вами. Свидетель есть?
     Медянка? Тогда спасайте её, инспектор. Не бумагами — ногами.
     ~ fire_rule("rule_sergeant_ledger")

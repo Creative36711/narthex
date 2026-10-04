@@ -16,7 +16,7 @@ EXTERNAL set_description(a0, a1)
 -> main_hub
 
 === main_hub ===
-+ [Дело известно. Гроссбух, вкладыш и свидетель.] { get_flag("ledger_taken") and get_flag("implant_found") and get_flag("lissa_saved") and not (get_flag("truth_exposed")) }
++ {  get_flag("ledger_taken") and get_flag("implant_found") and get_flag("lissa_saved") and not (get_flag("truth_exposed"))  } [Дело известно. Гроссбух, вкладыш и свидетель.]
     …Свидетель. Медянка, стало быть, жива. Что ж. Тогда у меня к вам последняя просьба: сделайте всё по форме. Я не буду мешать.
     ~ fire_rule("rule_choice_truth")
     -> main_hub
@@ -25,13 +25,13 @@ EXTERNAL set_description(a0, a1)
     Никто. Вот в чём беда: восьмой должен быть никем. Сирота, пропавший, должник. Человек, которого город не станет искать.
     -> main_hub
 
-+ [Я встану в ложе сам.] { get_flag("hod_spoken") and not (get_flag("became_conductor")) }
++ {  get_flag("hod_spoken") and not (get_flag("became_conductor"))  } [Я встану в ложе сам.]
     Понимаете ли вы, что это значит? Три зимы, потом — мокрые трубки и латунь в суставах.
     …Хорошо. Город будет вам обязан, и никто из них не узнает, кому.
     ~ fire_rule("rule_choice_conductor")
     -> main_hub
 
-+ [Я уйду из города с гроссбухом.] { get_flag("ledger_taken") and not (get_flag("fled_with_ledger")) }
++ {  get_flag("ledger_taken") and not (get_flag("fled_with_ledger"))  } [Я уйду из города с гроссбухом.]
     Уйдёте — и Ревизия закроет дело по моей бумаге. Город останется тёплым, а правда уедет в вашей сумке.
     ~ fire_rule("rule_choice_flee")
     -> main_hub
@@ -43,13 +43,13 @@ EXTERNAL set_description(a0, a1)
     ~ set_description("npc_valent", "Управляющий Валент Корр. Дело закрыто, и он снова спокоен.")
     -> main_hub
 
-+ [У меня вкладыш с номером. Партию подписали вы.] { get_flag("implant_found") }
++ {  get_flag("implant_found")  } [У меня вкладыш с номером. Партию подписали вы.]
     Подписал. Каждую зиму подписываю и каждую зиму ненавижу себя на одну ночь больше.
     Это ничего не меняет, инспектор. Город тёплый. Спросите тех, кто не замёрз.
     ~ fire_rule("rule_valent_implant")
     -> main_hub
 
-+ [«Тихая» не придёт.] { get_flag("quiet_defeated") }
++ {  get_flag("quiet_defeated")  } [«Тихая» не придёт.]
     Значит, вы её сломали. Замена есть, но зима короткая — и, пожалуй, я рад, что это вы, а не Гарн.
     ~ fire_rule("rule_valent_quiet")
     -> main_hub
