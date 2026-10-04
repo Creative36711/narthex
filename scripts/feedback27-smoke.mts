@@ -159,6 +159,9 @@ const ctx = (): ReportCtx & { texts: string[] } => {
   check('2 сдвиги навыков погоды — строки «навык — сдвиг»', ce.includes('function SkillDeltaRows') && /Сдвиг навыков[\s\S]{0,220}SkillDeltaRows/.test(ce) && !ce.includes('навык=±сдвиг'))
   const css = f('src/editor/editor.css')
   check('3 селекты кубиков в редакторе не растягиваются на всю ширину', /\.dmg-row select,[\s\S]{0,80}width: auto/.test(css))
+  const ui = f('src/index.css')
+  check('8 подсказка не вылезает за экран и переносит длинные слова',
+    /\.ui-tooltip\s*\{[^}]*max-width: min\(280px, calc\(100vw - 24px\)\)/.test(ui) && /\.ui-tooltip\s*\{[^}]*overflow-wrap: anywhere/.test(ui))
   check('3 ряд кубиков в редакторе компактный', /\.[fF]ld-dmg[^}]*flex: 0 1 auto/.test(css) || /\.fld-row \.fld-dmg \{[\s\S]{0,120}flex: 0 1 auto/.test(css))
 }
 

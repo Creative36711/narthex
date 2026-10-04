@@ -2199,7 +2199,10 @@ input[type='range'] {
 .ui-tooltip {
   position: fixed;
   z-index: 10000;
-  max-width: 280px;
+  /* не шире экрана (узкое окно) и переносим длинные токены: иначе плашка
+     вылезала за край и рождала горизонтальный скроллбар (фидбек 27, п.8) */
+  max-width: min(280px, calc(100vw - 24px));
+  overflow-wrap: anywhere;
   background: color-mix(in srgb, var(--bg-deep) 96%, transparent);
   color: var(--text);
   border: 1px solid var(--gold);
