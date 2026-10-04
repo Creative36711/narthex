@@ -306,7 +306,7 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       if (codeLike) {
         structure.push({
           severity: 'warning',
-          message: `Подпись в реестре (${reg.what}) «${label}» похожа на служебный код: в редакторе и в HUD её читает человек. Напишите название обычными словами, код id останется в отдельном поле (${item.id}).`,
+          message: `Подпись в реестре (${reg.what}) «${label}» похожа на служебный код: её читает человек — и мастер в редакторе, и игрок в игре. Напишите название обычными словами, служебное имя подставится само.`,
         })
       }
     }

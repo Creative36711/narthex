@@ -854,7 +854,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           setSection('scenes')
           const detail = entry.alreadyInstalled
             ? `«${entry.title}» уже установлена; повторная копия не создана.`
-            : `«${entry.title}» добавлена в список кампаний с ID «${entry.id}». Выберите её в списке кампаний сверху, чтобы открыть.`
+            : `«${entry.title}» добавлена в список кампаний — выберите её в списке сверху, чтобы открыть.`
           const importedDetails = [
             detail,
             entry.idWarning,

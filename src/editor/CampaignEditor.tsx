@@ -65,7 +65,7 @@ function blankNeedCond(key: string): NeedCondition {
 }
 
 /**
- * Реестр строками: название — обычное поле, код id показан справочно и не
+ * Реестр строками: название — обычное поле, служебный код мастеру не показывается и
  * редактируется (ломает ссылки), добавление — через диалог имени.
  * Заменяет прежний ввод «id=Название через запятую»: человек не должен
  * читать и писать парсерный формат (фидбек 27, п.2 и п.4).
@@ -1682,7 +1682,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               }}
             />
           </label>
-          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Реестр страстей: названия видят игрок и редактор; код id используется в эффектах и условиях">
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Страсти героя: их названия видит игрок, а в правилах и проверках они выбираются списком — писать ничего не нужно">
             <span>Страсти</span>
             <RegistryRows
               items={m.passions_list ?? []}
@@ -1691,7 +1691,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               prefix="passion_"
             />
           </div>
-          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Реестр сил причастности: названия видит игрок; код id используется в эффектах">
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Силы причастности: названия видит игрок, в эффектах и условиях они выбираются списком">
             <span>Причастность</span>
             <RegistryRows
               items={m.allegiances ?? []}
@@ -1766,6 +1766,9 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
         {m.progression && (
           <div className="fld-row" style={{ flexDirection: 'column', gap: 8 }}>
+            <div className="muted small" data-tip="Каждая черта: название и описание видит игрок, модификаторы и требования — движок">
+              Черты прокачки (что герой выбирает за уровни)
+            </div>
             {(m.progression.feats ?? []).map((f, i) => {
               const patchFeat = (p: Partial<FeatDef>) => {
                 const feats = (m.progression!.feats ?? []).map((x, j) => (j === i ? { ...x, ...p } : x))
@@ -1881,7 +1884,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           </label>
         </div>
         <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Реестр преступлений: названия видит игрок; совершаются эффектом commit_crime по кодy id">
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Преступления: названия видит игрок; герой «совершает преступление» эффектом, выбрав его из списка">
             <span>Преступления</span>
             <RegistryRows
               items={m.crimes ?? []}
@@ -1890,7 +1893,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               prefix="crime_"
             />
           </div>
-          <div className="fld" style={{ flex: 1, minWidth: 340 }} data-tip="Ценовые события: множитель и фильтр категорий; включаются эффектом set_price_event">
+          <div className="fld" style={{ flex: 1, minWidth: 340 }} data-tip="Ценовые события: множитель и фильтр категорий; включаются эффектом «Ценовое событие» (правило, диалог или квест)">
             <span>Ценовые события</span>
             <RegistryRows
               items={m.price_events ?? []}

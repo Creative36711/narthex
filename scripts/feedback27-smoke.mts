@@ -146,7 +146,9 @@ const ctx = (): ReportCtx & { texts: string[] } => {
   check('1 ISO-подсказка у даты больше не нужна', !ce.includes('дата, ISO'))
   check('2 универсальный редактор реестров есть', ce.includes('function RegistryRows'))
   const rows = (ce.match(/<RegistryRows/g) ?? []).length
-  check('2 реестры переведены на строки (страсти, приверженности, преступления, цены, черты, категории)', rows >= 6, `${rows}`)
+  check('2 реестры переведены на строки (страсти, приверженности, преступления, цены, категории)', rows >= 5, `${rows}`)
+  // черты с 29-го раунда правятся одним блоком (название + описание + модификаторы + требования) без дублирующей строки и id
+  check('2 черты — отдельный блок без служебного кода', /Черты[\s\S]{0,900}Название черты/.test(ce) && !ce.includes('prefix="feat_"'))
   check('2 страсти/приверженности — реестр строк', /items=\{m\.passions_list/.test(ce) && /items=\{m\.allegiances/.test(ce))
   check('2 преступления больше не вводятся строкой «id=label»', /items=\{m\.crimes/.test(ce) && !/m\.crimes\s*=\s*e\.target\.value/.test(ce) && !ce.includes('crime_intrusion'))
   check('2 ценовые события — строки с множителем, а не парсинг `id=label*1.5`', /items=\{m\.price_events/.test(ce) && /Множитель ×/.test(ce) && !/m\.price_events\s*=\s*e\.target\.value/.test(ce))
