@@ -1475,6 +1475,36 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .dialogue-lines p.past { color: var(--muted); font-size: 15px; }
 .dialogue-lines p.current { color: var(--text); font-size: 15.5px; }
 
+/* Полоска дедлайна на раздумье (§9 дизайн-документа): видно, что время идёт,
+   последние секунды — тревожный цвет. Не блокирует клик: игрок может выбрать
+   ответ прямо через полоску. */
+.dialogue-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  pointer-events: none;
+}
+.dialogue-timer-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 65%, transparent);
+  overflow: hidden;
+}
+.dialogue-timer-fill {
+  height: 100%;
+  background: var(--gold);
+  transition: width 0.12s linear;
+}
+.dialogue-timer.urgent .dialogue-timer-fill { background: var(--red-bright); }
+.dialogue-timer-left {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.dialogue-timer.urgent .dialogue-timer-left { color: var(--red-bright); font-weight: 600; }
+
 .dialogue-choices { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .choice-btn {
   text-align: left;
@@ -1556,6 +1586,33 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   background: var(--panel-2);
 }
 .inv-item-side { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+
+/* Изготовление: строки рецептов. Раньше .craft-row не имел стилей вовсе —
+   список рецептов выглядел «голым» списком. Плюс подсветка рецепта, к
+   которому привёл эффект open_craft («применить ключ к клапану»). */
+.craft-list { list-style: none; padding: 0; margin: 12px 0; }
+.craft-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  background: var(--panel-2);
+}
+.craft-row.craft-blocked { opacity: 0.75; }
+.craft-focused {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 55%, transparent);
+  background: color-mix(in srgb, var(--gold) 8%, var(--panel-2));
+}
+.craft-focused b::after {
+  content: ' ← нужно сейчас';
+  color: var(--gold-bright);
+  font-weight: 600;
+  font-size: 0.82em;
+}
 .qty { color: var(--gold); margin-left: 6px; font-variant-numeric: tabular-nums; }
 .panel-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border-soft); }
 

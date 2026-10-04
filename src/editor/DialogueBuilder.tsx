@@ -65,6 +65,7 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'unlock_codex', label: 'Открыть запись кодекса' },
   { id: 'unlock_recipe', label: 'Открыть рецепт крафта' },
   { id: 'open_trade', label: 'Открыть торговлю (завершает разговор)' },
+  { id: 'open_craft', label: 'Открыть изготовление (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
 ]
 
@@ -89,6 +90,7 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'set_weather': return { type, weather: '' }
     case 'unlock_codex': return { type, entry: '' }
     case 'unlock_recipe': return { type, recipe: '' }
+    case 'open_craft': return { type, recipe: '' }
   }
 }
 
@@ -278,6 +280,43 @@ function NodeForm({
             onChange={(v) => ((node.goto = v), commit())}
           />
         )}
+      </div>
+
+      <div className="props-group">
+        <h4>Таймер на раздумье</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Сколько секунд игрок может думать над ответами. Истекло — разговор уходит в выбранный
+          узел или заканчивается. Работает, когда у узла есть варианты ответа; в игре видна полоска
+          обратного отсчёта.
+        </div>
+        <div className="fld-row">
+          <label className="fld fld-num" data-tip="Пусто или 0 — без ограничения времени">
+            <span>Секунд на раздумье</span>
+            <input
+              type="number"
+              min={0}
+              value={node.timer?.seconds ?? 0}
+              onChange={(e) => {
+                const v = Math.max(0, Math.round(Number(e.target.value) || 0))
+                if (v > 0) node.timer = { seconds: v, node: node.timer?.node }
+                else delete node.timer
+                commit()
+              }}
+            />
+          </label>
+          <GotoSelect
+            label="Если игрок промолчал"
+            doc={doc}
+            value={node.timer?.node ?? 'end'}
+            allowStay
+            onChange={(v) => {
+              if (!node.timer) return
+              node.timer = { seconds: node.timer.seconds, node: v === 'end' ? undefined : v }
+              commit()
+            }}
+          />
+        </div>
+        {!node.timer && <div className="muted small">Сейчас без таймера: игрок может думать сколько угодно.</div>}
       </div>
 
       <div className="props-group">
@@ -931,6 +970,12 @@ function EffectRow({
       )}
       {e.type === 'unlock_recipe' && (
         <InlineRef kind="recipe" store={store} value={e.recipe} onChange={(v) => ((e.recipe = v), commit())} />
+      )}
+      {e.type === 'open_craft' && (
+        <>
+          <InlineRef kind="recipe" store={store} value={e.recipe ?? ''} onChange={(v) => ((e.recipe = v || undefined), commit())} />
+          <span className="muted small">пусто — весь список рецептов</span>
+        </>
       )}
       <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>
     </div>

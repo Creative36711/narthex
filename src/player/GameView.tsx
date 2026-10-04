@@ -99,8 +99,18 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
   )
   const closePanel = useCallback(() => {
     playUi('panel_close')
+    // окно крафта могло быть открыто эффектом `open_craft` — снимаем запрос,
+    // иначе панель тут же откроется снова
+    engine.closeCraft()
     setPanel(null)
-  }, [])
+  }, [engine])
+
+  // `open_craft` (правило, реплика, предмет в сцене) открывает панель крафта
+  // без кнопки HUD: подписка уже перерисовывает GameView, остаётся
+  // синхронизировать локальную панель.
+  useEffect(() => {
+    if (engine.craftRequest) setPanel('craft')
+  }, [engine, engine.craftRequest])
 
   useEffect(() => {
     return () => {
@@ -132,7 +142,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
       )}
       {panel === 'character' && <CharacterPanel engine={engine} onClose={closePanel} />}
       {panel === 'craft' && featureOn(engine.campaign.meta, 'inventory') && (
-        <CraftingPanel engine={engine} onClose={closePanel} />
+        <CraftingPanel engine={engine} onClose={closePanel} focusRecipe={engine.craftRequest?.recipe} />
       )}
       {panel === 'log' && <LogPanel engine={engine} onClose={closePanel} />}
       {panel === 'codex' && <CodexPanel engine={engine} onClose={closePanel} />}

@@ -84,9 +84,25 @@ export class GameEngine {
   private activeNpc: NpcDef | null = null
   /** Ink-истории этого забега (состояние once-выборов живёт в пределах забега) */
   dialogue: DialogueUI | null = null
+  /**
+   * Таймер на выбор в диалоге (фидбек 27, §9): ink-вызов
+   * `~ set_dialogue_timer(15, "node_x")` задаёт дедлайн на текущем наборе
+   * реплик. Пока он жив, плеер показывает полоску обратного отсчёта, а по
+   * истечении вызывает `dialogueTimeout()`. Истёк без цели — разговор
+   * заканчивается сам: игрок промолчал.
+   */
+  dialogueTimer: { seconds: number; knot?: string } | null = null
+  /** таймер, объявленный ink-ом в текущем проходе до показа выбора */
+  private pendingDialogueTimer: { seconds: number; knot?: string } | null = null
   combat: CombatController | null = null
   /** открытая торговля: id NPC-торговца */
   trade: NpcDef | null = null
+  /**
+   * Запрос на открытие окна изготовления (эффект/реплика `open_craft`).
+   * Плеер показывает панель крафта, пока поле не сброшено closeCraft().
+   * `recipe` — рецепт, который надо подсветить (ремонт клапана и т.п.).
+   */
+  craftRequest: { recipe?: string } | null = null
   /** транзитные всплывающие подсказки (не в сейве): «Получено: …» и т.п. — UI отображает и сам гасит */
   toasts: { id: number; text: string; kind: 'get' | 'lose' | 'info' }[] = []
   private toastSeq = 0
@@ -1579,7 +1595,7 @@ export class GameEngine {
   campAvailable(): { ok: boolean; reason: string } {
     const cfg = this.campaign.meta.camping
     if (!cfg) return { ok: false, reason: 'мастер не включил ночлег (meta.camping)' }
-    if (this.combat || this.trade) return { ok: false, reason: 'сейчас не до отдыха' }
+    if (this.combat || this.trade || this.craftRequest) return { ok: false, reason: 'сейчас не до отдыха' }
     const loc = this.findLocation(this.state.location)?.location
     if (!loc?.camp) return { ok: false, reason: 'здесь лагерь не разбить (location.camp)' }
     return { ok: true, reason: '' }
@@ -1873,6 +1889,7 @@ export class GameEngine {
     const npc = this.campaign.entities[entityId] as NpcDef | undefined
     if (!npc || npc.type !== 'npc' || !npc.trader) return
     this.dialogue = null
+    this.dialogueTimer = null
     this.trade = npc
     this.notify()
   }
@@ -1880,6 +1897,88 @@ export class GameEngine {
   closeTrade(): void {
     this.trade = null
     this.autosave()
+    this.notify()
+  }
+
+  /**
+   * Открыть окно изготовления по ходу игры (эффект `open_craft`, реплика
+   * `~ open_craft("recipe_id")`). Неизвестный или незаданный рецепт — просто
+   * открывается список: рецепт может открыться позже эффектом unlock_recipe.
+   * Разговор и торговля при этом закрываются, как у `open_trade`.
+   */
+  openCraft(recipeId?: string): void {
+    if (!featureOn(this.campaign.meta, 'inventory')) return
+    const known = recipeId && this.knownRecipes().some((r) => r.id === recipeId)
+    this.dialogue = null
+    this.dialogueTimer = null
+    this.activeStory = null
+    this.activeNpc = null
+    this.trade = null
+    this.craftRequest = { recipe: known ? recipeId : undefined }
+    this.notify()
+  }
+
+  closeCraft(): void {
+    if (!this.craftRequest) return
+    this.craftRequest = null
+    this.autosave()
+    this.notify()
+  }
+
+  // ─────────────── таймер выбора в диалоге ───────────────
+
+  /**
+   * Ink-вызов `~ set_dialogue_timer(секунды, "узел")`: сколько секунд игрок
+   * может думать над ответами и куда уйти, если он промолчал. Пустой узел —
+   * по истечении разговор заканчивается. `0` снимает таймер.
+   * Действует, только если на узле есть варианты ответа.
+   */
+  setDialogueTimer(seconds: number, knot?: string): void {
+    const s = Math.floor(Number(seconds) || 0)
+    this.pendingDialogueTimer = s > 0 ? { seconds: s, knot: knot ? String(knot) : undefined } : null
+  }
+
+  /**
+   * Зафиксировать таймер, объявленный ink-ом в этом проходе: он живёт, пока
+   * игроку показаны варианты ответа. Без вариантов таймер снимается, а
+   * забытый ink-ом таймер не «переезжает» на следующую реплику.
+   */
+  private commitDialogueTimer(choices: number): void {
+    const next = this.pendingDialogueTimer
+    this.pendingDialogueTimer = null
+    this.dialogueTimer = choices > 0 && next ? next : null
+  }
+
+  /** Истёк таймер: уходим в назначенный узел или заканчиваем разговор. */
+  dialogueTimeout(): void {
+    const t = this.dialogueTimer
+    const story = this.activeStory
+    this.dialogueTimer = null
+    if (!t || !story || !this.dialogue) return
+    if (!t.knot) {
+      this.pushLog('Разговор оборвался: вы слишком долго молчали.')
+      this.endDialogue()
+      return
+    }
+    try {
+      story.ChoosePathString(t.knot)
+    } catch {
+      this.pushLog(`Узел «${t.knot}» для таймера не найден — разговор заканчивается.`)
+      this.endDialogue()
+      return
+    }
+    this.pushLog('Вы слишком долго молчали — собеседник перевёл разговор на своё.')
+    const drained = drainStory(story)
+    if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
+      this.dialogue = null
+      this.activeStory = null
+      this.activeNpc = null
+      this.notify()
+      return
+    }
+    this.dialogue = { npc: this.dialogue.npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
+    this.commitDialogueTimer(drained.choices.length)
+    this.dialogue.timer = this.dialogueTimer ?? undefined
     this.notify()
   }
 
@@ -2424,6 +2523,9 @@ export class GameEngine {
         break
       case 'unlock_recipe':
         this.unlockRecipe(e.recipe)
+        break
+      case 'open_craft':
+        this.openCraft(e.recipe || undefined)
         break
       case 'set_entity_state': {
         const m = (s.entity_states ??= {})
@@ -3081,6 +3183,8 @@ export class GameEngine {
       this.activeNpc = null
     } else {
       this.dialogue = { npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
+      this.commitDialogueTimer(drained.choices.length)
+      this.dialogue.timer = this.dialogueTimer ?? undefined
     }
     this.notify()
   }
@@ -3106,6 +3210,8 @@ export class GameEngine {
       choices: drained.choices,
       finished: drained.finished,
     }
+    this.commitDialogueTimer(drained.choices.length)
+    this.dialogue.timer = this.dialogueTimer ?? undefined
     this.checkRules()
     // правило на checkRules тоже могло вызвать game_over
     if (this.state.game_over) {
@@ -3117,6 +3223,7 @@ export class GameEngine {
   }
 
   endDialogue(): void {
+    this.dialogueTimer = null
     this.dialogue = null
     this.activeStory = null
     this.activeNpc = null
@@ -3149,6 +3256,7 @@ export class GameEngine {
     // `game_over && !dialogue` — типичный путь fire_rule/tick_elapsed →
     // game_over_victory из ink оставлял story «висящей».
     this.dialogue = null
+    this.dialogueTimer = null
     this.activeStory = null
     this.activeNpc = null
     this.trade = null

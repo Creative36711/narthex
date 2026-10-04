@@ -394,6 +394,19 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     fields: [{ key: 'recipe', label: 'Рецепт', kind: 'recipeRef' }],
     blank: { recipe: '' },
   },
+  open_craft: {
+    label: 'Открыть изготовление (крафт)',
+    fields: [
+      {
+        key: 'recipe',
+        label: 'Рецепт (пусто — весь список)',
+        kind: 'recipeRef',
+        optional: true,
+        placeholder: 'например: ремонт клапана',
+      },
+    ],
+    blank: { recipe: '' },
+  },
   set_entity_state: {
     label: 'Сменить состояние облика (эмоцию)',
     fields: [

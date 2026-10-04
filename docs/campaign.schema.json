@@ -744,6 +744,21 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "open_craft"
+            },
+            "recipe": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "set_entity_state"
             },
             "entity": {
@@ -8110,6 +8125,21 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "open_craft"
+            },
+            "recipe": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "start_quest"
             },
             "quest": {
@@ -8547,6 +8577,23 @@
         "goto": {
           "type": "string",
           "description": "узел без вариантов: куда перейти после реплик ('end' по умолчанию)"
+        },
+        "timer": {
+          "type": "object",
+          "properties": {
+            "seconds": {
+              "type": "number"
+            },
+            "node": {
+              "type": "string",
+              "description": "id узла, куда уйти по истечении; пусто — разговор заканчивается"
+            }
+          },
+          "required": [
+            "seconds"
+          ],
+          "additionalProperties": false,
+          "description": "Дедлайн на раздумье (фидбек 27, §9 дизайн-документа): сколько секунд\nигрок может выбирать ответ в этом узле. Истекло — разговор уходит в\nузел `node` (или заканчивается, если он не задан). Работает только у\nузлов с вариантами ответа; в ink превращается в `set_dialogue_timer`."
         }
       },
       "required": [

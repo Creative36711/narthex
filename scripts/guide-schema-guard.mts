@@ -153,6 +153,7 @@ const ENGINE_VOCABULARY = new Map<string, string>([
   ['get_disposition', 'внешняя функция Ink: отношение'],
   ['quest_stage', 'внешняя функция Ink: стадия квеста'],
   ['item_count', 'внешняя функция Ink: количество предмета'],
+  ['set_dialogue_timer', 'внешняя функция Ink: дедлайн на раздумье в диалоге (§9)'],
   ['has_meta_achievement', 'внешняя функция Ink: есть ли достижение хроники'],
   ['get_meta_counter', 'внешняя функция Ink: счётчик хроники (endings_seen и т.д.)'],
   ['chance_warns', 'устаревшее поле start_pursuit — в формате отсутствует'],

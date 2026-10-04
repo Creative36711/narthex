@@ -375,7 +375,7 @@ dialogues/<имя>.ink           исходник, который читает �
 ```json
 "campaign": {
   "id": "my_campaign", "title": "Моя кампания", "version": "0.1.0",
-  "engine_version": "0.7.1", "min_engine": "0.7.1", "package_format": 1,
+  "engine_version": "0.8.0", "min_engine": "0.8.0", "package_format": 1,
   "author": "ИИ", "description": "…",
   "tick_label": "час", "ticks_per_day": 24,
   "time_of_day": { "morning": 6, "day": 10, "evening": 18, "night": 22 },
@@ -493,7 +493,7 @@ dialogues/<имя>.ink           исходник, который читает �
   существующей кампании сохрани оба значения из исходного файла. Для новой
   кампании используй версию движка, переданную приложением в исходном пакете
   или задании. **Не копируй сюда `campaign.version` и не выдумывай `1.0`: это
-  независимые номера.** Сейчас движок этой версии гайда — `0.7.1`.
+  независимые номера.** Сейчас движок этой версии гайда — `0.8.0`.
 - `package_format` — версия формата пакета (`1`). Ставь текущую.
 - `save_base_version` — сохранения от какой версии кампании ещё
   поддерживаются. **При первой генерации не заполняй**: поле проставляет
@@ -1000,6 +1000,8 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 | `start_quest` / `advance_quest` / `fail_quest` | `quest` (+`stage`) | начать / продвинуть / провалить |
 | `journal_update` | `quest`, `text_key` | новая запись в журнале |
 | `start_dialogue` | `entity`, `dialogue_knot?` | открыть диалог |
+| `open_trade` | `npc` | открыть торговлю прямо из правила/реплики |
+| `open_craft` | `recipe?` | открыть изготовление (крафт); с рецептом он подсвечен «нужно сейчас». Так ремонт клапана или замка делается из окна сцены, а не кнопкой в HUD |
 | `start_combat` | `enemies`, `arena`, `intro?`, `on_victory?` | начать бой |
 | `play_cutscene` | `cutscene` | показать катсцену |
 | `show_message` | `text`, `portrait?` | сообщение |
@@ -1128,18 +1130,28 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 - Условия варианта (`conds`): `flag`, `item_ge`, `has_item`, `disp_ge`,
   `quest`, `in_party`, `hp_ge`. Проверка навыка — `check: { skill, difficulty,
   mods?, success: { sections, goto }, fail: { sections, goto } }`.
+- **Таймер на раздумье** (узел с вариантами): поле `timer` —
+  `{ "seconds": 15, "node": "узел_молчания" }`. Игрок видит полоску
+  обратного отсчёта; по нулю разговор уходит в узел `node`, а без него —
+  заканчивается. В рукописном ink это `~ set_dialogue_timer(15, "узел")`,
+  а `~ set_dialogue_timer(15, "")` — просто конец разговора (второй аргумент
+  в самой команде обязателен; `0` снимает таймер). Таймер
+  ставь там, где молчание — часть сцены (погоня, допрос, «Тихая» у двери),
+  и не ставь короче 5–8 секунд: игрок должен успеть прочитать варианты.
 - Эффекты реплик: `set_flag`, `add_item`/`remove_item` (поле количества в
   диалоге называется `qty`), `fire_rule`, `join_party`, `open_trade` (открывает
-  торговлю и закрывает диалог), `start_quest`, `advance_time`, `change_need`,
-  `change_hp`, `sleep`, `change_disposition`, `play_cutscene`,
-  `set_description` (`entity`, `text` — динамически меняет описание сущности
-  при наведении), `apply_status`/`remove_status`, `set_weather`,
-  `unlock_codex`, `unlock_recipe`.
+  торговлю и закрывает диалог), `open_craft` (открывает изготовление и
+  закрывает диалог; поле `recipe` подсвечивает нужный рецепт), `start_quest`,
+  `advance_time`, `change_need`, `change_hp`, `sleep`, `change_disposition`,
+  `play_cutscene`, `set_description` (`entity`, `text` — динамически меняет
+  описание сущности при наведении), `apply_status`/`remove_status`,
+  `set_weather`, `unlock_codex`, `unlock_recipe`.
   «Остальное» из §9в в диалоге недоступно — пиши это правилом и зови
   `fire_rule`.
 - Конструктор (`generateInk`) **обязан** объявить `EXTERNAL` для каждой
   команды, которую вызывает `~ …` в сгенерированном ink: в том числе
-  `unlock_recipe`, `unlock_codex`, `apply_status`, `set_weather`,
+  `unlock_recipe`, `open_craft`, `set_dialogue_timer`, `unlock_codex`,
+  `apply_status`, `set_weather`,
   `set_description`, **токены реплик** (`get_player_name` для `{имя}`,
   `get_hp_max`, `get_currency`…) и прочие из таблицы ниже. Без `EXTERNAL`
   inkjs не скомпилирует файл — диалог не откроется.
@@ -1168,6 +1180,8 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 | `~ stat_roll("POW", 5)` / `~ opposed_roll("persuade", "npc_bor")` | проверки 0/1 |
 | `{ skill_check("sneak", 60): … }` / `~ skill_check(…)` | бросок навыка героя: 1 — успех, 0 — провал; две ветки пиши двумя условными блоками или выборами с условием |
 | `~ open_trade("npc_marka")` | открыть торговлю с NPC прямо из реплики |
+| `~ open_craft("recipe_valve")` / `~ open_craft()` | открыть изготовление из реплики или сцены; с id — нужный рецепт подсвечен «нужно сейчас», без — весь список |
+| `~ set_dialogue_timer(15, "узел_молчания")` | дедлайн на раздумье у текущих вариантов ответа: по нулю разговор уходит в узел; `~ set_dialogue_timer(15, "")` — просто заканчивается; `0` снимает. Второй аргумент обязателен в самой команде (иначе inkjs не скомпилирует `EXTERNAL set_dialogue_timer(s, t)`), а в документе конструктора поле `timer.node` можно не указывать |
 | `~ set_entity_state("npc_irena", "angry")` | сменить эмоцию/облик персонажа репликой (портрет и спрайт); `""` — обычный облик |
 
 Значения состояния читаются функциями `get_flag`, `get_stat`, `get_hp`,
@@ -2059,7 +2073,7 @@ id, второй переименовован (`имя_2`), а в отчёте �
 ```json
 {
   "campaign": {
-    "id": "tract", "title": "Тракт", "version": "0.1.0", "engine_version": "0.7.1", "min_engine": "0.7.1",
+    "id": "tract", "title": "Тракт", "version": "0.1.0", "engine_version": "0.8.0", "min_engine": "0.8.0",
     "author": "ИИ", "description": "Короткая прогулка по тракту.",
     "tick_label": "час", "ticks_per_day": 24,
     "time_of_day": { "morning": 6, "day": 10, "evening": 18, "night": 22 },

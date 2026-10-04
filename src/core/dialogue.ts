@@ -37,6 +37,11 @@ export interface DialogueUI {
   lines: DialogueLine[]
   choices: { index: number; text: string }[]
   finished: boolean
+  /**
+   * Дедлайн на раздумье, объявленный ink-ом (`~ set_dialogue_timer`).
+   * Плеер показывает обратный отсчёт и по нулю зовёт `engine.dialogueTimeout()`.
+   */
+  timer?: { seconds: number; knot?: string }
 }
 
 /**
@@ -164,6 +169,14 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('get_disposition', (target: string) => engine.getDisposition(target))
   bind('change_disposition', (target: string, delta: number) => { engine.changeDisposition(target, delta); return 0 })
   bind('open_trade', (entityId: string) => { engine.openTrade(entityId); return 0 })
+  // открыть изготовление из реплики («применить ключ к клапану»); пустой
+  // аргумент — весь список рецептов (эффект open_craft)
+  bind('open_craft', (recipeId: string) => { engine.openCraft(recipeId || undefined); return 0 })
+  // дедлайн на раздумье в диалоге: `~ set_dialogue_timer(15, "node_x")`
+  bind('set_dialogue_timer', (seconds: number, knot?: string) => {
+    engine.setDialogueTimer(Number(seconds) || 0, knot)
+    return 0
+  })
   // смена облика/эмоции прямо из реплики (design-doc §9): портрет в диалоге и
   // спрайт в сцене переключаются без правила-посредника
   bind('set_entity_state', (entityId: string, state: string) => {

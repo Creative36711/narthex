@@ -313,12 +313,13 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'set_weather': return `${indent}~ set_weather(${q(e.weather)})`
     case 'unlock_codex': return `${indent}~ unlock_codex(${q(e.entry)})`
     case 'unlock_recipe': return `${indent}~ unlock_recipe(${q(e.recipe)})`
+    case 'open_craft': return e.recipe ? `${indent}~ open_craft(${q(e.recipe)})` : `${indent}~ open_craft()`
   }
 }
 
-/** open_trade / fire_rule сами закрывают диалог — после них всегда конец */
+/** open_trade / open_craft / fire_rule сами закрывают диалог — после них всегда конец */
 function isTerminalEffect(e: DlgEffect): boolean {
-  return e.type === 'open_trade' || e.type === 'fire_rule'
+  return e.type === 'open_trade' || e.type === 'open_craft' || e.type === 'fire_rule'
 }
 
 export function generateInk(docRaw: DlgDoc): string {
@@ -374,6 +375,15 @@ export function generateInk(docRaw: DlgDoc): string {
       continue
     }
     out.push(`-> ${node.id}_hub`, '', `=== ${node.id}_hub ===`)
+    // дедлайн на раздумье: сколько секунд игрок выбирает ответ и куда уйти,
+    // если промолчал; 0/пусто — без таймера (фидбек 27, §9)
+    const secs = node.timer?.seconds ?? 0
+    if (secs > 0) {
+      // второй аргумент обязателен: inkjs сверяет число аргументов с EXTERNAL,
+      // пустая строка означает «по истечении разговор заканчивается»
+      const knot = node.timer?.node && node.timer.node !== 'end' ? q(node.timer.node) : '""'
+      out.push(`~ set_dialogue_timer(${Math.max(1, Math.round(secs))}, ${knot})`)
+    }
     // защита от зависания: должен существовать всегда доступный вариант
     const hasAlways = node.choices.some((c) => !c.once && (!c.conds || c.conds.length === 0))
     for (const c of node.choices) {
@@ -416,7 +426,7 @@ export function generateInk(docRaw: DlgDoc): string {
     'play_cutscene',
     // DlgEffect, добавленные позже блоков статусов/погоды/кодекса/рецептов
     'set_description', 'apply_status', 'remove_status', 'set_weather',
-    'unlock_codex', 'unlock_recipe',
+    'unlock_codex', 'unlock_recipe', 'open_craft', 'set_dialogue_timer',
     // токены реплик ({имя}, {здоровье_макс}, …) — без EXTERNAL inkjs не компилирует
     'get_player_name', 'get_hp_max', 'get_mp', 'get_mp_max', 'get_luck',
     'get_level', 'get_xp', 'get_run_day', 'get_currency',
@@ -430,7 +440,8 @@ export function generateInk(docRaw: DlgDoc): string {
     get_need: '(id)', get_stat: '(s)', get_skill: '(s)',
     play_cutscene: '(id)',
     set_description: '(id, t)', apply_status: '(id, d)', remove_status: '(id)',
-    set_weather: '(id)', unlock_codex: '(id)', unlock_recipe: '(id)',
+    set_weather: '(id)', unlock_codex: '(id)', unlock_recipe: '(id)', open_craft: '(id)',
+    set_dialogue_timer: '(s, t)',
     get_player_name: '()', get_hp_max: '()', get_mp: '()', get_mp_max: '()',
     get_luck: '()', get_level: '()', get_xp: '()', get_run_day: '()', get_currency: '(id)',
   }

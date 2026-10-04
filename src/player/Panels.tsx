@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { Ico } from '../shared/icons'
 import { PlayerPortrait } from './PlayerPortrait'
 import { askConfirm } from '../shared/modals'
@@ -595,10 +595,16 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
 }
 
 /** Крафт (блок 4 ТЗ): список рецептов, недостающие компоненты, изготовление. */
-export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
+export function CraftingPanel({ engine, onClose, focusRecipe }: { engine: GameEngine; onClose: () => void; focusRecipe?: string }) {
   // закрытые рецепты (RecipeDef.known = false) игроку не показываем — пока
   // их не открыл эффект unlock_recipe
   const recipes = engine.knownRecipes()
+  // рецепт, ради которого окно открыли (open_craft): подсвечиваем и
+  // прокручиваем к нему — мастер ведёт игрока к нужному верстаку
+  const focusRef = useRef<HTMLLIElement | null>(null)
+  useEffect(() => {
+    focusRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [focusRecipe])
   return (
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
@@ -611,7 +617,17 @@ export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose
           {recipes.map((r) => {
             const missing = engine.recipeMissing(r)
             if (r.repair && !engine.hasDamaged(r.output.item)) missing.push(`нет изношенного «${engine.campaign.entities[r.output.item]?.label ?? r.output.item}» — чинить нечего`)
-            return <CraftRow key={r.id} engine={engine} recipe={r} missing={missing} />
+            const focused = !!focusRecipe && focusRecipe === r.id
+            return (
+              <CraftRow
+                key={r.id}
+                engine={engine}
+                recipe={r}
+                missing={missing}
+                focused={focused}
+                ref={focused ? focusRef : undefined}
+              />
+            )
           })}
         </ul>
       </div>
@@ -619,11 +635,12 @@ export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose
   )
 }
 
-function CraftRow({ engine, recipe, missing }: { engine: GameEngine; recipe: RecipeDef; missing: string[] }) {
+const CraftRow = forwardRef<HTMLLIElement, { engine: GameEngine; recipe: RecipeDef; missing: string[]; focused?: boolean }>(
+  function CraftRow({ engine, recipe, missing, focused }, ref) {
   const canCraft = missing.length === 0
   const out = engine.campaign.entities[recipe.output.item] as ItemDef | undefined
   return (
-    <li className={`craft-row ${canCraft ? '' : 'craft-blocked'}`}>
+    <li ref={ref} className={`craft-row ${canCraft ? '' : 'craft-blocked'} ${focused ? 'craft-focused' : ''}`}>
       <div className="inv-item-main">
         <b>{recipe.label}</b>
         {recipe.repair && <span className="equipped-badge" data-tip="Восстанавливает прочность изношенного предмета до максимума">починка</span>}
@@ -656,4 +673,4 @@ function CraftRow({ engine, recipe, missing }: { engine: GameEngine; recipe: Rec
       </div>
     </li>
   )
-}
+})

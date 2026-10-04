@@ -165,6 +165,30 @@ export function DialogueOverlay({ engine }: Props) {
   const hasChoices = d.choices.length > 0
   const allShown = revealed >= lines.length
 
+  // ── дедлайн на раздумье (§9 дизайн-документа) ──
+  // Отсчёт идёт с момента, когда игрок реально видит варианты ответа: пока
+  // реплики печатаются и звучат, время не давит. По нулю зовём движок —
+  // он уводит разговор в назначенный узел или заканчивает его.
+  const timer = d.timer
+  const [timerLeft, setTimerLeft] = useState(0)
+  useEffect(() => {
+    if (!timer || !allShown || !hasChoices) return
+    const total = Math.max(1, timer.seconds) * 1000
+    const started = Date.now()
+    setTimerLeft(timer.seconds)
+    const id = window.setInterval(() => {
+      const msLeft = total - (Date.now() - started)
+      setTimerLeft(Math.max(0, Math.ceil(msLeft / 1000)))
+      if (msLeft <= 0) {
+        window.clearInterval(id)
+        engine.dialogueTimeout()
+      }
+    }, 120)
+    return () => window.clearInterval(id)
+  }, [engine, timer, allShown, hasChoices])
+
+  const timerPct = timer ? Math.max(0, Math.min(100, (timerLeft / Math.max(1, timer.seconds)) * 100)) : 0
+
   return (
     <div className="overlay dialogue-overlay">
       <div className={`dialogue-box${portraitSrc ? '' : ' dialogue-box-noportrait'}`} onClick={skip}>
@@ -211,6 +235,16 @@ export function DialogueOverlay({ engine }: Props) {
               >
                 Понятно
               </button>
+            </div>
+          )}
+          {allShown && timer && (
+            <div className={`dialogue-timer${timerLeft <= 3 ? ' urgent' : ''}`}>
+              <div className="dialogue-timer-bar">
+                <div className="dialogue-timer-fill" style={{ width: `${timerPct}%` }} />
+              </div>
+              <span className="dialogue-timer-left" data-tip="Не тяните: собеседник может сам перевести разговор">
+                {timerLeft > 0 ? `${timerLeft} с` : 'время вышло'}
+              </span>
             </div>
           )}
           {allShown && (
