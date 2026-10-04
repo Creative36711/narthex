@@ -5,6 +5,7 @@ EXTERNAL item_count(id)
 EXTERNAL skill_check(s, d)
 EXTERNAL in_party(id)
 EXTERNAL fire_rule(id)
+EXTERNAL set_dialogue_timer(s, t)
 
 === main ===
 { get_flag("yorek_met"):
@@ -18,6 +19,7 @@ EXTERNAL fire_rule(id)
 -> main_hub
 
 === main_hub ===
+~ set_dialogue_timer(20, "silence")
 * [«Уходите из долины — или ляжете в неё». (Убеждение)]
     { get_flag("secret_path_used"):
         Йорек мрачно оглядывается: вы пришли из его собственного тыла, и он это понимает. Лагерь не так неприступен, как он думал. # action
@@ -63,3 +65,8 @@ EXTERNAL fire_rule(id)
     -> DONE
 }
 -> DONE
+
+=== silence ===
+Йорек ждёт ответа. Молчание тянется, и руки его людей сами ложатся на рукояти. # action
+Стало быть, говорить не о чем.
+-> fight_starts

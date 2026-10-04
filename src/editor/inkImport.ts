@@ -218,6 +218,11 @@ function parseFlow(lines: string[], warnings: string[], where: string): Flow {
         i++
         continue
       }
+      if (/^~\s*set_dialogue_timer\b/.test(trimmed)) {
+        warnings.push(`${where}: дедлайн на раздумье «${trimmed.slice(0, 50)}…» стоит не у узла с ответами — перенесите его в узел «${where.replace(/^узел\s+/, '')}_hub» (или к вариантам ответа)`)
+        i++
+        continue
+      }
       const eff = parseEffectLine(trimmed, warnings, where)
       if (eff) items.push({ t: 'step', s: { kind: 'effect', effect: eff } })
       else warnings.push(`${where}: строка «${trimmed.slice(0, 60)}…» не разобрана`)
@@ -413,6 +418,25 @@ function parseChoice(raw: RawChoice, nodeId: string, warnings: string[], where: 
 
 // ─────────────── весь документ ───────────────
 
+/**
+ * Дедлайн на раздумье генератор пишет первой строкой узла-развилки:
+ * `~ set_dialogue_timer(15, "узел")`. Импорт снимает её с потока реплик
+ * (иначе она выглядит «строкой вне ответа») и переносит в поле узла;
+ * пустой второй аргумент означает «разговор заканчивается» (§9).
+ */
+export function extractDialogueTimer(lines: string[]): { seconds: number; node?: string } | null {
+  const re = /^\s*~\s*set_dialogue_timer\s*\(\s*(\d+)\s*(?:,\s*"([^"]*)"\s*)?\)\s*$/
+  for (let i = 0; i < lines.length; i++) {
+    const m = re.exec(lines[i])
+    if (!m) continue
+    const seconds = Math.max(0, Math.round(Number(m[1]) || 0))
+    const knot = (m[2] ?? '').trim()
+    lines.splice(i, 1)
+    return seconds > 0 ? { seconds, node: knot && knot !== 'end' ? knot : undefined } : null
+  }
+  return null
+}
+
 export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
   const warnings: string[] = []
   const doc: DlgDoc = newDlgDoc(label)
@@ -446,6 +470,8 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
       choices: [],
     }
     if (hub) {
+      const timer = extractDialogueTimer(hub.lines)
+      if (timer) node.timer = timer
       const raws = splitChoices(hub.lines, warnings, `узел ${knot.name}`)
       node.choices = raws.map((c) => parseChoice(c, knot.name, warnings, `ответ «${c.head.slice(0, 40)}»`))
       // хвост узла перед хабом повторяется генератором автоматически: не переносим,

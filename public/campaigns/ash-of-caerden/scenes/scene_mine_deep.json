@@ -62,6 +62,32 @@
       "condition": {
         "flag": "lena_told"
       }
+    },
+    {
+      "id": "slot_pump",
+      "label": "Шахтный насос",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 170,
+      "w": 210,
+      "h": 160,
+      "default_entity": "item_pump",
+      "condition": null,
+      "use_with": [
+        {
+          "item": "item_wrench",
+          "effects": [
+            {
+              "type": "open_craft",
+              "recipe": "recipe_pump_water"
+            }
+          ],
+          "message": "Ключ лёг на гайку, и ворот поддался на пол-оборота."
+        }
+      ]
     }
   ],
   "navigation": [

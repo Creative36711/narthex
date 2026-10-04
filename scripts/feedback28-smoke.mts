@@ -10,13 +10,17 @@
  *     полоску обратного отсчёта, по нулю разговор уходит в узел или
  *     заканчивается.
  *  C. Чемодан: гайд, схема и TASK.md знают обе возможности.
+ *  D. Новинки в поставляемой демо-кампании: ключ -> насос -> крафт,
+ *     молчание на развязке с Йореком -> бой, аудит без замечаний.
  */
 import { readFileSync } from 'node:fs'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
 import { generateInk, migrateDlgDoc, newDlgDoc } from '../src/editor/dialogueDoc'
+import { inkToDlgDoc, regenInk } from '../src/editor/inkImport'
 import { EFFECT_SCHEMAS } from '../src/editor/schemas'
 import { validateCampaign } from '../src/editor/campaignAudit'
+import { EditorStore } from '../src/editor/store'
 import { Compiler } from 'inkjs/full'
 import type { DlgDoc, NpcDef } from '../src/shared/types'
 
@@ -242,6 +246,86 @@ async function campaignWithDialogue(ink: string, key: string) {
   check('C схема кампании знает open_craft и timer', schema.includes('"open_craft"') && schema.includes('"timer"'))
   const task = f('src/editor/aiTask.ts')
   check('C TASK.md несёт оба инструмента', task.includes('open_craft') && task.includes('set_dialogue_timer'))
+}
+
+// ── B3. круг «выгрузка -> импорт -> выгрузка»: таймер не теряется ──
+{
+  const doc: DlgDoc = {
+    version: 2,
+    label: 'Стражник у ворот',
+    nodes: [
+      {
+        id: 'main',
+        label: 'Разговор',
+        sections: [{ steps: [{ kind: 'line', line: { text: 'Ты что-то сказал?' } }] }],
+        choices: [
+          { text: 'Да, слушаю.', sections: [], goto: 'end' },
+          { text: 'Нет, молчу.', sections: [], goto: 'end' },
+        ],
+        timer: { seconds: 12, node: 'silence' },
+      },
+      {
+        id: 'silence',
+        label: 'Молчание',
+        sections: [{ steps: [{ kind: 'line', line: { text: 'Тогда ступай. Мне некогда.' } }] }],
+        choices: [],
+        goto: 'end',
+      },
+    ],
+  }
+  const back = inkToDlgDoc(generateInk(doc))
+  const main = back.doc.nodes.find((n) => n.id === 'main')
+  check('B импорт ink возвращает таймер в поле узла', main?.timer?.seconds === 12 && main?.timer?.node === 'silence', JSON.stringify(main?.timer))
+  check('B импорт таймера проходит без замечаний', back.warnings.length === 0, back.warnings.slice(0, 2).join(' | '))
+  check('B повторная выгрузка сохраняет таймер', regenInk(back.doc).includes('~ set_dialogue_timer(12, "silence")'))
+}
+
+// ── D. новинки работают в поставляемой демо-кампании (сквозной прогон) ──
+{
+  const demo = await loadCampaign('http://localhost:5173/campaigns/ash-of-caerden')
+
+  // §9.3: ключ из штольни -> насос в забое -> окно крафта с нужным рецептом
+  const run = new GameEngine(demo)
+  run.start()
+  run.goToScene('scene_mine_entrance')
+  const wrenchSlot = demo.scenes['scene_mine_entrance'].slots.find((s) => s.default_entity === 'item_wrench')
+  check('D в штольне лежит гаечный ключ', !!wrenchSlot)
+  if (wrenchSlot) run.interactWithSlot({ slot: wrenchSlot, entity: demo.entities['item_wrench'] } as never)
+  check('D ключ поднят и отмечен флагом', run.hasItem('item_wrench') && !!run.state.flags['wrench_taken'])
+
+  run.goToScene('scene_mine_deep')
+  const pump = demo.scenes['scene_mine_deep'].slots.find((s) => s.id === 'slot_pump')
+  check('D в забое стоит насос', !!pump)
+  check('D ключ предлагается применить', run.slotUseOptions(pump!).some((o) => o.itemId === 'item_wrench'))
+  run.useItemOnSlot('slot_pump', 'item_wrench')
+  check('D применение ключа открыло крафт с рецептом', run.craftRequest?.recipe === 'recipe_pump_water')
+  run.closeCraft()
+  const before = run.itemCount('item_waterskin')
+  check('D рецепт варится, инструмент остаётся', run.craft('recipe_pump_water') && run.itemCount('item_waterskin') > before && run.hasItem('item_wrench'))
+
+  const noKey = new GameEngine(demo)
+  noKey.start()
+  noKey.goToScene('scene_mine_deep')
+  const pump2 = demo.scenes['scene_mine_deep'].slots.find((s) => s.id === 'slot_pump')!
+  check('D без ключа применять нечего', noKey.slotUseOptions(pump2).length === 0)
+  noKey.interactWithSlot({ slot: pump2, entity: demo.entities['item_pump'] } as never)
+  check('D без ключа игрок получает подсказку', (noKey.messages.at(-1)?.text ?? '').includes('ключ'))
+
+  // §9.4: молчание на развязке с Йореком заканчивается боем
+  const talk = new GameEngine(demo)
+  talk.start()
+  talk.goToScene('scene_ravine_camp')
+  talk.startDialogue('npc_yorek')
+  check('D в диалоге Йорека есть таймер', talk.dialogue?.timer?.seconds === 20 && talk.dialogue?.timer?.knot === 'silence')
+  talk.dialogueTimeout()
+  check('D молчание уводит в бой и закрывает диалог', !!talk.combat && !talk.dialogue)
+
+  // мастер редактирует демо-кампанию без замечаний
+  const store = new EditorStore('http://localhost:5173/campaigns/ash-of-caerden')
+  await store.load()
+  const report = await validateCampaign(store)
+  const issues = Array.isArray(report) ? report : []
+  check('D демо-кампания проходит аудит без замечаний', issues.length === 0, JSON.stringify(issues.slice(0, 3)).slice(0, 200))
 }
 
 console.log(failed === 0 ? '\nвсе проверки 28-го раунда (§9) пройдены' : `\nпровалено проверок: ${failed}`)
