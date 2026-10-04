@@ -12,6 +12,7 @@ import type {
   CodexEntryDef,
   CutsceneDef,
   EntityDef,
+  NpcDef,
   QuestDef,
   RecipeDef,
   RuleDef,
@@ -220,6 +221,28 @@ export class EditorStore {
   questPaths(): string[] {
     return (this.manifest.quests ?? []).map((f) => `quests/${f}`)
   }
+  /**
+   * Персонаж, который ведёт этот диалог (ссылка `dialogue` в сущности NPC).
+   * Нужен, чтобы в списках вместо имени файла стояло человеческое имя.
+   */
+  npcForDialogue(inkPath: string): NpcDef | undefined {
+    for (const p of this.entityPaths()) {
+      const e = this.entity(p)
+      if (e?.type === 'npc' && e.dialogue === inkPath) return e
+    }
+    return undefined
+  }
+
+  /** Читаемое имя диалога: подпись документа → имя ведущего персонажа → имя файла словами. */
+  dialogueLabel(inkPath: string): string {
+    const doc = this.jsonFiles.get(inkPath.replace(/\.ink$/, '.dlg.json')) as { label?: string } | undefined
+    if (doc?.label) return doc.label
+    const npc = this.npcForDialogue(inkPath)
+    if (npc) return npc.label
+    const base = inkPath.replace('dialogues/', '').replace(/\.ink$/, '')
+    return base.replace(/[_-]+/g, ' ').replace(/^./, (ch) => ch.toUpperCase())
+  }
+
   dialoguePaths(): string[] {
     return this.manifest.dialogues.map((f) => `dialogues/${f}`)
   }
@@ -390,10 +413,7 @@ export class EditorStore {
       }
       walk(this.world.regions)
     } else if (kind === 'dialogue') {
-      for (const p of this.dialoguePaths()) {
-        const doc = this.jsonFiles.get(p.replace(/\.ink$/, '.dlg.json')) as { label?: string } | undefined
-        out.push({ id: p, label: doc?.label || p.replace('dialogues/', '').replace(/\.ink$/, '') })
-      }
+      for (const p of this.dialoguePaths()) out.push({ id: p, label: this.dialogueLabel(p) })
     } else if (kind === 'faction') {
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: f.label || f.id })
     } else if (kind === 'skill') {

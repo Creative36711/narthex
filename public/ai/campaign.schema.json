@@ -7984,6 +7984,52 @@
             "weather"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "skill_ge"
+            },
+            "skill": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "skill",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "meta_counter"
+            },
+            "key": {
+              "type": "string"
+            },
+            "ge": {
+              "type": "number"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "key",
+            "ge"
+          ],
+          "additionalProperties": false
         }
       ],
       "description": "условие показа/ветвления (все условия списка должны выполниться)"
@@ -8356,6 +8402,26 @@
           "required": [
             "type",
             "recipe"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_entity_state"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "state"
           ],
           "additionalProperties": false
         }

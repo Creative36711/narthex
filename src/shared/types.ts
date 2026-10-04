@@ -1900,6 +1900,10 @@ export type DlgCond =
   | { type: 'hp_ge'; value: number; not?: boolean } // здоровье ≥ (not: <)
   | { type: 'has_status'; status: string; not?: boolean } // статус активен (блок 5 ТЗ)
   | { type: 'weather_is'; weather: string; not?: boolean } // текущая погода (блок 9 ТЗ; '' — ясно)
+  /** навык героя не ниже порога (not: ниже) — светские проверки в разговоре */
+  | { type: 'skill_ge'; skill: string; threshold: number; not?: boolean }
+  /** счётчик хроники не ниже значения (not: ниже) — «новый круг», достижения */
+  | { type: 'meta_counter'; key: string; ge: number; not?: boolean }
 
 export type DlgEffect =
   | { type: 'set_flag'; flag: string }
@@ -1935,6 +1939,12 @@ export type DlgEffect =
    * Повтор — no-op; рецепт без `known: false` открыт с самого начала.
    */
   | { type: 'unlock_recipe'; recipe: string }
+  /**
+   * Сменить облик/эмоцию персонажа репликой: портрет и спрайт переключаются
+   * на состояние `state` (ключ из портретов персонажа); `""` — обычный облик.
+   * В сыром ink — `~ set_entity_state("npc_ira", "angry")`.
+   */
+  | { type: 'set_entity_state'; entity: string; state: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =

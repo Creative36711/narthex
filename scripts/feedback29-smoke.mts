@@ -17,6 +17,7 @@ import { join } from 'node:path'
 import JSZip from 'jszip'
 import { loadCampaign } from '../src/core/loader'
 import { GameEngine } from '../src/core/engine'
+import { generateInk } from '../src/editor/dialogueDoc'
 import { inkToDlgDoc } from '../src/editor/inkImport'
 import { EditorStore } from '../src/editor/store'
 import { validateCampaign } from '../src/editor/campaignAudit'
@@ -91,6 +92,8 @@ check('в пакете 18 сцен и 68 сущностей', Object.keys(camp.s
   check('A «Тело Эрдала Вета» предлагает действия осмотра', opts.length >= 2 && opts[0].label === 'Осмотреть грудь', opts.map((o) => o.label).join(', '))
   check('A у действий сохраняется подсказка проверки', !!opts[0].hint)
   cold.runItemInteract(body, opts[0])
+  // провал проверки в кампании с удачей откладывает эффекты до решения игрока
+  if (cold.luckOffer) cold.luckOffer.decide(false)
   check('A осмотр тела даёт улику (стружку)', cold.hasItem('item_shavings') && !!cold.state.flags['clue_shavings'])
   check('A осмотр отмечен флагом', !!cold.state.flags['body_examined'])
 
@@ -141,6 +144,46 @@ check('в пакете 18 сцен и 68 сущностей', Object.keys(camp.s
   const issues = Array.isArray(report) ? report : []
   const errors = issues.filter((i) => typeof i === 'object' && (i as { severity?: string }).severity === 'error')
   check('B2 кампания проходит проверку без ошибок', errors.length === 0, JSON.stringify(errors.slice(0, 3)).slice(0, 300))
+}
+
+// ── C. редактор: служебные коды не показываются мастеру (пп. 1, 2, 3, 5) ──
+{
+  const f = (p: string) => readFileSync(p, 'utf8')
+  const campaignEditor = f('src/editor/CampaignEditor.tsx')
+  check('C реестры не показывают код строки', !campaignEditor.includes('opacity: 0.75 }}>{it.id}'))
+  check('C главы кампании не показывают id', !campaignEditor.includes('техническое имя, не меняется'))
+  check('C черта правится одним блоком без дубля', !campaignEditor.includes('Черты прокачки: название и описание видит игрок'))
+  check('C у черты нет отдельного поля-кода', !campaignEditor.includes('prefix="feat_"'))
+  const recipe = f('src/editor/RecipeEditor.tsx')
+  check('C рецепт не поминает имя команды', !recipe.includes('unlock_recipe'))
+
+  const doc: DlgDoc = {
+    version: 2,
+    label: 'Проверка',
+    nodes: [
+      {
+        id: 'main',
+        label: 'Начало разговора',
+        sections: [{ steps: [{ kind: 'effect', effect: { type: 'set_entity_state', entity: 'npc_era', state: 'calm' } }] }],
+        choices: [
+          { text: 'Уговорить.', conds: [{ type: 'skill_ge', skill: 'persuade', threshold: 45 }], sections: [], goto: 'end' },
+          { text: 'Опытный игрок.', conds: [{ type: 'meta_counter', key: 'endings_seen', ge: 1 }], sections: [], goto: 'end' },
+          { text: 'Просто.', sections: [], goto: 'end' },
+        ],
+      },
+    ],
+  }
+  const ink = generateInk(doc)
+  check('C выгрузка знает смену облика', ink.includes('~ set_entity_state("npc_era", "calm")'))
+  check('C выгрузка знает навык и счётчик хроники', ink.includes('get_skill("persuade") >= 45') && ink.includes('get_meta_counter("endings_seen") >= 1'))
+  const back = inkToDlgDoc(ink)
+  check('C импорт возвращает облик и условия без замечаний', back.warnings.length === 0, back.warnings.slice(0, 2).join(' | '))
+  const node = back.doc.nodes[0]
+  check('C эффект облика пережил круг', node.sections.some((x) => x.steps.some((st) => st.effect?.type === 'set_entity_state')))
+  check('C условия навыка и счётчика пережили круг', node.choices[0]?.conds?.[0]?.type === 'skill_ge' && node.choices[1]?.conds?.[0]?.type === 'meta_counter')
+
+  const hand = inkToDlgDoc(`EXTERNAL set_flag(a0)\nEXTERNAL get_flag(a0)\nEXTERNAL has_item(a0)\n\n=== main ===\nПривет.\n-> hub\n\n=== hub ===\n+ { not (get_flag("era_met")) } [Кто вы?]\n    -> DONE\n+ { has_item("item_tea") and not (get_flag("drank")) } [Чаю?]\n    -> DONE\n`)
+  check('C импорт понимает not (…) и and', hand.warnings.length === 0 && hand.doc.nodes[1]?.choices[0]?.conds?.[0]?.not === true, hand.warnings.join(' | ').slice(0, 160))
 }
 
 rmSync(root, { recursive: true, force: true })

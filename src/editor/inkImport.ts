@@ -22,6 +22,13 @@ export interface InkImportResult {
 
 function parseCondToken(token: string, warnings: string[], where: string): DlgCond | null {
   const t = token.trim()
+  // not (get_flag("x")) — обычная запись отрицания в рукописном ink
+  const wrap = /^not\s*\((.*)\)$/.exec(t)
+  if (wrap) {
+    const inner = parseCondToken(wrap[1], warnings, where)
+    if (!inner) return null
+    return { ...inner, not: !inner.not } as DlgCond
+  }
   let m = /^(not )?get_flag\("([^"]+)"\)$/.exec(t)
   if (m) return { type: 'flag', flag: m[2], not: !!m[1] || undefined }
   m = /^(not )?has_item\("([^"]+)"\)$/.exec(t)
@@ -40,30 +47,64 @@ function parseCondToken(token: string, warnings: string[], where: string): DlgCo
   if (m) return { type: 'has_status', status: m[2], not: !!m[1] || undefined }
   m = /^(not )?weather_is\("([^"]+)"\)$/.exec(t)
   if (m) return { type: 'weather_is', weather: m[2], not: !!m[1] || undefined }
+  m = /^get_skill\("([^"]+)"\)\s*(>=|<)\s*(-?\d+)$/.exec(t)
+  if (m) return { type: 'skill_ge', skill: m[1], threshold: Number(m[3]), not: m[2] === '<' || undefined }
+  // счётчик хроники: равенства переводим в «не ниже», строгие — в «> N» = «>= N+1»
+  m = /^get_meta_counter\("([^"]+)"\)\s*(>=|>|<|<=)\s*(-?\d+)$/.exec(t)
+  if (m) {
+    const n = Number(m[3])
+    if (m[2] === '>=') return { type: 'meta_counter', key: m[1], ge: n }
+    if (m[2] === '>') return { type: 'meta_counter', key: m[1], ge: n + 1 }
+    if (m[2] === '<') return { type: 'meta_counter', key: m[1], ge: n, not: true }
+    return { type: 'meta_counter', key: m[1], ge: n + 1, not: true }
+  }
   warnings.push(`${where}: условие «${t}» не разобрано`)
   return null
 }
 
-/** строка условий с top-level «&&» → список DlgCond (скобки/кавычки не режем) */
-export function parseConds(src: string, warnings: string[], where: string): DlgCond[] {
+/** верхнеуровневые разделители условий: `&&`, `and`, `||`, `or` (вне кавычек и скобок) */
+function splitTopLevel(src: string): { parts: string[]; op: 'and' | 'or' } {
   const parts: string[] = []
   let depth = 0
   let inQ = false
   let cur = ''
+  let op: 'and' | 'or' = 'and'
   for (let i = 0; i < src.length; i++) {
     const ch = src[i]
     if (ch === '"') inQ = !inQ
-    if (!inQ && ch === '(') depth++
-    if (!inQ && ch === ')') depth--
-    if (!inQ && depth === 0 && src.startsWith('&&', i)) {
-      parts.push(cur)
-      cur = ''
-      i++
-      continue
+    else if (!inQ && ch === '(') depth++
+    else if (!inQ && ch === ')') depth--
+    if (!inQ && depth === 0) {
+      const rest = src.slice(i)
+      const conj = /^(?:&&|\s+and\s+)/i.exec(rest)
+      const disj = /^(?:\|\||\s+or\s+)/i.exec(rest)
+      const m = conj ?? disj
+      if (m) {
+        parts.push(cur)
+        cur = ''
+        if (disj) op = 'or'
+        i += m[0].length - 1
+        continue
+      }
     }
     cur += ch
   }
   if (cur.trim()) parts.push(cur)
+  return { parts, op }
+}
+
+/**
+ * Строка условий → список DlgCond. Ink пишут по-разному: наш генератор —
+ * через `&&`, автор и ИИ — словом `and` (и `or`), отрицание — `not (...)`
+ * или `not fn(...)`. Ограничение модели конструктора: список условий
+ * соединяется через «и»; `or` выразить нечем, поэтому о нём честно
+ * предупреждаем, а не теряем молча (фидбек 29, п.4).
+ */
+export function parseConds(src: string, warnings: string[], where: string): DlgCond[] {
+  const { parts, op } = splitTopLevel(src)
+  if (op === 'or') {
+    warnings.push(`${where}: условие с «or» («${src.trim().slice(0, 60)}…») конструктор не выражает — оставлено первое условие, второе доделайте в коде ink`)
+  }
   return parts
     .map((p) => parseCondToken(p, warnings, where))
     .filter((c): c is DlgCond => !!c)
@@ -98,6 +139,8 @@ function parseEffectLine(line: string, warnings: string[], where: string): DlgEf
     case 'set_weather': return { type: 'set_weather', weather: str(0) }
     case 'unlock_codex': return { type: 'unlock_codex', entry: str(0) }
     case 'unlock_recipe': return { type: 'unlock_recipe', recipe: str(0) }
+    case 'open_craft': return { type: 'open_craft', recipe: str(0) || undefined }
+    case 'set_entity_state': return { type: 'set_entity_state', entity: str(0), state: str(1) }
     default:
       warnings.push(`${where}: неизвестный эффект «${fn}(…)»`)
       return null
@@ -457,10 +500,34 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
   if (!knots.length) warnings.push('в файле нет узлов «=== имя ===» — импорт дал пустой шаблон')
   const byName = new Map(knots.map((k) => [k.name, k]))
 
+  /** узел с ответами: строки вида `+ [текст]` / `* {условие} [текст]` */
+  const hasChoices = (k: { lines: string[] }) => k.lines.some((l) => /^[+*]\s/.test(l.trim()))
+
   for (const knot of knots) {
     const isHub = knot.name.endsWith('_hub') && byName.has(knot.name.replace(/_hub$/, ''))
     if (isHub) continue
     const hub = byName.get(`${knot.name}_hub`)
+    // Рукописный ink часто держит ответы в отдельном узле с ЛЮБЫМ именем
+    // («hub», «ответы», «topics») и возвращает туда `-> hub`. Конструктору
+    // такой узел — полноценный узел с ответами: вводные строки (ремарки,
+    // эффекты, таймер) идут в секции, `+`/`*` — в варианты. Без этого
+    // авторазбор превращал варианты в мусорные реплики (фидбек 29, п.4).
+    if (!hub && hasChoices(knot)) {
+      const timer = extractDialogueTimer(knot.lines)
+      const first = knot.lines.findIndex((l) => /^[+*]\s/.test(l.trim()))
+      const lead = parseFlow(knot.lines.slice(0, first), warnings, `узел ${knot.name}`)
+      const node: DlgNode = {
+        id: knot.name,
+        label: knot.name === 'hub' ? 'Варианты ответов' : knot.name.replace(/_/g, ' '),
+        sections: flowToSections(lead, knot.name),
+        choices: [],
+      }
+      if (timer) node.timer = timer
+      const raws = splitChoices(knot.lines.slice(first), warnings, `узел ${knot.name}`)
+      node.choices = raws.map((c) => parseChoice(c, knot.name, warnings, `ответ «${c.head.slice(0, 40)}»`))
+      doc.nodes.push(node)
+      continue
+    }
     const flow = parseFlow(knot.lines, warnings, `узел ${knot.name}`)
     const sections = flowToSections(flow, knot.name)
     const node: DlgNode = {

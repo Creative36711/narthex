@@ -23,7 +23,7 @@ export function DialogueHost({ store, path }: { store: EditorStore; path: string
     if (ink === undefined) return
     const { doc, warnings } = inkToDlgDoc(ink)
     if (!warnings.length) {
-      doc.label ??= path.replace('dialogues/', '').replace(/\.ink$/, '')
+      doc.label ??= store.dialogueLabel(path)
       store.jsonFiles.set(dlgPath, doc)
       store.touch(dlgPath)
       setDocReady(true)
@@ -35,7 +35,7 @@ export function DialogueHost({ store, path }: { store: EditorStore; path: string
   const applyWithWarnings = () => {
     const ink = store.textFiles.get(path) ?? ''
     const { doc } = inkToDlgDoc(ink)
-    doc.label ??= path.replace('dialogues/', '').replace(/\.ink$/, '')
+    doc.label ??= store.dialogueLabel(path)
     store.jsonFiles.set(dlgPath, doc)
     store.touch(dlgPath)
     setDocReady(true)

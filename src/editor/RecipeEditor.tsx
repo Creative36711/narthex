@@ -157,7 +157,7 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
           />
           <span>Рецепт починки (восстанавливает прочность)</span>
         </label>
-        <label className="fld fld-check" data-tip="Пока не открыт эффектом unlock_recipe (правило, диалог, событие), рецепта нет во вкладке «Крафт». Приём «открыть по ходу игры».">
+        <label className="fld fld-check" data-tip="Пока рецепт не открыт по ходу игры (правилом, разговором или событием), его нет во вкладке «Изготовление». Так делают редкие рецепты: герой сначала находит знание.">
           <input
             type="checkbox"
             checked={recipe.known === false}
@@ -167,7 +167,7 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
               commit()
             }}
           />
-          <span>Открыть по ходу игры (эффектом unlock_recipe)</span>
+          <span>Открыть по ходу игры (находится героем)</span>
         </label>
         <label className="fld">
           <span>Сообщение об успехе (пусто — стандартное)</span>

@@ -5,6 +5,20 @@ import type { EditorStore } from './store'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
 import { FlagSelect, AudioUpload } from './Fields'
+import { META_COUNTER_KEYS } from './schemas'
+
+/** человеческие подписи счётчиков хроники (условие «счётчик хроники») */
+const META_COUNTER_LABELS: Record<string, string> = {
+  endings_seen: 'Увидено концовок',
+  runs: 'Забегов',
+  deaths: 'Смертей',
+  victories: 'Побед',
+  kills: 'Убийств',
+  quests_completed: 'Выполнено квестов',
+  ticks_survived: 'Прожито тиков',
+  travels: 'Переходов',
+  dialogues: 'Разговоров',
+}
 import {
   generateInk,
   migrateDlgDoc,
@@ -67,6 +81,7 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'open_trade', label: 'Открыть торговлю (завершает разговор)' },
   { id: 'open_craft', label: 'Открыть изготовление (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
+  { id: 'set_entity_state', label: 'Сменить облик персонажа' },
 ]
 
 function blankEffect(type: DlgEffect['type']): DlgEffect {
@@ -91,6 +106,7 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'unlock_codex': return { type, entry: '' }
     case 'unlock_recipe': return { type, recipe: '' }
     case 'open_craft': return { type, recipe: '' }
+    case 'set_entity_state': return { type, entity: '', state: '' }
   }
 }
 
@@ -113,6 +129,10 @@ const COND_TYPES: Array<{ id: string; label: string }> = [
   { id: 'has_status!', label: 'Статуса НЕТ' },
   { id: 'weather_is', label: 'Погода сейчас' },
   { id: 'weather_is!', label: 'Погода НЕ такая' },
+  { id: 'skill_ge', label: 'Навык не ниже' },
+  { id: 'skill_ge!', label: 'Навык ниже' },
+  { id: 'meta_counter', label: 'Счётчик хроники не ниже' },
+  { id: 'meta_counter!', label: 'Счётчик хроники ниже' },
 ]
 
 function blankCond(key: string): DlgCond {
@@ -128,6 +148,8 @@ function blankCond(key: string): DlgCond {
     case 'hp_ge': return { type, value: 10, not }
     case 'has_status': return { type, status: '', not }
     case 'weather_is': return { type, weather: '', not }
+    case 'skill_ge': return { type, skill: '', threshold: 40, not }
+    case 'meta_counter': return { type, key: 'endings_seen', ge: 1, not }
   }
 }
 
@@ -236,11 +258,9 @@ export function hasDlgDoc(store: EditorStore, inkPath: string): boolean {
   return store.jsonFiles.has(inkPath.replace(/\.ink$/, '.dlg.json'))
 }
 
-/** название диалога (для списков): из документа конструктора или имя файла */
+/** название диалога (для списков): подпись документа, иначе имя персонажа-собеседника */
 export function dialogueTitle(store: EditorStore, inkPath: string): string {
-  const raw = store.jsonFiles.get(inkPath.replace(/\.ink$/, '.dlg.json')) as { label?: string } | undefined
-  if (raw?.label) return raw.label
-  return inkPath.replace('dialogues/', '').replace(/\.ink$/, '')
+  return store.dialogueLabel(inkPath)
 }
 
 // ─────────────── узел ───────────────
@@ -461,6 +481,40 @@ function CondFields({ cond: c, store, commit }: { cond: DlgCond; store: EditorSt
       return <InlineRef kind="status" store={store} value={c.status} onChange={(v) => ((c.status = v), commit())} />
     case 'weather_is':
       return <InlineRef kind="weather" store={store} value={c.weather} onChange={(v) => ((c.weather = v), commit())} />
+    case 'skill_ge':
+      return (
+        <>
+          <InlineRef kind="skill" store={store} value={c.skill} onChange={(v) => ((c.skill = v), commit())} />
+          <input
+            type="number"
+            className="journal-key"
+            min={0}
+            value={c.threshold}
+            title="Порог: навык героя не ниже этого числа"
+            onChange={(e) => ((c.threshold = Math.max(0, Number(e.target.value) || 0)), commit())}
+          />
+          <span className="muted small">порог</span>
+        </>
+      )
+    case 'meta_counter':
+      return (
+        <>
+          <select className="journal-key" value={c.key} onChange={(e) => ((c.key = e.target.value), commit())}>
+            {META_COUNTER_KEYS.map((k) => (
+              <option key={k} value={k}>{META_COUNTER_LABELS[k] ?? k}</option>
+            ))}
+          </select>
+          <input
+            type="number"
+            className="journal-key"
+            min={0}
+            value={c.ge}
+            title="Сколько раз/штук минимум"
+            onChange={(e) => ((c.ge = Math.max(0, Number(e.target.value) || 0)), commit())}
+          />
+          <span className="muted small">не меньше</span>
+        </>
+      )
   }
 }
 
@@ -975,6 +1029,17 @@ function EffectRow({
         <>
           <InlineRef kind="recipe" store={store} value={e.recipe ?? ''} onChange={(v) => ((e.recipe = v || undefined), commit())} />
           <span className="muted small">пусто — весь список рецептов</span>
+        </>
+      )}
+      {e.type === 'set_entity_state' && (
+        <>
+          <InlineRef kind="npc" store={store} value={e.entity} onChange={(v) => ((e.entity = v), commit())} />
+          <select className="journal-key" value={e.state} onChange={(ev) => ((e.state = ev.target.value), commit())}>
+            <option value="">— обычный облик —</option>
+            {store.options('emotion').map((o) => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
         </>
       )}
       <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>

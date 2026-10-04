@@ -103,7 +103,6 @@ function RegistryRows<T extends { id: string; label: string }>({
               }}
             />
           </label>
-          <span className="muted small" style={{ paddingBottom: 9, fontFamily: 'monospace', opacity: 0.75 }}>{it.id}</span>
           {render?.(it, (patch) => {
             const next = [...items]
             next[i] = { ...it, ...patch }
@@ -1054,9 +1053,6 @@ function ChaptersEditor({ m, commit }: { m: CampaignMeta; commit: () => void }) 
               <span>Порядок</span>
               <input type="number" value={c.order ?? sorted.indexOf(c) + 1} onChange={(e) => upd(c.id, { order: Number(e.target.value) || undefined })} />
             </label>
-            <span className="muted small" data-tip={`id: ${c.id} (техническое имя, не меняется)`} style={{ alignSelf: 'end', paddingBottom: 8 }}>
-              {c.id}
-            </span>
             <button
               className="btn btn-small ce-del"
               style={{ alignSelf: 'end' }}
@@ -1770,61 +1766,64 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
         {m.progression && (
           <div className="fld-row" style={{ flexDirection: 'column', gap: 8 }}>
-            <div className="fld" data-tip="Черты прокачки: название и описание видит игрок; модификаторы и условия — в JSON-разделе строки">
-              <span>Черты</span>
-              <RegistryRows
-                items={m.progression.feats ?? []}
-                onChange={(v) => ((m.progression!.feats = v.length ? v : undefined), commit())}
-                addTitle="Название новой черты"
-                prefix="feat_"
-                render={(ft, patch) => (
-                  <label className="fld" style={{ flex: 2, minWidth: 220 }}>
-                    <span>Описание (что даёт)</span>
-                    <input value={ft.description ?? ''} onChange={(e) => patch({ description: e.target.value || undefined })} />
-                  </label>
-                )}
-              />
-            </div>
-            {(m.progression.feats ?? []).map((f, i) => (
-              <div key={f.id} className="panel" style={{ padding: 8 }}>
-                <div className="fld-row">
-                  <b>{f.label}</b>
-                </div>
-                <div className="fld-row">
-                  <label className="fld" style={{ flex: 1 }}>
-                    <span>Описание</span>
-                    <input
-                      value={f.description ?? ''}
-                      onChange={(e) => { const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); m.progression!.feats = feats; commit() }}
-                    />
-                  </label>
-                  <div className="fld" style={{ flex: 2, minWidth: 280 }} data-tip="Что даёт черта при взятии: прибавки к навыкам, характеристикам, здоровью, мане и движению">
-                    <span>Модификаторы (что даёт черта)</span>
-                    <FeatModRows
-                      store={store}
-                      mods={f.mods}
-                      onChange={(mods) => {
-                        const feats = (m.progression!.feats ?? []).map((x, j) => (j === i ? { ...x, mods } : x))
-                        m.progression!.feats = feats
+            {(m.progression.feats ?? []).map((f, i) => {
+              const patchFeat = (p: Partial<FeatDef>) => {
+                const feats = (m.progression!.feats ?? []).map((x, j) => (j === i ? { ...x, ...p } : x))
+                m.progression!.feats = feats
+                commit()
+              }
+              return (
+                <div key={f.id} className="panel" style={{ padding: 8 }}>
+                  <div className="fld-row">
+                    <label className="fld" style={{ flex: 1, minWidth: 200 }}>
+                      <span>Название черты</span>
+                      <input value={f.label} onChange={(e) => patchFeat({ label: e.target.value })} />
+                    </label>
+                    <label className="fld" style={{ flex: 2, minWidth: 240 }}>
+                      <span>Описание (что даёт)</span>
+                      <input value={f.description ?? ''} onChange={(e) => patchFeat({ description: e.target.value || undefined })} />
+                    </label>
+                    <button
+                      className="btn btn-small ce-del"
+                      style={{ alignSelf: 'end' }}
+                      data-tip="Удалить черту"
+                      onClick={() => {
+                        m.progression!.feats = (m.progression!.feats ?? []).filter((_, j) => j !== i)
                         commit()
                       }}
-                    />
+                    >
+                      <Ico n="close" />
+                    </button>
                   </div>
-                  <div className="fld" style={{ flex: 2, minWidth: 280 }} data-tip="Кто может взять черту: требования выбираются списком. Пусто — без требований">
-                    <span>Требования (кто может взять)</span>
-                    <ConditionListEditor
-                      store={store}
-                      conditions={f.requires ?? []}
-                      onChange={(c) => {
-                        const feats = (m.progression!.feats ?? []).map((x, j) => (j === i ? { ...x, requires: c.length ? c : undefined } : x))
-                        m.progression!.feats = feats
-                        commit()
-                      }}
-                    />
+                  <div className="fld-row">
+                    <div className="fld" style={{ flex: 2, minWidth: 280 }} data-tip="Что даёт черта при взятии: прибавки к навыкам, характеристикам, здоровью, мане и движению">
+                      <span>Модификаторы (что даёт черта)</span>
+                      <FeatModRows store={store} mods={f.mods} onChange={(mods) => patchFeat({ mods })} />
+                    </div>
+                    <div className="fld" style={{ flex: 2, minWidth: 280 }} data-tip="Кто может взять черту: требования выбираются списком. Пусто — без требований">
+                      <span>Требования (кто может взять)</span>
+                      <ConditionListEditor
+                        store={store}
+                        conditions={f.requires ?? []}
+                        onChange={(c) => patchFeat({ requires: c.length ? c : undefined })}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
+            <button
+              className="btn btn-small"
+              onClick={() => void (async () => {
+                const label = await askText('Название новой черты', 'например «Твёрдая рука»')
+                if (!label?.trim()) return
+                const feats = m.progression!.feats ?? []
+                m.progression!.feats = [...feats, { id: makeId('feat_', label.trim(), feats.map((x) => x.id)), label: label.trim() }]
+                commit()
+              })()}
+            >
+              <Ico n="plus" /> черта
+            </button>
           </div>
         )}
       </div>

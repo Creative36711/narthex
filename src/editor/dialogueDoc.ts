@@ -275,6 +275,10 @@ export function condInk(c: DlgCond): string {
       return c.not ? `not has_status(${q(c.status)})` : `has_status(${q(c.status)})`
     case 'weather_is':
       return c.not ? `not weather_is(${q(c.weather)})` : `weather_is(${q(c.weather)})`
+    case 'skill_ge':
+      return c.not ? `get_skill(${q(c.skill)}) < ${c.threshold}` : `get_skill(${q(c.skill)}) >= ${c.threshold}`
+    case 'meta_counter':
+      return c.not ? `get_meta_counter(${q(c.key)}) < ${c.ge}` : `get_meta_counter(${q(c.key)}) >= ${c.ge}`
   }
 }
 
@@ -314,6 +318,7 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'unlock_codex': return `${indent}~ unlock_codex(${q(e.entry)})`
     case 'unlock_recipe': return `${indent}~ unlock_recipe(${q(e.recipe)})`
     case 'open_craft': return e.recipe ? `${indent}~ open_craft(${q(e.recipe)})` : `${indent}~ open_craft()`
+    case 'set_entity_state': return `${indent}~ set_entity_state(${q(e.entity)}, ${q(e.state)})`
   }
 }
 
