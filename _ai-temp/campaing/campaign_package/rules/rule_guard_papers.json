@@ -1,0 +1,31 @@
+{
+  "id": "rule_guard_papers",
+  "label": "Бумага Ревизии показана",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "guard_let_in"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_garn"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_garn_case"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_guard",
+      "delta": 5
+    },
+    {
+      "type": "show_message",
+      "text": "Караульный возвращает бумагу и отступает в сторону: «Вниз не ходите, инспектор»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_prologue"
+}

@@ -1,0 +1,63 @@
+{
+  "id": "npc_marta",
+  "type": "npc",
+  "label": "Марта Крив",
+  "description": "Хозяйка корчмы «Сухой патрубок»: знает долги и слухи всего города.",
+  "portrait": {
+    "neutral": "assets/img/npc/marta.png"
+  },
+  "stats": {
+    "STR": 10,
+    "CON": 12,
+    "SIZ": 10,
+    "DEX": 9,
+    "INT": 13,
+    "POW": 12,
+    "CHA": 13
+  },
+  "skills": {
+    "persuade": 50,
+    "spot": 45,
+    "brawl": 30
+  },
+  "scene_sprite": "assets/img/npc/marta_sprite.png",
+  "equipment": {
+    "weapon": "item_wrench"
+  },
+  "inventory": [
+    {
+      "item": "item_silver",
+      "quantity": 25
+    }
+  ],
+  "dialogue": "dialogues/marta.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_lower",
+  "base_disposition": 10,
+  "trader": {
+    "sells": [
+      {
+        "item": "item_stew",
+        "price": 3
+      },
+      {
+        "item": "item_bread",
+        "price": 2
+      },
+      {
+        "item": "item_water",
+        "price": 2
+      },
+      {
+        "item": "item_spirt",
+        "price": 5
+      }
+    ],
+    "buys": true,
+    "buy_rate": 0.4
+  },
+  "sounds": {
+    "talk": "sfx_voice"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "rule_hod_vision",
+  "label": "Видение Хода",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "unlock_codex",
+      "entry": "codex_conductor"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_vision"
+    },
+    {
+      "type": "change_sanity",
+      "delta": -3
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

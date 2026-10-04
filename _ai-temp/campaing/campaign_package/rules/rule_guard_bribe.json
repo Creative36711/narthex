@@ -1,0 +1,32 @@
+{
+  "id": "rule_guard_bribe",
+  "label": "Караульный взял марку",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "remove_item",
+      "item": "item_silver",
+      "quantity": 5
+    },
+    {
+      "type": "set_flag",
+      "flag": "guard_let_in"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_garn"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_guard",
+      "delta": 5
+    },
+    {
+      "type": "show_message",
+      "text": "Марка исчезает в рукавице: «Проходите. И на рынке не шумите»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_prologue"
+}

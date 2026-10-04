@@ -1,0 +1,58 @@
+{
+  "id": "item_debris",
+  "type": "item",
+  "category": "misc",
+  "label": "Обвал породы",
+  "description": "Свежий обвал: камни ещё сырые, между ними что-то блестит.",
+  "weight": 1.0,
+  "stackable": false,
+  "slot_type": "item",
+  "interact_options": [
+    {
+      "label": "Разобрать обвал",
+      "hint": "осторожно: сыпется",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "spot",
+          "difficulty": 45,
+          "success_effects": [
+            {
+              "type": "add_item",
+              "item": "item_brass",
+              "quantity": 2
+            },
+            {
+              "type": "add_item",
+              "item": "item_implant",
+              "quantity": 1
+            },
+            {
+              "type": "set_flag",
+              "flag": "implant_found"
+            },
+            {
+              "type": "show_message",
+              "text": "Под камнями — латунная стружка и вкладыш с номером выше прежних."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Камни расходятся и сыпятся снова: только пыль."
+            },
+            {
+              "type": "change_fatigue",
+              "delta": -6
+            }
+          ]
+        }
+      ],
+      "once": true,
+      "message": "Обвал ещё оседает под ногами."
+    }
+  ],
+  "sounds": {
+    "open": "sfx_metal"
+  }
+}

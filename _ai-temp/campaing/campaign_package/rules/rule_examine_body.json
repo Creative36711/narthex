@@ -1,0 +1,31 @@
+{
+  "id": "rule_examine_body",
+  "label": "Осмотр тела Гарна",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "garn_body_found"
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_garn",
+      "text_key": "j_body"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_garn_case"
+    },
+    {
+      "type": "show_message",
+      "text": "Под ногтями Гарна — латунная стружка. Лицо спилено уже после смерти: кто-то очень не хотел, чтобы его узнали."
+    },
+    {
+      "type": "change_sanity",
+      "delta": -3
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_deep"
+}

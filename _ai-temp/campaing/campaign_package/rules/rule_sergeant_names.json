@@ -1,0 +1,23 @@
+{
+  "id": "rule_sergeant_names",
+  "label": "Гула о пропажах",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_names",
+      "text_key": "j_start"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_names"
+    },
+    {
+      "type": "show_message",
+      "text": "Гула читает по своей тетради: четверо, все молодые, все из бригад. Дела не заводили."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_case"
+}

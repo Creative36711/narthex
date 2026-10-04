@@ -1,0 +1,23 @@
+{
+  "id": "rule_marta_hod",
+  "label": "Марта о Ходе",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "unlock_codex",
+      "entry": "codex_hod"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_marta",
+      "delta": 5
+    },
+    {
+      "type": "show_message",
+      "text": "Марта вытирает стойку: «Дед говорил — когда Ход сбивается, Дирекция считает не трубы, а людей. Считай вместе с ней, и ты поймёшь»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_works"
+}

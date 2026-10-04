@@ -1,0 +1,223 @@
+{
+  "version": 2,
+  "label": "Караульный Пётр Слепнёв",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Ворота",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Стоять. Кто идёт?"
+              }
+            }
+          ],
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "guard_let_in",
+              "not": true
+            }
+          ]
+        },
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Проходите, инспектор. Только вниз без пропуска — не ходите, там сейчас неспокойно."
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Если что — бумаги у сержанта Гулы, в участке на рынке."
+              }
+            }
+          ],
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "guard_let_in"
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Инспектор Ревизии. Вот служебная бумага.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Бумага с печатью — ну наконец-то. За неделю второй по счёту, и первый, говорят, уже в ямах лежит."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_guard_papers"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "guard_let_in",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Не задерживай. Ревизия не любит ждать.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Не люблю и я. Но служба — она для всех служба…"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_guard_press"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "guard_let_in",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Вот пять марок. Смена длинная.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Смена длинная, да. Проходите, инспектор, только не через ямы."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_guard_bribe"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "item_ge",
+              "item": "item_silver",
+              "count": 5
+            },
+            {
+              "type": "flag",
+              "flag": "guard_let_in",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Что тут случилось с инспектором?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Гарна нашли в Глубоком штреке, лицо закрыто тряпкой. Казённое объявление висит у стены — прочтите, если охота."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_garn_case"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "notice_read"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Кто в городе решает?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Дирекция на верхней террасе. Управляющий Валент Корр — он подписывает всё: и руду, и воду, и кого спускать вниз."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_directorate"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Где тут едят и спят?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Корчма «Сухой патрубок» — под рынком. Марта держит, похлёбка честная, койка пять марок."
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "До встречи.",
+          "sections": [],
+          "goto": "end"
+        }
+      ],
+      "goto": "end"
+    }
+  ]
+}

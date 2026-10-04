@@ -1,0 +1,15 @@
+{
+  "id": "item_toolkit",
+  "type": "item",
+  "category": "tool",
+  "label": "Набор инструментов",
+  "description": "Отвёртки, клещи, щупы в промасленном холсте.",
+  "weight": 2.5,
+  "stackable": false,
+  "value": {
+    "silver": 15
+  },
+  "sounds": {
+    "pickup": "sfx_metal"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "rule_valent_quiet",
+  "label": "Валент о «Тихой»",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_disposition",
+      "target": "npc_valent",
+      "delta": 10
+    },
+    {
+      "type": "grant_xp",
+      "points": 10
+    },
+    {
+      "type": "show_message",
+      "text": "Валент отступает на шаг: «Значит, вы её сломали. Что ж. Поговорим как двое, у которых испорчен вечер»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

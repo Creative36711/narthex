@@ -1,0 +1,19 @@
+{
+  "id": "item_apron",
+  "type": "item",
+  "category": "armor",
+  "label": "Фартук литейщика",
+  "description": "Толстая кожа с латунными бляхами — держит жар и удар.",
+  "weight": 4.0,
+  "stackable": false,
+  "value": {
+    "silver": 20
+  },
+  "armor_data": {
+    "points": 2
+  },
+  "equip_slot": "armor",
+  "sounds": {
+    "pickup": "sfx_cloth"
+  }
+}

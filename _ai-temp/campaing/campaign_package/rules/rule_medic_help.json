@@ -1,0 +1,41 @@
+{
+  "id": "rule_medic_help",
+  "label": "Ханна взялась за дело",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_hp",
+      "delta": 6
+    },
+    {
+      "type": "remove_status",
+      "target": "player",
+      "status": "status_fume"
+    },
+    {
+      "type": "remove_status",
+      "target": "player",
+      "status": "status_bleed"
+    },
+    {
+      "type": "set_flag",
+      "flag": "clinic_helped"
+    },
+    {
+      "type": "unlock_recipe",
+      "recipe": "recipe_tonic"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_medic",
+      "delta": 10
+    },
+    {
+      "type": "show_message",
+      "text": "Ханна промывает угар и зашивает, что можно зашить: «Ржавь — не болезнь. Это счёт, который тебе выставили»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_case"
+}

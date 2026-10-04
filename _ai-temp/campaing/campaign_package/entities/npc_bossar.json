@@ -1,0 +1,70 @@
+{
+  "id": "npc_bossar",
+  "type": "npc",
+  "label": "Боссар",
+  "description": "Бригадир шлаковых ям: держит Нижнюю улицу и не отдаёт своих Дирекции.",
+  "portrait": {
+    "neutral": "assets/img/npc/bossar.png"
+  },
+  "stats": {
+    "STR": 14,
+    "CON": 13,
+    "SIZ": 14,
+    "DEX": 10,
+    "INT": 10,
+    "POW": 12,
+    "CHA": 11
+  },
+  "skills": {
+    "intimidate": 55,
+    "brawl": 55,
+    "perception": 35,
+    "persuade": 30
+  },
+  "scene_sprite": "assets/img/npc/bossar_sprite.png",
+  "combat_figure": "assets/img/figures/bossar.png",
+  "equipment": {
+    "weapon": "item_wrench",
+    "armor": "item_apron"
+  },
+  "inventory": [
+    {
+      "item": "item_silver",
+      "quantity": 35
+    },
+    {
+      "item": "item_stimm",
+      "quantity": 1
+    }
+  ],
+  "dialogue": "dialogues/bossar.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_lower",
+  "base_disposition": -5,
+  "abilities": [
+    "ability_wrench",
+    "ability_stimm_shot"
+  ],
+  "morale": {
+    "below_hp_pct": 30,
+    "flee_chance": 40
+  },
+  "loot_table": [
+    {
+      "item": "item_silver",
+      "chance": 1.0,
+      "min": 15,
+      "max": 30
+    },
+    {
+      "item": "item_brass",
+      "chance": 0.6,
+      "min": 1,
+      "max": 3
+    }
+  ],
+  "sounds": {
+    "talk": "sfx_voice"
+  }
+}

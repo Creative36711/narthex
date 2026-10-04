@@ -1,0 +1,142 @@
+{
+  "id": "quest_garn",
+  "label": "Дело инспектора Гарна",
+  "description": "Выяснить, что случилось с инспектором Гарном в Глубоком штреке.",
+  "chapter": "ch_case",
+  "journal_entries": {
+    "j_notice": "У ворот висит казённое объявление: инспектор Гарн найден мёртвым, дело закрыто.",
+    "j_market": "Рынок гудит: в участке сидит сержант Гула, в лечебнице — Ханна, в корчме — Марта.",
+    "j_case": "В деле Гарна нет свидетелей и есть вкладыш, помеченный «металлолом».",
+    "j_track": "На кран-балке — след волокли к решётке штрека. Нужен пропуск вниз.",
+    "j_pass": "Пропуск в штрек на руках. За решёткой — то, что искал Гарн.",
+    "j_body": "Тело Гарна лежит у крепи лицом вниз. Лицо спилено после смерти, под ногтями — латунная стружка.",
+    "j_ledger": "Гроссбух найден: имена, даты и подпись Валента в последней строке.",
+    "j_done": "Дело Гарна доведено до конца.",
+    "j_failed": "Дело Гарна закрыто не в пользу правды."
+  },
+  "stages": [
+    {
+      "id": "stage_start",
+      "label": "Начало поисков",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_garn",
+          "text_key": "j_notice"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_body",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "garn_body_found"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_body",
+      "label": "Тело в штреке",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_garn",
+          "text_key": "j_body"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_ledger",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "ledger_taken"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_ledger",
+      "label": "Гроссбух на руках",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_garn",
+          "text_key": "j_ledger"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "truth_exposed"
+            }
+          ]
+        },
+        {
+          "to": "stage_failed",
+          "conditions": [
+            {
+              "type": "or",
+              "conditions": [
+                {
+                  "type": "flag_set",
+                  "flag": "took_deal"
+                },
+                {
+                  "type": "flag_set",
+                  "flag": "fled_with_ledger"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_done",
+      "label": "Дело закрыто правдой",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_garn",
+          "text_key": "j_done"
+        },
+        {
+          "type": "grant_xp",
+          "points": 40
+        },
+        {
+          "type": "meta_currency",
+          "id": "meta_slag",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "id": "stage_failed",
+      "label": "Дело закрыто тихо",
+      "final": true,
+      "outcome": "failure",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_garn",
+          "text_key": "j_failed"
+        },
+        {
+          "type": "grant_xp",
+          "points": 15
+        }
+      ]
+    }
+  ]
+}

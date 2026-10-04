@@ -1,0 +1,23 @@
+{
+  "id": "rule_marta_rumors",
+  "label": "Слухи Марты",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_garn",
+      "text_key": "j_track"
+    },
+    {
+      "type": "reveal_location",
+      "location": "loc_lower"
+    },
+    {
+      "type": "show_message",
+      "text": "Марта понижает голос: «Кран-балку в ямах чинили дважды. И оба раза ночью»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_case"
+}

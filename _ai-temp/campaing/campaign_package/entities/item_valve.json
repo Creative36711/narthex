@@ -1,0 +1,50 @@
+{
+  "id": "item_valve",
+  "type": "item",
+  "category": "misc",
+  "label": "Главный клапан",
+  "description": "Латунный клапан диаметром в локоть: на нём сорвана резьба.",
+  "weight": 1.0,
+  "stackable": false,
+  "slot_type": "item",
+  "interact_options": [
+    {
+      "label": "Собрать клапан",
+      "hint": "работа для механика или сильных рук",
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "valve_fixed"
+        }
+      ],
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "mechanics",
+          "difficulty": 55,
+          "success_effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_valve_fixed"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Резьба срывается снова: нужен инструмент и терпение."
+            },
+            {
+              "type": "change_fatigue",
+              "delta": -8
+            }
+          ]
+        }
+      ],
+      "once": true,
+      "message": "Клапан поддаётся с тяжёлым вздохом трубы."
+    }
+  ],
+  "sounds": {
+    "open": "sfx_steam"
+  }
+}

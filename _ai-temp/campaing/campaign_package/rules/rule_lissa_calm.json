@@ -1,0 +1,32 @@
+{
+  "id": "rule_lissa_calm",
+  "label": "Лисса успокоилась",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "lissa_found"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_lissa"
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_lissa",
+      "text_key": "j_found"
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_lissa",
+      "state": "friendly"
+    },
+    {
+      "type": "show_message",
+      "text": "Лисса выходит из дверного проёма и говорит быстро, глядя в пол."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_slag"
+}

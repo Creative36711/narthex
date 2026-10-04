@@ -1,0 +1,25 @@
+{
+  "id": "item_blade",
+  "type": "item",
+  "category": "weapon",
+  "label": "Короткий резак",
+  "description": "Узкий клинок для работы по коже и по людям.",
+  "weight": 0.9,
+  "stackable": false,
+  "value": {
+    "silver": 12
+  },
+  "equip_slot": "weapon",
+  "weapon_data": {
+    "skill": "blade",
+    "damage": "1d8",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true,
+    "durability": 18
+  },
+  "sounds": {
+    "pickup": "sfx_metal"
+  }
+}

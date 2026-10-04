@@ -1,0 +1,24 @@
+{
+  "id": "rule_valent_implant",
+  "label": "Валент о подписи",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_names",
+      "text_key": "j_implant"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_valent",
+      "delta": -5
+    },
+    {
+      "type": "show_message",
+      "text": "Валент не отводит глаз: «Да. Подписал. И подпишу снова, если придётся выбирать между восемью людьми и всем городом»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

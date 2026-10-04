@@ -1,0 +1,12 @@
+{
+  "id": "item_lissa_note",
+  "type": "item",
+  "category": "evidence",
+  "label": "Записка Лиссы",
+  "description": "Листок из ученической тетради: «я не хотела».",
+  "weight": 0.05,
+  "stackable": false,
+  "sounds": {
+    "pickup": "sfx_paper"
+  }
+}

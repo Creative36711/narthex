@@ -1,0 +1,23 @@
+{
+  "id": "item_food_pack",
+  "type": "item",
+  "category": "food",
+  "label": "Сухой паёк",
+  "description": "Прессованные лепёшки и вяленое мясо — еда в дороге.",
+  "weight": 0.5,
+  "stackable": true,
+  "value": {
+    "silver": 4
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_food",
+        "delta": 40
+      }
+    ],
+    "consume": true,
+    "message": "Паёк сухой, но держит."
+  }
+}

@@ -1,0 +1,255 @@
+{
+  "version": 2,
+  "label": "Лисса, подмастерье",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Дверной проём",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Не кричите, пожалуйста. Я вас вижу, а вы меня нет — так и надо."
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Я Лисса. Я собирала вкладыши. Я не знала, для чего они, пока не увидела, как уводят Тэна и Мирту…"
+              }
+            }
+          ],
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "lissa_found",
+              "not": true
+            }
+          ]
+        },
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Вы вернулись. Я думала, все возвращаются только в виде бумаг."
+              }
+            }
+          ],
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "lissa_found"
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Расскажи, что ты видела.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Партию вкладышей заказывали на восемь человек. Восьмой ещё не выбран, но номер уже выбит. Я видела список: двое из бригады, один бездомный и я."
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Последнюю строку вычеркнули и вписали «медянка». Это я."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_lissa_calm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "lissa_found",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Я укрою тебя у Ирены.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ирена… она меня выгонит. Она всех выгоняет."
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Хорошо. Хорошо. Я пойду к ней."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_lissa_saved"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_irena"
+            },
+            {
+              "type": "flag",
+              "flag": "lissa_saved",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Уходи из города сама, сегодня.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Куда? За воротами пепел и ни одной корчмы. Но здесь я тоже не доживу…"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_lissa_abandoned"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "lissa_found"
+            },
+            {
+              "type": "flag",
+              "flag": "lissa_saved",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "lissa_lost",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Кто приходит вниз за людьми?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Серая. Плащ, капюшон, шагов не слышно. Дирекция называет их «тихой стражей», а Марта говорит: «тихие»."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_quiet"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Назови имена. Тех, кого увели.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Тэн, Мирта, Слепой Ерш и Малый. Четвёртой должна была быть я."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_lissa_names"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "lissa_found"
+            }
+          ]
+        },
+        {
+          "text": "Как выглядит «Тихая»?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Как человек. Только идёт без шагов, и лицо такое, будто она уже всё про себя решила."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_lissa_quiet"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "lissa_found"
+            }
+          ]
+        },
+        {
+          "text": "Прощай, Лисса.",
+          "sections": [],
+          "goto": "end"
+        }
+      ],
+      "goto": "end"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "rule_irena_met",
+  "label": "Разговор с Иреной",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "met_irena"
+    },
+    {
+      "type": "reveal_location",
+      "location": "loc_machine"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_irena",
+      "delta": 5
+    },
+    {
+      "type": "show_message",
+      "text": "Ирена вытирает руки: «Значит, вы не из тех, кто закрывает глаза. Посмотрим»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_works"
+}

@@ -1,0 +1,29 @@
+{
+  "id": "recipe_repair_tools",
+  "label": "Починка инструмента",
+  "known": true,
+  "repair": true,
+  "description": "Латунь и проволока возвращают инструменту твёрдость.",
+  "inputs": [
+    {
+      "item": "item_brass",
+      "quantity": 1
+    },
+    {
+      "item": "item_wire",
+      "quantity": 1
+    }
+  ],
+  "tools": [],
+  "requires": [],
+  "skill": {
+    "id": "mechanics",
+    "difficulty": 30
+  },
+  "time_ticks": 1,
+  "output": {
+    "item": "item_wrench",
+    "quantity": 1
+  },
+  "message": "Инструмент снова держит нагрузку."
+}

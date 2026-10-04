@@ -1,0 +1,38 @@
+{
+  "id": "rule_valve_fixed",
+  "label": "Давление восстановлено",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "valve_fixed"
+    },
+    {
+      "type": "set_flag",
+      "flag": "machine_open"
+    },
+    {
+      "type": "banner",
+      "text": "Давление восстановлено",
+      "preset": "глава",
+      "seconds": 4,
+      "enter": "молниеносно"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_hod"
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_pressure",
+      "text_key": "j_valve"
+    },
+    {
+      "type": "show_message",
+      "text": "Трубы выравнивают дыхание. Обходной патрубок открыт, машинный зал ждёт."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

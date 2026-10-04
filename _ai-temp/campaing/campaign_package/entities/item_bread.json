@@ -1,0 +1,23 @@
+{
+  "id": "item_bread",
+  "type": "item",
+  "category": "food",
+  "label": "Хлеб",
+  "description": "Плотный ржаной каравай, ещё тёплый.",
+  "weight": 0.3,
+  "stackable": true,
+  "value": {
+    "silver": 2
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_food",
+        "delta": 30
+      }
+    ],
+    "consume": true,
+    "message": "Хлеб пахнет печью и дымом."
+  }
+}

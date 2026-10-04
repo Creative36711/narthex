@@ -1,0 +1,97 @@
+{
+  "id": "cutscene_conductor",
+  "label": "Новый проводник",
+  "music": "music_machine",
+  "chapter": "ch_heart",
+  "slides": [
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#12100e",
+        "layers": [
+          {
+            "label": "ложе",
+            "shape": {
+              "type": "rect",
+              "x": 440,
+              "y": 360,
+              "w": 400,
+              "h": 200,
+              "fill": "#2a221a",
+              "stroke": "#c8873a",
+              "stroke_width": 3,
+              "radius": 24
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 320,
+              "rx": 320,
+              "ry": 160,
+              "fill": "#c8873a",
+              "opacity": 0.15
+            }
+          }
+        ]
+      },
+      "text": "Герой сам лёг в латунное ложе. Трубки вошли легко, как в сырую землю.",
+      "transition": "fade",
+      "duration": 7
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#1a1512",
+        "layers": [
+          {
+            "label": "город",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 560,
+              "w": 1280,
+              "h": 160,
+              "fill": "#100d0b"
+            }
+          },
+          {
+            "label": "окна",
+            "shape": {
+              "type": "ellipse",
+              "cx": 420,
+              "cy": 520,
+              "rx": 14,
+              "ry": 9,
+              "fill": "#e0b060",
+              "opacity": 0.9
+            }
+          },
+          {
+            "label": "окна 2",
+            "shape": {
+              "type": "ellipse",
+              "cx": 720,
+              "cy": 530,
+              "rx": 12,
+              "ry": 8,
+              "fill": "#e0b060",
+              "opacity": 0.8
+            }
+          }
+        ]
+      },
+      "text": "Ход выровнялся на его пульсе. Город спал в тепле и не спрашивал, чьим дыханием оно держится.",
+      "transition": "fade",
+      "duration": 8
+    }
+  ]
+}

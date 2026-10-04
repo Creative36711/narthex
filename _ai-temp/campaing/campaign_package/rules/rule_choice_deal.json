@@ -1,0 +1,32 @@
+{
+  "id": "rule_choice_deal",
+  "label": "Договор принят",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "took_deal"
+    },
+    {
+      "type": "add_item",
+      "item": "item_silver",
+      "quantity": 40
+    },
+    {
+      "type": "postcard",
+      "text": "Дело Гарна легло в архив как несчастный случай.",
+      "seconds": 6
+    },
+    {
+      "type": "meta_currency",
+      "id": "meta_slag",
+      "amount": 4
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "rule_sergeant_case",
+  "label": "Дело Гарна на руки",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "case_taken"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_garn"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_garn_case"
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_garn",
+      "text_key": "j_case"
+    },
+    {
+      "type": "show_message",
+      "text": "Гула выкладывает папку: «Полка за вашей спиной. Читайте, потом расспрашивайте»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_case"
+}

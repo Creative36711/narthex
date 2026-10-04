@@ -1,0 +1,89 @@
+{
+  "id": "quest_names",
+  "label": "Списанные люди",
+  "description": "Собрать свидетельства о том, куда пропадают люди из Нижнего города.",
+  "chapter": "ch_works",
+  "journal_entries": {
+    "j_start": "С Нижней улицы за месяц пропали четверо. Никто не подавал бумаг.",
+    "j_implant": "В породе найден латунный вкладыш с номером — такие ставят в череп живым.",
+    "j_hanna": "Ханна говорит: ржавь — это счёт, который выставляют человеку за чужое тепло.",
+    "j_done": "Правда о «поставке» собрана: имена, вкладыши и вклады."
+  },
+  "stages": [
+    {
+      "id": "stage_start",
+      "label": "Слухи об исчезновениях",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_names",
+          "text_key": "j_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_evidence",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "implant_found"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_evidence",
+      "label": "Вкладыш на руках",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_names",
+          "text_key": "j_implant"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_done",
+          "conditions": [
+            {
+              "type": "or",
+              "conditions": [
+                {
+                  "type": "flag_set",
+                  "flag": "hod_spoken"
+                },
+                {
+                  "type": "flag_set",
+                  "flag": "truth_exposed"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_done",
+      "label": "Картина собрана",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_names",
+          "text_key": "j_done"
+        },
+        {
+          "type": "grant_xp",
+          "points": 25
+        },
+        {
+          "type": "meta_currency",
+          "id": "meta_slag",
+          "amount": 3
+        }
+      ]
+    }
+  ]
+}

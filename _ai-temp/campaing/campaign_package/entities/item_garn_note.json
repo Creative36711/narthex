@@ -1,0 +1,12 @@
+{
+  "id": "item_garn_note",
+  "type": "item",
+  "category": "evidence",
+  "label": "Пометка Гарна",
+  "description": "Обрывок записи: «вкладыши — не для людей».",
+  "weight": 0.05,
+  "stackable": false,
+  "sounds": {
+    "pickup": "sfx_paper"
+  }
+}

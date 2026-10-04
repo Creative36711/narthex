@@ -1,0 +1,58 @@
+{
+  "id": "npc_irena",
+  "type": "npc",
+  "label": "Ирена Скол",
+  "description": "Мастер литейного цеха. Хочет перевести Ход на холодный режим без жертв.",
+  "portrait": {
+    "neutral": "assets/img/npc/irena.png"
+  },
+  "stats": {
+    "STR": 12,
+    "CON": 13,
+    "SIZ": 11,
+    "DEX": 11,
+    "INT": 15,
+    "POW": 14,
+    "CHA": 10
+  },
+  "skills": {
+    "mechanics": 65,
+    "lore": 50,
+    "spot": 45,
+    "brawl": 40,
+    "dodge": 35
+  },
+  "scene_sprite": "assets/img/npc/irena_sprite.png",
+  "combat_figure": "assets/img/figures/irena.png",
+  "figure_mode": "side",
+  "equipment": {
+    "weapon": "item_wrench",
+    "armor": "item_apron"
+  },
+  "inventory": [
+    {
+      "item": "item_charcoal",
+      "quantity": 3
+    },
+    {
+      "item": "item_wire",
+      "quantity": 2
+    }
+  ],
+  "dialogue": "dialogues/irena.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_lower",
+  "base_disposition": 15,
+  "abilities": [
+    "ability_wrench"
+  ],
+  "morale": {
+    "below_hp_pct": 25,
+    "flee_chance": 30
+  },
+  "sounds": {
+    "talk": "sfx_voice",
+    "use": "sfx_steam"
+  }
+}

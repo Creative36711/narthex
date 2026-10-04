@@ -1,0 +1,60 @@
+{
+  "id": "rule_ambush_machine",
+  "label": "Засада у сердца",
+  "once": true,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "machine_open"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "quiet_met"
+    },
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_machine"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "quiet_met"
+    },
+    {
+      "type": "show_message",
+      "text": "У трубы стоит серая фигура: Дирекция не любит гостей."
+    },
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_quiet",
+          "count": 1
+        }
+      ],
+      "arena": "arena_machine",
+      "intro": "«Тихая» перекрывает обходную трубу.",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "quiet_defeated"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_quiet"
+        },
+        {
+          "type": "meta_currency",
+          "id": "meta_slag",
+          "amount": 3
+        },
+        {
+          "type": "show_message",
+          "text": "Плащ серой фигуры пропитан угарным туманом. Приказ подписан Валентом."
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_heart"
+}

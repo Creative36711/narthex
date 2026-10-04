@@ -1,0 +1,43 @@
+{
+  "id": "rule_ev_rusty",
+  "label": "Ржавые из-под настила",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "show_message",
+      "text": "Из-под настила выбираются двое — вернее, то, что от них осталось."
+    },
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_rusty",
+          "count": 1
+        },
+        {
+          "entity": "npc_rat",
+          "count": 2
+        }
+      ],
+      "arena": "arena_lower",
+      "intro": "Ржавь идёт на запах живого.",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "encounter_won"
+        },
+        {
+          "type": "meta_currency",
+          "id": "meta_slag",
+          "amount": 1
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_rust"
+        }
+      ]
+    }
+  ],
+  "manual": true
+}

@@ -1,0 +1,24 @@
+{
+  "id": "rule_vein_ledger",
+  "label": "Клёп о гроссбухе",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_disposition",
+      "target": "npc_vein",
+      "delta": 10
+    },
+    {
+      "type": "add_item",
+      "item": "item_wire",
+      "quantity": 2
+    },
+    {
+      "type": "show_message",
+      "text": "Клёп отводит взгляд: «Спрячь. И купи у меня проволоки — бесплатно не дам, но и недорого»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_deep"
+}

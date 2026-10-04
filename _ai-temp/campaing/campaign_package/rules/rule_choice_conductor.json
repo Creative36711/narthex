@@ -1,0 +1,26 @@
+{
+  "id": "rule_choice_conductor",
+  "label": "Герой встал в ложе",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "became_conductor"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_conductor"
+    },
+    {
+      "type": "meta_currency",
+      "id": "meta_slag",
+      "amount": 8
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

@@ -1,0 +1,65 @@
+{
+  "id": "item_cabinet",
+  "type": "item",
+  "category": "container",
+  "label": "Шкаф с лекарствами",
+  "description": "Стеклянный шкаф: склянки, настойки и весы.",
+  "weight": 10.0,
+  "stackable": false,
+  "slot_type": "container",
+  "interact_options": [
+    {
+      "label": "Купить осадок от ржави (10 см)",
+      "hint": "10 серебра за склянку",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_silver",
+          "min_quantity": 10
+        }
+      ],
+      "effects": [
+        {
+          "type": "remove_item",
+          "item": "item_silver",
+          "quantity": 10
+        },
+        {
+          "type": "add_item",
+          "item": "item_tonic",
+          "quantity": 1
+        }
+      ],
+      "message": "Ханна заворачивает склянку в бумагу: «Пейте, пока руки слушаются».",
+      "sound": "sfx_coin"
+    },
+    {
+      "label": "Купить бинт (4 см)",
+      "hint": "4 серебра",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_silver",
+          "min_quantity": 4
+        }
+      ],
+      "effects": [
+        {
+          "type": "remove_item",
+          "item": "item_silver",
+          "quantity": 4
+        },
+        {
+          "type": "add_item",
+          "item": "item_bandage",
+          "quantity": 1
+        }
+      ],
+      "message": "Бинт сухой и чистый.",
+      "sound": "sfx_coin"
+    }
+  ],
+  "sounds": {
+    "open": "sfx_chest"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "item_herb",
+  "type": "item",
+  "category": "component",
+  "label": "Трава-жгунец",
+  "description": "Сухая трава с горьким запахом.",
+  "weight": 0.05,
+  "stackable": true,
+  "value": {
+    "silver": 2
+  }
+}

@@ -1,0 +1,334 @@
+{
+  "version": 2,
+  "label": "Клёп Старьёвщик",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Прилавок",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Хлам, снасть, слухи — всё по честной цене, инспектор."
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Есть вода без осадка и стим, если руки дрожат. У тебя {счёт:item_silver} марок, я считал."
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Купить сухой паёк (5 см).",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "remove_item",
+                    "item": "item_silver",
+                    "qty": 5
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "add_item",
+                    "item": "item_food_pack",
+                    "qty": 1
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Держи. В штреке жуй медленно — угар жадный."
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "item_ge",
+              "item": "item_silver",
+              "count": 5
+            }
+          ]
+        },
+        {
+          "text": "Купить флягу воды (3 см).",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "remove_item",
+                    "item": "item_silver",
+                    "qty": 3
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "add_item",
+                    "item": "item_water",
+                    "qty": 1
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Вода чистая, с верхней террасы. Ниже воду не бери, я тебя прошу."
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "item_ge",
+              "item": "item_silver",
+              "count": 3
+            }
+          ]
+        },
+        {
+          "text": "Купить стим-ампулу (15 см).",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "remove_item",
+                    "item": "item_silver",
+                    "qty": 15
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "add_item",
+                    "item": "item_stimm",
+                    "qty": 1
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Последняя. Потом говори: «Клёп, где стим», а Клёп уже и помер."
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "item_ge",
+              "item": "item_silver",
+              "count": 15
+            }
+          ]
+        },
+        {
+          "text": "Что слышно про инспектора Гарна?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Тихий был человек. Ходил вниз три раза, а на четвёртый его вытащили кран-балкой. Дирекция говорит — несчастный случай."
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Я тебе так скажу: у нас тут всё несчастный случай. Только почему-то только с теми, кто вниз ходит."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_garn_case"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_vein_hint"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Куда пропадают люди из ям?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "За месяц четверо: двое из бригады, один с рынка и девчонка-медянка. Бумаг ни по кому не завели."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_lower"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_vein_missing"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Кто такой Боссар?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Бригадир шлаковых ям. Воровал, бил, но своих не отдавал. Последний месяц у него зубы стиснуты — Дирекция жмёт."
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Покажи, что у тебя есть для штрека.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Для штрека — маска и хорошие лёгкие. Маску продам за двадцать две, а лёгкие свои, я их не продаю."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_recipe",
+                    "recipe": "recipe_filter"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Если руки прямые — собери сам: ткань, уголь, проволока. Инструмент у меня есть."
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Вот латунный вкладыш. Видел такой?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Видел. Такие приносят из цеха Дирекции — партиями, по номерам. А знаешь, куда идёт этот номер? В череп. Живым."
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Гарн про них спрашивал. Три раза спрашивал, а на четвёртый не вернулся."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_vein_implant"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "implant_found"
+            }
+          ]
+        },
+        {
+          "text": "Смотри, что я забрал в штреке.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Книга. С подписью. Ты, инспектор, или очень смелый, или очень мёртвый."
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Спрячь её под плащ и не показывай больше никому, кроме Ревизии."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_vein_ledger"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ledger_taken"
+            }
+          ]
+        },
+        {
+          "text": "До встречи.",
+          "sections": [],
+          "goto": "end"
+        }
+      ],
+      "goto": "end"
+    }
+  ]
+}

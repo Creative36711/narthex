@@ -1,0 +1,28 @@
+{
+  "id": "item_stew",
+  "type": "item",
+  "category": "food",
+  "label": "Похлёбка в горшке",
+  "description": "Горячая похлёбка из корчмы — с мясом и перцем.",
+  "weight": 0.8,
+  "stackable": true,
+  "value": {
+    "silver": 3
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_food",
+        "delta": 45
+      },
+      {
+        "type": "change_need",
+        "need": "need_warmth",
+        "delta": 15
+      }
+    ],
+    "consume": true,
+    "message": "Тепло растекается от желудка к пальцам."
+  }
+}

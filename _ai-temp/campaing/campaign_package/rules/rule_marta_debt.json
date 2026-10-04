@@ -1,0 +1,27 @@
+{
+  "id": "rule_marta_debt",
+  "label": "Долг корчмы взят",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "debt_taken"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_debt"
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_debt",
+      "text_key": "j_debt"
+    },
+    {
+      "type": "show_message",
+      "text": "Марта кивает: «Боссар у отвала в шлаковых ямах. Скажешь, что от меня»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_case"
+}

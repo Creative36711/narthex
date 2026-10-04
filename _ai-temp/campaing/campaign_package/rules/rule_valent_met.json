@@ -1,0 +1,22 @@
+{
+  "id": "rule_valent_met",
+  "label": "Управляющий вышел говорить",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "valent_met"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_heart"
+    },
+    {
+      "type": "show_message",
+      "text": "Валент Корр вытирает руки о платок: «Инспектор. Вы быстро»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

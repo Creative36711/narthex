@@ -1,0 +1,28 @@
+{
+  "id": "rule_choice_flee",
+  "label": "Герой уходит из города",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "fled_with_ledger"
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/scenes/scene_gate_day.jpg",
+      "text": "Пепел закрывает ворота за спиной.",
+      "seconds": 6
+    },
+    {
+      "type": "meta_currency",
+      "id": "meta_slag",
+      "amount": 5
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

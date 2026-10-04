@@ -1,0 +1,17 @@
+{
+  "id": "rule_ev_ash",
+  "label": "Пеплопад усилился",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_weather",
+      "weather": "weather_ash"
+    },
+    {
+      "type": "show_message",
+      "text": "Пепел идёт плотнее: дышать тяжело, а свет становится серым."
+    }
+  ],
+  "manual": true
+}

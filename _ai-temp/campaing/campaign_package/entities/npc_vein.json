@@ -1,0 +1,81 @@
+{
+  "id": "npc_vein",
+  "type": "npc",
+  "label": "Клёп Старьёвщик",
+  "description": "Старьёвщик с рынка: торгует всем, что плохо лежало, и слухами впридачу.",
+  "portrait": {
+    "neutral": "assets/img/npc/vein.png"
+  },
+  "stats": {
+    "STR": 9,
+    "CON": 9,
+    "SIZ": 10,
+    "DEX": 10,
+    "INT": 12,
+    "POW": 9,
+    "CHA": 13
+  },
+  "skills": {
+    "persuade": 55,
+    "intimidate": 30,
+    "spot": 40
+  },
+  "scene_sprite": "assets/img/npc/vein_sprite.png",
+  "inventory": [
+    {
+      "item": "item_silver",
+      "quantity": 40
+    }
+  ],
+  "dialogue": "dialogues/vein.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_lower",
+  "base_disposition": 0,
+  "trader": {
+    "sells": [
+      {
+        "item": "item_food_pack",
+        "price": 5
+      },
+      {
+        "item": "item_water",
+        "price": 3
+      },
+      {
+        "item": "item_cloth",
+        "price": 2
+      },
+      {
+        "item": "item_charcoal",
+        "price": 2
+      },
+      {
+        "item": "item_wire",
+        "price": 3
+      },
+      {
+        "item": "item_stimm",
+        "price": 15
+      },
+      {
+        "item": "item_filter",
+        "price": 22
+      },
+      {
+        "item": "item_toolkit",
+        "price": 16
+      },
+      {
+        "item": "item_bandage",
+        "price": 4
+      }
+    ],
+    "buys": true,
+    "buy_rate": 0.4
+  },
+  "sounds": {
+    "talk": "sfx_voice",
+    "pickup": "sfx_coin"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "id": "rule_quiet_comes",
+  "label": "«Тихая» пошла по следу",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "quiet_met"
+    },
+    {
+      "type": "show_message",
+      "text": "За спиной, в темноте, кто-то шагнул беззвучно. Пора уходить."
+    },
+    {
+      "type": "start_pursuit",
+      "label": "«Тихая» идёт по следу",
+      "skill": "stealth",
+      "every_ticks": 3,
+      "fails_to_catch": 1,
+      "on_fail": [
+        {
+          "type": "show_message",
+          "text": "Серая тень обгоняет и разворачивается навстречу."
+        },
+        {
+          "type": "start_combat",
+          "enemies": [
+            {
+              "entity": "npc_quiet",
+              "count": 1
+            }
+          ],
+          "arena": "arena_deep",
+          "intro": "«Тихая» бьёт без замаха.",
+          "on_victory": [
+            {
+              "type": "set_flag",
+              "flag": "quiet_defeated"
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_quiet"
+            },
+            {
+              "type": "meta_currency",
+              "id": "meta_slag",
+              "amount": 3
+            },
+            {
+              "type": "show_message",
+              "text": "Серая фигура оседает у крепи. В складках плаща — приказ с печатью Дирекции."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_deep"
+}
