@@ -92,6 +92,7 @@ const CAMPAIGN_VOCAB = (() => {
  */
 const ENGINE_VOCABULARY = new Map<string, string>([
   ['both', 'связка «и там и там» в описаниях правил'],
+  ['hard', 'результат skill_check в ink: уверенный успех (critical|hard|success|fail|fumble)'],
   ['chronicles', 'идентификатор записи кодекса (пример из §14з)'],
   ['dead', 'ключ combat_figure_states: погиб'],
   ['down', 'ключ combat_figure_states: без сознания'],

@@ -11,6 +11,7 @@
  * (не побуквенно: комментарии и форматирование не переживают).
  */
 import { generateInk, inkToTokens, newDlgDoc } from './dialogueDoc'
+import { repairInkChoiceConditions } from '../core/inkRepair'
 import type { DlgCheck, DlgChoice, DlgCond, DlgDoc, DlgEffect, DlgLine, DlgNode, DlgSection, DlgStep } from './dialogueDoc'
 
 export interface InkImportResult {
@@ -413,8 +414,13 @@ function parseChoice(raw: RawChoice, nodeId: string, warnings: string[], where: 
 
 // ─────────────── весь документ ───────────────
 
-export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
+export function inkToDlgDoc(rawInk: string, label?: string): InkImportResult {
   const warnings: string[] = []
+  // условие выбора после `]` — частая ошибка ИИ: переносим перед `[`, иначе
+  // конструктор получит выбор без условия (и «true» в тексте ответа)
+  const repaired = repairInkChoiceConditions(rawInk)
+  const ink = repaired.source
+  if (repaired.fixed > 0) warnings.push(`Исправлено условий выбора, записанных после «]»: ${repaired.fixed}`)
   const doc: DlgDoc = newDlgDoc(label)
   doc.nodes = []
 

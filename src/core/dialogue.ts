@@ -1,4 +1,5 @@
 import { Compiler, Story } from 'inkjs/full'
+import { repairInkChoiceConditions } from './inkRepair'
 import type { GameEngine } from './engine'
 import type { NpcDef } from '../shared/types'
 
@@ -50,7 +51,13 @@ export function createStory(source: string, cacheKey: string): Story {
   let json = jsonCache.get(cacheKey)
   if (!json) {
     try {
-      const compiled = new Compiler(source).Compile()
+      // ИИ-кампании часто пишут условие выбора ПОСЛЕ `]` — для ink это вывод
+      // текста («true» в реплике) и выбор не скрывается. Переносим на место.
+      const repaired = repairInkChoiceConditions(source)
+      if (repaired.fixed > 0) {
+        console.warn(`[ink] «${cacheKey}»: условий выбора перенесено перед «[»: ${repaired.fixed}`)
+      }
+      const compiled = new Compiler(repaired.source).Compile()
       json = compiled.ToJson() ?? ''
     } catch (err) {
       // inkjs часто бросает голое «Compilation failed» без строк — добавим ключ
@@ -92,10 +99,12 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('remove_item', (id: string, n: number) => { engine.removeItem(id, n); return 0 })
   bind('skill_check', (skill: string, difficulty: number) => {
     // порог = навык игрока; сложность смещает порог (50 — нейтральная);
-    // успех ставит «галочку» опыта (ТЗ 4.3). Возвращаем 1/0, а не строку
-    // результата: в ink условие `{ skill_check(...): … }` со строкой было бы
-    // истинным всегда — ветвление «успел/не успел» не работало (design-doc §9).
-    return engine.playerSkillCheck(skill, difficulty ?? 50).success ? 1 : 0
+    // успех ставит «галочку» опыта (ТЗ 4.3).
+    // КОНТРАКТ: возвращается СТРОКА результата (critical|hard|success|fail|
+    // fumble). Её сравнивает сгенерированный конструктором ink
+    // (`{ r == "fail" || r == "fumble": … }`, dialogueDoc.ts) — менять тип
+    // возврата нельзя, иначе ветка провала станет недостижимой.
+    return engine.playerSkillCheck(skill, difficulty ?? 50).result
   })
   bind('get_need', (id: string) => engine.state.player.needs[id] ?? 0)
   bind('change_need', (id: string, delta: number) => { engine.changeNeed(id, delta); return 0 })
@@ -192,12 +201,12 @@ export function bindExternals(story: Story, engine: GameEngine): void {
 }
 
 /**
- * Строки-«системные литералы»: inkjs некоторых сборок печатает значение
- * выражения как строку, когда условие записано в текстовой позиции
- * (например, после квадратных скобок выбора): игрок видит «true» посреди
- * разговора (фидбек 27, п.6). Такие строки не являются репликами.
+ * Строка целиком из булева литерала — это вывод значения выражения, а не
+ * реплика: так «true» попадало в разговор, когда условие стояло в текстовой
+ * позиции (фидбек 27, п.6). Основная починка — repairInkChoiceConditions;
+ * этот фильтр — страховка для остальных форм записи.
  */
-const SYSTEM_LITERAL_LINE = /^(?:true|false|null|undefined|nan)$/i
+const SYSTEM_LITERAL_LINE = /^(?:true|false)$/i
 
 /** Прочитать все доступные строки до выбора/конца. */
 export function drainStory(story: Story): { lines: DialogueLine[]; choices: { index: number; text: string }[]; finished: boolean } {

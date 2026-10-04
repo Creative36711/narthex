@@ -1,4 +1,5 @@
 import Ajv2020 from 'ajv/dist/2020.js'
+import { countMisplacedChoiceConditions } from '../core/inkRepair'
 import campaignSchemaJson from '../../docs/campaign.schema.json' with { type: 'json' }
 import type { ErrorObject, ValidateFunction } from 'ajv'
 import type { EditorStore } from './store'
@@ -260,16 +261,16 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       })
     }
   }
-  // Ink: условие выбора, записанное ПОСЛЕ квадратных скобок, часть сборок
-  // inkjs печатает как текстовую строку («true» посреди разговора, фидбек 27
-  // п.6). Канонично — перед скобками: `+ { cond } [текст]`.
+  // Ink: условие выбора, записанное ПОСЛЕ `]`, — не условие, а вывод текста
+  // после выбора («true» в реплике; пункт не скрывается). Движок чинит это при
+  // компиляции (core/inkRepair), но источник лучше поправить (фидбек 27, п.6).
   for (const [path, text] of store.textFiles) {
     if (!/^dialogues\/.+\.ink$/.test(path)) continue
-    const bad = text.split('\n').filter((l) => /^\s*\+\s*\[[^\]]*\]\s*\{/.test(l)).length
+    const bad = countMisplacedChoiceConditions(text)
     if (bad) {
       structure.push({
         severity: 'warning',
-        message: `${path}: условий после квадратных скобок выбора — ${bad}. inkjs может напечатать значение условия строкой в диалоге; перенесите условие перед скобками: «+ { условие } [текст]».`,
+        message: `${path}: условий выбора после «]» — ${bad}. В ink это не условие, а текст после выбора: в реплике появится «true»/«false», а пункт не будет скрываться. Движок переносит условие автоматически, но в источнике запишите «+ { условие } [текст]».`,
       })
     }
   }
