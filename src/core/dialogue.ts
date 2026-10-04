@@ -92,8 +92,10 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('remove_item', (id: string, n: number) => { engine.removeItem(id, n); return 0 })
   bind('skill_check', (skill: string, difficulty: number) => {
     // порог = навык игрока; сложность смещает порог (50 — нейтральная);
-    // успех ставит «галочку» опыта (ТЗ 4.3)
-    return engine.playerSkillCheck(skill, difficulty ?? 50).result
+    // успех ставит «галочку» опыта (ТЗ 4.3). Возвращаем 1/0, а не строку
+    // результата: в ink условие `{ skill_check(...): … }` со строкой было бы
+    // истинным всегда — ветвление «успел/не успел» не работало (design-doc §9).
+    return engine.playerSkillCheck(skill, difficulty ?? 50).success ? 1 : 0
   })
   bind('get_need', (id: string) => engine.state.player.needs[id] ?? 0)
   bind('change_need', (id: string, delta: number) => { engine.changeNeed(id, delta); return 0 })
@@ -162,6 +164,12 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('get_disposition', (target: string) => engine.getDisposition(target))
   bind('change_disposition', (target: string, delta: number) => { engine.changeDisposition(target, delta); return 0 })
   bind('open_trade', (entityId: string) => { engine.openTrade(entityId); return 0 })
+  // смена облика/эмоции прямо из реплики (design-doc §9): портрет в диалоге и
+  // спрайт в сцене переключаются без правила-посредника
+  bind('set_entity_state', (entityId: string, state: string) => {
+    engine.applyEffects([{ type: 'set_entity_state', entity: entityId, state: state ?? '' }])
+    return 0
+  })
   bind('set_description', (entityId: string, text: string) => { engine.setEntityDescription(entityId, text); return 0 })
   bind('join_party', (entityId: string) => { engine.joinParty(entityId); return 0 })
   bind('in_party', (entityId: string) => engine.isInParty(entityId))
