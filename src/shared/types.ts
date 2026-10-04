@@ -22,6 +22,8 @@ export type NeedCondition =
   | { type: 'in_location'; locations: string[]; not?: boolean; location?: string }
   | { type: 'has_item'; items: string[]; not?: boolean; item?: string }
   | { type: 'equipped'; items: string[]; not?: boolean; item?: string }
+  /** текущая погода: «Тепло убывает, пока метель» (design-doc §9, пункт 2) */
+  | { type: 'weather'; weather: string; not?: boolean }
 
 /**
  * Настройки бросков d100 (итерация 8, А7). Хранятся в campaign.json —

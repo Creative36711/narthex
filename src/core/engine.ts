@@ -376,6 +376,8 @@ export class GameEngine {
         return (c.items ?? []).some((id) => this.hasItem(id)) !== !!c.not
       case 'equipped':
         return (c.items ?? []).some((id) => this.isEquipped(id)) !== !!c.not
+      case 'weather':
+        return (this.state.weather ?? '') === c.weather !== !!c.not
     }
   }
 

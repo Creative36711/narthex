@@ -409,7 +409,10 @@ dialogues/<имя>.ink           исходник, который читает �
   `{ "type": "time_of_day", "values": ["evening", "night"] }`,
   `{ "type": "in_location", "locations": ["loc_tavern"], "not": true }` —
   «не в одной из», `{ "type": "has_item", "items": ["item_cloak", "item_fur"],
-  "not": true }` — «нет ни одного из». Пример «Тепло»: убывает вечером/ночью,
+  "not": true }` — «нет ни одного из», `{ \"type\": \"weather\", \"weather\": \"weather_snow\",
+  \"not\": true }` — «пока НЕ эта погода»: потребность может убывать или
+  восстанавливаться от погоды («Тепло тает, пока метель»). Пример «Тепло»:
+  убывает вечером/ночью,
   если нет плаща ИЛИ шубы и герой не в таверне/казарме/храме.
 - **`currencies`**: `id` — ключ валюты, по нему задаются цены в `value`;
   `item_id` — id предмета-монеты в `entities`, и именно его количество в
@@ -1161,7 +1164,10 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 
 Значения состояния читаются функциями `get_flag`, `get_stat`, `get_hp`,
 `get_skill`, `get_need`, `get_currency`, `get_disposition`, `quest_stage`,
-`has_item`, `item_count`, `has_status`, `has_meta_achievement` и сравниваются
+`has_item`, `item_count`, `has_status`, `has_meta_achievement`, `get_meta_counter` (счётчики хроники: `endings_seen`,
+`runs`, `deaths`, `victories`, `kills`, `quests_completed`, `ticks_survived`,
+`travels`, `dialogues`; реплика «нового круга» ловится как
+`{ get_meta_counter("endings_seen") > 0: … }`) и сравниваются
 в обычном синтаксисе Ink.
 
 **Ошибка компиляции ink** содержит id диалога (`dlg_…` / путь) — ищи его в

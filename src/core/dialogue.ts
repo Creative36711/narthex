@@ -147,6 +147,9 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('meta_currency', (id: string, amount: number) => { engine.grantMetaCurrency(id, amount); return 0 })
   bind('get_meta_currency', (id: string) => engine.metaCurrency(id))
   bind('has_meta_achievement', (id: string) => (engine.metaAchievementDone(id) ? 1 : 0))
+  // счётчики хроники в диалогах (design-doc §9, пункт 3): «реплика нового круга»
+  // читается как { get_meta_counter("endings_seen") > 0: … }
+  bind('get_meta_counter', (key: string) => engine.metaCounter(key))
   // таблицы случайных событий и генераторы (аудит B9)
   bind('roll_table', (table: string) => { engine.rollEventTable(table, { forced: true }); return 0 })
   bind('gen', (generator: string, key: string) => engine.genValue(generator, key))

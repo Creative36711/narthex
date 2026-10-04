@@ -152,5 +152,19 @@ const f = (p: string) => readFileSync(p, 'utf8')
   check('7 CharacterCreation не глотает исключение', !app.includes('e.applyCharCreation(choice)\n            e.start()'))
 }
 
+// ── 9. дизайн-док §9: закрытые пункты ──
+{
+  const types = f('src/shared/types.ts')
+  const engine = f('src/core/engine.ts')
+  const dlg = f('src/core/dialogue.ts')
+  const guide = f('docs/ai-campaign-guide.md')
+  check('9.2 потребность умеет убывать/восстанавливаться по погоде', types.includes("{ type: 'weather'; weather: string; not?: boolean }") && engine.includes("case 'weather':"))
+  check('9.2 редактор потребностей даёт выбрать погоду', f('src/editor/CampaignEditor.tsx').includes("{ id: 'weather', label: 'Погода — текущая' }"))
+  check('9.3 диалоги читают счётчики хроники', dlg.includes("bind('get_meta_counter'") && engine.includes('metaCounter(key: string)'))
+  check('9.3 гайд документирует get_meta_counter и погоду в needs', guide.includes('get_meta_counter') && guide.includes('weather_snow'))
+  // 9.1 (таймер реплики) сознательно не реализован: большая механика, место ей в роадмапе
+  check('9.1 таймер диалога не воткнут на скорую руку', !types.includes('reply_timeout'))
+}
+
 console.log(failed ? `\nПРОВАЛЕНО: ${failed}` : '\nвсе проверки раунда 26 прошли')
 process.exit(failed ? 1 : 0)

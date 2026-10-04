@@ -154,6 +154,7 @@ const ENGINE_VOCABULARY = new Map<string, string>([
   ['quest_stage', 'внешняя функция Ink: стадия квеста'],
   ['item_count', 'внешняя функция Ink: количество предмета'],
   ['has_meta_achievement', 'внешняя функция Ink: есть ли достижение хроники'],
+  ['get_meta_counter', 'внешняя функция Ink: счётчик хроники (endings_seen и т.д.)'],
   ['chance_warns', 'устаревшее поле start_pursuit — в формате отсутствует'],
   ['hunters', 'устаревшее поле start_pursuit — в формате отсутствует'],
   // рантайм-фолбэки (пустой schedule, knot ≠ main, EXTERNAL, пустые asset)

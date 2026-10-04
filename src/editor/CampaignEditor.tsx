@@ -47,6 +47,8 @@ const NEED_COND_TYPES: Array<{ id: string; label: string }> = [
   { id: 'has_item!', label: 'Нет ни одного из предметов' },
   { id: 'equipped', label: 'Надет любой из предметов' },
   { id: 'equipped!', label: 'Не надет ни один из предметов' },
+  { id: 'weather', label: 'Погода — текущая' },
+  { id: 'weather!', label: 'Погода НЕ текущая' },
 ]
 
 function blankNeedCond(key: string): NeedCondition {
@@ -58,6 +60,7 @@ function blankNeedCond(key: string): NeedCondition {
     case 'in_location': return { type, locations: [], not }
     case 'has_item': return { type, items: [], not }
     case 'equipped': return { type, items: [], not }
+    case 'weather': return { type, weather: '', not }
   }
 }
 
@@ -293,6 +296,15 @@ function NeedCondEditor({
                 c.items = v
                 commit()
               }}
+            />
+          )}
+          {c.type === 'weather' && (
+            <RefSelect
+              label=""
+              kind="weather"
+              store={store}
+              value={c.weather}
+              onChange={(w) => ((c.weather = w ?? ''), commit())}
             />
           )}
           <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}><Ico n="close" /> </button>
