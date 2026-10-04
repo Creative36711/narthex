@@ -1799,7 +1799,7 @@ export class GameEngine {
     const RANK: Record<string, number> = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 }
     const wins = (RANK[mine.result] ?? 1) >= (RANK[theirs.result] ?? 1)
     this.pushLog(
-      `🎲 Скрытность (${context}): ваш бросок d100=${mine.roll}/${hero} против «${bestNpc.label}» d100=${theirs.roll}/${bestNpc.value} → ${wins ? '✅ вас не заметили' : '❌ ВАС ЗАМЕТИЛИ!'}`,
+      `🎲 Скрытность (${context}): ваш ${mine.result} (d100=${mine.roll}/${hero}) против «${bestNpc.label}» ${theirs.result} (d100=${theirs.roll}/${bestNpc.value}) → ${wins ? '✅ вас не заметили' : '❌ ВАС ЗАМЕТИЛИ!'}`,
     )
     if (!wins) {
       this.state.stealth!.detected = true
