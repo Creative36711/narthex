@@ -1,0 +1,18 @@
+{
+  "id": "rule_lissa_quiet",
+  "label": "Лисса о «Тихой»",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "unlock_codex",
+      "entry": "codex_quiet"
+    },
+    {
+      "type": "show_message",
+      "text": "Лисса обхватывает себя руками: «Она не бежит и не кричит. Просто идёт, и от неё не слышно шагов»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_slag"
+}

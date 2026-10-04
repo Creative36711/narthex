@@ -1,0 +1,38 @@
+{
+  "id": "item_cart",
+  "type": "item",
+  "category": "container",
+  "label": "Брошенная телега",
+  "description": "Телега без колеса, доверху набитая тряпьём.",
+  "weight": 20.0,
+  "stackable": false,
+  "slot_type": "container",
+  "interact_options": [
+    {
+      "label": "Порыться в тряпье",
+      "hint": "иногда тут ночуют беглецы",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_cloth",
+          "quantity": 2
+        },
+        {
+          "type": "add_item",
+          "item": "item_wire",
+          "quantity": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Под тряпьём — детский башмак и моток проволоки."
+        }
+      ],
+      "once": true,
+      "message": "Телега скрипит даже без колеса.",
+      "sound": "sfx_cloth"
+    }
+  ],
+  "sounds": {
+    "open": "sfx_chest"
+  }
+}

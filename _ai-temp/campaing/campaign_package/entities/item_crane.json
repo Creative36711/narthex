@@ -1,0 +1,36 @@
+{
+  "id": "item_crane",
+  "type": "item",
+  "category": "misc",
+  "label": "Кран-балка",
+  "description": "Кран-балка на рельсе: трос ходит тяжело, будто под весом.",
+  "weight": 1.0,
+  "stackable": false,
+  "slot_type": "prop",
+  "interact_options": [
+    {
+      "label": "Осмотреть трос",
+      "hint": "следы волокли что-то вниз",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "На тросе — волокна чёрной ткани и след, ведущий к решётке штрека."
+        },
+        {
+          "type": "journal_update",
+          "quest": "quest_garn",
+          "text_key": "j_track"
+        },
+        {
+          "type": "reveal_location",
+          "location": "loc_deep"
+        }
+      ],
+      "once": true,
+      "message": "Трос пахнет штреком — угаром и мокрым камнем."
+    }
+  ],
+  "sounds": {
+    "open": "sfx_metal"
+  }
+}

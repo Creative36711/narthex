@@ -1,0 +1,36 @@
+{
+  "id": "item_forge",
+  "type": "item",
+  "category": "misc",
+  "label": "Горн",
+  "description": "Металл светится изнутри; у горна теплее всего в городе.",
+  "weight": 1.0,
+  "stackable": false,
+  "slot_type": "prop",
+  "interact_options": [
+    {
+      "label": "Погреться у горна",
+      "hint": "час у огня",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 35
+        },
+        {
+          "type": "change_need",
+          "need": "need_food",
+          "delta": -5
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        }
+      ],
+      "message": "Жар сушит плащ и глаза."
+    }
+  ],
+  "sounds": {
+    "open": "sfx_steam"
+  }
+}

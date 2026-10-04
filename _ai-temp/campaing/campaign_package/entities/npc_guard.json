@@ -1,0 +1,51 @@
+{
+  "id": "npc_guard",
+  "type": "npc",
+  "label": "Караульный Пётр Слепнёв",
+  "description": "Стоит на воротах третью смену подряд. Скучает и мёрзнет.",
+  "portrait": {
+    "neutral": "assets/img/npc/guard.png"
+  },
+  "stats": {
+    "STR": 11,
+    "CON": 10,
+    "SIZ": 12,
+    "DEX": 9,
+    "INT": 9,
+    "POW": 10,
+    "CHA": 10
+  },
+  "skills": {
+    "spot": 30,
+    "perception": 25,
+    "brawl": 35,
+    "persuade": 20
+  },
+  "scene_sprite": "assets/img/npc/guard_sprite.png",
+  "equipment": {
+    "weapon": "item_blade",
+    "armor": "item_coat"
+  },
+  "inventory": [
+    {
+      "item": "item_silver",
+      "quantity": 6
+    }
+  ],
+  "dialogue": "dialogues/guard.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_watch",
+  "base_disposition": 5,
+  "loot_table": [
+    {
+      "item": "item_silver",
+      "chance": 0.8,
+      "min": 4,
+      "max": 9
+    }
+  ],
+  "sounds": {
+    "talk": "sfx_voice"
+  }
+}

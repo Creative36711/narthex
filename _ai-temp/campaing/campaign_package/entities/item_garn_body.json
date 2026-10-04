@@ -1,0 +1,28 @@
+{
+  "id": "item_garn_body",
+  "type": "item",
+  "category": "evidence",
+  "label": "Тело у крепи",
+  "description": "Инспектор Гарн лежит лицом вниз, лицо закрыто мокрой тканью.",
+  "weight": 30.0,
+  "stackable": false,
+  "slot_type": "item",
+  "interact_options": [
+    {
+      "label": "Осмотреть тело",
+      "hint": "последняя улика — и последний шанс не ошибиться",
+      "effects": [
+        {
+          "type": "fire_rule",
+          "rule": "rule_examine_body"
+        }
+      ],
+      "once": true,
+      "message": "Пальцы не слушаются, но работа есть работа.",
+      "sound": "sfx_paper"
+    }
+  ],
+  "sounds": {
+    "open": "sfx_paper"
+  }
+}

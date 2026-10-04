@@ -1,0 +1,51 @@
+{
+  "id": "rule_quiet_fight",
+  "label": "Бой в штреке",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_quiet",
+          "count": 1
+        }
+      ],
+      "arena": "arena_deep",
+      "intro": "«Тихая» бьёт без замаха, но и без злобы.",
+      "no_flee": true,
+      "on_fled": [
+        {
+          "type": "set_flag",
+          "flag": "quiet_defeated"
+        },
+        {
+          "type": "show_message",
+          "text": "Удалось уйти в боковой штрек. «Тихая» не пошла следом."
+        }
+      ],
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "quiet_defeated"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_quiet"
+        },
+        {
+          "type": "meta_currency",
+          "id": "meta_slag",
+          "amount": 3
+        },
+        {
+          "type": "show_message",
+          "text": "Приказ с печатью Дирекции падает из складок плаща."
+        }
+      ]
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_deep"
+}

@@ -1,0 +1,88 @@
+{
+  "id": "quest_debt",
+  "label": "Долг Марты",
+  "description": "Боссар требует с корчмы долг; Марта просит уладить дело.",
+  "chapter": "ch_slag",
+  "journal_entries": {
+    "j_debt": "Боссар ждёт пятнадцать марок с корчмы. Марта просит закрыть долг миром.",
+    "j_paid": "Долг Марты закрыт. Корчма снова принимает героя как своего.",
+    "j_failed": "Корчма закрылась: долг так и не закрыли."
+  },
+  "stages": [
+    {
+      "id": "stage_start",
+      "label": "Долг взят",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_debt",
+          "text_key": "j_debt"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_paid",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "debt_paid"
+            }
+          ]
+        },
+        {
+          "to": "stage_failed",
+          "conditions": [
+            {
+              "type": "or",
+              "conditions": [
+                {
+                  "type": "flag_set",
+                  "flag": "took_deal"
+                },
+                {
+                  "type": "flag_set",
+                  "flag": "fled_with_ledger"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_paid",
+      "label": "Рассчитались",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_debt",
+          "text_key": "j_paid"
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        },
+        {
+          "type": "meta_currency",
+          "id": "meta_slag",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "id": "stage_failed",
+      "label": "Долг остался",
+      "final": true,
+      "outcome": "failure",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_debt",
+          "text_key": "j_failed"
+        }
+      ]
+    }
+  ]
+}

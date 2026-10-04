@@ -1,0 +1,26 @@
+{
+  "id": "rule_choice_truth",
+  "label": "Дело вынесено на суд",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "truth_exposed"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_truth"
+    },
+    {
+      "type": "meta_currency",
+      "id": "meta_brass",
+      "amount": 5
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

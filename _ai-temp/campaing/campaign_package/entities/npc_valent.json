@@ -1,0 +1,65 @@
+{
+  "id": "npc_valent",
+  "type": "npc",
+  "label": "Управляющий Валент Корр",
+  "description": "Управляющий Дирекции: держит город тёплым и знает, чем платит за это.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 11,
+    "CON": 12,
+    "SIZ": 12,
+    "DEX": 12,
+    "INT": 16,
+    "POW": 15,
+    "CHA": 14
+  },
+  "skills": {
+    "persuade": 70,
+    "intimidate": 55,
+    "lore": 65,
+    "blade": 45,
+    "spot": 50
+  },
+  "figure_mode": "side",
+  "equipment": {
+    "weapon": "item_blade",
+    "armor": "item_coat"
+  },
+  "inventory": [
+    {
+      "item": "item_silver",
+      "quantity": 60
+    }
+  ],
+  "dialogue": "dialogues/valent.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_kollegiya",
+  "base_disposition": -20,
+  "abilities": [
+    "ability_wicked_cut"
+  ],
+  "morale": {
+    "below_hp_pct": 25,
+    "flee_chance": 50
+  },
+  "loot_table": [
+    {
+      "item": "item_silver",
+      "chance": 1.0,
+      "min": 30,
+      "max": 60
+    },
+    {
+      "item": "item_garn_ledger",
+      "chance": 0.0,
+      "min": 0,
+      "max": 0
+    }
+  ],
+  "sounds": {
+    "talk": "sfx_voice"
+  }
+}

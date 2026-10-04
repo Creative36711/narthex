@@ -1,0 +1,28 @@
+{
+  "id": "rule_irena_implant",
+  "label": "Ирена о наряде",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_names",
+      "text_key": "j_implant"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_conductor"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_irena",
+      "delta": 5
+    },
+    {
+      "type": "show_message",
+      "text": "Ирена смотрит на вкладыш долго: «Восемь имён. И ни одного с верхней террасы»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_works"
+}

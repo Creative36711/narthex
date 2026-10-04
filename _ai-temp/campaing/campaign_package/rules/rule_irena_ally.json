@@ -1,0 +1,23 @@
+{
+  "id": "rule_irena_ally",
+  "label": "Ирена идёт с героем",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "irena_joined"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_irena",
+      "delta": 10
+    },
+    {
+      "type": "show_message",
+      "text": "Ирена поднимает сумку с инструментом: «Вниз пойдём вместе. И без глупостей»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_heart"
+}

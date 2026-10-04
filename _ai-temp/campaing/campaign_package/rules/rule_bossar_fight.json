@@ -1,0 +1,64 @@
+{
+  "id": "rule_bossar_fight",
+  "label": "Боссар взят силой",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "deep_pass"
+    },
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_bossar",
+          "count": 1
+        },
+        {
+          "entity": "npc_thug",
+          "count": 1
+        }
+      ],
+      "arena": "arena_slag",
+      "intro": "Боссар поднимает ключ: «Значит, по-плохому».",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "bossar_fought"
+        },
+        {
+          "type": "add_item",
+          "item": "item_permit",
+          "quantity": 1
+        },
+        {
+          "type": "commit_crime",
+          "id": "crime_assault",
+          "bounty": 20
+        },
+        {
+          "type": "change_disposition",
+          "target": "faction_lower",
+          "delta": -20
+        },
+        {
+          "type": "meta_currency",
+          "id": "meta_slag",
+          "amount": 2
+        },
+        {
+          "type": "journal_update",
+          "quest": "quest_garn",
+          "text_key": "j_pass"
+        },
+        {
+          "type": "show_message",
+          "text": "Боссар сплёвывает кровью: «Забирай жестянку. Нижний город запомнит»."
+        }
+      ]
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_slag"
+}

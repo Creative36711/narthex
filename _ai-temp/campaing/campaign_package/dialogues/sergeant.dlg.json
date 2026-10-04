@@ -1,0 +1,223 @@
+{
+  "version": 2,
+  "label": "Сержант Гула",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Участок",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Второй инспектор за неделю. Первый не вернулся, так что слушаю вас внимательно и записываю не всё."
+              }
+            }
+          ],
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "case_taken",
+              "not": true
+            }
+          ]
+        },
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Дело на полке, я вас пущу. Только читайте при мне: мне ещё отчёт писать о том, чего я не видела."
+              }
+            }
+          ],
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "case_taken"
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Покажите материалы Гарна.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_sergeant_case"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Держите. Три улики, ни одного свидетеля. И вкладыш латунный, помеченный «металлолом»."
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "case_taken",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Почему дело закрыли за один день?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Потому что приказ. Сверху, с террасы, с печатью. Я такие печати видела дважды, и оба раза потом кому-то спи…"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_sergeant_squeeze"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Что за люди пропадают внизу?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Бригадные, да медянка одна. Дирекция пишет «убыли по производству». Четверо за месяц — это не убыли, это поставка."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_lower"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_sergeant_names"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Что вы знаете про Валента?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Управляющий. Сразу после смерти Гарна подписал все бумаги одной рукой — и своей, и начальника Ревизии."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_directorate"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Вкладыш с номером. Что это значит?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Значит, партия из цеха. Значит, был наряд и была подпись. Такие наряды подписывает Валент — лично, своей рукой."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_sergeant_implant"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "implant_found"
+            }
+          ]
+        },
+        {
+          "text": "У меня гроссбух Гарна.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Тогда вам нужен свидетель, иначе Ревизия похоронит бумаги вместе с вами. Свидетель есть?"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Медянка? Тогда спасайте её, инспектор. Не бумагами — ногами."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_sergeant_ledger"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ledger_taken"
+            }
+          ]
+        },
+        {
+          "text": "До встречи, сержант.",
+          "sections": [],
+          "goto": "end"
+        }
+      ],
+      "goto": "end"
+    }
+  ]
+}

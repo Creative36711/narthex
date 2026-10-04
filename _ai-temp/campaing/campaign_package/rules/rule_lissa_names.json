@@ -1,0 +1,23 @@
+{
+  "id": "rule_lissa_names",
+  "label": "Лисса называет имена",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_names",
+      "text_key": "j_done"
+    },
+    {
+      "type": "grant_xp",
+      "points": 15
+    },
+    {
+      "type": "show_message",
+      "text": "Лисса перечисляет на пальцах: «Тэн, Мирта, Слепой Ерш, Малый. Четвёртой была я»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_slag"
+}

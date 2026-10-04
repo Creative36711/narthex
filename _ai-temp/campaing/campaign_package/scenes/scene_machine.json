@@ -1,0 +1,362 @@
+{
+  "id": "scene_machine",
+  "label": "Сердце Хода",
+  "location": "loc_machine",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "chapter": "ch_heart",
+  "states": [
+    {
+      "id": "state_fume",
+      "label": "Угарный туман",
+      "condition": {
+        "weather": "weather_fume"
+      },
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#12100e",
+        "layers": [
+          {
+            "label": "стена",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#12100e",
+                  "to": "#1a1512",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 520,
+              "w": 1280,
+              "h": 200,
+              "fill": "#171310",
+              "stroke": "#3a2d20",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 575,
+              "cy": 200,
+              "rx": 320,
+              "ry": 150,
+              "fill": "#b9863f",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "труба",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 0,
+              "w": 46,
+              "h": 520,
+              "fill": "#241d18",
+              "stroke": "#4a3a28",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "труба 2",
+            "shape": {
+              "type": "rect",
+              "x": 1130,
+              "y": 0,
+              "w": 56,
+              "h": 520,
+              "fill": "#221b16",
+              "stroke": "#4a3a28",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "балка",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 120,
+              "w": 1280,
+              "h": 30,
+              "fill": "#2a221a",
+              "stroke": "#3f3226",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "клёпки",
+            "shape": {
+              "type": "line",
+              "x1": 146,
+              "y1": 60,
+              "x2": 146,
+              "y2": 500,
+              "color": "#c8873a",
+              "width": 2,
+              "opacity": 0.35
+            }
+          },
+          {
+            "label": "пятно",
+            "shape": {
+              "type": "ellipse",
+              "cx": 560,
+              "cy": 600,
+              "rx": 260,
+              "ry": 60,
+              "fill": "#0d0b09",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "тьма",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": "#0b0908",
+              "opacity": 0.45
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "state_day",
+      "label": "Смена",
+      "condition": null,
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#1d1813",
+        "layers": [
+          {
+            "label": "стена",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#1d1813",
+                  "to": "#2b231b",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 520,
+              "w": 1280,
+              "h": 200,
+              "fill": "#171310",
+              "stroke": "#3a2d20",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 627,
+              "cy": 200,
+              "rx": 320,
+              "ry": 150,
+              "fill": "#b9863f",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "труба",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 0,
+              "w": 46,
+              "h": 520,
+              "fill": "#241d18",
+              "stroke": "#4a3a28",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "труба 2",
+            "shape": {
+              "type": "rect",
+              "x": 1130,
+              "y": 0,
+              "w": 56,
+              "h": 520,
+              "fill": "#221b16",
+              "stroke": "#4a3a28",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "балка",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 120,
+              "w": 1280,
+              "h": 30,
+              "fill": "#2a221a",
+              "stroke": "#3f3226",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "клёпки",
+            "shape": {
+              "type": "line",
+              "x1": 146,
+              "y1": 60,
+              "x2": 146,
+              "y2": 500,
+              "color": "#c8873a",
+              "width": 2,
+              "opacity": 0.35
+            }
+          },
+          {
+            "label": "пятно",
+            "shape": {
+              "type": "ellipse",
+              "cx": 560,
+              "cy": 600,
+              "rx": 260,
+              "ry": 60,
+              "fill": "#0d0b09",
+              "opacity": 0.5
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_hod",
+      "label": "Трубы у сердца",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 200,
+      "y": 280,
+      "w": 220,
+      "h": 300,
+      "condition": null,
+      "default_entity": "npc_hod"
+    },
+    {
+      "id": "slot_cradle",
+      "label": "Ложе проводника",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 360,
+      "w": 240,
+      "h": 230,
+      "condition": null,
+      "default_entity": "item_cradle"
+    },
+    {
+      "id": "slot_pipes",
+      "label": "Обходной патрубок",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 860,
+      "y": 300,
+      "w": 200,
+      "h": 200,
+      "condition": {
+        "flag": "valve_fixed"
+      },
+      "default_entity": "item_pipes"
+    },
+    {
+      "id": "slot_valent",
+      "label": "Управляющий",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 1050,
+      "y": 290,
+      "w": 200,
+      "h": 340,
+      "condition": {
+        "flag": "valve_fixed"
+      },
+      "default_entity": "npc_valent",
+      "sprite_scale": 1.0
+    }
+  ],
+  "navigation": [
+    {
+      "label": "К насосной",
+      "area": {
+        "x": 40,
+        "y": 320,
+        "w": 150,
+        "h": 300
+      },
+      "go_to_scene": "scene_pump"
+    },
+    {
+      "label": "На карту",
+      "area": {
+        "x": 1140,
+        "y": 40,
+        "w": 110,
+        "h": 110
+      },
+      "open_map": true
+    }
+  ],
+  "ambient": [
+    "amb_hum"
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_machine"
+      ],
+      "conditions": []
+    }
+  ]
+}

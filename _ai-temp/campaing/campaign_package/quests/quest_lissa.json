@@ -1,0 +1,74 @@
+{
+  "id": "quest_lissa",
+  "label": "Подмастерье Лисса",
+  "description": "Найти Лиссу, которая собирала вкладыши для «поставки», и решить её судьбу.",
+  "chapter": "ch_slag",
+  "journal_entries": {
+    "j_found": "Лисса нашлась в проёме Нижней улицы: она собирала вкладыши и видела «Тихую».",
+    "j_saved": "Ирена укрыла Лиссу в литейной. Она будет свидетелем на суде.",
+    "j_lost": "Лиссу не укрыли. В проёме Нижней улицы пусто."
+  },
+  "stages": [
+    {
+      "id": "stage_start",
+      "label": "Поиски",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_lissa",
+          "text_key": "j_found"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_saved",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "lissa_saved"
+            }
+          ]
+        },
+        {
+          "to": "stage_lost",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "lissa_lost"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_saved",
+      "label": "Укрыта",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_lissa",
+          "text_key": "j_saved"
+        },
+        {
+          "type": "grant_xp",
+          "points": 20
+        }
+      ]
+    },
+    {
+      "id": "stage_lost",
+      "label": "Потеряна",
+      "final": true,
+      "outcome": "failure",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_lissa",
+          "text_key": "j_lost"
+        }
+      ]
+    }
+  ]
+}

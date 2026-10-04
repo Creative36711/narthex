@@ -1,0 +1,33 @@
+{
+  "id": "rule_lower_first",
+  "label": "Первый спуск вниз",
+  "once": true,
+  "conditions": [
+    {
+      "type": "player_enters_location",
+      "location": "loc_lower"
+    }
+  ],
+  "effects": [
+    {
+      "type": "unlock_codex",
+      "entry": "codex_lower"
+    },
+    {
+      "type": "banner",
+      "text": "Нижняя улица",
+      "preset": "заголовок",
+      "seconds": 3,
+      "enter": "сбоку"
+    },
+    {
+      "type": "show_message",
+      "text": "Под рынком пахнет горячим шлаком. В лужах радужная плёнка — вода из штрека."
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_names"
+    }
+  ],
+  "chapter": "ch_works"
+}

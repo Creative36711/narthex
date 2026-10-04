@@ -1,0 +1,51 @@
+{
+  "id": "quest_pressure",
+  "label": "Давление",
+  "description": "Восстановить давление в насосной станции, чтобы открыть машинный зал.",
+  "chapter": "ch_heart",
+  "journal_entries": {
+    "j_start": "В насосной сорвана резьба на главном клапане: без давления в зал не войти.",
+    "j_valve": "Клапан собран, трубы выровняли дыхание. Обходной патрубок открыт."
+  },
+  "stages": [
+    {
+      "id": "stage_start",
+      "label": "Клапан сорван",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_pressure",
+          "text_key": "j_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_fixed",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "valve_fixed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_fixed",
+      "label": "Давление есть",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_pressure",
+          "text_key": "j_valve"
+        },
+        {
+          "type": "grant_xp",
+          "points": 25
+        }
+      ]
+    }
+  ]
+}

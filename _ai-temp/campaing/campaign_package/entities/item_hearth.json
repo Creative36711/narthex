@@ -1,0 +1,31 @@
+{
+  "id": "item_hearth",
+  "type": "item",
+  "category": "misc",
+  "label": "Очаг",
+  "description": "Открытый очаг: живое тепло посреди железного города.",
+  "weight": 1.0,
+  "stackable": false,
+  "slot_type": "prop",
+  "interact_options": [
+    {
+      "label": "Отогреться",
+      "hint": "час у огня",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 30
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        }
+      ],
+      "message": "Тепло возвращается в пальцы."
+    }
+  ],
+  "sounds": {
+    "open": "sfx_steam"
+  }
+}

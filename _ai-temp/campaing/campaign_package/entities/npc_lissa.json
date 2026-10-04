@@ -1,0 +1,42 @@
+{
+  "id": "npc_lissa",
+  "type": "npc",
+  "label": "Лисса",
+  "description": "Подмастерье-медянка из Нижней улицы. Видела то, чего видеть не следовало.",
+  "portrait": {
+    "neutral": "assets/img/npc/lissa.png"
+  },
+  "stats": {
+    "STR": 7,
+    "CON": 9,
+    "SIZ": 8,
+    "DEX": 12,
+    "INT": 12,
+    "POW": 10,
+    "CHA": 11
+  },
+  "skills": {
+    "mechanics": 35,
+    "stealth": 45,
+    "spot": 35,
+    "dodge": 40
+  },
+  "scene_sprite": "assets/img/npc/lissa_sprite.png",
+  "equipment": {
+    "weapon": "item_blade"
+  },
+  "inventory": [
+    {
+      "item": "item_lissa_note",
+      "quantity": 1
+    }
+  ],
+  "dialogue": "dialogues/lissa.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_lower",
+  "base_disposition": 0,
+  "sounds": {
+    "talk": "sfx_voice"
+  }
+}

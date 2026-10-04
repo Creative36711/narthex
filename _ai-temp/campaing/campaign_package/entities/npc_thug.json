@@ -1,0 +1,53 @@
+{
+  "id": "npc_thug",
+  "type": "npc",
+  "label": "Вышибала Боссара",
+  "description": "Работник ям, который собирает долги вместо бригадира.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 13,
+    "CON": 11,
+    "SIZ": 12,
+    "DEX": 9,
+    "INT": 6,
+    "POW": 9,
+    "CHA": 5
+  },
+  "skills": {
+    "brawl": 45,
+    "intimidate": 40,
+    "perception": 20
+  },
+  "combat_figure": "assets/img/figures/bossar.png",
+  "figure_mode": "topdown",
+  "equipment": {
+    "weapon": "item_wrench",
+    "armor": "item_apron"
+  },
+  "inventory": [
+    {
+      "item": "item_silver",
+      "quantity": 5
+    }
+  ],
+  "abilities": [
+    "ability_wrench"
+  ],
+  "morale": {
+    "below_hp_pct": 25,
+    "flee_chance": 50
+  },
+  "loot_table": [
+    {
+      "item": "item_silver",
+      "chance": 1.0,
+      "min": 5,
+      "max": 12
+    }
+  ],
+  "sounds": {
+    "talk": "sfx_voice"
+  }
+}

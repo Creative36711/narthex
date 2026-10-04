@@ -1,0 +1,28 @@
+{
+  "id": "rule_vein_implant",
+  "label": "Клёп о вкладыше",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_names",
+      "text_key": "j_implant"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_directorate"
+    },
+    {
+      "type": "change_skill",
+      "skill": "lore",
+      "delta": 3
+    },
+    {
+      "type": "show_message",
+      "text": "Клёп вертит вкладыш на свет: «Партия с цеха. Номера выдают в Дирекции, под наряд»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_case"
+}

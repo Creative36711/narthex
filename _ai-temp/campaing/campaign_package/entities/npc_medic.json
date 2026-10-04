@@ -1,0 +1,43 @@
+{
+  "id": "npc_medic",
+  "type": "npc",
+  "label": "Ханна, лекарка",
+  "description": "Держит лечебницу на рынке. Лечит всех и не спрашивает имён.",
+  "portrait": {
+    "neutral": "assets/img/npc/medic.png"
+  },
+  "stats": {
+    "STR": 8,
+    "CON": 10,
+    "SIZ": 9,
+    "DEX": 11,
+    "INT": 14,
+    "POW": 12,
+    "CHA": 11
+  },
+  "skills": {
+    "medicine": 55,
+    "spot": 40,
+    "persuade": 30
+  },
+  "scene_sprite": "assets/img/npc/medic_sprite.png",
+  "equipment": {},
+  "inventory": [
+    {
+      "item": "item_tonic",
+      "quantity": 3
+    },
+    {
+      "item": "item_bandage",
+      "quantity": 5
+    }
+  ],
+  "dialogue": "dialogues/medic.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_lower",
+  "base_disposition": 10,
+  "sounds": {
+    "talk": "sfx_voice"
+  }
+}

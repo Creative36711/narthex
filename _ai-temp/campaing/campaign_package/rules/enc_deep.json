@@ -1,0 +1,79 @@
+{
+  "encounter_tables": [
+    {
+      "id": "enc_deep",
+      "rolls": 1,
+      "entries": [
+        {
+          "weight": 4,
+          "type": "nothing"
+        },
+        {
+          "weight": 3,
+          "type": "combat",
+          "enemies": [
+            {
+              "entity": "npc_rusty",
+              "count_min": 1,
+              "count_max": 2
+            }
+          ],
+          "arena": "arena_deep",
+          "intro": "В темноте кто-то поднимается на звук шагов."
+        },
+        {
+          "weight": 2,
+          "type": "event",
+          "message": "Своды дрожат.",
+          "effects": [
+            {
+              "type": "apply_status",
+              "target": "player",
+              "status": "status_bleed",
+              "duration": 3
+            },
+            {
+              "type": "change_hp",
+              "delta": -2
+            },
+            {
+              "type": "show_message",
+              "text": "С потолка сыплется порода: мелкий камень рассекает плечо."
+            }
+          ]
+        },
+        {
+          "weight": 2,
+          "type": "dialogue",
+          "entity": "npc_quiet"
+        },
+        {
+          "weight": 1,
+          "type": "skill_check",
+          "skill": "stealth",
+          "difficulty": 50,
+          "message": "Впереди слышны шаги.",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Шаги проходят мимо: удалось слиться с крепью."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "start_combat",
+              "enemies": [
+                {
+                  "entity": "npc_quiet",
+                  "count": 1
+                }
+              ],
+              "arena": "arena_deep",
+              "intro": "«Тихая» выходит из темноты навстречу."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

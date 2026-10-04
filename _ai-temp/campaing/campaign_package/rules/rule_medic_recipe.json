@@ -1,0 +1,32 @@
+{
+  "id": "rule_medic_recipe",
+  "label": "Ханна учит осадку",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "unlock_recipe",
+      "recipe": "recipe_tonic"
+    },
+    {
+      "type": "set_flag",
+      "flag": "recipe_tonic_known"
+    },
+    {
+      "type": "change_skill",
+      "skill": "medicine",
+      "delta": 3
+    },
+    {
+      "type": "add_item",
+      "item": "item_herb",
+      "quantity": 2
+    },
+    {
+      "type": "show_message",
+      "text": "Ханна пишет состав на обрывке: «Трава-жгунец, спирт, две части. Не пейте на пустой желудок»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_case"
+}

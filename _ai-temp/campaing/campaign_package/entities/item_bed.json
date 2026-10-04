@@ -1,0 +1,65 @@
+{
+  "id": "item_bed",
+  "type": "item",
+  "category": "misc",
+  "label": "Койка в углу",
+  "description": "Койка за занавеской: пять марок за ночь.",
+  "weight": 1.0,
+  "stackable": false,
+  "slot_type": "prop",
+  "interact_options": [
+    {
+      "label": "Снять койку (5 см)",
+      "hint": "5 серебра, сон до утра",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_silver",
+          "min_quantity": 5
+        }
+      ],
+      "effects": [
+        {
+          "type": "remove_item",
+          "item": "item_silver",
+          "quantity": 5
+        },
+        {
+          "type": "change_hp",
+          "delta": 5
+        },
+        {
+          "type": "change_need",
+          "need": "need_rest",
+          "delta": 80
+        },
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 35
+        },
+        {
+          "type": "change_fatigue",
+          "delta": 30
+        },
+        {
+          "type": "advance_time",
+          "ticks": 8
+        },
+        {
+          "type": "set_flag",
+          "flag": "night_passed"
+        },
+        {
+          "type": "show_message",
+          "text": "Сон под гул Хода — короткий, но честный."
+        }
+      ],
+      "message": "Занавеска закрывается, город остаётся за ней.",
+      "sound": "sfx_cloth"
+    }
+  ],
+  "sounds": {
+    "open": "sfx_cloth"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "id": "rule_camp_ambush",
+  "label": "Ночная вылазка",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_rusty",
+          "count": 1
+        }
+      ],
+      "arena": "arena_lower",
+      "intro": "Лагерь выдают дымом: из темноты идёт ржавый.",
+      "on_victory": [
+        {
+          "type": "meta_currency",
+          "id": "meta_slag",
+          "amount": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Тварь оседает у костра. Смена продолжается."
+        }
+      ]
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_slag"
+}

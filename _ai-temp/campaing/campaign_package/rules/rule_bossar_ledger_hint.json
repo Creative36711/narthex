@@ -1,0 +1,23 @@
+{
+  "id": "rule_bossar_ledger_hint",
+  "label": "Боссар о бумагах Гарна",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_garn",
+      "text_key": "j_track"
+    },
+    {
+      "type": "reveal_location",
+      "location": "loc_deep"
+    },
+    {
+      "type": "show_message",
+      "text": "Боссар кивает в сторону решётки: «Что не сдал на участке — то под рогожей, у третьей крепи. Если не растащили»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_slag"
+}

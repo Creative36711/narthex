@@ -1,0 +1,134 @@
+{
+  "version": 2,
+  "label": "«Тихая»",
+  "nodes": [
+    {
+      "id": "main",
+      "label": "Тёмный штрек",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Уходи. Я подожду наверху."
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Кто тебя послал?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Тот, кто подписывает бумаги. Тот же, кто подписал бумагу на тебя."
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Я не спорю с бумагами. Я их исполняю."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_quiet_talk"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Кого ты уже убила?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Всех, кого подписали. Гарна — не я: его привели мёртвым. Мне приказали найти бумаги, а не человека."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_quiet_garn"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ledger_taken"
+            }
+          ]
+        },
+        {
+          "text": "Я уйду.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Хорошо. Считай, что тебя не было."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_quiet_let_go"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Тогда здесь.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Здесь. Так даже честнее."
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_quiet_fight"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "(молчать и уходить)",
+          "sections": [],
+          "goto": "end"
+        }
+      ],
+      "goto": "end"
+    }
+  ]
+}

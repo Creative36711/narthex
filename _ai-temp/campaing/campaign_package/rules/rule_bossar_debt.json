@@ -1,0 +1,32 @@
+{
+  "id": "rule_bossar_debt",
+  "label": "Допуск в долг",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "deep_pass"
+    },
+    {
+      "type": "set_flag",
+      "flag": "slagger_debt"
+    },
+    {
+      "type": "add_item",
+      "item": "item_permit",
+      "quantity": 1
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_garn",
+      "text_key": "j_pass"
+    },
+    {
+      "type": "show_message",
+      "text": "Боссар усмехается: «Иди. Потом отдашь — или за тобой придут»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_slag"
+}

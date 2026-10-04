@@ -1,0 +1,23 @@
+{
+  "id": "rule_medic_lungs",
+  "label": "Ханна слушает дыхание",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "remove_status",
+      "target": "player",
+      "status": "status_fume"
+    },
+    {
+      "type": "change_hp",
+      "delta": 2
+    },
+    {
+      "type": "show_message",
+      "text": "Ханна прикладывает ухо к спине: «Угар у вас в верхушках. Меняйте уголь в маске каждый день, иначе к зиме станете ходячей трубой»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_deep"
+}

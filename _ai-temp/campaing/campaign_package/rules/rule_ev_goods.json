@@ -1,0 +1,21 @@
+{
+  "id": "rule_ev_goods",
+  "label": "Пропали поставки",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_price_event",
+      "id": "price_blockade"
+    },
+    {
+      "type": "show_message",
+      "text": "Лавки закрываются раньше: в город не пришёл караван, цены пошли вверх."
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_directorate"
+    }
+  ],
+  "manual": true
+}

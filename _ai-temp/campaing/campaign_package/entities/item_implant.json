@@ -1,0 +1,12 @@
+{
+  "id": "item_implant",
+  "type": "item",
+  "category": "evidence",
+  "label": "Латунный вкладыш",
+  "description": "Вкладыш из черепа: тонкая гравировка с номером.",
+  "weight": 0.2,
+  "stackable": false,
+  "sounds": {
+    "pickup": "sfx_metal"
+  }
+}

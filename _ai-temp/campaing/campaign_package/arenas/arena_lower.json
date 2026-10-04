@@ -1,0 +1,101 @@
+{
+  "id": "arena_lower",
+  "label": "Нижняя улица",
+  "image": "",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "hex_grid": {
+    "cols": 12,
+    "rows": 7,
+    "hex_size": 40,
+    "offset": "odd-r",
+    "blocked_hexes": [
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        6
+      ],
+      [
+        8,
+        3
+      ],
+      [
+        9,
+        5
+      ]
+    ],
+    "difficult_terrain": [
+      [
+        5,
+        1
+      ],
+      [
+        5,
+        2
+      ],
+      [
+        6,
+        3
+      ]
+    ],
+    "cover_hexes": [
+      [
+        2,
+        5
+      ],
+      [
+        9,
+        1
+      ]
+    ]
+  },
+  "spawn_zones": {
+    "player": {
+      "hexes": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ]
+      ]
+    },
+    "enemy": {
+      "hexes": [
+        [
+          11,
+          1
+        ],
+        [
+          11,
+          2
+        ],
+        [
+          11,
+          3
+        ],
+        [
+          10,
+          2
+        ],
+        [
+          10,
+          4
+        ]
+      ]
+    }
+  },
+  "ambient_audio": "amb_hum",
+  "music": "music_battle"
+}

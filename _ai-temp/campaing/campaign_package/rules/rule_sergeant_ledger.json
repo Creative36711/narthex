@@ -1,0 +1,24 @@
+{
+  "id": "rule_sergeant_ledger",
+  "label": "Гула о свидетеле",
+  "once": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_lissa",
+      "text_key": "j_found"
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_sergeant",
+      "delta": 10
+    },
+    {
+      "type": "show_message",
+      "text": "Гула стучит пальцем по столу: «Бумага без свидетеля — это макулатура. Медянка ещё жива? Тогда у вас есть шанс»."
+    }
+  ],
+  "manual": true,
+  "chapter": "ch_deep"
+}

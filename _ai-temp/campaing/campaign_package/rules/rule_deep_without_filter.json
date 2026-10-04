@@ -1,0 +1,40 @@
+{
+  "id": "rule_deep_without_filter",
+  "label": "Дыхание без фильтра",
+  "once": true,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "deep_pass"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "filter_known"
+    },
+    {
+      "type": "player_enters_location",
+      "location": "loc_deep"
+    }
+  ],
+  "effects": [
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_fume",
+      "duration": 8
+    },
+    {
+      "type": "set_flag",
+      "flag": "fume_first"
+    },
+    {
+      "type": "show_message",
+      "text": "Угар входит в грудь тёплым дымом. Без фильтр-маски здесь долго не продержаться."
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_rust"
+    }
+  ],
+  "chapter": "ch_deep"
+}

@@ -1,0 +1,264 @@
+{
+  "id": "cutscene_intro",
+  "label": "Пролог: пепельные ворота",
+  "music": "music_menu",
+  "chapter": "ch_prologue",
+  "slides": [
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#1a1512",
+        "layers": [
+          {
+            "label": "пепел",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 300,
+              "rx": 420,
+              "ry": 200,
+              "fill": "#3a322a",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "дорога",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                420,
+                720,
+                560,
+                380,
+                720,
+                380,
+                900,
+                720
+              ],
+              "fill": "#241d18"
+            }
+          },
+          {
+            "label": "ворота",
+            "shape": {
+              "type": "rect",
+              "x": 540,
+              "y": 300,
+              "w": 200,
+              "h": 260,
+              "fill": "#12100e",
+              "stroke": "#c8873a",
+              "stroke_width": 4,
+              "radius": 10
+            }
+          }
+        ]
+      },
+      "text": "Пепельная зима пришла в Медный Ход третью неделю назад. Город грелся об машину, машина — об людей.",
+      "transition": "panzoom",
+      "duration": 7
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#141110",
+        "layers": [
+          {
+            "label": "террасы",
+            "shape": {
+              "type": "rect",
+              "x": 120,
+              "y": 420,
+              "w": 1040,
+              "h": 60,
+              "fill": "#241d18",
+              "stroke": "#6b4f2a",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "трубы",
+            "shape": {
+              "type": "line",
+              "x1": 300,
+              "y1": 300,
+              "x2": 300,
+              "y2": 420,
+              "color": "#6b4f2a",
+              "width": 8
+            }
+          },
+          {
+            "label": "трубы 2",
+            "shape": {
+              "type": "line",
+              "x1": 980,
+              "y1": 250,
+              "x2": 980,
+              "y2": 420,
+              "color": "#6b4f2a",
+              "width": 8
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 200,
+              "rx": 300,
+              "ry": 120,
+              "fill": "#4a3a28",
+              "opacity": 0.35
+            }
+          }
+        ]
+      },
+      "text": "Инспектора Ревизии Гарна достали из шлаковых ям. Лицо ему спилили уже после смерти.",
+      "transition": "fade",
+      "duration": 7
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#0f0d0c",
+        "layers": [
+          {
+            "label": "бумага",
+            "shape": {
+              "type": "rect",
+              "x": 420,
+              "y": 220,
+              "w": 440,
+              "h": 300,
+              "fill": "#d8cfc0",
+              "stroke": "#8a7a63",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "печать",
+            "shape": {
+              "type": "ellipse",
+              "cx": 800,
+              "cy": 460,
+              "rx": 34,
+              "ry": 34,
+              "fill": "#8a2b1f",
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "строки",
+            "shape": {
+              "type": "line",
+              "x1": 460,
+              "y1": 280,
+              "x2": 820,
+              "y2": 280,
+              "color": "#5a5040",
+              "width": 4
+            }
+          },
+          {
+            "label": "строки 2",
+            "shape": {
+              "type": "line",
+              "x1": 460,
+              "y1": 320,
+              "x2": 760,
+              "y2": 320,
+              "color": "#5a5040",
+              "width": 4
+            }
+          },
+          {
+            "label": "строки 3",
+            "shape": {
+              "type": "line",
+              "x1": 460,
+              "y1": 360,
+              "x2": 800,
+              "y2": 360,
+              "color": "#5a5040",
+              "width": 4
+            }
+          }
+        ]
+      },
+      "text": "Дело закрыли за один день — и подписали так, будто торопились забыть.",
+      "transition": "slide",
+      "duration": 7
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#1c1713",
+        "layers": [
+          {
+            "label": "город",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 560,
+              "w": 1280,
+              "h": 160,
+              "fill": "#100d0b"
+            }
+          },
+          {
+            "label": "окна",
+            "shape": {
+              "type": "ellipse",
+              "cx": 300,
+              "cy": 520,
+              "rx": 12,
+              "ry": 8,
+              "fill": "#c8873a",
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "окна 2",
+            "shape": {
+              "type": "ellipse",
+              "cx": 340,
+              "cy": 530,
+              "rx": 10,
+              "ry": 6,
+              "fill": "#c8873a",
+              "opacity": 0.6
+            }
+          },
+          {
+            "label": "окна 3",
+            "shape": {
+              "type": "ellipse",
+              "cx": 900,
+              "cy": 525,
+              "rx": 12,
+              "ry": 8,
+              "fill": "#c8873a",
+              "opacity": 0.7
+            }
+          }
+        ]
+      },
+      "text": "Новый инспектор въехал в город утром, с бумагой и правом задавать вопросы.",
+      "transition": "fade",
+      "duration": 6
+    }
+  ]
+}
