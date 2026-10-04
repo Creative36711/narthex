@@ -136,6 +136,10 @@ function withStatuses(): CampaignData {
     combat.applyStatusTo(player.id, 'status_weak')
     return !player.statuses.some((s) => s.id === 'status_weak')
   })())
+  // детерминизм: тест меряет ТОЛЬКО урон кровотечения — враг обязан
+  // промахнуться (броня 99 гасит обычный удар, но крит иногда её пробивает,
+  // и проверка «−5 HP» падала через раз)
+  ;(e as any).rng = { next: () => 0.99, int: () => 100, chance: () => false, pick: (a: unknown[]) => a[0] }
   const hpBefore = player.hp
   let guard = 0
   while (combat.round < 2 && guard++ < 10 && !combat.result) combat.playerEndTurn()

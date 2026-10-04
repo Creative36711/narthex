@@ -65,7 +65,14 @@ const chestSlot = tavernScene.slots.find((s) => s.id === 'slot_chest') as SlotDe
   const occupant = e.slotOccupants(e.currentScene()!).find((o) => o.slot.id === 'slot_chest')
   check('2 сундук занимает слот', !!occupant?.entity)
   e.interactWithSlot(occupant!)
-  check('2 клик без ключа — описание, а не эффекты', e.messages.some((m) => m.text.includes('Заперт')) && !e.state.flags['tavern_chest_opened'])
+  // описание предмета больше не выводится сообщением при клике (осознанно:
+  // оно живёт в подсказке data-tip, см. interactWithSlot), но клик без ключа
+  // не должен ни открывать сундук, ни тратить предметы
+  const chest = e.campaign.entities['item_locked_chest']
+  check('2 клик без ключа — без эффектов, описание видно в подсказке',
+    !e.state.flags['tavern_chest_opened']
+      && !e.state.removed_entities.includes('item_locked_chest')
+      && !!chest?.description?.includes('Заперт'))
   check('2 неподходящий предмет не применяется', e.useItemOnSlot('slot_chest', 'item_bread') === false)
 }
 

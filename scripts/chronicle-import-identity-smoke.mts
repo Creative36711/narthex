@@ -20,7 +20,13 @@ check('при несовпадающих ID можно выбрать отдел
   editor.includes('Импортировать отдельно') && editor.includes('Обновить открытую'))
 check('при обновлении существующей кампании ID каталога остаётся неизменным',
   editor.includes('store.setCampaignId(stableId)') && editor.includes('автоматически привёл к нему ID'))
-check('отдельный импорт проходит через проверку конфликтов пакетов', editor.includes('importChroniclePackage(file, async (conflict)'))
+// обработчик конфликтов вынесен в именованную resolveChronicleConflict
+// (обновить/копия/отмена) — раньше был инлайн-стрелкой в вызове
+check('отдельный импорт проходит через проверку конфликтов пакетов',
+  editor.includes('importChroniclePackage(file, resolveChronicleConflict)')
+    && editor.includes('resolveChronicleConflict = async (conflict')
+    && editor.includes("return 'update' as const")
+    && editor.includes("return copy ? 'copy' as const : 'cancel' as const"))
 
 console.log(failures ? `FAILED: ${failures}` : 'ALL GREEN')
 if (failures) process.exitCode = 1
