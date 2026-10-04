@@ -260,6 +260,19 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       })
     }
   }
+  // Ink: условие выбора, записанное ПОСЛЕ квадратных скобок, часть сборок
+  // inkjs печатает как текстовую строку («true» посреди разговора, фидбек 27
+  // п.6). Канонично — перед скобками: `+ { cond } [текст]`.
+  for (const [path, text] of store.textFiles) {
+    if (!/^dialogues\/.+\.ink$/.test(path)) continue
+    const bad = text.split('\n').filter((l) => /^\s*\+\s*\[[^\]]*\]\s*\{/.test(l)).length
+    if (bad) {
+      structure.push({
+        severity: 'warning',
+        message: `${path}: условий после квадратных скобок выбора — ${bad}. inkjs может напечатать значение условия строкой в диалоге; перенесите условие перед скобками: «+ { условие } [текст]».`,
+      })
+    }
+  }
   // Правила-«призраки»: после санитарной загрузки массивы всегда на месте,
   // но ручная правка JSON могла их убрать — ловим до выхода в игру.
   for (const p of store.rulePaths()) {

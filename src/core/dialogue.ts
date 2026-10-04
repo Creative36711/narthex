@@ -183,6 +183,14 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('unlock_recipe', (id: string) => { engine.applyEffects([{ type: 'unlock_recipe', recipe: id }]); return 0 })
 }
 
+/**
+ * Строки-«системные литералы»: inkjs некоторых сборок печатает значение
+ * выражения как строку, когда условие записано в текстовой позиции
+ * (например, после квадратных скобок выбора): игрок видит «true» посреди
+ * разговора (фидбек 27, п.6). Такие строки не являются репликами.
+ */
+const SYSTEM_LITERAL_LINE = /^(?:true|false|null|undefined|nan)$/i
+
 /** Прочитать все доступные строки до выбора/конца. */
 export function drainStory(story: Story): { lines: DialogueLine[]; choices: { index: number; text: string }[]; finished: boolean } {
   const lines: DialogueLine[] = []
@@ -190,7 +198,7 @@ export function drainStory(story: Story): { lines: DialogueLine[]; choices: { in
     const text = (story.Continue() ?? '').trim()
     const tags = story.currentTags ?? []
     const { emotion, action, voice } = parseLineTags(tags)
-    if (text) lines.push({ text, emotion, action, voice })
+    if (text && !SYSTEM_LITERAL_LINE.test(text)) lines.push({ text, emotion, action, voice })
   }
   const choices = story.currentChoices.map((c, i) => ({ index: i, text: c.text }))
   return { lines, choices, finished: choices.length === 0 && !story.canContinue }
