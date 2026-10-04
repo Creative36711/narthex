@@ -2957,8 +2957,11 @@ export class GameEngine {
   itemInteractOptions(item: ItemDef): ItemInteractOption[] {
     const itemOptions = item.interact_options ?? []
     return itemOptions.filter((o, index) => {
-      // Фильтруем по условиям
-      if (!o.conditions?.every((c) => evalCondition(c, this))) return false
+      // Фильтруем по условиям; условий нет — вариант доступен всегда.
+      // (Классическая ошибка: `!o.conditions?.every(...)` при отсутствии
+      // условий даёт `!undefined` → вариант молча пропадал, и клик по
+      // предмету «ничего не делал» — фидбек 29, п.7.)
+      if (o.conditions && o.conditions.length > 0 && !o.conditions.every((c) => evalCondition(c, this))) return false
       // Фильтруем одноразовые варианты
       if (o.once) {
         const key = `item:${item.id}:${index}`
