@@ -312,16 +312,19 @@ export function repairState(state: GameState, campaign: CampaignData, ctx: Repor
     p.inventory = []
   }
 
-  // экипировка: слот из реестра кампании + предмет из инвентаря
+  // экипировка: слот из реестра кампании + предмет, существующий в кампании.
+  // Предмет НЕ обязан лежать в инвентаре: шаблонное снаряжение героя
+  // (default_player / шаблоны создания) надевается без копии в инвентаре —
+  // прежняя проверка «есть в инвентаре» снимала его при каждом продолжении
+  // (фидбек 27, п.7: «начал забег, вышел, продолжил — оружие сняли»).
   const slots = equipmentSlots(meta).map((s) => s.id)
-  const owned = new Set(p.inventory.map((e) => e.item))
   if (p.equipment && typeof p.equipment === 'object') {
     const removed: string[] = []
     for (const [slot, item] of Object.entries(p.equipment)) {
       if (!slots.includes(slot)) {
         removed.push(`слот «${slotLabel(meta, slot)}»`)
         delete p.equipment[slot]
-      } else if (!item || !owned.has(item)) {
+      } else if (!item || !ents[item]) {
         removed.push(`${slotLabel(meta, slot)}: ${item ? entityLabel(campaign, item) : 'пусто'}`)
         delete p.equipment[slot]
       }
@@ -521,10 +524,13 @@ export function repairState(state: GameState, campaign: CampaignData, ctx: Repor
     if (state.codex_unlocked.length !== before) ctx.note('repaired', 'Из кодекса убраны записи, которых больше нет в кампании.')
   }
   if (state.dispositions) {
+    // в dispositions живут и значения фракций, и ЛИЧНЫЕ сдвиги к NPC
+    // (getDisposition/changeDisposition берут ключом id цели); фильтрация только
+    // по фракциям стирала личные отношения при каждой загрузке (фидбек 27, п.7)
     const factionIds = new Set((meta.factions ?? []).map((f) => f.id))
-    const keys = Object.keys(state.dispositions).filter((id) => !factionIds.has(id))
+    const keys = Object.keys(state.dispositions).filter((id) => !factionIds.has(id) && !ents[id])
     for (const k of keys) delete state.dispositions[k]
-    if (keys.length) ctx.note('repaired', 'Убраны отношения с фракциями, которых больше нет в кампании.')
+    if (keys.length) ctx.note('repaired', 'Убраны отношения с фракциями и персонажами, которых больше нет в кампании.')
   }
 }
 
