@@ -1,11 +1,16 @@
 import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
 import { FlagSelect, AudioUpload } from './Fields'
 import { META_COUNTER_KEYS } from './schemas'
+import { showList } from '../shared/modals'
+import { inkToDlgDoc } from './inkImport'
+import { DialogueScriptView } from './DialogueScriptView'
+import { DialoguePlaytest } from './DialoguePlaytest'
+import { dlgToScript, scriptToDlg, storeRefs, type ScriptIssue } from './dlgScript'
 
 /** человеческие подписи счётчиков хроники (условие «счётчик хроники») */
 const META_COUNTER_LABELS: Record<string, string> = {
@@ -159,23 +164,101 @@ function condKey(c: DlgCond): string {
 
 // ─────────────── корень конструктора ───────────────
 
+type DlgMode = 'script' | 'form' | 'ink'
+
+/**
+ * Диалог в трёх видах одного документа (фидбек 29):
+ *  • «Сценарий» — мастерский текст словами (по умолчанию, это рабочий вид);
+ *  • «Конструктор» — формы для точной правки структуры;
+ *  • «Служебный ink» — то, что исполняет движок; можно править код и вернуть
+ *    его обратно в формы (импорт).
+ */
 export function DialogueBuilder({ store, path }: { store: EditorStore; path: string }) {
   const dlgPath = path.replace(/\.ink$/, '.dlg.json')
   const raw = store.jsonFiles.get(dlgPath)
   const [nodeIdx, setNodeIdx] = useState(0)
+  const [mode, setMode] = useState<DlgMode>('script')
+  const [playtest, setPlaytest] = useState(false)
   const [, force] = useState(0)
-  if (!raw) return null
-  const doc = migrateDlgDoc(raw)
-  if (doc !== raw) store.jsonFiles.set(dlgPath, doc) // миграция v1 → v2 на месте
+  const [inkDraft, setInkDraft] = useState<string | null>(null)
 
-  const commit = () => {
+  const doc = useMemo(() => (raw ? migrateDlgDoc(raw) : null), [raw])
+  const refs = useMemo(() => storeRefs(store, dlgPath), [store, dlgPath])
+  const [scriptText, setScriptText] = useState<string>(() =>
+    doc ? (doc.script ?? dlgToScript(doc, refs)) : '')
+  const [issues, setIssues] = useState<ScriptIssue[]>([])
+
+  useEffect(() => {
+    if (!doc) return
+    let dirty = doc !== raw // миграция v1 → v2 на месте
+    if (doc.script === undefined) {
+      doc.script = dlgToScript(doc, refs) // разговор пришёл из ink/форм — сразу показываем текстом
+      dirty = true
+    }
+    if (dirty) store.jsonFiles.set(dlgPath, doc)
+  }, [doc, raw, dlgPath, store, refs])
+
+  if (!doc) return null
+
+  const commit = (group = '') => {
     store.textFiles.set(path, generateInk(doc))
-    store.touch(dlgPath)
-    store.touch(path)
+    store.touch(dlgPath, group)
+    store.touch(path, group)
     force((n) => n + 1)
   }
 
-  const node = doc.nodes[Math.min(nodeIdx, doc.nodes.length - 1)]
+  /** флаги, придуманные в сценарии, дописываем в реестр кампании (ремонт молча) */
+  const registerFlags = (list: Array<{ id: string; label: string }>) => {
+    if (!list.length) return
+    const flags = (store.meta.flags ??= [])
+    let added = false
+    for (const f of list) {
+      if (flags.some((x) => x.id === f.id || x.label === f.label)) continue
+      flags.push({ id: f.id, label: f.label, description: `Придуман в разговоре «${doc.label ?? store.dialogueLabel(path)}».` })
+      added = true
+    }
+    if (added) store.touch('campaign.json')
+  }
+
+  /** правка сценария: разбираем текст и обновляем структуру того же документа */
+  const applyScript = (text: string) => {
+    setScriptText(text)
+    const res = scriptToDlg(text, refs, doc)
+    doc.nodes = res.doc.nodes
+    if (res.doc.label !== undefined) doc.label = res.doc.label
+    doc.script = text
+    registerFlags(res.newFlags)
+    setIssues(res.issues)
+    commit('script')
+  }
+
+  /** правка формы: структура изменилась — текст сценария пересобираем */
+  const commitForm = () => {
+    commit()
+    const text = dlgToScript(doc, refs)
+    doc.script = text
+    setScriptText(text)
+    setIssues([])
+  }
+
+  /** правка служебного ink: читаем его обратно в формы и сценарий */
+  const applyInk = () => {
+    const ink = inkDraft ?? store.textFiles.get(path) ?? generateInk(doc)
+    const { doc: imported, warnings } = inkToDlgDoc(ink)
+    doc.nodes = imported.nodes
+    if (imported.label) doc.label = imported.label
+    const text = dlgToScript(doc, refs)
+    doc.script = text
+    setScriptText(text)
+    setIssues([])
+    setInkDraft(null)
+    commit()
+    if (warnings.length) {
+      void showList('Ink прочитан с замечаниями', warnings, 'Строки из списка нужно доделать в конструкторе или в сценарии.')
+    }
+  }
+
+  const node = doc.nodes[Math.min(nodeIdx, Math.max(0, doc.nodes.length - 1))]
   const emotions = emotionsFor(store, path)
 
   const addNode = async () => {
@@ -188,67 +271,124 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       choices: [{ text: 'Назад.', sections: [], goto: doc.nodes[0]?.id ?? 'end' }],
     })
     setNodeIdx(doc.nodes.length - 1)
-    commit()
+    commitForm()
   }
+
+  const counts = { nodes: doc.nodes.length, choices: doc.nodes.reduce((n, x) => n + x.choices.length, 0) }
 
   return (
     <div className="dlg-builder">
-      <div className="dlg-nodes">
-        <label className="fld" style={{ marginBottom: 10 }}>
-          <span>Название диалога</span>
+      <div className="dlg-head">
+        <label className="fld dlg-title-field">
+          <span>Название разговора</span>
           <input
             value={doc.label ?? ''}
             placeholder="например «Алдрик, стражник ворот»"
             onChange={(e) => {
               doc.label = e.target.value || undefined
-              commit()
+              commitForm()
             }}
           />
         </label>
-        <div className="fld-caption">Узлы разговора</div>
-        {doc.nodes.map((n, i) => (
-          <button
-            key={n.id}
-            className={`editor-list-item ${i === nodeIdx ? 'on' : ''}`}
-            onClick={() => setNodeIdx(i)}
-          >
-            {i === 0 ? '' : ''}{n.label}
+        <div className="dlg-tabs">
+          <button className={`btn btn-small ${mode === 'script' ? 'btn-primary' : ''}`} onClick={() => setMode('script')}
+            data-tip="Мастерский текст: реплики, ремарки, варианты, условия и эффекты словами">
+            <Ico n="doc" /> Сценарий
           </button>
-        ))}
-        <div className="editor-list-tools">
-          <button className="btn btn-small" onClick={addNode}>+ узел</button>
-          {nodeIdx > 0 && (
-            <button
-              className="btn btn-small ce-del"
-              onClick={async () => {
-                if (!(await askConfirm(`Удалить узел «${node.label}»?`, 'Удалить'))) return
-                doc.nodes.splice(nodeIdx, 1)
-                setNodeIdx(0)
-                commit()
-              }}
-            >
-              <Ico n="close" /> 
-            </button>
-          )}
-        </div>
-        <div className="muted small" style={{ marginTop: 8 }}>
-          Разговор начинается с первого узла. Ответы ведут в другие узлы, остаются на месте или заканчивают разговор.
+          <button className={`btn btn-small ${mode === 'form' ? 'btn-primary' : ''}`} onClick={() => { setMode('form'); if (!doc.script) commitForm() }}
+            data-tip="Поля и списки: точная правка структуры разговора">
+            <Ico n="edit" /> Конструктор
+          </button>
+          <button className={`btn btn-small ${mode === 'ink' ? 'btn-primary' : ''}`} onClick={() => { setInkDraft(store.textFiles.get(path) ?? generateInk(doc)); setMode('ink') }}
+            data-tip="То, что исполняет движок. Можно править код и вернуть правку в формы">
+            <Ico n="doc" /> Служебный ink
+          </button>
+          <span className="muted small dlg-counts">{counts.nodes} узл., {counts.choices} вариант(ов)</span>
         </div>
       </div>
 
-      <div className="dlg-node-form">
-        {node && <NodeForm key={node.id} node={node} doc={doc} store={store} commit={commit} emotions={emotions} />}
-      </div>
-      <details className="advanced-json">
-        <summary>Ink-исходник (генерируется из конструктора автоматически)</summary>
-        <textarea
-          readOnly
-          rows={14}
-          spellCheck={false}
-          value={store.textFiles.get(path) ?? generateInk(doc)}
-          style={{ width: '100%', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12.5 }}
+      {mode === 'script' && (
+        <DialogueScriptView
+          doc={doc}
+          value={scriptText}
+          issues={issues}
+          onText={applyScript}
+          onPlaytest={() => setPlaytest(true)}
         />
-      </details>
+      )}
+
+      {mode === 'form' && (
+        <div className="dlg-form-wrap">
+          <div className="dlg-nodes">
+            <div className="fld-caption">Узлы разговора</div>
+            {doc.nodes.map((n, i) => (
+              <button
+                key={n.id}
+                className={`editor-list-item ${i === nodeIdx ? 'on' : ''}`}
+                onClick={() => setNodeIdx(i)}
+              >
+                {n.label}
+              </button>
+            ))}
+            <div className="editor-list-tools">
+              <button className="btn btn-small" onClick={addNode}>+ узел</button>
+              {nodeIdx > 0 && (
+                <button
+                  className="btn btn-small ce-del"
+                  onClick={async () => {
+                    if (!(await askConfirm(`Удалить узел «${node!.label}»?`, 'Удалить'))) return
+                    doc.nodes.splice(nodeIdx, 1)
+                    setNodeIdx(0)
+                    commitForm()
+                  }}
+                >
+                  <Ico n="close" />
+                </button>
+              )}
+            </div>
+            <div className="muted small" style={{ marginTop: 8 }}>
+              Разговор начинается с первого узла. Ответы ведут в другие узлы, остаются на месте или заканчивают разговор.
+              Правки формы пересобирают текст сценария.
+            </div>
+          </div>
+
+          <div className="dlg-node-form">
+            {node && <NodeForm key={node.id} node={node} doc={doc} store={store} commit={commitForm} emotions={emotions} />}
+          </div>
+        </div>
+      )}
+
+      {mode === 'ink' && (
+        <div className="dlg-ink">
+          <div className="dlg-script-bar">
+            <button className="btn btn-small" onClick={applyInk} data-tip="Прочитать правки кода обратно в конструктор и сценарий">
+              <Ico n="check" /> Перечитать в формы
+            </button>
+            <button className="btn btn-small" onClick={() => setInkDraft(store.textFiles.get(path) ?? generateInk(doc))} data-tip="Вернуть код, собранный из сценария и форм">
+              <Ico n="sparkle" /> Собрать из форм
+            </button>
+            <span className="muted small">
+              Ink — то, что читает движок. Стрелки, условия в фигурных скобках и `~`-команды здесь служебные:
+              мастеру их знать не нужно, но правку кода можно вернуть в формы этой кнопкой.
+            </span>
+          </div>
+          <textarea
+            value={inkDraft ?? store.textFiles.get(path) ?? generateInk(doc)}
+            spellCheck={false}
+            rows={22}
+            style={{ width: '100%', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12.5 }}
+            onChange={(e) => {
+              setInkDraft(e.target.value)
+              store.textFiles.set(path, e.target.value)
+              store.touch(path, 'ink')
+            }}
+          />
+        </div>
+      )}
+
+      {playtest && (
+        <DialoguePlaytest store={store} path={path} doc={doc} onClose={() => setPlaytest(false)} />
+      )}
     </div>
   )
 }
@@ -490,7 +630,7 @@ function CondFields({ cond: c, store, commit }: { cond: DlgCond; store: EditorSt
             className="journal-key"
             min={0}
             value={c.threshold}
-            title="Порог: навык героя не ниже этого числа"
+            data-tip="Порог: навык героя не ниже этого числа"
             onChange={(e) => ((c.threshold = Math.max(0, Number(e.target.value) || 0)), commit())}
           />
           <span className="muted small">порог</span>
@@ -509,7 +649,7 @@ function CondFields({ cond: c, store, commit }: { cond: DlgCond; store: EditorSt
             className="journal-key"
             min={0}
             value={c.ge}
-            title="Сколько раз/штук минимум"
+            data-tip="Сколько раз/штук минимум"
             onChange={(e) => ((c.ge = Math.max(0, Number(e.target.value) || 0)), commit())}
           />
           <span className="muted small">не меньше</span>
