@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { GameEngine } from '../core/engine'
+import { clearDialogueCache } from '../core/dialogue'
 import type { CampaignData, DlgDoc, NpcDef } from '../shared/types'
 import { profileClass, atmosphereOn } from '../shared/profiles'
 import { themeVars } from '../shared/theme'
@@ -124,6 +125,7 @@ export function DialoguePlaytest({
 
   const start = (keepState = false) => {
     const previous = keepState ? engineRef.current : null
+    clearDialogueCache()
     setError(null)
     try {
       const built = buildDialoguePlaytest(store, path, previous)
@@ -131,7 +133,9 @@ export function DialoguePlaytest({
       setCampaign(built.campaign)
       setEngine(built.engine)
       setNpcId(built.npcId)
-      if (!built.engine.dialogue) setError('Разговор сразу завершился: проверьте первый узел и эффекты, которые закрывают диалог (торговля, правило, конец).')
+      if (!built.engine.dialogue) {
+        setError(built.engine.lastDialogueError || 'Разговор сразу завершился: проверьте первый узел и эффекты, которые закрывают диалог (торговля, правило, конец).')
+      }
     } catch (err) {
       setError(`Не удалось собрать кампанию для проверки: ${err instanceof Error ? err.message : String(err)}`)
     }

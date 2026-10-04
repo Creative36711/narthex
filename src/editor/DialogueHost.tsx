@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { EditorStore } from './store'
 import { inkToDlgDoc } from './inkImport'
 import { DialogueBuilder } from './DialogueBuilder'
-import { InkEditor } from './MonacoEditors'
 import { Ico } from '../shared/icons'
+
+const InkEditorLazy = lazy(() => import('./MonacoEditors').then((m) => ({ default: m.InkEditor })))
 
 /**
  * Хост диалога: если у .ink есть визуальная модель (dlg.json) — конструктор;
@@ -63,7 +64,9 @@ export function DialogueHost({ store, path }: { store: EditorStore; path: string
           </button>
         </div>
       )}
-      <InkEditor key={path} store={store} path={path} />
+      <Suspense fallback={<div className="dlg-script-loading">Загрузка редактора кода…</div>}>
+        <InkEditorLazy key={path} store={store} path={path} />
+      </Suspense>
     </>
   )
 }

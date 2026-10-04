@@ -185,6 +185,14 @@ function registerNewFlags(store: EditorStore, list: Array<{ id: string; label: s
 
 type DlgMode = 'script' | 'form' | 'ink'
 
+let lastDlgMode: DlgMode = (() => {
+  try {
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('cf_dlg_mode') : null
+    if (saved === 'script' || saved === 'form' || saved === 'ink') return saved
+  } catch {}
+  return 'script'
+})()
+
 /**
  * Диалог в трёх видах одного документа (фидбек 29):
  *  • «Сценарий» — мастерский текст словами (по умолчанию, это рабочий вид);
@@ -196,7 +204,14 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
   const dlgPath = path.replace(/\.ink$/, '.dlg.json')
   const raw = store.jsonFiles.get(dlgPath)
   const [nodeIdx, setNodeIdx] = useState(0)
-  const [mode, setMode] = useState<DlgMode>('script')
+  const [mode, setModeState] = useState<DlgMode>(lastDlgMode)
+  const setMode = (m: DlgMode) => {
+    lastDlgMode = m
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.setItem('cf_dlg_mode', m)
+    } catch {}
+    setModeState(m)
+  }
   const [playtest, setPlaytest] = useState(false)
   const [, force] = useState(0)
 

@@ -49,6 +49,11 @@ function parseCondToken(token: string, warnings: string[], where: string): DlgCo
   if (m) return { type: 'weather_is', weather: m[2], not: !!m[1] || undefined }
   m = /^get_skill\("([^"]+)"\)\s*(>=|<)\s*(-?\d+)$/.exec(t)
   if (m) return { type: 'skill_ge', skill: m[1], threshold: Number(m[3]), not: m[2] === '<' || undefined }
+  m = /^get_currency\("([^"]+)"\)\s*(>=|<)\s*(-?\d+)$/.exec(t)
+  if (m) {
+    const item = m[1] === 'mark' ? 'item_mark' : (m[1].startsWith('item_') ? m[1] : `item_${m[1]}`)
+    return { type: 'item_ge', item, count: Number(m[3]), not: m[2] === '<' || undefined }
+  }
   // счётчик хроники: равенства переводим в «не ниже», строгие — в «> N» = «>= N+1»
   m = /^get_meta_counter\("([^"]+)"\)\s*(>=|>|<|<=)\s*(-?\d+)$/.exec(t)
   if (m) {
@@ -185,12 +190,17 @@ function dedent(arr: string[]): string[] {
 }
 
 /** «-> где» → семантика конструктора */
-export function mapGoto(targetRaw: string | undefined, nodeId: string, fallback?: string): string {
+export function mapGoto(targetRaw: string | undefined, nodeId: string, fallback?: string, hubName?: string): string {
   if (!targetRaw) return fallback ?? 'stay'
   const t = targetRaw.trim()
   if (t === 'DONE' || t === 'END') return 'end'
-  if (t === `${nodeId}_hub` || t === nodeId) return 'stay'
-  if (t.endsWith('_hub')) return t.replace(/_hub$/, '')
+  if (t === `${nodeId}_hub` || t === nodeId || t === 'hub' || (hubName && t === hubName)) return 'stay'
+  if (t.endsWith('_hub')) {
+    const base = t.replace(/_hub$/, '')
+    if (base === nodeId || (nodeId.endsWith('_talk') && nodeId.replace(/_talk$/, '') === base)) return 'stay'
+    return base
+  }
+  if (nodeId.endsWith('_talk') && nodeId.replace(/_talk$/, '') === t) return 'stay'
   return t
 }
 
@@ -262,7 +272,6 @@ function parseFlow(lines: string[], warnings: string[], where: string): Flow {
         continue
       }
       if (/^~\s*set_dialogue_timer\b/.test(trimmed)) {
-        warnings.push(`${where}: дедлайн на раздумье «${trimmed.slice(0, 50)}…» стоит не у узла с ответами — перенесите его в узел «${where.replace(/^узел\s+/, '')}_hub» (или к вариантам ответа)`)
         i++
         continue
       }
@@ -422,13 +431,18 @@ function extractSkillCheck(lines: string[], warnings: string[], where: string): 
   }
 }
 
-function parseChoice(raw: RawChoice, nodeId: string, warnings: string[], where: string): DlgChoice {
-  const hm = /^([+*])\s*(?:(\{.*\})\s*)?\[(.*)\]\s*$/.exec(raw.head)
+function parseChoice(raw: RawChoice, nodeId: string, warnings: string[], where: string, hubName?: string): DlgChoice {
+  const hm = /^([+*])\s*(?:(\{.*?\})\s*)?\[(.*?)\](?:\s*(\{.*?\}))?\s*$/.exec(raw.head)
   if (!hm) {
     warnings.push(`${where}: заголовок ответа не разобран`)
     return { text: raw.head.replace(/^[+*]\s*/, '').slice(0, 60), sections: [], goto: 'stay' }
   }
-  const conds = hm[2] ? parseConds(hm[2].replace(/^\{/, '').replace(/\}$/, ''), warnings, where) : undefined
+  const condRaw = [hm[2], hm[4]]
+    .filter(Boolean)
+    .map((s) => s.replace(/^\{/, '').replace(/\}$/, '').trim())
+    .filter((s) => s && s !== 'true')
+    .join(' && ')
+  const conds = condRaw ? parseConds(condRaw, warnings, where) : undefined
   const { head, rest, check } = extractSkillCheck(raw.bodyLines, warnings, where)
 
   const headFlow = parseFlow(head, warnings, `${where} (ответ)`)
@@ -445,7 +459,7 @@ function parseChoice(raw: RawChoice, nodeId: string, warnings: string[], where: 
     conds: conds?.length ? conds : undefined,
     once: raw.once || undefined,
     sections,
-    goto: mapGoto(choiceTrailing, nodeId),
+    goto: mapGoto(choiceTrailing, nodeId, 'stay', hubName),
   }
   if (check) {
     choice.check = {
@@ -480,6 +494,69 @@ export function extractDialogueTimer(lines: string[]): { seconds: number; node?:
   return null
 }
 
+const KNOT_TRANSLATIONS: Record<string, string> = {
+  main: 'Начало разговора',
+  hub: 'Варианты ответов',
+  start: 'Начало разговора',
+  intro: 'Вступление',
+  talk: 'Разговор',
+  guard: 'Охрана / Стража',
+  fight: 'Стычка / Бой',
+  choice: 'Выбор',
+  hesitate: 'Колебания',
+  dead: 'Гибель',
+  hide: 'Укрытие',
+  rescued: 'Спасение',
+  rescue: 'Спасение',
+  knife: 'Угроза ножом',
+  silence: 'Молчание',
+  hurry: 'Спешка',
+  price: 'Цена и оплата',
+  trade: 'Торговля',
+  deal: 'Сделка',
+  refuse: 'Отказ',
+  agree: 'Согласие',
+  leave: 'Уход',
+  exit: 'Завершение',
+  end: 'Конец разговора',
+  wait: 'Ожидание',
+  wait_talk: 'Ожидание',
+  wait_hub: 'Варианты ожидания',
+  body: 'Осмотр тела',
+  body_talk: 'Осмотр тела',
+  body_hub: 'Варианты осмотра',
+  ledger_paths: 'Пути гроссбуха',
+  ledger_choice: 'Судьба гроссбуха',
+  klein_dead: 'Гибель Кляйна',
+  klein_argue: 'Спор с Кляйном',
+  klein_hub: 'Разговор с Кляйном',
+  question: 'Вопрос',
+  answers: 'Ответы',
+}
+
+function humanizeKnotLabel(knotName: string, lines?: string[]): string {
+  const clean = knotName.toLowerCase()
+  if (KNOT_TRANSLATIONS[clean]) return KNOT_TRANSLATIONS[clean]
+  const base = clean.replace(/(_hub|_talk)$/, '')
+  if (KNOT_TRANSLATIONS[base]) return KNOT_TRANSLATIONS[base]
+  if (lines) {
+    for (const l of lines.slice(0, 3)) {
+      const cm = /^\/\/\s*(.+)$/.exec(l.trim())
+      if (cm && cm[1].length <= 50 && !cm[1].startsWith('EXTERNAL') && !cm[1].includes('{') && !cm[1].includes('->')) {
+        const text = cm[1].trim()
+        return text[0].toUpperCase() + text.slice(1)
+      }
+    }
+  }
+  let res = knotName.replace(/_/g, ' ')
+  for (const [en, ru] of Object.entries(KNOT_TRANSLATIONS)) {
+    if (en.length > 3 && res.toLowerCase().includes(en)) {
+      res = res.replace(new RegExp(en, 'gi'), ru)
+    }
+  }
+  return res[0].toUpperCase() + res.slice(1)
+}
+
 export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
   const warnings: string[] = []
   const doc: DlgDoc = newDlgDoc(label)
@@ -503,47 +580,65 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
   /** узел с ответами: строки вида `+ [текст]` / `* {условие} [текст]` */
   const hasChoices = (k: { lines: string[] }) => k.lines.some((l) => /^[+*]\s/.test(l.trim()))
 
+  const hubOf = new Map<string, Knot>()
+  const claimedHubs = new Set<string>()
+
   for (const knot of knots) {
-    const isHub = knot.name.endsWith('_hub') && byName.has(knot.name.replace(/_hub$/, ''))
-    if (isHub) continue
-    const hub = byName.get(`${knot.name}_hub`)
-    // Рукописный ink часто держит ответы в отдельном узле с ЛЮБЫМ именем
-    // («hub», «ответы», «topics») и возвращает туда `-> hub`. Конструктору
-    // такой узел — полноценный узел с ответами: вводные строки (ремарки,
-    // эффекты, таймер) идут в секции, `+`/`*` — в варианты. Без этого
-    // авторазбор превращал варианты в мусорные реплики (фидбек 29, п.4).
+    // Автосклеивание только для пар вида X и X_hub (или X_talk и X_hub)
+    if (knot.name.endsWith('_hub')) continue
+    let h = byName.get(`${knot.name}_hub`)
+    if (!h && knot.name.endsWith('_talk')) {
+      h = byName.get(`${knot.name.replace(/_talk$/, '')}_hub`)
+    }
+    if (h && h.name !== knot.name) {
+      hubOf.set(knot.name, h)
+      claimedHubs.add(h.name)
+    }
+  }
+
+  for (const knot of knots) {
+    if (claimedHubs.has(knot.name)) continue
+    const hub = hubOf.get(knot.name)
+    const selfTimer = extractDialogueTimer(knot.lines)
+
     if (!hub && hasChoices(knot)) {
-      const timer = extractDialogueTimer(knot.lines)
       const first = knot.lines.findIndex((l) => /^[+*]\s/.test(l.trim()))
       const lead = parseFlow(knot.lines.slice(0, first), warnings, `узел ${knot.name}`)
+      const normId = knot.name.endsWith('_hub') && !byName.has(knot.name.replace(/_hub$/, ''))
+        ? knot.name.replace(/_hub$/, '')
+        : knot.name
       const node: DlgNode = {
-        id: knot.name,
-        label: knot.name === 'hub' ? 'Варианты ответов' : knot.name.replace(/_/g, ' '),
+        id: normId,
+        label: doc.nodes.length === 0 ? 'Начало разговора' : humanizeKnotLabel(knot.name, knot.lines),
         sections: flowToSections(lead, knot.name),
         choices: [],
       }
-      if (timer) node.timer = timer
+      if (selfTimer) node.timer = selfTimer
       const raws = splitChoices(knot.lines.slice(first), warnings, `узел ${knot.name}`)
       node.choices = raws.map((c) => parseChoice(c, knot.name, warnings, `ответ «${c.head.slice(0, 40)}»`))
       doc.nodes.push(node)
       continue
     }
+
     const flow = parseFlow(knot.lines, warnings, `узел ${knot.name}`)
     const sections = flowToSections(flow, knot.name)
+    const normId = knot.name.endsWith('_hub') && !byName.has(knot.name.replace(/_hub$/, ''))
+      ? knot.name.replace(/_hub$/, '')
+      : knot.name
     const node: DlgNode = {
-      id: knot.name,
-      label: doc.nodes.length === 0 ? 'Начало разговора' : knot.name.replace(/_/g, ' '),
+      id: normId,
+      label: doc.nodes.length === 0 ? 'Начало разговора' : humanizeKnotLabel(knot.name, knot.lines),
       sections,
       choices: [],
     }
+    if (selfTimer) node.timer = selfTimer
+
     if (hub) {
-      const timer = extractDialogueTimer(hub.lines)
-      if (timer) node.timer = timer
+      const hubTimer = extractDialogueTimer(hub.lines)
+      if (hubTimer) node.timer = hubTimer
       const raws = splitChoices(hub.lines, warnings, `узел ${knot.name}`)
-      node.choices = raws.map((c) => parseChoice(c, knot.name, warnings, `ответ «${c.head.slice(0, 40)}»`))
-      // хвост узла перед хабом повторяется генератором автоматически: не переносим,
-      // но иной (не в хаб) переход — редкий; фиксируем
-      if (flow.tail && flow.tail !== `${knot.name}_hub`) {
+      node.choices = raws.map((c) => parseChoice(c, knot.name, warnings, `ответ «${c.head.slice(0, 40)}»`, hub?.name))
+      if (flow.tail && flow.tail !== hub.name && flow.tail !== `${knot.name}_hub`) {
         warnings.push(`узел ${knot.name}: переход «-> ${flow.tail}» до ответов не сохранился в модели (конструктор всегда ведёт в ответы)`)
       }
     } else {
@@ -555,12 +650,12 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
 
   // хабы без родителя сиротами — собираем как самостоятельные узлы ответов
   for (const knot of knots) {
-    if (knot.name.endsWith('_hub') && !byName.has(knot.name.replace(/_hub$/, ''))) {
+    if (knot.name.endsWith('_hub') && !claimedHubs.has(knot.name) && !doc.nodes.some((n) => n.id === knot.name || n.id === knot.name.replace(/_hub$/, ''))) {
       warnings.push(`хаб «${knot.name}» без одноимённого узла — перенесён отдельно`)
       const raws = splitChoices(knot.lines, warnings, `хаб ${knot.name}`)
       doc.nodes.push({
         id: knot.name,
-        label: knot.name.replace(/_/g, ' '),
+        label: humanizeKnotLabel(knot.name, knot.lines),
         sections: [],
         choices: raws.map((c) => parseChoice(c, knot.name, warnings, `ответ «${c.head.slice(0, 40)}»`)),
       })

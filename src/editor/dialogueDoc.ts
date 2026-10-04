@@ -446,7 +446,7 @@ export function generateInk(docRaw: DlgDoc): string {
     'change_need', 'change_hp', 'get_hp', 'sleep', 'get_need', 'get_stat', 'get_skill',
     'play_cutscene',
     // DlgEffect, добавленные позже блоков статусов/погоды/кодекса/рецептов
-    'set_description', 'apply_status', 'remove_status', 'set_weather',
+    'set_description', 'set_entity_state', 'apply_status', 'remove_status', 'set_weather',
     'unlock_codex', 'unlock_recipe', 'open_craft', 'set_dialogue_timer',
     // токены реплик ({имя}, {здоровье_макс}, …) — без EXTERNAL inkjs не компилирует
     'get_player_name', 'get_hp_max', 'get_mp', 'get_mp_max', 'get_luck',
@@ -460,7 +460,7 @@ export function generateInk(docRaw: DlgDoc): string {
     change_need: '(id, d)', change_hp: '(d)', get_hp: '()', sleep: '(t)',
     get_need: '(id)', get_stat: '(s)', get_skill: '(s)',
     play_cutscene: '(id)',
-    set_description: '(id, t)', apply_status: '(id, d)', remove_status: '(id)',
+    set_description: '(id, t)', set_entity_state: '(e, s)', apply_status: '(id, d)', remove_status: '(id)',
     set_weather: '(id)', unlock_codex: '(id)', unlock_recipe: '(id)', open_craft: '(id)',
     set_dialogue_timer: '(s, t)',
     get_player_name: '()', get_hp_max: '()', get_mp: '()', get_mp_max: '()',

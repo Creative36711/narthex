@@ -2796,19 +2796,31 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               >
                 <option value="">+ добавить звук…</option>
                 {(m.sounds ?? [])
-                  .filter((s) => !(w.ambient ?? []).includes(s.id))
+                  .filter((s) => !(w.ambient ?? []).includes(s.id) && !(w.ambient ?? []).includes(s.id.replace(/^sfx_/, 'snd_')) && !(w.ambient ?? []).includes(s.id.replace(/^snd_/, 'sfx_')))
                   .map((s) => (
                     <option key={s.id} value={s.id}>{s.label || s.id}</option>
                   ))}
               </select>
             </label>
             <div className="chips">
-              {(w.ambient ?? []).map((id) => (
-                <span key={id} className="chip">
-                  {(m.sounds ?? []).find((s) => s.id === id)?.label || id}
-                  <button className="chip-del" data-tip="Убрать звук" onClick={() => ((w.ambient = (w.ambient ?? []).filter((x) => x !== id)), commit())}><Ico n="close" /> </button>
-                </span>
-              ))}
+              {(w.ambient ?? []).map((id) => {
+                const sl = (sounds?: Array<{ id: string; label?: string }>) => {
+                  const exact = (sounds ?? []).find((s) => s.id === id)
+                  if (exact) return exact.label || exact.id
+                  const alt = id.startsWith('snd_') ? id.replace(/^snd_/, 'sfx_') : id.startsWith('sfx_') ? id.replace(/^sfx_/, 'snd_') : ''
+                  if (alt) {
+                    const found = (sounds ?? []).find((s) => s.id === alt)
+                    if (found) return found.label || found.id
+                  }
+                  return id.replace(/^(snd_|sfx_)/, '').replace(/_/g, ' ')
+                }
+                return (
+                  <span key={id} className="chip">
+                    {sl(m.sounds)}
+                    <button className="chip-del" data-tip="Убрать звук" onClick={() => ((w.ambient = (w.ambient ?? []).filter((x) => x !== id)), commit())}><Ico n="close" /> </button>
+                  </span>
+                )
+              })}
             </div>
             <div className="fld-row" style={{ flexWrap: 'wrap' }} data-tip="Влияние этой погоды на бой: действует на обе стороны">
               <label className="fld fld-num" data-tip="Общий штраф всему движению (и бойцам игрока, и врагам); итог не ниже 1">

@@ -542,6 +542,18 @@ export class EditorStore {
   migrateContent(): string[] {
     const notes: string[] = []
     migrateMeta(this.meta)
+
+    // автосопоставление алиасов звуков погоды (snd_ <-> sfx_)
+    const soundIds = new Set((this.meta.sounds ?? []).map((s) => s.id))
+    for (const w of this.meta.weathers ?? []) {
+      if (!w.ambient?.length) continue
+      w.ambient = w.ambient.map((id) => {
+        if (soundIds.has(id)) return id
+        const alt = id.startsWith('snd_') ? id.replace(/^snd_/, 'sfx_') : id.startsWith('sfx_') ? id.replace(/^sfx_/, 'snd_') : ''
+        return alt && soundIds.has(alt) ? alt : id
+      })
+    }
+
     for (const p of this.scenePaths()) {
       const sc = this.scene(p)
       if (!sc) continue

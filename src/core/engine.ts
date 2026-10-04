@@ -95,6 +95,8 @@ export class GameEngine {
   /** таймер, объявленный ink-ом в текущем проходе до показа выбора */
   private pendingDialogueTimer: { seconds: number; knot?: string } | null = null
   combat: CombatController | null = null
+  /** последняя ошибка запуска диалога (компиляция / отсутствующий узел) — для отладки и плейтеста */
+  lastDialogueError: string | null = null
   /** открытая торговля: id NPC-торговца */
   trade: NpcDef | null = null
   /**
@@ -3148,11 +3150,13 @@ export class GameEngine {
     // однократные `*`-ветки исчезают до конца разговора и возвращаются в новом,
     // а «навсегда» вещи хранятся только во флагах. (фидбек №3)
     let story: Story
+    this.lastDialogueError = null
     try {
       story = createStory(source, dialogueKey)
     } catch (err) {
       // битый ink не должен валить весь рантайм: сообщение мастеру/игроку и выход
       const msg = err instanceof Error ? err.message : String(err)
+      this.lastDialogueError = msg
       this.pushLog(`Диалог «${dialogueKey}» не скомпилировался.`)
       this.messages.push({ text: `Диалог недоступен (${npc.label}).` })
       console.error(msg)
@@ -3168,10 +3172,14 @@ export class GameEngine {
       story.ChoosePathString(entryKnot)
     } catch {
       const fallback = firstInkKnot(source)
-      if (!fallback || fallback === entryKnot) return
+      if (!fallback || fallback === entryKnot) {
+        this.lastDialogueError = `Узел «${entryKnot}» не найден в диалоге «${dialogueKey}».`
+        return
+      }
       try {
         story.ChoosePathString(fallback)
       } catch {
+        this.lastDialogueError = `Стартовый узел «${fallback}» не найден в диалоге «${dialogueKey}».`
         return
       }
     }

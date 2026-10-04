@@ -1,4 +1,4 @@
-import { Compiler, Story } from 'inkjs/full'
+import { Compiler, Story, type CompilerOptions } from 'inkjs/full'
 import type { GameEngine } from './engine'
 import type { NpcDef } from '../shared/types'
 
@@ -54,13 +54,19 @@ const jsonCache = new Map<string, string>()
 export function createStory(source: string, cacheKey: string): Story {
   let json = jsonCache.get(cacheKey)
   if (!json) {
+    const errors: string[] = []
     try {
-      const compiled = new Compiler(source).Compile()
+      const compiler = new Compiler(source, {
+        errorHandler: (msg: string, type: unknown) => {
+          if (type === 2 || String(type).toLowerCase().includes('error')) errors.push(msg)
+        },
+      } as unknown as CompilerOptions)
+      const compiled = compiler.Compile()
       json = compiled.ToJson() ?? ''
     } catch (err) {
       // inkjs часто бросает голое «Compilation failed» без строк — добавим ключ
-      // и хвост исходника, чтобы мастер/плейтест видел, какой диалог сломан.
-      const hint = err instanceof Error ? err.message : String(err)
+      // и подробный список ошибок компилятора, чтобы мастер видел строку и причину.
+      const hint = errors.length ? errors.join('; ') : (err instanceof Error ? err.message : String(err))
       const preview = source.split('\n').slice(0, 40).join('\n')
       throw new Error(`Ink «${cacheKey}»: ${hint}\n--- ink preview ---\n${preview}\n---`)
     }
