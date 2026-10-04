@@ -105,7 +105,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {engine.stealthEnabled() && (
           <button
             className={`hud-stealth-toggle stealth-${engine.isDetected() ? 'detected' : engine.isSneaking() ? 'sneaking' : 'open'}`}
-            data-tip={`Скрытность: крадущееся передвижение.\n🎲 Ваш навык: ${engine.playerSkill('stealth')}.\nПри смене сцены — автоматическая проверка против лучшей внимательности NPC.\n⚔️ Бой из скрытности: первый раунд за вами!`}
+            data-tip={`Скрытность: крадущееся передвижение.\nВаш навык: ${engine.playerSkill('stealth')}.\nПри смене сцены — автоматическая проверка против лучшей внимательности NPC.\nБой из скрытности: первый раунд за вами!`}
             onClick={() => engine.toggleSneak()}
             role="button"
             aria-label={`Скрытность: ${engine.isSneaking() ? (engine.isDetected() ? 'Замечен!' : 'Крадётесь') : 'Открыто'}`}

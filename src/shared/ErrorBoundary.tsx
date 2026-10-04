@@ -63,7 +63,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
               Перезапустить страницу
             </button>
             <button className="btn" onClick={() => void this.copy()} data-tip="Скопировать текст сбоя целиком">
-              {this.state.copied ? 'Скопировано ✓' : 'Скопировать текст ошибки'}
+              {this.state.copied ? 'Скопировано' : 'Скопировать текст ошибки'}
             </button>
           </div>
         </div>

@@ -2622,7 +2622,7 @@ input[type='checkbox'], input[type='radio'] {
   color: var(--gold-bright);
   font-size: 0.78rem;
   letter-spacing: 0.04em;
-  cursor: pointer;
+  cursor: var(--cur-pointer);
   transition: all 0.15s ease;
 }
 .hud-status-chip:hover {

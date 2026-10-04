@@ -70,9 +70,10 @@ must(cellar.hex_grid.blocked_hexes.length > 20,
 must(hud.includes('n="exit"') && !hud.includes('⏻'),
   '10 «Выход» в HUD — иконка-дверь, не глиф-квадрат')
 
-// 11 — поле урона оружия
-must(css.includes('.dmg-row') && css.includes("width: 96px") && ent.includes('dmg-row'),
-  '11 урон оружия: нормальный ряд полей (достаточная ширина)')
+// 11 — поле урона оружия (ряд «N × dN + мод» переехал в общий DiceNotationInput;
+// ширины стали компактными по фидбеку 27, п.3 — проверяем структуру, не числа)
+must(css.includes('.dmg-row') && css.includes('dmg-summary') && ent.includes('DiceNotationInput'),
+  '11 урон оружия: структурный ряд полей вместо текста')
 
 console.log(fails ? `ПРОВАЛЕНО: ${fails}` : 'ALL GREEN')
 if (fails) process.exitCode = 1
