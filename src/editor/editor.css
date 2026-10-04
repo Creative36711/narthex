@@ -353,6 +353,16 @@
   box-sizing: border-box;
 }
 .fld-check input, .fld-inline input { width: auto; }
+/* Ряд «N × dN + мод» (DiceNotationInput): в редакторе общее правило
+   `.fld select { width: 100% }` растягивало селекты на всю колонку и ряд
+   складывался в столбик (фидбек 27, п.3). Держим компактные ширины. */
+.dmg-row select,
+.dmg-row input[type='number'] { width: auto; }
+.dmg-row select { min-width: 56px; max-width: 92px; }
+.dmg-row input[type='number'] { width: 76px; }
+.fld-row .fld-dmg { flex: 0 1 auto; min-width: 0; }
+.fld-dmg .dmg-row { min-width: 0; }
+.fld-row .fld-dmg-compact { flex: 1 1 190px; }
 .fld-inline input { flex: 1; min-width: 60px; }
 .fld-err { color: var(--ed-danger); font-style: normal; }
 .fld input[type='checkbox'], .fld input[type='radio'] { accent-color: var(--ed-select); }

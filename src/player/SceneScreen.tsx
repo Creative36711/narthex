@@ -60,7 +60,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
     <div className="scene-wrap">
       <div className="scene-header">
         <span className="scene-location">{loc?.location.label}</span>
-        <span className="scene-name">{scene.label} — {state.label}</span>
+        {/* сцена часто называется по локации («Западные ворота»): не дублируем
+            имя локации в подзаголовке (фидбек 27, п.8) */}
+        <span className="scene-name">
+          {scene.label === loc?.location.label ? state.label : `${scene.label} — ${state.label}`}
+        </span>
       </div>
       {/* сцена занимает всё оставшееся место без прокрутки: ширина и высота —
           от контейнера, картинка растягивается (object-fit: fill) */}
