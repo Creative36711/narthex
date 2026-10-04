@@ -166,6 +166,14 @@
         "label": {
           "type": "string"
         },
+        "description": {
+          "type": "string",
+          "description": "Описание потребности для игрока (показывается в тултипе)"
+        },
+        "short_label": {
+          "type": "string",
+          "description": "Короткая подпись для компактного отображения в HUD"
+        },
         "max": {
           "type": "number"
         },
@@ -2063,6 +2071,10 @@
         "label": {
           "type": "string"
         },
+        "short_label": {
+          "type": "string",
+          "description": "Короткая подпись для компактного отображения в HUD"
+        },
         "description": {
           "type": "string"
         },
@@ -3856,7 +3868,7 @@
             },
             "title_art": {
               "type": "string",
-              "description": "арт/лого кампании над заголовком"
+              "description": "арт/лого кампании над заголовком. ОБЯЗАТЕЛЬНО прозрачный фон (PNG с\nальфой): арт лежит поверх фона меню, с фоном выглядит чёрным квадратом."
             }
           },
           "additionalProperties": false
@@ -5592,7 +5604,8 @@
                 "type": "string"
               },
               "description": {
-                "type": "string"
+                "type": "string",
+                "description": "для чего нужен: какое событие запоминает и где читается (правила,\nдиалоги, квесты). Для ИИ-кампаний ОБЯЗАТЕЛЬНОЕ поле (требование чемодана)."
               }
             },
             "required": [
@@ -6658,7 +6671,7 @@
         },
         "scene_sprite": {
           "$ref": "#/$defs/ImageValue",
-          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);\nнет — в сцене используется портрет (состояние «Обычный»).\nМожно цикл кадров (ImageValue) — «живой» спрайт."
+          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG, ОБЯЗАТЕЛЬНО);\nнет — в сцене используется портрет (состояние «Обычный»).\nМожно цикл кадров (ImageValue) — «живой» спрайт."
         },
         "scene_sprite_states": {
           "type": "object",
@@ -6669,7 +6682,7 @@
         },
         "combat_figure": {
           "$ref": "#/$defs/ImageValue",
-          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`.\nМожно цикл кадров (ImageValue)."
+          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); прозрачный фон ОБЯЗАТЕЛЕН; нет — круглый жетон из\n`token ?? portrait.neutral`. Можно цикл кадров (ImageValue)."
         },
         "combat_figure_states": {
           "type": "object",
@@ -6864,6 +6877,10 @@
         "consume": {
           "type": "boolean",
           "description": "после применения предмет исчезает со сцены"
+        },
+        "once": {
+          "type": "boolean",
+          "description": "одноразовый вариант: исчезает после выбора (в текущем забеге)"
         },
         "message": {
           "type": "string",
@@ -7062,7 +7079,8 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/Condition"
-          }
+          },
+          "description": "УСЛОВИЯ правила (все должны выполниться). Обязательный массив; пустой —\nправило срабатывает при каждой проверке (если не once/manual).\nОтсутствие поля ломает движок при старте забега."
         },
         "conditions_any": {
           "type": "array",
@@ -7078,7 +7096,8 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/Effect"
-          }
+          },
+          "description": "ЭФФЕКТЫ правила по порядку. Обязательный массив (пустой — правило-пустышка).\nОтсутствие поля ломает движок при старте забега."
         },
         "chapter": {
           "type": "string",
@@ -8675,7 +8694,8 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "файлы ПРАВИЛ (RuleDef: id/label/once/conditions/effects). Файлы таблиц встреч\n(`encounter_tables`) сюда НЕ перечисляют — только в `encounters`."
         },
         "arenas": {
           "type": "array",
@@ -8693,7 +8713,8 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "файлы-обёртки таблиц встреч `{ encounter_tables: [...] }`: сами лежат в\nкаталоге rules/, но перечисляются ТОЛЬКО здесь (дыра: дубль в `rules`\nдавал «правило» без id/conditions и ронял движок и редактор)."
         },
         "cutscenes": {
           "type": "array",
