@@ -663,7 +663,9 @@ export function RefSelect({
         value={value}
         onChange={(e) => onChange(e.target.value === '' ? (optional ? undefined : '') : e.target.value)}
       >
-        {(optional || value === '') && <option value="">— не выбрано —</option>}
+        {(optional || value === '') && (
+          <option value="">{options.length === 0 ? '— реестр пуст: сначала заведите записи в «Кампания и реестры» —' : '— не выбрано —'}</option>
+        )}
         {!known && value !== '' && <option value={value}>{`⚠ «${value}» — нет в списке`}</option>}
         {options.map((o) => (
           <option key={o.id} value={o.id}>{o.label}</option>

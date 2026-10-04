@@ -847,6 +847,13 @@
 }
 .need-conds > summary { color: var(--ed-paper-muted); font-size: 12.5px; }
 .need-conds[open] > summary { color: var(--ed-accent); font-weight: 600; }
+/* Реестры строками (преступления, категории навыков…): подпись поля видна у первой строки;
+   у остальных она остаётся для скринридеров — иначе «Название» повторяется в каждой строке */
+.reg-row:not(:first-child) > .fld > span {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+/* «Удалить» внутри заголовка раскрывающегося блока (статус, способность…): не вплотную к тексту */
+details > summary > .ce-del { margin-left: 12px; vertical-align: middle; }
 .need-conds .fld-block { margin-top: 8px; }
 
 /* ── итерация 8, блок B: токены значений в репликах ── */

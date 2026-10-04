@@ -194,12 +194,16 @@ function RegistryRows<T extends { id: string; label: string }>({
   addTitle,
   prefix = '',
   render,
+  renderBelow,
 }: {
   items: T[]
   onChange: (next: T[]) => void
   addTitle: string
   prefix?: string
+  /** компактные поля в той же строке (число, короткий текст) */
   render?: (item: T, patch: (p: Partial<T>) => void) => ReactNode
+  /** широкий/высокий виджет (чипы и т.п.): отдельной строкой под полями, чтобы не растягивать строку */
+  renderBelow?: (item: T, patch: (p: Partial<T>) => void) => ReactNode
 }) {
   const add = async () => {
     const label = await askText(addTitle, 'например «Кража»')
@@ -209,7 +213,7 @@ function RegistryRows<T extends { id: string; label: string }>({
   return (
     <div>
       {items.map((it, i) => (
-        <div key={it.id} className="fld-row need-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div key={it.id} className="fld-row need-row reg-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <label className="fld" style={{ flex: 2, minWidth: 180 }} data-tip={`Служебный код: ${it.id} — не меняется, на него ссылаются правила`}>
             <span>Название</span>
             <input
@@ -229,6 +233,15 @@ function RegistryRows<T extends { id: string; label: string }>({
           <button className="btn btn-small ce-del" data-tip="Удалить из реестра" onClick={() => onChange(items.filter((_, j) => j !== i))}>
             <Ico n="close" />
           </button>
+          {renderBelow && (
+            <div style={{ flexBasis: '100%' }}>
+              {renderBelow(it, (patch) => {
+                const next = [...items]
+                next[i] = { ...it, ...patch }
+                onChange(next)
+              })}
+            </div>
+          )}
         </div>
       ))}
       <button className="btn btn-small" onClick={() => void add()}>
@@ -1860,7 +1873,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             </>
           )}
           <label className="fld fld-num" data-tip="Метров падения на один кубик урона (книжное умолчание 3)">
-            <span>Падение: м/кубик</span>
+            <span>Падение: метров на кубик урона</span>
             <input
               type="number" min={1}
               value={m.hazards?.fall_meters_per_die ?? 3}
@@ -1886,25 +1899,25 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               addTitle="Название нового ценового события"
               prefix="price_"
               render={(ev, patch) => (
-                <>
-                  <label className="fld fld-num" data-tip="Множитель цены: 1.5 — выкуп дороже на 50%">
-                    <span>Множитель ×</span>
-                    <input
-                      type="number" step={0.1} min={0.1}
-                      value={ev.multiplier}
-                      onChange={(e) => patch({ multiplier: Math.max(0.1, Number(e.target.value) || 1) })}
-                    />
-                  </label>
-                  <div className="fld" style={{ flex: 2, minWidth: 200 }}>
-                    <span data-tip="Пусто — цены меняются на все предметы">Категории предметов</span>
-                    <ChipMultiSelect
-                      options={store.options('itemCategory')}
-                      value={ev.categories ?? []}
-                      emptyLabel="все категории — нажмите, чтобы ограничить"
-                      onChange={(v) => patch({ categories: v.length ? v : undefined })}
-                    />
-                  </div>
-                </>
+                <label className="fld fld-num" data-tip="Множитель цены: 1.5 — выкуп дороже на 50%">
+                  <span>Множитель ×</span>
+                  <input
+                    type="number" step={0.1} min={0.1}
+                    value={ev.multiplier}
+                    onChange={(e) => patch({ multiplier: Math.max(0.1, Number(e.target.value) || 1) })}
+                  />
+                </label>
+              )}
+              renderBelow={(ev, patch) => (
+                <div className="fld">
+                  <span data-tip="Пусто — цены меняются на все предметы">Категории предметов, на которые действует событие</span>
+                  <ChipMultiSelect
+                    options={store.options('itemCategory')}
+                    value={ev.categories ?? []}
+                    emptyLabel="все категории — нажмите, чтобы ограничить"
+                    onChange={(v) => patch({ categories: v.length ? v : undefined })}
+                  />
+                </div>
               )}
             />
           </div>
@@ -2302,7 +2315,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <div className="props-group">
         <h4>Потребности</h4>
         {m.needs.map((n, i) => (
-          <div key={i} className="fld-row need-row">
+          <div key={i} className="fld-row need-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label className="fld">
               <span>Название</span>
               <input value={n.label} onChange={(e) => ((n.label = e.target.value), commit())} />
@@ -2335,18 +2348,18 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Короткое имя</span>
               <input value={n.short_label ?? ''} onChange={(e) => ((n.short_label = e.target.value || undefined), commit())} placeholder="например: Голод" />
             </label>
-            <label className="fld" style={{ flex: 2, minWidth: 220 }} data-tip="Полное описание потребности: игрок видит его в подсказке к полоске">
+            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}><Ico n="close" /> </button>
+            <label className="fld" style={{ flex: '1 1 100%' }} data-tip="Полное описание потребности: игрок видит его в подсказке к полоске">
               <span>Описание (подсказка игроку)</span>
               <input value={n.description ?? ''} onChange={(e) => ((n.description = e.target.value || undefined), commit())} placeholder="например: «Без еды слабеешь: падает урон и внимание»" />
             </label>
-            <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
         {m.needs.map((n, i) => (
           <details key={`cond_${i}`} className="need-conds">
             <summary>
               {n.label}: условия убывания и восстановление
-              {n.decay_when?.length ? ` · убывает при ${n.decay_when.length} усл.` : '· убывает всегда'}
+              {n.decay_when?.length ? ` · убывает при ${n.decay_when.length} усл.` : ' · убывает всегда'}
               {n.restore_per_tick ? ` · восстанавливается +${n.restore_per_tick}/тик` : ''}
             </summary>
             <div className="fld-block">
@@ -2414,14 +2427,10 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <div className="props-group">
         <h4>Фракции</h4>
         {m.factions!.map((f, i) => (
-          <div key={i} className="fld-row need-row">
+          <div key={i} className="fld-row need-row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label className="fld">
               <span>Название</span>
               <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
-            </label>
-            <label className="fld">
-              <span>Описание фракции</span>
-              <input value={f.description ?? ''} onChange={(e) => ((f.description = e.target.value || undefined), commit())} />
             </label>
             <label className="fld">
               <span>Отношение к игроку</span>
@@ -2440,6 +2449,10 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Скрытая (не показывать в игре)</span>
             </label>
             <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.factions!.splice(i, 1), commit())}><Ico n="close" /> </button>
+            <label className="fld" style={{ flex: '1 1 100%' }}>
+              <span>Описание фракции</span>
+              <input value={f.description ?? ''} onChange={(e) => ((f.description = e.target.value || undefined), commit())} />
+            </label>
           </div>
         ))}
         <button

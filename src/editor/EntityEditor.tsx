@@ -95,7 +95,10 @@ function ItemForm({
           <label className="fld">
             <span>Категория</span>
             <select value={item.category} onChange={(e) => applyCategory(e.target.value)}>
-              {!categories.some((c) => c.id === item.category) && <option value={item.category}>{item.category || '— не выбрана —'}</option>}
+              {/* «неизвестной» считаем категорию, которой нет в списке ниже (там уже есть встроенный «Контейнер») */}
+              {!store.options('itemCategory').some((c) => c.id === item.category) && (
+                <option value={item.category}>{item.category ? `⚠ «${item.category}» — нет в реестре категорий` : '— не выбрана —'}</option>
+              )}
               {store.options('itemCategory').map((o) => (
                 <option key={o.id} value={o.id}>{o.label}</option>
               ))}
