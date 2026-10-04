@@ -36,12 +36,46 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           <div className="hud-bar-fill" style={{ width: `${(s.player.hp / s.player.max_hp) * 100}%` }} />
           <span>HP {s.player.hp}/{s.player.max_hp}</span>
         </div>
-        {engine.campaign.meta.luck && engine.luckMax() > 0 && (
+        <div className="hud-group hud-group-statuses">
+          {engine.campaign.meta.luck && engine.luckMax() > 0 && (
+            <div
+              className="hud-status-chip"
+              data-tip={`Удача: ${engine.luck()}/${engine.luckMax()}.\nНа провальном броске вне боя можно потратить удачу и перебросить.\nВосстанавливается на отдыхе.`}
+            >
+              Удача {engine.luck()}
+            </div>
+          )}
+          {engine.reputationEnabled() && (
+            <div
+              className="hud-status-chip"
+              data-tip={`${engine.reputationLabel()}: ${engine.reputation()}.\nМеняется деяниями героя.`}
+            >
+              {engine.reputationLabel()} {engine.reputation()}
+            </div>
+          )}
+          {engine.progressionEnabled() && (
+            <div
+              className="hud-status-chip"
+              data-tip={`Уровень ${engine.level()} — опыт ${engine.xp()}${engine.xpToNext() != null ? ` (до след. уровня ${engine.xpToNext()})` : ' (потолок)'}.\nОпыт начисляется за ход событий; за каждый уровень — новая черта в листе персонажа.`}
+            >
+              Ур. {engine.level()}{engine.pendingFeats() > 0 ? ` (+${engine.pendingFeats()})` : ''}
+            </div>
+          )}
+          {engine.stealthEnabled() && engine.isSneaking() && engine.isDetected() && (
+            <div
+              className="hud-status-chip hud-status-detected"
+              data-tip="Вас заметили! Покиньте режим скрытности или попробуйте снова."
+            >
+              Замечен!
+            </div>
+          )}
+        </div>
+        {engine.sanityMax() > 0 && (
           <div
             className="hud-status-chip"
-            data-tip={`Удача: ${engine.luck()}/${engine.luckMax()}.\nНа провальном броске вне боя можно потратить удачу и перебросить.\nВосстанавливается на отдыхе.`}
+            data-tip={`Рассудок: ${engine.sanity()}/${engine.sanityMax()}.\nПотери и исцеление — по ходу кампании; на низком уровне возможны последствия.`}
           >
-            Удача {engine.luck()}
+            Рассудок {engine.sanity()}
           </div>
         )}
         {engine.fatigueMax() > 0 && (
@@ -53,39 +87,16 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
             <span>Усталость {engine.fatigue()}</span>
           </div>
         )}
-        {engine.sanityMax() > 0 && (
-          <div
-            className="hud-status-chip"
-            data-tip={`Рассудок: ${engine.sanity()}/${engine.sanityMax()}.\nПотери и исцеление — по ходу кампании; на низком уровне возможны последствия.`}
-          >
-            Рассудок {engine.sanity()}
-          </div>
-        )}
-        {engine.reputationEnabled() && (
-          <div
-            className="hud-status-chip"
-            data-tip={`${engine.reputationLabel()}: ${engine.reputation()}.\nМеняется деяниями героя.`}
-          >
-            {engine.reputationLabel()} {engine.reputation()}
-          </div>
-        )}
-        {engine.progressionEnabled() && (
-          <div
-            className="hud-status-chip"
-            data-tip={`Уровень ${engine.level()} — опыт ${engine.xp()}${engine.xpToNext() != null ? ` (до след. уровня ${engine.xpToNext()})` : ' (потолок)'}.\nОпыт начисляется за ход событий; за каждый уровень — новая черта в листе персонажа.`}
-          >
-            Ур. {engine.level()}{engine.pendingFeats() > 0 ? ` (+${engine.pendingFeats()})` : ''}
-          </div>
-        )}
         {needsOn && meta.needs.map((n) => {
           const val = s.player.needs[n.id] ?? 0
           const critical = val <= n.critical_threshold
           const tip = n.description ? `${n.label}: ${n.description}` : n.label
+          const displayLabel = n.short_label ?? n.label
           return (
             <div key={n.id} className={`hud-bar need ${critical ? 'critical' : ''}`} data-tip={tip} aria-label={`${n.label}: ${Math.round(val)}`}>
               <div className="hud-bar-fill" style={{ width: `${(val / n.max) * 100}%` }} />
               <span className="hud-bar-text">
-                <span className="hud-need-label">{n.label}</span>
+                <span className="hud-need-label">{displayLabel}</span>
                 <b className="hud-need-value">{Math.round(val)}</b>
               </span>
             </div>
@@ -93,9 +104,11 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         })}
         {engine.stealthEnabled() && (
           <button
-            className="hud-status-chip"
-            data-tip={'Скрытность: крадущееся передвижение.\nПри входе и смене сцены — проверка против внимателей.\nБой из скрытности начинается внезапно (первый раунд за вами).'}
+            className={`hud-stealth-toggle stealth-${engine.isDetected() ? 'detected' : engine.isSneaking() ? 'sneaking' : 'open'}`}
+            data-tip={`Скрытность: крадущееся передвижение.\n🎲 Ваш навык: ${engine.playerSkill('stealth')}.\nПри смене сцены — автоматическая проверка против лучшей внимательности NPC.\n⚔️ Бой из скрытности: первый раунд за вами!`}
             onClick={() => engine.toggleSneak()}
+            role="button"
+            aria-label={`Скрытность: ${engine.isSneaking() ? (engine.isDetected() ? 'Замечен!' : 'Крадётесь') : 'Открыто'}`}
           >
             {engine.isSneaking() ? (engine.isDetected() ? 'Замечен!' : 'Крадётесь') : 'Открыто'}
           </button>
@@ -103,12 +116,13 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {(s.player.statuses ?? []).map((st) => {
           const def = engine.statusDef(st.id)
           if (!def) return null
+          const displayLabel = def.short_label ?? def.label
           return (
             <div key={st.id} className="hud-status-chip" data-tip={`${def.label} — осталось ${st.left} ${meta.tick_label}${def.description ? `. ${def.description}` : ''}`}>
               {def.icon ? (
                 <img className="hud-status-icon" src={assetUrl(engine.campaign, def.icon)} alt="" />
               ) : (
-                def.label
+                displayLabel
               )}
               <span className="hud-status-left">{st.left}</span>
             </div>

@@ -266,6 +266,14 @@ function entityLabel(campaign: CampaignData, id: string): string {
 }
 
 /**
+ * Название слота экипировки для отчёта.
+ */
+function slotLabel(meta: CampaignMeta, slotId: string): string {
+  const slot = equipmentSlots(meta).find((s) => s.id === slotId)
+  return slot?.label ?? slotId
+}
+
+/**
  * Приведение сейва в соответствие с кампанией: убираются ссылки на то, чего
  * в пакете больше нет. Ничего не удаляется «на всякий случай» — только то,
  * что действительно не найдено в кампании.
@@ -311,10 +319,10 @@ export function repairState(state: GameState, campaign: CampaignData, ctx: Repor
     const removed: string[] = []
     for (const [slot, item] of Object.entries(p.equipment)) {
       if (!slots.includes(slot)) {
-        removed.push(`слот «${slot}»`)
+        removed.push(`слот «${slotLabel(meta, slot)}»`)
         delete p.equipment[slot]
       } else if (!item || !owned.has(item)) {
-        removed.push(`${slot}: ${item ? entityLabel(campaign, item) : 'пусто'}`)
+        removed.push(`${slotLabel(meta, slot)}: ${item ? entityLabel(campaign, item) : 'пусто'}`)
         delete p.equipment[slot]
       }
     }

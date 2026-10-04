@@ -2,6 +2,7 @@ import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
 import { isExternalUrl } from '../core/loader'
 import { compareVersions } from '../shared/versions'
 import { DEFAULT_EMOTION } from '../shared/types'
+import { skillLabel } from '../shared/skills'
 import type {
   ArenaDef,
   Effect,
@@ -359,7 +360,7 @@ export class EditorStore {
     } else if (kind === 'faction') {
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: f.label || f.id })
     } else if (kind === 'skill') {
-      for (const sk of this.meta.skills ?? []) out.push({ id: sk.id, label: sk.label || sk.id })
+      for (const sk of this.meta.skills ?? []) out.push({ id: sk.id, label: sk.label || skillLabel(sk.id, this.meta.skills) })
     } else if (kind === 'need') {
       for (const n of this.meta.needs) out.push({ id: n.id, label: n.label || n.id })
     } else if (kind === 'status') {

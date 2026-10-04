@@ -54,8 +54,25 @@ export const BUILTIN_SKILL_LABELS: Record<string, string> = {
   claw: 'Когти',
 }
 
+/** встроенные русские названия характеристик */
+export const BUILTIN_STAT_LABELS: Record<string, string> = {
+  STR: 'СИЛ',
+  CON: 'ВЫН',
+  SIZ: 'РОСТ',
+  DEX: 'ЛОВ',
+  INT: 'ИНТ',
+  POW: 'ВОЛ',
+  CHA: 'ХАР',
+  EDU: 'ОБР',
+}
+
 /** название навыка: сначала реестр кампании, затем встроенный словарь, затем id */
 export function skillLabel(id: string, campaignSkills?: SkillDef[]): string {
   const fromCampaign = campaignSkills?.find((s) => s.id === id)?.label
   return fromCampaign ?? BUILTIN_SKILL_LABELS[id] ?? id
+}
+
+/** название характеристики */
+export function statLabel(id: string): string {
+  return BUILTIN_STAT_LABELS[id] ?? id
 }

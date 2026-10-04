@@ -1746,6 +1746,11 @@ export class GameEngine {
     return this.state.stealth?.detected === true
   }
 
+  /** Получает значение навыка игрока (с модификаторами статусов) */
+  playerSkill(skill: string): number {
+    return Math.max(0, (this.state.player.skills[skill] ?? 0) + this.statusSkillMod(skill))
+  }
+
   /**
    * Переключить красться/идти открыто. Вход в красться — моментальная
    * проверка против всех наблюдателей в сцене; заметили — режим включён,
@@ -1754,10 +1759,17 @@ export class GameEngine {
   toggleSneak(): void {
     if (!this.stealthEnabled()) return
     const st = (this.state.stealth ??= { sneaking: false, detected: false })
-    st.sneaking = !st.sneaking
+    const wasSneaking = st.sneaking
+    st.sneaking = !wasSneaking
     st.detected = false
-    this.pushLog(st.sneaking ? 'Вы переходите на скрытное передвижение.' : 'Вы больше не скрываетесь.')
-    if (st.sneaking) this.detectCheck('вы появляетесь в поле зрения')
+    
+    if (st.sneaking) {
+      this.pushLog('👁️‍🗨️ Вы переходите на скрытное передвижение. Бросок скрытности при смене сцены...')
+      this.detectCheck('вы появляетесь в поле зрения')
+    } else {
+      this.pushLog('👁️ Вы больше не скрываетесь.')
+    }
+    
     this.autosave()
     this.notify()
   }
@@ -1787,11 +1799,10 @@ export class GameEngine {
     const RANK: Record<string, number> = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 }
     const wins = (RANK[mine.result] ?? 1) >= (RANK[theirs.result] ?? 1)
     this.pushLog(
-      `Скрытность (${context}): d100=${mine.roll}/${mine.target} против «${bestNpc.label}» d100=${theirs.roll}/${theirs.target} → ${wins ? 'вас не заметили' : 'ВАС ЗАМЕТИЛИ'}`,
+      `🎲 Скрытность (${context}): ваш ${mine.result} (d100=${mine.roll}/${hero}) против «${bestNpc.label}» ${theirs.result} (d100=${theirs.roll}/${bestNpc.value}) → ${wins ? '✅ вас не заметили' : '❌ ВАС ЗАМЕТИЛИ!'}`,
     )
     if (!wins) {
       this.state.stealth!.detected = true
-      this.pushLog(`${bestNpc.label} замечает вас!`)
     }
     return wins
   }
@@ -2633,7 +2644,15 @@ export class GameEngine {
         if (i >= 0) s.blocked_paths.splice(i, 1)
         break
       }
-      case 'show_message': this.messages.push({ text: this.fmt(e.text), portrait: e.portrait }); break
+      case 'show_message': {
+        const msgText = this.fmt(e.text)
+        // Не добавляем дублирующиеся сообщения (защита от спама ИИ-кампаний)
+        // и ограничиваем очередь сообщений, чтобы не забивать UI
+        if (!this.messages.some(m => m.text === msgText) && this.messages.length < 5) {
+          this.messages.push({ text: msgText, portrait: e.portrait })
+        }
+        break
+      }
       case 'reveal_location':
         if (!s.revealed_locations.includes(e.location)) s.revealed_locations.push(e.location)
         break
@@ -2832,7 +2851,17 @@ export class GameEngine {
 
   /** доступные сейчас варианты действий с предметом (условия показа) */
   itemInteractOptions(item: ItemDef): ItemInteractOption[] {
-    return (item.interact_options ?? []).filter((o) => (o.conditions ?? []).every((c) => evalCondition(c, this)))
+    const itemOptions = item.interact_options ?? []
+    return itemOptions.filter((o, index) => {
+      // Фильтруем по условиям
+      if (!o.conditions?.every((c) => evalCondition(c, this))) return false
+      // Фильтруем одноразовые варианты
+      if (o.once) {
+        const key = `item:${item.id}:${index}`
+        if (this.state.used_item_interacts?.includes(key)) return false
+      }
+      return true
+    })
   }
 
   /** применить выбранный вариант взаимодействия с предметом */
@@ -2843,6 +2872,18 @@ export class GameEngine {
       this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? 'neutral'] ?? item.portrait?.['neutral'] })
     }
     if (option.consume) this.state.removed_entities.push(item.id)
+    // Одноразовые варианты: добавляем в список использованных
+    if (option.once) {
+      const itemOptions = item.interact_options ?? []
+      const optionIndex = itemOptions.findIndex(o => o === option)
+      if (optionIndex >= 0) {
+        const key = `item:${item.id}:${optionIndex}`
+        if (!this.state.used_item_interacts) this.state.used_item_interacts = []
+        if (!this.state.used_item_interacts.includes(key)) {
+          this.state.used_item_interacts.push(key)
+        }
+      }
+    }
     this.checkRules()
     this.notify()
   }
