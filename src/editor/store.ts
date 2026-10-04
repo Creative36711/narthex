@@ -3,7 +3,7 @@ import { isExternalUrl } from '../core/loader'
 import { parseRuleFile } from '../shared/ruleFiles'
 import { compareVersions } from '../shared/versions'
 import { DEFAULT_EMOTION } from '../shared/types'
-import { skillLabel } from '../shared/skills'
+import { BUILTIN_STAT_FULL_LABELS, BUILTIN_STAT_LABELS, skillLabel } from '../shared/skills'
 import type {
   ArenaDef,
   Effect,
@@ -346,7 +346,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency' | 'recipe' | 'emotion'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency' | 'recipe' | 'emotion' | 'passion' | 'allegiance' | 'crime' | 'feat' | 'metaCurrency' | 'achievement' | 'priceEvent' | 'eventTable' | 'generator' | 'stat'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'currency') {
       for (const c of this.meta.currencies ?? []) out.push({ id: c.id, label: c.label })
@@ -427,6 +427,33 @@ export class EditorStore {
       for (const o of this.options('npc')) out.push({ id: o.id, label: `${o.label} (NPC)` })
     } else if (kind === 'itemCategory') {
       for (const c of this.meta.item_categories ?? []) out.push({ id: c.id, label: c.label || c.id })
+      // `container` — встроенная категория движка (предмет-хранилище открывается как контейнер),
+      // её нет в реестре кампании, но выбирать её можно: показываем по-человечески, а не сырым id
+      if (!out.some((c) => c.id === 'container')) out.push({ id: 'container', label: 'Контейнер (хранилище)' })
+    } else if (kind === 'passion') {
+      for (const x of this.meta.passions_list ?? []) out.push({ id: x.id, label: x.label || x.id })
+    } else if (kind === 'allegiance') {
+      for (const x of this.meta.allegiances ?? []) out.push({ id: x.id, label: x.label || x.id })
+    } else if (kind === 'crime') {
+      for (const x of this.meta.crimes ?? []) out.push({ id: x.id, label: x.label || x.id })
+    } else if (kind === 'feat') {
+      for (const x of this.meta.progression?.feats ?? []) out.push({ id: x.id, label: x.label || x.id })
+    } else if (kind === 'metaCurrency') {
+      for (const x of this.meta.metaprogress?.currencies ?? []) out.push({ id: x.id, label: x.label || x.id })
+    } else if (kind === 'achievement') {
+      for (const x of this.meta.metaprogress?.achievements ?? []) out.push({ id: x.id, label: x.label || x.id })
+    } else if (kind === 'priceEvent') {
+      for (const x of this.meta.price_events ?? []) out.push({ id: x.id, label: x.label || x.id })
+    } else if (kind === 'eventTable') {
+      for (const x of this.meta.generators?.event_tables ?? []) out.push({ id: x.id, label: x.label || x.id })
+    } else if (kind === 'generator') {
+      const g = this.meta.generators
+      for (const x of g?.npc ?? []) out.push({ id: x.id, label: `${x.label || x.id} (NPC)` })
+      for (const x of g?.scenes ?? []) out.push({ id: x.id, label: `${x.label || x.id} (сцены)` })
+      for (const x of g?.adventures ?? []) out.push({ id: x.id, label: `${x.label || x.id} (приключения)` })
+    } else if (kind === 'stat') {
+      // характеристики героя — порядок как в листе персонажа, а не по алфавиту
+      return Object.entries(BUILTIN_STAT_FULL_LABELS).map(([id, full]) => ({ id, label: `${full} (${BUILTIN_STAT_LABELS[id] ?? id})` }))
     } else if (kind === 'flag') {
       const seen = new Set<string>()
       for (const f of this.meta.flags ?? []) {
@@ -437,6 +464,13 @@ export class EditorStore {
       for (const f of this.knownFlags()) if (!seen.has(f)) out.push({ id: f, label: f })
     }
     return out.sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  }
+
+  /** название состояния или слота сцены (для сводок правил) */
+  sceneSubLabel(sceneId: string, mode: 'state' | 'slot', id: string): string {
+    const sc = this.scenePaths().map((p) => this.scene(p)).find((x) => x?.id === sceneId)
+    const hit = mode === 'state' ? sc?.states?.find((x) => x.id === id) : sc?.slots?.find((x) => x.id === id)
+    return hit?.label || id
   }
 
   /** название стадии или журнальной записи квеста (для сводок правил) */

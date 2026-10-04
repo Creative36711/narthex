@@ -66,6 +66,18 @@ export const BUILTIN_STAT_LABELS: Record<string, string> = {
   EDU: 'ОБР',
 }
 
+/** полные названия характеристик для выпадающих списков редактора (в HUD — сокращения выше) */
+export const BUILTIN_STAT_FULL_LABELS: Record<string, string> = {
+  STR: 'Сила',
+  CON: 'Выносливость',
+  SIZ: 'Рост и комплекция',
+  DEX: 'Ловкость',
+  INT: 'Интеллект',
+  POW: 'Воля',
+  CHA: 'Харизма',
+  EDU: 'Образование',
+}
+
 /** название навыка: сначала реестр кампании, затем встроенный словарь, затем id */
 export function skillLabel(id: string, campaignSkills?: SkillDef[]): string {
   const fromCampaign = campaignSkills?.find((s) => s.id === id)?.label

@@ -14,6 +14,7 @@ import {
   EFFECT_SCHEMAS,
   conditionSummary,
   effectSummary,
+  REF_KINDS,
   type FieldSpec,
 } from './schemas'
 
@@ -37,23 +38,7 @@ export function Field({
   /** весь объект условия/эффекта — для полей, зависящих от соседних (стадия ← квест) */
   ctx?: Record<string, unknown>
 }) {
-  const refKinds: Record<string, Parameters<EditorStore['options']>[0]> = {
-    entityRef: 'entity',
-    npcRef: 'npc',
-    itemRef: 'item',
-    locationRef: 'location',
-    sceneRef: 'scene',
-    questRef: 'quest',
-    arenaRef: 'arena',
-    ruleRef: 'rule',
-    needRef: 'need',
-    skillRef: 'skill',
-    dispRef: 'disposition',
-    cutsceneRef: 'cutscene',
-    statusRef: 'status',
-    weatherRef: 'weather',
-    codexRef: 'codex',
-  }
+  const refKinds: Record<string, Parameters<EditorStore['options']>[0]> = REF_KINDS
 
   if (spec.kind === 'number') {
     return (
@@ -79,10 +64,18 @@ export function Field({
     return (
       <label className="fld">
         <span>{spec.label}</span>
-        <select value={String(value ?? '')} onChange={(e) => onChange(e.target.value)}>
+        <select
+          value={String(value ?? '')}
+          onChange={(e) => onChange(e.target.value === '' && spec.optional ? undefined : e.target.value)}
+        >
+          {/* значение вне списка (старая/ручная правка) показываем явно, а не молча подменяем */}
+          {value !== undefined && value !== '' && !(spec.options ?? []).includes(String(value)) && (
+            <option value={String(value)}>{`⚠ «${String(value)}» — нет в списке`}</option>
+          )}
+          {spec.optional && <option value="">— по умолчанию —</option>}
           {(spec.options ?? []).map((o) => (
             <option key={o} value={o}>
-              {o}
+              {spec.optionLabels?.[o] ?? o}
             </option>
           ))}
         </select>
@@ -134,6 +127,40 @@ export function Field({
         value={value === undefined ? '' : String(value)}
         onChange={onChange}
       />
+    )
+  }
+  if (spec.kind === 'sceneStateRef' || spec.kind === 'sceneSlotRef') {
+    return (
+      <SceneSubRef
+        label={spec.label}
+        mode={spec.kind === 'sceneStateRef' ? 'state' : 'slot'}
+        store={store}
+        sceneId={typeof ctx?.scene === 'string' ? ctx.scene : ''}
+        value={value === undefined ? '' : String(value)}
+        onChange={onChange}
+      />
+    )
+  }
+  if (spec.kind === 'color') {
+    return <ColorField label={spec.label} value={typeof value === 'string' ? value : ''} onChange={(v) => onChange(v || undefined)} />
+  }
+  if (spec.kind === 'imagePath') {
+    return (
+      <AssetUpload
+        label={spec.label}
+        value={typeof value === 'string' ? value : ''}
+        dir="assets/img/postcards"
+        store={store}
+        onChange={(path) => onChange(path || undefined)}
+      />
+    )
+  }
+  if (spec.kind === 'longtext') {
+    return (
+      <label className="fld fld-block">
+        <span>{spec.label}</span>
+        <textarea rows={3} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />
+      </label>
     )
   }
   if (spec.kind === 'conditions') {
@@ -312,6 +339,66 @@ function DialogueNodeRef({
 }
 
 /** Селект стадии или журнальной записи выбранного квеста (фидбек №12). */
+/** Состояние или слот сцены, выбранной в соседнем поле `scene` (по названиям, без ввода id). */
+function SceneSubRef({
+  label,
+  mode,
+  store,
+  sceneId,
+  value,
+  onChange,
+}: {
+  label: string
+  mode: 'state' | 'slot'
+  store: EditorStore
+  sceneId: string
+  value: string
+  onChange: (v: unknown) => void
+}) {
+  const scene = store.scenePaths().map((p) => store.scene(p)).find((sc) => sc?.id === sceneId)
+  const options: Array<{ id: string; label: string }> = scene
+    ? mode === 'state'
+      ? (scene.states ?? []).map((st) => ({ id: st.id, label: st.label || st.id }))
+      : (scene.slots ?? []).map((sl) => ({ id: sl.id, label: sl.label || sl.id }))
+    : []
+  return (
+    <label className="fld">
+      <span>{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        {!scene && <option value={value}>{value ? `⚠ «${value}» — сцена не выбрана` : '— сначала выберите сцену —'}</option>}
+        {scene && value === '' && <option value="">— не выбрано —</option>}
+        {scene && value !== '' && !options.some((o) => o.id === value) && (
+          <option value={value}>{`⚠ «${value}» — нет в этой сцене`}</option>
+        )}
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.label}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+/** Выбор цвета палитрой (вместо ввода HEX руками); пусто = цвет по умолчанию. */
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const valid = /^#[0-9a-fA-F]{6}$/.test(value)
+  return (
+    <div className="fld">
+      <span>{label}</span>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          type="color"
+          value={valid ? value : '#c8963c'}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={label}
+          style={{ width: 52, height: 30, padding: 0, flex: '0 0 auto' }}
+        />
+        <span className="muted small">{valid ? value : 'по умолчанию'}</span>
+        {value && <button type="button" className="btn btn-small" onClick={() => onChange('')}>Сбросить</button>}
+      </div>
+    </div>
+  )
+}
+
 function QuestSubRef({
   label,
   mode,
@@ -577,7 +664,7 @@ export function RefSelect({
         onChange={(e) => onChange(e.target.value === '' ? (optional ? undefined : '') : e.target.value)}
       >
         {(optional || value === '') && <option value="">— не выбрано —</option>}
-        {!known && value !== '' && <option value={value}>{value}</option>}
+        {!known && value !== '' && <option value={value}>{`⚠ «${value}» — нет в списке`}</option>}
         {options.map((o) => (
           <option key={o.id} value={o.id}>{o.label}</option>
         ))}

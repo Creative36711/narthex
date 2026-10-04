@@ -38,12 +38,30 @@ export type FieldKind =
   | 'recipeRef' // рецепт крафта (открытие по ходу игры)
   | 'npcStateRef' // состояние облика НПЦ: его портреты/спрайты + реестр эмоций
   | 'portraitPick' // портрет: из персонажа или своё изображение
+  // ── реестры кампании: мастер выбирает по названию и не вводит id руками (фидбек 27) ──
+  | 'passionRef' // страсть (meta.passions_list)
+  | 'allegianceRef' // сила причастности (meta.allegiances)
+  | 'crimeRef' // преступление (meta.crimes)
+  | 'featRef' // черта прокачки (meta.progression.feats)
+  | 'metaCurrencyRef' // метавалюта хроники (meta.metaprogress.currencies)
+  | 'achievementRef' // достижение хроники (meta.metaprogress.achievements)
+  | 'priceEventRef' // ценовое событие (meta.price_events)
+  | 'eventTableRef' // таблица случайных событий (meta.generators.event_tables)
+  | 'generatorRef' // генератор (NPC / сцен / приключений)
+  | 'statRef' // характеристика героя (STR … EDU) с русским названием
+  | 'sceneStateRef' // состояние выбранной сцены (из соседнего поля scene)
+  | 'sceneSlotRef' // слот выбранной сцены (из соседнего поля scene)
+  | 'color' // цвет: палитра вместо ввода HEX руками
+  | 'imagePath' // картинка кампании: загрузка файла/ссылка вместо ввода пути руками
+  | 'longtext' // длинный текст: многострочное поле
 
 export interface FieldSpec {
   key: string
   label: string
   kind: FieldKind
   options?: string[] // для select
+  /** русские подписи опций select (значение → название); без записи показывается само значение */
+  optionLabels?: Record<string, string>
   optional?: boolean
   placeholder?: string
 }
@@ -56,6 +74,83 @@ export interface TypeSchema {
 }
 
 // ─────────────── условия ───────────────
+
+/**
+ * Вид поля → реестр `store.options(kind)`: выпадающий список с названиями.
+ * Вынесено из Fields.tsx, чтобы тест мог проверить покрытие без React.
+ */
+export const REF_KINDS = {
+  entityRef: 'entity',
+  npcRef: 'npc',
+  itemRef: 'item',
+  locationRef: 'location',
+  sceneRef: 'scene',
+  questRef: 'quest',
+  arenaRef: 'arena',
+  ruleRef: 'rule',
+  needRef: 'need',
+  skillRef: 'skill',
+  dispRef: 'disposition',
+  cutsceneRef: 'cutscene',
+  statusRef: 'status',
+  weatherRef: 'weather',
+  codexRef: 'codex',
+  passionRef: 'passion',
+  allegianceRef: 'allegiance',
+  crimeRef: 'crime',
+  featRef: 'feat',
+  metaCurrencyRef: 'metaCurrency',
+  achievementRef: 'achievement',
+  priceEventRef: 'priceEvent',
+  eventTableRef: 'eventTable',
+  generatorRef: 'generator',
+  statRef: 'stat',
+} as const
+
+/** виды, у которых в Field.tsx своя ветка (не через REF_KINDS) */
+export const SPECIAL_KINDS: FieldKind[] = [
+  'string', 'number', 'boolean', 'select', 'conditions', 'effects', 'json', 'timeOfDay', 'units', 'rewardItems',
+  'flagRef', 'questStageRef', 'journalKeyRef', 'dialogueNodeRef', 'recipeRef', 'npcStateRef', 'portraitPick',
+  'sceneStateRef', 'sceneSlotRef', 'color', 'imagePath', 'longtext',
+]
+
+/** русские названия уровней мощи кампании (как в «Механики» → мощь) */
+export const POWER_LEVEL_LABELS: Record<string, string> = {
+  normal: 'Обычный',
+  heroic: 'Героический',
+  epic: 'Эпический',
+  superhuman: 'Сверхчеловеческий',
+}
+
+/** наряды баннера/открытки: значение (русское слово из движка) → пояснение */
+export const BANNER_PRESET_LABELS: Record<string, string> = {
+  глава: 'глава — титульный шрифт, затухает в конце',
+  шёпот: 'шёпот — курсив, бледно',
+  заголовок: 'заголовок — жирный, с акцентной лентой',
+  проклятье: 'проклятье — красная дымчатая вена',
+  записочный: 'записочный — листок, наклонно',
+}
+
+/** появление баннера */
+export const BANNER_ENTER_LABELS: Record<string, string> = {
+  всплеск: 'всплеск',
+  тянуть: 'плавно тянуть',
+  сбоку: 'выезжает сбоку',
+  молниеносно: 'молниеносно',
+}
+
+/** русские названия счётчиков хроники для условия meta_counter */
+export const META_COUNTER_LABELS: Record<string, string> = {
+  endings_seen: 'Увидено разных концовок',
+  runs: 'Начато забегов',
+  deaths: 'Смертей героя',
+  victories: 'Побед',
+  kills: 'Убийств в бою',
+  quests_completed: 'Завершённых квестов',
+  ticks_survived: 'Прожитых минут',
+  travels: 'Переходов между сценами',
+  dialogues: 'Начатых разговоров',
+}
 
 /** ключи счётчиков хроники, которые читает условие meta_counter */
 export const META_COUNTER_KEYS = [
@@ -137,7 +232,7 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   stat_ge: {
     label: 'Характеристика ≥',
     fields: [
-      { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'POW' },
+      { key: 'stat', label: 'Характеристика', kind: 'statRef' },
       { key: 'threshold', label: 'Порог', kind: 'number' },
     ],
     blank: { stat: 'POW', threshold: 10 },
@@ -190,7 +285,7 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   passion_ge: {
     label: 'Страсть ≥',
     fields: [
-      { key: 'id', label: 'id страсти', kind: 'string' },
+      { key: 'id', label: 'Страсть', kind: 'passionRef' },
       { key: 'value', label: 'Значение', kind: 'number' },
     ],
     blank: { id: '', value: 50 },
@@ -198,20 +293,20 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   allegiance_ge: {
     label: 'Причастность ≥',
     fields: [
-      { key: 'id', label: 'id силы', kind: 'string' },
+      { key: 'id', label: 'Сила причастности', kind: 'allegianceRef' },
       { key: 'points', label: 'Очки', kind: 'number' },
     ],
     blank: { id: '', points: 100 },
   },
   power_level_ge: {
     label: 'Уровень мощи кампании ≥',
-    fields: [{ key: 'level', label: "normal/heroic/epic/superhuman", kind: 'string', placeholder: 'heroic' }],
+    fields: [{ key: 'level', label: 'Уровень мощи', kind: 'select', options: ['normal', 'heroic', 'epic', 'superhuman'], optionLabels: POWER_LEVEL_LABELS }],
     blank: { level: 'heroic' },
   },
   crime_committed: {
     label: 'Преступление совершено',
     fields: [
-      { key: 'id', label: 'id преступления (пусто — любое)', kind: 'string', optional: true },
+      { key: 'id', label: 'Преступление (пусто — любое)', kind: 'crimeRef', optional: true },
       { key: 'min_bounty', label: 'Мин. награда', kind: 'number', optional: true },
     ],
     blank: {},
@@ -228,26 +323,26 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
   },
   has_feat: {
     label: 'Черта взята',
-    fields: [{ key: 'id', label: 'id черты', kind: 'string' }],
+    fields: [{ key: 'id', label: 'Черта', kind: 'featRef' }],
     blank: { id: '' },
   },
   meta_currency_ge: {
     label: 'Метавалюты ≥',
     fields: [
-      { key: 'currency', label: 'id метавалюты', kind: 'string' },
+      { key: 'currency', label: 'Метавалюта', kind: 'metaCurrencyRef' },
       { key: 'threshold', label: 'Порог', kind: 'number' },
     ],
     blank: { currency: '', threshold: 10 },
   },
   meta_achievement: {
     label: 'Достижение открыто',
-    fields: [{ key: 'id', label: 'id достижения', kind: 'string' }],
+    fields: [{ key: 'id', label: 'Достижение', kind: 'achievementRef' }],
     blank: { id: '' },
   },
   meta_counter: {
     label: 'Счётчик хроники ≥',
     fields: [
-      { key: 'key', label: 'Счётчик', kind: 'select', options: META_COUNTER_KEYS },
+      { key: 'key', label: 'Счётчик', kind: 'select', options: META_COUNTER_KEYS, optionLabels: META_COUNTER_LABELS },
       { key: 'ge', label: 'Не меньше', kind: 'number' },
     ],
     blank: { key: 'endings_seen', ge: 2 },
@@ -338,20 +433,20 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Большая надпись на экране (баннер)',
     fields: [
       { key: 'text', label: 'Текст надписи', kind: 'string' },
-      { key: 'preset', label: 'Наряд: глава | шёпот | заголовок | проклятье | записочный', kind: 'string', optional: true },
-      { key: 'enter', label: 'Появление: всплеск | тянуть | сбоку | молниеносно', kind: 'string', optional: true },
+      { key: 'preset', label: 'Наряд надписи', kind: 'select', options: ['глава', 'шёпот', 'заголовок', 'проклятье', 'записочный'], optionLabels: BANNER_PRESET_LABELS, optional: true },
+      { key: 'enter', label: 'Появление', kind: 'select', options: ['всплеск', 'тянуть', 'сбоку', 'молниеносно'], optionLabels: BANNER_ENTER_LABELS, optional: true },
       { key: 'seconds', label: 'Секунд на экране (пусто — по длине текста)', kind: 'number', optional: true },
-      { key: 'position', label: 'Положение: верх | центр', kind: 'string', optional: true },
-      { key: 'accent', label: 'Цвет (HEX, пусто — цвет пресета)', kind: 'string', optional: true },
+      { key: 'position', label: 'Положение на экране', kind: 'select', options: ['верх', 'центр'], optionLabels: { верх: 'Вверху экрана', центр: 'По центру' }, optional: true },
+      { key: 'accent', label: 'Цвет надписи (пусто — цвет наряда)', kind: 'color', optional: true },
     ],
     blank: { text: '', preset: 'глава' },
   },
   postcard: {
     label: '«Открытка»: иллюстрация на весь экран с подписью',
     fields: [
-      { key: 'image', label: 'Картинка (файл пакета или ссылка; пусто — art-рисунок)', kind: 'string', optional: true },
+      { key: 'image', label: 'Картинка открытки', kind: 'imagePath', optional: true },
       { key: 'text', label: 'Подпись', kind: 'string', optional: true },
-      { key: 'preset', label: 'Наряд подписи: глава | шёпот | заголовок | проклятье | записочный', kind: 'string', optional: true },
+      { key: 'preset', label: 'Наряд подписи', kind: 'select', options: ['глава', 'шёпот', 'заголовок', 'проклятье', 'записочный'], optionLabels: BANNER_PRESET_LABELS, optional: true },
       { key: 'seconds', label: 'Секунд показа (0 — только по тапу)', kind: 'number', optional: true },
     ],
     blank: { seconds: 6 },
@@ -456,7 +551,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Сменить состояние сцены',
     fields: [
       { key: 'scene', label: 'Сцена', kind: 'sceneRef' },
-      { key: 'state', label: 'Состояние', kind: 'string' },
+      { key: 'state', label: 'Состояние сцены', kind: 'sceneStateRef' },
     ],
     blank: { scene: '', state: '' },
   },
@@ -518,10 +613,10 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   stat_check: {
     label: 'Проверка характеристики (ветвление)',
     fields: [
-      { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'POW' },
+      { key: 'stat', label: 'Характеристика', kind: 'statRef' },
       { key: 'multiplier', label: 'Множитель (ум. 5)', kind: 'number', optional: true },
       { key: 'modifier', label: 'Модификатор к цели', kind: 'number', optional: true },
-      { key: 'augment_passion', label: 'Аугмент: id страсти', kind: 'string', optional: true },
+      { key: 'augment_passion', label: 'Аугмент: страсть', kind: 'passionRef', optional: true },
       { key: 'assist_entity', label: 'Подмога: id союзника', kind: 'npcRef', optional: true },
       { key: 'assist_skill', label: 'Навык подмоги', kind: 'skillRef', optional: true },
       { key: 'success_effects', label: 'При успехе', kind: 'effects' },
@@ -548,9 +643,9 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   group_stat_check: {
     label: 'Групповая сцепленная проверка (герой + союзники)',
     fields: [
-      { key: 'mode', label: 'Чем бросаем', kind: 'select', options: ['skill', 'stat'], optional: true },
+      { key: 'mode', label: 'Чем бросаем', kind: 'select', options: ['skill', 'stat'], optionLabels: { skill: 'Навыком', stat: 'Характеристикой' }, optional: true },
       { key: 'skill', label: 'Навык (mode=skill)', kind: 'skillRef', optional: true },
-      { key: 'stat', label: 'Характеристика (mode=stat)', kind: 'string', placeholder: 'POW', optional: true },
+      { key: 'stat', label: 'Характеристика (если бросаем характеристикой)', kind: 'statRef', optional: true },
       { key: 'multiplier', label: 'Множитель хар-ки (ум. 5)', kind: 'number', optional: true },
       { key: 'difficulty', label: 'Сложность навыка', kind: 'number', optional: true },
       { key: 'modifier', label: 'Модификатор (stat)', kind: 'number', optional: true },
@@ -568,8 +663,8 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'entity', label: 'Оппонент NPC', kind: 'npcRef', optional: true },
       { key: 'against_skill', label: 'Навык оппонента', kind: 'skillRef', optional: true },
       { key: 'against_value', label: 'Или порог навыка', kind: 'number', optional: true },
-      { key: 'tie', label: 'При равенстве выигрывает', kind: 'select', options: ['player', 'opponent'], optional: true },
-      { key: 'augment_passion', label: 'Аугмент: id страсти', kind: 'string', optional: true },
+      { key: 'tie', label: 'При равенстве выигрывает', kind: 'select', options: ['player', 'opponent'], optionLabels: { player: 'Герой', opponent: 'Соперник' }, optional: true },
+      { key: 'augment_passion', label: 'Аугмент: страсть', kind: 'passionRef', optional: true },
       { key: 'success_effects', label: 'При победе героя', kind: 'effects' },
       { key: 'fail_effects', label: 'При поражении', kind: 'effects' },
     ],
@@ -603,7 +698,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   change_passion: {
     label: 'Изменить страсть',
     fields: [
-      { key: 'id', label: 'id страсти', kind: 'string' },
+      { key: 'id', label: 'Страсть', kind: 'passionRef' },
       { key: 'delta', label: 'Сдвиг (±)', kind: 'number' },
     ],
     blank: { id: '', delta: 10 },
@@ -611,7 +706,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   change_allegiance: {
     label: 'Изменить причастность',
     fields: [
-      { key: 'id', label: 'id силы', kind: 'string' },
+      { key: 'id', label: 'Сила причастности', kind: 'allegianceRef' },
       { key: 'points', label: 'Очки (±)', kind: 'number' },
     ],
     blank: { id: '', points: 1 },
@@ -619,7 +714,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   train_stat: {
     label: 'Тренировка характеристики',
     fields: [
-      { key: 'stat', label: 'Характеристика', kind: 'string', placeholder: 'STR' },
+      { key: 'stat', label: 'Характеристика', kind: 'statRef' },
       { key: 'delta', label: 'Сдвиг (±)', kind: 'number' },
     ],
     blank: { stat: 'STR', delta: 1 },
@@ -635,19 +730,19 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   commit_crime: {
     label: 'Совершить преступление',
     fields: [
-      { key: 'id', label: 'id преступления', kind: 'string' },
+      { key: 'id', label: 'Преступление', kind: 'crimeRef' },
       { key: 'bounty', label: 'Награда за голову (опц.)', kind: 'number', optional: true },
     ],
     blank: { id: '' },
   },
   set_price_event: {
     label: 'Включить ценовое событие',
-    fields: [{ key: 'id', label: 'id события', kind: 'string' }],
+    fields: [{ key: 'id', label: 'Ценовое событие', kind: 'priceEventRef' }],
     blank: { id: '' },
   },
   clear_price_event: {
     label: 'Снять ценовое событие',
-    fields: [{ key: 'id', label: 'id события (пусто — все)', kind: 'string', optional: true }],
+    fields: [{ key: 'id', label: 'Ценовое событие (пусто — все)', kind: 'priceEventRef', optional: true }],
     blank: {},
   },
   grant_xp: {
@@ -657,13 +752,13 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   },
   grant_feat: {
     label: 'Выдать черту',
-    fields: [{ key: 'id', label: 'id черты', kind: 'string' }],
+    fields: [{ key: 'id', label: 'Черта', kind: 'featRef' }],
     blank: { id: '' },
   },
   meta_currency: {
     label: 'Метавалюта (между забегами)',
     fields: [
-      { key: 'id', label: 'id метавалюты', kind: 'string' },
+      { key: 'id', label: 'Метавалюта', kind: 'metaCurrencyRef' },
       { key: 'amount', label: 'Сумма (±)', kind: 'number' },
     ],
     blank: { id: '', amount: 5 },
@@ -671,7 +766,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   roll_event_table: {
     label: 'Событие из таблицы (сейчас)',
     fields: [
-      { key: 'table', label: 'id таблицы', kind: 'string', placeholder: 'см. вкладку «Генераторы»' },
+      { key: 'table', label: 'Таблица событий', kind: 'eventTableRef' },
       { key: 'ignore_filters', label: 'Игнорировать фильтры (время/локация)', kind: 'boolean', optional: true },
     ],
     blank: { table: '' },
@@ -679,7 +774,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   generate_variables: {
     label: 'Генерация переменных (списки)',
     fields: [
-      { key: 'generator', label: 'id генератора', kind: 'string' },
+      { key: 'generator', label: 'Генератор', kind: 'generatorRef' },
       { key: 'seed', label: 'seed (стабильность)', kind: 'string', optional: true },
       { key: 'pack', label: 'Пакет ключей', kind: 'json' },
     ],
@@ -746,14 +841,14 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Изменить описание',
     fields: [
       { key: 'entity', label: 'Сущность', kind: 'entityRef' },
-      { key: 'text', label: 'Новое описание', kind: 'string' },
+      { key: 'text', label: 'Новое описание', kind: 'longtext' },
     ],
     blank: { entity: '', text: '' },
   },
   show_message: {
     label: 'Показать сообщение',
     fields: [
-      { key: 'text', label: 'Текст', kind: 'string' },
+      { key: 'text', label: 'Текст сообщения', kind: 'longtext' },
       { key: 'portrait', label: 'Портрет', kind: 'portraitPick', optional: true },
     ],
     blank: { text: '' },
@@ -778,7 +873,7 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     fields: [
       { key: 'entity', label: 'Сущность', kind: 'entityRef' },
       { key: 'scene', label: 'Сцена', kind: 'sceneRef' },
-      { key: 'slot', label: 'Слот', kind: 'string' },
+      { key: 'slot', label: 'Слот сцены', kind: 'sceneSlotRef' },
     ],
     blank: { entity: '', scene: '', slot: '' },
   },
@@ -804,6 +899,8 @@ export interface LabelSource {
   labelFor(kind: string, id: string): string
   /** название стадии/журнальной записи квеста */
   questStageLabel?(questId: string, key: string): string
+  /** название состояния или слота сцены (по id сцены) */
+  sceneSubLabel?(sceneId: string, mode: 'state' | 'slot', id: string): string
 }
 
 export const TIME_OF_DAY_LABELS: Record<string, string> = {
@@ -814,22 +911,9 @@ export const TIME_OF_DAY_LABELS: Record<string, string> = {
 }
 
 const REF_KIND_MAP: Partial<Record<FieldKind, string>> = {
-  entityRef: 'entity',
-  npcRef: 'npc',
-  itemRef: 'item',
-  locationRef: 'location',
-  sceneRef: 'scene',
-  questRef: 'quest',
-  arenaRef: 'arena',
-  ruleRef: 'rule',
-  needRef: 'need',
-  skillRef: 'skill',
-  dispRef: 'disposition',
+  ...REF_KINDS,
+  // виды со своей веткой в Field, но с реестром для сводок
   flagRef: 'flag',
-  cutsceneRef: 'cutscene',
-  statusRef: 'status',
-  weatherRef: 'weather',
-  codexRef: 'codex',
   recipeRef: 'recipe',
   npcStateRef: 'emotion',
 }
@@ -841,8 +925,16 @@ function fieldValueText(f: FieldSpec, v: unknown, labels?: LabelSource, obj?: Re
     const q = typeof obj?.quest === 'string' ? obj.quest : ''
     return labels?.questStageLabel?.(q, String(v)) ?? String(v)
   }
+  if (f.kind === 'sceneStateRef' || f.kind === 'sceneSlotRef') {
+    const sc = typeof obj?.scene === 'string' ? obj.scene : ''
+    return labels?.sceneSubLabel?.(sc, f.kind === 'sceneStateRef' ? 'state' : 'slot', String(v)) ?? String(v)
+  }
   const refKind = REF_KIND_MAP[f.kind]
   if (refKind && typeof v === 'string') return labels ? labels.labelFor(refKind, v) : v
+  // выпадающий список с русскими подписями: в сводке тоже подпись, а не машинное значение
+  if (f.kind === 'select') return f.optionLabels?.[String(v)] ?? String(v)
+  if (f.kind === 'imagePath') return String(v).split('/').pop() || String(v)
+  if (f.kind === 'longtext') { const t = String(v).replace(/\s+/g, ' ').trim(); return t.length > 70 ? `${t.slice(0, 70)}…` : t }
   if (f.kind === 'timeOfDay') {
     const arr = Array.isArray(v) ? v : [v]
     if (arr.length === 0) return null
