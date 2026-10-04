@@ -2529,9 +2529,10 @@ input[type='checkbox'], input[type='radio'] {
   font-size: 12.5px;
 }
 
-/* диалоги: ink-исходник внизу на всю ширину, а не правой колонкой */
-.dlg-builder { flex-wrap: wrap; }
-.dlg-builder > .advanced-json { flex: 1 1 100%; order: 3; }
+/* диалоги: три вкладки одного разговора (сценарий / конструктор / служебный ink);
+   выбранная вкладка занимает всю ширину, а не узкую правую колонку */
+.dlg-builder { flex-direction: column; flex-wrap: nowrap; }
+.dlg-builder > .dlg-script, .dlg-builder > .dlg-form-wrap, .dlg-builder > .dlg-ink { flex: 1 1 100%; min-height: 0; }
 
 /* жетоны в бою: движение — прицел, живой враг — меч (не «менюшная» рука) */
 .token { cursor: var(--cur-cross); }

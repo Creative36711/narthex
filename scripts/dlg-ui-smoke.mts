@@ -18,7 +18,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { EditorStore } from '../src/editor/store'
 import { DialogueBuilder } from '../src/editor/DialogueBuilder'
 import { DialogueScriptView } from '../src/editor/DialogueScriptView'
-import { buildDialoguePlaytest } from '../src/editor/DialoguePlaytest'
+import { buildDialoguePlaytest, DialoguePlaytest } from '../src/editor/DialoguePlaytest'
 import { generateInk, migrateDlgDoc } from '../src/editor/dialogueDoc'
 import { scriptToDlg, storeRefs, dlgToScript } from '../src/editor/dlgScript'
 import { exportMonolith, importMonolith } from '../src/editor/monolith'
@@ -144,6 +144,13 @@ if (owner) {
     check('U разговор без владельца играет временный собеседник', free.npcId === 'npc__preview' && !!free.engine.dialogue)
     raw.dialogue = saved
   }
+}
+
+// ── оверлей проверки разговора рисуется (кнопки и подпись на месте) ──
+{
+  const overlay = renderToStaticMarkup(createElement(DialoguePlaytest, { store, path: inkPath, doc, onClose: () => {} }))
+  check('П оверлей проверки открывается', overlay.includes('Проверка разговора') && overlay.includes('Вернуться в редактор'))
+  check('П есть кнопки пересборки и панель проверки', overlay.includes('Пересобрать') && overlay.includes('Что проверить') && overlay.includes('Заново'))
 }
 
 // ── путь ИИ: разговор пришёл текстом, структуры нет ──

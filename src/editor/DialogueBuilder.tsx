@@ -1,6 +1,6 @@
 import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import type { EditorStore } from './store'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
@@ -10,6 +10,11 @@ import { showList } from '../shared/modals'
 import { inkToDlgDoc } from './inkImport'
 import { DialogueScriptView } from './DialogueScriptView'
 import { DialoguePlaytest } from './DialoguePlaytest'
+
+// Monaco тянет за собой свои стили: подгружаем редактор кода только когда мастер
+// действительно открыл вкладку «Служебный ink» (и смоуки не тащат его в Node)
+const InkEditor = lazy(() => import('./MonacoEditors').then((m) => ({ default: m.InkEditor })))
+
 import { dlgToScript, scriptToDlg, storeRefs, type ScriptIssue } from './dlgScript'
 
 /** человеческие подписи счётчиков хроники (условие «счётчик хроники») */
@@ -194,7 +199,6 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
   const [mode, setMode] = useState<DlgMode>('script')
   const [playtest, setPlaytest] = useState(false)
   const [, force] = useState(0)
-  const [inkDraft, setInkDraft] = useState<string | null>(null)
 
   const refs = useMemo(() => storeRefs(store, dlgPath), [store, dlgPath])
   /** документ без реестров: их применит эффект ниже — он же покажет ошибки строками */
@@ -256,9 +260,9 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
     setIssues([])
   }
 
-  /** правка служебного ink: читаем его обратно в формы и сценарий */
+  /** правка служебного ink: читаем применённый код обратно в формы и в текст */
   const applyInk = () => {
-    const ink = inkDraft ?? store.textFiles.get(path) ?? generateInk(doc)
+    const ink = store.textFiles.get(path) ?? generateInk(doc)
     const { doc: imported, warnings } = inkToDlgDoc(ink)
     doc.nodes = imported.nodes
     if (imported.label) doc.label = imported.label
@@ -266,7 +270,6 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
     doc.script = text
     setScriptText(text)
     setIssues([])
-    setInkDraft(null)
     commit()
     if (warnings.length) {
       void showList('Ink прочитан с замечаниями', warnings, 'Строки из списка нужно доделать в конструкторе или в сценарии.')
@@ -314,7 +317,7 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
             data-tip="Поля и списки: точная правка структуры разговора">
             <Ico n="edit" /> Конструктор
           </button>
-          <button className={`btn btn-small ${mode === 'ink' ? 'btn-primary' : ''}`} onClick={() => { setInkDraft(store.textFiles.get(path) ?? generateInk(doc)); setMode('ink') }}
+          <button className={`btn btn-small ${mode === 'ink' ? 'btn-primary' : ''}`} onClick={() => setMode('ink')}
             data-tip="То, что исполняет движок. Можно править код и вернуть правку в формы">
             <Ico n="doc" /> Служебный ink
           </button>
@@ -374,30 +377,25 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       )}
 
       {mode === 'ink' && (
-        <div className="dlg-ink">
-          <div className="dlg-script-bar">
-            <button className="btn btn-small" onClick={applyInk} data-tip="Прочитать правки кода обратно в конструктор и сценарий">
-              <Ico n="check" /> Перечитать в формы
-            </button>
-            <button className="btn btn-small" onClick={() => setInkDraft(store.textFiles.get(path) ?? generateInk(doc))} data-tip="Вернуть код, собранный из сценария и форм">
-              <Ico n="sparkle" /> Собрать из форм
-            </button>
-            <span className="muted small">
-              Ink — то, что читает движок. Стрелки, условия в фигурных скобках и `~`-команды здесь служебные:
-              мастеру их знать не нужно, но правку кода можно вернуть в формы этой кнопкой.
-            </span>
+        <div className="dlg-ink advanced-json-page">
+          <div className="muted small">
+            Служебный Ink-исходник разговора — то, что читает движок. Мастеру его знать не обязательно:
+            текст сценария и формы собирают этот код сами. Правку кода можно вернуть в удобный вид
+            кнопкой «Перечитать в формы» (условия, варианты и переходы станут узлами).
           </div>
-          <textarea
-            value={inkDraft ?? store.textFiles.get(path) ?? generateInk(doc)}
-            spellCheck={false}
-            rows={22}
-            style={{ width: '100%', fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12.5 }}
-            onChange={(e) => {
-              setInkDraft(e.target.value)
-              store.textFiles.set(path, e.target.value)
-              store.touch(path, 'ink')
-            }}
-          />
+          <Suspense fallback={<div className="muted small">Открываю редактор кода…</div>}>
+            <InkEditor
+              key={path}
+              store={store}
+              path={path}
+              onApplied={applyInk}
+              extra={(
+                <button className="btn btn-small" onClick={applyInk} data-tip="Прочитать применённый код обратно в конструктор и текст сценария">
+                  <Ico n="check" /> Перечитать в формы
+                </button>
+              )}
+            />
+          </Suspense>
         </div>
       )}
 

@@ -1649,7 +1649,6 @@ body.cf-editor .modal-overlay .ai-wizard input[type='range'] { accent-color: #58
   padding: 6px 9px;
   font-size: 12.5px;
   line-height: 1.35;
-  cursor: pointer;
   border: 1px solid transparent;
   background: var(--ed-paper-card);
   color: var(--ed-paper-text);
@@ -1659,6 +1658,127 @@ body.cf-editor .modal-overlay .ai-wizard input[type='range'] { accent-color: #58
 .dlg-script-foot { padding-bottom: 4px; }
 
 .dlg-ink { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+
+/* проверка разговора: игровое окно поверх редактора */
+.dlg-playtest { position: fixed; inset: 0; z-index: 60; background: var(--ed-paper); display: flex; flex-direction: column; }
+.dlg-playtest-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--ed-paper-card);
+  border-bottom: 1px solid var(--ed-paper-line);
+  z-index: 2;
+}
+.dlg-playtest-error {
+  padding: 8px 12px;
+  background: color-mix(in srgb, #c0392b 12%, var(--ed-paper-card));
+  border-bottom: 1px solid color-mix(in srgb, #c0392b 40%, transparent);
+  color: var(--ed-paper-text);
+}
+.dlg-playtest-stage { flex: 1; min-height: 0; position: relative; display: flex; align-items: stretch; justify-content: center; }
+.dlg-playtest-stage > div { flex: 1; }
+.dlg-playtest-panel {
+  position: absolute;
+  right: 12px;
+  top: 62px;
+  bottom: 12px;
+  width: 300px;
+  overflow-y: auto;
+  background: var(--ed-paper-card);
+  border: 1px solid var(--ed-paper-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  z-index: 55;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+.dlg-playtest-scroll { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.dlg-playtest-mood { min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* ─────────── диалог: сценарий, конструктор, служебный ink (фидбек 29) ─────────── */
+
+.dlg-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; flex: 0 0 auto; }
+.dlg-title-field { flex: 1 1 280px; margin: 0; }
+.dlg-tabs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dlg-counts { margin-left: 6px; white-space: nowrap; }
+
+.dlg-form-wrap { display: flex; gap: 16px; width: 100%; flex: 1; min-height: 0; align-items: flex-start; }
+
+/* сценарий: текст, подсказки и ошибки */
+.dlg-script { display: flex; flex-direction: column; gap: 8px; width: 100%; min-width: 0; flex: 1; }
+.dlg-script-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dlg-script-status { margin-left: auto; }
+.dlg-script-help {
+  background: var(--ed-paper-card);
+  border: 1px solid var(--ed-paper-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.dlg-script-help-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 18px; }
+.dlg-script-help-row { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.dlg-script-help-row code {
+  flex: 0 0 auto;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  background: var(--ed-paper-input);
+  border: 1px solid var(--ed-paper-line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--ed-paper-text);
+}
+.dlg-script-editor {
+  display: flex;
+  flex: 1;
+  min-height: 380px;
+  background: var(--ed-paper-card);
+  border: 1px solid var(--ed-paper-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.dlg-script-gutter {
+  flex: 0 0 46px;
+  overflow: hidden;
+  padding: 10px 6px 10px 0;
+  text-align: right;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  line-height: 21px;
+  color: color-mix(in srgb, var(--ed-paper-text) 45%, transparent);
+  background: color-mix(in srgb, var(--ed-paper-input) 70%, transparent);
+  border-right: 1px solid var(--ed-paper-line);
+  user-select: none;
+}
+.dlg-script-editor textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  padding: 10px 12px;
+  background: var(--ed-paper-card);
+  color: var(--ed-paper-text);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  line-height: 21px;
+}
+.dlg-script-issues { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+.dlg-issue {
+  text-align: left;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  border: 1px solid transparent;
+  background: var(--ed-paper-card);
+  color: var(--ed-paper-text);
+}
+.dlg-issue.err { border-color: color-mix(in srgb, #c0392b 55%, transparent); background: color-mix(in srgb, #c0392b 10%, var(--ed-paper-card)); }
+.dlg-issue.warn { border-color: color-mix(in srgb, #b8860b 55%, transparent); background: color-mix(in srgb, #b8860b 10%, var(--ed-paper-card)); }
+.dlg-script-foot { padding-bottom: 4px; }
+
+.dlg-ink { display: flex; flex-direction: column; gap: 8px; width: 100%; flex: 1; min-height: 0; }
+.dlg-ink .mono-editor { flex: 1; min-height: 420px; }
 
 /* проверка разговора: игровое окно поверх редактора */
 .dlg-playtest { position: fixed; inset: 0; z-index: 60; background: var(--ed-paper); display: flex; flex-direction: column; }

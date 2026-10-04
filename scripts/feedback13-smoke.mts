@@ -53,8 +53,8 @@ must(css.includes('.dmg-row') && css.includes('dmg-summary') && ent.includes('Di
   '7 урон оружия: поля ввода и видимое итоговое значение')
 
 // 8 — ink-исходник диалогов
-must(dlg.includes('Ink-исходник') && dlg.includes('generateInk(doc)') && dlg.includes('advanced-json'),
-  '8 у диалогов есть ink-исходник (как расширенный JSON)')
+must(dlg.includes('Служебный Ink-исходник') && dlg.includes('InkEditor') && dlg.includes('advanced-json-page') && dlg.includes('Перечитать в формы'),
+  '8 у диалогов есть ink-исходник (как расширенный JSON, вкладка «Служебный ink»)')
 
 // 9 — боевые курсоры
 must(css.includes('--cur-cross') && css.includes('--cur-sword') && css.includes('cursor: var(--cur-cross)') && css.includes('cursor: var(--cur-sword)'),
