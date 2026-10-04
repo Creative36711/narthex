@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { EditorStore } from './store'
 import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect, DiceNotationInput } from './Fields'
-import { BUILTIN_SKILL_LABELS, BUILTIN_STAT_LABELS, statLabel } from '../shared/skills'
+import { BUILTIN_SKILL_LABELS, BUILTIN_STAT_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
 import { ParticleListEditor } from './AtmosEditors'
@@ -116,6 +116,160 @@ function RegistryRows<T extends { id: string; label: string }>({
       ))}
       <button className="btn btn-small" onClick={() => void add()}>
         <Ico n="plus" /> добавить
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Модификаторы черты строками «что — насколько»: без парсерного текста
+ * «навык=+5, hp=+2» (фидбек 27, п.2: в редакторе всё читается человеком).
+ */
+type FeatModKind = 'skill' | 'stat' | 'hp' | 'mp' | 'mov'
+const FEAT_MOD_KINDS: Array<{ id: FeatModKind; label: string }> = [
+  { id: 'skill', label: 'Навык' },
+  { id: 'stat', label: 'Характеристика' },
+  { id: 'hp', label: 'Здоровье (HP)' },
+  { id: 'mp', label: 'Мана (MP)' },
+  { id: 'mov', label: 'Движение (MOV)' },
+]
+
+function FeatModRows({ store, mods, onChange }: {
+  store: EditorStore
+  mods: FeatDef['mods']
+  onChange: (mods: FeatDef['mods']) => void
+}) {
+  type Row = { kind: FeatModKind; key: string; value: number }
+  const rows: Row[] = [
+    ...Object.entries(mods?.skills ?? {}).map(([key, value]) => ({ kind: 'skill' as const, key, value })),
+    ...Object.entries(mods?.stats ?? {}).map(([key, value]) => ({ kind: 'stat' as const, key, value })),
+    ...(mods?.hp ? [{ kind: 'hp' as const, key: '', value: mods.hp }] : []),
+    ...(mods?.mp ? [{ kind: 'mp' as const, key: '', value: mods.mp }] : []),
+    ...(mods?.mov ? [{ kind: 'mov' as const, key: '', value: mods.mov }] : []),
+  ]
+  const skills = store.options('skill')
+  const stats = Object.entries(BUILTIN_STAT_LABELS).map(([id, label]) => ({ id, label }))
+  const push = (next: Row[]) => {
+    const out: NonNullable<FeatDef['mods']> = {}
+    const skillMap: Record<string, number> = {}
+    const statMap: Partial<Record<'STR' | 'CON' | 'SIZ' | 'DEX' | 'INT' | 'POW' | 'CHA' | 'EDU', number>> = {}
+    for (const r of next) {
+      if (r.kind === 'skill' && r.key) skillMap[r.key] = r.value
+      else if (r.kind === 'stat' && r.key) statMap[r.key as keyof typeof statMap] = r.value
+      else if (r.kind === 'hp' && r.value) out.hp = r.value
+      else if (r.kind === 'mp' && r.value) out.mp = r.value
+      else if (r.kind === 'mov' && r.value) out.mov = r.value
+    }
+    if (Object.keys(skillMap).length) out.skills = skillMap
+    if (Object.keys(statMap).length) out.stats = statMap
+    onChange(Object.keys(out).length ? out : undefined)
+  }
+  return (
+    <div>
+      {rows.map((r, i) => (
+        <div key={i} className="fld-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 4 }}>
+          <label className="fld" style={{ flex: 1, minWidth: 140 }}>
+            <span>Что даёт</span>
+            <select
+              value={r.kind}
+              onChange={(e) => {
+                const kind = e.target.value as FeatModKind
+                const next = [...rows]
+                const key = kind === 'skill' ? (skills[0]?.id ?? '') : kind === 'stat' ? 'STR' : ''
+                next[i] = { kind, key, value: r.value || 5 }
+                push(next)
+              }}
+            >
+              {FEAT_MOD_KINDS.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(r.kind === 'skill' || r.kind === 'stat') && (
+            <label className="fld" style={{ flex: 2, minWidth: 160 }}>
+              <span>{r.kind === 'skill' ? 'Навык' : 'Характеристика'}</span>
+              <select
+                value={r.key}
+                onChange={(e) => {
+                  const next = [...rows]
+                  next[i] = { ...r, key: e.target.value }
+                  push(next)
+                }}
+              >
+                {(r.kind === 'skill' ? skills : stats).map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="fld fld-num" data-tip="Прибавка при взятии черты (можно отрицательную)">
+            <span>Прибавка</span>
+            <input
+              type="number"
+              value={r.value}
+              onChange={(e) => {
+                const next = [...rows]
+                next[i] = { ...r, value: Number(e.target.value) || 0 }
+                push(next)
+              }}
+            />
+          </label>
+          <button className="btn btn-small ce-del" data-tip="Убрать модификатор" onClick={() => push(rows.filter((_, j) => j !== i))}>
+            <Ico n="close" />
+          </button>
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={() => push([...rows, { kind: 'skill', key: skills[0]?.id ?? '', value: 5 }])}>
+        <Ico n="plus" /> добавить модификатор
+      </button>
+    </div>
+  )
+}
+
+/** Сдвиги навыков под погодой: строка «навык — сдвиг» вместо текста «dodge=-10». */
+function SkillDeltaRows({ store, mods, onChange }: {
+  store: EditorStore
+  mods: Array<{ skill: string; delta: number }>
+  onChange: (mods: Array<{ skill: string; delta: number }>) => void
+}) {
+  const skills = store.options('skill')
+  return (
+    <div>
+      {mods.map((m, i) => (
+        <div key={i} className="fld-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 4 }}>
+          <label className="fld" style={{ flex: 2, minWidth: 160 }}>
+            <span>Навык</span>
+            <select
+              value={m.skill}
+              onChange={(e) => onChange(mods.map((x, j) => (j === i ? { ...x, skill: e.target.value } : x)))}
+            >
+              {!!m.skill && !skills.some((o) => o.id === m.skill) && <option value={m.skill}>{m.skill}</option>}
+              {skills.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="fld fld-num" data-tip="Сдвиг навыка в бою под этой погодой: минус — штраф">
+            <span>Сдвиг</span>
+            <input
+              type="number"
+              value={m.delta}
+              onChange={(e) => onChange(mods.map((x, j) => (j === i ? { ...x, delta: Number(e.target.value) || 0 } : x)))}
+            />
+          </label>
+          <button className="btn btn-small ce-del" data-tip="Убрать сдвиг" onClick={() => onChange(mods.filter((_, j) => j !== i))}>
+            <Ico n="close" />
+          </button>
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={() => onChange([...mods, { skill: skills[0]?.id ?? '', delta: -10 }])}>
+        <Ico n="plus" /> добавить сдвиг
       </button>
     </div>
   )
@@ -1644,80 +1798,30 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                       onChange={(e) => { const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); m.progression!.feats = feats; commit() }}
                     />
                   </label>
-                  <label className="fld" data-tip="Что даёт черта. Формат через запятую: навык=+5 — прибавка к навыку, характеристика=+1 — к характеристике, hp=+2 — к здоровью, mp=+2 — к мане, mov=+1 — к скорости. Пример: внимательность=+5, hp=+2">
-                    <span>Модификаторы</span>
-                    <input
-                      defaultValue={[
-                        ...Object.entries(f.mods?.skills ?? {}).map(([k, v]) => `${store.labelFor('skill', k)}=${v >= 0 ? '+' : ''}${v}`),
-                        ...Object.entries(f.mods?.stats ?? {}).map(([k, v]) => `${statLabel(k)}=${v >= 0 ? '+' : ''}${v}`),
-                        ...(f.mods?.hp ? [`hp=+${f.mods.hp}`] : []),
-                        ...(f.mods?.mp ? [`mp=+${f.mods.mp}`] : []),
-                        ...(f.mods?.mov ? [`mov=+${f.mods.mov}`] : []),
-                      ].join(', ')}
-                      placeholder="внимательность=+5, hp=+2"
-                      onBlur={(e) => {
-                        const skills: Record<string, number> = {}
-                        const stats: Record<string, number> = {}
-                        let hp = 0; let mp = 0; let mov = 0
-                        for (const part of e.target.value.split(',')) {
-                          const [k, v] = part.split('='); const n = parseInt(v ?? '', 10)
-                          if (!k || Number.isNaN(n)) continue
-                          const key = k.trim()
-                          // Поддержка как старого формата (skill:навык=+5), так и нового (навык=+5)
-                          const skillKey = key.startsWith('skill:') ? key.slice(6) : key
-                          const statKey = key.startsWith('stat:') ? key.slice(5) : key
-                          // Пробуем найти навык по русскому названию или id
-                          const skillId = store.options('skill').find(s => s.label === key || s.id === skillKey || s.id === key)?.id
-                          // Для характеристик используем встроенные метки
-                          const statEntry = Object.entries(BUILTIN_SKILL_LABELS).find(([, label]) => label === key) ??
-                            Object.entries(BUILTIN_STAT_LABELS).find(([, label]) => label === key)
-                          const statId = statEntry?.[0] || store.options('need').find(s => s.label === key || s.id === statKey || s.id === key)?.id
-                          if (skillId) skills[skillId] = n
-                          else if (statId) stats[statId] = n
-                          else if (key === 'hp') hp = n
-                          else if (key === 'mp') mp = n
-                          else if (key === 'mov') mov = n
-                        }
-                        const mods: NonNullable<FeatDef['mods']> = {}
-                        if (Object.keys(skills).length) mods.skills = skills
-                        if (Object.keys(stats).length) mods.stats = stats
-                        if (hp) mods.hp = hp
-                        if (mp) mods.mp = mp
-                        if (mov) mods.mov = mov
-                        const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, mods: Object.keys(mods).length ? mods : undefined } : x)
+                  <div className="fld" style={{ flex: 2, minWidth: 280 }} data-tip="Что даёт черта при взятии: прибавки к навыкам, характеристикам, здоровью, мане и движению">
+                    <span>Модификаторы (что даёт черта)</span>
+                    <FeatModRows
+                      store={store}
+                      mods={f.mods}
+                      onChange={(mods) => {
+                        const feats = (m.progression!.feats ?? []).map((x, j) => (j === i ? { ...x, mods } : x))
                         m.progression!.feats = feats
                         commit()
                       }}
                     />
-                  </label>
-                  <label className="fld" data-tip="Кто может взять черту (через запятую). level_ge:3 — уровень 3 и выше; has_feat:keen — уже есть черта; has_item:id — есть предмет; flag_set:key — взведён флаг; skill_ge:melee=60 — навык от 60; variable_compare:var>=5 — переменная от 5">
-                    <span>Требования</span>
-                    <input
-                      defaultValue={(f.requires ?? []).map((c) => c.type === 'level_ge' ? `level_ge:${c.level}`
-                        : c.type === 'has_feat' ? `has_feat:${c.id}`
-                        : c.type === 'has_item' ? `has_item:${c.item}`
-                        : c.type === 'flag_set' ? `flag_set:${c.flag}`
-                        : c.type === 'skill_ge' ? `skill_ge:${c.skill}=${c.threshold}`
-                        : c.type === 'variable_compare' ? `variable_compare:${c.var}${c.operator}${String(c.value)}`
-                        : c.type).join(', ')}
-                      placeholder="level_ge:3, has_feat:keen"
-                      onBlur={(e) => {
-                        const reqs: NonNullable<FeatDef['requires']> = []
-                        for (const part of e.target.value.split(',')) {
-                          const [t, ...rest] = part.trim().split(':'); const v = rest.join(':')
-                          if (t === 'level_ge') reqs.push({ type: 'level_ge', level: parseInt(v, 10) || 1 })
-                          else if (t === 'has_feat' && v) reqs.push({ type: 'has_feat', id: v })
-                          else if (t === 'has_item' && v) reqs.push({ type: 'has_item', item: v })
-                          else if (t === 'flag_set' && v) reqs.push({ type: 'flag_set', flag: v })
-                          else if (t === 'skill_ge') { const [sk, n] = (v || '').split('='); if (sk) reqs.push({ type: 'skill_ge', skill: sk, threshold: parseInt(n, 10) || 0 }) }
-                          else if (t === 'variable_compare') { const mch = (v || '').match(/^([A-Za-z_0-9-]+)(==|!=|>=|<=|>|<)(-?\d+)$/); if (mch) reqs.push({ type: 'variable_compare', var: mch[1], operator: mch[2] as '==' | '!=' | '<' | '>' | '<=' | '>=', value: parseInt(mch[3], 10) }) }
-                        }
-                        const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, requires: reqs.length ? reqs : undefined } : x)
+                  </div>
+                  <div className="fld" style={{ flex: 2, minWidth: 280 }} data-tip="Кто может взять черту: требования выбираются списком. Пусто — без требований">
+                    <span>Требования (кто может взять)</span>
+                    <ConditionListEditor
+                      store={store}
+                      conditions={f.requires ?? []}
+                      onChange={(c) => {
+                        const feats = (m.progression!.feats ?? []).map((x, j) => (j === i ? { ...x, requires: c.length ? c : undefined } : x))
                         m.progression!.feats = feats
                         commit()
                       }}
                     />
-                  </label>
+                  </div>
                 </div>
               </div>
             ))}
@@ -2731,21 +2835,18 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                   }}
                 />
               </label>
-              <label className="fld" data-tip="Сдвиг навыков под погодой: навык=±сдвиг через запятую (dodge=-10, ranged=-20)">
+              <div className="fld" style={{ flex: 2, minWidth: 260 }} data-tip="Сдвиги навыков в бою под этой погодой: строка «навык — сдвиг», минус — штраф">
                 <span>Сдвиг навыков</span>
-                <input
-                  value={(w.combat?.skill_mods ?? []).map((x) => `${x.skill}=${x.delta}`).join(', ')}
-                  onChange={(e) => {
-                    const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                      const [skill, delta] = x.split('=').map((y) => y.trim())
-                      return { skill: skill || '', delta: Number(delta) || 0 }
-                    }).filter((x) => x.skill)
+                <SkillDeltaRows
+                  store={store}
+                  mods={w.combat?.skill_mods ?? []}
+                  onChange={(arr) => {
                     if (arr.length) w.combat = { ...(w.combat ?? {}), skill_mods: arr }
                     else if (w.combat) delete w.combat.skill_mods
                     commit()
                   }}
                 />
-              </label>
+              </div>
               <label className="fld" data-tip="Статус, который действует на всех бойцов в бою под этой погодой (мороз, пар)">
                 <span>Статус в бою</span>
                 <select

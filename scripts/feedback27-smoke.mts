@@ -143,6 +143,10 @@ const ctx = (): ReportCtx & { texts: string[] } => {
   check('2 правило засады выбирается из правил', /Правило засады[\s\S]{0,240}kind="rule"/.test(ce))
   check('4 категории навыков — реестр строк', /Категории навыков<\/span>[\s\S]{0,240}RegistryRows/.test(ce) && /items=\{m\.skill_categories/.test(ce) && !ce.includes('fight=Бой'))
   check('5 у потребности есть описание', /n\.description \?\? ''/.test(ce) && ce.includes('Описание (подсказка игроку)'))
+  // «во всех местах»: парсерные текстовые поля заменены структурой
+  check('2 модификаторы черты — строки «что — прибавка»', ce.includes('function FeatModRows') && ce.includes('Модификаторы (что даёт черта)') && !ce.includes('внимательность=+5, hp=+2'))
+  check('2 требования черты — конструктор условий', /Требования \(кто может взять\)[\s\S]{0,400}ConditionListEditor/.test(ce) && !ce.includes('level_ge:3, has_feat:keen'))
+  check('2 сдвиги навыков погоды — строки «навык — сдвиг»', ce.includes('function SkillDeltaRows') && /Сдвиг навыков[\s\S]{0,220}SkillDeltaRows/.test(ce) && !ce.includes('навык=±сдвиг'))
   const css = f('src/editor/editor.css')
   check('3 селекты кубиков в редакторе не растягиваются на всю ширину', /\.dmg-row select,[\s\S]{0,80}width: auto/.test(css))
   check('3 ряд кубиков в редакторе компактный', /\.[fF]ld-dmg[^}]*flex: 0 1 auto/.test(css) || /\.fld-row \.fld-dmg \{[\s\S]{0,120}flex: 0 1 auto/.test(css))
