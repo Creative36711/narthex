@@ -1,6 +1,3 @@
-# Сборка кампании ( regenerate: python3 tools/build.py )
-package/
-
-# Служебные файлы инструментов
 __pycache__/
-*.pyc
+package/
+*.zip
