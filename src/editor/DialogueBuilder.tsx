@@ -164,6 +164,20 @@ function condKey(c: DlgCond): string {
 
 // ─────────────── корень конструктора ───────────────
 
+/** флаги, придуманные в сценарии, дописываем в реестр кампании (ремонт молча) */
+function registerNewFlags(store: EditorStore, list: Array<{ id: string; label: string }>, note: string): boolean {
+  if (!list.length) return false
+  const flags = (store.meta.flags ??= [])
+  let added = false
+  for (const f of list) {
+    if (flags.some((x) => x.id === f.id || x.label === f.label)) continue
+    flags.push({ id: f.id, label: f.label, description: note })
+    added = true
+  }
+  if (added) store.touch('campaign.json')
+  return added
+}
+
 type DlgMode = 'script' | 'form' | 'ink'
 
 /**
@@ -182,8 +196,9 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
   const [, force] = useState(0)
   const [inkDraft, setInkDraft] = useState<string | null>(null)
 
-  const doc = useMemo(() => (raw ? migrateDlgDoc(raw) : null), [raw])
   const refs = useMemo(() => storeRefs(store, dlgPath), [store, dlgPath])
+  /** документ без реестров: их применит эффект ниже — он же покажет ошибки строками */
+  const doc = useMemo(() => (raw ? migrateDlgDoc(raw) : null), [raw])
   const [scriptText, setScriptText] = useState<string>(() =>
     doc ? (doc.script ?? dlgToScript(doc, refs)) : '')
   const [issues, setIssues] = useState<ScriptIssue[]>([])
@@ -193,6 +208,15 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
     let dirty = doc !== raw // миграция v1 → v2 на месте
     if (doc.script === undefined) {
       doc.script = dlgToScript(doc, refs) // разговор пришёл из ink/форм — сразу показываем текстом
+      dirty = true
+    }
+    if (doc.script && !doc.nodes.length) {
+      // документ от ИИ: пришёл текстом без структуры — разбираем и показываем ошибки
+      const res = scriptToDlg(doc.script, refs, doc)
+      doc.nodes = res.doc.nodes
+      if (res.doc.label !== undefined) doc.label = res.doc.label
+      setIssues(res.issues)
+      registerNewFlags(store, res.newFlags, `Придуман в разговоре «${doc.label ?? store.dialogueLabel(path)}».`)
       dirty = true
     }
     if (dirty) store.jsonFiles.set(dlgPath, doc)
@@ -207,17 +231,8 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
     force((n) => n + 1)
   }
 
-  /** флаги, придуманные в сценарии, дописываем в реестр кампании (ремонт молча) */
   const registerFlags = (list: Array<{ id: string; label: string }>) => {
-    if (!list.length) return
-    const flags = (store.meta.flags ??= [])
-    let added = false
-    for (const f of list) {
-      if (flags.some((x) => x.id === f.id || x.label === f.label)) continue
-      flags.push({ id: f.id, label: f.label, description: `Придуман в разговоре «${doc.label ?? store.dialogueLabel(path)}».` })
-      added = true
-    }
-    if (added) store.touch('campaign.json')
+    registerNewFlags(store, list, `Придуман в разговоре «${doc.label ?? store.dialogueLabel(path)}».`)
   }
 
   /** правка сценария: разбираем текст и обновляем структуру того же документа */

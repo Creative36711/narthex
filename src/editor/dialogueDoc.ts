@@ -157,6 +157,7 @@ export type {
   DlgDoc,
 } from '../shared/types'
 import type { DlgCond, DlgDoc, DlgEffect, DlgLine, DlgSection, DlgStep } from '../shared/types'
+import { dlgDocFromScript, type ScriptRefs } from './dlgScript'
 
 export function newDlgDoc(label?: string): DlgDoc {
   return {
@@ -196,6 +197,7 @@ function migrateLineTexts(doc: DlgDoc): DlgDoc {
   const fixLine = (l: DlgLine) => {
     if (l.text) l.text = inkToTokens(l.text)
   }
+  // v2: тексты могли содержать «сырой» ink (item_count(...) и т.п.) — переводим в токены
   const fixSections = (sections: DlgSection[]) => {
     for (const sec of sections) {
       for (const st of sec.steps) if (st.kind === 'line') fixLine(st.line)
@@ -216,11 +218,25 @@ function migrateLineTexts(doc: DlgDoc): DlgDoc {
   return doc
 }
 
-export function migrateDlgDoc(raw: unknown): DlgDoc {
-  const doc = raw as { version: number; label?: string; nodes: unknown[] }
-  // v2: тексты могли содержать «сырой» ink (item_count(...) и т.п.) — переводим в токены
-  if (doc.version === 2) return migrateLineTexts(doc as DlgDoc)
-  const v1nodes = doc.nodes as DlgNodeV1[]
+/**
+ * Привести документ любой версии к v2.
+ *
+ * Если структуры нет, а текст мастерского сценария есть (`script` — так пишет
+ * ИИ и так сохраняет редактор), структура собирается из текста: нужны реестры
+ * кампании (`refs`, см. `refsFromMonolith`). Без реестров документ остаётся
+ * как есть — редактор разберёт его сам и покажет ошибки строками.
+ */
+export function migrateDlgDoc(raw: unknown, refs?: ScriptRefs): DlgDoc {
+  const doc = raw as { version: number; label?: string; nodes?: unknown[]; script?: string }
+  const out = doc.version === 2 ? (doc as unknown as DlgDoc) : migrateV1(doc as { version: number; label?: string; nodes: DlgNodeV1[] })
+  out.nodes ??= []
+  if (out.script && !out.nodes.length && refs) dlgDocFromScript(out, refs)
+  return migrateLineTexts(out)
+}
+
+/** старый формат (v1): строки+эффекты вместо секций */
+function migrateV1(doc: { version: number; label?: string; nodes: DlgNodeV1[] }): DlgDoc {
+  const v1nodes = doc.nodes
   const migrated: DlgDoc = {
     version: 2,
     label: doc.label,
@@ -246,7 +262,7 @@ export function migrateDlgDoc(raw: unknown): DlgDoc {
       }),
     })),
   }
-  return migrateLineTexts(migrated)
+  return migrated
 }
 
 // ─────────────── генерация ink ───────────────

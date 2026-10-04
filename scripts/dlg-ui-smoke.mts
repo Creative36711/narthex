@@ -21,6 +21,9 @@ import { DialogueScriptView } from '../src/editor/DialogueScriptView'
 import { buildDialoguePlaytest } from '../src/editor/DialoguePlaytest'
 import { generateInk, migrateDlgDoc } from '../src/editor/dialogueDoc'
 import { scriptToDlg, storeRefs, dlgToScript } from '../src/editor/dlgScript'
+import { exportMonolith, importMonolith } from '../src/editor/monolith'
+import { normalizeChronicleManifest } from '../src/editor/chronicleManifest'
+import type { DlgDoc as DlgDocType } from '../src/shared/types'
 import type { DlgDoc } from '../src/shared/types'
 
 let failed = 0
@@ -141,6 +144,37 @@ if (owner) {
     check('U разговор без владельца играет временный собеседник', free.npcId === 'npc__preview' && !!free.engine.dialogue)
     raw.dialogue = saved
   }
+}
+
+// ── путь ИИ: разговор пришёл текстом, структуры нет ──
+{
+  const { doc: mono } = exportMonolith(store)
+  const key = 'maeva'
+  const scriptOnly = { version: 2, label: 'Маэва, травница', script, nodes: [] as never[] }
+  mono.dialogues[key] = scriptOnly as never
+
+  const aiStore = new EditorStore('/campaigns/ai')
+  const warns = importMonolith(aiStore, JSON.parse(JSON.stringify(mono)))
+  const aiInk = aiStore.textFiles.get(`dialogues/${key}.ink`) ?? ''
+  const aiDoc = aiStore.jsonFiles.get(`dialogues/${key}.dlg.json`) as DlgDocType | undefined
+  check('ИИ импорт: текст разобран в формы', !!aiDoc && aiDoc.nodes.length > 0, String(aiDoc?.nodes.length))
+  check('ИИ импорт: ink собран из текста', aiInk.includes('EXTERNAL') && aiInk.includes(flag.id))
+  check('ИИ импорт: предупреждений о разговоре нет', !warns.some((w) => w.includes('Маэва')), warns.join(' | ').slice(0, 200))
+
+  mono.dialogues[key] = { version: 2, label: 'Кривой', script: '— Привет.\n→ полетать: высоко\n', nodes: [] } as never
+  const warnsBad = importMonolith(new EditorStore('/campaigns/ai2'), JSON.parse(JSON.stringify(mono)))
+  check('ИИ импорт: ошибка текста названа строкой', warnsBad.some((w) => w.includes('полетать')), warnsBad.join(' | ').slice(0, 200))
+
+  // тот же текст, но в .chronicle-пакете (sidecar без узлов) — ink собирается при чтении
+  const jsonFiles = new Map<string, unknown>()
+  for (const [path, val] of store.jsonFiles) jsonFiles.set(path, JSON.parse(JSON.stringify(val)))
+  jsonFiles.set('campaign.json', JSON.parse(JSON.stringify(store.meta))) // в пакете он отдельным файлом
+  jsonFiles.set('world.json', JSON.parse(JSON.stringify(store.world)))
+  jsonFiles.set(`dialogues/${key}.dlg.json`, { version: 2, label: 'Маэва, травница', script, nodes: [] })
+  const textFiles = new Map<string, string>()
+  normalizeChronicleManifest({ dialogues: [`${key}.ink`] } as never, jsonFiles, textFiles)
+  const packInk = textFiles.get(`dialogues/${key}.ink`) ?? ''
+  check('пакет: ink собран из текста разговора', packInk.includes(flag.id) && packInk.includes(item.id))
 }
 
 // ── круг «сценарий → ink → формы» для этого же разговора ──

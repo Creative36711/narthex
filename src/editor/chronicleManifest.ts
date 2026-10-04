@@ -1,6 +1,32 @@
 import type JSZip from 'jszip'
-import type { CampaignManifest, DlgDoc } from '../shared/types'
-import { generateInk } from './dialogueDoc'
+import type { CampaignManifest, CampaignMeta, DlgDoc, MonolithDoc, WorldDef } from '../shared/types'
+import { generateInk, migrateDlgDoc } from './dialogueDoc'
+import { refsFromMonolith } from './dlgScript'
+
+/**
+ * Реестры кампании из уже прочитанных файлов архива: нужны, чтобы разобрать
+ * разговор, написанный текстом (поле `script`), когда структуры в документе нет.
+ * ИИ-агент вправе отдать разговор словами — тогда `.dlg.json` приходит без узлов.
+ */
+function refsFromFiles(jsonFiles: Map<string, unknown>) {
+  const take = <T,>(folder: string): Record<string, T> => {
+    const out: Record<string, T> = {}
+    for (const [path, val] of jsonFiles) {
+      if (!path.startsWith(`${folder}/`) || !path.endsWith('.json')) continue
+      const id = (val as { id?: string } | null)?.id
+      if (id) out[id] = val as T
+    }
+    return out
+  }
+  const shell = {
+    campaign: (jsonFiles.get('campaign.json') ?? {}) as CampaignMeta,
+    world: (jsonFiles.get('world.json') ?? {}) as WorldDef,
+    scenes: {}, entities: take('entities'), rules: take('rules'), quests: take('quests'),
+    arenas: {}, cutscenes: take('cutscenes'), recipes: take('recipes'), codex: take('codex'),
+    dialogues: {},
+  } as MonolithDoc
+  return refsFromMonolith(shell)
+}
 
 /**
  * Campaign Package manifests list filenames relative to their module folder.
@@ -68,7 +94,8 @@ export function normalizeChronicleManifest(
         const doc = jsonFiles.get(sidecarPath) as DlgDoc | undefined
         if (doc) {
           try {
-            textFiles.set(canonicalPath, generateInk(doc))
+            // разговор, написанный текстом: собираем структуру, затем ink
+            textFiles.set(canonicalPath, generateInk(migrateDlgDoc(doc, refsFromFiles(jsonFiles))))
           } catch {
             // Keep the structured sidecar intact; the editor's guarded dialogue
             // host can still expose it for repair without crashing the campaign.

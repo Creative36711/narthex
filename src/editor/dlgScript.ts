@@ -15,7 +15,7 @@
  * которую из него собрали. Формы и ink — равноправные виды того же документа.
  */
 
-import type { DlgCheck, DlgChoice, DlgCond, DlgDoc, DlgEffect, DlgLine, DlgNode, DlgSection, DlgStep, SkillDifficulty } from '../shared/types'
+import type { DlgCheck, DlgChoice, DlgCond, DlgDoc, DlgEffect, DlgLine, DlgNode, DlgSection, DlgStep, MonolithDoc, SkillDifficulty } from '../shared/types'
 import { DEFAULT_EMOTION } from '../shared/types'
 import { makeId } from './ids'
 import type { EditorStore } from './store'
@@ -49,6 +49,60 @@ export function storeRefs(store: EditorStore, dlgPath: string): ScriptRefs {
     npcDefault: npc?.id,
     tickLabel: store.meta.tick_label || 'тик',
   }
+}
+
+/**
+ * Реестры для разбора сценария там, где редактора нет: импорт монолита от ИИ,
+ * починка документов в архиве. Названия берём из самой кампании — правила
+ * разбора те же, что и в редакторе (`storeRefs`).
+ */
+export function refsFromMonolith(doc: MonolithDoc, dialogueId?: string): ScriptRefs {
+  const meta = doc.campaign
+  const ents = Object.values(doc.entities ?? {})
+  const byType = (t: string) => ents.filter((e) => e.type === t).map((e) => ({ id: e.id, label: e.label || e.id }))
+  const npcs = byType('npc')
+  const options = (kind: ScriptRefKind): Array<{ id: string; label: string }> => {
+    switch (kind) {
+      case 'flag': return (meta.flags ?? []).map((f) => ({ id: f.id, label: f.label || f.id }))
+      case 'item': return byType('item')
+      case 'npc': return npcs
+      case 'quest': return Object.values(doc.quests ?? {}).map((q) => ({ id: q.id, label: q.label || q.id }))
+      case 'skill': return (meta.skills ?? []).map((s) => ({ id: s.id, label: s.label || s.id }))
+      case 'need': return (meta.needs ?? []).map((n) => ({ id: n.id, label: n.label || n.id }))
+      case 'status': return (meta.statuses ?? []).map((s) => ({ id: s.id, label: s.label || s.id }))
+      case 'weather': return [{ id: '', label: 'Ясно' }, ...(meta.weathers ?? []).map((w) => ({ id: w.id, label: w.label || w.id }))]
+      case 'recipe': return Object.values(doc.recipes ?? {}).map((r) => ({ id: r.id, label: r.label || r.id }))
+      case 'codex': return Object.values(doc.codex ?? {}).map((c) => ({ id: c.id, label: c.label || c.id }))
+      case 'cutscene': return Object.values(doc.cutscenes ?? {}).map((c) => ({ id: c.id, label: c.label || c.id }))
+      case 'rule': return Object.values(doc.rules ?? {}).map((r) => ({ id: r.id, label: r.label || r.id }))
+      case 'emotion': return [{ id: DEFAULT_EMOTION.id, label: DEFAULT_EMOTION.label }, ...(meta.emotions ?? []).map((e) => ({ id: e.id, label: e.label || e.id }))]
+      case 'disposition': return [
+        ...(meta.factions ?? []).map((f) => ({ id: f.id, label: `${f.label || f.id} (фракция)` })),
+        ...npcs.map((n) => ({ id: n.id, label: `${n.label} (NPC)` })),
+      ]
+    }
+  }
+  const owner = dialogueId
+    ? ents.find((e) => e.type === 'npc' && (e as { dialogue?: string }).dialogue === `dialogues/${dialogueId}.ink`)
+    : undefined
+  return {
+    options,
+    stages: (questId) => (doc.quests?.[questId]?.stages ?? []).map((st) => ({ id: st.id, label: st.label || st.id })),
+    npcDefault: owner?.id,
+    tickLabel: meta.tick_label || 'тик',
+  }
+}
+
+/**
+ * Собрать структуру разговора из его текста (мастерский сценарий из документа
+ * `.dlg.json`, в том числе пришедшего от ИИ или из архива). Правка идёт на
+ * месте: возвращаем тот же объект документа.
+ */
+export function dlgDocFromScript(doc: DlgDoc, refs: ScriptRefs): { doc: DlgDoc; issues: ScriptIssue[] } {
+  const res = scriptToDlg(doc.script ?? '', refs, { ...doc, nodes: doc.nodes ?? [] })
+  doc.nodes = res.doc.nodes
+  if (res.doc.label !== undefined) doc.label = res.doc.label
+  return { doc, issues: res.issues }
 }
 
 /** счётчики хроники: ключи движка + человеческие подписи */
