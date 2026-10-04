@@ -7,6 +7,10 @@ import { ConditionListEditor, EffectListEditor, FileAdvancedJson, ChapterSelect 
 /** Визуальный конструктор правил (ТЗ 5.2.4): условия + эффекты. */
 export function RuleEditor({ store, path }: { store: EditorStore; path: string }) {
   const rule = store.rule(path)
+  // защита от битых правил (импорт ИИ-кампании): массивы могут отсутствовать —
+  // восстанавливаем до рендера, иначе `reading 'length'` роняет весь редактор
+  if (!Array.isArray(rule.conditions)) rule.conditions = []
+  if (!Array.isArray(rule.effects)) rule.effects = []
   const [, force] = useState(0)
   const commit = () => {
     store.touch(path)

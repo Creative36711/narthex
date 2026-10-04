@@ -3,7 +3,7 @@ import { Ico } from '../shared/icons'
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { EditorStore } from './store'
-import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect } from './Fields'
+import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect, DiceNotationInput } from './Fields'
 import { BUILTIN_SKILL_LABELS, BUILTIN_STAT_LABELS, statLabel } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
@@ -1615,8 +1615,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                           // Пробуем найти навык по русскому названию или id
                           const skillId = store.options('skill').find(s => s.label === key || s.id === skillKey || s.id === key)?.id
                           // Для характеристик используем встроенные метки
-                          const statEntry = Object.entries(BUILTIN_SKILL_LABELS).find(([id, label]) => label === key) ??
-                            Object.entries(BUILTIN_STAT_LABELS).find(([id, label]) => label === key)
+                          const statEntry = Object.entries(BUILTIN_SKILL_LABELS).find(([, label]) => label === key) ??
+                            Object.entries(BUILTIN_STAT_LABELS).find(([, label]) => label === key)
                           const statId = statEntry?.[0] || store.options('need').find(s => s.label === key || s.id === statKey || s.id === key)?.id
                           if (skillId) skills[skillId] = n
                           else if (statId) stats[statId] = n
@@ -1905,14 +1905,12 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             </label>
             {m.char_creation.roll && (
               <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-                <label className="fld">
-                  <span>Базовая формула броска</span>
-                  <input
-                    value={m.char_creation.roll.notation ?? '3d6'}
-                    placeholder="3d6"
-                    onChange={(e) => ((m.char_creation!.roll!.notation = e.target.value || '3d6'), commit())}
-                  />
-                </label>
+                <DiceNotationInput
+                  label="Базовая формула броска"
+                  tip="Сколько и каких костей бросается на характеристику по умолчанию"
+                  value={m.char_creation.roll.notation ?? '3d6'}
+                  onChange={(v) => ((m.char_creation!.roll!.notation = v || '3d6'), commit())}
+                />
                 <label className="fld fld-num" data-tip="Сколько наборов бросается, игрок выбирает один">
                   <span>Наборов на выбор</span>
                   <input type="number" min={1} value={m.char_creation.roll.arrays ?? 1} onChange={(e) => ((m.char_creation!.roll!.arrays = Math.max(1, Number(e.target.value) || 1)), commit())} />
@@ -1934,20 +1932,22 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 </span>
                 <div className="fld-row" style={{ flexWrap: 'wrap' }}>
                   {(['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const).map((k) => (
-                    <label key={k} className="fld" style={{ maxWidth: 90 }}>
-                      <span>{k}</span>
-                      <input
+                    <div key={k} style={{ maxWidth: 240, minWidth: 190 }}>
+                      <DiceNotationInput
+                        label={k}
+                        compact
+                        optional
+                        tip="Своя формула броска характеристики (пусто — базовая)"
                         value={m.char_creation!.roll!.per_stat?.[k] ?? ''}
-                        placeholder={m.char_creation!.roll!.notation ?? '3d6'}
-                        onChange={(e) => {
+                        onChange={(v) => {
                           const per = { ...(m.char_creation!.roll!.per_stat ?? {}) }
-                          if (e.target.value.trim()) per[k] = e.target.value.trim()
+                          if (v.trim()) per[k] = v.trim()
                           else delete per[k]
                           m.char_creation!.roll!.per_stat = Object.keys(per).length ? per : undefined
                           commit()
                         }}
                       />
-                    </label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -2910,11 +2910,11 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Название</span>
               <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
             </label>
-            <label className="fld" style={{ flex: 2 }}>
-              <span>Для чего нужен</span>
+            <label className="fld" style={{ flex: 2 }} data-tip="Какое событие запоминает флаг и где он читается (правила, диалоги, квесты). Для ИИ-кампаний поле обязательное.">
+              <span>Для чего нужен{!f.description?.trim() && <span className="fld-err"> — не заполнено</span>}</span>
               <input
                 value={f.description ?? ''}
-                placeholder="необязательно"
+                placeholder="напр.: поднята, когда следователь нашёл квитанцию; читается в финале"
                 onChange={(e) => {
                   if (e.target.value) f.description = e.target.value
                   else delete f.description
@@ -3517,10 +3517,13 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                 onChange={(v) => ((a.skill = v || undefined), commit())}
               />
               {a.kind === 'damage' && (
-                <label className="fld" data-tip="Нотация кубиков, напр. 1d6+2. Бонус силы НЕ добавляется; броня цели поглощает.">
-                  <span>Урон (кубики)</span>
-                  <input value={a.damage ?? ''} placeholder="1d6" onChange={(e) => ((a.damage = e.target.value || undefined), commit())} />
-                </label>
+                <DiceNotationInput
+                  label="Урон (кубики)"
+                  tip="Нотация кубиков, напр. 1d6+2. Бонус силы НЕ добавляется; броня цели поглощает."
+                  optional
+                  value={a.damage ?? ''}
+                  onChange={(v) => ((a.damage = v || undefined), commit())}
+                />
               )}
               {a.kind === 'status' && (
                 <>
@@ -3545,10 +3548,13 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                 </>
               )}
               {a.kind === 'heal' && (
-                <label className="fld" data-tip="Нотация кубиков, напр. 1d6">
-                  <span>Лечение (кубики)</span>
-                  <input value={a.heal ?? ''} placeholder="1d6" onChange={(e) => ((a.heal = e.target.value || undefined), commit())} />
-                </label>
+                <DiceNotationInput
+                  label="Лечение (кубики)"
+                  tip="Нотация кубиков, напр. 1d6"
+                  optional
+                  value={a.heal ?? ''}
+                  onChange={(v) => ((a.heal = v || undefined), commit())}
+                />
               )}
               <label className="fld fld-check" data-tip="Заклинание действует только подготовленное в слот (слоты задаются ниже — «Слоты подготовки магии»)">
                 <input type="checkbox" checked={!!a.prepare} onChange={(e) => ((a.prepare = e.target.checked || undefined), commit())} />
@@ -3568,11 +3574,11 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                   </label>
                   <label className="fld fld-num" data-tip="Знаковое: −2 — заклинатель теряет 2 HP">
                     <span>HP ±</span>
-                    <input value={b.hp_delta ?? ''} placeholder="0" onChange={(e) => ((b.hp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
+                    <input type="number" value={b.hp_delta ?? ''} placeholder="0" onChange={(e) => ((b.hp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
                   </label>
                   <label className="fld fld-num" data-tip="Знаковое: −3 — заклинатель теряет 3 MP">
                     <span>MP ±</span>
-                    <input value={b.mp_delta ?? ''} placeholder="0" onChange={(e) => ((b.mp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
+                    <input type="number" value={b.mp_delta ?? ''} placeholder="0" onChange={(e) => ((b.mp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
                   </label>
                   <RefSelect
                     label="Статус заклинателю"
@@ -4028,10 +4034,12 @@ function SpeciesRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorS
             {sp.natural_weapon && (
               <div className="fld-row" style={{ flexWrap: 'wrap' }}>
                 <RefSelect label="Навык атаки" kind="skill" store={store} value={sp.natural_weapon.skill} optional={false} onChange={(v) => ((sp.natural_weapon!.skill = v ?? ''), commit())} />
-                <label className="fld">
-                  <span>Урон</span>
-                  <input value={sp.natural_weapon.damage} onChange={(e) => ((sp.natural_weapon!.damage = e.target.value), commit())} />
-                </label>
+                <DiceNotationInput
+                  label="Урон"
+                  tip="Нотация кубиков природной атаки, напр. 1d4"
+                  value={sp.natural_weapon.damage}
+                  onChange={(v) => ((sp.natural_weapon!.damage = v), commit())}
+                />
                 <label className="fld">
                   <span>Название удара</span>
                   <input value={sp.natural_weapon.label ?? ''} onChange={(e) => ((sp.natural_weapon!.label = e.target.value || undefined), commit())} />

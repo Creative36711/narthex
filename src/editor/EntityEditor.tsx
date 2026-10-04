@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
 import { DEFAULT_EMOTION, equipmentSlots } from '../shared/types'
 import type { EditorStore } from './store'
-import { ConditionListEditor, EffectListEditor, FlagSelect, ImageUpload, RefSelect, FileAdvancedJson, AnimImageEditor } from './Fields'
+import { ConditionListEditor, EffectListEditor, FlagSelect, ImageUpload, RefSelect, FileAdvancedJson, AnimImageEditor, DiceNotationInput } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { SoundHookMapEditor } from './AudioSection'
 import { askText } from './prompt'
@@ -372,7 +372,7 @@ function ItemForm({
               value={item.weapon_data.skill}
               onChange={(v) => ((item.weapon_data!.skill = v), commit())}
             />
-            <DamageInput label="Урон" value={item.weapon_data.damage} onChange={(v) => ((item.weapon_data!.damage = v), commit())} />
+            <DiceNotationInput label="Урон" value={item.weapon_data.damage} onChange={(v) => ((item.weapon_data!.damage = v), commit())} />
             <label className="fld fld-check">
               <input type="checkbox" checked={item.weapon_data.damage_bonus} onChange={(e) => ((item.weapon_data!.damage_bonus = e.target.checked), commit())} />
               <span>+ бонус силы</span>
@@ -1493,37 +1493,6 @@ function SlotTypeField({ e, store, commit }: { e: EntityDef; store: EditorStore;
           <option key={t.id} value={t.id}>{t.label}</option>
         ))}
       </select>
-    </label>
-  )
-}
-
-/** Структурный ввод урона: N кубиков dX + модификатор (фидбек №9). */
-function DamageInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  const m = /^(\d+)d(\d+)([+-]\d+)?$/.exec(value.trim()) ?? ['', '1', '6', '']
-  const count = Number(m[1] || 1)
-  const die = Number(m[2] || 6)
-  const mod = Number(m[3] || 0)
-  const emit = (c: number, d: number, mo: number) => onChange(`${c}d${d}${mo > 0 ? `+${mo}` : mo < 0 ? String(mo) : ''}`)
-  return (
-    <label className="fld">
-      <span>{label}</span>
-      <div className="dmg-row">
-        <select value={count} onChange={(e) => emit(Number(e.target.value), die, mod)}>
-          {[1, 2, 3, 4].map((n) => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
-        <span className="muted">×</span>
-        <select value={die} onChange={(e) => emit(count, Number(e.target.value), mod)}>
-          {[4, 6, 8, 10, 12, 20].map((n) => (
-            <option key={n} value={n}>d{n}</option>
-          ))}
-        </select>
-        <span className="muted">+</span>
-        <input type="number" value={mod} onChange={(e) => emit(count, die, Number(e.target.value) || 0)} data-tip="Модификатор (может быть отрицательным)" />
-        <span className="muted">=</span>
-        <span className="dmg-summary">{`${count}d${die}${mod > 0 ? `+${mod}` : mod < 0 ? String(mod) : ''}`}</span>
-      </div>
     </label>
   )
 }

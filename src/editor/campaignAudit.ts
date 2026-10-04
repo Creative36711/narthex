@@ -180,6 +180,58 @@ async function inspectLocalMedia(store: EditorStore, paths: string[]): Promise<A
   }))
 }
 
+/** Роли изображений, где фон — гарантированный брак: картинка кладётся поверх другого контента. */
+function alphaRolePaths(store: EditorStore): Array<{ path: string; role: string }> {
+  const out: Array<{ path: string; role: string }> = []
+  const art = store.meta.theme?.menu?.title_art
+  if (art) out.push({ path: art, role: 'эмблема меню (theme.menu.title_art) лежит поверх фона меню' })
+  for (const p of store.entityPaths()) {
+    const e = store.entity(p)
+    const spr = typeof e.scene_sprite === 'string' ? e.scene_sprite : undefined
+    if (spr) out.push({ path: spr, role: `спрайт в сцене «${e.label}» стоит в слоте поверх фона сцены` })
+    const fig = 'combat_figure' in e && typeof e.combat_figure === 'string' ? e.combat_figure : undefined
+    if (fig) out.push({ path: fig, role: `фигурка боя «${e.label}» стоит поверх арены` })
+  }
+  return out
+}
+
+/**
+ * Проверка альфа-канала по углам картинки: если все четыре угла непрозрачные,
+ * изображение почти наверняка с фоном (квадрат-подложка в меню/сцене/бою).
+ * Дыра найдена на кампании «Ржавая литургия»: эмблема меню пришла чёрным
+ * квадратом — чемодан теперь требует прозрачность, а аудит ловит нарушение.
+ */
+async function inspectAlphaRoles(store: EditorStore): Promise<AuditFinding[]> {
+  const findings: AuditFinding[] = []
+  for (const { path, role } of alphaRolePaths(store)) {
+    if (isExternal(path) || path.startsWith('data:') || path.startsWith('blob:')) continue
+    try {
+      const url = `${store.basePath}/${path.split('/').map(encodeURIComponent).join('/')}`
+      const res = await fetch(url, { cache: 'no-store' })
+      if (!res.ok) continue // «файл не найден» уже расскажет медиа-проверка
+      const bmp = await createImageBitmap(await res.blob())
+      const w = bmp.width
+      const h = bmp.height
+      if (!w || !h) continue
+      const ctx = new OffscreenCanvas(w, h).getContext('2d', { willReadFrequently: true })
+      if (!ctx) continue
+      ctx.drawImage(bmp, 0, 0)
+      const corners: Array<[number, number]> = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]]
+      const opaque = corners.every(([x, y]) => ctx.getImageData(x, y, 1, 1).data[3] === 255)
+      bmp.close?.()
+      if (opaque) {
+        findings.push({
+          severity: 'warning',
+          message: `«${path}»: ${role}, поэтому требуется прозрачный фон (PNG с альфой); у файла непрозрачные углы — похоже на фон-подложку. Перегенерируйте или вырежьте фон.`,
+        })
+      }
+    } catch {
+      // не удалось декодить картинку — не критично, расскажут другие проверки
+    }
+  }
+  return findings
+}
+
 export async function validateCampaign(store: EditorStore, lastPlaytest?: PlaytestRecord | null): Promise<CampaignAuditReport> {
   let structure: AuditFinding[] = []
   try {
@@ -198,6 +250,30 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       message: `Шаблон создания персонажа: ${message}`,
     })))
   }
+  // Флаги без пояснения «для чего нужен»: человек ещё вспомнит сам, а ИИ-агент
+  // и чужой мастер — нет. Для ИИ-кампаний поле обязательное (требование чемодана).
+  for (const f of store.meta.flags ?? []) {
+    if (!f.description?.trim()) {
+      structure.push({
+        severity: 'warning',
+        message: `Флаг «${f.label}»: не заполнено поле «Для чего нужен» — без него непонятно, какое событие запоминает флаг и где он читается.`,
+      })
+    }
+  }
+  // Правила-«призраки»: после санитарной загрузки массивы всегда на месте,
+  // но ручная правка JSON могла их убрать — ловим до выхода в игру.
+  for (const p of store.rulePaths()) {
+    const r = store.rule(p)
+    if (!Array.isArray(r.conditions) || !Array.isArray(r.effects)) {
+      structure.push({
+        severity: 'error',
+        message: `Правило «${r.label ?? r.id}» (${p}): отсутствуют массивы conditions/effects — правило сломает движок при старте.`,
+      })
+    }
+  }
+
+  // фон там, где его быть не должно: эмблема меню, спрайты сцен, фигурки боя
+  structure.push(...(await inspectAlphaRoles(store)))
 
   const mediaRefs = collectCampaignMedia(store)
   const localFindings = await inspectLocalMedia(store, mediaRefs.local)

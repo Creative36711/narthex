@@ -1249,3 +1249,94 @@ export function ChapterSelect({ store, value, onChange }: { store: EditorStore; 
     </label>
   )
 }
+
+// ─────────────── нотация кубиков без свободного текста ───────────────
+
+/**
+ * Структурный ввод нотации «NdN±M»: число кубиков и тип кости выбираются из
+ * списков, модификатор — числовое поле. Свободный текст в таких полях — это
+ * источник «fdsf654» вместо урона (фидбек 26): списки не дают ввести мусор,
+ * а итоговая строка всегда видна рядом.
+ *
+ * Нестандартное старое значение (например «2d7+1» из импорта) не теряется
+ * молча: показано предупреждением и заменяется только первым же выбором.
+ */
+export function DiceNotationInput({
+  label,
+  value,
+  onChange,
+  tip,
+  optional,
+  compact,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  tip?: string
+  /** разрешить пустое значение («не задано») — с кнопкой сброса */
+  optional?: boolean
+  /** узкий режим (формулы по характеристикам): без итоговой строки «= NdN» */
+  compact?: boolean
+}) {
+  const raw = (value ?? '').trim()
+  const m = /^(\d+)[dD](\d+)([+-]\d+)?$/.exec(raw)
+  const custom = !!raw && !m
+  const count = Number(m?.[1] || 1)
+  const die = Number(m?.[2] || 6)
+  const mod = Number(m?.[3] || 0)
+  const baseCounts = [1, 2, 3, 4, 5, 6]
+  const baseSides = [2, 3, 4, 6, 8, 10, 12, 20, 100]
+  const countOpts = m && !baseCounts.includes(count) ? [...baseCounts, count].sort((a, b) => a - b) : baseCounts
+  const sideOpts = m && !baseSides.includes(die) ? [...baseSides, die].sort((a, b) => a - b) : baseSides
+  const summary = `${count}d${die}${mod > 0 ? `+${mod}` : mod < 0 ? String(mod) : ''}`
+  const emit = (c: number, d: number, mo: number) =>
+    onChange(`${c}d${d}${mo > 0 ? `+${mo}` : mo < 0 ? String(mo) : ''}`)
+  return (
+    <label className={`fld fld-dmg${compact ? ' fld-dmg-compact' : ''}`} data-tip={tip}>
+      <span>{label}</span>
+      <div className="dmg-row">
+        <select value={m ? count : 1} onChange={(e) => emit(Number(e.target.value), die, mod)} aria-label={`${label}: сколько кубиков`}>
+          {countOpts.map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+        <span className="muted">×</span>
+        <select value={m ? die : 6} onChange={(e) => emit(count, Number(e.target.value), mod)} aria-label={`${label}: тип кости`}>
+          {sideOpts.map((n) => (
+            <option key={n} value={n}>d{n}</option>
+          ))}
+        </select>
+        <span className="muted">+</span>
+        <input
+          type="number"
+          value={m ? mod : 0}
+          onChange={(e) => emit(count, die, Number(e.target.value) || 0)}
+          data-tip="Модификатор (может быть отрицательным)"
+          aria-label={`${label}: модификатор`}
+        />
+        {!compact && (
+          <>
+            <span className="muted">=</span>
+            <span className="dmg-summary">{m ? summary : '—'}</span>
+          </>
+        )}
+        {optional && raw && (
+          <button type="button" className="btn btn-small ce-del" data-tip="Сбросить: не задано" onClick={() => onChange('')}>
+            <Ico n="close" />
+          </button>
+        )}
+      </div>
+      {custom && (
+        <span className="fld-err small" style={{ marginTop: 4, display: 'block' }}>
+          Текущее значение «{raw}» не формата NdN±M — заменится, как только выберете кости.
+        </span>
+      )}
+      {!raw && !optional && (
+        <span className="fld-err small" style={{ marginTop: 4, display: 'block' }}>
+          Значение не задано — выберите кости.
+        </span>
+      )}
+      {!raw && optional && <span className="muted small" style={{ marginTop: 2, display: 'block' }}>не задано</span>}
+    </label>
+  )
+}

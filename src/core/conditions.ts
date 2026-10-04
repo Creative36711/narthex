@@ -105,9 +105,9 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
     case 'has_feat':
       return (engine.state.player.feats ?? []).includes(c.id)
     case 'and':
-      return c.conditions.every((x) => evalCondition(x, engine))
+      return (c.conditions ?? []).every((x) => evalCondition(x, engine))
     case 'or':
-      return c.conditions.some((x) => evalCondition(x, engine))
+      return (c.conditions ?? []).some((x) => evalCondition(x, engine))
     case 'not':
       return !evalCondition(c.condition, engine)
     default:

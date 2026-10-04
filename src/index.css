@@ -2350,6 +2350,34 @@ input::placeholder, textarea::placeholder {
   align-items: center;
   gap: 8px;
   min-width: 280px;
+  /* на очень узких колонках ряд переносится, а не наезжает на соседей */
+  flex-wrap: wrap;
+}
+/* Колонка с рядом кубиков шире обычных полей: `.fld-row .fld { min-width: 0 }`
+   иначе сжимает её ниже содержимого, и селекты с модификатором вылезают поверх
+   соседних чекбоксов («+ бонус силы» заезжал на поле, фидбек 26). */
+.fld-row .fld-dmg {
+  flex: 1 1 320px;
+  min-width: 300px;
+}
+/* чекбоксы в ряду полей не растягиваются на всю колонку и не сжимаются в ноль */
+.fld-row > .fld-check {
+  flex: 0 1 auto;
+}
+/* узкий режим ряда кубиков (формулы характеристик в создании персонажа) */
+.fld-row .fld-dmg-compact {
+  flex: 1 1 200px;
+  min-width: 190px;
+}
+.fld-dmg-compact .dmg-row {
+  min-width: 0;
+  gap: 5px;
+}
+.fld-dmg-compact .dmg-row select {
+  min-width: 46px;
+}
+.fld-dmg-compact .dmg-row input[type='number'] {
+  width: 58px;
 }
 .dmg-row select {
   min-width: 88px;

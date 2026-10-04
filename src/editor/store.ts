@@ -1,5 +1,6 @@
 import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
 import { isExternalUrl } from '../core/loader'
+import { parseRuleFile } from '../shared/ruleFiles'
 import { compareVersions } from '../shared/versions'
 import { DEFAULT_EMOTION } from '../shared/types'
 import { skillLabel } from '../shared/skills'
@@ -81,6 +82,8 @@ export class EditorStore {
   jsonFiles = new Map<string, unknown>()
   /** текстовые документы (.ink) по путям пакета */
   textFiles = new Map<string, string>()
+  /** предупреждения загрузки (битые/перепутанные файлы пакета): показывает баннер */
+  loadWarnings: string[] = []
 
   dirty = new Set<string>()
   private listeners = new Set<() => void>()
@@ -156,6 +159,9 @@ export class EditorStore {
       )
     }
     await Promise.all(jobs)
+    // санитарная обработка manifest.rules: ИИ-агенты порой кладут туда таблицы
+    // встреч или правила без id/conditions — редактор не должен падать на них
+    this.sanitizeRules()
     // мягкие миграции старого контента (итерация 8): условия потребностей,
     // переходы «в локацию» из сцен
     this.migrateContent()
@@ -164,6 +170,37 @@ export class EditorStore {
       this.snapshots.set(p, this.fileText(p))
       this.saved.set(p, this.fileText(p))
     }
+  }
+
+  /**
+   * Разбор файлов из manifest.rules: таблицы встреч уходят в manifest.encounters,
+   * файлы без id отбрасываются, у правил восстанавливаются массивы conditions/
+   * effects. Всё предупреждениями в loadWarnings — их показывает баннер редактора.
+   */
+  private sanitizeRules(): void {
+    this.loadWarnings = []
+    const kept: string[] = []
+    const seenIds = new Set<string>()
+    for (const f of this.manifest.rules) {
+      const rel = `rules/${f}`
+      const verdict = parseRuleFile(f, this.jsonFiles.get(rel))
+      if (verdict.warnings.length) this.loadWarnings.push(...verdict.warnings)
+      if (verdict.kind === 'rule') {
+        if (seenIds.has(verdict.rule.id)) {
+          this.loadWarnings.push(`rules/${f}: дубль id «${verdict.rule.id}» — файл исключён из manifest.rules.`)
+          continue
+        }
+        seenIds.add(verdict.rule.id)
+        this.jsonFiles.set(rel, verdict.rule)
+        kept.push(f)
+      } else if (verdict.kind === 'encounters') {
+        this.jsonFiles.set(rel, { encounter_tables: verdict.tables })
+        if (!this.manifest.encounters) this.manifest.encounters = []
+        if (!this.manifest.encounters.includes(f)) this.manifest.encounters.push(f)
+      }
+    }
+    const dropped = this.manifest.rules.length - kept.length
+    if (dropped > 0) this.manifest.rules = kept
   }
 
   // ─────────────── доступ с типами ───────────────

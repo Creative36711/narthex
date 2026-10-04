@@ -169,7 +169,21 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     store
       .load()
-      .then(() => setReadyStore(store))
+      .then(() => {
+        setReadyStore(store)
+        // автопочинка при загрузке (битые правила, таблицы встреч не в своём
+        // разделе манифеста): мастер должен видеть, что пакет был повреждён
+        // и что именно редактор исправил на лету
+        if (store.loadWarnings.length) {
+          void showList(
+            'Кампания исправлена при загрузке',
+            store.loadWarnings,
+            'В пакете были файлы, которые движок и редактор не могут читать как есть ' +
+              '(правила без id/conditions или таблицы встреч в manifest.rules). ' +
+              'Редактор разложил их по местам на лету — нажмите «Сохранить», чтобы починка осталась на диске.',
+          )
+        }
+      })
       .catch((e) => setError(String(e)))
   }, [store, base])
 

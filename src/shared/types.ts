@@ -664,7 +664,8 @@ export interface ThemeDoc {
     dim?: number
     /** медленный зум фона («кен-бёрнс») */
     ken_burns?: boolean
-    /** арт/лого кампании над заголовком */
+    /** арт/лого кампании над заголовком. ОБЯЗАТЕЛЬНО прозрачный фон (PNG с
+     *  альфой): арт лежит поверх фона меню, с фоном выглядит чёрным квадратом. */
     title_art?: string
   }
   /** фон экрана финала; нет — используется фон меню */
@@ -930,7 +931,13 @@ export interface CampaignMeta {
   /** реестр типов слотов сцены (что можно ставить в слот); по умолчанию — встроенные */
   slot_types?: Array<{ id: string; label: string; sounds?: SoundHookMap }>
   /** реестр флагов: русское название и назначение (редактор показывает названия, движку важен только id) */
-  flags?: Array<{ id: string; label: string; description?: string }>
+  flags?: Array<{
+    id: string
+    label: string
+    /** для чего нужен: какое событие запоминает и где читается (правила,
+     *  диалоги, квесты). Для ИИ-кампаний ОБЯЗАТЕЛЬНОЕ поле (требование чемодана). */
+    description?: string
+  }>
   /** состояния портретов (встроенные + свои), фидбек 9.14 */
   emotions?: EmotionDef[]
   currencies: CurrencyDef[]
@@ -1498,7 +1505,7 @@ export interface NpcDef {
   description: string
   /** ПОРТРЕТ (диалог): состояние → изображение (блок 3 ТЗ «Гибкий движок») */
   portrait: Record<string, string> // emotion -> image
-  /** СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);
+  /** СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG, ОБЯЗАТЕЛЬНО);
    *  нет — в сцене используется портрет (состояние «Обычный»).
    *  Можно цикл кадров (ImageValue) — «живой» спрайт. */
   scene_sprite?: ImageValue
@@ -1507,8 +1514,8 @@ export interface NpcDef {
    *  (SlotDef.sprite_state). Пустого ключа нет: «Обычный» — это scene_sprite. */
   scene_sprite_states?: Record<string, ImageValue>
   /** ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски
-   *  и рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`.
-   *  Можно цикл кадров (ImageValue). */
+   *  и рамки стороны); прозрачный фон ОБЯЗАТЕЛЕН; нет — круглый жетон из
+   *  `token ?? portrait.neutral`. Можно цикл кадров (ImageValue). */
   combat_figure?: ImageValue
   /** состояния фигурки боя: 'dead' — погиб, 'down' — без сознания/выведен,
    *  id статуса — пока статус активен. Пустой ключ = обычная (combat_figure). */
@@ -2114,9 +2121,14 @@ export interface EncounterFileDef {
 export interface CampaignManifest {
   scenes: string[]
   entities: string[]
+  /** файлы ПРАВИЛ (RuleDef: id/label/once/conditions/effects). Файлы таблиц встреч
+   *  (`encounter_tables`) сюда НЕ перечисляют — только в `encounters`. */
   rules: string[]
   arenas?: string[]
   quests?: string[]
+  /** файлы-обёртки таблиц встреч `{ encounter_tables: [...] }`: сами лежат в
+   *  каталоге rules/, но перечисляются ТОЛЬКО здесь (дыра: дубль в `rules`
+   *  давал «правило» без id/conditions и ронял движок и редактор). */
   encounters?: string[]
   cutscenes?: string[]
   recipes?: string[]
@@ -2470,11 +2482,16 @@ export interface RuleDef {
   once: boolean
   /** manual-правило не проверяется автоматически — только вызывается по id (on_zero_effect и т.п.) */
   manual?: boolean
+  /** УСЛОВИЯ правила (все должны выполниться). Обязательный массив; пустой —
+   *  правило срабатывает при каждой проверке (если не once/manual).
+   *  Отсутствие поля ломает движок при старте забега. */
   conditions: Condition[]
   /** ИЛИ-группы условий: И внутри группы, ИЛИ между группами. Правило активно,
    *  когда верны все `conditions` И хотя бы одна группа. Пусто/нет — как раньше.
    *  Вложенность ещё глубже не допускается (довольно и `and`/`or` в самих условиях). */
   conditions_any?: Condition[][]
+  /** ЭФФЕКТЫ правила по порядку. Обязательный массив (пустой — правило-пустышка).
+   *  Отсутствие поля ломает движок при старте забега. */
   effects: Effect[]
   /** глава (id из meta.chapters) — группировка в редакторе */
   chapter?: string

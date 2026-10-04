@@ -485,7 +485,7 @@ export class GameEngine {
       return
     }
     const rule = this.campaign.rules[need.on_zero_effect]
-    if (rule) this.applyEffects(rule.effects)
+    if (rule) this.applyEffects(rule.effects ?? [])
   }
 
   changeNeed(needId: string, delta: number): void {
@@ -1054,7 +1054,7 @@ export class GameEngine {
       const stage = quest?.stages.find((s) => s.id === qs.stage)
       if (!stage?.transitions) continue
       for (const t of stage.transitions) {
-        if (t.conditions.every((c) => evalCondition(c, this))) {
+        if ((t.conditions ?? []).every((c) => evalCondition(c, this))) {
           this.advanceQuestTo(questId, t.to)
           break
         }
@@ -2294,7 +2294,7 @@ export class GameEngine {
 
   /** условия правила: все `conditions` И (если заданы) хотя бы одна ИЛИ-группа */
   private ruleConditionsOk(rule: RuleDef): boolean {
-    if (!rule.conditions.every((c) => evalCondition(c, this))) return false
+    if (!(rule.conditions ?? []).every((c) => evalCondition(c, this))) return false
     const groups = rule.conditions_any
     if (!groups || groups.length === 0) return true
     return groups.some((g) => !g.length || g.every((c) => evalCondition(c, this)))
@@ -2306,7 +2306,7 @@ export class GameEngine {
     if (rule.once && this.state.fired_rules.includes(rule.id)) return
     if (!this.ruleConditionsOk(rule)) return
     this.state.fired_rules.push(rule.id)
-    this.applyEffects(rule.effects, depth)
+    this.applyEffects(rule.effects ?? [], depth)
   }
 
   // ─────────────── эффекты ───────────────
