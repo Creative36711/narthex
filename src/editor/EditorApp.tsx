@@ -454,6 +454,56 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  // ── импорт .chronicle БЕЗ открытой кампании ─────────────────────────────
+  // ВАЖНО: эти функции объявлены ВЫШЕ раннего `return` пустого экрана. Прежде
+  // обработчик кнопки замыкался на `doImport`, объявленный ниже: в рендере с
+  // ранним return он навсегда оставался в «мёртвой зоне» (TDZ), и импорт в
+  // пустой редактор падал `ReferenceError: Cannot access 'doImport' before
+  // initialization` (фидбек 27, найдено при проверке в браузере).
+  const resolveChronicleConflict = async (conflict: import('./newCampaign').ChronicleIdConflict) => {
+    const update = await askConfirm(
+      `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}», а содержимое пакета отличается. Обновить существующую кампанию?`,
+      'Обновить существующую',
+    )
+    if (update) return 'update' as const
+    const copy = await askConfirm(
+      `Импортировать «${conflict.incomingTitle}» как отдельную копию с новым ID?`,
+      'Импортировать копию',
+    )
+    return copy ? 'copy' as const : 'cancel' as const
+  }
+
+  /** Импорт .chronicle как отдельной кампании и переход в неё (ничего не открыто). */
+  const importAsNewCampaign = async (file: File) => {
+    const { importChroniclePackage } = await import('./newCampaign')
+    const entry = await importChroniclePackage(file, resolveChronicleConflict)
+    if (entry.cancelled) return
+    setCampaigns(await fetchCampaignIndex())
+    setSection('scenes')
+    setBase(`/campaigns/${entry.id}`)
+    if (entry.manifestWarnings?.length || entry.idWarning) {
+      const details = [
+        entry.idWarning,
+        entry.manifestWarnings?.length
+          ? `${entry.manifestWarnings.length} ссылок в manifest.json автоматически нормализованы; содержимое файлов сохранено.`
+          : '',
+      ].filter(Boolean).join('\n\n')
+      void showAlert('Кампания импортирована', details)
+    }
+  }
+
+  /** Обработчик кнопки «Импортировать .chronicle» на пустом экране. */
+  const importIntoEmptyEditor = async (file: File) => {
+    setBusy('Импорт…')
+    try {
+      await importAsNewCampaign(file)
+    } catch (e) {
+      void showAlert('Ошибка импорта', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   // нет ни одной кампании (свежая сборка или удалили последнюю): редактор
   // остаётся рабочим — создаём новую кампанию прямо отсюда
   if (!base)
@@ -488,7 +538,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               onChange={(e) => {
                 const file = e.target.files?.[0]
                 e.target.value = ''
-                if (file) void doImport(file)
+                if (file) void importIntoEmptyEditor(file)
               }}
             />
             <button className="btn" onClick={() => openAiTask()} disabled={!!busy}>
@@ -803,39 +853,13 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  const resolveChronicleConflict = async (conflict: import('./newCampaign').ChronicleIdConflict) => {
-    const update = await askConfirm(
-      `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}», а содержимое пакета отличается. Обновить существующую кампанию?`,
-      'Обновить существующую',
-    )
-    if (update) return 'update' as const
-    const copy = await askConfirm(
-      `Импортировать «${conflict.incomingTitle}» как отдельную копию с новым ID?`,
-      'Импортировать копию',
-    )
-    return copy ? 'copy' as const : 'cancel' as const
-  }
-
   const doImport = async (file: File) => {
     setBusy('Импорт…')
     try {
       const stableId = campaignIdFromPath(base)
       const { importChroniclePackage } = await import('./newCampaign')
       if (!stableId) {
-        const entry = await importChroniclePackage(file, resolveChronicleConflict)
-        if (entry.cancelled) return
-        setCampaigns(await fetchCampaignIndex())
-        setSection('scenes')
-        setBase(`/campaigns/${entry.id}`)
-        if (entry.manifestWarnings?.length || entry.idWarning) {
-          const details = [
-            entry.idWarning,
-            entry.manifestWarnings?.length
-              ? `${entry.manifestWarnings.length} ссылок в manifest.json автоматически нормализованы; содержимое файлов сохранено.`
-              : '',
-          ].filter(Boolean).join('\n\n')
-          void showAlert('Кампания импортирована', details)
-        }
+        await importAsNewCampaign(file)
         return
       }
       const { readChronicleCampaignIdentity } = await import('./chronicleIdentity')
