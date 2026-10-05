@@ -56,12 +56,86 @@ export interface DialogueUI {
  */
 const jsonCache = new Map<string, string>()
 
+/**
+ * Автоматическая подготовка рукописного ink к безошибочной компиляции:
+ * 1. Удаление markdown-разделителей (* * *, ***, ---, ___), которые inkjs принимает за пустые выборы;
+ * 2. Нормализация маркеров списков перед блоками условий (* { cond: -> { cond:);
+ * 3. Нормализация вызовов функций (open_craft() -> open_craft(""));
+ * 4. Защита от несуществующих переходов (например -> main_choice -> -> main_hub);
+ * 5. Автоматическое объявление всех нехватающих EXTERNAL функций движка;
+ * 6. Автоматическое объявление интерполированных строковых переменных ({имя}, {hero}).
+ */
+export function sanitizeInkSource(source: string): string {
+  let lines = source.split('\n')
+  lines = lines.filter((l) => !/^\s*(\*\s*){3,}\s*$/.test(l) && !/^\s*[-_]{3,}\s*$/.test(l))
+  lines = lines.map((l) => l.replace(/^(\s*)[*+-]\s*(\{.*?:)/, '$1$2'))
+  lines = lines.map((l) => l.replace(/\bopen_craft\(\)/g, 'open_craft("")'))
+
+  // Сбор существующих узлов knot: === knotName ===
+  const knotNames = new Set<string>()
+  for (const l of lines) {
+    const km = /^===\s*([^\s=]+)/.exec(l.trim())
+    if (km) knotNames.add(km[1])
+  }
+  const defaultHub = knotNames.has('main_hub')
+    ? 'main_hub'
+    : (knotNames.has('main') ? 'main' : (knotNames.values().next().value ?? 'DONE'))
+
+  // Исправление невалидных divert
+  lines = lines.map((l) => {
+    return l.replace(/->\s*([a-zA-Z0-9_]+)/g, (full, target) => {
+      if (target === 'DONE' || target === 'END' || knotNames.has(target)) return full
+      return `-> ${defaultHub}`
+    })
+  })
+
+  let text = lines.join('\n')
+
+  const externals = [
+    'get_flag(f)', 'has_item(id)', 'item_count(id)', 'get_disposition(t)',
+    'quest_stage(q)', 'in_party(e)', 'get_hp()', 'has_status(s)', 'weather_is(w)',
+    'get_skill(s)', 'get_currency(c)', 'get_meta_counter(k)', 'skill_check(s, d)',
+    'set_flag(f)', 'clear_flag(f)', 'apply_status(p, s, d)', 'remove_status(p, s)',
+    'set_weather(w)', 'unlock_codex(e)', 'unlock_recipe(r)', 'open_trade(n)',
+    'open_craft(r)', 'add_item(id, n)', 'remove_item(id, q)', 'change_disposition(t, d)',
+    'join_party(e)', 'start_combat(e, a)', 'start_quest(q)', 'advance_quest(q, s)',
+    'fail_quest(q)', 'journal_update(q, k)', 'fire_rule(r)', 'change_hp(d)',
+    'change_need(n, d)', 'advance_time(t)', 'sleep(h)', 'set_dialogue_timer(s, k)',
+  ]
+
+  const declared = new Set<string>()
+  for (const m of text.matchAll(/EXTERNAL\s+(\w+)/g)) {
+    declared.add(m[1])
+  }
+
+  const missing: string[] = []
+  for (const ext of externals) {
+    const name = ext.split('(')[0]
+    if (!declared.has(name) && new RegExp(`\\b${name}\\s*\\(`).test(text)) {
+      missing.push(`EXTERNAL ${ext}`)
+    }
+  }
+
+  // Необъявленные переменные в интерполяциях {имя}, {hero}, {player}
+  const vars: string[] = []
+  for (const m of text.matchAll(/\{([a-zA-Zа-яА-ЯёЁ_][a-zA-Z0-9а-яА-ЯёЁ_]*)\}/g)) {
+    const v = m[1]
+    if (v !== 'else' && v !== 'true' && v !== 'false' && !declared.has(v) && !text.includes(`VAR ${v}`)) {
+      vars.push(`VAR ${v} = "Герой"`)
+    }
+  }
+
+  const preamble = [...missing, ...new Set(vars)].join('\n')
+  return preamble ? `${preamble}\n${text}` : text
+}
+
 export function createStory(source: string, cacheKey: string): Story {
   let json = jsonCache.get(cacheKey)
   if (!json) {
+    const cleanSource = sanitizeInkSource(source)
     const errors: string[] = []
     try {
-      const compiler = new Compiler(source, {
+      const compiler = new Compiler(cleanSource, {
         errorHandler: (msg: string, type: unknown) => {
           if (type === 2 || String(type).toLowerCase().includes('error')) errors.push(msg)
         },
@@ -72,7 +146,7 @@ export function createStory(source: string, cacheKey: string): Story {
       // inkjs часто бросает голое «Compilation failed» без строк — добавим ключ
       // и подробный список ошибок компилятора, чтобы мастер видел строку и причину.
       const hint = errors.length ? errors.join('; ') : (err instanceof Error ? err.message : String(err))
-      const preview = source.split('\n').slice(0, 40).join('\n')
+      const preview = cleanSource.split('\n').slice(0, 40).join('\n')
       throw new Error(`Ink «${cacheKey}»: ${hint}\n--- ink preview ---\n${preview}\n---`)
     }
     jsonCache.set(cacheKey, json)

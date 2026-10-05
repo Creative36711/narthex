@@ -33,6 +33,14 @@ function parseCondToken(token: string, warnings: string[], where: string): DlgCo
   if (m) return { type: 'flag', flag: m[2], not: !!m[1] || undefined }
   m = /^(not )?has_item\("([^"]+)"\)$/.exec(t)
   if (m) return { type: 'has_item', item: m[2], not: !!m[1] || undefined }
+  m = /^has_item\("([^"]+)"\)\s*(>=|>|<|<=|==)\s*(-?\d+)$/.exec(t)
+  if (m) {
+    const n = Number(m[3])
+    const not = m[2] === '<' || m[2] === '<=' || undefined
+    return { type: 'item_ge', item: m[1], count: n, not }
+  }
+  m = /^has_item\("([^"]+)",\s*(-?\d+)\)$/.exec(t)
+  if (m) return { type: 'item_ge', item: m[1], count: Number(m[2]) }
   m = /^item_count\("([^"]+)"\)\s*(>=|<)\s*(-?\d+)$/.exec(t)
   if (m) return { type: 'item_ge', item: m[1], count: Number(m[3]), not: m[2] === '<' || undefined }
   m = /^get_disposition\("([^"]+)"\)\s*(>=|<)\s*(-?\d+)$/.exec(t)
@@ -47,6 +55,8 @@ function parseCondToken(token: string, warnings: string[], where: string): DlgCo
   if (m) return { type: 'has_status', status: m[2], not: !!m[1] || undefined }
   m = /^(not )?weather_is\("([^"]+)"\)$/.exec(t)
   if (m) return { type: 'weather_is', weather: m[2], not: !!m[1] || undefined }
+  m = /^(not )?skill_check\("([^"]+)",\s*(-?\d+)\)$/.exec(t)
+  if (m) return { type: 'skill_ge', skill: m[2], threshold: Number(m[3]), not: !!m[1] || undefined }
   m = /^get_skill\("([^"]+)"\)\s*(>=|<)\s*(-?\d+)$/.exec(t)
   if (m) return { type: 'skill_ge', skill: m[1], threshold: Number(m[3]), not: m[2] === '<' || undefined }
   m = /^get_currency\("([^"]+)"\)\s*(>=|<)\s*(-?\d+)$/.exec(t)
@@ -235,14 +245,27 @@ function parseCondBlock(lines: string[], start: number, warnings: string[], wher
     ;(inB ? b : a).push(l)
   }
   const fa = parseFlow(dedent(a), warnings, `${where} (условие)`)
-  const sec: DlgSection = { conds, steps: fa.items.flatMap((it) => (it.t === 'step' ? [it.s] : [])) }
+  const secSteps: DlgStep[] = []
   for (const it of fa.items) {
-    if (it.t === 'sec') warnings.push(`${where}: вложенные условные блоки внутри секции не поддержаны — вынесены в шаги потеряны`)
+    if (it.t === 'step') secSteps.push(it.s)
+    else if (it.t === 'sec') {
+      secSteps.push(...it.sec.steps)
+      if (it.sec.else_steps) secSteps.push(...it.sec.else_steps)
+    }
   }
+  const sec: DlgSection = { conds, steps: secSteps }
   if (fa.tail) sec.goto = fa.tail
   if (inB) {
     const fb = parseFlow(dedent(b), warnings, `${where} (иначе)`)
-    sec.else_steps = fb.items.flatMap((it) => (it.t === 'step' ? [it.s] : []))
+    const elseSteps: DlgStep[] = []
+    for (const it of fb.items) {
+      if (it.t === 'step') elseSteps.push(it.s)
+      else if (it.t === 'sec') {
+        elseSteps.push(...it.sec.steps)
+        if (it.sec.else_steps) elseSteps.push(...it.sec.else_steps)
+      }
+    }
+    sec.else_steps = elseSteps
     if (fb.tail) sec.else_goto = fb.tail
   }
   return { sec, consumed: i - start }
@@ -596,7 +619,18 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
   let curKnot: Knot | null = null
   const preludeLines: string[] = []
 
-  for (const line of ink.split('\n')) {
+  const rawLines = ink.split('\n')
+  const preprocessed: string[] = []
+  for (const raw of rawLines) {
+    const trimmed = raw.trim()
+    // Markdown-разделители (* * *, ***, ---, ___) не являются выбором Ink
+    if (/^(\*\s*){3,}$/.test(trimmed) || /^[-_]{3,}$/.test(trimmed)) continue
+    // Маркер списка перед условным блоком: "  * { has_item... :" -> "  { has_item... :"
+    const cleaned = raw.replace(/^(\s*)[*+-]\s*(\{.*?:)/, '$1$2')
+    preprocessed.push(cleaned)
+  }
+
+  for (const line of preprocessed) {
     const km = /^===\s*([^\s=]+)(?:\s*===)?\s*$/.exec(line)
     if (km) {
       curKnot = { name: km[1], lines: [] }

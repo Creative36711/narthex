@@ -1,4 +1,5 @@
 EXTERNAL set_flag(f)
+EXTERNAL get_flag(f)
 EXTERNAL start_quest(q)
 EXTERNAL join_party(e)
 EXTERNAL change_disposition(t, d)
@@ -6,7 +7,6 @@ EXTERNAL has_item(id)
 EXTERNAL add_item(id, n)
 
 === main ===
-* * *
 Мальчишка прижимается к стене и дрожит. Пальцы сжаты на бляхе рассыльного.
 — Т-ты не Полый?
 -> main_hub
@@ -33,7 +33,7 @@ EXTERNAL add_item(id, n)
 === main_hub_2 ===
 + [Пойдёшь со мной, Брин? Мне пригодится тот, кто знает переулки.]
     { not (get_flag("brin_joined")):
-        * { has_item("item_silver") >= 3:
+        { has_item("item_silver") >= 3:
             — Три марки? Тогда да. Матери нечем топить.
             ~ add_item("item_silver", -3)
             ~ join_party("npc_brin")

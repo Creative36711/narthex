@@ -1,6 +1,7 @@
 EXTERNAL open_trade(n)
 EXTERNAL sleep(h)
 EXTERNAL set_flag(f)
+EXTERNAL get_flag(f)
 EXTERNAL change_need(n, d)
 EXTERNAL advance_time(t)
 EXTERNAL has_item(id)
@@ -32,7 +33,7 @@ EXTERNAL change_hp(d)
     ~ open_trade("npc_torg")
     -> DONE
 + [Ночлег (5 марок).]
-    * { has_item("item_silver") >= 5:
+    { has_item("item_silver") >= 5:
         Он кивком указывает на закуток с тюфяком.
         ~ remove_item("item_silver", 5)
         — До утра не трогаю.

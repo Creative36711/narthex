@@ -1,4 +1,5 @@
 EXTERNAL set_flag(f)
+EXTERNAL get_flag(f)
 EXTERNAL has_item(id)
 EXTERNAL add_item(id, n)
 EXTERNAL remove_item(id, q)
@@ -28,7 +29,7 @@ EXTERNAL fire_rule(r)
     — Калеб? Он больше не решает, кто ходит по кварталу. Нет пропуска — нет входа.
     -> rud_hub
 + [Вот, пятнадцать марок. Ты меня не видел.]
-    * { has_item("item_silver") >= 15:
+    { has_item("item_silver") >= 15:
         Он оглядывается и быстро прячет монеты в перчатку.
         ~ remove_item("item_silver", 15)
         ~ set_flag("guild_access")

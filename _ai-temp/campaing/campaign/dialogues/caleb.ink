@@ -1,4 +1,5 @@
 EXTERNAL set_flag(f)
+EXTERNAL get_flag(f)
 EXTERNAL start_quest(q)
 EXTERNAL unlock_recipe(r)
 EXTERNAL open_trade(n)
@@ -8,6 +9,8 @@ EXTERNAL has_item(id)
 EXTERNAL change_disposition(t, d)
 EXTERNAL join_party(e)
 EXTERNAL unlock_codex(e)
+
+VAR имя = "Герой"
 
 === main ===
 Старик склоняется над верстаком и долго смотрит на тебя поверх очков. Руки его в машинном масле и чём-то тёмном, что не хочется отмывать.
@@ -50,7 +53,7 @@ EXTERNAL unlock_codex(e)
     -> caleb_hub
 + [Изготовление.]
     { get_flag("caleb_trusts"):
-        ~ open_craft()
+        ~ open_craft("")
         -> DONE
     }
     — Не до того сейчас.

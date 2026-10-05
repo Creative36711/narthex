@@ -1,4 +1,5 @@
 EXTERNAL set_flag(f)
+EXTERNAL get_flag(f)
 EXTERNAL start_quest(q)
 EXTERNAL advance_quest(q, s)
 EXTERNAL change_disposition(t, d)
@@ -8,6 +9,8 @@ EXTERNAL has_item(id)
 EXTERNAL fire_rule(r)
 EXTERNAL apply_status(p, s, d)
 EXTERNAL skill_check(s, d)
+
+VAR имя = "Герой"
 
 === main ===
 Женщина поднимает на тебя глаза — тёмные, с искрой расплавленного металла. Чугунный перстень на её пальце чуть поворачивается.
@@ -33,12 +36,12 @@ EXTERNAL skill_check(s, d)
 { skill_check("intimidate", 55):
     — Никто не убивал их с удовольствием, {имя}. Восемьдесят лет Ядро ело людей по одному в месяц — так заведено Основателями. Мастер Цеха решил ускорить процесс.
     ~ change_disposition("npc_maeva", -10)
-    -> main_choice
+    -> main_hub_2
 }
 — Осторожнее с обвинениями, незнакомец. Отсюда выход только один — и он через моих людей.
 ~ apply_status("player", "status_smog_sick", 4)
 Она щёлкает пальцами, и с потолка тебе в лицо бьёт струя пара. # action
--> main_choice
+-> main_hub_2
 
 === main_hub_2 ===
 + [Чего ты от меня хочешь?]

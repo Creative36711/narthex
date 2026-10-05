@@ -1,5 +1,6 @@
 EXTERNAL open_trade(n)
 EXTERNAL set_flag(f)
+EXTERNAL get_flag(f)
 EXTERNAL change_disposition(t, d)
 
 === main ===
