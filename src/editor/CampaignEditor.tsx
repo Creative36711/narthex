@@ -1187,6 +1187,46 @@ function AttributionEditor({ m, commit, store }: { m: CampaignMeta; commit: () =
   )
 }
 
+function parseSkillBase(base: string | number | undefined): { fixedNum: number | undefined; statKey: string; mult: number } {
+  if (typeof base === 'number') {
+    return { fixedNum: base, statKey: '', mult: 1 }
+  }
+  if (typeof base === 'string') {
+    let fixedNum: number | undefined
+    let statKey = ''
+    let mult = 1
+    const parts = base.split('+').map((p) => p.trim())
+    for (const part of parts) {
+      if (/^\d+$/.test(part)) {
+        fixedNum = parseInt(part, 10)
+      } else {
+        const m = part.match(/^([A-Za-z]+)(?:\s*[×x*]\s*(\d+))?$/)
+        if (m) {
+          statKey = m[1].toUpperCase()
+          mult = m[2] ? parseInt(m[2], 10) : 1
+        }
+      }
+    }
+    return { fixedNum, statKey, mult }
+  }
+  return { fixedNum: undefined, statKey: '', mult: 1 }
+}
+
+function buildSkillBase(fixedNum: number | undefined, statKey: string, mult: number): string | number | undefined {
+  const cleanStat = statKey.trim().toUpperCase()
+  if (cleanStat) {
+    const statPart = mult > 1 ? `${cleanStat}×${mult}` : cleanStat
+    if (fixedNum != null && !isNaN(fixedNum) && fixedNum > 0) {
+      return `${fixedNum}+${statPart}`
+    }
+    return statPart
+  }
+  if (fixedNum != null && !isNaN(fixedNum)) {
+    return fixedNum
+  }
+  return undefined
+}
+
 export function CampaignEditor({ store }: { store: EditorStore }) {
   const m = store.meta
   // дефолты для необязательных полей (без touch — просто нормализация)
@@ -2549,19 +2589,73 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 </select>
               </label>
             )}
-            <label className="fld" data-tip="Базовый шанс без обучения: число (25) или формула (DEX×2, INT×5). Пусто — 0%">
-              <span>Базовый шанс</span>
-              <input
-                value={sk.base ?? ''}
-                placeholder="0"
-                onChange={(e) => {
-                  const v = e.target.value.trim()
-                  if (!v) delete sk.base
-                  else sk.base = /^\d+$/.test(v) ? Number(v) : v
-                  commit()
-                }}
-              />
-            </label>
+            {(() => {
+              const { fixedNum, statKey, mult } = parseSkillBase(sk.base)
+              const availableStats = Object.entries(BUILTIN_STAT_LABELS).map(([id, label]) => ({
+                id,
+                label: `${id} (${label})`,
+              }))
+              return (
+                <>
+                  <label className="fld fld-narrow" data-tip="Базовый шанс без обучения (число в процентах, например 25)">
+                    <span>Базовый %</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={fixedNum ?? ''}
+                      placeholder="0"
+                      onChange={(e) => {
+                        const val = e.target.value.trim() === '' ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0)
+                        const res = buildSkillBase(val, statKey, mult)
+                        if (res === undefined) delete sk.base
+                        else sk.base = res
+                        commit()
+                      }}
+                    />
+                  </label>
+                  <label className="fld" data-tip="Зависимость базового шанса от характеристики (DEX, INT и др.) по желанию">
+                    <span>Характеристика</span>
+                    <select
+                      value={statKey}
+                      onChange={(e) => {
+                        const nextStat = e.target.value
+                        const res = buildSkillBase(fixedNum, nextStat, mult)
+                        if (res === undefined) delete sk.base
+                        else sk.base = res
+                        commit()
+                      }}
+                    >
+                      <option value="">— нет —</option>
+                      {availableStats.map((st) => (
+                        <option key={st.id} value={st.id}>{st.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {statKey ? (
+                    <label className="fld fld-narrow" data-tip="Множитель характеристики в формуле (например DEX×2)">
+                      <span>Множитель</span>
+                      <select
+                        value={mult}
+                        onChange={(e) => {
+                          const nextMult = parseInt(e.target.value, 10) || 1
+                          const res = buildSkillBase(fixedNum, statKey, nextMult)
+                          if (res === undefined) delete sk.base
+                          else sk.base = res
+                          commit()
+                        }}
+                      >
+                        <option value={1}>×1</option>
+                        <option value={2}>×2</option>
+                        <option value={3}>×3</option>
+                        <option value={4}>×4</option>
+                        <option value={5}>×5</option>
+                      </select>
+                    </label>
+                  ) : null}
+                </>
+              )
+            })()}
             <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}

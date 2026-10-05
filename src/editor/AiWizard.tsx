@@ -143,7 +143,7 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div className="modal-box ai-wizard" onClick={(event) => event.stopPropagation()}>
         <div className="modal-title"><Ico n="sparkle" /> Задание для ИИ</div>
         <div className="modal-body">
