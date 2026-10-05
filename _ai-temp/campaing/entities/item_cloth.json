@@ -1,13 +1,12 @@
 {
  "id": "item_cloth",
  "type": "item",
- "category": "part",
- "label": "Ветошь",
- "description": "Полосы ткани для бинтов и обмотки.",
- "image": "",
- "weight": 0.1,
+ "category": "material",
+ "label": "Тряпьё",
+ "description": "Грубое полотно, бывшее когда-то одеждой, а потом — бинтом, а потом снова одеждой.",
+ "weight": 0.3,
  "stackable": true,
  "value": {
-  "mark": 2
+  "mark": 1
  }
 }

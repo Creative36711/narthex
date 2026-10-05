@@ -1,217 +1,549 @@
 {
  "regions": [
   {
-   "id": "region_vereten",
-   "label": "Веретен",
+   "id": "region_karkas",
+   "label": "Каркас",
    "map_image": "",
-   "map_size": {
-    "w": 1280,
-    "h": 720
-   },
-   "parent_region": null,
    "map_art": {
     "canvas": {
      "w": 1280,
      "h": 720
     },
-    "background": "#0d1117",
+    "background": "#050a0c",
     "layers": [
      {
-      "shape": {
-       "type": "polygon",
-       "points": [
-        0,
-        0,
-        420,
-        0,
-        300,
-        720,
-        0,
-        720
-       ],
-       "fill": "#141a22",
-       "opacity": 1
-      },
-      "label": "стена каньона левая"
-     },
-     {
-      "shape": {
-       "type": "polygon",
-       "points": [
-        1280,
-        0,
-        860,
-        0,
-        980,
-        720,
-        1280,
-        720
-       ],
-       "fill": "#141a22",
-       "opacity": 1
-      },
-      "label": "стена каньона правая"
-     },
-     {
+      "label": "фон карты",
       "shape": {
        "type": "rect",
-       "x": 430,
-       "y": 40,
-       "w": 420,
-       "h": 640,
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
        "fill": {
         "gradient": {
-         "from": "#0a0e14",
-         "to": "#101724",
+         "from": "#16232a",
+         "to": "#05090b",
          "angle": 90
         }
        },
-       "opacity": 1
-      },
-      "label": "пропасть"
+       "stroke_width": 2
+      }
      },
      {
+      "label": "ствол",
+      "shape": {
+       "type": "polygon",
+       "points": [
+        300,
+        0,
+        980,
+        0,
+        1080,
+        720,
+        200,
+        720
+       ],
+       "fill": "#080f12",
+       "stroke_width": 2
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "граница яруса",
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 110,
+       "x2": 1120,
+       "y2": 110,
+       "color": "#3a4a52",
+       "width": 2
+      },
+      "opacity": 0.35
+     },
+     {
+      "label": "граница яруса",
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 250,
+       "x2": 1120,
+       "y2": 250,
+       "color": "#3a4a52",
+       "width": 2
+      },
+      "opacity": 0.35
+     },
+     {
+      "label": "граница яруса",
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 380,
+       "x2": 1120,
+       "y2": 380,
+       "color": "#3a4a52",
+       "width": 2
+      },
+      "opacity": 0.35
+     },
+     {
+      "label": "граница яруса",
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 530,
+       "x2": 1120,
+       "y2": 530,
+       "color": "#3a4a52",
+       "width": 2
+      },
+      "opacity": 0.35
+     },
+     {
+      "label": "граница яруса",
+      "shape": {
+       "type": "line",
+       "x1": 180,
+       "y1": 660,
+       "x2": 1120,
+       "y2": 660,
+       "color": "#3a4a52",
+       "width": 2
+      },
+      "opacity": 0.35
+     },
+     {
+      "label": "ход",
+      "shape": {
+       "type": "line",
+       "x1": 340,
+       "y1": 80,
+       "x2": 400,
+       "y2": 230,
+       "color": "#5fd0c8",
+       "width": 3
+      },
+      "opacity": 0.5
+     },
+     {
+      "label": "ход",
+      "shape": {
+       "type": "line",
+       "x1": 400,
+       "y1": 230,
+       "x2": 640,
+       "y2": 360,
+       "color": "#5fd0c8",
+       "width": 3
+      },
+      "opacity": 0.5
+     },
+     {
+      "label": "ход",
+      "shape": {
+       "type": "line",
+       "x1": 640,
+       "y1": 360,
+       "x2": 520,
+       "y2": 520,
+       "color": "#5fd0c8",
+       "width": 3
+      },
+      "opacity": 0.5
+     },
+     {
+      "label": "ход",
+      "shape": {
+       "type": "line",
+       "x1": 520,
+       "y1": 520,
+       "x2": 840,
+       "y2": 650,
+       "color": "#5fd0c8",
+       "width": 3
+      },
+      "opacity": 0.5
+     },
+     {
+      "label": "ход",
+      "shape": {
+       "type": "line",
+       "x1": 640,
+       "y1": 360,
+       "x2": 340,
+       "y2": 80,
+       "color": "#5fd0c8",
+       "width": 3
+      },
+      "opacity": 0.5
+     },
+     {
+      "label": "отметка помпы",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1150,
+       "cy": 120,
+       "rx": 7,
+       "ry": 7,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "отметка помпы",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1150,
+       "cy": 190,
+       "rx": 7,
+       "ry": 7,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "отметка помпы",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1150,
+       "cy": 260,
+       "rx": 7,
+       "ry": 7,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "отметка помпы",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1150,
+       "cy": 330,
+       "rx": 7,
+       "ry": 7,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "отметка помпы",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1150,
+       "cy": 400,
+       "rx": 7,
+       "ry": 7,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "отметка помпы",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1150,
+       "cy": 470,
+       "rx": 7,
+       "ry": 7,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "отметка помпы",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1150,
+       "cy": 540,
+       "rx": 7,
+       "ry": 7,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "подпись помп",
+      "shape": {
+       "type": "text",
+       "x": 1120,
+       "y": 60,
+       "text": "ПОМПЫ",
+       "size": 18,
+       "color": "#e8a33d",
+       "align": "start",
+       "bold": true,
+       "italic": false
+      }
+     },
+     {
+      "label": "точка локации",
+      "shape": {
+       "type": "ellipse",
+       "cx": 340,
+       "cy": 80,
+       "rx": 16,
+       "ry": 16,
+       "fill": "#8ff0e6",
+       "stroke_width": 2
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "круг точки",
+      "shape": {
+       "type": "ellipse",
+       "cx": 340,
+       "cy": 80,
+       "rx": 28,
+       "ry": 28,
+       "stroke": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     },
+     {
+      "label": "точка локации",
+      "shape": {
+       "type": "ellipse",
+       "cx": 400,
+       "cy": 230,
+       "rx": 16,
+       "ry": 16,
+       "fill": "#8ff0e6",
+       "stroke_width": 2
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "круг точки",
+      "shape": {
+       "type": "ellipse",
+       "cx": 400,
+       "cy": 230,
+       "rx": 28,
+       "ry": 28,
+       "stroke": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     },
+     {
+      "label": "точка локации",
       "shape": {
        "type": "ellipse",
        "cx": 640,
        "cy": 360,
-       "rx": 60,
-       "ry": 300,
-       "fill": "#7a1d12",
-       "opacity": 0.25
+       "rx": 16,
+       "ry": 16,
+       "fill": "#8ff0e6",
+       "stroke_width": 2
       },
-      "label": "свет Сердца из глубины"
+      "opacity": 0.85
+     },
+     {
+      "label": "круг точки",
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 360,
+       "rx": 28,
+       "ry": 28,
+       "stroke": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     },
+     {
+      "label": "точка локации",
+      "shape": {
+       "type": "ellipse",
+       "cx": 520,
+       "cy": 520,
+       "rx": 16,
+       "ry": 16,
+       "fill": "#8ff0e6",
+       "stroke_width": 2
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "круг точки",
+      "shape": {
+       "type": "ellipse",
+       "cx": 520,
+       "cy": 520,
+       "rx": 28,
+       "ry": 28,
+       "stroke": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     },
+     {
+      "label": "точка локации",
+      "shape": {
+       "type": "ellipse",
+       "cx": 840,
+       "cy": 650,
+       "rx": 16,
+       "ry": 16,
+       "fill": "#8ff0e6",
+       "stroke_width": 2
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "круг точки",
+      "shape": {
+       "type": "ellipse",
+       "cx": 840,
+       "cy": 650,
+       "rx": 28,
+       "ry": 28,
+       "stroke": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
      },
      {
       "shape": {
-       "type": "rect",
-       "x": 180,
-       "y": 380,
-       "w": 160,
-       "h": 80,
-       "fill": "#232b36",
-       "opacity": 1,
-       "radius": 8
-      },
-      "label": "Врата Надзора"
+       "type": "text",
+       "x": 374,
+       "y": 88,
+       "text": "Контора Надзора",
+       "size": 22,
+       "color": "#d7d3c6",
+       "align": "start",
+       "bold": true,
+       "italic": false
+      }
      },
      {
       "shape": {
-       "type": "rect",
-       "x": 540,
-       "y": 260,
-       "w": 200,
-       "h": 80,
-       "fill": "#232b36",
-       "opacity": 1,
-       "radius": 8
-      },
-      "label": "Третий ярус"
+       "type": "text",
+       "x": 434,
+       "y": 238,
+       "text": "Шлюз 7-го",
+       "size": 22,
+       "color": "#d7d3c6",
+       "align": "start",
+       "bold": true,
+       "italic": false
+      }
      },
      {
       "shape": {
-       "type": "rect",
-       "x": 880,
-       "y": 390,
-       "w": 170,
-       "h": 80,
-       "fill": "#232b36",
-       "opacity": 1,
-       "radius": 8
-      },
-      "label": "Квартал Гильдии"
+       "type": "text",
+       "x": 674,
+       "y": 368,
+       "text": "Седьмая помпа",
+       "size": 22,
+       "color": "#d7d3c6",
+       "align": "start",
+       "bold": true,
+       "italic": false
+      }
      },
      {
       "shape": {
-       "type": "rect",
-       "x": 560,
-       "y": 580,
-       "w": 160,
-       "h": 70,
-       "fill": "#1c2126",
-       "opacity": 1,
-       "radius": 8
-      },
-      "label": "Подмашинье"
+       "type": "text",
+       "x": 486,
+       "y": 528,
+       "text": "8-й ярус",
+       "size": 22,
+       "color": "#d7d3c6",
+       "align": "end",
+       "bold": true,
+       "italic": false
+      }
      },
      {
       "shape": {
-       "type": "line",
-       "x1": 340,
-       "y1": 420,
-       "x2": 540,
-       "y2": 300,
-       "color": "#39424b",
-       "width": 4,
-       "opacity": 0.8
-      },
-      "label": "мост"
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 740,
-       "y1": 300,
-       "x2": 880,
-       "y2": 430,
-       "color": "#39424b",
-       "width": 4,
-       "opacity": 0.8
-      },
-      "label": "мост"
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 640,
-       "y1": 340,
-       "x2": 640,
-       "y2": 580,
-       "color": "#39424b",
-       "width": 4,
-       "opacity": 0.8
-      },
-      "label": "лаз"
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 300,
-       "y1": 440,
-       "x2": 560,
-       "y2": 610,
-       "color": "#39424b",
-       "width": 4,
-       "opacity": 0.6
-      },
-      "label": "мост нижний"
+       "type": "text",
+       "x": 874,
+       "y": 658,
+       "text": "9-й ярус",
+       "size": 22,
+       "color": "#d7d3c6",
+       "align": "start",
+       "bold": true,
+       "italic": false
+      }
      }
     ]
    },
+   "map_size": {
+    "w": 1280,
+    "h": 720
+   },
+   "parent_region": null,
    "locations": [
     {
-     "id": "loc_gate",
-     "label": "Врата Надзора",
+     "id": "loc_surface",
+     "label": "Контора Надзора",
      "position": {
-      "x": 260,
-      "y": 420
+      "x": 340,
+      "y": 80
      },
      "travel_connections": [
       {
-       "to": "loc_tier3",
-       "cost_ticks": 2,
-       "random_encounter_table": "enc_tier3"
+       "to": "loc_gate",
+       "cost_ticks": 2
       },
       {
-       "to": "loc_guild",
-       "cost_ticks": 3
+       "to": "loc_pump7",
+       "cost_ticks": 2
       }
      ],
      "scenes": [
       "scene_office",
-      "scene_yard"
+      "scene_archive"
      ],
-     "arrival_scene": "scene_yard",
+     "arrival_scene": "scene_office",
+     "arena": "arena_office",
+     "music": [
+      {
+       "tracks": [
+        "music_office"
+       ],
+       "conditions": []
+      }
+     ],
+     "ambient": [
+      "snd_wind"
+     ]
+    },
+    {
+     "id": "loc_gate",
+     "label": "Шлюз седьмого яруса",
+     "position": {
+      "x": 400,
+      "y": 230
+     },
+     "travel_connections": [
+      {
+       "to": "loc_surface",
+       "cost_ticks": 2
+      },
+      {
+       "to": "loc_pump7",
+       "cost_ticks": 1
+      }
+     ],
+     "scenes": [
+      "scene_gate_hall",
+      "scene_gate_office"
+     ],
+     "arrival_scene": "scene_gate_hall",
+     "arena": "arena_gate",
      "music": [
       {
        "tracks": [
@@ -219,132 +551,120 @@
        ],
        "conditions": []
       }
+     ],
+     "ambient": [
+      "snd_wind"
      ]
     },
     {
-     "id": "loc_tier3",
-     "label": "Третий ярус",
+     "id": "loc_pump7",
+     "label": "Седьмая помпа",
      "position": {
       "x": 640,
-      "y": 300
+      "y": 360
      },
      "travel_connections": [
       {
        "to": "loc_gate",
-       "cost_ticks": 2,
-       "random_encounter_table": "enc_tier3"
+       "cost_ticks": 1
       },
       {
-       "to": "loc_guild",
-       "cost_ticks": 3
+       "to": "loc_surface",
+       "cost_ticks": 2
       },
       {
-       "to": "loc_depths",
-       "cost_ticks": 2,
-       "requirements": [
-        {
-         "type": "flag_set",
-         "flag": "depths_open"
-        }
-       ],
-       "random_encounter_table": "enc_tunnels"
+       "to": "loc_ward8",
+       "cost_ticks": 2
       }
      ],
      "scenes": [
-      "scene_square",
-      "scene_pump",
-      "scene_tavern",
-      "scene_coil"
+      "scene_pump_hall",
+      "scene_pump_shaft",
+      "scene_pump_room"
      ],
-     "arrival_scene": "scene_square",
-     "ambient_audio": "snd_wind",
+     "arrival_scene": "scene_pump_hall",
+     "arena": "arena_pump",
      "music": [
       {
        "tracks": [
-        "music_tier3"
+        "music_pump"
        ],
        "conditions": []
       }
+     ],
+     "ambient": [
+      "snd_water_amb"
      ]
     },
     {
-     "id": "loc_guild",
-     "label": "Квартал Гильдии",
+     "id": "loc_ward8",
+     "label": "Восьмой ярус",
      "position": {
-      "x": 965,
-      "y": 430
+      "x": 520,
+      "y": 520
      },
      "travel_connections": [
       {
-       "to": "loc_tier3",
-       "cost_ticks": 3
+       "to": "loc_pump7",
+       "cost_ticks": 2
       },
       {
-       "to": "loc_gate",
-       "cost_ticks": 3
-      },
-      {
-       "to": "loc_depths",
+       "to": "loc_deep9",
        "cost_ticks": 2,
-       "requirements": [
-        {
-         "type": "flag_set",
-         "flag": "depths_open"
-        }
-       ],
-       "random_encounter_table": "enc_tunnels"
+       "random_encounter_table": "enc_gallery"
       }
      ],
      "scenes": [
-      "scene_hall",
-      "scene_workshop",
-      "scene_archive"
+      "scene_dry_row",
+      "scene_flood_gallery",
+      "scene_sluice"
      ],
-     "arrival_scene": "scene_hall",
-     "ambient_audio": "snd_gears",
+     "arrival_scene": "scene_dry_row",
+     "arena": "arena_gallery",
      "music": [
       {
        "tracks": [
-        "music_guild"
+        "music_deep"
        ],
        "conditions": []
       }
-     ]
+     ],
+     "ambient": [
+      "snd_water_amb"
+     ],
+     "camp": true
     },
     {
-     "id": "loc_depths",
-     "label": "Подмашинье",
+     "id": "loc_deep9",
+     "label": "Девятый ярус",
      "position": {
-      "x": 640,
-      "y": 615
+      "x": 840,
+      "y": 650
      },
      "hidden": true,
      "travel_connections": [
       {
-       "to": "loc_tier3",
+       "to": "loc_ward8",
        "cost_ticks": 2,
-       "random_encounter_table": "enc_tunnels"
-      },
-      {
-       "to": "loc_guild",
-       "cost_ticks": 2,
-       "random_encounter_table": "enc_tunnels"
+       "random_encounter_table": "enc_deep"
       }
      ],
      "scenes": [
-      "scene_tunnels",
-      "scene_heart"
+      "scene_drift",
+      "scene_face"
      ],
-     "arrival_scene": "scene_tunnels",
-     "ambient_audio": "snd_drip",
+     "arrival_scene": "scene_drift",
+     "arena": "arena_deep",
      "music": [
       {
        "tracks": [
-        "music_depths"
+        "music_deep"
        ],
        "conditions": []
       }
-     ]
+     ],
+     "ambient": [],
+     "camp": true
     }
    ]
   }

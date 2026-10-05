@@ -485,9 +485,21 @@ function extractSkillCheck(lines: string[], warnings: string[], where: string): 
   let ok: Flow = { items: [] }
   let afterIdx = iAfter
 
-  // Вариант 1: Однострочные развилки { varName == 1: ... } и { varName == 0: ... } (в любом порядке)
+  // Вариант 0: Тернарный синтаксис Ink { r: ok | fail } или { r == 1: ok | fail }
   let foundPair = false
   if (iAfter < lines.length) {
+    const l1 = lines[iAfter]?.trim() ?? ''
+    const mTernary = new RegExp(`^\\{\\s*${varName}(?:\\s*==\\s*1)?\\s*:\\s*(.*?)\\s*\\|\\s*(.*?)\\s*\\}$`).exec(l1)
+    if (mTernary) {
+      foundPair = true
+      afterIdx = iAfter + 1
+      ok = parseFlow([mTernary[1].trim()], warnings, `${where} (успех)`)
+      fail = parseFlow([mTernary[2].trim()], warnings, `${where} (провал)`)
+    }
+  }
+
+  // Вариант 1: Однострочные развилки { varName == 1: ... } и { varName == 0: ... } (в любом порядке)
+  if (!foundPair && iAfter < lines.length) {
     const l1 = lines[iAfter]?.trim() ?? ''
     const l2 = lines[iAfter + 1]?.trim() ?? ''
     const m1 = new RegExp(`^\\{\\s*${varName}\\s*==\\s*([01])\\s*:\\s*(.*?)\\s*\\}$`).exec(l1)

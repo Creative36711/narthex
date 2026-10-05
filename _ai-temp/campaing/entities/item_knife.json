@@ -2,21 +2,21 @@
  "id": "item_knife",
  "type": "item",
  "category": "weapon",
- "label": "Нож",
- "description": "Короткий нож с латаной рукоятью.",
- "image": "",
- "weight": 0.5,
- "stackable": true,
+ "label": "Нож дознавателя",
+ "description": "Короткий нож с истёртой рукоятью. Режет верёвку, хлеб и, если очень надо, человека.",
+ "weight": 0.3,
+ "stackable": false,
  "value": {
-  "mark": 6
+  "mark": 9
  },
+ "equip_slot": "weapon",
  "weapon_data": {
-  "skill": "blades",
-  "damage": "1d4+2",
+  "skill": "blade",
+  "damage": "1d4",
   "damage_bonus": true,
   "range": 1,
   "attacks_per_round": 1,
-  "parry_capable": true
- },
- "equip_slot": "weapon"
+  "parry_capable": true,
+  "label": "Нож"
+ }
 }

@@ -1,0 +1,13 @@
+{
+ "id": "item_lamp",
+ "type": "item",
+ "category": "gear",
+ "label": "Жильная лампа",
+ "description": "Лампа на куске жильного стекла: светит холодным бирюзовым и не гаснет от сквозняка.",
+ "weight": 1.2,
+ "stackable": false,
+ "value": {
+  "mark": 22
+ },
+ "equip_slot": "gear"
+}

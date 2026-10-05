@@ -2,24 +2,24 @@
  "id": "item_tonic",
  "type": "item",
  "category": "medicine",
- "label": "Настой от золы",
- "description": "Горький зольщиков настой: выгоняет сажу из груди.",
- "image": "",
+ "label": "Травяной настой",
+ "description": "Мутная бутылка Айлы. Голова после неё работает как отлаженный привод — недолго, но точно.",
  "weight": 0.3,
  "stackable": true,
  "value": {
-  "mark": 10
+  "mark": 20
  },
  "on_use": {
   "effects": [
    {
-    "type": "remove_status",
-    "target": "player",
-    "status": "status_soot"
+    "type": "change_hp",
+    "delta": 8
    },
    {
-    "type": "change_hp",
-    "delta": 4
+    "type": "apply_status",
+    "target": "player",
+    "status": "status_clarity",
+    "duration": 10
    }
   ],
   "consume": true

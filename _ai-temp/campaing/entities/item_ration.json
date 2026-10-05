@@ -1,23 +1,22 @@
 {
-  "id": "item_ration",
-  "type": "item",
-  "category": "food",
-  "label": "Сухая пайка",
-  "description": "Жёсткий хлеб, солёная груша и чашка тёплой воды.",
-  "weight": 0.3,
-  "stackable": true,
-  "slot_type": "item",
-  "value": {
-    "marks": 2
-  },
-  "on_use": {
-    "effects": [
-      {
-        "type": "change_need",
-        "need": "need_hunger",
-        "delta": 34
-      }
-    ],
-    "consume": true
-  }
+ "id": "item_ration",
+ "type": "item",
+ "category": "food",
+ "label": "Сухой паёк",
+ "description": "Плитка жирной муки с солью и толчёным углём. Едят её не от голода, а чтобы не думать о еде.",
+ "weight": 0.4,
+ "stackable": true,
+ "value": {
+  "mark": 4
+ },
+ "on_use": {
+  "effects": [
+   {
+    "type": "change_need",
+    "need": "need_hunger",
+    "delta": 38
+   }
+  ],
+  "consume": true
+ }
 }

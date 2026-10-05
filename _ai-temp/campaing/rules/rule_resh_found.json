@@ -1,0 +1,34 @@
+{
+ "id": "rule_resh_found",
+ "label": "Мастер найден",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "player_enters_scene",
+   "scene": "scene_face"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "resh_found"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "resh_found"
+  },
+  {
+   "type": "banner",
+   "text": "Слепой забой",
+   "preset": "глава",
+   "seconds": 3
+  },
+  {
+   "type": "advance_quest",
+   "quest": "quest_pump",
+   "stage": "stage_verdict"
+  }
+ ],
+ "chapter": "ch_deep"
+}

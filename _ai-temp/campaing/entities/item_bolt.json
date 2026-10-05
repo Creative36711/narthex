@@ -1,0 +1,12 @@
+{
+ "id": "item_bolt",
+ "type": "item",
+ "category": "misc",
+ "label": "Болт",
+ "description": "Короткий болт с жильным наконечником. Восемь штук — и ты стрелок, два — и ты пешеход.",
+ "weight": 0.05,
+ "stackable": true,
+ "value": {
+  "mark": 1
+ }
+}

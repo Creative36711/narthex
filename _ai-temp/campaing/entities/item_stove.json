@@ -1,0 +1,44 @@
+{
+ "id": "item_stove",
+ "type": "item",
+ "category": "prop",
+ "label": "Печка",
+ "description": "Чугунная печка с выводом в вентиляцию. Топят здесь углём, а не надеждой.",
+ "weight": 90.0,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ },
+ "interact_options": [
+  {
+   "label": "Согреться",
+   "effects": [
+    {
+     "type": "change_need",
+     "need": "need_warmth",
+     "delta": 40
+    },
+    {
+     "type": "advance_time",
+     "ticks": 1
+    }
+   ],
+   "message": "Ты греешь руки о чугун и впервые за сутки чувствуешь пальцы."
+  },
+  {
+   "label": "Вскипятить воду",
+   "effects": [
+    {
+     "type": "change_need",
+     "need": "need_thirst",
+     "delta": 30
+    },
+    {
+     "type": "advance_time",
+     "ticks": 1
+    }
+   ],
+   "message": "Вода мутная, но горячая: это уже роскошь."
+  }
+ ]
+}

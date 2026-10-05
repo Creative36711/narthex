@@ -1,0 +1,19 @@
+{
+ "id": "rule_zero_warmth",
+ "label": "Озноб",
+ "once": true,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "apply_status",
+   "target": "player",
+   "status": "status_cold",
+   "duration": 14
+  },
+  {
+   "type": "show_message",
+   "text": "Мокрая одежда и сквозняк делают своё дело: ты дрожишь и мажешь."
+  }
+ ]
+}

@@ -1,0 +1,12 @@
+{
+ "id": "item_oil",
+ "type": "item",
+ "category": "material",
+ "label": "Масло для лампы",
+ "description": "Тёмное вязкое масло: его жгут в лампах и им же смазывают помпы.",
+ "weight": 0.6,
+ "stackable": true,
+ "value": {
+  "mark": 5
+ }
+}

@@ -1,0 +1,12 @@
+{
+ "id": "item_charge",
+ "type": "item",
+ "category": "misc",
+ "label": "Заряд жильного стекла",
+ "description": "Сердцевина, обмотанная ломом и пропитанная маслом. Один удар — и затвора не станет.",
+ "weight": 1.2,
+ "stackable": false,
+ "value": {
+  "mark": 12
+ }
+}

@@ -1,0 +1,287 @@
+{
+ "version": 2,
+ "label": "Эрдан Реш, мастер седьмой помпы",
+ "nodes": [
+  {
+   "id": "Начало",
+   "label": "Начало разговора",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Реш сидит спиной к стене и смотрит не на тебя — в стену.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Ты пришёл меня арестовать или послушать? Арестовывать удобнее: для этого не надо понимать."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "Почему ты спустился вниз?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Потому что сверху решают, сколько мне жить, а снизу — сколько жить ярусу.",
+          "emotion": "sad"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Жила на девятом не выработана, она живая. Если её взять, восьмой сядет. Мне сказали: «сядет — значит, переселим»."
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Я снял сердцевину. Пока затвор не ходит, помпу пускать нельзя: вода пойдёт в восьмой и не вернётся."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "unlock_codex",
+          "entry": "codex_vein"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "resh_trusts"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Кто срезал муфту?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Стража. Я видел пломбу на их рукавицах: тринадцать-К. У нас на ярусе пломбы только у тех, кто закрывает.",
+          "emotion": "angry"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Отдай сердцевину.",
+     "sections": [],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_core",
+       "not": true
+      },
+      {
+       "type": "has_item",
+       "item": "item_key_cache",
+       "not": true
+      }
+     ],
+     "check": {
+      "skill": "persuade",
+      "difficulty": 55,
+      "success": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Бери. Только сначала почини затвор: без него ты затопишь восьмой быстрее, чем они успеют подписать бумагу."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "add_item",
+            "item": "item_core",
+            "qty": 1
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "add_item",
+            "item": "item_key_cache",
+            "qty": 1
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "set_flag",
+            "flag": "core_taken"
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      },
+      "fail": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Нет. Ты её вставишь, и восьмой ярус утонет за ночь. Я сорок лет слушал, как дышит город."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "npc_resh",
+            "delta": -5
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      }
+     }
+    },
+    {
+     "text": "Что такое жила?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Это не руда и не вода. Это то, что было здесь раньше города и, похоже, останется после.",
+          "emotion": "thoughtful"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Помпы её откачивают, как кровь откачивают из раны. Мы сорок лет делали каркасу больно, чтобы он стоял."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "unlock_codex",
+          "entry": "codex_heavy_water"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Научи собирать заряд.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Сердцевина, лом, масло и ровные руки. Если руки дрожат — не берись, это не лекарство.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "unlock_recipe",
+          "recipe": "recipe_charge"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "resh_charge_recipe"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "resh_trusts"
+      },
+      {
+       "type": "flag",
+       "flag": "resh_charge_recipe",
+       "not": true
+      }
+     ],
+     "once": true
+    },
+    {
+     "text": "Пойдём со мной.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Он встаёт тяжело, опираясь о стену ладонью.",
+          "action": true
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "join_party",
+          "npc": "npc_resh"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "resh_trusts"
+      }
+     ]
+    },
+    {
+     "text": "Мне пора.",
+     "sections": [],
+     "goto": "end"
+    }
+   ]
+  }
+ ]
+}

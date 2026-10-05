@@ -1,0 +1,42 @@
+{
+ "id": "item_hoist",
+ "type": "item",
+ "category": "prop",
+ "label": "Подъёмник",
+ "description": "Ручной подъёмник с барабаном. Вниз он спускал мастеров, вверх — только породу.",
+ "weight": 200.0,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ },
+ "interact_options": [
+  {
+   "label": "Проверить подъёмник",
+   "effects": [
+    {
+     "type": "skill_check_gate",
+     "skill": "repair",
+     "difficulty": 40,
+     "success_effects": [
+      {
+       "type": "add_item",
+       "item": "item_rope",
+       "quantity": 1
+      },
+      {
+       "type": "show_message",
+       "text": "Барабан цел, трос срезан наполовину: остаток годится в дело."
+      }
+     ],
+     "fail_effects": [
+      {
+       "type": "show_message",
+       "text": "Блок заклинило намертво."
+      }
+     ]
+    }
+   ],
+   "once": true
+  }
+ ]
+}

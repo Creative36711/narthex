@@ -1,7 +1,7 @@
 {
  "id": "recipe_bandage",
- "label": "Бинт из ветоши",
- "description": "Крепкая повязка из полос ткани.",
+ "label": "Свернуть бинт",
+ "description": "Две полоски ткани, нож и ровные руки.",
  "inputs": [
   {
    "item": "item_cloth",
@@ -12,13 +12,13 @@
   "item_knife"
  ],
  "skill": {
-  "id": "first_aid",
+  "id": "medicine",
   "difficulty": 35
  },
- "time_ticks": 2,
+ "time_ticks": 1,
  "output": {
   "item": "item_bandage",
   "quantity": 1
  },
- "message": "Бинт тугой и чистый. Сойдёт."
+ "message": "Бинт вышел кривой, но держит."
 }

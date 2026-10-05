@@ -1,13 +1,12 @@
 {
  "id": "item_valve",
  "type": "item",
- "category": "part",
- "label": "Паровой клапан",
- "description": "Новый клапан для насоса №3. Собрать — полдела; надо ещё запустить.",
- "image": "",
- "weight": 2.0,
- "stackable": true,
+ "category": "misc",
+ "label": "Клапан затвора",
+ "description": "Тяжёлый бронзовый клапан с выбитым номером семь. Без него затвор восьмого яруса — просто решётка.",
+ "weight": 3.0,
+ "stackable": false,
  "value": {
-  "mark": 0
+  "mark": 16
  }
 }

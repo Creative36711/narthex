@@ -1,10 +1,12 @@
 {
  "id": "item_badge",
  "type": "item",
- "category": "misc",
- "label": "Бирка дознавателя",
- "description": "Медная бирка Надзора. Открывает двери и рты.",
- "image": "",
- "weight": 0.1,
- "stackable": true
+ "category": "key",
+ "label": "Жетон дознавателя",
+ "description": "Номер выбит, имя не вписано: приписной дознаватель не тот, кого вписывают.",
+ "weight": 0.05,
+ "stackable": false,
+ "value": {
+  "mark": 6
+ }
 }

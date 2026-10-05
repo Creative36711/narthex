@@ -2763,6 +2763,22 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "equipped"
+            },
+            "item": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "skill_ge"
             },
             "skill": {

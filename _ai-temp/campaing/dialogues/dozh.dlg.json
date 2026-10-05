@@ -1,0 +1,213 @@
+{
+ "version": 2,
+ "label": "Дож, старьёвщик",
+ "nodes": [
+  {
+   "id": "Начало",
+   "label": "Начало разговора",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Дож что-то взвешивает на ладони и прячет в рукав, не глядя.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Смотри, не покупатель. С покупателями я вежливей."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "Торговать.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Ну наконец-то. Смотри, не трогай руками: руками только платят.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "open_trade",
+          "npc": "npc_dozh"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "end"
+    },
+    {
+     "text": "Что слышно про помпу?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Слышно, что она молчит. А про молчание внизу всегда слышно громче.",
+          "emotion": "thoughtful"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Говорят, на девятом жилу нашли. Живую. Говорят, из-за неё всё."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "unlock_codex",
+          "entry": "codex_karkas"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Ищу Жука.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "У жаровни сидит, греется, как честный человек.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Скажи, что от Дожа. Он скинет — не много, но скинет."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_disposition",
+          "target": "npc_zhuk",
+          "delta": 8
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "once": true
+    },
+    {
+     "text": "Купить дыхатель (34 марки).",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Дыхатель — это не товар, это время. Держи, не задохнись.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_item",
+          "item": "item_mark",
+          "qty": 34
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "add_item",
+          "item": "item_filter",
+          "qty": 1
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "item_ge",
+       "item": "item_mark",
+       "count": 34
+      },
+      {
+       "type": "has_item",
+       "item": "item_filter",
+       "not": true
+      }
+     ]
+    },
+    {
+     "text": "Почему у тебя всё дороже, чем наверху?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Потому что сверху вещи возят, а сюда их носят на себе. Спина — тоже цена.",
+          "emotion": "calm"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Пока.",
+     "sections": [],
+     "goto": "end"
+    }
+   ],
+   "timer": {
+    "seconds": 20,
+    "node": "Молчание"
+   }
+  },
+  {
+   "id": "Молчание",
+   "label": "Молчание",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Дож спокойно ждёт: он умеет торговать и молча.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Молчишь? И правильно. Кто говорит, тот уже купил."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [],
+   "goto": "Начало"
+  }
+ ]
+}

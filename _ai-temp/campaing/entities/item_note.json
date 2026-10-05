@@ -1,10 +1,12 @@
 {
  "id": "item_note",
  "type": "item",
- "category": "misc",
- "label": "Записка Койля",
- "description": "Список имён и строка: «Уводят вниз, через старый лаз».",
- "image": "",
+ "category": "clue",
+ "label": "Записка Реша",
+ "description": "«Муфту срезали изнутри, а не сорвало. Если со мной что случится — ищите, кто выписал наряд на ночь тринадцатого».",
  "weight": 0.05,
- "stackable": true
+ "stackable": false,
+ "value": {
+  "mark": 0
+ }
 }

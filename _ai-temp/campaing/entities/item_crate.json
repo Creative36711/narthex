@@ -1,58 +1,48 @@
 {
  "id": "item_crate",
  "type": "item",
- "category": "misc",
- "label": "Куча обрезков",
- "description": "Сваленное у прилавка железо: кому хлам, кому материал.",
- "image": "",
- "weight": 30,
+ "category": "container",
+ "label": "Ящик с кладью",
+ "description": "Кованый ящик под замком. Замок сломан ещё до тебя: на нижних ярусах это считается описью.",
+ "weight": 12.0,
  "stackable": false,
+ "value": {
+  "mark": 0
+ },
  "interact_options": [
   {
-   "label": "Поискать обрезки",
-   "conditions": [
-    {
-     "type": "flag_not_set",
-     "flag": "crate_searched"
-    }
-   ],
+   "label": "Обыскать ящик",
    "effects": [
     {
      "type": "skill_check_gate",
-     "skill": "spot",
-     "difficulty": 35,
+     "skill": "investigate",
+     "difficulty": 40,
      "success_effects": [
       {
        "type": "add_item",
-       "item": "item_scrap",
+       "item": "item_cloth",
        "quantity": 2
       },
-      {
-       "type": "set_flag",
-       "flag": "crate_searched"
-      },
-      {
-       "type": "show_message",
-       "text": "Два добрых куска железа и полоса жести."
-      }
-     ],
-     "fail_effects": [
       {
        "type": "add_item",
        "item": "item_scrap",
        "quantity": 1
       },
       {
-       "type": "set_flag",
-       "flag": "crate_searched"
-      },
+       "type": "show_message",
+       "text": "Под тряпьём — обрезок троса от лебёдки и немного лома."
+      }
+     ],
+     "fail_effects": [
       {
        "type": "show_message",
-       "text": "Нашёлся один пригодный обрезок."
+       "text": "Тряпьё, плесень и больше ничего. Пальцы пахнут маслом."
       }
      ]
     }
-   ]
+   ],
+   "once": true,
+   "sound": "sfx_pickup"
   }
  ]
 }

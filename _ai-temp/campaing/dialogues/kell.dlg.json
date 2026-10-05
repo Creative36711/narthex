@@ -1,0 +1,227 @@
+{
+ "version": 2,
+ "label": "Келл Ястреб, старшина стражи",
+ "nodes": [
+  {
+   "id": "Начало",
+   "label": "Начало разговора",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Келл не встаёт. Он просто кладёт руку на рукоять клинка.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Дознаватель. Я тебя не вызывал."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "Где ты был в ночь тринадцатого?",
+     "sections": [],
+     "goto": "stay",
+     "check": {
+      "skill": "intimidate",
+      "difficulty": 50,
+      "success": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "На седьмом. Стоял, как велено. Двенадцать человек, все в журнале — спроси у Векса, он записывал."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "npc_kell",
+            "delta": -6
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "set_flag",
+            "flag": "kell_pressed"
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      },
+      "fail": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Ты меня допрашиваешь? Забавно. У тебя бумага, у меня двенадцать свидетелей, которые стояли со мной."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "npc_kell",
+            "delta": -10
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      }
+     }
+    },
+    {
+     "text": "Что такое режим тишины?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Это когда ярус закрывают и считают, сколько в нём осталось людей.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Хорошая вещь, если ты не из тех, кого считают.",
+          "emotion": "calm"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Ты убил стража Ярова.",
+     "sections": [],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "clue_guard"
+      }
+     ],
+     "check": {
+      "skill": "intimidate",
+      "difficulty": 55,
+      "success": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Не я. Приказ есть приказ: закрыть затвор, никого не выпускать. Он не послушал. Я не спрашивал, почему."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "set_flag",
+            "flag": "kell_confessed"
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "npc_kell",
+            "delta": -20
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "faction_nadzor",
+            "delta": -15
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      },
+      "fail": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "За такие слова внизу не отвечают. Считай, я не слышал — пока ты при исполнении."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "npc_kell",
+            "delta": -8
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      }
+     }
+    },
+    {
+     "text": "Пропусти меня к помпе.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Помпа не моя. Иди, смотри. Только вниз не суйся: там не наша вода.",
+          "emotion": "thoughtful"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Я иду к инспектору.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Иди. Она любит, когда к ней идут с пустыми руками.",
+          "emotion": "calm"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "end"
+    }
+   ]
+  }
+ ]
+}

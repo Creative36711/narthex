@@ -1,0 +1,17 @@
+{
+ "id": "item_vest",
+ "type": "item",
+ "category": "armor",
+ "label": "Жилет из кирзы",
+ "description": "Жёсткий жилет с нашитыми пластинами. Держит удар, но не воду.",
+ "weight": 3.0,
+ "stackable": false,
+ "value": {
+  "mark": 32
+ },
+ "equip_slot": "armor",
+ "armor_data": {
+  "points": 2,
+  "durability": 20
+ }
+}

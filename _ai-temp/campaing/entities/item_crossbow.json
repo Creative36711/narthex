@@ -1,0 +1,23 @@
+{
+ "id": "item_crossbow",
+ "type": "item",
+ "category": "weapon",
+ "label": "Жильный самострел",
+ "description": "Самострел на стеклянной тяге. Бьёт дальше, чем видно в галерее, — это и пугает.",
+ "weight": 2.6,
+ "stackable": false,
+ "value": {
+  "mark": 48
+ },
+ "equip_slot": "weapon",
+ "weapon_data": {
+  "skill": "shoot",
+  "damage": "1d8",
+  "damage_bonus": false,
+  "range": 6,
+  "attacks_per_round": 1,
+  "parry_capable": false,
+  "label": "Самострел",
+  "ammo_item": "item_bolt"
+ }
+}

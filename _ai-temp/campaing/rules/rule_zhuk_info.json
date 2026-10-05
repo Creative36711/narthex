@@ -1,0 +1,27 @@
+{
+ "id": "rule_zhuk_info",
+ "label": "Жук продал ночь",
+ "once": true,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "zhuk_paid"
+  },
+  {
+   "type": "set_flag",
+   "flag": "clue_roster"
+  },
+  {
+   "type": "change_variable",
+   "var": "clues",
+   "delta": 1
+  },
+  {
+   "type": "set_description",
+   "entity": "npc_zhuk",
+   "text": "Информатор, который продал ночь тринадцатого. Теперь он на крючке у дела №137."
+  }
+ ]
+}

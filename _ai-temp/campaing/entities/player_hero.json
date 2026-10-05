@@ -2,49 +2,74 @@
  "id": "player_hero",
  "type": "npc",
  "label": "Дознаватель",
- "description": "Следователь Надзора, присланный на Третий ярус распутать смерть механика.",
- "portrait": {
-  "neutral": ""
- },
+ "description": "Приписной дознаватель седьмого яруса: человек, которого посылают туда, куда не хотят идти стражники.",
+ "portrait": {},
  "stats": {
-  "STR": 10,
+  "STR": 9,
   "CON": 10,
   "SIZ": 10,
-  "DEX": 10,
-  "INT": 11,
-  "POW": 9,
-  "CHA": 10
+  "DEX": 11,
+  "INT": 13,
+  "POW": 12,
+  "CHA": 11
  },
  "skills": {
-  "spot": 40,
-  "persuade": 30,
-  "first_aid": 25,
-  "mechanics": 20,
-  "dodge": 25,
-  "brawl": 25
+  "investigate": 55,
+  "perception": 45,
+  "persuade": 40,
+  "intimidate": 25,
+  "lore": 30,
+  "repair": 30,
+  "medicine": 20,
+  "lockpick": 25,
+  "stealth": 30,
+  "dodge": 35,
+  "blade": 30,
+  "brawl": 25,
+  "shoot": 20,
+  "bargain": 25
  },
  "slot_type": "person",
+ "faction": "faction_nadzor",
+ "base_disposition": 0,
  "schedule": [],
  "inventory": [
   {
+   "item": "item_badge",
+   "quantity": 1
+  },
+  {
    "item": "item_mark",
-   "quantity": 15
+   "quantity": 20
   },
   {
-   "item": "item_bread",
+   "item": "item_ration",
    "quantity": 2
   },
   {
-   "item": "item_condensate",
-   "quantity": 2
+   "item": "item_water",
+   "quantity": 1
+  },
+  {
+   "item": "item_knife",
+   "quantity": 1
+  },
+  {
+   "item": "item_wrench",
+   "quantity": 1
   },
   {
    "item": "item_coat",
    "quantity": 1
+  },
+  {
+   "item": "item_lamp",
+   "quantity": 1
   }
  ],
  "equipment": {
-  "weapon": "item_knife",
-  "armor": "item_coat"
+  "weapon": "item_wrench",
+  "armor": "item_coat",
+  "gear": "item_lamp"
  }
 }

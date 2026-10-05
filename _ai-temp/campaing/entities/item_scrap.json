@@ -1,13 +1,12 @@
 {
  "id": "item_scrap",
  "type": "item",
- "category": "part",
- "label": "Обрезки железа",
- "description": "Годятся на клапан, грелку и бинт из жести — нет.",
- "image": "",
- "weight": 0.5,
+ "category": "material",
+ "label": "Лом",
+ "description": "Обрезки железа, проволока, кусок шестерни. Всё, из чего внизу делают всё остальное.",
+ "weight": 1.2,
  "stackable": true,
  "value": {
-  "mark": 3
+  "mark": 2
  }
 }

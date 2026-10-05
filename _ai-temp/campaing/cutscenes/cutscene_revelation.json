@@ -1,0 +1,359 @@
+{
+ "id": "cutscene_revelation",
+ "label": "Ночь тринадцатого",
+ "music": "music_pump",
+ "chapter": "ch_price",
+ "slides": [
+  {
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
+       "fill": {
+        "gradient": {
+         "from": "#1b2b32",
+         "to": "#070d10",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 340,
+       "y": 200,
+       "w": 460,
+       "h": 380,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 5
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 820,
+       "cy": 390,
+       "rx": 140,
+       "ry": 140,
+       "fill": "#22323a",
+       "stroke": "#6d3a28",
+       "stroke_width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 820,
+       "y1": 250,
+       "x2": 820,
+       "y2": 530,
+       "color": "#6d3a28",
+       "width": 7
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 680,
+       "y1": 390,
+       "x2": 960,
+       "y2": 390,
+       "color": "#6d3a28",
+       "width": 7
+      }
+     },
+     {
+      "label": "тяжёлая вода",
+      "shape": {
+       "type": "ellipse",
+       "cx": 300,
+       "cy": 660,
+       "rx": 260,
+       "ry": 40,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      },
+      "opacity": 0.9
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 820,
+       "cy": 390,
+       "rx": 200,
+       "ry": 200,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.25
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 820,
+       "cy": 390,
+       "rx": 90.0,
+       "ry": 90.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     }
+    ]
+   },
+   "text": "Восемнадцать сорок. Реш спускается к приводу — «проверить муфту».",
+   "duration": 6,
+   "transition": "fade"
+  },
+  {
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
+       "fill": {
+        "gradient": {
+         "from": "#1a2a30",
+         "to": "#070c0e",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 420,
+       "cy": 380,
+       "rx": 210,
+       "ry": 210,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 420,
+       "cy": 380,
+       "rx": 90,
+       "ry": 90,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 4
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 700,
+       "y": 240,
+       "w": 120,
+       "h": 320,
+       "fill": "#22323a",
+       "stroke_width": 2
+      },
+      "opacity": 0.9
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 860,
+       "y": 200,
+       "w": 300,
+       "h": 60,
+       "fill": "#3a4a52",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 420,
+       "cy": 380,
+       "rx": 240,
+       "ry": 240,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.3
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 420,
+       "cy": 380,
+       "rx": 108.0,
+       "ry": 108.0,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.6499999999999999
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 600,
+       "w": 1280,
+       "h": 120,
+       "fill": "#22323a",
+       "stroke_width": 2
+      }
+     }
+    ]
+   },
+   "text": "Двадцать ноль-ноль. В зал входит взвод Келла. Пломба тринадцать-К на рукавицах, приказ — без номера.",
+   "duration": 6,
+   "transition": "cut"
+  },
+  {
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
+       "fill": {
+        "gradient": {
+         "from": "#16262b",
+         "to": "#05090c",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 200,
+       "cy": 300,
+       "rx": 150,
+       "ry": 220,
+       "fill": "#080f12",
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 300,
+       "rx": 150,
+       "ry": 220,
+       "fill": "#080f12",
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1080,
+       "cy": 300,
+       "rx": 150,
+       "ry": 220,
+       "fill": "#080f12",
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 470,
+       "w": 1280,
+       "h": 250,
+       "fill": {
+        "gradient": {
+         "from": "#123039",
+         "to": "#050f14",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 470,
+       "w": 1280,
+       "h": 8,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.35
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 180,
+       "rx": 180,
+       "ry": 180,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.18
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 180,
+       "rx": 81.0,
+       "ry": 81.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.53
+     }
+    ]
+   },
+   "text": "Двадцать десять. Помпа встаёт. На последней странице гроссбуха — аккуратная подпись: В. Каст.",
+   "duration": 6,
+   "transition": "fade"
+  }
+ ]
+}

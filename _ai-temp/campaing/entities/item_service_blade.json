@@ -1,0 +1,22 @@
+{
+ "id": "item_service_blade",
+ "type": "item",
+ "category": "weapon",
+ "label": "Служебный клинок",
+ "description": "Сталь стражи Надзора: широкая, тупая с одной стороны и с клеймом на гарде.",
+ "weight": 1.4,
+ "stackable": false,
+ "value": {
+  "mark": 30
+ },
+ "equip_slot": "weapon",
+ "weapon_data": {
+  "skill": "blade",
+  "damage": "1d8",
+  "damage_bonus": true,
+  "range": 1,
+  "attacks_per_round": 1,
+  "parry_capable": true,
+  "label": "Клинок"
+ }
+}

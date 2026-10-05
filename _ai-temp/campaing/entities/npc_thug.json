@@ -1,48 +1,53 @@
 {
  "id": "npc_thug",
  "type": "npc",
- "label": "Головорез Гильдии",
- "description": "Клёпаный боец на жалованье. Дерзок, пока не запахнет кровью.",
- "portrait": {
-  "neutral": ""
- },
+ "label": "Боевик Надзора",
+ "description": "Нанятый «для охраны порядка»: кирза, дубинка и полное безразличие к тому, чей это порядок.",
+ "portrait": {},
  "stats": {
   "STR": 13,
   "CON": 12,
   "SIZ": 12,
   "DEX": 11,
-  "INT": 8,
-  "POW": 8,
+  "INT": 9,
+  "POW": 9,
   "CHA": 8
  },
  "skills": {
-  "brawl": 50,
-  "blades": 40
+  "blade": 52,
+  "brawl": 48,
+  "dodge": 42,
+  "intimidate": 42
  },
  "slot_type": "person",
+ "armor": 2,
  "schedule": [],
  "equipment": {
-  "weapon": "item_knife"
+  "weapon": "item_service_blade",
+  "armor": "item_vest"
  },
- "morale": {
-  "below_hp_pct": 25,
-  "flee_chance": 60
- },
+ "inventory": [
+  {
+   "item": "item_mark",
+   "quantity": 12
+  }
+ ],
  "loot_table": [
   {
    "item": "item_mark",
    "chance": 0.8,
-   "min": 3,
+   "min": 2,
    "max": 8
   },
   {
-   "item": "item_lockpicks",
-   "chance": 0.3
-  },
-  {
-   "item": "item_pistol",
-   "chance": 0.2
+   "item": "item_ration",
+   "chance": 0.3,
+   "min": 1,
+   "max": 1
   }
  ],
- "armor": 1
+ "morale": {
+  "below_hp_pct": 30,
+  "flee_chance": 45
+ }
 }

@@ -1,0 +1,339 @@
+{
+ "id": "scene_pump_room",
+ "label": "Каморка мастера",
+ "location": "loc_pump7",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "chapter": "ch_signs",
+ "states": [
+  {
+   "id": "state_main",
+   "label": "Всегда",
+   "condition": null,
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "label": "стена",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 560,
+       "fill": {
+        "gradient": {
+         "from": "#1d2b2c",
+         "to": "#0c1214",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "пол",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 560,
+       "w": 1280,
+       "h": 160,
+       "fill": "#4a4038",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "койка",
+      "shape": {
+       "type": "rect",
+       "x": 60,
+       "y": 430,
+       "w": 300,
+       "h": 150,
+       "fill": "#22323a",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "подушка",
+      "shape": {
+       "type": "rect",
+       "x": 60,
+       "y": 430,
+       "w": 300,
+       "h": 30,
+       "fill": "#3b3530",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "стол",
+      "shape": {
+       "type": "rect",
+       "x": 520,
+       "y": 400,
+       "w": 320,
+       "h": 160,
+       "fill": "#6d3a28",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "листы",
+      "shape": {
+       "type": "rect",
+       "x": 560,
+       "y": 360,
+       "w": 120,
+       "h": 50,
+       "fill": "#d7d3c6",
+       "stroke_width": 2
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "чертёж",
+      "shape": {
+       "type": "rect",
+       "x": 700,
+       "y": 370,
+       "w": 100,
+       "h": 40,
+       "fill": "#c9c3b2",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "шкафчик",
+      "shape": {
+       "type": "rect",
+       "x": 980,
+       "y": 180,
+       "w": 240,
+       "h": 300,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 4
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 1100,
+       "y1": 180,
+       "x2": 1100,
+       "y2": 480,
+       "color": "#556d76",
+       "width": 5
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "ручка",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1080,
+       "cy": 340,
+       "rx": 10,
+       "ry": 10,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "ручка",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1120,
+       "cy": 340,
+       "rx": 10,
+       "ry": 10,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "печка",
+      "shape": {
+       "type": "rect",
+       "x": 360,
+       "y": 380,
+       "w": 130,
+       "h": 190,
+       "fill": "#8a4b31",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "топка",
+      "shape": {
+       "type": "ellipse",
+       "cx": 425,
+       "cy": 500,
+       "rx": 34,
+       "ry": 24,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.9
+     },
+     {
+      "label": "труба",
+      "shape": {
+       "type": "line",
+       "x1": 360,
+       "y1": 340,
+       "x2": 360,
+       "y2": 210,
+       "color": "#3a4a52",
+       "width": 16
+      },
+      "opacity": 0.9
+     },
+     {
+      "label": "дверь",
+      "shape": {
+       "type": "rect",
+       "x": 1180,
+       "y": 500,
+       "w": 92,
+       "h": 180,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 425,
+       "cy": 500,
+       "rx": 120,
+       "ry": 120,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.35
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 425,
+       "cy": 500,
+       "rx": 54.0,
+       "ry": 54.0,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1100,
+       "cy": 200,
+       "rx": 80,
+       "ry": 80,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.2
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1100,
+       "cy": 200,
+       "rx": 36.0,
+       "ry": 36.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.55
+     }
+    ]
+   }
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_notes",
+   "label": "Стол мастера",
+   "type": [
+    "prop",
+    "item"
+   ],
+   "shape": "rect",
+   "x": 520,
+   "y": 350,
+   "w": 320,
+   "h": 210,
+   "condition": null,
+   "default_entity": "item_resh_notes"
+  },
+  {
+   "id": "slot_locker",
+   "label": "Железный шкафчик",
+   "type": [
+    "container",
+    "prop"
+   ],
+   "shape": "rect",
+   "x": 980,
+   "y": 180,
+   "w": 240,
+   "h": 300,
+   "condition": null,
+   "default_entity": "item_locker"
+  },
+  {
+   "id": "slot_stove",
+   "label": "Печка",
+   "type": [
+    "prop"
+   ],
+   "shape": "rect",
+   "x": 350,
+   "y": 340,
+   "w": 150,
+   "h": 240,
+   "condition": null,
+   "default_entity": "item_stove"
+  }
+ ],
+ "navigation": [
+  {
+   "label": "В машинный зал",
+   "area": {
+    "x": 1180,
+    "y": 500,
+    "w": 92,
+    "h": 180
+   },
+   "go_to_scene": "scene_pump_hall"
+  }
+ ],
+ "music": [
+  {
+   "tracks": [
+    "music_pump"
+   ],
+   "conditions": []
+  }
+ ]
+}

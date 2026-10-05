@@ -1,0 +1,229 @@
+{
+ "version": 2,
+ "label": "Жук, информатор",
+ "nodes": [
+  {
+   "id": "Начало",
+   "label": "Начало разговора",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Жук не здоровается. Он просто ждёт, сколько ты заплатишь.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Слушаю. Дорого."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "Что ты видел в ночь тринадцатого?",
+     "sections": [],
+     "goto": "stay",
+     "check": {
+      "skill": "persuade",
+      "difficulty": 50,
+      "success": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Келл со взводом, двенадцать человек, вниз — и ни одного обратно до утра. Ещё: мастер выходил из шахты не один. Но это ты не от меня слышал."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "set_flag",
+            "flag": "zhuk_paid"
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "fire_rule",
+            "rule": "rule_zhuk_info"
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      },
+      "fail": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Видел я много. Рассказываю — мало. Пятьдесят марок, и я вспомню всё."
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      }
+     }
+    },
+    {
+     "text": "Пятьдесят марок. Вспоминай.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Он протягивает руку, не глядя. Марки исчезают в рукаве.",
+          "action": true
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Стража Келла, двенадцать человек, вниз. Мастер — наверх, потом снова вниз, с сердцевиной в сумке. А наряд в архиве подшит к делу тринадцать-К: без пломбы тебе его не дадут."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_item",
+          "item": "item_mark",
+          "qty": 50
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "fire_rule",
+          "rule": "rule_zhuk_info"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "item_ge",
+       "item": "item_mark",
+       "count": 50
+      },
+      {
+       "type": "flag",
+       "flag": "zhuk_paid",
+       "not": true
+      }
+     ]
+    },
+    {
+     "text": "Кто заказал остановку помпы?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Не Келл. Келл — руки, а руки дешёвые. Бумага дорогая.",
+          "emotion": "thoughtful"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Ищи, кто подписал расход на режим тишины. Кто подписал, тот и заказал."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "kast_alerted"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "zhuk_paid"
+      }
+     ]
+    },
+    {
+     "text": "Где мастер?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Ниже восьмого. Там, где жила поёт. Хочешь — спускайся, хочешь — живи.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "fire_rule",
+          "rule": "rule_reveal_deep"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "once": true
+    },
+    {
+     "text": "Пока.",
+     "sections": [],
+     "goto": "end"
+    }
+   ],
+   "timer": {
+    "seconds": 15,
+    "node": "Молчание"
+   }
+  },
+  {
+   "id": "Молчание",
+   "label": "Молчание",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Жук ждёт ровно столько, сколько стоит твоё молчание.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Молчишь? Значит, не заплатишь. Бывай."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [],
+   "goto": "Начало"
+  }
+ ]
+}
