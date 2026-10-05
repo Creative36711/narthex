@@ -1,0 +1,13 @@
+{
+ "id": "item_filter",
+ "type": "item",
+ "category": "gear",
+ "label": "Дыхатель мастера",
+ "description": "Маска с жильным фильтром и двумя банками. Ниже восьмого яруса без неё считают вдохи, а не часы.",
+ "weight": 0.7,
+ "stackable": false,
+ "value": {
+  "mark": 28
+ },
+ "equip_slot": "mask"
+}

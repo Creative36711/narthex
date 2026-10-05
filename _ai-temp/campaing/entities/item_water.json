@@ -1,0 +1,22 @@
+{
+ "id": "item_water",
+ "type": "item",
+ "category": "drink",
+ "label": "Фляга чистой воды",
+ "description": "Чистая вода в нижних ярусах дороже марки: её хотя бы продают по цене, а не по знакомству.",
+ "weight": 0.7,
+ "stackable": true,
+ "value": {
+  "mark": 3
+ },
+ "on_use": {
+  "effects": [
+   {
+    "type": "change_need",
+    "need": "need_thirst",
+    "delta": 45
+   }
+  ],
+  "consume": true
+ }
+}

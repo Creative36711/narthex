@@ -1,0 +1,40 @@
+{
+ "id": "quest_missing",
+ "label": "Пропавший страж Яров",
+ "description": "Страж Стась Яров не вышел со смены. Его ждёт сестра — Ира Ярова.",
+ "chapter": "ch_deep",
+ "journal_entries": {
+  "j_found": "У затвора восьмого яруса — тело стража Стася Ярова. Удар в затылок, не вода.",
+  "j_done": "Жетон Стася передан Ире. Теперь она знает, что его не было «при исполнении»."
+ },
+ "stages": [
+  {
+   "id": "stage_found",
+   "label": "Тело найдено",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_missing",
+     "text_key": "j_found"
+    }
+   ]
+  },
+  {
+   "id": "stage_done",
+   "label": "Жетон возвращён",
+   "final": true,
+   "outcome": "success",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_missing",
+     "text_key": "j_done"
+    },
+    {
+     "type": "grant_xp",
+     "points": 40
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "id": "rule_hounds",
+ "label": "Пепельные псы в галерее",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "player_enters_scene",
+   "scene": "scene_flood_gallery"
+  }
+ ],
+ "effects": [
+  {
+   "type": "start_combat",
+   "enemies": [
+    {
+     "entity": "npc_ashhound",
+     "count": 2
+    }
+   ],
+   "arena": "arena_gallery",
+   "intro": "Из-под арки выходят две тени: пепельная шерсть, красные глаза, никаких звуков.",
+   "on_victory": [
+    {
+     "type": "show_message",
+     "text": "Псы уходят в воду. Там их и кормили."
+    }
+   ]
+  }
+ ],
+ "chapter": "ch_deep"
+}

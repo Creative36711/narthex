@@ -1,0 +1,12 @@
+{
+ "id": "item_cloth",
+ "type": "item",
+ "category": "material",
+ "label": "Тряпьё",
+ "description": "Грубое полотно, бывшее когда-то одеждой, а потом — бинтом, а потом снова одеждой.",
+ "weight": 0.3,
+ "stackable": true,
+ "value": {
+  "mark": 1
+ }
+}

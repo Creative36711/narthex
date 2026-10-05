@@ -1,0 +1,21 @@
+{
+ "id": "item_bandage",
+ "type": "item",
+ "category": "medicine",
+ "label": "Свёрнутый бинт",
+ "description": "Полотняная лента, пропитанная жильным отваром. Пахнет ржавчиной и чем-то съедобным.",
+ "weight": 0.2,
+ "stackable": true,
+ "value": {
+  "mark": 7
+ },
+ "on_use": {
+  "effects": [
+   {
+    "type": "change_hp",
+    "delta": 7
+   }
+  ],
+  "consume": true
+ }
+}

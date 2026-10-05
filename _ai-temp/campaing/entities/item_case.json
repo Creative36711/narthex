@@ -1,0 +1,47 @@
+{
+ "id": "item_case",
+ "type": "item",
+ "category": "container",
+ "label": "Шкаф с делами",
+ "description": "Шкаф, в котором хранят закрытые дела. У каждого дознавателя здесь есть папка, которую он не открывает.",
+ "weight": 30.0,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ },
+ "interact_options": [
+  {
+   "label": "Поднять дело №136",
+   "effects": [
+    {
+     "type": "unlock_codex",
+     "entry": "codex_case136"
+    },
+    {
+     "type": "advance_time",
+     "ticks": 1
+    }
+   ],
+   "message": "Папка тонкая: три листа, подпись Каст и пометка «исполнено»."
+  },
+  {
+   "label": "Сверить сводку по помпам",
+   "effects": [
+    {
+     "type": "show_message",
+     "text": "Сводка: семь помп, шесть в работе. Седьмая — «причина уточняется», третий день."
+    }
+   ]
+  },
+  {
+   "label": "Записать в дело №137",
+   "effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_pump",
+     "text_key": "j_brief"
+    }
+   ]
+  }
+ ]
+}

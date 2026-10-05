@@ -1,0 +1,12 @@
+{
+ "id": "item_badge",
+ "type": "item",
+ "category": "key",
+ "label": "Жетон дознавателя",
+ "description": "Номер выбит, имя не вписано: приписной дознаватель не тот, кого вписывают.",
+ "weight": 0.05,
+ "stackable": false,
+ "value": {
+  "mark": 6
+ }
+}

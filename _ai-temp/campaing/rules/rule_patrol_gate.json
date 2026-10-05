@@ -1,0 +1,36 @@
+{
+ "id": "rule_patrol_gate",
+ "label": "Патруль у шлюза",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "lockdown"
+  },
+  {
+   "type": "player_enters_location",
+   "location": "loc_gate"
+  }
+ ],
+ "effects": [
+  {
+   "type": "start_combat",
+   "enemies": [
+    {
+     "entity": "npc_thug",
+     "count": 1
+    }
+   ],
+   "arena": "arena_gate",
+   "intro": "Двое в кирзе выходят из-под эстакады: «Документы. И не дергайся».",
+   "on_victory": [
+    {
+     "type": "show_message",
+     "text": "Один остаётся лежать. Второй убегает вверх по лестнице."
+    }
+   ]
+  }
+ ],
+ "chapter": "ch_price"
+}

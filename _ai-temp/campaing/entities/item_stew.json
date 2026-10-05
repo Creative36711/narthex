@@ -1,0 +1,27 @@
+{
+ "id": "item_stew",
+ "type": "item",
+ "category": "food",
+ "label": "Горячая похлёбка",
+ "description": "Миска густого варева из Сухого ряда. Что в нём было — лучше не спрашивать, но руки греет.",
+ "weight": 0.6,
+ "stackable": true,
+ "value": {
+  "mark": 7
+ },
+ "on_use": {
+  "effects": [
+   {
+    "type": "change_need",
+    "need": "need_hunger",
+    "delta": 55
+   },
+   {
+    "type": "change_need",
+    "need": "need_warmth",
+    "delta": 20
+   }
+  ],
+  "consume": true
+ }
+}

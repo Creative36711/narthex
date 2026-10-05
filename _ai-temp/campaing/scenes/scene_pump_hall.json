@@ -1,0 +1,684 @@
+{
+ "id": "scene_pump_hall",
+ "label": "Машинный зал седьмой помпы",
+ "location": "loc_pump7",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "chapter": "ch_signs",
+ "states": [
+  {
+   "id": "state_main",
+   "label": "Всегда",
+   "condition": null,
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "label": "стена зала",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 560,
+       "fill": {
+        "gradient": {
+         "from": "#1b2b32",
+         "to": "#0a1216",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "пол",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 560,
+       "w": 1280,
+       "h": 160,
+       "fill": "#22323a",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "труба",
+      "shape": {
+       "type": "line",
+       "x1": 0,
+       "y1": 90,
+       "x2": 1280,
+       "y2": 90,
+       "color": "#3a4a52",
+       "width": 22
+      },
+      "opacity": 0.9
+     },
+     {
+      "label": "труба",
+      "shape": {
+       "type": "line",
+       "x1": 0,
+       "y1": 130,
+       "x2": 1280,
+       "y2": 130,
+       "color": "#6d3a28",
+       "width": 12
+      },
+      "opacity": 0.6
+     },
+     {
+      "label": "корпус помпы",
+      "shape": {
+       "type": "rect",
+       "x": 360,
+       "y": 170,
+       "w": 440,
+       "h": 390,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 5
+      }
+     },
+     {
+      "label": "верх корпуса",
+      "shape": {
+       "type": "rect",
+       "x": 360,
+       "y": 170,
+       "w": 440,
+       "h": 40,
+       "fill": "#556d76",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "основание",
+      "shape": {
+       "type": "rect",
+       "x": 400,
+       "y": 470,
+       "w": 360,
+       "h": 90,
+       "fill": "#22323a",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "маховик",
+      "shape": {
+       "type": "ellipse",
+       "cx": 800,
+       "cy": 330,
+       "rx": 132,
+       "ry": 132,
+       "fill": "#22323a",
+       "stroke": "#6d3a28",
+       "stroke_width": 8
+      }
+     },
+     {
+      "label": "ступица",
+      "shape": {
+       "type": "ellipse",
+       "cx": 800,
+       "cy": 330,
+       "rx": 44,
+       "ry": 44,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 3
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 800,
+       "y1": 198,
+       "x2": 800,
+       "y2": 462,
+       "color": "#6d3a28",
+       "width": 7
+      },
+      "opacity": 0.9
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 668,
+       "y1": 330,
+       "x2": 932,
+       "y2": 330,
+       "color": "#6d3a28",
+       "width": 7
+      },
+      "opacity": 0.9
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 707,
+       "y1": 237,
+       "x2": 893,
+       "y2": 423,
+       "color": "#6d3a28",
+       "width": 7
+      },
+      "opacity": 0.9
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 707,
+       "y1": 423,
+       "x2": 893,
+       "y2": 237,
+       "color": "#6d3a28",
+       "width": 7
+      },
+      "opacity": 0.9
+     },
+     {
+      "label": "муфта",
+      "shape": {
+       "type": "polygon",
+       "points": [
+        300,
+        300,
+        360,
+        280,
+        360,
+        380,
+        300,
+        360
+       ],
+       "fill": "#8a4b31",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "пульт",
+      "shape": {
+       "type": "rect",
+       "x": 120,
+       "y": 300,
+       "w": 200,
+       "h": 260,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "стрелочный индикатор",
+      "shape": {
+       "type": "ellipse",
+       "cx": 170,
+       "cy": 350,
+       "rx": 22,
+       "ry": 22,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "аварийный индикатор",
+      "shape": {
+       "type": "ellipse",
+       "cx": 240,
+       "cy": 350,
+       "rx": 22,
+       "ry": 22,
+       "fill": "#5a1f1c",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "шкалы",
+      "shape": {
+       "type": "rect",
+       "x": 140,
+       "y": 410,
+       "w": 160,
+       "h": 90,
+       "fill": "#202a2e",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "люк шахты",
+      "shape": {
+       "type": "rect",
+       "x": 560,
+       "y": 566,
+       "w": 200,
+       "h": 120,
+       "fill": "#080f12",
+       "stroke": "#556d76",
+       "stroke_width": 4
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 580,
+       "y1": 596,
+       "x2": 740,
+       "y2": 596,
+       "color": "#556d76",
+       "width": 5
+      },
+      "opacity": 0.8
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 580,
+       "y1": 626,
+       "x2": 740,
+       "y2": 626,
+       "color": "#556d76",
+       "width": 5
+      },
+      "opacity": 0.8
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 580,
+       "y1": 656,
+       "x2": 740,
+       "y2": 656,
+       "color": "#556d76",
+       "width": 5
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "дверь мастера",
+      "shape": {
+       "type": "rect",
+       "x": 1150,
+       "y": 250,
+       "w": 92,
+       "h": 210,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "наличник",
+      "shape": {
+       "type": "rect",
+       "x": 1150,
+       "y": 250,
+       "w": 92,
+       "h": 16,
+       "fill": "#556d76",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "тяжёлая вода",
+      "shape": {
+       "type": "ellipse",
+       "cx": 300,
+       "cy": 640,
+       "rx": 200,
+       "ry": 30,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "тяжёлая вода",
+      "shape": {
+       "type": "ellipse",
+       "cx": 900,
+       "cy": 660,
+       "rx": 230,
+       "ry": 26,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 800,
+       "cy": 330,
+       "rx": 100,
+       "ry": 100,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.28
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 800,
+       "cy": 330,
+       "rx": 45.0,
+       "ry": 45.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.63
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 220,
+       "cy": 250,
+       "rx": 100,
+       "ry": 100,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.28
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 220,
+       "cy": 250,
+       "rx": 45.0,
+       "ry": 45.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.63
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1240,
+       "cy": 200,
+       "rx": 70,
+       "ry": 70,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.3
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1240,
+       "cy": 200,
+       "rx": 31.5,
+       "ry": 31.5,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.6499999999999999
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 372,
+       "cy": 180,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 372,
+       "cy": 550,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 432,
+       "cy": 180,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 432,
+       "cy": 550,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 492,
+       "cy": 180,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 492,
+       "cy": 550,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 552,
+       "cy": 180,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 552,
+       "cy": 550,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 612,
+       "cy": 180,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 612,
+       "cy": 550,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 672,
+       "cy": 180,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 672,
+       "cy": 550,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 732,
+       "cy": 180,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 732,
+       "cy": 550,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     }
+    ]
+   }
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_pump",
+   "label": "Седьмая помпа",
+   "type": [
+    "prop"
+   ],
+   "shape": "rect",
+   "x": 340,
+   "y": 170,
+   "w": 600,
+   "h": 390,
+   "condition": null,
+   "default_entity": "item_pump_engine",
+   "sprite_scale": 0.9
+  },
+  {
+   "id": "slot_ira",
+   "label": "У пульта",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 100,
+   "y": 240,
+   "w": 240,
+   "h": 340,
+   "condition": null
+  },
+  {
+   "id": "slot_door_resh",
+   "label": "Дверь каморки мастера",
+   "type": [
+    "prop",
+    "item"
+   ],
+   "shape": "rect",
+   "x": 1150,
+   "y": 250,
+   "w": 92,
+   "h": 210,
+   "condition": null,
+   "default_entity": "item_resh_door"
+  }
+ ],
+ "navigation": [
+  {
+   "label": "Спуститься в шахту помпы",
+   "area": {
+    "x": 560,
+    "y": 566,
+    "w": 200,
+    "h": 120
+   },
+   "go_to_scene": "scene_pump_shaft"
+  },
+  {
+   "label": "На схему ярусов",
+   "area": {
+    "x": 20,
+    "y": 600,
+    "w": 220,
+    "h": 110
+   },
+   "open_map": true
+  }
+ ],
+ "music": [
+  {
+   "tracks": [
+    "music_pump"
+   ],
+   "conditions": []
+  }
+ ]
+}

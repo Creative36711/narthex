@@ -1,0 +1,64 @@
+{
+ "id": "item_locker",
+ "type": "item",
+ "category": "container",
+ "label": "Железный шкафчик",
+ "description": "Личный шкафчик мастера: спецовка, мыло и то, что не оставляют на столе.",
+ "weight": 45.0,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ },
+ "interact_options": [
+  {
+   "label": "Вскрыть шкафчик",
+   "effects": [
+    {
+     "type": "skill_check_gate",
+     "skill": "lockpick",
+     "difficulty": 45,
+     "success_effects": [
+      {
+       "type": "add_item",
+       "item": "item_plate",
+       "quantity": 1
+      },
+      {
+       "type": "add_item",
+       "item": "item_key_cache",
+       "quantity": 1
+      },
+      {
+       "type": "set_flag",
+       "flag": "clue_plate"
+      },
+      {
+       "type": "start_quest",
+       "quest": "quest_duty"
+      },
+      {
+       "type": "change_variable",
+       "var": "clues",
+       "delta": 1
+      },
+      {
+       "type": "fire_rule",
+       "rule": "rule_clue_check"
+      },
+      {
+       "type": "show_message",
+       "text": "В кармане спецовки — свинцовая пломба с номером наряда и крошечный ключ без номера."
+      }
+     ],
+     "fail_effects": [
+      {
+       "type": "show_message",
+       "text": "Дверца гнётся и пружинит. Замок держит."
+      }
+     ]
+    }
+   ],
+   "once": true
+  }
+ ]
+}

@@ -1,0 +1,12 @@
+{
+ "id": "item_key_cache",
+ "type": "item",
+ "category": "key",
+ "label": "Ключ от схрона",
+ "description": "Крошечный ключ без номера: такие выдают не на дверь, а на совесть.",
+ "weight": 0.05,
+ "stackable": false,
+ "value": {
+  "mark": 2
+ }
+}

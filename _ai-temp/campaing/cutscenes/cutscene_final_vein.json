@@ -1,0 +1,247 @@
+{
+ "id": "cutscene_final_vein",
+ "label": "Жила проснулась",
+ "music": "music_end",
+ "chapter": "ch_final",
+ "slides": [
+  {
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
+       "fill": {
+        "gradient": {
+         "from": "#101a20",
+         "to": "#05080a",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 280,
+       "y": 120,
+       "w": 720,
+       "h": 500,
+       "fill": "#16232a",
+       "stroke": "#1d2f36",
+       "stroke_width": 6
+      }
+     },
+     {
+      "shape": {
+       "type": "polygon",
+       "points": [
+        340,
+        620,
+        520,
+        300,
+        620,
+        430,
+        780,
+        170,
+        900,
+        390,
+        950,
+        620
+       ],
+       "stroke": "#5fd0c8",
+       "stroke_width": 12
+      }
+     },
+     {
+      "shape": {
+       "type": "polygon",
+       "points": [
+        360,
+        620,
+        560,
+        380,
+        650,
+        470,
+        800,
+        250,
+        900,
+        400,
+        930,
+        620
+       ],
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.18
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 780,
+       "cy": 170,
+       "rx": 260,
+       "ry": 260,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.35
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 780,
+       "cy": 170,
+       "rx": 117.0,
+       "ry": 117.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     }
+    ]
+   },
+   "text": "Сердцевина уходит в камень. Стена вздыхает — и семь помп начинают работать сами, без смен и без Надзора.",
+   "duration": 7,
+   "transition": "panzoom"
+  },
+  {
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
+       "fill": {
+        "gradient": {
+         "from": "#1f3138",
+         "to": "#0a1216",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 340,
+       "y": 200,
+       "w": 460,
+       "h": 380,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 5
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 820,
+       "cy": 390,
+       "rx": 140,
+       "ry": 140,
+       "fill": "#22323a",
+       "stroke": "#e8a33d",
+       "stroke_width": 8
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 820,
+       "y1": 250,
+       "x2": 820,
+       "y2": 530,
+       "color": "#e8a33d",
+       "width": 7
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 680,
+       "y1": 390,
+       "x2": 960,
+       "y2": 390,
+       "color": "#e8a33d",
+       "width": 7
+      }
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 820,
+       "cy": 390,
+       "rx": 320,
+       "ry": 320,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.4
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 820,
+       "cy": 390,
+       "rx": 144.0,
+       "ry": 144.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.75
+     },
+     {
+      "label": "труба",
+      "shape": {
+       "type": "line",
+       "x1": 0,
+       "y1": 120,
+       "x2": 1280,
+       "y2": 120,
+       "color": "#3a4a52",
+       "width": 20
+      },
+      "opacity": 0.9
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 620,
+       "w": 1280,
+       "h": 100,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      }
+     }
+    ]
+   },
+   "text": "Говорят, на девятом теперь светло и никто не работает. Говорят, там никого не осталось. Ты слышишь гул в груди — и знаешь, что это не эхо.",
+   "duration": 7,
+   "transition": "fade"
+  }
+ ]
+}

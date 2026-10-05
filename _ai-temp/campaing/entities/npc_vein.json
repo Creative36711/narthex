@@ -1,0 +1,24 @@
+{
+ "id": "npc_vein",
+ "type": "npc",
+ "label": "Жила",
+ "description": "Стена в слепом забое, по которой идёт бирюзовый свет. Она не говорит — она отвечает, и не всегда на твой вопрос.",
+ "portrait": {},
+ "stats": {
+  "STR": 18,
+  "CON": 18,
+  "SIZ": 18,
+  "DEX": 3,
+  "INT": 12,
+  "POW": 16,
+  "CHA": 6
+ },
+ "skills": {
+  "lore": 95,
+  "perception": 70
+ },
+ "slot_type": "prop",
+ "base_disposition": 0,
+ "schedule": [],
+ "dialogue": "dialogues/vein.ink"
+}

@@ -1,0 +1,310 @@
+{
+ "id": "cutscene_final_silence",
+ "label": "Тишина",
+ "music": "music_end",
+ "chapter": "ch_final",
+ "slides": [
+  {
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
+       "fill": {
+        "gradient": {
+         "from": "#16262b",
+         "to": "#05090c",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 200,
+       "cy": 300,
+       "rx": 150,
+       "ry": 220,
+       "fill": "#080f12",
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 300,
+       "rx": 150,
+       "ry": 220,
+       "fill": "#080f12",
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1080,
+       "cy": 300,
+       "rx": 150,
+       "ry": 220,
+       "fill": "#080f12",
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 470,
+       "w": 1280,
+       "h": 250,
+       "fill": {
+        "gradient": {
+         "from": "#123039",
+         "to": "#050f14",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 470,
+       "w": 1280,
+       "h": 8,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.35
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 180,
+       "rx": 180,
+       "ry": 180,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.18
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 180,
+       "rx": 81.0,
+       "ry": 81.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.53
+     }
+    ]
+   },
+   "text": "Заряд уходит под воду вместе с затвором. Жила накрыта: брать здесь больше нечего — и некому.",
+   "duration": 6,
+   "transition": "panzoom"
+  },
+  {
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 720,
+       "fill": {
+        "gradient": {
+         "from": "#20343c",
+         "to": "#05090b",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "polygon",
+       "points": [
+        420,
+        720,
+        480,
+        200,
+        800,
+        200,
+        860,
+        720
+       ],
+       "fill": "#16232a",
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 470,
+       "y": 250,
+       "w": 30,
+       "h": 40,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.5
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 516,
+       "y": 340,
+       "w": 30,
+       "h": 40,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.5
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 562,
+       "y": 430,
+       "w": 30,
+       "h": 40,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.5
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 608,
+       "y": 250,
+       "w": 30,
+       "h": 40,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.5
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 654,
+       "y": 340,
+       "w": 30,
+       "h": 40,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.5
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 700,
+       "y": 430,
+       "w": 30,
+       "h": 40,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.5
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 746,
+       "y": 250,
+       "w": 30,
+       "h": 40,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.5
+     },
+     {
+      "label": "труба",
+      "shape": {
+       "type": "line",
+       "x1": 300,
+       "y1": 400,
+       "x2": 980,
+       "y2": 400,
+       "color": "#3a4a52",
+       "width": 20
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 650,
+       "cy": 160,
+       "rx": 220,
+       "ry": 220,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.25
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 650,
+       "cy": 160,
+       "rx": 99.0,
+       "ry": 99.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 640,
+       "w": 1280,
+       "h": 80,
+       "fill": "#080f12",
+       "stroke_width": 2
+      },
+      "opacity": 0.9
+     }
+    ]
+   },
+   "text": "Нижние ярусы молчат. Это тоже победа: её просто некому записать в сводку.",
+   "duration": 7,
+   "transition": "fade"
+  }
+ ]
+}

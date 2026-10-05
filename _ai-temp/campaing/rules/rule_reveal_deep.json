@@ -1,0 +1,26 @@
+{
+ "id": "rule_reveal_deep",
+ "label": "Дорога на девятый ярус",
+ "once": true,
+ "manual": true,
+ "conditions": [
+  {
+   "type": "flag_not_set",
+   "flag": "deep_revealed"
+  }
+ ],
+ "effects": [
+  {
+   "type": "reveal_location",
+   "location": "loc_deep9"
+  },
+  {
+   "type": "set_flag",
+   "flag": "deep_revealed"
+  },
+  {
+   "type": "show_message",
+   "text": "Ход на девятый ярус есть: старая штольня «Слепой забой», мимо затвора восьмого."
+  }
+ ]
+}

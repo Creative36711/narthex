@@ -1,0 +1,12 @@
+{
+ "id": "item_scrap",
+ "type": "item",
+ "category": "material",
+ "label": "Лом",
+ "description": "Обрезки железа, проволока, кусок шестерни. Всё, из чего внизу делают всё остальное.",
+ "weight": 1.2,
+ "stackable": true,
+ "value": {
+  "mark": 2
+ }
+}

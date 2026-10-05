@@ -1,0 +1,24 @@
+{
+ "id": "recipe_bolt",
+ "label": "Нарезать болты",
+ "description": "Из куска лома выходит три болта и немного шума.",
+ "inputs": [
+  {
+   "item": "item_scrap",
+   "quantity": 1
+  }
+ ],
+ "tools": [
+  "item_wrench"
+ ],
+ "skill": {
+  "id": "repair",
+  "difficulty": 30
+ },
+ "time_ticks": 1,
+ "output": {
+  "item": "item_bolt",
+  "quantity": 3
+ },
+ "message": "Три болта. Один кривой — он и полетит первым."
+}

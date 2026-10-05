@@ -1,0 +1,12 @@
+{
+ "id": "item_valve",
+ "type": "item",
+ "category": "misc",
+ "label": "Клапан затвора",
+ "description": "Тяжёлый бронзовый клапан с выбитым номером семь. Без него затвор восьмого яруса — просто решётка.",
+ "weight": 3.0,
+ "stackable": false,
+ "value": {
+  "mark": 16
+ }
+}

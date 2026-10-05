@@ -1,0 +1,227 @@
+{
+ "version": 2,
+ "label": "Сестра Айла, лекарь",
+ "nodes": [
+  {
+   "id": "Начало",
+   "label": "Начало разговора",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Айла промокает бинт и не смотрит на твои руки.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Сядь. У тебя ссадина на костяшках и вид человека, который не спал двое суток."
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "text": "Перевяжи меня (10 марок).",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Держи. Не дёргайся: я режу ровно, но больно.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_item",
+          "item": "item_mark",
+          "qty": 10
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_hp",
+          "delta": 14
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "item_ge",
+       "item": "item_mark",
+       "count": 10
+      }
+     ]
+    },
+    {
+     "text": "Убери гнилец (30 марок).",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Отвар горький. Гнилец горше. Глотай, не нюхай.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_item",
+          "item": "item_mark",
+          "qty": 30
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "remove_status",
+          "status": "status_rot"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_hp",
+          "delta": 4
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "has_status",
+       "status": "status_rot"
+      },
+      {
+       "type": "item_ge",
+       "item": "item_mark",
+       "count": 30
+      }
+     ]
+    },
+    {
+     "text": "Научи готовить настой.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Рецепт простой, как всё, что спасает жизнь: трава, вода и терпение.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "unlock_recipe",
+          "recipe": "recipe_tonic"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "ayla_recipe"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_disposition",
+          "target": "npc_ayla",
+          "delta": 10
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "ayla_recipe",
+       "not": true
+      }
+     ],
+     "once": true
+    },
+    {
+     "text": "Ты знала стража Ярова?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Яров? Приходил за бинтами тринадцатого, вечером. Уходил не один — со стражей.",
+          "emotion": "thoughtful"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Сказал: «затвор закрывать». Я спросила: «а люди?» Он не ответил."
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_description",
+          "entity": "npc_ayla",
+          "text": "Лекарь Сухого ряда. Знает, кто уходил закрывать затвор — и кто не вернулся."
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Торговать.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Бери, что нужно. И оставь себе на воду — воды всегда нужно больше.",
+          "emotion": "calm"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "open_trade",
+          "npc": "npc_ayla"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "end"
+    },
+    {
+     "text": "Пока.",
+     "sections": [],
+     "goto": "end"
+    }
+   ]
+  }
+ ]
+}

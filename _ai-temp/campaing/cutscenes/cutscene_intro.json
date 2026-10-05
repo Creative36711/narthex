@@ -1,0 +1,26 @@
+{
+ "id": "cutscene_intro",
+ "label": "Пролог: Каркас",
+ "music": "music_menu",
+ "chapter": "ch_arrival",
+ "slides": [
+  {
+   "image": "assets/img/cut_intro_1.jpg",
+   "text": "Каркас стоит на жиле, которую откачивают семь помп. Сто тридцать семь лет город делает себе больно, чтобы стоять.",
+   "duration": 7,
+   "transition": "panzoom"
+  },
+  {
+   "image": "assets/img/cut_intro_2.jpg",
+   "text": "Ты — приписной дознаватель. Тебя спустили на седьмой ярус, потому что дешевле послать того, кого не жалко.",
+   "duration": 7,
+   "transition": "fade"
+  },
+  {
+   "image": "assets/img/cut_intro_3.jpg",
+   "text": "Седьмая помпа молчит третьи сутки. Её мастер ушёл в шахту и не вернулся. У тебя семьдесят два часа.",
+   "duration": 7,
+   "transition": "slide"
+  }
+ ]
+}

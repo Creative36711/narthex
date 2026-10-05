@@ -1,0 +1,12 @@
+{
+ "id": "item_guard_token",
+ "type": "item",
+ "category": "clue",
+ "label": "Жетон стража Стася Ярова",
+ "description": "Номерной жетон со следами тяжёлой воды. Ира всё ещё ждёт брата с ночной смены.",
+ "weight": 0.05,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ }
+}

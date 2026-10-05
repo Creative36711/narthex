@@ -1,0 +1,89 @@
+{
+ "id": "quest_pump",
+ "label": "Дело №137: Седьмая помпа",
+ "description": "Седьмая помпа стоит третьи сутки, мастер пропал. Семьдесят два часа, чтобы назвать причину.",
+ "chapter": "ch_arrival",
+ "journal_entries": {
+  "j_brief": "Дело №137. Седьмая помпа стоит с девятнадцати десяти тринадцатого числа. Мастер помпы Эрдан Реш спустился в шахту и не вышел. Срок — семьдесят два часа.",
+  "j_clues": "Помпа не сломана: ей не дают ходу. Нужны улики — что здесь делала стража и почему мастер ушёл вниз.",
+  "j_room": "Каморка мастера открыта: в ней чертежи, записи и железный шкафчик.",
+  "j_resh": "Улик довольно: мастер ушёл вниз не просто так. Искать его — на девятом ярусе, в штольне «Слепой забой».",
+  "j_verdict": "Мастер найден. Теперь решать: кому достанется то, что ты раскопал, — Надзору, Цеху или воде.",
+  "j_water": "Вода прибывает. Счёт идёт не на сутки, а на часы."
+ },
+ "stages": [
+  {
+   "id": "stage_brief",
+   "label": "Осмотреться на седьмом",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_pump",
+     "text_key": "j_brief"
+    }
+   ],
+   "transitions": [
+    {
+     "to": "stage_clues",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "pump_seen"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "stage_clues",
+   "label": "Собрать улики",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_pump",
+     "text_key": "j_clues"
+    }
+   ]
+  },
+  {
+   "id": "stage_resh",
+   "label": "Найти мастера",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_pump",
+     "text_key": "j_resh"
+    }
+   ]
+  },
+  {
+   "id": "stage_verdict",
+   "label": "Решение по делу",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_pump",
+     "text_key": "j_verdict"
+    }
+   ]
+  },
+  {
+   "id": "stage_success",
+   "label": "Дело закрыто",
+   "final": true,
+   "outcome": "success",
+   "on_enter_effects": [
+    {
+     "type": "grant_xp",
+     "points": 100
+    }
+   ]
+  },
+  {
+   "id": "stage_flooded",
+   "label": "Срок вышел",
+   "final": true,
+   "outcome": "failure"
+  }
+ ]
+}

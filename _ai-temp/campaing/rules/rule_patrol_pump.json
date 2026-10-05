@@ -1,0 +1,36 @@
+{
+ "id": "rule_patrol_pump",
+ "label": "Патруль у помпы",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "lockdown"
+  },
+  {
+   "type": "player_enters_location",
+   "location": "loc_pump7"
+  }
+ ],
+ "effects": [
+  {
+   "type": "start_combat",
+   "enemies": [
+    {
+     "entity": "npc_thug",
+     "count": 2
+    }
+   ],
+   "arena": "arena_pump",
+   "intro": "У помпы теперь дежурство: двое с дубинками и приказом никого не пускать.",
+   "on_victory": [
+    {
+     "type": "show_message",
+     "text": "Запасной выходят из зала, прижимая руку к боку."
+    }
+   ]
+  }
+ ],
+ "chapter": "ch_price"
+}

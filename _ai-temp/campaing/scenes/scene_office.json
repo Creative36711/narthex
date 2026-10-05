@@ -1,0 +1,324 @@
+{
+ "id": "scene_office",
+ "label": "Приёмная инспектора",
+ "location": "loc_surface",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "chapter": "ch_price",
+ "states": [
+  {
+   "id": "state_main",
+   "label": "Всегда",
+   "condition": null,
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "label": "стена приёмной",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 560,
+       "fill": {
+        "gradient": {
+         "from": "#2a3339",
+         "to": "#141c21",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "пол",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 560,
+       "w": 1280,
+       "h": 160,
+       "fill": "#22323a",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "окно",
+      "shape": {
+       "type": "rect",
+       "x": 880,
+       "y": 120,
+       "w": 300,
+       "h": 240,
+       "fill": {
+        "gradient": {
+         "from": "#4a6b72",
+         "to": "#20383f",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 1030,
+       "y1": 120,
+       "x2": 1030,
+       "y2": 360,
+       "color": "#3a4a52",
+       "width": 8
+      },
+      "opacity": 0.8
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 880,
+       "y1": 240,
+       "x2": 1180,
+       "y2": 240,
+       "color": "#3a4a52",
+       "width": 8
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "стол",
+      "shape": {
+       "type": "rect",
+       "x": 420,
+       "y": 420,
+       "w": 460,
+       "h": 150,
+       "fill": "#4a4038",
+       "stroke": "#556d76",
+       "stroke_width": 4
+      }
+     },
+     {
+      "label": "крышка",
+      "shape": {
+       "type": "rect",
+       "x": 420,
+       "y": 420,
+       "w": 460,
+       "h": 22,
+       "fill": "#3a4a52",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "лампа",
+      "shape": {
+       "type": "ellipse",
+       "cx": 700,
+       "cy": 400,
+       "rx": 30,
+       "ry": 18,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "шкаф",
+      "shape": {
+       "type": "rect",
+       "x": 700,
+       "y": 140,
+       "w": 160,
+       "h": 240,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 700,
+       "y1": 220,
+       "x2": 860,
+       "y2": 220,
+       "color": "#556d76",
+       "width": 4
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 700,
+       "y1": 300,
+       "x2": 860,
+       "y2": 300,
+       "color": "#556d76",
+       "width": 4
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "вешалка",
+      "shape": {
+       "type": "rect",
+       "x": 300,
+       "y": 180,
+       "w": 100,
+       "h": 320,
+       "fill": "#4a4038",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "дверь в архив",
+      "shape": {
+       "type": "rect",
+       "x": 60,
+       "y": 280,
+       "w": 92,
+       "h": 220,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "выход",
+      "shape": {
+       "type": "rect",
+       "x": 1178,
+       "y": 290,
+       "w": 92,
+       "h": 200,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1030,
+       "cy": 240,
+       "rx": 170,
+       "ry": 170,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.25
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1030,
+       "cy": 240,
+       "rx": 76.5,
+       "ry": 76.5,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 700,
+       "cy": 400,
+       "rx": 90,
+       "ry": 90,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.22
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 700,
+       "cy": 400,
+       "rx": 40.5,
+       "ry": 40.5,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.57
+     }
+    ]
+   }
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_kast",
+   "label": "Инспектор за столом",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 520,
+   "y": 230,
+   "w": 280,
+   "h": 310,
+   "condition": null,
+   "default_entity": "npc_kast"
+  },
+  {
+   "id": "slot_kell",
+   "label": "Старшина стражи",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 960,
+   "y": 260,
+   "w": 200,
+   "h": 400,
+   "condition": null,
+   "default_entity": "npc_kell"
+  }
+ ],
+ "navigation": [
+  {
+   "label": "В архив Надзора",
+   "area": {
+    "x": 60,
+    "y": 280,
+    "w": 92,
+    "h": 220
+   },
+   "go_to_scene": "scene_archive"
+  },
+  {
+   "label": "На схему ярусов",
+   "area": {
+    "x": 1178,
+    "y": 290,
+    "w": 92,
+    "h": 200
+   },
+   "open_map": true
+  }
+ ],
+ "music": [
+  {
+   "tracks": [
+    "music_office"
+   ],
+   "conditions": []
+  }
+ ]
+}

@@ -1,0 +1,12 @@
+{
+ "id": "item_plate",
+ "type": "item",
+ "category": "clue",
+ "label": "Пломба с номером",
+ "description": "Свинцовая пломба стражи: номер наряда 13-К. Такие ставят, когда закрывают ярус по приказу.",
+ "weight": 0.05,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ }
+}

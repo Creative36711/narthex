@@ -1,0 +1,34 @@
+{
+ "id": "rule_deadline_warn",
+ "label": "Вода прибывает",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "tick_elapsed",
+   "min_tick": 55
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "case_ended"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_weather",
+   "weather": "weather_damp"
+  },
+  {
+   "type": "banner",
+   "text": "Вода прибывает",
+   "preset": "проклятье",
+   "seconds": 4
+  },
+  {
+   "type": "journal_update",
+   "quest": "quest_pump",
+   "text_key": "j_water"
+  }
+ ],
+ "chapter": "ch_final"
+}

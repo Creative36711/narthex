@@ -1,0 +1,1124 @@
+{
+ "id": "scene_gate_hall",
+ "label": "Шлюзовая камера",
+ "location": "loc_gate",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "chapter": "ch_arrival",
+ "states": [
+  {
+   "id": "state_day",
+   "label": "Днём",
+   "condition": {
+    "time_of_day": [
+     "morning",
+     "day"
+    ]
+   },
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "label": "стена шлюза",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 520,
+       "fill": {
+        "gradient": {
+         "from": "#1d2e35",
+         "to": "#101a1f",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "пол",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 520,
+       "w": 1280,
+       "h": 200,
+       "fill": "#22323a",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "кромка пола",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 512,
+       "w": 1280,
+       "h": 16,
+       "fill": "#3a4a52",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "труба",
+      "shape": {
+       "type": "line",
+       "x1": 0,
+       "y1": 78,
+       "x2": 1280,
+       "y2": 78,
+       "color": "#3a4a52",
+       "width": 18
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "труба",
+      "shape": {
+       "type": "line",
+       "x1": 0,
+       "y1": 108,
+       "x2": 1280,
+       "y2": 108,
+       "color": "#6d3a28",
+       "width": 9
+      },
+      "opacity": 0.55
+     },
+     {
+      "label": "затвор",
+      "shape": {
+       "type": "ellipse",
+       "cx": 190,
+       "cy": 400,
+       "rx": 168,
+       "ry": 168,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 6
+      }
+     },
+     {
+      "label": "люк затвора",
+      "shape": {
+       "type": "ellipse",
+       "cx": 190,
+       "cy": 400,
+       "rx": 112,
+       "ry": 112,
+       "fill": "#22323a",
+       "stroke": "#6d3a28",
+       "stroke_width": 5
+      }
+     },
+     {
+      "label": "штурвал",
+      "shape": {
+       "type": "ellipse",
+       "cx": 190,
+       "cy": 400,
+       "rx": 38,
+       "ry": 38,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "спица",
+      "shape": {
+       "type": "line",
+       "x1": 190,
+       "y1": 288,
+       "x2": 190,
+       "y2": 512,
+       "color": "#556d76",
+       "width": 6
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "спица",
+      "shape": {
+       "type": "line",
+       "x1": 78,
+       "y1": 400,
+       "x2": 302,
+       "y2": 400,
+       "color": "#556d76",
+       "width": 6
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "доска",
+      "shape": {
+       "type": "rect",
+       "x": 520,
+       "y": 180,
+       "w": 210,
+       "h": 160,
+       "fill": "#4a4038",
+       "stroke": "#556d76",
+       "stroke_width": 4
+      }
+     },
+     {
+      "label": "объявление",
+      "shape": {
+       "type": "rect",
+       "x": 536,
+       "y": 196,
+       "w": 178,
+       "h": 52,
+       "fill": "#243033",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "объявление",
+      "shape": {
+       "type": "rect",
+       "x": 536,
+       "y": 256,
+       "w": 178,
+       "h": 34,
+       "fill": "#2b373a",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "объявление",
+      "shape": {
+       "type": "rect",
+       "x": 536,
+       "y": 298,
+       "w": 120,
+       "h": 30,
+       "fill": "#243033",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "пульт",
+      "shape": {
+       "type": "rect",
+       "x": 880,
+       "y": 400,
+       "w": 250,
+       "h": 120,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "маховик",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1005,
+       "cy": 330,
+       "rx": 64,
+       "ry": 64,
+       "stroke": "#6d3a28",
+       "stroke_width": 9
+      }
+     },
+     {
+      "label": "спица маховика",
+      "shape": {
+       "type": "line",
+       "x1": 1005,
+       "y1": 266,
+       "x2": 1005,
+       "y2": 394,
+       "color": "#6d3a28",
+       "width": 6
+      },
+      "opacity": 0.9
+     },
+     {
+      "label": "спица маховика",
+      "shape": {
+       "type": "line",
+       "x1": 941,
+       "y1": 330,
+       "x2": 1069,
+       "y2": 330,
+       "color": "#6d3a28",
+       "width": 6
+      },
+      "opacity": 0.9
+     },
+     {
+      "label": "ящик",
+      "shape": {
+       "type": "rect",
+       "x": 380,
+       "y": 520,
+       "w": 140,
+       "h": 110,
+       "fill": "#4a4038",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 380,
+       "y1": 552,
+       "x2": 520,
+       "y2": 552,
+       "color": "#556d76",
+       "width": 3
+      },
+      "opacity": 0.6
+     },
+     {
+      "label": "дверь в контору",
+      "shape": {
+       "type": "rect",
+       "x": 1180,
+       "y": 290,
+       "w": 92,
+       "h": 210,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "ручка",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1230,
+       "cy": 400,
+       "rx": 7,
+       "ry": 7,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "тяжёлая вода",
+      "shape": {
+       "type": "ellipse",
+       "cx": 660,
+       "cy": 620,
+       "rx": 150,
+       "ry": 34,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "тяжёлая вода",
+      "shape": {
+       "type": "ellipse",
+       "cx": 300,
+       "cy": 660,
+       "rx": 110,
+       "ry": 26,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 892,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 892,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 940,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 940,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 988,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 988,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1036,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1036,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1084,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1084,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1005,
+       "cy": 330,
+       "rx": 70,
+       "ry": 70,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.26
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1005,
+       "cy": 330,
+       "rx": 31.5,
+       "ry": 31.5,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.61
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 620,
+       "cy": 150,
+       "rx": 70,
+       "ry": 70,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.26
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 620,
+       "cy": 150,
+       "rx": 31.5,
+       "ry": 31.5,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.61
+     }
+    ]
+   }
+  },
+  {
+   "id": "state_night",
+   "label": "Вечером и ночью",
+   "condition": null,
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#050a0c",
+    "layers": [
+     {
+      "label": "стена шлюза",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 520,
+       "fill": {
+        "gradient": {
+         "from": "#1d2e35",
+         "to": "#0a1014",
+         "angle": 90
+        }
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "пол",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 520,
+       "w": 1280,
+       "h": 200,
+       "fill": "#22323a",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "кромка пола",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 512,
+       "w": 1280,
+       "h": 16,
+       "fill": "#3a4a52",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "труба",
+      "shape": {
+       "type": "line",
+       "x1": 0,
+       "y1": 78,
+       "x2": 1280,
+       "y2": 78,
+       "color": "#3a4a52",
+       "width": 18
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "труба",
+      "shape": {
+       "type": "line",
+       "x1": 0,
+       "y1": 108,
+       "x2": 1280,
+       "y2": 108,
+       "color": "#6d3a28",
+       "width": 9
+      },
+      "opacity": 0.55
+     },
+     {
+      "label": "затвор",
+      "shape": {
+       "type": "ellipse",
+       "cx": 190,
+       "cy": 400,
+       "rx": 168,
+       "ry": 168,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 6
+      }
+     },
+     {
+      "label": "люк затвора",
+      "shape": {
+       "type": "ellipse",
+       "cx": 190,
+       "cy": 400,
+       "rx": 112,
+       "ry": 112,
+       "fill": "#22323a",
+       "stroke": "#6d3a28",
+       "stroke_width": 5
+      }
+     },
+     {
+      "label": "штурвал",
+      "shape": {
+       "type": "ellipse",
+       "cx": 190,
+       "cy": 400,
+       "rx": 38,
+       "ry": 38,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "спица",
+      "shape": {
+       "type": "line",
+       "x1": 190,
+       "y1": 288,
+       "x2": 190,
+       "y2": 512,
+       "color": "#556d76",
+       "width": 6
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "спица",
+      "shape": {
+       "type": "line",
+       "x1": 78,
+       "y1": 400,
+       "x2": 302,
+       "y2": 400,
+       "color": "#556d76",
+       "width": 6
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "доска",
+      "shape": {
+       "type": "rect",
+       "x": 520,
+       "y": 180,
+       "w": 210,
+       "h": 160,
+       "fill": "#4a4038",
+       "stroke": "#556d76",
+       "stroke_width": 4
+      }
+     },
+     {
+      "label": "объявление",
+      "shape": {
+       "type": "rect",
+       "x": 536,
+       "y": 196,
+       "w": 178,
+       "h": 52,
+       "fill": "#243033",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "объявление",
+      "shape": {
+       "type": "rect",
+       "x": 536,
+       "y": 256,
+       "w": 178,
+       "h": 34,
+       "fill": "#2b373a",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "объявление",
+      "shape": {
+       "type": "rect",
+       "x": 536,
+       "y": 298,
+       "w": 120,
+       "h": 30,
+       "fill": "#243033",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "пульт",
+      "shape": {
+       "type": "rect",
+       "x": 880,
+       "y": 400,
+       "w": 250,
+       "h": 120,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "маховик",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1005,
+       "cy": 330,
+       "rx": 64,
+       "ry": 64,
+       "stroke": "#6d3a28",
+       "stroke_width": 9
+      }
+     },
+     {
+      "label": "спица маховика",
+      "shape": {
+       "type": "line",
+       "x1": 1005,
+       "y1": 266,
+       "x2": 1005,
+       "y2": 394,
+       "color": "#6d3a28",
+       "width": 6
+      },
+      "opacity": 0.9
+     },
+     {
+      "label": "спица маховика",
+      "shape": {
+       "type": "line",
+       "x1": 941,
+       "y1": 330,
+       "x2": 1069,
+       "y2": 330,
+       "color": "#6d3a28",
+       "width": 6
+      },
+      "opacity": 0.9
+     },
+     {
+      "label": "ящик",
+      "shape": {
+       "type": "rect",
+       "x": 380,
+       "y": 520,
+       "w": 140,
+       "h": 110,
+       "fill": "#4a4038",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 380,
+       "y1": 552,
+       "x2": 520,
+       "y2": 552,
+       "color": "#556d76",
+       "width": 3
+      },
+      "opacity": 0.6
+     },
+     {
+      "label": "дверь в контору",
+      "shape": {
+       "type": "rect",
+       "x": 1180,
+       "y": 290,
+       "w": 92,
+       "h": 210,
+       "fill": "#6d3a28",
+       "stroke": "#e8a33d",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "ручка",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1230,
+       "cy": 400,
+       "rx": 7,
+       "ry": 7,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "тяжёлая вода",
+      "shape": {
+       "type": "ellipse",
+       "cx": 660,
+       "cy": 620,
+       "rx": 150,
+       "ry": 34,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "тяжёлая вода",
+      "shape": {
+       "type": "ellipse",
+       "cx": 300,
+       "cy": 660,
+       "rx": 110,
+       "ry": 26,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 892,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 892,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 940,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 940,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 988,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 988,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1036,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1036,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1084,
+       "cy": 410,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1084,
+       "cy": 510,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1005,
+       "cy": 330,
+       "rx": 96,
+       "ry": 96,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.4
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1005,
+       "cy": 330,
+       "rx": 43.2,
+       "ry": 43.2,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.75
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 620,
+       "cy": 150,
+       "rx": 96,
+       "ry": 96,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.4
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 620,
+       "cy": 150,
+       "rx": 43.2,
+       "ry": 43.2,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.75
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 190,
+       "cy": 400,
+       "rx": 130,
+       "ry": 130,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.22
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 190,
+       "cy": 400,
+       "rx": 58.5,
+       "ry": 58.5,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.57
+     }
+    ]
+   }
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_vex",
+   "label": "Смотритель у пульта",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 900,
+   "y": 220,
+   "w": 210,
+   "h": 300,
+   "condition": null,
+   "default_entity": "npc_vex"
+  },
+  {
+   "id": "slot_board",
+   "label": "Доска объявлений",
+   "type": [
+    "item",
+    "prop"
+   ],
+   "shape": "rect",
+   "x": 520,
+   "y": 180,
+   "w": 210,
+   "h": 160,
+   "condition": null,
+   "default_entity": "item_board"
+  },
+  {
+   "id": "slot_crate",
+   "label": "Ящик с кладью",
+   "type": [
+    "container",
+    "item"
+   ],
+   "shape": "rect",
+   "x": 380,
+   "y": 520,
+   "w": 140,
+   "h": 110,
+   "condition": null,
+   "default_entity": "item_crate"
+  },
+  {
+   "id": "slot_guest",
+   "label": "У затвора",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 560,
+   "y": 380,
+   "w": 200,
+   "h": 320,
+   "condition": null
+  }
+ ],
+ "navigation": [
+  {
+   "label": "На схему ярусов",
+   "area": {
+    "x": 25,
+    "y": 235,
+    "w": 330,
+    "h": 330
+   },
+   "open_map": true
+  },
+  {
+   "label": "В контору",
+   "area": {
+    "x": 1180,
+    "y": 290,
+    "w": 92,
+    "h": 210
+   },
+   "go_to_scene": "scene_gate_office"
+  }
+ ],
+ "music": [
+  {
+   "tracks": [
+    "music_gate"
+   ],
+   "conditions": []
+  }
+ ]
+}

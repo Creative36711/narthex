@@ -1,0 +1,12 @@
+{
+ "id": "item_key_resh",
+ "type": "item",
+ "category": "key",
+ "label": "Ключ от каморки мастера",
+ "description": "Ключ с биркой «Э.Р.». На бирке засечка: ключ не вынимали из связки три дня.",
+ "weight": 0.1,
+ "stackable": false,
+ "value": {
+  "mark": 2
+ }
+}

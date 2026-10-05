@@ -1,0 +1,40 @@
+{
+ "id": "rule_end_silence",
+ "label": "Финал: тишина",
+ "once": true,
+ "manual": true,
+ "conditions": [
+  {
+   "type": "flag_not_set",
+   "flag": "case_ended"
+  }
+ ],
+ "effects": [
+  {
+   "type": "play_cutscene",
+   "cutscene": "cutscene_final_silence"
+  },
+  {
+   "type": "set_flag",
+   "flag": "end_silence"
+  },
+  {
+   "type": "set_flag",
+   "flag": "case_ended"
+  },
+  {
+   "type": "advance_quest",
+   "quest": "quest_pump",
+   "stage": "stage_success"
+  },
+  {
+   "type": "meta_currency",
+   "id": "echo",
+   "amount": 1
+  },
+  {
+   "type": "game_over_victory"
+  }
+ ],
+ "chapter": "ch_final"
+}

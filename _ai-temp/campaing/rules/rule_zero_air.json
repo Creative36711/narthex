@@ -1,0 +1,23 @@
+{
+ "id": "rule_zero_air",
+ "label": "Воздух кончился",
+ "once": true,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "apply_status",
+   "target": "player",
+   "status": "status_choke",
+   "duration": 8
+  },
+  {
+   "type": "change_hp",
+   "delta": -3
+  },
+  {
+   "type": "show_message",
+   "text": "Ты хватаешь ртом тяжёлую сырость и понимаешь, что считать надо было раньше."
+  }
+ ]
+}

@@ -1,0 +1,62 @@
+{
+ "id": "item_resh_door",
+ "type": "item",
+ "category": "prop",
+ "label": "Дверь каморки мастера",
+ "description": "Железная дверь с номером мастера. Замок цел, ключа в связке Надзора не значится.",
+ "weight": 70.0,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ },
+ "interact_options": [
+  {
+   "label": "Отпереть ключом",
+   "effects": [
+    {
+     "type": "fire_rule",
+     "rule": "rule_unlock_resh_room"
+    }
+   ],
+   "conditions": [
+    {
+     "type": "has_item",
+     "item": "item_key_resh"
+    }
+   ],
+   "hint": "Нужен ключ мастера"
+  },
+  {
+   "label": "Взломать замок",
+   "effects": [
+    {
+     "type": "skill_check_gate",
+     "skill": "lockpick",
+     "difficulty": 45,
+     "success_effects": [
+      {
+       "type": "fire_rule",
+       "rule": "rule_unlock_resh_room"
+      }
+     ],
+     "fail_effects": [
+      {
+       "type": "show_message",
+       "text": "Замок щёлкает и не поддаётся. Ещё полчаса — и придут смотреть, кто щёлкает."
+      }
+     ]
+    }
+   ],
+   "hint": "Шумно: стража может услышать"
+  },
+  {
+   "label": "Постучать",
+   "effects": [
+    {
+     "type": "show_message",
+     "text": "Тихо. Так тихо, что слышно воду где-то ниже."
+    }
+   ]
+  }
+ ]
+}
