@@ -985,9 +985,9 @@ html.cf-profile-modern {
   position: relative;
   height: 100%;
   display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   background:
     radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--gold) 7%, transparent), transparent 60%),
     var(--bg);
@@ -996,8 +996,8 @@ html.cf-profile-modern {
 .main-menu-inner {
   text-align: center;
   max-width: 780px;
-  margin: auto;
-  padding: clamp(14px, 2.5vh, 28px) clamp(16px, 3vw, 36px);
+  margin: 0 auto;
+  padding: clamp(10px, 2vh, 24px) clamp(16px, 3vw, 36px);
   width: 100%;
   box-sizing: border-box;
   position: relative;
@@ -1055,14 +1055,11 @@ html.cf-profile-modern {
 
 .campaign-desc {
   color: var(--text);
-  line-height: 1.55;
-  margin: 0 auto clamp(10px, 1.8vh, 18px);
-  max-width: 620px;
-  font-size: clamp(13px, 1.5vh, 15px);
-  max-height: clamp(80px, 16vh, 150px);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  padding: 0 6px;
+  line-height: 1.5;
+  margin: 0 auto clamp(8px, 1.4vh, 16px);
+  max-width: 640px;
+  font-size: clamp(13px, 1.4vh, 15px);
+  padding: 0 4px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.96), 0 0 8px rgba(0, 0, 0, 0.8);
   overflow-wrap: anywhere;
 }
@@ -1070,21 +1067,21 @@ html.cf-profile-modern {
 .menu-buttons {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 .menu-buttons > .btn { min-width: 280px; max-width: 420px; }
-.menu-buttons > .btn-primary { font-size: 17px; padding: 13px 26px; }
+.menu-buttons > .btn-primary { font-size: 16px; padding: clamp(10px, 1.4vh, 13px) 26px; }
 .menu-secondary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(150px, 240px));
-  gap: 8px 10px;
+  grid-template-columns: repeat(2, minmax(140px, 220px));
+  gap: 6px 10px;
   justify-content: center;
-  margin-top: 14px;
+  margin-top: clamp(8px, 1.3vh, 14px);
 }
 .menu-secondary .btn { width: 100%; text-align: left; display: inline-flex; align-items: center; gap: 8px; justify-content: flex-start; }
 .menu-meta {
-  margin-top: clamp(12px, 2vh, 22px);
+  margin-top: clamp(8px, 1.5vh, 18px);
   color: var(--text);
   font-family: var(--cf-font-body, Georgia, serif);
   font-size: 12px;
@@ -2757,12 +2754,12 @@ input[type='checkbox'], input[type='radio'] {
 }
 .menu-dim { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
 .menu-title-art {
-  max-width: min(280px, 60vw);
-  max-height: clamp(80px, 18vh, 190px);
+  max-width: min(260px, 50vw);
+  max-height: clamp(60px, 14vh, 150px);
   width: auto;
   height: auto;
   object-fit: contain;
-  margin: 0 auto clamp(8px, 1.4vh, 16px);
+  margin: 0 auto clamp(6px, 1.2vh, 12px);
   display: block;
   filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.6));
 }
@@ -2770,7 +2767,7 @@ input[type='checkbox'], input[type='radio'] {
   max-width: 860px;
   max-height: none;
   overflow: visible;
-  padding: clamp(14px, 2.5vh, 28px) clamp(16px, 3vw, 40px);
+  padding: clamp(10px, 2vh, 24px) clamp(16px, 3vw, 40px);
   background: transparent;
   border: 0;
   border-radius: 0;
@@ -2782,25 +2779,25 @@ input[type='checkbox'], input[type='radio'] {
 
 /* Сжимай декоративные отступы и заголовок при нехватке высоты. */
 @media (max-height: 860px) {
-  .main-menu.with-bg .main-menu-inner { padding-block: 14px; }
-  .main-menu.with-bg .brand-row { margin-bottom: 4px; }
-  .main-menu.with-bg .menu-title-art { max-width: min(240px, 50vw); max-height: 15vh; margin-bottom: 8px; object-fit: contain; }
-  .main-menu.with-bg .campaign-title { font-size: clamp(22px, 3.8vh, 36px); line-height: 1.08; margin-bottom: 8px; }
-  .main-menu.with-bg .campaign-desc { max-width: 580px; font-size: 13.5px; line-height: 1.4; margin-bottom: 14px; max-height: 14vh; }
-  .main-menu.with-bg .menu-secondary { margin-top: 8px; }
-  .main-menu.with-bg .menu-meta { margin-top: 14px; }
-}
-@media (max-height: 700px) {
   .main-menu.with-bg .main-menu-inner { padding-block: 10px; }
   .main-menu.with-bg .brand-row { margin-bottom: 2px; }
-  .main-menu.with-bg .brand-sub { display: none; }
-  .main-menu.with-bg .menu-title-art { max-height: 11vh; margin-bottom: 5px; }
-  .main-menu.with-bg .campaign-title { font-size: clamp(20px, 3.8vh, 28px); line-height: 1.04; margin-bottom: 6px; }
-  .main-menu.with-bg .campaign-desc { font-size: 12px; line-height: 1.3; margin-bottom: 10px; max-height: 12vh; }
-  .main-menu.with-bg .menu-meta { margin-top: 8px; }
+  .main-menu.with-bg .menu-title-art { max-width: min(220px, 45vw); max-height: 13vh; margin-bottom: 6px; object-fit: contain; }
+  .main-menu.with-bg .campaign-title { font-size: clamp(20px, 3.4vh, 32px); line-height: 1.08; margin-bottom: 6px; }
+  .main-menu.with-bg .campaign-desc { max-width: 580px; font-size: 13px; line-height: 1.4; margin-bottom: 10px; }
+  .main-menu.with-bg .menu-secondary { margin-top: 6px; }
+  .main-menu.with-bg .menu-meta { margin-top: 10px; }
 }
-@media (max-height: 560px) {
-  .main-menu.with-bg { overflow-y: auto; align-items: flex-start; }
+@media (max-height: 700px) {
+  .main-menu.with-bg .main-menu-inner { padding-block: 8px; }
+  .main-menu.with-bg .brand-row { margin-bottom: 2px; }
+  .main-menu.with-bg .brand-sub { display: none; }
+  .main-menu.with-bg .menu-title-art { max-height: 10vh; margin-bottom: 4px; }
+  .main-menu.with-bg .campaign-title { font-size: clamp(18px, 3.2vh, 26px); line-height: 1.04; margin-bottom: 4px; }
+  .main-menu.with-bg .campaign-desc { font-size: 12px; line-height: 1.3; margin-bottom: 8px; }
+  .main-menu.with-bg .menu-meta { margin-top: 6px; }
+}
+@media (max-height: 520px) {
+  .main-menu, .main-menu.with-bg { overflow-y: auto; align-items: flex-start; }
   .main-menu.with-bg .main-menu-inner { margin: auto; }
 }
 
@@ -3255,7 +3252,7 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
   .dialogue-portrait { flex: 0 0 auto; flex-direction: row; height: 72px; border-right: none; border-bottom: 1px solid var(--border-soft); }
   .dialogue-portrait img { height: 72px; width: 72px; }
   .dialogue-npc-name { border-top: none; border-left: 1px solid var(--border-soft); flex: 1; }
-  .main-menu-inner { padding: 24px 16px; }
+  .main-menu-inner { padding: clamp(10px, 2vh, 18px) 16px; }
   .brand-row::before, .brand-row::after { width: 24px; }
   .menu-secondary { grid-template-columns: 1fr; }
 }
