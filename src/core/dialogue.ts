@@ -318,11 +318,31 @@ export function bindExternals(story: Story, engine: GameEngine): void {
  */
 const SYSTEM_LITERAL_LINE = /^(?:true|false|null|undefined|nan)$/i
 
+/** Очистить технические префиксы говорящего и кавычки прямой речи от ИИ (например, «Ирина: «Текст»» -> «Текст») */
+export function cleanDialogueLine(raw: string): string {
+  let text = raw.trim()
+  // 1. Префикс говорящего в кавычках: Имя: «Текст» или Имя: "Текст"
+  const quotedSpeaker = text.match(/^([\p{Lu}\p{Lt}][\p{L}\p{M}\s.-]{0,35}):\s*[«"“]([\s\S]+?)[»"”]$/u)
+  if (quotedSpeaker && quotedSpeaker[2].trim()) {
+    return quotedSpeaker[2].trim()
+  }
+  // 2. Внешние парные кавычки всей строки: «Текст» / "Текст"
+  const fullQuotes = text.match(/^[«"“]([\s\S]+)[»"”]$/u)
+  if (fullQuotes && fullQuotes[1].trim()) {
+    const inner = fullQuotes[1].trim()
+    if (!inner.includes('»') && !inner.includes('"')) {
+      return inner
+    }
+  }
+  return text
+}
+
 /** Прочитать все доступные строки до выбора/конца. */
 export function drainStory(story: Story): { lines: DialogueLine[]; choices: { index: number; text: string }[]; finished: boolean } {
   const lines: DialogueLine[] = []
   while (story.canContinue) {
-    const text = (story.Continue() ?? '').trim()
+    const rawText = (story.Continue() ?? '').trim()
+    const text = cleanDialogueLine(rawText)
     const tags = story.currentTags ?? []
     const { emotion, action, voice, timer } = parseLineTags(tags)
     if (text && !SYSTEM_LITERAL_LINE.test(text)) lines.push({ text, emotion, action, voice, timer })

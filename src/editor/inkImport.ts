@@ -11,6 +11,7 @@
  * (не побуквенно: комментарии и форматирование не переживают).
  */
 import { generateInk, inkToTokens, newDlgDoc } from './dialogueDoc'
+import { cleanDialogueLine } from '../core/dialogue'
 import type { DlgCheck, DlgChoice, DlgCond, DlgDoc, DlgEffect, DlgLine, DlgNode, DlgSection, DlgStep } from './dialogueDoc'
 
 export interface InkImportResult {
@@ -198,7 +199,7 @@ function parseTextLine(line: string): DlgLine {
     else if (t.startsWith('timeout:')) l.timer = Number(t.slice(8).trim())
     text = text.replace(tag, '')
   }
-  l.text = inkToTokens(text.replace(/\s+/g, ' ').trim())
+  l.text = inkToTokens(cleanDialogueLine(text.replace(/\s+/g, ' ').trim()))
   return l
 }
 

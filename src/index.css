@@ -1667,14 +1667,36 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .equip-slot b { overflow-wrap: anywhere; }
 .equip-slot .btn { white-space: nowrap; }
 
+.inv-item-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.inv-item-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
 .equipped-badge {
-  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
+  line-height: 1.2;
   color: var(--green-bright);
+  background: rgba(34, 197, 94, 0.1);
   border: 1px solid var(--green);
-  border-radius: 8px;
+  border-radius: 999px;
   padding: 1px 7px;
+  white-space: nowrap;
   vertical-align: middle;
+}
+.equipped-badge svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .dialogue-lines p.action {

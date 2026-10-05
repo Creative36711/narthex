@@ -167,9 +167,15 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
           {items.map(({ entry, def }) => (
             <li key={`${entry.item}:${entry.durability ?? "full"}:${(def!.weight ?? 0)}`} className="inv-item">
               <div className="inv-item-main">
-                <b>{def!.label}</b>
-                {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
-                {engine.isEquipped(entry.item) && <span className="equipped-badge"><Ico n="check" />  надето</span>}
+                <div className="inv-item-header">
+                  <span className="inv-item-name">{def!.label}</span>
+                  {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
+                  {engine.isEquipped(entry.item) && (
+                    <span className="equipped-badge">
+                      <Ico n="check" /> надето
+                    </span>
+                  )}
+                </div>
                 <div className="muted small">{def!.description}</div>
                 {def!.on_use && describeUseEffects(engine, def!.on_use.effects) && (
                   <div className="muted small use-effect">{describeUseEffects(engine, def!.on_use.effects)}</div>
