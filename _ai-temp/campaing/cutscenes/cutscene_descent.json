@@ -1,0 +1,260 @@
+{
+ "id": "cutscene_descent",
+ "label": "Спуск в Подмашинье",
+ "music": "music_depths",
+ "chapter": "ch3",
+ "slides": [
+  {
+   "transition": "panzoom",
+   "duration": 5,
+   "text": "Лестница уходит вниз, мимо мёрзлых труб и счётчиков, которые никто не снимает.",
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#0a0d10",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 560,
+       "y": 0,
+       "w": 160,
+       "h": 720,
+       "fill": "#12161c",
+       "opacity": 1
+      },
+      "label": "ствол шахты"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 600,
+       "y": 40,
+       "w": 80,
+       "h": 10,
+       "fill": "#3a2c1e",
+       "opacity": 1
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 600,
+       "y": 120,
+       "w": 80,
+       "h": 10,
+       "fill": "#3a2c1e",
+       "opacity": 1
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 600,
+       "y": 200,
+       "w": 80,
+       "h": 10,
+       "fill": "#3a2c1e",
+       "opacity": 1
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 600,
+       "y": 280,
+       "w": 80,
+       "h": 10,
+       "fill": "#3a2c1e",
+       "opacity": 1
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 600,
+       "y": 360,
+       "w": 80,
+       "h": 10,
+       "fill": "#3a2c1e",
+       "opacity": 1
+      },
+      "label": "ступени"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 560,
+       "h": 720,
+       "fill": "#0e1216",
+       "opacity": 1
+      },
+      "label": "стена"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 720,
+       "y": 0,
+       "w": 560,
+       "h": 720,
+       "fill": "#0e1216",
+       "opacity": 1
+      },
+      "label": "стена"
+     }
+    ]
+   }
+  },
+  {
+   "transition": "fade",
+   "duration": 5,
+   "text": "Туннели дышат золой. Светящийся мох растёт там, где пар уже не ходит.",
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#0a0d10",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 80,
+       "w": 1280,
+       "h": 54,
+       "fill": "#161b21",
+       "opacity": 1
+      },
+      "label": "труба"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 360,
+       "cy": 300,
+       "rx": 6,
+       "ry": 6,
+       "fill": "#6fae7a",
+       "opacity": 0.6
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 430,
+       "cy": 370,
+       "rx": 5,
+       "ry": 5,
+       "fill": "#6fae7a",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 900,
+       "cy": 320,
+       "rx": 6,
+       "ry": 6,
+       "fill": "#6fae7a",
+       "opacity": 0.55
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 960,
+       "cy": 430,
+       "rx": 5,
+       "ry": 5,
+       "fill": "#6fae7a",
+       "opacity": 0.5
+      },
+      "label": "мох"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 620,
+       "w": 1280,
+       "h": 100,
+       "fill": "#12161b",
+       "opacity": 1
+      },
+      "label": "пол"
+     }
+    ]
+   }
+  },
+  {
+   "transition": "fade",
+   "duration": 6,
+   "text": "Внизу, за люком, гудит Сердце. Оно ждало тебя.",
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#0c0a10",
+    "layers": [
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 360,
+       "rx": 240,
+       "ry": 215,
+       "fill": "#7a1d12",
+       "opacity": 0.45
+      },
+      "label": "ореол"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 360,
+       "rx": 150,
+       "ry": 135,
+       "fill": "#ff8c3b",
+       "opacity": 0.5
+      },
+      "label": "Сердце"
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 200,
+       "y1": 80,
+       "x2": 520,
+       "y2": 280,
+       "color": "#39424b",
+       "width": 6,
+       "opacity": 0.9
+      }
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 1080,
+       "y1": 80,
+       "x2": 760,
+       "y2": 280,
+       "color": "#39424b",
+       "width": 6,
+       "opacity": 0.9
+      },
+      "label": "цепи"
+     }
+    ]
+   }
+  }
+ ]
+}

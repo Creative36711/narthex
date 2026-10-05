@@ -1,0 +1,222 @@
+{
+ "id": "scene_workshop",
+ "label": "Мастерская Тики",
+ "location": "loc_guild",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "chapter": "ch3",
+ "states": [
+  {
+   "id": "state_main",
+   "label": "Обычно",
+   "condition": null,
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#16131a",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 540,
+       "fill": {
+        "gradient": {
+         "from": "#1e1a22",
+         "to": "#120f15",
+         "angle": 90
+        }
+       },
+       "opacity": 1
+      },
+      "label": "стены"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 540,
+       "w": 1280,
+       "h": 180,
+       "fill": "#201a14",
+       "opacity": 1
+      },
+      "label": "пол"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 60,
+       "y": 330,
+       "w": 150,
+       "h": 230,
+       "fill": "#241d18",
+       "opacity": 1,
+       "radius": 8
+      },
+      "label": "горн"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 135,
+       "cy": 440,
+       "rx": 40,
+       "ry": 24,
+       "fill": "#ff9a44",
+       "opacity": 0.8
+      },
+      "label": "жар горна"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 440,
+       "y": 430,
+       "w": 380,
+       "h": 140,
+       "fill": "#3a2c1e",
+       "opacity": 1,
+       "radius": 6
+      },
+      "label": "верстак Тики"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 470,
+       "y": 402,
+       "w": 60,
+       "h": 26,
+       "fill": "#59616a",
+       "opacity": 1
+      },
+      "label": "инструмент"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 560,
+       "y": 396,
+       "w": 90,
+       "h": 34,
+       "fill": "#c8a35a",
+       "opacity": 0.6
+      },
+      "label": "чертежи"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 880,
+       "y": 440,
+       "w": 200,
+       "h": 130,
+       "fill": "#33261a",
+       "opacity": 1,
+       "radius": 6
+      },
+      "label": "верстак гостя"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 980,
+       "y": 300,
+       "w": 200,
+       "h": 140,
+       "fill": "#23282d",
+       "opacity": 1
+      },
+      "label": "токарный станок"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1080,
+       "cy": 360,
+       "rx": 30,
+       "ry": 30,
+       "fill": "#39424b",
+       "opacity": 1
+      },
+      "label": "патрон станка"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 240,
+       "y": 300,
+       "w": 100,
+       "h": 260,
+       "fill": "#2e2016",
+       "opacity": 1,
+       "radius": 6
+      },
+      "label": "дверь в зал"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 180,
+       "rx": 22,
+       "ry": 12,
+       "fill": "#ffd27a",
+       "opacity": 0.85
+      },
+      "label": "лампа"
+     }
+    ]
+   }
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_tika",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 560,
+   "y": 170,
+   "w": 150,
+   "h": 330,
+   "condition": null,
+   "label": "У верстака",
+   "default_entity": "npc_tika"
+  },
+  {
+   "id": "slot_workbench",
+   "type": [
+    "item"
+   ],
+   "shape": "rect",
+   "x": 880,
+   "y": 430,
+   "w": 200,
+   "h": 140,
+   "condition": null,
+   "label": "Верстак гостя",
+   "default_entity": "item_workbench"
+  }
+ ],
+ "navigation": [
+  {
+   "label": "В зал",
+   "area": {
+    "x": 240,
+    "y": 300,
+    "w": 100,
+    "h": 260
+   },
+   "go_to_scene": "scene_hall"
+  }
+ ]
+}

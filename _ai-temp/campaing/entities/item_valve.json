@@ -1,0 +1,13 @@
+{
+ "id": "item_valve",
+ "type": "item",
+ "category": "part",
+ "label": "Паровой клапан",
+ "description": "Новый клапан для насоса №3. Собрать — полдела; надо ещё запустить.",
+ "image": "",
+ "weight": 2.0,
+ "stackable": true,
+ "value": {
+  "mark": 0
+ }
+}

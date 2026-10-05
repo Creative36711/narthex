@@ -1,0 +1,29 @@
+{
+ "id": "recipe_valve",
+ "label": "Паровой клапан",
+ "known": false,
+ "description": "Новый клапан для насоса №3 по чертежу Тики.",
+ "inputs": [
+  {
+   "item": "item_scrap",
+   "quantity": 3
+  },
+  {
+   "item": "item_sealant",
+   "quantity": 1
+  }
+ ],
+ "tools": [
+  "item_wrench"
+ ],
+ "skill": {
+  "id": "mechanics",
+  "difficulty": 45
+ },
+ "time_ticks": 4,
+ "output": {
+  "item": "item_valve",
+  "quantity": 1
+ },
+ "message": "Клапан садится в резьбу, как влитой."
+}

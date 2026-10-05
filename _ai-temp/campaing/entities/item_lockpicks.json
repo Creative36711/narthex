@@ -1,0 +1,13 @@
+{
+ "id": "item_lockpicks",
+ "type": "item",
+ "category": "part",
+ "label": "Отмычки",
+ "description": "Зольщиков набор: две пластинки и проволока.",
+ "image": "",
+ "weight": 0.2,
+ "stackable": true,
+ "value": {
+  "mark": 12
+ }
+}

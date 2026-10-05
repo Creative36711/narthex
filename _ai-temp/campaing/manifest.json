@@ -1,0 +1,122 @@
+{
+ "scenes": [
+  "scene_archive.json",
+  "scene_coil.json",
+  "scene_hall.json",
+  "scene_heart.json",
+  "scene_office.json",
+  "scene_pump.json",
+  "scene_square.json",
+  "scene_tavern.json",
+  "scene_tunnels.json",
+  "scene_workshop.json",
+  "scene_yard.json"
+ ],
+ "entities": [
+  "item_badge.json",
+  "item_bandage.json",
+  "item_body.json",
+  "item_bread.json",
+  "item_cloth.json",
+  "item_coal.json",
+  "item_coat.json",
+  "item_condensate.json",
+  "item_crate.json",
+  "item_guild_key.json",
+  "item_heatpack.json",
+  "item_knife.json",
+  "item_ledger.json",
+  "item_lockpicks.json",
+  "item_mark.json",
+  "item_mask.json",
+  "item_mushrooms.json",
+  "item_note.json",
+  "item_papers.json",
+  "item_pistol.json",
+  "item_receipt.json",
+  "item_safe.json",
+  "item_scrap.json",
+  "item_sealant.json",
+  "item_stew.json",
+  "item_tonic.json",
+  "item_valve.json",
+  "item_workbench.json",
+  "item_wrench.json",
+  "npc_brant.json",
+  "npc_dara.json",
+  "npc_ghoul.json",
+  "npc_grim.json",
+  "npc_guard.json",
+  "npc_klim.json",
+  "npc_mila.json",
+  "npc_thug.json",
+  "npc_tika.json",
+  "npc_vera.json",
+  "npc_zoya.json",
+  "player_hero.json"
+ ],
+ "rules": [
+  "rule_ashfall.json",
+  "rule_brant_fight.json",
+  "rule_cold.json",
+  "rule_dara_free.json",
+  "rule_end_free.json",
+  "rule_end_silence.json",
+  "rule_end_truth.json",
+  "rule_frost.json",
+  "rule_ghoul_gate.json",
+  "rule_heart_seen.json",
+  "rule_hunger.json",
+  "rule_intro.json",
+  "rule_repair_pump.json",
+  "rule_reveal_depths.json",
+  "rule_snow.json",
+  "rule_thirst.json",
+  "rule_thugs.json"
+ ],
+ "dialogues": [
+  "brant.ink",
+  "dara.ink",
+  "grim.ink",
+  "guard.ink",
+  "heart.ink",
+  "klim.ink",
+  "mila.ink",
+  "tika.ink",
+  "vera.ink",
+  "zoya.ink"
+ ],
+ "arenas": [
+  "arena_heart.json",
+  "arena_square.json",
+  "arena_tunnels.json"
+ ],
+ "quests": [
+  "quest_case.json",
+  "quest_klim.json",
+  "quest_taken.json",
+  "quest_warmth.json"
+ ],
+ "encounters": [
+  "enc_tier3.json",
+  "enc_tunnels.json"
+ ],
+ "cutscenes": [
+  "cutscene_descent.json",
+  "cutscene_intro.json"
+ ],
+ "recipes": [
+  "recipe_bandage.json",
+  "recipe_decoction.json",
+  "recipe_heatpack.json",
+  "recipe_valve.json"
+ ],
+ "codex": [
+  "codex_frost.json",
+  "codex_ghoul.json",
+  "codex_heart.json",
+  "codex_pump.json",
+  "codex_taken.json",
+  "codex_vereten.json"
+ ]
+}

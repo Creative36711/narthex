@@ -1,0 +1,49 @@
+{
+ "id": "rule_repair_pump",
+ "label": "Запуск насоса №3",
+ "once": false,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "skill_check_gate",
+   "skill": "mechanics",
+   "difficulty": 45,
+   "success_effects": [
+    {
+     "type": "set_flag",
+     "flag": "pump_repaired"
+    },
+    {
+     "type": "banner",
+     "text": "Пар снова идёт по трубам Третьего"
+    },
+    {
+     "type": "change_disposition",
+     "target": "npc_mila",
+     "delta": 10
+    },
+    {
+     "type": "change_disposition",
+     "target": "npc_klim",
+     "delta": 5
+    },
+    {
+     "type": "change_need",
+     "need": "need_warmth",
+     "delta": 20
+    },
+    {
+     "type": "show_message",
+     "text": "Насос откашливается и тянет. Где-то над ярусом теплеют батареи."
+    }
+   ],
+   "fail_effects": [
+    {
+     "type": "show_message",
+     "text": "Прокладка не села. Тика ругается и подаёт другой ключ. Собери ещё клапан."
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,352 @@
+{
+ "regions": [
+  {
+   "id": "region_vereten",
+   "label": "Веретен",
+   "map_image": "",
+   "map_size": {
+    "w": 1280,
+    "h": 720
+   },
+   "parent_region": null,
+   "map_art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#0d1117",
+    "layers": [
+     {
+      "shape": {
+       "type": "polygon",
+       "points": [
+        0,
+        0,
+        420,
+        0,
+        300,
+        720,
+        0,
+        720
+       ],
+       "fill": "#141a22",
+       "opacity": 1
+      },
+      "label": "стена каньона левая"
+     },
+     {
+      "shape": {
+       "type": "polygon",
+       "points": [
+        1280,
+        0,
+        860,
+        0,
+        980,
+        720,
+        1280,
+        720
+       ],
+       "fill": "#141a22",
+       "opacity": 1
+      },
+      "label": "стена каньона правая"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 430,
+       "y": 40,
+       "w": 420,
+       "h": 640,
+       "fill": {
+        "gradient": {
+         "from": "#0a0e14",
+         "to": "#101724",
+         "angle": 90
+        }
+       },
+       "opacity": 1
+      },
+      "label": "пропасть"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 640,
+       "cy": 360,
+       "rx": 60,
+       "ry": 300,
+       "fill": "#7a1d12",
+       "opacity": 0.25
+      },
+      "label": "свет Сердца из глубины"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 180,
+       "y": 380,
+       "w": 160,
+       "h": 80,
+       "fill": "#232b36",
+       "opacity": 1,
+       "radius": 8
+      },
+      "label": "Врата Надзора"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 540,
+       "y": 260,
+       "w": 200,
+       "h": 80,
+       "fill": "#232b36",
+       "opacity": 1,
+       "radius": 8
+      },
+      "label": "Третий ярус"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 880,
+       "y": 390,
+       "w": 170,
+       "h": 80,
+       "fill": "#232b36",
+       "opacity": 1,
+       "radius": 8
+      },
+      "label": "Квартал Гильдии"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 560,
+       "y": 580,
+       "w": 160,
+       "h": 70,
+       "fill": "#1c2126",
+       "opacity": 1,
+       "radius": 8
+      },
+      "label": "Подмашинье"
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 340,
+       "y1": 420,
+       "x2": 540,
+       "y2": 300,
+       "color": "#39424b",
+       "width": 4,
+       "opacity": 0.8
+      },
+      "label": "мост"
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 740,
+       "y1": 300,
+       "x2": 880,
+       "y2": 430,
+       "color": "#39424b",
+       "width": 4,
+       "opacity": 0.8
+      },
+      "label": "мост"
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 640,
+       "y1": 340,
+       "x2": 640,
+       "y2": 580,
+       "color": "#39424b",
+       "width": 4,
+       "opacity": 0.8
+      },
+      "label": "лаз"
+     },
+     {
+      "shape": {
+       "type": "line",
+       "x1": 300,
+       "y1": 440,
+       "x2": 560,
+       "y2": 610,
+       "color": "#39424b",
+       "width": 4,
+       "opacity": 0.6
+      },
+      "label": "мост нижний"
+     }
+    ]
+   },
+   "locations": [
+    {
+     "id": "loc_gate",
+     "label": "Врата Надзора",
+     "position": {
+      "x": 260,
+      "y": 420
+     },
+     "travel_connections": [
+      {
+       "to": "loc_tier3",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_tier3"
+      },
+      {
+       "to": "loc_guild",
+       "cost_ticks": 3
+      }
+     ],
+     "scenes": [
+      "scene_office",
+      "scene_yard"
+     ],
+     "arrival_scene": "scene_yard",
+     "music": [
+      {
+       "tracks": [
+        "music_gate"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_tier3",
+     "label": "Третий ярус",
+     "position": {
+      "x": 640,
+      "y": 300
+     },
+     "travel_connections": [
+      {
+       "to": "loc_gate",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_tier3"
+      },
+      {
+       "to": "loc_guild",
+       "cost_ticks": 3
+      },
+      {
+       "to": "loc_depths",
+       "cost_ticks": 2,
+       "requirements": [
+        {
+         "type": "flag_set",
+         "flag": "depths_open"
+        }
+       ],
+       "random_encounter_table": "enc_tunnels"
+      }
+     ],
+     "scenes": [
+      "scene_square",
+      "scene_pump",
+      "scene_tavern",
+      "scene_coil"
+     ],
+     "arrival_scene": "scene_square",
+     "ambient_audio": "snd_wind",
+     "music": [
+      {
+       "tracks": [
+        "music_tier3"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_guild",
+     "label": "Квартал Гильдии",
+     "position": {
+      "x": 965,
+      "y": 430
+     },
+     "travel_connections": [
+      {
+       "to": "loc_tier3",
+       "cost_ticks": 3
+      },
+      {
+       "to": "loc_gate",
+       "cost_ticks": 3
+      },
+      {
+       "to": "loc_depths",
+       "cost_ticks": 2,
+       "requirements": [
+        {
+         "type": "flag_set",
+         "flag": "depths_open"
+        }
+       ],
+       "random_encounter_table": "enc_tunnels"
+      }
+     ],
+     "scenes": [
+      "scene_hall",
+      "scene_workshop",
+      "scene_archive"
+     ],
+     "arrival_scene": "scene_hall",
+     "ambient_audio": "snd_gears",
+     "music": [
+      {
+       "tracks": [
+        "music_guild"
+       ],
+       "conditions": []
+      }
+     ]
+    },
+    {
+     "id": "loc_depths",
+     "label": "Подмашинье",
+     "position": {
+      "x": 640,
+      "y": 615
+     },
+     "hidden": true,
+     "travel_connections": [
+      {
+       "to": "loc_tier3",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_tunnels"
+      },
+      {
+       "to": "loc_guild",
+       "cost_ticks": 2,
+       "random_encounter_table": "enc_tunnels"
+      }
+     ],
+     "scenes": [
+      "scene_tunnels",
+      "scene_heart"
+     ],
+     "arrival_scene": "scene_tunnels",
+     "ambient_audio": "snd_drip",
+     "music": [
+      {
+       "tracks": [
+        "music_depths"
+       ],
+       "conditions": []
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

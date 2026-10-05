@@ -1,0 +1,23 @@
+{
+ "id": "item_condensate",
+ "type": "item",
+ "category": "drink",
+ "label": "Фляга конденсата",
+ "description": "Вода, снятая с паровых труб. Чистая, если не думать.",
+ "image": "",
+ "weight": 0.6,
+ "stackable": true,
+ "value": {
+  "mark": 2
+ },
+ "on_use": {
+  "effects": [
+   {
+    "type": "change_need",
+    "need": "need_water",
+    "delta": 40
+   }
+  ],
+  "consume": true
+ }
+}

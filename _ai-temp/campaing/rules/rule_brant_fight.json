@@ -1,0 +1,34 @@
+{
+ "id": "rule_brant_fight",
+ "label": "Бой с Брантом",
+ "once": true,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "start_combat",
+   "enemies": [
+    {
+     "entity": "npc_brant",
+     "count": 1
+    },
+    {
+     "entity": "npc_thug",
+     "count": 1
+    }
+   ],
+   "arena": "arena_heart",
+   "intro": "Брант поднимает паровую перчатку: «Надзору здесь не место.»",
+   "on_victory": [
+    {
+     "type": "set_flag",
+     "flag": "brant_dead"
+    },
+    {
+     "type": "show_message",
+     "text": "Перчатка остывает вместе с хозяином. Сердце гудит над цепями."
+    }
+   ]
+  }
+ ]
+}

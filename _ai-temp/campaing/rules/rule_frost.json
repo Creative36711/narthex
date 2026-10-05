@@ -1,0 +1,31 @@
+{
+ "id": "rule_frost",
+ "label": "Первый мороз",
+ "once": true,
+ "chapter": "ch4",
+ "conditions": [
+  {
+   "type": "tick_elapsed",
+   "min_tick": 126
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "pump_repaired"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "frost_came"
+  },
+  {
+   "type": "banner",
+   "text": "ПЕРВЫЙ МОРОЗ",
+   "preset": "проклятье"
+  },
+  {
+   "type": "game_over_death",
+   "reason": "Третий ярус выстыл: насос №3 так и не запустили."
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+{
+ "id": "rule_cold",
+ "label": "Холод берёт",
+ "once": false,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "apply_status",
+   "target": "player",
+   "status": "status_chill"
+  },
+  {
+   "type": "change_hp",
+   "delta": -4
+  },
+  {
+   "type": "show_message",
+   "text": "Пальцы черствеют. Согрейся у жаровни или в тёплой локации."
+  }
+ ]
+}

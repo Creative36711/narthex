@@ -1,0 +1,59 @@
+{
+ "id": "npc_zoya",
+ "type": "npc",
+ "label": "Старуха Зойя",
+ "description": "Старшая зольщиков. Пережила троих капитанов Надзора и помнит всех «забираемых».",
+ "portrait": {
+  "neutral": "assets/img/npc/zoya.png"
+ },
+ "stats": {
+  "STR": 8,
+  "CON": 10,
+  "SIZ": 9,
+  "DEX": 8,
+  "INT": 13,
+  "POW": 14,
+  "CHA": 12
+ },
+ "skills": {
+  "persuade": 40,
+  "lore": 55
+ },
+ "dialogue": "dialogues/zoya.ink",
+ "slot_type": "person",
+ "schedule": [
+  {
+   "time_range": [
+    8,
+    22
+   ],
+   "location": "loc_tier3",
+   "scene": "scene_square",
+   "slot": "slot_zoya"
+  }
+ ],
+ "faction": "faction_ash",
+ "base_disposition": -5,
+ "trader": {
+  "sells": [
+   {
+    "item": "item_mushrooms",
+    "price": 4
+   },
+   {
+    "item": "item_coal",
+    "price": 3
+   },
+   {
+    "item": "item_cloth",
+    "price": 2
+   },
+   {
+    "item": "item_lockpicks",
+    "price": 12
+   }
+  ],
+  "buys": true,
+  "buy_rate": 0.4
+ }
+}

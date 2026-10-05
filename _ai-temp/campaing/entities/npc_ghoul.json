@@ -1,0 +1,51 @@
+{
+ "id": "npc_ghoul",
+ "type": "npc",
+ "label": "Пепельник",
+ "description": "Обожжённый золой голодун из туннелей. Идёт на живое тепло.",
+ "portrait": {
+  "neutral": ""
+ },
+ "stats": {
+  "STR": 12,
+  "CON": 11,
+  "SIZ": 11,
+  "DEX": 12,
+  "INT": 6,
+  "POW": 9,
+  "CHA": 4
+ },
+ "skills": {
+  "brawl": 45,
+  "dodge": 35
+ },
+ "slot_type": "person",
+ "schedule": [],
+ "natural_weapon": {
+  "skill": "brawl",
+  "damage": "1d6",
+  "damage_bonus": true,
+  "range": 1,
+  "attacks_per_round": 1,
+  "parry_capable": false
+ },
+ "abilities": [
+  "ability_ghoul_breath"
+ ],
+ "morale": {
+  "below_hp_pct": 20,
+  "flee_chance": 40
+ },
+ "loot_table": [
+  {
+   "item": "item_scrap",
+   "chance": 0.7,
+   "min": 1,
+   "max": 2
+  },
+  {
+   "item": "item_coal",
+   "chance": 0.5
+  }
+ ]
+}

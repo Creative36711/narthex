@@ -1,0 +1,13 @@
+{
+ "id": "item_sealant",
+ "type": "item",
+ "category": "part",
+ "label": "Герметик",
+ "description": "Смола Гильдии для паровых швов.",
+ "image": "",
+ "weight": 0.2,
+ "stackable": true,
+ "value": {
+  "mark": 6
+ }
+}

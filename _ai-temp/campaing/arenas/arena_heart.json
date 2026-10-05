@@ -1,0 +1,62 @@
+{
+ "id": "arena_heart",
+ "label": "Камера Сердца (бой)",
+ "image": "",
+ "hex_grid": {
+  "cols": 9,
+  "rows": 7,
+  "hex_size": 46,
+  "offset": "odd-r",
+  "blocked_hexes": [
+   [
+    4,
+    3
+   ]
+  ],
+  "difficult_terrain": [
+   [
+    3,
+    3
+   ],
+   [
+    5,
+    3
+   ]
+  ]
+ },
+ "spawn_zones": {
+  "player": {
+   "hexes": [
+    [
+     0,
+     5
+    ],
+    [
+     1,
+     5
+    ],
+    [
+     0,
+     4
+    ]
+   ]
+  },
+  "enemy": {
+   "hexes": [
+    [
+     8,
+     1
+    ],
+    [
+     7,
+     1
+    ],
+    [
+     8,
+     2
+    ]
+   ]
+  }
+ },
+ "music": "music_heart"
+}

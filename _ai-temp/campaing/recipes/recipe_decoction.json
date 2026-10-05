@@ -1,0 +1,26 @@
+{
+ "id": "recipe_decoction",
+ "label": "Настой от золы",
+ "known": false,
+ "description": "Зольщиков настой: выгоняет сажу из груди.",
+ "inputs": [
+  {
+   "item": "item_mushrooms",
+   "quantity": 2
+  },
+  {
+   "item": "item_condensate",
+   "quantity": 1
+  }
+ ],
+ "skill": {
+  "id": "first_aid",
+  "difficulty": 40
+ },
+ "time_ticks": 2,
+ "output": {
+  "item": "item_tonic",
+  "quantity": 1
+ },
+ "message": "Настой горький, но дышать становится легче."
+}

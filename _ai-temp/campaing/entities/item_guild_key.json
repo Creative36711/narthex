@@ -1,0 +1,10 @@
+{
+ "id": "item_guild_key",
+ "type": "item",
+ "category": "misc",
+ "label": "Ключ архива",
+ "description": "Латунный ключ Гильдии с номером 3.",
+ "image": "",
+ "weight": 0.1,
+ "stackable": true
+}
