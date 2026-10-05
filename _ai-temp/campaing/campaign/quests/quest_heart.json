@@ -1,0 +1,35 @@
+{
+  "id": "quest_heart",
+  "label": "Сердце Машины",
+  "description": "Пробиться через шестерёночные туннели к Ядру и принять решение — за всю Крезну.",
+  "chapter": "ch4",
+  "journal_entries": {
+    "j_tunnels": "Я в туннелях под Архивом. Повсюду скрежет шестерён и стоны Полых. Рабочие заперты в камерах — если освобожу их, у них будет шанс выбраться.",
+    "j_core": "Передо мной Ядро. Пульс бьётся в висках. Решать сейчас.",
+    "j_workers_freed": "Я открыл камеры — рабочие бегут прочь."
+  },
+  "stages": [
+    {
+      "id": "stage_tunnels",
+      "label": "Пройти туннелями",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_heart", "text_key": "j_tunnels" }
+      ],
+      "transitions": [
+        { "to": "stage_core", "conditions": [
+          { "type": "player_enters_scene", "scene": "scene_core" }
+        ]}
+      ]
+    },
+    {
+      "id": "stage_core",
+      "label": "Камера Ядра",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_heart", "text_key": "j_core" },
+        { "type": "set_flag", "flag": "core_reached" }
+      ],
+      "transitions": [],
+      "final": false
+    }
+  ]
+}

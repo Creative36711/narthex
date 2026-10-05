@@ -1,0 +1,15 @@
+{
+  "id": "rule_open_guild",
+  "label": "Открыть проход в литейный квартал и Гильдию",
+  "chapter": "ch2",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    { "type": "flag_set", "flag": "guild_access" }
+  ],
+  "effects": [
+    { "type": "reveal_location", "location": "loc_foundry_yard" },
+    { "type": "reveal_location", "location": "loc_workshop" },
+    { "type": "banner", "text": "Путь в литейный квартал открыт", "preset": "quest", "seconds": 3 }
+  ]
+}

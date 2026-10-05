@@ -1,0 +1,33 @@
+{
+  "id": "npc_torg",
+  "type": "npc",
+  "label": "Торг, хозяин «Ржавого клапана»",
+  "description": "Бывший кочегар с лицом, иссечённым шрамами от пара, и голосом как ржавый затвор. Держит нейтралитет и угощает всех без разбору — пока платят.",
+  "portrait": { "neutral": "", "tired": "", "smug": "" },
+  "stats": { "STR": 13, "CON": 13, "SIZ": 13, "DEX": 10, "INT": 11, "POW": 10, "CHA": 11 },
+  "skills": { "bargain": 55, "persuade": 40, "brawl": 40, "spot": 35 },
+  "inventory": [
+    { "item": "item_bread", "quantity": 8 },
+    { "item": "item_stew", "quantity": 6 },
+    { "item": "item_ale", "quantity": 10 },
+    { "item": "item_silver", "quantity": 40 }
+  ],
+  "equipment": { "weapon": "item_poker" },
+  "dialogue": "dialogues/torg.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_workers",
+  "base_disposition": 0,
+  "trader": {
+    "sells": [
+      { "item": "item_bread", "price": 2 },
+      { "item": "item_stew", "price": 5 },
+      { "item": "item_ale", "price": 1 },
+      { "item": "item_canteen", "price": 6 },
+      { "item": "item_bandage", "price": 4 },
+      { "item": "item_oilcloth", "price": 3 }
+    ],
+    "buys": true,
+    "buy_rate": 0.45
+  }
+}

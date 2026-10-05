@@ -1,0 +1,16 @@
+{
+  "id": "rule_gears_trace_start",
+  "label": "Начало главного расследования",
+  "chapter": "ch1",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    { "type": "flag_set", "flag": "found_first_body" }
+  ],
+  "effects": [
+    { "type": "show_message",
+      "text": "Ты опускаешься на колени у тела. Под одеждой что-то медленно проворачивается. Кожа холодная, но цела. Это был рабочий. В кулаке у него зажат обрывок цехового наряда с твоим именем.",
+      "portrait": "" },
+    { "type": "unlock_codex", "entry": "codex_automaton" }
+  ]
+}

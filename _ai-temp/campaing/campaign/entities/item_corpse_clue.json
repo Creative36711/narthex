@@ -1,0 +1,35 @@
+{
+  "id": "item_corpse_clue",
+  "type": "item",
+  "category": "misc",
+  "label": "Обрывок цехового наряда",
+  "description": "Промасленный обрывок ткани с твоим именем и отметкой: «смена №9, литейная №7». На углу — тёмное пятно машинного масла.",
+  "weight": 0.01,
+  "stackable": false,
+  "value": {
+    "silver": 0
+  },
+  "interact_options": [
+    {
+      "label": "Поднять обрывок и осмотреть",
+      "conditions": [],
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_corpse_clue",
+          "quantity": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "found_first_body"
+        },
+        {
+          "type": "show_message",
+          "text": "Обрывок цехового наряда с твоим именем и отметкой «смена №9». Угол в тёмном масле."
+        }
+      ],
+      "message": "Ты засовываешь обрывок за пазуху.",
+      "consume": true
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "recipe_pipebomb",
+  "label": "Самодельная трубочная бомба",
+  "description": "Опасная штука из обрезка трубы, угольной пыли и фитиля из ветоши.",
+  "known": false,
+  "inputs": [
+    { "item": "item_scrap", "quantity": 3 },
+    { "item": "item_oilcloth", "quantity": 2 }
+  ],
+  "tools": ["item_wrench"],
+  "skill": { "id": "mechanics", "difficulty": 55 },
+  "time_ticks": 2,
+  "output": { "item": "item_pipebomb", "quantity": 1 },
+  "message": "Ты набиваешь обрезок трубы угольной крошкой и подтыкаешь фитиль. Держишь подальше от огня."
+}

@@ -1,0 +1,71 @@
+{
+  "id": "quest_gears_trace",
+  "label": "Шестерёночный след",
+  "description": "На улицах появляются тела рабочих, превращённые в Полых. Нужно выяснить, кто стоит за этим, и найти путь в Литейную №7.",
+  "chapter": "ch1",
+  "journal_entries": {
+    "j_body": "В переулке лежит тело рабочего. Под его одеждой что-то медленно проворачивается. Нужно разобраться.",
+    "j_brin": "Посыльный Брин видел женщину в мантии Гильдии рядом с телом. Она ушла в сторону таверны «Ржавый клапан».",
+    "j_tavern": "В «Ржавом клапане» меня ждёт Мавра. Или она меня ждёт — не знаю, что страшнее.",
+    "j_gate": "Нужно попасть в литейный квартал. Страж у шлюза, Руд, за пропуск требует взятку или пропуск.",
+    "j_foundry": "Я попал в литейный квартал. Пора искать Калеба — старый механик, кажется, единственный, кто тут говорит правду."
+  },
+  "stages": [
+    {
+      "id": "stage_body",
+      "label": "Осмотреть тело в переулке",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_gears_trace", "text_key": "j_body" }
+      ],
+      "transitions": [
+        { "to": "stage_brin", "conditions": [{ "type": "flag_set", "flag": "found_first_body" }] }
+      ]
+    },
+    {
+      "id": "stage_brin",
+      "label": "Поговорить с Брином",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_gears_trace", "text_key": "j_brin" }
+      ],
+      "transitions": [
+        { "to": "stage_tavern", "conditions": [{ "type": "flag_set", "flag": "talked_to_maeva" }] }
+      ]
+    },
+    {
+      "id": "stage_tavern",
+      "label": "Идти в таверну",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_gears_trace", "text_key": "j_tavern" }
+      ],
+      "transitions": [
+        { "to": "stage_gate", "conditions": [{ "type": "flag_set", "flag": "guild_access" }] }
+      ]
+    },
+    {
+      "id": "stage_gate",
+      "label": "Пройти через шлюз",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_gears_trace", "text_key": "j_gate" }
+      ],
+      "transitions": [
+        { "to": "stage_foundry", "conditions": [{ "type": "player_enters_location", "location": "loc_foundry_yard" }] }
+      ]
+    },
+    {
+      "id": "stage_foundry",
+      "label": "Найти Калеба",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_gears_trace", "text_key": "j_foundry" }
+      ],
+      "transitions": [
+        { "to": "stage_done", "conditions": [{ "type": "flag_set", "flag": "caleb_trusts" }] }
+      ]
+    },
+    {
+      "id": "stage_done",
+      "label": "Ниточка ведёт вглубь",
+      "final": true,
+      "outcome": "success"
+    }
+  ]
+}

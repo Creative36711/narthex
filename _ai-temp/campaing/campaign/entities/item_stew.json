@@ -1,0 +1,18 @@
+{
+  "id": "item_stew",
+  "type": "item",
+  "category": "food",
+  "label": "Похлёбка из котла",
+  "description": "Миска густой жижи — не разобрать, что там плавает, но горячо и сытно.",
+  "weight": 0.6,
+  "stackable": false,
+  "value": { "silver": 5 },
+  "on_use": {
+    "effects": [
+      { "type": "change_need", "need": "need_hunger", "delta": 55 },
+      { "type": "change_need", "need": "need_thirst", "delta": 10 },
+      { "type": "change_hp", "delta": 2 }
+    ],
+    "consume": true
+  }
+}

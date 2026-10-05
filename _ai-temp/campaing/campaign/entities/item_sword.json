@@ -1,0 +1,19 @@
+{
+  "id": "item_sword",
+  "type": "item",
+  "category": "weapon",
+  "label": "Цеховый тесак",
+  "description": "Тяжёлый прямой клинок на поясе стражника. Лезвие в зазубринах от шестерён.",
+  "weight": 1.6,
+  "stackable": false,
+  "value": { "silver": 35 },
+  "equip_slot": "weapon",
+  "weapon_data": {
+    "skill": "sword",
+    "damage": "1d8",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true
+  }
+}

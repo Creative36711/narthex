@@ -1,0 +1,15 @@
+{
+  "id": "recipe_bandage",
+  "label": "Свёрнутый бинт",
+  "description": "Простая повязка из обрывков ткани с угольной пропиткой.",
+  "known": false,
+  "inputs": [
+    { "item": "item_scrap", "quantity": 1 },
+    { "item": "item_oilcloth", "quantity": 1 }
+  ],
+  "tools": [],
+  "skill": { "id": "first_aid", "difficulty": 30 },
+  "time_ticks": 1,
+  "output": { "item": "item_bandage", "quantity": 1 },
+  "message": "Ты свочиваешь ткань в плотный валик и пропитываешь маслом."
+}

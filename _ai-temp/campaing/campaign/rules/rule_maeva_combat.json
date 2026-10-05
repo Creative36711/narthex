@@ -1,0 +1,24 @@
+{
+  "id": "rule_maeva_combat",
+  "label": "Стражи атакуют в Архиве",
+  "chapter": "ch3",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    { "type": "flag_set", "flag": "maeva_betrayed" }
+  ],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        { "entity": "npc_guard", "count": 2 }
+      ],
+      "arena": "arena_archives",
+      "intro": "Стражи Гильдии хватаются за тесаки. Мавра выскальзывает за дверь и запирает её задвижкой.",
+      "on_victory": [
+        { "type": "show_message", "text": "Стражи повержены. Путь в туннели свободен." },
+        { "type": "reveal_location", "location": "loc_tunnels" }
+      ]
+    }
+  ]
+}

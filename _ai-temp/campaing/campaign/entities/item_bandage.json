@@ -1,0 +1,17 @@
+{
+  "id": "item_bandage",
+  "type": "item",
+  "category": "medicine",
+  "label": "Свёрнутый бинт",
+  "description": "Простая тканевая повязка с пропиткой из угля и сажи — останавливает кровь и кое-как дезинфицирует.",
+  "weight": 0.1,
+  "stackable": true,
+  "value": { "silver": 4 },
+  "on_use": {
+    "effects": [
+      { "type": "change_hp", "delta": 5 },
+      { "type": "remove_status", "target": "player", "status": "status_oil_burn" }
+    ],
+    "consume": true
+  }
+}

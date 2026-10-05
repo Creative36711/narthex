@@ -1,0 +1,48 @@
+{
+  "id": "quest_awakening",
+  "label": "Пробуждение под обломками",
+  "description": "Ты пришёл в себя в подвале взорвавшейся литейной. Нужно выбраться на поверхность и понять, что происходит.",
+  "chapter": "prologue",
+  "journal_entries": {
+    "j_awake": "Я очнулся в подвале Литейной №7 под грудой обломков. Пахнет гарью и кровью. В руке зажат обрывок цехового наряда с моим именем.",
+    "j_sewer_out": "Ржавая лестница ведёт наверх, к люку."
+  },
+  "stages": [
+    {
+      "id": "stage_awake",
+      "label": "Очнуться",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_awakening", "text_key": "j_awake" }
+      ],
+      "transitions": [
+        {
+          "to": "stage_exit",
+          "conditions": [
+            { "type": "has_item", "item": "item_corpse_clue" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_exit",
+      "label": "Выбраться наверх",
+      "on_enter_effects": [
+        { "type": "journal_update", "quest": "quest_awakening", "text_key": "j_sewer_out" }
+      ],
+      "transitions": [
+        {
+          "to": "stage_done",
+          "conditions": [
+            { "type": "flag_set", "flag": "intro_done" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_done",
+      "label": "На улицах Крезны",
+      "final": true,
+      "outcome": "success"
+    }
+  ]
+}
