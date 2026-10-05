@@ -881,6 +881,7 @@ id — ломающее изменение для сохранений игро�
 | `tick_elapsed` | `min_tick` | прошло ≥ N тиков (проверяется после `advanceTicks`/переходов) |
 | `weather_is` | `weather` (`""` — ясно) | текущая погода равна |
 | `has_item` | `item`, `min_quantity?` | у героя есть предмет (количество ≥) |
+| `equipped` | `item` | предмет надет / экипирован на герое |
 | `entity_alive` / `entity_dead` | `entity` | сущность жива / в списке мёртвых |
 | `in_party` | `entity` | персонаж в отряде |
 | `disposition_ge` / `disposition_le` | `target` (фракция или NPC), `threshold` | отношение ≥ / ≤ |
