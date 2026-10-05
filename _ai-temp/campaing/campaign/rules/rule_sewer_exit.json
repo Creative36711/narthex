@@ -1,0 +1,18 @@
+{
+  "id": "rule_sewer_exit",
+  "label": "Выход из подвала на улицы",
+  "chapter": "prologue",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    { "type": "player_enters_scene", "scene": "scene_streets_low" }
+  ],
+  "effects": [
+    { "type": "set_flag", "flag": "intro_done" },
+    { "type": "show_message",
+      "text": "Ты выбираешься из люка на улицу. Смог Крезны серым одеялом ложится на плечи. Где-то внизу, под землёй, ещё ухает Ядро." },
+    { "type": "reveal_location", "location": "loc_tavern" },
+    { "type": "reveal_location", "location": "loc_market_gate" },
+    { "type": "advance_quest", "quest": "quest_awakening", "stage": "stage_done" }
+  ]
+}

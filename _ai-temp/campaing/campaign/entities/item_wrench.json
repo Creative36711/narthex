@@ -1,0 +1,19 @@
+{
+  "id": "item_wrench",
+  "type": "item",
+  "category": "tool",
+  "label": "Ключ цехового механика",
+  "description": "Кованый рожковый ключ в пол-аршина длиной. Годится и гайки крутить, и черепа проламывать.",
+  "weight": 1.8,
+  "stackable": false,
+  "value": { "silver": 15 },
+  "equip_slot": "weapon",
+  "weapon_data": {
+    "skill": "brawl",
+    "damage": "1d6",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": true
+  }
+}

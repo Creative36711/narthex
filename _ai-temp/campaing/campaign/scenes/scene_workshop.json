@@ -1,0 +1,61 @@
+{
+  "id": "scene_workshop",
+  "label": "Мастерская Калеба",
+  "location": "loc_workshop",
+  "chapter": "ch2",
+  "canvas": { "w": 1280, "h": 720 },
+  "states": [
+    {
+      "id": "state_default",
+      "label": "Станки и чертежи",
+      "condition": null,
+      "art": {
+        "canvas": { "w": 1280, "h": 720 },
+        "background": "#2a1d15",
+        "layers": [
+          { "label": "стена", "shape": { "type": "rect", "x": 0, "y": 0, "w": 1280, "h": 460,
+            "fill": { "gradient": { "from": "#3c2a1c", "to": "#1f150e", "angle": 90 } } } },
+          { "label": "пол-дер", "shape": { "type": "rect", "x": 0, "y": 460, "w": 1280, "h": 260,
+            "fill": { "gradient": { "from": "#2f2217", "to": "#130a06", "angle": 90 } } } },
+          { "label": "верстак", "shape": { "type": "rect", "x": 100, "y": 360, "w": 460, "h": 120, "fill": "#4a3422" } },
+          { "label": "тиски", "shape": { "type": "rect", "x": 160, "y": 340, "w": 80, "h": 40, "fill": "#2a221c" } },
+          { "label": "стеллаж", "shape": { "type": "rect", "x": 700, "y": 220, "w": 200, "h": 280, "fill": "#322418" } },
+          { "label": "полки-стеллажа", "shape": { "type": "line", "x1": 700, "y1": 290, "x2": 900, "y2": 290, "color": "#4a3828", "width": 4 } },
+          { "label": "полки-стеллажа2", "shape": { "type": "line", "x1": 700, "y1": 360, "x2": 900, "y2": 360, "color": "#4a3828", "width": 4 } },
+          { "label": "полки-стеллажа3", "shape": { "type": "line", "x1": 700, "y1": 430, "x2": 900, "y2": 430, "color": "#4a3828", "width": 4 } },
+          { "label": "окно-свет", "shape": { "type": "rect", "x": 980, "y": 120, "w": 200, "h": 220, "fill": "#3a2a1e" } },
+          { "label": "окно-свет-2", "shape": { "type": "rect", "x": 1000, "y": 140, "w": 160, "h": 180, "fill": "#c07830", "opacity": 0.25 } },
+          { "label": "чертёж-доска", "shape": { "type": "rect", "x": 340, "y": 120, "w": 280, "h": 200, "fill": "#b39667" } },
+          { "label": "лампа-над-столом", "shape": { "type": "ellipse", "cx": 330, "cy": 320, "rx": 120, "ry": 80, "fill": "#c88a30", "opacity": 0.35 } },
+          { "label": "труба-пар-мал", "shape": { "type": "rect", "x": 60, "y": 200, "w": 16, "h": 260, "fill": "#3d3028" } },
+          { "label": "пар-м", "shape": { "type": "ellipse", "cx": 68, "cy": 180, "rx": 28, "ry": 20, "fill": "#7c6b5f", "opacity": 0.3 } }
+        ]
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_caleb_workshop",
+      "label": "Калеб у верстака",
+      "type": ["person"],
+      "x": 560, "y": 340, "w": 140, "h": 230,
+      "default_entity": "npc_caleb",
+      "condition": { "type": "flag_set", "flag": "caleb_trusts" }
+    },
+    {
+      "id": "slot_bench",
+      "label": "Верстак для крафта",
+      "type": ["prop", "item"],
+      "x": 100, "y": 360, "w": 260, "h": 120,
+      "default_entity": null,
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Спуститься во двор",
+      "go_to_scene": "scene_foundry_yard",
+      "area": { "x": 0, "y": 200, "w": 100, "h": 400 }
+    }
+  ]
+}

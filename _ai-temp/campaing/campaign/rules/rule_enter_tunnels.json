@@ -1,0 +1,17 @@
+{
+  "id": "rule_enter_tunnels",
+  "label": "Вход в шестерёночные туннели",
+  "chapter": "ch4",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    { "type": "player_enters_location", "location": "loc_tunnels" }
+  ],
+  "effects": [
+    { "type": "set_weather", "weather": "" },
+    { "type": "show_message", "text": "Воздух становится густым от машинного масла. Под ногами ритмично стучат шестерни — это пульс самого Ядра." },
+    { "type": "start_quest", "quest": "quest_heart" },
+    { "type": "reveal_location", "location": "loc_core" },
+    { "type": "banner", "text": "Глава 4: Сердце Машины", "preset": "chapter", "seconds": 4 }
+  ]
+}

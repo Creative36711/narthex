@@ -1,0 +1,20 @@
+{
+  "id": "rule_ending_heart",
+  "label": "Финал: переключить на рудные стержни",
+  "chapter": "ch4",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    { "type": "player_enters_scene", "scene": "scene_core" },
+    { "type": "has_item", "item": "item_schematic" },
+    { "type": "flag_set", "flag": "caleb_trusts" }
+  ],
+  "effects": [
+    { "type": "set_flag", "flag": "core_reached" },
+    { "type": "set_flag", "flag": "learned_truth" },
+    { "type": "set_flag", "flag": "ending_heart" },
+    { "type": "show_message",
+      "text": "Ты вставляешь чертёж в приёмный паз пульта. Шестерни под ногами меняют ритм — стук становится ровнее, тише, перестаёт отдаваться в костях. Ядро перестаёт требовать живого тепла." },
+    { "type": "game_over_victory", "reason": "heart" }
+  ]
+}

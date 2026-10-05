@@ -1,0 +1,55 @@
+{
+  "id": "player_hero",
+  "type": "npc",
+  "label": "Дозорный",
+  "description": "Ты приходишь в себя под обломками с обрывком цех-наряда в руке и звоном в ушах.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 11,
+    "CON": 11,
+    "SIZ": 11,
+    "DEX": 11,
+    "INT": 11,
+    "POW": 11,
+    "CHA": 11
+  },
+  "skills": {
+    "persuade": 30,
+    "bargain": 20,
+    "intimidate": 25,
+    "dodge": 30,
+    "brawl": 30,
+    "sword": 25,
+    "firearm": 15,
+    "stealth": 30,
+    "spot": 35,
+    "mechanics": 20,
+    "first_aid": 25,
+    "lore_tech": 15,
+    "spellwork": 10
+  },
+  "inventory": [
+    {
+      "item": "item_dagger",
+      "quantity": 1
+    },
+    {
+      "item": "item_respirator_old",
+      "quantity": 1
+    },
+    {
+      "item": "item_silver",
+      "quantity": 10
+    },
+    {
+      "item": "item_bread",
+      "quantity": 2
+    }
+  ],
+  "equipment": {
+    "weapon": "item_dagger"
+  },
+  "slot_type": "person"
+}

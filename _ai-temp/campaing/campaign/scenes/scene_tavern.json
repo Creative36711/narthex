@@ -1,0 +1,61 @@
+{
+  "id": "scene_tavern",
+  "label": "«Ржавый клапан»",
+  "location": "loc_tavern",
+  "chapter": "ch1",
+  "canvas": { "w": 1280, "h": 720 },
+  "states": [
+    {
+      "id": "state_warm",
+      "label": "Тёплое нутро",
+      "condition": null,
+      "art": {
+        "canvas": { "w": 1280, "h": 720 },
+        "background": "#2a1f18",
+        "layers": [
+          { "label": "стена", "shape": { "type": "rect", "x": 0, "y": 0, "w": 1280, "h": 520,
+            "fill": { "gradient": { "from": "#3c2a1e", "to": "#1f150f", "angle": 90 } } } },
+          { "label": "пол", "shape": { "type": "rect", "x": 0, "y": 520, "w": 1280, "h": 200,
+            "fill": { "gradient": { "from": "#2f2219", "to": "#130c08", "angle": 90 } } } },
+          { "label": "стойка", "shape": { "type": "rect", "x": 740, "y": 340, "w": 480, "h": 180, "fill": "#4a3422" } },
+          { "label": "стойка-столешница", "shape": { "type": "rect", "x": 740, "y": 320, "w": 480, "h": 28, "fill": "#62432a" } },
+          { "label": "полки-бутылки", "shape": { "type": "rect", "x": 780, "y": 180, "w": 420, "h": 140, "fill": "#2e2115" } },
+          { "label": "бутылки-ряд", "shape": { "type": "ellipse", "cx": 820, "cy": 230, "rx": 8, "ry": 26, "fill": "#7d9f4c" } },
+          { "label": "бутылки-ряд2", "shape": { "type": "ellipse", "cx": 860, "cy": 230, "rx": 8, "ry": 26, "fill": "#a6682a" } },
+          { "label": "бутылки-ряд3", "shape": { "type": "ellipse", "cx": 900, "cy": 230, "rx": 8, "ry": 26, "fill": "#4a6a98" } },
+          { "label": "стол", "shape": { "type": "rect", "x": 140, "y": 440, "w": 220, "h": 80, "fill": "#4a331f" } },
+          { "label": "стол-2", "shape": { "type": "rect", "x": 430, "y": 470, "w": 180, "h": 60, "fill": "#432f1c" } },
+          { "label": "очаг", "shape": { "type": "rect", "x": 40, "y": 380, "w": 140, "h": 140, "fill": "#1a0f09" } },
+          { "label": "огонь", "shape": { "type": "ellipse", "cx": 110, "cy": 450, "rx": 60, "ry": 50, "fill": "#c87028", "opacity": 0.7 } },
+          { "label": "лампа", "shape": { "type": "ellipse", "cx": 640, "cy": 120, "rx": 70, "ry": 50, "fill": "#c89030", "opacity": 0.5 } },
+          { "label": "вывеска-надпись-фон", "shape": { "type": "rect", "x": 500, "y": 180, "w": 220, "h": 70, "fill": "#2a1f14", "radius": 8 } }
+        ]
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_torg",
+      "label": "Хозяин за стойкой",
+      "type": ["person"],
+      "x": 970, "y": 240, "w": 150, "h": 280,
+      "default_entity": "npc_torg",
+      "condition": null
+    },
+    {
+      "id": "slot_maeva",
+      "label": "Женщина в углу",
+      "type": ["person"],
+      "x": 100, "y": 320, "w": 140, "h": 220,
+      "default_entity": "npc_maeva",
+      "condition": { "type": "flag_set", "flag": "found_first_body" }
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Выйти на улицу",
+      "open_map": true,
+      "area": { "x": 0, "y": 200, "w": 80, "h": 400 }
+    }
+  ]
+}

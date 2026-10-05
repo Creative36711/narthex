@@ -1,0 +1,18 @@
+{
+  "id": "rule_ending_pact",
+  "label": "Финал: занять место Мастера Цеха",
+  "chapter": "ch4",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    { "type": "player_enters_scene", "scene": "scene_core" },
+    { "type": "flag_not_set", "flag": "workers_freed" }
+  ],
+  "effects": [
+    { "type": "set_flag", "flag": "core_reached" },
+    { "type": "set_flag", "flag": "ending_pact" },
+    { "type": "show_message",
+      "text": "Ты садишься в кресло Мастера Цеха. Пряжка мантии защёлкивается на твоей шее. Пульс Ядра бьётся в унисон с твоим сердцем. Крезна получит тепло — а ты решишь, кому жить." },
+    { "type": "game_over_victory", "reason": "pact" }
+  ]
+}

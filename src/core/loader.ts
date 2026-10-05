@@ -73,7 +73,12 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
       quests[q.id] = q
     }),
     ...(manifest.encounters ?? []).map(async (f) => {
-      const tables = await getJSON<EncounterFileDef>(`${basePath}/rules/${f}`)
+      let tables: EncounterFileDef
+      try {
+        tables = await getJSON<EncounterFileDef>(`${basePath}/encounters/${f}`)
+      } catch {
+        tables = await getJSON<EncounterFileDef>(`${basePath}/rules/${f}`)
+      }
       for (const t of tables.encounter_tables) encounters[t.id] = t
     }),
     ...(manifest.cutscenes ?? []).map(async (f) => {

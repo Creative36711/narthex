@@ -1,0 +1,12 @@
+{
+  "id": "item_gambeson",
+  "type": "item",
+  "category": "armor",
+  "label": "Промасленный гамбезон",
+  "description": "Стеганая куртка, пропитанная машинным маслом. Не слишком надёжно защищает от стали, но от пара и копоти бережёт.",
+  "weight": 3.0,
+  "stackable": false,
+  "value": { "silver": 20 },
+  "equip_slot": "armor",
+  "armor_data": { "armor": 3, "coverage": "all" }
+}

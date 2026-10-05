@@ -1,0 +1,23 @@
+{
+  "encounter_tables": [
+    {
+      "id": "enc_tunnels",
+      "rolls": 1,
+      "entries": [
+        { "weight": 2, "type": "nothing" },
+        { "weight": 4, "type": "combat",
+          "enemies": [{ "entity": "npc_hollow", "count_min": 1, "count_max": 2 }],
+          "arena": "arena_tunnels" },
+        { "weight": 3, "type": "combat",
+          "enemies": [{ "entity": "npc_automaton", "count_min": 1, "count_max": 2 }],
+          "arena": "arena_tunnels" },
+        { "weight": 1, "type": "event",
+          "effects": [
+            { "type": "apply_status", "target": "player", "status": "status_gear_grind", "duration": 2 },
+            { "type": "show_message", "text": "Шестерня выскакивает из стены и чиркает по твоей ноге. Под кожей ощущается странное движение." }
+          ]
+        }
+      ]
+    }
+  ]
+}

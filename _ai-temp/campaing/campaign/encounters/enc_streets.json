@@ -1,0 +1,15 @@
+{
+  "encounter_tables": [
+    {
+      "id": "enc_streets",
+      "rolls": 1,
+      "entries": [
+        { "weight": 5, "type": "nothing" },
+        { "weight": 2, "type": "combat",
+          "enemies": [{ "entity": "npc_guard", "count_min": 1, "count_max": 2 }],
+          "arena": "arena_alley" },
+        { "weight": 2, "type": "dialogue", "entity": "npc_peddler" }
+      ]
+    }
+  ]
+}

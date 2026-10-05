@@ -1,0 +1,10 @@
+{
+  "id": "item_filter",
+  "type": "item",
+  "category": "misc",
+  "label": "Сменный угольный фильтр",
+  "description": "Сетчатая капсула с пропитанным углём. Ставится в респиратор вместо отработавшего.",
+  "weight": 0.15,
+  "stackable": true,
+  "value": { "silver": 8 }
+}

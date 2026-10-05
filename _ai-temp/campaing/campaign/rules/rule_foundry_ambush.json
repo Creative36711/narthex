@@ -1,0 +1,23 @@
+{
+  "id": "rule_foundry_ambush",
+  "label": "Автоматон вылезает из-под обломков",
+  "chapter": "ch2",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    { "type": "player_enters_scene", "scene": "scene_foundry_yard" },
+    { "type": "flag_not_set", "flag": "caleb_trusts" }
+  ],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [{ "entity": "npc_automaton", "count": 1 }],
+      "arena": "arena_foundry",
+      "intro": "Из-под обломков с ржавым скрежетом вылезает автоматон. Его шестерни вращаются навстречу тебе.",
+      "on_victory": [
+        { "type": "show_message", "text": "Автоматон замирает в луже тёмного масла. Калеб выходит из-за колонны и кивает тебе: 'Ты не из Гильдии. Пойдём, поговорим.'" },
+        { "type": "reveal_location", "location": "loc_workshop" }
+      ]
+    }
+  ]
+}

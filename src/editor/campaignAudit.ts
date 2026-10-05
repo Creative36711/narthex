@@ -63,8 +63,9 @@ function validatePackageSchema(store: EditorStore): string[] {
     }
   }
   for (const filename of store.manifest.encounters ?? []) {
-    const path = `rules/${filename}`
-    issues.push(...validateSchema('EncounterFileDef', store.jsonFiles.get(path), path))
+    const raw = store.jsonFiles.get(`encounters/${filename}`) ?? store.jsonFiles.get(`rules/${filename}`)
+    const path = store.jsonFiles.has(`encounters/${filename}`) ? `encounters/${filename}` : `rules/${filename}`
+    issues.push(...validateSchema('EncounterFileDef', raw, path))
   }
   for (const filename of store.manifest.dialogues ?? []) {
     const path = `dialogues/${filename.replace(/\\.ink$/, '.dlg.json')}`

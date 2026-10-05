@@ -77,7 +77,13 @@ export function normalizeChronicleManifest(
       // dialogue .dlg.json is a structured sidecar, never the .ink source itself.
       const rawPath = `${folder}/${original.replace(/^\/+/, '')}`
       const targetPath = dialogueSidecarListed ? sidecarPath : canonicalPath
-      const candidates = [...new Set([targetPath, rawPath, original])]
+      const altFolder = key === 'encounters' ? 'encounters' : undefined
+      const candidates = [...new Set([
+        targetPath,
+        rawPath,
+        ...(altFolder ? [`${altFolder}/${name}`, `${altFolder}/${original.replace(/^\/+/, '')}`] : []),
+        original,
+      ])]
       const source = candidates.find((path) => jsonFiles.has(path) || textFiles.has(path))
       if (source && source !== targetPath) {
         if (jsonFiles.has(source)) {

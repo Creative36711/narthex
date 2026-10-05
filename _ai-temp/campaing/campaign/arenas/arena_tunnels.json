@@ -1,0 +1,15 @@
+{
+  "id": "arena_tunnels",
+  "label": "Шестерёночные туннели",
+  "image": "",
+  "hex_grid": {
+    "cols": 12, "rows": 7, "hex_size": 38, "offset": "odd-r",
+    "blocked_hexes": [[0,0],[11,0],[0,6],[11,6],[2,0],[3,0],[8,0],[9,0]],
+    "difficult_terrain": [[5,2],[5,3],[5,4],[6,2],[6,3],[6,4]]
+  },
+  "spawn_zones": {
+    "player": { "hexes": [[0,3],[0,4],[1,3],[1,4]] },
+    "enemy": { "hexes": [[10,2],[10,3],[10,4],[11,3],[9,3]] }
+  },
+  "music": "music_tunnels"
+}

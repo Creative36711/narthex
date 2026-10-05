@@ -1,0 +1,50 @@
+{
+  "id": "item_core_console",
+  "type": "item",
+  "category": "misc",
+  "label": "Пульт переключения режима",
+  "description": "Панель из медных кнопок и рычажков. Горит одна зелёная лампочка — можно вставить чертёж-схему в приёмный паз.",
+  "weight": 0,
+  "stackable": false,
+  "value": { "silver": 0 },
+  "scene_sprite": "",
+  "portrait": { "neutral": "" },
+  "interact_options": [
+    {
+      "label": "Вставить схему Калеба в приёмный паз",
+      "conditions": [
+        { "type": "has_item", "item": "item_schematic" },
+        { "type": "flag_set", "flag": "caleb_trusts" }
+      ],
+      "effects": [
+        { "type": "remove_item", "item": "item_schematic", "quantity": 1 },
+        { "type": "set_flag", "flag": "ending_heart" },
+        { "type": "set_flag", "flag": "core_reached" },
+        { "type": "fire_rule", "rule": "rule_ending_heart" }
+      ],
+      "message": "Шестерни меняют ритм. Ядро больше не требует живого тепла."
+    },
+    {
+      "label": "Сесть в кресло Мастера Цеха",
+      "conditions": [
+        { "type": "flag_not_set", "flag": "workers_freed" }
+      ],
+      "effects": [
+        { "type": "set_flag", "flag": "ending_pact" },
+        { "type": "set_flag", "flag": "core_reached" },
+        { "type": "fire_rule", "rule": "rule_ending_pact" }
+      ],
+      "message": "Мантия тяжела, но ты надеваешь её."
+    },
+    {
+      "label": "Разглядывать пульт (нет схемы)",
+      "conditions": [
+        { "type": "not", "condition": { "type": "has_item", "item": "item_schematic" } }
+      ],
+      "effects": [
+        { "type": "show_message", "text": "Без схемы ты не решишься переключать рычаги — ошибка разорвёт и Ядро, и весь город. Нужна формула Калеба." }
+      ],
+      "message": ""
+    }
+  ]
+}

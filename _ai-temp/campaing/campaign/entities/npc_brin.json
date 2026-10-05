@@ -1,0 +1,16 @@
+{
+  "id": "npc_brin",
+  "type": "npc",
+  "label": "Брин-посыльный",
+  "description": "Чумазый мальчишка лет тринадцати с бляхой рассыльного на груди. Он видел то, чего не должен был.",
+  "portrait": { "neutral": "", "afraid": "", "hopeful": "" },
+  "stats": { "STR": 7, "CON": 9, "SIZ": 8, "DEX": 13, "INT": 12, "POW": 11, "CHA": 12 },
+  "skills": { "stealth": 50, "spot": 40, "bargain": 30, "dodge": 35 },
+  "inventory": [],
+  "equipment": {},
+  "dialogue": "dialogues/brin.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_undercity",
+  "base_disposition": 5
+}

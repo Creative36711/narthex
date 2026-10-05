@@ -1,0 +1,82 @@
+{
+  "id": "scene_streets_low",
+  "label": "Улицы Нижних Ярусов",
+  "location": "loc_lower_streets",
+  "chapter": "ch1",
+  "canvas": { "w": 1280, "h": 720 },
+  "states": [
+    {
+      "id": "state_day",
+      "label": "День",
+      "condition": { "time_of_day": ["morning", "day"] },
+      "art": {
+        "canvas": { "w": 1280, "h": 720 },
+        "background": "#2a2428",
+        "layers": [
+          { "label": "дымное-небо", "shape": { "type": "rect", "x": 0, "y": 0, "w": 1280, "h": 260,
+            "fill": { "gradient": { "from": "#2a2428", "to": "#5a443a", "angle": 90 } } } },
+          { "label": "дом-лево", "shape": { "type": "rect", "x": 0, "y": 180, "w": 320, "h": 380, "fill": "#2e2624" } },
+          { "label": "дом-центр", "shape": { "type": "rect", "x": 420, "y": 220, "w": 440, "h": 340, "fill": "#261f1e" } },
+          { "label": "дом-право", "shape": { "type": "rect", "x": 950, "y": 160, "w": 330, "h": 400, "fill": "#2e2624" } },
+          { "label": "окно-1", "shape": { "type": "rect", "x": 110, "y": 260, "w": 40, "h": 60, "fill": "#c4742a", "opacity": 0.5 } },
+          { "label": "окно-2", "shape": { "type": "rect", "x": 230, "y": 340, "w": 40, "h": 60, "fill": "#c4742a", "opacity": 0.4 } },
+          { "label": "вывеска", "shape": { "type": "rect", "x": 1010, "y": 240, "w": 90, "h": 50, "fill": "#3b2f26" } },
+          { "label": "мостовая", "shape": { "type": "rect", "x": 0, "y": 540, "w": 1280, "h": 180,
+            "fill": { "gradient": { "from": "#2f2829", "to": "#171312", "angle": 90 } } } },
+          { "label": "рельсы", "shape": { "type": "rect", "x": 0, "y": 600, "w": 1280, "h": 6, "fill": "#3f3834" } },
+          { "label": "труба-паровая", "shape": { "type": "rect", "x": 40, "y": 220, "w": 16, "h": 320, "fill": "#44372e" } },
+          { "label": "пар", "shape": { "type": "ellipse", "cx": 48, "cy": 200, "rx": 36, "ry": 30, "fill": "#7c6b5f", "opacity": 0.25 } },
+          { "label": "смог", "shape": { "type": "ellipse", "cx": 640, "cy": 250, "rx": 700, "ry": 90, "fill": "#4a3e3a", "opacity": 0.3 } }
+        ]
+      }
+    },
+    {
+      "id": "state_night",
+      "label": "Ночь",
+      "condition": null,
+      "art": {
+        "canvas": { "w": 1280, "h": 720 },
+        "background": "#0f0c10",
+        "layers": [
+          { "label": "небо-ночь", "shape": { "type": "rect", "x": 0, "y": 0, "w": 1280, "h": 260, "fill": "#0f0c10" } },
+          { "label": "дом-лево-н", "shape": { "type": "rect", "x": 0, "y": 180, "w": 320, "h": 380, "fill": "#171215" } },
+          { "label": "дом-центр-н", "shape": { "type": "rect", "x": 420, "y": 220, "w": 440, "h": 340, "fill": "#120f11" } },
+          { "label": "дом-право-н", "shape": { "type": "rect", "x": 950, "y": 160, "w": 330, "h": 400, "fill": "#171215" } },
+          { "label": "окно-1-н", "shape": { "type": "rect", "x": 110, "y": 260, "w": 40, "h": 60, "fill": "#b86a24", "opacity": 0.7 } },
+          { "label": "окно-2-н", "shape": { "type": "rect", "x": 230, "y": 340, "w": 40, "h": 60, "fill": "#a86020", "opacity": 0.4 } },
+          { "label": "мостовая-н", "shape": { "type": "rect", "x": 0, "y": 540, "w": 1280, "h": 180,
+            "fill": { "gradient": { "from": "#181315", "to": "#0a0809", "angle": 90 } } } },
+          { "label": "фонарь-свет", "shape": { "type": "ellipse", "cx": 640, "cy": 420, "rx": 180, "ry": 120, "fill": "#c88228", "opacity": 0.2 } },
+          { "label": "смог-н", "shape": { "type": "ellipse", "cx": 640, "cy": 250, "rx": 720, "ry": 100, "fill": "#2a2224", "opacity": 0.5 } }
+        ]
+      }
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_peddler",
+      "label": "Разносчик",
+      "type": ["person"],
+      "x": 420, "y": 430, "w": 120, "h": 230,
+      "default_entity": "npc_peddler",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В переулок",
+      "go_to_scene": "scene_backalley",
+      "area": { "x": 40, "y": 300, "w": 200, "h": 420 }
+    },
+    {
+      "label": "В таверну",
+      "open_map": true,
+      "area": { "x": 1040, "y": 200, "w": 200, "h": 340 }
+    },
+    {
+      "label": "К воротам литейного квартала",
+      "open_map": true,
+      "area": { "x": 540, "y": 280, "w": 200, "h": 300 }
+    }
+  ]
+}

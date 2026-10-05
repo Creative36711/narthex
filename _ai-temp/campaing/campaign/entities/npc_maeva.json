@@ -1,0 +1,19 @@
+{
+  "id": "npc_maeva",
+  "type": "npc",
+  "label": "Мавра, распорядитель Гильдии",
+  "description": "Женщина с подведёнными сажей глазами и чугунным перстнем на пальце. Когда-то она была ученицей Калеба; теперь решает, кому жить, а кому встать в шестерни.",
+  "portrait": { "neutral": "", "angry": "", "hopeful": "" },
+  "stats": { "STR": 9, "CON": 10, "SIZ": 10, "DEX": 12, "INT": 15, "POW": 14, "CHA": 14 },
+  "skills": { "persuade": 55, "intimidate": 50, "lore_tech": 60, "spellwork": 45, "spot": 50, "sword": 30, "dodge": 35 },
+  "inventory": [
+    { "item": "item_badge", "quantity": 1 },
+    { "item": "item_silver", "quantity": 30 }
+  ],
+  "equipment": { "weapon": "item_sword", "amulet": null },
+  "dialogue": "dialogues/maeva.ink",
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_guild",
+  "base_disposition": -10
+}

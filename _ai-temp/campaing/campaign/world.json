@@ -1,0 +1,181 @@
+{
+  "regions": [
+    {
+      "id": "region_krezna",
+      "label": "Крезна — город Пара",
+      "map_image": "",
+      "map_art": {
+        "canvas": { "w": 1280, "h": 720 },
+        "background": "#1a1618",
+        "layers": [
+          { "label": "туман-фона", "shape": { "type": "rect", "x": 0, "y": 0, "w": 1280, "h": 720, "fill": { "gradient": { "from": "#1a1618", "to": "#3d2a1f", "angle": 90 } } } },
+          { "label": "дальние-трубы", "shape": { "type": "rect", "x": 80, "y": 120, "w": 40, "h": 360, "fill": "#2a2325" } },
+          { "label": "дальние-трубы-2", "shape": { "type": "rect", "x": 150, "y": 90, "w": 55, "h": 400, "fill": "#2a2325" } },
+          { "label": "дальние-трубы-3", "shape": { "type": "rect", "x": 1050, "y": 100, "w": 50, "h": 380, "fill": "#2a2325" } },
+          { "label": "дальние-трубы-4", "shape": { "type": "rect", "x": 1130, "y": 130, "w": 42, "h": 350, "fill": "#2a2325" } },
+          { "label": "главная-башня-гильдии", "shape": { "type": "rect", "x": 560, "y": 60, "w": 160, "h": 420, "fill": "#3a2e28" } },
+          { "label": "шпиль-гильдии", "shape": { "type": "polygon", "points": [560,60, 640,10, 720,60], "fill": "#4a3a32" } },
+          { "label": "свет-окна-гильдии", "shape": { "type": "ellipse", "cx": 640, "cy": 250, "rx": 12, "ry": 16, "fill": "#c87028", "opacity": 0.8 } },
+          { "label": "мост", "shape": { "type": "rect", "x": 0, "y": 480, "w": 1280, "h": 6, "fill": "#2a2220" } },
+          { "label": "квартал-нижний", "shape": { "type": "polygon", "points": [0,540, 380,470, 520,490, 700,480, 900,510, 1280,500, 1280,720, 0,720], "fill": "#221c1e" } },
+          { "label": "дым-1", "shape": { "type": "ellipse", "cx": 200, "cy": 80, "rx": 140, "ry": 60, "fill": "#4a4343", "opacity": 0.4 } },
+          { "label": "дым-2", "shape": { "type": "ellipse", "cx": 1080, "cy": 90, "rx": 160, "ry": 70, "fill": "#4a4343", "opacity": 0.4 } },
+          { "label": "дым-центр", "shape": { "type": "ellipse", "cx": 640, "cy": 30, "rx": 260, "ry": 90, "fill": "#4a4343", "opacity": 0.5 } }
+        ]
+      },
+      "map_size": { "w": 1280, "h": 720 },
+      "parent_region": null,
+      "locations": [
+        {
+          "id": "loc_foundry_basement",
+          "label": "Подвал Литейной №7",
+          "position": { "x": 720, "y": 620 },
+          "travel_connections": [
+            { "to": "loc_lower_streets", "cost_ticks": 1 }
+          ],
+          "scenes": ["scene_sewer"],
+          "arrival_scene": "scene_sewer",
+          "music": [
+            { "tracks": ["music_sewer"], "conditions": [] }
+          ]
+        },
+        {
+          "id": "loc_lower_streets",
+          "label": "Нижние Ярусы",
+          "position": { "x": 420, "y": 580 },
+          "travel_connections": [
+            { "to": "loc_foundry_basement", "cost_ticks": 1 },
+            { "to": "loc_market_gate", "cost_ticks": 2, "random_encounter_table": "enc_streets" },
+            { "to": "loc_tavern", "cost_ticks": 1 }
+          ],
+          "scenes": ["scene_backalley", "scene_streets_low"],
+          "arrival_scene": "scene_streets_low",
+          "music": [
+            { "tracks": ["music_streets"], "conditions": [] }
+          ]
+        },
+        {
+          "id": "loc_tavern",
+          "label": "Таверна «Ржавый клапан»",
+          "position": { "x": 290, "y": 540 },
+          "travel_connections": [
+            { "to": "loc_lower_streets", "cost_ticks": 1 }
+          ],
+          "scenes": ["scene_tavern"],
+          "arrival_scene": "scene_tavern",
+          "music": [
+            { "tracks": ["music_tavern"], "conditions": [] }
+          ]
+        },
+        {
+          "id": "loc_market_gate",
+          "label": "Ворота Литейного квартала",
+          "position": { "x": 620, "y": 500 },
+          "travel_connections": [
+            { "to": "loc_lower_streets", "cost_ticks": 2 },
+            { "to": "loc_foundry_yard", "cost_ticks": 1,
+              "condition": { "type": "or", "conditions": [
+                { "type": "flag_set", "flag": "guild_access" },
+                { "type": "flag_set", "flag": "caleb_trusts" }
+              ] }
+            }
+          ],
+          "scenes": ["scene_market_gate"],
+          "arrival_scene": "scene_market_gate",
+          "music": [
+            { "tracks": ["music_streets"], "conditions": [] }
+          ]
+        },
+        {
+          "id": "loc_foundry_yard",
+          "label": "Двор Литейной №7",
+          "position": { "x": 740, "y": 460 },
+          "hidden": true,
+          "travel_connections": [
+            { "to": "loc_market_gate", "cost_ticks": 1 },
+            { "to": "loc_workshop", "cost_ticks": 1 },
+            { "to": "loc_guild_hall", "cost_ticks": 2, "random_encounter_table": "enc_foundry" }
+          ],
+          "scenes": ["scene_foundry_yard"],
+          "arrival_scene": "scene_foundry_yard",
+          "music": [
+            { "tracks": ["music_foundry"], "conditions": [] }
+          ]
+        },
+        {
+          "id": "loc_workshop",
+          "label": "Мастерская Калеба",
+          "position": { "x": 820, "y": 450 },
+          "hidden": true,
+          "travel_connections": [
+            { "to": "loc_foundry_yard", "cost_ticks": 1 }
+          ],
+          "scenes": ["scene_workshop"],
+          "arrival_scene": "scene_workshop",
+          "music": [
+            { "tracks": ["music_foundry"], "conditions": [] }
+          ]
+        },
+        {
+          "id": "loc_guild_hall",
+          "label": "Зал Гильдии Машинистов",
+          "position": { "x": 640, "y": 260 },
+          "hidden": true,
+          "travel_connections": [
+            { "to": "loc_foundry_yard", "cost_ticks": 2 },
+            { "to": "loc_archives", "cost_ticks": 1 }
+          ],
+          "scenes": ["scene_guild_hall"],
+          "arrival_scene": "scene_guild_hall",
+          "music": [
+            { "tracks": ["music_foundry"], "conditions": [] }
+          ]
+        },
+        {
+          "id": "loc_archives",
+          "label": "Архивы Гильдии",
+          "position": { "x": 640, "y": 340 },
+          "hidden": true,
+          "travel_connections": [
+            { "to": "loc_guild_hall", "cost_ticks": 1 },
+            { "to": "loc_tunnels", "cost_ticks": 2 }
+          ],
+          "scenes": ["scene_archives"],
+          "arrival_scene": "scene_archives",
+          "music": [
+            { "tracks": ["music_tunnels"], "conditions": [] }
+          ]
+        },
+        {
+          "id": "loc_tunnels",
+          "label": "Шестерёночные туннели",
+          "position": { "x": 640, "y": 660 },
+          "hidden": true,
+          "travel_connections": [
+            { "to": "loc_archives", "cost_ticks": 2 },
+            { "to": "loc_core", "cost_ticks": 2, "random_encounter_table": "enc_tunnels" }
+          ],
+          "scenes": ["scene_tunnels"],
+          "arrival_scene": "scene_tunnels",
+          "music": [
+            { "tracks": ["music_tunnels"], "conditions": [] }
+          ]
+        },
+        {
+          "id": "loc_core",
+          "label": "Камера Ядра",
+          "position": { "x": 640, "y": 720 },
+          "hidden": true,
+          "travel_connections": [
+            { "to": "loc_tunnels", "cost_ticks": 2 }
+          ],
+          "scenes": ["scene_core"],
+          "arrival_scene": "scene_core",
+          "music": [
+            { "tracks": ["music_core"], "conditions": [] }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -141,7 +141,25 @@ export class EditorStore {
     for (const f of this.manifest.rules) loadJson(`rules/${f}`)
     for (const f of this.manifest.arenas ?? []) loadJson(`arenas/${f}`)
     for (const f of this.manifest.quests ?? []) loadJson(`quests/${f}`)
-    for (const f of this.manifest.encounters ?? []) loadJson(`rules/${f}`)
+    for (const f of this.manifest.encounters ?? []) {
+      jobs.push(
+        (async () => {
+          let r = await fetch(`${this.basePath}/encounters/${f}?t=${Date.now()}`)
+          let path = `encounters/${f}`
+          if (!r.ok) {
+            r = await fetch(`${this.basePath}/rules/${f}?t=${Date.now()}`)
+            path = `rules/${f}`
+          }
+          if (r.ok) {
+            try {
+              this.jsonFiles.set(path, await r.json())
+            } catch {
+              // malformed json
+            }
+          }
+        })(),
+      )
+    }
     for (const f of this.manifest.cutscenes ?? []) loadJson(`cutscenes/${f}`)
     for (const f of this.manifest.recipes ?? []) loadJson(`recipes/${f}`)
     for (const f of this.manifest.codex ?? []) loadJson(`codex/${f}`)
@@ -859,8 +877,10 @@ export class EditorStore {
     const i = list.indexOf(filename)
     if (i >= 0) list.splice(i, 1)
     this.jsonFiles.delete(path)
+    if (section === 'encounters') this.jsonFiles.delete(`encounters/${filename}`)
     this.textFiles.delete(path)
     this.dirty.delete(path)
+    if (section === 'encounters') this.dirty.delete(`encounters/${filename}`)
     this.dirty.add('manifest.json')
     this.notify()
   }

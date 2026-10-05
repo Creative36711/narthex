@@ -154,11 +154,10 @@ export function exportMonolith(store: EditorStore): { doc: MonolithDoc; warnings
     warnings,
   )
 
-  // таблицы встреч: файлы rules/encounters.json с обёрткой { encounter_tables: [...] }
+  // таблицы встреч: файлы rules/encounters.json или encounters/*.json с обёрткой { encounter_tables: [...] }
   const encounters: Record<string, EncounterTableDef> = {}
   for (const p of store.manifest.encounters ?? []) {
-    const path = `rules/${p}`
-    const raw = store.jsonFiles.get(path) as EncounterFileDef | EncounterTableDef | undefined
+    const raw = (store.jsonFiles.get(`encounters/${p}`) ?? store.jsonFiles.get(`rules/${p}`)) as EncounterFileDef | EncounterTableDef | undefined
     if (!raw) continue
     const tables = 'encounter_tables' in raw ? raw.encounter_tables : [raw]
     for (const t of tables) {
