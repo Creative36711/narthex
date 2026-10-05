@@ -1,0 +1,47 @@
+{
+  "id": "quest_missing_names",
+  "label": "Имена под стеклом",
+  "description": "Вернуть имена людям, чьи записи удалили из городской памяти.",
+  "chapter": "chapter_two",
+  "journal_entries": {
+    "j_names_start": "Мира просит проверить стену пластин: ей кажется, что пропавшие ещё отвечают.",
+    "j_names_found": "Пустые пластины совпали со списком. Несколько голосов снова знают, как их зовут."
+  },
+  "stages": [
+    {
+      "id": "stage_names_search",
+      "label": "Найти адреса памяти",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_missing_names",
+          "text_key": "j_names_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_names_restored",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_names_restored"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_names_restored",
+      "label": "Имена возвращены",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_missing_names",
+          "text_key": "j_names_found"
+        }
+      ]
+    }
+  ]
+}

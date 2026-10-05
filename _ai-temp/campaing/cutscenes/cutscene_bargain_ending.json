@@ -1,0 +1,449 @@
+{
+  "id": "cutscene_bargain_ending",
+  "label": "Договор на рассвете",
+  "music": "music_bell",
+  "slides": [
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#111619",
+        "layers": [
+          {
+            "label": "зал Хора",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#30373a",
+                  "to": "#0d1215",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "контур",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 380,
+              "rx": 300,
+              "ry": 234.0,
+              "fill": "#293235",
+              "opacity": 0.62,
+              "stroke": "#ae8759",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "контур",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 380,
+              "rx": 235,
+              "ry": 183.3,
+              "fill": "#38403d",
+              "opacity": 0.62,
+              "stroke": "#ae8759",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "контур",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 380,
+              "rx": 175,
+              "ry": 136.5,
+              "fill": "#202729",
+              "opacity": 0.62,
+              "stroke": "#ae8759",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "световая пластина",
+            "shape": {
+              "type": "ellipse",
+              "cx": 210,
+              "cy": 555,
+              "rx": 20,
+              "ry": 55,
+              "fill": "#cb9561",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "световая пластина",
+            "shape": {
+              "type": "ellipse",
+              "cx": 340,
+              "cy": 555,
+              "rx": 20,
+              "ry": 55,
+              "fill": "#cb9561",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "световая пластина",
+            "shape": {
+              "type": "ellipse",
+              "cx": 500,
+              "cy": 555,
+              "rx": 20,
+              "ry": 55,
+              "fill": "#cb9561",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "световая пластина",
+            "shape": {
+              "type": "ellipse",
+              "cx": 780,
+              "cy": 555,
+              "rx": 20,
+              "ry": 55,
+              "fill": "#cb9561",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "световая пластина",
+            "shape": {
+              "type": "ellipse",
+              "cx": 940,
+              "cy": 555,
+              "rx": 20,
+              "ry": 55,
+              "fill": "#cb9561",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "световая пластина",
+            "shape": {
+              "type": "ellipse",
+              "cx": 1070,
+              "cy": 555,
+              "rx": 20,
+              "ry": 55,
+              "fill": "#cb9561",
+              "opacity": 0.5
+            }
+          },
+          {
+            "label": "сдвоенный знак",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 380,
+              "rx": 70,
+              "ry": 70,
+              "fill": "#b67c4e",
+              "opacity": 0.85,
+              "stroke": "#e2c283",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "второй знак",
+            "shape": {
+              "type": "ellipse",
+              "cx": 680,
+              "cy": 380,
+              "rx": 70,
+              "ry": 70,
+              "fill": "#9a5550",
+              "opacity": 0.58,
+              "stroke": "#e2c283",
+              "stroke_width": 5
+            }
+          }
+        ]
+      },
+      "text": "Хор остаётся включённым, но каждая новая пластина подписана тем, кто сам её принёс.",
+      "duration": 6,
+      "transition": "fade"
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#111619",
+        "layers": [
+          {
+            "label": "город перед утром",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#343e40",
+                  "to": "#111619",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "рассветная линия",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 405,
+              "w": 1280,
+              "h": 315,
+              "fill": "#786448",
+              "opacity": 0.18
+            }
+          },
+          {
+            "label": "крыши",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                60,
+                620,
+                100,
+                620,
+                100,
+                360,
+                185,
+                300,
+                265,
+                360,
+                265,
+                620
+              ],
+              "fill": "#30383a",
+              "stroke": "#786c57",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "крыши",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                230,
+                620,
+                270,
+                620,
+                270,
+                280,
+                355,
+                220,
+                435,
+                280,
+                435,
+                620
+              ],
+              "fill": "#30383a",
+              "stroke": "#786c57",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "крыши",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                420,
+                620,
+                460,
+                620,
+                460,
+                385,
+                545,
+                325,
+                625,
+                385,
+                625,
+                620
+              ],
+              "fill": "#30383a",
+              "stroke": "#786c57",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "крыши",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                665,
+                620,
+                705,
+                620,
+                705,
+                310,
+                790,
+                250,
+                870,
+                310,
+                870,
+                620
+              ],
+              "fill": "#30383a",
+              "stroke": "#786c57",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "крыши",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                860,
+                620,
+                900,
+                620,
+                900,
+                410,
+                985,
+                350,
+                1065,
+                410,
+                1065,
+                620
+              ],
+              "fill": "#30383a",
+              "stroke": "#786c57",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "крыши",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                1050,
+                620,
+                1090,
+                620,
+                1090,
+                330,
+                1175,
+                270,
+                1255,
+                330,
+                1255,
+                620
+              ],
+              "fill": "#30383a",
+              "stroke": "#786c57",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "ellipse",
+              "cx": 190,
+              "cy": 518,
+              "rx": 16,
+              "ry": 22,
+              "fill": "#d7b477",
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "ellipse",
+              "cx": 493,
+              "cy": 432,
+              "rx": 16,
+              "ry": 22,
+              "fill": "#d7b477",
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "ellipse",
+              "cx": 790,
+              "cy": 495,
+              "rx": 16,
+              "ry": 22,
+              "fill": "#d7b477",
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "ellipse",
+              "cx": 1080,
+              "cy": 434,
+              "rx": 16,
+              "ry": 22,
+              "fill": "#d7b477",
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "передатчик",
+            "shape": {
+              "type": "line",
+              "x1": 640,
+              "y1": 115,
+              "x2": 640,
+              "y2": 536,
+              "color": "#bf9760",
+              "width": 8
+            }
+          },
+          {
+            "label": "волна",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 302,
+              "rx": 265,
+              "ry": 165,
+              "fill": "#dbac70",
+              "opacity": 0.16,
+              "stroke": "#d8bb86",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "волна",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 302,
+              "rx": 355,
+              "ry": 220,
+              "fill": "#dbac70",
+              "opacity": 0.08,
+              "stroke": "#d8bb86",
+              "stroke_width": 2
+            }
+          }
+        ]
+      },
+      "text": "Впервые город публикует не список пропавших, а условия договора.",
+      "duration": 5,
+      "transition": "panzoom"
+    }
+  ]
+}

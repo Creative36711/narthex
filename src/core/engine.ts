@@ -3172,14 +3172,15 @@ export class GameEngine {
       story.ChoosePathString(entryKnot)
     } catch {
       const fallback = firstInkKnot(source)
-      if (!fallback || fallback === entryKnot) {
+      if (fallback && fallback !== entryKnot) {
+        try {
+          story.ChoosePathString(fallback)
+        } catch {
+          this.lastDialogueError = `Стартовый узел «${fallback}» не найден в диалоге «${dialogueKey}».`
+          return
+        }
+      } else if (!story.canContinue) {
         this.lastDialogueError = `Узел «${entryKnot}» не найден в диалоге «${dialogueKey}».`
-        return
-      }
-      try {
-        story.ChoosePathString(fallback)
-      } catch {
-        this.lastDialogueError = `Стартовый узел «${fallback}» не найден в диалоге «${dialogueKey}».`
         return
       }
     }

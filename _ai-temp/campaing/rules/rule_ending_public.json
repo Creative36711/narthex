@@ -1,0 +1,26 @@
+{
+  "id": "rule_ending_public",
+  "label": "Финал: вернуть имена",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_ending_public"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_final_choice"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_public_ending"
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "chapter": "chapter_four"
+}

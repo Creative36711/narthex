@@ -1,0 +1,30 @@
+{
+  "id": "npc_iva",
+  "type": "npc",
+  "label": "Ива",
+  "description": "Хирург морга-контур. Перчатки чистые, рукава испачканы серой пылью.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 9,
+    "CON": 12,
+    "SIZ": 10,
+    "DEX": 12,
+    "INT": 14,
+    "POW": 13,
+    "CHA": 10
+  },
+  "skills": {
+    "medicine": 68,
+    "observe": 55,
+    "persuade": 40
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/iva.ink",
+  "faction": "faction_quay",
+  "base_disposition": 4
+}

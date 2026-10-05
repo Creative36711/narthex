@@ -1,0 +1,60 @@
+{
+  "id": "item_echo_body",
+  "type": "item",
+  "category": "prop",
+  "label": "Сигнальная копия",
+  "description": "Тело с лицом регистратора Релина Дова. Тень у него запаздывает на один удар колокола.",
+  "weight": 0.2,
+  "stackable": false,
+  "slot_type": "item",
+  "interact_options": [
+    {
+      "label": "Осмотреть тень и следы",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "observe",
+          "difficulty": 42,
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_case_body_found"
+            },
+            {
+              "type": "add_item",
+              "item": "item_resonance_shard",
+              "quantity": 1
+            },
+            {
+              "type": "add_item",
+              "item": "item_copper_tooth",
+              "quantity": 1
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_echo_body"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_case_body_found"
+            },
+            {
+              "type": "add_item",
+              "item": "item_resonance_shard",
+              "quantity": 1
+            },
+            {
+              "type": "show_message",
+              "text": "Вы не можете разобрать след на простыне, но тело отвечает коротким радиошумом."
+            }
+          ]
+        }
+      ],
+      "once": true,
+      "hint": "Проверка наблюдательности; даже провал подтверждает, что тело не обычное.",
+      "message": "Под кожей нет раны. В груди бьётся пустой сигнал."
+    }
+  ]
+}

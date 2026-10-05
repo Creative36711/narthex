@@ -1,0 +1,11 @@
+{
+  "id": "item_respirator",
+  "type": "item",
+  "category": "gear",
+  "label": "Респиратор",
+  "description": "Старая маска дознавателя с одним сменным гнездом.",
+  "weight": 0.8,
+  "stackable": false,
+  "slot_type": "item",
+  "equip_slot": "mask"
+}

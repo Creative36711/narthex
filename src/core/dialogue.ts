@@ -84,7 +84,7 @@ export function clearDialogueCache(): void {
  * у диалога нет канонического `main` (ИИ-кампании часто стартуют с `n_start`).
  */
 export function firstInkKnot(source: string): string | null {
-  const m = source.match(/===\s*([A-Za-z_][\w]*)\s*===/)
+  const m = source.match(/===\s*([^\s=]+)(?:\s*===)?/)
   return m?.[1] ?? null
 }
 

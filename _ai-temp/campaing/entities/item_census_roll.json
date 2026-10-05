@@ -1,0 +1,10 @@
+{
+  "id": "item_census_roll",
+  "type": "item",
+  "category": "evidence",
+  "label": "Сводка стёртых имён",
+  "description": "Рулон тонкой бумаги: у каждого пропавшего зачёркнута не смерть, а запись о рождении.",
+  "weight": 0.1,
+  "stackable": false,
+  "slot_type": "item"
+}

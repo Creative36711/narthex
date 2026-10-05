@@ -1,0 +1,654 @@
+{
+  "id": "scene_infirmary",
+  "label": "Лазарет нижней набережной",
+  "location": "loc_quay",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_ordinary",
+      "label": "Пепельная смена",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#333b3d",
+        "layers": [
+          {
+            "label": "дальняя стена",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 520,
+              "fill": {
+                "gradient": {
+                  "from": "#333b3d",
+                  "to": "#11171b",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "свод",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                0,
+                1280,
+                0,
+                1120,
+                125,
+                160,
+                125
+              ],
+              "fill": "#14191d"
+            }
+          },
+          {
+            "label": "косой луч",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                250,
+                110,
+                460,
+                110,
+                760,
+                500,
+                540,
+                500
+              ],
+              "fill": "#96a58e",
+              "opacity": 0.12
+            }
+          },
+          {
+            "label": "левая колонна",
+            "shape": {
+              "type": "rect",
+              "x": 78,
+              "y": 102,
+              "w": 54,
+              "h": 420,
+              "fill": "#202428",
+              "radius": 3,
+              "stroke": "#46504f",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "правая колонна",
+            "shape": {
+              "type": "rect",
+              "x": 1148,
+              "y": 102,
+              "w": 54,
+              "h": 420,
+              "fill": "#202428",
+              "radius": 3,
+              "stroke": "#46504f",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "ребро слева",
+            "shape": {
+              "type": "line",
+              "x1": 150,
+              "y1": 170,
+              "x2": 410,
+              "y2": 170,
+              "color": "#53605e",
+              "width": 5,
+              "opacity": 0.72
+            }
+          },
+          {
+            "label": "ребро справа",
+            "shape": {
+              "type": "line",
+              "x1": 880,
+              "y1": 170,
+              "x2": 1130,
+              "y2": 170,
+              "color": "#53605e",
+              "width": 5,
+              "opacity": 0.72
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                485,
+                1280,
+                485,
+                1280,
+                720,
+                0,
+                720
+              ],
+              "fill": "#353a3a"
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 90,
+              "y1": 492,
+              "x2": 20,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 280,
+              "y1": 492,
+              "x2": 210,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 492,
+              "x2": 400,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 660,
+              "y1": 492,
+              "x2": 590,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 850,
+              "y1": 492,
+              "x2": 780,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 1040,
+              "y1": 492,
+              "x2": 970,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 1230,
+              "y1": 492,
+              "x2": 1160,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "горизонтальный шов",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 588,
+              "x2": 1280,
+              "y2": 588,
+              "color": "#8a8170",
+              "width": 2,
+              "opacity": 0.18
+            }
+          },
+          {
+            "label": "лампа",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 112,
+              "rx": 50,
+              "ry": 16,
+              "fill": "#9aa18f",
+              "opacity": 0.75
+            }
+          },
+          {
+            "label": "подсветка лампы",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 120,
+              "rx": 170,
+              "ry": 74,
+              "fill": "#96a58e",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "койка",
+            "shape": {
+              "type": "rect",
+              "x": 125,
+              "y": 383,
+              "w": 175,
+              "h": 32,
+              "fill": "#4d4c49",
+              "radius": 4,
+              "stroke": "#998c7a",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "матрас",
+            "shape": {
+              "type": "rect",
+              "x": 143,
+              "y": 354,
+              "w": 125,
+              "h": 30,
+              "fill": "#787971",
+              "radius": 8
+            }
+          },
+          {
+            "label": "койка",
+            "shape": {
+              "type": "rect",
+              "x": 402,
+              "y": 383,
+              "w": 175,
+              "h": 32,
+              "fill": "#4d4c49",
+              "radius": 4,
+              "stroke": "#998c7a",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "матрас",
+            "shape": {
+              "type": "rect",
+              "x": 420,
+              "y": 354,
+              "w": 125,
+              "h": 30,
+              "fill": "#787971",
+              "radius": 8
+            }
+          },
+          {
+            "label": "койка",
+            "shape": {
+              "type": "rect",
+              "x": 800,
+              "y": 383,
+              "w": 175,
+              "h": 32,
+              "fill": "#4d4c49",
+              "radius": 4,
+              "stroke": "#998c7a",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "матрас",
+            "shape": {
+              "type": "rect",
+              "x": 818,
+              "y": 354,
+              "w": 125,
+              "h": 30,
+              "fill": "#787971",
+              "radius": 8
+            }
+          },
+          {
+            "label": "койка",
+            "shape": {
+              "type": "rect",
+              "x": 1060,
+              "y": 383,
+              "w": 175,
+              "h": 32,
+              "fill": "#4d4c49",
+              "radius": 4,
+              "stroke": "#998c7a",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "матрас",
+            "shape": {
+              "type": "rect",
+              "x": 1078,
+              "y": 354,
+              "w": 125,
+              "h": 30,
+              "fill": "#787971",
+              "radius": 8
+            }
+          },
+          {
+            "label": "стойка фильтров",
+            "shape": {
+              "type": "rect",
+              "x": 185,
+              "y": 267,
+              "w": 195,
+              "h": 220,
+              "fill": "#30393a",
+              "radius": 6,
+              "stroke": "#82918a",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "колба",
+            "shape": {
+              "type": "rect",
+              "x": 207,
+              "y": 297,
+              "w": 25,
+              "h": 95,
+              "fill": "#8ca39b",
+              "radius": 10,
+              "stroke": "#c0bcaa",
+              "stroke_width": 2,
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "колба",
+            "shape": {
+              "type": "rect",
+              "x": 246,
+              "y": 297,
+              "w": 25,
+              "h": 95,
+              "fill": "#776f67",
+              "radius": 10,
+              "stroke": "#c0bcaa",
+              "stroke_width": 2,
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "колба",
+            "shape": {
+              "type": "rect",
+              "x": 285,
+              "y": 297,
+              "w": 25,
+              "h": 95,
+              "fill": "#9b6855",
+              "radius": 10,
+              "stroke": "#c0bcaa",
+              "stroke_width": 2,
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "колба",
+            "shape": {
+              "type": "rect",
+              "x": 324,
+              "y": 297,
+              "w": 25,
+              "h": 95,
+              "fill": "#6c8387",
+              "radius": 10,
+              "stroke": "#c0bcaa",
+              "stroke_width": 2,
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "тёплый ореол",
+            "shape": {
+              "type": "ellipse",
+              "cx": 632.0,
+              "cy": 379.0,
+              "rx": 86.0,
+              "ry": 118.0,
+              "fill": "#96a58e",
+              "opacity": 0.11
+            }
+          },
+          {
+            "label": "голова фигуры",
+            "shape": {
+              "type": "ellipse",
+              "cx": 632.0,
+              "cy": 320.0,
+              "rx": 24.0,
+              "ry": 29.0,
+              "fill": "#302a2b"
+            }
+          },
+          {
+            "label": "воротник",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                612.0,
+                347.0,
+                652.0,
+                347.0,
+                668.0,
+                386.0,
+                596.0,
+                386.0
+              ],
+              "fill": "#443a36"
+            }
+          },
+          {
+            "label": "плащ фигуры",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                608.0,
+                370.0,
+                656.0,
+                370.0,
+                673.0,
+                517.0,
+                590,
+                517.0
+              ],
+              "fill": "#38363a"
+            }
+          },
+          {
+            "label": "складка плаща",
+            "shape": {
+              "type": "line",
+              "x1": 632.0,
+              "y1": 382.0,
+              "x2": 633.0,
+              "y2": 502.0,
+              "color": "#8e6652",
+              "width": 3,
+              "opacity": 0.45
+            }
+          },
+          {
+            "label": "трубка",
+            "shape": {
+              "type": "line",
+              "x1": 205,
+              "y1": 276,
+              "x2": 370,
+              "y2": 250,
+              "color": "#768179",
+              "width": 8,
+              "opacity": 0.75
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 220,
+              "y1": 190,
+              "x2": 228,
+              "y2": 435,
+              "color": "#9aa18f",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 190,
+              "x2": 478,
+              "y2": 435,
+              "color": "#9aa18f",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 810,
+              "y1": 190,
+              "x2": 818,
+              "y2": 435,
+              "color": "#9aa18f",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 1060,
+              "y1": 190,
+              "x2": 1068,
+              "y2": 435,
+              "color": "#9aa18f",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "нижний отсвет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 646,
+              "rx": 410,
+              "ry": 46,
+              "fill": "#96a58e",
+              "opacity": 0.08
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_mira",
+      "label": "У койки",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 565,
+      "y": 282,
+      "w": 155,
+      "h": 360,
+      "default_entity": "npc_mira",
+      "condition": null
+    },
+    {
+      "id": "slot_filter_rack",
+      "label": "Стойка картриджей",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 175,
+      "y": 270,
+      "w": 220,
+      "h": 230,
+      "default_entity": "item_filter_rack",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "К нижнему шлюзу",
+      "go_to_scene": "scene_sluice",
+      "area": {
+        "x": 1015,
+        "y": 350,
+        "w": 200,
+        "h": 190
+      }
+    },
+    {
+      "label": "На карту",
+      "open_map": true,
+      "area": {
+        "x": 1120,
+        "y": 38,
+        "w": 112,
+        "h": 112
+      }
+    }
+  ],
+  "chapter": "chapter_two"
+}

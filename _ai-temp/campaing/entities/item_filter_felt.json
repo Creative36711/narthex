@@ -1,0 +1,13 @@
+{
+  "id": "item_filter_felt",
+  "type": "item",
+  "category": "material",
+  "label": "Фильтровальный войлок",
+  "description": "Чистая сторона вырвана из больничного фильтра.",
+  "weight": 0.2,
+  "stackable": true,
+  "slot_type": "item",
+  "value": {
+    "marks": 2
+  }
+}

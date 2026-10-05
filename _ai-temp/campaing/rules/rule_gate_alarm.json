@@ -1,0 +1,52 @@
+{
+  "id": "rule_gate_alarm",
+  "label": "Тревога на воротах",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_captain_alarm"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "flag_gate_battle_resolved"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_gate_automaton",
+          "count": 1
+        }
+      ],
+      "arena": "arena_gate",
+      "intro": "Караульный автомат выходит из створки. Капитан кричит приказ, но уже не смотрит вам в глаза.",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "flag_gate_battle_resolved"
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_captain_convinced"
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_spire_known"
+        },
+        {
+          "type": "reveal_location",
+          "location": "loc_spire"
+        },
+        {
+          "type": "show_message",
+          "text": "Механизм падает. Капитан опускает оружие и отходит от двери."
+        }
+      ]
+    }
+  ],
+  "chapter": "chapter_four"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "npc_gate_automaton",
+  "type": "npc",
+  "label": "Сторожевой автомат",
+  "description": "Старый караульный механизм, который принимает любое молчание за признание.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 14,
+    "CON": 14,
+    "SIZ": 13,
+    "DEX": 10,
+    "INT": 7,
+    "POW": 8,
+    "CHA": 3
+  },
+  "skills": {
+    "brawl": 38,
+    "shoot": 35,
+    "observe": 42
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_watch",
+  "natural_weapon": {
+    "skill": "brawl",
+    "damage": "1d6+1",
+    "damage_bonus": false,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": false
+  },
+  "armor": 2
+}

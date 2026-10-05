@@ -1,0 +1,36 @@
+{
+  "id": "npc_echo_hound",
+  "type": "npc",
+  "label": "Эхопёс",
+  "description": "Сигнальный сторож, собранный из пепла, меди и чужой тени.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 13,
+    "CON": 12,
+    "SIZ": 11,
+    "DEX": 14,
+    "INT": 6,
+    "POW": 12,
+    "CHA": 4
+  },
+  "skills": {
+    "brawl": 42,
+    "observe": 38
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "faction": "faction_votive",
+  "natural_weapon": {
+    "skill": "brawl",
+    "damage": "1d6",
+    "damage_bonus": true,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": false
+  },
+  "armor": 1
+}

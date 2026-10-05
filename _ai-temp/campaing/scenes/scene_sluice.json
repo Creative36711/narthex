@@ -1,0 +1,606 @@
+{
+  "id": "scene_sluice",
+  "label": "Нижний шлюз",
+  "location": "loc_quay",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_ordinary",
+      "label": "Пепельная смена",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#29383c",
+        "layers": [
+          {
+            "label": "дальняя стена",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 520,
+              "fill": {
+                "gradient": {
+                  "from": "#29383c",
+                  "to": "#11171b",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "свод",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                0,
+                1280,
+                0,
+                1120,
+                125,
+                160,
+                125
+              ],
+              "fill": "#14191d"
+            }
+          },
+          {
+            "label": "косой луч",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                250,
+                110,
+                460,
+                110,
+                760,
+                500,
+                540,
+                500
+              ],
+              "fill": "#7b8f85",
+              "opacity": 0.12
+            }
+          },
+          {
+            "label": "левая колонна",
+            "shape": {
+              "type": "rect",
+              "x": 78,
+              "y": 102,
+              "w": 54,
+              "h": 420,
+              "fill": "#202428",
+              "radius": 3,
+              "stroke": "#46504f",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "правая колонна",
+            "shape": {
+              "type": "rect",
+              "x": 1148,
+              "y": 102,
+              "w": 54,
+              "h": 420,
+              "fill": "#202428",
+              "radius": 3,
+              "stroke": "#46504f",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "ребро слева",
+            "shape": {
+              "type": "line",
+              "x1": 150,
+              "y1": 170,
+              "x2": 410,
+              "y2": 170,
+              "color": "#53605e",
+              "width": 5,
+              "opacity": 0.72
+            }
+          },
+          {
+            "label": "ребро справа",
+            "shape": {
+              "type": "line",
+              "x1": 880,
+              "y1": 170,
+              "x2": 1130,
+              "y2": 170,
+              "color": "#53605e",
+              "width": 5,
+              "opacity": 0.72
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                485,
+                1280,
+                485,
+                1280,
+                720,
+                0,
+                720
+              ],
+              "fill": "#26373a"
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 90,
+              "y1": 492,
+              "x2": 20,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 280,
+              "y1": 492,
+              "x2": 210,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 492,
+              "x2": 400,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 660,
+              "y1": 492,
+              "x2": 590,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 850,
+              "y1": 492,
+              "x2": 780,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 1040,
+              "y1": 492,
+              "x2": 970,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 1230,
+              "y1": 492,
+              "x2": 1160,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "горизонтальный шов",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 588,
+              "x2": 1280,
+              "y2": 588,
+              "color": "#8a8170",
+              "width": 2,
+              "opacity": 0.18
+            }
+          },
+          {
+            "label": "лампа",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 112,
+              "rx": 50,
+              "ry": 16,
+              "fill": "#a56c4e",
+              "opacity": 0.75
+            }
+          },
+          {
+            "label": "подсветка лампы",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 120,
+              "rx": 170,
+              "ry": 74,
+              "fill": "#7b8f85",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "канал",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                505,
+                1280,
+                505,
+                1280,
+                720,
+                0,
+                720
+              ],
+              "fill": "#182d32"
+            }
+          },
+          {
+            "label": "рябь",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 540,
+              "x2": 1280,
+              "y2": 523,
+              "color": "#4a7371",
+              "width": 3,
+              "opacity": 0.46
+            }
+          },
+          {
+            "label": "рябь",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 585,
+              "x2": 1280,
+              "y2": 568,
+              "color": "#4a7371",
+              "width": 3,
+              "opacity": 0.46
+            }
+          },
+          {
+            "label": "рябь",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 630,
+              "x2": 1280,
+              "y2": 613,
+              "color": "#4a7371",
+              "width": 3,
+              "opacity": 0.46
+            }
+          },
+          {
+            "label": "рябь",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 675,
+              "x2": 1280,
+              "y2": 658,
+              "color": "#4a7371",
+              "width": 3,
+              "opacity": 0.46
+            }
+          },
+          {
+            "label": "шлюз",
+            "shape": {
+              "type": "rect",
+              "x": 650,
+              "y": 240,
+              "w": 210,
+              "h": 290,
+              "fill": "#323839",
+              "radius": 3,
+              "stroke": "#7c8178",
+              "stroke_width": 5
+            }
+          },
+          {
+            "label": "затворные зубцы",
+            "shape": {
+              "type": "rect",
+              "x": 675,
+              "y": 265,
+              "w": 27,
+              "h": 242,
+              "fill": "#66706b"
+            }
+          },
+          {
+            "label": "затворные зубцы",
+            "shape": {
+              "type": "rect",
+              "x": 808,
+              "y": 265,
+              "w": 27,
+              "h": 242,
+              "fill": "#66706b"
+            }
+          },
+          {
+            "label": "маховик",
+            "shape": {
+              "type": "ellipse",
+              "cx": 950,
+              "cy": 383,
+              "rx": 73,
+              "ry": 73,
+              "fill": "#574d3e",
+              "opacity": 0.94,
+              "stroke": "#a08b67",
+              "stroke_width": 8
+            }
+          },
+          {
+            "label": "спицы",
+            "shape": {
+              "type": "line",
+              "x1": 878,
+              "y1": 383,
+              "x2": 1022,
+              "y2": 383,
+              "color": "#b29b72",
+              "width": 5
+            }
+          },
+          {
+            "label": "ось",
+            "shape": {
+              "type": "line",
+              "x1": 950,
+              "y1": 311,
+              "x2": 950,
+              "y2": 455,
+              "color": "#b29b72",
+              "width": 5
+            }
+          },
+          {
+            "label": "тёплый ореол",
+            "shape": {
+              "type": "ellipse",
+              "cx": 313.64,
+              "cy": 370.04,
+              "rx": 79.12,
+              "ry": 108.56,
+              "fill": "#7b8f85",
+              "opacity": 0.11
+            }
+          },
+          {
+            "label": "голова фигуры",
+            "shape": {
+              "type": "ellipse",
+              "cx": 313.64,
+              "cy": 315.76,
+              "rx": 22.080000000000002,
+              "ry": 26.68,
+              "fill": "#302a2b"
+            }
+          },
+          {
+            "label": "воротник",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                295.24,
+                340.6,
+                332.04,
+                340.6,
+                346.76,
+                376.48,
+                280.52,
+                376.48
+              ],
+              "fill": "#443a36"
+            }
+          },
+          {
+            "label": "плащ фигуры",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                291.56,
+                361.76,
+                335.72,
+                361.76,
+                351.36,
+                497.0,
+                275,
+                497.0
+              ],
+              "fill": "#263234"
+            }
+          },
+          {
+            "label": "складка плаща",
+            "shape": {
+              "type": "line",
+              "x1": 313.64,
+              "y1": 372.8,
+              "x2": 314.56,
+              "y2": 483.20000000000005,
+              "color": "#8e6652",
+              "width": 3,
+              "opacity": 0.45
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 220,
+              "y1": 190,
+              "x2": 228,
+              "y2": 435,
+              "color": "#a56c4e",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 190,
+              "x2": 478,
+              "y2": 435,
+              "color": "#a56c4e",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 810,
+              "y1": 190,
+              "x2": 818,
+              "y2": 435,
+              "color": "#a56c4e",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 1060,
+              "y1": 190,
+              "x2": 1068,
+              "y2": 435,
+              "color": "#a56c4e",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "нижний отсвет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 646,
+              "rx": 410,
+              "ry": 46,
+              "fill": "#7b8f85",
+              "opacity": 0.08
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_loom",
+      "label": "Мастер шлюза",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 240,
+      "y": 282,
+      "w": 155,
+      "h": 360,
+      "default_entity": "npc_loom",
+      "condition": null
+    },
+    {
+      "id": "slot_wheel",
+      "label": "Маховик шлюза",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 860,
+      "y": 300,
+      "w": 185,
+      "h": 185,
+      "default_entity": "item_sluice_wheel",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В лазарет",
+      "go_to_scene": "scene_infirmary",
+      "area": {
+        "x": 45,
+        "y": 300,
+        "w": 170,
+        "h": 210
+      }
+    },
+    {
+      "label": "На карту",
+      "open_map": true,
+      "area": {
+        "x": 1120,
+        "y": 38,
+        "w": 112,
+        "h": 112
+      }
+    }
+  ],
+  "chapter": "chapter_two"
+}

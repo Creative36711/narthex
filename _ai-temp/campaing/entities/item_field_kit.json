@@ -1,0 +1,10 @@
+{
+  "id": "item_field_kit",
+  "type": "item",
+  "category": "tool",
+  "label": "Складной набор",
+  "description": "Тонкие щипцы, две отвёртки, щуп и катушка изолятора.",
+  "weight": 0.6,
+  "stackable": false,
+  "slot_type": "item"
+}

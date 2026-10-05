@@ -254,8 +254,35 @@ function parseFlow(lines: string[], warnings: string[], where: string): Flow {
     const line = lines[i]
     const trimmed = line.trim()
     if (!trimmed) { i++; continue }
+    if (trimmed.startsWith('//')) { i++; continue }
+    if (/^(EXTERNAL|VAR|LIST|INCLUDE|CONST)\b/.test(trimmed)) { i++; continue }
     if (trimmed.startsWith('->')) {
       flow.tail = trimmed.slice(2).trim()
+      i++
+      continue
+    }
+    const singleCond = /^\s*\{\s*([^:]+?)\s*:\s*(.+?)\s*\}\s*$/.exec(trimmed)
+    if (singleCond) {
+      const condSrc = singleCond[1].trim()
+      const content = singleCond[2].trim()
+      const conds = parseConds(condSrc, warnings, where)
+      const pipeIdx = content.indexOf('|')
+      if (pipeIdx >= 0) {
+        const okText = content.slice(0, pipeIdx).trim()
+        const elseText = content.slice(pipeIdx + 1).trim()
+        const sec: DlgSection = {
+          conds,
+          steps: okText ? [{ kind: 'line', line: parseTextLine(okText) }] : [],
+          else_steps: elseText ? [{ kind: 'line', line: parseTextLine(elseText) }] : [],
+        }
+        items.push({ t: 'sec', sec })
+      } else {
+        const sec: DlgSection = {
+          conds,
+          steps: [{ kind: 'line', line: parseTextLine(content) }],
+        }
+        items.push({ t: 'sec', sec })
+      }
       i++
       continue
     }
@@ -565,16 +592,41 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
   interface Knot { name: string; lines: string[] }
   const knots: Knot[] = []
   let curKnot: Knot | null = null
+  const preludeLines: string[] = []
+
   for (const line of ink.split('\n')) {
-    const km = /^===\s*([\w-]+)\s*===\s*$/.exec(line)
+    const km = /^===\s*([^\s=]+)(?:\s*===)?\s*$/.exec(line)
     if (km) {
       curKnot = { name: km[1], lines: [] }
       knots.push(curKnot)
     } else if (curKnot) {
       curKnot.lines.push(line)
+    } else {
+      preludeLines.push(line)
     }
   }
-  if (!knots.length) warnings.push('в файле нет узлов «=== имя ===» — импорт дал пустой шаблон')
+
+  const isMeaningful = (l: string) => {
+    const t = l.trim()
+    if (!t) return false
+    if (t.startsWith('//') || t.startsWith('/*')) return false
+    if (/^(EXTERNAL|VAR|LIST|INCLUDE)\b/.test(t)) return false
+    return true
+  }
+  const cleanPrelude = preludeLines.filter(isMeaningful)
+
+  if (!knots.length) {
+    if (cleanPrelude.length > 0) {
+      // Файл без явных узлов «=== имя ===» — весь файл разбирается как начальный узел
+      knots.push({ name: 'main', lines: preludeLines })
+    } else {
+      warnings.push('в файле нет строк диалога — импорт дал пустой шаблон')
+    }
+  } else if (cleanPrelude.length > 0) {
+    // В файле есть строки до первого узла — они формируют стартовую реплику
+    knots.unshift({ name: 'start', lines: preludeLines })
+  }
+
   const byName = new Map(knots.map((k) => [k.name, k]))
 
   /** узел с ответами: строки вида `+ [текст]` / `* {условие} [текст]` */
@@ -590,7 +642,17 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
     if (!h && knot.name.endsWith('_talk')) {
       h = byName.get(`${knot.name.replace(/_talk$/, '')}_hub`)
     }
-    if (h && h.name !== knot.name) {
+    if (!h) {
+      // Ищем явный переход `-> something_hub` в узле
+      for (let li = knot.lines.length - 1; li >= 0; li--) {
+        const tm = /^\s*->\s*([^\s]+_hub)\s*$/.exec(knot.lines[li])
+        if (tm && byName.has(tm[1])) {
+          h = byName.get(tm[1])
+          break
+        }
+      }
+    }
+    if (h && h.name !== knot.name && !claimedHubs.has(h.name)) {
       hubOf.set(knot.name, h)
       claimedHubs.add(h.name)
     }

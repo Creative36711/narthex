@@ -1,0 +1,26 @@
+{
+  "id": "rule_ending_silence",
+  "label": "Финал: оставить печать",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "flag_ending_silence"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "flag_final_choice"
+    },
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_silence_ending"
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "chapter": "chapter_four"
+}

@@ -1,0 +1,480 @@
+{
+  "id": "cutscene_break_ending",
+  "label": "Кольцо разомкнуто",
+  "music": "music_bell",
+  "slides": [
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#111619",
+        "layers": [
+          {
+            "label": "купол раскрывается",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#394046",
+                  "to": "#0d1114",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "трещина",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                620,
+                0,
+                680,
+                0,
+                623,
+                205,
+                711,
+                323,
+                620,
+                423,
+                690,
+                570,
+                610,
+                720,
+                568,
+                720,
+                624,
+                567,
+                544,
+                425,
+                637,
+                326,
+                555,
+                205
+              ],
+              "fill": "#d3ac72",
+              "opacity": 0.85
+            }
+          },
+          {
+            "label": "свет снизу",
+            "shape": {
+              "type": "ellipse",
+              "cx": 644,
+              "cy": 672,
+              "rx": 360,
+              "ry": 105,
+              "fill": "#c37d56",
+              "opacity": 0.28
+            }
+          },
+          {
+            "label": "внешний квартал",
+            "shape": {
+              "type": "rect",
+              "x": 100,
+              "y": 295,
+              "w": 130,
+              "h": 245,
+              "fill": "#31383a",
+              "radius": 2,
+              "stroke": "#80715d",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "внешний квартал",
+            "shape": {
+              "type": "rect",
+              "x": 305,
+              "y": 222,
+              "w": 130,
+              "h": 318,
+              "fill": "#31383a",
+              "radius": 2,
+              "stroke": "#80715d",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "внешний квартал",
+            "shape": {
+              "type": "rect",
+              "x": 840,
+              "y": 255,
+              "w": 130,
+              "h": 285,
+              "fill": "#31383a",
+              "radius": 2,
+              "stroke": "#80715d",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "внешний квартал",
+            "shape": {
+              "type": "rect",
+              "x": 1050,
+              "y": 320,
+              "w": 130,
+              "h": 220,
+              "fill": "#31383a",
+              "radius": 2,
+              "stroke": "#80715d",
+              "stroke_width": 2
+            }
+          }
+        ]
+      },
+      "text": "Защитный круг гаснет. Пепельный воздух входит в нижний ярус, а пленённые голоса выходят наружу.",
+      "duration": 6,
+      "transition": "panzoom"
+    },
+    {
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#111619",
+        "layers": [
+          {
+            "label": "шахта",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 720,
+              "fill": {
+                "gradient": {
+                  "from": "#282f33",
+                  "to": "#090d10",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "лифтовая клетка",
+            "shape": {
+              "type": "rect",
+              "x": 420,
+              "y": 126,
+              "w": 440,
+              "h": 560,
+              "fill": "#303638",
+              "stroke": "#8b8069",
+              "stroke_width": 6
+            }
+          },
+          {
+            "label": "прут",
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 126,
+              "x2": 470,
+              "y2": 690,
+              "color": "#8f8b7d",
+              "width": 5
+            }
+          },
+          {
+            "label": "прут",
+            "shape": {
+              "type": "line",
+              "x1": 560,
+              "y1": 126,
+              "x2": 560,
+              "y2": 690,
+              "color": "#8f8b7d",
+              "width": 5
+            }
+          },
+          {
+            "label": "прут",
+            "shape": {
+              "type": "line",
+              "x1": 650,
+              "y1": 126,
+              "x2": 650,
+              "y2": 690,
+              "color": "#8f8b7d",
+              "width": 5
+            }
+          },
+          {
+            "label": "прут",
+            "shape": {
+              "type": "line",
+              "x1": 740,
+              "y1": 126,
+              "x2": 740,
+              "y2": 690,
+              "color": "#8f8b7d",
+              "width": 5
+            }
+          },
+          {
+            "label": "прут",
+            "shape": {
+              "type": "line",
+              "x1": 830,
+              "y1": 126,
+              "x2": 830,
+              "y2": 690,
+              "color": "#8f8b7d",
+              "width": 5
+            }
+          },
+          {
+            "label": "имена вдали",
+            "shape": {
+              "type": "rect",
+              "x": 110,
+              "y": 215,
+              "w": 220,
+              "h": 380,
+              "fill": "#383c3a",
+              "radius": 4,
+              "stroke": "#92795d",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 132,
+              "y": 242,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 191,
+              "y": 242,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 250,
+              "y": 242,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 132,
+              "y": 305,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 191,
+              "y": 305,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 250,
+              "y": 305,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 132,
+              "y": 368,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 191,
+              "y": 368,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 250,
+              "y": 368,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 132,
+              "y": 431,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 191,
+              "y": 431,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 250,
+              "y": 431,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 132,
+              "y": 494,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 191,
+              "y": 494,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "пластина",
+            "shape": {
+              "type": "rect",
+              "x": 250,
+              "y": 494,
+              "w": 38,
+              "h": 39,
+              "fill": "#a09170",
+              "radius": 2,
+              "stroke": "#d2ba8d",
+              "stroke_width": 1
+            }
+          },
+          {
+            "label": "свет из глубины",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 700,
+              "rx": 220,
+              "ry": 85,
+              "fill": "#c28550",
+              "opacity": 0.22
+            }
+          }
+        ]
+      },
+      "text": "Никто не забывает, какой ценой удалось выбраться.",
+      "duration": 4,
+      "transition": "fade"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "id": "item_fuse_panel",
+  "type": "item",
+  "category": "prop",
+  "label": "Панель резонатора",
+  "description": "Старый предохранитель поддерживает эхопса в галерее.",
+  "weight": 0.2,
+  "stackable": false,
+  "slot_type": "item",
+  "interact_options": [
+    {
+      "label": "Заглушить контур",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "tinker",
+          "difficulty": 46,
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_echo_route_muted"
+            },
+            {
+              "type": "set_flag",
+              "flag": "flag_fuse_examined"
+            },
+            {
+              "type": "add_item",
+              "item": "item_copper_wire",
+              "quantity": 1
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_fuse_examined"
+            },
+            {
+              "type": "apply_status",
+              "target": "player",
+              "status": "status_echo_sick",
+              "duration": 3
+            },
+            {
+              "type": "show_message",
+              "text": "Вы тянете не тот провод. За стеной что-то отвечает эхом."
+            }
+          ]
+        }
+      ],
+      "once": true,
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "flag_fuse_examined"
+        }
+      ],
+      "hint": "Ремесло 46 или выше облегчает тихий путь.",
+      "message": "Резонатор дрожит, затем глохнет."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "item_copper_tooth",
+  "type": "item",
+  "category": "evidence",
+  "label": "Медный зубец",
+  "description": "Зубец из реле с вытертой клеймой ремонтной смены.",
+  "weight": 0.12,
+  "stackable": true,
+  "slot_type": "item"
+}

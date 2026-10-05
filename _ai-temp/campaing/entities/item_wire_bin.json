@@ -1,0 +1,34 @@
+{
+  "id": "item_wire_bin",
+  "type": "item",
+  "category": "prop",
+  "label": "Ящик обрезков",
+  "description": "Корыто с короткими отрезками провода, шестерёнками и маркировочными кольцами.",
+  "weight": 0.2,
+  "stackable": false,
+  "slot_type": "item",
+  "interact_options": [
+    {
+      "label": "Забрать целую катушку",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_copper_wire",
+          "quantity": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_market_wire_taken"
+        }
+      ],
+      "once": true,
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "flag_market_wire_taken"
+        }
+      ],
+      "message": "Среди мусора находится отрезок с целой изоляцией."
+    }
+  ]
+}
