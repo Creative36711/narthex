@@ -146,4 +146,41 @@ const optsAfter = engine.itemInteractOptions(fuseOcc.entity as never)
 assert.equal(optsAfter.length, 0, 'Действие скрыто после однократного применения (замысел сценариста)')
 pass('4 Станционная панель (item_fuse_panel): подтверждён замысел сценариста (однократная проверка и отключение контура)')
 
+// ── 5. Настраиваемые надписи системных меню и кнопок (meta.ui_labels) ──
+meta.ui_labels = {
+  inventory: 'Сумка дознавателя',
+  map: 'Схема ярусов',
+  journal: 'Дело № 137',
+  pass_turn: 'Выждать',
+}
+assert.equal(engine.uiLabel('inventory', 'Вещи'), 'Сумка дознавателя', 'ui_labels: инвентарь переопределён')
+assert.equal(engine.uiLabel('map', 'Карта'), 'Схема ярусов', 'ui_labels: карта переопределена')
+assert.equal(engine.uiLabel('journal', 'Журнал'), 'Дело № 137', 'ui_labels: журнал переопределён')
+assert.equal(engine.uiLabel('pass_turn', 'Завершить ход'), 'Выждать', 'ui_labels: кнопка боя переопределена')
+assert.equal(engine.uiLabel('camp', 'Лагерь'), 'Лагерь', 'ui_labels: фоллбэк работает при отсутствии ключа')
+pass('5 meta.ui_labels: системные меню и кнопки интерфейса настраиваются мастером')
+
+// ── 6. Автотаймер на реплику (# timer: 3) и дедлайн на раздумье ──
+const timedLineInk = `
+Внимание! Шлюз закроется через три секунды! # timer: 3 # action
+`
+const parsedTimed = inkToDlgDoc(timedLineInk)
+assert.equal(parsedTimed.doc.nodes[0]!.sections[0]!.steps[0]!.kind, 'line')
+const parsedLine = (parsedTimed.doc.nodes[0]!.sections[0]!.steps[0] as { line: { timer?: number } }).line
+assert.equal(parsedLine.timer, 3, 'тег # timer: 3 прочитан в поле timer реплики')
+const recompiledTimed = regenInk(parsedTimed.doc)
+assert.ok(recompiledTimed.includes('# timer: 3'), 'генерация ink сохраняет тег # timer: 3')
+
+// Проверка реального дедлайна в диалоге captain.ink
+engine.startDialogue('npc_captain')
+assert.ok(engine.dialogue?.timer, 'Диалог капитана объявляет таймер на раздумье')
+assert.equal(engine.dialogue.timer?.seconds, 18, 'Таймер равен 18 секундам')
+assert.equal(engine.dialogue.timer?.knot, 'Молчание', 'Таймер ведёт в узел Молчание')
+// Срабатывание таймаута: переводит в узел «Молчание»
+engine.dialogueTimeout()
+assert.ok(engine.dialogue?.lines.some((l) => l.text.includes('принимает молчание за ответ')), 'По таймауту сработал узел «Молчание»')
+assert.equal(engine.state.flags['flag_captain_alarm'], true, 'Эффект узла «Молчание» применился')
+engine.endDialogue()
+pass('6 Таймер на раздумье и автотаймер реплики работают в реальном времени')
+
 console.log('\nвсе проверки feedback30 пройдены')

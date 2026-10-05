@@ -15,21 +15,26 @@ export interface DialogueLine {
   action?: boolean
   /** озвучка реплики: файл пакета или ссылка (тег # voice: …) — итерация 8, блок G */
   voice?: string
+  /** секундный таймер показа реплики (# timer: 3 или # timeout: 3) */
+  timer?: number
 }
 
-/** разбор тегов реплики: # emotion: … / # action / # voice: … */
-export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string } {
+/** разбор тегов реплики: # emotion: … / # action / # voice: … / # timer: N */
+export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string; timer?: number } {
   let emotion = 'neutral'
   let action = false
   let voice: string | undefined
+  let timer: number | undefined
   for (const t of tags) {
     const em = t.match(/^emotion:\s*(\w+)/)
     if (em) emotion = em[1]
     if (t.trim() === 'action') action = true
     const vo = t.match(/^voice:\s*(.+)$/)
     if (vo) voice = vo[1].trim()
+    const tm = t.match(/^(?:timer|timeout):\s*(\d+)/)
+    if (tm) timer = Number(tm[1])
   }
-  return { emotion, action: action || undefined, voice }
+  return { emotion, action: action || undefined, voice, timer }
 }
 
 export interface DialogueUI {
@@ -224,8 +229,8 @@ export function drainStory(story: Story): { lines: DialogueLine[]; choices: { in
   while (story.canContinue) {
     const text = (story.Continue() ?? '').trim()
     const tags = story.currentTags ?? []
-    const { emotion, action, voice } = parseLineTags(tags)
-    if (text && !SYSTEM_LITERAL_LINE.test(text)) lines.push({ text, emotion, action, voice })
+    const { emotion, action, voice, timer } = parseLineTags(tags)
+    if (text && !SYSTEM_LITERAL_LINE.test(text)) lines.push({ text, emotion, action, voice, timer })
   }
   const choices = story.currentChoices.map((c, i) => ({ index: i, text: c.text }))
   return { lines, choices, finished: choices.length === 0 && !story.canContinue }

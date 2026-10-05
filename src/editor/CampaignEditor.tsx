@@ -847,6 +847,45 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
       </div>
 
       <div className="props-group">
+        <h4>Надписи системных меню и кнопок</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Задайте атмосферные названия системных элементов под мир вашей кампании (пусто — названия по умолчанию).
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          {([
+            ['inventory', 'Инвентарь', 'например «Сумка дознавателя»'],
+            ['journal', 'Журнал', 'например «Дело № 137»'],
+            ['map', 'Карта', 'например «Схема ярусов»'],
+            ['camp', 'Лагерь / Отдых', 'например «Перекур»'],
+            ['codex', 'Кодекс', 'например «Архив Надзора»'],
+            ['craft', 'Ремесло', 'например «Верстак»'],
+            ['character', 'Герой / Персонаж', 'например «Досье»'],
+            ['pass_turn', 'Завершить ход в бою', 'например «Выждать»'],
+            ['flee', 'Отступить из боя', 'например «Бежать»'],
+          ] as const).map(([key, label, ph]) => {
+            const u = meta.ui_labels ?? {}
+            return (
+              <label key={key} className="fld" style={{ minWidth: 200, flex: '1 1 200px' }}>
+                <span>{label}</span>
+                <input
+                  value={u[key] ?? ''}
+                  placeholder={ph}
+                  onChange={(e) => {
+                    const next = { ...(meta.ui_labels ?? {}) }
+                    if (e.target.value.trim()) next[key] = e.target.value
+                    else delete next[key]
+                    if (Object.keys(next).length > 0) meta.ui_labels = next
+                    else delete meta.ui_labels
+                    commit()
+                  }}
+                />
+              </label>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="props-group">
         <h4>Шрифты кампании</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Загруженные шрифты применяются ко всей игре: диалогам, панелям, меню. Редактор остаётся

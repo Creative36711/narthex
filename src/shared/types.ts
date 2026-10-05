@@ -977,6 +977,13 @@ export interface CampaignMeta {
   sounds?: SoundDef[]
   /** звуковая тема кампании: хук → id звука из реестра (пустой хук — тишина) */
   ui_sounds?: Record<string, string>
+  /**
+   * Настраиваемые надписи системных меню и кнопок интерфейса (design-doc §9).
+   * Позволяет мастеру задать атмосферные названия:
+   * "inventory": "Сумка дознавателя", "journal": "Дело № 137", "map": "Схема ярусов",
+   * "camp": "Перекур", "codex": "Архив Надзора", "pass_turn": "Завершить ход" и т.п.
+   */
+  ui_labels?: Record<string, string>
   /** трек(и) кампании по умолчанию, когда у локации/сцены своей музыки нет */
   default_music?: string[]
   /** трек(и) боя по умолчанию (если у арены нет своего arena.music) */
@@ -1887,6 +1894,11 @@ export interface DlgLine {
    * блок G). Если нет — при включённом синтезаторе реплику читает браузер.
    */
   voice?: string
+  /**
+   * секундный таймер показа реплики (# timer: 3 или # timeout: 3) — design-doc §9.
+   * По истечении времени диалог автоматически переходит дальше.
+   */
+  timer?: number
 }
 
 /** условие показа/ветвления (все условия списка должны выполниться) */
@@ -2960,3 +2972,9 @@ export const MONOLITH_REQUIRED_KEYS = [
   'campaign', 'world', 'scenes', 'entities', 'rules', 'quests', 'arenas', 'cutscenes', 'dialogues',
 ] as const satisfies readonly (keyof MonolithDoc)[]
 export const MONOLITH_OPTIONAL_KEYS = ['encounters', 'recipes', 'codex'] as const satisfies readonly (keyof MonolithDoc)[]
+
+/** Получить настраиваемую системную надпись интерфейса с фоллбэком по умолчанию */
+export function getUiLabel(meta: CampaignMeta | undefined, key: string, fallback: string): string {
+  const val = meta?.ui_labels?.[key]?.trim()
+  return val || fallback
+}

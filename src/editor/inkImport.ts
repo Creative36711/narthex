@@ -152,16 +152,18 @@ function parseEffectLine(line: string, warnings: string[], where: string): DlgEf
   }
 }
 
-/** встроенные теги реплики: # action, # emotion: x, # voice: y */
+/** встроенные теги реплики: # action, # emotion: x, # voice: y, # timer: n */
 function parseTextLine(line: string): DlgLine {
   const l: DlgLine = { text: '' }
   let text = line
-  const tags = text.match(/(?:^|\s)#(action|emotion:\s*[\w-]+|voice:\s*[\w"'. -]+)/g) ?? []
+  const tags = text.match(/(?:^|\s)#\s*(action|emotion:\s*[\w-]+|voice:\s*[\w"'. -]+|timer:\s*\d+|timeout:\s*\d+)/g) ?? []
   for (const tag of tags) {
-    const t = tag.trim().slice(1)
+    const t = tag.trim().slice(1).trim()
     if (t === 'action') l.action = true
     else if (t.startsWith('emotion:')) l.emotion = t.slice(8).trim()
     else if (t.startsWith('voice:')) l.voice = t.slice(6).trim()
+    else if (t.startsWith('timer:')) l.timer = Number(t.slice(6).trim())
+    else if (t.startsWith('timeout:')) l.timer = Number(t.slice(8).trim())
     text = text.replace(tag, '')
   }
   l.text = inkToTokens(text.replace(/\s+/g, ' ').trim())

@@ -166,13 +166,13 @@ export function DialogueOverlay({ engine }: Props) {
   const allShown = revealed >= lines.length
 
   // ── дедлайн на раздумье (§9 дизайн-документа) ──
-  // Отсчёт идёт с момента, когда игрок реально видит варианты ответа: пока
-  // реплики печатаются и звучат, время не давит. По нулю зовём движок —
-  // он уводит разговор в назначенный узел или заканчивает его.
-  const timer = d.timer
+  // Отсчёт идёт с момента, когда реплики полностью показаны игроку.
+  // Поддерживает как выбор вариантов (допрос), так и автотаймер одиночной
+  // реплики (# timer: 3 или ~ set_dialogue_timer(3, "узел")).
+  const timer = d.timer ?? (activeLine?.timer ? { seconds: activeLine.timer } : undefined)
   const [timerLeft, setTimerLeft] = useState(0)
   useEffect(() => {
-    if (!timer || !allShown || !hasChoices) return
+    if (!timer || !allShown) return
     const total = Math.max(1, timer.seconds) * 1000
     const started = Date.now()
     setTimerLeft(timer.seconds)
@@ -181,11 +181,15 @@ export function DialogueOverlay({ engine }: Props) {
       setTimerLeft(Math.max(0, Math.ceil(msLeft / 1000)))
       if (msLeft <= 0) {
         window.clearInterval(id)
-        engine.dialogueTimeout()
+        if (hasChoices || timer.knot) {
+          engine.dialogueTimeout()
+        } else if (d.finished) {
+          engine.endDialogue()
+        }
       }
     }, 120)
     return () => window.clearInterval(id)
-  }, [engine, timer, allShown, hasChoices])
+  }, [engine, timer, allShown, hasChoices, d.finished])
 
   const timerPct = timer ? Math.max(0, Math.min(100, (timerLeft / Math.max(1, timer.seconds)) * 100)) : 0
 

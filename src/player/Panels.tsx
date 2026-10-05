@@ -108,7 +108,7 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>Инвентарь</h2>
+          <h2>{engine.uiLabel('inventory_title', engine.uiLabel('inventory', 'Инвентарь'))}</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         {currencies.length > 0 && (
@@ -568,7 +568,7 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>Журнал</h2>
+          <h2>{engine.uiLabel('journal_title', engine.uiLabel('journal', 'Журнал'))}</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         <h3>Квесты</h3>
@@ -609,7 +609,7 @@ export function CraftingPanel({ engine, onClose, focusRecipe }: { engine: GameEn
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>Изготовление</h2>
+          <h2>{engine.uiLabel('craft_title', engine.uiLabel('craft', 'Изготовление'))}</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         {recipes.length === 0 && <p className="muted">Рецептов пока нет.</p>}

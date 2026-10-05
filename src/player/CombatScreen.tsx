@@ -410,7 +410,7 @@ export function CombatScreen({ engine }: Props) {
                       data-tip={'Отступление из боя.\nВраги в досягаемости ударят напоследок, затем проверка навыка отступления (уклонение или DEX×5).\nПровал — ход потерян.'}
                       onClick={() => combat.playerFlee()}
                     >
-                      Бежать из боя
+                      {engine.uiLabel('flee', 'Бежать из боя')}
                     </button>
                   )}
                   <button
@@ -418,7 +418,7 @@ export function CombatScreen({ engine }: Props) {
                     data-tip="Закончить ход без атаки (после атаки ход завершается сам)"
                     onClick={() => combat.playerEndTurn()}
                   >
-                    Пропустить ход
+                    {engine.uiLabel('pass_turn', 'Пропустить ход')}
                   </button>
                 </>
               ) : combat.result === 'victory' ? (

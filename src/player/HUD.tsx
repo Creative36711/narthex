@@ -144,28 +144,40 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
       </div>
       <div className="hud-right">
         {featureOn(meta, 'map') && (
-          <button className="hud-btn" onClick={onOpenMap} data-tip="Карта"><Ico n="map" />  Карта</button>
-        )}
-        {featureOn(meta, 'inventory') && (
-          <button className="hud-btn" onClick={onOpenInventory} data-tip="Инвентарь"><Ico n="bag" />  Вещи</button>
-        )}
-        {featureOn(meta, 'inventory') && engine.knownRecipes().length > 0 && (
-          <button className="hud-btn" onClick={onOpenCraft} data-tip="Изготовление предметов по рецептам">
-            <Ico n="hammer" />  Крафт
+          <button className="hud-btn" onClick={onOpenMap} data-tip={engine.uiLabel('map_tip', 'Карта')}>
+            <Ico n="map" />  {engine.uiLabel('map', 'Карта')}
           </button>
         )}
-        <button className="hud-btn" onClick={onOpenCharacter} data-tip="Лист персонажа"><Ico n="user" />  Герой</button>
-        <button className="hud-btn" onClick={onOpenLog} data-tip="Журнал"><Ico n="scroll" />  Журнал</button>
+        {featureOn(meta, 'inventory') && (
+          <button className="hud-btn" onClick={onOpenInventory} data-tip={engine.uiLabel('inventory_tip', 'Инвентарь')}>
+            <Ico n="bag" />  {engine.uiLabel('inventory_btn', engine.uiLabel('inventory', 'Вещи'))}
+          </button>
+        )}
+        {featureOn(meta, 'inventory') && engine.knownRecipes().length > 0 && (
+          <button className="hud-btn" onClick={onOpenCraft} data-tip={engine.uiLabel('craft_tip', 'Изготовление предметов по рецептам')}>
+            <Ico n="hammer" />  {engine.uiLabel('craft', 'Крафт')}
+          </button>
+        )}
+        <button className="hud-btn" onClick={onOpenCharacter} data-tip={engine.uiLabel('character_tip', 'Лист персонажа')}>
+          <Ico n="user" />  {engine.uiLabel('character', 'Герой')}
+        </button>
+        <button className="hud-btn" onClick={onOpenLog} data-tip={engine.uiLabel('journal_tip', 'Журнал')}>
+          <Ico n="scroll" />  {engine.uiLabel('journal', 'Журнал')}
+        </button>
         {engine.metaProgressEnabled() && onOpenMeta && (
-          <button className="hud-btn" onClick={onOpenMeta} data-tip="Хроника: достижения, метавалюта и постоянные усиления между забегами"><Ico n="star" />  Хроника</button>
+          <button className="hud-btn" onClick={onOpenMeta} data-tip="Хроника: достижения, метавалюта и постоянные усиления между забегами">
+            <Ico n="star" />  {engine.uiLabel('meta', 'Хроника')}
+          </button>
         )}
         {engine.campAvailable().ok && (
           <button className="hud-btn" onClick={() => engine.campRest()} data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}>
-            <Ico n="flame" />  Лагерь
+            <Ico n="flame" />  {engine.uiLabel('camp', 'Лагерь')}
           </button>
         )}
         {(s.codex_unlocked ?? []).length > 0 && (
-          <button className="hud-btn" onClick={onOpenCodex} data-tip="Разблокированные записи о мире"><Ico n="book" />  Кодекс</button>
+          <button className="hud-btn" onClick={onOpenCodex} data-tip="Разблокированные записи о мире">
+            <Ico n="book" />  {engine.uiLabel('codex', 'Кодекс')}
+          </button>
         )}
         <button className="hud-btn" onClick={onOpenSaves} data-tip="Сохранения (слоты)" aria-label="Сохранения"><Ico n="download" /> </button>
         <button className="hud-btn" onClick={onOpenHelp} data-tip="Справка"><Ico n="help" /> </button>

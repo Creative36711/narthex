@@ -1197,6 +1197,11 @@ export class GameEngine {
   }
 
   /** репутация включена мастером */
+  /** Настраиваемая системная надпись интерфейса (design-doc §9, meta.ui_labels) */
+  uiLabel(key: string, fallback: string): string {
+    return this.campaign.meta.ui_labels?.[key]?.trim() || fallback
+  }
+
   reputationEnabled(): boolean {
     return !!this.campaign.meta.reputation
   }
@@ -1945,10 +1950,10 @@ export class GameEngine {
    * игроку показаны варианты ответа. Без вариантов таймер снимается, а
    * забытый ink-ом таймер не «переезжает» на следующую реплику.
    */
-  private commitDialogueTimer(choices: number): void {
+  private commitDialogueTimer(_choices?: number): void {
     const next = this.pendingDialogueTimer
     this.pendingDialogueTimer = null
-    this.dialogueTimer = choices > 0 && next ? next : null
+    this.dialogueTimer = next ? next : null
   }
 
   /** Истёк таймер: уходим в назначенный узел или заканчиваем разговор. */
