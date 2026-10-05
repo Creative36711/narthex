@@ -157,11 +157,13 @@ export function DialogueOverlay({ engine }: Props) {
   // эмоция реплики, но если правило задало состояние облика (set_entity_state) —
   // оно главнее: персонаж «злой» даже на нейтральной реплике
   const emotion = engine.entityState(d.npc.id) ?? activeLine?.emotion ?? 'neutral'
-  // пустая строка portrait.neutral: '' — не URL (assetUrlOrNull → null)
-  const portraitSrc = assetUrlOrNull(
-    engine.campaign,
-    d.npc.portrait?.[emotion] ?? d.npc.portrait?.['neutral'],
-  )
+  // пустая строка portrait: '' — не URL (assetUrlOrNull → null)
+  const portraitKey =
+    d.npc.portrait?.[emotion] ??
+    d.npc.portrait?.['neutral'] ??
+    d.npc.portrait?.['default'] ??
+    Object.values(d.npc.portrait ?? {})[0]
+  const portraitSrc = assetUrlOrNull(engine.campaign, portraitKey)
   const hasChoices = d.choices.length > 0
   const allShown = revealed >= lines.length
 
