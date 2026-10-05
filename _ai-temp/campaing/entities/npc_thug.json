@@ -1,0 +1,48 @@
+{
+ "id": "npc_thug",
+ "type": "npc",
+ "label": "Головорез Гильдии",
+ "description": "Клёпаный боец на жалованье. Дерзок, пока не запахнет кровью.",
+ "portrait": {
+  "neutral": ""
+ },
+ "stats": {
+  "STR": 13,
+  "CON": 12,
+  "SIZ": 12,
+  "DEX": 11,
+  "INT": 8,
+  "POW": 8,
+  "CHA": 8
+ },
+ "skills": {
+  "brawl": 50,
+  "blades": 40
+ },
+ "slot_type": "person",
+ "schedule": [],
+ "equipment": {
+  "weapon": "item_knife"
+ },
+ "morale": {
+  "below_hp_pct": 25,
+  "flee_chance": 60
+ },
+ "loot_table": [
+  {
+   "item": "item_mark",
+   "chance": 0.8,
+   "min": 3,
+   "max": 8
+  },
+  {
+   "item": "item_lockpicks",
+   "chance": 0.3
+  },
+  {
+   "item": "item_pistol",
+   "chance": 0.2
+  }
+ ],
+ "armor": 1
+}

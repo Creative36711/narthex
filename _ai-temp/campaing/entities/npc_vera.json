@@ -1,0 +1,38 @@
+{
+ "id": "npc_vera",
+ "type": "npc",
+ "label": "Капитан Вера Сокол",
+ "description": "Капитан Надзора. Держит дело № 137 и срок до Первого мороза.",
+ "portrait": {
+  "neutral": "assets/img/npc/vera.png"
+ },
+ "stats": {
+  "STR": 10,
+  "CON": 11,
+  "SIZ": 11,
+  "DEX": 11,
+  "INT": 13,
+  "POW": 12,
+  "CHA": 14
+ },
+ "skills": {
+  "persuade": 55,
+  "spot": 50,
+  "shoot": 45
+ },
+ "dialogue": "dialogues/vera.ink",
+ "slot_type": "person",
+ "schedule": [
+  {
+   "time_range": [
+    6,
+    22
+   ],
+   "location": "loc_gate",
+   "scene": "scene_office",
+   "slot": "slot_vera"
+  }
+ ],
+ "faction": "faction_nadzor",
+ "base_disposition": 10
+}

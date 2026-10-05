@@ -68,8 +68,29 @@ const jsonCache = new Map<string, string>()
 export function sanitizeInkSource(source: string): string {
   let lines = source.split('\n')
   lines = lines.filter((l) => !/^\s*(\*\s*){3,}\s*$/.test(l) && !/^\s*[-_]{3,}\s*$/.test(l))
-  lines = lines.map((l) => l.replace(/^(\s*)[*+-]\s*(\{.*?:)/, '$1$2'))
+  lines = lines.map((l) => {
+    if (l.includes('[') && l.includes(']')) return l
+    return l.replace(/^(\s*)[*+-]\s*(\{.*?:)/, '$1$2')
+  })
   lines = lines.map((l) => l.replace(/\bopen_craft\(\)/g, 'open_craft("")'))
+
+  // Защита от повторного объявления ~ temp <var> внутри одного узла Ink
+  const knotDeclaredTemps = new Set<string>()
+  lines = lines.map((l) => {
+    if (/^===\s*([^\s=]+)/.test(l.trim())) {
+      knotDeclaredTemps.clear()
+      return l
+    }
+    const tm = /^\s*~\s*temp\s+(\w+)\s*=/.exec(l)
+    if (tm) {
+      const v = tm[1]
+      if (knotDeclaredTemps.has(v)) {
+        return l.replace(/^\s*~\s*temp\s+/, '    ~ ')
+      }
+      knotDeclaredTemps.add(v)
+    }
+    return l
+  })
 
   // Сбор существующих узлов knot: === knotName ===
   const knotNames = new Set<string>()

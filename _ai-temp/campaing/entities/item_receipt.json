@@ -1,0 +1,10 @@
+{
+ "id": "item_receipt",
+ "type": "item",
+ "category": "misc",
+ "label": "Наряд-заказ",
+ "description": "Ночные работы у старого лаза. Подпись — «Б», красная бирка.",
+ "image": "",
+ "weight": 0.05,
+ "stackable": true
+}

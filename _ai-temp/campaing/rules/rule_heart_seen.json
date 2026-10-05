@@ -1,0 +1,18 @@
+{
+ "id": "rule_heart_seen",
+ "label": "Спуск к Сердцу",
+ "once": true,
+ "chapter": "ch4",
+ "conditions": [
+  {
+   "type": "player_enters_scene",
+   "scene": "scene_heart"
+  }
+ ],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "heart_seen"
+  }
+ ]
+}

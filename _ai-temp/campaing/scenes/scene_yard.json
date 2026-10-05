@@ -1,0 +1,247 @@
+{
+ "id": "scene_yard",
+ "label": "Двор Врат Надзора",
+ "location": "loc_gate",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "chapter": "ch1",
+ "states": [
+  {
+   "id": "state_main",
+   "label": "Обычно",
+   "condition": null,
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#0d131b",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 470,
+       "fill": {
+        "gradient": {
+         "from": "#101724",
+         "to": "#0a0f16",
+         "angle": 90
+        }
+       },
+       "opacity": 1
+      },
+      "label": "небо"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 200,
+       "cy": 120,
+       "rx": 2,
+       "ry": 2,
+       "fill": "#cfd8e2",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 500,
+       "cy": 90,
+       "rx": 2,
+       "ry": 2,
+       "fill": "#cfd8e2",
+       "opacity": 0.4
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 900,
+       "cy": 150,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#cfd8e2",
+       "opacity": 0.4
+      },
+      "label": "пепел"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 470,
+       "w": 1280,
+       "h": 250,
+       "fill": "#232b36",
+       "opacity": 1
+      },
+      "label": "земля"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 470,
+       "w": 1280,
+       "h": 26,
+       "fill": "#cfd8e2",
+       "opacity": 0.14
+      },
+      "label": "снежная кромка"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 60,
+       "y": 250,
+       "w": 190,
+       "h": 320,
+       "fill": "#070b12",
+       "opacity": 1
+      },
+      "label": "арка ворот"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 40,
+       "y": 226,
+       "w": 230,
+       "h": 44,
+       "fill": "#2a323c",
+       "opacity": 1
+      },
+      "label": "притолока"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 620,
+       "y": 470,
+       "w": 70,
+       "h": 100,
+       "fill": "#2a2f34",
+       "opacity": 1
+      },
+      "label": "жаровня"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 655,
+       "cy": 458,
+       "rx": 34,
+       "ry": 22,
+       "fill": "#ff9a44",
+       "opacity": 0.8
+      },
+      "label": "огонь"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 880,
+       "y": 300,
+       "w": 170,
+       "h": 130,
+       "fill": "#3a2c1e",
+       "opacity": 1
+      },
+      "label": "доска приказов"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 900,
+       "y": 320,
+       "w": 40,
+       "h": 54,
+       "fill": "#cfc6ae",
+       "opacity": 0.8
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 960,
+       "y": 330,
+       "w": 44,
+       "h": 60,
+       "fill": "#cfc6ae",
+       "opacity": 0.7
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1130,
+       "y": 300,
+       "w": 110,
+       "h": 250,
+       "fill": "#33261a",
+       "opacity": 1,
+       "radius": 6
+      },
+      "label": "дверь канцелярии"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1178,
+       "y": 320,
+       "w": 14,
+       "h": 210,
+       "fill": "#ffb45e",
+       "opacity": 0.22
+      },
+      "label": "свет из двери"
+     }
+    ]
+   }
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_guard",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 300,
+   "y": 260,
+   "w": 140,
+   "h": 320,
+   "condition": null,
+   "label": "У арки",
+   "default_entity": "npc_guard"
+  }
+ ],
+ "navigation": [
+  {
+   "label": "В канцелярию",
+   "area": {
+    "x": 1130,
+    "y": 300,
+    "w": 110,
+    "h": 250
+   },
+   "go_to_scene": "scene_office"
+  },
+  {
+   "label": "К карте ярусов",
+   "area": {
+    "x": 60,
+    "y": 250,
+    "w": 190,
+    "h": 320
+   },
+   "open_map": true
+  }
+ ]
+}

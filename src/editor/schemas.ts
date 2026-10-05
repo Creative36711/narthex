@@ -126,6 +126,11 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     ],
     blank: { item: '' },
   },
+  equipped: {
+    label: 'Предмет экипирован',
+    fields: [{ key: 'item', label: 'Предмет', kind: 'itemRef' }],
+    blank: { item: '' },
+  },
   skill_ge: {
     label: 'Навык ≥',
     fields: [

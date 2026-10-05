@@ -1,0 +1,23 @@
+{
+ "id": "item_mushrooms",
+ "type": "item",
+ "category": "food",
+ "label": "Печерицы",
+ "description": "Подвальные грибы — хлеб и лекарство Третьего яруса.",
+ "image": "",
+ "weight": 0.2,
+ "stackable": true,
+ "value": {
+  "mark": 4
+ },
+ "on_use": {
+  "effects": [
+   {
+    "type": "change_need",
+    "need": "need_food",
+    "delta": 10
+   }
+  ],
+  "consume": true
+ }
+}

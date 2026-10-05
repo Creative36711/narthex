@@ -1,0 +1,13 @@
+{
+ "id": "item_scrap",
+ "type": "item",
+ "category": "part",
+ "label": "Обрезки железа",
+ "description": "Годятся на клапан, грелку и бинт из жести — нет.",
+ "image": "",
+ "weight": 0.5,
+ "stackable": true,
+ "value": {
+  "mark": 3
+ }
+}

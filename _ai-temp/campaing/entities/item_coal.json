@@ -1,0 +1,13 @@
+{
+ "id": "item_coal",
+ "type": "item",
+ "category": "part",
+ "label": "Ком угля",
+ "description": "Горсть тепла в кармане.",
+ "image": "",
+ "weight": 0.4,
+ "stackable": true,
+ "value": {
+  "mark": 2
+ }
+}

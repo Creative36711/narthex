@@ -1,0 +1,47 @@
+{
+ "id": "quest_klim",
+ "label": "Уголь для Клима",
+ "description": "Накормить уличного мальчишку — и он поделится тем, что видел.",
+ "chapter": "ch2",
+ "journal_entries": {
+  "j_k1": "Клим голоден. Еда развяжет ему язык.",
+  "j_k2": "Клим видел человека в кожаном фартуке с красной биркой: такие только у старших механиков."
+ },
+ "stages": [
+  {
+   "id": "stage_start",
+   "label": "Голодный свидетель",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_klim",
+     "text_key": "j_k1"
+    }
+   ],
+   "transitions": [
+    {
+     "to": "stage_done",
+     "conditions": [
+      {
+       "type": "flag_set",
+       "flag": "klim_clue"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "stage_done",
+   "label": "Красная бирка",
+   "final": true,
+   "outcome": "success",
+   "on_enter_effects": [
+    {
+     "type": "journal_update",
+     "quest": "quest_klim",
+     "text_key": "j_k2"
+    }
+   ]
+  }
+ ]
+}

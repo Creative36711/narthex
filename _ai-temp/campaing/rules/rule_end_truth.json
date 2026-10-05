@@ -1,0 +1,24 @@
+{
+ "id": "rule_end_truth",
+ "label": "Концовка: правда",
+ "once": true,
+ "manual": true,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "set_flag",
+   "flag": "chose_truth"
+  },
+  {
+   "type": "set_flag",
+   "flag": "case_closed"
+  },
+  {
+   "type": "banner",
+   "text": "Город узнаёт правду"
+  },
+  {
+   "type": "game_over_victory"
+  }
+ ]
+}

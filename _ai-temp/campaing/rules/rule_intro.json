@@ -1,0 +1,27 @@
+{
+ "id": "rule_intro",
+ "label": "Пролог: назначение",
+ "once": true,
+ "chapter": "ch1",
+ "conditions": [
+  {
+   "type": "tick_elapsed",
+   "min_tick": 0
+  }
+ ],
+ "effects": [
+  {
+   "type": "play_cutscene",
+   "cutscene": "cutscene_intro"
+  },
+  {
+   "type": "add_item",
+   "item": "item_badge",
+   "quantity": 1
+  },
+  {
+   "type": "show_message",
+   "text": "Вера Сокол ждёт в канцелярии. Дело № 137 не будет ждать вечно."
+  }
+ ]
+}

@@ -1,0 +1,14 @@
+{
+ "id": "item_mask",
+ "type": "item",
+ "category": "misc",
+ "label": "Респиратор",
+ "description": "Полумаска с угольным фильтром. В пеплопад без неё — сушняк и хрип.",
+ "image": "",
+ "weight": 0.4,
+ "stackable": true,
+ "value": {
+  "mark": 8
+ },
+ "equip_slot": "face"
+}

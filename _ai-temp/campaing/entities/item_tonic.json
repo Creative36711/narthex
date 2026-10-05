@@ -1,0 +1,27 @@
+{
+ "id": "item_tonic",
+ "type": "item",
+ "category": "medicine",
+ "label": "Настой от золы",
+ "description": "Горький зольщиков настой: выгоняет сажу из груди.",
+ "image": "",
+ "weight": 0.3,
+ "stackable": true,
+ "value": {
+  "mark": 10
+ },
+ "on_use": {
+  "effects": [
+   {
+    "type": "remove_status",
+    "target": "player",
+    "status": "status_soot"
+   },
+   {
+    "type": "change_hp",
+    "delta": 4
+   }
+  ],
+  "consume": true
+ }
+}

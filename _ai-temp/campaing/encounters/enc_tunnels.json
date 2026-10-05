@@ -1,0 +1,62 @@
+{
+ "encounter_tables": [
+  {
+   "id": "enc_tunnels",
+   "rolls": 1,
+   "entries": [
+    {
+     "weight": 5,
+     "type": "nothing"
+    },
+    {
+     "weight": 3,
+     "type": "combat",
+     "enemies": [
+      {
+       "entity": "npc_ghoul",
+       "count_min": 1,
+       "count_max": 2
+      }
+     ],
+     "arena": "arena_tunnels",
+     "intro": "Пепельник шуршит золой за спиной."
+    },
+    {
+     "weight": 2,
+     "type": "skill_check",
+     "skill": "spot",
+     "difficulty": 45,
+     "message": "В нише трубы блестит металл.",
+     "success_effects": [
+      {
+       "type": "add_item",
+       "item": "item_scrap",
+       "quantity": 1
+      },
+      {
+       "type": "show_message",
+       "text": "Пригодный обрезок твой."
+      }
+     ],
+     "fail_effects": [
+      {
+       "type": "show_message",
+       "text": "Только пыль и ржавчина."
+      }
+     ]
+    },
+    {
+     "weight": 1,
+     "type": "event",
+     "message": "Струя пара обжигает плечо.",
+     "effects": [
+      {
+       "type": "change_hp",
+       "delta": -3
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

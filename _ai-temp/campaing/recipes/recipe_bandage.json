@@ -1,0 +1,24 @@
+{
+ "id": "recipe_bandage",
+ "label": "Бинт из ветоши",
+ "description": "Крепкая повязка из полос ткани.",
+ "inputs": [
+  {
+   "item": "item_cloth",
+   "quantity": 2
+  }
+ ],
+ "tools": [
+  "item_knife"
+ ],
+ "skill": {
+  "id": "first_aid",
+  "difficulty": 35
+ },
+ "time_ticks": 2,
+ "output": {
+  "item": "item_bandage",
+  "quantity": 1
+ },
+ "message": "Бинт тугой и чистый. Сойдёт."
+}

@@ -1,0 +1,276 @@
+{
+ "id": "scene_office",
+ "label": "Канцелярия Надзора",
+ "location": "loc_gate",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "chapter": "ch1",
+ "states": [
+  {
+   "id": "state_main",
+   "label": "Обычно",
+   "condition": null,
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
+    },
+    "background": "#12171d",
+    "layers": [
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 520,
+       "fill": {
+        "gradient": {
+         "from": "#202a36",
+         "to": "#131a22",
+         "angle": 90
+        }
+       },
+       "opacity": 1
+      },
+      "label": "стена"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 520,
+       "w": 1280,
+       "h": 200,
+       "fill": "#2a2119",
+       "opacity": 1
+      },
+      "label": "пол"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 120,
+       "y": 120,
+       "w": 220,
+       "h": 190,
+       "fill": "#0b1220",
+       "opacity": 1,
+       "stroke": "#3d434c"
+      },
+      "label": "окно"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 230,
+       "cy": 190,
+       "rx": 70,
+       "ry": 46,
+       "fill": "#9fb4cc",
+       "opacity": 0.1
+      },
+      "label": "свет окна"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 170,
+       "cy": 160,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#cfd8e2",
+       "opacity": 0.5
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 250,
+       "cy": 220,
+       "rx": 3,
+       "ry": 3,
+       "fill": "#cfd8e2",
+       "opacity": 0.4
+      }
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 300,
+       "cy": 180,
+       "rx": 2,
+       "ry": 2,
+       "fill": "#cfd8e2",
+       "opacity": 0.5
+      },
+      "label": "пепел за окном"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1060,
+       "y": 330,
+       "w": 150,
+       "h": 230,
+       "fill": "#23282d",
+       "opacity": 1,
+       "radius": 8
+      },
+      "label": "печка"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1115,
+       "y": 150,
+       "w": 40,
+       "h": 190,
+       "fill": "#1d2226",
+       "opacity": 1
+      },
+      "label": "труба"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1135,
+       "cy": 470,
+       "rx": 46,
+       "ry": 26,
+       "fill": "#e07b2f",
+       "opacity": 0.75
+      },
+      "label": "жар"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 470,
+       "y": 430,
+       "w": 360,
+       "h": 130,
+       "fill": "#3a2c1e",
+       "opacity": 1,
+       "radius": 6
+      },
+      "label": "стол Веры"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 520,
+       "y": 402,
+       "w": 74,
+       "h": 38,
+       "fill": "#cfc6ae",
+       "opacity": 1
+      },
+      "label": "бумаги"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 780,
+       "cy": 400,
+       "rx": 24,
+       "ry": 14,
+       "fill": "#ffd27a",
+       "opacity": 0.8
+      },
+      "label": "лампа"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 900,
+       "y": 380,
+       "w": 110,
+       "h": 150,
+       "fill": "#2c3237",
+       "opacity": 1,
+       "stroke": "#14181c",
+       "radius": 4
+      },
+      "label": "сейф"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 955,
+       "cy": 455,
+       "rx": 14,
+       "ry": 14,
+       "fill": "#59616a",
+       "opacity": 1
+      },
+      "label": "лимб сейфа"
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 1150,
+       "y": 300,
+       "w": 100,
+       "h": 250,
+       "fill": "#33261a",
+       "opacity": 1,
+       "radius": 6
+      },
+      "label": "дверь во двор"
+     },
+     {
+      "shape": {
+       "type": "ellipse",
+       "cx": 1165,
+       "cy": 430,
+       "rx": 6,
+       "ry": 6,
+       "fill": "#c8a35a",
+       "opacity": 1
+      },
+      "label": "ручка"
+     }
+    ]
+   }
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_vera",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 560,
+   "y": 210,
+   "w": 150,
+   "h": 320,
+   "condition": null,
+   "label": "Стол капитана",
+   "default_entity": "npc_vera"
+  }
+ ],
+ "navigation": [
+  {
+   "label": "Во двор",
+   "area": {
+    "x": 1150,
+    "y": 300,
+    "w": 100,
+    "h": 250
+   },
+   "go_to_scene": "scene_yard"
+  }
+ ],
+ "music": [
+  {
+   "tracks": [
+    "music_gate"
+   ],
+   "conditions": []
+  }
+ ]
+}

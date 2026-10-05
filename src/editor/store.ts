@@ -251,13 +251,28 @@ export class EditorStore {
     return undefined
   }
 
-  /** Читаемое имя диалога: подпись документа → имя ведущего персонажа → имя файла словами. */
+  /** Читаемое имя диалога: подпись документа → имя ведущего персонажа → русское имя или имя файла словами. */
   dialogueLabel(inkPath: string): string {
     const doc = this.jsonFiles.get(inkPath.replace(/\.ink$/, '.dlg.json')) as { label?: string } | undefined
     if (doc?.label) return doc.label
     const npc = this.npcForDialogue(inkPath)
     if (npc) return npc.label
     const base = inkPath.replace('dialogues/', '').replace(/\.ink$/, '')
+    const DIALOGUE_RU: Record<string, string> = {
+      heart: 'Сердце',
+      core: 'Ядро',
+      choir: 'Хор',
+      clock: 'Часы',
+      guard: 'Стража',
+      abbot: 'Настоятель',
+    }
+    if (DIALOGUE_RU[base.toLowerCase()]) return DIALOGUE_RU[base.toLowerCase()]
+    const allEnts = this.entityPaths().map((p) => this.entity(p))
+    for (const ent of allEnts) {
+      if (ent && (ent.id === base || ent.id === `item_${base}` || ent.id === `npc_${base}`) && ent.label) {
+        return ent.label
+      }
+    }
     return base.replace(/[_-]+/g, ' ').replace(/^./, (ch) => ch.toUpperCase())
   }
 

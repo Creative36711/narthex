@@ -1,0 +1,75 @@
+{
+ "id": "item_body",
+ "type": "item",
+ "category": "misc",
+ "label": "Тело Койля",
+ "description": "Старший механик Март Койль. Пар выел лицо, но не выел правду.",
+ "image": "",
+ "weight": 70,
+ "stackable": false,
+ "interact_options": [
+  {
+   "label": "Осмотреть тело",
+   "hint": "внимательность 45",
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "body_examined"
+    }
+   ],
+   "effects": [
+    {
+     "type": "skill_check_gate",
+     "skill": "spot",
+     "difficulty": 45,
+     "success_effects": [
+      {
+       "type": "set_flag",
+       "flag": "body_examined"
+      },
+      {
+       "type": "unlock_codex",
+       "entry": "codex_pump"
+      },
+      {
+       "type": "show_message",
+       "text": "Вентиль сброса выкручен изнутри, резьба чистая. Аварии не было — был человек с ключом."
+      }
+     ],
+     "fail_effects": [
+      {
+       "type": "show_message",
+       "text": "Пар выел следы. Нужен второй заход и холодная голова."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "label": "Обыскать карманы",
+   "hint": "один раз",
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "receipt_found"
+    }
+   ],
+   "effects": [
+    {
+     "type": "add_item",
+     "item": "item_receipt",
+     "quantity": 1
+    },
+    {
+     "type": "set_flag",
+     "flag": "receipt_found"
+    },
+    {
+     "type": "show_message",
+     "text": "В нагрудном кармане — наряд-заказ: ночные работы у старого лаза, подпись «Б»."
+    }
+   ],
+   "message": "Пальцы Койля сжаты, будто он прятал бумагу от пара."
+  }
+ ]
+}

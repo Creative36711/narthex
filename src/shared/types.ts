@@ -2204,6 +2204,8 @@ export type Condition =
   | { type: 'tick_elapsed'; min_tick: number }
   | { type: 'quest_at_stage'; quest: string; stage: string }
   | { type: 'has_item'; item: string; min_quantity?: number }
+  /** предмет экипирован на герое в любом слоте */
+  | { type: 'equipped'; item: string }
   | { type: 'skill_ge'; skill: string; threshold: number }
   /** характеристика героя не ниже порога (аудит §5.6 п.6) */
   | { type: 'stat_ge'; stat: string; threshold: number }

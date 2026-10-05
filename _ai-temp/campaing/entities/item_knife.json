@@ -1,0 +1,22 @@
+{
+ "id": "item_knife",
+ "type": "item",
+ "category": "weapon",
+ "label": "Нож",
+ "description": "Короткий нож с латаной рукоятью.",
+ "image": "",
+ "weight": 0.5,
+ "stackable": true,
+ "value": {
+  "mark": 6
+ },
+ "weapon_data": {
+  "skill": "blades",
+  "damage": "1d4+2",
+  "damage_bonus": true,
+  "range": 1,
+  "attacks_per_round": 1,
+  "parry_capable": true
+ },
+ "equip_slot": "weapon"
+}

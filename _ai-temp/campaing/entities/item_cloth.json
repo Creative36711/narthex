@@ -1,0 +1,13 @@
+{
+ "id": "item_cloth",
+ "type": "item",
+ "category": "part",
+ "label": "Ветошь",
+ "description": "Полосы ткани для бинтов и обмотки.",
+ "image": "",
+ "weight": 0.1,
+ "stackable": true,
+ "value": {
+  "mark": 2
+ }
+}

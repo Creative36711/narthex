@@ -40,6 +40,8 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       const entry = s.player.inventory.find((i) => i.item === c.item)
       return !!entry && entry.quantity >= (c.min_quantity ?? 1)
     }
+    case 'equipped':
+      return engine.isEquipped(c.item)
     case 'skill_ge':
       return (s.player.skills[c.skill] ?? 0) >= c.threshold
     case 'stat_ge':

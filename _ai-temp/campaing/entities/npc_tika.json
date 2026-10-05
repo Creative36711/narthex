@@ -1,0 +1,37 @@
+{
+ "id": "npc_tika",
+ "type": "npc",
+ "label": "Тика",
+ "description": "Молодая механичка. Верит железу и не верит «аварии»; готова чинить ярус.",
+ "portrait": {
+  "neutral": "assets/img/npc/tika.png"
+ },
+ "stats": {
+  "STR": 9,
+  "CON": 10,
+  "SIZ": 9,
+  "DEX": 13,
+  "INT": 13,
+  "POW": 10,
+  "CHA": 11
+ },
+ "skills": {
+  "mechanics": 60,
+  "first_aid": 30
+ },
+ "dialogue": "dialogues/tika.ink",
+ "slot_type": "person",
+ "schedule": [
+  {
+   "time_range": [
+    8,
+    20
+   ],
+   "location": "loc_guild",
+   "scene": "scene_workshop",
+   "slot": "slot_tika"
+  }
+ ],
+ "faction": "faction_guild",
+ "base_disposition": 15
+}

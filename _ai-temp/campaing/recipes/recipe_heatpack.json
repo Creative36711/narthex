@@ -1,0 +1,25 @@
+{
+ "id": "recipe_heatpack",
+ "label": "Грелка",
+ "known": false,
+ "description": "Жестянка с углём: шесть часов тепла за пазухой.",
+ "inputs": [
+  {
+   "item": "item_scrap",
+   "quantity": 1
+  },
+  {
+   "item": "item_coal",
+   "quantity": 1
+  }
+ ],
+ "tools": [
+  "item_wrench"
+ ],
+ "time_ticks": 1,
+ "output": {
+  "item": "item_heatpack",
+  "quantity": 1
+ },
+ "message": "Грелка шипит и набирает жар."
+}

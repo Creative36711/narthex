@@ -1,0 +1,40 @@
+{
+ "id": "npc_brant",
+ "type": "npc",
+ "label": "Старший механик Брант",
+ "description": "Кочегар Сердца. Убеждённый, спокойный, страшный. Убил Койля.",
+ "portrait": {
+  "neutral": "assets/img/npc/brant.png"
+ },
+ "stats": {
+  "STR": 12,
+  "CON": 13,
+  "SIZ": 11,
+  "DEX": 11,
+  "INT": 14,
+  "POW": 15,
+  "CHA": 12
+ },
+ "skills": {
+  "mechanics": 65,
+  "brawl": 50,
+  "intimidate": 60
+ },
+ "dialogue": "dialogues/brant.ink",
+ "slot_type": "person",
+ "schedule": [],
+ "faction": "faction_guild",
+ "base_disposition": -10,
+ "natural_weapon": {
+  "skill": "brawl",
+  "damage": "1d6",
+  "damage_bonus": true,
+  "range": 1,
+  "attacks_per_round": 1,
+  "parry_capable": true
+ },
+ "abilities": [
+  "ability_brant_steam"
+ ],
+ "armor": 2
+}

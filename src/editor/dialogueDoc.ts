@@ -408,18 +408,24 @@ export function generateInk(docRaw: DlgDoc): string {
     }
     // защита от зависания: должен существовать всегда доступный вариант
     const hasAlways = node.choices.some((c) => !c.once && (!c.conds || c.conds.length === 0))
-    for (const c of node.choices) {
+    const checksInNode = node.choices.filter((c) => c.check).length
+    let checkCounter = 0
+    for (let cIdx = 0; cIdx < node.choices.length; cIdx++) {
+      const c = node.choices[cIdx]
       const condStr = c.conds && c.conds.length > 0 ? `{ ${condsInk(c.conds)} } ` : ''
       const marker = c.once ? '*' : '+'
       out.push(`${marker} ${condStr}[${c.text.replace(/\s+/g, ' ').trim()}]`)
       emitSections(node.id, c.sections, '    ')
       if (c.check) {
-        out.push(`    ~ temp d = ${c.check.difficulty}`)
+        checkCounter++
+        const dVar = checksInNode > 1 && checkCounter > 1 ? `d_${checkCounter}` : 'd'
+        const rVar = checksInNode > 1 && checkCounter > 1 ? `r_${checkCounter}` : 'r'
+        out.push(`    ~ temp ${dVar} = ${c.check.difficulty}`)
         for (const m of c.check.mods ?? []) {
-          out.push(`    { ${condsInk(m.conds)}:`, `        ~ d = ${m.value}`, '    }')
+          out.push(`    { ${condsInk(m.conds)}:`, `        ~ ${dVar} = ${m.value}`, '    }')
         }
-        out.push(`    ~ temp r = skill_check(${q(c.check.skill)}, d)`)
-        out.push('    { r == "fail" || r == "fumble":')
+        out.push(`    ~ temp ${rVar} = skill_check(${q(c.check.skill)}, ${dVar})`)
+        out.push(`    { ${rVar} == "fail" || ${rVar} == "fumble":`)
         emitSections(node.id, c.check.fail.sections, '        ')
         out.push(`        -> ${target(node.id, c.check.fail.goto, 'stay')}`)
         out.push('    - else:')

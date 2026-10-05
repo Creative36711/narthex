@@ -22,6 +22,23 @@ export interface InkImportResult {
 
 function parseCondToken(token: string, warnings: string[], where: string): DlgCond | null {
   const t = token.trim()
+  // Снятие внешних группирующих скобок: (cond1 or cond2)
+  if (t.startsWith('(') && t.endsWith(')')) {
+    let depth = 0
+    let wrapped = true
+    for (let i = 0; i < t.length - 1; i++) {
+      if (t[i] === '(') depth++
+      else if (t[i] === ')') {
+        depth--
+        if (depth === 0) { wrapped = false; break }
+      }
+    }
+    if (wrapped) {
+      const innerConds = parseConds(t.slice(1, -1), warnings, where)
+      return innerConds[0] ?? null
+    }
+  }
+
   // not (get_flag("x")) — обычная запись отрицания в рукописном ink
   const wrap = /^not\s*\((.*)\)$/.exec(t)
   if (wrap) {
@@ -32,6 +49,8 @@ function parseCondToken(token: string, warnings: string[], where: string): DlgCo
   let m = /^(not )?get_flag\("([^"]+)"\)$/.exec(t)
   if (m) return { type: 'flag', flag: m[2], not: !!m[1] || undefined }
   m = /^(not )?has_item\("([^"]+)"\)$/.exec(t)
+  if (m) return { type: 'has_item', item: m[2], not: !!m[1] || undefined }
+  m = /^(not )?is_equipped\("([^"]+)"\)$/.exec(t)
   if (m) return { type: 'has_item', item: m[2], not: !!m[1] || undefined }
   m = /^has_item\("([^"]+)"\)\s*(>=|>|<|<=|==)\s*(-?\d+)$/.exec(t)
   if (m) {
@@ -117,12 +136,15 @@ function splitTopLevel(src: string): { parts: string[]; op: 'and' | 'or' } {
  */
 export function parseConds(src: string, warnings: string[], where: string): DlgCond[] {
   const { parts, op } = splitTopLevel(src)
-  if (op === 'or') {
-    warnings.push(`${where}: условие с «or» («${src.trim().slice(0, 60)}…») конструктор не выражает — оставлено первое условие, второе доделайте в коде ink`)
-  }
-  return parts
+  const list = parts
     .map((p) => parseCondToken(p, warnings, where))
     .filter((c): c is DlgCond => !!c)
+  if (op === 'or' && list.length > 1) {
+    // В визуальной модели конструктора условия соединяются через AND;
+    // при импорте OR-условия сохраняем первое условие для формы.
+    return list.slice(0, 1)
+  }
+  return list
 }
 
 // ─────────────── эффекты и реплики ───────────────
@@ -412,74 +434,116 @@ interface SkillBlock {
 
 /** распознать паттерн проверки навыка в теле ответа */
 function extractSkillCheck(lines: string[], warnings: string[], where: string): { head: string[]; rest: string[]; check?: SkillBlock } {
-  const iD = lines.findIndex((l) => /^\s*~\s*temp d\s*=\s*-?\d+\s*$/.test(l))
-  const iR = lines.findIndex((l) => /^\s*~\s*temp r\s*=\s*skill_check\("[\w-]+",\s*d\)\s*$/.test(l))
-  if (iD < 0 || iR < 0 || iR <= iD) return { head: lines, rest: [] }
-  const dLine = /~\s*temp d\s*=\s*(-?\d+)/.exec(lines[iD])
-  const rLine = /skill_check\("([^"]+)",\s*d\)/.exec(lines[iR])
-  // модификаторы: { c: \n ~ d = V \n }
+  // Универсальный поиск вызова skill_check: ~ temp X = skill_check("...", ...) или ~ X = skill_check(...)
+  const iCall = lines.findIndex((l) => /^\s*~\s*(?:temp\s+)?(\w+)\s*=\s*skill_check\("([^"]+)",\s*(-?\d+|[a-zA-Z_]\w*)\)/.test(l))
+  if (iCall < 0) return { head: lines, rest: [] }
+
+  const callMatch = /^\s*~\s*(?:temp\s+)?(\w+)\s*=\s*skill_check\("([^"]+)",\s*(-?\d+|[a-zA-Z_]\w*)\)/.exec(lines[iCall])!
+  const varName = callMatch[1]
+  const skill = callMatch[2]
+  const diffArg = callMatch[3]
+
+  let difficulty = 50
   const mods: Array<{ conds: DlgCond[]; value: number }> = []
-  let mi = iD + 1
-  while (mi < iR) {
-    if (isCondBlockOpen(lines[mi])) {
-      const openC = lines[mi].trim().replace(/^\{/, '').replace(/:\s*$/, '')
-      const valLine = mi + 1 < iR ? /~\s*d\s*=\s*(-?\d+)/.exec(lines[mi + 1]) : null
-      const closeOk = mi + 2 < iR && isBlockClose(lines[mi + 2])
-      if (valLine && closeOk) {
-        mods.push({ conds: parseConds(openC, warnings, `${where} (модификатор)`), value: Number(valLine[1]) })
-        mi += 3
-        continue
+  let headEndIdx = iCall
+
+  if (/^-?\d+$/.test(diffArg)) {
+    difficulty = Number(diffArg)
+  } else {
+    // diffArg — имя переменной, например 'd'
+    const iD = lines.findIndex((l, idx) => idx < iCall && new RegExp(`^\\s*~\\s*temp\\s+${diffArg}\\s*=\\s*-?\\d+`).test(l))
+    if (iD >= 0) {
+      headEndIdx = iD
+      const dLine = new RegExp(`~\\s*temp\\s+${diffArg}\\s*=\\s*(-?\\d+)`).exec(lines[iD])
+      if (dLine) difficulty = Number(dLine[1])
+      // модификаторы между iD и iCall
+      let mi = iD + 1
+      while (mi < iCall) {
+        if (isCondBlockOpen(lines[mi])) {
+          const openC = lines[mi].trim().replace(/^\{/, '').replace(/:\s*$/, '')
+          const valLine = mi + 1 < iCall ? new RegExp(`~\\s*${diffArg}\\s*=\\s*(-?\\d+)`).exec(lines[mi + 1]) : null
+          const closeOk = mi + 2 < iCall && isBlockClose(lines[mi + 2])
+          if (valLine && closeOk) {
+            mods.push({ conds: parseConds(openC, warnings, `${where} (модификатор)`), value: Number(valLine[1]) })
+            mi += 3
+            continue
+          }
+          mi++
+          continue
+        }
+        mi++
       }
-      warnings.push(`${where}: модификатор сложности не разобран`)
-      mi++
-      continue
     }
-    if (lines[mi].trim()) warnings.push(`${where}: строка между temp d/r пропущена «${lines[mi].trim().slice(0, 50)}…»`)
-    mi++
   }
-  // блок результата
-  let iAfter = iR + 1
+
+  // Теперь разбираем блок(и) проверки результата переменной varName:
+  let iAfter = iCall + 1
   while (iAfter < lines.length && !lines[iAfter].trim()) iAfter++
+
   let fail: Flow = { items: [] }
   let ok: Flow = { items: [] }
   let afterIdx = iAfter
-  if (iAfter < lines.length && /^\s*\{\s*r\s*==\s*"fail"\s*(\|\|\s*r\s*==\s*"fumble")?\s*:\s*$/.test(lines[iAfter])) {
-    let depth = braceDelta(lines[iAfter])
-    const inner: string[] = []
-    afterIdx = iAfter + 1
-    for (; afterIdx < lines.length && depth > 0; afterIdx++) {
-      const l = lines[afterIdx]
-      depth += braceDelta(l)
-      if (depth <= 0 && isBlockClose(l)) { afterIdx++; break } // «}» — часть блока
-      inner.push(l)
+
+  // Вариант 1: Однострочные развилки { varName == 1: ... } и { varName == 0: ... } (в любом порядке)
+  let foundPair = false
+  if (iAfter < lines.length) {
+    const l1 = lines[iAfter]?.trim() ?? ''
+    const l2 = lines[iAfter + 1]?.trim() ?? ''
+    const m1 = new RegExp(`^\\{\\s*${varName}\\s*==\\s*([01])\\s*:\\s*(.*?)\\s*\\}$`).exec(l1)
+    const m2 = new RegExp(`^\\{\\s*${varName}\\s*==\\s*([01])\\s*:\\s*(.*?)\\s*\\}$`).exec(l2)
+    if (m1 && m2 && m1[1] !== m2[1]) {
+      foundPair = true
+      afterIdx = iAfter + 2
+      const okLine = m1[1] === '1' ? m1[2] : m2[2]
+      const failLine = m1[1] === '0' ? m1[2] : m2[2]
+      ok = parseFlow([okLine], warnings, `${where} (успех)`)
+      fail = parseFlow([failLine], warnings, `${where} (провал)`)
     }
-    let d2 = 0
-    const fl: string[] = []
-    const ol: string[] = []
-    let inOk = false
-    for (const l of inner) {
-      const d = braceDelta(l)
-      if (!inOk && d2 === 0 && d === 0 && isElseDivider(l)) {
-        inOk = true
-        continue
+  }
+
+  // Вариант 2: Многострочные или else блоки { varName == ... }
+  if (!foundPair && iAfter < lines.length) {
+    const isCheckCond = new RegExp(`^\\s*\\{\\s*${varName}\\s*==\\s*("fail"|"fumble"|0|1|"success")`).test(lines[iAfter])
+    if (isCheckCond) {
+      let depth = braceDelta(lines[iAfter])
+      const inner: string[] = []
+      afterIdx = iAfter + 1
+      for (; afterIdx < lines.length && depth > 0; afterIdx++) {
+        const l = lines[afterIdx]
+        depth += braceDelta(l)
+        if (depth <= 0 && isBlockClose(l)) { afterIdx++; break }
+        inner.push(l)
       }
-      d2 += d
-      ;(inOk ? ol : fl).push(l)
+      let d2 = 0
+      const fl: string[] = []
+      const ol: string[] = []
+      let inSecond = false
+      for (const l of inner) {
+        const d = braceDelta(l)
+        if (!inSecond && d2 === 0 && d === 0 && isElseDivider(l)) {
+          inSecond = true
+          continue
+        }
+        d2 += d
+        ;(inSecond ? ol : fl).push(l)
+      }
+      const isFailFirst = new RegExp(`^\\s*\\{\\s*${varName}\\s*==\\s*("fail"|"fumble"|0)`).test(lines[iAfter])
+      if (isFailFirst) {
+        fail = parseFlow(dedent(fl), warnings, `${where} (провал)`)
+        ok = parseFlow(dedent(ol), warnings, `${where} (успех)`)
+      } else {
+        ok = parseFlow(dedent(fl), warnings, `${where} (успех)`)
+        fail = parseFlow(dedent(ol), warnings, `${where} (провал)`)
+      }
+    } else {
+      warnings.push(`${where}: не найден блок результата проверки { ${varName} == … }`)
     }
-    fail = parseFlow(dedent(fl), warnings, `${where} (провал)`)
-    ok = parseFlow(dedent(ol), warnings, `${where} (успех)`)
-    afterIdx = afterIdx > lines.length ? lines.length : afterIdx
-  } else {
-    warnings.push(`${where}: не найден блок результата проверки { r == "fail" … }`)
   }
-  if (!dLine || !rLine) {
-    warnings.push(`${where}: строки temp d/r нечитаемы — проверка не восстановлена`)
-    return { head: lines, rest: [] }
-  }
+
   return {
-    head: lines.slice(0, iD),
+    head: lines.slice(0, headEndIdx),
     rest: lines.slice(afterIdx),
-    check: { skill: rLine[1], difficulty: Number(dLine[1]), mods, fail, ok },
+    check: { skill, difficulty, mods, fail, ok },
   }
 }
 
@@ -552,6 +616,15 @@ const KNOT_TRANSLATIONS: Record<string, string> = {
   start: 'Начало разговора',
   intro: 'Вступление',
   talk: 'Разговор',
+  heart: 'Сердце',
+  brant: 'Брант',
+  dara: 'Дарья',
+  grim: 'Гримм',
+  vera: 'Вера Сокол',
+  klim: 'Клим',
+  mila: 'Мила',
+  tika: 'Тика',
+  zoya: 'Зойя',
   guard: 'Охрана / Стража',
   fight: 'Стычка / Бой',
   choice: 'Выбор',
@@ -625,8 +698,11 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
     const trimmed = raw.trim()
     // Markdown-разделители (* * *, ***, ---, ___) не являются выбором Ink
     if (/^(\*\s*){3,}$/.test(trimmed) || /^[-_]{3,}$/.test(trimmed)) continue
-    // Маркер списка перед условным блоком: "  * { has_item... :" -> "  { has_item... :"
-    const cleaned = raw.replace(/^(\s*)[*+-]\s*(\{.*?:)/, '$1$2')
+    // Маркер списка перед условным блоком: "  * { has_item... : " -> "  { has_item... :"
+    // Если в строке есть квадратные скобки выбора [...] — звездочку не трогаем!
+    const cleaned = (raw.includes('[') && raw.includes(']'))
+      ? raw
+      : raw.replace(/^(\s*)[*+-]\s*(\{.*?:)/, '$1$2')
     preprocessed.push(cleaned)
   }
 
@@ -678,8 +754,8 @@ export function inkToDlgDoc(ink: string, label?: string): InkImportResult {
     if (!h && knot.name.endsWith('_talk')) {
       h = byName.get(`${knot.name.replace(/_talk$/, '')}_hub`)
     }
-    if (!h) {
-      // Ищем явный переход `-> something_hub` в узле
+    if (!h && !hasChoices(knot)) {
+      // Ищем явный переход `-> something_hub` в узле только если у него нет собственных выборов
       for (let li = knot.lines.length - 1; li >= 0; li--) {
         const tm = /^\s*->\s*([^\s]+_hub)\s*$/.exec(knot.lines[li])
         if (tm && byName.has(tm[1])) {

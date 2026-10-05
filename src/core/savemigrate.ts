@@ -317,12 +317,25 @@ export function repairState(state: GameState, campaign: CampaignData, ctx: Repor
   // (default_player / шаблоны создания) надевается без копии в инвентаре —
   // прежняя проверка «есть в инвентаре» снимала его при каждом продолжении
   // (фидбек 27, п.7: «начал забег, вышел, продолжил — оружие сняли»).
-  const slots = equipmentSlots(meta).map((s) => s.id)
+  const declaredSlots = new Set(equipmentSlots(meta).map((s) => s.id))
+  // Слоты, явно используемые предметами кампании (weapon, armor и др.)
+  for (const ent of Object.values(ents)) {
+    if (ent.type === 'item') {
+      const s = (ent as { equip_slot?: string; slot?: string }).equip_slot || (ent as { equip_slot?: string; slot?: string }).slot
+      if (s) declaredSlots.add(s)
+    }
+  }
+
   if (p.equipment && typeof p.equipment === 'object') {
     const removed: string[] = []
     for (const [slot, item] of Object.entries(p.equipment)) {
-      if (!slots.includes(slot)) {
-        removed.push(`слот «${slotLabel(meta, slot)}»`)
+      if (!declaredSlots.has(slot)) {
+        if (item && ents[item]) {
+          p.inventory.push({ item, quantity: 1 })
+          removed.push(`слот «${slotLabel(meta, slot)}» (предмет «${entityLabel(campaign, item)}» перемещён в инвентарь)`)
+        } else {
+          removed.push(`слот «${slotLabel(meta, slot)}»`)
+        }
         delete p.equipment[slot]
       } else if (!item || !ents[item]) {
         removed.push(`${slotLabel(meta, slot)}: ${item ? entityLabel(campaign, item) : 'пусто'}`)
