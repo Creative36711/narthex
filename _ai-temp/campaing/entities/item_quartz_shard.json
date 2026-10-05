@@ -1,0 +1,13 @@
+{
+  "id": "item_quartz_shard",
+  "type": "item",
+  "category": "material",
+  "label": "Кварцевый осколок",
+  "description": "Фрагмент резонатора с полосой синего света внутри.",
+  "weight": 0.1,
+  "stackable": true,
+  "slot_type": "item",
+  "value": {
+    "marks": 3
+  }
+}

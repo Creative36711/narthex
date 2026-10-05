@@ -1,0 +1,67 @@
+{
+  "id": "arena_gate",
+  "label": "Порог шпиля",
+  "image": "",
+  "canvas": {
+    "w": 1024,
+    "h": 720
+  },
+  "hex_grid": {
+    "cols": 10,
+    "rows": 6,
+    "hex_size": 42,
+    "offset": "odd-r",
+    "blocked_hexes": [
+      [
+        4,
+        0
+      ],
+      [
+        4,
+        5
+      ]
+    ],
+    "difficult_terrain": [],
+    "cover_hexes": [
+      [
+        2,
+        2
+      ],
+      [
+        7,
+        3
+      ]
+    ]
+  },
+  "spawn_zones": {
+    "player": {
+      "hexes": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    "enemy": {
+      "hexes": [
+        [
+          8,
+          2
+        ],
+        [
+          8,
+          3
+        ]
+      ]
+    }
+  },
+  "music": "music_combat"
+}

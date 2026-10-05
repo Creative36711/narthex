@@ -1,0 +1,70 @@
+{
+  "id": "quest_filter_supply",
+  "label": "Чистый воздух",
+  "description": "Собрать фильтровальную заплату и передать её лазарету.",
+  "chapter": "chapter_two",
+  "journal_entries": {
+    "j_filter_start": "В лазарете заканчиваются сменные фильтры. Ордо знает старую сборку.",
+    "j_filter_made": "Заплата собрана. Её можно передать Мире.",
+    "j_filter_done": "Лазарет получил запас, достаточный для ближайшей смены."
+  },
+  "stages": [
+    {
+      "id": "stage_filter_need",
+      "label": "Найти материалы",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_filter_supply",
+          "text_key": "j_filter_start"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_filter_made",
+          "conditions": [
+            {
+              "type": "has_item",
+              "item": "item_filter_patch"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_filter_made",
+      "label": "Собрать заплату",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_filter_supply",
+          "text_key": "j_filter_made"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_filter_done",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_filter_delivered"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_filter_done",
+      "label": "Запас передан",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_filter_supply",
+          "text_key": "j_filter_done"
+        }
+      ]
+    }
+  ]
+}

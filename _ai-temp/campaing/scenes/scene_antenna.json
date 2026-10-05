@@ -1,0 +1,546 @@
+{
+  "id": "scene_antenna",
+  "label": "Крыша ретранслятора",
+  "location": "loc_market",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "states": [
+    {
+      "id": "state_ordinary",
+      "label": "Пепельная смена",
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#2c3439",
+        "layers": [
+          {
+            "label": "дальняя стена",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 520,
+              "fill": {
+                "gradient": {
+                  "from": "#2c3439",
+                  "to": "#11171b",
+                  "angle": 90
+                }
+              }
+            }
+          },
+          {
+            "label": "свод",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                0,
+                1280,
+                0,
+                1120,
+                125,
+                160,
+                125
+              ],
+              "fill": "#14191d"
+            }
+          },
+          {
+            "label": "косой луч",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                250,
+                110,
+                460,
+                110,
+                760,
+                500,
+                540,
+                500
+              ],
+              "fill": "#819b9a",
+              "opacity": 0.12
+            }
+          },
+          {
+            "label": "левая колонна",
+            "shape": {
+              "type": "rect",
+              "x": 78,
+              "y": 102,
+              "w": 54,
+              "h": 420,
+              "fill": "#202428",
+              "radius": 3,
+              "stroke": "#46504f",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "правая колонна",
+            "shape": {
+              "type": "rect",
+              "x": 1148,
+              "y": 102,
+              "w": 54,
+              "h": 420,
+              "fill": "#202428",
+              "radius": 3,
+              "stroke": "#46504f",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "ребро слева",
+            "shape": {
+              "type": "line",
+              "x1": 150,
+              "y1": 170,
+              "x2": 410,
+              "y2": 170,
+              "color": "#53605e",
+              "width": 5,
+              "opacity": 0.72
+            }
+          },
+          {
+            "label": "ребро справа",
+            "shape": {
+              "type": "line",
+              "x1": 880,
+              "y1": 170,
+              "x2": 1130,
+              "y2": 170,
+              "color": "#53605e",
+              "width": 5,
+              "opacity": 0.72
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                485,
+                1280,
+                485,
+                1280,
+                720,
+                0,
+                720
+              ],
+              "fill": "#313b3d"
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 90,
+              "y1": 492,
+              "x2": 20,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 280,
+              "y1": 492,
+              "x2": 210,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 492,
+              "x2": 400,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 660,
+              "y1": 492,
+              "x2": 590,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 850,
+              "y1": 492,
+              "x2": 780,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 1040,
+              "y1": 492,
+              "x2": 970,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "шов пола",
+            "shape": {
+              "type": "line",
+              "x1": 1230,
+              "y1": 492,
+              "x2": 1160,
+              "y2": 720,
+              "color": "#768078",
+              "width": 2,
+              "opacity": 0.22
+            }
+          },
+          {
+            "label": "горизонтальный шов",
+            "shape": {
+              "type": "line",
+              "x1": 0,
+              "y1": 588,
+              "x2": 1280,
+              "y2": 588,
+              "color": "#8a8170",
+              "width": 2,
+              "opacity": 0.18
+            }
+          },
+          {
+            "label": "лампа",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 112,
+              "rx": 50,
+              "ry": 16,
+              "fill": "#8bacad",
+              "opacity": 0.75
+            }
+          },
+          {
+            "label": "подсветка лампы",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 120,
+              "rx": 170,
+              "ry": 74,
+              "fill": "#819b9a",
+              "opacity": 0.1
+            }
+          },
+          {
+            "label": "кровля",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                0,
+                480,
+                1280,
+                480,
+                1280,
+                720,
+                0,
+                720
+              ],
+              "fill": "#282f32"
+            }
+          },
+          {
+            "label": "парапет",
+            "shape": {
+              "type": "rect",
+              "x": 130,
+              "y": 310,
+              "w": 42,
+              "h": 176,
+              "fill": "#343a3a",
+              "radius": 2,
+              "stroke": "#6a7570",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "парапет",
+            "shape": {
+              "type": "rect",
+              "x": 1140,
+              "y": 310,
+              "w": 42,
+              "h": 176,
+              "fill": "#343a3a",
+              "radius": 2,
+              "stroke": "#6a7570",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "мачта",
+            "shape": {
+              "type": "line",
+              "x1": 957,
+              "y1": 173,
+              "x2": 957,
+              "y2": 493,
+              "color": "#8f9a8b",
+              "width": 8
+            }
+          },
+          {
+            "label": "антенна-крест",
+            "shape": {
+              "type": "line",
+              "x1": 824,
+              "y1": 254,
+              "x2": 1090,
+              "y2": 254,
+              "color": "#9ba28f",
+              "width": 8
+            }
+          },
+          {
+            "label": "антенна-крест",
+            "shape": {
+              "type": "line",
+              "x1": 855,
+              "y1": 211,
+              "x2": 1060,
+              "y2": 298,
+              "color": "#77877d",
+              "width": 6
+            }
+          },
+          {
+            "label": "приёмник",
+            "shape": {
+              "type": "rect",
+              "x": 873,
+              "y": 315,
+              "w": 173,
+              "h": 144,
+              "fill": "#303b3c",
+              "radius": 8,
+              "stroke": "#92a097",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "синяя искра",
+            "shape": {
+              "type": "ellipse",
+              "cx": 960,
+              "cy": 348,
+              "rx": 24,
+              "ry": 18,
+              "fill": "#8bacad",
+              "opacity": 0.8
+            }
+          },
+          {
+            "label": "кварцевая жила",
+            "shape": {
+              "type": "polygon",
+              "points": [
+                413,
+                476,
+                438,
+                420,
+                468,
+                456,
+                493,
+                414,
+                522,
+                478
+              ],
+              "fill": "#758f8e",
+              "opacity": 0.82,
+              "stroke": "#c1d8cc",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "облака пепла",
+            "shape": {
+              "type": "ellipse",
+              "cx": 300,
+              "cy": 166,
+              "rx": 210,
+              "ry": 62,
+              "fill": "#666b67",
+              "opacity": 0.14
+            }
+          },
+          {
+            "label": "облака пепла",
+            "shape": {
+              "type": "ellipse",
+              "cx": 750,
+              "cy": 117,
+              "rx": 290,
+              "ry": 70,
+              "fill": "#666b67",
+              "opacity": 0.12
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 220,
+              "y1": 190,
+              "x2": 228,
+              "y2": 435,
+              "color": "#8bacad",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 190,
+              "x2": 478,
+              "y2": 435,
+              "color": "#8bacad",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 810,
+              "y1": 190,
+              "x2": 818,
+              "y2": 435,
+              "color": "#8bacad",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "вертикальная световая риска",
+            "shape": {
+              "type": "line",
+              "x1": 1060,
+              "y1": 190,
+              "x2": 1068,
+              "y2": 435,
+              "color": "#8bacad",
+              "width": 2,
+              "opacity": 0.3
+            }
+          },
+          {
+            "label": "нижний отсвет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 640,
+              "cy": 646,
+              "rx": 410,
+              "ry": 46,
+              "fill": "#819b9a",
+              "opacity": 0.08
+            }
+          }
+        ]
+      },
+      "condition": null
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_receiver",
+      "label": "Обратный приёмник",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 855,
+      "y": 290,
+      "w": 225,
+      "h": 190,
+      "default_entity": "item_roof_receiver",
+      "condition": null
+    },
+    {
+      "id": "slot_quartz",
+      "label": "Осколок кварца",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 405,
+      "y": 415,
+      "w": 120,
+      "h": 75,
+      "default_entity": "item_quartz_cache",
+      "condition": null
+    }
+  ],
+  "navigation": [
+    {
+      "label": "К рынку",
+      "go_to_scene": "scene_market",
+      "area": {
+        "x": 45,
+        "y": 300,
+        "w": 170,
+        "h": 210
+      }
+    },
+    {
+      "label": "На карту",
+      "open_map": true,
+      "area": {
+        "x": 1120,
+        "y": 38,
+        "w": 112,
+        "h": 112
+      }
+    }
+  ],
+  "chapter": "chapter_two"
+}

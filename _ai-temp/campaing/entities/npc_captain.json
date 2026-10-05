@@ -1,0 +1,37 @@
+{
+  "id": "npc_captain",
+  "type": "npc",
+  "label": "Капитан Вейл",
+  "description": "Караульный капитан шпиля. Его перчатки слишком чисты для нижнего города.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 12,
+    "CON": 13,
+    "SIZ": 12,
+    "DEX": 13,
+    "INT": 13,
+    "POW": 13,
+    "CHA": 12
+  },
+  "skills": {
+    "persuade": 58,
+    "brawl": 48,
+    "shoot": 42,
+    "observe": 54
+  },
+  "inventory": [
+    {
+      "item": "item_mark",
+      "quantity": 5
+    }
+  ],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/captain.ink",
+  "faction": "faction_watch",
+  "base_disposition": -8,
+  "armor": 1
+}

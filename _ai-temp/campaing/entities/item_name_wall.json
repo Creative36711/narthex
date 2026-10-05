@@ -1,0 +1,42 @@
+{
+  "id": "item_name_wall",
+  "type": "item",
+  "category": "prop",
+  "label": "Стена именных пластин",
+  "description": "Сотни пластин вмурованы в стену. Несколько мест пусты, но крепления тёплые.",
+  "weight": 0.2,
+  "stackable": false,
+  "slot_type": "item",
+  "interact_options": [
+    {
+      "label": "Сверить пустые гнёзда со сводкой",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "flag_nameplates_read"
+        },
+        {
+          "type": "set_flag",
+          "flag": "flag_names_restored"
+        },
+        {
+          "type": "add_item",
+          "item": "item_name_foil",
+          "quantity": 1
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_names_wall"
+        }
+      ],
+      "once": true,
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_census_trace"
+        }
+      ],
+      "message": "Пустые гнёзда отвечают именами; по одному, как если бы кто-то просыпался."
+    }
+  ]
+}

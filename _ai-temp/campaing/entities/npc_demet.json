@@ -1,0 +1,30 @@
+{
+  "id": "npc_demet",
+  "type": "npc",
+  "label": "Демет",
+  "description": "Хранитель муниципальных записей. Ключи висят у него на груди тяжёлой цепью.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 9,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 10,
+    "INT": 16,
+    "POW": 12,
+    "CHA": 11
+  },
+  "skills": {
+    "observe": 62,
+    "persuade": 48,
+    "tinker": 30
+  },
+  "inventory": [],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/demet.ink",
+  "faction": "faction_watch",
+  "base_disposition": -2
+}

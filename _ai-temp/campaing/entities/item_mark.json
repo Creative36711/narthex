@@ -1,0 +1,13 @@
+{
+  "id": "item_mark",
+  "type": "item",
+  "category": "currency",
+  "label": "Марка",
+  "description": "Потёртая алюминиевая монета с выбитым кольцом.",
+  "weight": 0.01,
+  "stackable": true,
+  "slot_type": "item",
+  "value": {
+    "marks": 1
+  }
+}

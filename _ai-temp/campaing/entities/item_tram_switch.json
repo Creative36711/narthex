@@ -1,0 +1,60 @@
+{
+  "id": "item_tram_switch",
+  "type": "item",
+  "category": "prop",
+  "label": "Переключатель эвакуационного трамвая",
+  "description": "Рычаги на панели ведут к старому нижнему перрону.",
+  "weight": 0.2,
+  "stackable": false,
+  "slot_type": "item",
+  "interact_options": [
+    {
+      "label": "Перевести трамвай на нижний ярус",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "tinker",
+          "difficulty": 42,
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_evacuation_plan"
+            },
+            {
+              "type": "show_message",
+              "text": "Маршрут переключён; трамвай пойдёт без света, но пойдёт."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_evacuation_plan"
+            },
+            {
+              "type": "change_need",
+              "need": "need_filter",
+              "delta": -12
+            },
+            {
+              "type": "show_message",
+              "text": "Реле заедает. Вы продавливаете переключатель, вдохнув пепельный воздух."
+            }
+          ]
+        }
+      ],
+      "once": true,
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flag_evacuation_started"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "flag_evacuation_plan"
+        }
+      ],
+      "hint": "Для работы нужен план эвакуации от Яры.",
+      "message": "В глубине станции просыпается старый мотор."
+    }
+  ]
+}

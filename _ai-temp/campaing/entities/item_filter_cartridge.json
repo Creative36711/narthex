@@ -1,0 +1,23 @@
+{
+  "id": "item_filter_cartridge",
+  "type": "item",
+  "category": "filter",
+  "label": "Фильтрующий картридж",
+  "description": "Плотный войлок и медная сетка. Вставляется в респиратор.",
+  "weight": 0.15,
+  "stackable": true,
+  "slot_type": "item",
+  "value": {
+    "marks": 3
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_filter",
+        "delta": 38
+      }
+    ],
+    "consume": true
+  }
+}

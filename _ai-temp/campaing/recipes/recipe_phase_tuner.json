@@ -1,0 +1,35 @@
+{
+  "id": "recipe_phase_tuner",
+  "label": "Фазовый ключ",
+  "description": "Свести кварцевый осколок с живой нитью сигнального контура.",
+  "inputs": [
+    {
+      "item": "item_resonance_shard",
+      "quantity": 1
+    },
+    {
+      "item": "item_quartz_shard",
+      "quantity": 1
+    }
+  ],
+  "tools": [
+    "item_field_kit"
+  ],
+  "requires": [
+    {
+      "type": "flag_set",
+      "flag": "flag_phase_pattern_learned"
+    }
+  ],
+  "skill": {
+    "id": "tinker",
+    "difficulty": 49
+  },
+  "time_ticks": 2,
+  "output": {
+    "item": "item_phase_tuner",
+    "quantity": 1
+  },
+  "message": "Камертон держит обратный тон, не захлёбываясь голосами.",
+  "known": false
+}

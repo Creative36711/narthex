@@ -1,0 +1,71 @@
+{
+  "id": "item_roof_receiver",
+  "type": "item",
+  "category": "prop",
+  "label": "Обратный приёмник",
+  "description": "Крышевая антенна ловит не городские команды, а слабый ответ из-под земли.",
+  "weight": 0.2,
+  "stackable": false,
+  "slot_type": "item",
+  "interact_options": [
+    {
+      "label": "Настроить приёмник",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "observe",
+          "difficulty": 48,
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_signal_trace"
+            },
+            {
+              "type": "set_flag",
+              "flag": "flag_spire_known"
+            },
+            {
+              "type": "reveal_location",
+              "location": "loc_spire"
+            },
+            {
+              "type": "add_item",
+              "item": "item_quartz_shard",
+              "quantity": 1
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_reverse_signal"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "set_flag",
+              "flag": "flag_signal_trace"
+            },
+            {
+              "type": "set_flag",
+              "flag": "flag_spire_known"
+            },
+            {
+              "type": "reveal_location",
+              "location": "loc_spire"
+            },
+            {
+              "type": "apply_status",
+              "target": "player",
+              "status": "status_echo_sick",
+              "duration": 4
+            },
+            {
+              "type": "show_message",
+              "text": "Сигнал найден, но чужое воспоминание цепляется за ваше."
+            }
+          ]
+        }
+      ],
+      "once": true,
+      "message": "В шуме слышно, как кто-то считает имена в обратном порядке."
+    }
+  ]
+}

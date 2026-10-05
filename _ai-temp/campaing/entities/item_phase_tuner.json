@@ -1,0 +1,13 @@
+{
+  "id": "item_phase_tuner",
+  "type": "item",
+  "category": "tool",
+  "label": "Фазовый ключ",
+  "description": "Небольшой камертон из серебряной нити и резонансного стекла.",
+  "weight": 0.25,
+  "stackable": false,
+  "slot_type": "item",
+  "value": {
+    "marks": 8
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "item_filter_patch",
+  "type": "item",
+  "category": "filter",
+  "label": "Заплата фильтра",
+  "description": "Собранный на коленке фильтр; не красивый, зато чистый.",
+  "weight": 0.2,
+  "stackable": true,
+  "slot_type": "item",
+  "value": {
+    "marks": 4
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_filter",
+        "delta": 55
+      }
+    ],
+    "consume": true
+  }
+}

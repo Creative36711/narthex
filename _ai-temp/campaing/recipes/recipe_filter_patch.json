@@ -1,0 +1,35 @@
+{
+  "id": "recipe_filter_patch",
+  "label": "Заплата фильтра",
+  "description": "Сложить войлок в медную сетку и закрыть шов серебряной нитью.",
+  "inputs": [
+    {
+      "item": "item_filter_felt",
+      "quantity": 1
+    },
+    {
+      "item": "item_silver_wire",
+      "quantity": 1
+    }
+  ],
+  "tools": [
+    "item_field_kit"
+  ],
+  "requires": [
+    {
+      "type": "flag_set",
+      "flag": "flag_filter_quest_started"
+    }
+  ],
+  "skill": {
+    "id": "tinker",
+    "difficulty": 36
+  },
+  "time_ticks": 1,
+  "output": {
+    "item": "item_filter_patch",
+    "quantity": 1
+  },
+  "message": "Фильтр дышит ровнее.",
+  "known": false
+}

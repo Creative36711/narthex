@@ -1,0 +1,162 @@
+{
+  "id": "quest_echo_case",
+  "label": "Дело о мёртвом канале",
+  "description": "Установить, что произошло с регистратором Релином Довом, и понять цену следующего сигнала.",
+  "chapter": "chapter_one",
+  "journal_entries": {
+    "j_case_open": "Яра выдала допуск. В морге лежит тело с лицом Релина Дова; в городе уже ищут виновного в саботаже.",
+    "j_body": "Тело не было убито обычным способом: в груди остался пустой резонанс, а тень отстаёт от света.",
+    "j_archive": "Сводка связывает стёртые имена с номерами пластин под городом.",
+    "j_signal": "Ретранслятор принимает ответы изнутри купола. Пропавшие могут быть не мертвы.",
+    "j_nera": "Нера жива и признаёт, что изготовила копию, чтобы исчезнуть из реестра.",
+    "j_spire": "В шпиле сохранился первичный приказ и настоящее управление контуром.",
+    "j_case_closed": "Решение принято. Дело закрыто не потому, что нашёлся один убийца, а потому, что город выбрал, что считать согласием."
+  },
+  "stages": [
+    {
+      "id": "stage_case_open",
+      "label": "Получить допуск",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_echo_case",
+          "text_key": "j_case_open"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_body",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_case_body_found"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_body",
+      "label": "Проверить тело",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_echo_case",
+          "text_key": "j_body"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_archive",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_census_trace"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_archive",
+      "label": "Сверить список",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_echo_case",
+          "text_key": "j_archive"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_signal",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_signal_trace"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_signal",
+      "label": "Найти обратный канал",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_echo_case",
+          "text_key": "j_signal"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_nera",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_nera_found"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_nera",
+      "label": "Выслушать инженера",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_echo_case",
+          "text_key": "j_nera"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_spire",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_spire_known"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_spire",
+      "label": "Дойти до управления",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_echo_case",
+          "text_key": "j_spire"
+        }
+      ],
+      "transitions": [
+        {
+          "to": "stage_case_closed",
+          "conditions": [
+            {
+              "type": "flag_set",
+              "flag": "flag_final_choice"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage_case_closed",
+      "label": "Решение принято",
+      "final": true,
+      "outcome": "success",
+      "on_enter_effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_echo_case",
+          "text_key": "j_case_closed"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "id": "npc_loom",
+  "type": "npc",
+  "label": "Лом",
+  "description": "Шлюзовой мастер, который носит ключи на шнуре из тормозного троса.",
+  "portrait": {
+    "neutral": ""
+  },
+  "stats": {
+    "STR": 13,
+    "CON": 13,
+    "SIZ": 12,
+    "DEX": 11,
+    "INT": 12,
+    "POW": 10,
+    "CHA": 9
+  },
+  "skills": {
+    "tinker": 63,
+    "brawl": 34,
+    "observe": 39
+  },
+  "inventory": [
+    {
+      "item": "item_mark",
+      "quantity": 3
+    }
+  ],
+  "equipment": {},
+  "slot_type": "person",
+  "schedule": [],
+  "dialogue": "dialogues/loom.ink",
+  "faction": "faction_quay",
+  "base_disposition": 6
+}
