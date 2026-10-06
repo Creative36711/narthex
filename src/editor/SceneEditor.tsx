@@ -349,6 +349,20 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
         value={scene.location}
         onChange={(v) => ((scene.location = v ?? ''), commit())}
       />
+      <label className="fld">
+        <span>Освещение сцены</span>
+        <select
+          value={scene.lighting ?? 'outdoor'}
+          onChange={(e) => {
+            scene.lighting = e.target.value as 'outdoor' | 'indoor' | 'none'
+            commit()
+          }}
+        >
+          <option value="outdoor">Уличное (суточный шейдер: утро, день, закат, ночь)</option>
+          <option value="indoor">Помещение (стабильный свет ламп)</option>
+          <option value="none">Без фильтров освещения</option>
+        </select>
+      </label>
       <MusicRulesEditor
         store={store}
         value={scene.music ?? (scene.music = [])}

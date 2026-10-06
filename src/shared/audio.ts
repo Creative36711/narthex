@@ -9,9 +9,10 @@
  * быть массив источников — при каждом воспроизведении выбирается случайный
  * вариант (три скрипа двери под одним id).
  */
-import type { CampaignData, EntityDef, SoundDef, SoundDoc, SoundHook, SoundSource } from './types'
+import type { AmbientRule, CampaignData, EntityDef, SoundDef, SoundDoc, SoundHook, SoundSource } from './types'
 import { audioCtx, renderSoundDoc, unlockAudio } from './synth'
 import { getSettings, sfxVolume } from './settings'
+import { evalCondition } from '../core/conditions'
 
 export { unlockAudio, audioCtx } from './synth'
 
@@ -211,6 +212,35 @@ export function activeLoops(): string[] {
   return [...loops.keys()]
 }
 
+function extractAmbientSounds(
+  items: Array<string | AmbientRule> | undefined,
+  engine: any,
+): Array<{ id: string; volume: number }> {
+  const result: Array<{ id: string; volume: number }> = []
+  for (const item of items ?? []) {
+    if (typeof item === 'string') {
+      if (item) result.push({ id: item, volume: 1 })
+    } else if (item && typeof item === 'object') {
+      const ok =
+        !item.conditions ||
+        item.conditions.length === 0 ||
+        item.conditions.every((c) => {
+          try {
+            return evalCondition(c, engine)
+          } catch {
+            return false
+          }
+        })
+      if (ok) {
+        const vol = item.volume ?? 1
+        const list = [...(item.sounds ?? []), ...(item.sound ? [item.sound] : [])].filter(Boolean)
+        for (const s of list) result.push({ id: s, volume: vol })
+      }
+    }
+  }
+  return result
+}
+
 /**
  * Пересчитать фон по сцене/локации (вызывать с refreshMusic): слои локации
  * и сцены складываются, лишние гаснут, новые стартуют. Headless — no-op.
@@ -219,9 +249,9 @@ export function refreshAmbient(engine: {
   state: { scene: string; location: string; weather?: string }
   campaign: CampaignData
 }): void {
-  const desired = new Set<string>()
+  const desired = new Map<string, number>()
   const sc = engine.campaign.scenes[engine.state.scene]
-  let locAmbient: string[] = []
+  let locAmbient: Array<string | AmbientRule> = []
   let locLegacy = ''
   for (const r of engine.campaign.world.regions) {
     const l = r.locations.find((x) => x.id === engine.state.location)
@@ -231,13 +261,21 @@ export function refreshAmbient(engine: {
       break
     }
   }
-  // слои погоды (блок 9 ТЗ) подмешиваются к эмбиенту локации/сцены
   const weather = engine.campaign.meta.weathers?.find((w) => w.id === engine.state.weather)
-  for (const id of [...locAmbient, locLegacy, ...(sc?.ambient ?? []), ...(weather?.ambient ?? [])]) {
-    if (id) desired.add(id)
+
+  const items = [
+    ...extractAmbientSounds(locAmbient, engine),
+    ...(locLegacy ? [{ id: locLegacy, volume: 1 }] : []),
+    ...extractAmbientSounds(sc?.ambient, engine),
+    ...extractAmbientSounds(weather?.ambient, engine),
+  ]
+
+  for (const item of items) {
+    if (item.id) desired.set(item.id, item.volume)
   }
+
   for (const id of [...loops.keys()]) {
     if (!desired.has(id)) stopLoop(id)
   }
-  for (const id of desired) playLoop(id)
+  for (const [id, vol] of desired) playLoop(id, vol)
 }

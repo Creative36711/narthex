@@ -5756,7 +5756,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Настраиваемые надписи системных меню и кнопок интерфейса (инвентарь, журнал, карта, лагерь, кодекс и др.)."
+          "description": "Настраиваемые надписи системных меню и кнопок интерфейса (design-doc §9).\nПозволяет мастеру задать атмосферные названия:\n\"inventory\": \"Сумка дознавателя\", \"journal\": \"Дело № 137\", \"map\": \"Схема ярусов\",\n\"camp\": \"Перекур\", \"codex\": \"Архив Надзора\", \"pass_turn\": \"Завершить ход\" и т.п."
         },
         "default_music": {
           "type": "array",
@@ -5955,6 +5955,35 @@
       ],
       "additionalProperties": false
     },
+    "AmbientRule": {
+      "type": "object",
+      "properties": {
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия включения звукового слоя (если условий нет — звучит всегда)"
+        },
+        "sounds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "зацикленные звуки (id из реестра meta.sounds или путь к файлу)"
+        },
+        "sound": {
+          "type": "string",
+          "description": "одиночный id звука для краткости"
+        },
+        "volume": {
+          "type": "number",
+          "description": "громкость слоя 0..1 (по умолчанию 1)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "фоновый зацикленный звуковой слой с условиями активации"
+    },
     "MusicCondition": {
       "type": "object",
       "properties": {
@@ -6069,9 +6098,16 @@
         "ambient": {
           "type": "array",
           "items": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/AmbientRule"
+              }
+            ]
           },
-          "description": "фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6"
+          "description": "фоновые зацикленные звуки (птицы, гул): складываются слоями. Строки id или AmbientRule с условиями"
         },
         "camp": {
           "type": "boolean",
@@ -6461,9 +6497,25 @@
         "ambient": {
           "type": "array",
           "items": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/AmbientRule"
+              }
+            ]
           },
-          "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации)"
+          "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации). Строка id или AmbientRule с условиями"
+        },
+        "lighting": {
+          "type": "string",
+          "enum": [
+            "outdoor",
+            "indoor",
+            "none"
+          ],
+          "description": "тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров)"
         },
         "chapter": {
           "type": "string",
@@ -8077,6 +8129,10 @@
         "voice": {
           "type": "string",
           "description": "озвучка реплики: файл пакета (assets/voice/…) или ссылка (итерация 8,\nблок G). Если нет — при включённом синтезаторе реплику читает браузер."
+        },
+        "timer": {
+          "type": "number",
+          "description": "секундный таймер показа реплики (# timer: 3 или # timeout: 3) — design-doc §9.\nПо истечении времени диалог автоматически переходит дальше."
         }
       },
       "required": [

@@ -1081,6 +1081,18 @@ export interface TravelConnection {
   random_encounter_table?: string
 }
 
+/** фоновый зацикленный звуковой слой с условиями активации */
+export interface AmbientRule {
+  /** условия включения звукового слоя (если условий нет — звучит всегда) */
+  conditions?: Condition[]
+  /** зацикленные звуки (id из реестра meta.sounds или путь к файлу) */
+  sounds?: string[]
+  /** одиночный id звука для краткости */
+  sound?: string
+  /** громкость слоя 0..1 (по умолчанию 1) */
+  volume?: number
+}
+
 export interface LocationDef {
   id: string
   label: string
@@ -1096,8 +1108,8 @@ export interface LocationDef {
   on_enter_rules?: string[]
   hidden?: boolean // скрыта, пока не открыта эффектом reveal_location
   ambient_audio?: string // легаси: один звук фона
-  /** фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6 */
-  ambient?: string[]
+  /** фоновые зацикленные звуки (птицы, гул): складываются слоями. Строки id или AmbientRule с условиями */
+  ambient?: Array<string | AmbientRule>
   /** здесь можно разбить лагерь (аудит B7); конфиг ночлега — meta.camping */
   camp?: boolean
   /**
@@ -1448,8 +1460,10 @@ export interface SceneDef {
   navigation: NavigationZone[]
   /** переопределение музыки сцены (тот же формат, что у локации) */
   music?: MusicRule[]
-  /** фоновые зацикленные звуки сцены (слагаются с фоном локации) */
-  ambient?: string[]
+  /** фоновые зацикленные звуки сцены (слагаются с фоном локации). Строка id или AmbientRule с условиями */
+  ambient?: Array<string | AmbientRule>
+  /** тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров) */
+  lighting?: 'outdoor' | 'indoor' | 'none'
   /** глава (id из meta.chapters) — группировка в редакторе; двигатель значения не ждёт */
   chapter?: string
 }

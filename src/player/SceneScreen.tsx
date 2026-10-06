@@ -55,6 +55,8 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const weather = engine.campaign.meta.weathers?.find((w) => w.id === engine.state.weather)
 
   const pct = (v: number, total: number) => `${(v / total) * 100}%`
+  const sceneLighting = scene.lighting ?? 'outdoor'
+  const lightingClass = sceneLighting === 'outdoor' ? `tod-tint-${tod}` : `scene-lighting-${sceneLighting}`
 
   return (
     <div className="scene-wrap">
@@ -68,7 +70,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
       </div>
       {/* сцена занимает всё оставшееся место без прокрутки: ширина и высота —
           от контейнера, картинка растягивается (object-fit: fill) */}
-      <div className={`scene-stage tod-tint-${tod}`}>
+      <div className={`scene-stage ${lightingClass}`}>
         <div key={stateKey} className="scene-bg-camera" style={camStyle}>
           {state.art ? (
             <ArtView className="scene-bg scene-bg-enter" art={state.art} />

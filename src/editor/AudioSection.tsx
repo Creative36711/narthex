@@ -10,6 +10,7 @@
 import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import type {
+  AmbientRule,
   MusicCondition,
   MusicDoc,
   MusicLayer,
@@ -498,20 +499,31 @@ export function SoundMultiSelect({
   onChange,
 }: {
   store: EditorStore
-  value: string[]
-  onChange: (ids: string[]) => void
+  value: Array<string | AmbientRule>
+  onChange: (items: Array<string | AmbientRule>) => void
 }) {
   const sounds = sorted(store.meta.sounds)
+  const stringIds = (value ?? []).filter((x): x is string => typeof x === 'string')
+  const rules = (value ?? []).filter((x): x is AmbientRule => typeof x === 'object' && x != null)
+
+  const toggle = (id: string) => {
+    if (stringIds.includes(id)) {
+      onChange([...stringIds.filter((x) => x !== id), ...rules])
+    } else {
+      onChange([...stringIds, id, ...rules])
+    }
+  }
+
   return (
     <div className="chips">
       {sounds.map((s) => {
-        const on = value.includes(s.id)
+        const on = stringIds.includes(s.id)
         return (
           <span key={s.id} className={`chip ${on ? 'chip-on' : ''}`} data-tip={s.loop ? 'зацикленный фон' : 'обычный звук'}>
             <button
               type="button"
               data-tip={on ? 'Убрать из фона' : 'Добавить в фон (играет слоем)'}
-              onClick={() => (on ? onChange(value.filter((x) => x !== s.id)) : onChange([...value, s.id]))}
+              onClick={() => toggle(s.id)}
             >
               {s.label}
             </button>
@@ -531,6 +543,11 @@ export function SoundMultiSelect({
         )
       })}
       {!sounds.length && <span className="muted small">Сначала добавьте звуки в разделе «Звук и музыка».</span>}
+      {rules.length > 0 && (
+        <span className="muted small" style={{ width: '100%', marginTop: '4px' }}>
+          + настроено условных звуковых слоев: {rules.length} (сохраняются без изменений)
+        </span>
+      )}
     </div>
   )
 }

@@ -199,6 +199,20 @@ function stopCurrent(fade = FADE): void {
   cur = null
 }
 
+let duckFactor = 1.0
+
+/**
+ * Приглушение музыки при репликах с озвучкой / синтезатором речи (Audio Ducking).
+ * @param active true — приглушить, false — вернуть обычную громкость
+ * @param factor коэффициент громкости (по умолчанию 0.5 — приглушение на 50%)
+ */
+export function setMusicDucking(active: boolean, factor = 0.5): void {
+  const nextFactor = active ? Math.max(0.05, Math.min(1, factor)) : 1.0
+  if (duckFactor === nextFactor) return
+  duckFactor = nextFactor
+  applyMusicVolume()
+}
+
 function startTrackAt(state: PlayerState): void {
   const id = state.tracks[state.order[state.pos]]
   const t = id ? resolveTrack(id) : null
@@ -207,7 +221,7 @@ function startTrackAt(state: PlayerState): void {
   if (state.advanceTimer) clearTimeout(state.advanceTimer)
   state.advanceTimer = null
   if (!t) return
-  const vol = musicVolume(getSettings()) * t.volume
+  const vol = musicVolume(getSettings()) * t.volume * duckFactor
   const multi = state.tracks.length > 1
   const adv = multi
     ? () => {
@@ -263,7 +277,7 @@ export function applyMusicVolume(): void {
   if (!cur?.handle) return
   const id = cur.tracks[cur.order[cur.pos]]
   const t = id ? resolveTrack(id) : null
-  cur.handle.setVolume(musicVolume(getSettings()) * (t?.volume ?? 1))
+  cur.handle.setVolume(musicVolume(getSettings()) * (t?.volume ?? 1) * duckFactor)
 }
 
 export function stopMusic(fade = 0.5): void {

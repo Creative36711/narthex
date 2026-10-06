@@ -6,6 +6,7 @@ import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { tipSeen, markTip } from './tips'
 import { useSettings, voiceVolume } from '../shared/settings'
 import { speak } from '../shared/speech'
+import { setMusicDucking } from '../shared/music'
 
 interface Props {
   engine: GameEngine
@@ -37,6 +38,7 @@ export function DialogueOverlay({ engine }: Props) {
   const [lineDone, setLineDone] = useState(true)
 
   const clearLineAudio = () => {
+    setMusicDucking(false)
     audioRef.current?.pause()
     audioRef.current = null
     stopTtsRef.current?.()
@@ -47,8 +49,10 @@ export function DialogueOverlay({ engine }: Props) {
     }
   }
 
-  // закрытие диалога (размонтирование) — снять звук: это делает cleanup
-  // эффекта озвучки ниже (он же переживает дев-режим, см. комментарий там)
+  // закрытие оверлея диалога — вернуть полную громкость музыки
+  useEffect(() => {
+    return () => setMusicDucking(false)
+  }, [])
 
   // Фидбек 22: `dialogue` заменяется ЦЕЛИКОМ на ответ реплику (новый объект,
   // только новые строки). Сброс прогресса в useEffect происходил ПОСЛЕ коммита,
@@ -77,7 +81,10 @@ export function DialogueOverlay({ engine }: Props) {
   const playLine = (line: DialogueLine | undefined) => {
     clearLineAudio()
     setLineDone(false)
-    const done = () => setLineDone(true)
+    const done = () => {
+      setMusicDucking(false)
+      setLineDone(true)
+    }
     if (!line) {
       done()
       return
@@ -86,6 +93,7 @@ export function DialogueOverlay({ engine }: Props) {
     if (line.voice && vol > 0) {
       // Страховка нужна файлу, но не TTS: синтезатор сам сообщает onEnd,
       // а его длинный watchdog находится в shared/speech.ts.
+      setMusicDucking(true, 0.45)
       fallbackRef.current = setTimeout(() => {
         fallbackRef.current = null
         done()
@@ -97,6 +105,7 @@ export function DialogueOverlay({ engine }: Props) {
       void a.play().catch(done)
       audioRef.current = a
     } else if (settings.tts_enabled && vol > 0) {
+      setMusicDucking(true, 0.45)
       stopTtsRef.current = speak(line.text, {
         voice: settings.tts_voice,
         rate: settings.tts_rate,

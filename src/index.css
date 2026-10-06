@@ -1335,9 +1335,77 @@ div.scene-bg svg { width: 100%; height: 100%; display: block; }
     linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 62%, var(--bg-deep) 100%);
 }
 
-.tod-tint-night .scene-bg { filter: brightness(0.85) saturate(0.8); }
-.tod-tint-evening .scene-bg { filter: sepia(0.15) brightness(0.95); }
-.tod-tint-morning .scene-bg { filter: brightness(1.02); }
+/* ────────── Атмосферный суточный шейдер сцены (Day/Night Lighting) ────────── */
+
+.scene-stage {
+  position: relative;
+  overflow: hidden;
+  transition: filter 0.6s ease;
+}
+
+/* Ночь: глубокий лунный тинт, приглушённые холодные тени */
+.tod-tint-night .scene-bg,
+.tod-tint-night .slot-sprite,
+.tod-tint-night .slot-portrait {
+  filter: brightness(0.68) saturate(0.72) hue-rotate(-12deg);
+  transition: filter 0.6s ease;
+}
+.tod-tint-night::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(130% 90% at 50% 20%, rgba(20, 32, 65, 0.28), rgba(8, 14, 30, 0.52));
+  mix-blend-mode: multiply;
+}
+
+/* Вечер/закат: тёплая янтарно-медная охра */
+.tod-tint-evening .scene-bg,
+.tod-tint-evening .slot-sprite,
+.tod-tint-evening .slot-portrait {
+  filter: sepia(0.25) brightness(0.9) saturate(1.15) hue-rotate(-8deg);
+  transition: filter 0.6s ease;
+}
+.tod-tint-evening::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(230, 110, 40, 0.14) 0%, rgba(90, 30, 15, 0.22) 100%);
+  mix-blend-mode: color-burn;
+}
+
+/* Утро: чистый прохладный свет рассвета */
+.tod-tint-morning .scene-bg,
+.tod-tint-morning .slot-sprite,
+.tod-tint-morning .slot-portrait {
+  filter: brightness(1.04) saturate(0.92) contrast(0.98);
+  transition: filter 0.6s ease;
+}
+.tod-tint-morning::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(255, 230, 200, 0.08) 0%, transparent 60%);
+}
+
+/* День: естественное освещение */
+.tod-tint-day .scene-bg,
+.tod-tint-day .slot-sprite,
+.tod-tint-day .slot-portrait {
+  filter: none;
+}
+
+/* Закрытые помещения (indoor) — стабильный искусственный тёплый свет */
+.scene-lighting-indoor .scene-bg,
+.scene-lighting-indoor .slot-sprite,
+.scene-lighting-indoor .slot-portrait {
+  filter: sepia(0.08) brightness(0.96);
+}
 
 /* слоты */
 
