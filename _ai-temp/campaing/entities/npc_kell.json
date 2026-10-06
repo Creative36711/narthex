@@ -1,65 +1,66 @@
 {
-  "id": "npc_kell",
-  "type": "npc",
-  "label": "Келл Ястреб, старшина стражи",
-  "description": "Старшина взвода, который «охранял» седьмой ярус в ночь тринадцатого. Говорит короткими фразами и всегда стоит так, чтобы свет падал на тебя.",
-  "portrait": {
-    "neutral": "assets/img/npc/kell_neutral.jpg",
-    "angry": "assets/img/npc/kell_angry.jpg",
-    "afraid": "assets/img/npc/kell_neutral.jpg",
-    "thoughtful": "assets/img/npc/kell_thoughtful.jpg",
-    "sad": "assets/img/npc/kell_thoughtful.jpg",
-    "calm": "assets/img/npc/kell_calm.jpg"
-  },
-  "stats": {
-    "STR": 14,
-    "CON": 13,
-    "SIZ": 13,
-    "DEX": 11,
-    "INT": 10,
-    "POW": 11,
-    "CHA": 9
-  },
-  "skills": {
-    "blade": 52,
-    "brawl": 50,
-    "shoot": 42,
-    "intimidate": 58,
-    "dodge": 42,
-    "perception": 42
-  },
-  "slot_type": "person",
-  "faction": "faction_nadzor",
-  "base_disposition": -5,
-  "schedule": [
-    {
-      "time_range": [
-        9,
-        21
-      ],
-      "location": "loc_surface",
-      "scene": "scene_office",
-      "slot": "slot_kell"
-    }
-  ],
-  "dialogue": "dialogues/kell.ink",
-  "armor": 0,
-  "inventory": [
-    {
-      "item": "item_mark",
-      "quantity": 25
-    },
-    {
-      "item": "item_ration",
-      "quantity": 2
-    }
-  ],
-  "equipment": {
-    "weapon": "item_service_blade",
-    "armor": "item_vest"
-  },
-  "morale": {
-    "below_hp_pct": 25,
-    "flee_chance": 20
+ "id": "npc_kell",
+ "type": "npc",
+ "label": "Келл Ястреб, старшина стражи",
+ "description": "Старшина взвода, который «охранял» седьмой ярус в ночь тринадцатого. Говорит короткими фразами и всегда стоит так, чтобы свет падал на тебя.",
+ "portrait": {
+  "neutral": "assets/img/npc/kell_neutral.jpg",
+  "angry": "assets/img/npc/kell_angry.jpg",
+  "afraid": "assets/img/npc/kell_neutral.jpg",
+  "thoughtful": "assets/img/npc/kell_thoughtful.jpg",
+  "sad": "assets/img/npc/kell_thoughtful.jpg",
+  "calm": "assets/img/npc/kell_calm.jpg"
+ },
+ "stats": {
+  "STR": 14,
+  "CON": 13,
+  "SIZ": 13,
+  "DEX": 11,
+  "INT": 10,
+  "POW": 11,
+  "CHA": 9
+ },
+ "skills": {
+  "blade": 52,
+  "brawl": 50,
+  "shoot": 42,
+  "intimidate": 58,
+  "dodge": 42,
+  "perception": 42
+ },
+ "slot_type": "person",
+ "faction": "faction_nadzor",
+ "base_disposition": -5,
+ "schedule": [
+  {
+   "time_range": [
+    9,
+    21
+   ],
+   "location": "loc_surface",
+   "scene": "scene_office",
+   "slot": "slot_kell"
   }
+ ],
+ "dialogue": "dialogues/kell.ink",
+ "armor": 0,
+ "inventory": [
+  {
+   "item": "item_mark",
+   "quantity": 25
+  },
+  {
+   "item": "item_ration",
+   "quantity": 2
+  }
+ ],
+ "equipment": {
+  "weapon": "item_service_blade",
+  "armor": "item_vest"
+ },
+ "morale": {
+  "below_hp_pct": 25,
+  "flee_chance": 20
+ },
+ "scene_sprite": "assets/img/npc/sprite_kell.png"
 }

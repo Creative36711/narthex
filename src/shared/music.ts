@@ -158,7 +158,11 @@ function firstMatching(rules: MusicRule[] | undefined, engine: GameEngine | null
 
 /** музыкальный «снимок» стека приоритетов */
 function desiredRule(engine: GameEngine | null): { rule: MusicRule | null; stop: boolean } {
+  if (typeof window !== 'undefined' && window.location.hash === '#editor') {
+    return { rule: null, stop: true }
+  }
   if (!engine) {
+    if (!menuMode) return { rule: null, stop: true }
     // главное меню звучит темой выбранной кампании
     const menuId = currentCampaign?.meta.ui_sounds?.['menu_music']
     return menuId ? { rule: { tracks: [menuId] }, stop: false } : { rule: null, stop: true }

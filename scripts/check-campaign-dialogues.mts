@@ -45,6 +45,7 @@ const dummyEngine: any = {
   unlockCodex: () => {},
   fireRule: () => {},
   setDialogueTimer: () => {},
+  promptPresentItem: () => {},
   advanceTime: () => {},
   joinParty: () => {},
 }

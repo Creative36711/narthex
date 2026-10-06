@@ -123,7 +123,10 @@
   "rule_patrol_pump.json",
   "rule_zhuk_appears.json",
   "rule_see_rot.json",
-  "rule_see_hound.json"
+  "rule_see_hound.json",
+  "rule_kast_note.json",
+  "rule_kell_token.json",
+  "rule_zhuk_ledger.json"
  ],
  "arenas": [
   "arena_gate.json",

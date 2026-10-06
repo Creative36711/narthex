@@ -1,41 +1,42 @@
 {
-  "id": "item_bench",
-  "type": "item",
-  "category": "prop",
-  "label": "Верстак",
-  "description": "Тиски, наковальня и ящик с ломом. Всё, что можно собрать, здесь собирается само.",
-  "weight": 40.0,
-  "stackable": false,
-  "value": {
-    "mark": 0
-  },
-  "interact_options": [
+ "id": "item_bench",
+ "type": "item",
+ "category": "prop",
+ "label": "Верстак",
+ "description": "Тиски, наковальня и ящик с ломом. Всё, что можно собрать, здесь собирается само.",
+ "weight": 40.0,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ },
+ "interact_options": [
+  {
+   "label": "Открыть мастерскую",
+   "effects": [
     {
-      "label": "Открыть мастерскую",
-      "effects": [
-        {
-          "type": "open_craft"
-        }
-      ],
-      "message": "Ты разбираешь лом по размеру.",
-      "sound": "sfx_gear"
-    },
-    {
-      "label": "Собрать заряд из сердцевины",
-      "effects": [
-        {
-          "type": "open_craft",
-          "recipe": "recipe_charge"
-        }
-      ],
-      "conditions": [
-        {
-          "type": "flag_set",
-          "flag": "resh_charge_recipe"
-        }
-      ],
-      "hint": "Реш объяснил, как это делается",
-      "sound": "snd_latch"
+     "type": "open_craft"
     }
-  ]
+   ],
+   "message": "Ты разбираешь лом по размеру.",
+   "sound": "sfx_gear",
+   "hint": "собрать можно то, на что есть рецепт и материалы"
+  },
+  {
+   "label": "Собрать заряд из сердцевины",
+   "effects": [
+    {
+     "type": "open_craft",
+     "recipe": "recipe_charge"
+    }
+   ],
+   "conditions": [
+    {
+     "type": "flag_set",
+     "flag": "resh_charge_recipe"
+    }
+   ],
+   "hint": "Реш объяснил, как это делается",
+   "sound": "snd_latch"
+  }
+ ]
 }

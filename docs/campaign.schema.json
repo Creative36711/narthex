@@ -8503,29 +8503,6 @@
             "state"
           ],
           "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "present_item"
-            },
-            "required": {
-              "type": "string"
-            },
-            "ok_goto": {
-              "type": "string"
-            },
-            "fail_goto": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "ok_goto",
-            "fail_goto"
-          ],
-          "additionalProperties": false
         }
       ]
     },

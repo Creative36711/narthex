@@ -198,18 +198,23 @@ function migrateLineTexts(doc: DlgDoc): DlgDoc {
     if (l.text) l.text = inkToTokens(l.text)
   }
   // v2: тексты могли содержать «сырой» ink (item_count(...) и т.п.) — переводим в токены
-  const fixSections = (sections: DlgSection[]) => {
-    for (const sec of sections) {
-      for (const st of sec.steps) if (st.kind === 'line') fixLine(st.line)
+  const fixSections = (sections?: DlgSection[]) => {
+    for (const sec of sections ?? []) {
+      for (const st of sec.steps ?? []) if (st.kind === 'line') fixLine(st.line)
       for (const st of sec.else_steps ?? []) if (st.kind === 'line') fixLine(st.line)
     }
   }
-  for (const node of doc.nodes) {
+  for (const node of doc.nodes ?? []) {
+    node.sections ??= []
+    node.choices ??= []
     fixSections(node.sections)
     for (const c of node.choices) {
       c.text = inkToTokens(c.text ?? '')
+      c.sections ??= []
       fixSections(c.sections)
       if (c.check) {
+        c.check.success.sections ??= []
+        c.check.fail.sections ??= []
         fixSections(c.check.success.sections)
         fixSections(c.check.fail.sections)
       }
@@ -230,6 +235,10 @@ export function migrateDlgDoc(raw: unknown, refs?: ScriptRefs): DlgDoc {
   const doc = raw as { version: number; label?: string; nodes?: unknown[]; script?: string }
   const out = doc.version === 2 ? (doc as unknown as DlgDoc) : migrateV1(doc as { version: number; label?: string; nodes: DlgNodeV1[] })
   out.nodes ??= []
+  for (const node of out.nodes) {
+    node.sections ??= []
+    node.choices ??= []
+  }
   if (out.script && !out.nodes.length && refs) dlgDocFromScript(out, refs)
   return migrateLineTexts(out)
 }
@@ -336,13 +345,13 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'unlock_recipe': return `${indent}~ unlock_recipe(${q(e.recipe)})`
     case 'open_craft': return e.recipe ? `${indent}~ open_craft(${q(e.recipe)})` : `${indent}~ open_craft()`
     case 'set_entity_state': return `${indent}~ set_entity_state(${q(e.entity)}, ${q(e.state)})`
-    case 'present_item': return `${indent}~ present_item(${q(e.ok_goto)}, ${q(e.fail_goto)}, ${q(e.required ?? '')})`
+    case 'present_item': return `${indent}~ present_item(${q(e.ok)}, ${q(e.fail)}${e.required ? `, ${q(e.required)}` : ''})`
   }
 }
 
-/** open_trade / open_craft / fire_rule / present_item сами закрывают или переводят диалог — после них всегда конец ветки */
+/** open_trade / open_craft / fire_rule сами закрывают диалог — после них всегда конец */
 function isTerminalEffect(e: DlgEffect): boolean {
-  return e.type === 'open_trade' || e.type === 'open_craft' || e.type === 'fire_rule' || e.type === 'present_item'
+  return e.type === 'open_trade' || e.type === 'open_craft' || e.type === 'fire_rule'
 }
 
 export function generateInk(docRaw: DlgDoc): string {
@@ -391,6 +400,8 @@ export function generateInk(docRaw: DlgDoc): string {
   }
 
   for (const node of doc.nodes) {
+    node.choices ??= []
+    node.sections ??= []
     out.push(`=== ${node.id} ===`)
     emitSections(node.id, node.sections, '')
     if (node.choices.length === 0) {

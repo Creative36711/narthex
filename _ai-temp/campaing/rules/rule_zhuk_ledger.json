@@ -1,0 +1,19 @@
+{
+ "id": "rule_zhuk_ledger",
+ "label": "Жук прочёл гроссбух",
+ "once": true,
+ "manual": false,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "grant_xp",
+   "points": 10
+  },
+  {
+   "type": "journal_update",
+   "quest": "quest_ledger",
+   "text_key": "j_read"
+  }
+ ],
+ "chapter": "ch_price"
+}

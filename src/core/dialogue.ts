@@ -17,17 +17,14 @@ export interface DialogueLine {
   voice?: string
   /** секундный таймер показа реплики (# timer: 3 или # timeout: 3) */
   timer?: number
-  /** режим предъявления предмета (тег # present: item_id, ok_knot, fail_knot) */
-  present?: { required?: string; okKnot: string; failKnot: string }
 }
 
-/** разбор тегов реплики: # emotion: … / # action / # voice: … / # timer: N / # present: … */
-export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string; timer?: number; present?: { required?: string; okKnot: string; failKnot: string } } {
+/** разбор тегов реплики: # emotion: … / # action / # voice: … / # timer: N */
+export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string; timer?: number } {
   let emotion = 'neutral'
   let action = false
   let voice: string | undefined
   let timer: number | undefined
-  let present: { required?: string; okKnot: string; failKnot: string } | undefined
   for (const t of tags) {
     const em = t.match(/^emotion:\s*(\w+)/)
     if (em) emotion = em[1]
@@ -36,19 +33,8 @@ export function parseLineTags(tags: string[]): { emotion: string; action?: boole
     if (vo) voice = vo[1].trim()
     const tm = t.match(/^(?:timer|timeout):\s*(\d+)/)
     if (tm) timer = Number(tm[1])
-    const pr = t.match(/^(?:present|present_item):\s*([^,]+),\s*([^,]+)(?:,\s*(.+))?/)
-    if (pr) {
-      const a1 = pr[1].trim()
-      const a2 = pr[2].trim()
-      const a3 = pr[3]?.trim()
-      if (a1.startsWith('item_') && a3) {
-        present = { required: a1, okKnot: a2, failKnot: a3 }
-      } else {
-        present = { okKnot: a1, failKnot: a2, required: a3 || undefined }
-      }
-    }
   }
-  return { emotion, action: action || undefined, voice, timer, present }
+  return { emotion, action: action || undefined, voice, timer }
 }
 
 export interface DialogueUI {
@@ -61,12 +47,11 @@ export interface DialogueUI {
    * Плеер показывает обратный отсчёт и по нулю зовёт `engine.dialogueTimeout()`.
    */
   timer?: { seconds: number; knot?: string }
-  /** Режим предъявления предмета из инвентаря игрока (design-doc §9, §10) */
-  presenting?: {
-    required?: string
-    okKnot: string
-    failKnot: string
-  }
+  /**
+   * Режим предъявления предмета/улики (`~ present_item`).
+   * Плеер открывает выбор из инвентаря игрока.
+   */
+  presenting?: { ok: string; fail: string; required?: string }
 }
 
 /**

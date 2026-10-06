@@ -181,7 +181,6 @@ export function DialogueOverlay({ engine }: Props) {
   // Поддерживает как выбор вариантов (допрос), так и автотаймер одиночной
   // реплики (# timer: 3 или ~ set_dialogue_timer(3, "узел")).
   const timer = d.timer ?? (activeLine?.timer ? { seconds: activeLine.timer } : undefined)
-  const presenting = d.presenting ?? activeLine?.present
   const [timerLeft, setTimerLeft] = useState(0)
   useEffect(() => {
     if (!timer || !allShown) return
@@ -263,61 +262,41 @@ export function DialogueOverlay({ engine }: Props) {
               </span>
             </div>
           )}
-          {allShown && presenting && (
-            <div className="dialogue-present-wrap">
-              <div className="dialogue-present-title">
-                <span>🔍 Предъявить предмет или улику</span>
+          {allShown && d.presenting && (
+            <div className="dialogue-presenting">
+              <div className="dialogue-presenting-title">
+                <Ico n="bag" /> Выберите предмет или улику для предъявления:
               </div>
-              {engine.state.player.inventory.filter((i) => i.quantity > 0).length === 0 ? (
-                <div className="dialogue-present-empty muted small">
-                  В вашей сумке нет предметов, которые можно показать.
-                </div>
-              ) : (
-                <div className="dialogue-present-grid">
-                  {engine.state.player.inventory
-                    .filter((i) => i.quantity > 0)
-                    .map((entry) => {
-                      const itemDef = engine.campaign.entities[entry.item]
-                      if (!itemDef) return null
-                      const pKey =
-                        itemDef.portrait?.['neutral'] ??
-                        itemDef.portrait?.['default'] ??
-                        Object.values(itemDef.portrait ?? {})[0]
-                      const portrait = assetUrlOrNull(engine.campaign, pKey)
-                      return (
-                        <button
-                          key={entry.item}
-                          className="dialogue-present-item"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            engine.submitPresentedItem(entry.item)
-                          }}
-                          data-tip={itemDef.description}
-                        >
-                          {portrait ? (
-                            <img src={portrait} alt={itemDef.label} className="dialogue-present-icon" draggable={false} />
-                          ) : (
-                            <span className="dialogue-present-glyph">●</span>
-                          )}
-                          <span className="dialogue-present-label">{itemDef.label}</span>
-                          {entry.quantity > 1 && <span className="dialogue-present-qty">×{entry.quantity}</span>}
-                        </button>
-                      )
-                    })}
-                </div>
-              )}
-              <button
-                className="dialogue-present-cancel btn btn-small"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  engine.submitPresentedItem(null)
-                }}
-              >
-                ✕ Спрятать руки / Ничего не показывать
-              </button>
+              <div className="dialogue-choices">
+                {engine.state.player.inventory.map((inv) => {
+                  const item = engine.campaign.entities[inv.item]
+                  if (!item || item.type !== 'item') return null
+                  return (
+                    <button
+                      key={inv.item}
+                      className="choice-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        engine.submitPresentedItem(inv.item)
+                      }}
+                    >
+                      ▸ Предъявить: {item.label} {inv.quantity > 1 ? `(${inv.quantity})` : ''}
+                    </button>
+                  )
+                })}
+                <button
+                  className="choice-btn end"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    engine.submitPresentedItem(null)
+                  }}
+                >
+                  [Ничего не предъявлять]
+                </button>
+              </div>
             </div>
           )}
-          {allShown && !presenting && (
+          {allShown && !d.presenting && (
             <div className="dialogue-choices">
               {d.choices.map((c) => (
                 <button key={c.index} className="choice-btn" onClick={(e) => { e.stopPropagation(); engine.chooseDialogueOption(c.index) }}>

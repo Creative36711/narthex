@@ -153,7 +153,8 @@ export default function App() {
   useEffect(() => {
     const unlock = () => {
       unlockAudio()
-      // первый жест разрешает автоплей — запускаем музыку, которая уже должна звучать
+      // первый жест разрешает автоплей — запускаем музыку, которая уже должна звучать (но не в редакторе)
+      if (editor || window.location.hash === '#editor') return
       refreshMusic(engine)
     }
     const onClick = (e: MouseEvent) => {
@@ -166,7 +167,7 @@ export default function App() {
       window.removeEventListener('pointerdown', unlock)
       window.removeEventListener('click', onClick)
     }
-  }, [engine])
+  }, [engine, editor])
 
   useEffect(() => {
     const onHash = () => setEditor(window.location.hash === '#editor')

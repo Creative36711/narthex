@@ -8,5 +8,6 @@
  "stackable": false,
  "value": {
   "mark": 2
- }
+ },
+ "quest_item": true
 }

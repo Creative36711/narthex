@@ -1740,6 +1740,16 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .dialogue-timer.urgent .dialogue-timer-left { color: var(--red-bright); font-weight: 600; }
 
 .dialogue-choices { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.dialogue-presenting-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
 .choice-btn {
   text-align: left;
   background: transparent;
@@ -1761,91 +1771,6 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 }
 .choice-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .choice-btn.end { color: var(--muted); }
-
-/* Предъявление улик и предметов в диалоге (present_item) */
-.dialogue-present-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--panel-2) 75%, transparent);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  animation: cf-rise-in var(--dur) var(--ease) both;
-}
-
-.dialogue-present-title {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--gold-bright);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dialogue-present-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 8px;
-  max-height: 180px;
-  overflow-y: auto;
-  padding: 4px;
-}
-
-.dialogue-present-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--fg);
-  font-size: 0.85rem;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.dialogue-present-item:hover {
-  border-color: var(--gold);
-  background: color-mix(in srgb, var(--gold) 12%, var(--surface));
-  color: var(--gold-bright);
-  transform: translateY(-1px);
-}
-
-.dialogue-present-icon {
-  width: 24px;
-  height: 24px;
-  object-fit: cover;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.dialogue-present-glyph {
-  color: var(--gold);
-  font-size: 0.9rem;
-  flex-shrink: 0;
-}
-
-.dialogue-present-label {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dialogue-present-qty {
-  font-size: 0.78rem;
-  color: var(--muted);
-  flex-shrink: 0;
-}
-
-.dialogue-present-cancel {
-  align-self: flex-start;
-  margin-top: 4px;
-}
 
 /* сообщения */
 
