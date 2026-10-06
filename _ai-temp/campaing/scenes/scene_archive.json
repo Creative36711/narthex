@@ -1,465 +1,478 @@
 {
- "id": "scene_archive",
- "label": "Архив Надзора",
- "location": "loc_surface",
- "canvas": {
-  "w": 1280,
-  "h": 720
- },
- "chapter": "ch_price",
- "states": [
-  {
-   "id": "state_main",
-   "label": "Всегда",
-   "condition": null,
-   "art": {
-    "canvas": {
-     "w": 1280,
-     "h": 720
+  "id": "scene_archive",
+  "label": "Архив Надзора",
+  "location": "loc_surface",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "chapter": "ch_price",
+  "states": [
+    {
+      "id": "state_main",
+      "label": "Всегда",
+      "condition": null,
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#050a0c",
+        "layers": [
+          {
+            "label": "стена архива",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 600,
+              "fill": {
+                "gradient": {
+                  "from": "#232b30",
+                  "to": "#11181c",
+                  "angle": 90
+                }
+              },
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 600,
+              "w": 1280,
+              "h": 120,
+              "fill": "#22323a",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "стеллаж",
+            "shape": {
+              "type": "rect",
+              "x": 100,
+              "y": 120,
+              "w": 340,
+              "h": 420,
+              "fill": "#4a4038",
+              "stroke": "#556d76",
+              "stroke_width": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 100,
+              "y1": 180,
+              "x2": 440,
+              "y2": 180,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 100,
+              "y1": 260,
+              "x2": 440,
+              "y2": 260,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 100,
+              "y1": 340,
+              "x2": 440,
+              "y2": 340,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 100,
+              "y1": 420,
+              "x2": 440,
+              "y2": 420,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 100,
+              "y1": 500,
+              "x2": 440,
+              "y2": 500,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "label": "стеллаж",
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 120,
+              "w": 340,
+              "h": 420,
+              "fill": "#4a4038",
+              "stroke": "#556d76",
+              "stroke_width": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 180,
+              "x2": 810,
+              "y2": 180,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 260,
+              "x2": 810,
+              "y2": 260,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 340,
+              "x2": 810,
+              "y2": 340,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 420,
+              "x2": 810,
+              "y2": 420,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 500,
+              "x2": 810,
+              "y2": 500,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "label": "стеллаж",
+            "shape": {
+              "type": "rect",
+              "x": 840,
+              "y": 120,
+              "w": 340,
+              "h": 420,
+              "fill": "#4a4038",
+              "stroke": "#556d76",
+              "stroke_width": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 840,
+              "y1": 180,
+              "x2": 1180,
+              "y2": 180,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 840,
+              "y1": 260,
+              "x2": 1180,
+              "y2": 260,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 840,
+              "y1": 340,
+              "x2": 1180,
+              "y2": 340,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 840,
+              "y1": 420,
+              "x2": 1180,
+              "y2": 420,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 840,
+              "y1": 500,
+              "x2": 1180,
+              "y2": 500,
+              "color": "#556d76",
+              "width": 5
+            },
+            "opacity": 0.8
+          },
+          {
+            "label": "тумба",
+            "shape": {
+              "type": "rect",
+              "x": 560,
+              "y": 380,
+              "w": 200,
+              "h": 240,
+              "fill": "#3a4a52",
+              "stroke": "#556d76",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "голова регистратора",
+            "shape": {
+              "type": "ellipse",
+              "cx": 660,
+              "cy": 330,
+              "rx": 70,
+              "ry": 62,
+              "fill": "#6d3a28",
+              "stroke": "#e8a33d",
+              "stroke_width": 4
+            }
+          },
+          {
+            "label": "глаз",
+            "shape": {
+              "type": "ellipse",
+              "cx": 636,
+              "cy": 320,
+              "rx": 12,
+              "ry": 12,
+              "fill": "#5fd0c8",
+              "stroke_width": 2
+            },
+            "opacity": 0.9
+          },
+          {
+            "label": "глаз",
+            "shape": {
+              "type": "ellipse",
+              "cx": 684,
+              "cy": 320,
+              "rx": 12,
+              "ry": 12,
+              "fill": "#5fd0c8",
+              "stroke_width": 2
+            },
+            "opacity": 0.9
+          },
+          {
+            "label": "табло",
+            "shape": {
+              "type": "rect",
+              "x": 600,
+              "y": 400,
+              "w": 120,
+              "h": 40,
+              "fill": "#202a2e",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "дверь",
+            "shape": {
+              "type": "rect",
+              "x": 1180,
+              "y": 280,
+              "w": 92,
+              "h": 220,
+              "fill": "#6d3a28",
+              "stroke": "#e8a33d",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 660,
+              "cy": 330,
+              "rx": 120,
+              "ry": 120,
+              "fill": "#5fd0c8",
+              "stroke_width": 2
+            },
+            "opacity": 0.3
+          },
+          {
+            "label": "свет (ядро)",
+            "shape": {
+              "type": "ellipse",
+              "cx": 660,
+              "cy": 330,
+              "rx": 54.0,
+              "ry": 54.0,
+              "fill": "#5fd0c8",
+              "stroke_width": 2
+            },
+            "opacity": 0.6499999999999999
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 270,
+              "cy": 320,
+              "rx": 90,
+              "ry": 90,
+              "fill": "#5fd0c8",
+              "stroke_width": 2
+            },
+            "opacity": 0.15
+          },
+          {
+            "label": "свет (ядро)",
+            "shape": {
+              "type": "ellipse",
+              "cx": 270,
+              "cy": 320,
+              "rx": 40.5,
+              "ry": 40.5,
+              "fill": "#5fd0c8",
+              "stroke_width": 2
+            },
+            "opacity": 0.5
+          }
+        ]
+      },
+      "image": "assets/img/scenes/scene_archive.jpg"
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_registrar",
+      "label": "Регистратор",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 560,
+      "y": 250,
+      "w": 220,
+      "h": 400,
+      "condition": null,
+      "default_entity": "npc_registrar"
     },
-    "background": "#050a0c",
-    "layers": [
-     {
-      "label": "стена архива",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 0,
-       "w": 1280,
-       "h": 600,
-       "fill": {
-        "gradient": {
-         "from": "#232b30",
-         "to": "#11181c",
-         "angle": 90
+    {
+      "id": "slot_shelf",
+      "label": "Стеллаж с делами",
+      "type": [
+        "container",
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 100,
+      "y": 120,
+      "w": 340,
+      "h": 420,
+      "condition": null,
+      "default_entity": "item_shelf"
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В приёмную",
+      "area": {
+        "x": 1180,
+        "y": 280,
+        "w": 92,
+        "h": 220
+      },
+      "go_to_scene": "scene_office"
+    },
+    {
+      "label": "На схему ярусов",
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 220,
+        "h": 90
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_alarm"
+      ],
+      "conditions": [
+        {
+          "flag": "lockdown"
         }
-       },
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "пол",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 600,
-       "w": 1280,
-       "h": 120,
-       "fill": "#22323a",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "стеллаж",
-      "shape": {
-       "type": "rect",
-       "x": 100,
-       "y": 120,
-       "w": 340,
-       "h": 420,
-       "fill": "#4a4038",
-       "stroke": "#556d76",
-       "stroke_width": 4
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 100,
-       "y1": 180,
-       "x2": 440,
-       "y2": 180,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 100,
-       "y1": 260,
-       "x2": 440,
-       "y2": 260,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 100,
-       "y1": 340,
-       "x2": 440,
-       "y2": 340,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 100,
-       "y1": 420,
-       "x2": 440,
-       "y2": 420,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 100,
-       "y1": 500,
-       "x2": 440,
-       "y2": 500,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "стеллаж",
-      "shape": {
-       "type": "rect",
-       "x": 470,
-       "y": 120,
-       "w": 340,
-       "h": 420,
-       "fill": "#4a4038",
-       "stroke": "#556d76",
-       "stroke_width": 4
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 470,
-       "y1": 180,
-       "x2": 810,
-       "y2": 180,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 470,
-       "y1": 260,
-       "x2": 810,
-       "y2": 260,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 470,
-       "y1": 340,
-       "x2": 810,
-       "y2": 340,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 470,
-       "y1": 420,
-       "x2": 810,
-       "y2": 420,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 470,
-       "y1": 500,
-       "x2": 810,
-       "y2": 500,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "стеллаж",
-      "shape": {
-       "type": "rect",
-       "x": 840,
-       "y": 120,
-       "w": 340,
-       "h": 420,
-       "fill": "#4a4038",
-       "stroke": "#556d76",
-       "stroke_width": 4
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 840,
-       "y1": 180,
-       "x2": 1180,
-       "y2": 180,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 840,
-       "y1": 260,
-       "x2": 1180,
-       "y2": 260,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 840,
-       "y1": 340,
-       "x2": 1180,
-       "y2": 340,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 840,
-       "y1": 420,
-       "x2": 1180,
-       "y2": 420,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 840,
-       "y1": 500,
-       "x2": 1180,
-       "y2": 500,
-       "color": "#556d76",
-       "width": 5
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "тумба",
-      "shape": {
-       "type": "rect",
-       "x": 560,
-       "y": 380,
-       "w": 200,
-       "h": 240,
-       "fill": "#3a4a52",
-       "stroke": "#556d76",
-       "stroke_width": 4
-      }
-     },
-     {
-      "label": "голова регистратора",
-      "shape": {
-       "type": "ellipse",
-       "cx": 660,
-       "cy": 330,
-       "rx": 70,
-       "ry": 62,
-       "fill": "#6d3a28",
-       "stroke": "#e8a33d",
-       "stroke_width": 4
-      }
-     },
-     {
-      "label": "глаз",
-      "shape": {
-       "type": "ellipse",
-       "cx": 636,
-       "cy": 320,
-       "rx": 12,
-       "ry": 12,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.9
-     },
-     {
-      "label": "глаз",
-      "shape": {
-       "type": "ellipse",
-       "cx": 684,
-       "cy": 320,
-       "rx": 12,
-       "ry": 12,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.9
-     },
-     {
-      "label": "табло",
-      "shape": {
-       "type": "rect",
-       "x": 600,
-       "y": 400,
-       "w": 120,
-       "h": 40,
-       "fill": "#202a2e",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "дверь",
-      "shape": {
-       "type": "rect",
-       "x": 1180,
-       "y": 280,
-       "w": 92,
-       "h": 220,
-       "fill": "#6d3a28",
-       "stroke": "#e8a33d",
-       "stroke_width": 3
-      }
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 660,
-       "cy": 330,
-       "rx": 120,
-       "ry": 120,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.3
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 660,
-       "cy": 330,
-       "rx": 54.0,
-       "ry": 54.0,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.6499999999999999
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 270,
-       "cy": 320,
-       "rx": 90,
-       "ry": 90,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.15
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 270,
-       "cy": 320,
-       "rx": 40.5,
-       "ry": 40.5,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.5
-     }
-    ]
-   }
-  }
- ],
- "slots": [
-  {
-   "id": "slot_registrar",
-   "label": "Регистратор",
-   "type": [
-    "prop"
-   ],
-   "shape": "rect",
-   "x": 560,
-   "y": 250,
-   "w": 220,
-   "h": 400,
-   "condition": null,
-   "default_entity": "npc_registrar"
-  },
-  {
-   "id": "slot_shelf",
-   "label": "Стеллаж с делами",
-   "type": [
-    "container",
-    "prop"
-   ],
-   "shape": "rect",
-   "x": 100,
-   "y": 120,
-   "w": 340,
-   "h": 420,
-   "condition": null,
-   "default_entity": "item_shelf"
-  }
- ],
- "navigation": [
-  {
-   "label": "В приёмную",
-   "area": {
-    "x": 1180,
-    "y": 280,
-    "w": 92,
-    "h": 220
-   },
-   "go_to_scene": "scene_office"
-  },
-  {
-   "label": "На схему ярусов",
-   "area": {
-    "x": 20,
-    "y": 620,
-    "w": 220,
-    "h": 90
-   },
-   "open_map": true
-  }
- ],
- "music": [
-  {
-   "tracks": [
-    "music_office"
-   ],
-   "conditions": []
-  }
- ]
+      ]
+    },
+    {
+      "tracks": [
+        "music_office"
+      ],
+      "conditions": []
+    }
+  ],
+  "ambient": [],
+  "lighting": "indoor"
 }

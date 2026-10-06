@@ -562,8 +562,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         </div>
         <div className="playtest-banner">
           <b>Режим отладки</b>
-          <button className="btn btn-small" onClick={() => setDebugOpen((v) => !v)}>{debugOpen ? 'Скрыть панель' : 'Отладка'}</button>
-          <button className="btn btn-small" onClick={() => void recordPlaytestResult()}>Записать результат</button>
+          <button className="btn btn-small" onClick={() => setDebugOpen((v) => !v)}>{debugOpen ? 'Скрыть панель' : 'Панель отладки'}</button>
+          <button
+            className="btn btn-small"
+            onClick={() => void recordPlaytestResult()}
+            data-tip="Зафиксировать баги, опечатки и замечания плейтеста: заметка попадёт в отчёт аудита и пакет задания для ИИ"
+          >
+            {lastPlaytest?.notes ? '✓ Заметка для ИИ сохранена' : '📝 Заметка для отчёта (ИИ)'}
+          </button>
           <button className="btn btn-small" onClick={leaveTest}>Вернуться в редактор</button>
         </div>
         {debugOpen && testEngine && <PlaytestDebugPanel engine={testEngine} onClose={() => setDebugOpen(false)} />}
@@ -733,13 +739,19 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   }
 
   const recordPlaytestResult = async () => {
-    const notes = await askTextArea('Результат плейтеста', {
-      body: 'Запишите, что именно вы проверили, что сработало и какие ошибки встретились. Эта заметка попадёт в отчёт проверки и пакет задания для ИИ.',
-      placeholder: 'Например: прошёл стартовый квест; переход из сцены в храм не срабатывает…',
-      ok: 'Сохранить результат',
+    const sc = testEngine?.currentScene()
+    const loc = testEngine?.state.location ? testEngine.findLocation(testEngine.state.location)?.location.label : ''
+    const prefill = testEngine
+      ? `[Сцена: ${sc?.label ?? testEngine.state.scene}, Локация: ${loc || testEngine.state.location}, Тик: ${testEngine.state.tick}] `
+      : ''
+    const notes = await askTextArea('Заметка о проверке кампании (для отчёта и ИИ)', {
+      body: 'Зафиксируйте замеченные баги, опечатки или замечания от прохождения. Заметка сохранится в отчёте проверки («Аудит») и автоматически попадёт в пакет задания для ИИ.',
+      placeholder: prefill || 'Например: в сцене машинного зала не срабатывает переход; в диалоге с Решем опечатка...',
+      ok: 'Сохранить заметку',
     })
     if (notes === null) return
-    setLastPlaytest((previous) => previous ? { ...previous, notes: notes.trim() } : previous)
+    const text = notes.trim()
+    setLastPlaytest((previous) => (previous ? { ...previous, notes: text } : { startedAt: Date.now(), finishedAt: Date.now(), contentHash: campaignContentHash(store), notes: text }))
   }
 
   const playtest = async () => {

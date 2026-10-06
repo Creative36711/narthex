@@ -49,9 +49,22 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
   const [amount, setAmount] = useState(1)
   const [skill, setSkill] = useState(Object.keys(engine.state.player.skills)[0] ?? '')
   const [stat, setStat] = useState(Object.keys(engine.state.player.stats)[0] ?? 'STR')
+  const [selectedStatus, setSelectedStatus] = useState('')
+  const [selectedPartyNpc, setSelectedPartyNpc] = useState('')
   const [feedback, setFeedback] = useState<{ text: string; serial: number } | null>(null)
   const [feedbackSerial, setFeedbackSerial] = useState(0)
   const [, refresh] = useState(0)
+
+  // Синхронизация селекторов с текущей позицией игрока
+  useEffect(() => {
+    const curLoc = engine.findLocation(engine.state.location)
+    if (curLoc) {
+      setRegion(curLoc.region.id)
+      setLocation(curLoc.location.id)
+      setScene(engine.state.scene)
+    }
+  }, [engine.state.scene, engine.state.location, engine])
+
   useEffect(() => {
     const unsubscribe = engine.subscribe(() => refresh((n) => n + 1))
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
@@ -85,8 +98,37 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
   const variableNames = [...new Set([...Object.keys(engine.state.variables), ...contentVariables(engine.campaign)])].sort((a, b) => a.localeCompare(b, 'ru-RU'))
   const quests = Object.entries(engine.campaign.quests)
   const entries = Object.values(engine.campaign.codex)
+
+  const copySnapshotForAi = () => {
+    const sc = engine.currentScene()
+    const loc = engine.findLocation(engine.state.location)?.location.label ?? engine.state.location
+    const snapshot = {
+      location: loc,
+      scene: sc?.label ?? engine.state.scene,
+      tick: engine.state.tick,
+      hero: {
+        hp: `${engine.state.player.hp}/${engine.state.player.max_hp}`,
+        statuses: (engine.state.player.statuses ?? []).map((s) => s.id),
+        party: engine.state.party ?? [],
+      },
+      active_quests: Object.fromEntries(
+        Object.entries(engine.state.quests).map(([k, v]) => [engine.campaign.quests[k]?.label ?? k, v.stage])
+      ),
+      active_flags: Object.keys(engine.state.flags),
+      recent_messages: (engine.messages ?? []).slice(-8),
+    }
+    void navigator.clipboard.writeText(JSON.stringify(snapshot, null, 2))
+    mutate(() => {}, 'Снимок состояния скопирован в буфер обмена для ИИ!')
+  }
+
   return <aside className="pt-debug-panel" role="dialog" aria-label="Панель отладки">
-    <header><b>Отладка</b><button className="btn btn-small" onClick={onClose}>Закрыть</button></header>
+    <header>
+      <b>Отладка</b>
+      <div style={{ display: 'flex', gap: '6px' }}>
+        <button className="btn btn-small" onClick={copySnapshotForAi} title="Скопировать состояние сцены, квестов и лога для ИИ">📋 Снимок для ИИ</button>
+        <button className="btn btn-small" onClick={onClose}>Закрыть</button>
+      </div>
+    </header>
     {feedback && <div key={feedback.serial} className="pt-debug-feedback" role="status" aria-live="polite">{feedback.text}</div>}
     <Section label="Переход к сцене">
       <select value={region} onChange={(e) => { const next = allRegions.find((r) => r.id === e.target.value); setRegion(e.target.value); const loc = next?.locations[0]; if (loc) { setLocation(loc.id); setScene(Object.values(engine.campaign.scenes).find((s) => s.location === loc.id)?.id ?? '') } }}>
@@ -136,6 +178,115 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
       <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} aria-label="Количество" />
       <select value={currency} onChange={(e) => setCurrency(e.target.value)}>{engine.campaign.meta.currencies.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
       <button className="btn btn-small" onClick={() => mutate(() => engine.addItem(engine.currencyItemId(currency), Math.max(1, amount)), () => `${engine.campaign.meta.currencies.find((c) => c.id === currency)?.label ?? 'Валюта'}: добавлено ${Math.max(1, amount)}. Баланс: ${engine.currencyAmount(currency)}.`)}>Добавить валюту</button>
+      {engine.state.player.inventory.length > 0 && (
+        <details className="spoiler-block" style={{ marginTop: '8px' }}>
+          <summary>Инвентарь героя ({engine.state.player.inventory.length})</summary>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+            {engine.state.player.inventory.map((entry, idx) => {
+              const ent = engine.campaign.entities[entry.item]
+              if (!ent || entry.quantity <= 0) return null
+              return (
+                <div key={`${entry.item}-${idx}`} className="pt-debug-row">
+                  <span>{ent.label} ×{entry.quantity}</span>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button className="btn btn-small" onClick={() => mutate(() => engine.removeItem(entry.item, 1), `Удален 1 «${ent.label}».`)}>-1</button>
+                    <button className="btn btn-small" onClick={() => mutate(() => engine.removeItem(entry.item, entry.quantity), `Удалены все «${ent.label}».`)}>Все</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </details>
+      )}
+    </Section>
+    <Section label={`Статусы героя (${(engine.state.player.statuses ?? []).length})`}>
+      <div className="pt-debug-status-list">
+        {(engine.state.player.statuses ?? []).length === 0 ? (
+          <span className="muted small">На герое нет активных статусов.</span>
+        ) : (
+          (engine.state.player.statuses ?? []).map((st) => {
+            const def = engine.campaign.meta.statuses?.find((s) => s.id === st.id)
+            return (
+              <div key={st.id} className="pt-debug-row">
+                <span>
+                  <b>{def?.label ?? st.id}</b> {st.severity && st.severity > 1 ? `(тяжесть ${st.severity})` : ''}{' '}
+                  {st.left != null ? `(${st.left} раундов/тиков)` : ''}
+                </span>
+                <button
+                  className="btn btn-small"
+                  onClick={() => mutate(() => engine.removeStatus('player', st.id), `Статус «${def?.label ?? st.id}» снят.`)}
+                >
+                  Снять
+                </button>
+              </div>
+            )
+          })
+        )}
+      </div>
+      {engine.campaign.meta.statuses && engine.campaign.meta.statuses.length > 0 && (
+        <div className="pt-debug-control-row" style={{ marginTop: '6px' }}>
+          <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+            <option value="">Выберите статус…</option>
+            {engine.campaign.meta.statuses.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+          <button
+            className="btn btn-small"
+            disabled={!selectedStatus}
+            onClick={() =>
+              mutate(() => {
+                const def = engine.campaign.meta.statuses?.find((s) => s.id === selectedStatus)
+                engine.applyStatus('player', selectedStatus, def?.duration)
+              }, `Статус «${engine.campaign.meta.statuses?.find((s) => s.id === selectedStatus)?.label ?? selectedStatus}» применён.`)
+            }
+          >
+            Применить
+          </button>
+        </div>
+      )}
+    </Section>
+    <Section label={`Спутники (${(engine.state.party ?? []).length})`}>
+      {(engine.state.party ?? []).length === 0 ? (
+        <span className="muted small">Герой путешествует один.</span>
+      ) : (
+        (engine.state.party ?? []).map((companion) => {
+          const npc = engine.campaign.entities[companion.entity]
+          return (
+            <div key={companion.entity} className="pt-debug-row">
+              <span>{npc?.label ?? companion.entity} (HP: {companion.hp}/{companion.max_hp})</span>
+              <button
+                className="btn btn-small"
+                onClick={() => mutate(() => engine.leaveParty(companion.entity), `Спутник «${npc?.label ?? companion.entity}» покинул группу.`)}
+              >
+                Исключить
+              </button>
+            </div>
+          )
+        })
+      )}
+      <div className="pt-debug-control-row" style={{ marginTop: '6px' }}>
+        <select value={selectedPartyNpc} onChange={(e) => setSelectedPartyNpc(e.target.value)}>
+          <option value="">Выбрать NPC…</option>
+          {Object.values(engine.campaign.entities)
+            .filter((e) => e.type === 'npc' && !(engine.state.party ?? []).some((c) => c.entity === e.id))
+            .map((npc) => (
+              <option key={npc.id} value={npc.id}>{npc.label}</option>
+            ))}
+        </select>
+        <button
+          className="btn btn-small"
+          disabled={!selectedPartyNpc}
+          onClick={() =>
+            mutate(() => {
+              engine.joinParty(selectedPartyNpc)
+              setSelectedPartyNpc('')
+            }, `NPC «${engine.campaign.entities[selectedPartyNpc]?.label ?? selectedPartyNpc}» присоединился к группе.`)
+          }
+        >
+          В группу
+        </button>
+      </div>
     </Section>
     <Section label="Герой">
       <button className="btn btn-small" onClick={() => mutate(() => { engine.state.player.hp = engine.state.player.max_hp; engine.state.player.mp = engine.state.player.max_mp; for (const n of engine.campaign.meta.needs) engine.state.player.needs[n.id] = n.max }, 'Здоровье, магия и потребности восстановлены.')}>Вылечить и восстановить потребности</button>
@@ -210,6 +361,19 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
           })}
         </div>
       )}
+    </Section>
+    <Section label={`Лог событий (${(engine.messages ?? []).length})`}>
+      <div className="pt-debug-log-list" style={{ maxHeight: '160px', overflowY: 'auto', fontSize: '0.82rem' }}>
+        {(engine.messages ?? []).length === 0 ? (
+          <span className="muted small">Лог пуст.</span>
+        ) : (
+          (engine.messages ?? []).slice(-15).reverse().map((m, idx) => (
+            <div key={idx} style={{ padding: '2px 0', borderBottom: '1px solid var(--border-soft)' }}>
+              {m.text}
+            </div>
+          ))
+        )}
+      </div>
     </Section>
   </aside>
 }

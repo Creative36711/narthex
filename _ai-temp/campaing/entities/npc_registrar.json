@@ -3,7 +3,14 @@
  "type": "npc",
  "label": "Регистратор",
  "description": "Считающий механизм архива: медный цилиндр, два стеклянных глаза и голос, который не умеет врать, но умеет не договаривать.",
- "portrait": {},
+ "portrait": {
+  "neutral": "assets/img/npc/registrar.jpg",
+  "angry": "assets/img/npc/registrar.jpg",
+  "afraid": "assets/img/npc/registrar.jpg",
+  "thoughtful": "assets/img/npc/registrar.jpg",
+  "sad": "assets/img/npc/registrar.jpg",
+  "calm": "assets/img/npc/registrar.jpg"
+ },
  "stats": {
   "STR": 14,
   "CON": 14,

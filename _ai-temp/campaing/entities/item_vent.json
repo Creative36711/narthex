@@ -1,45 +1,46 @@
 {
- "id": "item_vent",
- "type": "item",
- "category": "prop",
- "label": "Отдушина",
- "description": "Решётка в породе. Оттуда тянет не шахтой, а чем-то тёплым и медленным.",
- "weight": 0.0,
- "stackable": false,
- "value": {
-  "mark": 0
- },
- "interact_options": [
-  {
-   "label": "Прислушаться",
-   "effects": [
+  "id": "item_vent",
+  "type": "item",
+  "category": "prop",
+  "label": "Отдушина",
+  "description": "Решётка в породе. Оттуда тянет не шахтой, а чем-то тёплым и медленным.",
+  "weight": 0.0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
     {
-     "type": "skill_check_gate",
-     "skill": "perception",
-     "difficulty": 45,
-     "success_effects": [
-      {
-       "type": "unlock_codex",
-       "entry": "codex_vein"
-      },
-      {
-       "type": "grant_xp",
-       "points": 25
-      },
-      {
-       "type": "show_message",
-       "text": "Из отдушины идёт ровный гул, как от помпы, которой нет. Он совпадает с твоим пульсом — и это не совпадение."
-      }
-     ],
-     "fail_effects": [
-      {
-       "type": "show_message",
-       "text": "Только капли и чьё-то дыхание, которого здесь быть не должно."
-      }
-     ]
+      "label": "Прислушаться",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "perception",
+          "difficulty": 45,
+          "success_effects": [
+            {
+              "type": "unlock_codex",
+              "entry": "codex_vein"
+            },
+            {
+              "type": "grant_xp",
+              "points": 25
+            },
+            {
+              "type": "show_message",
+              "text": "Из отдушины идёт ровный гул, как от помпы, которой нет. Он совпадает с твоим пульсом — и это не совпадение."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Только капли и чьё-то дыхание, которого здесь быть не должно."
+            }
+          ]
+        }
+      ],
+      "once": true,
+      "sound": "snd_vent"
     }
-   ],
-   "once": true
-  }
- ]
+  ]
 }

@@ -1,415 +1,428 @@
 {
- "id": "scene_gate_office",
- "label": "Контора дознавателя",
- "location": "loc_gate",
- "canvas": {
-  "w": 1280,
-  "h": 720
- },
- "chapter": "ch_arrival",
- "states": [
-  {
-   "id": "state_main",
-   "label": "Всегда",
-   "condition": null,
-   "art": {
-    "canvas": {
-     "w": 1280,
-     "h": 720
+  "id": "scene_gate_office",
+  "label": "Контора дознавателя",
+  "location": "loc_gate",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "chapter": "ch_arrival",
+  "states": [
+    {
+      "id": "state_main",
+      "label": "Всегда",
+      "condition": null,
+      "art": {
+        "canvas": {
+          "w": 1280,
+          "h": 720
+        },
+        "background": "#050a0c",
+        "layers": [
+          {
+            "label": "стена",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 0,
+              "w": 1280,
+              "h": 540,
+              "fill": {
+                "gradient": {
+                  "from": "#1a272d",
+                  "to": "#0c1418",
+                  "angle": 90
+                }
+              },
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "пол",
+            "shape": {
+              "type": "rect",
+              "x": 0,
+              "y": 540,
+              "w": 1280,
+              "h": 180,
+              "fill": "#22323a",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "окно",
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 110,
+              "w": 280,
+              "h": 200,
+              "fill": {
+                "gradient": {
+                  "from": "#2e5a63",
+                  "to": "#123039",
+                  "angle": 90
+                }
+              },
+              "stroke_width": 2
+            }
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 610,
+              "y1": 110,
+              "x2": 610,
+              "y2": 310,
+              "color": "#3a4a52",
+              "width": 8
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 470,
+              "y1": 210,
+              "x2": 750,
+              "y2": 210,
+              "color": "#3a4a52",
+              "width": 8
+            },
+            "opacity": 0.8
+          },
+          {
+            "label": "шкаф",
+            "shape": {
+              "type": "rect",
+              "x": 200,
+              "y": 180,
+              "w": 190,
+              "h": 280,
+              "fill": "#4a4038",
+              "stroke": "#556d76",
+              "stroke_width": 4
+            }
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 200,
+              "y1": 250,
+              "x2": 390,
+              "y2": 250,
+              "color": "#556d76",
+              "width": 4
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 200,
+              "y1": 320,
+              "x2": 390,
+              "y2": 320,
+              "color": "#556d76",
+              "width": 4
+            },
+            "opacity": 0.8
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 200,
+              "y1": 390,
+              "x2": 390,
+              "y2": 390,
+              "color": "#556d76",
+              "width": 4
+            },
+            "opacity": 0.8
+          },
+          {
+            "label": "стол",
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 430,
+              "w": 380,
+              "h": 140,
+              "fill": "#6d3a28",
+              "stroke": "#556d76",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "крышка",
+            "shape": {
+              "type": "rect",
+              "x": 470,
+              "y": 430,
+              "w": 380,
+              "h": 18,
+              "fill": "#3a4a52",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "свет лампы",
+            "shape": {
+              "type": "ellipse",
+              "cx": 500,
+              "cy": 410,
+              "rx": 34,
+              "ry": 20,
+              "fill": "#e8a33d",
+              "stroke_width": 2
+            },
+            "opacity": 0.55
+          },
+          {
+            "label": "койка",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 470,
+              "w": 250,
+              "h": 110,
+              "fill": "#4a4038",
+              "stroke": "#556d76",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "подушка",
+            "shape": {
+              "type": "rect",
+              "x": 60,
+              "y": 470,
+              "w": 250,
+              "h": 26,
+              "fill": "#3b3530",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "верстак",
+            "shape": {
+              "type": "rect",
+              "x": 920,
+              "y": 390,
+              "w": 300,
+              "h": 170,
+              "fill": "#3a4a52",
+              "stroke": "#556d76",
+              "stroke_width": 3
+            }
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 950,
+              "y1": 430,
+              "x2": 1190,
+              "y2": 430,
+              "color": "#556d76",
+              "width": 4
+            },
+            "opacity": 0.7
+          },
+          {
+            "shape": {
+              "type": "line",
+              "x1": 1010,
+              "y1": 390,
+              "x2": 1010,
+              "y2": 560,
+              "color": "#556d76",
+              "width": 4
+            },
+            "opacity": 0.7
+          },
+          {
+            "label": "тиски",
+            "shape": {
+              "type": "ellipse",
+              "cx": 1120,
+              "cy": 360,
+              "rx": 26,
+              "ry": 26,
+              "fill": "#6d3a28",
+              "stroke": "#e8a33d",
+              "stroke_width": 2
+            }
+          },
+          {
+            "label": "дверь в шлюз",
+            "shape": {
+              "type": "rect",
+              "x": 40,
+              "y": 290,
+              "w": 92,
+              "h": 210,
+              "fill": "#6d3a28",
+              "stroke": "#e8a33d",
+              "stroke_width": 3
+            }
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 610,
+              "cy": 200,
+              "rx": 150,
+              "ry": 150,
+              "fill": "#5fd0c8",
+              "stroke_width": 2
+            },
+            "opacity": 0.3
+          },
+          {
+            "label": "свет (ядро)",
+            "shape": {
+              "type": "ellipse",
+              "cx": 610,
+              "cy": 200,
+              "rx": 67.5,
+              "ry": 67.5,
+              "fill": "#5fd0c8",
+              "stroke_width": 2
+            },
+            "opacity": 0.6499999999999999
+          },
+          {
+            "label": "свет",
+            "shape": {
+              "type": "ellipse",
+              "cx": 500,
+              "cy": 410,
+              "rx": 80,
+              "ry": 80,
+              "fill": "#e8a33d",
+              "stroke_width": 2
+            },
+            "opacity": 0.35
+          },
+          {
+            "label": "свет (ядро)",
+            "shape": {
+              "type": "ellipse",
+              "cx": 500,
+              "cy": 410,
+              "rx": 36.0,
+              "ry": 36.0,
+              "fill": "#e8a33d",
+              "stroke_width": 2
+            },
+            "opacity": 0.7
+          }
+        ]
+      },
+      "image": "assets/img/scenes/scene_gate_office.jpg"
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_case",
+      "label": "Шкаф с делами",
+      "type": [
+        "container",
+        "item"
+      ],
+      "shape": "rect",
+      "x": 200,
+      "y": 180,
+      "w": 190,
+      "h": 280,
+      "condition": null,
+      "default_entity": "item_case"
     },
-    "background": "#050a0c",
-    "layers": [
-     {
-      "label": "стена",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 0,
-       "w": 1280,
-       "h": 540,
-       "fill": {
-        "gradient": {
-         "from": "#1a272d",
-         "to": "#0c1418",
-         "angle": 90
+    {
+      "id": "slot_desk",
+      "label": "Стол дознавателя",
+      "type": [
+        "prop",
+        "item"
+      ],
+      "shape": "rect",
+      "x": 470,
+      "y": 380,
+      "w": 380,
+      "h": 190,
+      "condition": null,
+      "default_entity": "item_desk"
+    },
+    {
+      "id": "slot_cot",
+      "label": "Койка",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 150,
+      "y": 480,
+      "w": 200,
+      "h": 130,
+      "condition": null,
+      "default_entity": "item_cot"
+    },
+    {
+      "id": "slot_bench",
+      "label": "Верстак",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 920,
+      "y": 350,
+      "w": 300,
+      "h": 210,
+      "condition": null,
+      "default_entity": "item_bench"
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В шлюзовую камеру",
+      "area": {
+        "x": 40,
+        "y": 290,
+        "w": 92,
+        "h": 210
+      },
+      "go_to_scene": "scene_gate_hall"
+    },
+    {
+      "label": "На схему ярусов",
+      "area": {
+        "x": 20,
+        "y": 620,
+        "w": 220,
+        "h": 90
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_alarm"
+      ],
+      "conditions": [
+        {
+          "flag": "lockdown"
         }
-       },
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "пол",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 540,
-       "w": 1280,
-       "h": 180,
-       "fill": "#22323a",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "окно",
-      "shape": {
-       "type": "rect",
-       "x": 470,
-       "y": 110,
-       "w": 280,
-       "h": 200,
-       "fill": {
-        "gradient": {
-         "from": "#2e5a63",
-         "to": "#123039",
-         "angle": 90
-        }
-       },
-       "stroke_width": 2
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 610,
-       "y1": 110,
-       "x2": 610,
-       "y2": 310,
-       "color": "#3a4a52",
-       "width": 8
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 470,
-       "y1": 210,
-       "x2": 750,
-       "y2": 210,
-       "color": "#3a4a52",
-       "width": 8
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "шкаф",
-      "shape": {
-       "type": "rect",
-       "x": 200,
-       "y": 180,
-       "w": 190,
-       "h": 280,
-       "fill": "#4a4038",
-       "stroke": "#556d76",
-       "stroke_width": 4
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 200,
-       "y1": 250,
-       "x2": 390,
-       "y2": 250,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 200,
-       "y1": 320,
-       "x2": 390,
-       "y2": 320,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 200,
-       "y1": 390,
-       "x2": 390,
-       "y2": 390,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "стол",
-      "shape": {
-       "type": "rect",
-       "x": 470,
-       "y": 430,
-       "w": 380,
-       "h": 140,
-       "fill": "#6d3a28",
-       "stroke": "#556d76",
-       "stroke_width": 3
-      }
-     },
-     {
-      "label": "крышка",
-      "shape": {
-       "type": "rect",
-       "x": 470,
-       "y": 430,
-       "w": 380,
-       "h": 18,
-       "fill": "#3a4a52",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "свет лампы",
-      "shape": {
-       "type": "ellipse",
-       "cx": 500,
-       "cy": 410,
-       "rx": 34,
-       "ry": 20,
-       "fill": "#e8a33d",
-       "stroke_width": 2
-      },
-      "opacity": 0.55
-     },
-     {
-      "label": "койка",
-      "shape": {
-       "type": "rect",
-       "x": 60,
-       "y": 470,
-       "w": 250,
-       "h": 110,
-       "fill": "#4a4038",
-       "stroke": "#556d76",
-       "stroke_width": 3
-      }
-     },
-     {
-      "label": "подушка",
-      "shape": {
-       "type": "rect",
-       "x": 60,
-       "y": 470,
-       "w": 250,
-       "h": 26,
-       "fill": "#3b3530",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "верстак",
-      "shape": {
-       "type": "rect",
-       "x": 920,
-       "y": 390,
-       "w": 300,
-       "h": 170,
-       "fill": "#3a4a52",
-       "stroke": "#556d76",
-       "stroke_width": 3
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 950,
-       "y1": 430,
-       "x2": 1190,
-       "y2": 430,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.7
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 1010,
-       "y1": 390,
-       "x2": 1010,
-       "y2": 560,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.7
-     },
-     {
-      "label": "тиски",
-      "shape": {
-       "type": "ellipse",
-       "cx": 1120,
-       "cy": 360,
-       "rx": 26,
-       "ry": 26,
-       "fill": "#6d3a28",
-       "stroke": "#e8a33d",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "дверь в шлюз",
-      "shape": {
-       "type": "rect",
-       "x": 40,
-       "y": 290,
-       "w": 92,
-       "h": 210,
-       "fill": "#6d3a28",
-       "stroke": "#e8a33d",
-       "stroke_width": 3
-      }
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 610,
-       "cy": 200,
-       "rx": 150,
-       "ry": 150,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.3
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 610,
-       "cy": 200,
-       "rx": 67.5,
-       "ry": 67.5,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.6499999999999999
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 500,
-       "cy": 410,
-       "rx": 80,
-       "ry": 80,
-       "fill": "#e8a33d",
-       "stroke_width": 2
-      },
-      "opacity": 0.35
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 500,
-       "cy": 410,
-       "rx": 36.0,
-       "ry": 36.0,
-       "fill": "#e8a33d",
-       "stroke_width": 2
-      },
-      "opacity": 0.7
-     }
-    ]
-   }
-  }
- ],
- "slots": [
-  {
-   "id": "slot_case",
-   "label": "Шкаф с делами",
-   "type": [
-    "container",
-    "item"
-   ],
-   "shape": "rect",
-   "x": 200,
-   "y": 180,
-   "w": 190,
-   "h": 280,
-   "condition": null,
-   "default_entity": "item_case"
-  },
-  {
-   "id": "slot_desk",
-   "label": "Стол дознавателя",
-   "type": [
-    "prop",
-    "item"
-   ],
-   "shape": "rect",
-   "x": 470,
-   "y": 380,
-   "w": 380,
-   "h": 190,
-   "condition": null,
-   "default_entity": "item_desk"
-  },
-  {
-   "id": "slot_cot",
-   "label": "Койка",
-   "type": [
-    "prop"
-   ],
-   "shape": "rect",
-   "x": 150,
-   "y": 480,
-   "w": 200,
-   "h": 130,
-   "condition": null,
-   "default_entity": "item_cot"
-  },
-  {
-   "id": "slot_bench",
-   "label": "Верстак",
-   "type": [
-    "prop"
-   ],
-   "shape": "rect",
-   "x": 920,
-   "y": 350,
-   "w": 300,
-   "h": 210,
-   "condition": null,
-   "default_entity": "item_bench"
-  }
- ],
- "navigation": [
-  {
-   "label": "В шлюзовую камеру",
-   "area": {
-    "x": 40,
-    "y": 290,
-    "w": 92,
-    "h": 210
-   },
-   "go_to_scene": "scene_gate_hall"
-  },
-  {
-   "label": "На схему ярусов",
-   "area": {
-    "x": 20,
-    "y": 620,
-    "w": 220,
-    "h": 90
-   },
-   "open_map": true
-  }
- ],
- "music": [
-  {
-   "tracks": [
-    "music_gate"
-   ],
-   "conditions": []
-  }
- ]
+      ]
+    },
+    {
+      "tracks": [
+        "music_gate"
+      ],
+      "conditions": []
+    }
+  ],
+  "ambient": [],
+  "lighting": "indoor"
 }

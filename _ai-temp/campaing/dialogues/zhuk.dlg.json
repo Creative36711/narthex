@@ -137,13 +137,15 @@
          "kind": "line",
          "line": {
           "text": "Не Келл. Келл — руки, а руки дешёвые. Бумага дорогая.",
-          "emotion": "thoughtful"
+          "emotion": "thoughtful",
+          "voice": "assets/voice/zhuk_1.mp3"
          }
         },
         {
          "kind": "line",
          "line": {
-          "text": "Ищи, кто подписал расход на режим тишины. Кто подписал, тот и заказал."
+          "text": "Ищи, кто подписал расход на режим тишины. Кто подписал, тот и заказал.",
+          "voice": "assets/voice/zhuk_2.mp3"
          }
         },
         {
@@ -165,6 +167,41 @@
      ]
     },
     {
+     "text": "Ты и сам знаешь, кто стоял. Что ещё?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Жук кривится, но рук не прячет: тогда слушай другое. Гроссбух он не в конторе держал и не в каморке: он его в штольне спрятал, там, где спал, под плитой. Ищи, где у мастера была постель.",
+          "emotion": "thoughtful"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "zhuk_cache_hint"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "clue_roster"
+      },
+      {
+       "type": "flag",
+       "flag": "zhuk_cache_hint",
+       "not": true
+      }
+     ]
+    },
+    {
      "text": "Где мастер?",
      "sections": [
       {
@@ -173,7 +210,8 @@
          "kind": "line",
          "line": {
           "text": "Ниже восьмого. Там, где жила поёт. Хочешь — спускайся, хочешь — живи.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/zhuk_3.mp3"
          }
         },
         {

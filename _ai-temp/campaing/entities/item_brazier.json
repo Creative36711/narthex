@@ -1,29 +1,30 @@
 {
- "id": "item_brazier",
- "type": "item",
- "category": "prop",
- "label": "Жаровня",
- "description": "Чугунная жаровня на трёх ножках. Вокруг неё и держится весь Сухой ряд.",
- "weight": 60.0,
- "stackable": false,
- "value": {
-  "mark": 0
- },
- "interact_options": [
-  {
-   "label": "Согреться у жаровни",
-   "effects": [
+  "id": "item_brazier",
+  "type": "item",
+  "category": "prop",
+  "label": "Жаровня",
+  "description": "Чугунная жаровня на трёх ножках. Вокруг неё и держится весь Сухой ряд.",
+  "weight": 60.0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
     {
-     "type": "change_need",
-     "need": "need_warmth",
-     "delta": 35
-    },
-    {
-     "type": "advance_time",
-     "ticks": 1
+      "label": "Согреться у жаровни",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 35
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        }
+      ],
+      "message": "Угли шипят, и сырость отступает на полшага.",
+      "sound": "snd_pot"
     }
-   ],
-   "message": "Угли шипят, и сырость отступает на полшага."
-  }
- ]
+  ]
 }
