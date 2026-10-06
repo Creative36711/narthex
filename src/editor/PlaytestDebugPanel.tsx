@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { GameEngine } from '../core/engine'
+import type { ItemDef } from '../shared/types'
 import { derivedHP, derivedMP } from '../core/brp'
 import { FlagAutocomplete } from './FlagAutocomplete'
 
@@ -35,8 +36,17 @@ function contentVariables(value: unknown, out = new Set<string>()): Set<string> 
   return out
 }
 
+interface PlaytestDebugPanelProps {
+  engine: GameEngine
+  onClose: () => void
+  notes?: string
+  onSaveNotes?: (notes: string) => void
+}
+
 /** Читы доступны только внутри редакторского плейтеста. */
-export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
+export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }: PlaytestDebugPanelProps) {
+  const [localNotes, setLocalNotes] = useState(notes)
+  useEffect(() => { setLocalNotes(notes) }, [notes])
   const startPlace = engine.findLocation(engine.state.location)
   const [region, setRegion] = useState(startPlace?.region.id ?? engine.campaign.world.regions[0]?.id ?? '')
   const [location, setLocation] = useState(engine.state.location)
@@ -70,6 +80,9 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
   const selectedRegion = allRegions.find((r) => r.id === region)
   const allLocations = selectedRegion?.locations ?? []
   const locationScenes = Object.values(engine.campaign.scenes).filter((s) => s.location === location)
+  const currentSceneDef = engine.campaign.scenes[engine.state.scene]
+  const currentOccupants = currentSceneDef ? engine.slotOccupants(currentSceneDef) : []
+  const sceneEntities = currentOccupants.filter((o) => o.entity != null)
   const flagOptions = new Map((engine.campaign.meta.flags ?? []).map((f) => [f.id, {
     id: f.id,
     label: f.label || f.id,
@@ -88,6 +101,30 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
   return <aside className="pt-debug-panel" role="dialog" aria-label="Панель отладки">
     <header><b>Отладка</b><button className="btn btn-small" onClick={onClose}>Закрыть</button></header>
     {feedback && <div key={feedback.serial} className="pt-debug-feedback" role="status" aria-live="polite">{feedback.text}</div>}
+    {onSaveNotes && (
+      <Section label="Заметка плейтеста (для аудита и задания ИИ)">
+        <p className="pt-debug-help">
+          Запишите сюда результаты тестирования, обнаруженные проблемы и баги. Заметка автоматически сохранится в отчёт кампании и попадёт в пакет задания для ИИ.
+        </p>
+        <textarea
+          style={{ width: '100%', minHeight: 64, resize: 'vertical', fontFamily: 'inherit', fontSize: '0.85rem', padding: 6 }}
+          value={localNotes}
+          placeholder="Например: проверил шлюз; в конторе дознавателя верстак открывает крафт корректно…"
+          onChange={(e) => setLocalNotes(e.target.value)}
+        />
+        <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
+          <button
+            className="btn btn-small btn-primary"
+            onClick={() => {
+              onSaveNotes(localNotes)
+              setFeedback({ text: 'Заметка плейтеста сохранена.', serial: feedbackSerial + 1 })
+            }}
+          >
+            Сохранить заметку
+          </button>
+        </div>
+      </Section>
+    )}
     <Section label="Переход к сцене">
       <select value={region} onChange={(e) => { const next = allRegions.find((r) => r.id === e.target.value); setRegion(e.target.value); const loc = next?.locations[0]; if (loc) { setLocation(loc.id); setScene(Object.values(engine.campaign.scenes).find((s) => s.location === loc.id)?.id ?? '') } }}>
         {allRegions.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
@@ -136,6 +173,67 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
       <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} aria-label="Количество" />
       <select value={currency} onChange={(e) => setCurrency(e.target.value)}>{engine.campaign.meta.currencies.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
       <button className="btn btn-small" onClick={() => mutate(() => engine.addItem(engine.currencyItemId(currency), Math.max(1, amount)), () => `${engine.campaign.meta.currencies.find((c) => c.id === currency)?.label ?? 'Валюта'}: добавлено ${Math.max(1, amount)}. Баланс: ${engine.currencyAmount(currency)}.`)}>Добавить валюту</button>
+      {item && (() => {
+        const it = engine.campaign.entities[item]
+        if (!it) return null
+        const desc = engine.descOf(item)
+        const cat = it.type === 'item' ? (it as ItemDef).category : undefined
+        return (
+          <div className="pt-debug-item-card small" style={{ marginTop: 6, padding: '6px 8px', background: 'var(--cf-card-bg, rgba(0,0,0,0.2))', borderRadius: 4 }}>
+            <div><b>{it.label}</b> {cat ? <span className="muted">({cat})</span> : null} · в сумке: {engine.itemCount(item)} шт.</div>
+            {desc && <div className="muted" style={{ marginTop: 4 }}>{desc}</div>}
+          </div>
+        )
+      })()}
+    </Section>
+    <Section label={`Сущности сцены (${sceneEntities.length})`}>
+      {sceneEntities.length === 0 ? <span className="muted small">В текущей сцене нет активных сущностей.</span> : (
+        <div className="pt-debug-entity-list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {sceneEntities.map(({ slot, entity }) => {
+            if (!entity) return null
+            const desc = engine.descOf(entity.id)
+            const curState = engine.entityState(entity.id) ?? ''
+            const npc = entity.type === 'npc' ? entity : null
+            const stateKeys = npc ? Object.keys(npc.portrait ?? {}) : []
+            return (
+              <div key={slot.id} className="pt-debug-entity-card small" style={{ padding: '6px 8px', background: 'var(--cf-card-bg, rgba(0,0,0,0.2))', borderRadius: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <b>{entity.label}</b>
+                  <span className="muted">{entity.type === 'npc' ? 'Персонаж' : 'Предмет'} ({slot.id})</span>
+                </div>
+                {desc && <div style={{ marginTop: 4, color: 'var(--text-main, #e0e0e0)' }}>{desc}</div>}
+                {npc && (
+                  <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {stateKeys.length > 0 && (
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <span className="muted">Облик:</span>
+                        <select
+                          value={curState}
+                          onChange={(e) => mutate(() => engine.applyEffects([{ type: 'set_entity_state', entity: entity.id, state: e.target.value }]), `Облик ${entity.label}: ${e.target.value || 'обычный'}`)}
+                        >
+                          <option value="">обычный</option>
+                          {stateKeys.map((k) => <option key={k} value={k}>{k}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    {npc.dialogue && (
+                      <button
+                        className="btn btn-small"
+                        onClick={() => {
+                          onClose()
+                          engine.startDialogue(entity.id)
+                        }}
+                      >
+                        Запустить диалог
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </Section>
     <Section label="Герой">
       <button className="btn btn-small" onClick={() => mutate(() => { engine.state.player.hp = engine.state.player.max_hp; engine.state.player.mp = engine.state.player.max_mp; for (const n of engine.campaign.meta.needs) engine.state.player.needs[n.id] = n.max }, 'Здоровье, магия и потребности восстановлены.')}>Вылечить и восстановить потребности</button>
@@ -193,11 +291,18 @@ export function PlaytestDebugPanel({ engine, onClose }: { engine: GameEngine; on
     <Section label={`Квесты (${quests.length})`}>
       {quests.length === 0 ? <span className="muted small">В кампании нет квестов.</span> : (
         <div className="pt-debug-quest-list">
-          {quests.map(([id, q]) => <div className="pt-debug-quest-row" key={id}>
-            <label><span>{q.label}</span><select value={engine.state.quests[id]?.stage ?? ''} onChange={(e) => mutate(() => engine.advanceQuestTo(id, e.target.value), `Квест «${q.label}»: стадия «${q.stages.find((s) => s.id === e.target.value)?.label ?? e.target.value}».`)}>
-              <option value="">Стадия…</option>{q.stages.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select></label>
-          </div>)}
+          {quests.map(([id, q]) => {
+            const currentStageId = engine.state.quests[id]?.stage ?? ''
+            const stageDef = q.stages.find((s) => s.id === currentStageId)
+            return (
+              <div className="pt-debug-quest-row" key={id} style={{ marginBottom: 6 }}>
+                <label><span>{q.label}</span><select value={currentStageId} onChange={(e) => mutate(() => engine.advanceQuestTo(id, e.target.value), `Квест «${q.label}»: стадия «${q.stages.find((s) => s.id === e.target.value)?.label ?? e.target.value}».`)}>
+                  <option value="">(не начат)</option>{q.stages.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select></label>
+                {stageDef && <div className="muted small" style={{ marginTop: 2, paddingLeft: 4 }}>Стадия: {stageDef.label || stageDef.id} {q.description ? `· ${q.description}` : ''}</div>}
+              </div>
+            )
+          })}
         </div>
       )}
     </Section>

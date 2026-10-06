@@ -157,6 +157,14 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
           />
           <span>Рецепт починки (восстанавливает прочность)</span>
         </label>
+        <label className="fld fld-check" data-tip="Для изготовления требуется верстак или мастерская в сцене. Без него изготовить предмет на ходу нельзя.">
+          <input
+            type="checkbox"
+            checked={!!recipe.workbench}
+            onChange={(e) => ((recipe.workbench = e.target.checked || undefined), commit())}
+          />
+          <span>Требуется верстак / мастерская (нельзя сделать на ходу)</span>
+        </label>
         <label className="fld fld-check" data-tip="Пока рецепт не открыт по ходу игры (правилом, разговором или событием), его нет во вкладке «Изготовление». Так делают редкие рецепты: герой сначала находит знание.">
           <input
             type="checkbox"

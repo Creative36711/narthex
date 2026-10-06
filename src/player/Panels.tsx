@@ -611,11 +611,21 @@ export function CraftingPanel({ engine, onClose, focusRecipe }: { engine: GameEn
   useEffect(() => {
     focusRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [focusRecipe])
+  const isWorkbench = engine.isWorkbenchAvailable()
   return (
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>{engine.uiLabel('craft_title', engine.uiLabel('craft', 'Изготовление'))}</h2>
+          <div>
+            <h2>{engine.uiLabel('craft_title', engine.uiLabel('craft', 'Изготовление'))}</h2>
+            <div className="muted small" style={{ marginTop: 2 }}>
+              {isWorkbench ? (
+                <span style={{ color: 'var(--accent, #4fd1c5)' }}>⚒ Верстак / мастерская доступны</span>
+              ) : (
+                <span>🎒 Полевое изготовление (на ходу)</span>
+              )}
+            </div>
+          </div>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         {recipes.length === 0 && <p className="muted">Рецептов пока нет.</p>}
@@ -648,8 +658,11 @@ const CraftRow = forwardRef<HTMLLIElement, { engine: GameEngine; recipe: RecipeD
   return (
     <li ref={ref} className={`craft-row ${canCraft ? '' : 'craft-blocked'} ${focused ? 'craft-focused' : ''}`}>
       <div className="inv-item-main">
-        <b>{recipe.label}</b>
-        {recipe.repair && <span className="equipped-badge" data-tip="Восстанавливает прочность изношенного предмета до максимума">починка</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <b>{recipe.label}</b>
+          {recipe.repair && <span className="equipped-badge" data-tip="Восстанавливает прочность изношенного предмета до максимума">починка</span>}
+          {recipe.workbench && <span className="equipped-badge" data-tip="Для изготовления требуется верстак или мастерская">верстак</span>}
+        </div>
         {recipe.description && <div className="muted small">{recipe.description}</div>}
         {recipe.inputs.length > 0 && (
           <div className="muted small">

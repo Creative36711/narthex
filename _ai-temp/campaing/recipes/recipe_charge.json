@@ -24,6 +24,7 @@
   "difficulty": 55
  },
  "time_ticks": 2,
+ "workbench": true,
  "output": {
   "item": "item_charge",
   "quantity": 1

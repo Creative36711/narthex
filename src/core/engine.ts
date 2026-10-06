@@ -2115,9 +2115,38 @@ export class GameEngine {
     return Object.values(this.campaign.recipes).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
   }
 
-  /** чего не хватает для рецепта: компоненты, инструменты, условия */
+  /** доступен ли верстак / мастерская в текущем контексте */
+  isWorkbenchAvailable(_workbenchReq?: boolean | string): boolean {
+    // 1. Окно крафта открыто по запросу у верстака (open_craft из интеракта или диалога)
+    if (this.craftRequest) return true
+
+    // 2. Текущая сцена
+    const sc = this.campaign.scenes[this.state.scene]
+    if (sc) {
+      if ((sc as unknown as { workbench?: boolean }).workbench) return true
+      const occupants = this.slotOccupants(sc)
+      for (const occ of occupants) {
+        if (!occ.entity) continue
+        const it = occ.entity as ItemDef
+        if (it.id === 'item_bench' || it.category === 'workbench') return true
+        if (occ.slot.type.includes('workbench')) return true
+        if (it.interact_options?.some((o) => o.effects?.some((ef) => ef.type === 'open_craft'))) return true
+      }
+    }
+
+    // 3. Текущая локация
+    const loc = this.findLocation(this.state.location)?.location
+    if (loc && (loc as unknown as { workbench?: boolean }).workbench) return true
+
+    return false
+  }
+
+  /** чего не хватает для рецепта: компоненты, инструменты, условия, верстак */
   recipeMissing(r: RecipeDef): string[] {
     const missing: string[] = []
+    if (r.workbench && !this.isWorkbenchAvailable(r.workbench)) {
+      missing.push('требуется верстак или мастерская')
+    }
     for (const need of r.inputs ?? []) {
       const have = this.itemCount(need.item)
       if (have < need.quantity) missing.push(`${this.itemTitle(need.item)} ×${need.quantity} (есть ${have})`)
@@ -2652,12 +2681,14 @@ export class GameEngine {
           out,
           `Проверка «${this.skillLabel(e.skill)}»`,
           retry,
-          () => this.applyEffects(e.success_effects),
+          () => {
+            this.markSkill(e.skill)
+            this.applyEffects(e.success_effects)
+          },
           () => this.applyEffects(e.fail_effects),
         )
         // с luckOffer эффекты применит resolveLuckOffer
         void deferred
-        if (out.success) this.markSkill(e.skill)
         break
       }
       case 'stat_check': {
@@ -2722,7 +2753,10 @@ export class GameEngine {
       }
       case 'opposed_check': {
         const res = this.opposedCheck(e)
-        const finalize = (r: { success: boolean }) => this.applyEffects(r.success ? e.success_effects : e.fail_effects)
+        const finalize = (r: { success: boolean }) => {
+          if (r.success) this.markSkill(e.skill)
+          this.applyEffects(r.success ? e.success_effects : e.fail_effects)
+        }
         if (res.success) {
           finalize(res)
           break
@@ -2913,12 +2947,17 @@ export class GameEngine {
     this.autosave()
   }
 
-  /** рецепт виден игроку? (неизвестные закрыты до unlock_recipe) */
+  /** рецепт виден игроку? (неизвестные закрыты до unlock_recipe или выполнения условий) */
   recipeKnown(id: string): boolean {
     const r = this.campaign.recipes[id]
     if (!r) return false
-    if (r.known !== false) return true
-    return !!this.state.recipes_unlocked?.includes(id)
+    // Проверка явного флага скрытости (unlock_recipe)
+    if (r.known === false && !this.state.recipes_unlocked?.includes(id)) return false
+    // Проверка динамических условий доступности рецепта (изучение, навыки, черты, квесты)
+    if (r.conditions && r.conditions.length > 0) {
+      if (!r.conditions.every((c) => evalCondition(c, this))) return false
+    }
+    return true
   }
 
   /** список рецептов, доступных игроку (вкладка «Крафт») */
@@ -3036,7 +3075,11 @@ export class GameEngine {
     playInteraction((option.sound ?? 'use') as SoundHook, { entity: item })
     this.applyEffects(option.effects)
     if (option.message) {
-      this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? 'neutral'] ?? item.portrait?.['neutral'] })
+      if (this.craftRequest || this.combat || this.dialogue) {
+        this.pushToast(this.fmt(option.message), 'info')
+      } else {
+        this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? 'neutral'] ?? item.portrait?.['neutral'] })
+      }
     }
     if (option.consume) this.state.removed_entities.push(item.id)
     // Одноразовые варианты: добавляем в список использованных
@@ -3058,7 +3101,19 @@ export class GameEngine {
   interactWithSlot(occ: SlotOccupant): boolean {
     if (!occ.entity) return false
     if (occ.entity.type === 'npc') {
-      this.startDialogue(occ.entity.id)
+      const npc = occ.entity as NpcDef
+      if (npc.dialogue) {
+        this.startDialogue(occ.entity.id)
+      } else {
+        const desc = this.descOf(npc.id)
+        if (desc) {
+          this.messages.push({
+            text: desc,
+            portrait: npc.portrait?.neutral || undefined,
+          })
+          this.notify()
+        }
+      }
       return true
     }
     const item = occ.entity as ItemDef
@@ -3078,9 +3133,14 @@ export class GameEngine {
       this.checkRules()
       this.notify()
     } else {
-      // Не показываем описание автоматически при клике на предмет без взаимодействия.
-      // Описание видно в тултипе (data-tip в UI).
-      // Если нужно показать описание как сообщение, мастер должен использовать on_interact.message
+      // Предмет без специального взаимодействия: при клике показываем описание сущности
+      const desc = this.descOf(item.id)
+      if (desc) {
+        this.messages.push({
+          text: desc,
+          portrait: item.portrait?.neutral || undefined,
+        })
+      }
       this.notify()
     }
     return true

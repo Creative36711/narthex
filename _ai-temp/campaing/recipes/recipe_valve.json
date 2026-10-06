@@ -21,6 +21,7 @@
   "difficulty": 45
  },
  "time_ticks": 4,
+ "workbench": true,
  "output": {
   "item": "item_valve",
   "quantity": 1
