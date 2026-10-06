@@ -1,12 +1,47 @@
 {
- "id": "item_plate",
- "type": "item",
- "category": "clue",
- "label": "Пломба с номером",
- "description": "Свинцовая пломба стражи: номер наряда 13-К. Такие ставят, когда закрывают ярус по приказу.",
- "weight": 0.05,
- "stackable": false,
- "value": {
-  "mark": 0
- }
+  "id": "item_plate",
+  "type": "item",
+  "category": "clue",
+  "label": "Пломба с номером",
+  "description": "Свинцовая пломба стражи: номер наряда 13-К. Такие ставят, когда закрывают ярус по приказу.",
+  "weight": 0.05,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
+    {
+      "label": "Сверить пломбу с ведомостью",
+      "hint": "Номер наряда должен быть в книге",
+      "sound": "snd_tag",
+      "once": true,
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "lore",
+          "difficulty": 45,
+          "success_effects": [
+            {
+              "type": "unlock_codex",
+              "entry": "codex_seal"
+            },
+            {
+              "type": "grant_xp",
+              "points": 10
+            },
+            {
+              "type": "show_message",
+              "text": "Тринадцать-К — литера ночной смены особого порядка. Такой наряд подписывает не старшина, а инспектор: значит, в ту ночь Келл был не первым, а вторым."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Пломба как пломба: свинец, номер, вдавленный край. Что с ней делать, ты пока не знаешь."
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

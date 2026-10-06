@@ -58,7 +58,8 @@
          "kind": "line",
          "line": {
           "text": "Слышно, что она молчит. А про молчание внизу всегда слышно громче.",
-          "emotion": "thoughtful"
+          "emotion": "thoughtful",
+          "voice": "assets/voice/dozh_1.mp3"
          }
         },
         {
@@ -120,7 +121,8 @@
          "kind": "line",
          "line": {
           "text": "Дыхатель — это не товар, это время. Держи, не задохнись.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/dozh_2.mp3"
          }
         },
         {

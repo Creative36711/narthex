@@ -1,47 +1,83 @@
 {
- "id": "item_case",
- "type": "item",
- "category": "container",
- "label": "Шкаф с делами",
- "description": "Шкаф, в котором хранят закрытые дела. У каждого дознавателя здесь есть папка, которую он не открывает.",
- "weight": 30.0,
- "stackable": false,
- "value": {
-  "mark": 0
- },
- "interact_options": [
-  {
-   "label": "Поднять дело №136",
-   "effects": [
+  "id": "item_case",
+  "type": "item",
+  "category": "container",
+  "label": "Шкаф с делами",
+  "description": "Шкаф, в котором хранят закрытые дела. У каждого дознавателя здесь есть папка, которую он не открывает.",
+  "weight": 30.0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
     {
-     "type": "unlock_codex",
-     "entry": "codex_case136"
+      "label": "Поднять дело №136",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_case136"
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        }
+      ],
+      "message": "Папка тонкая: три листа, подпись Каст и пометка «исполнено».",
+      "sound": "snd_paper"
     },
     {
-     "type": "advance_time",
-     "ticks": 1
-    }
-   ],
-   "message": "Папка тонкая: три листа, подпись Каст и пометка «исполнено»."
-  },
-  {
-   "label": "Сверить сводку по помпам",
-   "effects": [
+      "label": "Сверить сводку по помпам",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Сводка: семь помп, шесть в работе. Седьмая — «причина уточняется», третий день."
+        }
+      ],
+      "sound": "snd_page"
+    },
     {
-     "type": "show_message",
-     "text": "Сводка: семь помп, шесть в работе. Седьмая — «причина уточняется», третий день."
-    }
-   ]
-  },
-  {
-   "label": "Записать в дело №137",
-   "effects": [
+      "label": "Записать в дело №137",
+      "effects": [
+        {
+          "type": "journal_update",
+          "quest": "quest_pump",
+          "text_key": "j_brief"
+        }
+      ],
+      "sound": "snd_page"
+    },
     {
-     "type": "journal_update",
-     "quest": "quest_pump",
-     "text_key": "j_brief"
+      "label": "Прочесть устав Надзора",
+      "hint": "То, чем тебя три года кормили на службе",
+      "sound": "snd_page",
+      "once": true,
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "lore",
+          "difficulty": 50,
+          "success_effects": [
+            {
+              "type": "unlock_codex",
+              "entry": "codex_nadzor"
+            },
+            {
+              "type": "grant_xp",
+              "points": 10
+            },
+            {
+              "type": "show_message",
+              "text": "Пункт девятый: в интересах яруса. Пункт двенадцатый: дознаватель отвечает за достоверность записи, а не за её справедливость. Ты читаешь это впервые за три года службы — и понимаешь, зачем тебя сюда послали."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Устав напечатан мелко и скучно. Через полстраницы глаза начинают искать, чем бы заняться ещё."
+            }
+          ]
+        }
+      ]
     }
-   ]
-  }
- ]
+  ]
 }

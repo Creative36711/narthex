@@ -512,6 +512,16 @@
      "music": [
       {
        "tracks": [
+        "music_alarm"
+       ],
+       "conditions": [
+        {
+         "flag": "lockdown"
+        }
+       ]
+      },
+      {
+       "tracks": [
         "music_office"
        ],
        "conditions": []
@@ -545,6 +555,16 @@
      "arrival_scene": "scene_gate_hall",
      "arena": "arena_gate",
      "music": [
+      {
+       "tracks": [
+        "music_alarm"
+       ],
+       "conditions": [
+        {
+         "flag": "lockdown"
+        }
+       ]
+      },
       {
        "tracks": [
         "music_gate"
@@ -587,13 +607,23 @@
      "music": [
       {
        "tracks": [
+        "music_alarm"
+       ],
+       "conditions": [
+        {
+         "flag": "lockdown"
+        }
+       ]
+      },
+      {
+       "tracks": [
         "music_pump"
        ],
        "conditions": []
       }
      ],
      "ambient": [
-      "snd_water_amb"
+      "snd_pump_amb"
      ]
     },
     {
@@ -624,13 +654,34 @@
      "music": [
       {
        "tracks": [
+        "music_alarm"
+       ],
+       "conditions": [
+        {
+         "flag": "lockdown"
+        }
+       ]
+      },
+      {
+       "tracks": [
         "music_deep"
        ],
        "conditions": []
       }
      ],
      "ambient": [
-      "snd_water_amb"
+      {
+       "conditions": [
+        {
+         "type": "flag_set",
+         "flag": "flood"
+        }
+       ],
+       "sounds": [
+        "snd_water_amb"
+       ],
+       "volume": 0.9
+      }
      ],
      "camp": true
     },
@@ -658,12 +709,24 @@
      "music": [
       {
        "tracks": [
-        "music_deep"
+        "music_alarm"
+       ],
+       "conditions": [
+        {
+         "flag": "lockdown"
+        }
+       ]
+      },
+      {
+       "tracks": [
+        "music_vein"
        ],
        "conditions": []
       }
      ],
-     "ambient": [],
+     "ambient": [
+      "snd_deep_drone"
+     ],
      "camp": true
     }
    ]

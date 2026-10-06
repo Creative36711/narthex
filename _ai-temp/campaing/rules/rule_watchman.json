@@ -11,27 +11,58 @@
   {
    "type": "flag_not_set",
    "flag": "watchman_down"
+  },
+  {
+   "type": "flag_not_set",
+   "flag": "watchman_past"
   }
  ],
  "effects": [
   {
-   "type": "start_combat",
-   "enemies": [
-    {
-     "entity": "npc_watchman",
-     "count": 1
-    }
-   ],
-   "arena": "arena_deep",
-   "intro": "Из темноты включается пара янтарных глаз: смотритель решил, что ты порода.",
-   "on_victory": [
+   "type": "unlock_codex",
+   "entry": "codex_watchman"
+  },
+  {
+   "type": "skill_check_gate",
+   "skill": "stealth",
+   "difficulty": 45,
+   "success_effects": [
     {
      "type": "set_flag",
-     "flag": "watchman_down"
+     "flag": "watchman_past"
     },
     {
      "type": "show_message",
-     "text": "Смотритель оседает на рельсы. В его захвате зажат кусок лома."
+     "text": "Ты идёшь по мокрому бетону, считая шаги между гулом вентиляции. Смотритель поворачивает голову — и не находит, на что смотреть."
+    }
+   ],
+   "fail_effects": [
+    {
+     "type": "start_combat",
+     "enemies": [
+      {
+       "entity": "npc_watchman",
+       "count": 1
+      }
+     ],
+     "arena": "arena_deep",
+     "intro": "Из темноты включается пара янтарных глаз: смотритель решил, что ты порода.",
+     "on_victory": [
+      {
+       "type": "set_flag",
+       "flag": "watchman_down"
+      },
+      {
+       "type": "show_message",
+       "text": "Смотритель оседает на рельсы. В его захвате зажат кусок лома."
+      }
+     ],
+     "on_fled": [
+      {
+       "type": "show_message",
+       "text": "Ты пятишься по рельсам, пока янтарные глаза не гаснут. Смотритель остался стоять: он никуда не торопится."
+      }
+     ]
     }
    ]
   }

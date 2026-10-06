@@ -1,138 +1,167 @@
 {
- "encounter_tables": [
-  {
-   "id": "enc_gallery",
-   "rolls": 1,
-   "entries": [
+  "encounter_tables": [
     {
-     "weight": 5,
-     "type": "nothing"
+      "id": "enc_gallery",
+      "rolls": 1,
+      "entries": [
+        {
+          "weight": 5,
+          "type": "nothing"
+        },
+        {
+          "weight": 3,
+          "type": "combat",
+          "enemies": [
+            {
+              "entity": "npc_rotling",
+              "count_min": 1,
+              "count_max": 2
+            }
+          ],
+          "arena": "arena_gallery",
+          "intro": "Из воды поднимается гнилец: он ещё помнит, кем был."
+        },
+        {
+          "weight": 2,
+          "type": "combat",
+          "enemies": [
+            {
+              "entity": "npc_ashhound",
+              "count_min": 1,
+              "count_max": 2
+            }
+          ],
+          "arena": "arena_gallery",
+          "intro": "Стая выходит из-под арки без звука."
+        },
+        {
+          "weight": 2,
+          "type": "event",
+          "message": "У стенки что-то блестит: кусок лома и моток проволоки.",
+          "effects": [
+            {
+              "type": "add_item",
+              "item": "item_scrap",
+              "quantity": 1
+            }
+          ]
+        },
+        {
+          "weight": 1,
+          "type": "skill_check",
+          "skill": "stealth",
+          "difficulty": 45,
+          "message": "Мостки уходят из-под ног: держись за трубу.",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Ты удержался на трубе."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_hp",
+              "delta": -4
+            },
+            {
+              "type": "show_message",
+              "text": "Ты падаешь в воду коленями на рельс."
+            }
+          ]
+        },
+        {
+          "weight": 1,
+          "type": "event",
+          "message": "В нише за трубой — чужой тайник: банка с маслом и моток проволоки.",
+          "effects": [
+            {
+              "type": "add_item",
+              "item": "item_oil",
+              "quantity": 1
+            },
+            {
+              "type": "add_item",
+              "item": "item_scrap",
+              "quantity": 1
+            }
+          ]
+        }
+      ]
     },
     {
-     "weight": 3,
-     "type": "combat",
-     "enemies": [
-      {
-       "entity": "npc_rotling",
-       "count_min": 1,
-       "count_max": 2
-      }
-     ],
-     "arena": "arena_gallery",
-     "intro": "Из воды поднимается гнилец: он ещё помнит, кем был."
-    },
-    {
-     "weight": 2,
-     "type": "combat",
-     "enemies": [
-      {
-       "entity": "npc_ashhound",
-       "count_min": 1,
-       "count_max": 2
-      }
-     ],
-     "arena": "arena_gallery",
-     "intro": "Стая выходит из-под арки без звука."
-    },
-    {
-     "weight": 2,
-     "type": "event",
-     "message": "У стенки что-то блестит: кусок лома и моток проволоки.",
-     "effects": [
-      {
-       "type": "add_item",
-       "item": "item_scrap",
-       "quantity": 1
-      }
-     ]
-    },
-    {
-     "weight": 1,
-     "type": "skill_check",
-     "skill": "stealth",
-     "difficulty": 45,
-     "message": "Мостки уходят из-под ног: держись за трубу.",
-     "success_effects": [
-      {
-       "type": "show_message",
-       "text": "Ты удержался на трубе."
-      }
-     ],
-     "fail_effects": [
-      {
-       "type": "change_hp",
-       "delta": -4
-      },
-      {
-       "type": "show_message",
-       "text": "Ты падаешь в воду коленями на рельс."
-      }
-     ]
+      "id": "enc_deep",
+      "rolls": 1,
+      "entries": [
+        {
+          "weight": 4,
+          "type": "nothing"
+        },
+        {
+          "weight": 3,
+          "type": "combat",
+          "enemies": [
+            {
+              "entity": "npc_rotling",
+              "count_min": 1,
+              "count_max": 2
+            }
+          ],
+          "arena": "arena_deep",
+          "intro": "Впереди шевелятся: гнильцы идут на свет лампы."
+        },
+        {
+          "weight": 2,
+          "type": "event",
+          "message": "В нише — свёрток: тряпьё и бутылка масла.",
+          "effects": [
+            {
+              "type": "add_item",
+              "item": "item_cloth",
+              "quantity": 1
+            },
+            {
+              "type": "add_item",
+              "item": "item_oil",
+              "quantity": 1
+            }
+          ]
+        },
+        {
+          "weight": 1,
+          "type": "skill_check",
+          "skill": "perception",
+          "difficulty": 50,
+          "message": "Свод проседает: слышно, как сыплется порода.",
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Ты успеваешь отойти от кромки обрушения."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "change_hp",
+              "delta": -5
+            },
+            {
+              "type": "show_message",
+              "text": "Камень бьёт по плечу, и штольня замолкает."
+            }
+          ]
+        },
+        {
+          "weight": 1,
+          "type": "event",
+          "message": "У рельса стоит ведро с чистой водой: нижние оставляют его для своих.",
+          "effects": [
+            {
+              "type": "add_item",
+              "item": "item_water",
+              "quantity": 1
+            }
+          ]
+        }
+      ]
     }
-   ]
-  },
-  {
-   "id": "enc_deep",
-   "rolls": 1,
-   "entries": [
-    {
-     "weight": 4,
-     "type": "nothing"
-    },
-    {
-     "weight": 3,
-     "type": "combat",
-     "enemies": [
-      {
-       "entity": "npc_rotling",
-       "count_min": 1,
-       "count_max": 2
-      }
-     ],
-     "arena": "arena_deep",
-     "intro": "Впереди шевелятся: гнильцы идут на свет лампы."
-    },
-    {
-     "weight": 2,
-     "type": "event",
-     "message": "В нише — свёрток: тряпьё и бутылка масла.",
-     "effects": [
-      {
-       "type": "add_item",
-       "item": "item_cloth",
-       "quantity": 1
-      },
-      {
-       "type": "add_item",
-       "item": "item_oil",
-       "quantity": 1
-      }
-     ]
-    },
-    {
-     "weight": 1,
-     "type": "skill_check",
-     "skill": "perception",
-     "difficulty": 50,
-     "message": "Свод проседает: слышно, как сыплется порода.",
-     "success_effects": [
-      {
-       "type": "show_message",
-       "text": "Ты успеваешь отойти от кромки обрушения."
-      }
-     ],
-     "fail_effects": [
-      {
-       "type": "change_hp",
-       "delta": -5
-      },
-      {
-       "type": "show_message",
-       "text": "Камень бьёт по плечу, и штольня замолкает."
-      }
-     ]
-    }
-   ]
-  }
- ]
+  ]
 }

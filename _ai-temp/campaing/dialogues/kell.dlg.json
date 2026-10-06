@@ -96,7 +96,8 @@
          "kind": "line",
          "line": {
           "text": "Это когда ярус закрывают и считают, сколько в нём осталось людей.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/kell_2.mp3"
          }
         },
         {
@@ -131,7 +132,8 @@
           {
            "kind": "line",
            "line": {
-            "text": "Не я. Приказ есть приказ: закрыть затвор, никого не выпускать. Он не послушал. Я не спрашивал, почему."
+            "text": "Не я. Приказ есть приказ: закрыть затвор, никого не выпускать. Он не послушал. Я не спрашивал, почему.",
+            "voice": "assets/voice/kell_3.mp3"
            }
           },
           {
@@ -196,7 +198,8 @@
          "kind": "line",
          "line": {
           "text": "Помпа не моя. Иди, смотри. Только вниз не суйся: там не наша вода.",
-          "emotion": "thoughtful"
+          "emotion": "thoughtful",
+          "voice": "assets/voice/kell_1.mp3"
          }
         }
        ]
@@ -222,6 +225,68 @@
      "goto": "end"
     }
    ]
+  },
+  {
+   "id": "Наряд",
+   "label": "Наряд тринадцатого",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Он смотрит на бумагу долго, потом убирает руку с рукояти.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Двенадцать человек, седьмой ярус, с двадцати до шести. Моя подпись стоит второй.",
+        "emotion": "thoughtful",
+        "voice": "assets/voice/kell_4.mp3"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Первую ты уже видел. Я — руки, старшина. Бумагу подписывают не руки."
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "clue_roster"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "kell_confessed"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "change_disposition",
+        "target": "npc_kell",
+        "delta": -10
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "unlock_codex",
+        "entry": "codex_silence"
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [],
+   "goto": "Начало"
   }
  ]
 }

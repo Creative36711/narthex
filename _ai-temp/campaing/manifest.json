@@ -97,6 +97,7 @@
   "rule_resh_found.json",
   "rule_ashfall.json",
   "rule_deadline_warn.json",
+  "rule_downpour.json",
   "rule_deadline_flood.json",
   "rule_lockdown.json",
   "rule_camp_ambush.json",
@@ -120,7 +121,9 @@
   "rule_end_closed.json",
   "rule_patrol_gate.json",
   "rule_patrol_pump.json",
-  "rule_zhuk_appears.json"
+  "rule_zhuk_appears.json",
+  "rule_see_rot.json",
+  "rule_see_hound.json"
  ],
  "arenas": [
   "arena_gate.json",
@@ -167,7 +170,9 @@
   "codex_silence.json",
   "codex_case136.json",
   "codex_resh_notes.json",
-  "codex_ledger.json"
+  "codex_ledger.json",
+  "codex_seal.json",
+  "codex_nadzor.json"
  ],
  "dialogues": [
   "ayla.ink",

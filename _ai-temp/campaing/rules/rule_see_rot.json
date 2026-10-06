@@ -1,0 +1,23 @@
+{
+ "id": "rule_see_rot",
+ "label": "Гнилец у воды",
+ "once": true,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "player_enters_scene",
+   "scene": "scene_flood_gallery"
+  }
+ ],
+ "effects": [
+  {
+   "type": "unlock_codex",
+   "entry": "codex_rot"
+  },
+  {
+   "type": "show_message",
+   "text": "У мостков кто-то шевелится: кожа серая, на плечах ил, пальцы длиннее, чем должны быть. Он не бросается — он ждёт, чтобы ты сделал шаг."
+  }
+ ],
+ "chapter": "ch_deep"
+}

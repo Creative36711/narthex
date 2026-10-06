@@ -1,38 +1,39 @@
 {
- "id": "item_cot",
- "type": "item",
- "category": "prop",
- "label": "Койка",
- "description": "Железная койка с тощим матрасом. Внизу спят одетыми — на всякий случай.",
- "weight": 20.0,
- "stackable": false,
- "value": {
-  "mark": 0
- },
- "interact_options": [
-  {
-   "label": "Поспать восемь часов",
-   "effects": [
+  "id": "item_cot",
+  "type": "item",
+  "category": "prop",
+  "label": "Койка",
+  "description": "Железная койка с тощим матрасом. Внизу спят одетыми — на всякий случай.",
+  "weight": 20.0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
     {
-     "type": "advance_time",
-     "ticks": 8
-    },
-    {
-     "type": "change_need",
-     "need": "need_rest",
-     "delta": 100
-    },
-    {
-     "type": "change_need",
-     "need": "need_warmth",
-     "delta": 15
-    },
-    {
-     "type": "change_hp",
-     "delta": 2
+      "label": "Поспать восемь часов",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 8
+        },
+        {
+          "type": "change_need",
+          "need": "need_rest",
+          "delta": 100
+        },
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 15
+        },
+        {
+          "type": "change_hp",
+          "delta": 2
+        }
+      ],
+      "message": "Ты проваливаешься в сон под ровный гул помпы, которой нет.",
+      "sound": "snd_cloth"
     }
-   ],
-   "message": "Ты проваливаешься в сон под ровный гул помпы, которой нет."
-  }
- ]
+  ]
 }

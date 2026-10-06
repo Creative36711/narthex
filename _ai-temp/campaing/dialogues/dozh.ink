@@ -19,7 +19,7 @@ EXTERNAL unlock_codex(a0)
     ~ open_trade("npc_dozh")
     -> DONE
 + [Что слышно про помпу?]
-    Слышно, что она молчит. А про молчание внизу всегда слышно громче. # emotion: thoughtful
+Слышно, что она молчит. А про молчание внизу всегда слышно громче. # emotion: thoughtful # voice: assets/voice/dozh_1.mp3
     Говорят, на девятом жилу нашли. Живую. Говорят, из-за неё всё.
     ~ unlock_codex("codex_karkas")
     -> Начало_hub
@@ -29,7 +29,7 @@ EXTERNAL unlock_codex(a0)
     ~ change_disposition("npc_zhuk", 8)
     -> Начало_hub
 + { item_count("item_mark") >= 34 and not (has_item("item_filter")) } [Купить дыхатель (34 марки).]
-    Дыхатель — это не товар, это время. Держи, не задохнись. # emotion: calm
+Дыхатель — это не товар, это время. Держи, не задохнись. # emotion: calm # voice: assets/voice/dozh_2.mp3
     ~ remove_item("item_mark", 34)
     ~ add_item("item_filter", 1)
     -> Начало_hub

@@ -3,7 +3,12 @@
  "label": "Жук продал ночь",
  "once": true,
  "manual": true,
- "conditions": [],
+ "conditions": [
+  {
+   "type": "flag_not_set",
+   "flag": "clue_roster"
+  }
+ ],
  "effects": [
   {
    "type": "set_flag",
