@@ -20,7 +20,7 @@ EXTERNAL unlock_codex(a0)
     -> DONE
 + [Что слышно про помпу?]
 Слышно, что она молчит. А про молчание внизу всегда слышно громче. # emotion: thoughtful # voice: assets/voice/dozh_1.mp3
-    Говорят, на девятом жилу нашли. Живую. Говорят, из-за неё всё.
+    Говорят, на девятом жилу нашли. Живую. Говорят, из-за неё всё. # voice: assets/voice/dozh_3.mp3
     ~ unlock_codex("codex_karkas")
     -> Начало_hub
 * [Ищу Жука.]

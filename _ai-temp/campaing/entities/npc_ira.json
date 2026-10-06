@@ -1,86 +1,86 @@
 {
-  "id": "npc_ira",
-  "type": "npc",
-  "label": "Ира Ярова, помощница мастера",
-  "description": "Вторая рука седьмой помпы. Третий день работает одна, спит у пульта и не отвечает на вопросы о брате.",
-  "portrait": {
-    "neutral": "assets/img/npc/ira_neutral.jpg",
-    "angry": "assets/img/npc/ira_angry.jpg",
-    "afraid": "assets/img/npc/ira_thoughtful.jpg",
-    "thoughtful": "assets/img/npc/ira_thoughtful.jpg",
-    "sad": "assets/img/npc/ira_sad.jpg",
-    "calm": "assets/img/npc/ira_neutral.jpg"
+ "id": "npc_ira",
+ "type": "npc",
+ "label": "Ира Ярова, помощница мастера",
+ "description": "Вторая рука седьмой помпы. Третий день работает одна, спит у пульта и не отвечает на вопросы о брате.",
+ "portrait": {
+  "neutral": "assets/img/npc/ira_neutral.jpg",
+  "angry": "assets/img/npc/ira_angry.jpg",
+  "afraid": "assets/img/npc/ira_thoughtful.jpg",
+  "thoughtful": "assets/img/npc/ira_thoughtful.jpg",
+  "sad": "assets/img/npc/ira_sad.jpg",
+  "calm": "assets/img/npc/ira_neutral.jpg"
+ },
+ "stats": {
+  "STR": 8,
+  "CON": 10,
+  "SIZ": 9,
+  "DEX": 12,
+  "INT": 12,
+  "POW": 11,
+  "CHA": 11
+ },
+ "skills": {
+  "repair": 48,
+  "investigate": 40,
+  "perception": 45,
+  "persuade": 32,
+  "stealth": 32,
+  "dodge": 38,
+  "brawl": 25
+ },
+ "slot_type": "person",
+ "faction": "faction_cekh",
+ "base_disposition": 5,
+ "schedule": [
+  {
+   "time_range": [
+    7,
+    20
+   ],
+   "location": "loc_pump7",
+   "scene": "scene_pump_hall",
+   "slot": "slot_ira"
   },
-  "stats": {
-    "STR": 8,
-    "CON": 10,
-    "SIZ": 9,
-    "DEX": 12,
-    "INT": 12,
-    "POW": 11,
-    "CHA": 11
+  {
+   "time_range": [
+    20,
+    24
+   ],
+   "location": "loc_ward8",
+   "scene": "scene_dry_row",
+   "slot": "slot_bench_row"
   },
-  "skills": {
-    "repair": 48,
-    "investigate": 40,
-    "perception": 45,
-    "persuade": 32,
-    "stealth": 32,
-    "dodge": 38,
-    "brawl": 25
-  },
-  "slot_type": "person",
-  "faction": "faction_cekh",
-  "base_disposition": 5,
-  "schedule": [
-    {
-      "time_range": [
-        7,
-        20
-      ],
-      "location": "loc_pump7",
-      "scene": "scene_pump_hall",
-      "slot": "slot_ira"
-    },
-    {
-      "time_range": [
-        20,
-        24
-      ],
-      "location": "loc_ward8",
-      "scene": "scene_dry_row",
-      "slot": "slot_bench_row"
-    },
-    {
-      "time_range": [
-        0,
-        7
-      ],
-      "location": "loc_ward8",
-      "scene": "scene_dry_row",
-      "slot": "slot_bench_row"
-    }
-  ],
-  "dialogue": "dialogues/ira.ink",
-  "inventory": [
-    {
-      "item": "item_mark",
-      "quantity": 12
-    },
-    {
-      "item": "item_wrench",
-      "quantity": 1
-    },
-    {
-      "item": "item_ration",
-      "quantity": 1
-    },
-    {
-      "item": "item_bandage",
-      "quantity": 1
-    }
-  ],
-  "equipment": {
-    "weapon": "item_wrench"
+  {
+   "time_range": [
+    0,
+    7
+   ],
+   "location": "loc_ward8",
+   "scene": "scene_dry_row",
+   "slot": "slot_bench_row"
   }
+ ],
+ "dialogue": "dialogues/ira.ink",
+ "inventory": [
+  {
+   "item": "item_mark",
+   "quantity": 12
+  },
+  {
+   "item": "item_wrench",
+   "quantity": 1
+  },
+  {
+   "item": "item_ration",
+   "quantity": 1
+  },
+  {
+   "item": "item_bandage",
+   "quantity": 1
+  }
+ ],
+ "equipment": {
+  "weapon": "item_wrench"
+ }
 }

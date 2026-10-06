@@ -123,6 +123,25 @@
      ]
     },
     {
+     "text": "Протянуть Каст записку мастера.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "present_item",
+          "required": "item_note",
+          "ok_goto": "Записка",
+          "fail_goto": "Отказ"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
      "text": "Где мастер Реш?",
      "sections": [
       {
@@ -326,6 +345,92 @@
    ],
    "choices": [],
    "goto": "Начало"
+  },
+  {
+   "id": "Записка",
+   "speaker": "kast",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Каст читает, не беря бумагу в руки: только глазами по строчке, туда и обратно.",
+        "action": true,
+        "timer": 4
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "«Муфту срезали изнутри». Мастер сорок лет молчал не потому, что боялся. Он ждал, кто первый скажет это вслух.",
+        "emotion": "calm"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Наряд на ночь тринадцатого выписан в моём отделе. Подпись моя. Почерк — не мой.",
+        "emotion": "calm",
+        "voice": "assets/voice/kast_4.mp3"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Кто писал — я не ищу. Но если найдёшь, учти: это человек, чьи бумаги я подписываю не глядя. Таких в отделе девять. Считай, я назвала тебе девятерых и ни одного имени.",
+        "emotion": "calm"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "kast_note"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "change_disposition",
+        "target": "npc_kast",
+        "delta": -12
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "fire_rule",
+        "rule": "rule_kast_note"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Отказ",
+   "speaker": "kast",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Она даже не смотрит на протянутое.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Убери. Дело сто тридцать семь не про это, а время у тебя не резиновое.",
+        "emotion": "calm"
+       }
+      }
+     ]
+    }
+   ]
   }
  ]
 }

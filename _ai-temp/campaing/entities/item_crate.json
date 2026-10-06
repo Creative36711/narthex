@@ -42,7 +42,8 @@
     }
    ],
    "once": true,
-   "sound": "sfx_pickup"
+   "sound": "sfx_pickup",
+   "hint": "кладовая Цеха: чужое берут тихо"
   }
  ]
 }

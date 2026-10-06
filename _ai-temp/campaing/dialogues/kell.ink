@@ -4,6 +4,8 @@ EXTERNAL has_item(a0)
 EXTERNAL set_flag(a0)
 EXTERNAL skill_check(a0, a1)
 EXTERNAL unlock_codex(a0)
+EXTERNAL present_item(a0, a1, a2)
+EXTERNAL fire_rule(a0)
 
 VAR r = 0
 
@@ -25,6 +27,9 @@ VAR r = 0
     {r: -> Начало_hub_ok2 | -> Начало_hub_no2}
 + { has_item("item_roster") } [Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.]
     -> Наряд
++ [Положить перед Келлом жетон стража.]
+    ~ present_item("Жетон", "Отказ", "item_guard_token")
+    -> Начало_hub
 + [Пропусти меня к помпе.]
 Помпа не моя. Иди, смотри. Только вниз не суйся: там не наша вода. # emotion: thoughtful # voice: assets/voice/kell_1.mp3
     -> Начало_hub
@@ -64,4 +69,18 @@ VAR r = 0
 === Начало_hub_no2 ===
 За такие слова внизу не отвечают. Считай, я не слышал — пока ты при исполнении.
 ~ change_disposition("npc_kell", -8)
+-> Начало_hub
+
+=== Жетон ===
+Келл смотрит на медь так, будто она горячая, и не берёт. # timer: 4 # action
+Яров. Я три дня носил его жетон в кармане и так и не зашёл к сестре. # emotion: thoughtful # voice: assets/voice/kell_5.mp3
+Отдай ей сам. И скажи: Келл стоял у затвора и не открыл. Это правда, и она хуже любой лжи, которую ты мог бы придумать. # emotion: thoughtful
+~ set_flag("kell_token")
+~ change_disposition("npc_kell", 10)
+~ fire_rule("rule_kell_token")
+-> Начало_hub
+
+=== Отказ ===
+Келл косит на протянутое, но руки с рукояти не убирает. # action
+Мне это зачем? Я за чужие вещи не отвечаю. За свои — тоже. # emotion: calm
 -> Начало_hub

@@ -1,0 +1,19 @@
+{
+ "id": "rule_kell_token",
+ "label": "Жетон показан Келлу",
+ "once": true,
+ "manual": false,
+ "conditions": [],
+ "effects": [
+  {
+   "type": "grant_xp",
+   "points": 10
+  },
+  {
+   "type": "journal_update",
+   "quest": "quest_missing",
+   "text_key": "j_token"
+  }
+ ],
+ "chapter": "ch_signs"
+}

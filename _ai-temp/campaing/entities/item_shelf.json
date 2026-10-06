@@ -1,58 +1,60 @@
 {
-  "id": "item_shelf",
-  "type": "item",
-  "category": "container",
-  "label": "Стеллаж архива",
-  "description": "Железный стеллаж от пола до свода: папки, сводки и то, что хранят, чтобы не читать.",
-  "weight": 120.0,
-  "stackable": false,
-  "value": {
-    "mark": 0
-  },
-  "interact_options": [
+ "id": "item_shelf",
+ "type": "item",
+ "category": "container",
+ "label": "Стеллаж архива",
+ "description": "Железный стеллаж от пола до свода: папки, сводки и то, что хранят, чтобы не читать.",
+ "weight": 120.0,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ },
+ "interact_options": [
+  {
+   "label": "Взять сводку по седьмой помпе",
+   "effects": [
     {
-      "label": "Взять сводку по седьмой помпе",
-      "effects": [
-        {
-          "type": "unlock_codex",
-          "entry": "codex_pumps"
-        },
-        {
-          "type": "advance_time",
-          "ticks": 1
-        }
-      ],
-      "message": "Сводка: семь помп, шесть в работе. Седьмая — «причина уточняется», третий день.",
-      "sound": "snd_paper"
+     "type": "unlock_codex",
+     "entry": "codex_pumps"
     },
     {
-      "label": "Прочитать дело №136",
-      "effects": [
-        {
-          "type": "unlock_codex",
-          "entry": "codex_case136"
-        },
-        {
-          "type": "fire_rule",
-          "rule": "rule_reveal_deep"
-        },
-        {
-          "type": "advance_time",
-          "ticks": 1
-        }
-      ],
-      "message": "Затопление девятого яруса: три листа, подпись Каст и ни одной фамилии. В приложении — схема старой штольни на девятый.",
-      "sound": "snd_page"
-    },
-    {
-      "label": "Поискать ведомость седьмой",
-      "effects": [
-        {
-          "type": "show_message",
-          "text": "Ведомость есть, а приложения к ней нет: изъято инспектором Каст по пункту девятому."
-        }
-      ],
-      "sound": "snd_page"
+     "type": "advance_time",
+     "ticks": 1
     }
-  ]
+   ],
+   "message": "Сводка: семь помп, шесть в работе. Седьмая — «причина уточняется», третий день.",
+   "sound": "snd_paper",
+   "hint": "бумагу примут там, где её ждут"
+  },
+  {
+   "label": "Прочитать дело №136",
+   "effects": [
+    {
+     "type": "unlock_codex",
+     "entry": "codex_case136"
+    },
+    {
+     "type": "fire_rule",
+     "rule": "rule_reveal_deep"
+    },
+    {
+     "type": "advance_time",
+     "ticks": 1
+    }
+   ],
+   "message": "Затопление девятого яруса: три листа, подпись Каст и ни одной фамилии. В приложении — схема старой штольни на девятый.",
+   "sound": "snd_page"
+  },
+  {
+   "label": "Поискать ведомость седьмой",
+   "effects": [
+    {
+     "type": "show_message",
+     "text": "Ведомость есть, а приложения к ней нет: изъято инспектором Каст по пункту девятому."
+    }
+   ],
+   "sound": "snd_page",
+   "hint": "ведомость без приложения — как помпа без мастера"
+  }
+ ]
 }

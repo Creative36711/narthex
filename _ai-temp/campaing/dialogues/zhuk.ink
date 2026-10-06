@@ -5,6 +5,8 @@ EXTERNAL remove_item(a0, a1)
 EXTERNAL set_dialogue_timer(a0, a1)
 EXTERNAL set_flag(a0)
 EXTERNAL skill_check(a0, a1)
+EXTERNAL present_item(a0, a1, a2)
+EXTERNAL change_disposition(a0, a1)
 
 VAR r = 0
 
@@ -33,6 +35,9 @@ VAR r = 0
     Жук кривится, но рук не прячет: тогда слушай другое. Гроссбух он не в конторе держал и не в каморке: он его в штольне спрятал, там, где спал, под плитой. Ищи, где у мастера была постель. # emotion: thoughtful
     ~ set_flag("zhuk_cache_hint")
     -> Начало_hub
++ [Дать Жуку полистать гроссбух.]
+    ~ present_item("Расход", "Отказ", "item_ledger")
+    -> Начало_hub
 * [Где мастер?]
 Ниже восьмого. Там, где жила поёт. Хочешь — спускайся, хочешь — живи. # emotion: calm # voice: assets/voice/zhuk_3.mp3
     ~ fire_rule("rule_reveal_deep")
@@ -54,4 +59,18 @@ VAR r = 0
 
 === Начало_hub_no1 ===
 Видел я много. Рассказываю — мало. Пятьдесят марок, и я вспомню всё.
+-> Начало_hub
+
+=== Расход ===
+Жук листает, водя пальцем по столбцам, и считает тихо, одними губами. # timer: 5 # action
+Мазут списан на семь смен по двенадцать человек. А тринадцатая ночь в расходе есть, людей в ней нет. # emotion: thoughtful # voice: assets/voice/zhuk_4.mp3
+Кто-то платил, чтобы седьмой ярус в ту ночь стоял пустым. Платил не Келл: у Келла таких денег нет, у него только руки. # emotion: thoughtful
+~ set_flag("zhuk_ledger")
+~ change_disposition("npc_zhuk", 8)
+~ fire_rule("rule_zhuk_ledger")
+-> Начало_hub
+
+=== Отказ ===
+Жук вертит вещь в пальцах и возвращает. # action
+За это Векс и лома не даст. Приходи с бумагой, а лучше — с гроссбухом. # emotion: calm
 -> Начало_hub

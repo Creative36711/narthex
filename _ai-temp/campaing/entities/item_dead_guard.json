@@ -1,106 +1,107 @@
 {
-  "id": "item_dead_guard",
-  "type": "item",
-  "category": "clue",
-  "label": "Погибший стражник",
-  "description": "Страж Надзора лицом в воду, в кирасе и без жетона на шее. Кто-то снял его уже после.",
-  "weight": 70.0,
-  "stackable": false,
-  "value": {
-    "mark": 0
-  },
-  "interact_options": [
+ "id": "item_dead_guard",
+ "type": "item",
+ "category": "clue",
+ "label": "Погибший стражник",
+ "description": "Страж Надзора лицом в воду, в кирасе и без жетона на шее. Кто-то снял его уже после.",
+ "weight": 70.0,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ },
+ "interact_options": [
+  {
+   "label": "Осмотреть тело",
+   "effects": [
     {
-      "label": "Осмотреть тело",
-      "effects": [
-        {
-          "type": "skill_check_gate",
-          "skill": "investigate",
-          "difficulty": 50,
-          "success_effects": [
-            {
-              "type": "add_item",
-              "item": "item_guard_token",
-              "quantity": 1
-            },
-            {
-              "type": "set_flag",
-              "flag": "clue_guard"
-            },
-            {
-              "type": "change_variable",
-              "var": "clues",
-              "delta": 1
-            },
-            {
-              "type": "fire_rule",
-              "rule": "rule_clue_check"
-            },
-            {
-              "type": "start_quest",
-              "quest": "quest_missing"
-            },
-            {
-              "type": "show_message",
-              "text": "Пальцы разжаты, но в ладони зажат номерной жетон: Стась Яров. Умер не от воды — от удара в затылок."
-            }
-          ],
-          "fail_effects": [
-            {
-              "type": "show_message",
-              "text": "Ты не можешь перевернуть тело: кираза затянуло илом."
-            }
-          ]
-        }
-      ],
-      "once": true,
-      "sound": "sfx_water"
-    },
-    {
-      "label": "Обыскать карманы",
-      "effects": [
-        {
-          "type": "add_item",
-          "item": "item_mark",
-          "quantity": 7
-        },
-        {
-          "type": "add_item",
-          "item": "item_ration",
-          "quantity": 1
-        }
-      ],
-      "once": true,
-      "sound": "snd_cloth"
-    },
-    {
-      "label": "Сверить жетон со списком смены",
-      "hint": "Номер должен быть в расписании",
-      "sound": "snd_paper",
-      "once": true,
-      "effects": [
-        {
-          "type": "skill_check_gate",
-          "skill": "investigate",
-          "difficulty": 45,
-          "success_effects": [
-            {
-              "type": "grant_xp",
-              "points": 10
-            },
-            {
-              "type": "show_message",
-              "text": "Стась Яров стоит в смене с восемнадцати до двух, место — затвор восьмого. В два часа его в списке нет, а затвор к утру закрыт. То есть закрывал он, и закрывал не по своей смене."
-            }
-          ],
-          "fail_effects": [
-            {
-              "type": "show_message",
-              "text": "Список смены исписан карандашом и потёрт: номер Ярова теряется среди чужих фамилий."
-            }
-          ]
-        }
-      ]
+     "type": "skill_check_gate",
+     "skill": "investigate",
+     "difficulty": 50,
+     "success_effects": [
+      {
+       "type": "add_item",
+       "item": "item_guard_token",
+       "quantity": 1
+      },
+      {
+       "type": "set_flag",
+       "flag": "clue_guard"
+      },
+      {
+       "type": "change_variable",
+       "var": "clues",
+       "delta": 1
+      },
+      {
+       "type": "fire_rule",
+       "rule": "rule_clue_check"
+      },
+      {
+       "type": "start_quest",
+       "quest": "quest_missing"
+      },
+      {
+       "type": "show_message",
+       "text": "Пальцы разжаты, но в ладони зажат номерной жетон: Стась Яров. Умер не от воды — от удара в затылок."
+      }
+     ],
+     "fail_effects": [
+      {
+       "type": "show_message",
+       "text": "Ты не можешь перевернуть тело: кираза затянуло илом."
+      }
+     ]
     }
-  ]
+   ],
+   "once": true,
+   "sound": "sfx_water"
+  },
+  {
+   "label": "Обыскать карманы",
+   "effects": [
+    {
+     "type": "add_item",
+     "item": "item_mark",
+     "quantity": 7
+    },
+    {
+     "type": "add_item",
+     "item": "item_ration",
+     "quantity": 1
+    }
+   ],
+   "once": true,
+   "sound": "snd_cloth",
+   "hint": "у мёртвого спрашивать не надо"
+  },
+  {
+   "label": "Сверить жетон со списком смены",
+   "hint": "Номер должен быть в расписании",
+   "sound": "snd_paper",
+   "once": true,
+   "effects": [
+    {
+     "type": "skill_check_gate",
+     "skill": "investigate",
+     "difficulty": 45,
+     "success_effects": [
+      {
+       "type": "grant_xp",
+       "points": 10
+      },
+      {
+       "type": "show_message",
+       "text": "Стась Яров стоит в смене с восемнадцати до двух, место — затвор восьмого. В два часа его в списке нет, а затвор к утру закрыт. То есть закрывал он, и закрывал не по своей смене."
+      }
+     ],
+     "fail_effects": [
+      {
+       "type": "show_message",
+       "text": "Список смены исписан карандашом и потёрт: номер Ярова теряется среди чужих фамилий."
+      }
+     ]
+    }
+   ]
+  }
+ ]
 }

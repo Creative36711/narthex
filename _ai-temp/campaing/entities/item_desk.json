@@ -1,38 +1,39 @@
 {
-  "id": "item_desk",
-  "type": "item",
-  "category": "prop",
-  "label": "Стол дознавателя",
-  "description": "Стол, за которым пишут не отчёты, а оправдания. На нём — лампа, чернильница и чужая печать.",
-  "weight": 25.0,
-  "stackable": false,
-  "value": {
-    "mark": 0
-  },
-  "interact_options": [
+ "id": "item_desk",
+ "type": "item",
+ "category": "prop",
+ "label": "Стол дознавателя",
+ "description": "Стол, за которым пишут не отчёты, а оправдания. На нём — лампа, чернильница и чужая печать.",
+ "weight": 25.0,
+ "stackable": false,
+ "value": {
+  "mark": 0
+ },
+ "interact_options": [
+  {
+   "label": "Разобрать бумаги",
+   "effects": [
     {
-      "label": "Разобрать бумаги",
-      "effects": [
-        {
-          "type": "advance_time",
-          "ticks": 1
-        },
-        {
-          "type": "show_message",
-          "text": "Семьдесят два часа на дело. Счёт идёт с семи утра тринадцатого."
-        }
-      ],
-      "sound": "snd_page"
+     "type": "advance_time",
+     "ticks": 1
     },
     {
-      "label": "Проверить снаряжение",
-      "effects": [
-        {
-          "type": "open_craft"
-        }
-      ],
-      "message": "Ты раскладываешь на столе всё, что можно собрать.",
-      "sound": "snd_latch"
+     "type": "show_message",
+     "text": "Семьдесят два часа на дело. Счёт идёт с семи утра тринадцатого."
     }
-  ]
+   ],
+   "sound": "snd_page"
+  },
+  {
+   "label": "Проверить снаряжение",
+   "effects": [
+    {
+     "type": "open_craft"
+    }
+   ],
+   "message": "Ты раскладываешь на столе всё, что можно собрать.",
+   "sound": "snd_latch",
+   "hint": "что надето, то и работает: броня и оружие — по слотам"
+  }
+ ]
 }

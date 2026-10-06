@@ -9,5 +9,6 @@
  "value": {
   "mark": 28
  },
- "equip_slot": "mask"
+ "equip_slot": "mask",
+ "quest_item": true
 }

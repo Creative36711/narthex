@@ -190,6 +190,25 @@
      }
     },
     {
+     "text": "Положить перед Келлом жетон стража.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "present_item",
+          "required": "item_guard_token",
+          "ok_goto": "Жетон",
+          "fail_goto": "Отказ"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
      "text": "Пропусти меня к помпе.",
      "sections": [
       {
@@ -287,6 +306,85 @@
    ],
    "choices": [],
    "goto": "Начало"
+  },
+  {
+   "id": "Жетон",
+   "speaker": "kell",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Келл смотрит на медь так, будто она горячая, и не берёт.",
+        "action": true,
+        "timer": 4
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Яров. Я три дня носил его жетон в кармане и так и не зашёл к сестре.",
+        "emotion": "thoughtful",
+        "voice": "assets/voice/kell_5.mp3"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Отдай ей сам. И скажи: Келл стоял у затвора и не открыл. Это правда, и она хуже любой лжи, которую ты мог бы придумать.",
+        "emotion": "thoughtful"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "kell_token"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "change_disposition",
+        "target": "npc_kell",
+        "delta": 10
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "fire_rule",
+        "rule": "rule_kell_token"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Отказ",
+   "speaker": "kell",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Келл косит на протянутое, но руки с рукояти не убирает.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Мне это зачем? Я за чужие вещи не отвечаю. За свои — тоже.",
+        "emotion": "calm"
+       }
+      }
+     ]
+    }
+   ]
   }
  ]
 }

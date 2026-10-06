@@ -202,6 +202,25 @@
      ]
     },
     {
+     "text": "Дать Жуку полистать гроссбух.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "present_item",
+          "required": "item_ledger",
+          "ok_goto": "Расход",
+          "fail_goto": "Отказ"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
      "text": "Где мастер?",
      "sections": [
       {
@@ -262,6 +281,85 @@
    ],
    "choices": [],
    "goto": "Начало"
+  },
+  {
+   "id": "Расход",
+   "speaker": "zhuk",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Жук листает, водя пальцем по столбцам, и считает тихо, одними губами.",
+        "action": true,
+        "timer": 5
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Мазут списан на семь смен по двенадцать человек. А тринадцатая ночь в расходе есть, людей в ней нет.",
+        "emotion": "thoughtful",
+        "voice": "assets/voice/zhuk_4.mp3"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Кто-то платил, чтобы седьмой ярус в ту ночь стоял пустым. Платил не Келл: у Келла таких денег нет, у него только руки.",
+        "emotion": "thoughtful"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "zhuk_ledger"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "change_disposition",
+        "target": "npc_zhuk",
+        "delta": 8
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "fire_rule",
+        "rule": "rule_zhuk_ledger"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Отказ",
+   "speaker": "zhuk",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Жук вертит вещь в пальцах и возвращает.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "За это Векс и лома не даст. Приходи с бумагой, а лучше — с гроссбухом.",
+        "emotion": "calm"
+       }
+      }
+     ]
+    }
+   ]
   }
  ]
 }
