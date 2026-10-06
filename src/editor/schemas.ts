@@ -815,6 +815,27 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     fields: [{ key: 'cutscene', label: 'Катсцена', kind: 'cutsceneRef' }],
     blank: { cutscene: '' },
   },
+  play_sound: {
+    label: 'Воспроизвести звук',
+    fields: [
+      { key: 'sound', label: 'id звука или файл', kind: 'string' },
+      { key: 'volume', label: 'Громкость (0..1, по умолчанию 1)', kind: 'number', optional: true },
+    ],
+    blank: { sound: '' },
+  },
+  override_music: {
+    label: 'Сюжетно переопределить музыку',
+    fields: [
+      { key: 'tracks', label: 'id треков (JSON массив)', kind: 'json' },
+      { key: 'fade', label: 'Кроссфейд (сек)', kind: 'number', optional: true },
+    ],
+    blank: { tracks: [] },
+  },
+  clear_music_override: {
+    label: 'Снять переопределение музыки',
+    fields: [{ key: 'fade', label: 'Затухание (сек)', kind: 'number', optional: true }],
+    blank: {},
+  },
 }
 
 /** Источник русских названий по id (реализуется EditorStore). */

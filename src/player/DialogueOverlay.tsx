@@ -7,6 +7,7 @@ import { tipSeen, markTip } from './tips'
 import { useSettings, voiceVolume } from '../shared/settings'
 import { speak } from '../shared/speech'
 import { setMusicDucking } from '../shared/music'
+import { playInteraction } from '../shared/audio'
 
 interface Props {
   engine: GameEngine
@@ -88,6 +89,9 @@ export function DialogueOverlay({ engine }: Props) {
     if (!line) {
       done()
       return
+    }
+    if (line.sfx) {
+      playInteraction(line.sfx, { sound: line.sfx })
     }
     const vol = voiceVolume(settings)
     if (line.voice && vol > 0) {

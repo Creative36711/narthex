@@ -24,7 +24,7 @@ import {
   type CampaignIndexEntry,
 } from './newCampaign'
 import { stopMusic, setMusicCampaign } from '../shared/music'
-import { setAmbientAudioEnabled } from '../shared/audio'
+import { setAmbientAudioEnabled, setAudioCampaign } from '../shared/audio'
 import { themeVars } from '../shared/theme'
 import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { ENGINE_VERSION, checkEngine } from '../shared/versions'
@@ -558,6 +558,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     const startTest = (choice?: CharChoice) => {
       if (!testCampaign) return
+      setAudioCampaign(testCampaign)
+      setMusicCampaign(testCampaign)
+      setAmbientAudioEnabled(true)
       const e = new GameEngine(testCampaign)
       if (choice) e.applyCharCreation(choice)
       e.start()
@@ -771,6 +774,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       setLastPlaytest({ startedAt: Date.now(), finishedAt: 0, contentHash: campaignContentHash(store) })
       setTestCampaign(campaign)
       setMusicCampaign(campaign)
+      setAudioCampaign(campaign)
+      setAmbientAudioEnabled(true)
       if (!campaign.meta.char_creation) {
         const engine = new GameEngine(campaign)
         engine.start()

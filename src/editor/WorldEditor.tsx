@@ -6,7 +6,7 @@ import { ImageUpload, JsonField, RefSelect, FileAdvancedJson } from './Fields'
 import { ArtView } from '../shared/ArtView'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
-import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
+import { MusicRulesEditor, SoundMultiSelect, SoundSelect } from './AudioSection'
 
 /**
  * Редактор мира (фидбек №13): дерево регионов (с вложенностью),
@@ -425,18 +425,63 @@ function LocationProps({
       <div className="fld-block">
         <span className="fld-caption">Дороги (куда можно дойти отсюда)</span>
         {loc.travel_connections.map((tc, ti) => (
-          <div key={ti} className="journal-row">
-            <select className="journal-key" value={tc.to} onChange={(e) => ((tc.to = e.target.value), commit())}>
-              {!allLocs.some((o) => o.id === tc.to) && <option value={tc.to}>{tc.to || '—'}</option>}
-              {allLocs.map((o) => (
-                <option key={o.id} value={o.id}>{o.label}</option>
-              ))}
-            </select>
-            <label className="fld fld-inline">
-              <span>в пути</span>
-              <input type="number" value={tc.cost_ticks} onChange={(e) => ((tc.cost_ticks = Number(e.target.value)), commit())} />
-            </label>
-            <button className="btn btn-small ce-del" onClick={() => (loc.travel_connections.splice(ti, 1), commit())}><Ico n="close" /> </button>
+          <div key={ti} style={{ marginBottom: 10, padding: '6px 8px', background: 'var(--ed-paper-card, rgba(0,0,0,0.03))', borderRadius: 4, border: '1px solid var(--ed-paper-border, #e0e0e0)' }}>
+            <div className="journal-row" style={{ marginBottom: 4 }}>
+              <select className="journal-key" value={tc.to} onChange={(e) => ((tc.to = e.target.value), commit())}>
+                {!allLocs.some((o) => o.id === tc.to) && <option value={tc.to}>{tc.to || '—'}</option>}
+                {allLocs.map((o) => (
+                  <option key={o.id} value={o.id}>{o.label}</option>
+                ))}
+              </select>
+              <label className="fld fld-inline">
+                <span>в пути</span>
+                <input type="number" value={tc.cost_ticks} onChange={(e) => ((tc.cost_ticks = Number(e.target.value)), commit())} />
+              </label>
+              <button className="btn btn-small ce-del" onClick={() => (loc.travel_connections.splice(ti, 1), commit())}><Ico n="close" /> </button>
+            </div>
+            <details style={{ fontSize: 12 }}>
+              <summary style={{ cursor: 'pointer', color: 'var(--ed-muted, #777)', userSelect: 'none' }}>
+                <Ico n="sound" /> Звуки маршрута {tc.sound || tc.depart_sound || tc.arrive_sound ? '✓' : ''}
+              </summary>
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="audio-row" style={{ padding: 0 }}>
+                  <span className="audio-label" style={{ fontSize: 11 }} data-tip="Звук транспорта/шагов в пути">Звук пути</span>
+                  <SoundSelect
+                    store={store}
+                    value={tc.sound}
+                    onChange={(s) => {
+                      if (s) tc.sound = s
+                      else delete tc.sound
+                      commit()
+                    }}
+                  />
+                </div>
+                <div className="audio-row" style={{ padding: 0 }}>
+                  <span className="audio-label" style={{ fontSize: 11 }} data-tip="Звук в момент отправления">Отправление</span>
+                  <SoundSelect
+                    store={store}
+                    value={tc.depart_sound}
+                    onChange={(s) => {
+                      if (s) tc.depart_sound = s
+                      else delete tc.depart_sound
+                      commit()
+                    }}
+                  />
+                </div>
+                <div className="audio-row" style={{ padding: 0 }}>
+                  <span className="audio-label" style={{ fontSize: 11 }} data-tip="Звук в момент прибытия">Прибытие</span>
+                  <SoundSelect
+                    store={store}
+                    value={tc.arrive_sound}
+                    onChange={(s) => {
+                      if (s) tc.arrive_sound = s
+                      else delete tc.arrive_sound
+                      commit()
+                    }}
+                  />
+                </div>
+              </div>
+            </details>
           </div>
         ))}
         <button

@@ -97,29 +97,54 @@ export function playSource(src: SoundSource, volume = 1): void {
 }
 
 /**
- * Звуковая тема кампании: `playUi('hit')` и т.д. Пустой хук — тишина,
- * движок своих звуков не навязывает.
+ * Звуковая тема кампании: `playUi('click')`, `playUi('panel:inventory')` и т.д.
+ * Поддерживает каскадный поиск:
+ * 1. Точный ключ в ui_sounds (`panel:inventory`)
+ * 2. Алиас с подчеркиванием (`panel_inventory`)
+ * 3. Базовый ключ до двоеточия / общий хук (`panel:open` -> `panel_open`)
+ * 4. Если сам `hook` — это существующий ID звука из meta.sounds, играет его напрямую.
  */
 export function playUi(hook: string, volume = 1): void {
-  const id = campaign?.meta.ui_sounds?.[hook]
-  if (id) playSoundId(id, volume)
+  if (!hook || !campaign || !ambientEnabled) return
+  const ui = campaign.meta.ui_sounds ?? {}
+  // 1. Точный ключ
+  if (ui[hook]) return playSoundId(ui[hook], volume)
+  // 2. Алиас с _ вместо :
+  const underscored = hook.includes(':') ? hook.replace(/:/g, '_') : null
+  if (underscored && ui[underscored]) return playSoundId(ui[underscored], volume)
+  // 3. Каскад панелей: panel:inventory -> panel_open / panel:open
+  if (hook.startsWith('panel:') || hook.startsWith('panel_')) {
+    if (ui['panel:open']) return playSoundId(ui['panel:open'], volume)
+    if (ui['panel_open']) return playSoundId(ui['panel_open'], volume)
+  }
+  // 4. Если передан прямой id звука из реестра
+  if (soundDef(hook)) return playSoundId(hook, volume)
 }
 
 /**
  * Звук взаимодействия (H3): сущность → категория предмета → тип слота →
- * тема кампании → тишина. У хуков есть тематические алиасы в теме
- * (`travel` → `scene_transition`): звучит максимум один раз.
+ * тема кампании → прямой звук → тишина.
+ * Поддерживает прямое указание звука через `info.sound`.
  */
 const HOOK_FALLBACK: Record<string, string[]> = {
   travel: ['travel', 'scene_transition'],
+  'item:equip': ['equip', 'item_equip'],
+  'item:unequip': ['unequip', 'item_unequip'],
+  'item:use': ['use', 'item_use'],
+  'item:drop': ['drop', 'item_drop'],
 }
 
 export function playInteraction(
   hook: SoundHook,
-  info: { entity?: EntityDef; slotType?: string } = {},
+  info: { entity?: EntityDef; slotType?: string; sound?: string } = {},
   volume = 1,
 ): void {
   if (!campaign || !ambientEnabled) return
+  // Прямой звук имеет наивысший приоритет
+  if (info.sound) {
+    if (soundDef(info.sound)) return playSoundId(info.sound, volume)
+    return playSource(info.sound, volume)
+  }
   const meta = campaign.meta
   const fromEntity = info.entity?.sounds?.[hook]
   if (fromEntity) return playSoundId(fromEntity, volume)
@@ -138,6 +163,8 @@ export function playInteraction(
     const id = meta.ui_sounds?.[name]
     if (id) return playSoundId(id, volume)
   }
+  // Фоллбэк на каскадный playUi
+  playUi(hook, volume)
 }
 
 // ─────────────── зацикленные фоны и наложение (фидбек 9.6) ───────────────

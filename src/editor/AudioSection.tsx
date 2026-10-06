@@ -11,6 +11,7 @@ import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import type {
   AmbientRule,
+  Condition,
   MusicCondition,
   MusicDoc,
   MusicLayer,
@@ -42,27 +43,78 @@ export const SOUND_HOOK_LABELS: Array<{ id: SoundHook; label: string }> = [
   { id: 'travel', label: 'Переход по зоне' },
 ]
 
+export const UI_HOOK_GROUPS: Array<{
+  title: string
+  hooks: Array<{ id: string; label: string; tip?: string }>
+}> = [
+  {
+    title: 'Панели интерфейса',
+    hooks: [
+      { id: 'panel_open', label: 'Открытие панелей (по умолчанию)' },
+      { id: 'panel_close', label: 'Закрытие панелей (по умолчанию)' },
+      { id: 'panel:inventory', label: 'Сумка / Инвентарь (открытие)', tip: 'Если не задан — играет общий звук открытия' },
+      { id: 'panel:journal', label: 'Журнал заданий (открытие)', tip: 'Шуршание бумаг или переплёта книги' },
+      { id: 'panel:map', label: 'Карта ярусов / мира (открытие)', tip: 'Разворачивание свитка / схемы' },
+      { id: 'panel:craft', label: 'Верстак / Мастерская (открытие)', tip: 'Звон инструментов или лязг замка ящика' },
+      { id: 'panel:character', label: 'Характеристики персонажа (открытие)' },
+      { id: 'panel:codex', label: 'Архив / Кодекс (открытие)' },
+    ],
+  },
+  {
+    title: 'Кнопки и сообщения',
+    hooks: [
+      { id: 'click', label: 'Клик по кнопке' },
+      { id: 'message', label: 'Осмотр / Всплывающее сообщение' },
+    ],
+  },
+  {
+    title: 'Перемещения и переходы',
+    hooks: [
+      { id: 'scene_transition', label: 'Переход между сценами' },
+      { id: 'travel_depart', label: 'Отправление в путь (по умолчанию)', tip: 'Используется, если у маршрута нет своего звука' },
+      { id: 'travel_arrive', label: 'Прибытие на место (по умолчанию)', tip: 'Используется, если у маршрута нет своего звука' },
+    ],
+  },
+  {
+    title: 'Предметы и снаряжение',
+    hooks: [
+      { id: 'equip', label: 'Экипировка оружия или брони' },
+      { id: 'unequip', label: 'Снятие оружия или брони' },
+      { id: 'item_get', label: 'Получение предмета' },
+      { id: 'item_lose', label: 'Утрата / сдача предмета' },
+      { id: 'craft', label: 'Изготовление предмета (по умолчанию)', tip: 'Используется, если у рецепта нет своего звука' },
+      { id: 'coin', label: 'Звон монет (покупка / продажа)' },
+    ],
+  },
+  {
+    title: 'Боевая система',
+    hooks: [
+      { id: 'combat_start', label: 'Начало сражения' },
+      { id: 'hit', label: 'Попадание' },
+      { id: 'crit', label: 'Критический удар' },
+      { id: 'miss', label: 'Промах' },
+      { id: 'parry', label: 'Парирование / уворот' },
+      { id: 'heal', label: 'Лечение / восстановление сил' },
+      { id: 'flee', label: 'Бегство с поля боя' },
+      { id: 'kill', label: 'Убийство врага' },
+      { id: 'death', label: 'Смерть героя' },
+      { id: 'victory', label: 'Победа в бою' },
+      { id: 'defeat', label: 'Поражение в бою' },
+    ],
+  },
+  {
+    title: 'Задания и развитие',
+    hooks: [
+      { id: 'quest_started', label: 'Задание получено' },
+      { id: 'quest_completed', label: 'Задание выполнено' },
+      { id: 'skill_up', label: 'Рост навыка' },
+    ],
+  },
+]
+
 export const UI_HOOK_LABELS: Array<{ id: string; label: string }> = [
   { id: 'menu_music', label: 'Музыка меню' },
-  { id: 'click', label: 'Кнопки (клик)' },
-  { id: 'panel_open', label: 'Панель открылась' },
-  { id: 'panel_close', label: 'Панель закрылась' },
-  { id: 'message', label: 'Сообщение' },
-  { id: 'travel_depart', label: 'Выезд' },
-  { id: 'travel_arrive', label: 'Прибытие' },
-  { id: 'scene_transition', label: 'Переход по зоне (тема)' },
-  { id: 'combat_start', label: 'Начало боя' },
-  { id: 'hit', label: 'Попадание' },
-  { id: 'miss', label: 'Промах' },
-  { id: 'crit', label: 'Критический удар' },
-  { id: 'parry', label: 'Парирование/уворот' },
-  { id: 'death', label: 'Смерть в бою' },
-  { id: 'victory', label: 'Победа' },
-  { id: 'defeat', label: 'Поражение' },
-  { id: 'quest_started', label: 'Квест взят' },
-  { id: 'quest_completed', label: 'Квест завершён' },
-  { id: 'skill_up', label: 'Навык вырос' },
-  { id: 'coin', label: 'Монеты (купля-продажа)' },
+  ...UI_HOOK_GROUPS.flatMap((g) => g.hooks),
 ]
 
 const MOODS: MusicMood[] = ['спокойная', 'тревожная', 'боевая', 'торжественная', 'таинственная']
@@ -591,11 +643,14 @@ export function SoundHookMapEditor({
 
 // ─────────────── правила музыки «условия → треки» ───────────────
 
-function condLabel(c: MusicCondition): string {
+function condLabel(c: MusicCondition | Condition): string {
+  if ('type' in c) {
+    return `условие: ${c.type}`
+  }
   const parts: string[] = []
   if (c.time_of_day) {
-    const t = Array.isArray(c.time_of_day) ? c.time_of_day : [c.time_of_day]
-    parts.push(t.map((x) => TOD_LABELS[x]).join('/'))
+    const t = (Array.isArray(c.time_of_day) ? c.time_of_day : [c.time_of_day]) as TimeOfDay[]
+    parts.push(t.map((x) => TOD_LABELS[x] ?? x).join('/'))
   }
   if (c.flag) parts.push(`флаг «${c.flag}»`)
   if (c.not_flag) parts.push(`нет флага «${c.not_flag}»`)
@@ -664,65 +719,80 @@ export function MusicRulesEditor({
               </div>
               <div className="fld fld-block">
                 <span>Условия (все вместе; пусто — всегда)</span>
-                {(rule.conditions ?? []).map((c, ci) => (
-                  <div key={ci} className="fld-row">
-                    <label className="fld">
-                      <span>Время суток</span>
-                      <select
-                        value={Array.isArray(c.time_of_day) ? c.time_of_day[0] : c.time_of_day ?? ''}
-                        onChange={(e) => {
-                          if (e.target.value) c.time_of_day = e.target.value as TimeOfDay
-                          else delete c.time_of_day
+                {(rule.conditions ?? []).map((c, ci) => {
+                  if ('type' in c) {
+                    return (
+                      <div key={ci} className="fld-row" style={{ alignItems: 'center' }}>
+                        <span className="badge">Условие движка: {c.type}</span>
+                        <button className="btn btn-small ce-del" data-tip="Убрать условие" onClick={() => {
+                          rule.conditions!.splice(ci, 1)
+                          if (!rule.conditions!.length) delete rule.conditions
+                          onChange()
+                        }}><Ico n="close" /> </button>
+                      </div>
+                    )
+                  }
+                  const mc = c as MusicCondition
+                  return (
+                    <div key={ci} className="fld-row">
+                      <label className="fld">
+                        <span>Время суток</span>
+                        <select
+                          value={Array.isArray(mc.time_of_day) ? mc.time_of_day[0] : mc.time_of_day ?? ''}
+                          onChange={(e) => {
+                            if (e.target.value) mc.time_of_day = e.target.value as TimeOfDay
+                            else delete mc.time_of_day
+                            onChange()
+                          }}
+                        >
+                          <option value="">любое</option>
+                          {TOD.map((t) => (
+                            <option key={t} value={t}>{TOD_LABELS[t]}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <FlagSelect
+                        label="Флаг установлен"
+                        store={store}
+                        value={mc.flag ?? ''}
+                        optional
+                        onChange={(f) => {
+                          if (f) mc.flag = f
+                          else delete mc.flag
                           onChange()
                         }}
-                      >
-                        <option value="">любое</option>
-                        {TOD.map((t) => (
-                          <option key={t} value={t}>{TOD_LABELS[t]}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <FlagSelect
-                      label="Флаг установлен"
-                      store={store}
-                      value={c.flag ?? ''}
-                      optional
-                      onChange={(f) => {
-                        if (f) c.flag = f
-                        else delete c.flag
+                      />
+                      <FlagSelect
+                        label="Флаг не установлен"
+                        store={store}
+                        value={mc.not_flag ?? ''}
+                        optional
+                        onChange={(f) => {
+                          if (f) mc.not_flag = f
+                          else delete mc.not_flag
+                          onChange()
+                        }}
+                      />
+                      <RefSelect
+                        label="Погода"
+                        kind="weather"
+                        store={store}
+                        value={mc.weather ?? ''}
+                        optional
+                        onChange={(w) => {
+                          if (w) mc.weather = w
+                          else delete mc.weather
+                          onChange()
+                        }}
+                      />
+                      <button className="btn btn-small ce-del" data-tip="Убрать условие" onClick={() => {
+                        rule.conditions!.splice(ci, 1)
+                        if (!rule.conditions!.length) delete rule.conditions
                         onChange()
-                      }}
-                    />
-                    <FlagSelect
-                      label="Флаг не установлен"
-                      store={store}
-                      value={c.not_flag ?? ''}
-                      optional
-                      onChange={(f) => {
-                        if (f) c.not_flag = f
-                        else delete c.not_flag
-                        onChange()
-                      }}
-                    />
-                    <RefSelect
-                      label="Погода"
-                      kind="weather"
-                      store={store}
-                      value={c.weather ?? ''}
-                      optional
-                      onChange={(w) => {
-                        if (w) c.weather = w
-                        else delete c.weather
-                        onChange()
-                      }}
-                    />
-                    <button className="btn btn-small ce-del" data-tip="Убрать условие" onClick={() => {
-                      rule.conditions!.splice(ci, 1)
-                      if (!rule.conditions!.length) delete rule.conditions
-                      onChange()
-                    }}><Ico n="close" /> </button>
-                  </div>
-                ))}
+                      }}><Ico n="close" /> </button>
+                    </div>
+                  )
+                })}
                 <button
                   className="btn btn-small"
                   onClick={() => {
@@ -1002,23 +1072,30 @@ export function AudioRegistries({ store }: { store: EditorStore }) {
 
       <div className="props-group">
         <h4><Ico n="sound" />  Тема интерфейса</h4>
-        <div className="muted small" style={{ marginBottom: 8 }}>
+        <div className="muted small" style={{ marginBottom: 12 }}>
           Какие звуки сопровождают действия игрока: кнопки, панели, бой, квесты, дорога.
-          Не заданные события молчат.
+          Не заданные события берут общее значение или молчат.
         </div>
-        {UI_HOOK_LABELS.filter((h) => h.id !== 'menu_music').map((h) => (
-          <div key={h.id} className="audio-row" style={{ padding: '2px 0' }}>
-            <span className="audio-label">{h.label}</span>
-            <SoundSelect
-              store={store}
-              value={m.ui_sounds?.[h.id]}
-              onChange={(id) => {
-                if (!m.ui_sounds) m.ui_sounds = {}
-                if (id) m.ui_sounds[h.id] = id
-                else delete m.ui_sounds[h.id]
-                commit()
-              }}
-            />
+        {UI_HOOK_GROUPS.map((group) => (
+          <div key={group.title} style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ed-paper-title)', marginBottom: 6 }}>
+              {group.title}
+            </div>
+            {group.hooks.map((h) => (
+              <div key={h.id} className="audio-row" style={{ padding: '2px 0' }}>
+                <span className="audio-label" data-tip={h.tip}>{h.label}</span>
+                <SoundSelect
+                  store={store}
+                  value={m.ui_sounds?.[h.id]}
+                  onChange={(id) => {
+                    if (!m.ui_sounds) m.ui_sounds = {}
+                    if (id) m.ui_sounds[h.id] = id
+                    else delete m.ui_sounds[h.id]
+                    commit()
+                  }}
+                />
+              </div>
+            ))}
           </div>
         ))}
       </div>

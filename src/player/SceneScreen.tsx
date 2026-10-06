@@ -136,6 +136,15 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                 }}
                 disabled={!interactable}
                 onClick={() => {
+                  console.log('[CF:Debug] Клик по слоту сцены:', {
+                    slotId: slot.id,
+                    entityId: entity.id,
+                    label: entity.label,
+                    type: entity.type,
+                    desc: engine.descOf(entity.id),
+                    hasInteractChoices,
+                    interactable,
+                  })
                   // «ключ к двери» (блок 8 ТЗ): НПС — диалог, иначе при наличии
                   // подходящих предметов — модалка выбора
                   if (entity.type !== 'npc') {

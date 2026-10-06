@@ -1079,6 +1079,12 @@ export interface TravelConnection {
   cost_ticks: number
   requirements?: Condition[]
   random_encounter_table?: string
+  /** индивидуальный звук пути (например, шум поезда, плеск волн, стук копыт) */
+  sound?: string
+  /** индивидуальный звук отправления (свисток паровоза, скрип трапа) */
+  depart_sound?: string
+  /** индивидуальный звук прибытия (скрип тормозов, звон станционного колокола) */
+  arrive_sound?: string
 }
 
 /** фоновый зацикленный звуковой слой с условиями активации */
@@ -1886,14 +1892,15 @@ export interface MusicCondition {
 export interface MusicRule {
   tracks: string[]
   shuffle?: boolean
-  conditions?: MusicCondition[]
+  /** условия переключения музыки: как специализированные (time_of_day, weather, flag), так и любые Condition движка */
+  conditions?: Array<MusicCondition | Condition>
 }
 
-/** хуки звуков взаимодействий (звук сущности/категории/типа слота) */
-export type SoundHook = 'pickup' | 'use' | 'open' | 'talk' | 'drop' | 'travel'
+/** хуки звуков взаимодействий (звук сущности/категории/типа слота) — открытая строка с каскадом */
+export type SoundHook = string
 
 /** карта «хук → id звука реестра» */
-export type SoundHookMap = Partial<Record<SoundHook, string>>
+export type SoundHookMap = Record<string, string>
 
 // ───────────────────────── диалоги (.dlg.json, итерация 8) ─────────────────────────
 
@@ -1910,6 +1917,8 @@ export interface DlgLine {
    * блок G). Если нет — при включённом синтезаторе реплику читает браузер.
    */
   voice?: string
+  /** звуковой эффект реплики: id звука из meta.sounds или путь к файлу (# sfx: ...) */
+  sfx?: string
   /**
    * секундный таймер показа реплики (# timer: 3 или # timeout: 3) — design-doc §9.
    * По истечении времени диалог автоматически переходит дальше.
@@ -2121,6 +2130,8 @@ export interface RecipeDef {
    * известен с самого начала.
    */
   known?: boolean
+  /** индивидуальный звук изготовления (например, звон наковальни, шипение реактивов, шорох шитья) */
+  sound?: string
   /** динамические условия знания/доступности рецепта (навыки, флаги, черты, квесты) */
   conditions?: Condition[]
   /**
@@ -2561,6 +2572,9 @@ export type Effect =
   | { type: 'game_over_victory' }
   | { type: 'game_over_death'; reason?: string }
   | { type: 'play_cutscene'; cutscene: string }
+  | { type: 'play_sound'; sound: string; volume?: number }
+  | { type: 'override_music'; tracks: string[]; fade?: number }
+  | { type: 'clear_music_override'; fade?: number }
 
 export interface RuleDef {
   id: string

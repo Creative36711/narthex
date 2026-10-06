@@ -1,6 +1,7 @@
 import { Compiler, Story, type CompilerOptions } from 'inkjs/full'
 import type { GameEngine } from './engine'
 import type { NpcDef } from '../shared/types'
+import { playInteraction } from '../shared/audio'
 
 /**
  * Dialogue Engine — Ink runtime (ТЗ 4.5).
@@ -15,15 +16,18 @@ export interface DialogueLine {
   action?: boolean
   /** озвучка реплики: файл пакета или ссылка (тег # voice: …) — итерация 8, блок G */
   voice?: string
+  /** звуковой эффект реплики: id звука из meta.sounds или путь к файлу (# sfx: …) */
+  sfx?: string
   /** секундный таймер показа реплики (# timer: 3 или # timeout: 3) */
   timer?: number
 }
 
-/** разбор тегов реплики: # emotion: … / # action / # voice: … / # timer: N */
-export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string; timer?: number } {
+/** разбор тегов реплики: # emotion: … / # action / # voice: … / # sfx: … / # timer: N */
+export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string; sfx?: string; timer?: number } {
   let emotion = 'neutral'
   let action = false
   let voice: string | undefined
+  let sfx: string | undefined
   let timer: number | undefined
   for (const t of tags) {
     const em = t.match(/^emotion:\s*(\w+)/)
@@ -31,10 +35,12 @@ export function parseLineTags(tags: string[]): { emotion: string; action?: boole
     if (t.trim() === 'action') action = true
     const vo = t.match(/^voice:\s*(.+)$/)
     if (vo) voice = vo[1].trim()
+    const sf = t.match(/^(?:sfx|sound):\s*(.+)$/)
+    if (sf) sfx = sf[1].trim()
     const tm = t.match(/^(?:timer|timeout):\s*(\d+)/)
     if (tm) timer = Number(tm[1])
   }
-  return { emotion, action: action || undefined, voice, timer }
+  return { emotion, action: action || undefined, voice, sfx, timer }
 }
 
 export interface DialogueUI {
@@ -127,7 +133,7 @@ export function sanitizeInkSource(source: string): string {
     'join_party(e)', 'start_combat(e, a)', 'start_quest(q)', 'advance_quest(q, s)',
     'fail_quest(q)', 'journal_update(q, k)', 'fire_rule(r)', 'change_hp(d)',
     'change_need(n, d)', 'advance_time(t)', 'sleep(h)', 'set_dialogue_timer(s, k)',
-    'present_item(o, f, r)',
+    'present_item(o, f, r)', 'play_sound(s, v)',
   ]
 
   const declared = new Set<string>()
@@ -294,6 +300,11 @@ export function bindExternals(story: Story, engine: GameEngine): void {
     engine.promptPresentItem(okKnot, failKnot, required)
     return 0
   })
+  // воспроизведение звукового эффекта прямо из реплики или команды: `~ play_sound("snd_id", 0.8)`
+  bind('play_sound', (sound: string, volume?: number) => {
+    playInteraction(sound, { sound }, volume != null ? Number(volume) : 1)
+    return 0
+  })
   // смена облика/эмоции прямо из реплики (design-doc §9): портрет в диалоге и
   // спрайт в сцене переключаются без правила-посредника
   bind('set_entity_state', (entityId: string, state: string) => {
@@ -355,8 +366,8 @@ export function drainStory(story: Story): { lines: DialogueLine[]; choices: { in
     const rawText = (story.Continue() ?? '').trim()
     const text = cleanDialogueLine(rawText)
     const tags = story.currentTags ?? []
-    const { emotion, action, voice, timer } = parseLineTags(tags)
-    if (text && !SYSTEM_LITERAL_LINE.test(text)) lines.push({ text, emotion, action, voice, timer })
+    const { emotion, action, voice, sfx, timer } = parseLineTags(tags)
+    if (text && !SYSTEM_LITERAL_LINE.test(text)) lines.push({ text, emotion, action, voice, sfx, timer })
   }
   const choices = story.currentChoices.map((c, i) => ({ index: i, text: c.text }))
   return { lines, choices, finished: choices.length === 0 && !story.canContinue }

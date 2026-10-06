@@ -63,6 +63,17 @@ export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }:
   const [feedbackSerial, setFeedbackSerial] = useState(0)
   const [, refresh] = useState(0)
   useEffect(() => {
+    const sc = engine.campaign.scenes[engine.state.scene]
+    const occs = sc ? engine.slotOccupants(sc) : []
+    console.log('[CF:Debug] PlaytestDebugPanel открыта. Текущая сцена:', engine.state.scene, {
+      entities: occs.map(o => ({
+        slot: o.slot.id,
+        entity: o.entity?.id,
+        label: o.entity?.label,
+        type: o.entity?.type,
+        desc: o.entity ? engine.descOf(o.entity.id) : null,
+      }))
+    })
     const unsubscribe = engine.subscribe(() => refresh((n) => n + 1))
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)

@@ -3,6 +3,7 @@ import { Ico } from '../shared/icons'
 import type { RecipeDef, ItemDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { ConditionListEditor, FileAdvancedJson, RefSelect } from './Fields'
+import { SoundSelect } from './AudioSection'
 
 export function newRecipe(id: string, label: string): RecipeDef {
   return { id, label, inputs: [], output: { item: '', quantity: 1 } }
@@ -242,6 +243,18 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
           <span>Сообщение об успехе (пусто — стандартное)</span>
           <input value={recipe.message ?? ''} onChange={(e) => ((recipe.message = e.target.value || undefined), commit())} />
         </label>
+        <div className="audio-row" style={{ padding: '4px 0' }} data-tip="Индивидуальный звук крафта: звон наковальни, бульканье зелья, шитьё и т.д.">
+          <span className="audio-label">Звук создания</span>
+          <SoundSelect
+            store={store}
+            value={recipe.sound}
+            onChange={(snd) => {
+              if (snd) recipe.sound = snd
+              else delete recipe.sound
+              commit()
+            }}
+          />
+        </div>
       </div>
 
       <div className="props-group">

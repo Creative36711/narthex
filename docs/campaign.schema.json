@@ -2093,6 +2093,67 @@
             "cutscene"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "play_sound"
+            },
+            "sound": {
+              "type": "string",
+              "description": "id звука из meta.sounds или путь к аудиофайлу"
+            },
+            "volume": {
+              "type": "number",
+              "description": "громкость звука (0..1, по умолчанию 1)"
+            }
+          },
+          "required": [
+            "type",
+            "sound"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "override_music"
+            },
+            "tracks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "id треков для сюжетного оверрайда музыки (поверх музыки локации/сцены)"
+            },
+            "fade": {
+              "type": "number",
+              "description": "длительность кроссфейда в секундах"
+            }
+          },
+          "required": [
+            "type",
+            "tracks"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "clear_music_override"
+            },
+            "fade": {
+              "type": "number",
+              "description": "длительность затухания в секундах"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -5947,6 +6008,18 @@
         },
         "random_encounter_table": {
           "type": "string"
+        },
+        "sound": {
+          "type": "string",
+          "description": "индивидуальный звук пути (плеск волн, стук рельсов, топот копыт)"
+        },
+        "depart_sound": {
+          "type": "string",
+          "description": "индивидуальный звук отправления (гудок поезда, скрип трапа)"
+        },
+        "arrive_sound": {
+          "type": "string",
+          "description": "индивидуальный звук прибытия (скрип тормозов, звон колокола)"
         }
       },
       "required": [
@@ -6029,7 +6102,14 @@
         "conditions": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/MusicCondition"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MusicCondition"
+              },
+              {
+                "$ref": "#/$defs/Condition"
+              }
+            ]
           }
         }
       },
@@ -7834,6 +7914,10 @@
           "type": "boolean",
           "description": "`false` — рецепт скрыт от игрока до эффекта `unlock_recipe` (правило,\nдиалог, событие). Старые кампании и сейвы не трогаем: поля нет — рецепт\nизвестен с самого начала."
         },
+        "sound": {
+          "type": "string",
+          "description": "индивидуальный звук крафта: звон наковальни, шипение реактивов, стук молотка"
+        },
         "workbench": {
           "type": [
             "boolean",
@@ -8151,6 +8235,10 @@
         "voice": {
           "type": "string",
           "description": "озвучка реплики: файл пакета (assets/voice/…) или ссылка (итерация 8,\nблок G). Если нет — при включённом синтезаторе реплику читает браузер."
+        },
+        "sfx": {
+          "type": "string",
+          "description": "звуковой эффект реплики: id звука из meta.sounds или путь к аудиофайлу (# sfx: snd_shot)"
         },
         "timer": {
           "type": "number",

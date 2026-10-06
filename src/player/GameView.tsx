@@ -92,18 +92,19 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
       if (id === 'map' && !featureOn(meta, 'map')) return
       if (id === 'inventory' && !featureOn(meta, 'inventory')) return
       onGamePanelOpen?.()
-      playUi('panel_open')
+      playUi(`panel:${id}`)
       setPanel(id)
     },
     [engine, onGamePanelOpen],
   )
   const closePanel = useCallback(() => {
-    playUi('panel_close')
+    if (panel) playUi(`panel:${panel}:close`)
+    else playUi('panel_close')
     // окно крафта могло быть открыто эффектом `open_craft` — снимаем запрос,
     // иначе панель тут же откроется снова
     engine.closeCraft()
     setPanel(null)
-  }, [engine])
+  }, [engine, panel])
 
   // `open_craft` (правило, реплика, предмет в сцене) открывает панель крафта
   // без кнопки HUD: подписка уже перерисовывает GameView, остаётся

@@ -113,6 +113,20 @@ export class GameEngine {
   toasts: { id: number; text: string; kind: 'get' | 'lose' | 'info' }[] = []
   private toastSeq = 0
 
+  /** Сюжетное переопределение музыки (поверх текущей сцены/локации) */
+  musicOverride: { tracks: string[]; fade?: number } | null = null
+
+  setMusicOverride(tracks: string[], fade?: number): void {
+    this.musicOverride = { tracks, fade }
+    this.notify()
+  }
+
+  clearMusicOverride(): void {
+    if (!this.musicOverride) return
+    this.musicOverride = null
+    this.notify()
+  }
+
   /** добавить короткое всплывающее уведомление (записывается и в журнал).
    *  Гаснет само — обращать внимание важно, а закрывать каждое рукой — перебор (баг-фитч №6). */
   pushToast(text: string, kind: 'get' | 'lose' | 'info' = 'info'): void {
@@ -826,6 +840,7 @@ export class GameEngine {
     if (!def || def.type !== 'item') return
     const slot = this.itemSlot(id)
     if (!slot) return
+    playInteraction('equip', { entity: def })
     this.state.player.equipment[slot] = id
     this.pushLog(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`)
     this.pushToast(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`, 'info')
@@ -839,6 +854,7 @@ export class GameEngine {
     const id = eq[slot]
     if (!id) return
     const def = this.campaign.entities[id] as ItemDef | undefined
+    if (def) playInteraction('unequip', { entity: def })
     delete eq[slot]
     this.pushLog(`Снято: ${def?.label ?? id}.`)
     this.pushToast(`Снято: ${def?.label ?? id}.`, 'info')
@@ -2240,7 +2256,8 @@ export class GameEngine {
     const outLabel = this.itemTitle(r.output.item)
     this.pushLog(`Изготовлено: ${outLabel} (рецепт «${r.label}»).`)
     this.messages.push({ text: r.message ?? `Изготовлено: ${outLabel}.` })
-    playUi('craft')
+    if (r.sound) playInteraction(r.sound, { sound: r.sound })
+    else playUi('craft')
     this.autosave()
     this.notify()
     return true
@@ -2471,7 +2488,9 @@ export class GameEngine {
       this.notify()
       return
     }
-    playUi('travel_depart')
+    if (conn?.depart_sound) playInteraction(conn.depart_sound, { sound: conn.depart_sound })
+    else if (conn?.sound) playInteraction(conn.sound, { sound: conn.sound })
+    else playUi('travel_depart')
     this.advanceTicks(cost)
     this.state.stats_run.travels += 1
     if (this.state.game_over) return this.notify()
@@ -2482,7 +2501,8 @@ export class GameEngine {
     this.state.location = locationId
     const firstScene = this.arrivalSceneOf(target.location)
     if (firstScene) this.state.scene = firstScene
-    playUi('travel_arrive')
+    if (conn?.arrive_sound) playInteraction(conn.arrive_sound, { sound: conn.arrive_sound })
+    else playUi('travel_arrive')
     this.onEnterLocation(locationId)
     // случайная встреча в пути (после прибытия)
     if (conn && !this.state.game_over && !this.combat) this.rollEncounter(conn)
@@ -2855,6 +2875,9 @@ export class GameEngine {
       case 'grant_feat': this.grantFeat(e.id); break
       case 'meta_currency': this.grantMetaCurrency(e.id, e.amount); break
       case 'roll_event_table': this.rollEventTable(e.table, { forced: true, ignoreFilters: e.ignore_filters }); break
+      case 'play_sound': playInteraction(e.sound, { sound: e.sound }, e.volume ?? 1); break
+      case 'override_music': this.setMusicOverride(e.tracks, e.fade); break
+      case 'clear_music_override': this.clearMusicOverride(); break
       case 'generate_variables': {
         for (const p of e.pack) {
           const val = this.genValue(e.generator, p.key, e.seed)
@@ -3118,7 +3141,8 @@ export class GameEngine {
 
   /** применить выбранный вариант взаимодействия с предметом */
   runItemInteract(item: ItemDef, option: ItemInteractOption): void {
-    playInteraction((option.sound ?? 'use') as SoundHook, { entity: item })
+    const soundOpt = option.sound ?? 'use'
+    playInteraction(soundOpt as SoundHook, { entity: item, sound: option.sound })
     if (option.effects?.some((ef) => ef.type === 'open_craft')) {
       this.craftSourceEntity = item
     }
@@ -3149,6 +3173,12 @@ export class GameEngine {
 
   interactWithSlot(occ: SlotOccupant): boolean {
     if (!occ.entity) return false
+    console.log('[CF:Debug] interactWithSlot вызван:', {
+      slot: occ.slot.id,
+      entity: { id: occ.entity.id, label: occ.entity.label, type: occ.entity.type },
+      desc: this.descOf(occ.entity.id),
+      isNpc: occ.entity.type === 'npc',
+    })
     if (occ.entity.type === 'npc') {
       const npc = occ.entity as NpcDef
       if (npc.dialogue) {
@@ -3169,7 +3199,11 @@ export class GameEngine {
     if (!this.itemInteractable(item)) return false
     const slotType = occ.slot.type[0]
     // предмет с вариантами действий — окно выбора; собирается стороной UI
-    if (this.itemInteractOptions(item).length) return false
+    const opts = this.itemInteractOptions(item)
+    if (opts.length) {
+      console.log('[CF:Debug] Предмет имеет interact_options:', opts.length)
+      return false
+    }
     if (item.on_interact) {
       // «открыть контейнер» vs «использовать»: по типу слота/категории
       const isOpen = occ.slot.type.includes('container') || item.category === 'container'
@@ -3184,11 +3218,15 @@ export class GameEngine {
     } else {
       // Предмет без специального взаимодействия: при клике показываем описание сущности
       const desc = this.descOf(item.id)
-      if (desc) {
+      console.log('[CF:Debug] Показ описания предмета без действий:', { id: item.id, desc: desc || item.description })
+      const textToShow = desc || item.description
+      if (textToShow) {
         this.messages.push({
-          text: desc,
+          text: textToShow,
           portrait: item.portrait?.neutral || undefined,
         })
+      } else {
+        this.pushToast(`«${item.label}» (нет подробного описания)`)
       }
       this.notify()
     }

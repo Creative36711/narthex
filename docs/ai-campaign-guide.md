@@ -1034,6 +1034,9 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 | `open_craft` | `recipe?` | открыть изготовление (крафт); с рецептом он подсвечен «нужно сейчас». Так ремонт клапана или замка делается из окна сцены, а не кнопкой в HUD |
 | `start_combat` | `enemies`, `arena`, `intro?`, `on_victory?` | начать бой |
 | `play_cutscene` | `cutscene` | показать катсцену |
+| `play_sound` | `sound`, `volume?` | воспроизвести звук из реестра `meta.sounds` или путь к файлу |
+| `override_music` | `tracks`, `fade?` | сюжетно переопределить фоновую музыку поверх сцены |
+| `clear_music_override` | `fade?` | снять переопределение музыки и вернуться к треку локации |
 | `show_message` | `text`, `portrait?` | сообщение |
 | `banner` | `text`, `preset?`, `enter?`, `seconds?`, `position?`, `accent?` | крупная надпись поверх мира |
 | `postcard` | `image?`/`art?`, `text?`, `seconds?`, `camera?` | открытка-иллюстрация |
@@ -1298,6 +1301,7 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 | `~ open_trade("npc_marka")` | открыть торговлю с NPC прямо из реплики |
 | `~ open_craft("recipe_valve")` / `~ open_craft()` | открыть изготовление из реплики или сцены; с id — нужный рецепт подсвечен «нужно сейчас», без — весь список |
 | `~ present_item("узел_успеха", "узел_неудачи", "item_id")` / `~ present_item("ok", "fail", "")` | предложить игроку предъявить предмет/улику из сумки прямо в разговоре: открывает выбор предметов, блокируя реплики. Если предъявлен указанный `item_id` — переход в `узел_успеха`, при неверном предмете или отмене — в `узел_неудачи`. Без третьего аргумента (`""`) принимается любой предъявленный предмет |
+| `~ play_sound("snd_shot", 0.9)` | воспроизвести звуковой эффект из `meta.sounds` или путь к файлу прямо из реплики диалога |
 | `~ set_dialogue_timer(15, "узел_молчания")` | дедлайн на раздумье у текущих вариантов ответа: по нулю разговор уходит в узел; `~ set_dialogue_timer(15, "")` — просто заканчивается; `0` снимает. Второй аргумент обязателен в самой команде (иначе inkjs не скомпилирует `EXTERNAL set_dialogue_timer(s, t)`), а в документе конструктора поле `timer.node` можно не указывать |
 | `~ set_entity_state("npc_irena", "angry")` | сменить эмоцию/облик персонажа репликой (портрет и спрайт); `""` — обычный облик |
 
@@ -2185,20 +2189,26 @@ EXTERNAL has_item(id)
   случайный вариант («скрип двери» — три разных скрипа под одним id).
 - Привязка музыки: у локации и сцены — список «условия → треки»
   (`music: [{ "tracks": ["m1","m2"], "shuffle": true, "conditions": […]}]`;
-  условия — время суток и/или флаги, все вместе; первый истинный блок
+  условия — `conditions` поддерживают как время суток / погоду / флаги, так и любые стандартные `Condition` движка — квесты, предметы, здоровье; первый истинный блок
   побеждает; один трек — луп, несколько — плейлист со сменой и кроссфейдом
   ~1.5–2 с, `shuffle` — вперемешку без повтора подряд).
-  Приоритет: катсцена → бой (`arena.music`, иначе `campaign.combat_music`) →
+  Приоритет: катсцена → сюжетный оверрайд (`override_music`) → бой (`arena.music`, иначе `campaign.combat_music`) →
   сцена → локация → `campaign.default_music` → тишина.
   `ui_sounds.menu_music` — id **трека** для главного меню.
+- Сюжетный оверрайд музыки: эффект `override_music` (с полями `tracks`, `fade`) форсирует драматичный трек поверх текущей сцены, а `clear_music_override` возвращает музыку локации.
+- Прямые звуки на элементах мира:
+  - Связи локаций `TravelConnection`: `sound` (звук пути — шум поезда, плеск волн, стук копыт), `depart_sound` (гудок, свисток), `arrive_sound` (скрип тормозов).
+  - Рецепты крафта `RecipeDef`: поле `sound` (звон наковальни, бульканье зелья, шитьё).
+  - Действия с предметом `ItemInteractOption`: поле `sound` воспроизводит точный звук действия напрямую.
+  - Реплики диалогов: команда `~ play_sound("snd_id", 0.9)` или строчный тег `# sfx: snd_id` (выстрел, стук в дверь, звон монет).
 - Звуки взаимодействий (`sounds` у сущности, категории предмета, типа слота):
-  карта вида `{"pickup": "sfx_coin", "use": "sfx_drink"}`; хуки:
-  `pickup`, `use`, `open`, `talk`, `drop`, `travel`.
-- `ui_sounds` — звуковая тема кампании: `menu_music`, `click`, `panel_open`,
-  `panel_close`, `message`, `travel_depart`, `travel_arrive`,
-  `scene_transition`, `combat_start`, `hit`, `miss`, `crit`, `parry`,
-  `death`, `victory`, `defeat`, `quest_started`, `quest_completed`,
-  `skill_up`, `coin`. Пустой хук — тишина.
+  карта вида `{"pickup": "sfx_coin", "use": "sfx_drink", "equip": "sfx_armor", "unequip": "sfx_cloth"}`. Хуки — открытые строки с каскадным поиском.
+- `ui_sounds` — звуковая тема интерфейса с каскадом:
+  - `panel:inventory`, `panel:journal`, `panel:map`, `panel:craft`, `panel:character`, `panel:codex` — индивидуальные звуки панелей (с автоматическим фоллбэком на общий `panel_open` / `panel:open`);
+  - `click`, `panel_open`, `panel_close`, `message`, `travel_depart`, `travel_arrive`, `scene_transition`;
+  - `equip`, `unequip`, `item_get`, `item_lose`, `craft`, `coin`;
+  - `combat_start`, `hit`, `miss`, `crit`, `parry`, `heal`, `flee`, `kill`, `death`, `victory`, `defeat`;
+  - `quest_started`, `quest_completed`, `skill_up`.
 - `ui_labels` — настраиваемые надписи системных меню и кнопок интерфейса:
   словарь вида `{"inventory": "Сумка дознавателя", "journal": "Дело № 137", "map": "Схема ярусов", "camp": "Перекур", "codex": "Архив Надзора", "pass_turn": "Выждать", "flee": "Бежать"}`.
   Пусто — системные надписи по умолчанию.
