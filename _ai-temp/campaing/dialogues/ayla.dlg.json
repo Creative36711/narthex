@@ -35,7 +35,8 @@
          "kind": "line",
          "line": {
           "text": "Держи. Не дёргайся: я режу ровно, но больно.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/ayla_4.mp3"
          }
         },
         {

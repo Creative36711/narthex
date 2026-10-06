@@ -61,7 +61,8 @@
          "kind": "line",
          "line": {
           "text": "Пломба предъявлена. Выдаю.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/registrar_4.mp3"
          }
         },
         {

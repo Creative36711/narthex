@@ -16,7 +16,7 @@ EXTERNAL unlock_codex(a0)
     ~ unlock_codex("codex_case136")
     -> Начало_hub
 * { has_item("item_plate") } [Наряд стражи за ночь тринадцатого.]
-    Пломба предъявлена. Выдаю. # emotion: calm
+    Пломба предъявлена. Выдаю. # emotion: calm # voice: assets/voice/registrar_4.mp3
     Взвод старшины Келла Ястреба, двенадцать человек, седьмой ярус, с двадцати до шести. Пометки о смене нет.
     ~ add_item("item_roster", 1)
     ~ fire_rule("rule_roster_got")

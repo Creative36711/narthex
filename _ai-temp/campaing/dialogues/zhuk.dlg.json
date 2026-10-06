@@ -18,7 +18,8 @@
       {
        "kind": "line",
        "line": {
-        "text": "Слушаю. Дорого."
+        "text": "Слушаю. Дорого.",
+        "voice": "assets/voice/zhuk_5.mp3"
        }
       }
      ]
@@ -203,22 +204,14 @@
     },
     {
      "text": "Дать Жуку полистать гроссбух.",
-     "sections": [
+     "sections": [],
+     "goto": "Расход",
+     "conds": [
       {
-       "steps": [
-        {
-         "kind": "effect",
-         "effect": {
-          "type": "present_item",
-          "required": "item_ledger",
-          "ok_goto": "Расход",
-          "fail_goto": "Отказ"
-         }
-        }
-       ]
+       "type": "has_item",
+       "item": "item_ledger"
       }
-     ],
-     "goto": "stay"
+     ]
     },
     {
      "text": "Где мастер?",
@@ -331,30 +324,6 @@
        "effect": {
         "type": "fire_rule",
         "rule": "rule_zhuk_ledger"
-       }
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "id": "Отказ",
-   "speaker": "zhuk",
-   "sections": [
-    {
-     "steps": [
-      {
-       "kind": "line",
-       "line": {
-        "text": "Жук вертит вещь в пальцах и возвращает.",
-        "action": true
-       }
-      },
-      {
-       "kind": "line",
-       "line": {
-        "text": "За это Векс и лома не даст. Приходи с бумагой, а лучше — с гроссбухом.",
-        "emotion": "calm"
        }
       }
      ]

@@ -35,7 +35,8 @@
          "kind": "line",
          "line": {
           "text": "Остановлена. Причина устанавливается. Мастер пропал, вероятно — утонул.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/kast_5.mp3"
          }
         },
         {
@@ -124,22 +125,14 @@
     },
     {
      "text": "Протянуть Каст записку мастера.",
-     "sections": [
+     "sections": [],
+     "goto": "Записка",
+     "conds": [
       {
-       "steps": [
-        {
-         "kind": "effect",
-         "effect": {
-          "type": "present_item",
-          "required": "item_note",
-          "ok_goto": "Записка",
-          "fail_goto": "Отказ"
-         }
-        }
-       ]
+       "type": "has_item",
+       "item": "item_note"
       }
-     ],
-     "goto": "stay"
+     ]
     },
     {
      "text": "Где мастер Реш?",
@@ -402,30 +395,6 @@
        "effect": {
         "type": "fire_rule",
         "rule": "rule_kast_note"
-       }
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "id": "Отказ",
-   "speaker": "kast",
-   "sections": [
-    {
-     "steps": [
-      {
-       "kind": "line",
-       "line": {
-        "text": "Она даже не смотрит на протянутое.",
-        "action": true
-       }
-      },
-      {
-       "kind": "line",
-       "line": {
-        "text": "Убери. Дело сто тридцать семь не про это, а время у тебя не резиновое.",
-        "emotion": "calm"
        }
       }
      ]

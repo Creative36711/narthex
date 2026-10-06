@@ -29,5 +29,6 @@
  "faction": "faction_nadzor",
  "base_disposition": 0,
  "schedule": [],
- "dialogue": "dialogues/registrar.ink"
+ "dialogue": "dialogues/registrar.ink",
+ "scene_sprite": "assets/img/npc/sprite_registrar.png"
 }

@@ -244,7 +244,8 @@
    "text": "Говорят, на девятом теперь светло и никто не работает. Говорят, там никого не осталось. Ты слышишь гул в груди — и знаешь, что это не эхо.",
    "duration": 7,
    "transition": "fade",
-   "image": "assets/img/cut_final_vein_2.jpg"
+   "image": "assets/img/cut_final_vein_2.jpg",
+   "voice": "assets/voice/final_vein_2.mp3"
   }
  ]
 }

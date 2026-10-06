@@ -17,7 +17,7 @@ EXTERNAL unlock_recipe(a0)
 
 === Начало_hub ===
 + { item_count("item_mark") >= 10 } [Перевяжи меня (10 марок).]
-    Держи. Не дёргайся: я режу ровно, но больно. # emotion: calm
+    Держи. Не дёргайся: я режу ровно, но больно. # emotion: calm # voice: assets/voice/ayla_4.mp3
     ~ remove_item("item_mark", 10)
     ~ change_hp(14)
     -> Начало_hub

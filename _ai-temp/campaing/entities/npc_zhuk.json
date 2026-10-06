@@ -56,5 +56,6 @@
    "item": "item_mark",
    "quantity": 18
   }
- ]
+ ],
+ "scene_sprite": "assets/img/npc/sprite_zhuk.png"
 }

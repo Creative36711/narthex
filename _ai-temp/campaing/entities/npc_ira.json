@@ -82,5 +82,6 @@
  ],
  "equipment": {
   "weapon": "item_wrench"
- }
+ },
+ "scene_sprite": "assets/img/npc/sprite_ira.png"
 }

@@ -1,556 +1,569 @@
 {
-  "id": "scene_dry_row",
-  "label": "Сухой ряд",
-  "location": "loc_ward8",
-  "canvas": {
-    "w": 1280,
-    "h": 720
-  },
-  "chapter": "ch_deep",
-  "states": [
-    {
-      "id": "state_main",
-      "label": "Всегда",
-      "condition": null,
-      "art": {
-        "canvas": {
-          "w": 1280,
-          "h": 720
-        },
-        "background": "#050a0c",
-        "layers": [
-          {
-            "label": "стена галереи",
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 0,
-              "w": 1280,
-              "h": 560,
-              "fill": {
-                "gradient": {
-                  "from": "#1c2a2e",
-                  "to": "#0b1214",
-                  "angle": 90
-                }
-              },
-              "stroke_width": 2
-            }
-          },
-          {
-            "label": "пол",
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 560,
-              "w": 1280,
-              "h": 160,
-              "fill": "#22323a",
-              "stroke_width": 2
-            }
-          },
-          {
-            "label": "навес",
-            "shape": {
-              "type": "rect",
-              "x": 120,
-              "y": 180,
-              "w": 420,
-              "h": 56,
-              "fill": "#4a4038",
-              "stroke": "#556d76",
-              "stroke_width": 3
-            }
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 140,
-              "y": 180,
-              "w": 30,
-              "h": 56,
-              "fill": "#6b6055",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 200,
-              "y": 180,
-              "w": 30,
-              "h": 56,
-              "fill": "#6d3a28",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 260,
-              "y": 180,
-              "w": 30,
-              "h": 56,
-              "fill": "#6b6055",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 320,
-              "y": 180,
-              "w": 30,
-              "h": 56,
-              "fill": "#6d3a28",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 380,
-              "y": 180,
-              "w": 30,
-              "h": 56,
-              "fill": "#6b6055",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 440,
-              "y": 180,
-              "w": 30,
-              "h": 56,
-              "fill": "#6d3a28",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "shape": {
-              "type": "rect",
-              "x": 500,
-              "y": 180,
-              "w": 30,
-              "h": 56,
-              "fill": "#6b6055",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "label": "прилавок",
-            "shape": {
-              "type": "rect",
-              "x": 140,
-              "y": 420,
-              "w": 380,
-              "h": 140,
-              "fill": "#6d3a28",
-              "stroke": "#556d76",
-              "stroke_width": 3
-            }
-          },
-          {
-            "label": "весы",
-            "shape": {
-              "type": "ellipse",
-              "cx": 300,
-              "cy": 400,
-              "rx": 60,
-              "ry": 26,
-              "fill": "#556d76",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "label": "навес",
-            "shape": {
-              "type": "rect",
-              "x": 740,
-              "y": 180,
-              "w": 420,
-              "h": 56,
-              "fill": "#5d5a52",
-              "stroke": "#556d76",
-              "stroke_width": 3
-            }
-          },
-          {
-            "label": "стол лекаря",
-            "shape": {
-              "type": "rect",
-              "x": 760,
-              "y": 420,
-              "w": 380,
-              "h": 140,
-              "fill": "#22323a",
-              "stroke": "#556d76",
-              "stroke_width": 3
-            }
-          },
-          {
-            "label": "чистое полотно",
-            "shape": {
-              "type": "rect",
-              "x": 820,
-              "y": 380,
-              "w": 120,
-              "h": 60,
-              "fill": "#d7d3c6",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "label": "навес",
-            "shape": {
-              "type": "ellipse",
-              "cx": 980,
-              "cy": 400,
-              "rx": 30,
-              "ry": 30,
-              "stroke": "#556d76",
-              "stroke_width": 3
-            }
-          },
-          {
-            "label": "стол лекаря",
-            "shape": {
-              "type": "rect",
-              "x": 760,
-              "y": 420,
-              "w": 380,
-              "h": 140,
-              "fill": "#22323a",
-              "stroke": "#556d76",
-              "stroke_width": 3
-            }
-          },
-          {
-            "label": "чистое полотно",
-            "shape": {
-              "type": "rect",
-              "x": 820,
-              "y": 380,
-              "w": 120,
-              "h": 60,
-              "fill": "#d7d3c6",
-              "stroke_width": 2
-            },
-            "opacity": 0.8
-          },
-          {
-            "label": "пузырёк",
-            "shape": {
-              "type": "ellipse",
-              "cx": 980,
-              "cy": 400,
-              "rx": 30,
-              "ry": 30,
-              "fill": "#5fd0c8",
-              "stroke_width": 2
-            },
-            "opacity": 0.55
-          },
-          {
-            "label": "жаровня",
-            "shape": {
-              "type": "rect",
-              "x": 580,
-              "y": 470,
-              "w": 150,
-              "h": 110,
-              "fill": "#3a4a52",
-              "stroke": "#556d76",
-              "stroke_width": 3
-            }
-          },
-          {
-            "label": "угли",
-            "shape": {
-              "type": "ellipse",
-              "cx": 655,
-              "cy": 470,
-              "rx": 60,
-              "ry": 26,
-              "fill": "#e8a33d",
-              "stroke_width": 2
-            },
-            "opacity": 0.85
-          },
-          {
-            "label": "проход в галерею",
-            "shape": {
-              "type": "rect",
-              "x": 0,
-              "y": 500,
-              "w": 110,
-              "h": 220,
-              "fill": "#080f12",
-              "stroke_width": 2
-            }
-          },
-          {
-            "shape": {
-              "type": "polygon",
-              "points": [
-                0,
-                500,
-                110,
-                500,
-                110,
-                720,
-                0,
-                720
-              ],
-              "fill": "#080f12",
-              "stroke_width": 2
-            }
-          },
-          {
-            "label": "проход на схему",
-            "shape": {
-              "type": "rect",
-              "x": 1170,
-              "y": 500,
-              "w": 110,
-              "h": 220,
-              "fill": "#080f12",
-              "stroke_width": 2
-            }
-          },
-          {
-            "label": "тяжёлая вода",
-            "shape": {
-              "type": "ellipse",
-              "cx": 430,
-              "cy": 640,
-              "rx": 240,
-              "ry": 30,
-              "fill": "#0a2027",
-              "stroke_width": 2
-            },
-            "opacity": 0.7
-          },
-          {
-            "label": "тяжёлая вода",
-            "shape": {
-              "type": "ellipse",
-              "cx": 1000,
-              "cy": 660,
-              "rx": 200,
-              "ry": 24,
-              "fill": "#0a2027",
-              "stroke_width": 2
-            },
-            "opacity": 0.6
-          },
-          {
-            "label": "свет",
-            "shape": {
-              "type": "ellipse",
-              "cx": 655,
-              "cy": 470,
-              "rx": 150,
-              "ry": 150,
-              "fill": "#e8a33d",
-              "stroke_width": 2
-            },
-            "opacity": 0.4
-          },
-          {
-            "label": "свет (ядро)",
-            "shape": {
-              "type": "ellipse",
-              "cx": 655,
-              "cy": 470,
-              "rx": 67.5,
-              "ry": 67.5,
-              "fill": "#e8a33d",
-              "stroke_width": 2
-            },
-            "opacity": 0.75
-          },
-          {
-            "label": "свет",
-            "shape": {
-              "type": "ellipse",
-              "cx": 300,
-              "cy": 330,
-              "rx": 80,
-              "ry": 80,
-              "fill": "#5fd0c8",
-              "stroke_width": 2
-            },
-            "opacity": 0.2
-          },
-          {
-            "label": "свет (ядро)",
-            "shape": {
-              "type": "ellipse",
-              "cx": 300,
-              "cy": 330,
-              "rx": 36.0,
-              "ry": 36.0,
-              "fill": "#5fd0c8",
-              "stroke_width": 2
-            },
-            "opacity": 0.55
-          },
-          {
-            "label": "свет",
-            "shape": {
-              "type": "ellipse",
-              "cx": 950,
-              "cy": 330,
-              "rx": 80,
-              "ry": 80,
-              "fill": "#5fd0c8",
-              "stroke_width": 2
-            },
-            "opacity": 0.2
-          },
-          {
-            "label": "свет (ядро)",
-            "shape": {
-              "type": "ellipse",
-              "cx": 950,
-              "cy": 330,
-              "rx": 36.0,
-              "ry": 36.0,
-              "fill": "#5fd0c8",
-              "stroke_width": 2
-            },
-            "opacity": 0.55
-          }
-        ]
-      },
-      "image": "assets/img/scenes/scene_dry_row.jpg"
-    }
-  ],
-  "slots": [
-    {
-      "id": "slot_dozh",
-      "label": "Прилавок старьёвщика",
-      "type": [
-        "person"
-      ],
-      "shape": "rect",
-      "x": 200,
-      "y": 250,
-      "w": 240,
-      "h": 300,
-      "condition": null,
-      "default_entity": "npc_dozh"
+ "id": "scene_dry_row",
+ "label": "Сухой ряд",
+ "location": "loc_ward8",
+ "canvas": {
+  "w": 1280,
+  "h": 720
+ },
+ "chapter": "ch_deep",
+ "states": [
+  {
+   "id": "state_main",
+   "label": "Всегда",
+   "condition": null,
+   "art": {
+    "canvas": {
+     "w": 1280,
+     "h": 720
     },
-    {
-      "id": "slot_ayla",
-      "label": "Стол лекаря",
-      "type": [
-        "person"
-      ],
-      "shape": "rect",
-      "x": 820,
-      "y": 250,
-      "w": 240,
-      "h": 300,
-      "condition": null,
-      "default_entity": "npc_ayla"
-    },
-    {
-      "id": "slot_zhuk",
-      "label": "У жаровни",
-      "type": [
-        "person"
-      ],
-      "shape": "rect",
-      "x": 560,
-      "y": 290,
-      "w": 190,
-      "h": 150,
-      "condition": null,
-      "default_entity": "npc_zhuk"
-    },
-    {
-      "id": "slot_brazier",
-      "label": "Жаровня",
-      "type": [
-        "prop"
-      ],
-      "shape": "rect",
-      "x": 570,
-      "y": 450,
-      "w": 170,
-      "h": 140,
-      "condition": null,
-      "default_entity": "item_brazier"
-    },
-    {
-      "id": "slot_bench_row",
-      "label": "Лавка у стены",
-      "type": [
-        "person",
-        "prop"
-      ],
-      "shape": "rect",
-      "x": 150,
-      "y": 565,
-      "w": 230,
-      "h": 125,
-      "condition": null,
-      "default_entity": "item_bench"
-    }
-  ],
-  "navigation": [
-    {
-      "label": "В затопленную галерею",
-      "area": {
-        "x": 0,
-        "y": 500,
-        "w": 110,
-        "h": 220
-      },
-      "go_to_scene": "scene_flood_gallery"
-    },
-    {
-      "label": "На схему ярусов",
-      "area": {
-        "x": 1170,
-        "y": 500,
-        "w": 110,
-        "h": 220
-      },
-      "open_map": true
-    }
-  ],
-  "music": [
-    {
-      "tracks": [
-        "music_alarm"
-      ],
-      "conditions": [
-        {
-          "flag": "lockdown"
+    "background": "#050a0c",
+    "layers": [
+     {
+      "label": "стена галереи",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 0,
+       "w": 1280,
+       "h": 560,
+       "fill": {
+        "gradient": {
+         "from": "#1c2a2e",
+         "to": "#0b1214",
+         "angle": 90
         }
-      ]
-    },
+       },
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "пол",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 560,
+       "w": 1280,
+       "h": 160,
+       "fill": "#22323a",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "навес",
+      "shape": {
+       "type": "rect",
+       "x": 120,
+       "y": 180,
+       "w": 420,
+       "h": 56,
+       "fill": "#4a4038",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 140,
+       "y": 180,
+       "w": 30,
+       "h": 56,
+       "fill": "#6b6055",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 200,
+       "y": 180,
+       "w": 30,
+       "h": 56,
+       "fill": "#6d3a28",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 260,
+       "y": 180,
+       "w": 30,
+       "h": 56,
+       "fill": "#6b6055",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 320,
+       "y": 180,
+       "w": 30,
+       "h": 56,
+       "fill": "#6d3a28",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 380,
+       "y": 180,
+       "w": 30,
+       "h": 56,
+       "fill": "#6b6055",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 440,
+       "y": 180,
+       "w": 30,
+       "h": 56,
+       "fill": "#6d3a28",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "shape": {
+       "type": "rect",
+       "x": 500,
+       "y": 180,
+       "w": 30,
+       "h": 56,
+       "fill": "#6b6055",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "прилавок",
+      "shape": {
+       "type": "rect",
+       "x": 140,
+       "y": 420,
+       "w": 380,
+       "h": 140,
+       "fill": "#6d3a28",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "весы",
+      "shape": {
+       "type": "ellipse",
+       "cx": 300,
+       "cy": 400,
+       "rx": 60,
+       "ry": 26,
+       "fill": "#556d76",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "навес",
+      "shape": {
+       "type": "rect",
+       "x": 740,
+       "y": 180,
+       "w": 420,
+       "h": 56,
+       "fill": "#5d5a52",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "стол лекаря",
+      "shape": {
+       "type": "rect",
+       "x": 760,
+       "y": 420,
+       "w": 380,
+       "h": 140,
+       "fill": "#22323a",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "чистое полотно",
+      "shape": {
+       "type": "rect",
+       "x": 820,
+       "y": 380,
+       "w": 120,
+       "h": 60,
+       "fill": "#d7d3c6",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "навес",
+      "shape": {
+       "type": "ellipse",
+       "cx": 980,
+       "cy": 400,
+       "rx": 30,
+       "ry": 30,
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "стол лекаря",
+      "shape": {
+       "type": "rect",
+       "x": 760,
+       "y": 420,
+       "w": 380,
+       "h": 140,
+       "fill": "#22323a",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "чистое полотно",
+      "shape": {
+       "type": "rect",
+       "x": 820,
+       "y": 380,
+       "w": 120,
+       "h": 60,
+       "fill": "#d7d3c6",
+       "stroke_width": 2
+      },
+      "opacity": 0.8
+     },
+     {
+      "label": "пузырёк",
+      "shape": {
+       "type": "ellipse",
+       "cx": 980,
+       "cy": 400,
+       "rx": 30,
+       "ry": 30,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.55
+     },
+     {
+      "label": "жаровня",
+      "shape": {
+       "type": "rect",
+       "x": 580,
+       "y": 470,
+       "w": 150,
+       "h": 110,
+       "fill": "#3a4a52",
+       "stroke": "#556d76",
+       "stroke_width": 3
+      }
+     },
+     {
+      "label": "угли",
+      "shape": {
+       "type": "ellipse",
+       "cx": 655,
+       "cy": 470,
+       "rx": 60,
+       "ry": 26,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.85
+     },
+     {
+      "label": "проход в галерею",
+      "shape": {
+       "type": "rect",
+       "x": 0,
+       "y": 500,
+       "w": 110,
+       "h": 220,
+       "fill": "#080f12",
+       "stroke_width": 2
+      }
+     },
+     {
+      "shape": {
+       "type": "polygon",
+       "points": [
+        0,
+        500,
+        110,
+        500,
+        110,
+        720,
+        0,
+        720
+       ],
+       "fill": "#080f12",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "проход на схему",
+      "shape": {
+       "type": "rect",
+       "x": 1170,
+       "y": 500,
+       "w": 110,
+       "h": 220,
+       "fill": "#080f12",
+       "stroke_width": 2
+      }
+     },
+     {
+      "label": "тяжёлая вода",
+      "shape": {
+       "type": "ellipse",
+       "cx": 430,
+       "cy": 640,
+       "rx": 240,
+       "ry": 30,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      },
+      "opacity": 0.7
+     },
+     {
+      "label": "тяжёлая вода",
+      "shape": {
+       "type": "ellipse",
+       "cx": 1000,
+       "cy": 660,
+       "rx": 200,
+       "ry": 24,
+       "fill": "#0a2027",
+       "stroke_width": 2
+      },
+      "opacity": 0.6
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 655,
+       "cy": 470,
+       "rx": 150,
+       "ry": 150,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.4
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 655,
+       "cy": 470,
+       "rx": 67.5,
+       "ry": 67.5,
+       "fill": "#e8a33d",
+       "stroke_width": 2
+      },
+      "opacity": 0.75
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 300,
+       "cy": 330,
+       "rx": 80,
+       "ry": 80,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.2
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 300,
+       "cy": 330,
+       "rx": 36.0,
+       "ry": 36.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.55
+     },
+     {
+      "label": "свет",
+      "shape": {
+       "type": "ellipse",
+       "cx": 950,
+       "cy": 330,
+       "rx": 80,
+       "ry": 80,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.2
+     },
+     {
+      "label": "свет (ядро)",
+      "shape": {
+       "type": "ellipse",
+       "cx": 950,
+       "cy": 330,
+       "rx": 36.0,
+       "ry": 36.0,
+       "fill": "#5fd0c8",
+       "stroke_width": 2
+      },
+      "opacity": 0.55
+     }
+    ]
+   },
+   "image": "assets/img/scenes/scene_dry_row.jpg"
+  }
+ ],
+ "slots": [
+  {
+   "id": "slot_dozh",
+   "label": "Прилавок старьёвщика",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 200,
+   "y": 250,
+   "w": 240,
+   "h": 300,
+   "condition": null,
+   "default_entity": "npc_dozh"
+  },
+  {
+   "id": "slot_ayla",
+   "label": "Стол лекаря",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 820,
+   "y": 250,
+   "w": 240,
+   "h": 300,
+   "condition": null,
+   "default_entity": "npc_ayla"
+  },
+  {
+   "id": "slot_zhuk",
+   "label": "У жаровни",
+   "type": [
+    "person"
+   ],
+   "shape": "rect",
+   "x": 560,
+   "y": 290,
+   "w": 190,
+   "h": 150,
+   "condition": null,
+   "default_entity": "npc_zhuk"
+  },
+  {
+   "id": "slot_brazier",
+   "label": "Жаровня",
+   "type": [
+    "prop"
+   ],
+   "shape": "rect",
+   "x": 570,
+   "y": 450,
+   "w": 170,
+   "h": 140,
+   "condition": null,
+   "default_entity": "item_brazier"
+  },
+  {
+   "id": "slot_bench_row",
+   "label": "Лавка у стены",
+   "type": [
+    "person",
+    "prop"
+   ],
+   "shape": "rect",
+   "x": 150,
+   "y": 565,
+   "w": 230,
+   "h": 125,
+   "condition": null,
+   "default_entity": "item_bench"
+  }
+ ],
+ "navigation": [
+  {
+   "label": "В затопленную галерею",
+   "area": {
+    "x": 0,
+    "y": 500,
+    "w": 110,
+    "h": 220
+   },
+   "go_to_scene": "scene_flood_gallery"
+  },
+  {
+   "label": "На схему ярусов",
+   "area": {
+    "x": 1170,
+    "y": 500,
+    "w": 110,
+    "h": 220
+   },
+   "open_map": true
+  }
+ ],
+ "music": [
+  {
+   "tracks": [
+    "music_alarm"
+   ],
+   "conditions": [
     {
-      "tracks": [
-        "music_deep"
-      ],
-      "conditions": []
+     "flag": "lockdown"
     }
-  ],
-  "ambient": [],
-  "lighting": "indoor"
+   ]
+  },
+  {
+   "tracks": [
+    "music_deep"
+   ],
+   "conditions": []
+  }
+ ],
+ "ambient": [
+  {
+   "sounds": [
+    "snd_crowd"
+   ],
+   "volume": 0.5
+  },
+  {
+   "sounds": [
+    "snd_fire"
+   ],
+   "volume": 0.3
+  }
+ ],
+ "lighting": "indoor"
 }

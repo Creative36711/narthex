@@ -18,7 +18,8 @@
       {
        "kind": "line",
        "line": {
-        "text": "Дознаватель. Я тебя не вызывал."
+        "text": "Дознаватель. Я тебя не вызывал.",
+        "voice": "assets/voice/kell_6.mp3"
        }
       }
      ]
@@ -191,22 +192,14 @@
     },
     {
      "text": "Положить перед Келлом жетон стража.",
-     "sections": [
+     "sections": [],
+     "goto": "Жетон",
+     "conds": [
       {
-       "steps": [
-        {
-         "kind": "effect",
-         "effect": {
-          "type": "present_item",
-          "required": "item_guard_token",
-          "ok_goto": "Жетон",
-          "fail_goto": "Отказ"
-         }
-        }
-       ]
+       "type": "has_item",
+       "item": "item_guard_token"
       }
-     ],
-     "goto": "stay"
+     ]
     },
     {
      "text": "Пропусти меня к помпе.",
@@ -356,30 +349,6 @@
        "effect": {
         "type": "fire_rule",
         "rule": "rule_kell_token"
-       }
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "id": "Отказ",
-   "speaker": "kell",
-   "sections": [
-    {
-     "steps": [
-      {
-       "kind": "line",
-       "line": {
-        "text": "Келл косит на протянутое, но руки с рукояти не убирает.",
-        "action": true
-       }
-      },
-      {
-       "kind": "line",
-       "line": {
-        "text": "Мне это зачем? Я за чужие вещи не отвечаю. За свои — тоже.",
-        "emotion": "calm"
        }
       }
      ]

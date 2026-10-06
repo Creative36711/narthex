@@ -6,7 +6,6 @@ EXTERNAL remove_item(a0, a1)
 EXTERNAL set_dialogue_timer(a0, a1)
 EXTERNAL set_entity_state(a0, a1)
 EXTERNAL set_flag(a0)
-EXTERNAL present_item(a0, a1, a2)
 
 === Начало ===
 Каст не поднимает головы от бумаг. # action
@@ -15,7 +14,7 @@ EXTERNAL present_item(a0, a1, a2)
 
 === Начало_hub ===
 + [Что именно случилось с седьмой помпой?]
-    Остановлена. Причина устанавливается. Мастер пропал, вероятно — утонул. # emotion: calm
+    Остановлена. Причина устанавливается. Мастер пропал, вероятно — утонул. # emotion: calm # voice: assets/voice/kast_5.mp3
     Твоя задача: найти причину и назвать её так, чтобы город спал спокойно.
     ~ set_flag("kast_brief")
     -> Начало_hub
@@ -28,9 +27,8 @@ EXTERNAL present_item(a0, a1, a2)
     Она наконец поднимает глаза. Улыбка есть, тепла нет. # action
     Покажи.
     -> Гроссбух
-+ [Протянуть Каст записку мастера.]
-    ~ present_item("Записка", "Отказ", "item_note")
-    -> Начало_hub
++ { has_item("item_note") } [Протянуть Каст записку мастера.]
+    -> Записка
 + [Где мастер Реш?]
 Если бы я знала, ты бы здесь не стоял. Найди — и приведи. Живым желательно, но мне хватит и вины. # emotion: calm # voice: assets/voice/kast_2.mp3
     -> Начало_hub
@@ -77,9 +75,4 @@ EXTERNAL present_item(a0, a1, a2)
 ~ set_flag("kast_note")
 ~ change_disposition("npc_kast", -12)
 ~ fire_rule("rule_kast_note")
--> Начало_hub
-
-=== Отказ ===
-Она даже не смотрит на протянутое. # action
-Убери. Дело сто тридцать семь не про это, а время у тебя не резиновое. # emotion: calm
 -> Начало_hub

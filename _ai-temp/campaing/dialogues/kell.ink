@@ -4,14 +4,13 @@ EXTERNAL has_item(a0)
 EXTERNAL set_flag(a0)
 EXTERNAL skill_check(a0, a1)
 EXTERNAL unlock_codex(a0)
-EXTERNAL present_item(a0, a1, a2)
 EXTERNAL fire_rule(a0)
 
 VAR r = 0
 
 === Начало ===
 Келл не встаёт. Он просто кладёт руку на рукоять клинка. # action
-Дознаватель. Я тебя не вызывал.
+Дознаватель. Я тебя не вызывал. # voice: assets/voice/kell_6.mp3
 -> Начало_hub
 
 === Начало_hub ===
@@ -27,9 +26,8 @@ VAR r = 0
     {r: -> Начало_hub_ok2 | -> Начало_hub_no2}
 + { has_item("item_roster") } [Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.]
     -> Наряд
-+ [Положить перед Келлом жетон стража.]
-    ~ present_item("Жетон", "Отказ", "item_guard_token")
-    -> Начало_hub
++ { has_item("item_guard_token") } [Положить перед Келлом жетон стража.]
+    -> Жетон
 + [Пропусти меня к помпе.]
 Помпа не моя. Иди, смотри. Только вниз не суйся: там не наша вода. # emotion: thoughtful # voice: assets/voice/kell_1.mp3
     -> Начало_hub
@@ -78,9 +76,4 @@ VAR r = 0
 ~ set_flag("kell_token")
 ~ change_disposition("npc_kell", 10)
 ~ fire_rule("rule_kell_token")
--> Начало_hub
-
-=== Отказ ===
-Келл косит на протянутое, но руки с рукояти не убирает. # action
-Мне это зачем? Я за чужие вещи не отвечаю. За свои — тоже. # emotion: calm
 -> Начало_hub
