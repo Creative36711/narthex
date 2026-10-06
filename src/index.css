@@ -2534,7 +2534,7 @@ input[type='range'] {
 /* ── адаптивные тултипы: одна плашка .ui-tooltip (shared/tooltip.ts) ── */
 .ui-tooltip {
   position: fixed;
-  z-index: 10000;
+  z-index: 100000;
   /* не шире экрана (узкое окно) и переносим длинные токены: иначе плашка
      вылезала за край и рождала горизонтальный скроллбар (фидбек 27, п.8) */
   max-width: min(280px, calc(100vw - 24px));
@@ -3460,8 +3460,8 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
 }
 .itemdlg-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .itemdlg-content { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.itemdlg-title { margin: 0; font-size: 18px; color: var(--gold-bright); }
-.itemdlg-desc { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.55; }
+.itemdlg-title { margin: 0; font-size: 19px; color: var(--gold-bright); }
+.itemdlg-desc { margin: 0; font-size: 15px; color: var(--text, #e8e8e8); line-height: 1.6; white-space: pre-line; }
 .itemdlg-option { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; }
 .itemdlg-hint { font-size: 11.5px; color: color-mix(in srgb, var(--ink-bright) 72%, transparent); font-weight: normal; }
 .usewith-options { display: flex; flex-direction: column; gap: 8px; }

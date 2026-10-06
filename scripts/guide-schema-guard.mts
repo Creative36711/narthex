@@ -188,6 +188,8 @@ const ENGINE_VOCABULARY = new Map<string, string>([
   ['get_hp_max', 'токен {здоровье_макс}'],
   ['get_currency', 'токен валюты в реплике'],
   ['base_disposition', 'стартовое отношение к NPC'],
+  ['stop_sound', 'эффект остановки воспроизведения звука'],
+  ['dialogue_present', 'хук звука при предъявлении предмета в диалоге'],
 ])
 
 // ── (а) JSON-литералы эффектов и условий ──

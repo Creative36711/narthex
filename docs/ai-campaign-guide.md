@@ -1035,6 +1035,7 @@ NG+-ветки: «герой, видевший 2+ концовок, получа
 | `start_combat` | `enemies`, `arena`, `intro?`, `on_victory?` | начать бой |
 | `play_cutscene` | `cutscene` | показать катсцену |
 | `play_sound` | `sound`, `volume?` | воспроизвести звук из реестра `meta.sounds` или путь к файлу |
+| `stop_sound` | `sound?` | остановить звук (или все звучащие эффекты, если sound не передан) |
 | `override_music` | `tracks`, `fade?` | сюжетно переопределить фоновую музыку поверх сцены |
 | `clear_music_override` | `fade?` | снять переопределение музыки и вернуться к треку локации |
 | `show_message` | `text`, `portrait?` | сообщение |
@@ -2197,14 +2198,20 @@ EXTERNAL has_item(id)
   `ui_sounds.menu_music` — id **трека** для главного меню.
 - Сюжетный оверрайд музыки: эффект `override_music` (с полями `tracks`, `fade`) форсирует драматичный трек поверх текущей сцены, а `clear_music_override` возвращает музыку локации.
 - Прямые звуки на элементах мира:
-  - Связи локаций `TravelConnection`: `sound` (звук пути — шум поезда, плеск волн, стук копыт), `depart_sound` (гудок, свисток), `arrive_sound` (скрип тормозов).
-  - Рецепты крафта `RecipeDef`: поле `sound` (звон наковальни, бульканье зелья, шитьё).
-  - Действия с предметом `ItemInteractOption`: поле `sound` воспроизводит точный звук действия напрямую.
+  - Связи локаций `TravelConnection`: `sound` (звук пути — шум поезда, плеск волн, стук копыт), `sound_volume`, `depart_sound` (гудок, свисток), `arrive_sound` (скрип тормозов).
+  - Рецепты крафта `RecipeDef`: поле `sound` (звон наковальни, бульканье зелья, шитьё) и `sound_volume`.
+  - Состояния сцены `SceneStateDef`: поле `sound` воспроизводится один раз при смене состояния сцены (запуск механизмов, спуск шлюза) и `sound_volume`.
+  - Слоты сцены `SlotDef`: поле `sound` воспроизводится при клике по слоту и `sound_volume`.
+  - Статусы героя `StatusDef`: `apply_sound` (звук при получении статуса — удушье, кашель, благословение) и `remove_sound` (звук при исцелении/спаде).
+  - Действия с предметом `ItemInteractOption`: поле `sound` воспроизводит точный звук действия напрямую и `sound_volume`.
   - Реплики диалогов: команда `~ play_sound("snd_id", 0.9)` или строчный тег `# sfx: snd_id` (выстрел, стук в дверь, звон монет).
+  - Остановка звука: эффект `{ "type": "stop_sound", "sound": "snd_alarm" }` для прекращения воспроизведения долгого звука или петли.
 - Звуки взаимодействий (`sounds` у сущности, категории предмета, типа слота):
   карта вида `{"pickup": "sfx_coin", "use": "sfx_drink", "equip": "sfx_armor", "unequip": "sfx_cloth"}`. Хуки — открытые строки с каскадным поиском.
 - `ui_sounds` — звуковая тема интерфейса с каскадом:
   - `panel:inventory`, `panel:journal`, `panel:map`, `panel:craft`, `panel:character`, `panel:codex` — индивидуальные звуки панелей (с автоматическим фоллбэком на общий `panel_open` / `panel:open`);
+  - звуки закрытия панелей: `panel:inventory:close`, `panel:craft:close` (с автоматическим фоллбэком на `panel_close` / `panel:close` / `click`);
+  - `dialogue_present` — звук при предъявлении предметов и улик в диалоге (`~ present_item`);
   - `click`, `panel_open`, `panel_close`, `message`, `travel_depart`, `travel_arrive`, `scene_transition`;
   - `equip`, `unequip`, `item_get`, `item_lose`, `craft`, `coin`;
   - `combat_start`, `hit`, `miss`, `crit`, `parry`, `heal`, `flee`, `kill`, `death`, `victory`, `defeat`;

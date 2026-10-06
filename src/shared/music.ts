@@ -240,12 +240,8 @@ function startTrackAt(state: PlayerState): void {
   state.handle = null
   if (state.advanceTimer) clearTimeout(state.advanceTimer)
   state.advanceTimer = null
-  if (!t) {
-    console.warn('[CF:Audio] Не удалось найти трек для воспроизведения:', id)
-    return
-  }
+  if (!t) return
   const vol = musicVolume(getSettings()) * t.volume * duckFactor
-  console.log('[CF:Audio] Запуск музыкального трека:', { id, volume: vol, isMusicDoc: isMusicDoc(t.src), duckFactor })
   const multi = state.tracks.length > 1
   const adv = multi
     ? () => {
@@ -277,15 +273,11 @@ export function refreshMusic(engine: GameEngine | null): void {
   }
   const { rule, stop } = desiredRule(engine && !menuMode ? engine : null)
   if (stop || !rule || !rule.tracks.length) {
-    if (cur) {
-      console.log('[CF:Audio] Остановка музыки (stop=true или нет треков в правиле).')
-      stopCurrent()
-    }
+    if (cur) stopCurrent()
     return
   }
   const key = JSON.stringify({ t: rule.tracks, s: !!rule.shuffle, m: menuMode, e: !!engine?.combat, o: !!engine?.musicOverride })
   if (cur && cur.key === key) return
-  console.log('[CF:Audio] refreshMusic: смена треков на:', rule.tracks, { menuMode, scene: engine?.state.scene, loc: engine?.state.location })
   stopCurrent()
 
   const order = rule.tracks.map((_, i) => i)

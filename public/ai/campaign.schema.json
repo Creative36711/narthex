@@ -2119,6 +2119,22 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "stop_sound"
+            },
+            "sound": {
+              "type": "string",
+              "description": "id звука для остановки (если не передан — останавливает все активные звуковые эффекты)"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "override_music"
             },
             "tracks": {
@@ -2176,6 +2192,14 @@
         "icon": {
           "type": "string",
           "description": "иконка-файл/ссылка; нет — текстовый чип"
+        },
+        "apply_sound": {
+          "type": "string",
+          "description": "индивидуальный звук при наложении статуса"
+        },
+        "remove_sound": {
+          "type": "string",
+          "description": "индивидуальный звук при спаде/снятии статуса"
         },
         "scope": {
           "type": "string",
@@ -6013,13 +6037,28 @@
           "type": "string",
           "description": "индивидуальный звук пути (плеск волн, стук рельсов, топот копыт)"
         },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "depart_sound": {
           "type": "string",
           "description": "индивидуальный звук отправления (гудок поезда, скрип трапа)"
         },
+        "depart_sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "arrive_sound": {
           "type": "string",
           "description": "индивидуальный звук прибытия (скрип тормозов, звон колокола)"
+        },
+        "arrive_sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       },
       "required": [
@@ -6347,6 +6386,15 @@
           "$ref": "#/$defs/CameraDoc",
           "description": "кинематографическая камера фона состояния (пан-зум)"
         },
+        "sound": {
+          "type": "string",
+          "description": "звук, воспроизводимый при переключении сцены в это состояние"
+        },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "condition": {
           "anyOf": [
             {
@@ -6448,6 +6496,15 @@
         "sprite_state": {
           "type": "string",
           "description": "состояние спрайта сцены для занятого НПС (ключ из scene_sprite_states,\nid состояния кампании); пусто — обычный спрайт"
+        },
+        "sound": {
+          "type": "string",
+          "description": "индивидуальный звук клика/взаимодействия со слотом"
+        },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "use_with": {
           "type": "array",
@@ -7078,6 +7135,11 @@
         "sound": {
           "type": "string",
           "description": "звуковой хук взаимодействия (умолчание 'use' или 'open' для контейнера)"
+        },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       },
       "required": [
@@ -7917,6 +7979,11 @@
         "sound": {
           "type": "string",
           "description": "индивидуальный звук крафта: звон наковальни, шипение реактивов, стук молотка"
+        },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         },
         "workbench": {
           "type": [

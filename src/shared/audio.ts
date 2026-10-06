@@ -60,16 +60,58 @@ function pickSource(src: SoundSource | SoundSource[]): SoundSource {
   return src
 }
 
+interface ActiveInstance {
+  stop: () => void
+}
+const activeSoundInstances = new Map<string, ActiveInstance[]>()
+
+function trackInstance(id: string, inst: ActiveInstance): void {
+  if (!id) return
+  const list = activeSoundInstances.get(id) ?? []
+  list.push(inst)
+  activeSoundInstances.set(id, list)
+}
+
+function untrackInstance(id: string, inst: ActiveInstance): void {
+  const list = activeSoundInstances.get(id)
+  if (!list) return
+  const filtered = list.filter((i) => i !== inst)
+  if (filtered.length) activeSoundInstances.set(id, filtered)
+  else activeSoundInstances.delete(id)
+}
+
+/** остановить воспроизведение звука (по id или все, если id не передан) */
+export function stopSound(id?: string): void {
+  if (id) {
+    stopLoop(id)
+    const list = activeSoundInstances.get(id)
+    if (list) {
+      for (const inst of list) {
+        try { inst.stop() } catch {}
+      }
+      activeSoundInstances.delete(id)
+    }
+  } else {
+    stopAllLoops()
+    for (const list of activeSoundInstances.values()) {
+      for (const inst of list) {
+        try { inst.stop() } catch {}
+      }
+    }
+    activeSoundInstances.clear()
+  }
+}
+
 /** проиграть звук реестра по id */
 export function playSoundId(id: string, volume = 1): void {
   if (!id || !campaign || !ambientEnabled) return
   const def = soundDef(id)
   if (!def) return
-  playSource(pickSource(def.src), volume)
+  playSource(pickSource(def.src), volume, id)
 }
 
 /** проиграть источник напрямую (файл/ссылка или SoundDoc) */
-export function playSource(src: SoundSource, volume = 1): void {
+export function playSource(src: SoundSource, volume = 1, soundId?: string): void {
   if (!src) return
   const vol = sfxVolume(getSettings()) * volume
   if (vol <= 0) return
@@ -86,6 +128,16 @@ export function playSource(src: SoundSource, volume = 1): void {
     node.connect(g)
     g.connect(c.destination)
     node.start()
+    if (soundId) {
+      const inst: ActiveInstance = {
+        stop: () => {
+          try { node.stop() } catch {}
+          try { g.disconnect() } catch {}
+        },
+      }
+      trackInstance(soundId, inst)
+      node.onended = () => untrackInstance(soundId, inst)
+    }
     return
   }
   // файл пакета или внешняя ссылка
@@ -93,6 +145,15 @@ export function playSource(src: SoundSource, volume = 1): void {
   const url = campaign && !/^https?:|^data:|^blob:/i.test(src) ? `${campaign.basePath}/${src}` : src
   const a = new Audio(url)
   a.volume = vol
+  if (soundId) {
+    const inst: ActiveInstance = {
+      stop: () => {
+        try { a.pause(); a.currentTime = 0 } catch {}
+      },
+    }
+    trackInstance(soundId, inst)
+    a.onended = () => untrackInstance(soundId, inst)
+  }
   void a.play().catch(() => undefined)
 }
 
@@ -112,8 +173,12 @@ export function playUi(hook: string, volume = 1): void {
   // 2. Алиас с _ вместо :
   const underscored = hook.includes(':') ? hook.replace(/:/g, '_') : null
   if (underscored && ui[underscored]) return playSoundId(ui[underscored], volume)
-  // 3. Каскад панелей: panel:inventory -> panel_open / panel:open
-  if (hook.startsWith('panel:') || hook.startsWith('panel_')) {
+  // 3. Каскад панелей:
+  if (hook.includes('close')) {
+    if (ui['panel:close']) return playSoundId(ui['panel:close'], volume)
+    if (ui['panel_close']) return playSoundId(ui['panel_close'], volume)
+    if (ui['click']) return playSoundId(ui['click'], volume * 0.7)
+  } else if (hook.startsWith('panel:') || hook.startsWith('panel_')) {
     if (ui['panel:open']) return playSoundId(ui['panel:open'], volume)
     if (ui['panel_open']) return playSoundId(ui['panel_open'], volume)
   }
@@ -143,7 +208,7 @@ export function playInteraction(
   // Прямой звук имеет наивысший приоритет
   if (info.sound) {
     if (soundDef(info.sound)) return playSoundId(info.sound, volume)
-    return playSource(info.sound, volume)
+    return playSource(info.sound, volume, info.sound)
   }
   const meta = campaign.meta
   const fromEntity = info.entity?.sounds?.[hook]

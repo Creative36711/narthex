@@ -5,6 +5,7 @@ import { timeOfDay } from '../core/time'
 import { ArtView } from '../shared/ArtView'
 import { firstFrame, LiveImg } from './frames'
 import { AtmosphereLayer, useCameraStyle } from './Atmosphere'
+import { playInteraction } from '../shared/audio'
 import type { ItemDef, SceneStateDef, SlotDef, SlotUseWith } from '../shared/types'
 
 interface Props {
@@ -40,10 +41,13 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
     const previous = previousBg.current
     previousBg.current = { key: stateKey, background }
     if (!previous || previous.key === stateKey || !stateKey) return
+    if (state?.sound) {
+      playInteraction(state.sound, { sound: state.sound }, state.sound_volume ?? 1)
+    }
     setOutgoingBg(previous.background)
     const timer = window.setTimeout(() => setOutgoingBg(null), 450)
     return () => window.clearTimeout(timer)
-  }, [stateKey])
+  }, [stateKey, state?.sound, state?.sound_volume])
 
   if (!scene || !state) return <div className="scene-missing">Сцена не найдена</div>
 
@@ -136,15 +140,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                 }}
                 disabled={!interactable}
                 onClick={() => {
-                  console.log('[CF:Debug] Клик по слоту сцены:', {
-                    slotId: slot.id,
-                    entityId: entity.id,
-                    label: entity.label,
-                    type: entity.type,
-                    desc: engine.descOf(entity.id),
-                    hasInteractChoices,
-                    interactable,
-                  })
+                  engine.inspectEntity(entity.id)
                   // «ключ к двери» (блок 8 ТЗ): НПС — диалог, иначе при наличии
                   // подходящих предметов — модалка выбора
                   if (entity.type !== 'npc') {

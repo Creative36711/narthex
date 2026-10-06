@@ -206,23 +206,44 @@ export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }:
         <div className="pt-debug-entity-list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {sceneEntities.map(({ slot, entity }) => {
             if (!entity) return null
+            const isSelected = engine.inspectedEntityId === entity.id
             const desc = engine.descOf(entity.id)
             const curState = engine.entityState(entity.id) ?? ''
             const npc = entity.type === 'npc' ? entity : null
+            const item = entity.type === 'item' ? (entity as ItemDef) : null
             const stateKeys = npc ? Object.keys(npc.portrait ?? {}) : []
             return (
-              <div key={slot.id} className="pt-debug-entity-card small" style={{ padding: '6px 8px', background: 'var(--cf-card-bg, rgba(0,0,0,0.2))', borderRadius: 4 }}>
+              <div
+                key={slot.id}
+                className="pt-debug-entity-card small"
+                onClick={() => engine.inspectEntity(entity.id)}
+                style={{
+                  padding: '8px 10px',
+                  background: isSelected ? 'color-mix(in srgb, var(--gold, #d4af37) 12%, var(--cf-card-bg, rgba(0,0,0,0.3)))' : 'var(--cf-card-bg, rgba(0,0,0,0.2))',
+                  border: isSelected ? '1px solid var(--gold, #d4af37)' : '1px solid var(--ed-line, rgba(255,255,255,0.08))',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <b>{entity.label}</b>
+                  <span style={{ fontWeight: 600, color: isSelected ? 'var(--gold-bright, #ffd700)' : 'inherit' }}>
+                    {entity.label} {isSelected && <small style={{ fontWeight: 'normal', opacity: 0.8 }}>(выбрано)</small>}
+                  </span>
                   <span className="muted">{entity.type === 'npc' ? 'Персонаж' : 'Предмет'} ({slot.id})</span>
                 </div>
                 {desc ? (
-                  <div style={{ marginTop: 4, color: 'var(--text-main, #e0e0e0)' }}>{desc}</div>
+                  <div style={{ marginTop: 6, color: 'var(--text-main, #f0f0f0)', lineHeight: 1.45, whiteSpace: 'pre-line' }}>{desc}</div>
                 ) : (
                   <div className="muted small" style={{ marginTop: 4, fontStyle: 'italic', opacity: 0.7 }}>
                     (описание сущности не заполнено)
                   </div>
                 )}
+                {item && (item.interact_options?.length || item.on_interact) ? (
+                  <div className="muted small" style={{ marginTop: 4 }}>
+                    Действия: {item.interact_options?.length ? `${item.interact_options.length} вар.` : 'прямое взаимодействие'}
+                  </div>
+                ) : null}
                 {npc && (
                   <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     {stateKeys.length > 0 && (

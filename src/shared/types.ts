@@ -90,6 +90,10 @@ export interface StatusDef {
   description?: string
   /** иконка-файл/ссылка; нет — текстовый чип */
   icon?: string
+  /** индивидуальный звук при наложении статуса */
+  apply_sound?: string
+  /** индивидуальный звук при спаде/снятии статуса */
+  remove_sound?: string
   /** мир — тики, бой — раунды; 'both' — и там и там */
   scope: 'world' | 'combat' | 'both'
   /** длительность по умолчанию (мировые тики / боевые раунды) */
@@ -1081,10 +1085,13 @@ export interface TravelConnection {
   random_encounter_table?: string
   /** индивидуальный звук пути (например, шум поезда, плеск волн, стук копыт) */
   sound?: string
+  sound_volume?: number
   /** индивидуальный звук отправления (свисток паровоза, скрип трапа) */
   depart_sound?: string
+  depart_sound_volume?: number
   /** индивидуальный звук прибытия (скрип тормозов, звон станционного колокола) */
   arrive_sound?: string
+  arrive_sound_volume?: number
 }
 
 /** фоновый зацикленный звуковой слой с условиями активации */
@@ -1296,6 +1303,9 @@ export interface SceneStateDef {
   art?: ArtDoc
   /** кинематографическая камера фона состояния (пан-зум) */
   camera?: CameraDoc
+  /** звук, воспроизводимый один раз при переключении сцены в это состояние */
+  sound?: string
+  sound_volume?: number
   condition: SceneCondition | null
 }
 
@@ -1436,6 +1446,9 @@ export interface SlotDef {
   /** состояние спрайта сцены для занятого НПС (ключ из scene_sprite_states,
    *  id состояния кампании); пусто — обычный спрайт */
   sprite_state?: string
+  /** индивидуальный звук клика/взаимодействия со слотом */
+  sound?: string
+  sound_volume?: number
   /** предметы, которыми можно воздействовать на слот (блок 8 ТЗ) */
   use_with?: SlotUseWith[]
 }
@@ -1694,6 +1707,7 @@ export interface ItemInteractOption {
   message?: string
   /** звуковой хук взаимодействия (умолчание 'use' или 'open' для контейнера) */
   sound?: string
+  sound_volume?: number
 }
 
 export interface ItemDef {
@@ -2132,6 +2146,7 @@ export interface RecipeDef {
   known?: boolean
   /** индивидуальный звук изготовления (например, звон наковальни, шипение реактивов, шорох шитья) */
   sound?: string
+  sound_volume?: number
   /** динамические условия знания/доступности рецепта (навыки, флаги, черты, квесты) */
   conditions?: Condition[]
   /**
@@ -2573,6 +2588,7 @@ export type Effect =
   | { type: 'game_over_death'; reason?: string }
   | { type: 'play_cutscene'; cutscene: string }
   | { type: 'play_sound'; sound: string; volume?: number }
+  | { type: 'stop_sound'; sound?: string }
   | { type: 'override_music'; tracks: string[]; fade?: number }
   | { type: 'clear_music_override'; fade?: number }
 

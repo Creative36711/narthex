@@ -383,6 +383,55 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
     }
   }
 
+  // Проверка звуков (пункт 10 аудита): опечатка в sound_id превращается в тишину.
+  const declaredSounds = new Set<string>((store.meta.sounds ?? []).map((s) => s.id))
+  const BUILTIN_SOUNDS = new Set([
+    'click', 'travel', 'craft', 'message', 'open', 'use', 'drop',
+    'equip', 'unequip', 'dialogue_present', 'travel_depart', 'travel_arrive',
+    'panel_open', 'panel_close', 'panel:open', 'panel:close',
+  ])
+  const checkSoundRef = (soundId: string | undefined, context: string): void => {
+    if (!soundId) return
+    const id = soundId.trim()
+    if (!id || /^(?:https?:|\/|\.\/|assets\/)/i.test(id)) return // прямой файл/URL
+    if (!declaredSounds.has(id) && !BUILTIN_SOUNDS.has(id)) {
+      structure.push({
+        severity: 'warning',
+        message: `${context}: звук «${id}» не найден в реестре meta.sounds кампании (опечатка будет звучать как тишина).`,
+      })
+    }
+  }
+  // Проверяем связи локаций
+  for (const r of store.world.regions ?? []) {
+    for (const l of r.locations ?? []) {
+      for (const tc of l.travel_connections ?? []) {
+        checkSoundRef(tc.sound, `Связь ${l.id} -> ${tc.to}`)
+        checkSoundRef(tc.depart_sound, `Отправление ${l.id} -> ${tc.to}`)
+        checkSoundRef(tc.arrive_sound, `Прибытие ${l.id} -> ${tc.to}`)
+      }
+    }
+  }
+  // Проверяем рецепты
+  for (const p of store.recipePaths()) {
+    const rc = store.recipe(p)
+    checkSoundRef(rc.sound, `Рецепт «${rc.label || rc.id}»`)
+  }
+  // Проверяем слоты сцен
+  for (const p of store.scenePaths()) {
+    const sc = store.scene(p)
+    for (const st of sc.states ?? []) {
+      checkSoundRef(st.sound, `Состояние «${st.label || st.id}» сцены ${sc.id}`)
+    }
+    for (const sl of sc.slots ?? []) {
+      checkSoundRef(sl.sound, `Слот «${sl.label || sl.id}» сцены ${sc.id}`)
+    }
+  }
+  // Проверяем статусы
+  for (const st of store.meta.statuses ?? []) {
+    checkSoundRef(st.apply_sound, `Статус «${st.label || st.id}» (apply_sound)`)
+    checkSoundRef(st.remove_sound, `Статус «${st.label || st.id}» (remove_sound)`)
+  }
+
   // фон там, где его быть не должно: эмблема меню, спрайты сцен, фигурки боя
   structure.push(...(await inspectAlphaRoles(store)))
 

@@ -58,7 +58,7 @@ import type { CharChoice } from './charcreate'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, firstInkKnot, type DialogueUI } from './dialogue'
 import { skillLabel } from '../shared/skills'
-import { playUi, playInteraction } from '../shared/audio'
+import { playUi, playInteraction, stopSound } from '../shared/audio'
 import type { SoundHook } from '../shared/types'
 import { migrateNeedCondition } from '../shared/migrate'
 import { CombatController } from './combat'
@@ -112,6 +112,14 @@ export class GameEngine {
   /** транзитные всплывающие подсказки (не в сейве): «Получено: …» и т.п. — UI отображает и сам гасит */
   toasts: { id: number; text: string; kind: 'get' | 'lose' | 'info' }[] = []
   private toastSeq = 0
+
+  /** Последняя осмотренная сущность (для панели отладки и режима инспектора) */
+  inspectedEntityId: string | null = null
+
+  inspectEntity(id: string | null): void {
+    this.inspectedEntityId = id
+    this.notify()
+  }
 
   /** Сюжетное переопределение музыки (поверх текущей сцены/локации) */
   musicOverride: { tracks: string[]; fade?: number } | null = null
@@ -633,6 +641,7 @@ export class GameEngine {
     }
     list.push(entry)
     this.pushLog(def.apply_message ?? `${def.label}: эффект наложен.`)
+    if (def.apply_sound) playInteraction(def.apply_sound, { sound: def.apply_sound })
     if (def.on_apply?.length) this.applyEffects(def.on_apply)
     this.notify()
   }
@@ -643,7 +652,10 @@ export class GameEngine {
     if (!list?.some((s) => s.id === id)) return
     this.state.player.statuses = list.filter((s) => s.id !== id)
     const def = this.statusDef(id)
-    if (def) this.pushLog(`${def.label}: эффект снят.`)
+    if (def) {
+      this.pushLog(`${def.label}: эффект снят.`)
+      if (def.remove_sound) playInteraction(def.remove_sound, { sound: def.remove_sound })
+    }
     this.notify()
   }
 
@@ -2037,6 +2049,8 @@ export class GameEngine {
     const story = this.activeStory
     if (!pres || !story || !this.dialogue) return
     this.dialogue.presenting = undefined
+    if (itemId) playUi('dialogue_present')
+    else playUi('click')
     const success = itemId ? (!pres.required || pres.required === itemId) : false
     const targetKnot = success ? pres.ok : pres.fail
     try {
@@ -2256,7 +2270,7 @@ export class GameEngine {
     const outLabel = this.itemTitle(r.output.item)
     this.pushLog(`Изготовлено: ${outLabel} (рецепт «${r.label}»).`)
     this.messages.push({ text: r.message ?? `Изготовлено: ${outLabel}.` })
-    if (r.sound) playInteraction(r.sound, { sound: r.sound })
+    if (r.sound) playInteraction(r.sound, { sound: r.sound }, r.sound_volume ?? 1)
     else playUi('craft')
     this.autosave()
     this.notify()
@@ -2488,8 +2502,8 @@ export class GameEngine {
       this.notify()
       return
     }
-    if (conn?.depart_sound) playInteraction(conn.depart_sound, { sound: conn.depart_sound })
-    else if (conn?.sound) playInteraction(conn.sound, { sound: conn.sound })
+    if (conn?.depart_sound) playInteraction(conn.depart_sound, { sound: conn.depart_sound }, conn.depart_sound_volume ?? 1)
+    else if (conn?.sound) playInteraction(conn.sound, { sound: conn.sound }, conn.sound_volume ?? 1)
     else playUi('travel_depart')
     this.advanceTicks(cost)
     this.state.stats_run.travels += 1
@@ -2501,7 +2515,7 @@ export class GameEngine {
     this.state.location = locationId
     const firstScene = this.arrivalSceneOf(target.location)
     if (firstScene) this.state.scene = firstScene
-    if (conn?.arrive_sound) playInteraction(conn.arrive_sound, { sound: conn.arrive_sound })
+    if (conn?.arrive_sound) playInteraction(conn.arrive_sound, { sound: conn.arrive_sound }, conn.arrive_sound_volume ?? 1)
     else playUi('travel_arrive')
     this.onEnterLocation(locationId)
     // случайная встреча в пути (после прибытия)
@@ -2876,6 +2890,7 @@ export class GameEngine {
       case 'meta_currency': this.grantMetaCurrency(e.id, e.amount); break
       case 'roll_event_table': this.rollEventTable(e.table, { forced: true, ignoreFilters: e.ignore_filters }); break
       case 'play_sound': playInteraction(e.sound, { sound: e.sound }, e.volume ?? 1); break
+      case 'stop_sound': stopSound(e.sound); break
       case 'override_music': this.setMusicOverride(e.tracks, e.fade); break
       case 'clear_music_override': this.clearMusicOverride(); break
       case 'generate_variables': {
@@ -3142,7 +3157,7 @@ export class GameEngine {
   /** применить выбранный вариант взаимодействия с предметом */
   runItemInteract(item: ItemDef, option: ItemInteractOption): void {
     const soundOpt = option.sound ?? 'use'
-    playInteraction(soundOpt as SoundHook, { entity: item, sound: option.sound })
+    playInteraction(soundOpt as SoundHook, { entity: item, sound: option.sound }, option.sound_volume ?? 1)
     if (option.effects?.some((ef) => ef.type === 'open_craft')) {
       this.craftSourceEntity = item
     }
@@ -3173,12 +3188,10 @@ export class GameEngine {
 
   interactWithSlot(occ: SlotOccupant): boolean {
     if (!occ.entity) return false
-    console.log('[CF:Debug] interactWithSlot вызван:', {
-      slot: occ.slot.id,
-      entity: { id: occ.entity.id, label: occ.entity.label, type: occ.entity.type },
-      desc: this.descOf(occ.entity.id),
-      isNpc: occ.entity.type === 'npc',
-    })
+    this.inspectedEntityId = occ.entity.id
+    if (occ.slot.sound) {
+      playInteraction(occ.slot.sound, { sound: occ.slot.sound }, occ.slot.sound_volume ?? 1)
+    }
     if (occ.entity.type === 'npc') {
       const npc = occ.entity as NpcDef
       if (npc.dialogue) {
@@ -3209,7 +3222,15 @@ export class GameEngine {
       const isOpen = occ.slot.type.includes('container') || item.category === 'container'
       playInteraction(isOpen ? 'open' : 'use', { entity: item, slotType })
       this.applyEffects(item.on_interact.effects)
-      if (item.on_interact.message) this.messages.push({ text: this.fmt(item.on_interact.message) })
+      const desc = this.descOf(item.id) || item.description
+      if (item.on_interact.message) {
+        this.messages.push({ text: this.fmt(item.on_interact.message) })
+      } else if (desc) {
+        this.messages.push({
+          text: desc,
+          portrait: item.portrait?.neutral || undefined,
+        })
+      }
       if (item.on_interact.consume) {
         this.state.removed_entities.push(item.id)
       }
@@ -3218,7 +3239,6 @@ export class GameEngine {
     } else {
       // Предмет без специального взаимодействия: при клике показываем описание сущности
       const desc = this.descOf(item.id)
-      console.log('[CF:Debug] Показ описания предмета без действий:', { id: item.id, desc: desc || item.description })
       const textToShow = desc || item.description
       if (textToShow) {
         this.messages.push({

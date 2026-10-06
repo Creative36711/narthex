@@ -41,6 +41,7 @@ const mockCampaign: CampaignData = {
     ],
     ui_sounds: {
       panel_open: 'snd_click',
+      panel_close: 'snd_shot',
       'panel:inventory': 'snd_bag',
     },
     default_music: ['track_peace'],
@@ -158,7 +159,9 @@ console.log('1. Проверка каскада звуков панелей:')
 playUi('panel:inventory')
 // panel:map (нет точного) -> panel_open (snd_click)
 playUi('panel:map')
-console.log('✓ Каскад поиска звуков панелей работает!')
+// panel:inventory:close (закрытие) -> panel_close (snd_shot)
+playUi('panel:inventory:close')
+console.log('✓ Каскад поиска звуков открытия и закрытия панелей работает!')
 
 // 2. Проверяем индивидуальный звук крафта
 console.log('2. Проверка крафта с индивидуальным звуком:')
@@ -200,4 +203,8 @@ if (engine.dialogue?.lines[0]?.sfx !== 'snd_shot') {
 }
 console.log('✓ Строчный тег # sfx: snd_shot успешно распознан рантаймом диалога!')
 
-console.log('\nВСЕ ТЕСТЫ ЗВУКОВОЙ И МУЗЫКАЛЬНОЙ СИСТЕМЫ УСПЕШНО ПРОЙДЕНЫ!')
+// 6. Проверяем остановку звука (stop_sound)
+console.log('6. Проверка остановки звука:')
+engine.applyEffects([{ type: 'play_sound', sound: 'snd_alarm', volume: 0.5 }])
+engine.applyEffects([{ type: 'stop_sound', sound: 'snd_alarm' }])
+console.log('✓ Эффект stop_sound успешно отработал!')

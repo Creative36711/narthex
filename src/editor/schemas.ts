@@ -823,6 +823,13 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     ],
     blank: { sound: '' },
   },
+  stop_sound: {
+    label: 'Остановить звук',
+    fields: [
+      { key: 'sound', label: 'id звука (пусто — все)', kind: 'string', optional: true },
+    ],
+    blank: {},
+  },
   override_music: {
     label: 'Сюжетно переопределить музыку',
     fields: [
