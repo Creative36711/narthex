@@ -23,7 +23,7 @@ import {
   syncIndexEntry,
   type CampaignIndexEntry,
 } from './newCampaign'
-import { stopMusic } from '../shared/music'
+import { stopMusic, setMusicCampaign } from '../shared/music'
 import { setAmbientAudioEnabled } from '../shared/audio'
 import { themeVars } from '../shared/theme'
 import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
@@ -534,8 +534,22 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     )
   if (!loaded) return <div className="screen-center"><div className="loading">Загрузка кампании в редактор…</div></div>
 
+  const recordPlaytestResult = async () => {
+    const notes = await askTextArea('Результат плейтеста', {
+      body: 'Запишите, что именно вы проверили, что сработало и какие ошибки встретились. Эта заметка попадёт в отчёт проверки и пакет задания для ИИ.',
+      placeholder: 'Например: прошёл стартовый квест; переход из сцены в храм не срабатывает…',
+      initial: lastPlaytest?.notes ?? '',
+      ok: 'Сохранить результат',
+    })
+    if (notes === null) return
+    setLastPlaytest((previous) => previous ? { ...previous, notes: notes.trim() } : { startedAt: Date.now(), finishedAt: 0, contentHash: '', notes: notes.trim() })
+  }
+
   if (testCampaign) {
     const leaveTest = () => {
+      stopMusic(0.2)
+      setAmbientAudioEnabled(false)
+      setMusicCampaign(null)
       deleteSave(testCampaign.meta.id)
       setLastPlaytest((previous) => previous ? { ...previous, finishedAt: Date.now() } : previous)
       setTestEngine(null)
@@ -566,7 +580,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           <button className="btn btn-small" onClick={() => void recordPlaytestResult()}>Записать результат</button>
           <button className="btn btn-small" onClick={leaveTest}>Вернуться в редактор</button>
         </div>
-        {debugOpen && testEngine && <PlaytestDebugPanel engine={testEngine} onClose={() => setDebugOpen(false)} />}
+        {debugOpen && testEngine && (
+          <PlaytestDebugPanel
+            engine={testEngine}
+            onClose={() => setDebugOpen(false)}
+            notes={lastPlaytest?.notes ?? ''}
+            onSaveNotes={(n) => setLastPlaytest((prev) => prev ? { ...prev, notes: n } : { startedAt: Date.now(), finishedAt: 0, contentHash: '', notes: n })}
+          />
+        )}
       </div>
     )
   }
@@ -732,16 +753,6 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  const recordPlaytestResult = async () => {
-    const notes = await askTextArea('Результат плейтеста', {
-      body: 'Запишите, что именно вы проверили, что сработало и какие ошибки встретились. Эта заметка попадёт в отчёт проверки и пакет задания для ИИ.',
-      placeholder: 'Например: прошёл стартовый квест; переход из сцены в храм не срабатывает…',
-      ok: 'Сохранить результат',
-    })
-    if (notes === null) return
-    setLastPlaytest((previous) => previous ? { ...previous, notes: notes.trim() } : previous)
-  }
-
   const playtest = async () => {
     try {
       const { doc, warnings } = exportMonolith(store)
@@ -759,6 +770,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       campaign.meta.id = `${campaign.meta.id}__playtest`
       setLastPlaytest({ startedAt: Date.now(), finishedAt: 0, contentHash: campaignContentHash(store) })
       setTestCampaign(campaign)
+      setMusicCampaign(campaign)
       if (!campaign.meta.char_creation) {
         const engine = new GameEngine(campaign)
         engine.start()
@@ -1038,6 +1050,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         </span>
         <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size} data-tip="Записать изменения кампании на диск">
           <Ico n="download" /> Сохранить
+        </button>
+        <button className="btn btn-small editor-audit-button" onClick={() => setAuditOpen(true)} data-tip="Запустить полный аудит кампании (проверка связей, баланса и ошибок)">
+          <Ico n="check" /> Проверка
+        </button>
+        <button className="btn btn-small editor-ai-button" onClick={() => openAiTask()} data-tip="Помощник мастера и ИИ: пакет правок, аудит и чемодан">
+          <Ico n="sparkle" /> Мастер ИИ
         </button>
         <button className="btn btn-small editor-playtest-button" onClick={playtest} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" /> Плейтест</button>
         <button className="btn btn-small" onClick={() => void exitEditor()} data-tip="Выйти в главное меню игры"><Ico n="exit" /> Выйти</button>

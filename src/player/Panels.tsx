@@ -619,10 +619,14 @@ export function CraftingPanel({ engine, onClose, focusRecipe }: { engine: GameEn
           <div>
             <h2>{engine.uiLabel('craft_title', engine.uiLabel('craft', 'Изготовление'))}</h2>
             <div className="muted small" style={{ marginTop: 2 }}>
-              {isWorkbench ? (
+              {engine.craftSourceEntity ? (
+                <span style={{ color: 'var(--accent, #4fd1c5)' }}>
+                  ⚒ {engine.craftSourceEntity.label} (Мастерская активна)
+                </span>
+              ) : isWorkbench ? (
                 <span style={{ color: 'var(--accent, #4fd1c5)' }}>⚒ Верстак / мастерская доступны</span>
               ) : (
-                <span>🎒 Полевое изготовление (на ходу)</span>
+                <span>🎒 Походное изготовление (на ходу)</span>
               )}
             </div>
           </div>
@@ -661,7 +665,18 @@ const CraftRow = forwardRef<HTMLLIElement, { engine: GameEngine; recipe: RecipeD
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <b>{recipe.label}</b>
           {recipe.repair && <span className="equipped-badge" data-tip="Восстанавливает прочность изношенного предмета до максимума">починка</span>}
-          {recipe.workbench && <span className="equipped-badge" data-tip="Для изготовления требуется верстак или мастерская">верстак</span>}
+          {recipe.workbench && (
+            <span
+              className={`equipped-badge ${engine.isWorkbenchAvailable(recipe.workbench) ? '' : 'craft-req-missing'}`}
+              data-tip={
+                engine.isWorkbenchAvailable(recipe.workbench)
+                  ? `Рабочее место доступно: ${engine.workbenchLabel(recipe.workbench)}`
+                  : `Требуется рабочее место: ${engine.workbenchLabel(recipe.workbench)}`
+              }
+            >
+              ⚒ {engine.workbenchLabel(recipe.workbench)}
+            </span>
+          )}
         </div>
         {recipe.description && <div className="muted small">{recipe.description}</div>}
         {recipe.inputs.length > 0 && (

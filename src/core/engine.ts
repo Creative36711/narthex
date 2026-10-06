@@ -107,6 +107,8 @@ export class GameEngine {
    * `recipe` — рецепт, который надо подсветить (ремонт клапана и т.п.).
    */
   craftRequest: { recipe?: string } | null = null
+  /** Конкретная сущность (верстак, плита, наковальня), у которой открыто окно крафта */
+  craftSourceEntity: ItemDef | null = null
   /** транзитные всплывающие подсказки (не в сейве): «Получено: …» и т.п. — UI отображает и сам гасит */
   toasts: { id: number; text: string; kind: 'get' | 'lose' | 'info' }[] = []
   private toastSeq = 0
@@ -1915,7 +1917,7 @@ export class GameEngine {
    * открывается список: рецепт может открыться позже эффектом unlock_recipe.
    * Разговор и торговля при этом закрываются, как у `open_trade`.
    */
-  openCraft(recipeId?: string): void {
+  openCraft(recipeId?: string, sourceEntity?: ItemDef): void {
     if (!featureOn(this.campaign.meta, 'inventory')) return
     const known = recipeId && this.knownRecipes().some((r) => r.id === recipeId)
     this.dialogue = null
@@ -1923,13 +1925,14 @@ export class GameEngine {
     this.activeStory = null
     this.activeNpc = null
     this.trade = null
+    if (sourceEntity) this.craftSourceEntity = sourceEntity
     this.craftRequest = { recipe: known ? recipeId : undefined }
     this.notify()
   }
 
   closeCraft(): void {
-    if (!this.craftRequest) return
     this.craftRequest = null
+    this.craftSourceEntity = null
     this.autosave()
     this.notify()
   }
@@ -2115,10 +2118,39 @@ export class GameEngine {
     return Object.values(this.campaign.recipes).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
   }
 
-  /** доступен ли верстак / мастерская в текущем контексте */
-  isWorkbenchAvailable(_workbenchReq?: boolean | string): boolean {
-    // 1. Окно крафта открыто по запросу у верстака (open_craft из интеракта или диалога)
-    if (this.craftRequest) return true
+  /** доступен ли конкретный верстак / рабочее место в текущем контексте */
+  isWorkbenchAvailable(workbenchReq?: boolean | string): boolean {
+    if (!workbenchReq) return true
+
+    // Если запрошен конкретный id предмета или категория
+    if (typeof workbenchReq === 'string') {
+      // 1. Проверяем источник текущего открытого окна крафта
+      if (this.craftSourceEntity) {
+        if (this.craftSourceEntity.id === workbenchReq || this.craftSourceEntity.category === workbenchReq) {
+          return true
+        }
+      }
+      // 2. Текущая сцена: есть ли в сцене предмет с таким id или категорией
+      const sc = this.campaign.scenes[this.state.scene]
+      if (sc) {
+        const occupants = this.slotOccupants(sc)
+        for (const occ of occupants) {
+          if (!occ.entity) continue
+          const it = occ.entity as ItemDef
+          if (it.id === workbenchReq || it.category === workbenchReq) return true
+          if (occ.slot.type.includes(workbenchReq)) return true
+        }
+      }
+      // 3. Текущая локация
+      const loc = this.findLocation(this.state.location)?.location
+      if (loc && (loc as unknown as Record<string, unknown>)[workbenchReq]) return true
+
+      return false
+    }
+
+    // Если workbenchReq === true — подходит любое рабочее место
+    // 1. Окно крафта открыто по запросу у верстака
+    if (this.craftRequest || this.craftSourceEntity) return true
 
     // 2. Текущая сцена
     const sc = this.campaign.scenes[this.state.scene]
@@ -2141,11 +2173,25 @@ export class GameEngine {
     return false
   }
 
+  /** Название рабочего места для подсказки в интерфейсе */
+  workbenchLabel(req?: boolean | string): string {
+    if (!req) return ''
+    if (req === true) return 'Верстак или мастерская'
+    if (typeof req === 'string') {
+      const ent = this.campaign.entities[req]
+      if (ent) return ent.label
+      const cat = this.campaign.meta.item_categories?.find((c) => c.id === req)
+      if (cat) return cat.label
+      return req
+    }
+    return ''
+  }
+
   /** чего не хватает для рецепта: компоненты, инструменты, условия, верстак */
   recipeMissing(r: RecipeDef): string[] {
     const missing: string[] = []
     if (r.workbench && !this.isWorkbenchAvailable(r.workbench)) {
-      missing.push('требуется верстак или мастерская')
+      missing.push(`требуется: ${this.workbenchLabel(r.workbench)}`)
     }
     for (const need of r.inputs ?? []) {
       const have = this.itemCount(need.item)
@@ -3073,6 +3119,9 @@ export class GameEngine {
   /** применить выбранный вариант взаимодействия с предметом */
   runItemInteract(item: ItemDef, option: ItemInteractOption): void {
     playInteraction((option.sound ?? 'use') as SoundHook, { entity: item })
+    if (option.effects?.some((ef) => ef.type === 'open_craft')) {
+      this.craftSourceEntity = item
+    }
     this.applyEffects(option.effects)
     if (option.message) {
       if (this.craftRequest || this.combat || this.dialogue) {

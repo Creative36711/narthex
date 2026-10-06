@@ -1713,6 +1713,8 @@ export interface ItemDef {
    * предмет «декорация»: виден в слоте, но не нажимается и не подсвечивается.
    */
   interactable_when?: Condition[]
+  /** подсказка действия под курсором в сцене («Осмотреть замок», «Повернуть вентиль») */
+  interact_hint?: string
   /** варианты действий по клику (выбор как в диалоге); приоритет над on_interact */
   interact_options?: ItemInteractOption[]
   weight: number

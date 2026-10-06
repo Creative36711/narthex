@@ -181,7 +181,11 @@ export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }:
         return (
           <div className="pt-debug-item-card small" style={{ marginTop: 6, padding: '6px 8px', background: 'var(--cf-card-bg, rgba(0,0,0,0.2))', borderRadius: 4 }}>
             <div><b>{it.label}</b> {cat ? <span className="muted">({cat})</span> : null} · в сумке: {engine.itemCount(item)} шт.</div>
-            {desc && <div className="muted" style={{ marginTop: 4 }}>{desc}</div>}
+            {desc ? (
+              <div style={{ marginTop: 4, color: 'var(--text-main, #e0e0e0)' }}>{desc}</div>
+            ) : (
+              <div className="muted small" style={{ marginTop: 4, fontStyle: 'italic', opacity: 0.7 }}>(описание не заполнено)</div>
+            )}
           </div>
         )
       })()}
@@ -201,7 +205,13 @@ export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }:
                   <b>{entity.label}</b>
                   <span className="muted">{entity.type === 'npc' ? 'Персонаж' : 'Предмет'} ({slot.id})</span>
                 </div>
-                {desc && <div style={{ marginTop: 4, color: 'var(--text-main, #e0e0e0)' }}>{desc}</div>}
+                {desc ? (
+                  <div style={{ marginTop: 4, color: 'var(--text-main, #e0e0e0)' }}>{desc}</div>
+                ) : (
+                  <div className="muted small" style={{ marginTop: 4, fontStyle: 'italic', opacity: 0.7 }}>
+                    (описание сущности не заполнено)
+                  </div>
+                )}
                 {npc && (
                   <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                     {stateKeys.length > 0 && (

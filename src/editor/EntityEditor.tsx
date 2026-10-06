@@ -110,6 +110,14 @@ function ItemForm({
           <span>Описание</span>
           <textarea rows={2} value={item.description} onChange={(e) => ((item.description = e.target.value), commit())} />
         </label>
+        <label className="fld fld-block" data-tip="Подсказка действия при наведении курсора на предмет в сцене (например: «Осмотреть замок», «Повернуть вентиль»). Если пусто, игроку показывается обычное описание.">
+          <span>Подсказка действия в сцене (под курсором)</span>
+          <input
+            value={item.interact_hint ?? ''}
+            onChange={(e) => ((item.interact_hint = e.target.value.trim() || undefined), commit())}
+            placeholder="Например: Осмотреть замок, Повернуть вентиль, Разобрать завал…"
+          />
+        </label>
         <div className="fld-row">
           <label className="fld">
             <span>Вес, кг</span>

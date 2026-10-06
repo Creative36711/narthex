@@ -309,7 +309,7 @@ function ItemInteractDialog({ engine, item, onClose }: { engine: GameEngine; ite
         )}
         <div className="itemdlg-content">
           <h3 className="itemdlg-title">{item.label}</h3>
-          <p className="itemdlg-desc">{item.description}</p>
+          <p className="itemdlg-desc">{engine.descOf(item.id) || item.description || ''}</p>
           <div className="usewith-options">
             {options.map((o, i) => (
               <button
@@ -319,9 +319,12 @@ function ItemInteractDialog({ engine, item, onClose }: { engine: GameEngine; ite
                 onMouseLeave={() => setEmotion('neutral')}
                 onClick={() => {
                   const consume = !!o.consume
+                  const isOpenCraft = o.effects?.some((ef) => ef.type === 'open_craft')
                   engine.runItemInteract(item, o)
-                  // item исчез со сцены — окно давно бессмысленно
-                  if (consume) onClose()
+                  // item исчез со сцены, открыт крафт, бой или диалог — немедленно закрываем оверлей предмета!
+                  if (consume || isOpenCraft || engine.craftRequest || engine.combat || engine.dialogue) {
+                    onClose()
+                  }
                 }}
               >
                 <span>{o.label}</span>

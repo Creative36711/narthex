@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Ico } from '../shared/icons'
-import type { RecipeDef } from '../shared/types'
+import type { RecipeDef, ItemDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { ConditionListEditor, FileAdvancedJson, RefSelect } from './Fields'
 
@@ -19,6 +19,31 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
     store.touch(path)
     force((n) => n + 1)
   }
+
+  const allItemEntities = useMemo(() => {
+    return store.entityPaths()
+      .map((p) => store.entity(p))
+      .filter((e): e is ItemDef => e?.type === 'item')
+      .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  }, [store])
+
+  const workbenchEntities = useMemo(() => {
+    return allItemEntities.filter((e) =>
+      e.category === 'workbench' ||
+      e.id === 'item_bench' ||
+      e.id.includes('bench') ||
+      e.id.includes('table') ||
+      e.id.includes('stove') ||
+      e.id.includes('forge') ||
+      e.id.includes('anvil') ||
+      e.interact_options?.some((o) => o.effects?.some((ef) => ef.type === 'open_craft')),
+    )
+  }, [allItemEntities])
+
+  const otherItemEntities = useMemo(() => {
+    const wbSet = new Set(workbenchEntities.map((w) => w.id))
+    return allItemEntities.filter((e) => !wbSet.has(e.id))
+  }, [allItemEntities, workbenchEntities])
 
   return (
     <div className="rule-editor">
@@ -157,13 +182,49 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
           />
           <span>Рецепт починки (восстанавливает прочность)</span>
         </label>
-        <label className="fld fld-check" data-tip="Для изготовления требуется верстак или мастерская в сцене. Без него изготовить предмет на ходу нельзя.">
-          <input
-            type="checkbox"
-            checked={!!recipe.workbench}
-            onChange={(e) => ((recipe.workbench = e.target.checked || undefined), commit())}
-          />
-          <span>Требуется верстак / мастерская (нельзя сделать на ходу)</span>
+        <label className="fld" data-tip="Какое рабочее место требуется герою для изготовления. Если выбрано «Не требуется», предмет можно сделать прямо на ходу в сумке.">
+          <span>Рабочее место / верстак</span>
+          <select
+            value={
+              recipe.workbench === true
+                ? '__any_workbench__'
+                : typeof recipe.workbench === 'string'
+                  ? recipe.workbench
+                  : ''
+            }
+            onChange={(e) => {
+              const val = e.target.value
+              if (!val) {
+                delete recipe.workbench
+              } else if (val === '__any_workbench__') {
+                recipe.workbench = true
+              } else {
+                recipe.workbench = val
+              }
+              commit()
+            }}
+          >
+            <option value="">🎒 Не требуется (крафт на ходу в сумке / на коленке)</option>
+            <option value="__any_workbench__">⚒ Любой верстак / мастерская общего типа</option>
+            {workbenchEntities.length > 0 && (
+              <optgroup label="Оборудование и станки кампании">
+                {workbenchEntities.map((ent) => (
+                  <option key={ent.id} value={ent.id}>
+                    {ent.label}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {otherItemEntities.length > 0 && (
+              <optgroup label="Другие предметы и мебель">
+                {otherItemEntities.map((ent) => (
+                  <option key={ent.id} value={ent.id}>
+                    {ent.label}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
         </label>
         <label className="fld fld-check" data-tip="Пока рецепт не открыт по ходу игры (правилом, разговором или событием), его нет во вкладке «Изготовление». Так делают редкие рецепты: герой сначала находит знание.">
           <input

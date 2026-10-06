@@ -303,13 +303,38 @@
 }
 /* плейтест — бирюзовая «проверка в деле» */
 .editor-root .editor-playtest-button {
+  background: linear-gradient(180deg, #1f4249, #13272c);
   border-color: var(--ed-select);
   color: var(--ed-select-bright);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .editor-root .editor-playtest-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ed-select) 12%, var(--ed-bg-3));
+  background: linear-gradient(180deg, #2b5c66, #1a373d);
   border-color: var(--ed-select-bright);
-  color: var(--ed-select-bright);
+  color: #fff;
+  box-shadow: 0 0 8px rgba(88, 183, 201, 0.35);
+}
+
+.editor-root .editor-audit-button {
+  border-color: color-mix(in srgb, var(--ed-ok) 60%, var(--ed-line-strong));
+  color: var(--ed-ok);
+}
+.editor-root .editor-audit-button:hover:not(:disabled) {
+  border-color: var(--ed-ok);
+  background: color-mix(in srgb, var(--ed-ok) 12%, var(--ed-bg-3));
+  color: #fff;
+}
+
+.editor-root .editor-ai-button {
+  border-color: color-mix(in srgb, #a855f7 60%, var(--ed-line-strong));
+  color: #c084fc;
+}
+.editor-root .editor-ai-button:hover:not(:disabled) {
+  border-color: #c084fc;
+  background: color-mix(in srgb, #a855f7 15%, var(--ed-bg-3));
+  color: #fff;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
 }
 /* кнопки на тёмном хроме (список, тулбар) — чуть темнее бумаги */
 .editor-list .btn, .editor-topbar .btn {
@@ -328,15 +353,20 @@
 .fld textarea {
   background: var(--ed-paper-input);
   border: 1px solid var(--ed-paper-line);
-  border-radius: 5px;
+  border-radius: 6px;
   color: var(--ed-paper-text);
-  padding: 6px 8px;
+  padding: 6px 10px;
   font-size: 13px;
   font-family: inherit;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 .fld input[type='text']::placeholder, .fld input::placeholder, .fld textarea::placeholder { color: var(--ed-paper-faint); }
 .fld textarea { font-family: ui-monospace, 'Cascadia Mono', Menlo, monospace; font-size: 12px; resize: vertical; }
-.fld input:focus, .fld select:focus, .fld textarea:focus { outline: 2px solid var(--ed-focus); outline-offset: -1px; border-color: var(--ed-select); }
+.fld input:focus, .fld select:focus, .fld textarea:focus {
+  outline: none;
+  border-color: var(--ed-select);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ed-select) 25%, transparent);
+}
 .fld-check { flex-direction: row; align-items: center; gap: 8px; }
 .fld-check span { color: var(--ed-paper-text); }
 .fld-inline { flex-direction: row; align-items: center; gap: 8px; margin-bottom: 0; }
@@ -373,15 +403,25 @@
   border: 1px solid var(--ed-paper-line);
   border-radius: 8px;
   padding: 14px 16px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 150ms ease, border-color 150ms ease;
+}
+.props-group:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 .props-group h4 {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
   color: var(--ed-accent);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-left: 3px solid var(--ed-accent);
+  padding-left: 8px;
 }
 .props-group p { color: var(--ed-paper-muted); font-size: 13px; line-height: 1.5; }
 /* тумблеры профиля механик (блок 1 ТЗ «Гибкий движок») */
