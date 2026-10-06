@@ -94,6 +94,9 @@ export class GameEngine {
   dialogueTimer: { seconds: number; knot?: string } | null = null
   /** таймер, объявленный ink-ом в текущем проходе до показа выбора */
   private pendingDialogueTimer: { seconds: number; knot?: string } | null = null
+  /** запрос на предъявление предмета игроком во время диалога */
+  dialoguePresenting: { okKnot: string; failKnot: string; required?: string } | null = null
+  private pendingDialoguePresenting: { okKnot: string; failKnot: string; required?: string } | null = null
   combat: CombatController | null = null
   /** последняя ошибка запуска диалога (компиляция / отсутствующий узел) — для отладки и плейтеста */
   lastDialogueError: string | null = null
@@ -1985,7 +1988,86 @@ export class GameEngine {
     }
     this.dialogue = { npc: this.dialogue.npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
     this.commitDialogueTimer(drained.choices.length)
+    this.commitDialoguePresenting()
     this.dialogue.timer = this.dialogueTimer ?? undefined
+    this.dialogue.presenting = this.dialoguePresenting ?? undefined
+    this.notify()
+  }
+
+  /** Запрос от ink на предъявление предмета из инвентаря: `~ present_item(ok, fail, item_id)` */
+  promptPresentItem(okKnot: string, failKnot: string, required?: string): void {
+    this.pendingDialoguePresenting = {
+      okKnot: (okKnot ?? '').trim(),
+      failKnot: (failKnot ?? '').trim(),
+      required: (required ?? '').trim() || undefined,
+    }
+  }
+
+  private commitDialoguePresenting(): void {
+    this.dialoguePresenting = this.pendingDialoguePresenting
+    this.pendingDialoguePresenting = null
+  }
+
+  /** Игрок предъявил предмет (или отказался/отменил) в окне диалога */
+  submitPresentedItem(itemId: string | null): void {
+    const pres = this.dialoguePresenting
+    const story = this.activeStory
+    this.dialoguePresenting = null
+    if (!pres || !story || !this.dialogue) return
+
+    if (itemId) {
+      this.state.variables['presented_item'] = itemId
+      const itemDef = this.campaign.entities[itemId]
+      const itemName = itemDef?.label ?? itemId
+      this.pushLog(`Вы предъявили: ${itemName}.`)
+      playInteraction('use', { entity: itemDef })
+    }
+
+    const success = itemId ? (!pres.required || pres.required === itemId) : false
+    const targetKnot = success ? pres.okKnot : pres.failKnot
+
+    if (!targetKnot) {
+      this.endDialogue()
+      return
+    }
+
+    this.jumpDialogue(targetKnot)
+  }
+
+  /** Мгновенный переход в назначенный узел ink с обновлением реплик и выборов */
+  jumpDialogue(knotName: string): void {
+    const story = this.activeStory
+    const npc = this.activeNpc
+    if (!story || !npc) return
+    this.dialogueTimer = null
+    this.dialoguePresenting = null
+    try {
+      story.ChoosePathString(knotName)
+    } catch (e) {
+      console.warn(`[dialogue] узел для перехода «${knotName}» не найден`, e)
+      this.pushLog(`Узел «${knotName}» не найден — разговор завершён.`)
+      this.endDialogue()
+      return
+    }
+    const drained = drainStory(story)
+    if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
+      this.dialogue = null
+      this.activeStory = null
+      this.activeNpc = null
+      this.notify()
+      return
+    }
+    this.dialogue = {
+      npc,
+      lines: drained.lines,
+      choices: drained.choices,
+      finished: drained.finished,
+    }
+    this.commitDialogueTimer(drained.choices.length)
+    this.commitDialoguePresenting()
+    this.dialogue.timer = this.dialogueTimer ?? undefined
+    this.dialogue.presenting = this.dialoguePresenting ?? undefined
+    this.checkRules()
     this.notify()
   }
 
@@ -3201,7 +3283,9 @@ export class GameEngine {
     } else {
       this.dialogue = { npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
       this.commitDialogueTimer(drained.choices.length)
+      this.commitDialoguePresenting()
       this.dialogue.timer = this.dialogueTimer ?? undefined
+      this.dialogue.presenting = this.dialoguePresenting ?? undefined
     }
     this.notify()
   }
@@ -3228,7 +3312,9 @@ export class GameEngine {
       finished: drained.finished,
     }
     this.commitDialogueTimer(drained.choices.length)
+    this.commitDialoguePresenting()
     this.dialogue.timer = this.dialogueTimer ?? undefined
+    this.dialogue.presenting = this.dialoguePresenting ?? undefined
     this.checkRules()
     // правило на checkRules тоже могло вызвать game_over
     if (this.state.game_over) {
@@ -3241,6 +3327,9 @@ export class GameEngine {
 
   endDialogue(): void {
     this.dialogueTimer = null
+    this.pendingDialogueTimer = null
+    this.dialoguePresenting = null
+    this.pendingDialoguePresenting = null
     this.dialogue = null
     this.activeStory = null
     this.activeNpc = null

@@ -17,14 +17,17 @@ export interface DialogueLine {
   voice?: string
   /** секундный таймер показа реплики (# timer: 3 или # timeout: 3) */
   timer?: number
+  /** режим предъявления предмета (тег # present: item_id, ok_knot, fail_knot) */
+  present?: { required?: string; okKnot: string; failKnot: string }
 }
 
-/** разбор тегов реплики: # emotion: … / # action / # voice: … / # timer: N */
-export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string; timer?: number } {
+/** разбор тегов реплики: # emotion: … / # action / # voice: … / # timer: N / # present: … */
+export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string; timer?: number; present?: { required?: string; okKnot: string; failKnot: string } } {
   let emotion = 'neutral'
   let action = false
   let voice: string | undefined
   let timer: number | undefined
+  let present: { required?: string; okKnot: string; failKnot: string } | undefined
   for (const t of tags) {
     const em = t.match(/^emotion:\s*(\w+)/)
     if (em) emotion = em[1]
@@ -33,8 +36,19 @@ export function parseLineTags(tags: string[]): { emotion: string; action?: boole
     if (vo) voice = vo[1].trim()
     const tm = t.match(/^(?:timer|timeout):\s*(\d+)/)
     if (tm) timer = Number(tm[1])
+    const pr = t.match(/^(?:present|present_item):\s*([^,]+),\s*([^,]+)(?:,\s*(.+))?/)
+    if (pr) {
+      const a1 = pr[1].trim()
+      const a2 = pr[2].trim()
+      const a3 = pr[3]?.trim()
+      if (a1.startsWith('item_') && a3) {
+        present = { required: a1, okKnot: a2, failKnot: a3 }
+      } else {
+        present = { okKnot: a1, failKnot: a2, required: a3 || undefined }
+      }
+    }
   }
-  return { emotion, action: action || undefined, voice, timer }
+  return { emotion, action: action || undefined, voice, timer, present }
 }
 
 export interface DialogueUI {
@@ -47,6 +61,12 @@ export interface DialogueUI {
    * Плеер показывает обратный отсчёт и по нулю зовёт `engine.dialogueTimeout()`.
    */
   timer?: { seconds: number; knot?: string }
+  /** Режим предъявления предмета из инвентаря игрока (design-doc §9, §10) */
+  presenting?: {
+    required?: string
+    okKnot: string
+    failKnot: string
+  }
 }
 
 /**
@@ -122,6 +142,7 @@ export function sanitizeInkSource(source: string): string {
     'join_party(e)', 'start_combat(e, a)', 'start_quest(q)', 'advance_quest(q, s)',
     'fail_quest(q)', 'journal_update(q, k)', 'fire_rule(r)', 'change_hp(d)',
     'change_need(n, d)', 'advance_time(t)', 'sleep(h)', 'set_dialogue_timer(s, k)',
+    'present_item(o, f, r)',
   ]
 
   const declared = new Set<string>()
@@ -281,6 +302,11 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   // дедлайн на раздумье в диалоге: `~ set_dialogue_timer(15, "node_x")`
   bind('set_dialogue_timer', (seconds: number, knot?: string) => {
     engine.setDialogueTimer(Number(seconds) || 0, knot)
+    return 0
+  })
+  // предъявление предмета / улики из инвентаря: `~ present_item("ok_knot", "fail_knot", "item_id")`
+  bind('present_item', (okKnot: string, failKnot: string, required?: string) => {
+    engine.promptPresentItem(okKnot, failKnot, required)
     return 0
   })
   // смена облика/эмоции прямо из реплики (design-doc §9): портрет в диалоге и

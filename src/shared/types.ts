@@ -1968,9 +1968,15 @@ export type DlgEffect =
   /**
    * Сменить облик/эмоцию персонажа репликой: портрет и спрайт переключаются
    * на состояние `state` (ключ из портретов персонажа); `""` — обычный облик.
-   * В сыром ink — `~ set_entity_state("npc_ira", "angry")`.
+    * В сыром ink — `~ set_entity_state("npc_ira", "angry")`.
+     */
+    | { type: 'set_entity_state'; entity: string; state: string }
+  /**
+   * Предъявить предмет / улику из инвентаря игрока: открывает окно выбора
+   * предмета из сумки. При выборе нужного предмета (или любого, если required
+   * не задан) диалог уходит в `ok_goto`, иначе (или при отмене) — в `fail_goto`.
    */
-  | { type: 'set_entity_state'; entity: string; state: string }
+  | { type: 'present_item'; required?: string; ok_goto: string; fail_goto: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =

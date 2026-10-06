@@ -336,12 +336,13 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'unlock_recipe': return `${indent}~ unlock_recipe(${q(e.recipe)})`
     case 'open_craft': return e.recipe ? `${indent}~ open_craft(${q(e.recipe)})` : `${indent}~ open_craft()`
     case 'set_entity_state': return `${indent}~ set_entity_state(${q(e.entity)}, ${q(e.state)})`
+    case 'present_item': return `${indent}~ present_item(${q(e.ok_goto)}, ${q(e.fail_goto)}, ${q(e.required ?? '')})`
   }
 }
 
-/** open_trade / open_craft / fire_rule сами закрывают диалог — после них всегда конец */
+/** open_trade / open_craft / fire_rule / present_item сами закрывают или переводят диалог — после них всегда конец ветки */
 function isTerminalEffect(e: DlgEffect): boolean {
-  return e.type === 'open_trade' || e.type === 'open_craft' || e.type === 'fire_rule'
+  return e.type === 'open_trade' || e.type === 'open_craft' || e.type === 'fire_rule' || e.type === 'present_item'
 }
 
 export function generateInk(docRaw: DlgDoc): string {
@@ -454,7 +455,7 @@ export function generateInk(docRaw: DlgDoc): string {
     'play_cutscene',
     // DlgEffect, добавленные позже блоков статусов/погоды/кодекса/рецептов
     'set_description', 'set_entity_state', 'apply_status', 'remove_status', 'set_weather',
-    'unlock_codex', 'unlock_recipe', 'open_craft', 'set_dialogue_timer',
+    'unlock_codex', 'unlock_recipe', 'open_craft', 'set_dialogue_timer', 'present_item',
     // токены реплик ({имя}, {здоровье_макс}, …) — без EXTERNAL inkjs не компилирует
     'get_player_name', 'get_hp_max', 'get_mp', 'get_mp_max', 'get_luck',
     'get_level', 'get_xp', 'get_run_day', 'get_currency',
@@ -469,7 +470,7 @@ export function generateInk(docRaw: DlgDoc): string {
     play_cutscene: '(id)',
     set_description: '(id, t)', set_entity_state: '(e, s)', apply_status: '(id, d)', remove_status: '(id)',
     set_weather: '(id)', unlock_codex: '(id)', unlock_recipe: '(id)', open_craft: '(id)',
-    set_dialogue_timer: '(s, t)',
+    set_dialogue_timer: '(s, t)', present_item: '(o, f, r)',
     get_player_name: '()', get_hp_max: '()', get_mp: '()', get_mp_max: '()',
     get_luck: '()', get_level: '()', get_xp: '()', get_run_day: '()', get_currency: '(id)',
   }

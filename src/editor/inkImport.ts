@@ -179,6 +179,7 @@ function parseEffectLine(line: string, warnings: string[], where: string): DlgEf
     case 'unlock_recipe': return { type: 'unlock_recipe', recipe: str(0) }
     case 'open_craft': return { type: 'open_craft', recipe: str(0) || undefined }
     case 'set_entity_state': return { type: 'set_entity_state', entity: str(0), state: str(1) }
+    case 'present_item': return { type: 'present_item', ok_goto: str(0), fail_goto: str(1), required: str(2) || undefined }
     default:
       warnings.push(`${where}: неизвестный эффект «${fn}(…)»`)
       return null

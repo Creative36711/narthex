@@ -92,6 +92,7 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'open_craft', label: 'Открыть изготовление (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
   { id: 'set_entity_state', label: 'Сменить облик персонажа' },
+  { id: 'present_item', label: 'Предъявить предмет / улику' },
 ]
 
 function blankEffect(type: DlgEffect['type']): DlgEffect {
@@ -117,6 +118,7 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'unlock_recipe': return { type, recipe: '' }
     case 'open_craft': return { type, recipe: '' }
     case 'set_entity_state': return { type, entity: '', state: '' }
+    case 'present_item': return { type, required: '', ok_goto: '', fail_goto: '' }
   }
 }
 
@@ -739,12 +741,14 @@ function StepListEditor({
   commit,
   emotions,
   onChange,
+  doc,
 }: {
   steps: DlgStep[]
   store: EditorStore
   commit: () => void
   emotions: Array<{ id: DlgEmotion; label: string }>
   onChange: (s: DlgStep[]) => void
+  doc?: DlgDoc
 }) {
   return (
     <div className="dlg-steps">
@@ -762,6 +766,7 @@ function StepListEditor({
             <EffectRow
               effect={st.effect}
               store={store}
+              doc={doc}
               commit={commit}
               onRemove={() => onChange(steps.filter((_, j) => j !== i))}
               onReplace={(ne) => {
@@ -828,7 +833,7 @@ function SectionListEditor({
             {hasConds && (
               <CondListEditor conds={sec.conds!} store={store} commit={commit} onChange={(c) => ((sec.conds = c), commit())} />
             )}
-            <StepListEditor steps={sec.steps} store={store} commit={commit} emotions={emotions} onChange={(s) => ((sec.steps = s), commit())} />
+            <StepListEditor steps={sec.steps} store={store} commit={commit} emotions={emotions} doc={doc} onChange={(s) => ((sec.steps = s), commit())} />
             {hasConds && (
               <details className="dlg-else" open={!!sec.else_steps?.length}>
                 <summary>Иначе (условие не выполнено)</summary>
@@ -837,6 +842,7 @@ function SectionListEditor({
                   store={store}
                   commit={commit}
                   emotions={emotions}
+                  doc={doc}
                   onChange={(s) => {
                     if (s.length) sec.else_steps = s
                     else delete sec.else_steps
@@ -1102,12 +1108,14 @@ function LineRow({
 function EffectRow({
   effect: e,
   store,
+  doc,
   commit,
   onRemove,
   onReplace,
 }: {
   effect: DlgEffect
   store: EditorStore
+  doc?: DlgDoc
   commit: () => void
   onRemove: () => void
   onReplace: (e: DlgEffect) => void
@@ -1208,6 +1216,33 @@ function EffectRow({
               <option key={o.id} value={o.id}>{o.label}</option>
             ))}
           </select>
+        </>
+      )}
+      {e.type === 'present_item' && (
+        <>
+          <InlineRef kind="item" store={store} value={e.required ?? ''} onChange={(v) => ((e.required = v || undefined), commit())} />
+          <span className="muted small">успех:</span>
+          {doc ? (
+            <select value={e.ok_goto} onChange={(ev) => ((e.ok_goto = ev.target.value), commit())}>
+              <option value="">— узел —</option>
+              {doc.nodes.map((n) => (
+                <option key={n.id} value={n.id}>→ {n.label}</option>
+              ))}
+            </select>
+          ) : (
+            <input value={e.ok_goto} placeholder="узел успеха" onChange={(ev) => ((e.ok_goto = ev.target.value), commit())} />
+          )}
+          <span className="muted small">иначе:</span>
+          {doc ? (
+            <select value={e.fail_goto} onChange={(ev) => ((e.fail_goto = ev.target.value), commit())}>
+              <option value="">— узел —</option>
+              {doc.nodes.map((n) => (
+                <option key={n.id} value={n.id}>→ {n.label}</option>
+              ))}
+            </select>
+          ) : (
+            <input value={e.fail_goto} placeholder="узел ошибки" onChange={(ev) => ((e.fail_goto = ev.target.value), commit())} />
+          )}
         </>
       )}
       <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>

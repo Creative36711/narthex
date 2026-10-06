@@ -987,6 +987,9 @@ function effectToScript(e: DlgEffect, refs: ScriptRefs): string {
     case 'unlock_codex': return `→ кодекс: ${label('codex', e.entry)}`
     case 'unlock_recipe': return `→ рецепт: ${label('recipe', e.recipe)}`
     case 'set_entity_state': return `→ облик: ${label('npc', e.entity)} — ${e.state ? label('emotion', e.state) : 'обычный'}`
+    case 'present_item': return e.required
+      ? `→ предъявить: ${label('item', e.required)} (успех: ${e.ok_goto || '—'}, иначе: ${e.fail_goto || '—'})`
+      : `→ предъявить (успех: ${e.ok_goto || '—'}, иначе: ${e.fail_goto || '—'})`
   }
 }
 
