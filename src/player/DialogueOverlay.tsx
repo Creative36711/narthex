@@ -155,18 +155,34 @@ export function DialogueOverlay({ engine }: Props) {
   if (!d) return null
 
   /**
-   * Клик мыши по окну: пока текст ещё печатается — показать ВЕСЬ оставшийся
-   * текст сразу, без ожидания; любой клик прерывает текущую озвучку
-   * (файл или синтезатор). Кнопка пропуска не нужна.
+   * Клик мыши или клавиша: если текущая фраза ещё печатается — показать её сразу;
+   * если фраза завершена и есть ещё реплики — перейти к следующей.
    */
-  const skip = () => {
+  const skipOrAdvance = () => {
     clearLineAudio()
     setLineDone(true)
-    if (revealed < lines.length) {
+    if (current && typed < full.length) {
+      setTyped(full.length)
+      return
+    }
+    if (revealed + 1 < lines.length) {
       setTyped(0)
-      setRevealed(lines.length)
+      setRevealed((n) => n + 1)
     }
   }
+
+  // Перелистывание реплик по Space / Enter (стиль визуальных новелл)
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+        e.preventDefault()
+        skipOrAdvance()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [revealed, typed, full.length, lines.length, current])
 
   // эмоция реплики, но если правило задало состояние облика (set_entity_state) —
   // оно главнее: персонаж «злой» даже на нейтральной реплике
@@ -211,7 +227,7 @@ export function DialogueOverlay({ engine }: Props) {
 
   return (
     <div className="overlay dialogue-overlay">
-      <div className={`dialogue-box${portraitSrc ? '' : ' dialogue-box-noportrait'}`} onClick={skip}>
+      <div className={`dialogue-box${portraitSrc ? '' : ' dialogue-box-noportrait'}`} onClick={skipOrAdvance}>
         <div className={`dialogue-portrait${portraitSrc ? '' : ' dialogue-portrait-empty'}`}>
           {portraitSrc ? (
             <img src={portraitSrc} alt={d.npc.label} draggable={false} />
@@ -326,6 +342,20 @@ export function DialogueOverlay({ engine }: Props) {
                   [Закончить разговор]
                 </button>
               )}
+            </div>
+          )}
+          {!allShown && (
+            <div className="dialogue-advance-bar">
+              <button
+                type="button"
+                className="btn btn-small dlg-advance-btn"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  skipOrAdvance()
+                }}
+              >
+                Далее ▶
+              </button>
             </div>
           )}
         </div>

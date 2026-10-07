@@ -652,6 +652,70 @@ html.cf-profile-modern {
   --cf-base-blue-bright: var(--blue-bright);
 }
 
+/* Вводное нарративное повествование от автора (стиль Tiny Bunny / новелла) */
+.scene-narrative-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  background: radial-gradient(circle at center, rgba(10, 12, 16, 0.72) 0%, rgba(5, 6, 8, 0.94) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  cursor: pointer;
+  animation: cf-fade-in 0.4s ease-out both;
+}
+.scene-narrative-box {
+  background: rgba(18, 22, 28, 0.92);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-lg, 12px);
+  padding: 28px 36px;
+  max-width: 680px;
+  width: min(90vw, 680px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(229, 169, 60, 0.15);
+  backdrop-filter: blur(8px);
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.scene-narrative-text {
+  font-size: clamp(16px, 1.8vw, 20px);
+  line-height: 1.6;
+  color: #f0ede6;
+  font-family: var(--font-story, serif);
+  letter-spacing: 0.02em;
+  font-style: italic;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+.scene-narrative-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 14px;
+}
+.btn-highlight-hotspots {
+  background: rgba(20, 24, 32, 0.65);
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+.btn-highlight-hotspots:hover,
+.btn-highlight-hotspots.active {
+  color: var(--gold-bright);
+  border-color: var(--gold);
+  background: rgba(229, 169, 60, 0.15);
+  box-shadow: 0 0 10px rgba(229, 169, 60, 0.3);
+}
+
 /* Custom surface tokens can be light even when the selected profile is dark.
    Derive foreground roles per surface so panels, cards, fields and dialogs
    remain readable without changing text over the illustrated scene. */
@@ -1449,9 +1513,9 @@ div.scene-bg svg { width: 100%; height: 100%; display: block; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* без спрайта/портрета подпись всегда видна — иначе слот не найти на ArtDoc */
+/* без спрайта/портрета на ArtDoc подпись видна только при наведении или по Tab */
 .slot-hotspot:not(.slot-sprited):not(.slot-inert) .slot-label {
-  opacity: 0.92;
+  opacity: 0;
   bottom: 4px;
   transform: translate(-50%, 0);
 }
@@ -1460,33 +1524,49 @@ div.scene-bg svg { width: 100%; height: 100%; display: block; }
   opacity: 1;
   border-color: var(--gold-bright);
 }
-/* маркер сущности без ассетов (прозрачный hotspot иначе невидим) */
+/* маркер сущности без ассетов: в покое невидим, проявляется по наведению и по Tab */
 .slot-marker {
   position: absolute;
-  inset: 8%;
+  inset: 12%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  border: 1px dashed color-mix(in srgb, var(--gold) 55%, transparent);
-  background:
-    radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--gold) 22%, transparent), transparent 65%),
-    color-mix(in srgb, var(--bg-deep) 45%, transparent);
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--gold) 28%, transparent), transparent 70%);
   pointer-events: none;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-.slot-marker-npc {
-  border-style: solid;
-  border-color: color-mix(in srgb, var(--blue-bright) 50%, var(--gold) 20%);
-}
-.slot-marker-glyph {
-  font-size: clamp(14px, 2.2vw, 22px);
-  color: var(--gold-bright);
-  text-shadow: 0 1px 6px #000;
-  line-height: 1;
-}
-.slot-hotspot:hover .slot-marker {
+.slot-hotspot:hover .slot-marker,
+.slot-hotspot:focus-visible .slot-marker {
+  opacity: 1;
+  transform: scale(1);
   border-color: var(--gold-bright);
-  background: color-mix(in srgb, var(--gold) 16%, transparent);
+  background: color-mix(in srgb, var(--gold) 24%, transparent);
+}
+/* режим подсветки по Tab / кнопке глаза: все хотспоты проявляются с пульсацией */
+.scene-stage.highlight-hotspots .slot-hotspot .slot-marker,
+.scene-stage.highlight-hotspots .slot-hotspot.slot-environmental .slot-marker {
+  opacity: 1;
+  transform: scale(1);
+  animation: cf-lens-pulse 2.2s infinite ease-in-out;
+}
+.scene-stage.highlight-hotspots .slot-hotspot .slot-label,
+.scene-stage.highlight-hotspots .slot-hotspot.slot-environmental .slot-label {
+  opacity: 0.95;
+}
+
+@keyframes cf-lens-pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(229, 169, 60, 0.4), inset 0 0 6px rgba(229, 169, 60, 0.3);
+    border-color: var(--gold-bright);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(229, 169, 60, 0.85), inset 0 0 10px rgba(229, 169, 60, 0.6);
+    border-color: #ffffff;
+  }
 }
 /* имя сущности по наведению показывает тултип (имя + описание) — подпись не дублируем */
 
@@ -1799,6 +1879,26 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .dlg-backlog-btn:hover {
   color: var(--text);
   border-color: var(--gold);
+}
+.dialogue-advance-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.dlg-advance-btn {
+  background: color-mix(in srgb, var(--gold) 15%, transparent);
+  border: 1px solid var(--gold);
+  color: var(--gold-bright);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+.dlg-advance-btn:hover {
+  background: color-mix(in srgb, var(--gold) 28%, transparent);
+  border-color: var(--gold-bright);
+  box-shadow: 0 0 10px rgba(229, 169, 60, 0.35);
 }
 
 .dlg-backlog-overlay {
@@ -3041,6 +3141,18 @@ input[type='checkbox'], input[type='radio'] {
   height: 100%;
   object-fit: contain;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+@keyframes cf-breathe {
+  0%, 100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.008, 0.985);
+  }
+}
+.slot-npc .slot-sprite {
+  animation: cf-breathe 4.5s ease-in-out infinite;
+  transform-origin: bottom center;
 }
 /* подсветка прозрачных PNG при наведении — ореол по контуру, а не рамка вокруг */
 .slot-hotspot.slot-sprited:hover .slot-sprite,

@@ -1477,6 +1477,8 @@ export interface SlotDef {
   sound_volume?: number
   /** предметы, которыми можно воздействовать на слот (блок 8 ТЗ) */
   use_with?: SlotUseWith[]
+  /** хотспот окружения (нарисован прямо на фоне сцены; в покое невидим, проявляется при наведении или Tab) */
+  environmental?: boolean
 }
 
 /**
@@ -1509,6 +1511,10 @@ export interface SceneDef {
   ambient?: Array<string | AmbientRule>
   /** тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров) */
   lighting?: 'outdoor' | 'indoor' | 'none'
+  /** атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) */
+  particles?: 'dust' | 'steam' | 'rain' | 'snow' | 'fog' | 'ash' | 'sparks' | 'embers' | 'none'
+  /** вводное атмосферное повествование от автора (мысли/описание при первом входе) */
+  narrative_intro?: string[]
   /** глава (id из meta.chapters) — группировка в редакторе; двигатель значения не ждёт */
   chapter?: string
 }

@@ -147,7 +147,62 @@ export function ParticleLayer({ doc, srcOf }: { doc: ParticleEffectDef; srcOf: (
   return <canvas ref={canvasRef} className="atmosphere-particles" aria-hidden style={style} />
 }
 
-/** слой атмосферы по ключу WeatherDef.overlay: встроенный CSS-класс или частицы из реестра мастера */
+const BUILTIN_PARTICLE_DOCS: Record<string, ParticleEffectDef> = {
+  dust: {
+    id: 'dust',
+    label: 'Пылинки',
+    count: 38,
+    size_min: 2,
+    size_max: 4,
+    vx_min: -8,
+    vx_max: 8,
+    vy_min: -6,
+    vy_max: 10,
+    opacity: 0.55,
+    blur: 0.5,
+  },
+  steam: {
+    id: 'steam',
+    label: 'Пар',
+    count: 24,
+    size_min: 18,
+    size_max: 36,
+    vx_min: -10,
+    vx_max: 12,
+    vy_min: -40,
+    vy_max: -80,
+    opacity: 0.35,
+    blur: 4,
+  },
+  sparks: {
+    id: 'sparks',
+    label: 'Искры',
+    count: 32,
+    size_min: 2,
+    size_max: 5,
+    vx_min: -25,
+    vx_max: 25,
+    vy_min: -50,
+    vy_max: -110,
+    opacity: 0.9,
+    blend: 'screen',
+  },
+  embers: {
+    id: 'embers',
+    label: 'Угли',
+    count: 26,
+    size_min: 3,
+    size_max: 6,
+    vx_min: -15,
+    vx_max: 15,
+    vy_min: -25,
+    vy_max: -65,
+    opacity: 0.8,
+    blend: 'screen',
+  },
+}
+
+/** слой атмосферы по ключу WeatherDef.overlay или SceneDef.particles */
 export function AtmosphereLayer({
   overlay,
   atmospherics,
@@ -157,8 +212,11 @@ export function AtmosphereLayer({
   atmospherics?: ParticleEffectDef[]
   srcOf?: (path: string) => string
 }) {
-  const builtin = ['rain', 'snow', 'fog', 'ash'].includes(overlay)
-  if (builtin) return <div className={`weather-overlay weather-${overlay}`} aria-hidden="true" />
+  if (overlay === 'none' || !overlay) return null
+  const builtinCss = ['rain', 'snow', 'fog', 'ash'].includes(overlay)
+  if (builtinCss) return <div className={`weather-overlay weather-${overlay}`} aria-hidden="true" />
+  const builtinDoc = BUILTIN_PARTICLE_DOCS[overlay]
+  if (builtinDoc) return <ParticleLayer doc={builtinDoc} srcOf={srcOf ?? ((p) => p)} />
   const doc = (atmospherics ?? []).find((a) => a.id === overlay)
   if (!doc) return <div className={`weather-overlay weather-${overlay}`} aria-hidden="true" />
   return <ParticleLayer doc={doc} srcOf={srcOf ?? ((p) => p)} />

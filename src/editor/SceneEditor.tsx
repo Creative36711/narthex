@@ -306,17 +306,17 @@ export function SceneEditor({
                 <Rect
                   {...rectProps('slot', i, s)}
                   ref={sel?.kind === 'slot' && sel.index === i ? selRef : undefined}
-                  stroke={sel?.kind === 'slot' && sel.index === i ? '#e8c987' : '#c9a45c'}
+                  stroke={sel?.kind === 'slot' && sel.index === i ? '#e8c987' : s.environmental ? '#88b594' : '#c9a45c'}
                   strokeWidth={sel?.kind === 'slot' && sel.index === i ? 2.5 : 1.5}
-                  fill="rgba(201,164,92,0.15)"
-                  dash={s.condition ? [6, 4] : undefined}
+                  fill={s.environmental ? 'rgba(136,181,148,0.12)' : 'rgba(201,164,92,0.15)'}
+                  dash={s.environmental ? [4, 4] : s.condition ? [6, 4] : undefined}
                 />
                 <Text
                   x={s.x * k + 4}
                   y={s.y * k + 4}
-                  text={s.default_entity ? store.labelFor('entity', s.default_entity) : 'пустой слот'}
+                  text={`${s.default_entity ? store.labelFor('entity', s.default_entity) : 'пустой слот'}${s.environmental ? ' 👁' : ''}`}
                   fontSize={12}
-                  fill="#e8c987"
+                  fill={s.environmental ? '#a8d5b4' : '#e8c987'}
                   listening={false}
                 />
               </Group>
@@ -381,6 +381,41 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
           <option value="indoor">Помещение (стабильный свет ламп)</option>
           <option value="none">Без фильтров освещения</option>
         </select>
+      </label>
+      <label className="fld">
+        <span>Атмосферные частицы</span>
+        <select
+          value={scene.particles ?? 'none'}
+          onChange={(e) => {
+            if (e.target.value === 'none') delete scene.particles
+            else scene.particles = e.target.value as any
+            commit()
+          }}
+        >
+          <option value="none">Без частиц</option>
+          <option value="dust">Пылинки в воздухе (dust)</option>
+          <option value="steam">Клубы пара и дыма (steam)</option>
+          <option value="sparks">Искры (sparks)</option>
+          <option value="embers">Тлеющие угли (embers)</option>
+          <option value="rain">Дождь (rain)</option>
+          <option value="snow">Снег (snow)</option>
+          <option value="fog">Туман (fog)</option>
+          <option value="ash">Пепел (ash)</option>
+        </select>
+      </label>
+      <label className="fld" data-tip="Закадровый текст или мысли героя при входе (каждая строка — отдельный слайд с кликом «Далее»)">
+        <span>Вводное повествование сцены (по строкам)</span>
+        <textarea
+          rows={3}
+          placeholder="Холодный ветер обжёг лицо...&#10;В глубине шахты послышался металлический скрежет..."
+          value={(scene.narrative_intro ?? []).join('\n')}
+          onChange={(e) => {
+            const lines = e.target.value.split('\n').map((s) => s.trim()).filter(Boolean)
+            if (lines.length) scene.narrative_intro = lines
+            else delete scene.narrative_intro
+            commit()
+          }}
+        />
       </label>
       <MusicRulesEditor
         store={store}
@@ -633,6 +668,18 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
         Список отфильтрован по типам слота. Тип сущности задаётся в её карточке
         («Тип в слотах сцены»).
       </div>
+      <label className="fld-check" data-tip="Объект уже нарисован на фоне сцены. В покое рамка скрыта; подсвечивается только при наведении или по Tab.">
+        <input
+          type="checkbox"
+          checked={!!slot.environmental}
+          onChange={(e) => {
+            if (e.target.checked) slot.environmental = true
+            else delete slot.environmental
+            commit()
+          }}
+        />
+        <span>Хотспот окружения (нарисован на фоне сцены, скрыт в покое)</span>
+      </label>
       <label className="fld" data-tip="Множитель размера спрайта сцены в этом слоте: один и тот же персонаж в толпе — меньше, на авансцене — больше. Пусто = 1.">
         <span>Масштаб спрайта (1 — по высоте слота)</span>
         <input

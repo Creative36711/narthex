@@ -6565,6 +6565,10 @@
             "$ref": "#/$defs/SlotUseWith"
           },
           "description": "предметы, которыми можно воздействовать на слот (блок 8 ТЗ)"
+        },
+        "environmental": {
+          "type": "boolean",
+          "description": "хотспот окружения (нарисован прямо на фоне сцены; в покое невидим, проявляется при наведении или Tab)"
         }
       },
       "required": [
@@ -6706,6 +6710,28 @@
             "none"
           ],
           "description": "тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров)"
+        },
+        "particles": {
+          "type": "string",
+          "enum": [
+            "dust",
+            "steam",
+            "rain",
+            "snow",
+            "fog",
+            "ash",
+            "sparks",
+            "embers",
+            "none"
+          ],
+          "description": "атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман)"
+        },
+        "narrative_intro": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "вводное атмосферное повествование от автора (мысли/описание при первом входе на сцену)"
         },
         "chapter": {
           "type": "string",
@@ -7320,6 +7346,10 @@
         "equip_slot": {
           "type": "string",
           "description": "слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;\nнет — не экипируется. Старым предметам выставляется миграцией."
+        },
+        "quest_item": {
+          "type": "boolean",
+          "description": "сюжетный предмет: нельзя выбросить или продать торговцам"
         },
         "hero_appearance": {
           "type": "object",

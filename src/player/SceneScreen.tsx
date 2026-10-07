@@ -6,6 +6,7 @@ import { ArtView } from '../shared/ArtView'
 import { firstFrame, LiveImg } from './frames'
 import { AtmosphereLayer, useCameraStyle } from './Atmosphere'
 import { playInteraction } from '../shared/audio'
+import { Ico } from '../shared/icons'
 import type { ItemDef, SceneStateDef, SlotDef, SlotUseWith } from '../shared/types'
 
 interface Props {
@@ -25,6 +26,9 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const [bgError, setBgError] = useState('')
   const [outgoingBg, setOutgoingBg] = useState<SceneBackground | null>(null)
   const previousBg = useRef<{ key: string; background: SceneBackground } | null>(null)
+  const [highlightActive, setHighlightActive] = useState(false)
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+
   const scene = engine.currentScene()
   const sceneId = scene?.id
   const state = scene ? engine.activeSceneState(scene) : null
@@ -36,6 +40,55 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
     : state?.art
       ? { kind: 'art', art: state.art }
       : { kind: 'fallback' }
+
+  // ── Вводное повествование от третьего лица (стиль Tiny Bunny / новелла) ──
+  const [narrativeStep, setNarrativeStep] = useState<number | null>(() => {
+    const list = scene?.narrative_intro
+    return list && list.length > 0 ? 0 : null
+  })
+
+  useEffect(() => {
+    const list = scene?.narrative_intro
+    setNarrativeStep(list && list.length > 0 ? 0 : null)
+  }, [sceneId])
+
+  // Перелистывание нарратива по Space / Enter
+  useEffect(() => {
+    if (narrativeStep == null || !scene?.narrative_intro) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault()
+        setNarrativeStep((cur) => {
+          if (cur == null || !scene?.narrative_intro) return null
+          return cur + 1 < scene.narrative_intro.length ? cur + 1 : null
+        })
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [narrativeStep, scene?.narrative_intro])
+
+  // Подсветка хотспотов по зажатию Tab
+  useEffect(() => {
+    const handleDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        setHighlightActive(true)
+      }
+    }
+    const handleUp = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        setHighlightActive(false)
+      }
+    }
+    window.addEventListener('keydown', handleDown)
+    window.addEventListener('keyup', handleUp)
+    return () => {
+      window.removeEventListener('keydown', handleDown)
+      window.removeEventListener('keyup', handleUp)
+    }
+  }, [])
 
   useEffect(() => setBgError(''), [sceneId])
   useEffect(() => {
@@ -63,6 +116,17 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const sceneLighting = scene.lighting ?? 'outdoor'
   const lightingClass = sceneLighting === 'outdoor' ? `tod-tint-${tod}` : `scene-lighting-${sceneLighting}`
 
+  // Кинематографичный 2.5D параллакс от курсора мыши
+  const bgTransform = {
+    ...camStyle,
+    transform: `${camStyle.transform ?? ''} translate(${-mousePos.x * 6}px, ${-mousePos.y * 4}px) scale(1.02)`.trim(),
+    transition: 'transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)',
+  }
+  const foregroundTransform = {
+    transform: `translate(${mousePos.x * 8}px, ${mousePos.y * 5}px)`,
+    transition: 'transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)',
+  }
+
   return (
     <div className="scene-wrap">
       <div className="scene-header">
@@ -72,11 +136,29 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         <span className="scene-name">
           {scene.label === loc?.location.label ? state.label : `${scene.label} — ${state.label}`}
         </span>
+        <button
+          type="button"
+          className={`btn-highlight-hotspots ${highlightActive ? 'active' : ''}`}
+          onClick={() => setHighlightActive((v) => !v)}
+          data-tip="Подсветить активные точки сцены (Tab)"
+        >
+          <Ico n="search" /> {highlightActive ? 'Скрыть подсветку' : 'Подсветить точки (Tab)'}
+        </button>
       </div>
       {/* сцена занимает всё оставшееся место без прокрутки: ширина и высота —
           от контейнера, картинка растягивается (object-fit: fill) */}
-      <div className={`scene-stage ${lightingClass}`}>
-        <div key={stateKey} className="scene-bg-camera" style={camStyle}>
+      <div
+        className={`scene-stage ${lightingClass} ${highlightActive ? 'highlight-hotspots' : ''}`}
+        onPointerMove={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect()
+          if (!rect.width || !rect.height) return
+          const nx = ((e.clientX - rect.left) / rect.width - 0.5) * 2
+          const ny = ((e.clientY - rect.top) / rect.height - 0.5) * 2
+          setMousePos({ x: Math.max(-1, Math.min(1, nx)), y: Math.max(-1, Math.min(1, ny)) })
+        }}
+        onPointerLeave={() => setMousePos({ x: 0, y: 0 })}
+      >
+        <div key={stateKey} className="scene-bg-camera" style={bgTransform}>
           {state.image && !bgError ? (
             <LiveImg
               className="scene-bg scene-bg-enter"
@@ -110,29 +192,26 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         )}
 
         {/* спрайты рисуются по порядку снизу вверх: нижние — поверх дальних */}
+        <div className="scene-foreground" style={foregroundTransform}>
         {[...occupants]
           .filter((o): o is typeof o & { entity: NonNullable<typeof o.entity> } => o.entity != null)
           .sort((a, b) => a.slot.y + a.slot.h - (b.slot.y + b.slot.h))
           .map(({ slot, entity }) => {
             const npc = entity.type === 'npc' ? entity : null
             const item = entity.type === 'item' ? (entity as ItemDef) : null
-            // спрайт: НПС — sprite в сцене (с откатом на портрет «Обычный» ниже),
-            // предмет — только своя картинка; без неё в слоте не рисуется ничего.
-            // Состояние спрайта: сначала правило (set_entity_state), иначе —
-            // свойство слота (как «настроение» в диалоге), иначе обычный спрайт.
             const forced = npc ? engine.entityState(npc.id) : undefined
             const stateOfSprite = forced ?? slot.sprite_state
             const sprite = npc
               ? (stateOfSprite && npc.scene_sprite_states?.[stateOfSprite]) || npc.scene_sprite
               : item?.scene_sprite
             const scale = slot.sprite_scale ?? 1
-            // предмет под условием блокировки — «декорация»: виден, но не кликается (№8)
             const interactable = !item || engine.itemInteractable(item)
             const hasInteractChoices = !!item && interactable && engine.itemInteractOptions(item).length > 0
+            const isEnvironmental = slot.environmental || (!sprite && entity.type === 'item')
             return (
               <button
                 key={`${stateKey}-${slot.id}`}
-                className={`slot-hotspot slot-${entity.type} scene-slot-enter ${sprite ? 'slot-sprited' : ''}${!interactable ? ' slot-inert' : ''}`}
+                className={`slot-hotspot slot-${entity.type} scene-slot-enter ${sprite ? 'slot-sprited' : ''}${isEnvironmental ? ' slot-environmental' : ''}${!interactable ? ' slot-inert' : ''}`}
                 style={{
                   left: pct(slot.x, canvas.w),
                   top: pct(slot.y, canvas.h),
@@ -150,7 +229,6 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                       setUseModal({ slot, options })
                       return
                     }
-                    // варианты действий с предметом — окно выбора (фидбек №8)
                     if (hasInteractChoices && item) {
                       setInteractModal({ item })
                       return
@@ -188,9 +266,6 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                         />
                       )
                     }
-                    // нет спрайта и нет портрета — видимый маркер, иначе слот
-                    // невидим (прозрачный button поверх ArtDoc), игрок «не видит»
-                    // терминал/предмет (ИИ-кампании без ассетов)
                     return (
                       <span className={`slot-marker slot-marker-${entity.type}`} aria-hidden>
                         <span className="slot-marker-glyph">{entity.type === 'npc' ? '◆' : '●'}</span>
@@ -212,7 +287,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           .map((slot) => (
             <button
               key={slot.id}
-              className="slot-hotspot slot-usewith"
+              className="slot-hotspot slot-usewith slot-environmental"
               style={{
                 left: pct(slot.x, canvas.w),
                 top: pct(slot.y, canvas.h),
@@ -245,6 +320,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             </button>
           )
         })}
+        </div>
 
         {/* слой погоды (блок 9 ТЗ): чистый CSS, полупрозрачный, не ловит клики */}
         {weather?.overlay && weather.overlay !== 'none' && (
@@ -253,6 +329,50 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             atmospherics={engine.campaign.meta.atmospherics}
             srcOf={(path) => assetUrl(engine.campaign, path)}
           />
+        )}
+        {/* слой атмосферных частиц сцены (пыль, пар, искры, угли) */}
+        {scene.particles && scene.particles !== 'none' && (
+          <AtmosphereLayer
+            overlay={scene.particles}
+            atmospherics={engine.campaign.meta.atmospherics}
+            srcOf={(path) => assetUrl(engine.campaign, path)}
+          />
+        )}
+
+        {/* Вводное нарративное повествование от автора (стиль Tiny Bunny / новелла) */}
+        {narrativeStep != null && scene.narrative_intro && (
+          <div
+            className="scene-narrative-overlay"
+            onClick={() => {
+              setNarrativeStep((cur) => {
+                if (cur == null || !scene.narrative_intro) return null
+                return cur + 1 < scene.narrative_intro.length ? cur + 1 : null
+              })
+            }}
+          >
+            <div className="scene-narrative-box" onClick={(e) => e.stopPropagation()}>
+              <div className="scene-narrative-text">
+                {scene.narrative_intro[narrativeStep]}
+              </div>
+              <div className="scene-narrative-actions">
+                <span className="muted small">
+                  {narrativeStep + 1} / {scene.narrative_intro.length} · Кликните или нажмите Пробел
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-small"
+                  onClick={() => {
+                    setNarrativeStep((cur) => {
+                      if (cur == null || !scene.narrative_intro) return null
+                      return cur + 1 < scene.narrative_intro.length ? cur + 1 : null
+                    })
+                  }}
+                >
+                  {narrativeStep + 1 < scene.narrative_intro.length ? 'Далее ▶' : 'Осмотреть сцену ▶'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
