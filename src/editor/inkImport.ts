@@ -69,6 +69,8 @@ function parseCondToken(token: string, warnings: string[], where: string): DlgCo
   if (m) return { type: 'quest', quest: m[1], stage: m[3], not: m[2] === '!=' || undefined }
   m = /^(not )?in_party\("([^"]+)"\)$/.exec(t)
   if (m) return { type: 'in_party', npc: m[2], not: !!m[1] || undefined }
+  m = /^(not )?(?:is_name_known|npc_known)\("([^"]+)"\)$/.exec(t)
+  if (m) return { type: 'npc_known', entity: m[2], known: !m[1], not: !!m[1] || undefined }
   m = /^get_hp\(\)\s*(>=|<)\s*(-?\d+)$/.exec(t)
   if (m) return { type: 'hp_ge', value: Number(m[2]), not: m[1] === '<' || undefined }
   m = /^(not )?has_status\("([^"]+)"\)$/.exec(t)
@@ -158,7 +160,13 @@ function parseEffectLine(line: string, warnings: string[], where: string): DlgEf
   const str = (i: number) => (args[i] ?? '').replace(/^"|"$/g, '')
   const num = (i: number) => Number(args[i]) || 0
   switch (fn) {
-    case 'set_flag': return { type: 'set_flag', flag: str(0) }
+    case 'set_flag': {
+      if (args[1] === 'false' || args[1] === '0') {
+        return { type: 'clear_flag', flag: str(0) }
+      }
+      return { type: 'set_flag', flag: str(0) }
+    }
+    case 'clear_flag': return { type: 'clear_flag', flag: str(0) }
     case 'add_item': return { type: 'add_item', item: str(0), qty: num(1) || 1 }
     case 'remove_item': return { type: 'remove_item', item: str(0), qty: num(1) || 1 }
     case 'fire_rule': return { type: 'fire_rule', rule: str(0) }
@@ -196,15 +204,16 @@ function parseEffectLine(line: string, warnings: string[], where: string): DlgEf
 function parseTextLine(line: string): DlgLine {
   const l: DlgLine = { text: '' }
   let text = line
-  const tags = text.match(/(?:^|\s)#\s*(action|emotion:\s*[\w-]+|voice:\s*[\w"'. -]+|timer:\s*\d+|timeout:\s*\d+)/g) ?? []
+  const tags = text.match(/(?:^|\s)#\s*(action|emotion:\s*[\w-]+|voice:\s*[\w"'. /\\-]+|sfx:\s*[\w"'. /\\-]+|timer:\s*\d+|timeout:\s*\d+)/g) ?? []
   for (const tag of tags) {
     const t = tag.trim().slice(1).trim()
     if (t === 'action') l.action = true
     else if (t.startsWith('emotion:')) l.emotion = t.slice(8).trim()
     else if (t.startsWith('voice:')) l.voice = t.slice(6).trim()
+    else if (t.startsWith('sfx:')) l.sfx = t.slice(4).trim()
     else if (t.startsWith('timer:')) l.timer = Number(t.slice(6).trim())
     else if (t.startsWith('timeout:')) l.timer = Number(t.slice(8).trim())
-    text = text.replace(tag, '')
+    text = text.replace(tag, ' ')
   }
   l.text = inkToTokens(cleanDialogueLine(text.replace(/\s+/g, ' ').trim()))
   return l

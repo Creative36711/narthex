@@ -403,20 +403,60 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
           <option value="ash">Пепел (ash)</option>
         </select>
       </label>
-      <label className="fld" data-tip="Закадровый текст или мысли героя при входе (каждая строка — отдельный слайд с кликом «Далее»)">
-        <span>Вводное повествование сцены (по строкам)</span>
-        <textarea
-          rows={3}
-          placeholder="Холодный ветер обжёг лицо...&#10;В глубине шахты послышался металлический скрежет..."
-          value={(scene.narrative_intro ?? []).join('\n')}
-          onChange={(e) => {
-            const lines = e.target.value.split('\n').map((s) => s.trim()).filter(Boolean)
-            if (lines.length) scene.narrative_intro = lines
-            else delete scene.narrative_intro
-            commit()
-          }}
-        />
-      </label>
+      <details className="spoiler-block" open={Boolean(scene.narrative_intro?.length)}>
+        <summary>Вводное повествование (мысли при входе){(scene.narrative_intro?.length ?? 0) ? ` — ${scene.narrative_intro!.length}` : ''}</summary>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+          <label className="checkbox-row" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
+            <input
+              type="checkbox"
+              checked={scene.narrative_intro_once !== false}
+              onChange={(e) => {
+                scene.narrative_intro_once = e.target.checked ? undefined : false
+                commit()
+              }}
+            />
+            <span>Показывать только один раз (при первом входе)</span>
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <label className="fld" style={{ margin: 0 }}>
+              <span style={{ fontSize: '0.8rem' }}>Текст кнопки «Далее»</span>
+              <input
+                placeholder="По умолчанию: Далее ▶"
+                value={scene.narrative_intro_next_label ?? ''}
+                onChange={(e) => {
+                  scene.narrative_intro_next_label = e.target.value.trim() || undefined
+                  commit()
+                }}
+              />
+            </label>
+            <label className="fld" style={{ margin: 0 }}>
+              <span style={{ fontSize: '0.8rem' }}>Текст «Осмотреться»</span>
+              <input
+                placeholder="По умолчанию: Осмотреться ▶"
+                value={scene.narrative_intro_done_label ?? ''}
+                onChange={(e) => {
+                  scene.narrative_intro_done_label = e.target.value.trim() || undefined
+                  commit()
+                }}
+              />
+            </label>
+          </div>
+          <label className="fld" data-tip="Закадровый текст или мысли героя при входе (каждая строка — отдельный слайд)">
+            <span style={{ fontSize: '0.8rem' }}>Текст повествования (по строкам)</span>
+            <textarea
+              rows={3}
+              placeholder="Холодный ветер обжёг лицо...&#10;В глубине шахты послышался металлический скрежет..."
+              value={(scene.narrative_intro ?? []).map((e) => (typeof e === 'string' ? e : e.text)).join('\n')}
+              onChange={(e) => {
+                const lines = e.target.value.split('\n').map((s) => s.trim()).filter(Boolean)
+                if (lines.length) scene.narrative_intro = lines
+                else delete scene.narrative_intro
+                commit()
+              }}
+            />
+          </label>
+        </div>
+      </details>
       <MusicRulesEditor
         store={store}
         value={scene.music ?? (scene.music = [])}

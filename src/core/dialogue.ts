@@ -144,7 +144,7 @@ export function sanitizeInkSource(source: string): string {
     'fail_quest(q)', 'journal_update(q, k)', 'fire_rule(r)', 'change_hp(d)',
     'change_need(n, d)', 'advance_time(t)', 'sleep(h)', 'set_dialogue_timer(s, k)',
     'present_item(o, f, r)', 'play_sound(s, v)', 'set_entity_state(e, s)',
-    'learn_name(id)', 'is_name_known(id)', 'go_to_scene(s)', 'change_scene_state(s)',
+    'learn_name(id)', 'is_name_known(id)', 'npc_known(id)', 'go_to_scene(s)', 'change_scene_state(s)',
     'game_over_death(m)', 'game_over_victory(m)',
   ]
 
@@ -234,10 +234,20 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   })
   bind('get_need', (id: string) => engine.state.player.needs[id] ?? 0)
   bind('change_need', (id: string, delta: number) => { engine.changeNeed(id, delta); return 0 })
-  bind('set_flag', (f: string) => {
-    engine.state.flags[f] = true
+  bind('set_flag', (f: string, ...rest: unknown[]) => {
+    const val = rest[0]
+    if (val === false || val === 0 || val === 'false') {
+      delete engine.state.flags[f]
+    } else {
+      engine.state.flags[f] = (val as any) ?? true
+    }
     // квесты/правила реагируют на флаг сразу (пока не начался бой/торговля),
     // иначе «квест начат» приходил бы только после боя
+    if (!engine.combat && !engine.trade) engine.checkRules()
+    return 0
+  })
+  bind('clear_flag', (f: string) => {
+    delete engine.state.flags[f]
     if (!engine.combat && !engine.trade) engine.checkRules()
     return 0
   })
@@ -325,7 +335,7 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   })
   bind('set_description', (entityId: string, text: string) => { engine.setEntityDescription(entityId, text); return 0 })
   bind('join_party', (entityId: string) => { engine.joinParty(entityId); return 0 })
-  bind('in_party', (entityId: string) => engine.isInParty(entityId))
+  bind('in_party', (entityId: string) => (engine.isInParty(entityId) ? 1 : 0))
   bind('start_quest', (questId: string) => { engine.startQuest(questId); return 0 })
   bind('quest_stage', (questId: string) => engine.state.quests[questId]?.stage ?? '')
   bind('play_cutscene', (id: string) => { engine.playCutscene(id); return 0 })
@@ -347,6 +357,7 @@ export function bindExternals(story: Story, engine: GameEngine): void {
     return 0
   })
   bind('is_name_known', (id: string) => (engine.isNpcNameKnown(id) ? 1 : 0))
+  bind('npc_known', (id: string) => (engine.isNpcNameKnown(id) ? 1 : 0))
   bind('go_to_scene', (sceneId: string) => {
     engine.goToSceneFromDialogue(sceneId, true)
     return 0

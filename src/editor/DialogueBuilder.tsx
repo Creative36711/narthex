@@ -72,6 +72,7 @@ function emotionsFor(store: EditorStore, inkPath: string): Array<{ id: DlgEmotio
 
 const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'set_flag', label: 'Поставить флаг' },
+  { id: 'clear_flag', label: 'Сбросить флаг' },
   { id: 'add_item', label: 'Дать предмет' },
   { id: 'remove_item', label: 'Забрать предмет' },
   { id: 'change_need', label: 'Изменить потребность' },
@@ -103,6 +104,7 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
 function blankEffect(type: DlgEffect['type']): DlgEffect {
   switch (type) {
     case 'set_flag': return { type, flag: '' }
+    case 'clear_flag': return { type, flag: '' }
     case 'add_item': return { type, item: '', qty: 1 }
     case 'remove_item': return { type, item: '', qty: 1 }
     case 'fire_rule': return { type, rule: '' }

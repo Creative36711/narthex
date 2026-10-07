@@ -1518,14 +1518,22 @@ export interface SceneDef {
   /** фоновые зацикленные звуки сцены (слагаются с фоном локации). Строка id или AmbientRule с условиями */
   ambient?: Array<string | AmbientRule>
   /** тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров) */
-    lighting?: 'outdoor' | 'indoor' | 'none'
-    /** атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) */
-    particles?: 'dust' | 'steam' | 'rain' | 'snow' | 'fog' | 'ash' | 'sparks' | 'embers' | 'none'
-    /** вводное атмосферное повествование от автора (мысли/описание при первом входе) */
-    narrative_intro?: string[]
-    /** глава (id из meta.chapters) — группировка в редакторе; двигатель значения не ждёт */
-    chapter?: string
+  lighting?: 'outdoor' | 'indoor' | 'none'
+  /** атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) */
+  particles?: 'dust' | 'steam' | 'rain' | 'snow' | 'fog' | 'ash' | 'sparks' | 'embers' | 'none'
+  /** вводное атмосферное повествование от автора (мысли/описание при входе) */
+  narrative_intro?: NarrativeIntroEntry[]
+  /** показывать вводное повествование только один раз за забег (по умолчанию true) */
+  narrative_intro_once?: boolean
+  /** переопределение текста кнопки «Далее» */
+  narrative_intro_next_label?: string
+  /** переопределение текста кнопки «Завершить / Осмотреться» */
+  narrative_intro_done_label?: string
+  /** глава (id из meta.chapters) — группировка в редакторе; двигатель значения не ждёт */
+  chapter?: string
 }
+
+export type NarrativeIntroEntry = string | { text: string; voice?: string; sfx?: string }
 
 // ───────────────────────── сущности ─────────────────────────
 
@@ -2003,7 +2011,8 @@ export type DlgCond =
   | { type: 'npc_known'; entity: string; known?: boolean; not?: boolean }
 
 export type DlgEffect =
-  | { type: 'set_flag'; flag: string }
+  | { type: 'set_flag'; flag: string; value?: boolean | number | string }
+  | { type: 'clear_flag'; flag: string }
   | { type: 'add_item'; item: string; qty: number }
   | { type: 'remove_item'; item: string; qty: number }
   | { type: 'fire_rule'; rule: string }
@@ -2379,7 +2388,7 @@ export type Condition =
   | { type: 'not'; condition: Condition }
 
 export type Effect =
-  | { type: 'set_flag'; flag: string }
+  | { type: 'set_flag'; flag: string; value?: boolean | number | string }
   | { type: 'clear_flag'; flag: string }
   /** наложить статус (блок 5 ТЗ); цель в мире — игрок */
   | { type: 'apply_status'; target: 'player'; status: string; duration?: number }
@@ -2986,6 +2995,8 @@ export interface GameState {
   }
   /** id персонажей, чьи имена раскрыты игроку (механика «Незнакомец») */
   known_npcs?: string[]
+  /** id сцен, для которых вводное повествование (narrative_intro) уже было просмотрено */
+  seen_narrative_intros?: string[]
   flags: Record<string, boolean>
   variables: Record<string, number | string>
   /** динамические описания сущностей (действие set_description) */

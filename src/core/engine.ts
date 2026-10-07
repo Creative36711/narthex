@@ -258,10 +258,51 @@ export class GameEngine {
       dispositions,
       party: [],
       blocked_paths: [],
+      seen_narrative_intros: [],
+      known_npcs: [],
       log: [],
       game_over: null,
       stats_run: { travels: 0, dialogues: 0, ticks_survived: 0, kills: 0, quests_completed: 0 },
     }
+  }
+
+  /** Нужно ли показывать вводное повествование сцены (narrative_intro) */
+  shouldShowNarrativeIntro(scene: SceneDef): boolean {
+    if (!scene.narrative_intro || scene.narrative_intro.length === 0) return false
+    const once = scene.narrative_intro_once ?? true
+    if (!once) return true
+    return !(this.state.seen_narrative_intros ?? []).includes(scene.id)
+  }
+
+  /** Пометить вводное повествование сцены как просмотренное */
+  markNarrativeIntroSeen(sceneId: string): void {
+    if (!this.state.seen_narrative_intros) this.state.seen_narrative_intros = []
+    if (!this.state.seen_narrative_intros.includes(sceneId)) {
+      this.state.seen_narrative_intros.push(sceneId)
+    }
+  }
+
+  /** Установить флаг (с поддержкой сброса при false) */
+  setFlag(f: string, value: unknown = true): void {
+    if (value === false || value === 0 || value === 'false') {
+      delete this.state.flags[f]
+    } else {
+      this.state.flags[f] = (value as any) ?? true
+    }
+    if (!this.combat && !this.trade) this.checkRules()
+    this.notify()
+  }
+
+  /** Сбросить флаг */
+  clearFlag(f: string): void {
+    delete this.state.flags[f]
+    if (!this.combat && !this.trade) this.checkRules()
+    this.notify()
+  }
+
+  /** Проверка присутствия спутника в отряде */
+  inParty(entityId: string): boolean {
+    return this.isInParty(entityId)
   }
 
   /** Вызывается один раз после создания/загрузки. */
@@ -2729,6 +2770,7 @@ export class GameEngine {
 
   /** раскрыто ли настоящее имя персонажа игроку */
   isNpcNameKnown(entityId: string): boolean {
+    if (this.state.flags[`known_${entityId}`] || this.state.flags[`npc_known_${entityId}`]) return true
     const def = this.campaign.entities[entityId] as NpcDef | undefined
     if (!def || !def.unknown_label) return true
     return (this.state.known_npcs ?? []).includes(entityId)
@@ -2885,7 +2927,13 @@ export class GameEngine {
       case 'learn_name':
         this.learnNpcName(e.entity, e.silent)
         break
-      case 'set_flag': s.flags[e.flag] = true; break
+      case 'set_flag':
+        if (e.value === false || e.value === 0 || e.value === 'false') {
+          delete s.flags[e.flag]
+        } else {
+          s.flags[e.flag] = (e.value as any) ?? true
+        }
+        break
       case 'set_description':
         this.setEntityDescription(e.entity, e.text)
         break

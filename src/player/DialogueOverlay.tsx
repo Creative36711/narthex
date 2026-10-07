@@ -247,6 +247,7 @@ export function DialogueOverlay({ engine }: Props) {
       const msLeft = total - (Date.now() - started)
       setTimerLeft(Math.max(0, Math.ceil(msLeft / 1000)))
       if (msLeft <= 0) {
+        if (!lineDone) return
         window.clearInterval(id)
         if (hasChoices || timer.knot) {
           engine.dialogueTimeout()
@@ -256,7 +257,7 @@ export function DialogueOverlay({ engine }: Props) {
       }
     }, 120)
     return () => window.clearInterval(id)
-  }, [engine, timer, allShown, hasChoices, d.finished])
+  }, [engine, timer, allShown, lineDone, hasChoices, d.finished])
 
   const timerPct = timer ? Math.max(0, Math.min(100, (timerLeft / Math.max(1, timer.seconds)) * 100)) : 0
 

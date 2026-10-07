@@ -326,7 +326,8 @@ function inkLine(l: DlgLine, indent: string): string {
 
 function inkEffect(e: DlgEffect, indent: string): string {
   switch (e.type) {
-    case 'set_flag': return `${indent}~ set_flag(${q(e.flag)})`
+    case 'set_flag': return e.value === false ? `${indent}~ clear_flag(${q(e.flag)})` : `${indent}~ set_flag(${q(e.flag)})`
+    case 'clear_flag': return `${indent}~ clear_flag(${q(e.flag)})`
     case 'add_item': return `${indent}~ add_item(${q(e.item)}, ${e.qty})`
     case 'remove_item': return `${indent}~ remove_item(${q(e.item)}, ${e.qty})`
     case 'fire_rule': return `${indent}~ fire_rule(${q(e.rule)})`
@@ -348,7 +349,7 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'open_craft': return e.recipe ? `${indent}~ open_craft(${q(e.recipe)})` : `${indent}~ open_craft()`
     case 'set_entity_state': return `${indent}~ set_entity_state(${q(e.entity)}, ${q(e.state)})`
     case 'learn_name': return `${indent}~ learn_name(${q(e.entity)})`
-    case 'present_item': return `${indent}~ present_item(${q(e.ok)}, ${q(e.fail)}${e.required ? `, ${q(e.required)}` : ''})`
+    case 'present_item': return `${indent}~ present_item(${q(e.ok)}, ${q(e.fail)}, ${q(e.required ?? '')})`
     case 'go_to_scene': return `${indent}~ go_to_scene(${q(e.scene)})`
     case 'start_combat': return `${indent}~ start_combat(${q(e.arena)})`
     case 'change_scene_state': return `${indent}~ change_scene_state(${q(e.state)})`

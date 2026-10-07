@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { timeOfDay } from '../core/time'
@@ -6,8 +6,9 @@ import { ArtView } from '../shared/ArtView'
 import { firstFrame, LiveImg } from './frames'
 import { AtmosphereLayer, useCameraStyle } from './Atmosphere'
 import { playInteraction } from '../shared/audio'
+import { useSettings, voiceVolume } from '../shared/settings'
 import { Ico } from '../shared/icons'
-import type { ItemDef, SceneStateDef, SlotDef, SlotUseWith } from '../shared/types'
+import { getUiLabel, type ItemDef, type NarrativeIntroEntry, type SceneStateDef, type SlotDef, type SlotUseWith } from '../shared/types'
 
 interface Props {
   engine: GameEngine
@@ -66,30 +67,84 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
 
   // ── Вводное повествование от третьего лица (стиль Tiny Bunny / новелла) ──
   const [narrativeStep, setNarrativeStep] = useState<number | null>(() => {
-    const list = scene?.narrative_intro
-    return list && list.length > 0 ? 0 : null
+    return scene && engine.shouldShowNarrativeIntro(scene) ? 0 : null
   })
 
   useEffect(() => {
-    const list = scene?.narrative_intro
-    setNarrativeStep(list && list.length > 0 ? 0 : null)
-  }, [sceneId])
+    if (scene && engine.shouldShowNarrativeIntro(scene)) {
+      setNarrativeStep(0)
+    } else {
+      setNarrativeStep(null)
+    }
+  }, [sceneId, engine])
 
-  // Перелистывание нарратива по Space / Enter
+  const introList = useMemo<NarrativeIntroEntry[]>(() => scene?.narrative_intro ?? [], [scene?.narrative_intro])
+  const currentIntro = narrativeStep != null ? introList[narrativeStep] : null
+  const currentIntroItem = useMemo(() => {
+    if (!currentIntro) return null
+    return typeof currentIntro === 'string' ? { text: currentIntro } : currentIntro
+  }, [currentIntro])
+
+  const introAudioRef = useRef<HTMLAudioElement | null>(null)
+  const settings = useSettings()
+
+  const stopIntroAudio = useCallback(() => {
+    if (introAudioRef.current) {
+      introAudioRef.current.pause()
+      introAudioRef.current.currentTime = 0
+      introAudioRef.current = null
+    }
+  }, [])
+
+  // Звук и озвучка текущей реплики нарратива
+  useEffect(() => {
+    stopIntroAudio()
+    if (!currentIntroItem) return
+
+    if (currentIntroItem.sfx) {
+      playInteraction(currentIntroItem.sfx, { sound: currentIntroItem.sfx })
+    }
+
+    const vol = voiceVolume(settings)
+    if (currentIntroItem.voice && vol > 0) {
+      const a = new Audio(assetUrl(engine.campaign, currentIntroItem.voice))
+      a.volume = vol
+      void a.play().catch(() => {})
+      introAudioRef.current = a
+    }
+
+    return () => stopIntroAudio()
+  }, [currentIntroItem, engine, settings, stopIntroAudio])
+
+  const advanceNarrative = useCallback(() => {
+    if (narrativeStep == null || !scene) return
+    const next = narrativeStep + 1
+    if (next < introList.length) {
+      setNarrativeStep(next)
+    } else {
+      stopIntroAudio()
+      engine.markNarrativeIntroSeen(scene.id)
+      setNarrativeStep(null)
+    }
+  }, [narrativeStep, scene, introList.length, stopIntroAudio, engine])
+
+  // Перелистывание нарратива по Space / Enter / Escape
   useEffect(() => {
     if (narrativeStep == null || !scene?.narrative_intro) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault()
-        setNarrativeStep((cur) => {
-          if (cur == null || !scene?.narrative_intro) return null
-          return cur + 1 < scene.narrative_intro.length ? cur + 1 : null
-        })
+        advanceNarrative()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        stopIntroAudio()
+        engine.markNarrativeIntroSeen(scene.id)
+        setNarrativeStep(null)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [narrativeStep, scene?.narrative_intro])
+  }, [narrativeStep, scene, advanceNarrative, stopIntroAudio, engine])
 
   // Подсветка хотспотов по зажатию Tab
   useEffect(() => {
@@ -368,35 +423,27 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         )}
 
         {/* Вводное нарративное повествование от автора (стиль Tiny Bunny / новелла) */}
-        {narrativeStep != null && scene.narrative_intro && (
+        {narrativeStep != null && currentIntroItem && (
           <div
             className="scene-narrative-overlay"
-            onClick={() => {
-              setNarrativeStep((cur) => {
-                if (cur == null || !scene.narrative_intro) return null
-                return cur + 1 < scene.narrative_intro.length ? cur + 1 : null
-              })
-            }}
+            onClick={advanceNarrative}
           >
             <div className="scene-narrative-box" onClick={(e) => e.stopPropagation()}>
               <div className="scene-narrative-text">
-                {scene.narrative_intro[narrativeStep]}
+                {currentIntroItem.text}
               </div>
               <div className="scene-narrative-actions">
                 <span className="muted small">
-                  {narrativeStep + 1} / {scene.narrative_intro.length} · Кликните или нажмите Пробел
+                  {narrativeStep + 1} / {introList.length} · Кликните или нажмите Пробел
                 </span>
                 <button
                   type="button"
                   className="btn btn-primary btn-small"
-                  onClick={() => {
-                    setNarrativeStep((cur) => {
-                      if (cur == null || !scene.narrative_intro) return null
-                      return cur + 1 < scene.narrative_intro.length ? cur + 1 : null
-                    })
-                  }}
+                  onClick={advanceNarrative}
                 >
-                  {narrativeStep + 1 < scene.narrative_intro.length ? 'Далее ▶' : 'Осмотреть сцену ▶'}
+                  {narrativeStep + 1 < introList.length
+                    ? (scene.narrative_intro_next_label || getUiLabel(engine.campaign.meta, 'scene_intro_next', 'Далее ▶'))
+                    : (scene.narrative_intro_done_label || getUiLabel(engine.campaign.meta, 'scene_intro_done', 'Осмотреться ▶'))}
                 </button>
               </div>
             </div>

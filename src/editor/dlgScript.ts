@@ -416,7 +416,7 @@ function byName(list: Array<{ id: string; label: string }>, text: string, what: 
   return { error: `не нашли ${what} «${text}».${suggest(list, text)}` }
 }
 
-const EFFECT_HINT = 'Команды: запомнить, выдать, забрать, сцена, бой, состояние сцены, гибель, победа, правило, отряд, торговля, изготовление, квест, время, потребность, здоровье, сон, отношение, катсцена, описание, статус, снять статус, погода, кодекс, рецепт, облик, перейти, конец, остаться.'
+const EFFECT_HINT = 'Команды: запомнить, забыть, выдать, забрать, сцена, бой, состояние сцены, гибель, победа, правило, отряд, торговля, изготовление, квест, время, потребность, здоровье, сон, отношение, катсцена, описание, статус, снять статус, погода, кодекс, рецепт, облик, перейти, конец, остаться.'
 
 export function parseEffectLine(raw: string, ctx: ParseCtx): EffectOut {
   const refs = ctx.refs
@@ -434,6 +434,11 @@ export function parseEffectLine(raw: string, ctx: ParseCtx): EffectOut {
       if (!value) return { error: 'напишите название флага: «→ запомнить: Сделка с Вольтом»' }
       const found = matchRef(refs.options('flag'), value)
       return { effect: { type: 'set_flag', flag: found?.id ?? ensureFlag(ctx, strip(value)).id } }
+    }
+    case /^(забыть|сбросить флаг|снять флаг|очистить флаг)/.test(kind): {
+      if (!value) return { error: 'напишите название флага: «→ забыть: Сделка с Вольтом»' }
+      const found = matchRef(refs.options('flag'), value)
+      return { effect: { type: 'clear_flag', flag: found?.id ?? ensureFlag(ctx, strip(value)).id } }
     }
     case /^(выдать|дать|предмет|получить)/.test(kind): {
       if (!value) return { error: 'напишите, что выдать: «→ выдать: Жетон бригады»' }
@@ -1003,7 +1008,8 @@ function entityLabel(refs: ScriptRefs, id: string): string {
 function effectToScript(e: DlgEffect, refs: ScriptRefs): string {
   const label = (kind: ScriptRefKind, id: string) => refLabel(refs.options(kind), id)
   switch (e.type) {
-    case 'set_flag': return `→ запомнить: ${refLabel(refs.options('flag'), e.flag)}`
+    case 'set_flag': return e.value === false ? `→ забыть: ${refLabel(refs.options('flag'), e.flag)}` : `→ запомнить: ${refLabel(refs.options('flag'), e.flag)}`
+    case 'clear_flag': return `→ забыть: ${refLabel(refs.options('flag'), e.flag)}`
     case 'add_item': return `→ выдать: ${label('item', e.item)}${e.qty > 1 ? ` ×${e.qty}` : ''}`
     case 'remove_item': return `→ забрать: ${label('item', e.item)}${e.qty > 1 ? ` ×${e.qty}` : ''}`
     case 'fire_rule': return `→ правило: ${label('rule', e.rule)}`
