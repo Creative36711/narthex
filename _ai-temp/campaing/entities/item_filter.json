@@ -10,5 +10,10 @@
   "mark": 28
  },
  "equip_slot": "mask",
- "quest_item": true
+ "quest_item": true,
+ "sounds": {
+  "equip": "snd_latch",
+  "unequip": "snd_cloth",
+  "use": "snd_vent"
+ }
 }

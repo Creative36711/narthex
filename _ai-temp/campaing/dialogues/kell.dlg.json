@@ -1,392 +1,406 @@
 {
-  "version": 2,
-  "label": "Келл Ястреб, старшина стражи",
-  "nodes": [
+ "version": 2,
+ "label": "Келл Ястреб, старшина стражи",
+ "nodes": [
+  {
+   "id": "Начало",
+   "label": "Начало разговора",
+   "sections": [
     {
-      "id": "Начало",
-      "label": "Начало разговора",
-      "sections": [
-        {
-          "steps": [
-            {
-              "kind": "line",
-              "line": {
-                "text": "Келл не встаёт. Он просто кладёт руку на рукоять клинка.",
-                "action": true
-              }
-            },
-            {
-              "kind": "line",
-              "line": {
-                "text": "Дознаватель. Я тебя не вызывал."
-              }
-            }
-          ]
-        }
-      ],
-      "choices": [
-        {
-          "text": "Где ты был в ночь тринадцатого?",
-          "sections": [],
-          "goto": "stay",
-          "check": {
-            "skill": "intimidate",
-            "difficulty": 50,
-            "success": {
-              "sections": [
-                {
-                  "steps": [
-                    {
-                      "kind": "line",
-                      "line": {
-                        "text": "На седьмом. Стоял, как велено. Двенадцать человек, все в журнале — спроси у Векса, он записывал."
-                      }
-                    },
-                    {
-                      "kind": "effect",
-                      "effect": {
-                        "type": "change_disposition",
-                        "target": "npc_kell",
-                        "delta": -6
-                      }
-                    },
-                    {
-                      "kind": "effect",
-                      "effect": {
-                        "type": "set_flag",
-                        "flag": "kell_pressed"
-                      }
-                    }
-                  ]
-                }
-              ],
-              "goto": "stay"
-            },
-            "fail": {
-              "sections": [
-                {
-                  "steps": [
-                    {
-                      "kind": "line",
-                      "line": {
-                        "text": "Ты меня допрашиваешь? Забавно. У тебя бумага, у меня двенадцать свидетелей, которые стояли со мной."
-                      }
-                    },
-                    {
-                      "kind": "effect",
-                      "effect": {
-                        "type": "change_disposition",
-                        "target": "npc_kell",
-                        "delta": -10
-                      }
-                    }
-                  ]
-                }
-              ],
-              "goto": "stay"
-            }
-          }
-        },
-        {
-          "text": "Что такое режим тишины?",
-          "sections": [
-            {
-              "steps": [
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Это когда ярус закрывают и считают, сколько в нём осталось людей.",
-                    "emotion": "calm",
-                    "voice": "assets/voice/kell_2.mp3"
-                  }
-                },
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Хорошая вещь, если ты не из тех, кого считают.",
-                    "emotion": "calm"
-                  }
-                }
-              ]
-            }
-          ],
-          "goto": "stay"
-        },
-        {
-          "text": "Ты убил стража Ярова.",
-          "sections": [],
-          "goto": "stay",
-          "conds": [
-            {
-              "type": "flag",
-              "flag": "clue_guard"
-            }
-          ],
-          "check": {
-            "skill": "intimidate",
-            "difficulty": 55,
-            "success": {
-              "sections": [
-                {
-                  "steps": [
-                    {
-                      "kind": "line",
-                      "line": {
-                        "text": "Не я. Приказ есть приказ: закрыть затвор, никого не выпускать. Он не послушал. Я не спрашивал, почему.",
-                        "voice": "assets/voice/kell_3.mp3"
-                      }
-                    },
-                    {
-                      "kind": "effect",
-                      "effect": {
-                        "type": "set_flag",
-                        "flag": "kell_confessed"
-                      }
-                    },
-                    {
-                      "kind": "effect",
-                      "effect": {
-                        "type": "change_disposition",
-                        "target": "npc_kell",
-                        "delta": -20
-                      }
-                    },
-                    {
-                      "kind": "effect",
-                      "effect": {
-                        "type": "change_disposition",
-                        "target": "faction_nadzor",
-                        "delta": -15
-                      }
-                    }
-                  ]
-                }
-              ],
-              "goto": "stay"
-            },
-            "fail": {
-              "sections": [
-                {
-                  "steps": [
-                    {
-                      "kind": "line",
-                      "line": {
-                        "text": "За такие слова внизу не отвечают. Считай, я не слышал — пока ты при исполнении."
-                      }
-                    },
-                    {
-                      "kind": "effect",
-                      "effect": {
-                        "type": "change_disposition",
-                        "target": "npc_kell",
-                        "delta": -8
-                      }
-                    }
-                  ]
-                }
-              ],
-              "goto": "stay"
-            }
-          }
-        },
-        {
-          "text": "Положить перед Келлом жетон стража.",
-          "sections": [
-            {
-              "steps": [
-                {
-                  "kind": "effect",
-                  "effect": {
-                    "type": "present_item",
-                    "required": "item_guard_token",
-                    "ok_goto": "Жетон",
-                    "fail_goto": "Отказ"
-                  }
-                }
-              ]
-            }
-          ],
-          "goto": "stay"
-        },
-        {
-          "text": "Пропусти меня к помпе.",
-          "sections": [
-            {
-              "steps": [
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Помпа не моя. Иди, смотри. Только вниз не суйся: там не наша вода.",
-                    "emotion": "thoughtful",
-                    "voice": "assets/voice/kell_1.mp3"
-                  }
-                }
-              ]
-            }
-          ],
-          "goto": "stay"
-        },
-        {
-          "text": "Я иду к инспектору.",
-          "sections": [
-            {
-              "steps": [
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Иди. Она любит, когда к ней идут с пустыми руками.",
-                    "emotion": "calm"
-                  }
-                }
-              ]
-            }
-          ],
-          "goto": "end"
-        }
-      ]
-    },
-    {
-      "id": "Наряд",
-      "label": "Наряд тринадцатого",
-      "sections": [
-        {
-          "steps": [
-            {
-              "kind": "line",
-              "line": {
-                "text": "Он смотрит на бумагу долго, потом убирает руку с рукояти.",
-                "action": true
-              }
-            },
-            {
-              "kind": "line",
-              "line": {
-                "text": "Двенадцать человек, седьмой ярус, с двадцати до шести. Моя подпись стоит второй.",
-                "emotion": "thoughtful",
-                "voice": "assets/voice/kell_4.mp3"
-              }
-            },
-            {
-              "kind": "line",
-              "line": {
-                "text": "Первую ты уже видел. Я — руки, старшина. Бумагу подписывают не руки."
-              }
-            },
-            {
-              "kind": "effect",
-              "effect": {
-                "type": "set_flag",
-                "flag": "clue_roster"
-              }
-            },
-            {
-              "kind": "effect",
-              "effect": {
-                "type": "set_flag",
-                "flag": "kell_confessed"
-              }
-            },
-            {
-              "kind": "effect",
-              "effect": {
-                "type": "change_disposition",
-                "target": "npc_kell",
-                "delta": -10
-              }
-            },
-            {
-              "kind": "effect",
-              "effect": {
-                "type": "unlock_codex",
-                "entry": "codex_silence"
-              }
-            }
-          ]
-        }
-      ],
-      "choices": [],
-      "goto": "Начало"
-    },
-    {
-      "id": "Жетон",
-      "speaker": "kell",
-      "sections": [
-        {
-          "steps": [
-            {
-              "kind": "line",
-              "line": {
-                "text": "Келл смотрит на медь так, будто она горячая, и не берёт.",
-                "action": true,
-                "timer": 4
-              }
-            },
-            {
-              "kind": "line",
-              "line": {
-                "text": "Яров. Я три дня носил его жетон в кармане и так и не зашёл к сестре.",
-                "emotion": "thoughtful",
-                "voice": "assets/voice/kell_5.mp3"
-              }
-            },
-            {
-              "kind": "line",
-              "line": {
-                "text": "Отдай ей сам. И скажи: Келл стоял у затвора и не открыл. Это правда, и она хуже любой лжи, которую ты мог бы придумать.",
-                "emotion": "thoughtful"
-              }
-            },
-            {
-              "kind": "effect",
-              "effect": {
-                "type": "set_flag",
-                "flag": "kell_token"
-              }
-            },
-            {
-              "kind": "effect",
-              "effect": {
-                "type": "change_disposition",
-                "target": "npc_kell",
-                "delta": 10
-              }
-            },
-            {
-              "kind": "effect",
-              "effect": {
-                "type": "fire_rule",
-                "rule": "rule_kell_token"
-              }
-            }
-          ]
-        }
-      ],
-      "choices": []
-    },
-    {
-      "id": "Отказ",
-      "speaker": "kell",
-      "sections": [
-        {
-          "steps": [
-            {
-              "kind": "line",
-              "line": {
-                "text": "Келл косит на протянутое, но руки с рукояти не убирает.",
-                "action": true
-              }
-            },
-            {
-              "kind": "line",
-              "line": {
-                "text": "Мне это зачем? Я за чужие вещи не отвечаю. За свои — тоже.",
-                "emotion": "calm"
-              }
-            }
-          ]
-        }
-      ],
-      "choices": []
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Келл не встаёт. Он просто кладёт руку на рукоять клинка.",
+        "action": true,
+        "sfx": "snd_blade"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Дознаватель. Я тебя не вызывал.",
+        "voice": "assets/voice/kell_6.mp3"
+       }
+      }
+     ]
     }
-  ]
+   ],
+   "choices": [
+    {
+     "text": "Где ты был в ночь тринадцатого?",
+     "sections": [],
+     "goto": "stay",
+     "check": {
+      "skill": "intimidate",
+      "difficulty": 50,
+      "success": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "На седьмом. Стоял, как велено. Двенадцать человек, все в журнале — спроси у Векса, он записывал.",
+            "voice": "assets/voice/kell_11.mp3"
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "npc_kell",
+            "delta": -6
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "set_flag",
+            "flag": "kell_pressed"
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      },
+      "fail": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Ты меня допрашиваешь? Забавно. У тебя бумага, у меня двенадцать свидетелей, которые стояли со мной."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "npc_kell",
+            "delta": -10
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      }
+     }
+    },
+    {
+     "text": "Что такое режим тишины?",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Это когда ярус закрывают и считают, сколько в нём осталось людей.",
+          "emotion": "calm",
+          "voice": "assets/voice/kell_2.mp3"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Хорошая вещь, если ты не из тех, кого считают.",
+          "emotion": "calm",
+          "voice": "assets/voice/kell_12.mp3"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Ты убил стража Ярова.",
+     "sections": [],
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "clue_guard"
+      }
+     ],
+     "check": {
+      "skill": "intimidate",
+      "difficulty": 55,
+      "success": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "Не я. Приказ есть приказ: закрыть затвор, никого не выпускать. Он не послушал. Я не спрашивал, почему.",
+            "voice": "assets/voice/kell_3.mp3"
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "set_flag",
+            "flag": "kell_confessed"
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "npc_kell",
+            "delta": -20
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "faction_nadzor",
+            "delta": -15
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      },
+      "fail": {
+       "sections": [
+        {
+         "steps": [
+          {
+           "kind": "line",
+           "line": {
+            "text": "За такие слова внизу не отвечают. Считай, я не слышал — пока ты при исполнении."
+           }
+          },
+          {
+           "kind": "effect",
+           "effect": {
+            "type": "change_disposition",
+            "target": "npc_kell",
+            "delta": -8
+           }
+          }
+         ]
+        }
+       ],
+       "goto": "stay"
+      }
+     }
+    },
+    {
+     "text": "Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.",
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_roster"
+      }
+     ],
+     "sections": [],
+     "goto": "Наряд"
+    },
+    {
+     "text": "Положить перед Келлом жетон стража.",
+     "sections": [],
+     "goto": "Жетон",
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_guard_token"
+      }
+     ]
+    },
+    {
+     "text": "Пропусти меня к помпе.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Помпа не моя. Иди, смотри. Только вниз не суйся: там не наша вода.",
+          "emotion": "thoughtful",
+          "voice": "assets/voice/kell_1.mp3"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
+     "text": "Я иду к инспектору.",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Иди. Она любит, когда к ней идут с пустыми руками.",
+          "emotion": "calm",
+          "voice": "assets/voice/kell_10.mp3"
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "end"
+    }
+   ]
+  },
+  {
+   "id": "Наряд",
+   "label": "Наряд тринадцатого",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Он смотрит на бумагу долго, потом убирает руку с рукояти.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Двенадцать человек, седьмой ярус, с двадцати до шести. Моя подпись стоит второй.",
+        "emotion": "thoughtful",
+        "voice": "assets/voice/kell_4.mp3"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Первую ты уже видел. Я — руки, старшина. Бумагу подписывают не руки.",
+        "voice": "assets/voice/kell_9.mp3"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "clue_roster"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "kell_confessed"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "change_disposition",
+        "target": "npc_kell",
+        "delta": -10
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "unlock_codex",
+        "entry": "codex_silence"
+       }
+      }
+     ]
+    }
+   ],
+   "choices": [],
+   "goto": "Начало"
+  },
+  {
+   "id": "Жетон",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Келл смотрит на медь так, будто она горячая, и не берёт.",
+        "action": true,
+        "timer": 4,
+        "sfx": "snd_tag"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Яров. Я три дня носил его жетон в кармане и так и не зашёл к сестре.",
+        "emotion": "sad",
+        "voice": "assets/voice/kell_5.mp3"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Отдай ей сам. И скажи: Келл стоял у затвора и не открыл. Это правда, и она хуже любой лжи, которую ты мог бы придумать.",
+        "emotion": "thoughtful",
+        "voice": "assets/voice/kell_7.mp3"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "set_flag",
+        "flag": "kell_token"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "change_disposition",
+        "target": "npc_kell",
+        "delta": 10
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "fire_rule",
+        "rule": "rule_kell_token"
+       }
+      }
+     ]
+    }
+   ],
+   "label": "Жетон Ярова",
+   "choices": [],
+   "goto": "Начало"
+  },
+  {
+   "id": "Жетон_мимо",
+   "label": "Не та вещь",
+   "sections": [
+    {
+     "steps": [
+      {
+       "kind": "line",
+       "line": {
+        "text": "Келл смотрит сначала на вещь, потом на тебя — и без всякого интереса.",
+        "action": true
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Я жетоны не собираю. Положи, где взял.",
+        "emotion": "calm",
+        "voice": "assets/voice/kell_8.mp3"
+       }
+      }
+     ]
+    }
+   ],
+   "goto": "Начало",
+   "choices": []
+  }
+ ]
 }

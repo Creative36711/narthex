@@ -395,7 +395,9 @@
    "w": 260,
    "h": 230,
    "condition": null,
-   "default_entity": "item_cache"
+   "default_entity": "item_cache",
+   "sound": "sfx_lock",
+   "sound_volume": 0.7
   },
   {
    "id": "slot_vent",
@@ -409,7 +411,9 @@
    "w": 130,
    "h": 130,
    "condition": null,
-   "default_entity": "item_vent"
+   "default_entity": "item_vent",
+   "sound": "snd_vent",
+   "sound_volume": 0.6
   },
   {
    "id": "slot_marker",
@@ -423,7 +427,9 @@
    "w": 160,
    "h": 210,
    "condition": null,
-   "default_entity": "item_marker"
+   "default_entity": "item_marker",
+   "sound": "snd_stone",
+   "sound_volume": 0.5
   }
  ],
  "navigation": [
@@ -435,7 +441,8 @@
     "w": 220,
     "h": 270
    },
-   "go_to_scene": "scene_face"
+   "go_to_scene": "scene_face",
+   "cost_ticks": 1
   },
   {
    "label": "На схему ярусов",

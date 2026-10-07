@@ -1766,6 +1766,8 @@ export interface ItemDef {
   weight: number
   value?: Record<string, number>
   stackable: boolean
+  /** сюжетный/квестовый предмет: нельзя случайно выбросить или продать */
+  quest_item?: boolean
   weapon_data?: WeaponData
   /** броня: очки поглощения урона */
   armor_data?: {

@@ -367,7 +367,9 @@
    "w": 240,
    "h": 150,
    "condition": null,
-   "default_entity": "item_dead_guard"
+   "default_entity": "item_dead_guard",
+   "sound": "snd_cloth",
+   "sound_volume": 0.6
   },
   {
    "id": "slot_pipes",
@@ -381,7 +383,9 @@
    "w": 280,
    "h": 170,
    "condition": null,
-   "default_entity": "item_pipes"
+   "default_entity": "item_pipes",
+   "sound": "sfx_gear",
+   "sound_volume": 0.6
   },
   {
    "id": "slot_debris",
@@ -396,7 +400,9 @@
    "w": 260,
    "h": 120,
    "condition": null,
-   "default_entity": "item_debris"
+   "default_entity": "item_debris",
+   "sound": "snd_stone",
+   "sound_volume": 0.6
   }
  ],
  "navigation": [
@@ -408,7 +414,8 @@
     "w": 170,
     "h": 270
    },
-   "go_to_scene": "scene_sluice"
+   "go_to_scene": "scene_sluice",
+   "cost_ticks": 1
   },
   {
    "label": "В сухой ряд",
@@ -418,7 +425,8 @@
     "w": 170,
     "h": 270
    },
-   "go_to_scene": "scene_dry_row"
+   "go_to_scene": "scene_dry_row",
+   "cost_ticks": 1
   },
   {
    "label": "На схему ярусов",
@@ -454,19 +462,37 @@
    "sounds": [
     "snd_water_amb"
    ],
-   "volume": 0.7
+   "volume": 0.45,
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "flood"
+    }
+   ]
   },
   {
+   "sounds": [
+    "snd_water_amb"
+   ],
+   "volume": 0.85,
    "conditions": [
     {
      "type": "flag_set",
      "flag": "flood"
     }
-   ],
+   ]
+  },
+  {
    "sounds": [
-    "snd_water_amb"
+    "snd_rain"
    ],
-   "volume": 0.5
+   "volume": 0.35,
+   "conditions": [
+    {
+     "type": "flag_set",
+     "flag": "flood"
+    }
+   ]
   }
  ],
  "lighting": "none"

@@ -2155,6 +2155,7 @@ export class GameEngine {
 
   sellPrice(npc: NpcDef, itemId: string): number {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
+    if (item?.quest_item) return 0
     const base = item?.value?.[this.mainCurrency] ?? 0
     const rate = npc.trader?.buy_rate ?? 0.4
     const dynamic = item ? this.priceEventMultiplier(item) : 1
@@ -2173,6 +2174,8 @@ export class GameEngine {
   }
 
   sellItem(itemId: string, price: number): boolean {
+    const item = this.campaign.entities[itemId] as ItemDef | undefined
+    if (item?.quest_item) return false
     if (this.itemCount(itemId) < 1) return false
     this.removeItem(itemId, 1, { silent: true })
     this.addItem(this.currencyItemId(), price, { silent: true })

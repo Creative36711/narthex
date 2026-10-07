@@ -24,11 +24,20 @@
   "difficulty": 55
  },
  "time_ticks": 2,
- "workbench": true,
  "output": {
   "item": "item_charge",
   "quantity": 1
  },
  "message": "Заряд готов. Он тёплый и, кажется, дышит.",
- "known": false
+ "known": false,
+ "workbench": true,
+ "category": "misc",
+ "conditions": [
+  {
+   "type": "flag_set",
+   "flag": "resh_charge_recipe"
+  }
+ ],
+ "sound": "snd_charge",
+ "sound_volume": 0.8
 }

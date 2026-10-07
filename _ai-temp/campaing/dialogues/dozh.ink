@@ -1,6 +1,7 @@
 EXTERNAL add_item(a0, a1)
 EXTERNAL change_disposition(a0, a1)
 EXTERNAL has_item(a0)
+EXTERNAL present_item(a0, a1, a2)
 EXTERNAL item_count(a0)
 EXTERNAL open_trade(a0)
 EXTERNAL remove_item(a0, a1)
@@ -9,13 +10,13 @@ EXTERNAL unlock_codex(a0)
 
 === Начало ===
 Дож что-то взвешивает на ладони и прячет в рукав, не глядя. # action
-Смотри, не покупатель. С покупателями я вежливей.
+Смотри, не покупатель. С покупателями я вежливей. # voice: assets/voice/dozh_4.mp3
 -> Начало_hub
 
 === Начало_hub ===
 ~ set_dialogue_timer(20, "Молчание")
 + [Торговать.]
-    Ну наконец-то. Смотри, не трогай руками: руками только платят. # emotion: calm
+    Ну наконец-то. Смотри, не трогай руками: руками только платят. # emotion: calm # voice: assets/voice/dozh_10.mp3
     ~ open_trade("npc_dozh")
     -> DONE
 + [Что слышно про помпу?]
@@ -24,8 +25,8 @@ EXTERNAL unlock_codex(a0)
     ~ unlock_codex("codex_karkas")
     -> Начало_hub
 * [Ищу Жука.]
-    У жаровни сидит, греется, как честный человек. # emotion: calm
-    Скажи, что от Дожа. Он скинет — не много, но скинет.
+    У жаровни сидит, греется, как честный человек. # emotion: calm # voice: assets/voice/dozh_8.mp3
+    Скажи, что от Дожа. Он скинет — не много, но скинет. # voice: assets/voice/dozh_9.mp3
     ~ change_disposition("npc_zhuk", 8)
     -> Начало_hub
 + { item_count("item_mark") >= 34 and not (has_item("item_filter")) } [Купить дыхатель (34 марки).]
@@ -33,8 +34,10 @@ EXTERNAL unlock_codex(a0)
     ~ remove_item("item_mark", 34)
     ~ add_item("item_filter", 1)
     -> Начало_hub
++ [Показать Дожу вещь.]
+    ~ present_item("Оценка", "Оценка_мимо", "")
 + [Почему у тебя всё дороже, чем наверху?]
-    Потому что сверху вещи возят, а сюда их носят на себе. Спина — тоже цена. # emotion: calm
+    Потому что сверху вещи возят, а сюда их носят на себе. Спина — тоже цена. # emotion: calm # voice: assets/voice/dozh_5.mp3
     -> Начало_hub
 + [Пока.]
     -> DONE
@@ -42,5 +45,16 @@ EXTERNAL unlock_codex(a0)
 
 === Молчание ===
 Дож спокойно ждёт: он умеет торговать и молча. # action
-Молчишь? И правильно. Кто говорит, тот уже купил.
+Молчишь? И правильно. Кто говорит, тот уже купил. # voice: assets/voice/dozh_7.mp3
 -> Начало
+
+=== Оценка ===
+Дож вертит вещь двумя пальцами, прищурившись. # action # sfx: snd_latch
+Вещь стоящая — для того, кто её ищет. Я таких не знаю, но за полцены возьму. # emotion: calm # voice: assets/voice/dozh_6.mp3
+~ change_disposition("npc_dozh", 2)
+-> Начало_hub
+
+=== Оценка_мимо ===
+Дож разводит руками: пусто. # action
+Руки показывай, когда они полные. Пустыми торгуют только нищие. # emotion: calm # voice: assets/voice/dozh_11.mp3
+-> Начало_hub

@@ -132,8 +132,9 @@ export function SceneEditor({
   // ArtView, что и игрок, — иначе превью и забег расходятся (и data-URL-SVG
   // внутри <img> ведёт себя иначе, чем инлайновый SVG). ArtDoc кладём под
   // прозрачный Konva-холст, обычное изображение — внутри Konva.
-  const hasArt = !!st?.art?.layers?.length
-  const img = useImage(!hasArt && st?.image ? store.assetSrc(firstFrame(st.image)) : null)
+  const hasImage = !!st?.image
+  const hasArt = !hasImage && !!st?.art?.layers?.length
+  const img = useImage(hasImage ? store.assetSrc(firstFrame(st!.image!)) : null)
 
   useEffect(() => {
     // после отката (или удаления) выбранный объект мог исчезнуть — не
@@ -417,6 +418,38 @@ function StateBackground({
   commit: () => void
 }) {
   const [editJson, setEditJson] = useState(false)
+  if (state.image) {
+    return (
+      <div className="fld fld-block">
+        <AnimImageEditor
+          label="Фон сцены (изображение)"
+          value={state.image}
+          dir="assets/img/scenes"
+          store={store}
+          onChange={(v) => {
+            if (v) state.image = v
+            else delete state.image
+            commit()
+          }}
+        />
+        {state.art && (
+          <div className="muted small" style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+            <span>Есть скрытый векторный ArtDoc (изображение в приоритете).</span>
+            <button
+              className="btn btn-small ce-del"
+              onClick={() => {
+                delete state.art
+                commit()
+              }}
+              data-tip="Удалить неиспользуемый векторный ArtDoc из файла сцены"
+            >
+              Удалить ArtDoc
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
   if (state.art) {
     return (
       <div className="fld fld-block">

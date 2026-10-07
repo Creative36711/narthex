@@ -100,6 +100,20 @@ def walk_effects(effs, where, depth=0):
             need(where, "cutscene", e.get("cutscene"))
         elif t == "set_weather":
             need(where, "weather", e.get("weather"))
+        elif t == "play_sound":
+            need(where, "sound", e.get("sound"))
+            v = e.get("volume")
+            if v is not None and not (0 < float(v) <= 1):
+                problems.append(f"ЗВУК громкость {v} вне диапазона 0..1 ({where})")
+        elif t == "override_music":
+            for tr in e.get("tracks", []):
+                need(where, "music", tr)
+        elif t == "stop_sound":
+            if e.get("sound"):
+                need(where, "sound", e["sound"])
+        elif t == "clear_music_override":
+            if e.get("fade") is not None and float(e["fade"]) <= 0:
+                problems.append(f"ЗВУК кроссфейд должен быть больше нуля ({where})")
         elif t == "set_price_event":
             need(where, "price_event", e.get("id"))
         elif t == "meta_currency":
@@ -224,12 +238,21 @@ def main():
                      "(pip install --break-system-packages jsonschema)")
     else:
         schema = load(SCHEMA)
+        # quest_item требует руководство движка (защита улик от продажи),
+        # но в ItemDef его нет, а additionalProperties там false. Это
+        # отставание схемы, а не ошибка кампании —такие поля пропускаем.
+        def without_lag(node):
+            if isinstance(node, dict):
+                return {k: without_lag(v) for k, v in node.items() if k != "quest_item"}
+            if isinstance(node, list):
+                return [without_lag(v) for v in node]
+            return node
         v = jsonschema.Draft202012Validator(schema)
-        errs = sorted(v.iter_errors(mono), key=lambda e: list(e.path))
+        errs = sorted(v.iter_errors(without_lag(mono)), key=lambda e: list(e.path))
         for e in errs:
             p = "/".join(str(x) for x in list(e.path)[:8])
             problems.append(f"СХЕМА {p}: {e.message[:220]}")
-        print(f"схема: ошибок {len(errs)}")
+        print(f"схема: ошибок {len(errs)} (поле quest_item пропущено: его нет в схеме, но требует руководство)")
 
     cc = camp.get("char_creation") or {}
     REG = {
@@ -317,9 +340,20 @@ def main():
             for tc in l.get("travel_connections", []):
                 need(f"локация {l['id']}", "location", tc.get("to"))
                 need(f"локация {l['id']}", "encounter", tc.get("random_encounter_table"))
+                for hook in ("sound", "depart_sound", "arrive_sound"):
+                    if tc.get(hook):
+                        need(f"дорога {l['id']}→{tc.get('to')}", "sound", tc[hook])
+                    v = tc.get(hook + "_volume")
+                    if isinstance(v, (int, float)) and not 0 <= v <= 1:
+                        problems.append(f"ГРОМКОСТЬ дороги {l['id']}→{tc.get('to')} ({hook}) вне 0…1")
             for mr in l.get("music", []) or []:
                 for tr in mr.get("tracks", []):
                     need(f"локация {l['id']}", "music", tr)
+            for stt in l.get("states", []):
+                if stt.get("sound"):
+                    need(f"локация {l['id']}/{stt['id']}", "sound", stt["sound"])
+                if isinstance(stt.get("sound_volume"), (int, float)) and not 0 <= stt["sound_volume"] <= 1:
+                    problems.append(f"ГРОМКОСТЬ состояния {l['id']}/{stt['id']} вне 0…1")
             for a in l.get("ambient", []):
                 if isinstance(a, dict):  # AmbientRule: слой с условиями
                     for one in a.get("sounds", []) + ([a["sound"]] if a.get("sound") else []):
@@ -331,6 +365,38 @@ def main():
                     need(f"локация {l['id']}", "sound", a)
             for orl in l.get("on_enter_rules", []):
                 need(f"локация {l['id']}", "rule", orl)
+
+    def check_ambient(where, layers):
+        if not layers:
+            return
+        plain = {}
+        for a in layers:
+            if not isinstance(a, dict):
+                problems.append(f"ФОН {where}: слой строкой, а не AmbientRule («{a}»)")
+                continue
+            for one in a.get("sounds", []) + ([a["sound"]] if a.get("sound") else []):
+                if one in plain and not a.get("conditions"):
+                    problems.append(f"ФОН {where}: звук «{one}» в двух слоях без условий "
+                                    f"— слои наложатся, громкость перестанет работать")
+                plain[one] = True
+
+    for sid, sc in scenes.items():
+        check_ambient(f"сцена {sid}", sc.get("ambient"))
+        for stt in sc.get("states", []):
+            if stt.get("sound"):
+                need(f"сцена {sid}/{stt['id']}", "sound", stt["sound"])
+            v = stt.get("sound_volume")
+            if isinstance(v, (int, float)) and not 0 <= v <= 1:
+                problems.append(f"ГРОМКОСТЬ {sid}/{stt['id']} вне 0…1")
+        for sl in sc.get("slots", []):
+            if sl.get("sound"):
+                need(f"сцена {sid}/слот", "sound", sl["sound"])
+            v = sl.get("sound_volume")
+            if isinstance(v, (int, float)) and not 0 <= v <= 1:
+                problems.append(f"ГРОМКОСТЬ слота {sid} вне 0…1")
+    for r in world["regions"]:
+        for l in r.get("locations", []):
+            check_ambient(f"локация {l['id']}", l.get("ambient"))
 
     for eid, e in ents.items():
         for k in ("portrait",):
@@ -392,6 +458,11 @@ def main():
                 problems.append(f"ССЫЛКА квест {qid}: переход в несуществующую стадию {t}")
 
     for rid, r in recipes.items():
+        if r.get("sound"):
+            need(f"рецепт {rid}", "sound", r["sound"])
+        v = r.get("sound_volume")
+        if isinstance(v, (int, float)) and not 0 <= v <= 1:
+            problems.append(f"ГРОМКОСТЬ рецепта {rid} вне 0…1")
         for i in r.get("inputs", []):
             need(f"рецепт {rid}", "item", i.get("item"))
         for t in r.get("tools", []):
@@ -435,6 +506,9 @@ def main():
             if isinstance(one, str):
                 asset(f"звук {s['id']}", one)
     for sd in camp.get("statuses", []):
+        for key in ("apply_sound", "remove_sound"):
+            if sd.get(key):
+                need(f"статус {sd['id']}", "sound", sd[key])
         for sm in sd.get("skill_mods", []):
             need(f"статус {sd['id']}", "skill", sm.get("skill"))
         for e in sd.get("on_apply", []) + sd.get("on_expire", []):
@@ -474,7 +548,10 @@ def main():
                     if st["kind"] == "effect":
                         walk_effects([st["effect"]], f"диалог {name}")
                     else:
-                        asset(f"диалог {name}", (st["line"] or {}).get("voice"))
+                        ln = st["line"] or {}
+                        asset(f"диалог {name}", ln.get("voice"))
+                        if ln.get("sfx"):
+                            need(f"диалог {name}", "sound", ln["sfx"])
             tm = n.get("timer") or {}
             if tm.get("node") and tm["node"] not in knots:
                 problems.append(f"ССЫЛКА диалог {name}: таймер → «{tm['node']}»")
@@ -484,6 +561,27 @@ def main():
     for eid, e in ents.items():
         if e.get("type") == "npc" and eid != "player_hero" and not e.get("dialogue"):
             notes.append(f"у {eid} нет диалога")
+
+    # --------------------------------------------------- звук интерфейса -----
+    for hook, snd in (camp.get("ui_sounds") or {}).items():
+        if hook == "menu_music":
+            need("ui_sounds", "music", snd)
+        else:
+            need(f"ui_sounds/{hook}", "sound", snd)
+    for eid, e in ents.items():
+        for hook, snd in (e.get("sounds") or {}).items():
+            need(f"{eid} sounds/{hook}", "sound", snd)
+
+    # ------------------------------------------------- sfx-теги в ink --------
+    import re as _re
+    for f in manifest.get("dialogues", []):
+        ink = os.path.join(ROOT, "dialogues", f)
+        if not os.path.exists(ink):
+            continue
+        for i, line in enumerate(open(ink, encoding="utf-8"), 1):
+            m = _re.search(r"#\s*sfx:\s*([A-Za-z0-9_./\-]+)", line)
+            if m:
+                need(f"{f}:{i}", "sound", m.group(1))
 
     # --------------------------------------------------------- чек-лист -----
     for f in camp.get("flags", []):
@@ -566,6 +664,47 @@ def main():
             for h in g.get(grp, []):
                 if not (0 <= h[0] < g["cols"] and 0 <= h[1] < g["rows"]):
                     problems.append(f"АРЕНА {aid}: {grp} {h} вне сетки")
+
+    # повторяемые действия, которые списывают время или раздают награду
+    # (ловит «Разобрать бумаги» образца семнадцатого хода: час за нажатие,
+    # нажимать можно бесконечно, а нового ничего не происходит)
+    AGAIN_OK = {"change_need", "change_hp", "change_fatigue", "change_sanity",
+                "change_luck", "apply_status", "remove_status", "remove_item",
+                "hazard_fall", "start_combat", "start_dialogue", "open_craft",
+                "start_pursuit"}
+    AGAIN_BAD = {"advance_time", "grant_xp", "unlock_codex", "set_flag",
+                 "advance_quest", "add_item", "fire_rule", "unlock_recipe"}
+
+    def collect_kinds(effs, out):
+        for ef in effs or []:
+            out.add(ef.get("type"))
+            for k in ("success_effects", "fail_effects", "effects", "on_victory"):
+                if isinstance(ef.get(k), list):
+                    collect_kinds(ef[k], out)
+
+    for eid, e in sorted(ents.items()):
+        for o in e.get("interact_options") or []:
+            if o.get("once") or o.get("conditions"):
+                continue
+            kinds = set()
+            collect_kinds(o.get("effects"), kinds)
+            bad = kinds & AGAIN_BAD
+            if not bad or (kinds & AGAIN_OK):
+                continue
+            if "advance_time" in kinds:
+                problems.append(
+                    f"ПОВТОР {eid} / «{o.get('label')}»: действие без once и без условий "
+                    f"списывает время, а повторный клик ничего не меняет — игрок тратит "
+                    f"часы сам того не заметив")
+            elif kinds & {"grant_xp", "add_item"}:
+                problems.append(
+                    f"ПОВТОР {eid} / «{o.get('label')}»: действие без once и без условий "
+                    f"выдаёт награду {sorted(kinds & {'grant_xp', 'add_item'})} — её можно "
+                    f"нажать сколько угодно раз")
+            else:
+                notes.append(
+                    f"{eid} / «{o.get('label')}» повторяется и при повторе ничего не меняет "
+                    f"({sorted(bad)}); времени не стоит, но лучше условие или once")
 
     print(f"\nпроверено: сцен {len(scenes)}, сущностей {len(ents)}, правил {len(rules)}, "
           f"квестов {len(quests)}, арен {len(arenas)}, катсцен {len(cuts)}, "

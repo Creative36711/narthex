@@ -1,7 +1,7 @@
 {
  "id": "arena_sluice",
  "label": "Камера затвора (бой)",
- "image": "",
+ "image": "assets/img/arena_sluice.jpg",
  "hex_grid": {
   "cols": 10,
   "rows": 6,

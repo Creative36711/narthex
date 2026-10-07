@@ -18,6 +18,22 @@
   {
    "type": "show_message",
    "text": "Ты хватаешь ртом тяжёлую сырость и понимаешь, что считать надо было раньше."
+  },
+  {
+   "type": "override_music",
+   "tracks": [
+    "music_deep"
+   ],
+   "fade": 2
+  },
+  {
+   "type": "play_sound",
+   "sound": "sfx_gasp",
+   "volume": 1.0
+  },
+  {
+   "type": "set_flag",
+   "flag": "air_music"
   }
  ]
 }

@@ -1,13 +1,13 @@
 {
- "id": "item_coal",
- "type": "item",
- "category": "part",
- "label": "Ком угля",
- "description": "Горсть тепла в кармане.",
- "image": "",
- "weight": 0.4,
- "stackable": true,
- "value": {
-  "mark": 2
- }
+  "id": "item_coal",
+  "type": "item",
+  "category": "material",
+  "label": "Уголь",
+  "description": "Кусок литого угля в мешковине. На седьмом ярусе уголь считают не топливом, а валютой: у кого топится печка, тот ещё жив.",
+  "weight": 1.0,
+  "stackable": true,
+  "value": {
+    "mark": 3
+  },
+  "interact_hint": "Топливо для печки"
 }

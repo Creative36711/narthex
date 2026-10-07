@@ -25,5 +25,8 @@
   "item": "item_lamp",
   "quantity": 1
  },
- "message": "Фитиль ожил: свет стал ровнее и холоднее."
+ "message": "Фитиль ожил: свет стал ровнее и холоднее.",
+ "category": "gear",
+ "sound": "sfx_lamp",
+ "sound_volume": 0.7
 }

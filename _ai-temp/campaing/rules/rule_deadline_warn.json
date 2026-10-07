@@ -28,6 +28,18 @@
    "type": "journal_update",
    "quest": "quest_pump",
    "text_key": "j_water"
+  },
+  {
+   "type": "override_music",
+   "tracks": [
+    "music_alarm"
+   ],
+   "fade": 3
+  },
+  {
+   "type": "play_sound",
+   "sound": "sfx_horn",
+   "volume": 0.9
   }
  ],
  "chapter": "ch_final"

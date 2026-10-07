@@ -1,7 +1,7 @@
 {
  "id": "arena_deep",
  "label": "Штольня (бой)",
- "image": "",
+ "image": "assets/img/arena_deep.jpg",
  "hex_grid": {
   "cols": 10,
   "rows": 8,

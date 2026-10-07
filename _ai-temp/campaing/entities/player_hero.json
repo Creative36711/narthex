@@ -1,75 +1,79 @@
 {
- "id": "player_hero",
- "type": "npc",
- "label": "Дознаватель",
- "description": "Приписной дознаватель седьмого яруса: человек, которого посылают туда, куда не хотят идти стражники.",
- "portrait": {},
- "stats": {
-  "STR": 9,
-  "CON": 10,
-  "SIZ": 10,
-  "DEX": 11,
-  "INT": 13,
-  "POW": 12,
-  "CHA": 11
- },
- "skills": {
-  "investigate": 55,
-  "perception": 45,
-  "persuade": 40,
-  "intimidate": 25,
-  "lore": 30,
-  "repair": 30,
-  "medicine": 20,
-  "lockpick": 25,
-  "stealth": 30,
-  "dodge": 35,
-  "blade": 30,
-  "brawl": 25,
-  "shoot": 20,
-  "bargain": 25
- },
- "slot_type": "person",
- "faction": "faction_nadzor",
- "base_disposition": 0,
- "schedule": [],
- "inventory": [
-  {
-   "item": "item_badge",
-   "quantity": 1
+  "id": "player_hero",
+  "type": "npc",
+  "label": "Дознаватель",
+  "description": "Приписной дознаватель седьмого яруса: человек, которого посылают туда, куда не хотят идти стражники.",
+  "portrait": {},
+  "stats": {
+    "STR": 9,
+    "CON": 10,
+    "SIZ": 10,
+    "DEX": 11,
+    "INT": 13,
+    "POW": 12,
+    "CHA": 11
   },
-  {
-   "item": "item_mark",
-   "quantity": 20
+  "skills": {
+    "investigate": 55,
+    "perception": 45,
+    "persuade": 40,
+    "intimidate": 25,
+    "lore": 30,
+    "repair": 30,
+    "medicine": 20,
+    "lockpick": 25,
+    "stealth": 30,
+    "dodge": 35,
+    "blade": 30,
+    "brawl": 25,
+    "shoot": 20,
+    "bargain": 25
   },
-  {
-   "item": "item_ration",
-   "quantity": 2
-  },
-  {
-   "item": "item_water",
-   "quantity": 1
-  },
-  {
-   "item": "item_knife",
-   "quantity": 1
-  },
-  {
-   "item": "item_wrench",
-   "quantity": 1
-  },
-  {
-   "item": "item_coat",
-   "quantity": 1
-  },
-  {
-   "item": "item_lamp",
-   "quantity": 1
+  "slot_type": "person",
+  "faction": "faction_nadzor",
+  "base_disposition": 0,
+  "schedule": [],
+  "inventory": [
+    {
+      "item": "item_badge",
+      "quantity": 1
+    },
+    {
+      "item": "item_mark",
+      "quantity": 20
+    },
+    {
+      "item": "item_ration",
+      "quantity": 2
+    },
+    {
+      "item": "item_water",
+      "quantity": 1
+    },
+    {
+      "item": "item_knife",
+      "quantity": 1
+    },
+    {
+      "item": "item_wrench",
+      "quantity": 1
+    },
+    {
+      "item": "item_coat",
+      "quantity": 1
+    },
+    {
+      "item": "item_lamp",
+      "quantity": 1
+    },
+    {
+      "item": "item_coal",
+      "quantity": 3
+    }
+  ],
+  "equipment": {
+    "weapon": "item_wrench",
+    "armor": "item_coat",
+    "gear": "item_lamp"
   }
- ],
- "equipment": {
-  "weapon": "item_wrench",
-  "armor": "item_coat",
-  "gear": "item_lamp"
- }
 }

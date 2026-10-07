@@ -30,10 +30,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const state = scene ? engine.activeSceneState(scene) : null
   const camStyle = useCameraStyle(state?.camera ?? null)
   const stateKey = scene && state ? `${scene.id}:${state.id}` : ''
-  const background: SceneBackground = state?.art
-    ? { kind: 'art', art: state.art }
-    : state?.image
-      ? { kind: 'image', src: assetUrl(engine.campaign, firstFrame(state.image)), label: state.label }
+  const hasImage = !!state?.image
+  const background: SceneBackground = hasImage
+    ? { kind: 'image', src: assetUrl(engine.campaign, firstFrame(state.image)), label: state.label }
+    : state?.art
+      ? { kind: 'art', art: state.art }
       : { kind: 'fallback' }
 
   useEffect(() => setBgError(''), [sceneId])
@@ -76,9 +77,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           от контейнера, картинка растягивается (object-fit: fill) */}
       <div className={`scene-stage ${lightingClass}`}>
         <div key={stateKey} className="scene-bg-camera" style={camStyle}>
-          {state.art ? (
-            <ArtView className="scene-bg scene-bg-enter" art={state.art} />
-          ) : state.image && !bgError ? (
+          {state.image && !bgError ? (
             <LiveImg
               className="scene-bg scene-bg-enter"
               value={state.image}
@@ -92,6 +91,8 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                 setBgError(src)
               }}
             />
+          ) : state.art ? (
+            <ArtView className="scene-bg scene-bg-enter" art={state.art} />
           ) : (
             /* сцена без арта (или арт не загрузился) — не «чёрный экран» */
             <div className="scene-bg scene-bg-fallback scene-bg-enter" aria-hidden />

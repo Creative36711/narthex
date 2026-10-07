@@ -1,7 +1,7 @@
 {
  "id": "arena_gallery",
  "label": "Затопленная галерея (бой)",
- "image": "",
+ "image": "assets/img/arena_gallery.jpg",
  "hex_grid": {
   "cols": 12,
   "rows": 6,

@@ -8,5 +8,8 @@
  "stackable": true,
  "value": {
   "mark": 5
+ },
+ "sounds": {
+  "use": "snd_pot"
  }
 }

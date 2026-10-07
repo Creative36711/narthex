@@ -25,6 +25,11 @@
   {
    "type": "show_message",
    "text": "За спиной лязгает затвор. Обратно — только с подписью инспектора."
+  },
+  {
+   "type": "play_sound",
+   "sound": "sfx_door",
+   "volume": 1.0
   }
  ],
  "chapter": "ch_arrival"

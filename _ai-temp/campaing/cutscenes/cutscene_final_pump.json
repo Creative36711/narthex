@@ -315,7 +315,8 @@
    "text": "Вода уходит из восьмого обратно в жилу. Порядок восстановлен: семь помп, шесть причин, одно имя под арестом.",
    "duration": 7,
    "transition": "fade",
-   "voice": "assets/voice/final_pump_2.mp3"
+   "voice": "assets/voice/final_pump_2.mp3",
+   "image": "assets/img/cut_final_pump_2.jpg"
   }
  ]
 }

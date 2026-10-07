@@ -5,10 +5,10 @@
   "description": "Хозяин прилавка, где можно купить что угодно, кроме совести: её он продал ещё на шестом ярусе.",
   "portrait": {
     "neutral": "assets/img/npc/dozh_neutral.jpg",
-    "angry": "assets/img/npc/dozh_thoughtful.jpg",
-    "afraid": "assets/img/npc/dozh_neutral.jpg",
+    "angry": "assets/img/npc/dozh_angry.jpg",
+    "afraid": "assets/img/npc/dozh_afraid.jpg",
     "thoughtful": "assets/img/npc/dozh_thoughtful.jpg",
-    "sad": "assets/img/npc/dozh_neutral.jpg",
+    "sad": "assets/img/npc/dozh_sad.jpg",
     "calm": "assets/img/npc/dozh_calm.jpg"
   },
   "stats": {
@@ -41,6 +41,11 @@
   ],
   "trader": {
     "sells": [
+      {
+        "item": "item_coal",
+        "price": 3,
+        "stock": 12
+      },
       {
         "item": "item_scrap",
         "price": 3,
@@ -99,5 +104,6 @@
     ],
     "buys": true,
     "buy_rate": 0.6
-  }
+  },
+  "scene_sprite": "assets/img/npc/sprite_dozh.png"
 }

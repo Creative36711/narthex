@@ -18,5 +18,8 @@
    }
   ],
   "consume": true
+ },
+ "sounds": {
+  "use": "sfx_water"
  }
 }

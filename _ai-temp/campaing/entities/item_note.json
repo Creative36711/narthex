@@ -9,5 +9,8 @@
  "value": {
   "mark": 0
  },
- "quest_item": true
+ "quest_item": true,
+ "sounds": {
+  "use": "snd_paper"
+ }
 }

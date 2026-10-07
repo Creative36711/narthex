@@ -7293,6 +7293,10 @@
         "stackable": {
           "type": "boolean"
         },
+        "quest_item": {
+          "type": "boolean",
+          "description": "сюжетный/квестовый предмет (нельзя выбросить или продать в лавку)"
+        },
         "weapon_data": {
           "$ref": "#/$defs/WeaponData"
         },

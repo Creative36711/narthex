@@ -12,7 +12,8 @@
        "kind": "line",
        "line": {
         "text": "Айла промокает бинт и не смотрит на твои руки.",
-        "action": true
+        "action": true,
+        "sfx": "sfx_water"
        }
       },
       {
@@ -20,6 +21,20 @@
        "line": {
         "text": "Сядь. У тебя ссадина на костяшках и вид человека, который не спал двое суток.",
         "voice": "assets/voice/ayla_1.mp3"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Двое суток без сна — это полдела. За трое начинают мерещиться вещи, которые потом вносят в протокол.",
+        "voice": "assets/voice/ayla_8.mp3"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Если пойдёшь на девятый, возьми мой настой. Он не от воды. Он от того, что в воде.",
+        "voice": "assets/voice/ayla_9.mp3"
        }
       }
      ]
@@ -35,7 +50,8 @@
          "kind": "line",
          "line": {
           "text": "Держи. Не дёргайся: я режу ровно, но больно.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/ayla_4.mp3"
          }
         },
         {
@@ -74,7 +90,8 @@
          "kind": "line",
          "line": {
           "text": "Отвар горький. Гнилец горше. Глотай, не нюхай.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/ayla_5.mp3"
          }
         },
         {
@@ -124,7 +141,8 @@
          "kind": "line",
          "line": {
           "text": "Рецепт простой, как всё, что спасает жизнь: трава, вода и терпение.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/ayla_6.mp3"
          }
         },
         {
@@ -204,7 +222,8 @@
          "kind": "line",
          "line": {
           "text": "Бери, что нужно. И оставь себе на воду — воды всегда нужно больше.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/ayla_7.mp3"
          }
         },
         {

@@ -1,72 +1,73 @@
 {
-  "id": "npc_ayla",
-  "type": "npc",
-  "label": "Сестра Айла, лекарь Сухого ряда",
-  "description": "Лекарь без храма: срезает гнилец, продаёт настой и не спрашивает, откуда у тебя чужие документы.",
-  "portrait": {
-    "neutral": "assets/img/npc/ayla_neutral.jpg",
-    "angry": "assets/img/npc/ayla_thoughtful.jpg",
-    "afraid": "assets/img/npc/ayla_neutral.jpg",
-    "thoughtful": "assets/img/npc/ayla_thoughtful.jpg",
-    "sad": "assets/img/npc/ayla_neutral.jpg",
-    "calm": "assets/img/npc/ayla_calm.jpg"
-  },
-  "stats": {
-    "STR": 7,
-    "CON": 10,
-    "SIZ": 9,
-    "DEX": 12,
-    "INT": 14,
-    "POW": 13,
-    "CHA": 12
-  },
-  "skills": {
-    "medicine": 68,
-    "perception": 48,
-    "persuade": 42,
-    "lore": 38,
-    "bargain": 35
-  },
-  "slot_type": "person",
-  "faction": "faction_bottom",
-  "base_disposition": 10,
-  "schedule": [],
-  "dialogue": "dialogues/ayla.ink",
-  "inventory": [
-    {
-      "item": "item_mark",
-      "quantity": 60
-    }
-  ],
-  "trader": {
-    "sells": [
-      {
-        "item": "item_bandage",
-        "price": 8,
-        "stock": 5
-      },
-      {
-        "item": "item_tonic",
-        "price": 22,
-        "stock": 2
-      },
-      {
-        "item": "item_antirot",
-        "price": 30,
-        "stock": 2
-      },
-      {
-        "item": "item_stew",
-        "price": 7,
-        "stock": 4
-      },
-      {
-        "item": "item_water",
-        "price": 4,
-        "stock": 4
-      }
-    ],
-    "buys": true,
-    "buy_rate": 0.4
+ "id": "npc_ayla",
+ "type": "npc",
+ "label": "Сестра Айла, лекарь Сухого ряда",
+ "description": "Лекарь без храма: срезает гнилец, продаёт настой и не спрашивает, откуда у тебя чужие документы.",
+ "portrait": {
+  "neutral": "assets/img/npc/ayla_neutral.jpg",
+  "angry": "assets/img/npc/ayla_angry.jpg",
+  "afraid": "assets/img/npc/ayla_afraid.jpg",
+  "thoughtful": "assets/img/npc/ayla_thoughtful.jpg",
+  "sad": "assets/img/npc/ayla_sad.jpg",
+  "calm": "assets/img/npc/ayla_calm.jpg"
+ },
+ "stats": {
+  "STR": 7,
+  "CON": 10,
+  "SIZ": 9,
+  "DEX": 12,
+  "INT": 14,
+  "POW": 13,
+  "CHA": 12
+ },
+ "skills": {
+  "medicine": 68,
+  "perception": 48,
+  "persuade": 42,
+  "lore": 38,
+  "bargain": 35
+ },
+ "slot_type": "person",
+ "faction": "faction_bottom",
+ "base_disposition": 10,
+ "schedule": [],
+ "dialogue": "dialogues/ayla.ink",
+ "inventory": [
+  {
+   "item": "item_mark",
+   "quantity": 60
   }
+ ],
+ "trader": {
+  "sells": [
+   {
+    "item": "item_bandage",
+    "price": 8,
+    "stock": 5
+   },
+   {
+    "item": "item_tonic",
+    "price": 22,
+    "stock": 2
+   },
+   {
+    "item": "item_antirot",
+    "price": 30,
+    "stock": 2
+   },
+   {
+    "item": "item_stew",
+    "price": 7,
+    "stock": 4
+   },
+   {
+    "item": "item_water",
+    "price": 4,
+    "stock": 4
+   }
+  ],
+  "buys": true,
+  "buy_rate": 0.4
+ },
+ "scene_sprite": "assets/img/npc/sprite_ayla.png"
 }

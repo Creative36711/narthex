@@ -1,16 +1,20 @@
 {
-  "id": "item_coat",
-  "type": "item",
-  "category": "armor",
-  "label": "Плащ дознавателя",
-  "description": "Длинный промасленный плащ с глубоким капюшоном. Внизу он важнее брони: он держит сырость.",
-  "weight": 2.0,
-  "stackable": false,
-  "value": {
-    "mark": 19
-  },
-  "equip_slot": "armor",
-  "armor_data": {
-    "points": 2
-  }
+ "id": "item_coat",
+ "type": "item",
+ "category": "armor",
+ "label": "Плащ дознавателя",
+ "description": "Длинный промасленный плащ с глубоким капюшоном. Внизу он важнее брони: он держит сырость.",
+ "weight": 2.0,
+ "stackable": false,
+ "value": {
+  "mark": 19
+ },
+ "equip_slot": "armor",
+ "armor_data": {
+  "points": 2
+ },
+ "sounds": {
+  "equip": "snd_cloth",
+  "unequip": "snd_cloth"
+ }
 }

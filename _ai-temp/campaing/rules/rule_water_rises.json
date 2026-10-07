@@ -1,0 +1,34 @@
+{
+ "id": "rule_water_rises",
+ "label": "Вода в галерее поднялась",
+ "once": false,
+ "manual": false,
+ "conditions": [
+  {
+   "type": "tick_elapsed",
+   "min_tick": 68
+  },
+  {
+   "type": "player_enters_scene",
+   "scene": "scene_flood_gallery"
+  }
+ ],
+ "effects": [
+  {
+   "type": "apply_status",
+   "target": "player",
+   "status": "status_wading",
+   "duration": 3
+  },
+  {
+   "type": "show_message",
+   "text": "Галерея приняла воду по-настоящему: раньше она была по щиколотку, теперь — выше колена. Каждый шаг считается, и слышно тебя издалека."
+  },
+  {
+   "type": "play_sound",
+   "sound": "sfx_surge",
+   "volume": 0.9
+  }
+ ],
+ "chapter": "ch_final"
+}

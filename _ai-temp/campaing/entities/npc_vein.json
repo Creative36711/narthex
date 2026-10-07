@@ -5,10 +5,10 @@
   "description": "Стена в слепом забое, по которой идёт бирюзовый свет. Она не говорит — она отвечает, и не всегда на твой вопрос.",
   "portrait": {
     "neutral": "assets/img/npc/vein_neutral.jpg",
-    "angry": "assets/img/npc/vein_calm.jpg",
-    "afraid": "assets/img/npc/vein_neutral.jpg",
+    "angry": "assets/img/npc/vein_angry.jpg",
+    "afraid": "assets/img/npc/vein_afraid.jpg",
     "thoughtful": "assets/img/npc/vein_thoughtful.jpg",
-    "sad": "assets/img/npc/vein_thoughtful.jpg",
+    "sad": "assets/img/npc/vein_sad.jpg",
     "calm": "assets/img/npc/vein_calm.jpg"
   },
   "stats": {
@@ -27,5 +27,6 @@
   "slot_type": "prop",
   "base_disposition": 0,
   "schedule": [],
-  "dialogue": "dialogues/vein.ink"
+  "dialogue": "dialogues/vein.ink",
+  "scene_sprite": "assets/img/npc/sprite_vein.png"
 }

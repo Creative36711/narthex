@@ -1,0 +1,28 @@
+{
+  "id": "rule_zero_thirst",
+  "label": "Вода кончилась",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_hp",
+      "delta": -4
+    },
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_thirst",
+      "duration": 12
+    },
+    {
+      "type": "show_message",
+      "text": "Язык распух и не помещается во рту. Ты обещаешь себе, что воды больше не будет «потом»."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_gasp",
+      "volume": 0.8
+    }
+  ]
+}

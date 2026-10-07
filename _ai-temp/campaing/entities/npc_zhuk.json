@@ -1,60 +1,61 @@
 {
- "id": "npc_zhuk",
- "type": "npc",
- "label": "Жук, информатор",
- "description": "Человек-ухо нижних ярусов: знает, кто что сказал, и продаёт это раньше, чем сказавший успевает пожалеть.",
- "portrait": {
-  "neutral": "assets/img/npc/zhuk_neutral.jpg",
-  "angry": "assets/img/npc/zhuk_angry.jpg",
-  "afraid": "assets/img/npc/zhuk_angry.jpg",
-  "thoughtful": "assets/img/npc/zhuk_thoughtful.jpg",
-  "sad": "assets/img/npc/zhuk_thoughtful.jpg",
-  "calm": "assets/img/npc/zhuk_calm.jpg"
- },
- "stats": {
-  "STR": 8,
-  "CON": 9,
-  "SIZ": 8,
-  "DEX": 15,
-  "INT": 12,
-  "POW": 9,
-  "CHA": 12
- },
- "skills": {
-  "stealth": 62,
-  "lockpick": 52,
-  "perception": 58,
-  "bargain": 46,
-  "persuade": 36,
-  "dodge": 45
- },
- "slot_type": "person",
- "faction": "faction_bottom",
- "base_disposition": -5,
- "schedule": [
-  {
-   "time_range": [
-    12,
-    23
-   ],
-   "location": "loc_ward8",
-   "scene": "scene_dry_row",
-   "slot": "slot_zhuk"
-  }
- ],
- "presence_overrides": [
-  {
-   "flag": "zhuk_at_gate",
-   "location": "loc_gate",
-   "scene": "scene_gate_hall",
-   "slot": "slot_guest"
-  }
- ],
- "dialogue": "dialogues/zhuk.ink",
- "inventory": [
-  {
-   "item": "item_mark",
-   "quantity": 18
-  }
- ]
+  "id": "npc_zhuk",
+  "type": "npc",
+  "label": "Жук, информатор",
+  "description": "Человек-ухо нижних ярусов: знает, кто что сказал, и продаёт это раньше, чем сказавший успевает пожалеть.",
+  "portrait": {
+    "neutral": "assets/img/npc/zhuk_neutral.jpg",
+    "angry": "assets/img/npc/zhuk_angry.jpg",
+    "afraid": "assets/img/npc/zhuk_afraid.jpg",
+    "thoughtful": "assets/img/npc/zhuk_thoughtful.jpg",
+    "sad": "assets/img/npc/zhuk_sad.jpg",
+    "calm": "assets/img/npc/zhuk_calm.jpg"
+  },
+  "stats": {
+    "STR": 8,
+    "CON": 9,
+    "SIZ": 8,
+    "DEX": 15,
+    "INT": 12,
+    "POW": 9,
+    "CHA": 12
+  },
+  "skills": {
+    "stealth": 62,
+    "lockpick": 52,
+    "perception": 58,
+    "bargain": 46,
+    "persuade": 36,
+    "dodge": 45
+  },
+  "slot_type": "person",
+  "faction": "faction_bottom",
+  "base_disposition": -5,
+  "schedule": [
+    {
+      "time_range": [
+        12,
+        23
+      ],
+      "location": "loc_ward8",
+      "scene": "scene_dry_row",
+      "slot": "slot_zhuk"
+    }
+  ],
+  "presence_overrides": [
+    {
+      "flag": "zhuk_at_gate",
+      "location": "loc_gate",
+      "scene": "scene_gate_hall",
+      "slot": "slot_guest"
+    }
+  ],
+  "dialogue": "dialogues/zhuk.ink",
+  "inventory": [
+    {
+      "item": "item_mark",
+      "quantity": 18
+    }
+  ],
+  "scene_sprite": "assets/img/npc/sprite_zhuk.png"
 }

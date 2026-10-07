@@ -37,6 +37,11 @@
   {
    "type": "show_message",
    "text": "Шлюзы нижних ярусов закрыты «до выяснения». В Сухом ряду всё сразу подорожало."
+  },
+  {
+   "type": "play_sound",
+   "sound": "snd_latch",
+   "volume": 0.9
   }
  ],
  "chapter": "ch_price"

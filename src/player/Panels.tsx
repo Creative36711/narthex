@@ -223,18 +223,22 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                       Надеть
                     </button>
                   ))}
-                <button
-                  className="btn btn-small btn-drop"
-                  data-tip="Выбросить 1 шт."
-                  onClick={async () => {
-                    if (await askConfirm(`Выбросить ${entry.quantity > 1 ? '1 шт. —' : ''}«${def!.label}»?`, 'Выбросить')) {
-                      engine.removeItem(entry.item, 1)
-                      playInteraction('drop', { entity: def })
-                    }
-                  }}
-                >
-                  <Ico n="trash" /> 
-                </button>
+                {!def?.quest_item ? (
+                  <button
+                    className="btn btn-small btn-drop"
+                    data-tip="Выбросить 1 шт."
+                    onClick={async () => {
+                      if (await askConfirm(`Выбросить ${entry.quantity > 1 ? '1 шт. —' : ''}«${def!.label}»?`, 'Выбросить')) {
+                        engine.removeItem(entry.item, 1)
+                        playInteraction('drop', { entity: def })
+                      }
+                    }}
+                  >
+                    <Ico n="trash" /> 
+                  </button>
+                ) : (
+                  <span className="badge badge-quest" data-tip="Сюжетный предмет (нельзя выбросить)"><Ico n="lock" /></span>
+                )}
               </div>
             </li>
           ))}

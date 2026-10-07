@@ -17,5 +17,8 @@
    }
   ],
   "consume": true
+ },
+ "sounds": {
+  "use": "snd_cloth"
  }
 }

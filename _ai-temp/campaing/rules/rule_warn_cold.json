@@ -1,0 +1,29 @@
+{
+  "id": "rule_warn_cold",
+  "label": "Холод пробрал",
+  "once": false,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "need_le",
+      "need": "need_warmth",
+      "threshold": 35
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "has_status",
+        "status": "status_cold"
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_cold",
+      "duration": 6
+    }
+  ],
+  "chapter": "ch_water"
+}
