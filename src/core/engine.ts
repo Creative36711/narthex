@@ -2432,10 +2432,46 @@ export class GameEngine {
 
   /** Активное состояние сцены: первое, чьё условие истинно; иначе первое. */
   activeSceneState(scene: SceneDef): SceneStateDef {
+    // 1. Приоритет явно переключенному состоянию scene_state:<scene>:<state>
+    for (const st of scene.states) {
+      if (this.state.flags[`scene_state:${scene.id}:${st.id}`]) return st
+    }
+    // 2. Стандартные условия (время суток, флаги)
     for (const st of scene.states) {
       if (evalSceneCondition(st.condition, this)) return st
     }
     return scene.states[0]
+  }
+
+  changeSceneState(sceneIdOrState: string, maybeState?: string): void {
+    const sceneId = maybeState ? sceneIdOrState : this.state.scene
+    const stateId = maybeState ?? sceneIdOrState
+    const sc = this.campaign.scenes[sceneId]
+    if (sc) {
+      for (const st of sc.states) {
+        delete this.state.flags[`scene_state:${sceneId}:${st.id}`]
+      }
+      this.state.flags[`scene_state:${sceneId}:${stateId}`] = true
+      this.notify()
+    }
+  }
+
+  goToSceneFromDialogue(sceneId: string, closeDialogue = true): void {
+    if (closeDialogue) {
+      this.endDialogue()
+    }
+    this.goToScene(sceneId, 0)
+  }
+
+  startCombatFromDialogue(arenaId: string): void {
+    const enemyId = this.activeNpc?.id || Object.keys(this.campaign.entities).find((k) => this.campaign.entities[k]?.type === 'npc') || ''
+    this.endDialogue()
+    this.startCombat({
+      type: 'start_combat',
+      arena: arenaId,
+      enemies: [{ entity: enemyId, count: 1 }],
+      intro: `Бой с ${this.activeNpc?.label ?? 'противником'}!`,
+    })
   }
 
   /** Активное «особое место» НПС: первый оверрайд, чей флаг-условие выполнено. */

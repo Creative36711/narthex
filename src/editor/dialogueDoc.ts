@@ -349,12 +349,25 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'set_entity_state': return `${indent}~ set_entity_state(${q(e.entity)}, ${q(e.state)})`
     case 'learn_name': return `${indent}~ learn_name(${q(e.entity)})`
     case 'present_item': return `${indent}~ present_item(${q(e.ok)}, ${q(e.fail)}${e.required ? `, ${q(e.required)}` : ''})`
+    case 'go_to_scene': return `${indent}~ go_to_scene(${q(e.scene)})`
+    case 'start_combat': return `${indent}~ start_combat(${q(e.arena)})`
+    case 'change_scene_state': return `${indent}~ change_scene_state(${q(e.state)})`
+    case 'game_over_death': return `${indent}~ game_over_death(${q(e.message ?? '')})`
+    case 'game_over_victory': return `${indent}~ game_over_victory(${q(e.message ?? '')})`
   }
 }
 
-/** open_trade / open_craft / fire_rule сами закрывают диалог — после них всегда конец */
+/** open_trade / open_craft / fire_rule / start_combat / game_over сами закрывают диалог — после них всегда конец */
 function isTerminalEffect(e: DlgEffect): boolean {
-  return e.type === 'open_trade' || e.type === 'open_craft' || e.type === 'fire_rule'
+  return (
+    e.type === 'open_trade' ||
+    e.type === 'open_craft' ||
+    e.type === 'fire_rule' ||
+    e.type === 'start_combat' ||
+    e.type === 'game_over_death' ||
+    e.type === 'game_over_victory' ||
+    (e.type === 'go_to_scene' && e.close_dialogue !== false)
+  )
 }
 
 export function generateInk(docRaw: DlgDoc): string {
@@ -470,6 +483,8 @@ export function generateInk(docRaw: DlgDoc): string {
     // DlgEffect, добавленные позже блоков статусов/погоды/кодекса/рецептов
     'set_description', 'set_entity_state', 'apply_status', 'remove_status', 'set_weather',
     'unlock_codex', 'unlock_recipe', 'open_craft', 'set_dialogue_timer', 'present_item',
+    'learn_name', 'is_name_known', 'go_to_scene', 'start_combat', 'change_scene_state',
+    'game_over_death', 'game_over_victory',
     // токены реплик ({имя}, {здоровье_макс}, …) — без EXTERNAL inkjs не компилирует
     'get_player_name', 'get_hp_max', 'get_mp', 'get_mp_max', 'get_luck',
     'get_level', 'get_xp', 'get_run_day', 'get_currency',
@@ -485,6 +500,8 @@ export function generateInk(docRaw: DlgDoc): string {
     set_description: '(id, t)', set_entity_state: '(e, s)', apply_status: '(id, d)', remove_status: '(id)',
     set_weather: '(id)', unlock_codex: '(id)', unlock_recipe: '(id)', open_craft: '(id)',
     set_dialogue_timer: '(s, t)', present_item: '(o, f, r)',
+    learn_name: '(id)', is_name_known: '(id)', go_to_scene: '(s)', start_combat: '(a)',
+    change_scene_state: '(s)', game_over_death: '(m)', game_over_victory: '(m)',
     get_player_name: '()', get_hp_max: '()', get_mp: '()', get_mp_max: '()',
     get_luck: '()', get_level: '()', get_xp: '()', get_run_day: '()', get_currency: '(id)',
   }

@@ -25,6 +25,7 @@ import type { EditorStore } from './store'
 export type ScriptRefKind =
   | 'flag' | 'item' | 'quest' | 'skill' | 'status' | 'weather' | 'npc'
   | 'disposition' | 'recipe' | 'codex' | 'cutscene' | 'need' | 'rule' | 'emotion'
+  | 'scene' | 'arena'
 
 export interface ScriptRefs {
   /** записи реестра: id + человеческая подпись */
@@ -76,6 +77,8 @@ export function refsFromMonolith(doc: MonolithDoc, dialogueId?: string): ScriptR
       case 'cutscene': return Object.values(doc.cutscenes ?? {}).map((c) => ({ id: c.id, label: c.label || c.id }))
       case 'rule': return Object.values(doc.rules ?? {}).map((r) => ({ id: r.id, label: r.label || r.id }))
       case 'emotion': return [{ id: DEFAULT_EMOTION.id, label: DEFAULT_EMOTION.label }, ...(meta.emotions ?? []).map((e) => ({ id: e.id, label: e.label || e.id }))]
+      case 'scene': return Object.values(doc.scenes ?? {}).map((s) => ({ id: s.id, label: s.label || s.id }))
+      case 'arena': return Object.values(doc.arenas ?? {}).map((a) => ({ id: a.id, label: a.label || a.id }))
       case 'disposition': return [
         ...(meta.factions ?? []).map((f) => ({ id: f.id, label: `${f.label || f.id} (фракция)` })),
         ...npcs.map((n) => ({ id: n.id, label: `${n.label} (NPC)` })),
@@ -413,7 +416,7 @@ function byName(list: Array<{ id: string; label: string }>, text: string, what: 
   return { error: `не нашли ${what} «${text}».${suggest(list, text)}` }
 }
 
-const EFFECT_HINT = 'Команды: запомнить, выдать, забрать, правило, отряд, торговля, изготовление, квест, время, потребность, здоровье, сон, отношение, катсцена, описание, статус, снять статус, погода, кодекс, рецепт, облик, перейти, конец, остаться.'
+const EFFECT_HINT = 'Команды: запомнить, выдать, забрать, сцена, бой, состояние сцены, гибель, победа, правило, отряд, торговля, изготовление, квест, время, потребность, здоровье, сон, отношение, катсцена, описание, статус, снять статус, погода, кодекс, рецепт, облик, перейти, конец, остаться.'
 
 export function parseEffectLine(raw: string, ctx: ParseCtx): EffectOut {
   const refs = ctx.refs
@@ -549,6 +552,26 @@ export function parseEffectLine(raw: string, ctx: ParseCtx): EffectOut {
           : { error: 'пишите так: «→ раскрыть имя: Вольт»' }
       if ('error' in who) return who
       return { effect: { type: 'learn_name', entity: who.id } }
+    }
+    case /^(сцена|перейти в сцену|в сцену)/.test(kind): {
+      const sc = byName(refs.options('scene'), value, 'сцену')
+      if ('error' in sc) return sc
+      return { effect: { type: 'go_to_scene', scene: sc.id } }
+    }
+    case /^(бой|начать бой|арена)/.test(kind): {
+      const a = byName(refs.options('arena'), value, 'арену')
+      if ('error' in a) return a
+      return { effect: { type: 'start_combat', arena: a.id } }
+    }
+    case /^(состояние сцены|декорация|обстановка)/.test(kind): {
+      if (!value) return { error: 'укажите состояние сцены: «→ состояние сцены: ночь»' }
+      return { effect: { type: 'change_scene_state', state: value } }
+    }
+    case /^(гибель|поражение|смерть)/.test(kind): {
+      return { effect: { type: 'game_over_death', message: value || undefined } }
+    }
+    case /^(победа|триумф|финал)/.test(kind): {
+      return { effect: { type: 'game_over_victory', message: value || undefined } }
     }
     case /^облик/.test(kind): {
       const m = value.match(/^(.*?)\s+[—–-]\s+(.+)$/)
@@ -1002,6 +1025,11 @@ function effectToScript(e: DlgEffect, refs: ScriptRefs): string {
     case 'unlock_recipe': return `→ рецепт: ${label('recipe', e.recipe)}`
     case 'set_entity_state': return `→ облик: ${label('npc', e.entity)} — ${e.state ? label('emotion', e.state) : 'обычный'}`
     case 'learn_name': return `→ раскрыть имя: ${label('npc', e.entity)}`
+    case 'go_to_scene': return `→ сцена: ${label('scene', e.scene)}`
+    case 'start_combat': return `→ бой: ${label('arena', e.arena)}`
+    case 'change_scene_state': return `→ состояние сцены: ${e.state}`
+    case 'game_over_death': return e.message ? `→ гибель: ${e.message}` : '→ гибель'
+    case 'game_over_victory': return e.message ? `→ победа: ${e.message}` : '→ победа'
     case 'present_item': return `→ предъявить улику: ${e.required ? label('item', e.required) : 'любой предмет'} (успех: ${e.ok}, иначе: ${e.fail})`
   }
 }

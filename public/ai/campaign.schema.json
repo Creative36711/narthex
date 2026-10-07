@@ -6735,7 +6735,6 @@
                 "$ref": "#/$defs/AmbientRule"
               }
             ]
-          },
           "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации). Строка id или AmbientRule с условиями"
         },
         "lighting": {
@@ -8876,6 +8875,90 @@
             "type",
             "ok",
             "fail"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "go_to_scene"
+            },
+            "scene": {
+              "type": "string"
+            },
+            "close_dialogue": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "scene"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "start_combat"
+            },
+            "arena": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "arena"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_scene_state"
+            },
+            "state": {
+              "type": "string"
+            },
+            "scene": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "game_over_death"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "game_over_victory"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
           ],
           "additionalProperties": false
         }

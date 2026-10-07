@@ -1997,20 +1997,18 @@ export type DlgCond =
   | { type: 'weather_is'; weather: string; not?: boolean } // текущая погода (блок 9 ТЗ; '' — ясно)
   /** навык героя не ниже порога (not: ниже) — светские проверки в разговоре */
   | { type: 'skill_ge'; skill: string; threshold: number; not?: boolean }
-    /** счётчик хроники не ниже значения (not: ниже) — «новый круг», достижения */
-    | { type: 'meta_counter'; key: string; ge: number; not?: boolean }
-    /** известно ли настоящее имя персонажа (механика «Незнакомец») */
-    | { type: 'npc_known'; entity: string; known?: boolean; not?: boolean }
+  /** счётчик хроники не ниже значения (not: ниже) — «новый круг», достижения */
+  | { type: 'meta_counter'; key: string; ge: number; not?: boolean }
+  /** известно ли настоящее имя персонажа (механика «Незнакомец») */
+  | { type: 'npc_known'; entity: string; known?: boolean; not?: boolean }
 
-  export type DlgEffect =
-    | { type: 'set_flag'; flag: string }
-    | { type: 'add_item'; item: string; qty: number }
-    | { type: 'remove_item'; item: string; qty: number }
-    | { type: 'fire_rule'; rule: string }
-    | { type: 'join_party'; npc: string }
-    | { type: 'open_trade'; npc: string }
-    /** раскрыть настоящее имя персонажа игроку (механика «Незнакомец») */
-    | { type: 'learn_name'; entity: string; silent?: boolean }
+export type DlgEffect =
+  | { type: 'set_flag'; flag: string }
+  | { type: 'add_item'; item: string; qty: number }
+  | { type: 'remove_item'; item: string; qty: number }
+  | { type: 'fire_rule'; rule: string }
+  | { type: 'join_party'; npc: string }
+  | { type: 'open_trade'; npc: string }
   /**
    * Открыть окно изготовления (крафта) прямо по ходу сцены или реплики —
    * без кнопки в интерфейсе. `recipe` (необязательно) подсвечивает нужный
@@ -2049,6 +2047,18 @@ export type DlgCond =
    * `~ present_item("ok_knot", "fail_knot", "required_item_id")`.
    */
   | { type: 'present_item'; ok: string; fail: string; required?: string }
+  /** раскрыть настоящее имя персонажа игроку (механика «Незнакомец») */
+  | { type: 'learn_name'; entity: string; silent?: boolean }
+  /** перейти в другую сцену прямо из диалога (смена ракурса, крупный план или переезд) */
+  | { type: 'go_to_scene'; scene: string; close_dialogue?: boolean }
+  /** начать бой прямо из диалога (диалог закрывается и открывается боевая арена) */
+  | { type: 'start_combat'; arena: string }
+  /** сменить декорацию / состояние текущей сцены прямо под диалогом */
+  | { type: 'change_scene_state'; state: string; scene?: string }
+  /** завершить игру поражением / гибелью */
+  | { type: 'game_over_death'; message?: string }
+  /** завершить игру победой / успешным финалом */
+  | { type: 'game_over_victory'; message?: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =

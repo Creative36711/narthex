@@ -140,10 +140,12 @@ export function sanitizeInkSource(source: string): string {
     'set_flag(f)', 'clear_flag(f)', 'apply_status(p, s, d)', 'remove_status(p, s)',
     'set_weather(w)', 'unlock_codex(e)', 'unlock_recipe(r)', 'open_trade(n)',
     'open_craft(r)', 'add_item(id, n)', 'remove_item(id, q)', 'change_disposition(t, d)',
-    'join_party(e)', 'start_combat(e, a)', 'start_quest(q)', 'advance_quest(q, s)',
+    'join_party(e)', 'start_combat(a)', 'start_quest(q)', 'advance_quest(q, s)',
     'fail_quest(q)', 'journal_update(q, k)', 'fire_rule(r)', 'change_hp(d)',
     'change_need(n, d)', 'advance_time(t)', 'sleep(h)', 'set_dialogue_timer(s, k)',
-    'present_item(o, f, r)', 'play_sound(s, v)',
+    'present_item(o, f, r)', 'play_sound(s, v)', 'set_entity_state(e, s)',
+    'learn_name(id)', 'is_name_known(id)', 'go_to_scene(s)', 'change_scene_state(s)',
+    'game_over_death(m)', 'game_over_victory(m)',
   ]
 
   const declared = new Set<string>()
@@ -340,6 +342,26 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('set_weather', (id: string) => { engine.applyEffects([{ type: 'set_weather', weather: id }]); return 0 })
   bind('unlock_codex', (id: string) => { engine.applyEffects([{ type: 'unlock_codex', entry: id }]); return 0 })
   bind('unlock_recipe', (id: string) => { engine.applyEffects([{ type: 'unlock_recipe', recipe: id }]); return 0 })
+  bind('go_to_scene', (sceneId: string) => {
+    engine.goToSceneFromDialogue(sceneId, true)
+    return 0
+  })
+  bind('start_combat', (arenaId: string) => {
+    engine.startCombatFromDialogue(arenaId)
+    return 0
+  })
+  bind('change_scene_state', (state: string) => {
+    engine.changeSceneState(state)
+    return 0
+  })
+  bind('game_over_death', (reason: string) => {
+    engine.gameOver('death', reason || 'Гибель героя')
+    return 0
+  })
+  bind('game_over_victory', (reason: string) => {
+    engine.gameOver('victory', reason || 'Триумф героя')
+    return 0
+  })
 }
 
 /**

@@ -93,6 +93,11 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
   { id: 'set_entity_state', label: 'Сменить облик персонажа' },
   { id: 'learn_name', label: 'Раскрыть настоящее имя персонажа' },
+  { id: 'go_to_scene', label: 'Перейти в другую сцену' },
+  { id: 'start_combat', label: 'Начать бой (завершает разговор)' },
+  { id: 'change_scene_state', label: 'Сменить состояние/декорацию сцены' },
+  { id: 'game_over_death', label: 'Гибель / поражение (завершает игру)' },
+  { id: 'game_over_victory', label: 'Победа / триумф (завершает игру)' },
 ]
 
 function blankEffect(type: DlgEffect['type']): DlgEffect {
@@ -119,6 +124,11 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'open_craft': return { type, recipe: '' }
     case 'set_entity_state': return { type, entity: '', state: '' }
     case 'learn_name': return { type, entity: '' }
+    case 'go_to_scene': return { type, scene: '', close_dialogue: true }
+    case 'start_combat': return { type, arena: '' }
+    case 'change_scene_state': return { type, state: '' }
+    case 'game_over_death': return { type, message: '' }
+    case 'game_over_victory': return { type, message: '' }
     case 'present_item': return { type, ok: '', fail: '' }
   }
 }
@@ -1220,6 +1230,46 @@ function EffectRow({
             ))}
           </select>
         </>
+      )}
+      {e.type === 'go_to_scene' && (
+        <>
+          <InlineRef kind="scene" store={store} value={e.scene} onChange={(v) => ((e.scene = v), commit())} />
+          <label className="fld-check small" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <input
+              type="checkbox"
+              checked={e.close_dialogue !== false}
+              onChange={(ev) => ((e.close_dialogue = ev.target.checked), commit())}
+            />
+            <span>Закрыть диалог</span>
+          </label>
+        </>
+      )}
+      {e.type === 'start_combat' && (
+        <InlineRef kind="arena" store={store} value={e.arena} onChange={(v) => ((e.arena = v), commit())} />
+      )}
+      {e.type === 'change_scene_state' && (
+        <>
+          <InlineRef kind="scene" store={store} value={e.scene ?? ''} onChange={(v) => ((e.scene = v || undefined), commit())} />
+          <input
+            value={e.state}
+            placeholder="состояние (напр. night, broken)"
+            onChange={(ev) => ((e.state = ev.target.value), commit())}
+          />
+        </>
+      )}
+      {e.type === 'game_over_death' && (
+        <input
+          value={e.message ?? ''}
+          placeholder="причина гибели (эпилог)"
+          onChange={(ev) => ((e.message = ev.target.value), commit())}
+        />
+      )}
+      {e.type === 'game_over_victory' && (
+        <input
+          value={e.message ?? ''}
+          placeholder="сообщение победы (эпилог)"
+          onChange={(ev) => ((e.message = ev.target.value), commit())}
+        />
       )}
       <button className="btn btn-small ce-del" onClick={onRemove}><Ico n="close" /> </button>
     </div>
