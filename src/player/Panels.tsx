@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { Ico } from '../shared/icons'
 import { PlayerPortrait } from './PlayerPortrait'
 import { askConfirm } from '../shared/modals'
@@ -550,10 +550,24 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
 /** Журнал: квесты (стадии, записи) + события (ТЗ 6.1). */
 export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
   const [qq, setQq] = useState('')
+  const [logTab, setLogTab] = useState<'all' | 'rolls' | 'story' | 'economy'>('all')
   const log = engine.state.log
   const quests = Object.entries(engine.state.quests)
   const active = quests.filter(([, q]) => q.status === 'active')
   const done = quests.filter(([, q]) => q.status !== 'active')
+
+  const filteredLog = useMemo(() => {
+    if (logTab === 'rolls') {
+      return log.filter((l) => /(?:d100|d20|d6|d8|d10|d12|бросок|проверка|успех|провал|критическ|спасбросок)/i.test(l))
+    }
+    if (logTab === 'story') {
+      return log.filter((l) => /(?:квест|задани|дело|цель|найден|открыт|глава|заметк|сцена|разговор|поговорил|журнал)/i.test(l))
+    }
+    if (logTab === 'economy') {
+      return log.filter((l) => /(?:получен|потрачен|купил|продал|монет|золот|изготовлен|инвентар|экипиров)/i.test(l))
+    }
+    return log
+  }, [log, logTab])
 
   const renderQuest = ([id, q]: (typeof quests)[number]) => {
     const def = engine.campaign.quests[id]
@@ -592,10 +606,41 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
         {done
           .filter(([id, q]) => !qq.trim() || `${engine.campaign.quests[id]?.label ?? id} ${q.journal.join(' ')}`.toLowerCase().includes(qq.trim().toLowerCase()))
           .map(renderQuest)}
-        <h3>События</h3>
-        {log.length === 0 && <p className="muted">Записей пока нет.</p>}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+          <h3 style={{ margin: 0 }}>События</h3>
+          <div className="btn-group">
+            <button
+              className={`btn btn-small ${logTab === 'all' ? 'btn-primary' : ''}`}
+              onClick={() => setLogTab('all')}
+            >
+              Все
+            </button>
+            <button
+              className={`btn btn-small ${logTab === 'rolls' ? 'btn-primary' : ''}`}
+              onClick={() => setLogTab('rolls')}
+              data-tip="Броски кубиков и проверки навыков"
+            >
+              🎲 Броски
+            </button>
+            <button
+              className={`btn btn-small ${logTab === 'story' ? 'btn-primary' : ''}`}
+              onClick={() => setLogTab('story')}
+              data-tip="Сюжетные события и задания"
+            >
+              📜 Сюжет
+            </button>
+            <button
+              className={`btn btn-small ${logTab === 'economy' ? 'btn-primary' : ''}`}
+              onClick={() => setLogTab('economy')}
+              data-tip="Предметы, покупки и крафт"
+            >
+              🎒 Вещи
+            </button>
+          </div>
+        </div>
+        {filteredLog.length === 0 && <p className="muted">В этой категории пока нет записей.</p>}
         <ul className="log-list">
-          {[...log].reverse().slice(0, 60).map((l, i) => (
+          {[...filteredLog].reverse().slice(0, 60).map((l, i) => (
             <li key={i}>{l}</li>
           ))}
         </ul>

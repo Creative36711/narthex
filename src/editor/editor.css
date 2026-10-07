@@ -709,6 +709,14 @@
 .world-map-art { position: absolute; inset: 0; pointer-events: none; }
 .world-map-art svg { width: 100%; height: 100%; display: block; }
 .world-map-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; color: var(--ed-muted); }
+.world-map-routes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
 .map-marker {
   position: absolute;
   transform: translate(-50%, -90%);
@@ -716,6 +724,7 @@
   flex-direction: column;
   align-items: center;
   cursor: var(--cur-grab), grab;
+  z-index: 3;
 }
 .map-marker:active { cursor: var(--cur-grabbing), grabbing; }
 .map-marker-dot { font-size: 22px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.8)); }

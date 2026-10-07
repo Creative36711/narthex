@@ -140,8 +140,8 @@ export class CombatController {
     const arena = engine.campaign.arenas[def.arena]
     if (!arena) throw new Error(`Арена не найдена: ${def.arena}`)
     this.arena = arena
-    this.blocked = new Set(arena.hex_grid.blocked_hexes.map(([c, r]) => `${c},${r}`))
-    this.difficult = new Set(arena.hex_grid.difficult_terrain.map(([c, r]) => `${c},${r}`))
+    this.blocked = new Set((arena.hex_grid.blocked_hexes ?? []).map(([c, r]) => `${c},${r}`))
+    this.difficult = new Set((arena.hex_grid.difficult_terrain ?? []).map(([c, r]) => `${c},${r}`))
     this.coverHexes = new Set((arena.hex_grid.cover_hexes ?? []).map(([c, r]) => `${c},${r}`))
     this.surprise = def.surprise
     this.setup()
@@ -617,6 +617,77 @@ export class CombatController {
       this.processUntilPlayer()
     }
     this.engine.notify()
+  }
+
+  /**
+   * Предпросмотр шансов атаки (Combat Forecast) для подсказок и плашек игрока.
+   */
+  estimateAttack(attacker: Combatant, defender: Combatant): {
+    hitChance: number
+    target: number
+    damage: string
+    armor: number
+    penalty: number
+    aim: number
+    cover: number | null
+    fromBehind: boolean
+    fromShadow: boolean
+  } {
+    const apr = Math.max(1, attacker.weapon.attacks_per_round ?? 1)
+    const penalty = (apr - attacker.attacksLeft) * this.multiAttackPenalty
+    const aim = attacker.aimBonus ?? 0
+    const fromShadow = !!attacker.hidden
+    const flank = this.flankRules()
+    const fromBehind = !!flank && this.isRearArc(defender, attacker.pos, flank.arc)
+    const skillVal = Math.max(
+      1,
+      (attacker.skills[attacker.weapon.skill] ?? 25) +
+        this.statusSkillMod(attacker, attacker.weapon.skill) +
+        this.weatherSkillMod(attacker.weapon.skill) +
+        aim,
+    )
+    const coverP = attacker.weapon.range > 1 && this.coverHexes.has(hexKey(defender.pos)) ? this.coverPenalty() : null
+    const target = Math.max(1, Math.min(95, skillVal + penalty + (coverP ?? 0)))
+    const dbNotation = attacker.weapon.damage_bonus ? damageBonus(attacker.stats) : ''
+    const dbStr = dbNotation && dbNotation !== '0' ? (dbNotation.startsWith('+') || dbNotation.startsWith('-') ? dbNotation : `+${dbNotation}`) : ''
+    const damage = `${attacker.weapon.damage}${dbStr}`
+    const armor = defender.armor
+    return {
+      hitChance: target,
+      target,
+      damage,
+      armor,
+      penalty,
+      aim,
+      cover: coverP,
+      fromBehind,
+      fromShadow,
+    }
+  }
+
+  /**
+   * Предпросмотр применения способности по цели.
+   */
+  estimateAbility(caster: Combatant, ab: AbilityDef, _target: Combatant): {
+    hitChance: number
+    targetVal: number
+    effectLabel: string
+  } {
+    if (ab.kind === 'heal') {
+      return { hitChance: 100, targetVal: 100, effectLabel: `Лечение: ${ab.heal ?? '1d6'}` }
+    }
+    const skill = ab.skill ?? 'magic'
+    const base = caster.skills[skill] ?? 25
+    const mod = this.statusSkillMod(caster, skill) + this.weatherSkillMod(skill)
+    const targetVal = Math.max(1, Math.min(95, base + mod))
+    const parts: string[] = []
+    if (ab.damage) parts.push(`Урон: ${ab.damage}`)
+    if (ab.status) parts.push(`Статус: «${this.statusLabel(ab.status)}» (${ab.status_duration ?? 2} р.)`)
+    return {
+      hitChance: targetVal,
+      targetVal,
+      effectLabel: parts.join(' · ') || 'Воздействие',
+    }
   }
 
   /** Может ли игрок бежать из этого боя (аудит §5.6 п.2). */

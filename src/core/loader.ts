@@ -137,7 +137,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
  */
 export function assetUrl(campaign: CampaignData, path: string): string {
   if (!path) return path
-  if (/^https?:\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path
+  if (/^(?:https?|asset|tauri|ipc):\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path
   return `${campaign.basePath}/${path}`
 }
 
@@ -156,5 +156,5 @@ export function assetUrlOrNull(campaign: CampaignData, path: string | null | und
 
 /** Это внешняя ссылка, а не файл внутри пакета? */
 export function isExternalUrl(path: string): boolean {
-  return /^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')
+  return /^(?:https?:)?\/\//i.test(path) || /^(?:asset|tauri|ipc):\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')
 }
