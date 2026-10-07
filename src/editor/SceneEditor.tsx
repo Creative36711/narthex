@@ -5,7 +5,7 @@ import type Konva from 'konva'
 import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
 import { ArtView } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, AnimImageEditor, ChapterSelect } from './Fields'
+import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, ConditionListEditor, AnimImageEditor, ChapterSelect } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
@@ -882,7 +882,7 @@ function NavProps({
       <div className="props-group" style={{ marginTop: 8 }}>
         <h5>Перехват и реакции (событийные триггеры)</h5>
         <label className="fld" data-tip="Запустить диалог с персонажем при попытке пройти (например, караульный окликает героя перед выходом)">
-          <span>Оклик перед уходом (диалог)</span>
+          <span>Оклик перед уходом (персонаж / диалог)</span>
           <select
             value={nav.intercept_dialogue ?? ''}
             onChange={(e) => {
@@ -897,8 +897,24 @@ function NavProps({
             ))}
           </select>
         </label>
-        <label className="fld" data-tip="Сообщение игроку, если переход заблокирован условиями (напр. «Дверь заперта на засов»)">
-          <span>Сообщение при блокировке</span>
+        <label className="fld" data-tip="Запустить правило кампании при попытке совершить переход (напр. засада или проверка бдительности)">
+          <span>Правило-перехватчик</span>
+          <select
+            value={nav.intercept_rule ?? ''}
+            onChange={(e) => {
+              if (!e.target.value) delete nav.intercept_rule
+              else nav.intercept_rule = e.target.value
+              commit()
+            }}
+          >
+            <option value="">— без правила —</option>
+            {store.options('rule').map((o) => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="fld" data-tip="Сообщение игроку, если переход заблокирован условиями ниже (напр. «Дверь заперта на засов»)">
+          <span>Сообщение при блокировке перехода</span>
           <input
             value={nav.blocked_message ?? ''}
             placeholder="например «Дверь заперта на засов изнутри»"
@@ -909,6 +925,20 @@ function NavProps({
             }}
           />
         </label>
+        <div style={{ marginTop: 8 }}>
+          <span className="small muted" style={{ display: 'block', marginBottom: 4 }}>
+            Условия доступности перехода (если не выполнены — проход заблокирован):
+          </span>
+          <ConditionListEditor
+            store={store}
+            conditions={nav.conditions ?? (nav.conditions = [])}
+            onChange={(c) => {
+              if (c.length === 0) delete nav.conditions
+              else nav.conditions = c
+              commit()
+            }}
+          />
+        </div>
       </div>
     </div>
   )

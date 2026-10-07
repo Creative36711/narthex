@@ -644,6 +644,8 @@ function CondFields({ cond: c, store, commit }: { cond: DlgCond; store: EditorSt
       )
     case 'in_party':
       return <InlineRef kind="npc" store={store} value={c.npc} onChange={(v) => ((c.npc = v), commit())} />
+    case 'npc_known':
+      return <InlineRef kind="npc" store={store} value={c.entity} onChange={(v) => ((c.entity = v), commit())} />
     case 'hp_ge':
       return (
         <>
@@ -1143,6 +1145,9 @@ function EffectRow({
       {e.type === 'fire_rule' && <InlineRef kind="rule" store={store} value={e.rule} onChange={(v) => ((e.rule = v), commit())} />}
       {(e.type === 'join_party' || e.type === 'open_trade') && (
         <InlineRef kind="npc" store={store} value={e.npc} onChange={(v) => ((e.npc = v), commit())} />
+      )}
+      {e.type === 'learn_name' && (
+        <InlineRef kind="npc" store={store} value={e.entity} onChange={(v) => ((e.entity = v), commit())} />
       )}
       {e.type === 'start_quest' && <InlineRef kind="quest" store={store} value={e.quest} onChange={(v) => ((e.quest = v), commit())} />}
       {e.type === 'play_cutscene' && (
