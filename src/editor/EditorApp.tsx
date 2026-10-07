@@ -756,12 +756,26 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  const playtest = async () => {
+  const playtest = async (startSceneId?: string) => {
     try {
       const { doc, warnings } = exportMonolith(store)
       const problems = [...warnings, ...store.validateContent()]
       const campaign = campaignFromMonolith(doc)
       campaign.basePath = base
+      if (startSceneId) {
+        let foundLoc = ''
+        for (const reg of campaign.world.regions) {
+          for (const loc of reg.locations) {
+            if (loc.scenes.includes(startSceneId)) {
+              foundLoc = loc.id
+              break
+            }
+          }
+          if (foundLoc) break
+        }
+        campaign.meta.starting_scene = startSceneId
+        if (foundLoc) campaign.meta.starting_location = foundLoc
+      }
       if (!campaign.meta.starting_scene || !campaign.scenes[campaign.meta.starting_scene]) {
         problems.push(`Стартовая сцена «${campaign.meta.starting_scene || 'не выбрана'}» не найдена.`)
       }
@@ -776,12 +790,18 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       setMusicCampaign(campaign)
       setAudioCampaign(campaign)
       setAmbientAudioEnabled(true)
-      if (!campaign.meta.char_creation) {
+      if (startSceneId || !campaign.meta.char_creation) {
         const engine = new GameEngine(campaign)
+        if (startSceneId) {
+          engine.freshRun = false
+        }
         engine.start()
         setTestEngine(engine)
-      } else setTestEngine(null)
-      setDebugOpen(false)
+        setDebugOpen(!!startSceneId)
+      } else {
+        setTestEngine(null)
+        setDebugOpen(false)
+      }
     } catch (e) {
       void showAlert('Не удалось подготовить плейтест', String(e))
     }
@@ -1062,7 +1082,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <button className="btn btn-small editor-ai-button" onClick={() => openAiTask()} data-tip="Помощник мастера и ИИ: пакет правок, аудит и чемодан">
           <Ico n="sparkle" /> Мастер ИИ
         </button>
-        <button className="btn btn-small editor-playtest-button" onClick={playtest} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" /> Плейтест</button>
+        <button className="btn btn-small editor-playtest-button" onClick={() => void playtest()} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" /> Плейтест</button>
         <button className="btn btn-small" onClick={() => void exitEditor()} data-tip="Выйти в главное меню игры"><Ico n="exit" /> Выйти</button>
         <input
           ref={fileInput}
@@ -1187,7 +1207,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           {section === 'design' && <DesignDocPanel key={`d-${base}`} store={store} onEditWithAi={() => openAiTask()} />}
           {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
-          {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} />}
+          {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} onPlaytestScene={(sceneId) => void playtest(sceneId)} />}
           {section === 'entities' && sel && <EntityEditor key={sel} store={store} path={sel} />}
           {section === 'rules' && sel && <RuleEditor key={sel} store={store} path={sel} />}
           {section === 'quests' && sel && <QuestEditor key={sel} store={store} path={sel} />}

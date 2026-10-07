@@ -26,6 +26,7 @@ export function DialogueOverlay({ engine }: Props) {
   const d = engine.dialogue
   const campaignId = engine.campaign.meta.id
   const [showTip, setShowTip] = useState(() => !tipSeen('dialogue', campaignId))
+  const [showBacklog, setShowBacklog] = useState(false)
   const settings = useSettings()
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const stopTtsRef = useRef<(() => void) | null>(null)
@@ -231,6 +232,19 @@ export function DialogueOverlay({ engine }: Props) {
           </div>
         </div>
         <div className="dialogue-content">
+          <div className="dialogue-top-bar">
+            <button
+              type="button"
+              className="dlg-backlog-btn"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowBacklog(true)
+              }}
+              data-tip="История реплик и сделанных выборов (Backlog)"
+            >
+              <Ico n="scroll" /> История
+            </button>
+          </div>
           <div className="dialogue-lines">
             {lines.slice(0, revealed).map((l, i) => (
               <p key={i} className={`${l.action ? 'action ' : ''}past`}>
@@ -316,6 +330,28 @@ export function DialogueOverlay({ engine }: Props) {
           )}
         </div>
       </div>
+      {showBacklog && (
+        <div className="overlay dlg-backlog-overlay" onClick={(e) => { e.stopPropagation(); setShowBacklog(false); }}>
+          <div className="panel dlg-backlog-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="panel-header">
+              <h3><Ico n="scroll" /> История разговора</h3>
+              <button className="btn btn-small" onClick={() => setShowBacklog(false)}><Ico n="close" /></button>
+            </div>
+            <div className="dlg-backlog-list">
+              {(d.history && d.history.length > 0) ? (
+                d.history.map((h, i) => (
+                  <div key={i} className={`dlg-backlog-entry ${h.isChoice ? 'dlg-backlog-choice' : ''} ${h.action ? 'dlg-backlog-action' : ''}`}>
+                    {h.speaker && <b className="dlg-backlog-speaker">{h.speaker}:</b>}
+                    <span className="dlg-backlog-text">{h.action ? `→ ${h.text}` : h.text}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="muted small">Разговор только начался.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

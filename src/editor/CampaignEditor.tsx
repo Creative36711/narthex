@@ -1839,6 +1839,36 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             </label>
           ))}
         </div>
+        <div className="fld-row">
+          <label className="fld" data-tip="Дедлайн кампании: общее число тиков/часов до критического события (0 или пусто — без таймера)">
+            <span>Дедлайн кампании (тиков)</span>
+            <input
+              type="number"
+              min={0}
+              placeholder="нет (0)"
+              value={m.deadline_ticks ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                if (!val || val <= 0) delete m.deadline_ticks
+                else m.deadline_ticks = val
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Подпись таймера дедлайна в HUD (например, «До затопления шахты», «До отбытия поезда»)">
+            <span>Подпись дедлайна в HUD</span>
+            <input
+              placeholder="До срока"
+              value={m.deadline_label ?? ''}
+              onChange={(e) => {
+                const val = e.target.value.trim()
+                if (!val) delete m.deadline_label
+                else m.deadline_label = val
+                commit()
+              }}
+            />
+          </label>
+        </div>
       </div>
 
       <DiceRulesEditor value={m.dice_rules!} commit={commit} />

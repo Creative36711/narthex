@@ -139,6 +139,22 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
               const w = meta.weathers?.find((x) => x.id === s.weather)
               return w ? <div className="hud-weather">{w.label}</div> : null
             })()}
+            {meta.deadline_ticks !== undefined && meta.deadline_ticks > 0 && (() => {
+              const start = meta.starting_tick ?? 0
+              const elapsed = s.tick - start
+              const left = Math.max(0, meta.deadline_ticks - elapsed)
+              const unit = meta.tick_label || 'ч'
+              const urgent = left <= (meta.ticks_per_day || 24)
+              const expired = left === 0
+              return (
+                <div
+                  className={`hud-deadline ${urgent ? 'hud-deadline-urgent' : ''} ${expired ? 'hud-deadline-expired' : ''}`}
+                  data-tip={`${meta.deadline_label || 'Дедлайн'}: прошло ${elapsed} из ${meta.deadline_ticks} ${unit}`}
+                >
+                  <Ico n="clock" /> {meta.deadline_label ? `${meta.deadline_label}: ` : ''}{expired ? 'Срок истёк!' : `${left} ${unit}`}
+                </div>
+              )
+            })()}
           </>
         )}
       </div>

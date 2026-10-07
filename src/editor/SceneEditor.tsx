@@ -95,7 +95,15 @@ function useImage(src: string | null): HTMLImageElement | null {
 
 type Sel = { kind: 'slot'; index: number } | { kind: 'nav'; index: number } | null
 
-export function SceneEditor({ store, path }: { store: EditorStore; path: string }) {
+export function SceneEditor({
+  store,
+  path,
+  onPlaytestScene,
+}: {
+  store: EditorStore
+  path: string
+  onPlaytestScene?: (sceneId: string) => void
+}) {
   const loadedScene = store.scene(path)
   const scene = loadedScene ?? ({
     id: path,
@@ -253,6 +261,16 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
               }}
             >
               <Ico n="close" />  удалить выбранное
+            </button>
+          )}
+          {onPlaytestScene && (
+            <button
+              className="btn btn-small btn-primary"
+              style={{ marginLeft: 'auto' }}
+              onClick={() => onPlaytestScene(scene.id)}
+              data-tip="Запустить игру сразу в этой комнате для проверки слотов и переходов"
+            >
+              <Ico n="play" /> Тест сцены
             </button>
           )}
         </div>

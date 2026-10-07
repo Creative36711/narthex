@@ -43,11 +43,21 @@ export function parseLineTags(tags: string[]): { emotion: string; action?: boole
   return { emotion, action: action || undefined, voice, sfx, timer }
 }
 
+export interface DialogueHistoryEntry {
+  speaker: string
+  text: string
+  emotion?: string
+  action?: boolean
+  isChoice?: boolean
+}
+
 export interface DialogueUI {
   npc: NpcDef
   lines: DialogueLine[]
   choices: { index: number; text: string }[]
   finished: boolean
+  /** накопленная история реплик текущего разговора для просмотра игроком (backlog) */
+  history?: DialogueHistoryEntry[]
   /**
    * Дедлайн на раздумье, объявленный ink-ом (`~ set_dialogue_timer`).
    * Плеер показывает обратный отсчёт и по нулю зовёт `engine.dialogueTimeout()`.

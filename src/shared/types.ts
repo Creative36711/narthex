@@ -788,6 +788,13 @@ export interface CampaignMeta {
   starting_location: string
   starting_scene: string
   starting_tick?: number
+  /**
+   * Общий дедлайн кампании (число тиков от старта до критического финала).
+   * Если задано (>0) — в HUD отображается индикатор обратного отсчёта.
+   */
+  deadline_ticks?: number
+  /** подпись дедлайна в HUD (например, «До затопления», «До отбытия поезда») */
+  deadline_label?: string
   needs: NeedDef[]
   /** реестр статусов: яды, кровотечения, баффы (блок 5 ТЗ) */
   statuses?: StatusDef[]

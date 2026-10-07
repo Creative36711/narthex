@@ -56,7 +56,7 @@ import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
 import type { CharChoice } from './charcreate'
 import type { Story } from 'inkjs'
-import { bindExternals, createStory, drainStory, firstInkKnot, type DialogueUI } from './dialogue'
+import { bindExternals, createStory, drainStory, firstInkKnot, type DialogueUI, type DialogueHistoryEntry } from './dialogue'
 import { skillLabel } from '../shared/skills'
 import { playUi, playInteraction, stopSound } from '../shared/audio'
 import type { SoundHook } from '../shared/types'
@@ -84,6 +84,8 @@ export class GameEngine {
   private activeNpc: NpcDef | null = null
   /** Ink-истории этого забега (состояние once-выборов живёт в пределах забега) */
   dialogue: DialogueUI | null = null
+  /** накопленная история реплик и выборов текущего разговора (backlog) */
+  dialogueHistory: DialogueHistoryEntry[] = []
   /**
    * Таймер на выбор в диалоге (фидбек 27, §9): ink-вызов
    * `~ set_dialogue_timer(15, "node_x")` задаёт дедлайн на текущем наборе
@@ -167,7 +169,7 @@ export class GameEngine {
   cutsceneQueue: Array<{ def: CutsceneDef; serial: number }> = []
   private cutsceneSerial = 0
   /** забег создан с нуля (а не загружен из сейва) — для правил «на старте» */
-  private freshRun: boolean
+  freshRun: boolean
   /** обёртка последнего сохранения: версии кампании/движка и даты (`SaveEnvelope`) */
   envelope: SaveEnvelope | null = null
 
@@ -2009,14 +2011,29 @@ export class GameEngine {
     }
     this.pushLog('Вы слишком долго молчали — собеседник перевёл разговор на своё.')
     const drained = drainStory(story)
+    for (const l of drained.lines) {
+      this.dialogueHistory.push({
+        speaker: l.action ? '' : this.dialogue.npc.label,
+        text: l.text,
+        emotion: l.emotion,
+        action: l.action,
+      })
+    }
     if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
       this.dialogue = null
+      this.dialogueHistory = []
       this.activeStory = null
       this.activeNpc = null
       this.notify()
       return
     }
-    this.dialogue = { npc: this.dialogue.npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
+    this.dialogue = {
+      npc: this.dialogue.npc,
+      lines: drained.lines,
+      choices: drained.choices,
+      finished: drained.finished,
+      history: [...this.dialogueHistory],
+    }
     this.commitDialogueTimer(drained.choices.length)
     this.commitDialoguePresenting()
     this.dialogue.timer = this.dialogueTimer ?? undefined
@@ -2049,8 +2066,22 @@ export class GameEngine {
     const story = this.activeStory
     if (!pres || !story || !this.dialogue) return
     this.dialogue.presenting = undefined
-    if (itemId) playUi('dialogue_present')
-    else playUi('click')
+    if (itemId) {
+      playUi('dialogue_present')
+      const itDef = this.campaign.entities[itemId] as ItemDef | undefined
+      this.dialogueHistory.push({
+        speaker: this.state.player.name || 'Вы',
+        text: `[Предъявлено: ${itDef?.label || itemId}]`,
+        isChoice: true,
+      })
+    } else {
+      playUi('click')
+      this.dialogueHistory.push({
+        speaker: this.state.player.name || 'Вы',
+        text: '[Ничего не предъявлено]',
+        isChoice: true,
+      })
+    }
     const success = itemId ? (!pres.required || pres.required === itemId) : false
     const targetKnot = success ? pres.ok : pres.fail
     try {
@@ -2061,14 +2092,29 @@ export class GameEngine {
       return
     }
     const drained = drainStory(story)
+    for (const l of drained.lines) {
+      this.dialogueHistory.push({
+        speaker: l.action ? '' : this.dialogue.npc.label,
+        text: l.text,
+        emotion: l.emotion,
+        action: l.action,
+      })
+    }
     if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
       this.dialogue = null
+      this.dialogueHistory = []
       this.activeStory = null
       this.activeNpc = null
       this.notify()
       return
     }
-    this.dialogue = { npc: this.dialogue.npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
+    this.dialogue = {
+      npc: this.dialogue.npc,
+      lines: drained.lines,
+      choices: drained.choices,
+      finished: drained.finished,
+      history: [...this.dialogueHistory],
+    }
     this.commitDialogueTimer(drained.choices.length)
     this.commitDialoguePresenting()
     this.dialogue.timer = this.dialogueTimer ?? undefined
@@ -3412,14 +3458,30 @@ export class GameEngine {
     this.activeStory = story
     this.activeNpc = npc
     this.state.stats_run.dialogues += 1
+    this.dialogueHistory = []
     const drained = drainStory(story)
+    for (const l of drained.lines) {
+      this.dialogueHistory.push({
+        speaker: l.action ? '' : npc.label,
+        text: l.text,
+        emotion: l.emotion,
+        action: l.action,
+      })
+    }
     if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
       // external в первой же реплике: бой / торговля / финал — окна диалога нет
       this.dialogue = null
+      this.dialogueHistory = []
       this.activeStory = null
       this.activeNpc = null
     } else {
-      this.dialogue = { npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
+      this.dialogue = {
+        npc,
+        lines: drained.lines,
+        choices: drained.choices,
+        finished: drained.finished,
+        history: [...this.dialogueHistory],
+      }
       this.commitDialogueTimer(drained.choices.length)
       this.commitDialoguePresenting()
       this.dialogue.timer = this.dialogueTimer ?? undefined
@@ -3431,12 +3493,29 @@ export class GameEngine {
     const story = this.activeStory
     const npc = this.activeNpc
     if (!story || !npc) return
+    const chosenChoice = story.currentChoices[index]?.text
+    if (chosenChoice) {
+      this.dialogueHistory.push({
+        speaker: this.state.player.name || 'Вы',
+        text: chosenChoice,
+        isChoice: true,
+      })
+    }
     story.ChooseChoiceIndex(index)
     const drained = drainStory(story)
+    for (const l of drained.lines) {
+      this.dialogueHistory.push({
+        speaker: l.action ? '' : npc.label,
+        text: l.text,
+        emotion: l.emotion,
+        action: l.action,
+      })
+    }
     // external мог закрыть забег/открыть бой/торговлю (game_over чистит
     // activeStory — но drainStory уже отработал). Не восстанавливаем окно.
     if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
       this.dialogue = null
+      this.dialogueHistory = []
       this.activeStory = null
       this.activeNpc = null
       this.notify()
@@ -3447,6 +3526,7 @@ export class GameEngine {
       lines: drained.lines,
       choices: drained.choices,
       finished: drained.finished,
+      history: [...this.dialogueHistory],
     }
     this.commitDialogueTimer(drained.choices.length)
     this.commitDialoguePresenting()
@@ -3455,6 +3535,7 @@ export class GameEngine {
     // правило на checkRules тоже могло вызвать game_over
     if (this.state.game_over) {
       this.dialogue = null
+      this.dialogueHistory = []
       this.activeStory = null
       this.activeNpc = null
     }
@@ -3465,6 +3546,7 @@ export class GameEngine {
     this.dialogueTimer = null
     this.pendingDialoguePresenting = null
     this.dialogue = null
+    this.dialogueHistory = []
     this.activeStory = null
     this.activeNpc = null
     this.checkRules()

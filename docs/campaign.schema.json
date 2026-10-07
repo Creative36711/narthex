@@ -5276,6 +5276,14 @@
         "starting_tick": {
           "type": "number"
         },
+        "deadline_ticks": {
+          "type": "number",
+          "description": "общий дедлайн кампании в тиках от старта: включает таймер обратного отсчёта в HUD"
+        },
+        "deadline_label": {
+          "type": "string",
+          "description": "текстовая подпись дедлайна в HUD (например, «До затопления»)"
+        },
         "needs": {
           "type": "array",
           "items": {
