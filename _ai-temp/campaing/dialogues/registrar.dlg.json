@@ -13,7 +13,8 @@
        "line": {
         "text": "Регистратор щёлкает реле: два стеклянных глаза разгораются бирюзой.",
         "action": true,
-        "sfx": "sfx_click"
+        "sfx": "sfx_click",
+        "voice": "assets/voice/narr_registrar_1.mp3"
        }
       },
       {
@@ -210,7 +211,7 @@
           "text": "Шесть улик на суровой нитке… Давно такого не приносили. Ставлю входящий штамп: теперь эту папку даже инспектор из реестра не вынет.",
           "emotion": "calm",
           "voice": "assets/voice/registrar_10.mp3",
-          "sfx": "snd_latch"
+          "sfx": "sfx_stamp"
          }
         },
         {

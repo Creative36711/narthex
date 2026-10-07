@@ -13,7 +13,8 @@
        "line": {
         "text": "Айла промокает бинт и не смотрит на твои руки.",
         "action": true,
-        "sfx": "sfx_water"
+        "sfx": "sfx_water",
+        "voice": "assets/voice/narr_ayla_1.mp3"
        }
       },
       {
@@ -28,6 +29,14 @@
        "line": {
         "text": "Двое суток без сна — это полдела. За трое начинают мерещиться вещи, которые потом вносят в протокол.",
         "voice": "assets/voice/ayla_8.mp3"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "learn_name",
+        "entity": "npc_ayla",
+        "silent": true
        }
       }
      ]

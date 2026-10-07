@@ -523,6 +523,8 @@ def main():
             need(f"погода {w['id']}", "sound", a)
 
     # ------------------------------------------------------------ диалоги ---
+    actions_total = 0
+    actions_voiced = 0
     for name, d in dlgs.items():
         knots = {n["id"] for n in d["nodes"]}
         for n in d["nodes"]:
@@ -546,16 +548,21 @@ def main():
                         asset(f"диалог {name}", ln.get("voice"))
                         if ln.get("sfx"):
                             need(f"диалог {name}", "sound", ln["sfx"])
-                        # ремарки не озвучиваем принципиально, spoken — должны
-                        if not ln.get("action") and not ln.get("voice"):
-                            notes.append(
+                        if ln.get("action"):
+                            actions_total += 1
+                            if ln.get("voice"):
+                                actions_voiced += 1
+                        elif not ln.get("voice"):
+                            problems.append(
                                 f"РЕПЛИКА БЕЗ ГОЛОСА {name}/{n['id']}: "
                                 f"«{(ln.get('text') or '')[:60]}»")
             tm = n.get("timer") or {}
             if tm.get("node") and tm["node"] not in knots:
                 problems.append(f"ССЫЛКА диалог {name}: таймер → «{tm['node']}»")
-            if n.get("goto") and n["goto"] != "end" and n["goto"] not in knots:
+            if n.get("goto") and n["goto"] != "end" and n["goto"] != "stay" and n["goto"] not in knots:
                 problems.append(f"ССЫЛКА диалог {name}: узел {n['id']} → «{n['goto']}»")
+    if actions_total:
+        notes.append(f"озвучено авторских ремарок: {actions_voiced}/{actions_total}")
 
     for eid, e in ents.items():
         if e.get("type") == "npc" and eid != "player_hero" and not e.get("dialogue"):

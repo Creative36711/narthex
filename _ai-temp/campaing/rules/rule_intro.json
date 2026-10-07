@@ -39,5 +39,6 @@
       "entry": "codex_time"
     }
   ],
-  "chapter": "ch_arrival"
+  "chapter": "ch_arrival",
+  "trigger": "time_tick"
 }

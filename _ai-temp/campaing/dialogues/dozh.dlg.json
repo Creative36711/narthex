@@ -12,7 +12,8 @@
        "kind": "line",
        "line": {
         "text": "Дож что-то взвешивает на ладони и прячет в рукав, не глядя.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_dozh_1.mp3"
        }
       },
       {
@@ -20,6 +21,14 @@
        "line": {
         "text": "Смотри, не покупатель. С покупателями я вежливей.",
         "voice": "assets/voice/dozh_4.mp3"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "learn_name",
+        "entity": "npc_dozh",
+        "silent": true
        }
       }
      ]
@@ -110,6 +119,13 @@
           "target": "npc_zhuk",
           "delta": 8
          }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "learn_name",
+          "entity": "npc_zhuk"
+         }
         }
        ]
       }
@@ -167,54 +183,16 @@
      "text": "Показать Дожу вещь.",
      "sections": [
       {
-       "conds": [
-        {
-         "type": "has_item",
-         "item": "item_guard_token"
-        }
-       ],
        "steps": [
-        {
-         "kind": "line",
-         "line": {
-          "text": "Дож вертит вещь двумя пальцами, прищурившись.",
-          "action": true,
-          "sfx": "snd_latch"
-         }
-        },
-        {
-         "kind": "line",
-         "line": {
-          "text": "Вещь стоящая — для того, кто её ищет. Я таких не знаю, но за полцены возьму.",
-          "emotion": "calm",
-          "voice": "assets/voice/dozh_6.mp3"
-         }
-        },
         {
          "kind": "effect",
          "effect": {
-          "type": "change_disposition",
-          "delta": 2,
-          "target": "npc_dozh"
-         }
-        },
-        {
-         "kind": "line",
-         "line": {
-          "text": "Дож разводит руками: пусто.",
-          "action": true
-         }
-        },
-        {
-         "kind": "line",
-         "line": {
-          "text": "Руки показывай, когда они полные. Пустыми торгуют только нищие.",
-          "emotion": "calm",
-          "voice": "assets/voice/dozh_11.mp3"
+          "type": "present_item",
+          "ok": "Оценка",
+          "fail": "Оценка_мимо"
          }
         }
-       ],
-       "goto": "stay"
+       ]
       }
      ],
      "goto": "stay"

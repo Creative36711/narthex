@@ -33,5 +33,6 @@
       "entry": "codex_heavy_water"
     }
   ],
-  "chapter": "ch_signs"
+  "chapter": "ch_signs",
+  "trigger": "always"
 }

@@ -1,17 +1,37 @@
 {
- "id": "item_lamp",
- "type": "item",
- "category": "gear",
- "label": "Жильная лампа",
- "description": "Лампа на куске жильного стекла: светит холодным бирюзовым и не гаснет от сквозняка.",
- "weight": 1.2,
- "stackable": false,
- "value": {
-  "mark": 22
- },
- "equip_slot": "gear",
- "sounds": {
-  "equip": "sfx_lamp",
-  "unequip": "snd_cloth"
- }
+  "id": "item_lamp",
+  "type": "item",
+  "category": "gear",
+  "label": "Жильная лампа",
+  "description": "Лампа на куске жильного стекла: светит холодным бирюзовым и не гаснет от сквозняка.",
+  "weight": 1.2,
+  "stackable": false,
+  "value": {
+    "mark": 22
+  },
+  "equip_slot": "gear",
+  "sounds": {
+    "equip": "sfx_lamp",
+    "unequip": "snd_cloth",
+    "use": "sfx_lamp"
+  },
+  "image": "assets/img/items/item_lamp.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_lamp.jpg"
+  },
+  "interact_hint": "Подкрутить фитиль",
+  "interact_options": [
+    {
+      "label": "Подкрутить фитиль",
+      "hint": "карбидная лампа с бычьим стеклом",
+      "sound": "sfx_lamp",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Толстая линза в проволочной клетке даёт узкий жёлтый луч. Копоть на козырьке жирная: в сырости нижних ярусов лампа считает часы не хуже карманных часов."
+        }
+      ]
+    }
+  ]
 }

@@ -7,14 +7,16 @@ EXTERNAL set_flag(a0)
 EXTERNAL skill_check(a0, a1)
 EXTERNAL unlock_codex(a0)
 EXTERNAL unlock_recipe(a0)
+EXTERNAL learn_name(a0)
 
 VAR r = 0
 
 === Начало ===
-Реш сидит спиной к стене и смотрит не на тебя — в стену. # action
+Реш сидит спиной к стене и смотрит не на тебя — в стену. # action # voice: assets/voice/narr_resh_1.mp3
 Ты пришёл меня арестовать или послушать? Арестовывать удобнее: для этого не надо понимать. # voice: assets/voice/resh_1.mp3
 Семёрку не чинили, потому что ей не давали ходу. Это разные вещи, и разница между ними стоит семьдесят два часа. # voice: assets/voice/resh_12.mp3
 Я не прятался. Я ждал, пока кто-нибудь спустится и задаст правильный вопрос. # voice: assets/voice/resh_13.mp3
+~ learn_name("npc_resh")
 -> Начало_hub
 
 === Начало_hub ===

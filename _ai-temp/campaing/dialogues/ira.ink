@@ -6,12 +6,14 @@ EXTERNAL get_flag(a0)
 EXTERNAL has_item(a0)
 EXTERNAL set_dialogue_timer(a0, a1)
 EXTERNAL skill_check(a0, a1)
+EXTERNAL learn_name(a0)
 
 VAR r = 0
 
 === Начало ===
-Ира стирает мазут с ладоней ветошью и смотрит на тебя исподлобья. # action
+Ира стирает мазут с ладоней ветошью и смотрит на тебя исподлобья. # action # voice: assets/voice/narr_ira_1.mp3
 Ты насчёт помпы? Я уже всё рассказала старшине. Он велел не мешать. # voice: assets/voice/ira_1.mp3 # emotion: afraid
+~ learn_name("npc_ira")
 -> Начало_hub
 
 === Начало_hub ===
@@ -47,6 +49,7 @@ VAR r = 0
     Она берёт рукавицу за манжет двумя пальцами, как чужую вещь. # action # sfx: snd_cloth
     Реш носил кожаные и жаловался, что они жмут. А заплату ставили в Сухом ряду: у Айлы так штопают, когда нечем платить. # emotion: thoughtful # voice: assets/voice/ira_16.mp3
     ~ change_disposition("npc_ira", 4)
+    ~ learn_name("npc_ayla")
     -> Начало_hub
 + [Мне пора.]
     -> DONE

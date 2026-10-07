@@ -7,26 +7,25 @@
     "neutral": "assets/img/npc/thug_neutral.jpg"
   },
   "stats": {
-    "STR": 13,
-    "CON": 12,
-    "SIZ": 12,
+    "STR": 11,
+    "CON": 10,
+    "SIZ": 10,
     "DEX": 11,
     "INT": 9,
     "POW": 9,
     "CHA": 8
   },
   "skills": {
-    "blade": 46,
-    "brawl": 48,
-    "dodge": 36,
+    "blade": 38,
+    "brawl": 40,
+    "dodge": 28,
     "intimidate": 42
   },
   "slot_type": "person",
-  "armor": 0,
+  "armor": 1,
   "schedule": [],
   "equipment": {
-    "weapon": "item_service_blade",
-    "armor": "item_vest"
+    "weapon": "item_knife"
   },
   "inventory": [
     {

@@ -57,5 +57,6 @@
       "quantity": 18
     }
   ],
-  "scene_sprite": "assets/img/npc/sprite_zhuk.png"
+  "scene_sprite": "assets/img/npc/sprite_zhuk.png",
+  "unknown_label": "Человек у жаровни"
 }

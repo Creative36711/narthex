@@ -12,7 +12,8 @@
        "kind": "line",
        "line": {
         "text": "Жук не здоровается. Он просто ждёт, сколько ты заплатишь.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_zhuk_1.mp3"
        }
       },
       {
@@ -20,6 +21,14 @@
        "line": {
         "text": "Слушаю. Дорого.",
         "voice": "assets/voice/zhuk_5.mp3"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "learn_name",
+        "entity": "npc_zhuk",
+        "silent": true
        }
       }
      ]
@@ -209,7 +218,21 @@
     },
     {
      "text": "Дать Жуку полистать гроссбух.",
-     "sections": [],
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "present_item",
+          "ok": "Расход",
+          "fail": "Расход_мимо",
+          "required": "item_ledger"
+         }
+        }
+       ]
+      }
+     ],
      "goto": "Расход",
      "conds": [
       {

@@ -41,5 +41,6 @@
       "volume": 0.9
     }
   ],
-  "chapter": "ch_deep"
+  "chapter": "ch_deep",
+  "trigger": "always"
 }

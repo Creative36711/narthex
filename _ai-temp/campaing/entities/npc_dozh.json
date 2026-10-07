@@ -105,5 +105,6 @@
     "buys": true,
     "buy_rate": 0.6
   },
-  "scene_sprite": "assets/img/npc/sprite_dozh.png"
+  "scene_sprite": "assets/img/npc/sprite_dozh.png",
+  "unknown_label": "Старьёвщик за ящиками"
 }

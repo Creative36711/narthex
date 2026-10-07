@@ -8,12 +8,14 @@ EXTERNAL skill_check(a0, a1)
 EXTERNAL change_disposition(a0, a1)
 EXTERNAL has_item(a0)
 EXTERNAL present_item(a0, a1, a2)
+EXTERNAL learn_name(a0)
 
 VAR r = 0
 
 === Начало ===
-Жук не здоровается. Он просто ждёт, сколько ты заплатишь. # action
+Жук не здоровается. Он просто ждёт, сколько ты заплатишь. # action # voice: assets/voice/narr_zhuk_1.mp3
 Слушаю. Дорого. # voice: assets/voice/zhuk_5.mp3
+~ learn_name("npc_zhuk")
 -> Начало_hub
 
 === Начало_hub ===

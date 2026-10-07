@@ -57,5 +57,6 @@
       ]
     }
   ],
-  "chapter": "ch_deep"
+  "chapter": "ch_deep",
+  "trigger": "always"
 }
