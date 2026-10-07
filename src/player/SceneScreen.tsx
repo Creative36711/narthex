@@ -208,6 +208,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             const interactable = !item || engine.itemInteractable(item)
             const hasInteractChoices = !!item && interactable && engine.itemInteractOptions(item).length > 0
             const isEnvironmental = slot.environmental || (!sprite && entity.type === 'item')
+            const displayLabel = npc ? engine.npcLabel(npc) : entity.label
             return (
               <button
                 key={`${stateKey}-${slot.id}`}
@@ -220,6 +221,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                 }}
                 disabled={!interactable}
                 onClick={() => {
+                  engine.fireTrigger('interact', { entityId: entity.id })
                   engine.inspectEntity(entity.id)
                   // «ключ к двери» (блок 8 ТЗ): НПС — диалог, иначе при наличии
                   // подходящих предметов — модалка выбора
@@ -236,7 +238,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                   }
                   engine.interactWithSlot({ slot, entity })
                 }}
-                data-tip={`${entity.label}${engine.descOf(entity.id) ? `\n${engine.descOf(entity.id)}` : ''}`}
+                data-tip={`${displayLabel}${engine.descOf(entity.id) ? `\n${engine.descOf(entity.id)}` : ''}`}
               >
                 {sprite ? (
                   <>
@@ -247,7 +249,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                         value={sprite}
                         tickKey={stateOfSprite ?? ''}
                         urlOf={(f) => assetUrl(engine.campaign, f)}
-                        alt={entity.label}
+                        alt={displayLabel}
                       />
                     </span>
                   </>
@@ -261,7 +263,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                         <img
                           className="slot-portrait"
                           src={portraitSrc}
-                          alt={npc?.label}
+                          alt={displayLabel}
                           draggable={false}
                         />
                       )
@@ -273,7 +275,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                     )
                   })()
                 )}
-                <span className="slot-label">{entity.label}</span>
+                <span className="slot-label">{displayLabel}</span>
               </button>
             )
           })}
@@ -304,7 +306,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         {scene.navigation.map((nav, i) => {
           const handle = () => {
             if (nav.open_map) return onOpenMap()
-            if (nav.go_to_scene) return engine.goToScene(nav.go_to_scene, nav.cost_ticks ?? 0)
+            engine.navigate(nav)
           }
           return (
             <button

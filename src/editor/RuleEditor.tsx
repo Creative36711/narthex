@@ -26,6 +26,24 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
           <input value={rule.label} onChange={(e) => ((rule.label = e.target.value), commit())} />
         </label>
         <ChapterSelect store={store} value={rule.chapter} onChange={(v) => ((rule.chapter = v), commit())} />
+        <label className="fld" data-tip="Когда движок должен проверять это правило">
+          <span>Событийный триггер</span>
+          <select
+            value={rule.trigger ?? 'always'}
+            onChange={(e) => {
+              const v = e.target.value as RuleDef['trigger']
+              if (!v || v === 'always') delete rule.trigger
+              else rule.trigger = v
+              commit()
+            }}
+          >
+            <option value="always">При любом событии / изменении (по умолчанию)</option>
+            <option value="enter_scene">При входе в сцену (enter_scene)</option>
+            <option value="leave_scene">При выходе из сцены (leave_scene)</option>
+            <option value="interact">При клике / взаимодействии (interact)</option>
+            <option value="time_tick">При ходе / тике времени (time_tick)</option>
+          </select>
+        </label>
         <div className="fld-row">
           <label className="fld fld-check">
             <input type="checkbox" checked={rule.once} onChange={(e) => ((rule.once = e.target.checked), commit())} />

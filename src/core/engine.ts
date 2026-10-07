@@ -22,6 +22,8 @@ import type {
   FeatDef,
   MetaStoreState,
   MetaUnlockDef,
+  NavigationZone,
+  Condition,
   NpcDef,
   PlayerState,
   RecipeDef,
@@ -2532,7 +2534,48 @@ export class GameEngine {
     } else {
       this.checkRules()
     }
+    this.fireTrigger('enter_scene', { sceneId })
     this.notify()
+  }
+
+  /**
+   * Проверка и выполнение перехода по зоне навигации (с поддержкой условий блокировки,
+   * сообщений, окликов персонажей и правил-перехватчиков).
+   */
+  navigate(nav: NavigationZone): boolean {
+    if (nav.open_map) return false
+    // 1. Условия блокировки перехода
+    if (nav.conditions && nav.conditions.length > 0) {
+      const ok = nav.conditions.every((c: Condition) => evalCondition(c, this))
+      if (!ok) {
+        if (nav.blocked_message) {
+          this.pushLog(nav.blocked_message)
+          this.messages.push({ text: nav.blocked_message })
+          this.notify()
+        }
+        return false
+      }
+    }
+    // 2. Оклик-диалог перед уходом со сцены
+    if (nav.intercept_dialogue) {
+      this.startDialogue(nav.intercept_dialogue)
+      return false
+    }
+    // 3. Вызов правила-перехватчика
+    if (nav.intercept_rule) {
+      const fired = this.tryFireRule(nav.intercept_rule)
+      if (fired) return false
+    }
+    // 4. Событийный триггер попытки ухода со сцены
+    const blocked = this.fireTrigger('leave_scene', { sceneId: this.state.scene })
+    if (blocked) return false
+
+    // 5. Разрешённый переход
+    if (nav.go_to_scene) {
+      this.goToScene(nav.go_to_scene, nav.cost_ticks ?? 0)
+      return true
+    }
+    return false
   }
 
   /** Путешествие между локациями по travel_connections (ТЗ 4.9). */
@@ -2605,9 +2648,23 @@ export class GameEngine {
   checkRules(): void {
     for (const rule of Object.values(this.campaign.rules)) {
       if (rule.manual) continue
+      if (rule.trigger && rule.trigger !== 'always') continue
       this.tryFireRule(rule.id)
     }
     this.checkQuestTransitions()
+  }
+
+  /** вызов правил, привязанных к конкретному событийному триггеру */
+  fireTrigger(trigger: 'enter_scene' | 'leave_scene' | 'interact' | 'time_tick', _context?: { sceneId?: string; entityId?: string }): boolean {
+    let anyFired = false
+    for (const rule of Object.values(this.campaign.rules)) {
+      if (rule.manual) continue
+      if (rule.trigger !== trigger) continue
+      if (this.tryFireRule(rule.id)) {
+        anyFired = true
+      }
+    }
+    return anyFired
   }
 
   /** условия правила: все `conditions` И (если заданы) хотя бы одна ИЛИ-группа */
@@ -2618,13 +2675,47 @@ export class GameEngine {
     return groups.some((g) => !g.length || g.every((c) => evalCondition(c, this)))
   }
 
-  private tryFireRule(ruleId: string, depth = 0): void {
+  tryFireRule(ruleId: string, depth = 0): boolean {
     const rule = this.campaign.rules[ruleId]
-    if (!rule) return
-    if (rule.once && this.state.fired_rules.includes(rule.id)) return
-    if (!this.ruleConditionsOk(rule)) return
+    if (!rule) return false
+    if (rule.once && this.state.fired_rules.includes(rule.id)) return false
+    if (!this.ruleConditionsOk(rule)) return false
     this.state.fired_rules.push(rule.id)
     this.applyEffects(rule.effects ?? [], depth)
+    return true
+  }
+
+  // ─────────────── механика «Незнакомец» (Unknown / Anonymous NPC) ───────────────
+
+  /** раскрыто ли настоящее имя персонажа игроку */
+  isNpcNameKnown(entityId: string): boolean {
+    const def = this.campaign.entities[entityId] as NpcDef | undefined
+    if (!def || !def.unknown_label) return true
+    return (this.state.known_npcs ?? []).includes(entityId)
+  }
+
+  /** актуальное имя персонажа с учётом статуса знакомства */
+  npcLabel(entity: string | NpcDef): string {
+    const def = typeof entity === 'string' ? (this.campaign.entities[entity] as NpcDef | undefined) : entity
+    if (!def) return typeof entity === 'string' ? entity : ''
+    if (!def.unknown_label) return def.label
+    if (this.isNpcNameKnown(def.id)) return def.label
+    return def.unknown_label
+  }
+
+  /** раскрыть настоящее имя персонажа игроку */
+  learnNpcName(npcId: string, silent = false): void {
+    const def = this.campaign.entities[npcId] as NpcDef | undefined
+    const list = (this.state.known_npcs ??= [])
+    if (list.includes(npcId)) return
+    list.push(npcId)
+    if (!silent && def?.unknown_label) {
+      const msg = `Вы узнали: «${def.unknown_label}» — это ${def.label}.`
+      this.pushLog(msg)
+      this.messages.push({ text: msg })
+    }
+    this.notify()
+    this.checkRules()
   }
 
   // ─────────────── эффекты ───────────────
@@ -2751,6 +2842,9 @@ export class GameEngine {
         this.notify()
         break
       }
+      case 'learn_name':
+        this.learnNpcName(e.entity, e.silent)
+        break
       case 'set_flag': s.flags[e.flag] = true; break
       case 'set_description':
         this.setEntityDescription(e.entity, e.text)
@@ -3413,7 +3507,10 @@ export class GameEngine {
   }
 
   startDialogue(entityId: string, knot?: string): void {
-    const npc = this.campaign.entities[entityId] as NpcDef | undefined
+    let npc = this.campaign.entities[entityId] as NpcDef | undefined
+    if (!npc || npc.type !== 'npc') {
+      npc = Object.values(this.campaign.entities).find((e): e is NpcDef => e.type === 'npc' && (e.dialogue === entityId || e.dialogue === `${entityId}.ink`))
+    }
     if (!npc || npc.type !== 'npc' || !npc.dialogue) return
     const resolved = this.resolveDialogueSource(npc.dialogue)
     if (!resolved) return

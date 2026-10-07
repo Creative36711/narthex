@@ -587,6 +587,18 @@ function NpcForm({
             <span>Имя</span>
             <input value={npc.label} onChange={(e) => ((npc.label = e.target.value), commit())} />
           </label>
+          <label className="fld" data-tip="Механика «Незнакомец»: как персонаж называется до знакомства (напр. «Незнакомка в платке»). Пусто — настоящее имя известно сразу.">
+            <span>Имя до знакомства (инкогнито)</span>
+            <input
+              value={npc.unknown_label ?? ''}
+              placeholder="например «Незнакомец в капюшоне»"
+              onChange={(e) => {
+                if (e.target.value.trim()) npc.unknown_label = e.target.value
+                else delete npc.unknown_label
+                commit()
+              }}
+            />
+          </label>
           <RefSelect
             label="Фракция"
             kind="faction"

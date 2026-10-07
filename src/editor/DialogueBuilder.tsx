@@ -92,6 +92,7 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'open_craft', label: 'Открыть изготовление (завершает разговор)' },
   { id: 'fire_rule', label: 'Запустить правило (завершает разговор)' },
   { id: 'set_entity_state', label: 'Сменить облик персонажа' },
+  { id: 'learn_name', label: 'Раскрыть настоящее имя персонажа' },
 ]
 
 function blankEffect(type: DlgEffect['type']): DlgEffect {
@@ -117,6 +118,7 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'unlock_recipe': return { type, recipe: '' }
     case 'open_craft': return { type, recipe: '' }
     case 'set_entity_state': return { type, entity: '', state: '' }
+    case 'learn_name': return { type, entity: '' }
     case 'present_item': return { type, ok: '', fail: '' }
   }
 }
@@ -124,6 +126,8 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
 const COND_TYPES: Array<{ id: string; label: string }> = [
   { id: 'flag', label: 'Флаг установлен' },
   { id: 'flag!', label: 'Флага НЕТ' },
+  { id: 'npc_known', label: 'Имя персонажа раскрыто' },
+  { id: 'npc_known!', label: 'Имя персонажа НЕ раскрыто' },
   { id: 'item_ge', label: 'Предметов не меньше' },
   { id: 'item_ge!', label: 'Предметов меньше' },
   { id: 'has_item', label: 'Есть предмет' },
@@ -151,6 +155,7 @@ function blankCond(key: string): DlgCond {
   const type = key.replace(/!$/, '') as DlgCond['type']
   switch (type) {
     case 'flag': return { type, flag: '', not }
+    case 'npc_known': return { type, entity: '', not }
     case 'item_ge': return { type, item: '', count: 1, not }
     case 'has_item': return { type, item: '', not }
     case 'disp_ge': return { type, target: '', value: 10, not }

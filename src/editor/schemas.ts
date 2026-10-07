@@ -81,6 +81,14 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'scene', label: 'Сцена', kind: 'sceneRef' }],
     blank: { scene: '' },
   },
+  npc_known: {
+    label: 'Имя персонажа раскрыто (механика «Незнакомец»)',
+    fields: [
+      { key: 'entity', label: 'Персонаж', kind: 'npcRef' },
+      { key: 'known', label: 'Раскрыто (true) или неизвестно (false)', kind: 'boolean', optional: true },
+    ],
+    blank: { entity: '' },
+  },
   flag_set: {
     label: 'Флаг установлен',
     fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],
@@ -350,6 +358,14 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'accent', label: 'Цвет (HEX, пусто — цвет пресета)', kind: 'string', optional: true },
     ],
     blank: { text: '', preset: 'глава' },
+  },
+  learn_name: {
+    label: 'Раскрыть настоящее имя персонажа (механика «Незнакомец»)',
+    fields: [
+      { key: 'entity', label: 'Персонаж', kind: 'npcRef' },
+      { key: 'silent', label: 'Без сообщения в лог', kind: 'boolean', optional: true },
+    ],
+    blank: { entity: '' },
   },
   postcard: {
     label: '«Открытка»: иллюстрация на весь экран с подписью',

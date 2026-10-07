@@ -879,6 +879,37 @@ function NavProps({
           }}
         />
       </label>
+      <div className="props-group" style={{ marginTop: 8 }}>
+        <h5>Перехват и реакции (событийные триггеры)</h5>
+        <label className="fld" data-tip="Запустить диалог с персонажем при попытке пройти (например, караульный окликает героя перед выходом)">
+          <span>Оклик перед уходом (диалог)</span>
+          <select
+            value={nav.intercept_dialogue ?? ''}
+            onChange={(e) => {
+              if (!e.target.value) delete nav.intercept_dialogue
+              else nav.intercept_dialogue = e.target.value
+              commit()
+            }}
+          >
+            <option value="">— без оклика —</option>
+            {store.options('npc').map((o) => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="fld" data-tip="Сообщение игроку, если переход заблокирован условиями (напр. «Дверь заперта на засов»)">
+          <span>Сообщение при блокировке</span>
+          <input
+            value={nav.blocked_message ?? ''}
+            placeholder="например «Дверь заперта на засов изнутри»"
+            onChange={(e) => {
+              if (!e.target.value.trim()) delete nav.blocked_message
+              else nav.blocked_message = e.target.value
+              commit()
+            }}
+          />
+        </label>
+      </div>
     </div>
   )
 }

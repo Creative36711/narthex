@@ -90,6 +90,10 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.hasStatus(c.status)
     case 'weather_is':
       return (s.weather ?? '') === c.weather
+    case 'npc_known': {
+      const known = engine.isNpcNameKnown(c.entity)
+      return c.known === false ? !known : known
+    }
     case 'random_chance':
       return engine.rng.chance(c.probability)
     case 'crime_committed':

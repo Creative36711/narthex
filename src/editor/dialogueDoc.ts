@@ -304,6 +304,8 @@ export function condInk(c: DlgCond): string {
       return c.not ? `get_skill(${q(c.skill)}) < ${c.threshold}` : `get_skill(${q(c.skill)}) >= ${c.threshold}`
     case 'meta_counter':
       return c.not ? `get_meta_counter(${q(c.key)}) < ${c.ge}` : `get_meta_counter(${q(c.key)}) >= ${c.ge}`
+    case 'npc_known':
+      return c.not ? `not is_name_known(${q(c.entity)})` : `is_name_known(${q(c.entity)})`
   }
 }
 
@@ -345,6 +347,7 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'unlock_recipe': return `${indent}~ unlock_recipe(${q(e.recipe)})`
     case 'open_craft': return e.recipe ? `${indent}~ open_craft(${q(e.recipe)})` : `${indent}~ open_craft()`
     case 'set_entity_state': return `${indent}~ set_entity_state(${q(e.entity)}, ${q(e.state)})`
+    case 'learn_name': return `${indent}~ learn_name(${q(e.entity)})`
     case 'present_item': return `${indent}~ present_item(${q(e.ok)}, ${q(e.fail)}${e.required ? `, ${q(e.required)}` : ''})`
   }
 }

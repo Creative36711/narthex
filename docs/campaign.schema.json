@@ -653,6 +653,26 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "learn_name"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "silent": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false,
+          "description": "раскрыть настоящее имя персонажа игроку (механика «Незнакомец»)"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "apply_status"
             },
             "target": {
@@ -2691,6 +2711,26 @@
             "scene"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "npc_known"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "known": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false,
+          "description": "проверка: раскрыто ли игроку настоящее имя персонажа (механика «Незнакомец»)"
         },
         {
           "type": "object",
@@ -6625,6 +6665,25 @@
         "hide_label": {
           "type": "boolean",
           "description": "скрывать подпись до наведения курсора (зона как невидимый хотспот)"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия доступности перехода (все должны выполниться)"
+        },
+        "blocked_message": {
+          "type": "string",
+          "description": "сообщение игроку, если переход заблокирован"
+        },
+        "intercept_dialogue": {
+          "type": "string",
+          "description": "перехват: вместо перехода запустить диалог (например, окликает страж при попытке выйти)"
+        },
+        "intercept_rule": {
+          "type": "string",
+          "description": "перехват: id правила-перехватчика"
         }
       },
       "required": [
@@ -6699,6 +6758,7 @@
                 "$ref": "#/$defs/AmbientRule"
               }
             ]
+            }
           },
           "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации). Строка id или AmbientRule с условиями"
         },
@@ -6982,6 +7042,10 @@
         },
         "label": {
           "type": "string"
+        },
+        "unknown_label": {
+          "type": "string",
+          "description": "имя/описание до знакомства (механика «Незнакомец», напр. «Незнакомка в платке»). Пока имя не раскрыто через learn_name / диалог, игрок видит эту подпись"
         },
         "description": {
           "type": "string",
@@ -7416,6 +7480,17 @@
         "manual": {
           "type": "boolean",
           "description": "manual-правило не проверяется автоматически — только вызывается по id (on_zero_effect и т.п.)"
+        },
+        "trigger": {
+          "type": "string",
+          "enum": [
+            "always",
+            "enter_scene",
+            "leave_scene",
+            "interact",
+            "time_tick"
+          ],
+          "description": "триггер срабатывания: always (по умолчанию), enter_scene (вход на сцену), leave_scene (попытка уйти со сцены), interact (взаимодействие), time_tick"
         },
         "conditions": {
           "type": "array",
@@ -8160,6 +8235,28 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "npc_known"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "known": {
+              "type": "boolean"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "item_ge"
             },
             "item": {
@@ -8419,6 +8516,25 @@
           "required": [
             "type",
             "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "learn_name"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "silent": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
           ],
           "additionalProperties": false
         },

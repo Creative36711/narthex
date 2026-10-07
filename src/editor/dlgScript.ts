@@ -314,6 +314,11 @@ function parseCondPhrase(raw: string, ctx: ParseCtx): CondOut {
         if (!npc) return { cond: null, error: `не нашли персонажа «${value}».${suggest(refs.options('npc'), value)}` }
         return { cond: { type: 'in_party', npc: npc.id, not: not || undefined } }
       }
+      case /^имя раскрыто/.test(kind): {
+        const npc = matchRef(refs.options('npc'), value)
+        if (!npc) return { cond: null, error: `не нашли персонажа «${value}».${suggest(refs.options('npc'), value)}` }
+        return { cond: { type: 'npc_known', entity: npc.id, not: not || undefined } }
+      }
       case /^здоровье/.test(kind): {
         const op = splitOp(value)
         const num = op ? op.num : parseSigned(value)
@@ -535,6 +540,15 @@ export function parseEffectLine(raw: string, ctx: ParseCtx): EffectOut {
       const r = byName(refs.options('recipe'), value, 'рецепт')
       if ('error' in r) return r
       return { effect: { type: 'unlock_recipe', recipe: r.id } }
+    }
+    case /^(раскрыть имя|узнать имя|познакомиться)/.test(kind): {
+      const who = value
+        ? byName(refs.options('npc'), value, 'персонажа')
+        : refs.npcDefault
+          ? { id: refs.npcDefault }
+          : { error: 'пишите так: «→ раскрыть имя: Вольт»' }
+      if ('error' in who) return who
+      return { effect: { type: 'learn_name', entity: who.id } }
     }
     case /^облик/.test(kind): {
       const m = value.match(/^(.*?)\s+[—–-]\s+(.+)$/)
@@ -987,6 +1001,7 @@ function effectToScript(e: DlgEffect, refs: ScriptRefs): string {
     case 'unlock_codex': return `→ кодекс: ${label('codex', e.entry)}`
     case 'unlock_recipe': return `→ рецепт: ${label('recipe', e.recipe)}`
     case 'set_entity_state': return `→ облик: ${label('npc', e.entity)} — ${e.state ? label('emotion', e.state) : 'обычный'}`
+    case 'learn_name': return `→ раскрыть имя: ${label('npc', e.entity)}`
     case 'present_item': return `→ предъявить улику: ${e.required ? label('item', e.required) : 'любой предмет'} (успех: ${e.ok}, иначе: ${e.fail})`
   }
 }
@@ -995,6 +1010,7 @@ function condToScript(c: DlgCond, refs: ScriptRefs): string {
   const not = c.not ? 'нет ' : ''
   switch (c.type) {
     case 'flag': return `[если ${not}${refLabel(refs.options('flag'), c.flag)}]`
+    case 'npc_known': return `[если ${not}имя раскрыто: ${refLabel(refs.options('npc'), c.entity)}]`
     case 'item_ge': return `[если предметов: ${refLabel(refs.options('item'), c.item)} ${c.not ? '<' : '≥'} ${c.count}]`
     case 'has_item': return `[если ${not}предмет: ${refLabel(refs.options('item'), c.item)}]`
     case 'disp_ge': return `[если отношение: ${refLabel(refs.options('disposition'), c.target)} ${c.not ? '<' : '≥'} ${c.value}]`

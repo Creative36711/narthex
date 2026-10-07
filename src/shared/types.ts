@@ -1494,6 +1494,14 @@ export interface NavigationZone {
   cost_ticks?: number
   /** скрывать подпись до наведения курсора (зона как невидимый хотспот) */
   hide_label?: boolean
+  /** условия доступности перехода (все должны выполниться) */
+  conditions?: Condition[]
+  /** сообщение игроку, если переход заблокирован */
+  blocked_message?: string
+  /** перехват: вместо перехода запустить диалог (например, окликает страж при попытке выйти) */
+  intercept_dialogue?: string
+  /** перехват: id правила-перехватчика */
+  intercept_rule?: string
 }
 
 export interface SceneDef {
@@ -1510,13 +1518,13 @@ export interface SceneDef {
   /** фоновые зацикленные звуки сцены (слагаются с фоном локации). Строка id или AmbientRule с условиями */
   ambient?: Array<string | AmbientRule>
   /** тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров) */
-  lighting?: 'outdoor' | 'indoor' | 'none'
-  /** атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) */
-  particles?: 'dust' | 'steam' | 'rain' | 'snow' | 'fog' | 'ash' | 'sparks' | 'embers' | 'none'
-  /** вводное атмосферное повествование от автора (мысли/описание при первом входе) */
-  narrative_intro?: string[]
-  /** глава (id из meta.chapters) — группировка в редакторе; двигатель значения не ждёт */
-  chapter?: string
+    lighting?: 'outdoor' | 'indoor' | 'none'
+    /** атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) */
+    particles?: 'dust' | 'steam' | 'rain' | 'snow' | 'fog' | 'ash' | 'sparks' | 'embers' | 'none'
+    /** вводное атмосферное повествование от автора (мысли/описание при первом входе) */
+    narrative_intro?: string[]
+    /** глава (id из meta.chapters) — группировка в редакторе; двигатель значения не ждёт */
+    chapter?: string
 }
 
 // ───────────────────────── сущности ─────────────────────────
@@ -1575,6 +1583,8 @@ export interface NpcDef {
   id: string
   type: 'npc'
   label: string
+  /** имя/описание до знакомства (механика «Незнакомец», напр. «Незнакомка в платке»). Пока имя не раскрыто через learn_name / диалог, игрок видит эту подпись */
+  unknown_label?: string
   /** описание сущности (при наведении); можно менять динамически (set_description) */
   description: string
   /** ПОРТРЕТ (диалог): состояние → изображение (блок 3 ТЗ «Гибкий движок») */
@@ -1987,16 +1997,20 @@ export type DlgCond =
   | { type: 'weather_is'; weather: string; not?: boolean } // текущая погода (блок 9 ТЗ; '' — ясно)
   /** навык героя не ниже порога (not: ниже) — светские проверки в разговоре */
   | { type: 'skill_ge'; skill: string; threshold: number; not?: boolean }
-  /** счётчик хроники не ниже значения (not: ниже) — «новый круг», достижения */
-  | { type: 'meta_counter'; key: string; ge: number; not?: boolean }
+    /** счётчик хроники не ниже значения (not: ниже) — «новый круг», достижения */
+    | { type: 'meta_counter'; key: string; ge: number; not?: boolean }
+    /** известно ли настоящее имя персонажа (механика «Незнакомец») */
+    | { type: 'npc_known'; entity: string; known?: boolean; not?: boolean }
 
-export type DlgEffect =
-  | { type: 'set_flag'; flag: string }
-  | { type: 'add_item'; item: string; qty: number }
-  | { type: 'remove_item'; item: string; qty: number }
-  | { type: 'fire_rule'; rule: string }
-  | { type: 'join_party'; npc: string }
-  | { type: 'open_trade'; npc: string }
+  export type DlgEffect =
+    | { type: 'set_flag'; flag: string }
+    | { type: 'add_item'; item: string; qty: number }
+    | { type: 'remove_item'; item: string; qty: number }
+    | { type: 'fire_rule'; rule: string }
+    | { type: 'join_party'; npc: string }
+    | { type: 'open_trade'; npc: string }
+    /** раскрыть настоящее имя персонажа игроку (механика «Незнакомец») */
+    | { type: 'learn_name'; entity: string; silent?: boolean }
   /**
    * Открыть окно изготовления (крафта) прямо по ходу сцены или реплики —
    * без кнопки в интерфейсе. `recipe` (необязательно) подсвечивает нужный
@@ -2348,6 +2362,8 @@ export type Condition =
   | { type: 'random_chance'; probability: number }
   | { type: 'has_status'; status: string }
   | { type: 'weather_is'; weather: string }
+  /** известно ли настоящее имя персонажа (механика «Незнакомец») */
+  | { type: 'npc_known'; entity: string; known?: boolean }
   | { type: 'and'; conditions: Condition[] }
   | { type: 'or'; conditions: Condition[] }
   | { type: 'not'; condition: Condition }
@@ -2381,6 +2397,8 @@ export type Effect =
    * состоянии ловит «Проверить кампанию» — иначе она тихо ничего не делала бы.
    */
   | { type: 'set_entity_state'; entity: string; state: string }
+  /** раскрыть настоящее имя персонажа игроку (механика «Незнакомец») */
+  | { type: 'learn_name'; entity: string; silent?: boolean }
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
@@ -2632,6 +2650,8 @@ export interface RuleDef {
   once: boolean
   /** manual-правило не проверяется автоматически — только вызывается по id (on_zero_effect и т.п.) */
   manual?: boolean
+  /** триггер проверки: always (по умолчанию), enter_scene (вход на сцену), leave_scene (попытка уйти со сцены), interact (взаимодействие), time_tick */
+  trigger?: 'always' | 'enter_scene' | 'leave_scene' | 'interact' | 'time_tick'
   /** УСЛОВИЯ правила (все должны выполниться). Обязательный массив; пустой —
    *  правило срабатывает при каждой проверке (если не once/manual).
    *  Отсутствие поля ломает движок при старте забега. */
@@ -2954,6 +2974,8 @@ export interface GameState {
     calling?: string
     skills: Record<string, number>
   }
+  /** id персонажей, чьи имена раскрыты игроку (механика «Незнакомец») */
+  known_npcs?: string[]
   flags: Record<string, boolean>
   variables: Record<string, number | string>
   /** динамические описания сущностей (действие set_description) */
