@@ -62,7 +62,8 @@
       "condition": null,
       "default_entity": "item_board",
       "sound": "snd_paper",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_crate",
@@ -79,7 +80,8 @@
       "condition": null,
       "default_entity": "item_crate",
       "sound": "snd_creak",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_guest",
@@ -146,5 +148,10 @@
       "volume": 0.5
     }
   ],
-  "lighting": "indoor"
+  "lighting": "indoor",
+  "particles": "steam",
+  "narrative_intro": [
+    "Седьмой ярус встречают не запахом, а звуком: где-то ниже ходит вода, которой здесь быть не должно.",
+    "Смотритель не поднимает глаз. Он и так знает, кто спускается, — журнал у него в голове."
+  ]
 }

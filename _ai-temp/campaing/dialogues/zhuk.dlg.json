@@ -245,6 +245,38 @@
      "once": true
     },
     {
+     "text": "Узнаёшь рукавицу? Семёрка на манжете, заплата на пальце.",
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_glove"
+      }
+     ],
+     "goto": "stay",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Партия седьмого яруса, прошлогодняя выдача. Я сам эти тюки через шлюз принимал — брезент двойной, сносу нет.",
+          "emotion": "calm",
+          "voice": "assets/voice/zhuk_13.mp3"
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "А заплата — это к Айле или к Ире: караульные у нас гордые, но когда палец мёрзнет, идут кланяться в Сухой ряд.",
+          "emotion": "thoughtful",
+          "voice": "assets/voice/zhuk_14.mp3"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
      "text": "Пока.",
      "sections": [],
      "goto": "end"

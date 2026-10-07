@@ -62,7 +62,8 @@
       "condition": null,
       "default_entity": "item_hoist",
       "sound": "snd_chain",
-      "sound_volume": 0.7
+      "sound_volume": 0.7,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -126,5 +127,10 @@
       "volume": 0.5
     }
   ],
-  "lighting": "none"
+  "lighting": "none",
+  "particles": "sparks",
+  "narrative_intro": [
+    "Забой зовётся слепым, потому что из него нечего брать. Оказалось — есть что.",
+    "Стена светится ровно, как бирюза под водой, и свет этот не от лампы."
+  ]
 }

@@ -30,7 +30,8 @@
       "condition": null,
       "default_entity": "item_ladder",
       "sound": "sfx_rungs",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_niche",
@@ -47,7 +48,8 @@
       "condition": null,
       "default_entity": "item_niche",
       "sound": "snd_stone",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_winch",
@@ -63,7 +65,8 @@
       "condition": null,
       "default_entity": "item_winch",
       "sound": "snd_chain",
-      "sound_volume": 0.7
+      "sound_volume": 0.7,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -121,7 +124,18 @@
           "flag": "flood"
         }
       ]
+    },
+    {
+      "sounds": [
+        "snd_shaft_amb"
+      ],
+      "volume": 0.42
     }
   ],
-  "lighting": "indoor"
+  "lighting": "indoor",
+  "particles": "steam",
+  "narrative_intro": [
+    "Лестница уходит вниз, насколько видит глаз, и дальше — насколько слышит ухо.",
+    "Сверху доносится ровный гул города. Здесь он звучит как чужое дыхание."
+  ]
 }

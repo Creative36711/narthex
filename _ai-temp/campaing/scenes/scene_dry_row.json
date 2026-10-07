@@ -79,7 +79,8 @@
       "condition": null,
       "default_entity": "item_brazier",
       "sound": "snd_pot",
-      "sound_volume": 0.5
+      "sound_volume": 0.5,
+      "environmental": true
     },
     {
       "id": "slot_bench_row",
@@ -97,7 +98,8 @@
       "condition": null,
       "default_entity": "item_bench",
       "sound": "sfx_anvil",
-      "sound_volume": 0.7
+      "sound_volume": 0.7,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -161,5 +163,10 @@
       "volume": 0.3
     }
   ],
-  "lighting": "indoor"
+  "lighting": "indoor",
+  "particles": "embers",
+  "narrative_intro": [
+    "Ряд зовётся Сухим, потому что вода сюда не дошла. Пока не дошла.",
+    "У жаровни греются не от холода: здесь греются, чтобы не думать о том, что будет, когда вода дойдёт."
+  ]
 }

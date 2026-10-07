@@ -30,7 +30,8 @@
       "condition": null,
       "default_entity": "item_sluice_mech",
       "sound": "sfx_machine",
-      "sound_volume": 0.7
+      "sound_volume": 0.7,
+      "environmental": true
     },
     {
       "id": "slot_dead_guard",
@@ -46,7 +47,8 @@
       "condition": null,
       "default_entity": "item_dead_guard",
       "sound": "snd_cloth",
-      "sound_volume": 0.5
+      "sound_volume": 0.5,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -96,7 +98,18 @@
         "snd_water_amb"
       ],
       "volume": 0.6
+    },
+    {
+      "sounds": [
+        "snd_shaft_amb"
+      ],
+      "volume": 0.35
     }
   ],
-  "lighting": "indoor"
+  "lighting": "indoor",
+  "particles": "rain",
+  "narrative_intro": [
+    "Затвор не закрыт — он приготовлен: колодка пуста, и пуста она не первый месяц.",
+    "Капли считают секунды. Секунды можно не считать: их и так мало."
+  ]
 }

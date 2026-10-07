@@ -30,7 +30,8 @@
       "condition": null,
       "default_entity": "item_dead_guard",
       "sound": "snd_cloth",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_pipes",
@@ -46,7 +47,8 @@
       "condition": null,
       "default_entity": "item_pipes",
       "sound": "sfx_gear",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_debris",
@@ -63,7 +65,8 @@
       "condition": null,
       "default_entity": "item_debris",
       "sound": "snd_stone",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -156,5 +159,10 @@
       ]
     }
   ],
-  "lighting": "none"
+  "lighting": "none",
+  "particles": "fog",
+  "narrative_intro": [
+    "Вода стоит по щиколотку и пахнет ржавчиной. Мостки ведут в темноту, которая не кончается.",
+    "Идти надо боком, держась за стену: в галерее слышно всё, и тебя тоже слышно."
+  ]
 }

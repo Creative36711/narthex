@@ -32,7 +32,8 @@
       "condition": null,
       "default_entity": "item_resh_notes",
       "sound": "snd_paper",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_locker",
@@ -49,7 +50,8 @@
       "condition": null,
       "default_entity": "item_locker",
       "sound": "sfx_lock",
-      "sound_volume": 0.7
+      "sound_volume": 0.7,
+      "environmental": true
     },
     {
       "id": "slot_stove",
@@ -65,7 +67,8 @@
       "condition": null,
       "default_entity": "item_stove",
       "sound": "snd_pot",
-      "sound_volume": 0.5
+      "sound_volume": 0.5,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -119,5 +122,10 @@
       "volume": 0.55
     }
   ],
-  "lighting": "indoor"
+  "lighting": "indoor",
+  "particles": "dust",
+  "narrative_intro": [
+    "Чужую каморку открывают ключом, а читают глазами. Записи лежат так, будто хозяин собирался вернуться через час.",
+    "На столе чертёж, на котором седьмая помпа есть. В сводке её уже нет."
+  ]
 }

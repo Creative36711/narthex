@@ -1,40 +1,44 @@
 {
- "id": "rule_filter_bank1",
- "label": "Дыхатель: первая банка",
- "once": true,
- "manual": false,
- "conditions": [
-  {
-   "type": "player_enters_location",
-   "location": "loc_deep9"
-  },
-  {
-   "type": "equipped",
-   "item": "item_filter"
-  },
-  {
-   "type": "flag_not_set",
-   "flag": "filter_bank_1"
-  },
-  {
-   "type": "flag_not_set",
-   "flag": "filter_bank_2"
-  }
- ],
- "effects": [
-  {
-   "type": "set_flag",
-   "flag": "filter_bank_1"
-  },
-  {
-   "type": "show_message",
-   "text": "Маска шипит: первая банка ушла на спуск. Вторая — на подъём, если он будет."
-  },
-  {
-   "type": "play_sound",
-   "sound": "snd_vent",
-   "volume": 0.8
-  }
- ],
- "chapter": "ch_deep"
+  "id": "rule_filter_bank1",
+  "label": "Дыхатель: первая банка",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_location",
+      "location": "loc_deep9"
+    },
+    {
+      "type": "equipped",
+      "item": "item_filter"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "filter_bank_1"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "filter_bank_2"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "filter_bank_1"
+    },
+    {
+      "type": "show_message",
+      "text": "Маска шипит: первая банка ушла на спуск. Вторая — на подъём, если он будет."
+    },
+    {
+      "type": "play_sound",
+      "sound": "snd_vent",
+      "volume": 0.8
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_filter"
+    }
+  ],
+  "chapter": "ch_deep"
 }

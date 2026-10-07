@@ -9,13 +9,13 @@ EXTERNAL remove_status(a0)
 EXTERNAL set_description(a0, a1)
 EXTERNAL set_flag(a0)
 EXTERNAL unlock_recipe(a0)
+EXTERNAL has_item(a0)
+EXTERNAL unlock_codex(a0)
 
 === Начало ===
 Айла промокает бинт и не смотрит на твои руки. # action # sfx: sfx_water
 Сядь. У тебя ссадина на костяшках и вид человека, который не спал двое суток. # voice: assets/voice/ayla_1.mp3
 Двое суток без сна — это полдела. За трое начинают мерещиться вещи, которые потом вносят в протокол. # voice: assets/voice/ayla_8.mp3
-Если пойдёшь на девятый, возьми мой настой. Он не от воды. Он от того, что в воде. # voice: assets/voice/ayla_9.mp3
-Заплату на рукавице я узнаю: ставила осенью, в рядке. Чья — не помню: ладони у всех в мазуте, а имён я не спрашиваю. А клеймо караульное, это точно. # voice: assets/voice/ayla_10.mp3
 -> Начало_hub
 
 === Начало_hub ===
@@ -32,6 +32,7 @@ EXTERNAL unlock_recipe(a0)
     -> Начало_hub
 * { not (get_flag("ayla_recipe")) } [Научи готовить настой.]
     Рецепт простой, как всё, что спасает жизнь: трава, вода и терпение. # emotion: calm # voice: assets/voice/ayla_6.mp3
+    Если пойдёшь на девятый, возьми мой настой. Он не от воды. Он от того, что в воде. # emotion: thoughtful # voice: assets/voice/ayla_9.mp3
     ~ unlock_recipe("recipe_tonic")
     ~ set_flag("ayla_recipe")
     ~ change_disposition("npc_ayla", 10)
@@ -45,6 +46,13 @@ EXTERNAL unlock_recipe(a0)
     Бери, что нужно. И оставь себе на воду — воды всегда нужно больше. # emotion: calm # voice: assets/voice/ayla_7.mp3
     ~ open_trade("npc_ayla")
     -> DONE
++ { has_item("item_glove") } [Показать Айле рукавицу с привода.]
+    Заплату на рукавице я узнаю: ставила осенью, в рядке. Чья — не помню: ладони у всех в мазуте, а имён я не спрашиваю. А клеймо караульное, это точно. # emotion: thoughtful # voice: assets/voice/ayla_10.mp3
+    -> Начало_hub
++ { has_item("item_filter") } [Чем забиваются банки в дыхателе?]
+    Жильной взвесью. Она не пыль — она в угле живёт и разбухает от сырости. Продуть банку нельзя, можно только сменить на верстаке. # emotion: calm # voice: assets/voice/ayla_11.mp3
+    ~ unlock_codex("codex_filter")
+    -> Начало_hub
 + [Пока.]
     -> DONE
 - -> Начало_hub

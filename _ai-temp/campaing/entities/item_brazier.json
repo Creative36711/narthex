@@ -11,40 +11,86 @@
   },
   "interact_options": [
     {
-      "label": "Согреться у жаровни",
+      "label": "Погреться у общего огня",
+      "hint": "первый час у общей жаровни бесплатный (+30 к теплу)",
+      "sound": "snd_pot",
+      "conditions": [
+        {
+          "type": "need_le",
+          "need": "need_warmth",
+          "threshold": 75
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "brazier_free_used"
+        }
+      ],
       "effects": [
+        {
+          "type": "set_flag",
+          "flag": "brazier_free_used"
+        },
         {
           "type": "change_need",
           "need": "need_warmth",
-          "delta": 35
+          "delta": 30
         },
         {
           "type": "advance_time",
           "ticks": 1
         }
       ],
-      "message": "Угли шипят, и сырость отступает на полшага.",
-      "sound": "snd_pot",
-      "hint": "час у жаровни: +35 к теплу, пока ряд подбрасывает уголь",
+      "message": "Пока в жаровне тлеет общий уголь, место у огня не жалеют. В следующий раз придётся подбросить своё — даром в Сухом ряду греют только раз."
+    },
+    {
+      "label": "Подбросить угля и согреться",
+      "hint": "час у жаровни за свой кусок угля (+40 к теплу)",
+      "sound": "snd_coal",
       "conditions": [
         {
           "type": "need_le",
           "need": "need_warmth",
-          "threshold": 70
+          "threshold": 75
+        },
+        {
+          "type": "flag_set",
+          "flag": "brazier_free_used"
+        },
+        {
+          "type": "has_item",
+          "item": "item_coal",
+          "min_quantity": 1
         }
-      ]
+      ],
+      "effects": [
+        {
+          "type": "remove_item",
+          "item": "item_coal",
+          "quantity": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 40
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        }
+      ],
+      "message": "Твой уголь занимается синим пламенем, и сырость отступает."
     },
     {
       "label": "Сготовить на жаровне",
+      "hint": "паёк и вода становятся похлёбкой",
+      "sound": "snd_pot",
       "effects": [
         {
           "type": "open_craft",
           "recipe": "recipe_stew"
         }
       ],
-      "message": "Угли дышат ровно. Здесь можно сварить то, что в сухом виде не лезет в горло.",
-      "sound": "snd_pot",
-      "hint": "паёк и вода становятся похлёбкой"
+      "message": "Угли дышат ровно. Здесь можно сварить то, что в сухом виде не лезет в горло."
     }
   ],
   "interact_hint": "Погреться, сготовить",

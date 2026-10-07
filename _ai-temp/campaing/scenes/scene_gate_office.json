@@ -31,7 +31,8 @@
       "condition": null,
       "default_entity": "item_case",
       "sound": "sfx_book",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_desk",
@@ -48,7 +49,8 @@
       "condition": null,
       "default_entity": "item_desk",
       "sound": "snd_paper",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_cot",
@@ -64,7 +66,8 @@
       "condition": null,
       "default_entity": "item_cot",
       "sound": "snd_cloth",
-      "sound_volume": 0.5
+      "sound_volume": 0.5,
+      "environmental": true
     },
     {
       "id": "slot_bench",
@@ -81,7 +84,8 @@
       "condition": null,
       "default_entity": "item_bench",
       "sound": "sfx_anvil",
-      "sound_volume": 0.7
+      "sound_volume": 0.7,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -133,5 +137,10 @@
       "volume": 0.38
     }
   ],
-  "lighting": "indoor"
+  "lighting": "indoor",
+  "particles": "dust",
+  "narrative_intro": [
+    "В будке пахнет маслом и чужим табаком. Журнал лежит раскрытым, будто из него только что вышли.",
+    "Каждая фамилия в нём — это час, который кто-то провёл внизу. Некоторые часы ещё не кончились."
+  ]
 }

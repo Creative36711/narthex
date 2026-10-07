@@ -27,5 +27,6 @@
   "interact_hint": "Рассмотреть рукавицу",
   "portrait": {
     "neutral": "assets/img/items/item_glove.jpg"
-  }
+  },
+  "image": "assets/img/items/item_glove.jpg"
 }

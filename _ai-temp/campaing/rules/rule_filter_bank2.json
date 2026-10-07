@@ -1,40 +1,40 @@
 {
- "id": "rule_filter_bank2",
- "label": "Дыхатель: вторая банка",
- "once": true,
- "manual": false,
- "conditions": [
-  {
-   "type": "player_enters_location",
-   "location": "loc_deep9"
-  },
-  {
-   "type": "equipped",
-   "item": "item_filter"
-  },
-  {
-   "type": "flag_set",
-   "flag": "filter_bank_1"
-  },
-  {
-   "type": "flag_not_set",
-   "flag": "filter_bank_2"
-  }
- ],
- "effects": [
-  {
-   "type": "set_flag",
-   "flag": "filter_bank_2"
-  },
-  {
-   "type": "show_message",
-   "text": "Вторая банка села. Маска ещё держит пыль, но ржавчина уже во рту: третьего спуска она не выдержит."
-  },
-  {
-   "type": "play_sound",
-   "sound": "snd_vent",
-   "volume": 0.8
-  }
- ],
- "chapter": "ch_deep"
+  "id": "rule_filter_bank2",
+  "label": "Дыхатель: вторая банка",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_face"
+    },
+    {
+      "type": "equipped",
+      "item": "item_filter"
+    },
+    {
+      "type": "flag_set",
+      "flag": "filter_bank_1"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "filter_bank_2"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "filter_bank_2"
+    },
+    {
+      "type": "show_message",
+      "text": "У слепого забоя воздух гуще воды — первая банка забилась в камень, маска щёлкнула на вторую. На подъём её хватит, но перед новым спуском обойму придётся переснарядить на верстаке."
+    },
+    {
+      "type": "play_sound",
+      "sound": "snd_vent",
+      "volume": 0.8
+    }
+  ],
+  "chapter": "ch_deep"
 }

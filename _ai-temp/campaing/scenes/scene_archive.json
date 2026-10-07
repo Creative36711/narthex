@@ -47,7 +47,8 @@
       "condition": null,
       "default_entity": "item_shelf",
       "sound": "sfx_book",
-      "sound_volume": 0.7
+      "sound_volume": 0.7,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -99,5 +100,10 @@
       "volume": 0.32
     }
   ],
-  "lighting": "indoor"
+  "lighting": "indoor",
+  "particles": "dust",
+  "narrative_intro": [
+    "В архиве своя погода: пыль, лампа под зелёным стеклом и шелест бумаги, которой сто лет.",
+    "Дело №136 лежит в папке толщиной в палец. Про девятый ярус в нём одно слово: исполнено."
+  ]
 }

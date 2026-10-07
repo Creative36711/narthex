@@ -55,5 +55,8 @@
       "hint": "кладовая Цеха: чужое берут тихо"
     }
   ],
-  "interact_hint": "Обыскать ящик"
+  "interact_hint": "Обыскать ящик",
+  "portrait": {
+    "neutral": "assets/img/items/item_crate.jpg"
+  }
 }

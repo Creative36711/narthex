@@ -31,7 +31,8 @@
       "condition": null,
       "default_entity": "item_cache",
       "sound": "sfx_lock",
-      "sound_volume": 0.7
+      "sound_volume": 0.7,
+      "environmental": true
     },
     {
       "id": "slot_vent",
@@ -47,7 +48,8 @@
       "condition": null,
       "default_entity": "item_vent",
       "sound": "snd_vent",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_marker",
@@ -63,7 +65,8 @@
       "condition": null,
       "default_entity": "item_marker",
       "sound": "snd_stone",
-      "sound_volume": 0.5
+      "sound_volume": 0.5,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -127,5 +130,10 @@
       "volume": 0.7
     }
   ],
-  "lighting": "indoor"
+  "lighting": "indoor",
+  "particles": "fog",
+  "narrative_intro": [
+    "Штольня ведёт к тому, что город считает выработанным. Жила считает иначе.",
+    "Свет лампы не достаёт до стен: видно только то, что прямо перед лицом."
+  ]
 }

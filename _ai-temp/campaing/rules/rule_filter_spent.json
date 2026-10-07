@@ -1,38 +1,45 @@
 {
- "id": "rule_filter_spent",
- "label": "Дыхатель: банок нет",
- "once": false,
- "manual": false,
- "conditions": [
-  {
-   "type": "player_enters_location",
-   "location": "loc_deep9"
-  },
-  {
-   "type": "equipped",
-   "item": "item_filter"
-  },
-  {
-   "type": "flag_set",
-   "flag": "filter_bank_2"
-  }
- ],
- "effects": [
-  {
-   "type": "apply_status",
-   "target": "player",
-   "status": "status_filter_spent",
-   "duration": 4
-  },
-  {
-   "type": "show_message",
-   "text": "Маска хрипит впустую: банок нет. Теперь каждый час на девятом стоит крови."
-  },
-  {
-   "type": "play_sound",
-   "sound": "sfx_gasp",
-   "volume": 0.9
-  }
- ],
- "chapter": "ch_deep"
+  "id": "rule_filter_spent",
+  "label": "Дыхатель: банок нет",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_location",
+      "location": "loc_deep9"
+    },
+    {
+      "type": "equipped",
+      "item": "item_filter"
+    },
+    {
+      "type": "flag_set",
+      "flag": "filter_bank_2"
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "has_status",
+        "status": "status_filter_spent"
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_filter_spent",
+      "duration": 4
+    },
+    {
+      "type": "show_message",
+      "text": "Маска хрипит впустую: банок нет. Теперь каждый час на девятом стоит крови."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_gasp",
+      "volume": 0.9
+    }
+  ],
+  "chapter": "ch_deep"
 }

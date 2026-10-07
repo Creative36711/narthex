@@ -41,7 +41,8 @@
       "default_entity": "item_pump_engine",
       "sprite_scale": 0.9,
       "sound": "sfx_gear",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     },
     {
       "id": "slot_ira",
@@ -76,7 +77,8 @@
       "condition": null,
       "default_entity": "item_resh_door",
       "sound": "sfx_door",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "environmental": true
     }
   ],
   "navigation": [
@@ -158,5 +160,10 @@
       "volume": 0.55
     }
   ],
-  "lighting": "indoor"
+  "lighting": "indoor",
+  "particles": "dust",
+  "narrative_intro": [
+    "Седьмая помпа стоит. Она не сломана и не заржавела: она просто молчит, и это молчание слышно на весь ярус.",
+    "Мазут на полу не высыхает — его некому вытирать третий день."
+  ]
 }
