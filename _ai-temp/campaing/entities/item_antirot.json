@@ -1,29 +1,34 @@
 {
- "id": "item_antirot",
- "type": "item",
- "category": "medicine",
- "label": "Жильный отвар",
- "description": "Горькая настойка, которую держат только внизу. Гнилец её не любит, человек — тем более.",
- "weight": 0.3,
- "stackable": true,
- "value": {
-  "mark": 26
- },
- "on_use": {
-  "effects": [
-   {
-    "type": "remove_status",
-    "target": "player",
-    "status": "status_rot"
-   },
-   {
-    "type": "change_hp",
-    "delta": 5
-   }
-  ],
-  "consume": true
- },
- "sounds": {
-  "use": "sfx_glass"
- }
+  "id": "item_antirot",
+  "type": "item",
+  "category": "medicine",
+  "label": "Жильный отвар",
+  "description": "Горькая настойка, которую держат только внизу. Гнилец её не любит, человек — тем более.",
+  "weight": 0.3,
+  "stackable": true,
+  "value": {
+    "mark": 26
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "remove_status",
+        "target": "player",
+        "status": "status_rot"
+      },
+      {
+        "type": "change_hp",
+        "delta": 5
+      }
+    ],
+    "consume": true
+  },
+  "sounds": {
+    "pickup": "sfx_glass",
+    "use": "sfx_glass"
+  },
+  "image": "assets/img/items/item_antirot.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_antirot.jpg"
+  }
 }

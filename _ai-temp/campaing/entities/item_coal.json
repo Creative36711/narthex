@@ -9,5 +9,27 @@
   "value": {
     "mark": 3
   },
-  "interact_hint": "Топливо для печки"
+  "interact_hint": "Взвесить кусок антрацита",
+  "image": "assets/img/items/item_coal.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_coal.jpg"
+  },
+  "sounds": {
+    "pickup": "snd_coal",
+    "use": "snd_coal"
+  },
+  "interact_options": [
+    {
+      "label": "Взвесить кусок антрацита",
+      "hint": "жирный каменный уголь для печки и жаровни",
+      "sound": "snd_coal",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Тяжёлый маслянистый кусок угля с верхнего склада: горит жарко и почти без копоти, а дроблёным идёт на переснаряжение угольных банок дыхателя."
+        }
+      ]
+    }
+  ]
 }

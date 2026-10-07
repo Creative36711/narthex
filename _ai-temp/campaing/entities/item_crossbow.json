@@ -22,5 +22,30 @@
     "traits": [
       "impale"
     ]
-  }
+  },
+  "image": "assets/img/items/item_crossbow.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_crossbow.jpg"
+  },
+  "sounds": {
+    "pickup": "sfx_crossbow",
+    "equip": "sfx_crossbow",
+    "unequip": "snd_cloth",
+    "use": "sfx_crossbow"
+  },
+  "interact_hint": "Проверить натяжение дуги",
+  "interact_options": [
+    {
+      "label": "Проверить натяжение дуги",
+      "hint": "шахтный самострел с жильной прицельной планкой",
+      "sound": "sfx_crossbow",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Короткая стальная дуга взводится храповым рычагом, а в прорези прицела тускло светится осколок жильного стекла — чтобы бить вдоль неосвещённого штрека на тридцать шагов."
+        }
+      ]
+    }
+  ]
 }

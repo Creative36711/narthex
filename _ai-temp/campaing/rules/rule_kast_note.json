@@ -2,7 +2,7 @@
   "id": "rule_kast_note",
   "label": "Записка показана Каст",
   "once": true,
-  "manual": false,
+  "manual": true,
   "conditions": [],
   "effects": [
     {
@@ -25,6 +25,5 @@
       "volume": 0.7
     }
   ],
-  "chapter": "ch_price",
-  "trigger": "always"
+  "chapter": "ch_price"
 }

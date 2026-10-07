@@ -31,17 +31,7 @@
   "slot_type": "person",
   "faction": "faction_nadzor",
   "base_disposition": 5,
-  "schedule": [
-    {
-      "time_range": [
-        9,
-        21
-      ],
-      "location": "loc_surface",
-      "scene": "scene_office",
-      "slot": "slot_kast"
-    }
-  ],
+  "schedule": [],
   "dialogue": "dialogues/kast.ink",
   "inventory": [
     {

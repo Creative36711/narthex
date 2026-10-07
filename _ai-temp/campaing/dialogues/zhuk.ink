@@ -20,7 +20,7 @@ VAR r = 0
 
 === Начало_hub ===
 ~ set_dialogue_timer(15, "Молчание")
-+ [Что ты видел в ночь тринадцатого?]
+* { not (get_flag("zhuk_paid")) } [Что ты видел в ночь тринадцатого?]
     ~ r = skill_check("persuade", 50)
     {r: -> Начало_hub_ok1 | -> Начало_hub_no1}
 + { item_count("item_mark") >= 50 and not (get_flag("zhuk_paid")) } [Пятьдесят марок. Вспоминай.]
@@ -35,13 +35,14 @@ VAR r = 0
     ~ set_flag("kast_alerted")
     -> Начало_hub
 + { get_flag("clue_roster") and not (get_flag("zhuk_cache_hint")) } [Ты и сам знаешь, кто стоял. Что ещё?]
-    Жук кривится, но рук не прячет: тогда слушай другое. Гроссбух он не в конторе держал и не в каморке: он его в штольне спрятал, там, где спал, под плитой. Ищи, где у мастера была постель. # emotion: thoughtful # voice: assets/voice/zhuk_12.mp3
+    Жук кривится, но ладоней со стола не убирает. # action # voice: assets/voice/narr_zhuk_5.mp3
+    Тогда слушай другое. Гроссбух Реш не в конторе держал и не в каморке: он его в штольне девятого яруса спрятал, под чугунной плитой у старой крепи. # emotion: thoughtful # voice: assets/voice/zhuk_12.mp3
     ~ set_flag("zhuk_cache_hint")
     -> Начало_hub
 + { has_item("item_ledger") } [Дать Жуку полистать гроссбух.]
     ~ present_item("Расход", "Расход_мимо", "item_ledger")
     -> DONE
-* [Где мастер?]
+* { not (get_flag("resh_found")) } [Где мастер?]
 Ниже восьмого. Там, где жила поёт. Хочешь — спускайся, хочешь — живи. # emotion: calm # voice: assets/voice/zhuk_3.mp3
     ~ fire_rule("rule_reveal_deep")
     -> Начало_hub

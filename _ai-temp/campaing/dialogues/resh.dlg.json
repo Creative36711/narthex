@@ -203,7 +203,8 @@
        ],
        "goto": "stay"
       }
-     }
+     },
+     "once": true
     },
     {
      "text": "Что такое жила?",
@@ -307,6 +308,13 @@
           "type": "join_party",
           "npc": "npc_resh"
          }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "resh_joined"
+         }
         }
        ]
       }
@@ -316,8 +324,14 @@
       {
        "type": "flag",
        "flag": "resh_trusts"
+      },
+      {
+       "type": "flag",
+       "flag": "resh_joined",
+       "not": true
       }
-     ]
+     ],
+     "once": true
     },
     {
      "text": "Дыхатель держит только две банки?",

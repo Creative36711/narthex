@@ -32,35 +32,7 @@
   "slot_type": "person",
   "faction": "faction_cekh",
   "base_disposition": 5,
-  "schedule": [
-    {
-      "time_range": [
-        7,
-        20
-      ],
-      "location": "loc_pump7",
-      "scene": "scene_pump_hall",
-      "slot": "slot_ira"
-    },
-    {
-      "time_range": [
-        20,
-        24
-      ],
-      "location": "loc_ward8",
-      "scene": "scene_dry_row",
-      "slot": "slot_bench_row"
-    },
-    {
-      "time_range": [
-        0,
-        7
-      ],
-      "location": "loc_ward8",
-      "scene": "scene_dry_row",
-      "slot": "slot_bench_row"
-    }
-  ],
+  "schedule": [],
   "dialogue": "dialogues/ira.ink",
   "inventory": [
     {

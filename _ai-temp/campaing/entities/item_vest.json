@@ -12,5 +12,29 @@
   "equip_slot": "armor",
   "armor_data": {
     "points": 3
-  }
+  },
+  "image": "assets/img/items/item_vest.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_vest.jpg"
+  },
+  "sounds": {
+    "pickup": "snd_cloth",
+    "equip": "snd_latch",
+    "unequip": "snd_cloth"
+  },
+  "interact_hint": "Проверить нагрудные пластины",
+  "interact_options": [
+    {
+      "label": "Проверить нагрудные пластины",
+      "hint": "стёганая кирза с железным подбоем",
+      "sound": "snd_latch",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Многослойная варёная кирза, проклёпанная железными полосами на груди и плечах. Тяжёлый, пахнет потом и ружейным маслом, зато держит и клык пепельного пса, и удар ломом."
+        }
+      ]
+    }
+  ]
 }

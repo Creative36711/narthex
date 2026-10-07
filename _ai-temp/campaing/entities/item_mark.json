@@ -1,12 +1,20 @@
 {
- "id": "item_mark",
- "type": "item",
- "category": "currency",
- "label": "Марка",
- "description": "Круглая латунная марка с клеймом помпы. Ниже седьмого яруса на неё смотрят дольше, чем на лицо.",
- "weight": 0.01,
- "stackable": true,
- "value": {
-  "mark": 1
- }
+  "id": "item_mark",
+  "type": "item",
+  "category": "currency",
+  "label": "Марка",
+  "description": "Круглая латунная марка с клеймом помпы. Ниже седьмого яруса на неё смотрят дольше, чем на лицо.",
+  "weight": 0.01,
+  "stackable": true,
+  "value": {
+    "mark": 1
+  },
+  "image": "assets/img/items/item_mark.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_mark.jpg"
+  },
+  "sounds": {
+    "pickup": "sfx_coin",
+    "use": "sfx_coin"
+  }
 }

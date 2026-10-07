@@ -27,7 +27,9 @@
       "y": 330,
       "w": 240,
       "h": 350,
-      "condition": null,
+      "condition": {
+        "not_flag": "resh_joined"
+      },
       "default_entity": "npc_resh",
       "sound": "sfx_hum",
       "sound_volume": 0.7

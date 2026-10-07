@@ -40,5 +40,5 @@
     }
   ],
   "chapter": "ch_arrival",
-  "trigger": "time_tick"
+  "trigger": "always"
 }

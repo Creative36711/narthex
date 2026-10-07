@@ -21,5 +21,30 @@
     "traits": [
       "impale"
     ]
-  }
+  },
+  "image": "assets/img/items/item_service_blade.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_service_blade.jpg"
+  },
+  "sounds": {
+    "pickup": "snd_blade",
+    "equip": "snd_blade",
+    "unequip": "snd_cloth",
+    "use": "snd_blade"
+  },
+  "interact_hint": "Осмотреть клеймо на гарде",
+  "interact_options": [
+    {
+      "label": "Осмотреть клеймо на гарде",
+      "hint": "прямой тесак караульной смены",
+      "sound": "snd_blade",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Тяжёлый прямой клинок с долом и массивной латунной дужкой. На пяте выбито клеймо седьмого яруса: такими вооружают старших смен и людей Келла."
+        }
+      ]
+    }
+  ]
 }

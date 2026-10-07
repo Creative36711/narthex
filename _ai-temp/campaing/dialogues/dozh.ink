@@ -26,7 +26,7 @@ EXTERNAL learn_name(a0)
     Говорят, на девятом жилу нашли. Живую. Говорят, из-за неё всё. # voice: assets/voice/dozh_3.mp3
     ~ unlock_codex("codex_karkas")
     -> Начало_hub
-* [Ищу Жука.]
+* [Кто там сидит у жаровни?]
     У жаровни сидит, греется, как честный человек. # emotion: calm # voice: assets/voice/dozh_8.mp3
     Скажи, что от Дожа. Он скинет — не много, но скинет. # voice: assets/voice/dozh_9.mp3
     ~ change_disposition("npc_zhuk", 8)
@@ -49,17 +49,17 @@ EXTERNAL learn_name(a0)
 - -> Начало_hub
 
 === Молчание ===
-Дож спокойно ждёт: он умеет торговать и молча. # action
+Дож спокойно ждёт: он умеет торговать и молча. # action # voice: assets/voice/narr_dozh_2.mp3
 Молчишь? И правильно. Кто говорит, тот уже купил. # voice: assets/voice/dozh_7.mp3
 -> Начало
 
 === Оценка ===
-Дож вертит вещь двумя пальцами, прищурившись. # action # sfx: snd_latch
+Дож вертит вещь двумя пальцами, прищурившись. # action # sfx: snd_latch # voice: assets/voice/narr_dozh_3.mp3
 Вещь стоящая — для того, кто её ищет. Я таких не знаю, но за полцены возьму. # emotion: calm # voice: assets/voice/dozh_6.mp3
 ~ change_disposition("npc_dozh", 2)
 -> Начало_hub
 
 === Оценка_мимо ===
-Дож разводит руками: пусто. # action
+Дож разводит руками: пусто. # action # voice: assets/voice/narr_dozh_4.mp3
 Руки показывай, когда они полные. Пустыми торгуют только нищие. # emotion: calm # voice: assets/voice/dozh_11.mp3
 -> Начало_hub

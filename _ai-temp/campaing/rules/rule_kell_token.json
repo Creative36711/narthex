@@ -2,7 +2,7 @@
   "id": "rule_kell_token",
   "label": "Жетон показан Келлу",
   "once": true,
-  "manual": false,
+  "manual": true,
   "conditions": [],
   "effects": [
     {
@@ -20,6 +20,5 @@
       "volume": 0.8
     }
   ],
-  "chapter": "ch_signs",
-  "trigger": "always"
+  "chapter": "ch_signs"
 }

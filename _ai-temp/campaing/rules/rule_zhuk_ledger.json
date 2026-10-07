@@ -2,7 +2,7 @@
   "id": "rule_zhuk_ledger",
   "label": "Жук прочёл гроссбух",
   "once": true,
-  "manual": false,
+  "manual": true,
   "conditions": [],
   "effects": [
     {
@@ -20,6 +20,5 @@
       "volume": 0.7
     }
   ],
-  "chapter": "ch_price",
-  "trigger": "always"
+  "chapter": "ch_price"
 }

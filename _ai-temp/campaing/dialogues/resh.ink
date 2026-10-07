@@ -31,7 +31,7 @@ VAR r = 0
     Стража. Я видел пломбу на их рукавицах: тринадцать-К. У нас на ярусе пломбы только у тех, кто закрывает. # emotion: angry # voice: assets/voice/resh_6.mp3
     Муфту резали ключом на пятьдесят два, в перчатках: на срезе ни одной мозоли. Сорок лет смотрю, как режут, — по металлу видно, чья рука держала ключ. # emotion: thoughtful # voice: assets/voice/resh_14.mp3
     -> Начало_hub
-+ { not (has_item("item_core")) and not (has_item("item_key_cache")) } [Отдай сердцевину.]
+* { not (has_item("item_core")) and not (has_item("item_key_cache")) } [Отдай сердцевину.]
     ~ r = skill_check("persuade", 55)
     {r: -> Начало_hub_ok1 | -> Начало_hub_no1}
 + [Что такое жила?]
@@ -44,10 +44,11 @@ VAR r = 0
     ~ unlock_recipe("recipe_charge")
     ~ set_flag("resh_charge_recipe")
     -> Начало_hub
-+ { get_flag("resh_trusts") } [Пойдём со мной.]
+* { get_flag("resh_trusts") and not (get_flag("resh_joined")) } [Пойдём со мной.]
     Он встаёт тяжело, опираясь о стену ладонью. # action # sfx: snd_stone
     Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту. # voice: assets/voice/resh_8.mp3
     ~ join_party("npc_resh")
+    ~ set_flag("resh_joined")
     -> Начало_hub
 + { has_item("item_filter") } [Дыхатель держит только две банки?]
     Первая банка садится ещё в штольне, вторая — у самого забоя. Кто спускается в третий раз со старой маской, тот дышит уже собой. # emotion: thoughtful # voice: assets/voice/resh_15.mp3
