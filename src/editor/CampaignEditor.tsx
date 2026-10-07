@@ -927,6 +927,23 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
                   <option value="italic">Курсив</option>
                 </select>
               </label>
+              <label className="fld" data-tip="Поправка размера шрифта: 100% — как есть, 90% — чуть уменьшить, 110% — увеличить">
+                <span>Масштаб шрифта</span>
+                <input
+                  type="number"
+                  min={0.7}
+                  max={1.4}
+                  step={0.05}
+                  placeholder="1.0"
+                  value={f.size_adjust ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value ? Number(e.target.value) : undefined
+                    if (val === 1 || !val) delete f.size_adjust
+                    else f.size_adjust = val
+                    commit()
+                  }}
+                />
+              </label>
             </div>
             <AssetUpload
               label="Файл шрифта (.woff2, .woff, .ttf, .otf)"
@@ -983,6 +1000,182 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
             <FontSample store={store} fontId={theme.fonts?.[role.key] ?? ''} meta={meta} role={role} />
           </div>
         ))}
+      </div>
+
+      <div className="props-group">
+        <h4>Размеры текста и типографика</h4>
+        <div className="fld-row">
+          <label className="fld" data-tip="Общий масштаб текста всей кампании (80% .. 140%)">
+            <span>Общий масштаб текста: {Math.round((theme.font_scale ?? 1) * 100)}%</span>
+            <input
+              type="range"
+              min={0.8}
+              max={1.4}
+              step={0.05}
+              value={theme.font_scale ?? 1}
+              onChange={(e) => {
+                theme.font_scale = Number(e.target.value) === 1 ? undefined : Number(e.target.value)
+                commit()
+              }}
+            />
+          </label>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', paddingBottom: 4 }}>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => { theme.font_scale = 0.9; commit() }}
+            >
+              90%
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => { theme.font_scale = undefined; commit() }}
+            >
+              100%
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => { theme.font_scale = 1.15; commit() }}
+            >
+              115%
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => { theme.font_scale = 1.25; commit() }}
+            >
+              125%
+            </button>
+          </div>
+        </div>
+
+        <div className="fld-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: 8 }}>
+          <label className="fld" data-tip="Размер основного текста, описаний сцен и предметов (px, умолчание 15)">
+            <span>Основной текст (px)</span>
+            <input
+              type="number"
+              min={11}
+              max={28}
+              placeholder="15"
+              value={theme.font_sizes?.body ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                theme.font_sizes = { ...(theme.font_sizes ?? {}), body: val }
+                if (!theme.font_sizes.body && !theme.font_sizes.display && !theme.font_sizes.dialogue && !theme.font_sizes.ui) {
+                  delete theme.font_sizes
+                }
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Размер реплик и вариантов ответов в диалогах (px, умолчание 16)">
+            <span>Диалоги (px)</span>
+            <input
+              type="number"
+              min={12}
+              max={30}
+              placeholder="16"
+              value={theme.font_sizes?.dialogue ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                theme.font_sizes = { ...(theme.font_sizes ?? {}), dialogue: val }
+                if (!theme.font_sizes.body && !theme.font_sizes.display && !theme.font_sizes.dialogue && !theme.font_sizes.ui) {
+                  delete theme.font_sizes
+                }
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Базовый размер заголовков локаций, сцен, панелей (px, умолчание 20)">
+            <span>Заголовки (px)</span>
+            <input
+              type="number"
+              min={14}
+              max={36}
+              placeholder="20"
+              value={theme.font_sizes?.display ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                theme.font_sizes = { ...(theme.font_sizes ?? {}), display: val }
+                if (!theme.font_sizes.body && !theme.font_sizes.display && !theme.font_sizes.dialogue && !theme.font_sizes.ui) {
+                  delete theme.font_sizes
+                }
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Размер кнопок, списков и элементов интерфейса (px, умолчание 13)">
+            <span>Кнопки и интерфейс (px)</span>
+            <input
+              type="number"
+              min={10}
+              max={22}
+              placeholder="13"
+              value={theme.font_sizes?.ui ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                theme.font_sizes = { ...(theme.font_sizes ?? {}), ui: val }
+                if (!theme.font_sizes.body && !theme.font_sizes.display && !theme.font_sizes.dialogue && !theme.font_sizes.ui) {
+                  delete theme.font_sizes
+                }
+                commit()
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="fld-row" style={{ marginTop: 8 }}>
+          <label className="fld" data-tip="Межстрочный интервал (множитель 1.2 .. 2.0, по умолчанию 1.5)">
+            <span>Межстрочный интервал: {theme.line_height ?? 1.5}</span>
+            <input
+              type="range"
+              min={1.2}
+              max={2.0}
+              step={0.05}
+              value={theme.line_height ?? 1.5}
+              onChange={(e) => {
+                const val = Number(e.target.value)
+                theme.line_height = val === 1.5 ? undefined : val
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Межбуквенный интервал, например 0.02em (по умолчанию обычно)">
+            <span>Межбуквенный интервал</span>
+            <input
+              type="text"
+              placeholder="напр. 0.02em"
+              value={theme.letter_spacing ?? ''}
+              onChange={(e) => {
+                theme.letter_spacing = e.target.value.trim() || undefined
+                commit()
+              }}
+            />
+          </label>
+        </div>
+
+        <div
+          className="font-preview-box"
+          style={{
+            marginTop: 12,
+            padding: 12,
+            border: '1px solid var(--ed-line)',
+            borderRadius: 6,
+            background: 'var(--ed-bg-2)',
+          }}
+        >
+          <div style={{ fontSize: `${Math.round((theme.font_sizes?.display ?? 20) * (theme.font_scale ?? 1))}px`, fontWeight: 'bold', color: 'var(--gold, #d4af37)', marginBottom: 6 }}>
+            Пример заголовка сцены
+          </div>
+          <div style={{ fontSize: `${Math.round((theme.font_sizes?.dialogue ?? 16) * (theme.font_scale ?? 1))}px`, color: 'var(--ed-text)', lineHeight: theme.line_height ?? 1.5, marginBottom: 6 }}>
+            «Здравствуй, путник. Здесь каждый шаг отдаётся эхом в пустых шлюзах.»
+          </div>
+          <div style={{ fontSize: `${Math.round((theme.font_sizes?.body ?? 15) * (theme.font_scale ?? 1))}px`, color: 'var(--ed-text-muted, #aaa)', lineHeight: theme.line_height ?? 1.5 }}>
+            Листы объявлений трепещут на ржавой доске под порывами сырого сквозняка.
+          </div>
+        </div>
       </div>
 
       <div className="props-group">

@@ -638,6 +638,8 @@ html.cf-profile-modern {
   color: var(--text);
   font-family: var(--cf-font-body, Georgia, 'Times New Roman', serif);
   font-size: calc(100% * var(--cf-text-scale, 1));
+  line-height: var(--cf-line-height, 1.5);
+  letter-spacing: var(--cf-letter-spacing, normal);
   /* Preserve the profile's foregrounds while readable roles are scoped to
      author-customized surfaces below. */
   --cf-base-text: var(--text);
@@ -711,6 +713,10 @@ html.cf-profile-modern {
   font-weight: 700;
   letter-spacing: 0.01em;
 }
+.cf-themed h1 { font-size: calc(var(--cf-font-size-display, 20px) * 1.5); }
+.cf-themed h2 { font-size: calc(var(--cf-font-size-display, 20px) * 1.25); }
+.cf-themed h3 { font-size: var(--cf-font-size-display, 20px); }
+.cf-themed h4 { font-size: calc(var(--cf-font-size-display, 20px) * 0.9); }
 /* характер заголовков по профилю — те же токены, но свой «почерк» */
 .cf-profile-wilderness h1, .cf-profile-wilderness h2, .cf-profile-wilderness h3, .cf-profile-wilderness h4 {
   letter-spacing: 0.04em;
@@ -1706,8 +1712,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .dialogue-lines { flex: 1; overflow-y: auto; max-height: 240px; }
 .dialogue-lines p { margin: 0 0 10px; line-height: 1.6; }
 /* контраст мягкий: прошлые реплики читабельны, текущая лишь немного ярче (фидбек №2) */
-.dialogue-lines p.past { color: var(--muted); font-size: 15px; }
-.dialogue-lines p.current { color: var(--text); font-size: 15.5px; }
+.dialogue-lines p.past { color: var(--muted); font-size: calc(var(--cf-font-size-dialogue, 16px) * 0.95); }
+.dialogue-lines p.current { color: var(--text); font-size: var(--cf-font-size-dialogue, 16px); }
 
 /* Полоска дедлайна на раздумье (§9 дизайн-документа): видно, что время идёт,
    последние секунды — тревожный цвет. Не блокирует клик: игрок может выбрать
@@ -1758,7 +1764,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   border-radius: var(--radius);
   color: var(--gold);
   padding: 7px 12px;
-  font-size: 15px;
+  font-size: var(--cf-font-size-dialogue, 15px);
   transition: all 0.12s;
   width: 100%;
   box-sizing: border-box;
@@ -1784,7 +1790,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   text-align: center;
   box-shadow: var(--shadow-2);
 }
-.message-box p { font-size: 17px; line-height: 1.5; }
+.message-box p { font-size: var(--cf-font-size-body, 17px); line-height: 1.5; }
 .message-portrait { width: 96px; height: 96px; object-fit: cover; border-radius: var(--radius); border: 1px solid var(--border); }
 
 /* боковые панели: единый паттерн — 420px, сцена остаётся видна слева */

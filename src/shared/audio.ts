@@ -170,6 +170,14 @@ export function playUi(hook: string, volume = 1): void {
   const ui = campaign.meta.ui_sounds ?? {}
   // 1. Точный ключ
   if (ui[hook]) return playSoundId(ui[hook], volume)
+  // Синонимы журналов и панелей: panel:log <=> panel:journal, panel:meta <=> panel:chronicle
+  if (hook === 'panel:log' && ui['panel:journal']) return playSoundId(ui['panel:journal'], volume)
+  if (hook === 'panel:journal' && ui['panel:log']) return playSoundId(ui['panel:log'], volume)
+  if (hook === 'panel:meta' && ui['panel:chronicle']) return playSoundId(ui['panel:chronicle'], volume)
+  if (hook === 'panel:chronicle' && ui['panel:meta']) return playSoundId(ui['panel:meta'], volume)
+  if (hook === 'panel:log:close' && ui['panel:journal:close']) return playSoundId(ui['panel:journal:close'], volume)
+  if (hook === 'panel:journal:close' && ui['panel:log:close']) return playSoundId(ui['panel:log:close'], volume)
+
   // 2. Алиас с _ вместо :
   const underscored = hook.includes(':') ? hook.replace(/:/g, '_') : null
   if (underscored && ui[underscored]) return playSoundId(ui[underscored], volume)

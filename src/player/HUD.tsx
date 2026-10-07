@@ -170,7 +170,18 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           </button>
         )}
         {engine.campAvailable().ok && (
-          <button className="hud-btn" onClick={() => engine.campRest()} data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}>
+          <button
+            className="hud-btn"
+            onClick={async () => {
+              const ticks = engine.campaign.meta.camping?.ticks ?? 8
+              const label = engine.campaign.meta.tick_label || 'ч'
+              const ambush = (engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможна ночная засада!' : ''
+              if (await askConfirm(`Разбить лагерь и отдохнуть?\nСон займёт ${ticks} ${label}.${ambush}`, 'Отдохнуть', 'Отмена')) {
+                engine.campRest()
+              }
+            }}
+            data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}
+          >
             <Ico n="flame" />  {engine.uiLabel('camp', 'Лагерь')}
           </button>
         )}

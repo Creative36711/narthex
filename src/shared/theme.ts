@@ -126,7 +126,8 @@ export function injectCampaignFonts(campaign: CampaignData | null): void {
     .filter((f) => f.id && f.src)
     .map((f) => {
       const url = assetUrl(campaign!, f.src)
-      return `@font-face { font-family: '${fontFamily(f.id)}'; src: url('${url}'); font-weight: ${f.weight || '400'}; font-style: ${f.style || 'normal'}; font-display: swap; }`
+      const sizeAdj = f.size_adjust ? ` size-adjust: ${Math.round(f.size_adjust * 100)}%;` : ''
+      return `@font-face { font-family: '${fontFamily(f.id)}'; src: url('${url}'); font-weight: ${f.weight || '400'}; font-style: ${f.style || 'normal'}; font-display: swap;${sizeAdj} }`
     })
     .join('\n')
 }
@@ -165,6 +166,19 @@ export function themeVars(campaign: CampaignData | null, textScale = 1): CSSProp
   if (body) vars['--cf-font-body'] = `'${fontFamily(body.id)}', Georgia, 'Times New Roman', serif`
   if (display) vars['--cf-font-display'] = `'${fontFamily(display.id)}', Georgia, serif`
   if (hand) vars['--cf-font-hand'] = `'${fontFamily(hand.id)}', 'Segoe Script', cursive`
+
+  // Масштабирование и точные размеры шрифтов (типографика кампании)
+  const effectiveScale = (theme?.font_scale ?? 1) * textScale
+  vars['--cf-text-scale'] = String(effectiveScale)
+
+  if (theme?.font_sizes?.body) vars['--cf-font-size-body'] = `${Math.round(theme.font_sizes.body * effectiveScale)}px`
+  if (theme?.font_sizes?.display) vars['--cf-font-size-display'] = `${Math.round(theme.font_sizes.display * effectiveScale)}px`
+  if (theme?.font_sizes?.dialogue) vars['--cf-font-size-dialogue'] = `${Math.round(theme.font_sizes.dialogue * effectiveScale)}px`
+  if (theme?.font_sizes?.ui) vars['--cf-font-size-ui'] = `${Math.round(theme.font_sizes.ui * effectiveScale)}px`
+
+  if (theme?.line_height) vars['--cf-line-height'] = String(theme.line_height)
+  if (theme?.letter_spacing) vars['--cf-letter-spacing'] = theme.letter_spacing
+
   // акцент кампании переопределяет профильный акцент; «яркий» вариант
   // выводится, чтобы пара gold/gold-bright не расцветалась
   if (theme?.accent) {

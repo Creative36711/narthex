@@ -316,26 +316,41 @@ function ItemInteractDialog({ engine, item, onClose }: { engine: GameEngine; ite
           <h3 className="itemdlg-title">{item.label}</h3>
           <p className="itemdlg-desc">{engine.descOf(item.id) || item.description || ''}</p>
           <div className="usewith-options">
-            {options.map((o, i) => (
-              <button
-                key={i}
-                className="btn btn-primary itemdlg-option"
-                onMouseEnter={() => o.emotion && setEmotion(o.emotion)}
-                onMouseLeave={() => setEmotion('neutral')}
-                onClick={() => {
-                  const consume = !!o.consume
-                  const isOpenCraft = o.effects?.some((ef) => ef.type === 'open_craft')
-                  engine.runItemInteract(item, o)
-                  // item исчез со сцены, открыт крафт, бой или диалог — немедленно закрываем оверлей предмета!
-                  if (consume || isOpenCraft || engine.craftRequest || engine.combat || engine.dialogue) {
-                    onClose()
-                  }
-                }}
-              >
-                <span>{o.label}</span>
-                {o.hint && <small className="itemdlg-hint">{o.hint}</small>}
-              </button>
-            ))}
+            {options.map((o, i) => {
+              const autoHint = (() => {
+                if (o.hint) return o.hint
+                const hints: string[] = []
+                const timeEf = o.effects?.find((ef) => ef.type === 'advance_time') as { ticks: number } | undefined
+                if (timeEf?.ticks) {
+                  const label = engine.campaign.meta.tick_label || 'ч'
+                  hints.push(`⏱ ${timeEf.ticks} ${label}`)
+                }
+                if (o.consume) {
+                  hints.push('предмет будет израсходован')
+                }
+                return hints.length ? hints.join(' · ') : null
+              })()
+              return (
+                <button
+                  key={i}
+                  className="btn btn-primary itemdlg-option"
+                  onMouseEnter={() => o.emotion && setEmotion(o.emotion)}
+                  onMouseLeave={() => setEmotion('neutral')}
+                  onClick={() => {
+                    const consume = !!o.consume
+                    const isOpenCraft = o.effects?.some((ef) => ef.type === 'open_craft')
+                    engine.runItemInteract(item, o)
+                    // item исчез со сцены, открыт крафт, бой или диалог — немедленно закрываем оверлей предмета!
+                    if (consume || isOpenCraft || engine.craftRequest || engine.combat || engine.dialogue) {
+                      onClose()
+                    }
+                  }}
+                >
+                  <span>{o.label}</span>
+                  {autoHint && <small className="itemdlg-hint">{autoHint}</small>}
+                </button>
+              )
+            })}
           </div>
           <button className="btn btn-small" onClick={onClose}>Закрыть</button>
         </div>
