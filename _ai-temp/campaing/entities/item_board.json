@@ -57,5 +57,8 @@
       ]
     }
   ],
-  "interact_hint": "Прочесть объявления"
+  "interact_hint": "Прочесть объявления",
+  "portrait": {
+    "neutral": "assets/img/items/item_board.jpg"
+  }
 }

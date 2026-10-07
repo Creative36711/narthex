@@ -101,5 +101,8 @@
       "sound_volume": 0.45
     }
   ],
-  "interact_hint": "Согреться, вскипятить"
+  "interact_hint": "Согреться, вскипятить",
+  "portrait": {
+    "neutral": "assets/img/items/item_stove.jpg"
+  }
 }

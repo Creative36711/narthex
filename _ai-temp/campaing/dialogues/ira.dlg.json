@@ -281,6 +281,46 @@
      ]
     },
     {
+     "text": "Показать рукавицу с привода.",
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_glove"
+      }
+     ],
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Она берёт рукавицу за манжет двумя пальцами, как чужую вещь.",
+          "action": true
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Реш носил кожаные и жаловался, что они жмут. А заплату ставили в Сухом ряду: у Айлы так штопают, когда нечем платить.",
+          "voice": "assets/voice/ira_16.mp3",
+          "emotion": "thoughtful",
+          "sfx": "snd_cloth"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_disposition",
+          "target": "npc_ira",
+          "delta": 4
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
+    },
+    {
      "text": "Мне пора.",
      "sections": [],
      "goto": "end"

@@ -31,6 +31,7 @@ EXTERNAL unlock_codex(a0)
     -> Начало_hub
 + { item_count("item_mark") >= 34 and not (has_item("item_filter")) } [Купить дыхатель (34 марки).]
 Дыхатель — это не товар, это время. Держи, не задохнись. # emotion: calm # voice: assets/voice/dozh_2.mp3
+Уголь — три марки штука, и это ещё по-людски. Как вода пришла, уголь у нас дороже воды стал. Ведром не продаю: ведро самому топить. # voice: assets/voice/dozh_14.mp3
     ~ remove_item("item_mark", 34)
     ~ add_item("item_filter", 1)
     -> Начало_hub

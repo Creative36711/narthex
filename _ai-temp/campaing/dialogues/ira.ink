@@ -43,6 +43,11 @@ VAR r = 0
     Только дай взять ключ. И фонарь. И ещё раз ключ. # voice: assets/voice/ira_9.mp3
     ~ fire_rule("rule_ira_joins")
     -> Начало_hub
++ { has_item("item_glove") } [Показать рукавицу с привода.]
+    Она берёт рукавицу за манжет двумя пальцами, как чужую вещь. # action # sfx: snd_cloth
+    Реш носил кожаные и жаловался, что они жмут. А заплату ставили в Сухом ряду: у Айлы так штопают, когда нечем платить. # emotion: thoughtful # voice: assets/voice/ira_16.mp3
+    ~ change_disposition("npc_ira", 4)
+    -> Начало_hub
 + [Мне пора.]
     -> DONE
 - -> Начало_hub

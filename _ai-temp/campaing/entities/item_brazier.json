@@ -47,5 +47,8 @@
       "hint": "паёк и вода становятся похлёбкой"
     }
   ],
-  "interact_hint": "Погреться, сготовить"
+  "interact_hint": "Погреться, сготовить",
+  "portrait": {
+    "neutral": "assets/img/items/item_brazier.jpg"
+  }
 }

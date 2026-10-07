@@ -552,6 +552,11 @@ def main():
                         asset(f"диалог {name}", ln.get("voice"))
                         if ln.get("sfx"):
                             need(f"диалог {name}", "sound", ln["sfx"])
+                        # ремарки не озвучиваем принципиально, spoken — должны
+                        if not ln.get("action") and not ln.get("voice"):
+                            notes.append(
+                                f"РЕПЛИКА БЕЗ ГОЛОСА {name}/{n['id']}: "
+                                f"«{(ln.get('text') or '')[:60]}»")
             tm = n.get("timer") or {}
             if tm.get("node") and tm["node"] not in knots:
                 problems.append(f"ССЫЛКА диалог {name}: таймер → «{tm['node']}»")

@@ -1,419 +1,130 @@
 {
- "id": "scene_face",
- "label": "Слепой забой",
- "location": "loc_deep9",
- "canvas": {
-  "w": 1280,
-  "h": 720
- },
- "chapter": "ch_deep",
- "states": [
-  {
-   "id": "state_main",
-   "label": "Всегда",
-   "condition": null,
-   "art": {
-    "canvas": {
-     "w": 1280,
-     "h": 720
+  "id": "scene_face",
+  "label": "Слепой забой",
+  "location": "loc_deep9",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "chapter": "ch_deep",
+  "states": [
+    {
+      "id": "state_main",
+      "label": "Всегда",
+      "condition": null,
+      "image": "assets/img/scenes/scene_face.jpg"
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_resh",
+      "label": "Мастер у жилы",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 60,
+      "y": 330,
+      "w": 240,
+      "h": 350,
+      "condition": null,
+      "default_entity": "npc_resh",
+      "sound": "sfx_hum",
+      "sound_volume": 0.7
     },
-    "background": "#050a0c",
-    "layers": [
-     {
-      "label": "забой",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 0,
-       "w": 1280,
-       "h": 720,
-       "fill": {
-        "gradient": {
-         "from": "#101a20",
-         "to": "#05080a",
-         "angle": 90
+    {
+      "id": "slot_vein",
+      "label": "Жила в породе",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 300,
+      "y": 100,
+      "w": 680,
+      "h": 520,
+      "condition": null,
+      "default_entity": "npc_vein",
+      "sound": "sfx_hum",
+      "sound_volume": 0.8
+    },
+    {
+      "id": "slot_hoist",
+      "label": "Подъёмник",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 1060,
+      "y": 100,
+      "w": 220,
+      "h": 250,
+      "condition": null,
+      "default_entity": "item_hoist",
+      "sound": "snd_chain",
+      "sound_volume": 0.7
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Назад в штольню",
+      "area": {
+        "x": 20,
+        "y": 60,
+        "w": 200,
+        "h": 170
+      },
+      "go_to_scene": "scene_drift",
+      "cost_ticks": 1
+    },
+    {
+      "label": "На схему ярусов",
+      "area": {
+        "x": 500,
+        "y": 20,
+        "w": 240,
+        "h": 70
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_alarm"
+      ],
+      "conditions": [
+        {
+          "flag": "lockdown"
         }
-       },
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "почва",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 640,
-       "w": 1280,
-       "h": 80,
-       "fill": "#22323a",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "порода",
-      "shape": {
-       "type": "rect",
-       "x": 300,
-       "y": 100,
-       "w": 680,
-       "h": 520,
-       "fill": "#16232a",
-       "stroke": "#1d2f36",
-       "stroke_width": 6
-      }
-     },
-     {
-      "label": "жила",
-      "shape": {
-       "type": "polygon",
-       "points": [
-        340,
-        620,
-        520,
-        300,
-        600,
-        420,
-        760,
-        160,
-        900,
-        380,
-        960,
-        620
-       ],
-       "stroke": "#5fd0c8",
-       "stroke_width": 10
-      },
-      "opacity": 0.9
-     },
-     {
-      "label": "свечение жилы",
-      "shape": {
-       "type": "polygon",
-       "points": [
-        360,
-        620,
-        560,
-        380,
-        640,
-        470,
-        800,
-        240,
-        900,
-        400,
-        940,
-        620
-       ],
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.16
-     },
-     {
-      "shape": {
-       "type": "ellipse",
-       "cx": 520,
-       "cy": 300,
-       "rx": 8,
-       "ry": 8,
-       "fill": "#8ff0e6",
-       "stroke_width": 2
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "ellipse",
-       "cx": 760,
-       "cy": 160,
-       "rx": 8,
-       "ry": 8,
-       "fill": "#8ff0e6",
-       "stroke_width": 2
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "ellipse",
-       "cx": 900,
-       "cy": 380,
-       "rx": 8,
-       "ry": 8,
-       "fill": "#8ff0e6",
-       "stroke_width": 2
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "ellipse",
-       "cx": 600,
-       "cy": 420,
-       "rx": 8,
-       "ry": 8,
-       "fill": "#8ff0e6",
-       "stroke_width": 2
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "уступ",
-      "shape": {
-       "type": "rect",
-       "x": 60,
-       "y": 520,
-       "w": 230,
-       "h": 140,
-       "fill": "#1d2f36",
-       "stroke": "#22323a",
-       "stroke_width": 3
-      }
-     },
-     {
-      "label": "подъёмник",
-      "shape": {
-       "type": "rect",
-       "x": 1080,
-       "y": 120,
-       "w": 180,
-       "h": 200,
-       "fill": "#3a4a52",
-       "stroke": "#556d76",
-       "stroke_width": 4
-      }
-     },
-     {
-      "label": "блок",
-      "shape": {
-       "type": "ellipse",
-       "cx": 1170,
-       "cy": 220,
-       "rx": 54,
-       "ry": 54,
-       "fill": "#6d3a28",
-       "stroke": "#e8a33d",
-       "stroke_width": 3
-      }
-     },
-     {
-      "label": "трос",
-      "shape": {
-       "type": "line",
-       "x1": 1170,
-       "y1": 320,
-       "x2": 1170,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "ход назад",
-      "shape": {
-       "type": "rect",
-       "x": 20,
-       "y": 60,
-       "w": 200,
-       "h": 170,
-       "fill": "#080f12",
-       "stroke": "#1d2f36",
-       "stroke_width": 4
-      }
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 760,
-       "cy": 160,
-       "rx": 220,
-       "ry": 220,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.3
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 760,
-       "cy": 160,
-       "rx": 99.0,
-       "ry": 99.0,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.6499999999999999
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 520,
-       "cy": 300,
-       "rx": 150,
-       "ry": 150,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.22
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 520,
-       "cy": 300,
-       "rx": 67.5,
-       "ry": 67.5,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.57
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 1170,
-       "cy": 220,
-       "rx": 80,
-       "ry": 80,
-       "fill": "#e8a33d",
-       "stroke_width": 2
-      },
-      "opacity": 0.25
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 1170,
-       "cy": 220,
-       "rx": 36.0,
-       "ry": 36.0,
-       "fill": "#e8a33d",
-       "stroke_width": 2
-      },
-      "opacity": 0.6
-     }
-    ]
-   },
-   "image": "assets/img/scenes/scene_face.jpg"
-  }
- ],
- "slots": [
-  {
-   "id": "slot_resh",
-   "label": "Мастер у жилы",
-   "type": [
-    "person"
-   ],
-   "shape": "rect",
-   "x": 60,
-   "y": 330,
-   "w": 240,
-   "h": 350,
-   "condition": null,
-   "default_entity": "npc_resh",
-   "sound": "sfx_hum",
-   "sound_volume": 0.7
-  },
-  {
-   "id": "slot_vein",
-   "label": "Жила в породе",
-   "type": [
-    "prop"
-   ],
-   "shape": "rect",
-   "x": 300,
-   "y": 100,
-   "w": 680,
-   "h": 520,
-   "condition": null,
-   "default_entity": "npc_vein",
-   "sound": "sfx_hum",
-   "sound_volume": 0.8
-  },
-  {
-   "id": "slot_hoist",
-   "label": "Подъёмник",
-   "type": [
-    "prop"
-   ],
-   "shape": "rect",
-   "x": 1060,
-   "y": 100,
-   "w": 220,
-   "h": 250,
-   "condition": null,
-   "default_entity": "item_hoist",
-   "sound": "snd_chain",
-   "sound_volume": 0.7
-  }
- ],
- "navigation": [
-  {
-   "label": "Назад в штольню",
-   "area": {
-    "x": 20,
-    "y": 60,
-    "w": 200,
-    "h": 170
-   },
-   "go_to_scene": "scene_drift",
-   "cost_ticks": 1
-  },
-  {
-   "label": "На схему ярусов",
-   "area": {
-    "x": 500,
-    "y": 20,
-    "w": 240,
-    "h": 70
-   },
-   "open_map": true
-  }
- ],
- "music": [
-  {
-   "tracks": [
-    "music_alarm"
-   ],
-   "conditions": [
+      ]
+    },
     {
-     "flag": "lockdown"
+      "tracks": [
+        "music_vein"
+      ],
+      "conditions": []
     }
-   ]
-  },
-  {
-   "tracks": [
-    "music_vein"
-   ],
-   "conditions": []
-  }
- ],
- "ambient": [
-  {
-   "sounds": [
-    "snd_deep_drone"
-   ],
-   "volume": 0.7
-  },
-  {
-   "conditions": [
+  ],
+  "ambient": [
     {
-     "type": "flag_set",
-     "flag": "vein_heard"
+      "sounds": [
+        "snd_deep_drone"
+      ],
+      "volume": 0.7
+    },
+    {
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "vein_heard"
+        }
+      ],
+      "sounds": [
+        "snd_water_amb"
+      ],
+      "volume": 0.5
     }
-   ],
-   "sounds": [
-    "snd_water_amb"
-   ],
-   "volume": 0.5
-  }
- ],
- "lighting": "none"
+  ],
+  "lighting": "none"
 }

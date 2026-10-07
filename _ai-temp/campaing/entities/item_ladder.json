@@ -60,5 +60,8 @@
       ]
     }
   ],
-  "interact_hint": "Спуститься в шахту"
+  "interact_hint": "Спуститься в шахту",
+  "portrait": {
+    "neutral": "assets/img/items/item_ladder.jpg"
+  }
 }

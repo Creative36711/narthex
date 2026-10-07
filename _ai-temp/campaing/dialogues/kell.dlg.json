@@ -250,6 +250,46 @@
       }
      ],
      "goto": "end"
+    },
+    {
+     "text": "Показать рукавицу с привода.",
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_glove"
+      }
+     ],
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Он берёт рукавицу за манжет, не разворачивая.",
+          "action": true
+         }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Рукавица. В машинном зале их сто пар лежит: смене выдают по две на руки. Клади в дело, раз нравится. Мне интереснее, кто её первым снимет.",
+          "voice": "assets/voice/kell_13.mp3",
+          "emotion": "calm",
+          "sfx": "snd_cloth"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "change_disposition",
+          "target": "npc_kell",
+          "delta": -3
+         }
+        }
+       ]
+      }
+     ],
+     "goto": "stay"
     }
    ]
   },
