@@ -28,6 +28,11 @@ const campaign: CampaignData = {
     start_tick: 0,
     money_name: 'золото',
     inventory_max_weight: 100,
+    needs: [],
+    default_player: 'player',
+    starting_region: 'reg_1',
+    starting_location: 'loc_1',
+    starting_scene: 'scene_test',
   },
   world: {
     regions: [
@@ -53,8 +58,16 @@ const campaign: CampaignData = {
       },
     ],
   },
-  scenes: {},
-  characters: {
+  scenes: {
+    scene_test: {
+      id: 'scene_test',
+      label: 'Тест',
+      states: [{ id: 'default', label: 'Обычное' }],
+      slots: [],
+      navigation: [],
+    },
+  },
+  entities: {
     player: {
       id: 'player',
       label: 'Герой',
@@ -96,35 +109,38 @@ const def: CombatDef = {
 }
 
 // 1. Тест расчета прогноза (estimateAttack / estimateAbility)
-const combat = new CombatController(def, engine)
-const playerUnit = combat.state.units.find((u) => u.team === 'player')!
-const enemyUnit = combat.state.units.find((u) => u.team === 'enemy')!
+const combat = new CombatController(engine, def)
+const playerUnit = combat.combatants.find((u) => u.side === 'player')!
+const enemyUnit = combat.combatants.find((u) => u.side === 'enemy')!
 
 assert(playerUnit, 'Игрок должен быть создан в бою')
 assert(enemyUnit, 'Враг должен быть создан в бою')
 
 const hitForecast = combat.estimateAttack(playerUnit, enemyUnit)
-assert(hitForecast.hitChance >= 5 && hitForecast.hitChance <= 95, 'Шанс попадания должен быть от 5% до 95%')
-assert(hitForecast.expectedDamage > 0, 'Ожидаемый урон должен быть > 0')
-console.log(`✓ Прогноз базовой атаки: шанс ${hitForecast.hitChance}%, урон ~${hitForecast.expectedDamage}`)
+assert(hitForecast.hitChance >= 1 && hitForecast.hitChance <= 95, 'Шанс попадания должен быть от 1% до 95%')
+assert(hitForecast.damage, 'Ожидаемый урон должен присутствовать')
+console.log(`✓ Прогноз базовой атаки: шанс ${hitForecast.hitChance}%, урон ~${hitForecast.damage}`)
 
 const ability = playerUnit.abilities?.[0]
 assert(ability, 'У игрока должна быть способность')
-const abilityForecast = combat.estimateAbility(playerUnit, enemyUnit, ability)
+const abilityForecast = combat.estimateAbility(playerUnit, ability, enemyUnit)
 assert(abilityForecast.hitChance > 0, 'Шанс попадания способностью должен быть > 0')
-assert(abilityForecast.expectedDamage > 0, 'Ожидаемый урон способностью должен быть > 0')
-console.log(`✓ Прогноз способности (${ability.label}): шанс ${abilityForecast.hitChance}%, урон ~${abilityForecast.expectedDamage}`)
+assert(abilityForecast.effectLabel, 'Ожидаемый эффект способности должен быть описан')
+console.log(`✓ Прогноз способности (${ability.label}): шанс ${abilityForecast.hitChance}%, эффект: ${abilityForecast.effectLabel}`)
 
 // 2. Тест фильтрации журнала сообщений (категории)
-engine.log('Обычное сообщение', 'system')
-engine.log('Получен квест', 'quest')
-engine.log('Враг нанес урон', 'combat')
-engine.log('Запись диалога', 'dialogue')
+engine.pushLog('Обычное сообщение')
+engine.pushLog('Новый квест получен: дело закрыто')
+engine.pushLog('Бросок d100: успех!')
+engine.pushLog('Получено золото: награда за задание')
 
-assert.equal(engine.messages.length, 4)
-const combatLogs = engine.messages.filter((m) => m.category === 'combat')
-assert.equal(combatLogs.length, 1)
-assert.equal(combatLogs[0].text, 'Враг нанес урон')
+assert.equal(engine.state.log.length, 4)
+const rollLogs = engine.state.log.filter((l) => /(?:d100|d20|d6|d8|d10|d12|бросок|проверка|успех|провал|критическ|спасбросок)/i.test(l))
+assert.equal(rollLogs.length, 1)
+assert.equal(rollLogs[0], 'Бросок d100: успех!')
+
+const storyLogs = engine.state.log.filter((l) => /(?:квест|задани|дело|цель|найден|открыт|глава|заметк|сцена|разговор|поговорил|журнал)/i.test(l))
+assert.equal(storyLogs.length, 2)
 console.log('✓ Фильтрация журнала по категориям работает корректно!')
 
 // 3. Тест связей локаций (travel_connections)

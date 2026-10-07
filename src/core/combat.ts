@@ -214,7 +214,7 @@ export class CombatController {
     for (const comp of e.state.party) {
       const def = e.campaign.entities[comp.entity] as NpcDef | undefined
       if (!def || def.type !== 'npc') continue
-      const w = this.resolveWeapon(def, def.skills)
+      const w = this.resolveWeapon(def, def.skills ?? {})
       this.combatants.push({
         id: `c_ally_${comp.entity}`,
         entityId: comp.entity,
@@ -227,7 +227,7 @@ export class CombatController {
         facing: 90,
         flip: false,
         stats: def.stats,
-        skills: def.skills,
+        skills: def.skills ?? {},
         weapon: w.weapon,
         weaponLabel: w.weaponLabel,
         weaponItemId: w.weaponItemId,
@@ -257,7 +257,7 @@ export class CombatController {
       for (let i = 0; i < grp.count; i++) {
         a++
         const hp = def.stats.HP ?? derivedHP(def.stats)
-        const w = this.resolveWeapon(def, def.skills)
+        const w = this.resolveWeapon(def, def.skills ?? {})
         this.combatants.push({
           id: `c_tally_${grp.entity}_${a}`,
           entityId: grp.entity,
@@ -270,7 +270,7 @@ export class CombatController {
           facing: 90,
           flip: false,
           stats: def.stats,
-          skills: def.skills,
+          skills: def.skills ?? {},
           weapon: w.weapon,
           weaponLabel: w.weaponLabel,
           weaponItemId: w.weaponItemId,
@@ -300,7 +300,7 @@ export class CombatController {
       for (let i = 0; i < grp.count; i++) {
         n++
         const hp = def.stats.HP ?? derivedHP(def.stats)
-        const w = this.resolveWeapon(def, def.skills)
+        const w = this.resolveWeapon(def, def.skills ?? {})
         this.combatants.push({
           id: `c_enemy_${n}`,
           entityId: def.id,
@@ -313,7 +313,7 @@ export class CombatController {
           facing: -90,
           flip: true,
           stats: def.stats,
-          skills: def.skills,
+          skills: def.skills ?? {},
           weapon: w.weapon,
           weaponLabel: w.weaponLabel,
           weaponItemId: w.weaponItemId,
