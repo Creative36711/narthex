@@ -9,6 +9,16 @@
   "chapter": "ch_price",
   "states": [
     {
+      "id": "state_opened",
+      "label": "Дело №136 на конторке",
+      "condition": {
+        "flag": "case136_read"
+      },
+      "image": "assets/img/scenes/scene_archive_opened.jpg",
+      "sound": "sfx_book",
+      "sound_volume": 0.75
+    },
+    {
       "id": "state_main",
       "label": "Всегда",
       "condition": null,
@@ -103,7 +113,18 @@
   "lighting": "indoor",
   "particles": "dust",
   "narrative_intro": [
-    "В архиве своя погода: пыль, лампа под зелёным стеклом и шелест бумаги, которой сто лет.",
-    "Зелёные абажуры качаются от тяги из вентиляции, а полки пахнут сургучом и старой пылью."
-  ]
+    {
+      "text": "В архиве своя погода: пыль, лампа под зелёным стеклом и шелест бумаги, которой сто лет.",
+      "sfx": "sfx_archive_open",
+      "voice": "assets/voice/intro_archive_1.mp3"
+    },
+    {
+      "text": "Зелёные абажуры качаются от тяги из вентиляции, а полки пахнут сургучом и старой пылью.",
+      "sfx": "sfx_flip",
+      "voice": "assets/voice/intro_archive_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Осмотреть полки ▶"
 }

@@ -1,3 +1,4 @@
+EXTERNAL npc_known(a0)
 EXTERNAL change_disposition(a0, a1)
 EXTERNAL fire_rule(a0)
 EXTERNAL get_flag(a0)
@@ -28,13 +29,13 @@ EXTERNAL set_flag(a0)
     Она наконец поднимает глаза. Улыбка есть, тепла нет. # action # voice: assets/voice/narr_kast_2.mp3
     Покажи. # voice: assets/voice/kast_12.mp3
     -> Гроссбух
-+ { has_item("item_note") } [Протянуть Каст записку мастера.]
++ { has_item("item_note") and not (get_flag("kast_note")) } [Протянуть Каст записку мастера.]
     ~ present_item("Записка", "Записка_мимо", "item_note")
     -> DONE
-+ { not (get_flag("resh_found")) } [Где мастер Реш?]
++ { not (get_flag("resh_found")) and not (npc_known("npc_resh")) } [Где мастер Реш?]
 Если бы я знала, ты бы здесь не стоял. Найди — и приведи. Живым желательно, но мне хватит и вины. # emotion: calm # voice: assets/voice/kast_2.mp3
     -> Начало_hub
-+ { get_flag("case_full") } [Показать сшитое дело.]
++ { get_flag("case_full") and not (get_flag("kast_case_shown")) } [Показать сшитое дело.]
     Она смотрит на нитку дольше, чем на сами листы. # action # voice: assets/voice/narr_kast_3.mp3
     Ты сшил дело. Я видела три таких за двадцать лет: два закрыли, одно закрыло дознавателя. # emotion: thoughtful # voice: assets/voice/kast_15.mp3
     ~ set_flag("kast_case_shown")
@@ -89,6 +90,6 @@ EXTERNAL set_flag(a0)
 -> Начало_hub
 
 === Записка_мимо ===
-Она даже не поднимает глаз. # action
+Она даже не поднимает глаз. # action # voice: assets/voice/narr_kast_7.mp3
 Убери. Я разговариваю с делом, а не с твоей сумкой. # emotion: calm # voice: assets/voice/kast_10.mp3
 -> Начало_hub

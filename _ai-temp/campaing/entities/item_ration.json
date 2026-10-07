@@ -26,5 +26,20 @@
   "image": "assets/img/items/item_ration.jpg",
   "portrait": {
     "neutral": "assets/img/items/item_ration.jpg"
-  }
+  },
+  "interact_hint": "Развернуть вощёную бумагу",
+  "interact_options": [
+    {
+      "label": "Развернуть вощёную бумагу",
+      "hint": "паёк сменной вахты (+35 к сытости)",
+      "sound": "snd_paper",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Два ржаных сухаря каменной закалки и ломоть копчёного сала в промасленной бумаге со штампом продсклада седьмого яруса."
+        }
+      ]
+    }
+  ]
 }

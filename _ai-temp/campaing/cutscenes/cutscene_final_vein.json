@@ -17,6 +17,13 @@
       "transition": "fade",
       "image": "assets/img/cut_final_vein_2.jpg",
       "voice": "assets/voice/final_vein_2.mp3"
+    },
+    {
+      "text": "Тёплый пар поднимается по стволу до самого Сухого ряда, и рудокопы впервые за сто лет снимают респираторы. Папка дела номер сто тридцать семь остаётся лежать открытой на пустом столе конторы.",
+      "duration": 9,
+      "transition": "fade",
+      "image": "assets/img/cut_final_vein_3.jpg",
+      "voice": "assets/voice/final_vein_3.mp3"
     }
   ]
 }

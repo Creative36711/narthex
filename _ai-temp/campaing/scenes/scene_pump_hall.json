@@ -181,7 +181,18 @@
   "lighting": "indoor",
   "particles": "dust",
   "narrative_intro": [
-    "Седьмая помпа стоит. Она не сломана и не заржавела: она просто молчит, и это молчание слышно на весь ярус.",
-    "Мазут на полу не высыхает — его некому вытирать третий день."
-  ]
+    {
+      "text": "Седьмая помпа стоит. Она не сломана и не заржавела: она просто молчит, и это молчание слышно на весь ярус.",
+      "sfx": "sfx_gear",
+      "voice": "assets/voice/intro_pump_hall_1.mp3"
+    },
+    {
+      "text": "Мазут на полу не высыхает — его некому вытирать третий день.",
+      "sfx": "sfx_water",
+      "voice": "assets/voice/intro_pump_hall_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Осмотреть привод ▶"
 }

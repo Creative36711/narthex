@@ -15,6 +15,10 @@
   ],
   "effects": [
     {
+      "type": "set_flag",
+      "flag": "downpour_flood"
+    },
+    {
       "type": "set_weather",
       "weather": "weather_rain"
     },

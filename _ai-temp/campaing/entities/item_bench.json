@@ -84,6 +84,10 @@
           "flag": "filter_bank_2"
         },
         {
+          "type": "clear_flag",
+          "flag": "filter_exhausted"
+        },
+        {
           "type": "remove_status",
           "target": "player",
           "status": "status_filter_spent"

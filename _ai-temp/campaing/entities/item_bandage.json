@@ -25,5 +25,20 @@
   "image": "assets/img/items/item_bandage.jpg",
   "portrait": {
     "neutral": "assets/img/items/item_bandage.jpg"
-  }
+  },
+  "interact_hint": "Проверить пропитку бинта",
+  "interact_options": [
+    {
+      "label": "Проверить пропитку бинта",
+      "hint": "чистая перевязка (+7 здоровья)",
+      "sound": "snd_cloth",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Плотный рулон отбеленной холстины, пропитанной антисептическим отваром и перевязанный суровой ниткой."
+        }
+      ]
+    }
+  ]
 }

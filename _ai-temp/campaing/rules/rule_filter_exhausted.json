@@ -1,0 +1,31 @@
+{
+  "id": "rule_filter_exhausted",
+  "label": "Дыхатель: вторая банка отработана на подъёме",
+  "once": false,
+  "manual": false,
+  "chapter": "ch_deep",
+  "trigger": "always",
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "filter_bank_2"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "filter_exhausted"
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "player_enters_location",
+        "location": "loc_deep9"
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "filter_exhausted"
+    }
+  ]
+}

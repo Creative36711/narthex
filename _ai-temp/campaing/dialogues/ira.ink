@@ -1,3 +1,4 @@
+EXTERNAL in_party(a0)
 EXTERNAL set_flag(a0)
 EXTERNAL add_item(a0, a1)
 EXTERNAL change_disposition(a0, a1)

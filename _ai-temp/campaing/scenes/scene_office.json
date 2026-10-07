@@ -9,6 +9,16 @@
   "chapter": "ch_price",
   "states": [
     {
+      "id": "state_lockdown",
+      "label": "Режим тишины",
+      "condition": {
+        "flag": "lockdown"
+      },
+      "image": "assets/img/scenes/scene_office_lockdown.jpg",
+      "sound": "sfx_lockdown",
+      "sound_volume": 0.85
+    },
+    {
       "id": "state_main",
       "label": "Всегда",
       "condition": null,
@@ -101,7 +111,18 @@
   "lighting": "indoor",
   "particles": "ash",
   "narrative_intro": [
-    "Наверху сухо, светло и тихо. Здесь решают, кому достанется вода, и не спрашивают, кому она достанется на самом деле.",
-    "Инспектор Каст улыбается так, как улыбаются в конце длинного дня: вежливо и без участия."
-  ]
+    {
+      "text": "Наверху сухо, светло и тихо. Здесь решают, кому достанется вода, и не спрашивают, кому она достанется на самом деле.",
+      "sfx": "sfx_door",
+      "voice": "assets/voice/intro_office_1.mp3"
+    },
+    {
+      "text": "Инспектор Каст улыбается так, как улыбаются в конце длинного дня: вежливо и без участия.",
+      "sfx": "snd_paper",
+      "voice": "assets/voice/intro_office_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Войти в контору ▶"
 }

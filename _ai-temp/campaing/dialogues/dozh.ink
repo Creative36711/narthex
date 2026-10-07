@@ -37,7 +37,7 @@ EXTERNAL learn_name(a0)
     ~ remove_item("item_mark", 34)
     ~ add_item("item_filter", 1)
     -> Начало_hub
-+ [Показать Дожу вещь.]
+* [Показать Дожу вещь.]
     ~ present_item("Оценка", "Оценка_мимо", "")
     -> DONE
 + [Почему у тебя всё дороже, чем наверху?]

@@ -1,3 +1,4 @@
+EXTERNAL clear_flag(a0)
 EXTERNAL apply_status(a0, a1)
 EXTERNAL fire_rule(a0)
 EXTERNAL has_item(a0)
@@ -25,17 +26,18 @@ EXTERNAL unlock_codex(a0)
     ~ set_flag("vein_heard")
     -> Начало_hub
 + { has_item("item_core") } [Вложить сердцевину в стену.]
-    Ты кладёшь ладонь на камень. Он тёплый и отвечает на пульс. # action # sfx: sfx_hum
+    Ты кладёшь ладонь на камень. Он тёплый и отвечает на пульс. # action # sfx: sfx_hum # voice: assets/voice/narr_vein_2.mp3
 Бери. И помни: я помню всех, кто брал, — и всех, кто вернул. # emotion: calm # voice: assets/voice/vein_4.mp3
     ~ remove_item("item_core", 1)
     ~ apply_status("status_veinsong", 24)
+    ~ clear_flag("vein_braced")
     ~ fire_rule("rule_end_vein")
     -> DONE
 + [Я ухожу.]
     -> DONE
 
 === Молчание ===
-Молчание длится, пока не закладывает уши. # action # sfx: sfx_hum
+Молчание длится, пока не закладывает уши. # action # sfx: sfx_hum # voice: assets/voice/narr_vein_3.mp3
 Ты молчишь. Я слышала этот ответ от всех, кто брал. Он всегда означал «дам». # voice: assets/voice/vein_2.mp3
 Молчание — тоже ответ. Просто не тот, который ты надеялся дать. # voice: assets/voice/vein_7.mp3
 Если уйдёшь сейчас, седьмая простоит ещё сутки. Я умею ждать. Вода — нет. # voice: assets/voice/vein_10.mp3

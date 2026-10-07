@@ -21,10 +21,25 @@
   },
   "sounds": {
     "pickup": "sfx_water",
-    "use": "sfx_water"
+    "use": "sfx_flask"
   },
   "image": "assets/img/items/item_water.jpg",
   "portrait": {
     "neutral": "assets/img/items/item_water.jpg"
-  }
+  },
+  "interact_hint": "Взболтать флягу",
+  "interact_options": [
+    {
+      "label": "Взболтать флягу",
+      "hint": "чистая вода с верхнего фильтра (+45 к жажде)",
+      "sound": "sfx_flask",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Тяжёлая солдатская фляга с резьбовой крышкой на цепочке. Вода внутри отдаёт оловом и известняком, но в ней нет ни мазута, ни жильной мути."
+        }
+      ]
+    }
+  ]
 }

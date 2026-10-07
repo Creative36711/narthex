@@ -25,9 +25,9 @@ VAR r = 0
 * { get_flag("clue_guard") } [Ты убил стража Ярова.]
     ~ r = skill_check("intimidate", 55)
     {r: -> Начало_hub_ok2 | -> Начало_hub_no2}
-+ { has_item("item_roster") } [Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.]
++ { has_item("item_roster") and not (get_flag("kell_confessed")) } [Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.]
     -> Наряд
-+ { has_item("item_guard_token") } [Положить перед Келлом жетон стража.]
++ { has_item("item_guard_token") and not (get_flag("kell_token")) } [Положить перед Келлом жетон стража.]
     ~ present_item("Жетон", "Жетон_мимо", "item_guard_token")
     -> DONE
 + [Пропусти меня к помпе.]
@@ -37,14 +37,14 @@ VAR r = 0
     Иди. Она любит, когда к ней идут с пустыми руками. # emotion: calm # voice: assets/voice/kell_10.mp3
     -> DONE
 * { has_item("item_glove") } [Показать рукавицу с привода.]
-    Он берёт рукавицу за манжет, не разворачивая. # action # sfx: snd_cloth
+    Он берёт рукавицу за манжет, не разворачивая. # action # sfx: snd_cloth # voice: assets/voice/narr_kell_2.mp3
     Рукавица. В машинном зале их сто пар лежит: смене выдают по две на руки. Клади в дело, раз нравится. Мне интереснее, кто её первым снимет. # emotion: calm # voice: assets/voice/kell_13.mp3
     ~ change_disposition("npc_kell", -3)
     -> Начало_hub
 - -> Начало_hub
 
 === Наряд ===
-Он смотрит на бумагу долго, потом убирает руку с рукояти. # action
+Он смотрит на бумагу долго, потом убирает руку с рукояти. # action # voice: assets/voice/narr_kell_3.mp3
 Двенадцать человек, седьмой ярус, с двадцати до шести. Моя подпись стоит второй. # emotion: thoughtful # voice: assets/voice/kell_4.mp3
 Первую подпись ты уже видел. Старшина — это только руки, дознаватель. Бумагу подписывают не руки. # voice: assets/voice/kell_9.mp3
 ~ set_flag("clue_roster")
@@ -77,7 +77,7 @@ VAR r = 0
 -> Начало_hub
 
 === Жетон ===
-Келл смотрит на медь так, будто она горячая, и не берёт. # timer: 4 # action # sfx: snd_tag
+Келл смотрит на медь так, будто она горячая, и не берёт. # action # sfx: snd_tag # voice: assets/voice/narr_kell_4.mp3
 Яров. Значит, вода сошла у затвора, и ты нашёл его у решётки. Я три дня не смел зайти к его сестре. # emotion: sad # voice: assets/voice/kell_5.mp3
 Отдай ей сам. И скажи: Келл стоял у затвора и не открыл. Это правда, и она хуже любой лжи, которую ты мог бы придумать. # emotion: thoughtful # voice: assets/voice/kell_7.mp3
 ~ set_flag("kell_token")
@@ -86,6 +86,6 @@ VAR r = 0
 -> Начало_hub
 
 === Жетон_мимо ===
-Келл смотрит сначала на вещь, потом на тебя — и без всякого интереса. # action
+Келл смотрит сначала на вещь, потом на тебя — и без всякого интереса. # action # voice: assets/voice/narr_kell_5.mp3
 Я жетоны не собираю. Положи, где взял. # emotion: calm # voice: assets/voice/kell_8.mp3
 -> Начало_hub

@@ -59,7 +59,8 @@
          "line": {
           "text": "Он крутит маховик на четверть оборота — тот идёт свободно, как в пустоте.",
           "action": true,
-          "sfx": "sfx_gear"
+          "sfx": "sfx_gear",
+          "voice": "assets/voice/narr_vex_2.mp3"
          }
         },
         {

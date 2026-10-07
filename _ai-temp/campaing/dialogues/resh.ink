@@ -1,3 +1,4 @@
+EXTERNAL in_party(a0)
 EXTERNAL add_item(a0, a1)
 EXTERNAL change_disposition(a0, a1)
 EXTERNAL get_flag(a0)
@@ -45,7 +46,7 @@ VAR r = 0
     ~ set_flag("resh_charge_recipe")
     -> Начало_hub
 * { get_flag("resh_trusts") and not (get_flag("resh_joined")) } [Пойдём со мной.]
-    Он встаёт тяжело, опираясь о стену ладонью. # action # sfx: snd_stone
+    Он встаёт тяжело, опираясь о стену ладонью. # action # sfx: snd_stone # voice: assets/voice/narr_resh_2.mp3
     Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту. # voice: assets/voice/resh_8.mp3
     ~ join_party("npc_resh")
     ~ set_flag("resh_joined")

@@ -1,48 +1,48 @@
 {
- "id": "rule_lockdown",
- "label": "Режим тишины",
- "once": true,
- "manual": true,
- "conditions": [
-  {
-   "type": "flag_not_set",
-   "flag": "lockdown"
-  }
- ],
- "effects": [
-  {
-   "type": "set_flag",
-   "flag": "lockdown"
-  },
-  {
-   "type": "set_price_event",
-   "id": "pe_lockdown"
-  },
-  {
-   "type": "banner",
-   "text": "Режим тишины",
-   "preset": "проклятье",
-   "seconds": 4
-  },
-  {
-   "type": "change_disposition",
-   "target": "faction_nadzor",
-   "delta": -25
-  },
-  {
-   "type": "change_disposition",
-   "target": "faction_bottom",
-   "delta": 10
-  },
-  {
-   "type": "show_message",
-   "text": "Шлюзы нижних ярусов закрыты «до выяснения». В Сухом ряду всё сразу подорожало."
-  },
-  {
-   "type": "play_sound",
-   "sound": "snd_latch",
-   "volume": 0.9
-  }
- ],
- "chapter": "ch_price"
+  "id": "rule_lockdown",
+  "label": "Режим тишины",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "lockdown"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "lockdown"
+    },
+    {
+      "type": "set_price_event",
+      "id": "pe_lockdown"
+    },
+    {
+      "type": "banner",
+      "text": "Режим тишины",
+      "preset": "проклятье",
+      "seconds": 4
+    },
+    {
+      "type": "change_disposition",
+      "target": "faction_nadzor",
+      "delta": -25
+    },
+    {
+      "type": "change_disposition",
+      "target": "faction_bottom",
+      "delta": 10
+    },
+    {
+      "type": "show_message",
+      "text": "Шлюзы нижних ярусов закрыты «до выяснения». В Сухом ряду всё сразу подорожало."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_lockdown",
+      "volume": 0.9
+    }
+  ],
+  "chapter": "ch_price"
 }

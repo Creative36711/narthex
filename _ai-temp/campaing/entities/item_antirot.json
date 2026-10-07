@@ -25,10 +25,25 @@
   },
   "sounds": {
     "pickup": "sfx_glass",
-    "use": "sfx_glass"
+    "use": "sfx_flask"
   },
   "image": "assets/img/items/item_antirot.jpg",
   "portrait": {
     "neutral": "assets/img/items/item_antirot.jpg"
-  }
+  },
+  "interact_hint": "Проверить осадок отвара",
+  "interact_options": [
+    {
+      "label": "Проверить осадок отвара",
+      "hint": "снимает жильную гниль и возвращает +5 здоровья",
+      "sound": "sfx_glass",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Густой бирюзово-зелёный отвар из вытяжки жильного мха и медного купороса. На вкус как ржавый гвоздь, но единственное средство, которое останавливает гниль."
+        }
+      ]
+    }
+  ]
 }

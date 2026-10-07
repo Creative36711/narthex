@@ -9,6 +9,16 @@
   "chapter": "ch_signs",
   "states": [
     {
+      "id": "state_roped",
+      "label": "Страховка закреплена",
+      "condition": {
+        "flag": "valve_found"
+      },
+      "image": "assets/img/scenes/scene_pump_shaft_drained.jpg",
+      "sound": "sfx_rungs",
+      "sound_volume": 0.75
+    },
+    {
       "id": "state_main",
       "label": "Всегда",
       "condition": null,
@@ -135,7 +145,18 @@
   "lighting": "indoor",
   "particles": "steam",
   "narrative_intro": [
-    "Лестница уходит вниз, насколько видит глаз, и дальше — насколько слышит ухо.",
-    "Сверху доносится ровный гул города. Здесь он звучит как чужое дыхание."
-  ]
+    {
+      "text": "Лестница уходит вниз, насколько видит глаз, и дальше — насколько слышит ухо.",
+      "sfx": "sfx_rungs",
+      "voice": "assets/voice/intro_pump_shaft_1.mp3"
+    },
+    {
+      "text": "Сверху доносится ровный гул города. Здесь он звучит как чужое дыхание.",
+      "sfx": "sfx_water",
+      "voice": "assets/voice/intro_pump_shaft_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Взглянуть вниз ▶"
 }

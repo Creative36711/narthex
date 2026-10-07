@@ -108,7 +108,8 @@
          "line": {
           "text": "Он протягивает руку, не глядя. Марки исчезают в рукаве.",
           "action": true,
-          "sfx": "sfx_coin"
+          "sfx": "sfx_coin",
+          "voice": "assets/voice/narr_zhuk_2.mp3"
          }
         },
         {
@@ -254,6 +255,11 @@
       {
        "type": "has_item",
        "item": "item_ledger"
+      },
+      {
+       "type": "flag",
+       "flag": "zhuk_ledger",
+       "not": true
       }
      ]
     },
@@ -287,6 +293,11 @@
        "type": "flag",
        "flag": "resh_found",
        "not": true
+      },
+      {
+       "type": "npc_known",
+       "entity": "npc_resh",
+       "known": false
       }
      ]
     },
@@ -343,7 +354,8 @@
        "kind": "line",
        "line": {
         "text": "Жук ждёт ровно столько, сколько стоит твоё молчание.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_zhuk_3.mp3"
        }
       },
       {
@@ -369,8 +381,8 @@
        "line": {
         "text": "Жук листает, водя пальцем по столбцам, и считает тихо, одними губами.",
         "action": true,
-        "timer": 5,
-        "sfx": "snd_page"
+        "sfx": "snd_page",
+        "voice": "assets/voice/narr_zhuk_4.mp3"
        }
       },
       {
@@ -428,7 +440,8 @@
        "kind": "line",
        "line": {
         "text": "Жук тянется было, но рука остаётся при нём.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_zhuk_6.mp3"
        }
       },
       {

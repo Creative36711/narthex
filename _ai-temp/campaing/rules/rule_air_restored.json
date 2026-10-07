@@ -32,6 +32,16 @@
   ],
   "effects": [
     {
+      "type": "remove_status",
+      "target": "player",
+      "status": "status_choke"
+    },
+    {
+      "type": "change_need",
+      "need": "need_air",
+      "delta": 25
+    },
+    {
       "type": "clear_music_override",
       "fade": 3
     },

@@ -9,6 +9,26 @@
   "chapter": "ch_deep",
   "states": [
     {
+      "id": "state_drained",
+      "label": "Затвор заперт и вода сброшена",
+      "condition": {
+        "flag": "sluice_ready"
+      },
+      "image": "assets/img/scenes/scene_sluice_drained.jpg",
+      "sound": "snd_latch",
+      "sound_volume": 0.8
+    },
+    {
+      "id": "state_ready",
+      "label": "Клапан найден в шахте",
+      "condition": {
+        "flag": "valve_found"
+      },
+      "image": "assets/img/scenes/scene_sluice_ready.jpg",
+      "sound": "sfx_gear",
+      "sound_volume": 0.7
+    },
+    {
       "id": "state_main",
       "label": "Всегда",
       "condition": null,
@@ -109,7 +129,18 @@
   "lighting": "indoor",
   "particles": "rain",
   "narrative_intro": [
-    "Затвор не закрыт — он приготовлен: колодка пуста, и пуста она не первый месяц.",
-    "Капли считают секунды. Секунды можно не считать: их и так мало."
-  ]
+    {
+      "text": "В конце затопленной галереи проход перегораживает массивный чугунный затвор восьмого яруса. От клепаного полотна веет ледяным давлением грунтовых вод, а бронзовая втулка штурвала пустует.",
+      "sfx": "sfx_surge",
+      "voice": "assets/voice/intro_sluice_1.mp3"
+    },
+    {
+      "text": "Тяжёлые капли мерно бьют по железному настилу, отсчитывая оставшиеся часы до прорыва. У самой кромки чёрной воды в каменной нише чернеет запертый аварийный ящик старой проходческой смены.",
+      "sfx": "sfx_lever",
+      "voice": "assets/voice/intro_sluice_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Подойти к затвору ▶"
 }

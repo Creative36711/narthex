@@ -31,5 +31,20 @@
   "image": "assets/img/items/item_stew.jpg",
   "portrait": {
     "neutral": "assets/img/items/item_stew.jpg"
-  }
+  },
+  "interact_hint": "Поднять крышку котелка",
+  "interact_options": [
+    {
+      "label": "Поднять крышку котелка",
+      "hint": "горячее варево (+55 к сытости и +25 к теплу)",
+      "sound": "snd_pot",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Густая перловая похлёбка с солониной и сушёным корнем в закопчённом жестяном котелке. Держит жар и сразу возвращает тепло в пальцы."
+        }
+      ]
+    }
+  ]
 }

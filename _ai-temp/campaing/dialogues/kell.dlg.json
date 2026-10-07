@@ -204,6 +204,11 @@
       {
        "type": "has_item",
        "item": "item_roster"
+      },
+      {
+       "type": "flag",
+       "flag": "kell_confessed",
+       "not": true
       }
      ],
      "sections": [],
@@ -231,6 +236,11 @@
       {
        "type": "has_item",
        "item": "item_guard_token"
+      },
+      {
+       "type": "flag",
+       "flag": "kell_token",
+       "not": true
       }
      ]
     },
@@ -285,7 +295,8 @@
          "kind": "line",
          "line": {
           "text": "Он берёт рукавицу за манжет, не разворачивая.",
-          "action": true
+          "action": true,
+          "voice": "assets/voice/narr_kell_2.mp3"
          }
         },
         {
@@ -323,7 +334,8 @@
        "kind": "line",
        "line": {
         "text": "Он смотрит на бумагу долго, потом убирает руку с рукояти.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_kell_3.mp3"
        }
       },
       {
@@ -386,8 +398,8 @@
        "line": {
         "text": "Келл смотрит на медь так, будто она горячая, и не берёт.",
         "action": true,
-        "timer": 4,
-        "sfx": "snd_tag"
+        "sfx": "snd_tag",
+        "voice": "assets/voice/narr_kell_4.mp3"
        }
       },
       {
@@ -445,7 +457,8 @@
        "kind": "line",
        "line": {
         "text": "Келл смотрит сначала на вещь, потом на тебя — и без всякого интереса.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_kell_5.mp3"
        }
       },
       {

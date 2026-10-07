@@ -150,6 +150,11 @@
       {
        "type": "has_item",
        "item": "item_note"
+      },
+      {
+       "type": "flag",
+       "flag": "kast_note",
+       "not": true
       }
      ]
     },
@@ -175,6 +180,11 @@
        "type": "flag",
        "flag": "resh_found",
        "not": true
+      },
+      {
+       "type": "npc_known",
+       "entity": "npc_resh",
+       "known": false
       }
      ]
     },
@@ -214,6 +224,11 @@
       {
        "type": "flag",
        "flag": "case_full"
+      },
+      {
+       "type": "flag",
+       "flag": "kast_case_shown",
+       "not": true
       }
      ]
     },
@@ -519,7 +534,8 @@
        "kind": "line",
        "line": {
         "text": "Она даже не поднимает глаз.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_kast_7.mp3"
        }
       },
       {

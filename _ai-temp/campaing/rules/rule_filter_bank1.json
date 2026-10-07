@@ -1,7 +1,7 @@
 {
   "id": "rule_filter_bank1",
   "label": "Дыхатель: первая банка",
-  "once": true,
+  "once": false,
   "manual": false,
   "conditions": [
     {
@@ -41,5 +41,5 @@
     }
   ],
   "chapter": "ch_deep",
-  "trigger": "always"
+  "trigger": "enter_scene"
 }

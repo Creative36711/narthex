@@ -9,6 +9,16 @@
   "chapter": "ch_signs",
   "states": [
     {
+      "id": "state_open",
+      "label": "Шкафчик вскрыт",
+      "condition": {
+        "flag": "clue_plate"
+      },
+      "image": "assets/img/scenes/scene_pump_room_open.jpg",
+      "sound": "sfx_lock",
+      "sound_volume": 0.7
+    },
+    {
       "id": "state_main",
       "label": "Всегда",
       "condition": null,
@@ -125,7 +135,18 @@
   "lighting": "indoor",
   "particles": "dust",
   "narrative_intro": [
-    "Чужую каморку открывают ключом, а читают глазами. Записи лежат так, будто хозяин собирался вернуться через час.",
-    "На столе чертёж, на котором седьмая помпа есть. В сводке её уже нет."
-  ]
+    {
+      "text": "Чужую каморку открывают ключом, а читают глазами. Записи лежат так, будто хозяин собирался вернуться через час.",
+      "sfx": "sfx_lock",
+      "voice": "assets/voice/intro_pump_room_1.mp3"
+    },
+    {
+      "text": "В железной печке ещё тлеют угли, а на дверце шкафчика висит тяжёлый навесной замок.",
+      "sfx": "sfx_water",
+      "voice": "assets/voice/intro_pump_room_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Осмотреть каморку ▶"
 }
