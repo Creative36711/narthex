@@ -18,6 +18,11 @@
    "type": "change_disposition",
    "target": "faction_nadzor",
    "delta": -5
+  },
+  {
+   "type": "play_sound",
+   "sound": "snd_paper",
+   "volume": 0.7
   }
  ],
  "chapter": "ch_price"

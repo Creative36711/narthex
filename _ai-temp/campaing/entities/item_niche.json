@@ -14,6 +14,10 @@
    "label": "Обыскать нишу",
    "effects": [
     {
+     "type": "advance_time",
+     "ticks": 1
+    },
+    {
      "type": "add_item",
      "item": "item_note",
      "quantity": 1
@@ -44,5 +48,6 @@
    "sound": "snd_paper",
    "hint": "мастер прятал бумаги в кладке"
   }
- ]
+ ],
+ "interact_hint": "Обыскать нишу"
 }

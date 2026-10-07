@@ -27,6 +27,11 @@
    "type": "set_description",
    "entity": "npc_zhuk",
    "text": "Информатор, который продал ночь тринадцатого. Теперь он на крючке у дела №137."
+  },
+  {
+   "type": "play_sound",
+   "sound": "sfx_coins",
+   "volume": 0.8
   }
  ]
 }

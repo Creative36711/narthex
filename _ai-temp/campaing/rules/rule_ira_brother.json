@@ -41,6 +41,11 @@
   {
    "type": "show_message",
    "text": "Она отдаёт тебе два пузырька настоя: «это не плата. Это чтобы ты дошёл»."
+  },
+  {
+   "type": "play_sound",
+   "sound": "snd_tag",
+   "volume": 0.8
   }
  ],
  "chapter": "ch_deep"

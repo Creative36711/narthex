@@ -1,159 +1,167 @@
 {
- "id": "item_pump_engine",
- "type": "item",
- "category": "prop",
- "label": "Седьмая помпа",
- "description": "Корпус в рост человека, маховик, привод и срезанная муфта. Она должна стучать — и не стучит.",
- "weight": 900.0,
- "stackable": false,
- "value": {
-  "mark": 0
- },
- "interact_options": [
-  {
-   "label": "Осмотреть привод",
-   "effects": [
-    {
-     "type": "skill_check_gate",
-     "skill": "investigate",
-     "difficulty": 50,
-     "success_effects": [
-      {
-       "type": "set_flag",
-       "flag": "clue_glove"
-      },
-      {
-       "type": "change_variable",
-       "var": "clues",
-       "delta": 1
-      },
-      {
-       "type": "fire_rule",
-       "rule": "rule_clue_check"
-      },
-      {
-       "type": "unlock_codex",
-       "entry": "codex_pumps"
-      },
-      {
-       "type": "show_message",
-       "text": "Муфта срезана ровно, по метке: её снимали, а не рвало. На ободе — отпечаток мазутной перчатки с клеймом стражи."
-      }
-     ],
-     "fail_effects": [
-      {
-       "type": "show_message",
-       "text": "Масло, ржавчина, срез металла. Глаз цепляется, но не за что."
-      }
-     ]
-    }
-   ],
-   "once": true,
-   "sound": "snd_creak",
-   "hint": "срез муфты: смотри, с какой стороны резали"
+  "id": "item_pump_engine",
+  "type": "item",
+  "category": "prop",
+  "label": "Седьмая помпа",
+  "description": "Корпус в рост человека, маховик, привод и срезанная муфта. Она должна стучать — и не стучит.",
+  "weight": 900.0,
+  "stackable": false,
+  "value": {
+    "mark": 0
   },
-  {
-   "label": "Простучать корпус",
-   "effects": [
+  "interact_options": [
     {
-     "type": "skill_check_gate",
-     "skill": "repair",
-     "difficulty": 45,
-     "success_effects": [
-      {
-       "type": "show_message",
-       "text": "Звук чистый: поршни целы, клапаны на месте. Помпа не сломана — ей не дают ходу."
-      }
-     ],
-     "fail_effects": [
-      {
-       "type": "show_message",
-       "text": "Гул такой, что в ушах звенит. Ничего не понять."
-      }
-     ]
-    }
-   ],
-   "sound": "sfx_gear"
-  },
-  {
-   "label": "Вставить сердцевину и запустить помпу",
-   "effects": [
-    {
-     "type": "skill_check_gate",
-     "skill": "repair",
-     "difficulty": 55,
-     "success_effects": [
-      {
-       "type": "fire_rule",
-       "rule": "rule_end_pump"
-      }
-     ],
-     "fail_effects": [
-      {
-       "type": "show_message",
-       "text": "Обойма не садится: руки дрожат, стекло скользит. Попробуешь ещё — или больше не будет чем."
-      }
-     ]
-    }
-   ],
-   "conditions": [
-    {
-     "type": "has_item",
-     "item": "item_core"
+      "label": "Осмотреть привод",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "investigate",
+          "difficulty": 50,
+          "success_effects": [
+            {
+              "type": "set_flag",
+              "flag": "clue_glove"
+            },
+            {
+              "type": "change_variable",
+              "var": "clues",
+              "delta": 1
+            },
+            {
+              "type": "fire_rule",
+              "rule": "rule_clue_check"
+            },
+            {
+              "type": "unlock_codex",
+              "entry": "codex_pumps"
+            },
+            {
+              "type": "show_message",
+              "text": "Муфта срезана ровно, по метке: её снимали, а не рвало. На ободе — отпечаток мазутной перчатки с клеймом стражи."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Масло, ржавчина, срез металла. Глаз цепляется, но не за что."
+            }
+          ]
+        }
+      ],
+      "once": true,
+      "sound": "snd_creak",
+      "hint": "срез муфты: смотри, с какой стороны резали"
     },
     {
-     "type": "flag_set",
-     "flag": "sluice_ready"
-    }
-   ],
-   "hint": "Нужна сердцевина и исправный затвор восьмого яруса",
-   "sound": "snd_latch"
-  },
-  {
-   "label": "Снять слепок с муфты",
-   "hint": "Срез что-то скажет о том, кто его делал",
-   "sound": "sfx_gear",
-   "once": true,
-   "effects": [
-    {
-     "type": "skill_check_gate",
-     "skill": "repair",
-     "difficulty": 50,
-     "success_effects": [
-      {
-       "type": "grant_xp",
-       "points": 10
-      },
-      {
-       "type": "show_message",
-       "text": "Срез ровный, по метке, с фаской: её снимали ключом на пятьдесят два, а не рвало нагрузкой. Такую работу делают не в спешке и не впервые."
-      }
-     ],
-     "fail_effects": [
-      {
-       "type": "show_message",
-       "text": "Мазут забил всё: слепок выходит комом, по нему ничего не прочитать."
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "label": "Снять с привода ключ",
-   "hint": "гаечный ключ: на приводе его оставили в ночь тринадцатого",
-   "effects": [
-    {
-     "type": "add_item",
-     "item": "item_wrench",
-     "quantity": 1
+      "label": "Простучать корпус",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": 45,
+          "success_effects": [
+            {
+              "type": "show_message",
+              "text": "Звук чистый: поршни целы, клапаны на месте. Помпа не сломана — ей не дают ходу."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Гул такой, что в ушах звенит. Ничего не понять."
+            }
+          ]
+        }
+      ],
+      "sound": "sfx_gear"
     },
     {
-     "type": "show_message",
-     "text": "Ключ лежал на ободе, где его и бросили: рукоять тёплая, как будто его держали недавно. Или как будто зал просто не остывает."
+      "label": "Вставить сердцевину и запустить помпу",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": 55,
+          "success_effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_end_pump"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Обойма не садится: руки дрожат, стекло скользит. Попробуешь ещё — или больше не будет чем."
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_core"
+        },
+        {
+          "type": "flag_set",
+          "flag": "sluice_ready"
+        }
+      ],
+      "hint": "Нужна сердцевина и исправный затвор восьмого яруса",
+      "sound": "snd_latch"
+    },
+    {
+      "label": "Снять слепок с муфты",
+      "hint": "Срез что-то скажет о том, кто его делал",
+      "sound": "sfx_gear",
+      "once": true,
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "repair",
+          "difficulty": 50,
+          "success_effects": [
+            {
+              "type": "grant_xp",
+              "points": 10
+            },
+            {
+              "type": "show_message",
+              "text": "Срез ровный, по метке, с фаской: её снимали ключом на пятьдесят два, а не рвало нагрузкой. Такую работу делают не в спешке и не впервые."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Мазут забил всё: слепок выходит комом, по нему ничего не прочитать."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Снять с привода ключ",
+      "hint": "гаечный ключ: на приводе его оставили в ночь тринадцатого",
+      "effects": [
+        {
+          "type": "add_item",
+          "item": "item_wrench",
+          "quantity": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Ключ лежал на ободе, где его и бросили: рукоять тёплая, как будто его держали недавно. Или как будто зал просто не остывает."
+        }
+      ],
+      "once": true,
+      "sound": "sfx_gear"
     }
-   ],
-   "once": true,
-   "sound": "sfx_gear"
+  ],
+  "interact_hint": "Осмотреть привод",
+  "portrait": {
+    "neutral": "assets/img/items/item_pump_engine.jpg"
   }
- ]
 }

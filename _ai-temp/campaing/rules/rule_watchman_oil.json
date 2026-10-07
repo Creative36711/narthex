@@ -1,0 +1,72 @@
+{
+  "id": "rule_watchman_oil",
+  "label": "Смотрителя можно залить маслом",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_drift"
+    },
+    {
+      "type": "has_item",
+      "item": "item_oil"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "watchman_down"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "watchman_past"
+    }
+  ],
+  "effects": [
+    {
+      "type": "skill_check_gate",
+      "skill": "repair",
+      "difficulty": 40,
+      "success_effects": [
+        {
+          "type": "remove_item",
+          "item": "item_oil",
+          "quantity": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "watchman_down"
+        },
+        {
+          "type": "grant_xp",
+          "points": 15
+        },
+        {
+          "type": "play_sound",
+          "sound": "snd_chain",
+          "volume": 0.8
+        },
+        {
+          "type": "show_message",
+          "text": "Маслёнка на левом плече поддаётся. Ты заливаешь сустав до краёв: смотритель делает пол-оборота, хватает воздух и замирает. Семь лет без смены кончились."
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "remove_item",
+          "item": "item_oil",
+          "quantity": 1
+        },
+        {
+          "type": "play_sound",
+          "sound": "snd_chain",
+          "volume": 0.6
+        },
+        {
+          "type": "show_message",
+          "text": "Масло уходит в сустав, но привод ещё жив: смотритель разворачивает голову на звук. Прячься."
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_deep"
+}

@@ -23,5 +23,8 @@
    }
   ],
   "consume": true
+ },
+ "sounds": {
+  "use": "sfx_glass"
  }
 }

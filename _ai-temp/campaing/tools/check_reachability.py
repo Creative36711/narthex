@@ -54,27 +54,31 @@ def uname(base):
     return f"{base}#{_seq[0]}"
 
 
-def walk_effects(effs, sink, depth=0, rules=None):
-    """кладёт в sink все set_flag/clear_flag/advance_quest из дерева эффектов"""
+def walk_effects(effs, sink, depth=0, rules=None, hard=True):
+    """кладёт в sink все set_flag/clear_flag/advance_quest из дерева эффектов.
+
+    `hard=False` — флаг поднимается только при удаче проверки или победе в бою:
+    такой флаг достижим, но не может заблокировать альтернативное правило.
+    """
     rules = rules or {}
     for e in effs or []:
         t = e.get("type")
         if t == "set_flag":
-            sink.append(("set", e.get("flag")))
+            sink.append(("set", e.get("flag"), hard))
         elif t == "clear_flag":
-            sink.append(("clear", e.get("flag")))
+            sink.append(("clear", e.get("flag"), hard))
         elif t == "skill_check_gate":
-            walk_effects(e.get("success_effects"), sink, depth, rules)
-            walk_effects(e.get("fail_effects"), sink, depth, rules)
+            walk_effects(e.get("success_effects"), sink, depth, rules, False)
+            walk_effects(e.get("fail_effects"), sink, depth, rules, False)
         elif t == "start_combat":
             for k in ("on_victory", "on_defeat", "on_fled"):
-                walk_effects(e.get(k), sink, depth, rules)
+                walk_effects(e.get(k), sink, depth, rules, False)
         elif t in ("advance_quest", "start_quest"):
-            sink.append(("quest", e.get("quest")))
+            sink.append(("quest", e.get("quest"), hard))
         elif t == "fire_rule" and depth < 6:
             tgt = rules.get(e.get("rule"))
             if tgt is not None:
-                walk_effects(tgt.get("effects"), sink, depth + 1, rules)
+                walk_effects(tgt.get("effects"), sink, depth + 1, rules, hard)
 
 
 END_PREFIXES = ("end_",)
@@ -85,7 +89,8 @@ def end_flag(name):
     return name in IGNORE_FLAGS or name.startswith(END_PREFIXES)
 
 
-def cond_ok(conds, known):
+def cond_ok(conds, known, hard=None):
+    hard = known if hard is None else hard
     for c in conds or []:
         t = c.get("type")
         if t in ("flag_set", "flag_not_set") and end_flag(c.get("flag")):
@@ -96,10 +101,11 @@ def cond_ok(conds, known):
             if c.get("flag") not in known:
                 return False
         elif t == "flag_not_set":
-            if c.get("flag") in known:
+            # блокирует только безусловно поднимаемый флаг
+            if c.get("flag") in hard:
                 return False
         elif t in ("and", "or"):
-            subs = [cond_ok([x], known) for x in c.get("conditions", [])]
+            subs = [cond_ok([x], known, hard) for x in c.get("conditions", [])]
             if t == "and" and not all(subs):
                 return False
             if t == "or" and not any(subs):
@@ -107,7 +113,7 @@ def cond_ok(conds, known):
         elif t == "not":
             inner = c.get("condition") or {}
             if inner.get("type") in ("flag_set", "flag_not_set"):
-                if cond_ok([inner], known):
+                if cond_ok([inner], known, hard):
                     return False
                 continue
             # неизвестное условие под отрицанием считаем выполнимым
@@ -182,22 +188,26 @@ def main():
                         groups.append((uname(f[:-4] + "/" + node["id"]), [], [st["effect"]]))
 
     # ------------------------------------------------------------ проигрываем
-    known = set()
+    known = set()   # флаги, которых можно достичь
+    hard = set()    # флаги, которые поднимаются без удачи проверки
     fired = []
     for _ in range(12):
         new = False
         for name, conds, effs in groups:
             if name in fired:
                 continue
-            if not cond_ok(conds, known):
+            if not cond_ok(conds, known, hard):
                 continue
             sink = []
             walk_effects(effs, sink, 0, rules_by_id)
             fired.append(name)
-            for kind, val in sink:
-                if kind == "set" and val and val not in known:
-                    known.add(val)
-                    new = True
+            for kind, val, is_hard in sink:
+                if kind == "set" and val:
+                    if val not in known:
+                        known.add(val)
+                        new = True
+                    if is_hard:
+                        hard.add(val)
         if not new:
             break
 
@@ -255,6 +265,16 @@ def main():
         d = load("entities/" + f)
         if d.get("type") == "item" and d.get("starts_in_inventory"):
             granted.add(d["id"])
+        # прилавок торговца и добыча с тела — тоже способ получить вещь
+        for lot in (d.get("trade") or []):
+            if isinstance(lot, dict) and lot.get("item"):
+                granted.add(lot["item"])
+        for lot in (d.get("loot_table") or d.get("loot") or []):
+            if isinstance(lot, dict) and lot.get("item"):
+                granted.add(lot["item"])
+        for slot, it in (d.get("equipment") or {}).items():
+            if isinstance(it, str):
+                granted.add(it)
 
     needed_items = set()
 
@@ -284,7 +304,10 @@ def main():
         for c in conds or []:
             if c.get("type") == "flag_not_set":
                 return True
-            if has_block(c.get("conditions")) or has_block([c.get("condition")]):
+            nested = list(c.get("conditions") or [])
+            if c.get("condition"):
+                nested.append(c["condition"])
+            if has_block([x for x in nested if x]):
                 return True
         return False
 

@@ -9,5 +9,8 @@
  "value": {
   "mark": 70
  },
- "quest_item": true
+ "quest_item": true,
+ "sounds": {
+  "use": "sfx_glass"
+ }
 }

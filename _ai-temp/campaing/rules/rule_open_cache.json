@@ -45,6 +45,11 @@
   {
    "type": "play_cutscene",
    "cutscene": "cutscene_revelation"
+  },
+  {
+   "type": "play_sound",
+   "sound": "snd_stone",
+   "volume": 0.9
   }
  ],
  "chapter": "ch_price"

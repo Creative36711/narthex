@@ -451,7 +451,9 @@
    "w": 240,
    "h": 300,
    "condition": null,
-   "default_entity": "npc_dozh"
+   "default_entity": "npc_dozh",
+   "sound": "sfx_coins",
+   "sound_volume": 0.6
   },
   {
    "id": "slot_ayla",
@@ -465,7 +467,9 @@
    "w": 240,
    "h": 300,
    "condition": null,
-   "default_entity": "npc_ayla"
+   "default_entity": "npc_ayla",
+   "sound": "sfx_glass",
+   "sound_volume": 0.6
   },
   {
    "id": "slot_zhuk",
@@ -479,13 +483,16 @@
    "w": 190,
    "h": 150,
    "condition": null,
-   "default_entity": "npc_zhuk"
+   "default_entity": "npc_zhuk",
+   "sound": "snd_pot",
+   "sound_volume": 0.6
   },
   {
    "id": "slot_brazier",
    "label": "Жаровня",
    "type": [
-    "prop"
+    "prop",
+    "workbench"
    ],
    "shape": "rect",
    "x": 570,
@@ -493,14 +500,17 @@
    "w": 170,
    "h": 140,
    "condition": null,
-   "default_entity": "item_brazier"
+   "default_entity": "item_brazier",
+   "sound": "snd_pot",
+   "sound_volume": 0.5
   },
   {
    "id": "slot_bench_row",
-   "label": "Лавка у стены",
+   "label": "Верстак у стены",
    "type": [
     "person",
-    "prop"
+    "prop",
+    "workbench"
    ],
    "shape": "rect",
    "x": 150,
@@ -508,7 +518,9 @@
    "w": 230,
    "h": 125,
    "condition": null,
-   "default_entity": "item_bench"
+   "default_entity": "item_bench",
+   "sound": "sfx_anvil",
+   "sound_volume": 0.7
   }
  ],
  "navigation": [
@@ -520,7 +532,8 @@
     "w": 110,
     "h": 220
    },
-   "go_to_scene": "scene_flood_gallery"
+   "go_to_scene": "scene_flood_gallery",
+   "cost_ticks": 1
   },
   {
    "label": "На схему ярусов",
@@ -556,7 +569,13 @@
    "sounds": [
     "snd_crowd"
    ],
-   "volume": 0.5
+   "volume": 0.5,
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "lockdown"
+    }
+   ]
   },
   {
    "sounds": [

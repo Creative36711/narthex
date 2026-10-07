@@ -35,6 +35,14 @@
    "amount": 1
   },
   {
+   "type": "play_sound",
+   "sound": "sfx_book",
+   "volume": 0.7
+  },
+  {
+   "type": "stop_sound"
+  },
+  {
    "type": "game_over_victory"
   }
  ],

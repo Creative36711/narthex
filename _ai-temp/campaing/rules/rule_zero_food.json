@@ -1,17 +1,23 @@
 {
- "id": "rule_zero_food",
- "label": "Голод и жажда",
- "once": true,
- "manual": true,
- "conditions": [],
- "effects": [
-  {
-   "type": "change_hp",
-   "delta": -5
-  },
-  {
-   "type": "show_message",
-   "text": "Пусто в животе и в голове. Ты грызёшь сухарь, которого нет."
-  }
- ]
+  "id": "rule_zero_food",
+  "label": "Голод",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "change_hp",
+      "delta": -5
+    },
+    {
+      "type": "apply_status",
+      "target": "player",
+      "status": "status_hunger",
+      "duration": 12
+    },
+    {
+      "type": "show_message",
+      "text": "Пусто в животе и в голове. Ты грызёшь сухарь, которого нет."
+    }
+  ]
 }

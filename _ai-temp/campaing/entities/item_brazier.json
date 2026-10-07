@@ -1,31 +1,51 @@
 {
- "id": "item_brazier",
- "type": "item",
- "category": "prop",
- "label": "Жаровня",
- "description": "Чугунная жаровня на трёх ножках. Вокруг неё и держится весь Сухой ряд.",
- "weight": 60.0,
- "stackable": false,
- "value": {
-  "mark": 0
- },
- "interact_options": [
-  {
-   "label": "Согреться у жаровни",
-   "effects": [
+  "id": "item_brazier",
+  "type": "item",
+  "category": "prop",
+  "label": "Жаровня",
+  "description": "Чугунная жаровня на трёх ножках. Вокруг неё и держится весь Сухой ряд: уголь сюда носят понемногу все, кому надо дожить до утра.",
+  "weight": 60.0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
     {
-     "type": "change_need",
-     "need": "need_warmth",
-     "delta": 35
+      "label": "Согреться у жаровни",
+      "effects": [
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 35
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        }
+      ],
+      "message": "Угли шипят, и сырость отступает на полшага.",
+      "sound": "snd_pot",
+      "hint": "час у жаровни: +35 к теплу, пока ряд подбрасывает уголь",
+      "conditions": [
+        {
+          "type": "need_le",
+          "need": "need_warmth",
+          "threshold": 70
+        }
+      ]
     },
     {
-     "type": "advance_time",
-     "ticks": 1
+      "label": "Сготовить на жаровне",
+      "effects": [
+        {
+          "type": "open_craft",
+          "recipe": "recipe_stew"
+        }
+      ],
+      "message": "Угли дышат ровно. Здесь можно сварить то, что в сухом виде не лезет в горло.",
+      "sound": "snd_pot",
+      "hint": "паёк и вода становятся похлёбкой"
     }
-   ],
-   "message": "Угли шипят, и сырость отступает на полшага.",
-   "sound": "snd_pot",
-   "hint": "жар снимает сырость на час-два"
-  }
- ]
+  ],
+  "interact_hint": "Погреться, сготовить"
 }

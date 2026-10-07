@@ -1,59 +1,85 @@
 {
- "id": "item_sluice_mech",
- "type": "item",
- "category": "prop",
- "label": "Механизм затвора",
- "description": "Полотно в два пальца толщиной, штурвал и пустая колодка под клапан. Клапана нет.",
- "weight": 800.0,
- "stackable": false,
- "value": {
-  "mark": 0
- },
- "interact_options": [
-  {
-   "label": "Осмотреть механизм",
-   "effects": [
-    {
-     "type": "show_message",
-     "text": "Полотно цело, штурвал ходит вхолостую: колодка под клапан пуста. Затвор не закрывали — его не могли закрыть."
-    }
-   ],
-   "sound": "snd_chain",
-   "hint": "колодка под клапан пуста: без клапана затвор не закрыть"
+  "id": "item_sluice_mech",
+  "type": "item",
+  "category": "prop",
+  "label": "Механизм затвора",
+  "description": "Полотно в два пальца толщиной, штурвал и пустая колодка под клапан. Клапана нет.",
+  "weight": 800.0,
+  "stackable": false,
+  "value": {
+    "mark": 0
   },
-  {
-   "label": "Установить клапан",
-   "effects": [
+  "interact_options": [
     {
-     "type": "fire_rule",
-     "rule": "rule_install_valve"
-    }
-   ],
-   "conditions": [
+      "label": "Осмотреть механизм",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Полотно цело, штурвал ходит вхолостую: колодка под клапан пуста. Затвор не закрывали — его не могли закрыть."
+        }
+      ],
+      "sound": "snd_chain",
+      "hint": "колодка под клапан пуста: без клапана затвор не закрыть",
+      "once": true
+    },
     {
-     "type": "has_item",
-     "item": "item_valve"
-    }
-   ],
-   "hint": "Нужен клапан со дна шахты",
-   "sound": "snd_latch"
-  },
-  {
-   "label": "Заложить заряд",
-   "effects": [
+      "label": "Установить клапан",
+      "effects": [
+        {
+          "type": "fire_rule",
+          "rule": "rule_install_valve"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_valve"
+        }
+      ],
+      "hint": "Нужен клапан со дна шахты",
+      "sound": "snd_latch"
+    },
     {
-     "type": "fire_rule",
-     "rule": "rule_final_fight"
-    }
-   ],
-   "conditions": [
+      "label": "Заложить заряд",
+      "effects": [
+        {
+          "type": "fire_rule",
+          "rule": "rule_final_fight"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_charge"
+        }
+      ],
+      "hint": "Затвор уйдёт под воду вместе с жилой",
+      "sound": "snd_charge"
+    },
     {
-     "type": "has_item",
-     "item": "item_charge"
+      "label": "Ещё раз осмотреть колодку",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "sluice_seen"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Колодка под клапан пуста и стоит так не первый месяц: кто-то вынул клапан заранее и положил туда, где его найдут не сразу."
+        }
+      ],
+      "sound": "snd_chain",
+      "hint": "перечитать можно бесплатно: без клапана затвор не закрыть"
     }
-   ],
-   "hint": "Затвор уйдёт под воду вместе с жилой",
-   "sound": "snd_charge"
+  ],
+  "interact_hint": "Осмотреть затвор",
+  "portrait": {
+    "neutral": "assets/img/items/item_sluice_mech.jpg"
   }
- ]
 }

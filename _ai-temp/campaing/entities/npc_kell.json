@@ -6,9 +6,9 @@
  "portrait": {
   "neutral": "assets/img/npc/kell_neutral.jpg",
   "angry": "assets/img/npc/kell_angry.jpg",
-  "afraid": "assets/img/npc/kell_neutral.jpg",
+  "afraid": "assets/img/npc/kell_afraid.jpg",
   "thoughtful": "assets/img/npc/kell_thoughtful.jpg",
-  "sad": "assets/img/npc/kell_thoughtful.jpg",
+  "sad": "assets/img/npc/kell_sad.jpg",
   "calm": "assets/img/npc/kell_calm.jpg"
  },
  "stats": {
@@ -62,5 +62,10 @@
   "below_hp_pct": 25,
   "flee_chance": 20
  },
- "scene_sprite": "assets/img/npc/sprite_kell.png"
+ "scene_sprite": "assets/img/npc/sprite_kell.png",
+ "sounds": {
+  "attack": "snd_blade",
+  "hit": "sfx_hit",
+  "death": "snd_cloth"
+ }
 }

@@ -391,7 +391,9 @@
    "w": 220,
    "h": 520,
    "condition": null,
-   "default_entity": "item_ladder"
+   "default_entity": "item_ladder",
+   "sound": "sfx_rungs",
+   "sound_volume": 0.6
   },
   {
    "id": "slot_niche",
@@ -406,7 +408,9 @@
    "w": 180,
    "h": 180,
    "condition": null,
-   "default_entity": "item_niche"
+   "default_entity": "item_niche",
+   "sound": "snd_stone",
+   "sound_volume": 0.6
   },
   {
    "id": "slot_winch",
@@ -420,7 +424,9 @@
    "w": 260,
    "h": 140,
    "condition": null,
-   "default_entity": "item_winch"
+   "default_entity": "item_winch",
+   "sound": "snd_chain",
+   "sound_volume": 0.7
   }
  ],
  "navigation": [
@@ -432,7 +438,8 @@
     "w": 220,
     "h": 150
    },
-   "go_to_scene": "scene_pump_hall"
+   "go_to_scene": "scene_pump_hall",
+   "cost_ticks": 1
   }
  ],
  "music": [
@@ -458,19 +465,25 @@
    "sounds": [
     "snd_water_amb"
    ],
-   "volume": 0.6
+   "volume": 0.3,
+   "conditions": [
+    {
+     "type": "flag_not_set",
+     "flag": "flood"
+    }
+   ]
   },
   {
+   "sounds": [
+    "snd_water_amb"
+   ],
+   "volume": 0.6,
    "conditions": [
     {
      "type": "flag_set",
      "flag": "flood"
     }
-   ],
-   "sounds": [
-    "snd_water_amb"
-   ],
-   "volume": 0.5
+   ]
   }
  ],
  "lighting": "indoor"

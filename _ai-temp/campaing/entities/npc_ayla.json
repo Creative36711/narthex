@@ -5,10 +5,10 @@
  "description": "Лекарь без храма: срезает гнилец, продаёт настой и не спрашивает, откуда у тебя чужие документы.",
  "portrait": {
   "neutral": "assets/img/npc/ayla_neutral.jpg",
-  "angry": "assets/img/npc/ayla_thoughtful.jpg",
-  "afraid": "assets/img/npc/ayla_neutral.jpg",
+  "angry": "assets/img/npc/ayla_angry.jpg",
+  "afraid": "assets/img/npc/ayla_afraid.jpg",
   "thoughtful": "assets/img/npc/ayla_thoughtful.jpg",
-  "sad": "assets/img/npc/ayla_neutral.jpg",
+  "sad": "assets/img/npc/ayla_sad.jpg",
   "calm": "assets/img/npc/ayla_calm.jpg"
  },
  "stats": {

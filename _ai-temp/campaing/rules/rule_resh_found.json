@@ -28,6 +28,11 @@
    "type": "advance_quest",
    "quest": "quest_pump",
    "stage": "stage_verdict"
+  },
+  {
+   "type": "play_sound",
+   "sound": "sfx_hum",
+   "volume": 0.6
   }
  ],
  "chapter": "ch_deep"

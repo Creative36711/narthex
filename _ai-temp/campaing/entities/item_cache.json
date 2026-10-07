@@ -1,49 +1,63 @@
 {
- "id": "item_cache",
- "type": "item",
- "category": "container",
- "label": "Схрон мастера",
- "description": "Железный ящик под крепью, присыпанный породой. Мастера всегда имеют то, чего не имеют указы.",
- "weight": 90.0,
- "stackable": false,
- "value": {
-  "mark": 0
- },
- "interact_options": [
-  {
-   "label": "Осмотреть замок",
-   "effects": [
-    {
-     "type": "show_message",
-     "text": "Замок под ключ без номера. Ломать можно, но тогда ящик не откроется — только распорится."
-    }
-   ],
-   "sound": "snd_latch",
-   "hint": "замок под ключ без номера: ключ у того, кто прятал"
+  "id": "item_cache",
+  "type": "item",
+  "category": "container",
+  "label": "Схрон мастера",
+  "description": "Железный ящик под крепью, присыпанный породой. Мастера всегда имеют то, чего не имеют указы.",
+  "weight": 90.0,
+  "stackable": false,
+  "value": {
+    "mark": 0
   },
-  {
-   "label": "Взломать крышку",
-   "effects": [
+  "interact_options": [
     {
-     "type": "skill_check_gate",
-     "skill": "lockpick",
-     "difficulty": 55,
-     "success_effects": [
-      {
-       "type": "fire_rule",
-       "rule": "rule_open_cache"
-      }
-     ],
-     "fail_effects": [
-      {
-       "type": "show_message",
-       "text": "Крышка гудит, но держится. Инструмент срывается."
-      }
-     ]
+      "label": "Осмотреть замок",
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Замок под ключ без номера. Ломать можно, но тогда ящик не откроется — только распорится."
+        }
+      ],
+      "sound": "snd_latch",
+      "hint": "замок под ключ без номера: ключ у того, кто прятал"
+    },
+    {
+      "label": "Взломать крышку",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "lockpick",
+          "difficulty": 55,
+          "success_effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_open_cache"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Крышка гудит, но держится. Инструмент срывается."
+            }
+          ]
+        }
+      ],
+      "sound": "snd_creak",
+      "hint": "отмычка; провал только инструментом, крышка не сломается",
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "cache_open"
+        }
+      ]
     }
-   ],
-   "sound": "snd_creak",
-   "hint": "отмычка; провал только инструментом, крышка не сломается"
+  ],
+  "interact_hint": "Вскрыть крышку схрона",
+  "portrait": {
+    "neutral": "assets/img/items/item_cache.jpg"
   }
- ]
 }

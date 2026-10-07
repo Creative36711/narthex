@@ -28,6 +28,11 @@
   {
    "type": "show_message",
    "text": "Штурвал идёт тяжело, но до конца. Теперь затвор можно закрыть — и помпу можно пускать."
+  },
+  {
+   "type": "play_sound",
+   "sound": "sfx_lever",
+   "volume": 0.8
   }
  ],
  "chapter": "ch_deep"

@@ -44,5 +44,8 @@
    ]
   }
  ],
- "quest_item": true
+ "quest_item": true,
+ "sounds": {
+  "use": "snd_stone"
+ }
 }

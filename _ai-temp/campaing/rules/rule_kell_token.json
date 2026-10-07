@@ -13,6 +13,11 @@
    "type": "journal_update",
    "quest": "quest_missing",
    "text_key": "j_token"
+  },
+  {
+   "type": "play_sound",
+   "sound": "snd_tag",
+   "volume": 0.8
   }
  ],
  "chapter": "ch_signs"

@@ -1,7 +1,7 @@
 {
  "id": "arena_pump",
  "label": "Машинный зал (бой)",
- "image": "",
+ "image": "assets/img/arena_pump.jpg",
  "hex_grid": {
   "cols": 12,
   "rows": 7,

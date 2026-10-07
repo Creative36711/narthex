@@ -9,6 +9,16 @@
  "chapter": "ch_signs",
  "states": [
   {
+   "id": "state_running",
+   "label": "Помпа пошла",
+   "condition": {
+    "flag": "end_pump"
+   },
+   "image": "assets/img/scenes/scene_pump_hall_running.jpg",
+   "sound": "sfx_machine",
+   "sound_volume": 1.0
+  },
+  {
    "id": "state_main",
    "label": "Всегда",
    "condition": null,
@@ -621,7 +631,9 @@
    "h": 390,
    "condition": null,
    "default_entity": "item_pump_engine",
-   "sprite_scale": 0.9
+   "sprite_scale": 0.9,
+   "sound": "sfx_gear",
+   "sound_volume": 0.6
   },
   {
    "id": "slot_ira",
@@ -637,7 +649,9 @@
    "condition": {
     "not_flag": "ira_joined"
    },
-   "default_entity": "npc_ira"
+   "default_entity": "npc_ira",
+   "sound": "sfx_lever",
+   "sound_volume": 0.5
   },
   {
    "id": "slot_door_resh",
@@ -652,7 +666,9 @@
    "w": 92,
    "h": 210,
    "condition": null,
-   "default_entity": "item_resh_door"
+   "default_entity": "item_resh_door",
+   "sound": "sfx_door",
+   "sound_volume": 0.6
   }
  ],
  "navigation": [
@@ -664,7 +680,8 @@
     "w": 200,
     "h": 120
    },
-   "go_to_scene": "scene_pump_shaft"
+   "go_to_scene": "scene_pump_shaft",
+   "cost_ticks": 1
   },
   {
    "label": "На схему ярусов",
@@ -680,10 +697,22 @@
  "music": [
   {
    "tracks": [
+    "music_works"
+   ],
+   "conditions": [
+    {
+     "type": "flag_set",
+     "flag": "end_pump"
+    }
+   ]
+  },
+  {
+   "tracks": [
     "music_alarm"
    ],
    "conditions": [
     {
+     "type": "flag_set",
      "flag": "lockdown"
     }
    ]

@@ -3,7 +3,9 @@
   "type": "npc",
   "label": "Боевик Надзора",
   "description": "Нанятый «для охраны порядка»: кирза, дубинка и полное безразличие к тому, чей это порядок.",
-  "portrait": {},
+  "portrait": {
+    "neutral": "assets/img/npc/thug_neutral.jpg"
+  },
   "stats": {
     "STR": 13,
     "CON": 12,
@@ -44,10 +46,27 @@
       "chance": 0.3,
       "min": 1,
       "max": 1
+    },
+    {
+      "item": "item_service_blade",
+      "chance": 0.5,
+      "min": 1,
+      "max": 1
+    },
+    {
+      "item": "item_vest",
+      "chance": 0.3,
+      "min": 1,
+      "max": 1
     }
   ],
   "morale": {
     "below_hp_pct": 30,
     "flee_chance": 45
+  },
+  "sounds": {
+    "attack": "snd_blade",
+    "hit": "sfx_hit",
+    "death": "snd_cloth"
   }
 }

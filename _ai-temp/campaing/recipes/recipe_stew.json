@@ -1,0 +1,25 @@
+{
+ "id": "recipe_stew",
+ "label": "Сварить похлёбку",
+ "category": "food",
+ "description": "Паёк, вода и огонь. Сухой паёк греет один раз, похлёбка — два: сначала живот, потом пальцы.",
+ "inputs": [
+  {
+   "item": "item_ration",
+   "quantity": 1
+  },
+  {
+   "item": "item_water",
+   "quantity": 1
+  }
+ ],
+ "workbench": "item_brazier",
+ "time_ticks": 1,
+ "output": {
+  "item": "item_stew",
+  "quantity": 1
+ },
+ "message": "Паёк разбух, вода пожелтела. Пахнет так, что хочется есть даже сытому.",
+ "sound": "snd_pot",
+ "sound_volume": 0.7
+}

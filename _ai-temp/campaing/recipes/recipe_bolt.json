@@ -20,5 +20,9 @@
   "item": "item_bolt",
   "quantity": 3
  },
- "message": "Три болта. Один кривой — он и полетит первым."
+ "message": "Три болта. Один кривой — он и полетит первым.",
+ "workbench": true,
+ "category": "misc",
+ "sound": "sfx_anvil",
+ "sound_volume": 0.9
 }

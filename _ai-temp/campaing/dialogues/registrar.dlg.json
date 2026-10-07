@@ -12,14 +12,23 @@
        "kind": "line",
        "line": {
         "text": "Регистратор щёлкает реле: два стеклянных глаза разгораются бирюзой.",
-        "action": true
+        "action": true,
+        "sfx": "sfx_click"
        }
       },
       {
        "kind": "line",
        "line": {
         "text": "Назовите номер дела, шифр или дату. Говорите чётко: я пишу, как слышу.",
-        "voice": "assets/voice/registrar_1.mp3"
+        "voice": "assets/voice/registrar_1.mp3",
+        "sfx": "sfx_tick"
+       }
+      },
+      {
+       "kind": "line",
+       "line": {
+        "text": "Срок дознания по делу сто тридцать семь — семьдесят два часа. Он идёт, пока вы стоите и молчите.",
+        "voice": "assets/voice/registrar_8.mp3"
        }
       }
      ]
@@ -62,13 +71,15 @@
          "line": {
           "text": "Пломба предъявлена. Выдаю.",
           "emotion": "calm",
-          "voice": "assets/voice/registrar_4.mp3"
+          "voice": "assets/voice/registrar_4.mp3",
+          "sfx": "snd_latch"
          }
         },
         {
          "kind": "line",
          "line": {
-          "text": "Взвод старшины Келла Ястреба, двенадцать человек, седьмой ярус, с двадцати до шести. Пометки о смене нет."
+          "text": "Взвод старшины Келла Ястреба, двенадцать человек, седьмой ярус, с двадцати до шести. Пометки о смене нет.",
+          "voice": "assets/voice/registrar_5.mp3"
          }
         },
         {
@@ -100,10 +111,10 @@
      "conds": [
       {
        "type": "has_item",
-       "item": "item_plate"
+       "item": "item_plate",
+       "not": true
       }
-     ],
-     "once": true
+     ]
     },
     {
      "text": "Наряд стражи за ночь тринадцатого.",
@@ -114,7 +125,9 @@
          "kind": "line",
          "line": {
           "text": "Пломба не предъявлена. Наряды без пломбы не выдаются.",
-          "emotion": "calm"
+          "emotion": "calm",
+          "sfx": "sfx_error",
+          "voice": "assets/voice/registrar_7.mp3"
          }
         }
        ]
@@ -156,7 +169,8 @@
          "kind": "line",
          "line": {
           "text": "Инспектор Каст В. Основание: пункт девятый. Пункт девятый гласит: «в интересах яруса».",
-          "emotion": "calm"
+          "emotion": "calm",
+          "voice": "assets/voice/registrar_6.mp3"
          }
         },
         {

@@ -39,7 +39,24 @@ for (const file of fs.readdirSync(DIR).filter((f) => f.endsWith('.ink')).sort())
   }
   const externals = [...text.matchAll(/EXTERNAL\s+([a-z_0-9]+)/g)].map((m) => m[1]);
   const knots = [...text.matchAll(/^===\s*([^\s=]+)/gm)].map((m) => m[1]);
+  const knotSet = new Set(knots);
   const noise = new Set();
+
+  // 1. переходы: куда ведут -> и present_item("успех", "провал", ...)
+  const jumps = [...text.matchAll(/->\s*([A-Za-zА-Яа-я_0-9]+)/g)].map((m) => m[1]);
+  for (const m of text.matchAll(/present_item\(\s*"([^"]*)"\s*,\s*"([^"]*)"/g)) {
+    jumps.push(m[1], m[2]);
+  }
+  for (const j of new Set(jumps)) {
+    if (j === 'DONE' || j === 'END' || j === 'end') continue;
+    if (!knotSet.has(j)) noise.add(`переход в несуществующий узел: «${j}»`);
+  }
+
+  // 2. внешние функции: каждый вызов ~ fn(...) должен быть объявлен EXTERNAL
+  const declared = new Set(externals);
+  for (const m of text.matchAll(/~\s*([a-z_0-9]+)\s*\(/g)) {
+    if (!declared.has(m[1])) noise.add(`вызов ${m[1]}() без объявления EXTERNAL`);
+  }
 
   const run = (start, seed) => {
     const s = new inkjs.Story(story.ToJson());

@@ -307,7 +307,8 @@
    "text": "Нижние ярусы молчат. Это тоже победа: её просто некому записать в сводку.",
    "duration": 7,
    "transition": "fade",
-   "voice": "assets/voice/final_silence_2.mp3"
+   "voice": "assets/voice/final_silence_2.mp3",
+   "image": "assets/img/cut_final_silence_2.jpg"
   }
  ]
 }

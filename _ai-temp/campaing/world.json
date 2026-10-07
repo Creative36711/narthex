@@ -3,7 +3,7 @@
   {
    "id": "region_karkas",
    "label": "Каркас",
-   "map_image": "",
+   "map_image": "assets/img/map_tiers.jpg",
    "map_art": {
     "canvas": {
      "w": 1280,
@@ -496,11 +496,23 @@
      "travel_connections": [
       {
        "to": "loc_gate",
-       "cost_ticks": 2
+       "cost_ticks": 2,
+       "depart_sound": "snd_latch",
+       "sound": "sfx_step",
+       "arrive_sound": "sfx_door",
+       "depart_sound_volume": 0.7,
+       "sound_volume": 0.7,
+       "arrive_sound_volume": 0.8
       },
       {
        "to": "loc_pump7",
-       "cost_ticks": 2
+       "cost_ticks": 2,
+       "depart_sound": "snd_latch",
+       "sound": "sfx_step",
+       "arrive_sound": "snd_creak",
+       "depart_sound_volume": 0.6,
+       "sound_volume": 0.7,
+       "arrive_sound_volume": 0.6
       }
      ],
      "scenes": [
@@ -528,7 +540,12 @@
       }
      ],
      "ambient": [
-      "snd_wind"
+      {
+       "sounds": [
+        "snd_wind"
+       ],
+       "volume": 0.45
+      }
      ]
     },
     {
@@ -541,11 +558,23 @@
      "travel_connections": [
       {
        "to": "loc_surface",
-       "cost_ticks": 2
+       "cost_ticks": 2,
+       "depart_sound": "sfx_door",
+       "sound": "sfx_step",
+       "arrive_sound": "snd_latch",
+       "depart_sound_volume": 0.8,
+       "sound_volume": 0.7,
+       "arrive_sound_volume": 0.7
       },
       {
        "to": "loc_pump7",
-       "cost_ticks": 1
+       "cost_ticks": 1,
+       "depart_sound": "snd_chain",
+       "sound": "sfx_rungs",
+       "arrive_sound": "snd_creak",
+       "depart_sound_volume": 0.6,
+       "sound_volume": 0.6,
+       "arrive_sound_volume": 0.6
       }
      ],
      "scenes": [
@@ -573,7 +602,12 @@
       }
      ],
      "ambient": [
-      "snd_wind"
+      {
+       "sounds": [
+        "snd_wind"
+       ],
+       "volume": 0.5
+      }
      ]
     },
     {
@@ -586,15 +620,33 @@
      "travel_connections": [
       {
        "to": "loc_gate",
-       "cost_ticks": 1
+       "cost_ticks": 1,
+       "depart_sound": "snd_creak",
+       "sound": "sfx_rungs",
+       "arrive_sound": "snd_chain",
+       "depart_sound_volume": 0.6,
+       "sound_volume": 0.6,
+       "arrive_sound_volume": 0.6
       },
       {
        "to": "loc_surface",
-       "cost_ticks": 2
+       "cost_ticks": 2,
+       "depart_sound": "snd_creak",
+       "sound": "sfx_step",
+       "arrive_sound": "snd_latch",
+       "depart_sound_volume": 0.6,
+       "sound_volume": 0.7,
+       "arrive_sound_volume": 0.6
       },
       {
        "to": "loc_ward8",
-       "cost_ticks": 2
+       "cost_ticks": 2,
+       "depart_sound": "snd_latch",
+       "sound": "sfx_wade",
+       "arrive_sound": "sfx_water",
+       "depart_sound_volume": 0.7,
+       "sound_volume": 0.8,
+       "arrive_sound_volume": 0.7
       }
      ],
      "scenes": [
@@ -607,10 +659,22 @@
      "music": [
       {
        "tracks": [
+        "music_works"
+       ],
+       "conditions": [
+        {
+         "type": "flag_set",
+         "flag": "end_pump"
+        }
+       ]
+      },
+      {
+       "tracks": [
         "music_alarm"
        ],
        "conditions": [
         {
+         "type": "flag_set",
          "flag": "lockdown"
         }
        ]
@@ -623,7 +687,30 @@
       }
      ],
      "ambient": [
-      "snd_pump_amb"
+      {
+       "sounds": [
+        "snd_pump_amb"
+       ],
+       "volume": 0.9,
+       "conditions": [
+        {
+         "type": "flag_set",
+         "flag": "end_pump"
+        }
+       ]
+      },
+      {
+       "sounds": [
+        "snd_deep_drone"
+       ],
+       "volume": 0.4,
+       "conditions": [
+        {
+         "type": "flag_not_set",
+         "flag": "end_pump"
+        }
+       ]
+      }
      ]
     },
     {
@@ -636,12 +723,24 @@
      "travel_connections": [
       {
        "to": "loc_pump7",
-       "cost_ticks": 2
+       "cost_ticks": 2,
+       "depart_sound": "sfx_water",
+       "sound": "sfx_wade",
+       "arrive_sound": "snd_latch",
+       "depart_sound_volume": 0.7,
+       "sound_volume": 0.8,
+       "arrive_sound_volume": 0.7
       },
       {
        "to": "loc_deep9",
        "cost_ticks": 2,
-       "random_encounter_table": "enc_gallery"
+       "random_encounter_table": "enc_gallery",
+       "depart_sound": "snd_creak",
+       "sound": "sfx_step",
+       "arrive_sound": "snd_vent",
+       "depart_sound_volume": 0.7,
+       "sound_volume": 0.6,
+       "arrive_sound_volume": 0.5
       }
      ],
      "scenes": [
@@ -697,7 +796,13 @@
       {
        "to": "loc_ward8",
        "cost_ticks": 2,
-       "random_encounter_table": "enc_deep"
+       "random_encounter_table": "enc_deep",
+       "depart_sound": "snd_vent",
+       "sound": "sfx_step",
+       "arrive_sound": "snd_creak",
+       "depart_sound_volume": 0.5,
+       "sound_volume": 0.6,
+       "arrive_sound_volume": 0.7
       }
      ],
      "scenes": [
@@ -725,7 +830,12 @@
       }
      ],
      "ambient": [
-      "snd_deep_drone"
+      {
+       "sounds": [
+        "snd_deep_drone"
+       ],
+       "volume": 0.7
+      }
      ],
      "camp": true
     }

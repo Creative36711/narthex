@@ -1,7 +1,7 @@
 {
  "id": "arena_office",
  "label": "Приёмная Надзора (бой)",
- "image": "",
+ "image": "assets/img/arena_office.jpg",
  "hex_grid": {
   "cols": 10,
   "rows": 6,

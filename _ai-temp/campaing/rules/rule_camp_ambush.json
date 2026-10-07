@@ -15,6 +15,11 @@
    ],
    "arena": "arena_gallery",
    "intro": "Из воды поднимается то, что раньше ходило на смену."
+  },
+  {
+   "type": "play_sound",
+   "sound": "sfx_hit",
+   "volume": 0.9
   }
  ]
 }

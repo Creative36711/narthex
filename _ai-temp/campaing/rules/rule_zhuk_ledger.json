@@ -13,6 +13,11 @@
    "type": "journal_update",
    "quest": "quest_ledger",
    "text_key": "j_read"
+  },
+  {
+   "type": "play_sound",
+   "sound": "sfx_flip",
+   "volume": 0.7
   }
  ],
  "chapter": "ch_price"

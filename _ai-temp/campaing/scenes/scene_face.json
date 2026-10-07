@@ -317,7 +317,9 @@
    "w": 240,
    "h": 350,
    "condition": null,
-   "default_entity": "npc_resh"
+   "default_entity": "npc_resh",
+   "sound": "sfx_hum",
+   "sound_volume": 0.7
   },
   {
    "id": "slot_vein",
@@ -331,7 +333,9 @@
    "w": 680,
    "h": 520,
    "condition": null,
-   "default_entity": "npc_vein"
+   "default_entity": "npc_vein",
+   "sound": "sfx_hum",
+   "sound_volume": 0.8
   },
   {
    "id": "slot_hoist",
@@ -345,7 +349,9 @@
    "w": 220,
    "h": 250,
    "condition": null,
-   "default_entity": "item_hoist"
+   "default_entity": "item_hoist",
+   "sound": "snd_chain",
+   "sound_volume": 0.7
   }
  ],
  "navigation": [
@@ -357,7 +363,8 @@
     "w": 200,
     "h": 170
    },
-   "go_to_scene": "scene_drift"
+   "go_to_scene": "scene_drift",
+   "cost_ticks": 1
   },
   {
    "label": "На схему ярусов",
