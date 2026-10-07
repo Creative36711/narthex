@@ -272,6 +272,10 @@ export class GameEngine {
       this.freshRun = false
       this.metaRunStart()
       this.checkRules()
+      // Начальный тик времени и вход на стартовую сцену: запускают стартовые
+      // правила с событийными триггерами (time_tick / enter_scene)
+      this.fireTrigger('time_tick')
+      this.fireTrigger('enter_scene', { sceneId: this.state.scene })
     }
     this.runLocationRules(this.state.location)
     this.autosave()

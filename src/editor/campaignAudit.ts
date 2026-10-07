@@ -381,6 +381,15 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
         message: `Правило «${r.label ?? r.id}» (${p}): отсутствуют массивы conditions/effects — правило сломает движок при старте.`,
       })
     }
+    // Стартовые правила на нулевой тик или катсцену не должны блокироваться триггером time_tick
+    const hasIntroCutscene = (r.effects ?? []).some((e) => e.type === 'play_cutscene')
+    const hasZeroTick = (r.conditions ?? []).some((c) => c.type === 'tick_elapsed' && c.min_tick === 0)
+    if ((hasZeroTick || hasIntroCutscene) && r.trigger === 'time_tick') {
+      structure.push({
+        severity: 'warning',
+        message: `Правило «${r.label ?? r.id}» (${p}): вступительное правило имеет событийный триггер «time_tick». Чтобы катсцена и пролог запускались сразу при старте новой игры, выберите триггер «always» (по умолчанию) или оставьте поле пустым.`,
+      })
+    }
   }
 
   // Проверка звуков (пункт 10 аудита): опечатка в sound_id превращается в тишину.
