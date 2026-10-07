@@ -7,10 +7,12 @@ EXTERNAL open_trade(a0)
 EXTERNAL remove_item(a0, a1)
 EXTERNAL set_dialogue_timer(a0, a1)
 EXTERNAL unlock_codex(a0)
+EXTERNAL learn_name(a0)
 
 === Начало ===
-Дож что-то взвешивает на ладони и прячет в рукав, не глядя. # action
+Дож что-то взвешивает на ладони и прячет в рукав, не глядя. # action # voice: assets/voice/narr_dozh_1.mp3
 Смотри, не покупатель. С покупателями я вежливей. # voice: assets/voice/dozh_4.mp3
+~ learn_name("npc_dozh")
 -> Начало_hub
 
 === Начало_hub ===
@@ -28,6 +30,7 @@ EXTERNAL unlock_codex(a0)
     У жаровни сидит, греется, как честный человек. # emotion: calm # voice: assets/voice/dozh_8.mp3
     Скажи, что от Дожа. Он скинет — не много, но скинет. # voice: assets/voice/dozh_9.mp3
     ~ change_disposition("npc_zhuk", 8)
+    ~ learn_name("npc_zhuk")
     -> Начало_hub
 + { item_count("item_mark") >= 34 and not (has_item("item_filter")) } [Купить дыхатель (34 марки).]
 Дыхатель — это не товар, это время. Держи, не задохнись. # emotion: calm # voice: assets/voice/dozh_2.mp3

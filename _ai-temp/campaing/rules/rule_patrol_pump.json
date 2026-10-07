@@ -46,7 +46,7 @@
           "on_victory": [
             {
               "type": "show_message",
-              "text": "Запасный выходят из зала, прижимая руку к боку."
+              "text": "Караульные уходят из зала, прижимая руки к бокам."
             },
             {
               "type": "grant_xp",
@@ -57,5 +57,6 @@
       ]
     }
   ],
-  "chapter": "ch_deep"
+  "chapter": "ch_deep",
+  "trigger": "always"
 }

@@ -1558,6 +1558,47 @@ div.scene-bg svg { width: 100%; height: 100%; display: block; }
   opacity: 0.95;
 }
 
+/* предметы без спрайта: никаких рамок и маркеров, только чистая надпись по образцу переходов */
+.slot-hotspot.slot-item-plain {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.slot-hotspot.slot-item-plain .slot-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  background: color-mix(in srgb, var(--bg-deep) 84%, transparent);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  white-space: nowrap;
+  opacity: 0.55;
+  transition: all 0.15s;
+  backdrop-filter: blur(2px);
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.slot-hotspot.slot-item-plain:hover .slot-label,
+.slot-hotspot.slot-item-plain:focus-visible .slot-label {
+  opacity: 1;
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--gold) 30%, transparent);
+}
+.scene-stage.highlight-hotspots .slot-hotspot.slot-item-plain .slot-label {
+  opacity: 0.95;
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
 @keyframes cf-lens-pulse {
   0%, 100% {
     box-shadow: 0 0 8px rgba(229, 169, 60, 0.4), inset 0 0 6px rgba(229, 169, 60, 0.3);
@@ -3757,23 +3798,22 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
 img.scene-bg { object-fit: fill; }
 .atmosphere-particles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
 
-/* 2.5D кинематографичный параллакс и передний план сцены */
+/* 2.5D кинематографичный параллакс фона (lerp-интерполяция из rAF) */
 .scene-stage {
   --mouse-x: 0;
   --mouse-y: 0;
 }
 .scene-stage .scene-bg-camera {
   transform: translate(calc(var(--mouse-x) * -6px), calc(var(--mouse-y) * -4px)) scale(1.02);
-  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
 }
+/* Спрайты персонажей и хотспоты объектов зафиксированы на координатах сцены без дергания */
 .scene-foreground {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  transform: translate(calc(var(--mouse-x) * 4px), calc(var(--mouse-y) * 3px));
-  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
   z-index: 5;
 }
 .scene-foreground > * {

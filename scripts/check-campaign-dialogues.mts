@@ -47,6 +47,8 @@ const dummyEngine: any = {
   setDialogueTimer: () => {},
   advanceTime: () => {},
   joinParty: () => {},
+  learnNpcName: () => {},
+  isNpcNameKnown: () => true,
 }
 
 let totalErrors = 0

@@ -36,5 +36,6 @@
       "volume": 0.8
     }
   ],
-  "chapter": "ch_deep"
+  "chapter": "ch_deep",
+  "trigger": "enter_scene"
 }

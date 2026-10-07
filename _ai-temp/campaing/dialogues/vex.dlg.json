@@ -13,7 +13,8 @@
        "line": {
         "text": "Векс поднимает глаза от пульта и долго смотрит на твой жетон.",
         "action": true,
-        "sfx": "sfx_click"
+        "sfx": "sfx_click",
+        "voice": "assets/voice/narr_vex_1.mp3"
        }
       },
       {

@@ -12,7 +12,8 @@
        "kind": "line",
        "line": {
         "text": "Стена светится ровно, как бирюза под водой. Звук идёт не из породы — из груди.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_vein_1.mp3"
        }
       },
       {

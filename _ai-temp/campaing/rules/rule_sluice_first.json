@@ -1,36 +1,37 @@
 {
- "id": "rule_sluice_first",
- "label": "Затвор восьмого яруса",
- "once": true,
- "manual": false,
- "conditions": [
-  {
-   "type": "player_enters_scene",
-   "scene": "scene_sluice"
-  },
-  {
-   "type": "flag_not_set",
-   "flag": "sluice_seen"
-  }
- ],
- "effects": [
-  {
-   "type": "set_flag",
-   "flag": "sluice_seen"
-  },
-  {
-   "type": "start_quest",
-   "quest": "quest_valve"
-  },
-  {
-   "type": "show_message",
-   "text": "Колодка под клапан пуста. Пока её не займёт клапан, затвор не закроется, а пока затвор не ходит, помпу пускать нельзя."
-  },
-  {
-   "type": "play_sound",
-   "sound": "sfx_water",
-   "volume": 0.8
-  }
- ],
- "chapter": "ch_deep"
+  "id": "rule_sluice_first",
+  "label": "Затвор восьмого яруса",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_sluice"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "sluice_seen"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "sluice_seen"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_valve"
+    },
+    {
+      "type": "show_message",
+      "text": "Колодка под клапан пуста. Пока её не займёт клапан, затвор не закроется, а пока затвор не ходит, помпу пускать нельзя."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_water",
+      "volume": 0.8
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "enter_scene"
 }

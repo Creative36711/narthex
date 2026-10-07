@@ -9,7 +9,7 @@ EXTERNAL set_entity_state(a0, a1)
 EXTERNAL set_flag(a0)
 
 === Начало ===
-Каст не поднимает головы от бумаг. # action
+Каст не поднимает головы от бумаг. # action # voice: assets/voice/narr_kast_1.mp3
 Дело сто тридцать семь. У тебя семьдесят два часа, дознаватель. Говори коротко. # voice: assets/voice/kast_1.mp3
 -> Начало_hub
 

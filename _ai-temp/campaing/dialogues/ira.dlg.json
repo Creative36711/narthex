@@ -12,7 +12,8 @@
        "kind": "line",
        "line": {
         "text": "Ира стирает мазут с ладоней ветошью и смотрит на тебя исподлобья.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_ira_1.mp3"
        }
       },
       {
@@ -21,6 +22,14 @@
         "text": "Ты насчёт помпы? Я уже всё рассказала старшине. Он велел не мешать.",
         "voice": "assets/voice/ira_1.mp3",
         "emotion": "afraid"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "learn_name",
+        "entity": "npc_ira",
+        "silent": true
        }
       }
      ]
@@ -313,6 +322,13 @@
           "type": "change_disposition",
           "target": "npc_ira",
           "delta": 4
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "learn_name",
+          "entity": "npc_ayla"
          }
         }
        ]

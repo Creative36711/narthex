@@ -80,12 +80,20 @@ export function ParticleLayer({ doc, srcOf }: { doc: ParticleEffectDef; srcOf: (
     const parts: Particle[] = []
     const spawn = (p: Particle, w: number, h: number, anywhere = false) => {
       p.x = Math.random() * w
-      p.y = anywhere ? Math.random() * h : -16 - Math.random() * 40
       p.size = (doc.size_min ?? 3) + Math.random() * Math.max(0, (doc.size_max ?? 6) - (doc.size_min ?? 3))
       p.vx = (doc.vx_min ?? -5) + Math.random() * Math.max(0.5, (doc.vx_max ?? 5) - (doc.vx_min ?? -5))
       p.vy = (doc.vy_min ?? 40) + Math.random() * Math.max(0.5, (doc.vy_max ?? 80) - (doc.vy_min ?? 40))
       p.angle = Math.random() * Math.PI * 2
       p.spin = (doc.spin ?? 0) * (Math.PI / 180)
+      if (anywhere) {
+        p.y = Math.random() * h
+      } else if (p.vy < 0) {
+        // Частицы поднимаются вверх (пар, дым, искры, угли): спавним снизу
+        p.y = h + 16 + Math.random() * 40
+      } else {
+        // Частицы падают вниз (дождь, снег, пыль): спавним сверху
+        p.y = -16 - Math.random() * 40
+      }
     }
 
     const resize = () => {
@@ -114,9 +122,11 @@ export function ParticleLayer({ doc, srcOf }: { doc: ParticleEffectDef; srcOf: (
         p.x += p.vx * dt
         p.y += p.vy * dt
         p.angle += p.spin * dt
-        if (doc.loop !== false && (p.y - p.size > h() || p.x < -32 || p.x - p.size > w() + 16)) {
-          if (p.vy >= 0) spawn(p, w(), h())
-          else spawn(p, w(), h())
+        const outBottom = p.vy >= 0 && p.y - p.size > h() + 20
+        const outTop = p.vy < 0 && p.y + p.size < -20
+        const outSides = p.x < -32 || p.x - p.size > w() + 32
+        if (doc.loop !== false && (outBottom || outTop || outSides)) {
+          spawn(p, w(), h(), false)
         }
         ctx.save()
         ctx.translate(p.x, p.y)

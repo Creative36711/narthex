@@ -10,7 +10,7 @@ EXTERNAL fire_rule(a0)
 VAR r = 0
 
 === Начало ===
-Келл не встаёт. Он просто кладёт руку на рукоять клинка. # action # sfx: snd_blade
+Келл не встаёт. Он просто кладёт руку на рукоять клинка. # action # sfx: snd_blade # voice: assets/voice/narr_kell_1.mp3
 Дознаватель. Я тебя не вызывал. # voice: assets/voice/kell_6.mp3
 -> Начало_hub
 

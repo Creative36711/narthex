@@ -13,7 +13,8 @@
        "line": {
         "text": "Келл не встаёт. Он просто кладёт руку на рукоять клинка.",
         "action": true,
-        "sfx": "snd_blade"
+        "sfx": "snd_blade",
+        "voice": "assets/voice/narr_kell_1.mp3"
        }
       },
       {
@@ -208,7 +209,21 @@
     },
     {
      "text": "Положить перед Келлом жетон стража.",
-     "sections": [],
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "present_item",
+          "ok": "Жетон",
+          "fail": "Жетон_мимо",
+          "required": "item_guard_token"
+         }
+        }
+       ]
+      }
+     ],
      "goto": "Жетон",
      "conds": [
       {

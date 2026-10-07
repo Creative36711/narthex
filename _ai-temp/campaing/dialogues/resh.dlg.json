@@ -12,7 +12,8 @@
        "kind": "line",
        "line": {
         "text": "Реш сидит спиной к стене и смотрит не на тебя — в стену.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_resh_1.mp3"
        }
       },
       {
@@ -34,6 +35,14 @@
        "line": {
         "text": "Я не прятался. Я ждал, пока кто-нибудь спустится и задаст правильный вопрос.",
         "voice": "assets/voice/resh_13.mp3"
+       }
+      },
+      {
+       "kind": "effect",
+       "effect": {
+        "type": "learn_name",
+        "entity": "npc_resh",
+        "silent": true
        }
       }
      ]

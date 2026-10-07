@@ -14,7 +14,7 @@ interface Props {
 }
 
 const TYPE_MS = 24 // скорость печати, мс на символ (как в катсценах)
-const LINE_PAUSE_MS = 420 // пауза между репликами
+const LINE_PAUSE_MS = 750 // естественная дыхательная пауза между репликами
 
 /** Страховка для аудиофайла реплики, если браузер не прислал onended/onerror. */
 function fallbackReadMs(text: string): number {
@@ -83,7 +83,9 @@ export function DialogueOverlay({ engine }: Props) {
   const playLine = (line: DialogueLine | undefined) => {
     clearLineAudio()
     setLineDone(false)
+    let isCurrent = true
     const done = () => {
+      if (!isCurrent) return
       setMusicDucking(false)
       setLineDone(true)
     }
@@ -96,26 +98,59 @@ export function DialogueOverlay({ engine }: Props) {
     }
     const vol = voiceVolume(settings)
     if (line.voice && vol > 0) {
-      // Страховка нужна файлу, но не TTS: синтезатор сам сообщает onEnd,
-      // а его длинный watchdog находится в shared/speech.ts.
       setMusicDucking(true, 0.45)
+      const audioUrl = assetUrl(engine.campaign, line.voice)
+      const a = new Audio(audioUrl)
+      a.volume = vol
+      audioRef.current = a
+
+      // Ждем завершения воспроизведения
+      a.onended = () => {
+        if (!isCurrent || audioRef.current !== a) return
+        done()
+      }
+
+      a.onerror = (e) => {
+        console.warn(`[диалог] аудиофайл реплики не загрузился: «${line.voice}»`, e)
+        if (!isCurrent || audioRef.current !== a) return
+        done()
+      }
+
+      // Считываем точную длительность файла
+      a.onloadedmetadata = () => {
+        if (!isCurrent || audioRef.current !== a) return
+        const durationSec = a.duration
+        if (Number.isFinite(durationSec) && durationSec > 0) {
+          if (fallbackRef.current) clearTimeout(fallbackRef.current)
+          fallbackRef.current = setTimeout(() => {
+            fallbackRef.current = null
+            done()
+          }, (durationSec + 0.6) * 1000)
+        }
+      }
+
+      // Страховочный таймер, если loadedmetadata не пришел
       fallbackRef.current = setTimeout(() => {
         fallbackRef.current = null
         done()
-      }, fallbackReadMs(line.text))
-      const a = new Audio(assetUrl(engine.campaign, line.voice))
-      a.volume = vol
-      a.onended = done
-      a.onerror = done
-      void a.play().catch(done)
-      audioRef.current = a
+      }, Math.max(8000, fallbackReadMs(line.text)))
+
+      void a.play().catch((err) => {
+        // AbortError случается при быстрой смене/паузе — не считаем окончанием фразы!
+        if (err?.name === 'AbortError') return
+        console.warn(`[диалог] play() не удался для «${line.voice}»:`, err)
+        if (!isCurrent || audioRef.current !== a) return
+        done()
+      })
     } else if (settings.tts_enabled && vol > 0) {
       setMusicDucking(true, 0.45)
       stopTtsRef.current = speak(line.text, {
         voice: settings.tts_voice,
         rate: settings.tts_rate,
         volume: vol,
-        onEnd: done,
+        onEnd: () => {
+          if (isCurrent) done()
+        },
       })
     } else {
       done()
@@ -141,7 +176,7 @@ export function DialogueOverlay({ engine }: Props) {
     return () => clearTimeout(t)
   }, [current, typed, full.length])
 
-  // строка дописана И озвучка договорена — пауза и следующая реплика
+  // строка дописана И озвучка договорена — комфортная пауза и следующая реплика
   // (катсценный подход: голос управляет темпом, а не таймер печати)
   useEffect(() => {
     if (!current || typed < full.length || !lineDone) return

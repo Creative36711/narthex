@@ -7,7 +7,7 @@ EXTERNAL unlock_codex(a0)
 EXTERNAL get_flag(a0)
 
 === Начало ===
-Регистратор щёлкает реле: два стеклянных глаза разгораются бирюзой. # action # sfx: sfx_click
+Регистратор щёлкает реле: два стеклянных глаза разгораются бирюзой. # action # sfx: sfx_click # voice: assets/voice/narr_registrar_1.mp3
 Назовите номер дела, шифр или дату. Говорите чётко: я пишу, как слышу. # voice: assets/voice/registrar_1.mp3 # sfx: sfx_tick
 Срок дознания по делу сто тридцать семь — семьдесят два часа. Он идёт, пока вы стоите и молчите. # voice: assets/voice/registrar_8.mp3
 Срок дознания не продлевают. Его переписывают — и в новой бумаге он идёт сначала. Так что спешите с первой, а не со второй. # voice: assets/voice/registrar_9.mp3
@@ -36,7 +36,7 @@ EXTERNAL get_flag(a0)
     ~ set_flag("kast_alerted")
     -> Начало_hub
 + { get_flag("case_full") } [Дело № 137 сшито. Запишешь во входящие?]
-    Шесть улик на суровой нитке… Давно такого не приносили. Ставлю входящий штамп: теперь эту папку даже инспектор из реестра не вынет. # emotion: calm # sfx: snd_latch # voice: assets/voice/registrar_10.mp3
+    Шесть улик на суровой нитке… Давно такого не приносили. Ставлю входящий штамп: теперь эту папку даже инспектор из реестра не вынет. # emotion: calm # sfx: sfx_stamp # voice: assets/voice/registrar_10.mp3
     ~ unlock_codex("codex_case137")
     -> Начало_hub
 + [Отключись.]

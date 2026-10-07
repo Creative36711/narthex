@@ -7,7 +7,7 @@ EXTERNAL unlock_codex(a0)
 VAR r = 0
 
 === Начало ===
-Векс поднимает глаза от пульта и долго смотрит на твой жетон. # action # sfx: sfx_click
+Векс поднимает глаза от пульта и долго смотрит на твой жетон. # action # sfx: sfx_click # voice: assets/voice/narr_vex_1.mp3
 Ты из конторы? Спускайся, там тепло. Здесь только сквозняк и чужие. # voice: assets/voice/vex_1.mp3
 Я своим журналом отвечаю за каждого, кто прошёл. # voice: assets/voice/vex_2.mp3
 Журнал врёт редко. Чаще его просто не дописывают до конца смены. # voice: assets/voice/vex_10.mp3

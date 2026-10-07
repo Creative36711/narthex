@@ -342,6 +342,11 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   bind('set_weather', (id: string) => { engine.applyEffects([{ type: 'set_weather', weather: id }]); return 0 })
   bind('unlock_codex', (id: string) => { engine.applyEffects([{ type: 'unlock_codex', entry: id }]); return 0 })
   bind('unlock_recipe', (id: string) => { engine.applyEffects([{ type: 'unlock_recipe', recipe: id }]); return 0 })
+  bind('learn_name', (id: string) => {
+    engine.learnNpcName(id)
+    return 0
+  })
+  bind('is_name_known', (id: string) => (engine.isNpcNameKnown(id) ? 1 : 0))
   bind('go_to_scene', (sceneId: string) => {
     engine.goToSceneFromDialogue(sceneId, true)
     return 0

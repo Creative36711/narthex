@@ -1,24 +1,25 @@
 {
- "id": "rule_zhuk_ledger",
- "label": "Жук прочёл гроссбух",
- "once": true,
- "manual": false,
- "conditions": [],
- "effects": [
-  {
-   "type": "grant_xp",
-   "points": 10
-  },
-  {
-   "type": "journal_update",
-   "quest": "quest_ledger",
-   "text_key": "j_read"
-  },
-  {
-   "type": "play_sound",
-   "sound": "sfx_flip",
-   "volume": 0.7
-  }
- ],
- "chapter": "ch_price"
+  "id": "rule_zhuk_ledger",
+  "label": "Жук прочёл гроссбух",
+  "once": true,
+  "manual": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "grant_xp",
+      "points": 10
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_ledger",
+      "text_key": "j_read"
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_flip",
+      "volume": 0.7
+    }
+  ],
+  "chapter": "ch_price",
+  "trigger": "always"
 }

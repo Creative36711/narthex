@@ -11,11 +11,13 @@ EXTERNAL set_flag(a0)
 EXTERNAL unlock_recipe(a0)
 EXTERNAL has_item(a0)
 EXTERNAL unlock_codex(a0)
+EXTERNAL learn_name(a0)
 
 === Начало ===
-Айла промокает бинт и не смотрит на твои руки. # action # sfx: sfx_water
+Айла промокает бинт и не смотрит на твои руки. # action # sfx: sfx_water # voice: assets/voice/narr_ayla_1.mp3
 Сядь. У тебя ссадина на костяшках и вид человека, который не спал двое суток. # voice: assets/voice/ayla_1.mp3
 Двое суток без сна — это полдела. За трое начинают мерещиться вещи, которые потом вносят в протокол. # voice: assets/voice/ayla_8.mp3
+~ learn_name("npc_ayla")
 -> Начало_hub
 
 === Начало_hub ===

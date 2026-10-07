@@ -102,6 +102,24 @@
         "h": 110
       },
       "open_map": true
+    },
+    {
+      "label": "В каморку мастера",
+      "area": {
+        "x": 1140,
+        "y": 470,
+        "w": 120,
+        "h": 90
+      },
+      "go_to_scene": "scene_pump_room",
+      "cost_ticks": 0,
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "resh_room_open"
+        }
+      ],
+      "blocked_message": "Железная дверь каморки заперта: нужен ключ мастера Реша или отмычка."
     }
   ],
   "music": [

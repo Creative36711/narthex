@@ -1,19 +1,38 @@
 {
- "id": "item_filter",
- "type": "item",
- "category": "gear",
- "label": "Дыхатель мастера",
- "description": "Маска с жильным фильтром и двумя банками. Ниже восьмого яруса без неё считают вдохи, а не часы.",
- "weight": 0.7,
- "stackable": false,
- "value": {
-  "mark": 28
- },
- "equip_slot": "mask",
- "quest_item": true,
- "sounds": {
-  "equip": "snd_latch",
-  "unequip": "snd_cloth",
-  "use": "snd_vent"
- }
+  "id": "item_filter",
+  "type": "item",
+  "category": "gear",
+  "label": "Дыхатель мастера",
+  "description": "Маска с жильным фильтром и двумя банками. Ниже восьмого яруса без неё считают вдохи, а не часы.",
+  "weight": 0.7,
+  "stackable": false,
+  "value": {
+    "mark": 28
+  },
+  "equip_slot": "mask",
+  "quest_item": true,
+  "sounds": {
+    "equip": "snd_latch",
+    "unequip": "snd_cloth",
+    "use": "snd_vent"
+  },
+  "image": "assets/img/items/item_filter.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_filter.jpg"
+  },
+  "interact_hint": "Проверить клапаны и банки",
+  "interact_options": [
+    {
+      "label": "Проверить клапаны и банки",
+      "hint": "две сменные обоймы с дроблёным углём",
+      "sound": "snd_vent",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Резина клапана пахнет маслом, стёкла очков затянуты медной сеткой. По бокам — две банки с дроблёным углём и промасленным сукном: первая примет на себя штольню девятого яруса, вторая — слепой забой."
+        }
+      ]
+    }
+  ]
 }

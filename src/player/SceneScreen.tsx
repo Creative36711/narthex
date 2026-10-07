@@ -29,6 +29,29 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const [highlightActive, setHighlightActive] = useState(false)
 
+  // Плавный кинематографичный параллакс фона (lerp в rAF)
+  const mouseTarget = useRef({ x: 0, y: 0 })
+  const mouseCurrent = useRef({ x: 0, y: 0 })
+  const rafRef = useRef<number>(0)
+
+  useEffect(() => {
+    const loop = () => {
+      const target = mouseTarget.current
+      const cur = mouseCurrent.current
+      // Мягкий коэффициент сглаживания 0.06 (без резких рывков)
+      cur.x += (target.x - cur.x) * 0.06
+      cur.y += (target.y - cur.y) * 0.06
+      const el = stageRef.current
+      if (el) {
+        el.style.setProperty('--mouse-x', cur.x.toFixed(4))
+        el.style.setProperty('--mouse-y', cur.y.toFixed(4))
+      }
+      rafRef.current = requestAnimationFrame(loop)
+    }
+    rafRef.current = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [])
+
   const scene = engine.currentScene()
   const sceneId = scene?.id
   const state = scene ? engine.activeSceneState(scene) : null
@@ -146,16 +169,12 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           if (!rect.width || !rect.height) return
           const nx = ((e.clientX - rect.left) / rect.width - 0.5) * 2
           const ny = ((e.clientY - rect.top) / rect.height - 0.5) * 2
-          const clX = Math.max(-1, Math.min(1, nx))
-          const clY = Math.max(-1, Math.min(1, ny))
-          el.style.setProperty('--mouse-x', String(clX))
-          el.style.setProperty('--mouse-y', String(clY))
+          mouseTarget.current.x = Math.max(-1, Math.min(1, nx))
+          mouseTarget.current.y = Math.max(-1, Math.min(1, ny))
         }}
         onPointerLeave={() => {
-          const el = stageRef.current
-          if (!el) return
-          el.style.setProperty('--mouse-x', '0')
-          el.style.setProperty('--mouse-y', '0')
+          mouseTarget.current.x = 0
+          mouseTarget.current.y = 0
         }}
       >
         <div key={stateKey} className="scene-bg-camera" style={camStyle}>
@@ -208,11 +227,12 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             const interactable = !item || engine.itemInteractable(item)
             const hasInteractChoices = !!item && interactable && engine.itemInteractOptions(item).length > 0
             const isEnvironmental = slot.environmental || (!sprite && entity.type === 'item')
+            const isPlainItem = entity.type === 'item' && !sprite
             const displayLabel = npc ? engine.npcLabel(npc) : entity.label
             return (
               <button
                 key={`${stateKey}-${slot.id}`}
-                className={`slot-hotspot slot-${entity.type} scene-slot-enter ${sprite ? 'slot-sprited' : ''}${isEnvironmental ? ' slot-environmental' : ''}${!interactable ? ' slot-inert' : ''}`}
+                className={`slot-hotspot slot-${entity.type} scene-slot-enter ${sprite ? 'slot-sprited' : ''}${isPlainItem ? ' slot-item-plain' : ''}${isEnvironmental ? ' slot-environmental' : ''}${!interactable ? ' slot-inert' : ''}`}
                 style={{
                   left: pct(slot.x, canvas.w),
                   top: pct(slot.y, canvas.h),
@@ -268,9 +288,14 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                         />
                       )
                     }
+                    if (isPlainItem) {
+                      // У предметов без спрайта убираем любые маркеры и глифы,
+                      // оставляем только надпись ровно как у зон навигации/переходов
+                      return null
+                    }
                     return (
                       <span className={`slot-marker slot-marker-${entity.type}`} aria-hidden>
-                        <span className="slot-marker-glyph">{entity.type === 'npc' ? '◆' : '●'}</span>
+                        <span className="slot-marker-glyph">◆</span>
                       </span>
                     )
                   })()

@@ -1,29 +1,30 @@
 {
- "id": "rule_kast_note",
- "label": "Записка показана Каст",
- "once": true,
- "manual": false,
- "conditions": [],
- "effects": [
-  {
-   "type": "grant_xp",
-   "points": 10
-  },
-  {
-   "type": "journal_update",
-   "quest": "quest_duty",
-   "text_key": "j_forged"
-  },
-  {
-   "type": "change_disposition",
-   "target": "faction_nadzor",
-   "delta": -5
-  },
-  {
-   "type": "play_sound",
-   "sound": "snd_paper",
-   "volume": 0.7
-  }
- ],
- "chapter": "ch_price"
+  "id": "rule_kast_note",
+  "label": "Записка показана Каст",
+  "once": true,
+  "manual": false,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "grant_xp",
+      "points": 10
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_duty",
+      "text_key": "j_forged"
+    },
+    {
+      "type": "change_disposition",
+      "target": "faction_nadzor",
+      "delta": -5
+    },
+    {
+      "type": "play_sound",
+      "sound": "snd_paper",
+      "volume": 0.7
+    }
+  ],
+  "chapter": "ch_price",
+  "trigger": "always"
 }

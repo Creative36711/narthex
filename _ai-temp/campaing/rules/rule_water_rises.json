@@ -37,5 +37,6 @@
       "volume": 0.9
     }
   ],
-  "chapter": "ch_final"
+  "chapter": "ch_final",
+  "trigger": "always"
 }
