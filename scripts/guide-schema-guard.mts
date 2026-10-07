@@ -66,6 +66,7 @@ const SCHEMA_PROPS = new Set<string>()
     if (!n || typeof n !== 'object') return
     const o = n as Record<string, unknown>
     if (o.properties) for (const k of Object.keys(o.properties as object)) SCHEMA_PROPS.add(k)
+    if (Array.isArray(o.enum)) for (const v of o.enum) if (typeof v === 'string') SCHEMA_PROPS.add(v)
     for (const k of Object.keys(o)) walk(o[k])
   }
   for (const def of Object.keys(schema.$defs)) walk(schema.$defs[def])
@@ -113,6 +114,18 @@ const ENGINE_VOCABULARY = new Map<string, string>([
   ['neutral', 'ключ состояния портрета: обычный'],
   ['happy', 'ключ состояния портрета: радость'],
   ['scared', 'ключ состояния портрета: испуг'],
+  ['pass_turn', 'ключ ui_labels: надпись пропуска хода'],
+  ['flee', 'ключ ui_labels: надпись бегства из боя'],
+  ['craft', 'ключ ui_labels: надпись кнопки ремесла'],
+  ['character', 'ключ ui_labels: надпись кнопки досье героя'],
+  ['STR', 'главная характеристика: сила (всегда латиницей)'],
+  ['CON', 'главная характеристика: телосложение (всегда латиницей)'],
+  ['SIZ', 'главная характеристика: размер/комплекция (всегда латиницей)'],
+  ['DEX', 'главная характеристика: ловкость (всегда латиницей)'],
+  ['INT', 'главная характеристика: интеллект/разум (всегда латиницей)'],
+  ['POW', 'главная характеристика: сила воли/мощь (всегда латиницей)'],
+  ['CHA', 'главная характеристика: обаяние/харизма (всегда латиницей)'],
+  ['EDU', 'главная характеристика: образование (всегда латиницей)'],
   ['npc_mood', 'самочувствие NPC: 0…100, сдвигает проверки убеждения'],
   ['once', 'поле правила: сработать один раз'],
   ['manual', 'поле правила: только по вызову'],

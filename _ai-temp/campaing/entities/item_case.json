@@ -73,6 +73,11 @@
           "flag": "case_filed_token"
         },
         {
+          "type": "change_variable",
+          "var": "case_filed",
+          "delta": 1
+        },
+        {
           "type": "journal_update",
           "quest": "quest_pump",
           "text_key": "j_token"
@@ -104,6 +109,11 @@
         {
           "type": "set_flag",
           "flag": "case_filed_ledger"
+        },
+        {
+          "type": "change_variable",
+          "var": "case_filed",
+          "delta": 1
         },
         {
           "type": "journal_update",
@@ -139,6 +149,11 @@
           "flag": "case_filed_note"
         },
         {
+          "type": "change_variable",
+          "var": "case_filed",
+          "delta": 1
+        },
+        {
           "type": "journal_update",
           "quest": "quest_pump",
           "text_key": "j_note"
@@ -172,6 +187,11 @@
           "flag": "case_filed_roster"
         },
         {
+          "type": "change_variable",
+          "var": "case_filed",
+          "delta": 1
+        },
+        {
           "type": "journal_update",
           "quest": "quest_pump",
           "text_key": "j_roster"
@@ -187,6 +207,42 @@
       "hint": "улика останется в деле навсегда"
     },
     {
+      "label": "Пришить рукавицу с привода",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_glove"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_filed_glove"
+        }
+      ],
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "case_filed_glove"
+        },
+        {
+          "type": "change_variable",
+          "var": "case_filed",
+          "delta": 1
+        },
+        {
+          "type": "journal_update",
+          "quest": "quest_pump",
+          "text_key": "j_glove"
+        },
+        {
+          "type": "grant_xp",
+          "points": 5
+        }
+      ],
+      "message": "Ты прокалываешь манжету шилом: мазут пачкает нитку, и дело №137 впервые пахнет машинным залом, а не бумагой.",
+      "sound": "sfx_book",
+      "hint": "шестая страница дела"
+    },
+    {
       "label": "Сшить дело",
       "conditions": [
         {
@@ -194,77 +250,10 @@
           "flag": "case_full"
         },
         {
-          "type": "or",
-          "conditions": [
-            {
-              "type": "and",
-              "conditions": [
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_token"
-                },
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_ledger"
-                },
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_note"
-                }
-              ]
-            },
-            {
-              "type": "and",
-              "conditions": [
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_token"
-                },
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_ledger"
-                },
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_roster"
-                }
-              ]
-            },
-            {
-              "type": "and",
-              "conditions": [
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_token"
-                },
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_note"
-                },
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_roster"
-                }
-              ]
-            },
-            {
-              "type": "and",
-              "conditions": [
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_ledger"
-                },
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_note"
-                },
-                {
-                  "type": "flag_set",
-                  "flag": "case_filed_roster"
-                }
-              ]
-            }
-          ]
+          "type": "variable_compare",
+          "var": "case_filed",
+          "operator": ">=",
+          "value": 3
         }
       ],
       "once": true,

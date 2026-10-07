@@ -26,8 +26,8 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const [bgError, setBgError] = useState('')
   const [outgoingBg, setOutgoingBg] = useState<SceneBackground | null>(null)
   const previousBg = useRef<{ key: string; background: SceneBackground } | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
   const [highlightActive, setHighlightActive] = useState(false)
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
 
   const scene = engine.currentScene()
   const sceneId = scene?.id
@@ -116,17 +116,6 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const sceneLighting = scene.lighting ?? 'outdoor'
   const lightingClass = sceneLighting === 'outdoor' ? `tod-tint-${tod}` : `scene-lighting-${sceneLighting}`
 
-  // Кинематографичный 2.5D параллакс от курсора мыши
-  const bgTransform = {
-    ...camStyle,
-    transform: `${camStyle.transform ?? ''} translate(${-mousePos.x * 6}px, ${-mousePos.y * 4}px) scale(1.02)`.trim(),
-    transition: 'transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)',
-  }
-  const foregroundTransform = {
-    transform: `translate(${mousePos.x * 8}px, ${mousePos.y * 5}px)`,
-    transition: 'transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)',
-  }
-
   return (
     <div className="scene-wrap">
       <div className="scene-header">
@@ -148,17 +137,28 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
       {/* сцена занимает всё оставшееся место без прокрутки: ширина и высота —
           от контейнера, картинка растягивается (object-fit: fill) */}
       <div
+        ref={stageRef}
         className={`scene-stage ${lightingClass} ${highlightActive ? 'highlight-hotspots' : ''}`}
         onPointerMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect()
+          const el = stageRef.current
+          if (!el) return
+          const rect = el.getBoundingClientRect()
           if (!rect.width || !rect.height) return
           const nx = ((e.clientX - rect.left) / rect.width - 0.5) * 2
           const ny = ((e.clientY - rect.top) / rect.height - 0.5) * 2
-          setMousePos({ x: Math.max(-1, Math.min(1, nx)), y: Math.max(-1, Math.min(1, ny)) })
+          const clX = Math.max(-1, Math.min(1, nx))
+          const clY = Math.max(-1, Math.min(1, ny))
+          el.style.setProperty('--mouse-x', String(clX))
+          el.style.setProperty('--mouse-y', String(clY))
         }}
-        onPointerLeave={() => setMousePos({ x: 0, y: 0 })}
+        onPointerLeave={() => {
+          const el = stageRef.current
+          if (!el) return
+          el.style.setProperty('--mouse-x', '0')
+          el.style.setProperty('--mouse-y', '0')
+        }}
       >
-        <div key={stateKey} className="scene-bg-camera" style={bgTransform}>
+        <div key={stateKey} className="scene-bg-camera" style={camStyle}>
           {state.image && !bgError ? (
             <LiveImg
               className="scene-bg scene-bg-enter"
@@ -192,7 +192,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         )}
 
         {/* спрайты рисуются по порядку снизу вверх: нижние — поверх дальних */}
-        <div className="scene-foreground" style={foregroundTransform}>
+        <div className="scene-foreground">
         {[...occupants]
           .filter((o): o is typeof o & { entity: NonNullable<typeof o.entity> } => o.entity != null)
           .sort((a, b) => a.slot.y + a.slot.h - (b.slot.y + b.slot.h))
@@ -298,7 +298,9 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
               data-tip={slot.label ? `Использовать предмет: ${slot.label}` : 'Использовать предмет'}
             />
           ))}
+        </div>
 
+        {/* Навигационные зоны сцены («В контору», «На площадь»): не параллаксятся со спрайтами */}
         {scene.navigation.map((nav, i) => {
           const handle = () => {
             if (nav.open_map) return onOpenMap()
@@ -320,7 +322,6 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             </button>
           )
         })}
-        </div>
 
         {/* слой погоды (блок 9 ТЗ): чистый CSS, полупрозрачный, не ловит клики */}
         {weather?.overlay && weather.overlay !== 'none' && (

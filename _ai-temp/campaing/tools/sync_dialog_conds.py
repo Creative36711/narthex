@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """Синхронизация условий выборов: ink → конструктор (`.dlg.json`).
 
-Движок исполняет `.ink`. `.dlg.json` — документ конструктора: если мастер
-откроет разговор в визуальном редакторе и сохранит, ink будет собран заново
-именно из него. Значит, все условия и пометки «одноразовый» должны лежать
-в обеих формах, иначе первое же сохранение из конструктора откроет игроку
-все ветви сразу: наряд без пломбы, покупку без денег, улику, которой нет.
-
-Скрипт разбирает ink-выборы (`+ { условие } [текст]`, `*` — одноразовый),
-переводит условия на язык `DlgCond` и раскладывает их в `.dlg.json`.
-
-Запуск: python3 tools/sync_dialog_conds.py
+Поддерживает одинаковый текст у двух выборов одного узла (например,
+`registrar`: две ветки «Наряд стражи за ночь тринадцатого.» — с пломбой
+и без пломбы), сопоставляя их по порядку следования.
 """
 import json
 import os
@@ -24,7 +18,6 @@ CHOICE = re.compile(r'^\s*([*+])\s*(?:\{([^}]*)\}\s*)?\[(.*)\]\s*$')
 
 
 def parse_ink(text):
-    """Возвращает {узел: [(маркер, условие, текст)]}."""
     out = {}
     knot = None
     for line in text.split('\n'):
@@ -40,7 +33,6 @@ def parse_ink(text):
 
 
 def translate(expr):
-    """Строка условия из ink → список DlgCond."""
     conds = []
     if not expr:
         return conds
@@ -89,14 +81,14 @@ def main():
             continue
         ink = parse_ink(open(ink_path, encoding='utf-8').read())
         dlg = json.load(open(dlg_path, encoding='utf-8'))
-        nodes = {n['id']: n for n in dlg['nodes']}
-        # узлу конструктора «X» отвечают узлы ink «X» и «X_hub» (хаб вариантов)
         for node in dlg['nodes']:
             knot_choices = (ink.get(node['id'], [])
                             + ink.get(node['id'] + '_hub', []))
             if not knot_choices:
                 continue
-            by_text = {t: (m, e) for m, e, t in knot_choices}
+            by_text = {}
+            for m, e, t in knot_choices:
+                by_text.setdefault(t, []).append((m, e))
             used = set()
             for ch in node.get('choices', []):
                 used.add(ch['text'].strip())
@@ -104,13 +96,17 @@ def main():
                 if t not in used:
                     problems.append(f'{name}/{node["id"]}: выбор ink '
                                     f'«{t[:38]}» не попал в конструктор')
+            idx_by_text = {}
             for ch in node.get('choices', []):
                 key = ch['text'].strip()
                 if key not in by_text:
                     problems.append(f'{name}/{node["id"]}: выбор конструктора '
                                     f'«{key[:38]}» не найден в ink')
                     continue
-                marker, expr = by_text[key]
+                lst = by_text[key]
+                i = idx_by_text.get(key, 0)
+                marker, expr = lst[min(i, len(lst) - 1)]
+                idx_by_text[key] = i + 1
                 conds = translate(expr)
                 before = json.dumps({k: v for k, v in ch.items()
                                      if k in ('conds', 'once')}, sort_keys=True)

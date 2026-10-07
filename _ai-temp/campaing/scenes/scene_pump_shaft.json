@@ -1,490 +1,141 @@
 {
- "id": "scene_pump_shaft",
- "label": "Шахта седьмой помпы",
- "location": "loc_pump7",
- "canvas": {
-  "w": 1280,
-  "h": 720
- },
- "chapter": "ch_signs",
- "states": [
-  {
-   "id": "state_main",
-   "label": "Всегда",
-   "condition": null,
-   "art": {
-    "canvas": {
-     "w": 1280,
-     "h": 720
+  "id": "scene_pump_shaft",
+  "label": "Шахта седьмой помпы",
+  "location": "loc_pump7",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "chapter": "ch_signs",
+  "states": [
+    {
+      "id": "state_main",
+      "label": "Всегда",
+      "condition": null,
+      "image": "assets/img/scenes/scene_pump_shaft.jpg"
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_ladder",
+      "label": "Лестница вниз",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 940,
+      "y": 120,
+      "w": 220,
+      "h": 520,
+      "condition": null,
+      "default_entity": "item_ladder",
+      "sound": "sfx_rungs",
+      "sound_volume": 0.6,
+      "environmental": true
     },
-    "background": "#050a0c",
-    "layers": [
-     {
-      "label": "мрак шахты",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 0,
-       "w": 1280,
-       "h": 720,
-       "fill": {
-        "gradient": {
-         "from": "#0a1418",
-         "to": "#05090b",
-         "angle": 90
+    {
+      "id": "slot_niche",
+      "label": "Ниша в кладке",
+      "type": [
+        "item",
+        "container"
+      ],
+      "shape": "rect",
+      "x": 140,
+      "y": 290,
+      "w": 180,
+      "h": 180,
+      "condition": null,
+      "default_entity": "item_niche",
+      "sound": "snd_stone",
+      "sound_volume": 0.6,
+      "environmental": true
+    },
+    {
+      "id": "slot_winch",
+      "label": "Лебёдка",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 520,
+      "y": 40,
+      "w": 260,
+      "h": 140,
+      "condition": null,
+      "default_entity": "item_winch",
+      "sound": "snd_chain",
+      "sound_volume": 0.7,
+      "environmental": true
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Подняться в машинный зал",
+      "area": {
+        "x": 20,
+        "y": 20,
+        "w": 220,
+        "h": 150
+      },
+      "go_to_scene": "scene_pump_hall",
+      "cost_ticks": 1
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_alarm"
+      ],
+      "conditions": [
+        {
+          "flag": "lockdown"
         }
-       },
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "ствол",
-      "shape": {
-       "type": "polygon",
-       "points": [
-        420,
-        0,
-        860,
-        0,
-        900,
-        720,
-        380,
-        720
-       ],
-       "fill": "#080f12",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "тяжёлая вода",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 640,
-       "w": 1280,
-       "h": 80,
-       "fill": "#0a2027",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "лебёдка",
-      "shape": {
-       "type": "rect",
-       "x": 520,
-       "y": 40,
-       "w": 260,
-       "h": 110,
-       "fill": "#3a4a52",
-       "stroke": "#556d76",
-       "stroke_width": 4
-      }
-     },
-     {
-      "label": "барабан",
-      "shape": {
-       "type": "ellipse",
-       "cx": 650,
-       "cy": 95,
-       "rx": 52,
-       "ry": 52,
-       "fill": "#6d3a28",
-       "stroke": "#e8a33d",
-       "stroke_width": 3
-      }
-     },
-     {
-      "label": "трос",
-      "shape": {
-       "type": "line",
-       "x1": 650,
-       "y1": 150,
-       "x2": 650,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "тетива",
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 120,
-       "x2": 960,
-       "y2": 640,
-       "color": "#556d76",
-       "width": 8
-      },
-      "opacity": 0.9
-     },
-     {
-      "label": "тетива",
-      "shape": {
-       "type": "line",
-       "x1": 1080,
-       "y1": 120,
-       "x2": 1080,
-       "y2": 640,
-       "color": "#556d76",
-       "width": 8
-      },
-      "opacity": 0.9
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 160,
-       "x2": 1080,
-       "y2": 160,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 206,
-       "x2": 1080,
-       "y2": 206,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 252,
-       "x2": 1080,
-       "y2": 252,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 298,
-       "x2": 1080,
-       "y2": 298,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 344,
-       "x2": 1080,
-       "y2": 344,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 390,
-       "x2": 1080,
-       "y2": 390,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 436,
-       "x2": 1080,
-       "y2": 436,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 482,
-       "x2": 1080,
-       "y2": 482,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 528,
-       "x2": 1080,
-       "y2": 528,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 574,
-       "x2": 1080,
-       "y2": 574,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 960,
-       "y1": 620,
-       "x2": 1080,
-       "y2": 620,
-       "color": "#3a4a52",
-       "width": 6
-      },
-      "opacity": 0.85
-     },
-     {
-      "label": "ниша",
-      "shape": {
-       "type": "rect",
-       "x": 140,
-       "y": 300,
-       "w": 180,
-       "h": 160,
-       "fill": "#050a0c",
-       "stroke": "#1d2f36",
-       "stroke_width": 4
-      }
-     },
-     {
-      "label": "свод ниши",
-      "shape": {
-       "type": "polygon",
-       "points": [
-        140,
-        300,
-        320,
-        300,
-        300,
-        270,
-        160,
-        270
-       ],
-       "fill": "#16232a",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "площадка",
-      "shape": {
-       "type": "rect",
-       "x": 20,
-       "y": 20,
-       "w": 220,
-       "h": 110,
-       "fill": "#3a4a52",
-       "stroke": "#556d76",
-       "stroke_width": 4
-      }
-     },
-     {
-      "label": "стремянка",
-      "shape": {
-       "type": "line",
-       "x1": 130,
-       "y1": 130,
-       "x2": 130,
-       "y2": 260,
-       "color": "#556d76",
-       "width": 6
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 650,
-       "cy": 120,
-       "rx": 110,
-       "ry": 110,
-       "fill": "#e8a33d",
-       "stroke_width": 2
-      },
-      "opacity": 0.3
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 650,
-       "cy": 120,
-       "rx": 49.5,
-       "ry": 49.5,
-       "fill": "#e8a33d",
-       "stroke_width": 2
-      },
-      "opacity": 0.6499999999999999
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 230,
-       "cy": 380,
-       "rx": 70,
-       "ry": 70,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.18
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 230,
-       "cy": 380,
-       "rx": 31.5,
-       "ry": 31.5,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.53
-     }
-    ]
-   },
-   "image": "assets/img/scenes/scene_pump_shaft.jpg"
-  }
- ],
- "slots": [
-  {
-   "id": "slot_ladder",
-   "label": "Лестница вниз",
-   "type": [
-    "prop"
-   ],
-   "shape": "rect",
-   "x": 940,
-   "y": 120,
-   "w": 220,
-   "h": 520,
-   "condition": null,
-   "default_entity": "item_ladder",
-   "sound": "sfx_rungs",
-   "sound_volume": 0.6
-  },
-  {
-   "id": "slot_niche",
-   "label": "Ниша в кладке",
-   "type": [
-    "item",
-    "container"
-   ],
-   "shape": "rect",
-   "x": 140,
-   "y": 290,
-   "w": 180,
-   "h": 180,
-   "condition": null,
-   "default_entity": "item_niche",
-   "sound": "snd_stone",
-   "sound_volume": 0.6
-  },
-  {
-   "id": "slot_winch",
-   "label": "Лебёдка",
-   "type": [
-    "prop"
-   ],
-   "shape": "rect",
-   "x": 520,
-   "y": 40,
-   "w": 260,
-   "h": 140,
-   "condition": null,
-   "default_entity": "item_winch",
-   "sound": "snd_chain",
-   "sound_volume": 0.7
-  }
- ],
- "navigation": [
-  {
-   "label": "Подняться в машинный зал",
-   "area": {
-    "x": 20,
-    "y": 20,
-    "w": 220,
-    "h": 150
-   },
-   "go_to_scene": "scene_pump_hall",
-   "cost_ticks": 1
-  }
- ],
- "music": [
-  {
-   "tracks": [
-    "music_alarm"
-   ],
-   "conditions": [
+      ]
+    },
     {
-     "flag": "lockdown"
+      "tracks": [
+        "music_deep"
+      ],
+      "conditions": []
     }
-   ]
-  },
-  {
-   "tracks": [
-    "music_deep"
-   ],
-   "conditions": []
-  }
- ],
- "ambient": [
-  {
-   "sounds": [
-    "snd_water_amb"
-   ],
-   "volume": 0.3,
-   "conditions": [
+  ],
+  "ambient": [
     {
-     "type": "flag_not_set",
-     "flag": "flood"
-    }
-   ]
-  },
-  {
-   "sounds": [
-    "snd_water_amb"
-   ],
-   "volume": 0.6,
-   "conditions": [
+      "sounds": [
+        "snd_water_amb"
+      ],
+      "volume": 0.3,
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "flood"
+        }
+      ]
+    },
     {
-     "type": "flag_set",
-     "flag": "flood"
+      "sounds": [
+        "snd_water_amb"
+      ],
+      "volume": 0.6,
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flood"
+        }
+      ]
+    },
+    {
+      "sounds": [
+        "snd_shaft_amb"
+      ],
+      "volume": 0.42
     }
-   ]
-  }
- ],
- "lighting": "indoor"
+  ],
+  "lighting": "indoor",
+  "particles": "steam",
+  "narrative_intro": [
+    "Лестница уходит вниз, насколько видит глаз, и дальше — насколько слышит ухо.",
+    "Сверху доносится ровный гул города. Здесь он звучит как чужое дыхание."
+  ]
 }

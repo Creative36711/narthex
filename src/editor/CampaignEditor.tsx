@@ -1876,18 +1876,16 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <div className="props-group">
         <h4>Отдых и удача</h4>
         <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-          <label className="fld" data-tip="Кости лечения HP за сон; «0» — сон не лечит">
-            <span>Лечение за сон</span>
-            <input
-              value={m.rest?.hp ?? '1d3'}
-              placeholder="1d3"
-              onChange={(e) => {
-                const r = { ...(m.rest ?? {}), hp: e.target.value || '1d3' }
-                m.rest = r
-                commit()
-              }}
-            />
-          </label>
+          <DiceNotationInput
+            label="Лечение HP за сон"
+            tip="Кости лечения HP за отдых/сон (по умолчанию 1d3)"
+            value={m.rest?.hp ?? '1d3'}
+            onChange={(v) => {
+              const r = { ...(m.rest ?? {}), hp: v || '1d3' }
+              m.rest = r
+              commit()
+            }}
+          />
           <label className="fld fld-check">
             <input
               type="checkbox"
@@ -2814,9 +2812,9 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             )}
             {(() => {
               const { fixedNum, statKey, mult } = parseSkillBase(sk.base)
-              const availableStats = Object.entries(BUILTIN_STAT_LABELS).map(([id, label]) => ({
+              const availableStats = Object.keys(BUILTIN_STAT_LABELS).map((id) => ({
                 id,
-                label: `${id} (${label})`,
+                label: id,
               }))
               return (
                 <>

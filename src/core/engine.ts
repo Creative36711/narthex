@@ -1388,10 +1388,9 @@ export class GameEngine {
     this.notify()
   }
 
-  /** локализованное имя характеристики */
+  /** каноническое имя характеристики (всегда на латинице: STR, CON, SIZ, DEX, INT, POW, CHA, EDU) */
   statLabel(stat: string): string {
-    const labels: Record<string, string> = { STR: 'Сила', CON: 'Телосложение', SIZ: 'Размер', DEX: 'Ловкость', INT: 'Разум', POW: 'Мощь', CHA: 'Обаяние', EDU: 'Образование' }
-    return labels[stat] ?? stat
+    return stat.toUpperCase()
   }
 
   // ─────────────── уровни и черты (аудит B8, opt-in meta.progression) ───────────────

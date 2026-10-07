@@ -2093,6 +2093,83 @@
             "cutscene"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "play_sound"
+            },
+            "sound": {
+              "type": "string",
+              "description": "id звука из meta.sounds или путь к аудиофайлу"
+            },
+            "volume": {
+              "type": "number",
+              "description": "громкость звука (0..1, по умолчанию 1)"
+            }
+          },
+          "required": [
+            "type",
+            "sound"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "stop_sound"
+            },
+            "sound": {
+              "type": "string",
+              "description": "id звука для остановки (если не передан — останавливает все активные звуковые эффекты)"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "override_music"
+            },
+            "tracks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "id треков для сюжетного оверрайда музыки (поверх музыки локации/сцены)"
+            },
+            "fade": {
+              "type": "number",
+              "description": "длительность кроссфейда в секундах"
+            }
+          },
+          "required": [
+            "type",
+            "tracks"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "clear_music_override"
+            },
+            "fade": {
+              "type": "number",
+              "description": "длительность затухания в секундах"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -2115,6 +2192,14 @@
         "icon": {
           "type": "string",
           "description": "иконка-файл/ссылка; нет — текстовый чип"
+        },
+        "apply_sound": {
+          "type": "string",
+          "description": "индивидуальный звук при наложении статуса"
+        },
+        "remove_sound": {
+          "type": "string",
+          "description": "индивидуальный звук при спаде/снятии статуса"
         },
         "scope": {
           "type": "string",
@@ -3842,6 +3927,12 @@
             "normal",
             "italic"
           ]
+        },
+        "size_adjust": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 2.0,
+          "description": "визуальная поправка масштаба конкретного шрифта (0.8 .. 1.3, по умолчанию 1)"
         }
       },
       "required": [
@@ -3900,6 +3991,45 @@
           },
           "additionalProperties": false,
           "description": "роли шрифтов — id из `meta.fonts`; отсутствует роль — системный шрифт"
+        },
+        "font_scale": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 2.0,
+          "description": "общий множитель размера шрифта игры (0.8 .. 1.4, по умолчанию 1)"
+        },
+        "font_sizes": {
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "number",
+              "description": "основной текст: описания, сообщения (по умолчанию 15)"
+            },
+            "display": {
+              "type": "number",
+              "description": "заголовки: названия локаций, сцен, панелей (по умолчанию 20)"
+            },
+            "dialogue": {
+              "type": "number",
+              "description": "реплики и варианты ответов в диалогах (по умолчанию 16)"
+            },
+            "ui": {
+              "type": "number",
+              "description": "кнопки, списки, мелкие элементы интерфейса (по умолчанию 13)"
+            }
+          },
+          "additionalProperties": false,
+          "description": "точные базовые размеры шрифта в пикселях"
+        },
+        "line_height": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 2.5,
+          "description": "межстрочный интервал (множитель 1.2 .. 2.0, по умолчанию 1.5)"
+        },
+        "letter_spacing": {
+          "type": "string",
+          "description": "межбуквенный интервал (в em, например 0.02em)"
         },
         "menu": {
           "type": "object",
@@ -5146,6 +5276,14 @@
         "starting_tick": {
           "type": "number"
         },
+        "deadline_ticks": {
+          "type": "number",
+          "description": "общий дедлайн кампании в тиках от старта: включает таймер обратного отсчёта в HUD"
+        },
+        "deadline_label": {
+          "type": "string",
+          "description": "текстовая подпись дедлайна в HUD (например, «До затопления»)"
+        },
         "needs": {
           "type": "array",
           "items": {
@@ -5756,7 +5894,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Настраиваемые надписи системных меню и кнопок интерфейса (инвентарь, журнал, карта, лагерь, кодекс и др.)."
+          "description": "Настраиваемые надписи системных меню и кнопок интерфейса (design-doc §9).\nПозволяет мастеру задать атмосферные названия:\n\"inventory\": \"Сумка дознавателя\", \"journal\": \"Дело № 137\", \"map\": \"Схема ярусов\",\n\"camp\": \"Перекур\", \"codex\": \"Архив Надзора\", \"pass_turn\": \"Завершить ход\" и т.п."
         },
         "default_music": {
           "type": "array",
@@ -5947,6 +6085,33 @@
         },
         "random_encounter_table": {
           "type": "string"
+        },
+        "sound": {
+          "type": "string",
+          "description": "индивидуальный звук пути (плеск волн, стук рельсов, топот копыт)"
+        },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "depart_sound": {
+          "type": "string",
+          "description": "индивидуальный звук отправления (гудок поезда, скрип трапа)"
+        },
+        "depart_sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "arrive_sound": {
+          "type": "string",
+          "description": "индивидуальный звук прибытия (скрип тормозов, звон колокола)"
+        },
+        "arrive_sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       },
       "required": [
@@ -5954,6 +6119,35 @@
         "cost_ticks"
       ],
       "additionalProperties": false
+    },
+    "AmbientRule": {
+      "type": "object",
+      "properties": {
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия включения звукового слоя (если условий нет — звучит всегда)"
+        },
+        "sounds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "зацикленные звуки (id из реестра meta.sounds или путь к файлу)"
+        },
+        "sound": {
+          "type": "string",
+          "description": "одиночный id звука для краткости"
+        },
+        "volume": {
+          "type": "number",
+          "description": "громкость слоя 0..1 (по умолчанию 1)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "фоновый зацикленный звуковой слой с условиями активации"
     },
     "MusicCondition": {
       "type": "object",
@@ -6000,7 +6194,14 @@
         "conditions": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/MusicCondition"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MusicCondition"
+              },
+              {
+                "$ref": "#/$defs/Condition"
+              }
+            ]
           }
         }
       },
@@ -6069,9 +6270,16 @@
         "ambient": {
           "type": "array",
           "items": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/AmbientRule"
+              }
+            ]
           },
-          "description": "фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6"
+          "description": "фоновые зацикленные звуки (птицы, гул): складываются слоями. Строки id или AmbientRule с условиями"
         },
         "camp": {
           "type": "boolean",
@@ -6231,6 +6439,15 @@
           "$ref": "#/$defs/CameraDoc",
           "description": "кинематографическая камера фона состояния (пан-зум)"
         },
+        "sound": {
+          "type": "string",
+          "description": "звук, воспроизводимый при переключении сцены в это состояние"
+        },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "condition": {
           "anyOf": [
             {
@@ -6333,12 +6550,25 @@
           "type": "string",
           "description": "состояние спрайта сцены для занятого НПС (ключ из scene_sprite_states,\nid состояния кампании); пусто — обычный спрайт"
         },
+        "sound": {
+          "type": "string",
+          "description": "индивидуальный звук клика/взаимодействия со слотом"
+        },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "use_with": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/SlotUseWith"
           },
           "description": "предметы, которыми можно воздействовать на слот (блок 8 ТЗ)"
+        },
+        "environmental": {
+          "type": "boolean",
+          "description": "хотспот окружения (нарисован прямо на фоне сцены; в покое невидим, проявляется при наведении или Tab)"
         }
       },
       "required": [
@@ -6461,9 +6691,47 @@
         "ambient": {
           "type": "array",
           "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/AmbientRule"
+              }
+            ]
+          },
+          "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации). Строка id или AmbientRule с условиями"
+        },
+        "lighting": {
+          "type": "string",
+          "enum": [
+            "outdoor",
+            "indoor",
+            "none"
+          ],
+          "description": "тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров)"
+        },
+        "particles": {
+          "type": "string",
+          "enum": [
+            "dust",
+            "steam",
+            "rain",
+            "snow",
+            "fog",
+            "ash",
+            "sparks",
+            "embers",
+            "none"
+          ],
+          "description": "атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман)"
+        },
+        "narrative_intro": {
+          "type": "array",
+          "items": {
             "type": "string"
           },
-          "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации)"
+          "description": "вводное атмосферное повествование от автора (мысли/описание при первом входе на сцену)"
         },
         "chapter": {
           "type": "string",
@@ -6946,6 +7214,11 @@
         "sound": {
           "type": "string",
           "description": "звуковой хук взаимодействия (умолчание 'use' или 'open' для контейнера)"
+        },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
         }
       },
       "required": [
@@ -7023,6 +7296,10 @@
           },
           "description": "Взаимодействовать можно только когда условия истинны; пока ложны —\nпредмет «декорация»: виден в слоте, но не нажимается и не подсвечивается."
         },
+        "interact_hint": {
+          "type": "string",
+          "description": "подсказка действия под курсором в сцене («Осмотреть замок», «Повернуть вентиль»)"
+        },
         "interact_options": {
           "type": "array",
           "items": {
@@ -7041,6 +7318,10 @@
         },
         "stackable": {
           "type": "boolean"
+        },
+        "quest_item": {
+          "type": "boolean",
+          "description": "сюжетный/квестовый предмет (нельзя выбросить или продать в лавку)"
         },
         "weapon_data": {
           "$ref": "#/$defs/WeaponData"
@@ -7065,6 +7346,10 @@
         "equip_slot": {
           "type": "string",
           "description": "слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;\nнет — не экипируется. Старым предметам выставляется миграцией."
+        },
+        "quest_item": {
+          "type": "boolean",
+          "description": "сюжетный предмет: нельзя выбросить или продать торговцам"
         },
         "hero_appearance": {
           "type": "object",
@@ -7777,6 +8062,33 @@
         "known": {
           "type": "boolean",
           "description": "`false` — рецепт скрыт от игрока до эффекта `unlock_recipe` (правило,\nдиалог, событие). Старые кампании и сейвы не трогаем: поля нет — рецепт\nизвестен с самого начала."
+        },
+        "sound": {
+          "type": "string",
+          "description": "индивидуальный звук крафта: звон наковальни, шипение реактивов, стук молотка"
+        },
+        "sound_volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "workbench": {
+          "type": [
+            "boolean",
+            "string"
+          ],
+          "description": "Требуется стационарный верстак, плита, наковальня или мастерская (true для любого верстака или id конкретного оборудования, например 'item_stove', 'item_anvil'). Без него в полевых условиях предмет изготовить нельзя."
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "динамические условия доступности/знания рецепта (навыки, флаги, черты, квесты)"
+        },
+        "category": {
+          "type": "string",
+          "description": "категория рецепта для группировки и фильтрации"
         }
       },
       "required": [
@@ -8077,6 +8389,14 @@
         "voice": {
           "type": "string",
           "description": "озвучка реплики: файл пакета (assets/voice/…) или ссылка (итерация 8,\nблок G). Если нет — при включённом синтезаторе реплику читает браузер."
+        },
+        "sfx": {
+          "type": "string",
+          "description": "звуковой эффект реплики: id звука из meta.sounds или путь к аудиофайлу (# sfx: snd_shot)"
+        },
+        "timer": {
+          "type": "number",
+          "description": "секундный таймер показа реплики (# timer: 3 или # timeout: 3) — design-doc §9.\nПо истечении времени диалог автоматически переходит дальше."
         }
       },
       "required": [

@@ -84,7 +84,8 @@
     "npc_ashhound.json",
     "npc_watchman.json",
     "npc_thug.json",
-    "item_coal.json"
+    "item_coal.json",
+    "item_glove.json"
   ],
   "rules": [
     "rule_air_restored.json",
@@ -177,21 +178,22 @@
     "recipe_stew.json"
   ],
   "codex": [
-    "codex_karkas.json",
-    "codex_pumps.json",
-    "codex_heavy_water.json",
-    "codex_vein.json",
-    "codex_rot.json",
-    "codex_hound.json",
-    "codex_watchman.json",
-    "codex_silence.json",
     "codex_case136.json",
-    "codex_resh_notes.json",
-    "codex_ledger.json",
-    "codex_seal.json",
-    "codex_nadzor.json",
     "codex_case137.json",
-    "codex_time.json"
+    "codex_filter.json",
+    "codex_heavy_water.json",
+    "codex_hound.json",
+    "codex_karkas.json",
+    "codex_ledger.json",
+    "codex_nadzor.json",
+    "codex_pumps.json",
+    "codex_resh_notes.json",
+    "codex_rot.json",
+    "codex_seal.json",
+    "codex_silence.json",
+    "codex_time.json",
+    "codex_vein.json",
+    "codex_watchman.json"
   ],
   "dialogues": [
     "ayla.ink",

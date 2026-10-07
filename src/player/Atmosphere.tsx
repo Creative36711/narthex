@@ -59,6 +59,8 @@ interface Particle {
 /** рендер одного эффекта из реестра `meta.atmospherics` (canvas-оверлей поверх сцены) */
 export function ParticleLayer({ doc, srcOf }: { doc: ParticleEffectDef; srcOf: (path: string) => string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const srcOfRef = useRef(srcOf)
+  srcOfRef.current = srcOf
   const count = Math.max(4, Math.min(400, doc.count ?? 60))
   useEffect(() => {
     const canvas = canvasRef.current
@@ -68,7 +70,7 @@ export function ParticleLayer({ doc, srcOf }: { doc: ParticleEffectDef; srcOf: (
     let raf = 0
     let last = performance.now()
 
-    const src = doc.sprite ? srcOf(doc.sprite) : ''
+    const src = doc.sprite ? srcOfRef.current(doc.sprite) : ''
     let img: HTMLImageElement | null = null
     if (src) {
       img = new Image()
@@ -141,7 +143,7 @@ export function ParticleLayer({ doc, srcOf }: { doc: ParticleEffectDef; srcOf: (
       window.removeEventListener('resize', resize)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, srcOf, count])
+  }, [doc, count])
 
   const style: CSSProperties = { filter: doc.blur ? `blur(${doc.blur}px)` : undefined, mixBlendMode: doc.blend === 'screen' ? 'screen' : undefined }
   return <canvas ref={canvasRef} className="atmosphere-particles" aria-hidden style={style} />
@@ -151,53 +153,53 @@ const BUILTIN_PARTICLE_DOCS: Record<string, ParticleEffectDef> = {
   dust: {
     id: 'dust',
     label: 'Пылинки',
-    count: 38,
+    count: 36,
     size_min: 2,
-    size_max: 4,
-    vx_min: -8,
-    vx_max: 8,
-    vy_min: -6,
-    vy_max: 10,
-    opacity: 0.55,
+    size_max: 3.5,
+    vx_min: -5,
+    vx_max: 5,
+    vy_min: -4,
+    vy_max: 6,
+    opacity: 0.5,
     blur: 0.5,
   },
   steam: {
     id: 'steam',
     label: 'Пар',
-    count: 24,
+    count: 20,
     size_min: 18,
     size_max: 36,
-    vx_min: -10,
-    vx_max: 12,
-    vy_min: -40,
-    vy_max: -80,
-    opacity: 0.35,
+    vx_min: -6,
+    vx_max: 8,
+    vy_min: -16,
+    vy_max: -34,
+    opacity: 0.3,
     blur: 4,
   },
   sparks: {
     id: 'sparks',
     label: 'Искры',
-    count: 32,
+    count: 28,
     size_min: 2,
-    size_max: 5,
-    vx_min: -25,
-    vx_max: 25,
-    vy_min: -50,
-    vy_max: -110,
-    opacity: 0.9,
+    size_max: 4.5,
+    vx_min: -12,
+    vx_max: 12,
+    vy_min: -24,
+    vy_max: -52,
+    opacity: 0.85,
     blend: 'screen',
   },
   embers: {
     id: 'embers',
     label: 'Угли',
-    count: 26,
-    size_min: 3,
-    size_max: 6,
-    vx_min: -15,
-    vx_max: 15,
-    vy_min: -25,
-    vy_max: -65,
-    opacity: 0.8,
+    count: 22,
+    size_min: 2.5,
+    size_max: 5,
+    vx_min: -8,
+    vx_max: 8,
+    vy_min: -14,
+    vy_max: -32,
+    opacity: 0.75,
     blend: 'screen',
   },
 }

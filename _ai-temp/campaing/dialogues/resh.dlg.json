@@ -98,6 +98,14 @@
           "emotion": "angry",
           "voice": "assets/voice/resh_6.mp3"
          }
+        },
+        {
+         "kind": "line",
+         "line": {
+          "text": "Муфту резали ключом на пятьдесят два, в перчатках: на срезе ни одной мозоли. Сорок лет смотрю, как режут, — по металлу видно, чья рука держала ключ.",
+          "emotion": "thoughtful",
+          "voice": "assets/voice/resh_14.mp3"
+         }
         }
        ]
       }
@@ -299,6 +307,37 @@
       {
        "type": "flag",
        "flag": "resh_trusts"
+      }
+     ]
+    },
+    {
+     "text": "Дыхатель держит только две банки?",
+     "conds": [
+      {
+       "type": "has_item",
+       "item": "item_filter"
+      }
+     ],
+     "goto": "stay",
+     "sections": [
+      {
+       "steps": [
+        {
+         "kind": "line",
+         "line": {
+          "text": "Первая банка садится ещё в штольне, вторая — у самого забоя. Кто спускается в третий раз со старой маской, тот дышит уже собой.",
+          "emotion": "thoughtful",
+          "voice": "assets/voice/resh_15.mp3"
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "unlock_codex",
+          "entry": "codex_filter"
+         }
+        }
+       ]
       }
      ]
     },

@@ -1,780 +1,115 @@
 {
- "id": "scene_sluice",
- "label": "Затвор восьмого яруса",
- "location": "loc_ward8",
- "canvas": {
-  "w": 1280,
-  "h": 720
- },
- "chapter": "ch_deep",
- "states": [
-  {
-   "id": "state_main",
-   "label": "Всегда",
-   "condition": null,
-   "art": {
-    "canvas": {
-     "w": 1280,
-     "h": 720
-    },
-    "background": "#050a0c",
-    "layers": [
-     {
-      "label": "камера затвора",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 0,
-       "w": 1280,
-       "h": 720,
-       "fill": {
-        "gradient": {
-         "from": "#152228",
-         "to": "#070d10",
-         "angle": 90
-        }
-       },
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "вода",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 620,
-       "w": 1280,
-       "h": 100,
-       "fill": {
-        "gradient": {
-         "from": "#123039",
-         "to": "#061217",
-         "angle": 90
-        }
-       },
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "затвор",
-      "shape": {
-       "type": "rect",
-       "x": 460,
-       "y": 120,
-       "w": 380,
-       "h": 500,
-       "fill": "#3a4a52",
-       "stroke": "#556d76",
-       "stroke_width": 5
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 460,
-       "y1": 170,
-       "x2": 840,
-       "y2": 170,
-       "color": "#22323a",
-       "width": 6
-      },
-      "opacity": 0.7
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 460,
-       "y1": 225,
-       "x2": 840,
-       "y2": 225,
-       "color": "#22323a",
-       "width": 6
-      },
-      "opacity": 0.7
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 460,
-       "y1": 280,
-       "x2": 840,
-       "y2": 280,
-       "color": "#22323a",
-       "width": 6
-      },
-      "opacity": 0.7
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 460,
-       "y1": 335,
-       "x2": 840,
-       "y2": 335,
-       "color": "#22323a",
-       "width": 6
-      },
-      "opacity": 0.7
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 460,
-       "y1": 390,
-       "x2": 840,
-       "y2": 390,
-       "color": "#22323a",
-       "width": 6
-      },
-      "opacity": 0.7
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 460,
-       "y1": 445,
-       "x2": 840,
-       "y2": 445,
-       "color": "#22323a",
-       "width": 6
-      },
-      "opacity": 0.7
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 460,
-       "y1": 500,
-       "x2": 840,
-       "y2": 500,
-       "color": "#22323a",
-       "width": 6
-      },
-      "opacity": 0.7
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 460,
-       "y1": 555,
-       "x2": 840,
-       "y2": 555,
-       "color": "#22323a",
-       "width": 6
-      },
-      "opacity": 0.7
-     },
-     {
-      "label": "балка",
-      "shape": {
-       "type": "rect",
-       "x": 430,
-       "y": 100,
-       "w": 440,
-       "h": 40,
-       "fill": "#556d76",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "штурвал затвора",
-      "shape": {
-       "type": "ellipse",
-       "cx": 650,
-       "cy": 300,
-       "rx": 86,
-       "ry": 86,
-       "stroke": "#6d3a28",
-       "stroke_width": 10
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 650,
-       "y1": 214,
-       "x2": 650,
-       "y2": 386,
-       "color": "#6d3a28",
-       "width": 7
-      },
-      "opacity": 0.95
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 564,
-       "y1": 300,
-       "x2": 736,
-       "y2": 300,
-       "color": "#6d3a28",
-       "width": 7
-      },
-      "opacity": 0.95
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 589,
-       "y1": 239,
-       "x2": 711,
-       "y2": 361,
-       "color": "#6d3a28",
-       "width": 7
-      },
-      "opacity": 0.95
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 589,
-       "y1": 361,
-       "x2": 711,
-       "y2": 239,
-       "color": "#6d3a28",
-       "width": 7
-      },
-      "opacity": 0.95
-     },
-     {
-      "label": "мостки",
-      "shape": {
-       "type": "rect",
-       "x": 0,
-       "y": 560,
-       "w": 1280,
-       "h": 60,
-       "fill": "#22323a",
-       "stroke_width": 2
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 20,
-       "y1": 560,
-       "x2": 20,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 80,
-       "y1": 560,
-       "x2": 80,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 140,
-       "y1": 560,
-       "x2": 140,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 200,
-       "y1": 560,
-       "x2": 200,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 260,
-       "y1": 560,
-       "x2": 260,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 320,
-       "y1": 560,
-       "x2": 320,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 380,
-       "y1": 560,
-       "x2": 380,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 440,
-       "y1": 560,
-       "x2": 440,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 500,
-       "y1": 560,
-       "x2": 500,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 560,
-       "y1": 560,
-       "x2": 560,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 620,
-       "y1": 560,
-       "x2": 620,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 680,
-       "y1": 560,
-       "x2": 680,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 740,
-       "y1": 560,
-       "x2": 740,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 800,
-       "y1": 560,
-       "x2": 800,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 860,
-       "y1": 560,
-       "x2": 860,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 920,
-       "y1": 560,
-       "x2": 920,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 980,
-       "y1": 560,
-       "x2": 980,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 1040,
-       "y1": 560,
-       "x2": 1040,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 1100,
-       "y1": 560,
-       "x2": 1100,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 1160,
-       "y1": 560,
-       "x2": 1160,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 1220,
-       "y1": 560,
-       "x2": 1220,
-       "y2": 620,
-       "color": "#556d76",
-       "width": 4
-      },
-      "opacity": 0.6
-     },
-     {
-      "label": "колонна",
-      "shape": {
-       "type": "rect",
-       "x": 1000,
-       "y": 280,
-       "w": 200,
-       "h": 300,
-       "fill": "#3a4a52",
-       "stroke": "#556d76",
-       "stroke_width": 3
-      }
-     },
-     {
-      "label": "индикатор",
-      "shape": {
-       "type": "ellipse",
-       "cx": 1100,
-       "cy": 340,
-       "rx": 26,
-       "ry": 26,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.75
-     },
-     {
-      "label": "шкалы",
-      "shape": {
-       "type": "rect",
-       "x": 1030,
-       "y": 410,
-       "w": 140,
-       "h": 90,
-       "fill": "#202a2e",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "тело стража",
-      "shape": {
-       "type": "rect",
-       "x": 120,
-       "y": 540,
-       "w": 210,
-       "h": 90,
-       "fill": "#3a3a3d",
-       "stroke_width": 2,
-       "radius": 16
-      }
-     },
-     {
-      "label": "шлем",
-      "shape": {
-       "type": "ellipse",
-       "cx": 160,
-       "cy": 530,
-       "rx": 30,
-       "ry": 24,
-       "fill": "#5d5347",
-       "stroke_width": 2
-      }
-     },
-     {
-      "label": "ход назад",
-      "shape": {
-       "type": "rect",
-       "x": 20,
-       "y": 120,
-       "w": 140,
-       "h": 220,
-       "fill": "#080f12",
-       "stroke": "#556d76",
-       "stroke_width": 4
-      }
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 30,
-       "y1": 150,
-       "x2": 150,
-       "y2": 150,
-       "color": "#556d76",
-       "width": 6
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 30,
-       "y1": 190,
-       "x2": 150,
-       "y2": 190,
-       "color": "#556d76",
-       "width": 6
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 30,
-       "y1": 230,
-       "x2": 150,
-       "y2": 230,
-       "color": "#556d76",
-       "width": 6
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 30,
-       "y1": 270,
-       "x2": 150,
-       "y2": 270,
-       "color": "#556d76",
-       "width": 6
-      },
-      "opacity": 0.8
-     },
-     {
-      "shape": {
-       "type": "line",
-       "x1": 30,
-       "y1": 310,
-       "x2": 150,
-       "y2": 310,
-       "color": "#556d76",
-       "width": 6
-      },
-      "opacity": 0.8
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 650,
-       "cy": 300,
-       "rx": 110,
-       "ry": 110,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.25
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 650,
-       "cy": 300,
-       "rx": 49.5,
-       "ry": 49.5,
-       "fill": "#5fd0c8",
-       "stroke_width": 2
-      },
-      "opacity": 0.6
-     },
-     {
-      "label": "свет",
-      "shape": {
-       "type": "ellipse",
-       "cx": 160,
-       "cy": 520,
-       "rx": 70,
-       "ry": 70,
-       "fill": "#e8a33d",
-       "stroke_width": 2
-      },
-      "opacity": 0.2
-     },
-     {
-      "label": "свет (ядро)",
-      "shape": {
-       "type": "ellipse",
-       "cx": 160,
-       "cy": 520,
-       "rx": 31.5,
-       "ry": 31.5,
-       "fill": "#e8a33d",
-       "stroke_width": 2
-      },
-      "opacity": 0.55
-     }
-    ]
-   },
-   "image": "assets/img/scenes/scene_sluice.jpg"
-  }
- ],
- "slots": [
-  {
-   "id": "slot_gate_mech",
-   "label": "Механизм затвора",
-   "type": [
-    "prop"
-   ],
-   "shape": "rect",
-   "x": 430,
-   "y": 100,
-   "w": 440,
-   "h": 540,
-   "condition": null,
-   "default_entity": "item_sluice_mech",
-   "sound": "sfx_machine",
-   "sound_volume": 0.7
+  "id": "scene_sluice",
+  "label": "Затвор восьмого яруса",
+  "location": "loc_ward8",
+  "canvas": {
+    "w": 1280,
+    "h": 720
   },
-  {
-   "id": "slot_dead_guard",
-   "label": "Погибший стражник",
-   "type": [
-    "item"
-   ],
-   "shape": "rect",
-   "x": 100,
-   "y": 490,
-   "w": 250,
-   "h": 190,
-   "condition": null,
-   "default_entity": "item_dead_guard",
-   "sound": "snd_cloth",
-   "sound_volume": 0.5
-  }
- ],
- "navigation": [
-  {
-   "label": "Назад в галерею",
-   "area": {
-    "x": 20,
-    "y": 120,
-    "w": 140,
-    "h": 220
-   },
-   "go_to_scene": "scene_flood_gallery",
-   "cost_ticks": 1
-  },
-  {
-   "label": "На схему ярусов",
-   "area": {
-    "x": 990,
-    "y": 620,
-    "w": 230,
-    "h": 90
-   },
-   "open_map": true
-  }
- ],
- "music": [
-  {
-   "tracks": [
-    "music_alarm"
-   ],
-   "conditions": [
+  "chapter": "ch_deep",
+  "states": [
     {
-     "flag": "lockdown"
+      "id": "state_main",
+      "label": "Всегда",
+      "condition": null,
+      "image": "assets/img/scenes/scene_sluice.jpg"
     }
-   ]
-  },
-  {
-   "tracks": [
-    "music_deep"
-   ],
-   "conditions": []
-  }
- ],
- "ambient": [
-  {
-   "sounds": [
-    "snd_water_amb"
-   ],
-   "volume": 0.6
-  }
- ],
- "lighting": "indoor"
+  ],
+  "slots": [
+    {
+      "id": "slot_gate_mech",
+      "label": "Механизм затвора",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 430,
+      "y": 100,
+      "w": 440,
+      "h": 540,
+      "condition": null,
+      "default_entity": "item_sluice_mech",
+      "sound": "sfx_machine",
+      "sound_volume": 0.7,
+      "environmental": true
+    },
+    {
+      "id": "slot_dead_guard",
+      "label": "Погибший стражник",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 100,
+      "y": 490,
+      "w": 250,
+      "h": 190,
+      "condition": null,
+      "default_entity": "item_dead_guard",
+      "sound": "snd_cloth",
+      "sound_volume": 0.5,
+      "environmental": true
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Назад в галерею",
+      "area": {
+        "x": 20,
+        "y": 120,
+        "w": 140,
+        "h": 220
+      },
+      "go_to_scene": "scene_flood_gallery",
+      "cost_ticks": 1
+    },
+    {
+      "label": "На схему ярусов",
+      "area": {
+        "x": 990,
+        "y": 620,
+        "w": 230,
+        "h": 90
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_alarm"
+      ],
+      "conditions": [
+        {
+          "flag": "lockdown"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_deep"
+      ],
+      "conditions": []
+    }
+  ],
+  "ambient": [
+    {
+      "sounds": [
+        "snd_water_amb"
+      ],
+      "volume": 0.6
+    },
+    {
+      "sounds": [
+        "snd_shaft_amb"
+      ],
+      "volume": 0.35
+    }
+  ],
+  "lighting": "indoor",
+  "particles": "rain",
+  "narrative_intro": [
+    "Затвор не закрыт — он приготовлен: колодка пуста, и пуста она не первый месяц.",
+    "Капли считают секунды. Секунды можно не считать: их и так мало."
+  ]
 }

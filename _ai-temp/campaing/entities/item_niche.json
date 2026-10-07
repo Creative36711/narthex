@@ -1,53 +1,56 @@
 {
- "id": "item_niche",
- "type": "item",
- "category": "container",
- "label": "Ниша в кладке",
- "description": "Узкая ниша, где мастера прячут то, что нельзя носить в кармане наряда.",
- "weight": 0.0,
- "stackable": false,
- "value": {
-  "mark": 0
- },
- "interact_options": [
-  {
-   "label": "Обыскать нишу",
-   "effects": [
+  "id": "item_niche",
+  "type": "item",
+  "category": "container",
+  "label": "Ниша в кладке",
+  "description": "Узкая ниша, где мастера прячут то, что нельзя носить в кармане наряда.",
+  "weight": 0.0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
     {
-     "type": "advance_time",
-     "ticks": 1
-    },
-    {
-     "type": "add_item",
-     "item": "item_note",
-     "quantity": 1
-    },
-    {
-     "type": "set_flag",
-     "flag": "clue_note"
-    },
-    {
-     "type": "change_variable",
-     "var": "clues",
-     "delta": 1
-    },
-    {
-     "type": "fire_rule",
-     "rule": "rule_clue_check"
-    },
-    {
-     "type": "unlock_codex",
-     "entry": "codex_heavy_water"
-    },
-    {
-     "type": "show_message",
-     "text": "В нише завёрнутая в целлофан записка мастера."
+      "label": "Обыскать нишу",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_note",
+          "quantity": 1
+        },
+        {
+          "type": "set_flag",
+          "flag": "clue_note"
+        },
+        {
+          "type": "change_variable",
+          "var": "clues",
+          "delta": 1
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_clue_check"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_heavy_water"
+        },
+        {
+          "type": "show_message",
+          "text": "В нише завёрнутая в целлофан записка мастера."
+        }
+      ],
+      "once": true,
+      "sound": "snd_paper",
+      "hint": "мастер прятал бумаги в кладке"
     }
-   ],
-   "once": true,
-   "sound": "snd_paper",
-   "hint": "мастер прятал бумаги в кладке"
+  ],
+  "interact_hint": "Обыскать нишу",
+  "portrait": {
+    "neutral": "assets/img/items/item_niche.jpg"
   }
- ],
- "interact_hint": "Обыскать нишу"
 }

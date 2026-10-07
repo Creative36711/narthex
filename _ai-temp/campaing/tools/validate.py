@@ -23,11 +23,14 @@ SCHEMA = os.path.join(ROOT, "__chronicle_ai__", "campaign.schema.json")
 
 problems = []
 notes = []
+USED = {"sound": set(), "music": set()}
 
 
 def need(where, kind, val):
     if val is None:
         return
+    if kind in USED:
+        USED[kind].add(val)
     reg = REG.get(kind)
     if reg is not None:
         if val not in reg and not (kind == "variable" and not reg):
@@ -238,21 +241,12 @@ def main():
                      "(pip install --break-system-packages jsonschema)")
     else:
         schema = load(SCHEMA)
-        # quest_item требует руководство движка (защита улик от продажи),
-        # но в ItemDef его нет, а additionalProperties там false. Это
-        # отставание схемы, а не ошибка кампании —такие поля пропускаем.
-        def without_lag(node):
-            if isinstance(node, dict):
-                return {k: without_lag(v) for k, v in node.items() if k != "quest_item"}
-            if isinstance(node, list):
-                return [without_lag(v) for v in node]
-            return node
         v = jsonschema.Draft202012Validator(schema)
-        errs = sorted(v.iter_errors(without_lag(mono)), key=lambda e: list(e.path))
+        errs = sorted(v.iter_errors(mono), key=lambda e: list(e.path))
         for e in errs:
             p = "/".join(str(x) for x in list(e.path)[:8])
             problems.append(f"СХЕМА {p}: {e.message[:220]}")
-        print(f"схема: ошибок {len(errs)} (поле quest_item пропущено: его нет в схеме, но требует руководство)")
+        print(f"схема: ошибок {len(errs)}")
 
     cc = camp.get("char_creation") or {}
     REG = {
@@ -552,6 +546,11 @@ def main():
                         asset(f"диалог {name}", ln.get("voice"))
                         if ln.get("sfx"):
                             need(f"диалог {name}", "sound", ln["sfx"])
+                        # ремарки не озвучиваем принципиально, spoken — должны
+                        if not ln.get("action") and not ln.get("voice"):
+                            notes.append(
+                                f"РЕПЛИКА БЕЗ ГОЛОСА {name}/{n['id']}: "
+                                f"«{(ln.get('text') or '')[:60]}»")
             tm = n.get("timer") or {}
             if tm.get("node") and tm["node"] not in knots:
                 problems.append(f"ССЫЛКА диалог {name}: таймер → «{tm['node']}»")
@@ -705,6 +704,39 @@ def main():
                 notes.append(
                     f"{eid} / «{o.get('label')}» повторяется и при повторе ничего не меняет "
                     f"({sorted(bad)}); времени не стоит, но лучше условие или once")
+
+    # проверка map_art рядом с map_image и environmental у беспрайтовых предметов
+    for r in world.get("regions", []):
+        if r.get("map_image") and r.get("map_art"):
+            problems.append(f"КАРТА {r['id']}: map_art не удалён при наличии map_image")
+    for sid, s in sorted(scenes.items()):
+        for sl in s.get("slots", []):
+            ent = ents.get(sl.get("default_entity"))
+            if ent and ent.get("type") == "item" and not ent.get("scene_sprite"):
+                if not sl.get("environmental"):
+                    notes.append(f"СЛОТ {sid}/{sl['id']}: предмет без спрайта без environmental: true")
+
+    # неиспользуемые записи в реестрах звуков и музыки
+    for v in (camp.get("ui_sounds") or {}).values():
+        if isinstance(v, str):
+            USED["sound"].add(v)
+    for ic in camp.get("item_categories") or []:
+        for v in (ic.get("sounds") or {}).values():
+            USED["sound"].add(v)
+    for st in camp.get("slot_types") or []:
+        for v in (st.get("sounds") or {}).values():
+            USED["sound"].add(v)
+    for e in ents.values():
+        for v in (e.get("sounds") or {}).values():
+            USED["sound"].add(v)
+    for m in ((camp.get("theme") or {}).get("menu") or {}).get("music") or []:
+        USED["music"].add(m)
+    for snd in camp.get("sounds") or []:
+        if snd["id"] not in USED["sound"]:
+            notes.append(f"ЗВУК В РЕЕСТРЕ НЕ ИСПОЛЬЗУЕТСЯ: {snd['id']}")
+    for trk in camp.get("music_tracks") or []:
+        if trk["id"] not in USED["music"]:
+            notes.append(f"ТРЕК В РЕЕСТРЕ НЕ ИСПОЛЬЗУЕТСЯ: {trk['id']}")
 
     print(f"\nпроверено: сцен {len(scenes)}, сущностей {len(ents)}, правил {len(rules)}, "
           f"квестов {len(quests)}, арен {len(arenas)}, катсцен {len(cuts)}, "

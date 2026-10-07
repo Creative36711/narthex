@@ -654,7 +654,13 @@ export function AssetUpload({
           kind === 'audio' ? (
             <audio className="asset-preview-audio" src={assetSrc(store, value)} controls />
           ) : kind === 'font' ? (
-            <div className="img-upload-empty">файл шрифта</div>
+            <div className="asset-preview-font" data-tip={`Подключённый файл: ${value}`}>
+              <div className="asset-font-badge">
+                <Ico n="check" /> Подключён
+              </div>
+              <div className="asset-font-sample">Aa Бб 123</div>
+              <div className="asset-font-filename">{value.split('/').pop() || value}</div>
+            </div>
           ) : (
             <img className="img-upload-preview" src={assetSrc(store, value)} alt="" />
           )

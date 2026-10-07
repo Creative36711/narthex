@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { Ico } from '../shared/icons'
 import type { CampaignMeta } from '../shared/types'
 import type { EditorStore } from './store'
+import { DiceNotationInput } from './Fields'
 
 export function CombatRulesEditor({ store }: { store: EditorStore }) {
   const m = store.meta
@@ -215,20 +216,19 @@ export function CombatRulesEditor({ store }: { store: EditorStore }) {
                   }}
                 />
               </label>
-              <label className="fld" data-tip="Дополнительные кости урона за удар в спину, например 1d4 (пусто — без бонуса)">
-                <span>Бонус урона в спину</span>
-                <input
-                  value={typeof m.combat?.flank === 'object' ? (m.combat.flank.damage_bonus ?? '') : ''}
-                  placeholder="1d4"
-                  onChange={(e) => {
-                    const c = { ...(m.combat ?? {}) }
-                    const cur = typeof c.flank === 'object' ? c.flank : {}
-                    c.flank = { ...cur, damage_bonus: e.target.value || undefined }
-                    m.combat = c
-                    commit()
-                  }}
-                />
-              </label>
+              <DiceNotationInput
+                label="Бонус урона в спину"
+                tip="Дополнительные кости урона за удар в спину, например 1d4 (пусто — без бонуса)"
+                optional
+                value={typeof m.combat?.flank === 'object' ? (m.combat.flank.damage_bonus ?? '') : ''}
+                onChange={(v) => {
+                  const c = { ...(m.combat ?? {}) }
+                  const cur = typeof c.flank === 'object' ? c.flank : {}
+                  c.flank = { ...cur, damage_bonus: v || undefined }
+                  m.combat = c
+                  commit()
+                }}
+              />
             </>
           )}
         </div>

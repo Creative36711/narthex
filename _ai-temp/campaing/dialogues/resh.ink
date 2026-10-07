@@ -27,6 +27,7 @@ VAR r = 0
     -> Начало_hub
 + [Кто срезал муфту?]
     Стража. Я видел пломбу на их рукавицах: тринадцать-К. У нас на ярусе пломбы только у тех, кто закрывает. # emotion: angry # voice: assets/voice/resh_6.mp3
+    Муфту резали ключом на пятьдесят два, в перчатках: на срезе ни одной мозоли. Сорок лет смотрю, как режут, — по металлу видно, чья рука держала ключ. # emotion: thoughtful # voice: assets/voice/resh_14.mp3
     -> Начало_hub
 + { not (has_item("item_core")) and not (has_item("item_key_cache")) } [Отдай сердцевину.]
     ~ r = skill_check("persuade", 55)
@@ -45,6 +46,10 @@ VAR r = 0
     Он встаёт тяжело, опираясь о стену ладонью. # action # sfx: snd_stone
     Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту. # voice: assets/voice/resh_8.mp3
     ~ join_party("npc_resh")
+    -> Начало_hub
++ { has_item("item_filter") } [Дыхатель держит только две банки?]
+    Первая банка садится ещё в штольне, вторая — у самого забоя. Кто спускается в третий раз со старой маской, тот дышит уже собой. # emotion: thoughtful # voice: assets/voice/resh_15.mp3
+    ~ unlock_codex("codex_filter")
     -> Начало_hub
 + [Мне пора.]
     -> DONE
