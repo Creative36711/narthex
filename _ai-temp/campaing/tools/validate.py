@@ -439,6 +439,13 @@ def main():
             for ab in wd.get("abilities", []):
                 need(eid, "ability", ab)
 
+    for rid, r in rules.items():
+        if not r.get("manual") and not r.get("conditions"):
+            problems.append(f"ПРАВИЛО {rid}: manual=False при пустом списке условий (сработает на тике 0)")
+        for c in r.get("conditions") or []:
+            if c.get("type") == "tick_elapsed" and c.get("min_tick") == 0 and r.get("trigger") == "time_tick":
+                problems.append(f"ПРАВИЛО {rid}: min_tick=0 не может иметь trigger='time_tick' (нужен 'always')")
+
     for qid, q in quests.items():
         need(f"квест {qid}", "chapter", q.get("chapter"))
         targets = set()

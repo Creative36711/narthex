@@ -9,6 +9,16 @@
   "chapter": "ch_deep",
   "states": [
     {
+      "id": "state_open",
+      "label": "Тайник вскрыт",
+      "condition": {
+        "flag": "cache_open"
+      },
+      "image": "assets/img/scenes/scene_drift_open.jpg",
+      "sound": "sfx_lock",
+      "sound_volume": 0.7
+    },
+    {
       "id": "state_main",
       "label": "Всегда",
       "condition": null,
@@ -133,7 +143,18 @@
   "lighting": "indoor",
   "particles": "fog",
   "narrative_intro": [
-    "Штольня ведёт к тому, что город считает выработанным. Жила считает иначе.",
-    "Свет лампы не достаёт до стен: видно только то, что прямо перед лицом."
-  ]
+    {
+      "text": "Девятый ярус давно вычеркнут из сменных нарядов: крепи здесь рассохлись, а воздух густой и тёплый, как в кузнечном горне. На каждом вдохе сквозь угольную пыль проступает тяжёлый, сладковатый привкус жильного пара.",
+      "sfx": "snd_stone",
+      "voice": "assets/voice/intro_drift_1.mp3"
+    },
+    {
+      "text": "Свет масляной лампы вязнет в сизом тумане и едва достаёт до обрушенных стоек старой выработки. Где-то впереди за поворотом штольни глухо и размеренно гудит сам камень.",
+      "sfx": "sfx_machine",
+      "voice": "assets/voice/intro_drift_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Вглядеться в штольню ▶"
 }

@@ -9,6 +9,16 @@
   "chapter": "ch_deep",
   "states": [
     {
+      "id": "state_flooded",
+      "label": "Большая вода",
+      "condition": {
+        "flag": "downpour_flood"
+      },
+      "image": "assets/img/scenes/scene_flood_gallery_flooded.jpg",
+      "sound": "sfx_surge",
+      "sound_volume": 0.85
+    },
+    {
       "id": "state_main",
       "label": "Всегда",
       "condition": null,
@@ -162,7 +172,18 @@
   "lighting": "none",
   "particles": "fog",
   "narrative_intro": [
-    "Вода стоит по щиколотку и пахнет ржавчиной. Мостки ведут в темноту, которая не кончается.",
-    "Идти надо боком, держась за стену: в галерее слышно всё, и тебя тоже слышно."
-  ]
+    {
+      "text": "Вода стоит по щиколотку и пахнет ржавчиной. Мостки ведут в темноту, которая не кончается.",
+      "sfx": "sfx_wade",
+      "voice": "assets/voice/intro_flood_gallery_1.mp3"
+    },
+    {
+      "text": "По узкому карнизу вдоль стены приходится идти боком, держась за скользкие скобы. В сырой трубе галереи любой шорох разносится на десятки саженей, а из боковых штреков тянет гнилым илом.",
+      "sfx": "sfx_water",
+      "voice": "assets/voice/intro_flood_gallery_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Ступить на мостки ▶"
 }

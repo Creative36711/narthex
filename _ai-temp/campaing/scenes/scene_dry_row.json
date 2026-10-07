@@ -9,10 +9,24 @@
   "chapter": "ch_deep",
   "states": [
     {
-      "id": "state_main",
-      "label": "Всегда",
-      "condition": null,
+      "id": "state_day",
+      "label": "Днём и вечером",
+      "condition": {
+        "time_of_day": [
+          "morning",
+          "day",
+          "evening"
+        ]
+      },
       "image": "assets/img/scenes/scene_dry_row.jpg"
+    },
+    {
+      "id": "state_night",
+      "label": "Ночью",
+      "condition": null,
+      "image": "assets/img/scenes/scene_dry_row_night.jpg",
+      "sound": "sfx_bell",
+      "sound_volume": 0.5
     }
   ],
   "slots": [
@@ -166,7 +180,18 @@
   "lighting": "indoor",
   "particles": "embers",
   "narrative_intro": [
-    "Ряд зовётся Сухим, потому что вода сюда не дошла. Пока не дошла.",
-    "У жаровни греются не от холода: здесь греются, чтобы не думать о том, что будет, когда вода дойдёт."
-  ]
+    {
+      "text": "Ряд зовётся Сухим, потому что вода сюда не дошла. Пока не дошла.",
+      "sfx": "snd_fire",
+      "voice": "assets/voice/intro_dry_row_1.mp3"
+    },
+    {
+      "text": "У жаровни греются не от холода: здесь греются, чтобы не думать о том, что будет, когда вода дойдёт.",
+      "sfx": "sfx_coins",
+      "voice": "assets/voice/intro_dry_row_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Выйти в ряд ▶"
 }

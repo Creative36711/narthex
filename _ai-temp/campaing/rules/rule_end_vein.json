@@ -1,48 +1,48 @@
 {
- "id": "rule_end_vein",
- "label": "Финал: жила проснулась",
- "once": true,
- "manual": true,
- "conditions": [
-  {
-   "type": "flag_not_set",
-   "flag": "case_ended"
-  }
- ],
- "effects": [
-  {
-   "type": "play_cutscene",
-   "cutscene": "cutscene_final_vein"
-  },
-  {
-   "type": "set_flag",
-   "flag": "end_vein"
-  },
-  {
-   "type": "set_flag",
-   "flag": "case_ended"
-  },
-  {
-   "type": "advance_quest",
-   "quest": "quest_pump",
-   "stage": "stage_success"
-  },
-  {
-   "type": "meta_currency",
-   "id": "echo",
-   "amount": 1
-  },
-  {
-   "type": "play_sound",
-   "sound": "sfx_hum",
-   "volume": 1.0
-  },
-  {
-   "type": "stop_sound"
-  },
-  {
-   "type": "game_over_victory"
-  }
- ],
- "chapter": "ch_final"
+  "id": "rule_end_vein",
+  "label": "Финал: жила проснулась",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "case_ended"
+    }
+  ],
+  "effects": [
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_final_vein"
+    },
+    {
+      "type": "set_flag",
+      "flag": "end_vein"
+    },
+    {
+      "type": "set_flag",
+      "flag": "case_ended"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_success"
+    },
+    {
+      "type": "meta_currency",
+      "id": "echo",
+      "amount": 1
+    },
+    {
+      "type": "stop_sound"
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_hum",
+      "volume": 1.0
+    },
+    {
+      "type": "game_over_victory"
+    }
+  ],
+  "chapter": "ch_final"
 }

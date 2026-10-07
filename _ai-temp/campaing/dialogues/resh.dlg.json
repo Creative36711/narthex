@@ -203,7 +203,8 @@
        ],
        "goto": "stay"
       }
-     }
+     },
+     "once": true
     },
     {
      "text": "Что такое жила?",
@@ -291,7 +292,8 @@
          "line": {
           "text": "Он встаёт тяжело, опираясь о стену ладонью.",
           "action": true,
-          "sfx": "snd_stone"
+          "sfx": "snd_stone",
+          "voice": "assets/voice/narr_resh_2.mp3"
          }
         },
         {
@@ -307,6 +309,13 @@
           "type": "join_party",
           "npc": "npc_resh"
          }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "set_flag",
+          "flag": "resh_joined"
+         }
         }
        ]
       }
@@ -316,8 +325,14 @@
       {
        "type": "flag",
        "flag": "resh_trusts"
+      },
+      {
+       "type": "flag",
+       "flag": "resh_joined",
+       "not": true
       }
-     ]
+     ],
+     "once": true
     },
     {
      "text": "Дыхатель держит только две банки?",

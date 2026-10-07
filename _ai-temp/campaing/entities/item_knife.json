@@ -18,5 +18,30 @@
     "attacks_per_round": 1,
     "parry_capable": true,
     "label": "Нож"
-  }
+  },
+  "image": "assets/img/items/item_knife.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_knife.jpg"
+  },
+  "sounds": {
+    "pickup": "snd_blade",
+    "equip": "snd_blade",
+    "unequip": "snd_cloth",
+    "use": "snd_blade"
+  },
+  "interact_hint": "Проверить заточку клинка",
+  "interact_options": [
+    {
+      "label": "Проверить заточку клинка",
+      "hint": "складной нож с костяной рукоятью",
+      "sound": "snd_blade",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Узкое воронёное лезвие фиксируется латунным кольцом без люфта. Против кирасы Надзора с ним не пойдёшь, но резать пеньку, вскрывать сургуч и отбиваться в тесном штреке — в самый раз."
+        }
+      ]
+    }
+  ]
 }

@@ -1,7 +1,7 @@
 {
   "id": "rule_filter_bank2",
   "label": "Дыхатель: вторая банка",
-  "once": true,
+  "once": false,
   "manual": false,
   "conditions": [
     {

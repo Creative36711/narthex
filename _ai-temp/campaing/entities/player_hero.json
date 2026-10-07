@@ -3,7 +3,14 @@
   "type": "npc",
   "label": "Дознаватель",
   "description": "Приписной дознаватель седьмого яруса: человек, которого посылают туда, куда не хотят идти стражники.",
-  "portrait": {},
+  "portrait": {
+    "neutral": "assets/img/npc/hero_neutral.jpg",
+    "calm": "assets/img/npc/hero_calm.jpg",
+    "thoughtful": "assets/img/npc/hero_thoughtful.jpg",
+    "angry": "assets/img/npc/hero_angry.jpg",
+    "afraid": "assets/img/npc/hero_afraid.jpg",
+    "sad": "assets/img/npc/hero_sad.jpg"
+  },
   "stats": {
     "STR": 9,
     "CON": 11,

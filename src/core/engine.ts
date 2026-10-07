@@ -61,6 +61,7 @@ import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, firstInkKnot, type DialogueUI, type DialogueHistoryEntry } from './dialogue'
 import { skillLabel } from '../shared/skills'
 import { playUi, playInteraction, stopSound } from '../shared/audio'
+import { stopVoiceAudio } from '../shared/voiceAudio'
 import type { SoundHook } from '../shared/types'
 import { migrateNeedCondition } from '../shared/migrate'
 import { CombatController } from './combat'
@@ -433,6 +434,8 @@ export class GameEngine {
   playCutscene(id: string): void {
     const def = this.campaign.cutscenes?.[id]
     if (!def || !def.slides?.length) return
+    if (this.cutsceneQueue.some((c) => c.def.id === id)) return
+    stopVoiceAudio()
     this.cutsceneQueue.push({ def, serial: ++this.cutsceneSerial })
     this.pushLog(`Катсцена: «${def.label}»`)
     this.notify()
@@ -441,6 +444,7 @@ export class GameEngine {
   /** катсцена досмотрена или пропущена */
   endCutscene(): void {
     if (!this.cutsceneQueue.length) return
+    stopVoiceAudio()
     this.cutsceneQueue.shift()
     if (!this.cutsceneQueue.length) {
       this.checkRules()
@@ -2601,6 +2605,7 @@ export class GameEngine {
   goToScene(sceneId: string, costTicks = 0): void {
     const scene = this.campaign.scenes[sceneId]
     if (!scene) return
+    stopVoiceAudio()
     if (costTicks > 0) this.advanceTicks(costTicks)
     if (this.state.game_over) return this.notify()
     playInteraction('travel') // «переход по зоне» (H3); тема — ui_sounds travel/scene_transition
@@ -3595,6 +3600,7 @@ export class GameEngine {
   }
 
   startDialogue(entityId: string, knot?: string): void {
+    stopVoiceAudio()
     let npc = this.campaign.entities[entityId] as NpcDef | undefined
     if (!npc || npc.type !== 'npc') {
       npc = Object.values(this.campaign.entities).find((e): e is NpcDef => e.type === 'npc' && (e.dialogue === entityId || e.dialogue === `${entityId}.ink`))
@@ -3730,6 +3736,7 @@ export class GameEngine {
   }
 
   endDialogue(): void {
+    stopVoiceAudio()
     this.dialogueTimer = null
     this.pendingDialoguePresenting = null
     this.dialogue = null

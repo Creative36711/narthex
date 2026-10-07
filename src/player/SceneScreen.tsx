@@ -6,6 +6,7 @@ import { ArtView } from '../shared/ArtView'
 import { firstFrame, LiveImg } from './frames'
 import { AtmosphereLayer, useCameraStyle } from './Atmosphere'
 import { playInteraction } from '../shared/audio'
+import { playVoiceAudio, stopVoiceAudio } from '../shared/voiceAudio'
 import { useSettings, voiceVolume } from '../shared/settings'
 import { Ico } from '../shared/icons'
 import { getUiLabel, type ItemDef, type NarrativeIntroEntry, type SceneStateDef, type SlotDef, type SlotUseWith } from '../shared/types'
@@ -66,17 +67,25 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
       : { kind: 'fallback' }
 
   // ── Вводное повествование от третьего лица (стиль Tiny Bunny / новелла) ──
+  // Если идёт катсцена, диалог или бой — нарративное интро сцены ждёт их завершения
   const [narrativeStep, setNarrativeStep] = useState<number | null>(() => {
-    return scene && engine.shouldShowNarrativeIntro(scene) ? 0 : null
+    return scene && engine.shouldShowNarrativeIntro(scene) && !engine.cutscene && !engine.dialogue && !engine.combat
+      ? 0
+      : null
   })
 
   useEffect(() => {
+    if (engine.cutscene || engine.dialogue || engine.combat) {
+      setNarrativeStep(null)
+      stopVoiceAudio()
+      return
+    }
     if (scene && engine.shouldShowNarrativeIntro(scene)) {
       setNarrativeStep(0)
     } else {
       setNarrativeStep(null)
     }
-  }, [sceneId, engine])
+  }, [sceneId, engine, engine.cutscene, engine.dialogue, engine.combat])
 
   const introList = useMemo<NarrativeIntroEntry[]>(() => scene?.narrative_intro ?? [], [scene?.narrative_intro])
   const currentIntro = narrativeStep != null ? introList[narrativeStep] : null
@@ -85,21 +94,12 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
     return typeof currentIntro === 'string' ? { text: currentIntro } : currentIntro
   }, [currentIntro])
 
-  const introAudioRef = useRef<HTMLAudioElement | null>(null)
   const settings = useSettings()
 
-  const stopIntroAudio = useCallback(() => {
-    if (introAudioRef.current) {
-      introAudioRef.current.pause()
-      introAudioRef.current.currentTime = 0
-      introAudioRef.current = null
-    }
-  }, [])
-
-  // Звук и озвучка текущей реплики нарратива
+  // Звук и озвучка текущей реплики нарратива через глобальный Voice Coordinator
   useEffect(() => {
-    stopIntroAudio()
-    if (!currentIntroItem) return
+    stopVoiceAudio()
+    if (!currentIntroItem || engine.cutscene || engine.dialogue || engine.combat) return
 
     if (currentIntroItem.sfx) {
       playInteraction(currentIntroItem.sfx, { sound: currentIntroItem.sfx })
@@ -107,14 +107,22 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
 
     const vol = voiceVolume(settings)
     if (currentIntroItem.voice && vol > 0) {
-      const a = new Audio(assetUrl(engine.campaign, currentIntroItem.voice))
-      a.volume = vol
-      void a.play().catch(() => {})
-      introAudioRef.current = a
+      playVoiceAudio(assetUrl(engine.campaign, currentIntroItem.voice), {
+        volume: vol,
+      })
     }
 
-    return () => stopIntroAudio()
-  }, [currentIntroItem, engine, settings, stopIntroAudio])
+    return () => {
+      stopVoiceAudio()
+    }
+  }, [currentIntroItem, engine, settings, engine.cutscene, engine.dialogue, engine.combat])
+
+  // глушим голос при уходе со сцены
+  useEffect(() => {
+    return () => {
+      stopVoiceAudio()
+    }
+  }, [])
 
   const advanceNarrative = useCallback(() => {
     if (narrativeStep == null || !scene) return
@@ -122,29 +130,29 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
     if (next < introList.length) {
       setNarrativeStep(next)
     } else {
-      stopIntroAudio()
+      stopVoiceAudio()
       engine.markNarrativeIntroSeen(scene.id)
       setNarrativeStep(null)
     }
-  }, [narrativeStep, scene, introList.length, stopIntroAudio, engine])
+  }, [narrativeStep, scene, introList.length, engine])
 
   // Перелистывание нарратива по Space / Enter / Escape
   useEffect(() => {
     if (narrativeStep == null || !scene?.narrative_intro) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === ' ' || e.key === 'Enter') {
+      if (e.key === ' ' || e.code === 'Space' || e.key === 'Enter') {
         e.preventDefault()
         advanceNarrative()
       } else if (e.key === 'Escape') {
         e.preventDefault()
-        stopIntroAudio()
+        stopVoiceAudio()
         engine.markNarrativeIntroSeen(scene.id)
         setNarrativeStep(null)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [narrativeStep, scene, advanceNarrative, stopIntroAudio, engine])
+  }, [narrativeStep, scene, advanceNarrative, engine])
 
   // Подсветка хотспотов по зажатию Tab
   useEffect(() => {

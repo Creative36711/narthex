@@ -1,30 +1,50 @@
 {
- "id": "item_tonic",
- "type": "item",
- "category": "medicine",
- "label": "Травяной настой",
- "description": "Мутная бутылка Айлы. Голова после неё работает как отлаженный привод — недолго, но точно.",
- "weight": 0.3,
- "stackable": true,
- "value": {
-  "mark": 20
- },
- "on_use": {
-  "effects": [
-   {
-    "type": "change_hp",
-    "delta": 8
-   },
-   {
-    "type": "apply_status",
-    "target": "player",
-    "status": "status_clarity",
-    "duration": 10
-   }
-  ],
-  "consume": true
- },
- "sounds": {
-  "use": "sfx_glass"
- }
+  "id": "item_tonic",
+  "type": "item",
+  "category": "medicine",
+  "label": "Травяной настой",
+  "description": "Мутная бутылка Айлы. Голова после неё работает как отлаженный привод — недолго, но точно.",
+  "weight": 0.3,
+  "stackable": true,
+  "value": {
+    "mark": 20
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_hp",
+        "delta": 8
+      },
+      {
+        "type": "apply_status",
+        "target": "player",
+        "status": "status_clarity",
+        "duration": 10
+      }
+    ],
+    "consume": true
+  },
+  "sounds": {
+    "pickup": "sfx_glass",
+    "use": "sfx_flask"
+  },
+  "image": "assets/img/items/item_tonic.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_tonic.jpg"
+  },
+  "interact_hint": "Посмотреть склянку на свет",
+  "interact_options": [
+    {
+      "label": "Посмотреть склянку на свет",
+      "hint": "травяной настой сестры Айлы (+8 здоровья и ясность ума)",
+      "sound": "sfx_glass",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Тёмно-янтарный настой в толстом аптечном стекле под сургучной пробкой. Пахнет полынью, сухим мхом и спиртом — проясняет голову даже после смены у забоя."
+        }
+      ]
+    }
+  ]
 }

@@ -31,25 +31,7 @@
   "slot_type": "person",
   "faction": "faction_bottom",
   "base_disposition": -5,
-  "schedule": [
-    {
-      "time_range": [
-        12,
-        23
-      ],
-      "location": "loc_ward8",
-      "scene": "scene_dry_row",
-      "slot": "slot_zhuk"
-    }
-  ],
-  "presence_overrides": [
-    {
-      "flag": "zhuk_at_gate",
-      "location": "loc_gate",
-      "scene": "scene_gate_hall",
-      "slot": "slot_guest"
-    }
-  ],
+  "schedule": [],
   "dialogue": "dialogues/zhuk.ink",
   "inventory": [
     {

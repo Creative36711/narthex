@@ -31,6 +31,10 @@
       "label": "Прочитать дело №136",
       "effects": [
         {
+          "type": "set_flag",
+          "flag": "case136_read"
+        },
+        {
           "type": "unlock_codex",
           "entry": "codex_case136"
         },

@@ -108,7 +108,8 @@
          "line": {
           "text": "Ты кладёшь ладонь на камень. Он тёплый и отвечает на пульс.",
           "action": true,
-          "sfx": "sfx_hum"
+          "sfx": "sfx_hum",
+          "voice": "assets/voice/narr_vein_2.mp3"
          }
         },
         {
@@ -133,6 +134,13 @@
           "type": "apply_status",
           "status": "status_veinsong",
           "duration": 24
+         }
+        },
+        {
+         "kind": "effect",
+         "effect": {
+          "type": "clear_flag",
+          "flag": "vein_braced"
          }
         },
         {
@@ -175,7 +183,8 @@
        "line": {
         "text": "Молчание длится, пока не закладывает уши.",
         "action": true,
-        "sfx": "sfx_hum"
+        "sfx": "sfx_hum",
+        "voice": "assets/voice/narr_vein_3.mp3"
        }
       },
       {

@@ -93,7 +93,7 @@
      "goto": "stay"
     },
     {
-     "text": "Ищу Жука.",
+     "text": "Кто там сидит у жаровни?",
      "sections": [
       {
        "steps": [
@@ -195,7 +195,8 @@
        ]
       }
      ],
-     "goto": "stay"
+     "goto": "stay",
+     "once": true
     },
     {
      "text": "Почему у тебя всё дороже, чем наверху?",
@@ -244,7 +245,8 @@
        "kind": "line",
        "line": {
         "text": "Дож спокойно ждёт: он умеет торговать и молча.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_dozh_2.mp3"
        }
       },
       {
@@ -271,7 +273,8 @@
        "line": {
         "text": "Дож вертит вещь двумя пальцами, прищурившись.",
         "action": true,
-        "sfx": "snd_latch"
+        "sfx": "snd_latch",
+        "voice": "assets/voice/narr_dozh_3.mp3"
        }
       },
       {
@@ -306,7 +309,8 @@
        "kind": "line",
        "line": {
         "text": "Дож разводит руками: пусто.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_dozh_4.mp3"
        }
       },
       {

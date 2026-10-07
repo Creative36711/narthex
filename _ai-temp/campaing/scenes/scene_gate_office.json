@@ -9,6 +9,16 @@
   "chapter": "ch_arrival",
   "states": [
     {
+      "id": "state_pinned",
+      "label": "Дело №137 сшито",
+      "condition": {
+        "flag": "case_full"
+      },
+      "image": "assets/img/scenes/scene_gate_office_pinned.jpg",
+      "sound": "sfx_file",
+      "sound_volume": 0.75
+    },
+    {
       "id": "state_main",
       "label": "Всегда",
       "condition": null,
@@ -140,7 +150,18 @@
   "lighting": "indoor",
   "particles": "dust",
   "narrative_intro": [
-    "В будке пахнет маслом и чужим табаком. Журнал лежит раскрытым, будто из него только что вышли.",
-    "Каждая фамилия в нём — это час, который кто-то провёл внизу. Некоторые часы ещё не кончились."
-  ]
+    {
+      "text": "В будке пахнет маслом и чужим табаком. Журнал лежит раскрытым, будто из него только что вышли.",
+      "sfx": "snd_fire",
+      "voice": "assets/voice/intro_gate_office_1.mp3"
+    },
+    {
+      "text": "Каждая фамилия в нём — это час, который кто-то провёл внизу. Некоторые часы ещё не кончились.",
+      "sfx": "snd_paper",
+      "voice": "assets/voice/intro_gate_office_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Подойти к столу ▶"
 }

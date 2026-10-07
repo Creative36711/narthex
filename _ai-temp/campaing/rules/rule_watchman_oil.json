@@ -23,6 +23,10 @@
   ],
   "effects": [
     {
+      "type": "unlock_codex",
+      "entry": "codex_watchman"
+    },
+    {
       "type": "skill_check_gate",
       "skill": "repair",
       "difficulty": 40,
@@ -42,7 +46,7 @@
         },
         {
           "type": "play_sound",
-          "sound": "snd_chain",
+          "sound": "sfx_oil",
           "volume": 0.8
         },
         {
@@ -64,6 +68,10 @@
         {
           "type": "show_message",
           "text": "Масло уходит в сустав, но привод ещё жив: смотритель разворачивает голову на звук. Прячься."
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_watchman"
         }
       ]
     }

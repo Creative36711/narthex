@@ -90,7 +90,8 @@
        ],
        "goto": "stay"
       }
-     }
+     },
+     "once": true
     },
     {
      "text": "Что такое режим тишины?",
@@ -194,7 +195,8 @@
        ],
        "goto": "stay"
       }
-     }
+     },
+     "once": true
     },
     {
      "text": "Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.",
@@ -202,6 +204,11 @@
       {
        "type": "has_item",
        "item": "item_roster"
+      },
+      {
+       "type": "flag",
+       "flag": "kell_confessed",
+       "not": true
       }
      ],
      "sections": [],
@@ -229,6 +236,11 @@
       {
        "type": "has_item",
        "item": "item_guard_token"
+      },
+      {
+       "type": "flag",
+       "flag": "kell_token",
+       "not": true
       }
      ]
     },
@@ -283,7 +295,8 @@
          "kind": "line",
          "line": {
           "text": "Он берёт рукавицу за манжет, не разворачивая.",
-          "action": true
+          "action": true,
+          "voice": "assets/voice/narr_kell_2.mp3"
          }
         },
         {
@@ -306,7 +319,8 @@
        ]
       }
      ],
-     "goto": "stay"
+     "goto": "stay",
+     "once": true
     }
    ]
   },
@@ -320,7 +334,8 @@
        "kind": "line",
        "line": {
         "text": "Он смотрит на бумагу долго, потом убирает руку с рукояти.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_kell_3.mp3"
        }
       },
       {
@@ -334,7 +349,7 @@
       {
        "kind": "line",
        "line": {
-        "text": "Первую ты уже видел. Я — руки, старшина. Бумагу подписывают не руки.",
+        "text": "Первую подпись ты уже видел. Старшина — это только руки, дознаватель. Бумагу подписывают не руки.",
         "voice": "assets/voice/kell_9.mp3"
        }
       },
@@ -383,14 +398,14 @@
        "line": {
         "text": "Келл смотрит на медь так, будто она горячая, и не берёт.",
         "action": true,
-        "timer": 4,
-        "sfx": "snd_tag"
+        "sfx": "snd_tag",
+        "voice": "assets/voice/narr_kell_4.mp3"
        }
       },
       {
        "kind": "line",
        "line": {
-        "text": "Яров. Я три дня носил его жетон в кармане и так и не зашёл к сестре.",
+        "text": "Яров. Значит, вода сошла у затвора, и ты нашёл его у решётки. Я три дня не смел зайти к его сестре.",
         "emotion": "sad",
         "voice": "assets/voice/kell_5.mp3"
        }
@@ -442,7 +457,8 @@
        "kind": "line",
        "line": {
         "text": "Келл смотрит сначала на вещь, потом на тебя — и без всякого интереса.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_kell_5.mp3"
        }
       },
       {

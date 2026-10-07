@@ -3771,9 +3771,31 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
 .hero-look { display: flex; gap: 14px; align-items: flex-start; }
 .hero-look-preview { position: relative; width: 128px; height: 128px; border: 1px solid var(--border-soft); border-radius: var(--radius); background: var(--panel-2); overflow: hidden; flex: none; }
 .hero-look-picks { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.hero-gallery { display: flex; gap: 8px; flex-wrap: wrap; }
-.hero-gallery-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; width: 96px; }
-.hero-gallery-card img { width: 80px; height: 80px; object-fit: contain; border-radius: 6px; }
+.hero-gallery { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
+.hero-gallery-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 8px 6px;
+  width: 116px;
+  min-width: 108px;
+  box-sizing: border-box;
+  text-align: center;
+  cursor: pointer;
+}
+.hero-gallery-card img { width: 84px; height: 84px; object-fit: contain; border-radius: 6px; flex-shrink: 0; }
+.hero-gallery-card span {
+  width: 100%;
+  display: block;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
 .hero-gallery-card.sel { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--panel-2)); }
 .hero-layer-row { display: flex; flex-direction: column; gap: 4px; }
 .hero-layer-opts { display: flex; gap: 6px; flex-wrap: wrap; }

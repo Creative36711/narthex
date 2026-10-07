@@ -19,6 +19,10 @@
       "flag": "resh_found"
     },
     {
+      "type": "set_flag",
+      "flag": "final_ready"
+    },
+    {
       "type": "banner",
       "text": "Слепой забой",
       "preset": "глава",

@@ -102,6 +102,7 @@
     "rule_end_vein.json",
     "rule_filter_bank1.json",
     "rule_filter_bank2.json",
+    "rule_filter_exhausted.json",
     "rule_filter_spent.json",
     "rule_final_fight.json",
     "rule_gate_first.json",

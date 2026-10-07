@@ -106,7 +106,8 @@
          "kind": "line",
          "line": {
           "text": "Она наконец поднимает глаза. Улыбка есть, тепла нет.",
-          "action": true
+          "action": true,
+          "voice": "assets/voice/narr_kast_2.mp3"
          }
         },
         {
@@ -149,6 +150,11 @@
       {
        "type": "has_item",
        "item": "item_note"
+      },
+      {
+       "type": "flag",
+       "flag": "kast_note",
+       "not": true
       }
      ]
     },
@@ -168,7 +174,19 @@
        ]
       }
      ],
-     "goto": "stay"
+     "goto": "stay",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "resh_found",
+       "not": true
+      },
+      {
+       "type": "npc_known",
+       "entity": "npc_resh",
+       "known": false
+      }
+     ]
     },
     {
      "text": "Показать сшитое дело.",
@@ -179,7 +197,8 @@
          "kind": "line",
          "line": {
           "text": "Она смотрит на нитку дольше, чем на сами листы.",
-          "action": true
+          "action": true,
+          "voice": "assets/voice/narr_kast_3.mp3"
          }
         },
         {
@@ -205,6 +224,11 @@
       {
        "type": "flag",
        "flag": "case_full"
+      },
+      {
+       "type": "flag",
+       "flag": "kast_case_shown",
+       "not": true
       }
      ]
     },
@@ -258,7 +282,8 @@
        "line": {
         "text": "Она листает книгу быстро, почти не глядя — как человек, который знает, что там написано.",
         "action": true,
-        "sfx": "snd_page"
+        "sfx": "snd_page",
+        "voice": "assets/voice/narr_kast_4.mp3"
        }
       }
      ]
@@ -401,7 +426,8 @@
        "kind": "line",
        "line": {
         "text": "Молчание длится ровно столько, сколько нужно, чтобы его записали.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_kast_5.mp3"
        }
       },
       {
@@ -442,7 +468,7 @@
        "line": {
         "text": "Каст читает, не беря бумагу в руки: только глазами по строчке, туда и обратно.",
         "action": true,
-        "timer": 4
+        "voice": "assets/voice/narr_kast_6.mp3"
        }
       },
       {
@@ -508,7 +534,8 @@
        "kind": "line",
        "line": {
         "text": "Она даже не поднимает глаз.",
-        "action": true
+        "action": true,
+        "voice": "assets/voice/narr_kast_7.mp3"
        }
       },
       {

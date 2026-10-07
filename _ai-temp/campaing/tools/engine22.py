@@ -115,10 +115,7 @@ def main():
             continue
         conds = r.get('conditions', [])
         ctypes = {c.get('type') for c in conds}
-        has_intro_cutscene = any(ef.get('type') == 'play_cutscene' for ef in r.get('effects', []))
-        if r.get('id') == 'rule_intro' or (has_intro_cutscene and any(c.get('type') == 'tick_elapsed' and c.get('min_tick', 0) == 0 for c in conds)):
-            trig = 'always'
-        elif 'player_enters_scene' in ctypes and 'tick_elapsed' not in ctypes:
+        if 'player_enters_scene' in ctypes and 'tick_elapsed' not in ctypes:
             trig = 'enter_scene'
         elif ctypes == {'tick_elapsed'} or (
             'tick_elapsed' in ctypes and 'player_enters_scene' not in ctypes

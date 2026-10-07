@@ -15,6 +15,13 @@
     {
       "type": "flag_not_set",
       "flag": "watchman_past"
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "has_item",
+        "item": "item_oil"
+      }
     }
   ],
   "effects": [

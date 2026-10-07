@@ -1,7 +1,7 @@
 {
   "id": "rule_filter_spent",
   "label": "Дыхатель: банок нет",
-  "once": true,
+  "once": false,
   "manual": false,
   "conditions": [
     {
@@ -14,7 +14,7 @@
     },
     {
       "type": "flag_set",
-      "flag": "filter_bank_2"
+      "flag": "filter_exhausted"
     },
     {
       "type": "not",
@@ -42,5 +42,5 @@
     }
   ],
   "chapter": "ch_deep",
-  "trigger": "always"
+  "trigger": "enter_scene"
 }

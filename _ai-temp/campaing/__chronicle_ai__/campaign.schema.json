@@ -625,6 +625,19 @@
             },
             "flag": {
               "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
             }
           },
           "required": [
@@ -6670,6 +6683,31 @@
       "additionalProperties": false,
       "description": "Зона перехода на сцене (итерация 8, А6): только ВНУТРИ локации —\nв другую сцену или «открыть карту» (это и есть выход из локации).\nСтарые `go_to_location` мигрируются при загрузке (shared/migrate.ts)."
     },
+    "NarrativeIntroEntry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "voice": {
+              "type": "string"
+            },
+            "sfx": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
     "SceneDef": {
       "type": "object",
       "properties": {
@@ -6765,9 +6803,21 @@
         "narrative_intro": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/NarrativeIntroEntry"
           },
-          "description": "вводное атмосферное повествование от автора (мысли/описание при первом входе)"
+          "description": "вводное атмосферное повествование от автора (мысли/описание при входе)"
+        },
+        "narrative_intro_once": {
+          "type": "boolean",
+          "description": "показывать вводное повествование только один раз за забег (по умолчанию true)"
+        },
+        "narrative_intro_next_label": {
+          "type": "string",
+          "description": "переопределение текста кнопки «Далее»"
+        },
+        "narrative_intro_done_label": {
+          "type": "string",
+          "description": "переопределение текста кнопки «Завершить / Осмотреться»"
         },
         "chapter": {
           "type": "string",
@@ -8483,6 +8533,35 @@
             },
             "flag": {
               "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "clear_flag"
+            },
+            "flag": {
+              "type": "string"
             }
           },
           "required": [
@@ -8576,25 +8655,6 @@
           "required": [
             "type",
             "npc"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "const": "learn_name"
-            },
-            "entity": {
-              "type": "string"
-            },
-            "silent": {
-              "type": "boolean"
-            }
-          },
-          "required": [
-            "type",
-            "entity"
           ],
           "additionalProperties": false
         },
@@ -8876,6 +8936,25 @@
             "type",
             "ok",
             "fail"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "learn_name"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "silent": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
           ],
           "additionalProperties": false
         },
