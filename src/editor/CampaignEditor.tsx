@@ -336,7 +336,7 @@ function DiceRulesEditor({
     !value.fumble_low_skill
   return (
     <div className="props-group">
-      <h4>Правила бросков (d100)</h4>
+      <h4>Правила бросков</h4>
       <div className="muted small" style={{ marginBottom: 8 }}>
         Пороги успеха и провала для проверок навыков. Показываются игроку в справке,
         поэтому менять их стоит до начала забега.
@@ -1052,8 +1052,8 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
         </div>
 
         <div className="fld-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: 8 }}>
-          <label className="fld" data-tip="Размер основного текста, описаний сцен и предметов (px, умолчание 15)">
-            <span>Основной текст (px)</span>
+          <label className="fld" data-tip="Размер основного текста, описаний сцен и предметов (в пикселях, по умолчанию 15)">
+            <span>Основной текст</span>
             <input
               type="number"
               min={11}
@@ -1070,8 +1070,8 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
               }}
             />
           </label>
-          <label className="fld" data-tip="Размер реплик и вариантов ответов в диалогах (px, умолчание 16)">
-            <span>Диалоги (px)</span>
+          <label className="fld" data-tip="Размер реплик и вариантов ответов в диалогах (в пикселях, по умолчанию 16)">
+            <span>Диалоги</span>
             <input
               type="number"
               min={12}
@@ -1088,8 +1088,8 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
               }}
             />
           </label>
-          <label className="fld" data-tip="Базовый размер заголовков локаций, сцен, панелей (px, умолчание 20)">
-            <span>Заголовки (px)</span>
+          <label className="fld" data-tip="Базовый размер заголовков локаций, сцен, панелей (в пикселях, по умолчанию 20)">
+            <span>Заголовки</span>
             <input
               type="number"
               min={14}
@@ -1106,8 +1106,8 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
               }}
             />
           </label>
-          <label className="fld" data-tip="Размер кнопок, списков и элементов интерфейса (px, умолчание 13)">
-            <span>Кнопки и интерфейс (px)</span>
+          <label className="fld" data-tip="Размер кнопок, списков и элементов интерфейса (в пикселях, по умолчанию 13)">
+            <span>Кнопки и интерфейс</span>
             <input
               type="number"
               min={10}
@@ -1334,7 +1334,7 @@ function AttributionEditor({ m, commit, store }: { m: CampaignMeta; commit: () =
           <input value={a.author ?? ''} onChange={(e) => upd({ author: e.target.value || undefined })} />
         </label>
         <label className="fld" data-tip="Каноническая копия — репозиторий мастера; история коммитов доказывает первую публикацию">
-          <span>Канонический адрес (GitHub)</span>
+          <span>Канонический адрес репозитория</span>
           <input value={a.origin_url ?? ''} placeholder="https://github.com/автор/кампания" onChange={(e) => upd({ origin_url: e.target.value || undefined })} />
         </label>
       </div>
@@ -1785,7 +1785,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <ChaptersEditor m={m} commit={commit} />
 
       <div className="props-group">
-        <h4>Серия и части (DLC)</h4>
+        <h4>Серия и дополнения</h4>
         <div className="fld-row">
           <label className="fld" data-tip="id базовой кампании (без него — эта кампания основная часть)">
             <span>Продолжает кампанию</span>
@@ -1876,16 +1876,18 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <div className="props-group">
         <h4>Отдых и удача</h4>
         <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-          <DiceNotationInput
-            label="Лечение HP за сон"
-            tip="Кости лечения HP за отдых/сон (по умолчанию 1d3)"
-            value={m.rest?.hp ?? '1d3'}
-            onChange={(v) => {
-              const r = { ...(m.rest ?? {}), hp: v || '1d3' }
-              m.rest = r
-              commit()
-            }}
-          />
+          <label className="fld" data-tip="Кости лечения HP за сон; «0» — сон не лечит">
+            <span>Лечение за сон</span>
+            <input
+              value={m.rest?.hp ?? '1d3'}
+              placeholder="1d3"
+              onChange={(e) => {
+                const r = { ...(m.rest ?? {}), hp: e.target.value || '1d3' }
+                m.rest = r
+                commit()
+              }}
+            />
+          </label>
           <label className="fld fld-check">
             <input
               type="checkbox"
@@ -2812,9 +2814,9 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             )}
             {(() => {
               const { fixedNum, statKey, mult } = parseSkillBase(sk.base)
-              const availableStats = Object.keys(BUILTIN_STAT_LABELS).map((id) => ({
+              const availableStats = Object.entries(BUILTIN_STAT_LABELS).map(([id, label]) => ({
                 id,
-                label: id,
+                label: `${id} (${label})`,
               }))
               return (
                 <>
@@ -3114,11 +3116,11 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                     <option value={w.overlay}>{w.overlay} (вне реестра)</option>
                   )}
                   <option value="none">Без слоя</option>
-                  <optgroup label="Встроенные движком">
-                    <option value="rain">Дождь (встроенный)</option>
-                    <option value="snow">Снег (встроенный)</option>
-                    <option value="fog">Туман (встроенный)</option>
-                    <option value="ash">Пепел (встроенный)</option>
+                  <optgroup label="Встроенные эффекты">
+                    <option value="rain">Дождь</option>
+                    <option value="snow">Снег</option>
+                    <option value="fog">Туман</option>
+                    <option value="ash">Пепел</option>
                   </optgroup>
                   <optgroup label="Слои кампании (реестр выше)">
                     {(m.overlay_layers ?? []).map((l) => (

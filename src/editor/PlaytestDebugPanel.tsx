@@ -18,6 +18,33 @@ const STAT_LABELS: Record<string, string> = {
   CHA: 'Обаяние',
 }
 
+const EMOTION_RU: Record<string, string> = {
+  neutral: 'Обычный',
+  angry: 'Гнев',
+  happy: 'Радость',
+  sad: 'Грусть',
+  fear: 'Страх',
+  scared: 'Испуг',
+  surprise: 'Удивление',
+  shock: 'Шок',
+  wounded: 'Ранен',
+  hurt: 'Боль',
+  tired: 'Усталость',
+  down: 'Без сознания',
+  dead: 'Мёртв',
+  thinking: 'Раздумье',
+  smile: 'Улыбка',
+  disgust: 'Отвращение',
+}
+
+function getEmotionRuLabel(engine: GameEngine, key: string): string {
+  if (!key) return 'Обычный'
+  const fromMeta = engine.campaign.meta.emotions?.find((e) => e.id === key)?.label
+  if (fromMeta) return fromMeta
+  if (EMOTION_RU[key.toLowerCase()]) return EMOTION_RU[key.toLowerCase()]
+  return key
+}
+
 function contentFlags(value: unknown, out = new Set<string>()): Set<string> {
   if (Array.isArray(value)) value.forEach((v) => contentFlags(v, out))
   else if (value && typeof value === 'object') for (const [key, v] of Object.entries(value)) {
@@ -189,9 +216,10 @@ export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }:
         if (!it) return null
         const desc = engine.descOf(item)
         const cat = it.type === 'item' ? (it as ItemDef).category : undefined
+        const catLabel = cat ? (engine.campaign.meta.item_categories?.find((c) => c.id === cat)?.label ?? cat) : null
         return (
           <div className="pt-debug-item-card small" style={{ marginTop: 6, padding: '6px 8px', background: 'var(--cf-card-bg, rgba(0,0,0,0.2))', borderRadius: 4 }}>
-            <div><b>{it.label}</b> {cat ? <span className="muted">({cat})</span> : null} · в сумке: {engine.itemCount(item)} шт.</div>
+            <div><b>{it.label}</b> {catLabel ? <span className="muted">· {catLabel}</span> : null} · в сумке: {engine.itemCount(item)} шт.</div>
             {desc ? (
               <div style={{ marginTop: 4, color: 'var(--text-main, #e0e0e0)' }}>{desc}</div>
             ) : (
@@ -230,7 +258,7 @@ export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }:
                   <span style={{ fontWeight: 600, color: isSelected ? 'var(--gold-bright, #ffd700)' : 'inherit' }}>
                     {entity.label} {isSelected && <small style={{ fontWeight: 'normal', opacity: 0.8 }}>(выбрано)</small>}
                   </span>
-                  <span className="muted">{entity.type === 'npc' ? 'Персонаж' : 'Предмет'} ({slot.id})</span>
+                  <span className="muted">{entity.type === 'npc' ? 'Персонаж' : 'Предмет'}{slot.label ? ` · ${slot.label}` : ''}</span>
                 </div>
                 {desc ? (
                   <div style={{ marginTop: 6, color: 'var(--text-main, #f0f0f0)', lineHeight: 1.45, whiteSpace: 'pre-line' }}>{desc}</div>
@@ -251,10 +279,14 @@ export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }:
                         <span className="muted">Облик:</span>
                         <select
                           value={curState}
-                          onChange={(e) => mutate(() => engine.applyEffects([{ type: 'set_entity_state', entity: entity.id, state: e.target.value }]), `Облик ${entity.label}: ${e.target.value || 'обычный'}`)}
+                          onChange={(e) => mutate(() => engine.applyEffects([{ type: 'set_entity_state', entity: entity.id, state: e.target.value }]), `Облик ${entity.label}: ${getEmotionRuLabel(engine, e.target.value)}`)}
                         >
-                          <option value="">обычный</option>
-                          {stateKeys.map((k) => <option key={k} value={k}>{k}</option>)}
+                          <option value="">Обычный</option>
+                          {stateKeys.map((k) => (
+                            <option key={k} value={k}>
+                              {getEmotionRuLabel(engine, k)}
+                            </option>
+                          ))}
                         </select>
                       </label>
                     )}

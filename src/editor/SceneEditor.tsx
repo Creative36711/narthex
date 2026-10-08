@@ -447,14 +447,14 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
           }}
         >
           <option value="none">Без частиц</option>
-          <option value="dust">Пылинки в воздухе (dust)</option>
-          <option value="steam">Клубы пара и дыма (steam)</option>
-          <option value="sparks">Искры (sparks)</option>
-          <option value="embers">Тлеющие угли (embers)</option>
-          <option value="rain">Дождь (rain)</option>
-          <option value="snow">Снег (snow)</option>
-          <option value="fog">Туман (fog)</option>
-          <option value="ash">Пепел (ash)</option>
+          <option value="dust">Пылинки в воздухе</option>
+          <option value="steam">Клубы пара и дыма</option>
+          <option value="sparks">Искры</option>
+          <option value="embers">Тлеющие угли</option>
+          <option value="rain">Дождь</option>
+          <option value="snow">Снег</option>
+          <option value="fog">Туман</option>
+          <option value="ash">Пепел</option>
         </select>
       </label>
       <details className="spoiler-block" open={Boolean(scene.narrative_intro?.length)}>
@@ -563,16 +563,16 @@ function StateBackground({
         />
         {state.art && (
           <div className="muted small" style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-            <span>Есть скрытый векторный ArtDoc (изображение в приоритете).</span>
+            <span>Есть скрытый векторный рисунок (изображение в приоритете).</span>
             <button
               className="btn btn-small ce-del"
               onClick={() => {
                 delete state.art
                 commit()
               }}
-              data-tip="Удалить неиспользуемый векторный ArtDoc из файла сцены"
+              data-tip="Удалить неиспользуемый векторный рисунок из файла сцены"
             >
-              Удалить ArtDoc
+              Удалить векторный рисунок
             </button>
           </div>
         )}
@@ -582,7 +582,7 @@ function StateBackground({
   if (state.art) {
     return (
       <div className="fld fld-block">
-        <span>Фон сцены — векторная картинка (ArtDoc)</span>
+        <span>Фон сцены — векторный рисунок</span>
         <ArtView className="art-preview" art={state.art} />
         <div className="art-preview-tools">
           <button
@@ -601,7 +601,7 @@ function StateBackground({
         </div>
         {editJson && (
           <JsonField
-            label="ArtDoc (слои примитивов)"
+            label="Слои векторного рисунка"
             rows={14}
             pretty
             value={state.art}
@@ -630,14 +630,14 @@ function StateBackground({
       <div className="art-preview-tools">
         <button
           className="btn btn-small"
-          data-tip="Нарисовать фон примитивами (формат ArtDoc) — удобно для генерации"
+          data-tip="Нарисовать фон векторными примитивами — удобно для прототипирования"
           onClick={() => {
             state.art = { canvas: { w: 1280, h: 720 }, background: '#20242c', layers: [] }
             delete state.image
             commit()
           }}
         >
-          <Ico n="palette" />  Сделать векторным (ArtDoc)
+          <Ico n="palette" />  Сделать векторным рисунком
         </button>
       </div>
       <div className="muted small">
@@ -853,8 +853,85 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
         </button>
       </div>
       <SceneConditionEditor value={slot.condition} store={store} onChange={(v) => ((slot.condition = v), commit())} />
-      <div className="muted small">
-        Положение: x {slot.x} · y {slot.y} · размер {slot.w}×{slot.h}
+      <RectCoordsEditor rect={slot} onChange={commit} label="Положение и размер слота" />
+    </div>
+  )
+}
+
+function RectCoordsEditor({
+  rect,
+  onChange,
+  label = 'Положение и размер на сцене',
+}: {
+  rect: { x: number; y: number; w: number; h: number }
+  onChange: () => void
+  label?: string
+}) {
+  return (
+    <div className="fld fld-block" style={{ marginTop: 8 }}>
+      <span style={{ fontWeight: 600, fontSize: 12 }}>{label}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', marginTop: 4 }}>
+        <label className="fld fld-inline" style={{ margin: 0 }}>
+          <span style={{ minWidth: 20 }}>X</span>
+          <input
+            type="number"
+            value={Math.round(rect.x)}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (Number.isFinite(v)) {
+                rect.x = Math.round(v)
+                onChange()
+              }
+            }}
+          />
+        </label>
+        <label className="fld fld-inline" style={{ margin: 0 }}>
+          <span style={{ minWidth: 20 }}>Y</span>
+          <input
+            type="number"
+            value={Math.round(rect.y)}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (Number.isFinite(v)) {
+                rect.y = Math.round(v)
+                onChange()
+              }
+            }}
+          />
+        </label>
+        <label className="fld fld-inline" style={{ margin: 0 }}>
+          <span style={{ minWidth: 20 }}>Ширина</span>
+          <input
+            type="number"
+            min={1}
+            value={Math.round(rect.w)}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (Number.isFinite(v) && v > 0) {
+                rect.w = Math.round(v)
+                onChange()
+              }
+            }}
+          />
+        </label>
+        <label className="fld fld-inline" style={{ margin: 0 }}>
+          <span style={{ minWidth: 20 }}>Высота</span>
+          <input
+            type="number"
+            min={1}
+            value={Math.round(rect.h)}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (Number.isFinite(v) && v > 0) {
+                rect.h = Math.round(v)
+                onChange()
+              }
+            }}
+          />
+        </label>
+      </div>
+      <div className="muted small" style={{ marginTop: 4 }}>
+        Положение: x {Math.round(rect.x)} · y {Math.round(rect.y)} · размер {Math.round(rect.w)}×{Math.round(rect.h)}
       </div>
     </div>
   )
@@ -1034,6 +1111,7 @@ function NavProps({
           />
         </div>
       </div>
+      <RectCoordsEditor rect={nav.area} onChange={commit} label="Положение и размер зоны перехода" />
     </div>
   )
 }

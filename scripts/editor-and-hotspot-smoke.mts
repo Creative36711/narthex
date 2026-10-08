@@ -48,4 +48,11 @@ assert.ok(settingsTs.includes('camera_parallax'), 'settings.ts содержит 
 const settingsPanel = readFileSync('src/shared/SettingsPanel.tsx', 'utf8')
 assert.ok(settingsPanel.includes('camera_parallax'), 'SettingsPanel содержит тумблер камеры сцены')
 
-console.log('✓ Все проверки хотспотов окружения, спрайтов, превью редактора и синхронной камеры пройдены успешно!')
+// 6. Проверка ручного ввода координат и отсутствия английского в частицах/обликах
+assert.ok(sceneEd.includes('RectCoordsEditor'), 'SceneEditor содержит компонент RectCoordsEditor для ручного ввода X, Y, W, H')
+assert.ok(!sceneEd.includes('Пылинки в воздухе (dust)'), 'В опциях частиц нет английского в скобках (dust)')
+assert.ok(!sceneEd.includes('Клубы пара и дыма (steam)'), 'В опциях частиц нет английского в скобках (steam)')
+const ptDebug = readFileSync('src/editor/PlaytestDebugPanel.tsx', 'utf8')
+assert.ok(ptDebug.includes('getEmotionRuLabel'), 'PlaytestDebugPanel переводит облики сущностей на русский язык')
+
+console.log('✓ Все проверки хотспотов окружения, спрайтов, превью редактора, синхронной камеры, ручных координат и локализации пройдены успешно!')
