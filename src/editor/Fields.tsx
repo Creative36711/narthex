@@ -1,5 +1,5 @@
 import { Ico } from '../shared/icons'
-import { useId, useState } from 'react'
+import { useId, useState, useEffect } from 'react'
 import { FlagAutocomplete } from './FlagAutocomplete'
 import type { Condition, Effect, ImageValue, NpcDef } from '../shared/types'
 import { framesOf } from '../player/frames'
@@ -612,6 +612,20 @@ export function AssetUpload({
   const [url, setUrl] = useState('')
   const [check, setCheck] = useState<UrlCheck | null>(null)
   const [checking, setChecking] = useState(false)
+  const [zoomed, setZoomed] = useState(false)
+
+  useEffect(() => {
+    if (!zoomed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setZoomed(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoomed])
+
   const accept =
     kind === 'audio'
       ? 'audio/*'
@@ -662,7 +676,14 @@ export function AssetUpload({
               <div className="asset-font-filename">{value.split('/').pop() || value}</div>
             </div>
           ) : (
-            <img className="img-upload-preview" src={assetSrc(store, value)} alt="" />
+            <div
+              className="img-upload-preview-wrap"
+              onClick={() => setZoomed(true)}
+              data-tip="Кликните, чтобы развернуть изображение"
+            >
+              <img className="img-upload-preview" src={assetSrc(store, value)} alt="" />
+              <span className="img-upload-zoom-icon" aria-hidden><Ico n="search" /></span>
+            </div>
           )
         ) : (
           <div className="img-upload-empty">нет файла</div>
@@ -687,6 +708,25 @@ export function AssetUpload({
           )}
         </div>
       </div>
+      {zoomed && value && (
+        <div className="img-lightbox-overlay" onClick={() => setZoomed(false)}>
+          <div className="img-lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <div className="img-lightbox-header">
+              <span className="img-lightbox-title">{value}</span>
+              <button
+                type="button"
+                className="btn btn-small img-lightbox-close"
+                onClick={() => setZoomed(false)}
+              >
+                <Ico n="close" /> Закрыть (Esc)
+              </button>
+            </div>
+            <div className="img-lightbox-body">
+              <img src={assetSrc(store, value)} alt="" className="img-lightbox-img" />
+            </div>
+          </div>
+        </div>
+      )}
       <div className="img-upload-url">
         <input
           type="url"

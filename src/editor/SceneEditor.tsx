@@ -2,7 +2,7 @@ import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Rect, Text, Transformer, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
+import type { ArtDoc, ItemDef, NavigationZone, NpcDef, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
 import { ArtView } from '../shared/ArtView'
 import type { EditorStore } from './store'
 import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, ConditionListEditor, AnimImageEditor, ChapterSelect } from './Fields'
@@ -91,6 +91,59 @@ function useImage(src: string | null): HTMLImageElement | null {
     return () => setImg(null)
   }, [src])
   return img
+}
+
+function SlotEntitySprite({ slot, store, k }: { slot: SlotDef; store: EditorStore; k: number }) {
+  const entityId = slot.default_entity
+  if (!entityId) return null
+  const allEnts = store.entityPaths().map((p) => store.entity(p))
+  const entity = allEnts.find((e) => e?.id === entityId) as (ItemDef | NpcDef | undefined)
+  if (!entity) return null
+
+  const isNpc = entity.type === 'npc'
+  const npc = isNpc ? (entity as NpcDef) : null
+  const item = !isNpc ? (entity as ItemDef) : null
+
+  const stateOfSprite = slot.sprite_state
+  const spriteVal = isNpc
+    ? (stateOfSprite && npc?.scene_sprite_states?.[stateOfSprite]) || npc?.scene_sprite || (npc as any)?.sprite
+    : item?.scene_sprite || (item as any)?.sprite || (item as any)?.image
+
+  const first = spriteVal ? firstFrame(spriteVal) : null
+  const src = first ? store.assetSrc(first) : null
+  return <SlotSpriteImage src={src} slot={slot} k={k} />
+}
+
+function SlotSpriteImage({ src, slot, k }: { src: string | null; slot: SlotDef; k: number }) {
+  const img = useImage(src)
+  if (!img) return null
+
+  const scale = slot.sprite_scale ?? 1
+  const x = slot.x * k
+  const y = slot.y * k
+  const w = slot.w * k
+  const h = slot.h * k
+
+  const natW = img.naturalWidth || 1
+  const natH = img.naturalHeight || 1
+  const imgRatio = natW / natH
+
+  const targetH = h * scale
+  const targetW = targetH * imgRatio
+  const drawX = x + (w - targetW) / 2
+  const drawY = y + (h - targetH)
+
+  return (
+    <KImage
+      image={img}
+      x={drawX}
+      y={drawY}
+      width={targetW}
+      height={targetH}
+      listening={false}
+      opacity={0.92}
+    />
+  )
 }
 
 type Sel = { kind: 'slot'; index: number } | { kind: 'nav'; index: number } | null
@@ -303,6 +356,7 @@ export function SceneEditor({
             ))}
             {scene.slots.map((s, i) => (
               <Group key={`slot${i}`}>
+                <SlotEntitySprite slot={s} store={store} k={k} />
                 <Rect
                   {...rectProps('slot', i, s)}
                   ref={sel?.kind === 'slot' && sel.index === i ? selRef : undefined}

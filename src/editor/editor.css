@@ -629,10 +629,104 @@
 /* ─────────── загрузка изображений ─────────── */
 
 .img-upload-row { display: flex; gap: 12px; align-items: center; }
+.img-upload-preview-wrap {
+  position: relative;
+  width: 120px;
+  height: 72px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--ed-art-line);
+  background: var(--ed-art);
+}
+.img-upload-preview-wrap:hover .img-upload-zoom-icon {
+  opacity: 1;
+}
+.img-upload-preview-wrap .img-upload-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.img-upload-zoom-icon {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.65;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.img-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(6, 8, 12, 0.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.15s ease;
+}
+.img-lightbox-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--ed-panel);
+  border: 1px solid var(--ed-art-line);
+  border-radius: 8px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.img-lightbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--ed-paper-line);
+  background: var(--ed-paper);
+}
+.img-lightbox-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ed-paper-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60vw;
+}
+.img-lightbox-body {
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  background: #0d1117;
+}
+.img-lightbox-img {
+  max-width: 85vw;
+  max-height: 80vh;
+  object-fit: contain;
+  display: block;
+}
 .img-upload-preview {
   width: 120px;
   height: 72px;
-  object-fit: cover;
+  object-fit: contain;
   border: 1px solid var(--ed-art-line);
   border-radius: 6px;
   background: var(--ed-art);

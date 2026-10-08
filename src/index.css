@@ -1558,13 +1558,69 @@ div.scene-bg svg { width: 100%; height: 100%; display: block; }
   opacity: 0.95;
 }
 
-/* предметы без спрайта: никаких рамок и маркеров, только чистая надпись по образцу переходов */
+/* хотспоты окружения: нарисованы на фоне, в покое и при наведении рамка не подсвечивается */
+.slot-hotspot.slot-environmental,
 .slot-hotspot.slot-item-plain {
   border: none !important;
+  border-color: transparent !important;
   background: transparent !important;
   box-shadow: none !important;
   outline: none !important;
 }
+.slot-hotspot.slot-environmental:hover,
+.slot-hotspot.slot-environmental:focus-visible,
+.slot-hotspot.slot-item-plain:hover,
+.slot-hotspot.slot-item-plain:focus-visible {
+  border: none !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* компактная плашка названия по центру слота в стилистике переходов */
+.slot-env-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(14, 18, 26, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text, #e2e8f0);
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 5;
+}
+
+.slot-hotspot.slot-environmental:hover .slot-env-label,
+.slot-hotspot.slot-environmental:focus-visible .slot-env-label {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.02);
+  border-color: var(--gold, #e5a93c);
+  color: var(--gold-bright, #ffd580);
+}
+
+.scene-stage.highlight-hotspots .slot-hotspot.slot-environmental .slot-env-label {
+  opacity: 0.95;
+  border-color: var(--gold, #e5a93c);
+  color: var(--gold-bright, #ffd580);
+}
+
 .slot-hotspot.slot-item-plain .slot-label {
   position: absolute;
   top: 50%;

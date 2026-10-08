@@ -351,9 +351,9 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                         />
                       )
                     }
-                    if (isPlainItem) {
-                      // У предметов без спрайта убираем любые маркеры и глифы,
-                      // оставляем только надпись ровно как у зон навигации/переходов
+                    if (isEnvironmental) {
+                      // У хотспотов окружения и предметов без спрайта убираем любые маркеры и глифы,
+                      // оставляем только аккуратную плашку по центру
                       return null
                     }
                     return (
@@ -363,7 +363,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                     )
                   })()
                 )}
-                <span className="slot-label">{displayLabel}</span>
+                {isEnvironmental ? (
+                  <span className="slot-env-label">{displayLabel}</span>
+                ) : (
+                  <span className="slot-label">{displayLabel}</span>
+                )}
               </button>
             )
           })}
@@ -374,20 +378,25 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             const taken = occupants.some((o) => o.slot.id === slot.id && o.entity)
             return !taken && engine.slotUseOptions(slot).length > 0
           })
-          .map((slot) => (
-            <button
-              key={slot.id}
-              className="slot-hotspot slot-usewith slot-environmental"
-              style={{
-                left: pct(slot.x, canvas.w),
-                top: pct(slot.y, canvas.h),
-                width: pct(slot.w, canvas.w),
-                height: pct(slot.h, canvas.h),
-              }}
-              onClick={() => setUseModal({ slot, options: engine.slotUseOptions(slot) })}
-              data-tip={slot.label ? `Использовать предмет: ${slot.label}` : 'Использовать предмет'}
-            />
-          ))}
+          .map((slot) => {
+            const isEnv = !!slot.environmental
+            return (
+              <button
+                key={slot.id}
+                className={`slot-hotspot slot-usewith${isEnv ? ' slot-environmental' : ''}`}
+                style={{
+                  left: pct(slot.x, canvas.w),
+                  top: pct(slot.y, canvas.h),
+                  width: pct(slot.w, canvas.w),
+                  height: pct(slot.h, canvas.h),
+                }}
+                onClick={() => setUseModal({ slot, options: engine.slotUseOptions(slot) })}
+                data-tip={slot.label ? `Использовать предмет: ${slot.label}` : 'Использовать предмет'}
+              >
+                {isEnv && <span className="slot-env-label">{slot.label || 'Использовать предмет'}</span>}
+              </button>
+            )
+          })}
         </div>
 
         {/* Навигационные зоны сцены («В контору», «На площадь»): не параллаксятся со спрайтами */}
