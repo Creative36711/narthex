@@ -1263,6 +1263,15 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         onClose={() => { setAiWizard(false); setAiTaskReport('') }}
       />}
       {bookOpen && <EditorBookPanel section={section} sectionLabel={navLabelOf(section)} initialFile={bookFile} contextual={bookContextual} onClose={() => setBookOpen(false)} />}
+      {busy && (
+        <div className="editor-busy-overlay" role="dialog" aria-modal="true">
+          <div className="editor-busy-card">
+            <div className="editor-busy-spinner" />
+            <div className="editor-busy-title">{busy}</div>
+            <div className="editor-busy-subtitle">Пожалуйста, подождите: распаковка ресурсов и проверка связей кампании…</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

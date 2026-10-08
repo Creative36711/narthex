@@ -13,7 +13,6 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
   const [catSell, setCatSell] = useState<string>('all')
   const [inspectItem, setInspectItem] = useState<ItemDef | null>(null)
   const currency = engine.campaign.meta.currencies[0]
-  const currencyLabel = currency?.label ?? 'Серебро'
   const currencySymbol = currency?.symbol ?? 'SM'
   const currencyItem = engine.currencyItemId()
   const balance = engine.currencyAmount()
@@ -46,7 +45,7 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
           <button className="btn btn-small" onClick={() => engine.closeTrade()}><Ico n="close" /> </button>
         </div>
         <div className="trade-info">
-          <span>Ваш {currencyLabel.toLowerCase()}: <b className="gold">{balance} {currencySymbol}</b></span>
+          <span>У вас: <b className="gold">{balance} {currencySymbol}</b></span>
           <span className="muted small" data-tip="Зависит от репутации и навыка торговли">
             наценка ×{mod.toFixed(2)}
           </span>

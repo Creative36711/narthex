@@ -1849,6 +1849,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-2);
+  user-select: none;
+  -webkit-user-select: none;
 }
 .cf-profile-gothic-horror .dialogue-box { border-top-color: var(--gold); }
 
@@ -1885,8 +1887,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   font-size: 15px;
 }
 
-.dialogue-content { flex: 1; padding: 16px 20px; display: flex; flex-direction: column; min-height: 260px; }
-.dialogue-lines { flex: 1; overflow-y: auto; max-height: 240px; }
+.dialogue-content { flex: 1; padding: 16px 20px; display: flex; flex-direction: column; min-height: 260px; user-select: none; -webkit-user-select: none; }
+.dialogue-lines { flex: 1; overflow-y: auto; max-height: 240px; user-select: none; -webkit-user-select: none; }
 .dialogue-lines p { margin: 0 0 10px; line-height: 1.6; }
 /* контраст мягкий: прошлые реплики читабельны, текущая лишь немного ярче (фидбек №2) */
 .dialogue-lines p.past { color: var(--muted); font-size: calc(var(--cf-font-size-dialogue, 16px) * 0.95); }
