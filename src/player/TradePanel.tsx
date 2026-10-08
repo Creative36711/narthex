@@ -70,10 +70,12 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
             {buyables.map(({ s, def }) => {
               if (!def) return null
               const price = engine.buyPrice(npc, s.item, s.price)
-              const affordable = balance >= price
+              const stock = engine.traderItemStock(npc.id, s.item)
+              const inStock = stock === undefined || stock > 0
+              const affordable = balance >= price && inStock
               const imgSrc = itemImageSrc(engine, def)
               return (
-                <li key={s.item} className="inv-item">
+                <li key={s.item} className={`inv-item${stock === 0 ? ' item-sold-out' : ''}`}>
                   <div
                     className="inv-item-thumb-box"
                     onClick={() => setInspectItem(def)}
@@ -88,17 +90,24 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
                     )}
                   </div>
                   <div className="inv-item-main" onClick={() => setInspectItem(def)} style={{ cursor: 'pointer' }}>
-                    <b>{def.label}</b>
+                    <div className="inv-item-header">
+                      <b>{def.label}</b>
+                      {stock !== undefined && (
+                        <span className={`stock-tag ${stock > 0 ? 'stock-avail' : 'stock-none'}`}>
+                          {stock > 0 ? `Осталось: ${stock} шт.` : 'Распродано'}
+                        </span>
+                      )}
+                    </div>
                     <div className="muted small">{def.description}</div>
                   </div>
                   <div className="inv-item-side">
                     <span className="gold">{price} {currencySymbol}</span>
                     <button
-                      className="btn btn-small"
+                      className={`btn btn-small ${stock === 0 ? 'btn-disabled' : ''}`}
                       disabled={!affordable}
                       onClick={() => engine.buyItem(s.item, price)}
                     >
-                      Купить
+                      {stock === 0 ? 'Распродано' : 'Купить'}
                     </button>
                   </div>
                 </li>

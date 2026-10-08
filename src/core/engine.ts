@@ -2212,11 +2212,40 @@ export class GameEngine {
     return Math.max(0, Math.floor((base * rate * dynamic) / this.priceModifier(npc)))
   }
 
+  /** текущий остаток товара на складе торговца (undefined — бесконечный запас) */
+  traderItemStock(npcId: string, itemId: string): number | undefined {
+    const npc = this.campaign.entities[npcId] as NpcDef | undefined
+    if (!npc?.trader) return undefined
+    const sellDef = npc.trader.sells.find((s) => s.item === itemId)
+    if (!sellDef || sellDef.stock === undefined) return undefined
+    const traderSaved = this.state.trader_stocks?.[npcId]
+    if (traderSaved && itemId in traderSaved) {
+      return traderSaved[itemId]
+    }
+    return sellDef.stock
+  }
+
   buyItem(itemId: string, price: number): boolean {
     const currencyItem = this.currencyItemId()
     if (this.itemCount(currencyItem) < price) return false
+
+    if (this.trade) {
+      const stock = this.traderItemStock(this.trade.id, itemId)
+      if (stock !== undefined && stock <= 0) return false
+    }
+
     this.removeItem(currencyItem, price, { silent: true })
     this.addItem(itemId, 1, { silent: true })
+
+    if (this.trade) {
+      const stock = this.traderItemStock(this.trade.id, itemId)
+      if (stock !== undefined) {
+        if (!this.state.trader_stocks) this.state.trader_stocks = {}
+        if (!this.state.trader_stocks[this.trade.id]) this.state.trader_stocks[this.trade.id] = {}
+        this.state.trader_stocks[this.trade.id][itemId] = Math.max(0, stock - 1)
+      }
+    }
+
     this.markSkill('bargain')
     playUi('coin')
     this.notify()

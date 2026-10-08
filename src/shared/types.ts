@@ -3027,6 +3027,8 @@ export interface GameState {
   /** активные ценовые события (аудит B7) */
   price_events?: string[]
   party: CompanionState[]
+  /** остатки товаров на складах торговцев: traderId -> itemId -> текущий остаток */
+  trader_stocks?: Record<string, Record<string, number>>
   /**
    * Самочувствие NPC (потребность в отдыхе, аудит §5.6): 0..100, умолчание 50.
    * Каждую новую сутки: персонаж, у которого расписание покрывает ночь,
