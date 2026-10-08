@@ -3799,10 +3799,11 @@ input[type='checkbox'], input[type='radio'] {
     repeating-linear-gradient(26deg, transparent 0px, transparent 12px, rgba(180, 205, 240, 0.42) 12px, rgba(180, 205, 240, 0.42) 13.5px, transparent 13.5px, transparent 20px),
     repeating-linear-gradient(22deg, transparent 0px, transparent 22px, rgba(155, 185, 230, 0.28) 22px, rgba(155, 185, 230, 0.28) 24px, transparent 24px, transparent 34px);
 }
-.weather-overlay.speed-fast { animation-duration: 0.3s !important; }
-.weather-overlay.speed-slow { animation-duration: 1.2s !important; }
-.weather-overlay.density-high { opacity: 1; filter: contrast(1.15); }
+.weather-overlay.speed-fast { animation-duration: 4s; }
+.weather-overlay.speed-slow { animation-duration: 16s; }
+.weather-overlay.density-high { opacity: 1; }
 .weather-overlay.density-low { opacity: 0.45; }
+.atmosphere-cinematic-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
 
 @keyframes weather-rain-fall {
   from { background-position: 0 0, 0 0; }

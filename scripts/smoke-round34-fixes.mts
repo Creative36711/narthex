@@ -112,17 +112,24 @@ if (engine.traderItemStock(trader.id, testItemId) !== stockAfterSell - 1) {
 
 console.log('✓ 3. Выкуп проданных товаров у торговца работает безупречно: товары пополняют склад и выкупаются обратно')
 
-// 4. Проверка Canvas-ливня и кратного увеличения плотности
+// 4. Проверка кинематографичного Canvas для всех типов частиц и независимости от UI
 const atmosphereCode = readFileSync('src/player/Atmosphere.tsx', 'utf-8')
-if (!atmosphereCode.includes('RainCanvasLayer') || !atmosphereCode.includes('atmosphere-rain-canvas')) {
-  throw new Error('Atmosphere.tsx must include RainCanvasLayer with canvas-based rain')
+const indexCssCode = readFileSync('src/index.css', 'utf-8')
+
+if (!atmosphereCode.includes('CinematicAtmosphereCanvas') || !atmosphereCode.includes('memo(AtmosphereLayerComponent')) {
+  throw new Error('Atmosphere.tsx must include CinematicAtmosphereCanvas and memoized AtmosphereLayer')
 }
-if (!atmosphereCode.includes('splashes') || !atmosphereCode.includes('screenDrops')) {
-  throw new Error('RainCanvasLayer must simulate splashes and screen droplets')
+if (!atmosphereCode.includes('BUILTIN_CANVAS_TYPES = [\'rain\', \'snow\', \'fog\', \'dust\', \'steam\', \'sparks\', \'embers\', \'ash\']')) {
+  throw new Error('All 8 particle presets must be handled via CinematicAtmosphereCanvas')
 }
-if (!atmosphereCode.includes('count: 150') || !atmosphereCode.includes('count: 110')) {
-  throw new Error('Builtin particle counts for dust and sparks must be significantly increased')
+// Проверка уникальности механик каждой частицы
+if (!atmosphereCode.includes('wobbleAmp') || !atmosphereCode.includes('stormStreaks') || !atmosphereCode.includes('twinklePhase') || !atmosphereCode.includes('pulsePhase') || !atmosphereCode.includes('tumblePhase')) {
+  throw new Error('Each particle must have unique mechanics (snow wobble, storm streaks, dust twinkle, ember breathing glow, ash tumble)')
 }
-console.log('✓ 4. Реализован кинематографичный Canvas-ливень со струями, наклоном, каплями на стекле и брызгами; плотность частиц увеличена кратно')
+// Проверка отсутствия стробоскопического бага тумана
+if (indexCssCode.includes('.weather-overlay.speed-fast { animation-duration: 0.3s !important; }')) {
+  throw new Error('index.css must not force 0.3s storm animation on weather overlays')
+}
+console.log('✓ 4. Реализован кинематографичный Canvas для всех 8 типов частиц с уникальным визуалом, мемоизацией от ререндеров и устранением строба тумана при шторме')
 
 console.log('\nAll round 34 smoke tests passed successfully!')
