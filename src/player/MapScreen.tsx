@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { GameEngine } from '../core/engine'
 import { assetUrl } from '../core/loader'
 import { ArtView } from '../shared/ArtView'
+import { firstFrame } from './frames'
 
 interface Props {
   engine: GameEngine
@@ -210,8 +211,20 @@ export function MapScreen({ engine, onClose }: Props) {
 
         {pendingLoc && (
           <div className="travel-confirm">
+            {(() => {
+              const locScene = pendingLoc.scenes[0] ? engine.campaign.scenes[pendingLoc.scenes[0]] : null
+              const locImage = locScene?.states[0]?.image ? assetUrl(engine.campaign, firstFrame(locScene.states[0].image)) : null
+              return locImage ? (
+                <div className="travel-postcard">
+                  <img className="travel-postcard-img" src={locImage} alt={pendingLoc.label} />
+                  <div className="travel-postcard-overlay">
+                    <span className="travel-postcard-title">{pendingLoc.label}</span>
+                  </div>
+                </div>
+              ) : null
+            })()}
             <p>
-              Отправиться в «{pendingLoc.label}»? Дорога займёт{''}
+              Отправиться в «{pendingLoc.label}»? Дорога займёт{' '}
               <b>{pendingCost} {meta.tick_label}.</b>
             </p>
             <div className="row-buttons">

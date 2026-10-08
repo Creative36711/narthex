@@ -8,6 +8,7 @@ import { useSettings, voiceVolume } from '../shared/settings'
 import { speak } from '../shared/speech'
 import { setMusicDucking } from '../shared/music'
 import { playInteraction } from '../shared/audio'
+import { itemImageSrc } from './Panels'
 
 interface Props {
   engine: GameEngine
@@ -337,24 +338,44 @@ export function DialogueOverlay({ engine }: Props) {
               <div className="dialogue-presenting-title">
                 <Ico n="bag" /> Выберите предмет или улику для предъявления:
               </div>
-              <div className="dialogue-choices">
+              <div className="dialogue-present-grid">
                 {engine.state.player.inventory.map((inv) => {
                   const item = engine.campaign.entities[inv.item]
                   if (!item || item.type !== 'item') return null
+                  const imgSrc = itemImageSrc(engine, item)
                   return (
                     <button
                       key={inv.item}
-                      className="choice-btn"
+                      type="button"
+                      className="present-item-card"
                       onClick={(e) => {
                         e.stopPropagation()
                         engine.submitPresentedItem(inv.item)
                       }}
                     >
-                      ▸ Предъявить: {item.label} {inv.quantity > 1 ? `(${inv.quantity})` : ''}
+                      <div className="present-item-thumb-box">
+                        {imgSrc ? (
+                          <img className="present-item-thumb" src={imgSrc} alt="" />
+                        ) : (
+                          <div className="present-item-placeholder">
+                            <Ico n="bag" />
+                          </div>
+                        )}
+                        {inv.quantity > 1 && <span className="present-item-qty">×{inv.quantity}</span>}
+                      </div>
+                      <div className="present-item-info">
+                        <span className="present-item-name">{item.label}</span>
+                        {item.description && (
+                          <span className="present-item-desc muted small">{item.description}</span>
+                        )}
+                      </div>
                     </button>
                   )
                 })}
+              </div>
+              <div className="dialogue-choices" style={{ marginTop: 12 }}>
                 <button
+                  type="button"
                   className="choice-btn end"
                   onClick={(e) => {
                     e.stopPropagation()

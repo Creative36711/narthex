@@ -2,8 +2,7 @@ import { Ico } from '../shared/icons'
 import { useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { ItemDef } from '../shared/types'
-import { assetUrl } from '../core/loader'
-import { ItemCategoryChips } from './Panels'
+import { ItemCategoryChips, itemImageSrc } from './Panels'
 
 /** Торговля (ТЗ 4.7): цены зависят от репутации и навыка торговли. */
 export function TradePanel({ engine }: { engine: GameEngine }) {
@@ -12,6 +11,7 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
   const [tab, setTab] = useState<'buy' | 'sell'>('buy')
   const [catBuy, setCatBuy] = useState<string>('all')
   const [catSell, setCatSell] = useState<string>('all')
+  const [inspectItem, setInspectItem] = useState<ItemDef | null>(null)
   const currency = engine.campaign.meta.currencies[0]
   const currencyLabel = currency?.label ?? 'Серебро'
   const currencySymbol = currency?.symbol ?? 'SM'
@@ -72,10 +72,23 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
               if (!def) return null
               const price = engine.buyPrice(npc, s.item, s.price)
               const affordable = balance >= price
+              const imgSrc = itemImageSrc(engine, def)
               return (
                 <li key={s.item} className="inv-item">
-                  <div className="inv-item-main">
-                    {def.image && <img className="inv-thumb" src={assetUrl(engine.campaign, def.image)} alt="" />}
+                  <div
+                    className="inv-item-thumb-box"
+                    onClick={() => setInspectItem(def)}
+                    data-tip="Нажмите, чтобы подробно осмотреть товар"
+                  >
+                    {imgSrc ? (
+                      <img className="inv-thumb" src={imgSrc} alt="" />
+                    ) : (
+                      <div className="inv-thumb-placeholder">
+                        <Ico n="bag" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="inv-item-main" onClick={() => setInspectItem(def)} style={{ cursor: 'pointer' }}>
                     <b>{def.label}</b>
                     <div className="muted small">{def.description}</div>
                   </div>
@@ -105,11 +118,26 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
             {sellables.length === 0 && <p className="muted">Нечего продать.</p>}
             {sellables.map(({ e, def }) => {
               const price = engine.sellPrice(npc, e.item)
+              const imgSrc = itemImageSrc(engine, def)
               return (
                 <li key={e.item} className="inv-item">
-                  <div className="inv-item-main">
+                  <div
+                    className="inv-item-thumb-box"
+                    onClick={() => setInspectItem(def!)}
+                    data-tip="Нажмите, чтобы подробно осмотреть предмет"
+                  >
+                    {imgSrc ? (
+                      <img className="inv-thumb" src={imgSrc} alt="" />
+                    ) : (
+                      <div className="inv-thumb-placeholder">
+                        <Ico n="bag" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="inv-item-main" onClick={() => setInspectItem(def!)} style={{ cursor: 'pointer' }}>
                     <b>{def!.label}</b>
                     {e.quantity > 1 && <span className="qty">×{e.quantity}</span>}
+                    <div className="muted small">{def!.description}</div>
                   </div>
                   <div className="inv-item-side">
                     <span className="gold">{price} {currencySymbol}</span>
@@ -124,6 +152,60 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
           </>
         )}
       </div>
+      {inspectItem && (
+        <div className="overlay item-inspect-overlay" onClick={() => setInspectItem(null)}>
+          <div className="panel item-inspect-card" onClick={(e) => e.stopPropagation()}>
+            <div className="panel-header">
+              <h3>{inspectItem.label}</h3>
+              <button className="btn btn-small" onClick={() => setInspectItem(null)}>
+                <Ico n="close" />
+              </button>
+            </div>
+            <div className="item-inspect-body">
+              {itemImageSrc(engine, inspectItem) ? (
+                <div className="item-inspect-art-wrap">
+                  <img
+                    className="item-inspect-art"
+                    src={itemImageSrc(engine, inspectItem)!}
+                    alt={inspectItem.label}
+                  />
+                </div>
+              ) : null}
+              <div className="item-inspect-info">
+                {inspectItem.category && (
+                  <span className="item-inspect-category">
+                    {engine.campaign.meta.item_categories?.find((c) => c.id === inspectItem.category)?.label ?? inspectItem.category}
+                  </span>
+                )}
+                <p className="item-inspect-desc">{inspectItem.description}</p>
+                <div className="item-inspect-stats">
+                  <div className="inspect-stat-row">
+                    <span className="muted small">Вес:</span>
+                    <b>{inspectItem.weight} кг</b>
+                  </div>
+                  {inspectItem.weapon_data && (
+                    <div className="inspect-stat-row">
+                      <span className="muted small">Урон оружия:</span>
+                      <b>{inspectItem.weapon_data.damage} (навык: {engine.skillLabel(inspectItem.weapon_data.skill)})</b>
+                    </div>
+                  )}
+                  {inspectItem.armor_data && (
+                    <div className="inspect-stat-row">
+                      <span className="muted small">Защита брони:</span>
+                      <b>−{inspectItem.armor_data.points} к урону</b>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="item-inspect-actions">
+              <button className="btn btn-small" onClick={() => setInspectItem(null)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -6,6 +6,18 @@ import type { GameEngine } from '../core/engine'
 import { featureOn, type Effect, type ItemDef, type NpcDef, type RecipeDef } from '../shared/types'
 import { damageBonus, movement } from '../core/brp'
 import { playInteraction, playUi } from '../shared/audio'
+import { assetUrl } from '../core/loader'
+import { firstFrame } from './frames'
+
+/** URL изображения предмета (image -> scene_sprite -> portrait) */
+export function itemImageSrc(engine: GameEngine, def?: ItemDef): string | null {
+  if (!def) return null
+  const rel =
+    def.image ||
+    (def.scene_sprite ? firstFrame(def.scene_sprite) : null) ||
+    (def.portrait ? def.portrait.neutral || Object.values(def.portrait)[0] : null)
+  return rel ? assetUrl(engine.campaign, rel) : null
+}
 
 /** человекочитаемое описание эффектов on_use (фидбек №7: «сколько HP лечит мазь») */
 function describeUseEffects(engine: GameEngine, effects: Effect[]): string {
@@ -81,6 +93,7 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
   const [equipFilter, setEquipFilter] = useState<(typeof EQUIP_FILTERS)[number]>('all')
   const [cat, setCat] = useState<string>('all')
   const [sort, setSort] = useState<'name' | 'weight' | 'got'>('name')
+  const [inspectItem, setInspectItem] = useState<ItemDef | null>(null)
   const inv = engine.state.player.inventory
   const items = inv
     .map((e) => ({ entry: e, def: engine.campaign.entities[e.item] as ItemDef | undefined }))
@@ -164,41 +177,56 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
         </div>
         {items.length === 0 && <p className="muted">Пусто.</p>}
         <ul className="inv-list">
-          {items.map(({ entry, def }) => (
-            <li key={`${entry.item}:${entry.durability ?? "full"}:${(def!.weight ?? 0)}`} className="inv-item">
-              <div className="inv-item-main">
-                <div className="inv-item-header">
-                  <span className="inv-item-name">{def!.label}</span>
-                  {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
-                  {engine.isEquipped(entry.item) && (
-                    <span className="equipped-badge">
-                      <Ico n="check" /> надето
-                    </span>
+          {items.map(({ entry, def }) => {
+            const imgSrc = itemImageSrc(engine, def)
+            return (
+              <li key={`${entry.item}:${entry.durability ?? "full"}:${(def!.weight ?? 0)}`} className="inv-item">
+                <div
+                  className="inv-item-thumb-box"
+                  onClick={() => setInspectItem(def!)}
+                  data-tip="Нажмите, чтобы подробно осмотреть предмет"
+                >
+                  {imgSrc ? (
+                    <img className="inv-thumb" src={imgSrc} alt="" />
+                  ) : (
+                    <div className="inv-thumb-placeholder">
+                      <Ico n="bag" />
+                    </div>
                   )}
                 </div>
-                <div className="muted small">{def!.description}</div>
-                {def!.on_use && describeUseEffects(engine, def!.on_use.effects) && (
-                  <div className="muted small use-effect">{describeUseEffects(engine, def!.on_use.effects)}</div>
-                )}
-                {def!.weapon_data && (
-                  <div className="muted small">
-                    Оружие: {def!.weapon_data.damage}
-                    {def!.weapon_data.damage_bonus ? '+ бонус силы' : ''} · навык «{engine.skillLabel(def!.weapon_data.skill)}»
-                    {def!.weapon_data.durability !== undefined && (
-                      <> · прочность {entry.durability ?? def!.weapon_data.durability}/{def!.weapon_data.durability}
-                        {(entry.durability ?? def!.weapon_data.durability) === 0 && <b> (СЛОМАНО)</b>}
-                      </>
+                <div className="inv-item-main" onClick={() => setInspectItem(def!)} style={{ cursor: 'pointer' }}>
+                  <div className="inv-item-header">
+                    <span className="inv-item-name">{def!.label}</span>
+                    {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
+                    {engine.isEquipped(entry.item) && (
+                      <span className="equipped-badge">
+                        <Ico n="check" /> надето
+                      </span>
                     )}
                   </div>
-                )}
-                {def!.armor_data && def!.armor_data.durability !== undefined && (
-                  <div className="muted small">
-                    Прочность брони: {entry.durability ?? def!.armor_data.durability}/{def!.armor_data.durability}
-                    {(entry.durability ?? def!.armor_data.durability) === 0 && <b> (СЛОМАНО)</b>}
-                  </div>
-                )}
-                {def!.armor_data && <div className="muted small">Броня: −{def!.armor_data.points} к урону</div>}
-              </div>
+                  <div className="muted small">{def!.description}</div>
+                  {def!.on_use && describeUseEffects(engine, def!.on_use.effects) && (
+                    <div className="muted small use-effect">{describeUseEffects(engine, def!.on_use.effects)}</div>
+                  )}
+                  {def!.weapon_data && (
+                    <div className="muted small">
+                      Оружие: {def!.weapon_data.damage}
+                      {def!.weapon_data.damage_bonus ? '+ бонус силы' : ''} · навык «{engine.skillLabel(def!.weapon_data.skill)}»
+                      {def!.weapon_data.durability !== undefined && (
+                        <> · прочность {entry.durability ?? def!.weapon_data.durability}/{def!.weapon_data.durability}
+                          {(entry.durability ?? def!.weapon_data.durability) === 0 && <b> (СЛОМАНО)</b>}
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {def!.armor_data && def!.armor_data.durability !== undefined && (
+                    <div className="muted small">
+                      Прочность брони: {entry.durability ?? def!.armor_data.durability}/{def!.armor_data.durability}
+                      {(entry.durability ?? def!.armor_data.durability) === 0 && <b> (СЛОМАНО)</b>}
+                    </div>
+                  )}
+                  {def!.armor_data && <div className="muted small">Броня: −{def!.armor_data.points} к урону</div>}
+                </div>
               <div className="inv-item-side">
                 <span className="muted small">{(def!.weight * entry.quantity).toFixed(1)} кг</span>
                 {def!.on_use && (
@@ -241,10 +269,101 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                 )}
               </div>
             </li>
-          ))}
+          )
+        })}
         </ul>
         <div className="panel-footer muted">Общий вес: {totalWeight.toFixed(1)} кг</div>
       </div>
+      {inspectItem && (
+        <div className="overlay item-inspect-overlay" onClick={() => setInspectItem(null)}>
+          <div className="panel item-inspect-card" onClick={(e) => e.stopPropagation()}>
+            <div className="panel-header">
+              <h3>{inspectItem.label}</h3>
+              <button className="btn btn-small" onClick={() => setInspectItem(null)}>
+                <Ico n="close" />
+              </button>
+            </div>
+            <div className="item-inspect-body">
+              {itemImageSrc(engine, inspectItem) ? (
+                <div className="item-inspect-art-wrap">
+                  <img
+                    className="item-inspect-art"
+                    src={itemImageSrc(engine, inspectItem)!}
+                    alt={inspectItem.label}
+                  />
+                </div>
+              ) : null}
+              <div className="item-inspect-info">
+                {inspectItem.category && (
+                  <span className="item-inspect-category">
+                    {engine.campaign.meta.item_categories?.find((c) => c.id === inspectItem.category)?.label ?? inspectItem.category}
+                  </span>
+                )}
+                <p className="item-inspect-desc">{inspectItem.description}</p>
+                <div className="item-inspect-stats">
+                  <div className="inspect-stat-row">
+                    <span className="muted small">Вес:</span>
+                    <b>{inspectItem.weight} кг</b>
+                  </div>
+                  {inspectItem.value && (
+                    <div className="inspect-stat-row">
+                      <span className="muted small">Базовая стоимость:</span>
+                      <b className="gold">{inspectItem.value[engine.mainCurrency] ?? 0} {engine.campaign.meta.currencies[0]?.symbol ?? 'мон.'}</b>
+                    </div>
+                  )}
+                  {inspectItem.weapon_data && (
+                    <div className="inspect-stat-row">
+                      <span className="muted small">Урон оружия:</span>
+                      <b>{inspectItem.weapon_data.damage} (навык: {engine.skillLabel(inspectItem.weapon_data.skill)})</b>
+                    </div>
+                  )}
+                  {inspectItem.armor_data && (
+                    <div className="inspect-stat-row">
+                      <span className="muted small">Защита брони:</span>
+                      <b>−{inspectItem.armor_data.points} к урону</b>
+                    </div>
+                  )}
+                </div>
+                {inspectItem.on_use && (
+                  <div className="item-inspect-use-hint">
+                    <Ico n="sparkle" /> {describeUseEffects(engine, inspectItem.on_use.effects)}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="item-inspect-actions">
+              {inspectItem.on_use && (
+                <button
+                  className="btn btn-primary btn-small"
+                  onClick={() => {
+                    engine.useItem(inspectItem.id)
+                    setInspectItem(null)
+                  }}
+                >
+                  Использовать
+                </button>
+              )}
+              {engine.itemSlot(inspectItem.id) && (
+                <button
+                  className="btn btn-small"
+                  onClick={() => {
+                    if (engine.isEquipped(inspectItem.id)) {
+                      engine.unequipItem(engine.equippedSlotOf(inspectItem.id))
+                    } else {
+                      engine.equipItem(inspectItem.id)
+                    }
+                  }}
+                >
+                  {engine.isEquipped(inspectItem.id) ? 'Снять' : 'Надеть'}
+                </button>
+              )}
+              <button className="btn btn-small" onClick={() => setInspectItem(null)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
