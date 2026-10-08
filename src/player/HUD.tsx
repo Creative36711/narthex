@@ -1,5 +1,5 @@
 import { Ico } from '../shared/icons'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { askConfirm } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
 import type { GameEngine } from '../core/engine'
@@ -29,12 +29,52 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
   const needsOn = featureOn(meta, 'needs')
   const timeOn = featureOn(meta, 'time')
 
+  const [floatingDeltas, setFloatingDeltas] = useState<Array<{ id: number; text: string; isPositive: boolean }>>([])
+  const prevHpRef = useRef(s.player.hp)
+  const prevSanityRef = useRef(engine.sanity())
+
+  useEffect(() => {
+    const diffHp = s.player.hp - prevHpRef.current
+    if (diffHp !== 0 && prevHpRef.current !== undefined) {
+      const id = Date.now() + Math.random()
+      const text = `${diffHp > 0 ? '+' : '−'}${Math.abs(diffHp)} HP`
+      setFloatingDeltas((prev) => [...prev.slice(-3), { id, text, isPositive: diffHp > 0 }])
+      setTimeout(() => {
+        setFloatingDeltas((prev) => prev.filter((d) => d.id !== id))
+      }, 1600)
+    }
+    prevHpRef.current = s.player.hp
+  }, [s.player.hp])
+
+  useEffect(() => {
+    const currentSanity = engine.sanity()
+    const diffSanity = currentSanity - prevSanityRef.current
+    if (diffSanity !== 0 && prevSanityRef.current !== undefined && engine.sanityMax() > 0) {
+      const id = Date.now() + Math.random()
+      const text = `${diffSanity > 0 ? '+' : '−'}${Math.abs(diffSanity)} Рассудок`
+      setFloatingDeltas((prev) => [...prev.slice(-3), { id, text, isPositive: diffSanity > 0 }])
+      setTimeout(() => {
+        setFloatingDeltas((prev) => prev.filter((d) => d.id !== id))
+      }, 1600)
+    }
+    prevSanityRef.current = currentSanity
+  }, [engine.state.player.sanity, engine])
+
   return (
     <div className="hud">
       <div className="hud-left">
         <div className="hud-bar hp" data-tip="Здоровье">
           <div className="hud-bar-fill" style={{ width: `${(s.player.hp / s.player.max_hp) * 100}%` }} />
           <span>HP {s.player.hp}/{s.player.max_hp}</span>
+          {floatingDeltas.length > 0 && (
+            <div className="hud-floating-deltas" aria-hidden="true">
+              {floatingDeltas.map((d) => (
+                <span key={d.id} className={`floating-delta ${d.isPositive ? 'delta-heal' : 'delta-damage'}`}>
+                  {d.text}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="hud-group hud-group-statuses">
           {engine.campaign.meta.luck && engine.luckMax() > 0 && (

@@ -1250,8 +1250,45 @@ html.cf-profile-modern {
   background: var(--inset);
   border: 1px solid var(--border-soft);
   border-radius: 4px;
-  overflow: hidden;
+  overflow: visible;
   flex: 0 1 auto;
+}
+.hud-floating-deltas {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 100;
+}
+.floating-delta {
+  font-size: 12.5px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  animation: cf-float-up 1.6s ease-out forwards;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+}
+.delta-heal {
+  color: #4ade80;
+  background: rgba(16, 50, 25, 0.9);
+  border: 1px solid rgba(74, 222, 128, 0.5);
+}
+.delta-damage {
+  color: #f87171;
+  background: rgba(50, 16, 16, 0.9);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+}
+@keyframes cf-float-up {
+  0% { transform: translateY(0); opacity: 0; }
+  15% { transform: translateY(-4px); opacity: 1; }
+  75% { transform: translateY(-16px); opacity: 0.9; }
+  100% { transform: translateY(-24px); opacity: 0; }
 }
 .hud-bar > span {
   position: absolute;
@@ -2786,14 +2823,79 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .quest-card {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
-  padding: 10px 12px;
-  margin-bottom: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
   background: var(--panel-2);
 }
-.quest-title { color: var(--gold-bright); margin-bottom: 4px; }
+.quest-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.quest-title {
+  color: var(--gold-bright);
+  font-weight: 700;
+  font-size: 14.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .quest-completed .quest-title { color: var(--green-bright); }
 .quest-failed .quest-title { color: var(--red-bright); }
-.quest-journal { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.5; }
+.quest-status-bullet { font-size: 13px; }
+.quest-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.quest-badge-active { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold-bright); }
+.quest-badge-completed { background: rgba(34, 197, 94, 0.15); color: var(--green-bright); }
+.quest-badge-failed { background: rgba(239, 68, 68, 0.15); color: var(--red-bright); }
+.quest-desc { margin-bottom: 8px; }
+
+/* карточка «Текущая цель» */
+.quest-goal-box {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--gold) 10%, var(--panel));
+  border-left: 3px solid var(--gold);
+}
+.quest-goal-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold-bright);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.quest-goal-text {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.4;
+  font-weight: 600;
+}
+
+/* раскрывающийся блок истории выполнения */
+.quest-history-block { margin-top: 8px; }
+.quest-history-summary {
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.quest-history-summary:hover { color: var(--gold); }
+.quest-past-entry { color: var(--muted); font-size: 12.5px; }
+
+.quest-journal { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; line-height: 1.5; }
 
 .skill-mark { color: var(--green-bright); }
 .overload { color: var(--red-bright); }

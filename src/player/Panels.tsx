@@ -691,18 +691,48 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
   const renderQuest = ([id, q]: (typeof quests)[number]) => {
     const def = engine.campaign.quests[id]
     if (!def) return null
+    const currentStageDef = def.stages.find((s) => s.id === q.stage)
+    const currentGoal = currentStageDef?.label || (q.journal.length ? q.journal[q.journal.length - 1] : def.description)
+    const pastEntries = q.journal.length > 1 ? q.journal.slice(0, -1) : []
+
     return (
       <div key={id} className={`quest-card quest-${q.status}`}>
-        <div className="quest-title">
-          {q.status === 'completed' ? '' : q.status === 'failed' ? '×' : '◆'}
-          {def.label}
+        <div className="quest-header-row">
+          <div className="quest-title">
+            <span className={`quest-status-bullet quest-status-${q.status}`}>
+              {q.status === 'completed' ? '✓' : q.status === 'failed' ? '✕' : '◆'}
+            </span>
+            <span>{def.label}</span>
+          </div>
+          <span className={`quest-badge quest-badge-${q.status}`}>
+            {q.status === 'completed' ? 'Завершено' : q.status === 'failed' ? 'Провалено' : 'Активно'}
+          </span>
         </div>
-        <div className="muted small">{def.description}</div>
-        <ul className="quest-journal">
-          {q.journal.map((j, i) => (
-            <li key={i} className={i === q.journal.length - 1 ? '' : 'muted'}>{j}</li>
-          ))}
-        </ul>
+        {def.description && <div className="quest-desc muted small">{def.description}</div>}
+
+        {/* Блок «Текущая цель» */}
+        {q.status === 'active' && (
+          <div className="quest-goal-box">
+            <div className="quest-goal-label">
+              <Ico n="compass" /> Текущая цель:
+            </div>
+            <div className="quest-goal-text">{currentGoal}</div>
+          </div>
+        )}
+
+        {/* Блок «История выполнения» */}
+        {pastEntries.length > 0 && (
+          <details className="quest-history-block" open={q.status !== 'active'}>
+            <summary className="quest-history-summary">
+              История выполнения ({pastEntries.length})
+            </summary>
+            <ul className="quest-journal">
+              {pastEntries.map((j, i) => (
+                <li key={i} className="quest-past-entry">{j}</li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
     )
   }

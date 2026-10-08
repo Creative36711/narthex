@@ -2675,6 +2675,14 @@
         },
         "loop": {
           "type": "boolean"
+        },
+        "color_inner": {
+          "type": "string",
+          "description": "цвет центра процедурной частицы (rgba/hex, по умолчанию белое/золотое свечение)"
+        },
+        "color_outer": {
+          "type": "string",
+          "description": "цвет внешнего ореола процедурной частицы"
         }
       },
       "required": [
@@ -6683,6 +6691,69 @@
       "additionalProperties": false,
       "description": "Зона перехода на сцене (итерация 8, А6): только ВНУТРИ локации —\nв другую сцену или «открыть карту» (это и есть выход из локации).\nСтарые `go_to_location` мигрируются при загрузке (shared/migrate.ts)."
     },
+    "SceneParticlesPreset": {
+      "type": "string",
+      "enum": [
+        "dust",
+        "steam",
+        "rain",
+        "snow",
+        "fog",
+        "ash",
+        "sparks",
+        "embers",
+        "none"
+      ]
+    },
+    "SceneParticlesConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/SceneParticlesPreset"
+        },
+        "density": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "speed": {
+          "type": "string",
+          "enum": [
+            "slow",
+            "normal",
+            "fast"
+          ]
+        },
+        "wind": {
+          "type": "string",
+          "enum": [
+            "left",
+            "none",
+            "right"
+          ]
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "SceneParticles": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SceneParticlesPreset"
+        },
+        {
+          "$ref": "#/$defs/SceneParticlesConfig"
+        }
+      ]
+    },
     "NarrativeIntroEntry": {
       "anyOf": [
         {
@@ -6786,19 +6857,8 @@
           "description": "тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров)"
         },
         "particles": {
-          "type": "string",
-          "enum": [
-            "dust",
-            "steam",
-            "rain",
-            "snow",
-            "fog",
-            "ash",
-            "sparks",
-            "embers",
-            "none"
-          ],
-          "description": "атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман)"
+          "$ref": "#/$defs/SceneParticles",
+          "description": "атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) — строка пресета или расширенный конфиг"
         },
         "narrative_intro": {
           "type": "array",
