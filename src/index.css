@@ -3247,9 +3247,18 @@ input[type='checkbox'], input[type='radio'] {
     transform: scale(1.008, 0.985);
   }
 }
-.slot-npc .slot-sprite {
+.slot-sprite.cf-breathe {
   animation: cf-breathe 4.5s ease-in-out infinite;
   transform-origin: bottom center;
+  will-change: transform;
+}
+.slot-hotspot.slot-sprited:hover .slot-sprite.cf-breathe {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .slot-sprite.cf-breathe {
+    animation: none;
+  }
 }
 /* подсветка прозрачных PNG при наведении — ореол по контуру, а не рамка вокруг */
 .slot-hotspot.slot-sprited:hover .slot-sprite,

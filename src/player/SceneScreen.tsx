@@ -333,6 +333,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
             const scale = slot.sprite_scale ?? 1
             const interactable = !item || engine.itemInteractable(item)
             const hasInteractChoices = !!item && interactable && engine.itemInteractOptions(item).length > 0
+            const shouldBreathe = entity.type === 'npc' ? (entity.breathe !== false) : !!entity.breathe
             const isEnvironmental = slot.environmental || (!sprite && entity.type === 'item')
             const isPlainItem = entity.type === 'item' && !sprite
             const displayLabel = npc ? engine.npcLabel(npc) : entity.label
@@ -372,7 +373,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                     {entity.shadow !== false && <span className="sprite-shadow" />}
                     <span className="slot-sprite-box" style={{ height: `${scale * 100}%` }}>
                       <LiveImg
-                        className="slot-sprite"
+                        className={`slot-sprite${shouldBreathe ? ' cf-breathe' : ''}`}
                         value={sprite}
                         tickKey={stateOfSprite ?? ''}
                         urlOf={(f) => assetUrl(engine.campaign, f)}

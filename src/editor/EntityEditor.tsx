@@ -209,6 +209,18 @@ function ItemForm({
           />
           <span>Мягкая тень под спрайтом</span>
         </label>
+        <label className="fld fld-check" data-tip="По умолчанию предметы статичны. Включите, если предмет живой (например, пульсирующее био-сердце или мимик).">
+          <input
+            type="checkbox"
+            checked={!!item.breathe}
+            onChange={(e) => {
+              if (e.target.checked) item.breathe = true
+              else delete item.breathe
+              commit()
+            }}
+          />
+          <span>Эффект «живого дыхания» (для живых или пульсирующих предметов)</span>
+        </label>
 
         <h4 style={{ marginTop: 14 }}>Портреты предмета (окно действий)</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
@@ -819,6 +831,18 @@ function NpcForm({
             }}
           />
           <span>Мягкая тень под персонажем (в сцене и в бою)</span>
+        </label>
+        <label className="fld fld-check" data-tip="Плавное покачивание спрайта на сцене, имитирующее дыхание. Включено по умолчанию для живых персонажей; снимите галочку для роботов, автоматонов, механизмов, големов и нежити.">
+          <input
+            type="checkbox"
+            checked={npc.breathe !== false}
+            onChange={(e) => {
+              if (e.target.checked) delete npc.breathe
+              else npc.breathe = false
+              commit()
+            }}
+          />
+          <span>Эффект «живого дыхания» в сцене (снимите для роботов, механизмов и нежити)</span>
         </label>
       </div>
 
