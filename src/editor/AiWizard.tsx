@@ -12,6 +12,7 @@ import { AI_TASK_DIR } from './aiKit'
 import { createCampaignUuid } from './ids'
 import { downloadBlob } from './chronicle'
 import { formatCampaignAuditReport, validateCampaign, type PlaytestRecord } from './campaignAudit'
+import { clearPlaytestNotes, shouldAutoClearNotes } from './playtestNotes'
 import type { EditorStore } from './store'
 
 const GENRES = ['Фэнтези', 'Киберпанк', 'Хоррор', 'Постапок', 'Детектив', 'Приключение', 'Своя тема']
@@ -123,6 +124,9 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
         previousReport: initialReport,
       })
       downloadBlob(bundle.blob, bundle.filename)
+      if (shouldAutoClearNotes()) {
+        clearPlaytestNotes(store.meta.id)
+      }
       setCopyState(outputFormat === 'json'
         ? 'Пакет контекста скачан. ИИ вернёт MonolithDoc JSON; для новой кампании редактор назначит ID при импорте.'
         : mode === 'edit'

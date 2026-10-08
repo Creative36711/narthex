@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Ico } from '../shared/icons'
 import type { GameEngine } from '../core/engine'
 import type { ItemDef } from '../shared/types'
 import { derivedHP, derivedMP } from '../core/brp'
@@ -63,6 +64,18 @@ function contentVariables(value: unknown, out = new Set<string>()): Set<string> 
   return out
 }
 
+import {
+  getPlaytestNotes,
+  savePlaytestNote,
+  updatePlaytestNote,
+  deletePlaytestNote,
+  clearPlaytestNotes,
+  shouldAutoClearNotes,
+  setAutoClearNotes,
+  formatPlaytestNotesSummary,
+  type PlaytestNote,
+} from './playtestNotes'
+
 interface PlaytestDebugPanelProps {
   engine: GameEngine
   onClose: () => void
@@ -71,9 +84,59 @@ interface PlaytestDebugPanelProps {
 }
 
 /** Читы доступны только внутри редакторского плейтеста. */
-export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }: PlaytestDebugPanelProps) {
-  const [localNotes, setLocalNotes] = useState(notes)
-  useEffect(() => { setLocalNotes(notes) }, [notes])
+export function PlaytestDebugPanel({ engine, onClose, notes: _notes = '', onSaveNotes }: PlaytestDebugPanelProps) {
+  const [noteList, setNoteList] = useState<PlaytestNote[]>(() => getPlaytestNotes(engine.campaign.meta.id))
+  const [newNoteText, setNewNoteText] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState('')
+  const [autoClear, setAutoClear] = useState<boolean>(shouldAutoClearNotes)
+
+  const syncNotesToAudit = (updated: PlaytestNote[]) => {
+    setNoteList(updated)
+    const summary = formatPlaytestNotesSummary(updated)
+    if (onSaveNotes) onSaveNotes(summary)
+  }
+
+  const handleAddNote = () => {
+    if (!newNoteText.trim()) return
+    const currentScene = engine.campaign.scenes[engine.state.scene]
+    savePlaytestNote(
+      {
+        sceneId: engine.state.scene,
+        sceneLabel: currentScene?.label ?? engine.state.scene,
+        text: newNoteText,
+      },
+      engine.campaign.meta.id,
+    )
+    const updated = getPlaytestNotes(engine.campaign.meta.id)
+    syncNotesToAudit(updated)
+    setNewNoteText('')
+    setFeedback({ text: 'Заметка добавлена в журнал мастера.', serial: feedbackSerial + 1 })
+  }
+
+  const handleDeleteNote = (id: string) => {
+    deletePlaytestNote(id, engine.campaign.meta.id)
+    const updated = getPlaytestNotes(engine.campaign.meta.id)
+    syncNotesToAudit(updated)
+    setFeedback({ text: 'Заметка удалена.', serial: feedbackSerial + 1 })
+  }
+
+  const handleSaveEdit = (id: string) => {
+    updatePlaytestNote(id, editingText, engine.campaign.meta.id)
+    const updated = getPlaytestNotes(engine.campaign.meta.id)
+    syncNotesToAudit(updated)
+    setEditingId(null)
+    setEditingText('')
+    setFeedback({ text: 'Текст заметки обновлён.', serial: feedbackSerial + 1 })
+  }
+
+  const handleClearAllNotes = () => {
+    if (!window.confirm('Очистить все заметки этого плейтеста?')) return
+    clearPlaytestNotes(engine.campaign.meta.id)
+    syncNotesToAudit([])
+    setFeedback({ text: 'Все заметки плейтеста очищены.', serial: feedbackSerial + 1 })
+  }
+
   const startPlace = engine.findLocation(engine.state.location)
   const [region, setRegion] = useState(startPlace?.region.id ?? engine.campaign.world.regions[0]?.id ?? '')
   const [location, setLocation] = useState(engine.state.location)
@@ -139,30 +202,116 @@ export function PlaytestDebugPanel({ engine, onClose, notes = '', onSaveNotes }:
   return <aside className="pt-debug-panel" role="dialog" aria-label="Панель отладки">
     <header><b>Отладка</b><button className="btn btn-small" onClick={onClose}>Закрыть</button></header>
     {feedback && <div key={feedback.serial} className="pt-debug-feedback" role="status" aria-live="polite">{feedback.text}</div>}
-    {onSaveNotes && (
-      <Section label="Заметка плейтеста (для аудита и задания ИИ)">
-        <p className="pt-debug-help">
-          Запишите сюда результаты тестирования, обнаруженные проблемы и баги. Заметка автоматически сохранится в отчёт кампании и попадёт в пакет задания для ИИ.
-        </p>
+    <Section label={`Журнал правок мастера (${noteList.length})`}>
+      <p className="pt-debug-help">
+        Заметки привязываются к текущей сцене и автоматически упаковываются в раздел «Заметки мастера из плейтеста» пакета задания для ИИ.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
         <textarea
-          style={{ width: '100%', minHeight: 64, resize: 'vertical', fontFamily: 'inherit', fontSize: '0.85rem', padding: 6 }}
-          value={localNotes}
-          placeholder="Например: проверил шлюз; в конторе дознавателя верстак открывает крафт корректно…"
-          onChange={(e) => setLocalNotes(e.target.value)}
+          style={{ width: '100%', minHeight: 56, resize: 'vertical', fontFamily: 'inherit', fontSize: '0.85rem', padding: 6 }}
+          value={newNoteText}
+          placeholder={`Заметка для текущей сцены (${currentSceneDef?.label ?? engine.state.scene}): что проверить или исправить…`}
+          onChange={(e) => setNewNoteText(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+              e.preventDefault()
+              handleAddNote()
+            }
+          }}
         />
-        <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
             className="btn btn-small btn-primary"
-            onClick={() => {
-              onSaveNotes(localNotes)
-              setFeedback({ text: 'Заметка плейтеста сохранена.', serial: feedbackSerial + 1 })
-            }}
+            disabled={!newNoteText.trim()}
+            onClick={handleAddNote}
           >
-            Сохранить заметку
+            + Добавить заметку
           </button>
+          {noteList.length > 0 && (
+            <button className="btn btn-small" onClick={handleClearAllNotes}>
+              Очистить всё
+            </button>
+          )}
         </div>
-      </Section>
-    )}
+      </div>
+
+      {noteList.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+          {noteList.map((n) => (
+            <div
+              key={n.id}
+              style={{
+                padding: 6,
+                borderRadius: 4,
+                background: 'var(--panel-2, rgba(0,0,0,0.15))',
+                border: '1px solid var(--border-soft, #444)',
+                fontSize: '0.82rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                <span style={{ fontWeight: 600, color: 'var(--gold-bright, #d4a359)' }}>
+                  {n.sceneLabel ?? n.sceneId ?? 'Сцена'}
+                </span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    className="btn btn-small"
+                    style={{ padding: '1px 5px', fontSize: '11px' }}
+                    onClick={() => {
+                      if (editingId === n.id) {
+                        setEditingId(null)
+                      } else {
+                        setEditingId(n.id)
+                        setEditingText(n.text)
+                      }
+                    }}
+                  >
+                    {editingId === n.id ? 'Отмена' : 'Правка'}
+                  </button>
+                  <button
+                    className="btn btn-small ce-del"
+                    style={{ padding: '1px 5px', fontSize: '11px' }}
+                    onClick={() => handleDeleteNote(n.id)}
+                    data-tip="Удалить эту заметку"
+                  >
+                    <Ico n="close" />
+                  </button>
+                </div>
+              </div>
+              {editingId === n.id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                  <textarea
+                    style={{ width: '100%', minHeight: 48, fontSize: '0.82rem', padding: 4 }}
+                    value={editingText}
+                    onChange={(e) => setEditingText(e.target.value)}
+                  />
+                  <button
+                    className="btn btn-small btn-primary"
+                    style={{ alignSelf: 'flex-end' }}
+                    onClick={() => handleSaveEdit(n.id)}
+                  >
+                    Сохранить
+                  </button>
+                </div>
+              ) : (
+                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.35 }}>{n.text}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: '0.8rem', cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={autoClear}
+          onChange={(e) => {
+            setAutoClear(e.target.checked)
+            setAutoClearNotes(e.target.checked)
+          }}
+        />
+        <span>Очищать заметки после скачивания задания ИИ</span>
+      </label>
+    </Section>
     <Section label="Переход к сцене">
       <select value={region} onChange={(e) => { const next = allRegions.find((r) => r.id === e.target.value); setRegion(e.target.value); const loc = next?.locations[0]; if (loc) { setLocation(loc.id); setScene(Object.values(engine.campaign.scenes).find((s) => s.location === loc.id)?.id ?? '') } }}>
         {allRegions.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
