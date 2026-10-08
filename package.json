@@ -28,6 +28,7 @@
     "smoke:chronicle-manifest": "tsx scripts/chronicle-manifest-smoke.mts",
     "smoke:dialogues-r31": "tsx scripts/dialogues-round31-smoke.mts",
     "smoke:dialogues-r32": "tsx scripts/dialogues-round32-smoke.mts",
+    "smoke:scene-editor": "tsx scripts/scene-editor-tabs-smoke.mts",
     "smoke:editor-hotspot": "tsx scripts/editor-and-hotspot-smoke.mts",
     "smoke:voice-dedup": "tsx scripts/voice-dedup-smoke.mts",
     "smoke:narrative-intro": "tsx scripts/narrative-intro-and-ai-features-smoke.mts",

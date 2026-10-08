@@ -147,6 +147,7 @@ function SlotSpriteImage({ src, slot, k }: { src: string | null; slot: SlotDef; 
 }
 
 type Sel = { kind: 'slot'; index: number } | { kind: 'nav'; index: number } | null
+type SceneTab = 'object' | 'scene' | 'states'
 
 export function SceneEditor({
   store,
@@ -168,6 +169,7 @@ export function SceneEditor({
   } as unknown as SceneDef)
   const [stateIdx, setStateIdx] = useState(0)
   const [sel, setSel] = useState<Sel>(null)
+  const [tab, setTab] = useState<SceneTab>('object')
   const [, force] = useState(0)
   const trRef = useRef<Konva.Transformer>(null)
   const selRef = useRef<Konva.Rect>(null)
@@ -230,8 +232,14 @@ export function SceneEditor({
     width: r.w * k,
     height: r.h * k,
     draggable: true,
-    onClick: () => setSel({ kind, index: i }),
-    onTap: () => setSel({ kind, index: i }),
+    onClick: () => {
+      setSel({ kind, index: i })
+      setTab('object')
+    },
+    onTap: () => {
+      setSel({ kind, index: i })
+      setTab('object')
+    },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
       updateRect(kind, i, { x: e.target.x() / k, y: e.target.y() / k, w: r.w, h: r.h })
     },
@@ -258,8 +266,9 @@ export function SceneEditor({
   }
 
   return (
-    <div className="scene-editor">
-      <div className="scene-canvas-col">
+    <div className="scene-editor-container">
+      <div className="scene-editor">
+        <div className="scene-canvas-col">
         <div className="scene-toolbar">
           <label className="fld fld-inline">
             <span>Состояние</span>
@@ -285,6 +294,7 @@ export function SceneEditor({
                 condition: null,
               })
               setSel({ kind: 'slot', index: scene.slots.length - 1 })
+              setTab('object')
               commit()
             }}
           >
@@ -299,6 +309,7 @@ export function SceneEditor({
                 go_to_scene: '',
               })
               setSel({ kind: 'nav', index: scene.navigation.length - 1 })
+              setTab('object')
               commit()
             }}
           >
@@ -395,14 +406,151 @@ export function SceneEditor({
       </div>
 
       <div className="scene-props">
-        <SceneMeta scene={scene} store={store} commit={commit} />
-        {selSlot && <SlotProps slot={selSlot} store={store} commit={commit} />}
-        {selNav && <NavProps nav={selNav} scene={scene} store={store} commit={commit} />}
-        {!sel && <StatesProps scene={scene} store={store} commit={commit} />}
+        <div className="ce-tabs scene-inspector-tabs">
+          <button
+            type="button"
+            className={`ce-tab ${tab === 'object' ? 'on' : ''}`}
+            onClick={() => setTab('object')}
+          >
+            {selSlot
+              ? `Слот: ${selSlot.label || (selSlot.default_entity ? store.labelFor('entity', selSlot.default_entity) : `#${sel!.index + 1}`)}`
+              : selNav
+              ? `Переход: ${selNav.label || `#${sel!.index + 1}`}`
+              : `Объекты (${scene.slots.length + scene.navigation.length})`}
+          </button>
+          <button
+            type="button"
+            className={`ce-tab ${tab === 'scene' ? 'on' : ''}`}
+            onClick={() => setTab('scene')}
+          >
+            Параметры сцены
+          </button>
+          <button
+            type="button"
+            className={`ce-tab ${tab === 'states' ? 'on' : ''}`}
+            onClick={() => setTab('states')}
+          >
+            Фон и состояния ({scene.states.length})
+          </button>
+        </div>
+
+        <div className="scene-tab-content">
+          {tab === 'object' && (
+            selSlot ? (
+              <>
+                <div className="scene-selected-bar">
+                  <span className="scene-selected-badge scene-badge-slot">
+                    Слот {sel!.index + 1} из {scene.slots.length}
+                  </span>
+                  <div className="scene-selected-actions">
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      onClick={() => setSel(null)}
+                      data-tip="Снять выбор и показать список всех объектов сцены"
+                    >
+                      Все объекты
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-small ce-del"
+                      onClick={() => {
+                        scene.slots.splice(sel!.index, 1)
+                        setSel(null)
+                        commit()
+                      }}
+                      data-tip="Удалить этот слот"
+                    >
+                      <Ico n="close" /> Удалить
+                    </button>
+                  </div>
+                </div>
+                <SlotProps slot={selSlot} store={store} commit={commit} />
+              </>
+            ) : selNav ? (
+              <>
+                <div className="scene-selected-bar">
+                  <span className="scene-selected-badge scene-badge-nav">
+                    Переход {sel!.index + 1} из {scene.navigation.length}
+                  </span>
+                  <div className="scene-selected-actions">
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      onClick={() => setSel(null)}
+                      data-tip="Снять выбор и показать список всех объектов сцены"
+                    >
+                      Все объекты
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-small ce-del"
+                      onClick={() => {
+                        scene.navigation.splice(sel!.index, 1)
+                        setSel(null)
+                        commit()
+                      }}
+                      data-tip="Удалить этот переход"
+                    >
+                      <Ico n="close" /> Удалить
+                    </button>
+                  </div>
+                </div>
+                <NavProps nav={selNav} scene={scene} store={store} commit={commit} />
+              </>
+            ) : (
+              <SceneObjectsCatalog
+                scene={scene}
+                store={store}
+                onSelectSlot={(idx) => {
+                  setSel({ kind: 'slot', index: idx })
+                  setTab('object')
+                }}
+                onSelectNav={(idx) => {
+                  setSel({ kind: 'nav', index: idx })
+                  setTab('object')
+                }}
+                onAddSlot={() => {
+                  scene.slots.push({
+                    id: makeId('slot_', `${scene.id}_${scene.slots.length + 1}`, scene.slots.map((x) => x.id)),
+                    type: ['item'],
+                    shape: 'rect',
+                    x: Math.round(canvas.w / 2 - 60),
+                    y: Math.round(canvas.h / 2 - 60),
+                    w: 120,
+                    h: 120,
+                    condition: null,
+                  })
+                  setSel({ kind: 'slot', index: scene.slots.length - 1 })
+                  setTab('object')
+                  commit()
+                }}
+                onAddNav={() => {
+                  scene.navigation.push({
+                    area: { x: 40, y: Math.round(canvas.h / 2), w: 150, h: 200 },
+                    label: 'Переход',
+                    go_to_scene: '',
+                  })
+                  setSel({ kind: 'nav', index: scene.navigation.length - 1 })
+                  setTab('object')
+                  commit()
+                }}
+              />
+            )
+          )}
+
+          {tab === 'scene' && (
+            <SceneMeta scene={scene} store={store} commit={commit} />
+          )}
+
+          {tab === 'states' && (
+            <StatesProps scene={scene} store={store} commit={commit} />
+          )}
+        </div>
       </div>
-    
-      <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} label="Расширенный JSON сцены (все поля)" />
-</div>
+    </div>
+    <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} label="Расширенный JSON сцены (все поля)" />
+  </div>
   )
 }
 
@@ -1112,6 +1260,114 @@ function NavProps({
         </div>
       </div>
       <RectCoordsEditor rect={nav.area} onChange={commit} label="Положение и размер зоны перехода" />
+    </div>
+  )
+}
+
+function SceneObjectsCatalog({
+  scene,
+  store,
+  onSelectSlot,
+  onSelectNav,
+  onAddSlot,
+  onAddNav,
+}: {
+  scene: SceneDef
+  store: EditorStore
+  onSelectSlot: (idx: number) => void
+  onSelectNav: (idx: number) => void
+  onAddSlot: () => void
+  onAddNav: () => void
+}) {
+  return (
+    <div className="props-group scene-objects-catalog">
+      <div className="scene-catalog-head">
+        <h4>Интерактивные объекты</h4>
+        <div className="muted small">
+          Выберите объект на холсте или в списке ниже, чтобы настроить его параметры.
+        </div>
+      </div>
+
+      <div className="scene-catalog-section">
+        <div className="scene-catalog-section-bar">
+          <span className="scene-catalog-title">
+            Слоты сцены <span className="scene-catalog-count">({scene.slots.length})</span>
+          </span>
+          <button type="button" className="btn btn-small" onClick={onAddSlot}>
+            <Ico n="plus" /> слот
+          </button>
+        </div>
+
+        {scene.slots.length === 0 ? (
+          <div className="scene-catalog-empty">
+            Слоты пока не созданы. Нажмите «+ слот», чтобы разместить предмет или персонажа.
+          </div>
+        ) : (
+          <div className="scene-catalog-items">
+            {scene.slots.map((s, idx) => {
+              const entityName = s.default_entity ? store.labelFor('entity', s.default_entity) : 'Пустой слот'
+              const label = s.label || entityName
+              return (
+                <div
+                  key={s.id || idx}
+                  className="scene-catalog-item"
+                  onClick={() => onSelectSlot(idx)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="scene-catalog-item-info">
+                    <span className="scene-catalog-item-idx">#{idx + 1}</span>
+                    <span className="scene-catalog-item-name">{label}</span>
+                  </div>
+                  <div className="scene-catalog-item-meta muted small">
+                    {Math.round(s.w)}×{Math.round(s.h)} px
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="scene-catalog-section" style={{ marginTop: 14 }}>
+        <div className="scene-catalog-section-bar">
+          <span className="scene-catalog-title">
+            Переходы <span className="scene-catalog-count">({scene.navigation.length})</span>
+          </span>
+          <button type="button" className="btn btn-small" onClick={onAddNav}>
+            <Ico n="plus" /> переход
+          </button>
+        </div>
+
+        {scene.navigation.length === 0 ? (
+          <div className="scene-catalog-empty">
+            Переходы не созданы. Нажмите «+ переход», чтобы добавить переход в другую сцену или на карту.
+          </div>
+        ) : (
+          <div className="scene-catalog-items">
+            {scene.navigation.map((n, idx) => {
+              const target = n.open_map ? 'Открыть карту' : n.go_to_scene ? store.labelFor('scene', n.go_to_scene) : 'Не выбрана'
+              return (
+                <div
+                  key={idx}
+                  className="scene-catalog-item scene-catalog-item-nav"
+                  onClick={() => onSelectNav(idx)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="scene-catalog-item-info">
+                    <span className="scene-catalog-item-idx">⇨ {idx + 1}</span>
+                    <span className="scene-catalog-item-name">{n.label || 'Без подписи'}</span>
+                  </div>
+                  <div className="scene-catalog-item-meta muted small">
+                    {target}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
