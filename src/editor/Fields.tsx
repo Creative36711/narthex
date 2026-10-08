@@ -1,5 +1,6 @@
 import { Ico } from '../shared/icons'
 import { useId, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { FlagAutocomplete } from './FlagAutocomplete'
 import type { Condition, Effect, ImageValue, NpcDef } from '../shared/types'
 import { framesOf } from '../player/frames'
@@ -708,7 +709,7 @@ export function AssetUpload({
           )}
         </div>
       </div>
-      {zoomed && value && (
+      {zoomed && value && createPortal(
         <div className="img-lightbox-overlay" onClick={() => setZoomed(false)}>
           <div className="img-lightbox-content" onClick={(e) => e.stopPropagation()}>
             <div className="img-lightbox-header">
@@ -725,7 +726,8 @@ export function AssetUpload({
               <img src={assetSrc(store, value)} alt="" className="img-lightbox-img" />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
       <div className="img-upload-url">
         <input

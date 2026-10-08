@@ -2485,11 +2485,13 @@ export class GameEngine {
     for (const st of scene.states) {
       if (this.state.flags[`scene_state:${scene.id}:${st.id}`]) return st
     }
-    // 2. Стандартные условия (время суток, флаги)
+    // 2. Специфические условия (время суток, флаги, погода)
     for (const st of scene.states) {
-      if (evalSceneCondition(st.condition, this)) return st
+      if (st.condition && evalSceneCondition(st.condition, this)) return st
     }
-    return scene.states[0]
+    // 3. Базовое состояние (без условий) либо первое в списке
+    const base = scene.states.find((st) => !st.condition)
+    return base ?? scene.states[0]
   }
 
   changeSceneState(sceneIdOrState: string, maybeState?: string): void {

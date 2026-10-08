@@ -175,7 +175,11 @@ export function SceneEditor({
   const selRef = useRef<Konva.Rect>(null)
 
   useEffect(() => setSel(null), [path])
-  useEffect(() => setStateIdx(0), [path])
+  useEffect(() => {
+    // По умолчанию открываем базовое состояние (без условий), если оно есть, иначе 0
+    const baseIdx = scene.states.findIndex((s) => !s.condition)
+    setStateIdx(baseIdx >= 0 ? baseIdx : 0)
+  }, [path, scene])
 
   const canvas = scene.canvas ?? { w: 1280, h: 720 }
   const VIEW_W = 840
@@ -275,7 +279,7 @@ export function SceneEditor({
             <select value={stateIdx} onChange={(e) => setStateIdx(Number(e.target.value))}>
               {scene.states.map((s, i) => (
                 <option key={s.id} value={i}>
-                  {s.label}
+                  {s.label}{!s.condition ? ' (основное)' : ''}
                 </option>
               ))}
             </select>

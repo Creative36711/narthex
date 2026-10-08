@@ -20,6 +20,39 @@ type UseModal = { slot: SlotDef; options: Array<{ itemId: string; label: string;
 type ItemInteractModal = { item: ItemDef }
 type SceneBackground = { kind: 'image'; src: string; label: string } | { kind: 'art'; art: NonNullable<SceneStateDef['art']> } | { kind: 'fallback' }
 
+/**
+ * Очистка и форматирование подзаголовка сцены:
+ * Убирает технические и тривиальные надписи («Всегда», «Днём», «Основное»),
+ * из-за которых игроку выводились нелепые конструкции вроде «Контора дознавателя — Всегда».
+ */
+function formatSceneSubtitle(sceneLabel: string, locLabel: string | undefined, stateLabel: string | undefined): string | null {
+  const trivialLabels = new Set([
+    'всегда', 'обычное', 'основное', 'по умолчанию', 'базовое', 'стандартное', 'исходное',
+    'днём', 'день', 'ночью', 'ночь', 'утро', 'утром', 'вечер', 'вечером',
+    'default', 'main', 'base', 'normal', 'day', 'night', 'morning', 'evening',
+  ])
+
+  const sLabel = (sceneLabel ?? '').trim()
+  const lLabel = (locLabel ?? '').trim()
+  const rawState = (stateLabel ?? '').trim()
+  const isTrivialState = !rawState || trivialLabels.has(rawState.toLowerCase())
+
+  // Сцена имеет собственное отличимое название (например, локация «Шлюз седьмого яруса», сцена «Шлюзовая камера»)
+  if (sLabel && sLabel.toLowerCase() !== lLabel.toLowerCase()) {
+    if (!isTrivialState && rawState.toLowerCase() !== sLabel.toLowerCase()) {
+      return `${sLabel} (${rawState})`
+    }
+    return sLabel
+  }
+
+  // Название сцены совпадает с локацией (например «Западные ворота» и «Западные ворота»)
+  if (!isTrivialState && rawState.toLowerCase() !== lLabel.toLowerCase()) {
+    return rawState
+  }
+
+  return null
+}
+
 /** Экран сцены: фон (активное состояние) + слоты + зоны навигации (ТЗ 6.1). */
 export function SceneScreen({ engine, onOpenMap }: Props) {
   const [useModal, setUseModal] = useState<UseModal | null>(null)
@@ -208,6 +241,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const pct = (v: number, total: number) => `${(v / total) * 100}%`
   const sceneLighting = scene.lighting ?? 'outdoor'
   const lightingClass = sceneLighting === 'outdoor' ? `tod-tint-${tod}` : `scene-lighting-${sceneLighting}`
+  const subTitle = formatSceneSubtitle(scene.label, loc?.location.label, state.label)
 
   return (
     <div className="scene-wrap">
@@ -215,9 +249,11 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
         <span className="scene-location">{loc?.location.label}</span>
         {/* сцена часто называется по локации («Западные ворота»): не дублируем
             имя локации в подзаголовке (фидбек 27, п.8) */}
-        <span className="scene-name">
-          {scene.label === loc?.location.label ? state.label : `${scene.label} — ${state.label}`}
-        </span>
+        {subTitle && (
+          <span className="scene-name">
+            {subTitle}
+          </span>
+        )}
         <button
           type="button"
           className={`btn-highlight-hotspots ${highlightActive ? 'active' : ''}`}
