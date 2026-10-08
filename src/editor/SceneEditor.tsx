@@ -606,19 +606,19 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
             }}
           >
             <option value="none">Без частиц</option>
-            <option value="dust">Пылинки в воздухе (светящиеся)</option>
-            <option value="steam">Клубы пара и дыма</option>
-            <option value="sparks">Искры (раскалённые)</option>
-            <option value="embers">Тлеющие угли (плавающие)</option>
+            <option value="dust">Пылинки</option>
+            <option value="steam">Пар и дым</option>
+            <option value="sparks">Искры</option>
+            <option value="embers">Тлеющие угли</option>
             <option value="rain">Дождь</option>
             <option value="snow">Снег</option>
-            <option value="fog">Туман (дрейфующий)</option>
+            <option value="fog">Туман</option>
             <option value="ash">Пепел</option>
           </select>
         </label>
         {scene.particles && scene.particles !== 'none' && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 4 }}>
-            <label className="fld fld-inline" style={{ flex: '1 1 90px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginTop: 4 }}>
+            <label className="fld" style={{ margin: 0 }}>
               <span className="small muted">Плотность</span>
               <select
                 value={typeof scene.particles === 'object' ? (scene.particles.density ?? 'medium') : 'medium'}
@@ -637,7 +637,7 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
                 <option value="high">Много</option>
               </select>
             </label>
-            <label className="fld fld-inline" style={{ flex: '1 1 90px' }}>
+            <label className="fld" style={{ margin: 0 }}>
               <span className="small muted">Скорость</span>
               <select
                 value={typeof scene.particles === 'object' ? (scene.particles.speed ?? 'normal') : 'normal'}
@@ -653,10 +653,10 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
               >
                 <option value="slow">Медленно</option>
                 <option value="normal">Обычно</option>
-                <option value="fast">Шторм / быстро</option>
+                <option value="fast">Шторм</option>
               </select>
             </label>
-            <label className="fld fld-inline" style={{ flex: '1 1 90px' }}>
+            <label className="fld" style={{ margin: 0 }}>
               <span className="small muted">Ветер</span>
               <select
                 value={typeof scene.particles === 'object' ? (scene.particles.wind ?? 'none') : 'none'}

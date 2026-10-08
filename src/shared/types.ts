@@ -3045,6 +3045,8 @@ export interface GameState {
   party: CompanionState[]
   /** остатки товаров на складах торговцев: traderId -> itemId -> текущий остаток */
   trader_stocks?: Record<string, Record<string, number>>
+  /** выкупленные торговцем предметы у игрока: traderId -> массив выкупленных товаров для обратной продажи */
+  trader_bought_items?: Record<string, Array<{ item: string; price?: number; stock?: number }>>
   /**
    * Самочувствие NPC (потребность в отдыхе, аудит §5.6): 0..100, умолчание 50.
    * Каждую новую сутки: персонаж, у которого расписание покрывает ночь,

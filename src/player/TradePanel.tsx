@@ -31,8 +31,10 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
     .filter((x) => matchCat(x.def!, catSell))
     .sort((a, b) => (a.def!.label ?? '').localeCompare(b.def!.label ?? '', 'ru'))
 
+  const allTraderSells = engine.traderSells(npc)
+
   /** список продаж торговца, отфильтрованный по категории и по алфавиту */
-  const buyables = trader.sells
+  const buyables = allTraderSells
     .map((s) => ({ s, def: engine.campaign.entities[s.item] as ItemDef | undefined }))
     .filter((x) => x.def && matchCat(x.def, catBuy))
     .sort((a, b) => (a.def!.label ?? '').localeCompare(b.def!.label ?? '', 'ru'))
@@ -64,7 +66,7 @@ export function TradePanel({ engine }: { engine: GameEngine }) {
         {tab === 'buy' && (
           <>
             <div className="panel-tools">
-              <ItemCategoryChips engine={engine} defs={trader.sells.map((s) => engine.campaign.entities[s.item] as ItemDef | undefined)} cat={catBuy} setCat={setCatBuy} />
+              <ItemCategoryChips engine={engine} defs={allTraderSells.map((s) => engine.campaign.entities[s.item] as ItemDef | undefined)} cat={catBuy} setCat={setCatBuy} />
             </div>
           <ul className="inv-list">
             {buyables.map(({ s, def }) => {

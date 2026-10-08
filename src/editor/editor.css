@@ -1612,7 +1612,7 @@
 .playtest-banner b { color: var(--ed-select-bright); letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
 /* z выше боевого оверлея (60): отладка доступна и во время боя. Панель теперь слева
    и от верхней кромки (баннер уехал вниз — место под него сверху больше не нужно) */
-.pt-debug-panel { position: fixed; z-index: 40; left: 10px; right: auto; top: 10px; bottom: 10px; width: min(390px, calc(100vw - 20px)); overflow: auto; padding: 10px; border: 1px solid var(--ed-line-strong); border-radius: 10px; background: var(--ed-bg-2); color: var(--ed-text); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); font-family: 'Segoe UI', system-ui, sans-serif; }
+.pt-debug-panel { position: fixed; z-index: 40; left: 10px; right: auto; top: 10px; bottom: 10px; width: min(470px, calc(100vw - 20px)); overflow: auto; padding: 12px; border: 1px solid var(--ed-line-strong); border-radius: 10px; background: var(--ed-bg-2); color: var(--ed-text); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6); font-family: 'Segoe UI', system-ui, sans-serif; }
 .pt-debug-panel > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .pt-debug-feedback { position: sticky; top: -10px; z-index: 8; flex: 1 1 100%; margin: 0 -10px 7px; padding: 8px 10px; border-bottom: 1px solid var(--ed-accent); background: var(--ed-bg-3); color: var(--ed-accent-bright); font-size: 12px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); }
 .pt-debug-section { border-top: 1px solid var(--ed-line); padding: 7px 0; }
@@ -2056,4 +2056,51 @@ body.cf-editor .modal-overlay .ai-wizard input[type='range'] { accent-color: #58
   font-size: 13px;
   color: var(--muted, #888);
   line-height: 1.45;
+}
+
+/* Модальное окно комфортного набора заметок мастера */
+.pt-note-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.pt-note-modal-card {
+  width: min(680px, 94vw);
+  background: var(--ed-bg-2, #1c1e24);
+  border: 1px solid var(--ed-line-strong, #444);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+}
+.pt-note-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pt-note-modal-textarea {
+  width: 100%;
+  min-height: 220px;
+  max-height: 55vh;
+  resize: vertical;
+  background: var(--ed-bg-3, #14161a);
+  color: var(--ed-text, #eee);
+  border: 1px solid var(--ed-line-strong, #555);
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  font-family: inherit;
+  outline: none;
+}
+.pt-note-modal-textarea:focus {
+  border-color: var(--ed-accent, #d4a359);
 }

@@ -61,7 +61,7 @@ export function ParticleLayer({ doc, srcOf }: { doc: ParticleEffectDef; srcOf: (
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const srcOfRef = useRef(srcOf)
   srcOfRef.current = srcOf
-  const count = Math.max(4, Math.min(400, doc.count ?? 60))
+  const count = Math.max(4, Math.min(1000, doc.count ?? 60))
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -163,63 +163,275 @@ const BUILTIN_PARTICLE_DOCS: Record<string, ParticleEffectDef> = {
   dust: {
     id: 'dust',
     label: 'Пылинки',
-    count: 52,
-    size_min: 2,
-    size_max: 4.5,
-    vx_min: -6,
-    vx_max: 6,
-    vy_min: -5,
-    vy_max: 7,
-    opacity: 0.72,
+    count: 150,
+    size_min: 1.6,
+    size_max: 4.2,
+    vx_min: -7,
+    vx_max: 7,
+    vy_min: -6,
+    vy_max: 8,
+    opacity: 0.78,
     blur: 0.3,
-    color_inner: 'rgba(255, 238, 185, 0.92)',
+    color_inner: 'rgba(255, 240, 195, 0.95)',
     color_outer: 'rgba(235, 205, 130, 0)',
   },
   steam: {
     id: 'steam',
     label: 'Пар',
-    count: 24,
-    size_min: 20,
-    size_max: 42,
-    vx_min: -8,
-    vx_max: 10,
-    vy_min: -18,
-    vy_max: -38,
-    opacity: 0.38,
-    blur: 5,
-    color_inner: 'rgba(215, 228, 245, 0.55)',
-    color_outer: 'rgba(180, 195, 215, 0)',
+    count: 65,
+    size_min: 28,
+    size_max: 65,
+    vx_min: -10,
+    vx_max: 12,
+    vy_min: -20,
+    vy_max: -45,
+    opacity: 0.35,
+    blur: 7,
+    color_inner: 'rgba(220, 234, 250, 0.50)',
+    color_outer: 'rgba(180, 198, 220, 0)',
   },
   sparks: {
     id: 'sparks',
     label: 'Искры',
-    count: 36,
-    size_min: 2.5,
-    size_max: 5,
-    vx_min: -16,
-    vx_max: 16,
-    vy_min: -30,
-    vy_max: -65,
+    count: 110,
+    size_min: 2.0,
+    size_max: 4.8,
+    vx_min: -18,
+    vx_max: 18,
+    vy_min: -35,
+    vy_max: -75,
     opacity: 0.95,
     blend: 'screen',
-    color_inner: 'rgba(255, 210, 75, 1)',
-    color_outer: 'rgba(255, 80, 0, 0)',
+    color_inner: 'rgba(255, 218, 85, 1)',
+    color_outer: 'rgba(255, 85, 0, 0)',
   },
   embers: {
     id: 'embers',
     label: 'Угли',
-    count: 30,
-    size_min: 3,
-    size_max: 6,
-    vx_min: -10,
-    vx_max: 10,
-    vy_min: -16,
-    vy_max: -38,
-    opacity: 0.85,
+    count: 85,
+    size_min: 3.0,
+    size_max: 6.8,
+    vx_min: -12,
+    vx_max: 12,
+    vy_min: -18,
+    vy_max: -42,
+    opacity: 0.90,
     blend: 'screen',
-    color_inner: 'rgba(255, 115, 25, 0.95)',
+    color_inner: 'rgba(255, 125, 30, 0.95)',
     color_outer: 'rgba(220, 50, 0, 0.2)',
   },
+}
+
+/**
+ * Кинематографический Canvas-ливень: падающие капли-струи с глубиной резкости,
+ * наклоном по направлению ветра и брызгами при касании земли/поверхностей.
+ */
+interface RainDrop {
+  x: number
+  y: number
+  speed: number
+  length: number
+  thickness: number
+  alpha: number
+  groundY: number
+}
+
+interface RainSplash {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  life: number
+  maxLife: number
+  size: number
+}
+
+interface ScreenDrop {
+  x: number
+  y: number
+  radius: number
+  speed: number
+  life: number
+}
+
+export function RainCanvasLayer({ config }: { config: SceneParticlesConfig }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    let raf = 0
+    let last = performance.now()
+
+    const density = config.density || 'normal'
+    const speedMod = config.speed === 'fast' ? 1.45 : config.speed === 'slow' ? 0.65 : 1.0
+    const count = density === 'high' ? 320 : density === 'low' ? 90 : 180
+
+    // Ветер: тангенс угла наклона
+    const windAngle = config.wind === 'left' ? -0.32 : config.wind === 'right' ? 0.32 : 0.05
+    const windVx = windAngle * 700 * speedMod
+
+    const w = () => canvas.clientWidth
+    const h = () => canvas.clientHeight
+
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1
+      canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr))
+      canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr))
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    }
+    resize()
+    window.addEventListener('resize', resize)
+
+    const drops: RainDrop[] = []
+    const splashes: RainSplash[] = []
+    const screenDrops: ScreenDrop[] = []
+
+    const spawnDrop = (d: RainDrop, anywhere = false) => {
+      const width = w()
+      const height = h()
+      // Запас по краям для косого дождя
+      const extraMargin = 160
+      d.x = -extraMargin + Math.random() * (width + extraMargin * 2)
+      d.groundY = height - Math.random() * (height * 0.14)
+      d.y = anywhere ? Math.random() * d.groundY : -40 - Math.random() * 80
+      // Слои глубины: передний план длиннее и быстрее, дальний — тоньше
+      const layer = Math.random()
+      if (layer > 0.8) {
+        // Близкие крупные капли
+        d.speed = (950 + Math.random() * 350) * speedMod
+        d.length = 26 + Math.random() * 22
+        d.thickness = 1.6
+        d.alpha = 0.55 + Math.random() * 0.3
+      } else if (layer > 0.35) {
+        // Средний план
+        d.speed = (750 + Math.random() * 250) * speedMod
+        d.length = 16 + Math.random() * 16
+        d.thickness = 1.1
+        d.alpha = 0.35 + Math.random() * 0.25
+      } else {
+        // Дальний план
+        d.speed = (550 + Math.random() * 200) * speedMod
+        d.length = 10 + Math.random() * 12
+        d.thickness = 0.75
+        d.alpha = 0.2 + Math.random() * 0.18
+      }
+    }
+
+    for (let i = 0; i < count; i++) {
+      const d: RainDrop = { x: 0, y: 0, speed: 0, length: 0, thickness: 1, alpha: 0.5, groundY: 0 }
+      spawnDrop(d, true)
+      drops.push(d)
+    }
+
+    // Инициализация редких капель на экране («стекло / объектив»)
+    const maxScreenDrops = density === 'high' ? 8 : density === 'low' ? 3 : 5
+    for (let i = 0; i < maxScreenDrops; i++) {
+      screenDrops.push({
+        x: Math.random() * (w() || 800),
+        y: Math.random() * (h() || 600),
+        radius: 1.5 + Math.random() * 2.5,
+        speed: 12 + Math.random() * 25,
+        life: 0.4 + Math.random() * 0.6,
+      })
+    }
+
+    const rainColor = config.color || 'rgba(195, 220, 255,'
+
+    const step = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000)
+      last = now
+      const width = w()
+      const height = h()
+
+      ctx.clearRect(0, 0, width, height)
+
+      // 1. Отрисовка струй дождя
+      for (const d of drops) {
+        d.y += d.speed * dt
+        d.x += windVx * dt
+
+        if (d.y >= d.groundY) {
+          // Рождение брызг
+          const splashCount = Math.floor(2 + Math.random() * 3)
+          for (let s = 0; s < splashCount; s++) {
+            splashes.push({
+              x: d.x,
+              y: d.groundY,
+              vx: (Math.random() - 0.5) * 85 + (windAngle * 90),
+              vy: -(30 + Math.random() * 65),
+              life: 0,
+              maxLife: 0.14 + Math.random() * 0.12,
+              size: 0.8 + Math.random() * 1.2,
+            })
+          }
+          spawnDrop(d, false)
+        }
+
+        // Рисуем наклонный штрих
+        const endX = d.x + windAngle * d.length
+        const endY = d.y + d.length
+
+        ctx.strokeStyle = rainColor.endsWith(',') ? `${rainColor} ${d.alpha})` : rainColor
+        ctx.lineWidth = d.thickness
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(d.x, d.y)
+        ctx.lineTo(endX, endY)
+        ctx.stroke()
+      }
+
+      // 2. Отрисовка брызг у земли
+      for (let i = splashes.length - 1; i >= 0; i--) {
+        const sp = splashes[i]
+        sp.life += dt
+        if (sp.life >= sp.maxLife) {
+          splashes.splice(i, 1)
+          continue
+        }
+        sp.x += sp.vx * dt
+        sp.y += sp.vy * dt
+        sp.vy += 320 * dt // гравитация
+
+        const spAlpha = Math.max(0, (1 - sp.life / sp.maxLife) * 0.7)
+        ctx.fillStyle = rainColor.endsWith(',') ? `${rainColor} ${spAlpha})` : rainColor
+        ctx.beginPath()
+        ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      // 3. Медленно стекающие капли на стекле
+      for (const sd of screenDrops) {
+        sd.y += sd.speed * dt
+        if (sd.y > height + 20) {
+          sd.y = -10
+          sd.x = Math.random() * width
+          sd.radius = 1.5 + Math.random() * 2.5
+        }
+        ctx.fillStyle = `rgba(215, 235, 255, ${sd.life * 0.35})`
+        ctx.beginPath()
+        ctx.arc(sd.x, sd.y, sd.radius, 0, Math.PI * 2)
+        ctx.fill()
+        // Световой блик
+        ctx.fillStyle = `rgba(255, 255, 255, ${sd.life * 0.6})`
+        ctx.beginPath()
+        ctx.arc(sd.x - sd.radius * 0.3, sd.y - sd.radius * 0.3, sd.radius * 0.4, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      raf = requestAnimationFrame(step)
+    }
+
+    raf = requestAnimationFrame(step)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener('resize', resize)
+    }
+  }, [config])
+
+  return <canvas ref={canvasRef} className="atmosphere-particles atmosphere-rain-canvas" aria-hidden />
 }
 
 /** Слой атмосферы по ключу WeatherDef.overlay или SceneDef.particles (строка или объект настроек) */
@@ -241,7 +453,12 @@ export function AtmosphereLayer({
   const type = config.type
   if (!type || type === 'none') return null
 
-  const builtinCss = ['rain', 'snow', 'fog', 'ash'].includes(type)
+  // Кинематографичный дождь рендерится через живой Canvas-ливень
+  if (type === 'rain') {
+    return <RainCanvasLayer config={config} />
+  }
+
+  const builtinCss = ['snow', 'fog', 'ash'].includes(type)
   if (builtinCss) {
     const windClass = config.wind === 'left' ? ' wind-left' : config.wind === 'right' ? ' wind-right' : ''
     const speedClass = config.speed === 'fast' ? ' speed-fast' : config.speed === 'slow' ? ' speed-slow' : ''

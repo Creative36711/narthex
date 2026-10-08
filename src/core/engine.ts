@@ -2212,17 +2212,32 @@ export class GameEngine {
     return Math.max(0, Math.floor((base * rate * dynamic) / this.priceModifier(npc)))
   }
 
+  /** полный список продаваемых торговцем товаров, включая выкупленные у игрока */
+  traderSells(npc: NpcDef): Array<{ item: string; price?: number; stock?: number }> {
+    if (!npc.trader) return []
+    const base = [...npc.trader.sells]
+    const bought = this.state.trader_bought_items?.[npc.id] ?? []
+    for (const b of bought) {
+      if (!base.some((s) => s.item === b.item)) {
+        base.push(b)
+      }
+    }
+    return base
+  }
+
   /** текущий остаток товара на складе торговца (undefined — бесконечный запас) */
   traderItemStock(npcId: string, itemId: string): number | undefined {
     const npc = this.campaign.entities[npcId] as NpcDef | undefined
     if (!npc?.trader) return undefined
-    const sellDef = npc.trader.sells.find((s) => s.item === itemId)
-    if (!sellDef || sellDef.stock === undefined) return undefined
     const traderSaved = this.state.trader_stocks?.[npcId]
     if (traderSaved && itemId in traderSaved) {
       return traderSaved[itemId]
     }
-    return sellDef.stock
+    const sellDef = npc.trader.sells.find((s) => s.item === itemId)
+    if (sellDef && sellDef.stock !== undefined) return sellDef.stock
+    const boughtDef = (this.state.trader_bought_items?.[npcId] ?? []).find((s) => s.item === itemId)
+    if (boughtDef && boughtDef.stock !== undefined) return boughtDef.stock
+    return undefined
   }
 
   buyItem(itemId: string, price: number): boolean {
@@ -2258,6 +2273,38 @@ export class GameEngine {
     if (this.itemCount(itemId) < 1) return false
     this.removeItem(itemId, 1, { silent: true })
     this.addItem(this.currencyItemId(), price, { silent: true })
+
+    // Добавляем проданный предмет торговцу для обратного выкупа
+    if (this.trade) {
+      const traderId = this.trade.id
+      const npc = this.campaign.entities[traderId] as NpcDef | undefined
+      if (npc?.trader) {
+        const inBase = npc.trader.sells.some((s) => s.item === itemId)
+        if (inBase) {
+          const curStock = this.traderItemStock(traderId, itemId)
+          if (curStock !== undefined) {
+            if (!this.state.trader_stocks) this.state.trader_stocks = {}
+            if (!this.state.trader_stocks[traderId]) this.state.trader_stocks[traderId] = {}
+            this.state.trader_stocks[traderId][itemId] = curStock + 1
+          }
+        } else {
+          if (!this.state.trader_bought_items) this.state.trader_bought_items = {}
+          if (!this.state.trader_bought_items[traderId]) this.state.trader_bought_items[traderId] = []
+          const existing = this.state.trader_bought_items[traderId].find((s) => s.item === itemId)
+          const curStock = this.traderItemStock(traderId, itemId) ?? 0
+          const nextStock = curStock + 1
+          if (!existing) {
+            this.state.trader_bought_items[traderId].push({ item: itemId, stock: nextStock })
+          } else {
+            existing.stock = nextStock
+          }
+          if (!this.state.trader_stocks) this.state.trader_stocks = {}
+          if (!this.state.trader_stocks[traderId]) this.state.trader_stocks[traderId] = {}
+          this.state.trader_stocks[traderId][itemId] = nextStock
+        }
+      }
+    }
+
     this.markSkill('bargain')
     playUi('coin')
     this.notify()

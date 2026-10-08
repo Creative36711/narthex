@@ -90,6 +90,7 @@ export function PlaytestDebugPanel({ engine, onClose, notes: _notes = '', onSave
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState('')
   const [autoClear, setAutoClear] = useState<boolean>(shouldAutoClearNotes)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const syncNotesToAudit = (updated: PlaytestNote[]) => {
     setNoteList(updated)
@@ -206,19 +207,48 @@ export function PlaytestDebugPanel({ engine, onClose, notes: _notes = '', onSave
       <p className="pt-debug-help">
         Заметки привязываются к текущей сцене и автоматически упаковываются в раздел «Заметки мастера из плейтеста» пакета задания для ИИ.
       </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
-        <textarea
-          style={{ width: '100%', minHeight: 56, resize: 'vertical', fontFamily: 'inherit', fontSize: '0.85rem', padding: 6 }}
-          value={newNoteText}
-          placeholder={`Заметка для текущей сцены (${currentSceneDef?.label ?? engine.state.scene}): что проверить или исправить…`}
-          onChange={(e) => setNewNoteText(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-              e.preventDefault()
-              handleAddNote()
-            }
-          }}
-        />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8, width: '100%' }}>
+        <div style={{ position: 'relative', width: '100%' }}>
+          <textarea
+            style={{
+              width: '100%',
+              minHeight: 74,
+              maxHeight: 180,
+              resize: 'vertical',
+              fontFamily: 'inherit',
+              fontSize: '13.5px',
+              lineHeight: 1.45,
+              padding: '8px 30px 8px 10px',
+              boxSizing: 'border-box',
+              borderRadius: 6,
+            }}
+            value={newNoteText}
+            placeholder={`Заметка для текущей сцены (${currentSceneDef?.label ?? engine.state.scene}): баг, реплика, логика…`}
+            onChange={(e) => setNewNoteText(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault()
+                handleAddNote()
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="btn btn-small"
+            style={{
+              position: 'absolute',
+              top: 6,
+              right: 6,
+              padding: '2px 6px',
+              fontSize: '11px',
+              opacity: 0.8,
+            }}
+            data-tip="Развернуть в просторное окно для подробной записи"
+            onClick={() => setIsModalOpen(true)}
+          >
+            ⤢
+          </button>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <button
             className="btn btn-small btn-primary"
@@ -227,11 +257,19 @@ export function PlaytestDebugPanel({ engine, onClose, notes: _notes = '', onSave
           >
             + Добавить заметку
           </button>
-          {noteList.length > 0 && (
-            <button className="btn btn-small" onClick={handleClearAllNotes}>
-              Очистить всё
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              className="btn btn-small"
+              onClick={() => setIsModalOpen(true)}
+            >
+              Развернуть
             </button>
-          )}
+            {noteList.length > 0 && (
+              <button className="btn btn-small" onClick={handleClearAllNotes}>
+                Очистить всё
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -539,5 +577,44 @@ export function PlaytestDebugPanel({ engine, onClose, notes: _notes = '', onSave
         </div>
       )}
     </Section>
+    {isModalOpen && (
+      <div className="pt-note-modal-overlay" onClick={() => setIsModalOpen(false)}>
+        <div className="pt-note-modal-card" onClick={(e) => e.stopPropagation()}>
+          <div className="pt-note-modal-header">
+            <h3 style={{ margin: 0 }}>
+              Заметка мастера — {currentSceneDef?.label ?? engine.state.scene}
+            </h3>
+            <button className="btn btn-small" onClick={() => setIsModalOpen(false)}>
+              <Ico n="close" />
+            </button>
+          </div>
+          <p className="pt-debug-help" style={{ margin: 0 }}>
+            Подробно опишите, что нужно исправить или дополнить в этой сцене. Текст попадёт в пакет задания для ИИ.
+          </p>
+          <textarea
+            className="pt-note-modal-textarea"
+            placeholder="Опишите баг, реплику, условия появления или желаемую логику сцены…"
+            value={newNoteText}
+            onChange={(e) => setNewNoteText(e.target.value)}
+            autoFocus
+          />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button className="btn btn-small" onClick={() => setIsModalOpen(false)}>
+              Закрыть
+            </button>
+            <button
+              className="btn btn-small btn-primary"
+              disabled={!newNoteText.trim()}
+              onClick={() => {
+                handleAddNote()
+                setIsModalOpen(false)
+              }}
+            >
+              Сохранить заметку
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
   </aside>
 }
