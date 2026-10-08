@@ -39,4 +39,13 @@ assert.ok(sceneEd.includes('SlotEntitySprite'), 'SceneEditor содержит к
 assert.ok(sceneEd.includes('slot.environmental'), 'SceneEditor содержит поддержку slot.environmental')
 assert.ok(sceneEd.includes('Хотспот окружения'), 'SceneEditor содержит чекбокс «Хотспот окружения»')
 
-console.log('✓ Все проверки хотспотов окружения, спрайтов и превью редактора пройдены успешно!')
+// 5. Проверка Варианта А: Синхронная кинематографичная камера всей сцены
+assert.ok(css.includes('.scene-camera-stage'), 'CSS содержит класс синхронной камеры .scene-camera-stage')
+const sceneScr = readFileSync('src/player/SceneScreen.tsx', 'utf8')
+assert.ok(sceneScr.includes('scene-camera-stage'), 'SceneScreen оборачивает сцену в синхронную камеру .scene-camera-stage')
+const settingsTs = readFileSync('src/shared/settings.ts', 'utf8')
+assert.ok(settingsTs.includes('camera_parallax'), 'settings.ts содержит настройку camera_parallax')
+const settingsPanel = readFileSync('src/shared/SettingsPanel.tsx', 'utf8')
+assert.ok(settingsPanel.includes('camera_parallax'), 'SettingsPanel содержит тумблер камеры сцены')
+
+console.log('✓ Все проверки хотспотов окружения, спрайтов, превью редактора и синхронной камеры пройдены успешно!')

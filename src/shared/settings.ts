@@ -27,6 +27,8 @@ export interface PlayerSettings {
   text_scale: number
   /** выключить анимации интерфейса */
   animations: boolean
+  /** кинематографичный параллакс камеры сцены вслед за курсором */
+  camera_parallax?: boolean
 }
 
 export const DEFAULT_SETTINGS: PlayerSettings = {
@@ -40,6 +42,7 @@ export const DEFAULT_SETTINGS: PlayerSettings = {
   tts_rate: 1,
   text_scale: 1,
   animations: true,
+  camera_parallax: true,
 }
 
 const KEY = 'chronicle-forge:settings'

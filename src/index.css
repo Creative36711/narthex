@@ -3869,23 +3869,32 @@ html.no-anim .dialogue-choices .choice-btn { animation-delay: 0ms !important; }
 /* фон журнала из токенов оформления (theme.tokens.log) */
 .cf-themed .log-list { background: var(--log-bg, transparent); border-radius: var(--radius); padding: 8px; }
 
-/* ───────── кинематографическая камера фона и мастерская атмосфера ───────── */
-.scene-bg-camera { position: absolute; inset: 0; overflow: hidden; will-change: transform; }
-.scene-bg-camera .scene-bg { position: absolute; inset: -6%; width: 112%; height: 112%; }
+/* ───────── Вариант А: Синхронная кинематографичная камера всей сцены ───────── */
+.scene-stage {
+  --mouse-x: 0;
+  --mouse-y: 0;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Общий синхронный контейнер камеры: перемещает фон, персонажей и хотспоты единообразно */
+.scene-camera-stage {
+  position: absolute;
+  inset: -1.5%;
+  width: 103%;
+  height: 103%;
+  transform: translate(calc(var(--mouse-x) * -6px), calc(var(--mouse-y) * -4px));
+  will-change: transform;
+}
+
+.scene-bg-camera { position: absolute; inset: 0; overflow: hidden; }
+.scene-bg-camera .scene-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .scene-bg-camera .scene-bg img,
 img.scene-bg { object-fit: fill; }
 .atmosphere-particles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
 
-/* 2.5D кинематографичный параллакс фона (lerp-интерполяция из rAF) */
-.scene-stage {
-  --mouse-x: 0;
-  --mouse-y: 0;
-}
-.scene-stage .scene-bg-camera {
-  transform: translate(calc(var(--mouse-x) * -6px), calc(var(--mouse-y) * -4px)) scale(1.02);
-  will-change: transform;
-}
-/* Спрайты персонажей и хотспоты объектов зафиксированы на координатах сцены без дергания */
+/* Спрайты персонажей и хотспоты объектов синхронизированы в пространстве камеры */
 .scene-foreground {
   position: absolute;
   inset: 0;

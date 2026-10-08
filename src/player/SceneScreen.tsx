@@ -35,14 +35,23 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const mouseTarget = useRef({ x: 0, y: 0 })
   const mouseCurrent = useRef({ x: 0, y: 0 })
   const rafRef = useRef<number>(0)
+  const settings = useSettings()
 
   useEffect(() => {
+    if (settings.camera_parallax === false || settings.animations === false) {
+      const el = stageRef.current
+      if (el) {
+        el.style.setProperty('--mouse-x', '0')
+        el.style.setProperty('--mouse-y', '0')
+      }
+      return
+    }
     const loop = () => {
       const target = mouseTarget.current
       const cur = mouseCurrent.current
-      // Мягкий коэффициент сглаживания 0.06 (без резких рывков)
-      cur.x += (target.x - cur.x) * 0.06
-      cur.y += (target.y - cur.y) * 0.06
+      // Мягкий коэффициент сглаживания 0.05: синхронная кинематографичная камера
+      cur.x += (target.x - cur.x) * 0.05
+      cur.y += (target.y - cur.y) * 0.05
       const el = stageRef.current
       if (el) {
         el.style.setProperty('--mouse-x', cur.x.toFixed(4))
@@ -52,7 +61,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
     }
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [])
+  }, [settings.camera_parallax, settings.animations])
 
   const scene = engine.currentScene()
   const sceneId = scene?.id
@@ -93,8 +102,6 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
     if (!currentIntro) return null
     return typeof currentIntro === 'string' ? { text: currentIntro } : currentIntro
   }, [currentIntro])
-
-  const settings = useSettings()
 
   // Звук и озвучка текущей реплики нарратива через глобальный Voice Coordinator
   useEffect(() => {
@@ -240,7 +247,8 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
           mouseTarget.current.y = 0
         }}
       >
-        <div key={stateKey} className="scene-bg-camera" style={camStyle}>
+        <div className="scene-camera-stage">
+          <div key={stateKey} className="scene-bg-camera" style={camStyle}>
           {state.image && !bgError ? (
             <LiveImg
               className="scene-bg scene-bg-enter"
@@ -415,12 +423,13 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                 width: pct(nav.area.w, canvas.w),
                 height: pct(nav.area.h, canvas.h),
               }}
-              onClick={handle}
-            >
-              <span className="nav-label">{nav.label}</span>
-            </button>
-          )
-        })}
+                onClick={handle}
+              >
+                <span className="nav-label">{nav.label}</span>
+              </button>
+            )
+          })}
+        </div>
 
         {/* слой погоды (блок 9 ТЗ): чистый CSS, полупрозрачный, не ловит клики */}
         {weather?.overlay && weather.overlay !== 'none' && (
