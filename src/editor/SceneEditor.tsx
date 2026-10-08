@@ -588,27 +588,96 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
           <option value="none">Без фильтров освещения</option>
         </select>
       </label>
-      <label className="fld">
-        <span>Атмосферные частицы</span>
-        <select
-          value={scene.particles ?? 'none'}
-          onChange={(e) => {
-            if (e.target.value === 'none') delete scene.particles
-            else scene.particles = e.target.value as any
-            commit()
-          }}
-        >
-          <option value="none">Без частиц</option>
-          <option value="dust">Пылинки в воздухе</option>
-          <option value="steam">Клубы пара и дыма</option>
-          <option value="sparks">Искры</option>
-          <option value="embers">Тлеющие угли</option>
-          <option value="rain">Дождь</option>
-          <option value="snow">Снег</option>
-          <option value="fog">Туман</option>
-          <option value="ash">Пепел</option>
-        </select>
-      </label>
+      <div className="scene-particles-group" style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+        <label className="fld">
+          <span>Атмосферные частицы</span>
+          <select
+            value={typeof scene.particles === 'object' ? scene.particles.type : (scene.particles ?? 'none')}
+            onChange={(e) => {
+              const val = e.target.value
+              if (val === 'none') {
+                delete scene.particles
+              } else if (typeof scene.particles === 'object') {
+                scene.particles.type = val as any
+              } else {
+                scene.particles = val as any
+              }
+              commit()
+            }}
+          >
+            <option value="none">Без частиц</option>
+            <option value="dust">Пылинки в воздухе (светящиеся)</option>
+            <option value="steam">Клубы пара и дыма</option>
+            <option value="sparks">Искры (раскалённые)</option>
+            <option value="embers">Тлеющие угли (плавающие)</option>
+            <option value="rain">Дождь</option>
+            <option value="snow">Снег</option>
+            <option value="fog">Туман (дрейфующий)</option>
+            <option value="ash">Пепел</option>
+          </select>
+        </label>
+        {scene.particles && scene.particles !== 'none' && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingLeft: 4 }}>
+            <label className="fld fld-inline" style={{ flex: '1 1 90px' }}>
+              <span className="small muted">Плотность</span>
+              <select
+                value={typeof scene.particles === 'object' ? (scene.particles.density ?? 'medium') : 'medium'}
+                onChange={(e) => {
+                  const density = e.target.value as any
+                  if (typeof scene.particles !== 'object') {
+                    scene.particles = { type: scene.particles as any, density }
+                  } else {
+                    scene.particles.density = density
+                  }
+                  commit()
+                }}
+              >
+                <option value="low">Мало</option>
+                <option value="medium">Средне</option>
+                <option value="high">Много</option>
+              </select>
+            </label>
+            <label className="fld fld-inline" style={{ flex: '1 1 90px' }}>
+              <span className="small muted">Скорость</span>
+              <select
+                value={typeof scene.particles === 'object' ? (scene.particles.speed ?? 'normal') : 'normal'}
+                onChange={(e) => {
+                  const speed = e.target.value as any
+                  if (typeof scene.particles !== 'object') {
+                    scene.particles = { type: scene.particles as any, speed }
+                  } else {
+                    scene.particles.speed = speed
+                  }
+                  commit()
+                }}
+              >
+                <option value="slow">Медленно</option>
+                <option value="normal">Обычно</option>
+                <option value="fast">Шторм / быстро</option>
+              </select>
+            </label>
+            <label className="fld fld-inline" style={{ flex: '1 1 90px' }}>
+              <span className="small muted">Ветер</span>
+              <select
+                value={typeof scene.particles === 'object' ? (scene.particles.wind ?? 'none') : 'none'}
+                onChange={(e) => {
+                  const wind = e.target.value as any
+                  if (typeof scene.particles !== 'object') {
+                    scene.particles = { type: scene.particles as any, wind }
+                  } else {
+                    scene.particles.wind = wind
+                  }
+                  commit()
+                }}
+              >
+                <option value="none">Штиль</option>
+                <option value="left">Влево ◀</option>
+                <option value="right">Вправо ▶</option>
+              </select>
+            </label>
+          </div>
+        )}
+      </div>
       <details className="spoiler-block" open={Boolean(scene.narrative_intro?.length)}>
         <summary>Вводное повествование (мысли при входе){(scene.narrative_intro?.length ?? 0) ? ` — ${scene.narrative_intro!.length}` : ''}</summary>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>

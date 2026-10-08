@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import type { ArtDoc, CameraDoc, ParticleEffectDef } from '../shared/types'
+import type { ArtDoc, CameraDoc, ParticleEffectDef, SceneParticles, SceneParticlesConfig } from '../shared/types'
 import { ArtView } from '../shared/ArtView'
 
 // ────────────────────────── 1. камера ──────────────────────────
@@ -136,8 +136,8 @@ export function ParticleLayer({ doc, srcOf }: { doc: ParticleEffectDef; srcOf: (
           ctx.drawImage(img, -size / 2, -size / 2, size, size)
         } else {
           const g = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size / 2)
-          g.addColorStop(0, 'rgba(255,255,255,0.95)')
-          g.addColorStop(1, 'rgba(255,255,255,0)')
+          g.addColorStop(0, doc.color_inner || 'rgba(255,255,255,0.95)')
+          g.addColorStop(1, doc.color_outer || 'rgba(255,255,255,0)')
           ctx.fillStyle = g
           ctx.beginPath()
           ctx.arc(0, 0, p.size, 0, Math.PI * 2)
@@ -163,75 +163,113 @@ const BUILTIN_PARTICLE_DOCS: Record<string, ParticleEffectDef> = {
   dust: {
     id: 'dust',
     label: 'Пылинки',
-    count: 36,
+    count: 52,
     size_min: 2,
-    size_max: 3.5,
-    vx_min: -5,
-    vx_max: 5,
-    vy_min: -4,
-    vy_max: 6,
-    opacity: 0.5,
-    blur: 0.5,
+    size_max: 4.5,
+    vx_min: -6,
+    vx_max: 6,
+    vy_min: -5,
+    vy_max: 7,
+    opacity: 0.72,
+    blur: 0.3,
+    color_inner: 'rgba(255, 238, 185, 0.92)',
+    color_outer: 'rgba(235, 205, 130, 0)',
   },
   steam: {
     id: 'steam',
     label: 'Пар',
-    count: 20,
-    size_min: 18,
-    size_max: 36,
-    vx_min: -6,
-    vx_max: 8,
-    vy_min: -16,
-    vy_max: -34,
-    opacity: 0.3,
-    blur: 4,
+    count: 24,
+    size_min: 20,
+    size_max: 42,
+    vx_min: -8,
+    vx_max: 10,
+    vy_min: -18,
+    vy_max: -38,
+    opacity: 0.38,
+    blur: 5,
+    color_inner: 'rgba(215, 228, 245, 0.55)',
+    color_outer: 'rgba(180, 195, 215, 0)',
   },
   sparks: {
     id: 'sparks',
     label: 'Искры',
-    count: 28,
-    size_min: 2,
-    size_max: 4.5,
-    vx_min: -12,
-    vx_max: 12,
-    vy_min: -24,
-    vy_max: -52,
-    opacity: 0.85,
+    count: 36,
+    size_min: 2.5,
+    size_max: 5,
+    vx_min: -16,
+    vx_max: 16,
+    vy_min: -30,
+    vy_max: -65,
+    opacity: 0.95,
     blend: 'screen',
+    color_inner: 'rgba(255, 210, 75, 1)',
+    color_outer: 'rgba(255, 80, 0, 0)',
   },
   embers: {
     id: 'embers',
     label: 'Угли',
-    count: 22,
-    size_min: 2.5,
-    size_max: 5,
-    vx_min: -8,
-    vx_max: 8,
-    vy_min: -14,
-    vy_max: -32,
-    opacity: 0.75,
+    count: 30,
+    size_min: 3,
+    size_max: 6,
+    vx_min: -10,
+    vx_max: 10,
+    vy_min: -16,
+    vy_max: -38,
+    opacity: 0.85,
     blend: 'screen',
+    color_inner: 'rgba(255, 115, 25, 0.95)',
+    color_outer: 'rgba(220, 50, 0, 0.2)',
   },
 }
 
-/** слой атмосферы по ключу WeatherDef.overlay или SceneDef.particles */
+/** Слой атмосферы по ключу WeatherDef.overlay или SceneDef.particles (строка или объект настроек) */
 export function AtmosphereLayer({
   overlay,
   atmospherics,
   srcOf,
 }: {
-  overlay: string
+  overlay?: SceneParticles | string | null
   atmospherics?: ParticleEffectDef[]
   srcOf?: (path: string) => string
 }) {
-  if (overlay === 'none' || !overlay) return null
-  const builtinCss = ['rain', 'snow', 'fog', 'ash'].includes(overlay)
-  if (builtinCss) return <div className={`weather-overlay weather-${overlay}`} aria-hidden="true" />
-  const builtinDoc = BUILTIN_PARTICLE_DOCS[overlay]
-  if (builtinDoc) return <ParticleLayer doc={builtinDoc} srcOf={srcOf ?? ((p) => p)} />
-  const doc = (atmospherics ?? []).find((a) => a.id === overlay)
-  if (!doc) return <div className={`weather-overlay weather-${overlay}`} aria-hidden="true" />
-  return <ParticleLayer doc={doc} srcOf={srcOf ?? ((p) => p)} />
+  if (!overlay || overlay === 'none') return null
+
+  const config: SceneParticlesConfig = typeof overlay === 'string'
+    ? { type: overlay as any }
+    : overlay
+
+  const type = config.type
+  if (!type || type === 'none') return null
+
+  const builtinCss = ['rain', 'snow', 'fog', 'ash'].includes(type)
+  if (builtinCss) {
+    const windClass = config.wind === 'left' ? ' wind-left' : config.wind === 'right' ? ' wind-right' : ''
+    const speedClass = config.speed === 'fast' ? ' speed-fast' : config.speed === 'slow' ? ' speed-slow' : ''
+    const densityClass = config.density === 'high' ? ' density-high' : config.density === 'low' ? ' density-low' : ''
+    return <div className={`weather-overlay weather-${type}${windClass}${speedClass}${densityClass}`} aria-hidden="true" />
+  }
+
+  const baseDoc = BUILTIN_PARTICLE_DOCS[type] ?? (atmospherics ?? []).find((a) => a.id === type)
+  if (!baseDoc) {
+    return <div className={`weather-overlay weather-${type}`} aria-hidden="true" />
+  }
+
+  // Применяем настройки скорости, плотности, ветра и цвета
+  const countMultiplier = config.density === 'high' ? 1.8 : config.density === 'low' ? 0.55 : 1
+  const speedMultiplier = config.speed === 'fast' ? 1.7 : config.speed === 'slow' ? 0.55 : 1
+  const windOffset = config.wind === 'left' ? -25 : config.wind === 'right' ? 25 : 0
+
+  const tunedDoc: ParticleEffectDef = {
+    ...baseDoc,
+    count: Math.round((baseDoc.count ?? 60) * countMultiplier),
+    vx_min: ((baseDoc.vx_min ?? -5) + windOffset) * speedMultiplier,
+    vx_max: ((baseDoc.vx_max ?? 5) + windOffset) * speedMultiplier,
+    vy_min: (baseDoc.vy_min ?? 40) * speedMultiplier,
+    vy_max: (baseDoc.vy_max ?? 80) * speedMultiplier,
+    color_inner: config.color || baseDoc.color_inner,
+  }
+
+  return <ParticleLayer doc={tunedDoc} srcOf={srcOf ?? ((p) => p)} />
 }
 
 // ────────────────────────── 3. баннеры ──────────────────────────

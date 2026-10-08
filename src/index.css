@@ -3680,58 +3680,73 @@ input[type='checkbox'], input[type='radio'] {
 /* ─────────────── погода (блок 9 ТЗ «Гибкий движок»): слои поверх сцены ─────────────── */
 .weather-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
 
-/* дождь: наклонные штрихи (14°), сдвиг вдоль оси узора — бесшовный цикл */
+/* дождь: наклонные штрихи (18°), сдвиг вдоль оси узора — бесшовный цикл */
 .weather-rain {
   background-image:
-    repeating-linear-gradient(14deg, transparent 0px, transparent 11px, rgba(174, 199, 235, 0.34) 11px, rgba(174, 199, 235, 0.34) 12.5px, transparent 12.5px, transparent 17px),
-    repeating-linear-gradient(11deg, transparent 0px, transparent 19px, rgba(150, 178, 224, 0.2) 19px, rgba(150, 178, 224, 0.2) 21px, transparent 21px, transparent 29px);
-  animation: weather-rain-fall 0.55s linear infinite;
+    repeating-linear-gradient(18deg, transparent 0px, transparent 12px, rgba(180, 205, 240, 0.42) 12px, rgba(180, 205, 240, 0.42) 13.5px, transparent 13.5px, transparent 20px),
+    repeating-linear-gradient(14deg, transparent 0px, transparent 22px, rgba(155, 185, 230, 0.28) 22px, rgba(155, 185, 230, 0.28) 24px, transparent 24px, transparent 34px);
+  animation: weather-rain-fall 0.5s linear infinite;
 }
+.weather-rain.wind-left {
+  background-image:
+    repeating-linear-gradient(-18deg, transparent 0px, transparent 12px, rgba(180, 205, 240, 0.42) 12px, rgba(180, 205, 240, 0.42) 13.5px, transparent 13.5px, transparent 20px),
+    repeating-linear-gradient(-14deg, transparent 0px, transparent 22px, rgba(155, 185, 230, 0.28) 22px, rgba(155, 185, 230, 0.28) 24px, transparent 24px, transparent 34px);
+}
+.weather-rain.wind-right {
+  background-image:
+    repeating-linear-gradient(26deg, transparent 0px, transparent 12px, rgba(180, 205, 240, 0.42) 12px, rgba(180, 205, 240, 0.42) 13.5px, transparent 13.5px, transparent 20px),
+    repeating-linear-gradient(22deg, transparent 0px, transparent 22px, rgba(155, 185, 230, 0.28) 22px, rgba(155, 185, 230, 0.28) 24px, transparent 24px, transparent 34px);
+}
+.weather-overlay.speed-fast { animation-duration: 0.3s !important; }
+.weather-overlay.speed-slow { animation-duration: 1.2s !important; }
+.weather-overlay.density-high { opacity: 1; filter: contrast(1.15); }
+.weather-overlay.density-low { opacity: 0.45; }
+
 @keyframes weather-rain-fall {
   from { background-position: 0 0, 0 0; }
-  to { background-position: -25px 99px, -14px 106px; }
+  to { background-position: -32px 105px, -18px 115px; }
 }
 
 /* снег: несколько слоёв «снежинок» с разной скоростью и сносом */
 .weather-snow {
   background-image:
-    radial-gradient(2.4px 2.4px at 22% 28%, rgba(255, 255, 255, 0.92) 45%, transparent 60%),
-    radial-gradient(1.7px 1.7px at 68% 62%, rgba(255, 255, 255, 0.75) 45%, transparent 60%),
-    radial-gradient(3px 3px at 44% 84%, rgba(240, 246, 255, 0.85) 45%, transparent 60%),
-    radial-gradient(1.3px 1.3px at 86% 12%, rgba(255, 255, 255, 0.55) 45%, transparent 60%);
+    radial-gradient(2.6px 2.6px at 22% 28%, rgba(255, 255, 255, 0.95) 45%, transparent 60%),
+    radial-gradient(1.9px 1.9px at 68% 62%, rgba(255, 255, 255, 0.8) 45%, transparent 60%),
+    radial-gradient(3.2px 3.2px at 44% 84%, rgba(240, 246, 255, 0.9) 45%, transparent 60%),
+    radial-gradient(1.5px 1.5px at 86% 12%, rgba(255, 255, 255, 0.6) 45%, transparent 60%);
   background-size: 90px 90px, 130px 130px, 110px 110px, 70px 70px;
-  animation: weather-snow-fall 7s linear infinite;
+  animation: weather-snow-fall 6s linear infinite;
 }
 @keyframes weather-snow-fall {
   from { background-position: 0 0, 0 0, 0 0, 0 0; }
-  to { background-position: 24px 90px, -20px 130px, 32px 110px, -10px 70px; }
+  to { background-position: 28px 90px, -24px 130px, 36px 110px, -12px 70px; }
 }
 
 /* пепел: тёмные хлопья, медленнее снега и с лёгким боковым сносом */
 .weather-ash {
   background-image:
-    radial-gradient(2.6px 2.6px at 30% 35%, rgba(120, 110, 105, 0.55) 45%, transparent 60%),
-    radial-gradient(1.8px 1.8px at 72% 70%, rgba(90, 84, 80, 0.45) 45%, transparent 60%),
-    radial-gradient(3.2px 3.2px at 52% 12%, rgba(140, 130, 120, 0.4) 45%, transparent 60%);
+    radial-gradient(2.8px 2.8px at 30% 35%, rgba(130, 120, 115, 0.65) 45%, transparent 60%),
+    radial-gradient(2.0px 2.0px at 72% 70%, rgba(100, 92, 88, 0.55) 45%, transparent 60%),
+    radial-gradient(3.4px 3.4px at 52% 12%, rgba(150, 140, 130, 0.5) 45%, transparent 60%);
   background-size: 120px 120px, 95px 95px, 150px 150px;
-  animation: weather-ash-fall 11s linear infinite;
+  animation: weather-ash-fall 9s linear infinite;
 }
 @keyframes weather-ash-fall {
   from { background-position: 0 0, 0 0, 0 0; }
-  to { background-position: 34px 120px, -26px 95px, 44px 150px; }
+  to { background-position: 38px 120px, -30px 95px, 48px 150px; }
 }
 
-/* туман: дрейфующие полупрозрачные «облака» */
+/* туман: волнообразно дрейфующие полупрозрачные клубы */
 .weather-fog {
   background:
-    radial-gradient(ellipse 62% 46% at 28% 58%, rgba(202, 208, 218, 0.3), transparent 70%),
-    radial-gradient(ellipse 55% 42% at 74% 40%, rgba(192, 200, 212, 0.26), transparent 70%),
-    radial-gradient(ellipse 72% 52% at 52% 78%, rgba(208, 213, 222, 0.22), transparent 72%);
-  animation: weather-fog-drift 13s ease-in-out infinite alternate;
+    radial-gradient(ellipse 65% 48% at 26% 56%, rgba(205, 212, 224, 0.35), transparent 72%),
+    radial-gradient(ellipse 58% 44% at 76% 38%, rgba(195, 204, 218, 0.3), transparent 72%),
+    radial-gradient(ellipse 75% 55% at 50% 80%, rgba(212, 218, 228, 0.26), transparent 75%);
+  animation: weather-fog-drift 14s ease-in-out infinite alternate;
 }
 @keyframes weather-fog-drift {
-  from { transform: translateX(-2.5%); opacity: 0.85; }
-  to { transform: translateX(2.5%); opacity: 1; }
+  from { transform: translateX(-4%) translateY(-1%) scale(1.02); opacity: 0.8; }
+  to { transform: translateX(4%) translateY(1%) scale(1.06); opacity: 1; }
 }
 
 /* кнопка удаления внутри чипа (погода, реестры) */

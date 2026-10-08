@@ -1365,6 +1365,10 @@ export interface ParticleEffectDef {
   blur?: number
   blend?: 'normal' | 'screen'
   loop?: boolean
+  /** цвет центра процедурной частицы (rgba/hex, по умолчанию белое/золотое свечение) */
+  color_inner?: string
+  /** цвет внешнего ореола процедурной частицы */
+  color_outer?: string
 }
 
 export interface WeatherDef {
@@ -1504,6 +1508,18 @@ export interface NavigationZone {
   intercept_rule?: string
 }
 
+export type SceneParticlesPreset = 'dust' | 'steam' | 'rain' | 'snow' | 'fog' | 'ash' | 'sparks' | 'embers' | 'none'
+
+export interface SceneParticlesConfig {
+  type: SceneParticlesPreset
+  density?: 'low' | 'medium' | 'high'
+  speed?: 'slow' | 'normal' | 'fast'
+  wind?: 'left' | 'none' | 'right'
+  color?: string
+}
+
+export type SceneParticles = SceneParticlesPreset | SceneParticlesConfig
+
 export interface SceneDef {
   id: string
   label: string
@@ -1519,8 +1535,8 @@ export interface SceneDef {
   ambient?: Array<string | AmbientRule>
   /** тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров) */
   lighting?: 'outdoor' | 'indoor' | 'none'
-  /** атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) */
-  particles?: 'dust' | 'steam' | 'rain' | 'snow' | 'fog' | 'ash' | 'sparks' | 'embers' | 'none'
+  /** атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) — строка пресета или расширенный конфиг */
+  particles?: SceneParticles
   /** вводное атмосферное повествование от автора (мысли/описание при входе) */
   narrative_intro?: NarrativeIntroEntry[]
   /** показывать вводное повествование только один раз за забег (по умолчанию true) */
