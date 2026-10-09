@@ -520,6 +520,85 @@ function ItemForm({
       </div>
 
       <div className="props-group">
+        <h4>Срок годности и свежесть</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Скоропортящиеся предметы (еда, медикаменты, туши, алхимические смеси): каждый час в игре уменьшает свежесть.
+          При нуле предмет превращается в другой, уничтожается или запускает сюжетное правило.
+        </div>
+        <div className="fld-row">
+          <label className="fld fld-num" data-tip="Срок годности в игровых часах (тиках). 0 или пусто — предмет хранится вечно.">
+            <span>Срок годности (в часах/тиках)</span>
+            <input
+              type="number"
+              min={0}
+              placeholder="0 (вечный)"
+              value={item.decay_ticks ?? ''}
+              onChange={(e) => {
+                const v = Math.max(0, Number(e.target.value) || 0)
+                if (v > 0) item.decay_ticks = v
+                else delete item.decay_ticks
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Что происходит, когда срок годности истекает">
+            <span>Действие при порче</span>
+            <select
+              value={item.spoil_action ?? (item.spoil_into ? 'transform' : 'destroy')}
+              onChange={(e) => {
+                item.spoil_action = e.target.value as any
+                commit()
+              }}
+            >
+              <option value="transform">Превратить в другой предмет</option>
+              <option value="destroy">Уничтожить (исчезает из инвентаря)</option>
+              <option value="rule">Запустить сюжетное правило</option>
+            </select>
+          </label>
+        </div>
+        {(!item.spoil_action || item.spoil_action === 'transform') && (
+          <ItemSelect
+            label="Превращается в предмет"
+            store={store}
+            value={item.spoil_into ?? ''}
+            allowNone
+            onChange={(v) => {
+              if (v) item.spoil_into = v
+              else delete item.spoil_into
+              commit()
+            }}
+          />
+        )}
+        {item.spoil_action === 'rule' && (
+          <RefSelect
+            kind="rule"
+            label="Запускаемое правило"
+            store={store}
+            value={item.spoil_rule ?? ''}
+            optional
+            onChange={(r) => {
+              if (r) item.spoil_rule = r
+              else delete item.spoil_rule
+              commit()
+            }}
+          />
+        )}
+        <label className="fld">
+          <span>Сообщение при порче (в лог и оповещение)</span>
+          <input
+            placeholder="По умолчанию: «...» испортился от времени."
+            value={item.spoil_msg ?? ''}
+            onChange={(e) => {
+              const v = e.target.value.trim()
+              if (v) item.spoil_msg = v
+              else delete item.spoil_msg
+              commit()
+            }}
+          />
+        </label>
+      </div>
+
+      <div className="props-group">
         <SoundHookMapEditor
           store={store}
           value={item.sounds ?? (item.sounds = {})}
