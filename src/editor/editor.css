@@ -1831,6 +1831,63 @@ body.cf-editor .modal-box.ai-wizard textarea { min-height: 120px; }
 body.cf-editor .ai-wizard > .modal-buttons { align-items: center; }
 body.cf-editor .ai-wizard .copy-status { flex: 1 1 180px; min-width: 0; }
 
+body.cf-editor .ai-env-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+body.cf-editor .ai-env-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: #1c212b;
+  border: 1px solid #323b4c;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+  text-align: left;
+}
+body.cf-editor .ai-env-card:hover {
+  border-color: #58b7c9;
+  background: #232a37;
+}
+body.cf-editor .ai-env-card.active {
+  border-color: #58b7c9;
+  background: color-mix(in srgb, #58b7c9 12%, #1c212b);
+  box-shadow: 0 0 0 1px #58b7c9;
+}
+body.cf-editor .ai-env-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 600;
+  color: #e2e8f0;
+  font-size: 13.5px;
+}
+body.cf-editor .ai-env-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2a3344;
+  color: #8fd6e4;
+  font-weight: 500;
+  white-space: nowrap;
+}
+body.cf-editor .ai-env-card-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+body.cf-editor .ai-env-card-desc code {
+  background: #28303f;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #cbd5e1;
+}
+
 /* Дизайн-документ читается на светлом полотне редактора; MarkdownView общий с книгой. */
 .editor-root .design-doc-render { width: 100%; min-width: 0; }
 .editor-root .design-doc-render .book-markdown { width: 100%; max-width: none; box-sizing: border-box; color: var(--ed-paper-text); }
@@ -2009,7 +2066,6 @@ body.cf-editor .modal-overlay .ai-wizard input[type='range'] { accent-color: #58
 }
 .dlg-playtest-scroll { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .dlg-playtest-mood { min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; }
-
 /* ─────────── блокирующий оверлей занятости редактора ─────────── */
 
 .editor-busy-overlay {

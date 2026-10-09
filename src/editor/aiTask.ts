@@ -211,8 +211,8 @@ export async function createAiTaskBundle(
 }
 
 /**
- * Сборка только папки инструкций и задания (__chronicle_ai__) для работы через Git/GitHub Desktop.
- * Не дублирует тяжелые медиафайлы кампании (они уже есть в репозитории на диске), архив весит ~600 КБ.
+ * Сборка легковесного чемодана ИИ только с папкой __chronicle_ai__/ (~70–120 КБ)
+ * для работы в Git-репозитории через GitHub Desktop без дублирования тяжелых медиафайлов.
  */
 export async function createAiTaskRepoKit(
   store: EditorStore,
@@ -226,19 +226,21 @@ export async function createAiTaskRepoKit(
   const report: CampaignAuditReport = await validateCampaign(store, options.lastPlaytest)
   const reportText = options.previousReport?.trim() || formatCampaignAuditReport(report)
   const prompt = buildAiTaskPrompt('edit', options.task, assignedCampaignId, reportText, 'chronicle')
-  const zip = new JSZip()
 
+  const zip = new JSZip()
   const aiDir = (name: string) => `${AI_TASK_DIR}${name}`
+
   zip.file(aiDir('README.md'), [
-    '# Chronicle Forge — задание для ИИ в репозитории',
+    '# Chronicle Forge — легковесный набор задания для репозитория кампании',
     '',
+    'Этот архив содержит только папку `__chronicle_ai__/` для работы прямо в репозитории кампании.',
     'Прочитай `TASK.md`, затем руководство `campaign-guide.md`, схему и инструмент вырезания фона.',
-    'Файлы кампании лежат рядом в репозитории; папка `__chronicle_ai__/` — инструкции и отчёт.',
-    'Вноси изменения прямо в файлы кампании в репозитории и делай коммиты.',
+    'Файлы кампании находятся в корне репозитория (scenes/, entities/, dialogues/ и т.д.).',
+    'Внеси изменения в соответствующие файлы, сохраняя каноническую структуру репозитория.',
     '',
     `ID кампании: ${assignedCampaignId}`,
-    '',
   ].join('\n'))
+
   zip.file(aiDir('TASK.md'), prompt)
   zip.file(aiDir('validation-report.md'), reportText)
   const docs = await loadAiDocs()
