@@ -1,148 +1,199 @@
 #!/usr/bin/env python3
 """
-Инструмент чемодана ИИ Chronicle Forge для автоматического вырезания фона и хромакея.
+scripts/cutout-chromakey.py
 
-Проблема: диффузионные нейросети не поддерживают реальный альфа-канал и рисуют
-фейковую шахматку или монохромные квадраты вокруг спрайтов.
-Решение: генерация на однородном контрастном фоне (хромакей: зеленый #00FF00, маджента #FF00FF)
-с последующей пакетной обработкой данным скриптом.
+Утилита удаления хромакея (зелёного фона #00FF00) для спрайтов, эмблем и боевых фигурок.
+Поддерживает удаление фона снаружи, а также зачистку внутренних замкнутых полостей
+(отверстия в шестерёнках, ручки предметов, буквы логотипов A/O/P/D/B, просветы между конечностями).
 
-Работает как через системный ImageMagick (convert), так и через Python Pillow.
+Использование:
+  python3 scripts/cutout-chromakey.py input.png output.png [опции]
+
+Опции:
+  --mode {auto, color, flood, points}
+      auto    - (по умолчанию) удаляет внешний фон + зачищает все внутренние замкнутые зелёные полости + despill ореола.
+      color   - глобальный цветовой кеинг по всему изображению (удаляет зелёный везде, идеально для логотипов без зелёных деталей).
+      flood   - только внешний заливной контур от краёв (0,0).
+      points  - зачистка конкретных полостей по координатам X,Y (через запятую или пробел).
+  --tol <int>
+      Порог чувствительности к зелёному (по умолчанию 35; для тусклого/тёмного хромакея снижайте до 20-25).
+  --despill
+      Подавление паразитного зелёного ореола на кромках (включено по умолчанию в auto и color).
+  --points "X1,Y1 X2,Y2 ..."
+      Список координат внутренних полостей для точечного удаления.
 """
 
 import sys
 import os
-import glob
 import argparse
 import subprocess
-import shutil
 
-def cutout_via_imagemagick(img_path: str, out_path: str, color: str = "#00FF00", fuzz: int = 25, use_floodfill: bool = True) -> bool:
-    """Вырезание фона через предустановленный системный ImageMagick (convert)."""
-    convert_bin = shutil.which("convert")
-    if not convert_bin:
-        return False
+def run_imagemagick(input_path, output_path, mode, tol, points_list):
+    """Fallback через ImageMagick convert, если PIL/Pillow не установлен."""
+    fuzz = f"{int(tol * 100 / 255)}%"
+    if mode == "color" or mode == "auto":
+        # Глобальное удаление цвета #00FF00 по всему изображению
+        cmd = [
+            "convert", input_path,
+            "-fuzz", fuzz,
+            "-transparent", "#00FF00",
+            output_path
+        ]
+        return subprocess.run(cmd, check=True)
+    elif mode == "flood":
+        cmd = [
+            "convert", input_path,
+            "-fuzz", fuzz,
+            "-fill", "none",
+            "-draw", "matte 0,0 floodfill",
+            output_path
+        ]
+        return subprocess.run(cmd, check=True)
+    elif mode == "points" and points_list:
+        draw_cmds = []
+        for x, y in points_list:
+            draw_cmds.extend(["-draw", f"matte {x},{y} floodfill"])
+        cmd = ["convert", input_path, "-fuzz", fuzz, "-fill", "none"] + draw_cmds + [output_path]
+        return subprocess.run(cmd, check=True)
+    return None
 
-    try:
-        if use_floodfill:
-            # Заливка от границ внутрь (защищает зеленые детали внутри силуэта)
-            cmd = [
-                convert_bin,
-                img_path,
-                "-bordercolor", color,
-                "-border", "1x1",
-                "-fuzz", f"{fuzz}%",
-                "-fill", "none",
-                "-floodfill", "+0+0", color,
-                "-shave", "1x1",
-                out_path
-            ]
-        else:
-            cmd = [
-                convert_bin,
-                img_path,
-                "-fuzz", f"{fuzz}%",
-                "-transparent", color,
-                out_path
-            ]
-        res = subprocess.run(cmd, capture_output=True, text=True)
-        return res.returncode == 0
-    except Exception as e:
-        return False
+def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=True, points_list=None):
+    from PIL import Image
+    from collections import deque
 
-def cutout_via_pillow(img_path: str, out_path: str, color: str = "#00FF00", fuzz: int = 25, use_floodfill: bool = True) -> bool:
-    """Вырезание фона через Pillow (если установлен)."""
-    try:
-        from PIL import Image, ImageDraw, ImageFilter
-    except ImportError:
-        return False
+    img = Image.open(input_path).convert("RGBA")
+    w, h = img.size
+    px = img.load()
 
-    try:
-        s = color.lstrip('#')
-        rgb_color = (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
-        orig = Image.open(img_path).convert('RGBA')
-        w, h = orig.size
-        rgb = orig.convert('RGB')
-        mask = Image.new('L', (w, h), 255)
+    def is_green(r, g, b):
+        return g > 55 and (g - max(r, b)) > tol
 
-        diff_map = Image.new('L', (w, h), 0)
-        diff_pixels = diff_map.load()
-        rgb_pixels = rgb.load()
-        dist_threshold = (fuzz / 100.0) * 441.67 # макс расстояние RGB
+    def is_semi_green(r, g, b):
+        return g > 50 and (g - max(r, b)) > max(12, tol // 2)
+
+    if mode == "color":
+        for y in range(h):
+            for x in range(w):
+                r, g, b, a = px[x, y]
+                if a == 0:
+                    continue
+                diff = g - max(r, b)
+                if g > 55 and diff > tol:
+                    px[x, y] = (r, min(g, max(r, b)), b, 0)
+                elif despill and g > 50 and diff > 15:
+                    k = (diff - 15) / max(1, tol - 15)
+                    new_a = int(a * max(0.0, 1.0 - k))
+                    new_g = min(g, max(r, b) + 4)
+                    px[x, y] = (r, new_g, b, new_a)
+
+    elif mode == "auto":
+        visited = set()
+        queue = deque()
+
+        for x in range(w):
+            for y in (0, h - 1):
+                r, g, b, a = px[x, y]
+                if is_green(r, g, b) or a == 0:
+                    queue.append((x, y))
+                    visited.add((x, y))
+        for y in range(h):
+            for x in (0, w - 1):
+                if (x, y) not in visited:
+                    r, g, b, a = px[x, y]
+                    if is_green(r, g, b) or a == 0:
+                        queue.append((x, y))
+                        visited.add((x, y))
+
+        while queue:
+            cx, cy = queue.popleft()
+            r, g, b, a = px[cx, cy]
+            px[cx, cy] = (r, min(g, max(r, b)), b, 0)
+
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = cx + dx, cy + dy
+                if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
+                    nr, ng, nb, na = px[nx, ny]
+                    if is_green(nr, ng, nb):
+                        visited.add((nx, ny))
+                        queue.append((nx, ny))
 
         for y in range(h):
             for x in range(w):
-                c = rgb_pixels[x, y]
-                dist = ((c[0]-rgb_color[0])**2 + (c[1]-rgb_color[1])**2 + (c[2]-rgb_color[2])**2)**0.5
-                if dist <= dist_threshold:
-                    diff_pixels[x, y] = 255
+                if (x, y) not in visited:
+                    r, g, b, a = px[x, y]
+                    if a > 0 and is_green(r, g, b):
+                        island_q = deque([(x, y)])
+                        visited.add((x, y))
+                        while island_q:
+                            ix, iy = island_q.popleft()
+                            ir, ig, ib, ia = px[ix, iy]
+                            px[ix, iy] = (ir, min(ig, max(ir, ib)), ib, 0)
+                            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                                nx, ny = ix + dx, iy + dy
+                                if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
+                                    nr, ng, nb, na = px[nx, ny]
+                                    if is_green(nr, ng, nb):
+                                        visited.add((nx, ny))
+                                        island_q.append((nx, ny))
 
-        if use_floodfill:
-            ImageDraw.floodfill(diff_map, (0, 0), 128)
-            if diff_pixels[w - 1, 0] == 255: ImageDraw.floodfill(diff_map, (w - 1, 0), 128)
-            if diff_pixels[0, h - 1] == 255: ImageDraw.floodfill(diff_map, (0, h - 1), 128)
-            if diff_pixels[w - 1, h - 1] == 255: ImageDraw.floodfill(diff_map, (w - 1, h - 1), 128)
-
-            mask_pixels = mask.load()
-            diff_data = diff_map.load()
+        if despill:
             for y in range(h):
                 for x in range(w):
-                    if diff_data[x, y] == 128:
-                        mask_pixels[x, y] = 0
-        else:
-            mask_pixels = mask.load()
-            for y in range(h):
-                for x in range(w):
-                    if diff_pixels[x, y] == 255:
-                        mask_pixels[x, y] = 0
+                    r, g, b, a = px[x, y]
+                    if a > 0 and is_semi_green(r, g, b):
+                        diff = g - max(r, b)
+                        k = (diff - 12) / max(1, tol - 12)
+                        new_a = int(a * max(0.0, 1.0 - k * 0.7))
+                        new_g = min(g, max(r, b) + 3)
+                        px[x, y] = (r, new_g, b, new_a)
 
-        mask = mask.filter(ImageFilter.SMOOTH_MORE)
-        orig.putalpha(mask)
-        orig.save(out_path, format='PNG')
-        return True
-    except Exception:
-        return False
+    elif mode == "points" and points_list:
+        visited = set()
+        queue = deque(points_list)
+        for pt in points_list:
+            visited.add(pt)
 
-def remove_background(img_path: str, out_path: str, color: str = "#00FF00", fuzz: int = 25, use_floodfill: bool = True) -> bool:
-    dest = out_path or img_path
-    # Сначала пробуем системный ImageMagick (convert), затем Pillow
-    ok = cutout_via_imagemagick(img_path, dest, color=color, fuzz=fuzz, use_floodfill=use_floodfill)
-    if not ok:
-        ok = cutout_via_pillow(img_path, dest, color=color, fuzz=fuzz, use_floodfill=use_floodfill)
+        while queue:
+            cx, cy = queue.popleft()
+            r, g, b, a = px[cx, cy]
+            px[cx, cy] = (r, min(g, max(r, b)), b, 0)
+            for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                nx, ny = cx + dx, cy + dy
+                if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
+                    nr, ng, nb, na = px[nx, ny]
+                    if is_green(nr, ng, nb):
+                        visited.add((nx, ny))
+                        queue.append((nx, ny))
 
-    if ok:
-        print(f"[✓] Успешно вырезан фон: {dest}")
-        return True
-    else:
-        print(f"[!] Не удалось обработать {img_path} (нужен convert ImageMagick или python3-pillow)")
-        return False
+    img.save(output_path, "PNG")
 
 def main():
-    parser = argparse.ArgumentParser(description="Автоматическое вырезание хромакея для спрайтов Chronicle Forge.")
-    parser.add_argument("input", help="Файл или маска glob (например 'public/**/fig_*.png')")
-    parser.add_argument("output", nargs="?", help="Куда сохранить результат (по умолчанию перезаписывает исходный)")
-    parser.add_argument("--color", default="#00FF00", help="HEX цвет хромакея (#00FF00 зеленый, #FF00FF маджента). По умолчанию #00FF00.")
-    parser.add_argument("--fuzz", type=int, default=25, help="Допуск разброса оттенка в процентах (по умолчанию 25%%)")
-    parser.add_argument("--no-floodfill", action="store_true", help="Отключить заливку от углов (вырезать цвет по всей площади)")
+    parser = argparse.ArgumentParser(description="Вырезание хромакея (#00FF00) и зачистка полостей")
+    parser.add_argument("input", help="Путь к исходному файлу (.png/.jpg)")
+    parser.add_argument("output", help="Путь к результирующему PNG")
+    parser.add_argument("--mode", choices=["auto", "color", "flood", "points"], default="auto",
+                        help="Режим: auto (снаружи + внутри), color (глобальный), points (по координатам)")
+    parser.add_argument("--tol", type=int, default=35, help="Порог чувствительности (по умолчанию 35)")
+    parser.add_argument("--despill", action="store_true", default=True, help="Подавление паразитного ореола")
+    parser.add_argument("--points", type=str, default="", help="Координаты внутренних точек 'X1,Y1 X2,Y2'")
 
     args = parser.parse_args()
 
-    files = glob.glob(args.input, recursive=True)
-    if not files and os.path.exists(args.input):
-        files = [args.input]
+    pts = []
+    if args.points:
+        raw_pts = args.points.replace(";", " ").replace(",", " ").split()
+        for i in range(0, len(raw_pts), 2):
+            if i + 1 < len(raw_pts):
+                pts.append((int(raw_pts[i]), int(raw_pts[i+1])))
 
-    if not files:
-        print(f"[!] Файлы по шаблону '{args.input}' не найдены.")
-        sys.exit(1)
-
-    print(f"Обработка {len(files)} изображений (хромакей {args.color})...")
-    count = 0
-    for f in files:
-        out = args.output if (len(files) == 1 and args.output) else f
-        if remove_background(f, out, color=args.color, fuzz=args.fuzz, use_floodfill=not args.no_floodfill):
-            count += 1
-
-    print(f"Готово! Обработано файлов: {count}/{len(files)}")
+    try:
+        import PIL
+        process_with_pillow(args.input, args.output, mode=args.mode, tol=args.tol, despill=args.despill, points_list=pts)
+        print(f"✓ Успешно обработано через Pillow: {args.output} (режим {args.mode})")
+    except ImportError:
+        print("Pillow не найден, используется ImageMagick fallback...")
+        run_imagemagick(args.input, args.output, mode=args.mode, tol=args.tol, points_list=pts)
+        print(f"✓ Успешно обработано через ImageMagick: {args.output} (режим {args.mode})")
 
 if __name__ == "__main__":
     main()

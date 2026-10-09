@@ -35,7 +35,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   const m = campaign.meta
   const [showList, setShowList] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [importBusy, setImportBusy] = useState(false)
+  const [importBusy, setImportBusy] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const saveRef = useRef<HTMLInputElement>(null)
 
@@ -48,7 +48,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   }, [campaign])
 
   const doImport = async (file: File) => {
-    setImportBusy(true)
+    setImportBusy('Распаковка и импорт кампании…')
     try {
       const entry = await importChroniclePackage(file, async (conflict) => {
         const update = await askConfirm(
@@ -70,7 +70,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
     } catch (e) {
       void showAlert('Не удалось импортировать кампанию', String(e))
     } finally {
-      setImportBusy(false)
+      setImportBusy(null)
     }
   }
 
@@ -174,17 +174,18 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
       <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
 
       {showList && (
-        <div className="campaigns-overlay" onClick={() => setShowList(false)}>
+        <div className="campaigns-overlay" onClick={() => { if (!importBusy) setShowList(false) }}>
           <div className="campaigns-box" onClick={(e) => e.stopPropagation()}>
             <div className="campaigns-head">
               <h2>Кампании</h2>
-              <button className="btn btn-small" onClick={() => setShowList(false)}><Ico n="close" /> </button>
+              <button className="btn btn-small" disabled={!!importBusy} onClick={() => setShowList(false)}><Ico n="close" /> </button>
             </div>
             <div className="campaign-list">
               {campaigns.map((c) => (
                 <div key={c.id} className="campaign-row">
                   <button
                     className={`campaign-card ${c.id === m.id ? 'on' : ''}`}
+                    disabled={!!importBusy}
                     onClick={() => {
                       onSelectCampaign(c.id)
                       setShowList(false)
@@ -197,6 +198,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                   <button
                     className="btn btn-small campaign-del"
                     data-tip="Удалить кампанию с диска"
+                    disabled={!!importBusy}
                     onClick={async () => {
                       if (campaigns.length <= 1) {
                         void showAlert('Нельзя удалить последнюю кампанию', 'Сначала создайте или импортируйте другую.')
@@ -230,10 +232,10 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
               ))}
             </div>
             <div className="campaigns-foot">
-              <button className="btn" disabled={importBusy} onClick={() => fileRef.current?.click()}>
+              <button className="btn" disabled={!!importBusy} onClick={() => fileRef.current?.click()}>
                 {importBusy ? 'Импорт…' : <><Ico n="doc" /> Импортировать кампанию (.chronicle)</>}
               </button>
-              <button className="btn" data-tip="Файл .cfsave, сохранённый ранее на этом или другом компьютере" onClick={() => saveRef.current?.click()}>
+              <button className="btn" disabled={!!importBusy} data-tip="Файл .cfsave, сохранённый ранее на этом или другом компьютере" onClick={() => saveRef.current?.click()}>
                 <Ico n="doc" /> Загрузить сохранение (.cfsave)
               </button>
               <input
@@ -259,6 +261,17 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                 }}
               />
             </div>
+            {importBusy && (
+              <div className="import-busy-overlay" onClick={(e) => e.stopPropagation()}>
+                <div className="import-busy-card">
+                  <div className="spinner" />
+                  <div className="import-busy-title">{importBusy}</div>
+                  <div className="import-busy-sub muted small">
+                    Пожалуйста, подождите. Идёт распаковка архива и запись файлов на диск…
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

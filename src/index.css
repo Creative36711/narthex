@@ -2258,7 +2258,6 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   height: 12px;
   flex-shrink: 0;
 }
-
 .item-freshness {
   display: flex;
   align-items: center;
@@ -2635,6 +2634,42 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   overflow-wrap: anywhere;
 }
 .campaigns-foot { padding: 12px 20px 18px; }
+
+/* Блокирующий оверлей распаковки/импорта кампании */
+.import-busy-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-deep, #0c0e13) 85%, transparent);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  border-radius: var(--radius-lg);
+  cursor: wait;
+}
+.import-busy-card {
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 24px 28px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-2);
+  max-width: 380px;
+}
+.import-busy-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gold-bright);
+}
+.import-busy-sub {
+  color: var(--muted);
+  line-height: 1.4;
+}
 
 /* ─────────── единые модальные окна (prompt/confirm/alert) ─────────── */
 

@@ -39,11 +39,13 @@
     "smoke:hero-appearance": "tsx scripts/hero-appearance-smoke.mts",
     "smoke:theme-contrast": "tsx scripts/theme-contrast-smoke.mts",
     "smoke:dialogue-transitions": "tsx scripts/smoke-dialogue-transitions.mts",
+    "smoke:dialogue-transitions": "tsx scripts/smoke-dialogue-transitions.mts",
     "smoke:scene-autosave": "tsx scripts/smoke-scene-transition-autosave.mts",
     "smoke:spoilage": "tsx scripts/smoke-spoilage-and-narrative.mts",
     "smoke:stranger": "tsx scripts/smoke-stranger-and-triggers.mts",
     "smoke:dlg-script": "tsx scripts/dlg-script-smoke.mts",
-    "smoke:dlg-ui": "tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts"
+    "smoke:dlg-ui": "tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts",
+    "smoke:round34": "tsx scripts/smoke-round34-import-chroma-combat.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

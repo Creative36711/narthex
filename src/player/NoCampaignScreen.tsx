@@ -61,7 +61,7 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
 
   return (
     <div className="screen-center">
-      <div className="panel no-campaign-panel">
+      <div className="panel no-campaign-panel" style={{ position: 'relative' }}>
         <div className="brand-row">
           <span className="brand">
             <Ico n="forge" /> Chronicle Forge
@@ -95,6 +95,19 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
             if (f) void doImport(f)
           }}
         />
+        {busy && (
+          <div className="import-busy-overlay" onClick={(e) => e.stopPropagation()}>
+            <div className="import-busy-card">
+              <div className="spinner" />
+              <div className="import-busy-title">
+                {busy === 'create' ? 'Создание новой кампании…' : 'Распаковка и импорт кампании…'}
+              </div>
+              <div className="import-busy-sub muted small">
+                Пожалуйста, подождите. Идёт запись файлов кампании на диск…
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
