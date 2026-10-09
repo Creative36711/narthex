@@ -7,7 +7,7 @@ import { useState } from 'react'
 import guideRaw from '../../docs/ai-campaign-guide.md?raw'
 import { Ico } from '../shared/icons'
 import { showAlert } from '../shared/modals'
-import { createAiTaskBundle, buildAiTaskPrompt, buildAiTaskBrief, type AiOutputFormat, type AiTaskMode } from './aiTask'
+import { createAiTaskBundle, createAiTaskRepoKit, buildAiTaskPrompt, buildAiTaskBrief, type AiOutputFormat, type AiTaskMode } from './aiTask'
 import { AI_TASK_DIR } from './aiKit'
 import { createCampaignUuid } from './ids'
 import { downloadBlob } from './chronicle'
@@ -139,6 +139,24 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
     }
   }
 
+  const downloadRepoKit = async () => {
+    setBusy(true)
+    setCopyState('')
+    try {
+      const bundle = await createAiTaskRepoKit(store, {
+        task: taskText(),
+        lastPlaytest,
+        previousReport: initialReport,
+      })
+      downloadBlob(bundle.blob, bundle.filename)
+      setCopyState('Легковесный чемодан (~600 КБ) для репозитория скачан. Распакуйте папку __chronicle_ai__ в корень репозитория кампании и закоммитьте через GitHub Desktop.')
+    } catch (error) {
+      void showAlert('Не удалось собрать чемодан для репозитория', String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const toggleAccent = (key: string) => setAccents((current) => ({ ...current, [key]: !current[key] }))
   const selectMode = (next: AiTaskMode) => {
     setMode(next)
@@ -220,7 +238,17 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
           <span className="copy-status">{copyState}</span>
           <button className="btn" onClick={onClose}>Закрыть</button>
           <button className="btn" onClick={() => void copy()} disabled={busy}>Скопировать промпт</button>
-          <button className="btn btn-primary" onClick={() => void downloadTask()} disabled={busy}>{busy ? 'Собираю пакет…' : 'Скачать пакет задания'}</button>
+          <button
+            className="btn"
+            data-tip="Легковесный архив (~600 КБ) только с папкой __chronicle_ai__/ для репозитория кампании в GitHub Desktop (без дублирования медиафайлов)"
+            onClick={() => void downloadRepoKit()}
+            disabled={busy}
+          >
+            Чемодан для GitHub (~600 КБ)
+          </button>
+          <button className="btn btn-primary" onClick={() => void downloadTask()} disabled={busy}>
+            {busy ? 'Собираю пакет…' : 'Скачать полный .chronicle'}
+          </button>
         </div>
       </div>
     </div>

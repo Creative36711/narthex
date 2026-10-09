@@ -101,9 +101,41 @@ export function buildAiTaskPrompt(mode: AiTaskMode, task: string, campaignId: st
 async function loadAiDocs(): Promise<Map<string, string>> {
   const docs = new Map<string, string>()
   for (const { name } of AI_KIT_FILES) {
-    const response = await fetch(`ai/${encodeURIComponent(name)}`)
-    if (!response.ok) throw new Error(`Не найден файл набора: ai/${name} (${response.status})`)
-    docs.set(name, await response.text())
+    let text = ''
+    try {
+      const response = await fetch(`/ai/${encodeURIComponent(name)}`)
+      if (response.ok) {
+        text = await response.text()
+      }
+    } catch {
+      // fallback for node / smoke environments
+    }
+    if (!text && typeof process !== 'undefined' && process.versions?.node) {
+      try {
+        const fsMod = 'node:fs'
+        const pathMod = 'node:path'
+        const { readFileSync } = await import(/* @vite-ignore */ fsMod)
+        const { resolve } = await import(/* @vite-ignore */ pathMod)
+        text = readFileSync(resolve(process.cwd(), 'public/ai', name), 'utf8')
+      } catch {
+        // ignore
+      }
+    }
+    if (!text && typeof process !== 'undefined' && process.versions?.node) {
+      try {
+        const fsMod = 'node:fs'
+        const pathMod = 'node:path'
+        const { readFileSync } = await import(/* @vite-ignore */ fsMod)
+        const { resolve } = await import(/* @vite-ignore */ pathMod)
+        if (name === 'campaign-guide.md') text = readFileSync(resolve(process.cwd(), 'docs/ai-campaign-guide.md'), 'utf8')
+        else if (name === 'campaign.schema.json') text = readFileSync(resolve(process.cwd(), 'docs/campaign.schema.json'), 'utf8')
+        else if (name === 'cutout-chromakey.py') text = readFileSync(resolve(process.cwd(), 'scripts/cutout-chromakey.py'), 'utf8')
+      } catch {
+        // ignore
+      }
+    }
+    if (!text) throw new Error(`Не найден файл набора: ai/${name}`)
+    docs.set(name, text)
   }
   return docs
 }
@@ -172,6 +204,48 @@ export async function createAiTaskBundle(
   return {
     blob: await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }),
     filename,
+    assignedCampaignId,
+    report,
+  }
+}
+
+/**
+ * Сборка только папки инструкций и задания (__chronicle_ai__) для работы через Git/GitHub Desktop.
+ * Не дублирует тяжелые медиафайлы кампании (они уже есть в репозитории на диске), архив весит ~600 КБ.
+ */
+export async function createAiTaskRepoKit(
+  store: EditorStore,
+  options: {
+    task: string
+    lastPlaytest?: PlaytestRecord | null
+    previousReport?: string
+  },
+): Promise<AiTaskBundle> {
+  const assignedCampaignId = store.meta.id || createCampaignUuid()
+  const report: CampaignAuditReport = await validateCampaign(store, options.lastPlaytest)
+  const reportText = options.previousReport?.trim() || formatCampaignAuditReport(report)
+  const prompt = buildAiTaskPrompt('edit', options.task, assignedCampaignId, reportText, 'chronicle')
+  const zip = new JSZip()
+
+  const aiDir = (name: string) => `${AI_TASK_DIR}${name}`
+  zip.file(aiDir('README.md'), [
+    '# Chronicle Forge — задание для ИИ в репозитории',
+    '',
+    'Прочитай `TASK.md`, затем руководство `campaign-guide.md`, схему и инструмент вырезания фона.',
+    'Файлы кампании лежат рядом в репозитории; папка `__chronicle_ai__/` — инструкции и отчёт.',
+    'Вноси изменения прямо в файлы кампании в репозитории и делай коммиты.',
+    '',
+    `ID кампании: ${assignedCampaignId}`,
+    '',
+  ].join('\n'))
+  zip.file(aiDir('TASK.md'), prompt)
+  zip.file(aiDir('validation-report.md'), reportText)
+  const docs = await loadAiDocs()
+  for (const [name, text] of docs) zip.file(aiDir(name), text)
+
+  return {
+    blob: await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }),
+    filename: `__chronicle_ai__-kit.zip`,
     assignedCampaignId,
     report,
   }

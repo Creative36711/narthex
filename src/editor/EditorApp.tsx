@@ -149,6 +149,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const [bookFile, setBookFile] = useState('README.md')
   const [bookContextual, setBookContextual] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const folderInput = useRef<HTMLInputElement>(null)
 
   const store = useMemo(() => new EditorStore(base), [base])
 
@@ -971,6 +972,28 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  const doImportDirectory = async (files: FileList | File[]) => {
+    setBusy('Импорт папки…')
+    try {
+      const { importCampaignFromDirectory } = await import('./newCampaign')
+      const entry = await importCampaignFromDirectory(files, resolveChronicleConflict)
+      if (entry.cancelled) return
+      setCampaigns(await fetchCampaignIndex())
+      setSection('scenes')
+      setBase(`/campaigns/${entry.id}`)
+      updateCurrentCampaignDisplay()
+      if (entry.alreadyInstalled) {
+        void showAlert('Кампания открыта', `«${entry.title}» уже установлена в движке.`)
+      } else {
+        void showAlert('Кампания импортирована', `Кампания «${entry.title}» успешно загружена из папки.`)
+      }
+    } catch (e) {
+      void showAlert('Ошибка импорта папки', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const chapterOf = (p: string): string | undefined => {
     switch (section) {
       case 'scenes': return store.scene(p)?.chapter
@@ -1055,6 +1078,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт .chronicle</button>
             <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON</button>
             <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle…</button>
+            <button className="editor-toolbar-item" onClick={() => folderInput.current?.click()}><Ico n="folder" /> Импорт папки…</button>
             <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
           </div>
         </details>
@@ -1092,6 +1116,20 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           onChange={(e) => {
             const f = e.target.files?.[0]
             if (f) doImport(f)
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={folderInput}
+          type="file"
+          // @ts-expect-error webkitdirectory is standard for folder picking
+          webkitdirectory=""
+          directory=""
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = e.target.files
+            if (files && files.length) void doImportDirectory(files)
             e.target.value = ''
           }}
         />

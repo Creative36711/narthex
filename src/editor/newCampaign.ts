@@ -376,6 +376,55 @@ async function packageMatchesInstalled(zip: JSZip, campaignId: string): Promise<
 }
 
 /**
+ * Удаляет корневой префикс подпапки (например из архива репозитория GitHub вида "repo-main/").
+ */
+export function stripZipRootPrefix(path: string, prefix?: string): string {
+  const p = path.replaceAll('\\', '/').replace(/^\/+/, '')
+  if (prefix && p.startsWith(prefix)) {
+    return p.slice(prefix.length)
+  }
+  // Если префикс не передан явно, проверяем формат single-directory wrapper (repo-branch/...)
+  const parts = p.split('/')
+  if (parts.length > 1 && !['assets', 'scenes', 'entities', 'rules', 'encounters', 'arenas', 'quests', 'cutscenes', 'recipes', 'codex', 'dialogues'].includes(parts[0])) {
+    return parts.slice(1).join('/')
+  }
+  return p
+}
+
+/**
+ * Белый список канонических файлов и папок кампании (Campaign Package).
+ * Исключает служебные папки систем версий (.git, .github), инструменты и скрипты ИИ (tools/, *.py).
+ */
+export function isAllowedCampaignFile(relPath: string): boolean {
+  const p = relPath.replaceAll('\\', '/').replace(/^\/+/, '')
+  if (
+    p.startsWith('.git/') ||
+    p.startsWith('.github/') ||
+    p.startsWith('.vscode/') ||
+    p.startsWith('.idea/') ||
+    p.startsWith('tools/') ||
+    p.startsWith('_ai-temp/') ||
+    p.startsWith('test/') ||
+    p.startsWith('__chronicle_ai__/') ||
+    p.startsWith('__pycache__/') ||
+    p.includes('/__pycache__/') ||
+    /\.(?:py|sh|bat|cmd|ps1|DS_Store|thumbs\.db)$/i.test(p)
+  ) {
+    return false
+  }
+
+  if (['campaign.json', 'world.json', 'manifest.json', 'README.md', 'DESIGN.md', 'design_doc.md'].includes(p)) {
+    return true
+  }
+
+  const allowedDirs = [
+    'scenes/', 'entities/', 'rules/', 'encounters/', 'arenas/',
+    'quests/', 'cutscenes/', 'recipes/', 'codex/', 'dialogues/', 'assets/'
+  ]
+  return allowedDirs.some((dir) => p.startsWith(dir))
+}
+
+/**
  * Импорт .chronicle сохраняет ID пакета, если он свободен. При совпадении
  * одинаковый пакет распознаётся как уже установленный; отличающиеся данные
  * требуют явного решения — обновить кампанию или импортировать отдельной копией.
@@ -386,8 +435,19 @@ export async function importChroniclePackage(
 ): Promise<ChronicleImportResult> {
   const JSZip = (await import('jszip')).default
   const zip = await JSZip.loadAsync(file)
-  const metaFile = zip.files['campaign.json']
+
+  // Поддержка GitHub ZIP (Download ZIP): файлы могут лежать внутри подпапки "campaign-1-main/"
+  let rootPrefix = ''
+  let metaFile = zip.files['campaign.json']
+  if (!metaFile) {
+    const candidate = Object.keys(zip.files).find((p) => p.endsWith('/campaign.json') && p.split('/').length === 2)
+    if (candidate) {
+      rootPrefix = candidate.slice(0, candidate.indexOf('campaign.json'))
+      metaFile = zip.files[candidate]
+    }
+  }
   if (!metaFile) throw new Error('в архиве нет campaign.json — это не пакет кампании')
+
   const meta = JSON.parse(await metaFile.async('text')) as {
     id?: string; title?: string; author?: string; description?: string
     package_format?: number; min_engine?: string; engine_version?: string; version?: string
@@ -462,9 +522,12 @@ export async function importChroniclePackage(
   let manifestWarnings: string[] = []
   try {
     manifestWarnings = await normalizeChronicleZip(zip)
-    for (const [path, entryFile] of Object.entries(zip.files)) {
-      if (entryFile.dir || path.startsWith(AI_TASK_DIR)) continue
-      if (path.endsWith('.json') || path.endsWith('.ink')) {
+    for (const [rawPath, entryFile] of Object.entries(zip.files)) {
+      if (entryFile.dir) continue
+      const path = rootPrefix && rawPath.startsWith(rootPrefix) ? rawPath.slice(rootPrefix.length) : rawPath
+      if (!isAllowedCampaignFile(path)) continue
+
+      if (path.endsWith('.json') || path.endsWith('.ink') || path.endsWith('.md')) {
         const text = path === 'campaign.json' ? JSON.stringify(importedMeta, null, 2) : await entryFile.async('text')
         await saveFile(`campaigns/${id}/${path}`, text)
       } else {
@@ -488,6 +551,124 @@ export async function importChroniclePackage(
     next.push(result)
     await saveFile('campaigns/index.json', JSON.stringify(next, null, 2))
     return { ...result, idWarning, manifestWarnings: manifestWarnings.length ? manifestWarnings : undefined }
+  } catch (error) {
+    if (idReserved) await deleteCampaignFolder(id).catch(() => undefined)
+    throw error
+  }
+}
+
+/**
+ * Импорт локальной папки кампании напрямую (выбор через проводник или drag-and-drop).
+ * Отфильтровывает .git, tools, скрипты и пропускает строго канонический набор игры.
+ */
+export async function importCampaignFromDirectory(
+  fileList: FileList | File[],
+  resolveConflict?: (conflict: ChronicleIdConflict) => Promise<ChronicleIdConflictAction>,
+): Promise<ChronicleImportResult> {
+  const files = Array.from(fileList)
+  if (!files.length) throw new Error('Папка пуста или файлы не выбраны')
+
+  // Ищем campaign.json и вычисляем префикс корневой папки
+  let rootPrefix = ''
+  let metaFile: File | undefined
+  for (const f of files) {
+    const rel = (f.webkitRelativePath || f.name).replaceAll('\\', '/')
+    if (rel === 'campaign.json') {
+      metaFile = f
+      rootPrefix = ''
+      break
+    }
+    if (rel.endsWith('/campaign.json') && rel.split('/').length === 2) {
+      metaFile = f
+      rootPrefix = rel.slice(0, rel.indexOf('campaign.json'))
+      break
+    }
+  }
+
+  if (!metaFile) {
+    throw new Error('В выбранной папке нет файла campaign.json. Убедитесь, что выбрана корневая папка кампании.')
+  }
+
+  const metaText = await metaFile.text()
+  const meta = JSON.parse(metaText) as {
+    id?: string; title?: string; author?: string; description?: string
+    package_format?: number; min_engine?: string; engine_version?: string; version?: string
+  }
+
+  const pkg = checkPackage(meta.package_format)
+  if (!pkg.ok) throw new Error(pkg.message)
+  const engine = checkEngine(meta.min_engine ?? meta.engine_version)
+  if (!engine.ok) console.warn(`[chronicle] ${engine.message}`)
+
+  const index = await fetchCampaignIndex()
+  const rawId = typeof meta.id === 'string' ? meta.id.trim() : ''
+  const safeId = !!rawId && /^[a-z0-9][a-z0-9_-]*$/i.test(rawId)
+  let id = safeId ? normalizeCampaignId(rawId) : await newAvailableCampaignId(index.map((entry) => entry.id))
+  let idReserved = !safeId
+  let idWarning = !safeId
+    ? `Папка не содержала безопасного ID; редактор назначил новый UUID «${id}».`
+    : rawId !== id
+      ? `ID папки нормализован: «${rawId}» → «${id}».`
+      : undefined
+
+  const existingEntry = index.find((entry) => entry.id === id)
+  let folderExists = idReserved ? false : existingEntry ? true : await campaignFolderExists(id)
+  if (safeId && !folderExists) {
+    idReserved = await reserveCampaignId(id)
+    folderExists = !idReserved
+  }
+
+  if (folderExists) {
+    let existingTitle = existingEntry?.title ?? id
+    const action = resolveConflict
+      ? await resolveConflict({ id, existingTitle, incomingTitle: meta.title || id, identicalPackage: false })
+      : 'cancel'
+    if (action === 'cancel') return { id, title: meta.title || id, cancelled: true }
+    if (action === 'copy') {
+      id = await newAvailableCampaignId(index.map((entry) => entry.id))
+      idReserved = true
+      idWarning = `ID «${rawId || 'без ID'}» уже занят; копия импортирована под новым UUID «${id}».`
+    } else {
+      idReserved = false
+      idWarning = `Существующая кампания «${existingTitle}» обновлена из папки; её ID «${id}» сохранён.`
+    }
+  }
+
+  const importedMeta = { ...meta, id }
+  try {
+    for (const f of files) {
+      const fullRel = (f.webkitRelativePath || f.name).replaceAll('\\', '/')
+      const path = rootPrefix && fullRel.startsWith(rootPrefix) ? fullRel.slice(rootPrefix.length) : fullRel
+      if (!isAllowedCampaignFile(path)) continue
+
+      if (path.endsWith('.json') || path.endsWith('.ink') || path.endsWith('.md')) {
+        const text = path === 'campaign.json' ? JSON.stringify(importedMeta, null, 2) : await f.text()
+        await saveFile(`campaigns/${id}/${path}`, text)
+      } else {
+        const buffer = await f.arrayBuffer()
+        const bytes = new Uint8Array(buffer)
+        let binary = ''
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
+        const base64 = btoa(binary)
+        const response = await fetch('/__editor/save', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ path: `campaigns/${id}/${path}`, base64 }),
+        })
+        if (!response.ok) throw new Error(`${path}: ${response.status}`)
+      }
+    }
+
+    const result: CampaignIndexEntry = {
+      id,
+      title: meta.title || id,
+      author: meta.author,
+      description: meta.description,
+    }
+    const next = index.filter((entry) => entry.id !== id)
+    next.push(result)
+    await saveFile('campaigns/index.json', JSON.stringify(next, null, 2))
+    return { ...result, idWarning }
   } catch (error) {
     if (idReserved) await deleteCampaignFolder(id).catch(() => undefined)
     throw error
