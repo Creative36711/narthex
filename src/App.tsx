@@ -449,7 +449,14 @@ export default function App() {
           }
         }}
         onNewGamePlus={(next) => setEngine(next)}
-        onExitToMenu={() => setEngine(null)}
+        onExitToMenu={() => {
+          try {
+            engine?.autosave()
+          } catch (err) {
+            console.error('autosave on exit failed', err)
+          }
+          setEngine(null)
+        }}
         onLoadSlot={(slot) => {
           // загрузка из слота: пересобираем движок из состояния слота
           const opened = openSave(engine.campaign.meta.id, engine.campaign, slot)

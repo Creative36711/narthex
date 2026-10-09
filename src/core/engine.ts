@@ -280,6 +280,8 @@ export class GameEngine {
     if (!this.state.seen_narrative_intros) this.state.seen_narrative_intros = []
     if (!this.state.seen_narrative_intros.includes(sceneId)) {
       this.state.seen_narrative_intros.push(sceneId)
+      this.autosave()
+      this.notify()
     }
   }
 
@@ -2697,6 +2699,7 @@ export class GameEngine {
       this.onEnterLocation(scene.location)
     } else {
       this.checkRules()
+      this.autosave()
     }
     this.fireTrigger('enter_scene', { sceneId })
     this.notify()

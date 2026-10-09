@@ -253,7 +253,14 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
           className="hud-btn"
           data-tip="Выйти в главное меню (прогресс сохранён)"
           onClick={async () => {
-            if (await askConfirm('Выйти в главное меню?', 'Выйти')) onExitToMenu()
+            if (await askConfirm('Выйти в главное меню?', 'Выйти')) {
+              try {
+                engine.autosave()
+              } catch (err) {
+                console.error('autosave on hud exit failed', err)
+              }
+              onExitToMenu()
+            }
           }}
         >
           <Ico n="exit" />
