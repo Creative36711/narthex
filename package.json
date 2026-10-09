@@ -29,9 +29,6 @@
     "smoke:dialogues-r31": "tsx scripts/dialogues-round31-smoke.mts",
     "smoke:dialogues-r32": "tsx scripts/dialogues-round32-smoke.mts",
     "smoke:breathe-toggle": "tsx scripts/breathe-toggle-smoke.mts",
-    "smoke:dialogues-r32": "tsx scripts/dialogues-round32-smoke.mts",
-    "smoke:breathe-toggle": "tsx scripts/breathe-toggle-smoke.mts",
-    "smoke:game-images": "tsx scripts/game-images-visual-smoke.mts",
     "smoke:scene-subtitles": "tsx scripts/scene-subtitles-and-state-smoke.mts",
     "smoke:scene-editor": "tsx scripts/scene-editor-tabs-smoke.mts",
     "smoke:editor-hotspot": "tsx scripts/editor-and-hotspot-smoke.mts",
@@ -43,12 +40,10 @@
     "smoke:theme-contrast": "tsx scripts/theme-contrast-smoke.mts",
     "smoke:dialogue-transitions": "tsx scripts/smoke-dialogue-transitions.mts",
     "smoke:scene-autosave": "tsx scripts/smoke-scene-transition-autosave.mts",
+    "smoke:spoilage": "tsx scripts/smoke-spoilage-and-narrative.mts",
     "smoke:stranger": "tsx scripts/smoke-stranger-and-triggers.mts",
     "smoke:dlg-script": "tsx scripts/dlg-script-smoke.mts",
-    "smoke:dlg-ui": "tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts",
-    "smoke:round33-fixes": "tsx scripts/smoke-round33-fixes.mts",
-    "smoke:round34-fixes": "tsx scripts/smoke-round34-fixes.mts",
-    "smoke:chromakey": "tsx scripts/smoke-chromakey-guide.mts"
+    "smoke:dlg-ui": "tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

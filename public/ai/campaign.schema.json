@@ -2675,14 +2675,6 @@
         },
         "loop": {
           "type": "boolean"
-        },
-        "color_inner": {
-          "type": "string",
-          "description": "цвет центра процедурной частицы (rgba/hex, по умолчанию белое/золотое свечение)"
-        },
-        "color_outer": {
-          "type": "string",
-          "description": "цвет внешнего ореола процедурной частицы"
         }
       },
       "required": [
@@ -6691,69 +6683,6 @@
       "additionalProperties": false,
       "description": "Зона перехода на сцене (итерация 8, А6): только ВНУТРИ локации —\nв другую сцену или «открыть карту» (это и есть выход из локации).\nСтарые `go_to_location` мигрируются при загрузке (shared/migrate.ts)."
     },
-    "SceneParticlesPreset": {
-      "type": "string",
-      "enum": [
-        "dust",
-        "steam",
-        "rain",
-        "snow",
-        "fog",
-        "ash",
-        "sparks",
-        "embers",
-        "none"
-      ]
-    },
-    "SceneParticlesConfig": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "$ref": "#/$defs/SceneParticlesPreset"
-        },
-        "density": {
-          "type": "string",
-          "enum": [
-            "low",
-            "medium",
-            "high"
-          ]
-        },
-        "speed": {
-          "type": "string",
-          "enum": [
-            "slow",
-            "normal",
-            "fast"
-          ]
-        },
-        "wind": {
-          "type": "string",
-          "enum": [
-            "left",
-            "none",
-            "right"
-          ]
-        },
-        "color": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "type"
-      ],
-      "additionalProperties": false
-    },
-    "SceneParticles": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/SceneParticlesPreset"
-        },
-        {
-          "$ref": "#/$defs/SceneParticlesConfig"
-        }
-      ]
-    },
     "NarrativeIntroEntry": {
       "anyOf": [
         {
@@ -6770,6 +6699,21 @@
             },
             "sfx": {
               "type": "string"
+            },
+            "image": {
+              "type": "string"
+            },
+            "camera": {
+              "$ref": "#/$defs/CameraDoc"
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            },
+            "duration": {
+              "type": "number"
             }
           },
           "required": [
@@ -6857,8 +6801,19 @@
           "description": "тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров)"
         },
         "particles": {
-          "$ref": "#/$defs/SceneParticles",
-          "description": "атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) — строка пресета или расширенный конфиг"
+          "type": "string",
+          "enum": [
+            "dust",
+            "steam",
+            "rain",
+            "snow",
+            "fog",
+            "ash",
+            "sparks",
+            "embers",
+            "none"
+          ],
+          "description": "атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман)"
         },
         "narrative_intro": {
           "type": "array",
@@ -6948,6 +6903,10 @@
         "durability": {
           "type": "number",
           "description": "Прочность конкретного экземпляра (аудит §5.6 п.10): запись с этим полем —\nотдельная копия многоразового предмета, стакается только с себе равными."
+        },
+        "freshness": {
+          "type": "number",
+          "description": "Срок годности / свежесть конкретного экземпляра в игровых тиках (часах):\nУбывает каждый тик; при достижении 0 превращается в spoil_into или уничтожается."
         }
       },
       "required": [
@@ -7146,7 +7105,7 @@
         },
         "scene_sprite": {
           "$ref": "#/$defs/ImageValue",
-          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG, ОБЯЗАТЕЛЬНО\nчерез хромакей #00FF00 и скрипт scripts/cutout-chromakey.py; диффузионные нейросети\nрисуют фейковую шахматку вместо альфы!). Стоит в слоте сцены."
+          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG, ОБЯЗАТЕЛЬНО);\nнет — в сцене используется портрет (состояние «Обычный»).\nМожно цикл кадров (ImageValue) — «живой» спрайт."
         },
         "scene_sprite_states": {
           "type": "object",
@@ -7157,7 +7116,7 @@
         },
         "combat_figure": {
           "$ref": "#/$defs/ImageValue",
-          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); прозрачный фон ОБЯЗАТЕЛЕН (генерируйте на хромакее #00FF00\nи вырезайте через scripts/cutout-chromakey.py; генератор нейросети рисует\nфейковую шахматку вместо альфы!); нет — круглый жетон из\n`token ?? portrait.neutral`. Можно цикл кадров (ImageValue)."
+          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); прозрачный фон ОБЯЗАТЕЛЕН; нет — круглый жетон из\n`token ?? portrait.neutral`. Можно цикл кадров (ImageValue)."
         },
         "combat_figure_states": {
           "type": "object",
@@ -7478,6 +7437,31 @@
         "quest_item": {
           "type": "boolean",
           "description": "сюжетный/квестовый предмет: нельзя случайно выбросить или продать"
+        },
+        "decay_ticks": {
+          "type": "number",
+          "description": "Срок годности предмета в игровых тиках (например, 24 = 24 часа). Если не задан — предмет не портится"
+        },
+        "spoil_into": {
+          "type": "string",
+          "description": "В какой предмет превращается после порчи (например item_meat_spoiled или item_scrap)"
+        },
+        "spoil_action": {
+          "type": "string",
+          "enum": [
+            "transform",
+            "destroy",
+            "rule"
+          ],
+          "description": "Действие при порче: 'transform' (в spoil_into), 'destroy' (исчезает), 'rule' (запуск правила)"
+        },
+        "spoil_rule": {
+          "type": "string",
+          "description": "Идентификатор правила, запускаемого при порче (если spoil_action === 'rule')"
+        },
+        "spoil_msg": {
+          "type": "string",
+          "description": "Сообщение в журнал при порче предмета"
         },
         "weapon_data": {
           "$ref": "#/$defs/WeaponData"

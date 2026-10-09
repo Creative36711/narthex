@@ -1549,7 +1549,17 @@ export interface SceneDef {
   chapter?: string
 }
 
-export type NarrativeIntroEntry = string | { text: string; voice?: string; sfx?: string }
+export type NarrativeIntroEntry =
+  | string
+  | {
+      text: string
+      voice?: string
+      sfx?: string
+      image?: string
+      camera?: CameraDoc
+      conditions?: Condition[]
+      duration?: number
+    }
 
 // ───────────────────────── сущности ─────────────────────────
 
@@ -1592,6 +1602,11 @@ export interface InventoryEntry {
    * отдельная копия многоразового предмета, стакается только с себе равными.
    */
   durability?: number
+  /**
+   * Срок годности / свежесть конкретного экземпляра в игровых тиках (часах):
+   * Убывает каждый тик; при достижении 0 превращается в spoil_into или уничтожается.
+   */
+  freshness?: number
 }
 
 export interface TraderDef {
@@ -1819,6 +1834,16 @@ export interface ItemDef {
   stackable: boolean
   /** сюжетный/квестовый предмет: нельзя случайно выбросить или продать */
   quest_item?: boolean
+  /** Срок годности предмета в игровых тиках (например, 24 = 24 часа). Если не задан — предмет не портится */
+  decay_ticks?: number
+  /** В какой предмет превращается после порчи (например item_meat_spoiled или item_scrap) */
+  spoil_into?: string
+  /** Действие при порче: 'transform' (в spoil_into), 'destroy' (исчезает), 'rule' (запуск правила) */
+  spoil_action?: 'transform' | 'destroy' | 'rule'
+  /** Идентификатор правила, запускаемого при порче (если spoil_action === 'rule') */
+  spoil_rule?: string
+  /** Сообщение в журнал при порче предмета */
+  spoil_msg?: string
   weapon_data?: WeaponData
   /** броня: очки поглощения урона */
   armor_data?: {

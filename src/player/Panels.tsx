@@ -226,6 +226,12 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                     </div>
                   )}
                   {def!.armor_data && <div className="muted small">Броня: −{def!.armor_data.points} к урону</div>}
+                  {entry.freshness !== undefined && def!.decay_ticks !== undefined && (
+                    <div className={`muted small item-freshness ${entry.freshness <= Math.ceil(def!.decay_ticks * 0.25) ? 'freshness-critical' : entry.freshness <= Math.ceil(def!.decay_ticks * 0.5) ? 'freshness-warning' : 'freshness-good'}`}>
+                      Свежесть: {entry.freshness} / {def!.decay_ticks} ч.
+                      {entry.freshness <= Math.ceil(def!.decay_ticks * 0.25) && <b> (Срок на исходе!)</b>}
+                    </div>
+                  )}
                 </div>
               <div className="inv-item-side">
                 <span className="muted small">{(def!.weight * entry.quantity).toFixed(1)} кг</span>

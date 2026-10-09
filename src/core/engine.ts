@@ -516,6 +516,8 @@ export class GameEngine {
       // смена суток: самочувствие NPC (спал по расписанию / не спал)
       const tpd = meta.ticks_per_day ?? 24
       if (tpd > 0 && this.state.tick > 0 && this.state.tick % tpd === 0) this.tickNpcMood()
+      // порча скоропортящихся предметов от времени
+      this.tickPerishableItems(1)
     }
     // достижения со счётчиками (прожитые тики и пр.) — после пачки тиков
     this.checkAchievements()
@@ -524,6 +526,46 @@ export class GameEngine {
     // правила на tick_elapsed / need_* (поезд ушёл, таймеры драм) — иначе
     // «последний поезд в 22:00» срабатывал только после смены сцены/диалога
     this.checkRules()
+  }
+
+  /** Обработка порчи скоропортящихся предметов со временем (decay_ticks / freshness) */
+  private tickPerishableItems(ticks: number): void {
+    const inv = this.state.player.inventory
+    for (let i = inv.length - 1; i >= 0; i--) {
+      const slot = inv[i]
+      if (slot.freshness === undefined) continue
+      slot.freshness = Math.max(0, slot.freshness - ticks)
+      if (slot.freshness === 0) {
+        const def = this.campaign.entities[slot.item] as ItemDef | undefined
+        const title = def?.label ?? slot.item
+        const msg = def?.spoil_msg || `«${title}» испортился от времени.`
+        this.pushLog(msg)
+        this.pushToast(msg, 'info')
+
+        if (def?.spoil_action === 'rule' && def.spoil_rule) {
+          this.fireRule(def.spoil_rule)
+        }
+
+        if (def?.spoil_into) {
+          const replacement = def.spoil_into
+          const repDef = this.campaign.entities[replacement] as ItemDef | undefined
+          slot.item = replacement
+          slot.freshness = repDef?.decay_ticks !== undefined ? repDef.decay_ticks : undefined
+          if (repDef?.label) {
+            this.pushLog(`Превратилось в: ${repDef.label}.`)
+          }
+        } else {
+          // удаление из инвентаря
+          inv.splice(i, 1)
+          // если предмет был надет в слот экипировки — снимаем
+          for (const eqSlot of Object.keys(this.state.player.equipment)) {
+            if (this.state.player.equipment[eqSlot] === slot.item) {
+              delete this.state.player.equipment[eqSlot]
+            }
+          }
+        }
+      }
+    }
   }
 
   /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
@@ -737,13 +779,24 @@ export class GameEngine {
       .reduce((s, i) => s + i.quantity, 0)
   }
 
-  addItem(id: string, quantity = 1, opts: { silent?: boolean } = {}): void {
+  addItem(id: string, quantity = 1, opts: { silent?: boolean; freshness?: number } = {}): void {
     const inv = this.state.player.inventory
-    // изнашиваемые предметы — отдельные экземпляры (аудит §5.6 п.10)
-    if (this.itemMaxDurability(id) !== undefined) {
-      for (let i = 0; i < quantity; i++) inv.push({ item: id, quantity: 1 })
+    const itemDef = this.campaign.entities[id] as ItemDef | undefined
+    const isPerishable = itemDef?.decay_ticks !== undefined && itemDef.decay_ticks > 0
+    const initialFreshness = opts.freshness ?? itemDef?.decay_ticks
+
+    // изнашиваемые или скоропортящиеся предметы — отдельные экземпляры
+    if (this.itemMaxDurability(id) !== undefined || isPerishable) {
+      for (let i = 0; i < quantity; i++) {
+        inv.push({
+          item: id,
+          quantity: 1,
+          durability: this.itemMaxDurability(id),
+          freshness: initialFreshness,
+        })
+      }
     } else {
-      const entry = inv.find((i) => i.item === id && i.durability === undefined)
+      const entry = inv.find((i) => i.item === id && i.durability === undefined && i.freshness === undefined)
       if (entry) entry.quantity += quantity
       else inv.push({ item: id, quantity })
     }

@@ -2,13 +2,13 @@ import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Rect, Text, Transformer, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { ArtDoc, ItemDef, NavigationZone, NpcDef, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
+import type { ArtDoc, CameraDoc, ItemDef, NavigationZone, NpcDef, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
 import { ArtView } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, ConditionListEditor, AnimImageEditor, ChapterSelect } from './Fields'
+import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, ConditionListEditor, AnimImageEditor, ChapterSelect, AssetUpload } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
-import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
+import { MusicRulesEditor, SoundMultiSelect, SoundSelect } from './AudioSection'
 import { firstFrame } from '../player/frames'
 import { CameraEditor } from './AtmosEditors'
 
@@ -143,6 +143,287 @@ function SlotSpriteImage({ src, slot, k }: { src: string | null; slot: SlotDef; 
       listening={false}
       opacity={0.92}
     />
+  )
+}
+
+const CAMERA_PRESETS: Record<string, CameraDoc | undefined> = {
+  '': undefined,
+  'zoom_in': { zoom: 1.15, pan_x: 0, pan_y: 0, duration: 8 },
+  'pan_left': { zoom: 1.1, pan_x: -15, pan_y: 0, duration: 8 },
+  'pan_right': { zoom: 1.1, pan_x: 15, pan_y: 0, duration: 8 },
+  'zoom_focus': { zoom: 1.25, pan_x: 0, pan_y: -10, duration: 6 },
+}
+
+function getCameraPresetKey(cam?: CameraDoc): string {
+  if (!cam) return ''
+  if (cam.zoom === 1.25 && cam.pan_y === -10) return 'zoom_focus'
+  if (cam.pan_x === -15) return 'pan_left'
+  if (cam.pan_x === 15) return 'pan_right'
+  if (cam.zoom === 1.15) return 'zoom_in'
+  return ''
+}
+
+/** Редактор вводного нарративного повествования сцены (стиль визуальной новеллы) */
+export function NarrativeIntroEditor({
+  scene,
+  store,
+  commit,
+}: {
+  scene: SceneDef
+  store: EditorStore
+  commit: () => void
+}) {
+  const [detailMode, setDetailMode] = useState(() => {
+    return (scene.narrative_intro ?? []).some((e) => typeof e !== 'string')
+  })
+
+  const list = scene.narrative_intro ?? []
+
+  const updateSlide = (
+    index: number,
+    patch: Partial<{ text: string; voice?: string; sfx?: string; image?: string; camera?: any; duration?: number }>,
+  ) => {
+    const raw = scene.narrative_intro ?? []
+    const current = raw[index]
+    const base = typeof current === 'string' ? { text: current } : { ...current }
+    const updated = { ...base, ...patch }
+    for (const k of Object.keys(updated) as Array<keyof typeof updated>) {
+      if (updated[k] === undefined || updated[k] === '') delete updated[k]
+    }
+    raw[index] = updated
+    scene.narrative_intro = [...raw]
+    commit()
+  }
+
+  const addSlide = () => {
+    const raw = scene.narrative_intro ?? []
+    raw.push({ text: '' })
+    scene.narrative_intro = [...raw]
+    setDetailMode(true)
+    commit()
+  }
+
+  const removeSlide = (index: number) => {
+    const raw = scene.narrative_intro ?? []
+    raw.splice(index, 1)
+    if (raw.length === 0) delete scene.narrative_intro
+    else scene.narrative_intro = [...raw]
+    commit()
+  }
+
+  const moveSlide = (index: number, delta: number) => {
+    const raw = scene.narrative_intro ?? []
+    const target = index + delta
+    if (target < 0 || target >= raw.length) return
+    const [item] = raw.splice(index, 1)
+    raw.splice(target, 0, item)
+    scene.narrative_intro = [...raw]
+    commit()
+  }
+
+  return (
+    <details className="spoiler-block" open={Boolean(list.length)}>
+      <summary>Вводное повествование (мысли при входе){list.length ? ` — ${list.length}` : ''}</summary>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+        <label className="checkbox-row" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
+          <input
+            type="checkbox"
+            checked={scene.narrative_intro_once !== false}
+            onChange={(e) => {
+              scene.narrative_intro_once = e.target.checked ? undefined : false
+              commit()
+            }}
+          />
+          <span>Показывать только один раз (при первом входе)</span>
+        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <label className="fld" style={{ margin: 0 }}>
+            <span style={{ fontSize: '0.8rem' }}>Кнопка перехода</span>
+            <input
+              placeholder="По умолчанию: Далее ▶"
+              value={scene.narrative_intro_next_label ?? ''}
+              onChange={(e) => {
+                scene.narrative_intro_next_label = e.target.value.trim() || undefined
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" style={{ margin: 0 }}>
+            <span style={{ fontSize: '0.8rem' }}>Кнопка завершения</span>
+            <input
+              placeholder="По умолчанию: Осмотреться ▶"
+              value={scene.narrative_intro_done_label ?? ''}
+              onChange={(e) => {
+                scene.narrative_intro_done_label = e.target.value.trim() || undefined
+                commit()
+              }}
+            />
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Слайды нарратива ({list.length})</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              className={`btn btn-small ${!detailMode ? 'btn-primary' : ''}`}
+              onClick={() => setDetailMode(false)}
+            >
+              Текст
+            </button>
+            <button
+              type="button"
+              className={`btn btn-small ${detailMode ? 'btn-primary' : ''}`}
+              onClick={() => setDetailMode(true)}
+            >
+              Конструктор слайдов
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={addSlide}
+            >
+              + Слайд
+            </button>
+          </div>
+        </div>
+
+        {!detailMode ? (
+          <label className="fld" data-tip="Каждая строка текста станет отдельным слайдом повествования">
+            <span style={{ fontSize: '0.8rem' }}>Текст повествования (по строкам)</span>
+            <textarea
+              rows={4}
+              placeholder="Холодный ветер обжёг лицо...&#10;В глубине шахты послышался металлический скрежет..."
+              value={list.map((e) => (typeof e === 'string' ? e : e.text)).join('\n')}
+              onChange={(e) => {
+                const lines = e.target.value.split('\n').map((s) => s.trim()).filter(Boolean)
+                if (lines.length) {
+                  scene.narrative_intro = lines.map((line, idx) => {
+                    const prev = list[idx]
+                    if (typeof prev === 'object' && prev !== null) {
+                      return { ...prev, text: line }
+                    }
+                    return line
+                  })
+                } else {
+                  delete scene.narrative_intro
+                }
+                commit()
+              }}
+            />
+          </label>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {list.map((entry, idx) => {
+              const item = typeof entry === 'string' ? { text: entry } : entry
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    border: '1px solid var(--border-soft)',
+                    borderRadius: '6px',
+                    padding: '8px 10px',
+                    background: 'var(--panel-2)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Слайд {idx + 1}</span>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button
+                        type="button"
+                        className="btn btn-small"
+                        disabled={idx === 0}
+                        onClick={() => moveSlide(idx, -1)}
+                        data-tip="Переместить выше"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-small"
+                        disabled={idx === list.length - 1}
+                        onClick={() => moveSlide(idx, 1)}
+                        data-tip="Переместить ниже"
+                      >
+                        ▼
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-small btn-drop"
+                        onClick={() => removeSlide(idx)}
+                        data-tip="Удалить слайд"
+                      >
+                        <Ico n="trash" />
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    rows={2}
+                    placeholder="Текст слайда..."
+                    value={item.text}
+                    onChange={(e) => updateSlide(idx, { text: e.target.value })}
+                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    <SoundSelect
+                      store={store}
+                      value={item.sfx}
+                      onChange={(sfx) => updateSlide(idx, { sfx })}
+                    />
+                    <label className="fld" style={{ margin: 0 }}>
+                      <select
+                        value={getCameraPresetKey(item.camera)}
+                        onChange={(e) => updateSlide(idx, { camera: CAMERA_PRESETS[e.target.value] })}
+                      >
+                        <option value="">Камера: по умолчанию</option>
+                        <option value="zoom_in">Камера: приближение</option>
+                        <option value="pan_left">Камера: панорама влево</option>
+                        <option value="pan_right">Камера: панорама вправо</option>
+                        <option value="zoom_focus">Камера: акцент на центр</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    <AssetUpload
+                      label="Озвучка"
+                      value={item.voice ?? ''}
+                      dir="assets/audio/voice"
+                      store={store}
+                      kind="audio"
+                      onChange={(voice) => updateSlide(idx, { voice: voice.trim() || undefined })}
+                    />
+                    <AssetUpload
+                      label="Арт слайда"
+                      value={item.image ?? ''}
+                      dir="assets/img"
+                      store={store}
+                      kind="image"
+                      onChange={(image) => updateSlide(idx, { image: image.trim() || undefined })}
+                    />
+                  </div>
+                  <label className="fld" style={{ margin: 0 }}>
+                    <span style={{ fontSize: '0.75rem' }}>Автопереход через (сек.): 0 = только по клику</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={60}
+                      step={0.5}
+                      value={item.duration ?? 0}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value) || 0
+                        updateSlide(idx, { duration: val > 0 ? val : undefined })
+                      }}
+                    />
+                  </label>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </details>
   )
 }
 
@@ -588,150 +869,29 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
           <option value="none">Без фильтров освещения</option>
         </select>
       </label>
-      <div className="scene-particles-group" style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-        <label className="fld">
-          <span>Атмосферные частицы</span>
-          <select
-            value={typeof scene.particles === 'object' ? scene.particles.type : (scene.particles ?? 'none')}
-            onChange={(e) => {
-              const val = e.target.value
-              if (val === 'none') {
-                delete scene.particles
-              } else if (typeof scene.particles === 'object') {
-                scene.particles.type = val as any
-              } else {
-                scene.particles = val as any
-              }
-              commit()
-            }}
-          >
-            <option value="none">Без частиц</option>
-            <option value="dust">Пылинки</option>
-            <option value="steam">Пар и дым</option>
-            <option value="sparks">Искры</option>
-            <option value="embers">Тлеющие угли</option>
-            <option value="rain">Дождь</option>
-            <option value="snow">Снег</option>
-            <option value="fog">Туман</option>
-            <option value="ash">Пепел</option>
-          </select>
-        </label>
-        {scene.particles && scene.particles !== 'none' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, marginTop: 4 }}>
-            <label className="fld" style={{ margin: 0 }}>
-              <span className="small muted">Плотность</span>
-              <select
-                value={typeof scene.particles === 'object' ? (scene.particles.density ?? 'medium') : 'medium'}
-                onChange={(e) => {
-                  const density = e.target.value as any
-                  if (typeof scene.particles !== 'object') {
-                    scene.particles = { type: scene.particles as any, density }
-                  } else {
-                    scene.particles.density = density
-                  }
-                  commit()
-                }}
-              >
-                <option value="low">Мало</option>
-                <option value="medium">Средне</option>
-                <option value="high">Много</option>
-              </select>
-            </label>
-            <label className="fld" style={{ margin: 0 }}>
-              <span className="small muted">Скорость</span>
-              <select
-                value={typeof scene.particles === 'object' ? (scene.particles.speed ?? 'normal') : 'normal'}
-                onChange={(e) => {
-                  const speed = e.target.value as any
-                  if (typeof scene.particles !== 'object') {
-                    scene.particles = { type: scene.particles as any, speed }
-                  } else {
-                    scene.particles.speed = speed
-                  }
-                  commit()
-                }}
-              >
-                <option value="slow">Медленно</option>
-                <option value="normal">Обычно</option>
-                <option value="fast">Шторм</option>
-              </select>
-            </label>
-            <label className="fld" style={{ margin: 0 }}>
-              <span className="small muted">Ветер</span>
-              <select
-                value={typeof scene.particles === 'object' ? (scene.particles.wind ?? 'none') : 'none'}
-                onChange={(e) => {
-                  const wind = e.target.value as any
-                  if (typeof scene.particles !== 'object') {
-                    scene.particles = { type: scene.particles as any, wind }
-                  } else {
-                    scene.particles.wind = wind
-                  }
-                  commit()
-                }}
-              >
-                <option value="none">Штиль</option>
-                <option value="left">Влево ◀</option>
-                <option value="right">Вправо ▶</option>
-              </select>
-            </label>
-          </div>
-        )}
-      </div>
-      <details className="spoiler-block" open={Boolean(scene.narrative_intro?.length)}>
-        <summary>Вводное повествование (мысли при входе){(scene.narrative_intro?.length ?? 0) ? ` — ${scene.narrative_intro!.length}` : ''}</summary>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
-          <label className="checkbox-row" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
-            <input
-              type="checkbox"
-              checked={scene.narrative_intro_once !== false}
-              onChange={(e) => {
-                scene.narrative_intro_once = e.target.checked ? undefined : false
-                commit()
-              }}
-            />
-            <span>Показывать только один раз (при первом входе)</span>
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <label className="fld" style={{ margin: 0 }}>
-              <span style={{ fontSize: '0.8rem' }}>Текст кнопки «Далее»</span>
-              <input
-                placeholder="По умолчанию: Далее ▶"
-                value={scene.narrative_intro_next_label ?? ''}
-                onChange={(e) => {
-                  scene.narrative_intro_next_label = e.target.value.trim() || undefined
-                  commit()
-                }}
-              />
-            </label>
-            <label className="fld" style={{ margin: 0 }}>
-              <span style={{ fontSize: '0.8rem' }}>Текст «Осмотреться»</span>
-              <input
-                placeholder="По умолчанию: Осмотреться ▶"
-                value={scene.narrative_intro_done_label ?? ''}
-                onChange={(e) => {
-                  scene.narrative_intro_done_label = e.target.value.trim() || undefined
-                  commit()
-                }}
-              />
-            </label>
-          </div>
-          <label className="fld" data-tip="Закадровый текст или мысли героя при входе (каждая строка — отдельный слайд)">
-            <span style={{ fontSize: '0.8rem' }}>Текст повествования (по строкам)</span>
-            <textarea
-              rows={3}
-              placeholder="Холодный ветер обжёг лицо...&#10;В глубине шахты послышался металлический скрежет..."
-              value={(scene.narrative_intro ?? []).map((e) => (typeof e === 'string' ? e : e.text)).join('\n')}
-              onChange={(e) => {
-                const lines = e.target.value.split('\n').map((s) => s.trim()).filter(Boolean)
-                if (lines.length) scene.narrative_intro = lines
-                else delete scene.narrative_intro
-                commit()
-              }}
-            />
-          </label>
-        </div>
-      </details>
+      <label className="fld">
+        <span>Атмосферные частицы</span>
+        <select
+          value={typeof scene.particles === 'object' && scene.particles !== null ? scene.particles.type : (scene.particles ?? 'none')}
+          onChange={(e) => {
+            if (e.target.value === 'none') delete scene.particles
+            else if (typeof scene.particles === 'object' && scene.particles !== null) scene.particles.type = e.target.value as any
+            else scene.particles = e.target.value as any
+            commit()
+          }}
+        >
+          <option value="none">Без частиц</option>
+          <option value="dust">Пылинки в воздухе</option>
+          <option value="steam">Клубы пара и дыма</option>
+          <option value="sparks">Искры</option>
+          <option value="embers">Тлеющие угли</option>
+          <option value="rain">Дождь</option>
+          <option value="snow">Снег</option>
+          <option value="fog">Туман</option>
+          <option value="ash">Пепел</option>
+        </select>
+      </label>
+      <NarrativeIntroEditor scene={scene} store={store} commit={commit} />
       <MusicRulesEditor
         store={store}
         value={scene.music ?? (scene.music = [])}
