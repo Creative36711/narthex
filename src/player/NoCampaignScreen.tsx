@@ -160,7 +160,5 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
       </div>
     </div>
   )
-    </div>
-  )
 }
 
