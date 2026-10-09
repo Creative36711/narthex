@@ -3,8 +3,10 @@
 scripts/cutout-chromakey.py
 
 Утилита удаления хромакея (зелёного фона #00FF00) для спрайтов, эмблем и боевых фигурок.
-Поддерживает удаление фона снаружи, а также зачистку внутренних замкнутых полостей
-(отверстия в шестерёнках, ручки предметов, буквы логотипов A/O/P/D/B, просветы между конечностями).
+Поддерживает удаление фона снаружи, зачистку внутренних замкнутых полостей
+(отверстия в шестерёнках, ручки предметов, буквы логотипов A/O/P/D/B, просветы между конечностями),
+а также автоматическую обрезку пустых прозрачных полей (tight bounding box / autocrop)
+и оптимизацию размера файлов для контроля веса кампании.
 
 Использование:
   python3 scripts/cutout-chromakey.py input.png output.png [опции]
@@ -21,6 +23,11 @@ scripts/cutout-chromakey.py
       Подавление паразитного зелёного ореола на кромках (включено по умолчанию в auto и color).
   --points "X1,Y1 X2,Y2 ..."
       Список координат внутренних полостей для точечного удаления.
+  --crop / --no-crop
+      Автоматическая обрезка пустых прозрачных краёв вплотную к объекту (autocrop по bbox).
+      Включена по умолчанию для предотвращения раздутия разрешения и веса.
+  --max-size <int>
+      Максимальная длина большей стороны в пикселях (например, 256 для фигурок боя или 512 для спрайтов).
 """
 
 import sys
@@ -28,36 +35,29 @@ import os
 import argparse
 import subprocess
 
-def run_imagemagick(input_path, output_path, mode, tol, points_list):
+def run_imagemagick(input_path, output_path, mode, tol, points_list, crop=True, max_size=None):
     """Fallback через ImageMagick convert, если PIL/Pillow не установлен."""
     fuzz = f"{int(tol * 100 / 255)}%"
+    cmd = ["convert", input_path, "-fuzz", fuzz]
     if mode == "color" or mode == "auto":
-        # Глобальное удаление цвета #00FF00 по всему изображению
-        cmd = [
-            "convert", input_path,
-            "-fuzz", fuzz,
-            "-transparent", "#00FF00",
-            output_path
-        ]
-        return subprocess.run(cmd, check=True)
+        cmd += ["-transparent", "#00FF00"]
     elif mode == "flood":
-        cmd = [
-            "convert", input_path,
-            "-fuzz", fuzz,
-            "-fill", "none",
-            "-draw", "matte 0,0 floodfill",
-            output_path
-        ]
-        return subprocess.run(cmd, check=True)
+        cmd += ["-fill", "none", "-draw", "matte 0,0 floodfill"]
     elif mode == "points" and points_list:
         draw_cmds = []
         for x, y in points_list:
             draw_cmds.extend(["-draw", f"matte {x},{y} floodfill"])
-        cmd = ["convert", input_path, "-fuzz", fuzz, "-fill", "none"] + draw_cmds + [output_path]
-        return subprocess.run(cmd, check=True)
-    return None
+        cmd += ["-fill", "none"] + draw_cmds
 
-def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=True, points_list=None):
+    if crop:
+        cmd += ["-trim", "+repage"]
+    if max_size and max_size > 0:
+        cmd += ["-resize", f"{max_size}x{max_size}>"]
+
+    cmd.append(output_path)
+    return subprocess.run(cmd, check=True)
+
+def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=True, points_list=None, crop=True, max_size=None):
     from PIL import Image
     from collections import deque
 
@@ -165,10 +165,24 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
                         visited.add((nx, ny))
                         queue.append((nx, ny))
 
-    img.save(output_path, "PNG")
+    # Автоматическая обрезка пустых прозрачных полей (autocrop)
+    if crop:
+        bbox = img.getbbox()
+        if bbox:
+            pad = 2
+            box = (max(0, bbox[0] - pad), max(0, bbox[1] - pad), min(w, bbox[2] + pad), min(h, bbox[3] + pad))
+            img = img.crop(box)
+
+    # Ограничение максимального разрешения (downscale для контроля веса)
+    if max_size and max_size > 0:
+        resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
+        img.thumbnail((max_size, max_size), resample_filter)
+
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    img.save(output_path, "PNG", optimize=True)
 
 def main():
-    parser = argparse.ArgumentParser(description="Вырезание хромакея (#00FF00) и зачистка полостей")
+    parser = argparse.ArgumentParser(description="Вырезание хромакея (#00FF00), зачистка полостей и обрезка полей")
     parser.add_argument("input", help="Путь к исходному файлу (.png/.jpg)")
     parser.add_argument("output", help="Путь к результирующему PNG")
     parser.add_argument("--mode", choices=["auto", "color", "flood", "points"], default="auto",
@@ -176,6 +190,12 @@ def main():
     parser.add_argument("--tol", type=int, default=35, help="Порог чувствительности (по умолчанию 35)")
     parser.add_argument("--despill", action="store_true", default=True, help="Подавление паразитного ореола")
     parser.add_argument("--points", type=str, default="", help="Координаты внутренних точек 'X1,Y1 X2,Y2'")
+    parser.add_argument("--crop", dest="crop", action="store_true", default=True,
+                        help="Обрезать пустые прозрачные поля (по умолчанию включено)")
+    parser.add_argument("--no-crop", dest="crop", action="store_false",
+                        help="Не обрезать изображение по границам объекта")
+    parser.add_argument("--max-size", type=int, default=None,
+                        help="Максимальный размер стороны в пикселях (downscale)")
 
     args = parser.parse_args()
 
@@ -188,12 +208,14 @@ def main():
 
     try:
         import PIL
-        process_with_pillow(args.input, args.output, mode=args.mode, tol=args.tol, despill=args.despill, points_list=pts)
-        print(f"✓ Успешно обработано через Pillow: {args.output} (режим {args.mode})")
+        process_with_pillow(args.input, args.output, mode=args.mode, tol=args.tol,
+                            despill=args.despill, points_list=pts, crop=args.crop, max_size=args.max_size)
+        print(f"✓ Успешно обработано через Pillow: {args.output} (режим {args.mode}, crop={args.crop})")
     except ImportError:
         print("Pillow не найден, используется ImageMagick fallback...")
-        run_imagemagick(args.input, args.output, mode=args.mode, tol=args.tol, points_list=pts)
-        print(f"✓ Успешно обработано через ImageMagick: {args.output} (режим {args.mode})")
+        run_imagemagick(args.input, args.output, mode=args.mode, tol=args.tol,
+                        points_list=pts, crop=args.crop, max_size=args.max_size)
+        print(f"✓ Успешно обработано через ImageMagick: {args.output} (режим {args.mode}, crop={args.crop})")
 
 if __name__ == "__main__":
     main()
