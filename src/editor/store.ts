@@ -873,7 +873,7 @@ export class EditorStore {
 
   /** создать новый файл и внести в манифест */
   createFile(section: keyof ManifestDef, filename: string, data: unknown | string): string {
-    const dir = section === 'encounters' ? 'rules' : section
+    const dir = section
     const path = `${dir}/${filename}`
     const list = (this.manifest[section] ?? (this.manifest[section] = [] as string[])) as string[]
     if (!list.includes(filename)) list.push(filename)
@@ -886,16 +886,16 @@ export class EditorStore {
   }
 
   deleteFile(section: keyof ManifestDef, filename: string): void {
-    const dir = section === 'encounters' ? 'rules' : section
+    const dir = section
     const path = `${dir}/${filename}`
     const list = (this.manifest[section] ?? []) as string[]
     const i = list.indexOf(filename)
     if (i >= 0) list.splice(i, 1)
     this.jsonFiles.delete(path)
-    if (section === 'encounters') this.jsonFiles.delete(`encounters/${filename}`)
+    if (section === 'encounters') this.jsonFiles.delete(`rules/${filename}`)
     this.textFiles.delete(path)
     this.dirty.delete(path)
-    if (section === 'encounters') this.dirty.delete(`encounters/${filename}`)
+    if (section === 'encounters') this.dirty.delete(`rules/${filename}`)
     this.dirty.add('manifest.json')
     this.notify()
   }
@@ -908,6 +908,16 @@ export class EditorStore {
     if (path === 'manifest.json') return JSON.stringify(this.manifest, null, 2)
     if (this.textFiles.has(path)) return this.textFiles.get(path)!
     return JSON.stringify(this.jsonFiles.get(path), null, 2)
+  }
+
+  hasFile(path: string): boolean {
+    return (
+      path === 'campaign.json' ||
+      path === 'world.json' ||
+      path === 'manifest.json' ||
+      this.jsonFiles.has(path) ||
+      this.textFiles.has(path)
+    )
   }
 
   allPaths(): string[] {

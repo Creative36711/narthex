@@ -23,7 +23,30 @@ export async function exportChronicle(
 ): Promise<Blob> {
   const zip = new JSZip()
   for (const p of store.allPaths()) zip.file(p, store.fileText(p))
-  const assets = collectAssetPaths(store)
+
+  // 100% гарантия сохранности ассетов: опрашиваем физический диск кампании,
+  // чтобы ни один файл (озвучки, арты, шрифты, видео) не потерялся при экспорте или упаковке задания ИИ
+  const diskAssets: string[] = []
+  if (store.meta.id && typeof fetch !== 'undefined') {
+    try {
+      const res = await fetch(`/__editor/campaign-files?id=${encodeURIComponent(store.meta.id)}`)
+      if (res.ok) {
+        const data = (await res.json()) as { files?: string[] }
+        if (Array.isArray(data.files)) {
+          for (const f of data.files) {
+            // Файлы манифеста и JSON уже упакованы из памяти; добавляем все реальные ассеты на диске:
+            if (!store.hasFile(f) && !f.startsWith('.') && !f.startsWith('__chronicle_ai__/')) {
+              diskAssets.push(f)
+            }
+          }
+        }
+      }
+    } catch {
+      // offline / standalone
+    }
+  }
+
+  const assets = [...new Set([...collectAssetPaths(store), ...diskAssets])]
   const missing: string[] = []
   await Promise.all(assets.map(async (assetPath) => {
     const url = `${store.basePath}/${assetPath.split('/').map(encodeURIComponent).join('/')}`

@@ -49,7 +49,7 @@ export function normalizeChronicleManifest(
     { key: 'rules', folder: 'rules' },
     { key: 'arenas', folder: 'arenas' },
     { key: 'quests', folder: 'quests' },
-    { key: 'encounters', folder: 'rules' },
+    { key: 'encounters', folder: 'encounters' },
     { key: 'cutscenes', folder: 'cutscenes' },
     { key: 'recipes', folder: 'recipes' },
     { key: 'codex', folder: 'codex' },
@@ -77,7 +77,7 @@ export function normalizeChronicleManifest(
       // dialogue .dlg.json is a structured sidecar, never the .ink source itself.
       const rawPath = `${folder}/${original.replace(/^\/+/, '')}`
       const targetPath = dialogueSidecarListed ? sidecarPath : canonicalPath
-      const altFolder = key === 'encounters' ? 'encounters' : undefined
+      const altFolder = key === 'encounters' ? 'rules' : undefined
       const candidates = [...new Set([
         targetPath,
         rawPath,

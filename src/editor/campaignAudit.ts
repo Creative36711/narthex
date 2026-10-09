@@ -134,7 +134,20 @@ export function collectCampaignMedia(store: EditorStore): { local: string[]; ext
   visit(store.world)
   for (const value of store.jsonFiles.values()) visit(value)
   for (const text of store.textFiles.values()) {
+    // 1. Ссылки в кавычках: "assets/..." или 'assets/...'
     for (const match of text.matchAll(/["']([^"'\r\n]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?)(?:[?#][^"'\r\n]*)?)["']/gi)) {
+      const path = match[1].trim()
+      if (isExternal(path)) external.add(path)
+      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ''))
+    }
+    // 2. Ремарки ink без кавычек: # voice: assets/audio/..., # sfx: ..., # music: ...
+    for (const match of text.matchAll(/#\s*(?:voice|sfx|music|ambient|sound|audio)\s*:\s*([^\s\r\n]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?))/gi)) {
+      const path = match[1].trim()
+      if (isExternal(path)) external.add(path)
+      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ''))
+    }
+    // 3. Любые упоминания путей assets/... без кавычек
+    for (const match of text.matchAll(/\b(assets\/[^\s"'\r\n,;)]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?))/gi)) {
       const path = match[1].trim()
       if (isExternal(path)) external.add(path)
       else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ''))
