@@ -186,10 +186,22 @@ function alphaRolePaths(store: EditorStore): Array<{ path: string; role: string 
   const out: Array<{ path: string; role: string }> = []
   const art = store.meta.theme?.menu?.title_art
   if (art) out.push({ path: art, role: 'эмблема меню (theme.menu.title_art) лежит поверх фона меню' })
+  const frameImg = store.meta.theme?.frame?.image
+  if (frameImg) out.push({ path: frameImg, role: 'рамка интерфейса (theme.frame.image) обрамляет окна' })
+
+  for (const atm of store.meta.atmospherics ?? []) {
+    if (atm.sprite) out.push({ path: atm.sprite, role: `спрайт атмосферной частицы «${atm.label || atm.id}»` })
+  }
+
   for (const p of store.entityPaths()) {
     const e = store.entity(p)
     const spr = typeof e.scene_sprite === 'string' ? e.scene_sprite : undefined
     if (spr) out.push({ path: spr, role: `спрайт в сцене «${e.label}» стоит в слоте поверх фона сцены` })
+    if ('scene_sprite_states' in e && e.scene_sprite_states) {
+      for (const [st, img] of Object.entries(e.scene_sprite_states as Record<string, string>)) {
+        if (typeof img === 'string') out.push({ path: img, role: `спрайт состояния «${st}» в сцене «${e.label}»` })
+      }
+    }
     const fig = 'combat_figure' in e && typeof e.combat_figure === 'string' ? e.combat_figure : undefined
     if (fig) out.push({ path: fig, role: `фигурка боя «${e.label}» стоит поверх арены` })
   }
@@ -223,7 +235,7 @@ async function inspectAlphaRoles(store: EditorStore): Promise<AuditFinding[]> {
       if (opaque) {
         findings.push({
           severity: 'warning',
-          message: `«${path}»: ${role}, поэтому требуется прозрачный фон (PNG с альфой); у файла непрозрачные углы — похоже на фон-подложку. Перегенерируйте или вырежьте фон.`,
+          message: `«${path}»: ${role}, поэтому требуется прозрачный фон (PNG с альфой); у файла непрозрачные углы — похоже на фон-подложку или нарисованную шахматку. Сгенерируйте на хромакее и вырежьте: python3 scripts/cutout-chromakey.py "${path}"`,
         })
       }
     } catch {
