@@ -139,9 +139,9 @@ export function NoCampaignScreen({ onCreate, onImported, notice }: Props) {
           multiple
           style={{ display: 'none' }}
           onChange={(e) => {
-            const files = e.target.files
+            const files = Array.from(e.target.files ?? [])
             e.target.value = ''
-            if (files && files.length) void doImportDirectory(files)
+            if (files.length > 0) void doImportDirectory(files)
           }}
         />
         {busy && (

@@ -305,9 +305,9 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                 multiple
                 style={{ display: 'none' }}
                 onChange={(e) => {
-                  const files = e.target.files
-                  if (files && files.length) void doImportDirectory(files)
+                  const files = Array.from(e.target.files ?? [])
                   e.target.value = ''
+                  if (files.length > 0) void doImportDirectory(files)
                 }}
               />
             </div>

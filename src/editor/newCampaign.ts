@@ -557,6 +557,17 @@ export async function importChroniclePackage(
   }
 }
 
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const len = bytes.byteLength
+  const chunkSize = 0x8000
+  for (let i = 0; i < len; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, len))
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[])
+  }
+  return btoa(binary)
+}
+
 /**
  * Импорт локальной папки кампании напрямую (выбор через проводник или drag-and-drop).
  * Отфильтровывает .git, tools, скрипты и пропускает строго канонический набор игры.
@@ -569,25 +580,29 @@ export async function importCampaignFromDirectory(
   if (!files.length) throw new Error('Папка пуста или файлы не выбраны')
 
   // Ищем campaign.json и вычисляем префикс корневой папки
-  let rootPrefix = ''
-  let metaFile: File | undefined
-  for (const f of files) {
-    const rel = (f.webkitRelativePath || f.name).replaceAll('\\', '/')
-    if (rel === 'campaign.json') {
-      metaFile = f
-      rootPrefix = ''
-      break
-    }
-    if (rel.endsWith('/campaign.json') && rel.split('/').length === 2) {
-      metaFile = f
-      rootPrefix = rel.slice(0, rel.indexOf('campaign.json'))
-      break
-    }
+  // Исключаем .git и node_modules при первичном поиске
+  const candidateFiles = files.filter((f) => {
+    const p = (f.webkitRelativePath || f.name).replaceAll('\\', '/')
+    return !p.includes('/.git/') && !p.startsWith('.git/') && !p.includes('/node_modules/')
+  })
+
+  // Ищем campaign.json с наименьшей вложенностью (ближайший к корню)
+  const metaCandidates = candidateFiles.filter((f) => {
+    const p = (f.webkitRelativePath || f.name).replaceAll('\\', '/')
+    return p === 'campaign.json' || p.endsWith('/campaign.json')
+  }).sort((a, b) => {
+    const pa = (a.webkitRelativePath || a.name).replaceAll('\\', '/')
+    const pb = (b.webkitRelativePath || b.name).replaceAll('\\', '/')
+    return pa.split('/').length - pb.split('/').length
+  })
+
+  const metaFile = metaCandidates[0]
+  if (!metaFile) {
+    throw new Error('В выбранной папке не найден файл campaign.json. Убедитесь, что выбрана папка с кампанией.')
   }
 
-  if (!metaFile) {
-    throw new Error('В выбранной папке нет файла campaign.json. Убедитесь, что выбрана корневая папка кампании.')
-  }
+  const fullMetaPath = (metaFile.webkitRelativePath || metaFile.name).replaceAll('\\', '/')
+  const rootPrefix = fullMetaPath === 'campaign.json' ? '' : fullMetaPath.slice(0, fullMetaPath.lastIndexOf('campaign.json'))
 
   const metaText = await metaFile.text()
   const meta = JSON.parse(metaText) as {
@@ -638,7 +653,8 @@ export async function importCampaignFromDirectory(
   try {
     for (const f of files) {
       const fullRel = (f.webkitRelativePath || f.name).replaceAll('\\', '/')
-      const path = rootPrefix && fullRel.startsWith(rootPrefix) ? fullRel.slice(rootPrefix.length) : fullRel
+      let path = rootPrefix && fullRel.startsWith(rootPrefix) ? fullRel.slice(rootPrefix.length) : fullRel
+      path = path.replaceAll('\\', '/').replace(/^\/+/, '')
       if (!isAllowedCampaignFile(path)) continue
 
       if (path.endsWith('.json') || path.endsWith('.ink') || path.endsWith('.md')) {
@@ -647,9 +663,7 @@ export async function importCampaignFromDirectory(
       } else {
         const buffer = await f.arrayBuffer()
         const bytes = new Uint8Array(buffer)
-        let binary = ''
-        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
-        const base64 = btoa(binary)
+        const base64 = uint8ArrayToBase64(bytes)
         const response = await fetch('/__editor/save', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
