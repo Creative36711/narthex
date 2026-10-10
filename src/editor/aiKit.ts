@@ -9,7 +9,7 @@ export const AI_KIT_FILES = [
   { name: 'campaign-guide.md', title: 'Гайд по движку и формату кампании' },
   { name: 'campaign.schema.json', title: 'JSON Schema всех полей' },
   { name: 'design-template.md', title: 'Бланк дизайн-документа' },
-  { name: 'cutout-chromakey.py', title: 'Скрипт вырезания хромакея (#00FF00) и зачистки замкнутых полостей' },
+  { name: 'cutout-chromakey.py', title: 'Инструмент вырезания хромакея' },
 ] as const
 
 /**
