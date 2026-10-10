@@ -28,6 +28,14 @@ import type {
 
 export type ManifestDef = CampaignManifest
 
+export interface ModifiedFileEntry {
+  path: string
+  status: 'modified' | 'added' | 'deleted'
+  category: 'scene' | 'dialogue' | 'entity' | 'quest' | 'rule' | 'recipe' | 'arena' | 'cutscene' | 'codex' | 'meta' | 'world' | 'other'
+  title: string
+  diffSummary?: string
+}
+
 /**
  * Глубина вложенных вызовов правил (эффект fire_rule). Продублировано из
  * GameEngine: редактор должен сказать мастеру о петле ДО запуска игры.
@@ -95,6 +103,8 @@ export class EditorStore {
   private snapshots = new Map<string, string>()
   /** содержимое файлов на диске (на момент загрузки/сохранения) — для точного счётчика «несохранено» */
   private saved = new Map<string, string>()
+  /** исходные снимки файлов на момент загрузки/импорта кампании для фиксации изменений мастера */
+  private baseline = new Map<string, string>()
   private lastTouch = { path: '', group: '', at: 0 }
 
   constructor(basePath: string) {
@@ -189,6 +199,7 @@ export class EditorStore {
       this.snapshots.set(p, this.fileText(p))
       this.saved.set(p, this.fileText(p))
     }
+    this.captureBaseline()
   }
 
   /**
@@ -892,10 +903,10 @@ export class EditorStore {
     const i = list.indexOf(filename)
     if (i >= 0) list.splice(i, 1)
     this.jsonFiles.delete(path)
-    if (section === 'encounters') this.jsonFiles.delete(`rules/${filename}`)
+    if (section === 'encounters') this.jsonFiles.delete(`encounters/${filename}`)
     this.textFiles.delete(path)
     this.dirty.delete(path)
-    if (section === 'encounters') this.dirty.delete(`rules/${filename}`)
+    if (section === 'encounters') this.dirty.delete(`encounters/${filename}`)
     this.dirty.add('manifest.json')
     this.notify()
   }
@@ -918,6 +929,179 @@ export class EditorStore {
       this.jsonFiles.has(path) ||
       this.textFiles.has(path)
     )
+  }
+
+  /** Зафиксировать текущее состояние кампании как исходную базу для диффа изменений */
+  captureBaseline(): void {
+    this.baseline.clear()
+    for (const p of this.allPaths()) {
+      this.baseline.set(p, this.fileText(p))
+    }
+  }
+
+  /** Имеются ли зафиксированные данные базового снимка */
+  hasBaseline(): boolean {
+    return this.baseline.size > 0
+  }
+
+  /**
+   * Список файлов, которые реально изменились относительно исходного состояния
+   * (добавленные, изменённые или удалённые файлы).
+   */
+  getModifiedFiles(): ModifiedFileEntry[] {
+    const list: ModifiedFileEntry[] = []
+    const currentPaths = new Set(this.allPaths())
+
+    // 1. Проверяем текущие файлы на добавление и изменение
+    for (const p of currentPaths) {
+      const currentText = this.fileText(p)
+      const baseText = this.baseline.get(p)
+
+      if (baseText === undefined) {
+        list.push({
+          path: p,
+          status: 'added',
+          category: this.categorizePath(p),
+          title: this.titleForPath(p),
+        })
+      } else if (currentText !== baseText) {
+        list.push({
+          path: p,
+          status: 'modified',
+          category: this.categorizePath(p),
+          title: this.titleForPath(p),
+          diffSummary: this.buildDiffSummary(p, baseText, currentText),
+        })
+      }
+    }
+
+    // 2. Проверяем удалённые файлы (были в baseline, но удалены сейчас)
+    for (const [p] of this.baseline) {
+      if (!currentPaths.has(p)) {
+        list.push({
+          path: p,
+          status: 'deleted',
+          category: this.categorizePath(p),
+          title: this.titleForPath(p),
+        })
+      }
+    }
+
+    return list.sort((a, b) => a.path.localeCompare(b.path, 'ru'))
+  }
+
+  private categorizePath(path: string): ModifiedFileEntry['category'] {
+    if (path === 'campaign.json') return 'meta'
+    if (path === 'world.json') return 'world'
+    if (path.startsWith('scenes/')) return 'scene'
+    if (path.startsWith('dialogues/')) return 'dialogue'
+    if (path.startsWith('entities/')) return 'entity'
+    if (path.startsWith('quests/')) return 'quest'
+    if (path.startsWith('rules/')) return 'rule'
+    if (path.startsWith('recipes/')) return 'recipe'
+    if (path.startsWith('arenas/')) return 'arena'
+    if (path.startsWith('cutscenes/')) return 'cutscene'
+    if (path.startsWith('codex/')) return 'codex'
+    return 'other'
+  }
+
+  private titleForPath(path: string): string {
+    if (path === 'campaign.json') return `Паспорт кампании «${this.meta.title || this.meta.id}»`
+    if (path === 'world.json') return 'Карта мира и локации'
+    if (path === 'manifest.json') return 'Манифест структуры'
+
+    if (path.startsWith('scenes/')) {
+      const doc = this.jsonFiles.get(path) as SceneDef | undefined
+      return doc?.label ? `Сцена: ${doc.label}` : path
+    }
+    if (path.startsWith('entities/')) {
+      const doc = this.jsonFiles.get(path) as any
+      const kind = doc?.type === 'npc' ? 'Персонаж' : 'Предмет'
+      return doc?.label ? `${kind}: ${doc.label}` : path
+    }
+    if (path.startsWith('dialogues/')) {
+      const clean = path.replace(/^dialogues\//, '').replace(/\.(ink|dlg\.json)$/, '')
+      return `Диалог: ${clean}`
+    }
+    if (path.startsWith('quests/')) {
+      const doc = this.jsonFiles.get(path) as QuestDef | undefined
+      return doc?.label ? `Квест: ${doc.label}` : path
+    }
+    if (path.startsWith('recipes/')) {
+      const doc = this.jsonFiles.get(path) as RecipeDef | undefined
+      return doc?.label ? `Рецепт: ${doc.label}` : path
+    }
+    if (path.startsWith('rules/')) {
+      const doc = this.jsonFiles.get(path) as any
+      return doc?.label || doc?.id ? `Правило: ${doc.label || doc.id}` : path
+    }
+    if (path.startsWith('cutscenes/')) {
+      const doc = this.jsonFiles.get(path) as CutsceneDef | undefined
+      return doc?.label ? `Катсцена: ${doc.label}` : path
+    }
+    if (path.startsWith('arenas/')) {
+      const doc = this.jsonFiles.get(path) as ArenaDef | undefined
+      return doc?.label ? `Арена: ${doc.label}` : path
+    }
+    if (path.startsWith('codex/')) {
+      const doc = this.jsonFiles.get(path) as CodexEntryDef | undefined
+      return doc?.label ? `Кодекс: ${doc.label}` : path
+    }
+    return path
+  }
+
+  private buildDiffSummary(path: string, baseText: string, currentText: string): string | undefined {
+    if (path.endsWith('.json')) {
+      try {
+        const baseObj = JSON.parse(baseText)
+        const curObj = JSON.parse(currentText)
+        if (typeof baseObj === 'object' && baseObj && typeof curObj === 'object' && curObj) {
+          const changedKeys: string[] = []
+          const allKeys = new Set([...Object.keys(baseObj), ...Object.keys(curObj)])
+          for (const k of allKeys) {
+            if (JSON.stringify(baseObj[k]) !== JSON.stringify(curObj[k])) {
+              changedKeys.push(k)
+            }
+          }
+          if (changedKeys.length > 0 && changedKeys.length <= 4) {
+            return `изменены поля: ${changedKeys.join(', ')}`
+          } else if (changedKeys.length > 4) {
+            return `изменено ${changedKeys.length} полей (${changedKeys.slice(0, 3).join(', ')}…)`
+          }
+        }
+      } catch {
+        // игнорируем ошибку парсинга
+      }
+    }
+    return undefined
+  }
+
+  /**
+   * Сформировать понятную сводку изменений для чата с ИИ
+   */
+  getChangesSummaryText(): string {
+    const mods = this.getModifiedFiles()
+    if (mods.length === 0) {
+      return `Кампания «${this.meta.title}» (${this.meta.id}): нет изменений относительно исходного состояния.`
+    }
+
+    const lines: string[] = [
+      `### Изменения мастера в кампании «${this.meta.title}» (${this.meta.id}):`,
+      `Всего затронуто файлов: ${mods.length}`,
+      '',
+    ]
+
+    for (let i = 0; i < mods.length; i++) {
+      const m = mods[i]
+      const statusLabel = m.status === 'added' ? 'Новый' : m.status === 'deleted' ? 'Удалён' : 'Изменён'
+      const detail = m.diffSummary ? ` — ${m.diffSummary}` : ''
+      lines.push(`${i + 1}. [${statusLabel}] ${m.title} (\`${m.path}\`)${detail}`)
+    }
+
+    lines.push('')
+    lines.push('Примени эти изменения поверх своей версии проекта кампании и продолжай разработку с их учётом.')
+
+    return lines.join('\n')
   }
 
   allPaths(): string[] {

@@ -15,7 +15,7 @@ import { WorldEditor } from './WorldEditor'
 import { CutsceneEditor, newCutscene } from './CutsceneEditor'
 import { RecipeEditor, newRecipe } from './RecipeEditor'
 import { CodexEditor, newCodexEntry } from './CodexEditor'
-import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
+import { exportChronicle, exportPatchChronicle, downloadBlob, importChronicle } from './chronicle'
 import {
   createCampaign,
   fetchCampaignIndex,
@@ -841,6 +841,16 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  const doExportPatch = async () => {
+    try {
+      const { blob, filename, modifiedCount } = await exportPatchChronicle(store)
+      downloadBlob(blob, filename)
+      void showAlert('Экспорт изменений для ИИ', `Пакет изменений (${modifiedCount} файлов) успешно сохранён в «${filename}».\nОтправьте этот компактный файл ИИ-агенту — он обновит проект без пересылки всей кампании.`)
+    } catch (e) {
+      void showAlert('Экспорт изменений', String(e))
+    }
+  }
+
   const resolveChronicleConflict = async (conflict: import('./newCampaign').ChronicleIdConflict) => {
     const update = await askConfirm(
       `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}», а содержимое пакета отличается. Обновить существующую кампанию?`,
@@ -1025,6 +1035,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const groupCounts = new Map<string, number>()
   for (const it of items) if (it.group) groupCounts.set(it.group, (groupCounts.get(it.group) ?? 0) + 1)
 
+  const modifiedCount = store.getModifiedFiles().length
+
   return (
     <div className={`editor-root ed-theme-${edTheme}`}>
       <header className="editor-topbar">
@@ -1072,14 +1084,27 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <details className="editor-toolbar-menu">
           <summary className="btn btn-small">Файл <Ico n="chevron" /></summary>
           <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
+            <button className="editor-toolbar-item" onClick={save} disabled={!store.dirty.size}><Ico n="download" /> Сохранить (Ctrl+S)</button>
             <button className="editor-toolbar-item" onClick={newCampaign}><Ico n="plus" /> Новая кампания</button>
-            <button className="editor-toolbar-item danger" onClick={deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
             <div className="editor-toolbar-divider" />
-            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт .chronicle</button>
-            <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON</button>
-            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle…</button>
-            <button className="editor-toolbar-item" onClick={() => folderInput.current?.click()}><Ico n="folder" /> Импорт папки…</button>
+            <div className="editor-toolbar-divider" />
+            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle / патча…</button>
+            <button className="editor-toolbar-item" onClick={() => folderInput.current?.click()}><Ico n="folder" /> Импорт папки проекта…</button>
             <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
+            <div className="editor-toolbar-divider" />
+            <button
+              className="editor-toolbar-item"
+              onClick={doExportPatch}
+              disabled={modifiedCount === 0}
+              data-tip={modifiedCount > 0 ? `Экспортировать только изменённые файлы (${modifiedCount}) в микро-архив` : 'Нет изменений относительно исходной базы'}
+            >
+              <Ico n="download" /> Экспорт правок для ИИ (.chronicle)
+              {modifiedCount > 0 && <span className="ai-btn-badge">{modifiedCount}</span>}
+            </button>
+            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт всей кампании (.chronicle)</button>
+            <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON (монолит)</button>
+            <div className="editor-toolbar-divider" />
+            <button className="editor-toolbar-item danger" onClick={deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
           </div>
         </details>
         <details className="editor-toolbar-menu">
@@ -1089,7 +1114,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               className="editor-toolbar-item"
               onClick={() => setAuditOpen(true)}
             ><Ico n="check" /> Проверить кампанию</button>
-            <button className="editor-toolbar-item" onClick={() => openAiTask()}><Ico n="sparkle" /> Задание для ИИ</button>
+            <button className="editor-toolbar-item" onClick={() => openAiTask()}><Ico n="sparkle" /> Мастер ИИ</button>
             <button className="editor-toolbar-item" onClick={() => { setBookFile('README.md'); setBookContextual(false); setBookOpen(true) }}><Ico n="book" /> Книга мастера</button>
           </div>
         </details>
@@ -1105,6 +1130,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         </button>
         <button className="btn btn-small editor-ai-button" onClick={() => openAiTask()} data-tip="Помощник мастера и ИИ: пакет правок, аудит и чемодан">
           <Ico n="sparkle" /> Мастер ИИ
+          {modifiedCount > 0 && <span className="ai-btn-badge">{modifiedCount}</span>}
         </button>
         <button className="btn btn-small editor-playtest-button" onClick={() => void playtest()} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" /> Плейтест</button>
         <button className="btn btn-small" onClick={() => void exitEditor()} data-tip="Выйти в главное меню игры"><Ico n="exit" /> Выйти</button>

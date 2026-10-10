@@ -1,93 +1,66 @@
 /**
- * Помощник подготовки задачи для внешнего ИИ (ChatGPT, Claude, DeepSeek, Cursor).
- * Позволяет быстро сформулировать задачу, прикрепить ошибки аудита и выгрузить
- * либо легковесный чемодан для Git-репозитория, либо полный .chronicle для чата.
+ * Единый помощник мастера и внешнего ИИ:
+ * 1. Пакет изменений мастера (Diff Patch) — скачивание микро-архива .chronicle только с изменёнными файлами и инструкцией.
+ * 2. Чемодан задачи для ИИ — легковесный набор документов (схемы, инструкции, TASK.md) или полный пакет кампании.
+ * 3. Создание новой кампании — генератор брифа с назначением UUID.
  */
-import { useState, useId } from 'react'
+import { useState, useMemo } from 'react'
+import guideRaw from '../../docs/ai-campaign-guide.md?raw'
 import { Ico } from '../shared/icons'
 import { showAlert } from '../shared/modals'
-import { createAiTaskBundle, createAiTaskRepoKit, type AiTaskMode } from './aiTask'
+import { createAiTaskBundle, buildAiTaskPrompt, buildAiTaskBrief, type AiOutputFormat } from './aiTask'
+import { AI_TASK_DIR } from './aiKit'
 import { createCampaignUuid } from './ids'
-import { downloadBlob } from './chronicle'
-import type { PlaytestRecord } from './campaignAudit'
-import { clearPlaytestNotes, shouldAutoClearNotes } from './playtestNotes'
-import type { EditorStore } from './store'
+import { downloadBlob, exportPatchChronicle } from './chronicle'
+import { formatCampaignAuditReport, validateCampaign, type PlaytestRecord } from './campaignAudit'
+import type { EditorStore, ModifiedFileEntry } from './store'
+
+const GENRES = ['Фэнтези', 'Киберпанк', 'Хоррор', 'Постапок', 'Детектив', 'Приключение', 'Своя тема']
+const TONES = ['мрачный', 'героический', 'ироничный', 'эпичный', 'спокойный', 'без пафоса']
+const SCALES: Array<{ id: string; label: string; hint: string }> = [
+  { id: 'small', label: 'Малая', hint: 'около 3 локаций, 3 персонажей, 1 главный квест' },
+  { id: 'medium', label: 'Средняя', hint: 'около 6 локаций, 6 персонажей, 1 главный + 2 побочных квеста' },
+  { id: 'big', label: 'Большая', hint: '10+ локаций, 10+ персонажей, сеть главных и побочных квестов' },
+  { id: 'any', label: 'На усмотрение ИИ', hint: 'мастер доверяет выбору масштаба' },
+]
+
+export type AiWizardTab = 'patch' | 'bundle' | 'new'
 
 interface Props {
   store: EditorStore
   hasCampaign: boolean
   lastPlaytest?: PlaytestRecord | null
   initialReport?: string
+  initialTab?: AiWizardTab
   onClose: () => void
 }
 
-type TargetEnv = 'git' | 'chat'
+export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '', initialTab, onClose }: Props) {
+  const modifiedFiles = useMemo(() => hasCampaign ? store.getModifiedFiles() : [], [store, hasCampaign])
+  const defaultTab: AiWizardTab = initialTab ?? (hasCampaign && modifiedFiles.length > 0 ? 'patch' : hasCampaign ? 'bundle' : 'new')
 
-export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '', onClose }: Props) {
-  const [mode, setMode] = useState<AiTaskMode>(hasCampaign ? 'edit' : 'new')
-  const [targetEnv, setTargetEnv] = useState<TargetEnv>('git')
-  const [task, setTask] = useState('')
-  const [newTitle, setNewTitle] = useState('')
-  const [newGenre, setNewGenre] = useState('')
+  const [activeTab, setActiveTab] = useState<AiWizardTab>(defaultTab)
+  const [outputFormat, setOutputFormat] = useState<AiOutputFormat>('chronicle')
+  const [genre, setGenre] = useState('')
+  const [genreText, setGenreText] = useState('')
+  const [tone, setTone] = useState('')
+  const [scale, setScale] = useState('')
+  const [battle, setBattle] = useState<number | null>(null)
+  const [accents, setAccents] = useState<Record<string, boolean>>({})
+  const [must, setMust] = useState('')
+  const [mustNot, setMustNot] = useState('')
+  const [idea, setIdea] = useState('')
   const [assignedId, setAssignedId] = useState(() => createCampaignUuid())
   const [copyState, setCopyState] = useState('')
   const [busy, setBusy] = useState(false)
-  const [auditAttached, setAuditAttached] = useState(false)
-  const textareaId = useId()
 
-  const hasAuditReport = Boolean(initialReport && initialReport.trim())
-
-  const attachAuditReport = () => {
-    if (!initialReport || auditAttached) return
-    const addition = `\n\nИсправь следующие замечания из отчёта проверки:\n${initialReport.trim()}`
-    setTask((prev) => (prev ? `${prev.trim()}${addition}` : addition.trim()))
-    setAuditAttached(true)
-  }
-
-  const effectiveTaskText = (): string => {
-    if (mode === 'new') {
-      const parts = [
-        newTitle.trim() && `Название: ${newTitle.trim()}`,
-        newGenre.trim() && `Сеттинг / жанр: ${newGenre.trim()}`,
-        task.trim() || 'Создай интересную законченную кампанию со стартовой сценой, несколькими персонажами, диалогами и квестом.',
-      ].filter(Boolean)
-      return parts.join('\n\n')
-    }
-    return task.trim() || 'Проведи аккуратную проверку кампании, исправь ошибки связей и предложи улучшения без изменения основного сюжета.'
-  }
-
-  const generateChatMessage = (): string => {
-    const userTask = effectiveTaskText()
-    if (targetEnv === 'git') {
-      return [
-        'Привет! Мы работаем над кампанией для движка тактических новелл Chronicle Forge в репозитории на диске.',
-        '',
-        'Задача:',
-        userTask,
-        '',
-        'Вся документация движка, схема полей и техническое задание лежат в папке __chronicle_ai__/ репозитория (файл TASK.md).',
-        'Внеси изменения в соответствующие файлы кампании (scenes/, entities/, dialogues/, quests/ и др.), сохраняя каноническую структуру репозитория.',
-      ].join('\n')
-    }
-    return [
-      'Привет! Я прикрепил архив кампании для движка тактических новелл Chronicle Forge.',
-      '',
-      'Задача:',
-      userTask,
-      '',
-      'Вся техническая документация, JSON-схема и отчёт проверки уже упакованы внутри архива в папке __chronicle_ai__/.',
-      'Пожалуйста, сохрани структуру файлов, ID кампании и верни готовый обновлённый архив кампании (.chronicle или zip с файлами манифеста).',
-    ].join('\n')
-  }
-
-  const copyChatMessage = async () => {
+  const copyToClipboard = async (text: string, successMsg: string) => {
+    let ok = false
     try {
-      const text = generateChatMessage()
-      let ok = false
+      await navigator.clipboard.writeText(text)
+      ok = true
+    } catch {
       try {
-        await navigator.clipboard.writeText(text)
-        ok = true
-      } catch {
         const textarea = document.createElement('textarea')
         textarea.value = text
         textarea.style.position = 'fixed'
@@ -96,45 +69,127 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
         textarea.select()
         ok = document.execCommand('copy')
         textarea.remove()
+      } catch {
+        ok = false
       }
-      setCopyState(ok ? 'Сообщение для чата скопировано в буфер обмена!' : 'Не удалось скопировать — скопируйте вручную')
-    } catch (error) {
-      setCopyState(`Ошибка копирования: ${String(error)}`)
     }
-    setTimeout(() => setCopyState(''), 5000)
+    setCopyState(ok ? successMsg : 'Не удалось скопировать — выделите текст вручную')
+    setTimeout(() => setCopyState(''), 4500)
   }
 
-  const downloadTask = async () => {
+  // --- Вкладка 1: Пакет изменений мастера (Diff Patch) ---
+  const handleDownloadPatch = async () => {
     setBusy(true)
     setCopyState('')
     try {
-      const taskBrief = effectiveTaskText()
-      if (targetEnv === 'git') {
-        const bundle = await createAiTaskRepoKit(store, {
-          task: taskBrief,
-          lastPlaytest,
-          previousReport: initialReport,
-        })
-        downloadBlob(bundle.blob, bundle.filename)
-        if (shouldAutoClearNotes()) {
-          clearPlaytestNotes(store.meta.id)
-        }
-        setCopyState('Чемодан для Git скачан (~70–120 КБ). Распакуйте папку __chronicle_ai__ в корень репозитория кампании.')
-      } else {
-        const bundle = await createAiTaskBundle(store, {
-          mode,
-          task: taskBrief,
-          lastPlaytest,
-          assignedCampaignId: assignedId,
-          outputFormat: 'chronicle',
-          previousReport: initialReport,
-        })
-        downloadBlob(bundle.blob, bundle.filename)
-        if (shouldAutoClearNotes()) {
-          clearPlaytestNotes(store.meta.id)
-        }
-        setCopyState('Архив кампании .chronicle скачан. Прикрепите его к сообщению в чате с ИИ.')
-      }
+      const { blob, filename, modifiedCount } = await exportPatchChronicle(store)
+      downloadBlob(blob, filename)
+      setCopyState(`Пакет изменений (${modifiedCount} файлов) успешно скачан. Отправьте файл ${filename} ИИ-агенту.`)
+    } catch (e) {
+      void showAlert('Экспорт изменений', String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleCopyPatchInstructions = async () => {
+    const summary = store.getChangesSummaryText()
+    const prompt = [
+      'Привет! Я внёс ручные правки в кампанию через визуальный редактор Chronicle Forge.',
+      '',
+      summary,
+      '',
+      'Прикрепляю микро-пакет изменений (.chronicle). Пожалуйста, распакуй его файлы поверх проекта и продолжай работу.',
+    ].join('\n')
+    await copyToClipboard(prompt, 'Инструкция со списком изменений скопирована в буфер обмена')
+  }
+
+  const handleCopyRawPatchText = async () => {
+    const mods = store.getModifiedFiles().filter((m) => m.status === 'modified' || m.status === 'added')
+    if (mods.length === 0) {
+      setCopyState('Нет изменённых файлов для копирования')
+      return
+    }
+    const blocks: string[] = [
+      `### Ручные изменения мастера (${store.meta.title}, ID: ${store.meta.id})`,
+      '',
+    ]
+    for (const m of mods) {
+      blocks.push(`#### Файл: ${m.path} (${m.title})`)
+      const ext = m.path.endsWith('.ink') ? 'ink' : 'json'
+      blocks.push('```' + ext)
+      blocks.push(store.fileText(m.path))
+      blocks.push('```')
+      blocks.push('')
+    }
+    await copyToClipboard(blocks.join('\n'), 'Содержимое всех изменённых файлов скопировано в буфер обмена')
+  }
+
+  // --- Вкладка 2: Чемодан задачи / Аудит ---
+  const taskText = (): string => {
+    const genreLine = [genre && genre !== 'Своя тема' ? genre : '', genreText.trim()].filter(Boolean).join(' — ')
+    const accentsText = [
+      accents['выживание'] && 'выживание: еда, тепло и другие потребности',
+      accents['торговля'] && 'торговля и экономика',
+      accents['напарники'] && 'напарники и отряд',
+    ].filter((value): value is string => !!value)
+    return buildAiTaskBrief({
+      mode: activeTab === 'new' ? 'new' : 'edit',
+      idea,
+      genre: genreLine,
+      tone,
+      scaleHint: SCALES.find((item) => item.id === scale)?.hint,
+      battle,
+      accents: accentsText,
+      must,
+      mustNot,
+    })
+  }
+
+  const taskPrompt = async (): Promise<string> => {
+    const mode = activeTab === 'new' ? 'new' : 'edit'
+    const report = initialReport || (mode === 'edit'
+      ? formatCampaignAuditReport(await validateCampaign(store, lastPlaytest))
+      : 'Для новой кампании отчёта проверки пока нет.')
+    const campaignId = mode === 'edit' ? store.meta.id : outputFormat === 'chronicle' ? assignedId : ''
+    return [
+      buildAiTaskPrompt(mode, taskText(), campaignId, report, outputFormat),
+      '',
+      '=== ТЕХНИЧЕСКОЕ РУКОВОДСТВО ===',
+      guideRaw.trim(),
+      '',
+      `Файлы технического набора лежат в ${AI_TASK_DIR} внутри приложенного архива.`,
+    ].join('\n')
+  }
+
+  const handleCopyPrompt = async () => {
+    try {
+      const text = await taskPrompt()
+      await copyToClipboard(text, 'Промпт скопирован в буфер обмена — приложите к нему архив задания')
+    } catch (error) {
+      setCopyState(`Не удалось подготовить промпт: ${String(error)}`)
+    }
+  }
+
+  const handleDownloadTaskBundle = async () => {
+    setBusy(true)
+    setCopyState('')
+    try {
+      const mode = activeTab === 'new' ? 'new' : 'edit'
+      const bundle = await createAiTaskBundle(store, {
+        mode,
+        task: taskText(),
+        lastPlaytest,
+        assignedCampaignId: assignedId,
+        outputFormat,
+        previousReport: initialReport,
+      })
+      downloadBlob(bundle.blob, bundle.filename)
+      setCopyState(outputFormat === 'json'
+        ? 'Пакет контекста скачан. ИИ вернёт MonolithDoc JSON.'
+        : mode === 'edit'
+          ? 'Чемодан задания .chronicle скачан. Отправьте его ИИ.'
+          : `Чемодан задания скачан (ID: ${bundle.assignedCampaignId}).`)
     } catch (error) {
       void showAlert('Не удалось собрать пакет задания', String(error))
     } finally {
@@ -142,157 +197,296 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
     }
   }
 
-  const selectMode = (next: AiTaskMode) => {
-    setMode(next)
-    if (next === 'new') setAssignedId(createCampaignUuid())
-  }
+  const toggleAccent = (key: string) => setAccents((current) => ({ ...current, [key]: !current[key] }))
 
   return (
     <div className="modal-overlay">
       <div className="modal-box ai-wizard" onClick={(event) => event.stopPropagation()}>
         <div className="modal-title">
-          <Ico n="sparkle" /> Мастер ИИ: задание и чемодан кампании
+          <Ico n="sparkle" /> Мастер ИИ
+          <span className="editor-spacer" />
+          <button type="button" className="btn btn-small" onClick={onClose}>✕</button>
         </div>
-        <div className="modal-body" style={{ marginBottom: 12 }}>
-          Сформулируйте задачу для нейросети (ChatGPT, Claude, DeepSeek или Cursor). Вы можете прикрепить архив кампании к чату или выгрузить компактный чемоданчик для работы через GitHub Desktop.
+
+        {/* Навигация по вкладкам */}
+        <div className="ai-wizard-tabs">
+          {hasCampaign && (
+            <button
+              type="button"
+              className={`ai-wizard-tab-btn ${activeTab === 'patch' ? 'active' : ''}`}
+              onClick={() => setActiveTab('patch')}
+            >
+              <Ico n="download" /> Пакет изменений мастера
+              {modifiedFiles.length > 0 && (
+                <span className="ai-tab-badge">{modifiedFiles.length}</span>
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            className={`ai-wizard-tab-btn ${activeTab === 'bundle' ? 'active' : ''}`}
+            onClick={() => setActiveTab('bundle')}
+          >
+            <Ico n="book" /> Чемодан задачи и аудит
+          </button>
+          <button
+            type="button"
+            className={`ai-wizard-tab-btn ${activeTab === 'new' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('new')
+              setAssignedId(createCampaignUuid())
+            }}
+          >
+            <Ico n="plus" /> Создать новую кампанию
+          </button>
         </div>
 
         <div className="ai-wizard-content">
-          {/* Шаг 1. Режим: текущая или новая */}
-          <div className="fld fld-block">
-            <span style={{ fontWeight: 600, color: '#e2e8f0', marginBottom: 6 }}>1. Что делаем?</span>
-            <div className="chips">
-              <button
-                type="button"
-                className={`chip ${mode === 'edit' ? 'chip-on' : ''}`}
-                onClick={() => selectMode('edit')}
-                disabled={!hasCampaign}
-              >
-                Изменить текущую кампанию {store.meta.title ? `(«${store.meta.title}»)` : ''}
-              </button>
-              <button
-                type="button"
-                className={`chip ${mode === 'new' ? 'chip-on' : ''}`}
-                onClick={() => selectMode('new')}
-              >
-                Создать новую кампанию с нуля
-              </button>
-            </div>
-          </div>
+          {/* ВКЛАДКА 1: ПАКЕТ ИЗМЕНЕНИЙ (DIFF) */}
+          {activeTab === 'patch' && hasCampaign && (
+            <div className="ai-patch-section">
+              <div className="ai-patch-header">
+                <h3>Передача правок мастера в ИИ без пересылки всей кампании</h3>
+                <p className="muted small">
+                  Вы можете внести любые правки в визуальном редакторе и скачать только изменённые файлы в микро-архиве (несколько килобайт вместо десятков мегабайт видео, музыки и картинок). ИИ распакует этот патч поверх своей версии.
+                </p>
+              </div>
 
-          {/* Дополнительные поля для новой кампании */}
-          {mode === 'new' && (
-            <div className="fld-row" style={{ marginTop: 6 }}>
-              <label className="fld" style={{ flex: 1 }}>
-                <span>Рабочее название кампании</span>
-                <input
-                  value={newTitle}
-                  placeholder="например: Мёртвый пар или Шепот шестерен"
-                  onChange={(e) => setNewTitle(e.target.value)}
-                />
-              </label>
-              <label className="fld" style={{ flex: 1 }}>
-                <span>Сеттинг / жанр</span>
-                <input
-                  value={newGenre}
-                  placeholder="например: дизельпанк, детектив, мрачное фэнтези"
-                  onChange={(e) => setNewGenre(e.target.value)}
-                />
-              </label>
+              {modifiedFiles.length === 0 ? (
+                <div className="ai-patch-empty">
+                  <div className="ai-patch-empty-icon"><Ico n="check" /></div>
+                  <div className="ai-patch-empty-text">
+                    <strong>Нет несохранённых различий с исходной базой</strong>
+                    <p className="muted small">
+                      Все сцены, сущности и диалоги соответствуют базовому состоянию. Внесите любые изменения в редакторе (например, поправьте цену предмета или позицию слота), и здесь сразу появится список для экспорта.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="ai-patch-stats-bar">
+                    <span>Затронуто файлов: <strong>{modifiedFiles.length}</strong></span>
+                    <span className="editor-spacer" />
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      onClick={() => store.captureBaseline()}
+                      data-tip="Сбросить базовую линию к текущему состоянию (считать текущее состояние исходным)"
+                    >
+                      Зафиксировать как базу
+                    </button>
+                  </div>
+
+                  <div className="ai-patch-list">
+                    {modifiedFiles.map((m: ModifiedFileEntry) => (
+                      <div key={m.path} className={`ai-patch-item status-${m.status}`}>
+                        <span className={`ai-status-badge badge-${m.status}`}>
+                          {m.status === 'added' ? 'новый' : m.status === 'deleted' ? 'удалён' : 'изменён'}
+                        </span>
+                        <div className="ai-patch-info">
+                          <strong className="ai-patch-title">{m.title}</strong>
+                          <span className="ai-patch-path muted small">{m.path}</span>
+                          {m.diffSummary && (
+                            <span className="ai-patch-diff-summary">{m.diffSummary}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="ai-patch-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleDownloadPatch}
+                      disabled={busy}
+                    >
+                      <Ico n="download" /> Скачать пакет изменений (.chronicle)
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={handleCopyPatchInstructions}
+                    >
+                      <Ico n="sparkle" /> Скопировать инструкцию для ИИ
+                    </button>
+                    {modifiedFiles.length <= 6 && (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={handleCopyRawPatchText}
+                        data-tip="Скопировать содержимое изменённых файлов в буфер для прямой вставки в чат"
+                      >
+                        <Ico n="chevronRight" /> Скопировать текст файлов
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
-          {/* Шаг 2. Текст задачи */}
-          <div className="fld fld-block" style={{ marginTop: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <label htmlFor={textareaId} style={{ fontWeight: 600, color: '#e2e8f0', cursor: 'pointer' }}>
-                2. Задача для ИИ (что нужно сделать?)
-              </label>
-              {hasAuditReport && !auditAttached && (
-                <button
-                  type="button"
-                  className="btn btn-small"
-                  style={{ fontSize: 12, padding: '2px 8px', color: '#f59e0b', borderColor: '#f59e0b44' }}
-                  onClick={attachAuditReport}
-                >
-                  <Ico n="warn" /> Добавить замечания аудита в задачу
+          {/* ВКЛАДКА 2: ЧЕМОДАН ЗАДАЧИ / РЕДАКТИРОВАНИЕ ТЕКУЩЕЙ */}
+          {activeTab === 'bundle' && (
+            <div className="ai-bundle-section">
+              <div className="fld fld-block">
+                <span>Кампания: <strong>{store.meta.title || store.meta.id}</strong> (ID: {store.meta.id})</span>
+                <span className="muted small">
+                  Сборка полного контекста кампании с отчётом проверки, заметками плейтеста и техническим гайдом для глубокой проработки сценария.
+                </span>
+              </div>
+
+              <div className="fld fld-block">
+                <span>Формат результата</span>
+                <div className="chips">
+                  <button type="button" className={`chip ${outputFormat === 'chronicle' ? 'chip-on' : ''}`} onClick={() => setOutputFormat('chronicle')}>Полный .chronicle</button>
+                  <button type="button" className={`chip ${outputFormat === 'json' ? 'chip-on' : ''}`} onClick={() => setOutputFormat('json')}>MonolithDoc JSON</button>
+                </div>
+              </div>
+
+              <div className="fld fld-block">
+                <span>Задача для ИИ (что нужно сделать / доработать)</span>
+                <textarea
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  placeholder="Опишите задачу: например, добавить квест с поиском улик в архиве, сбалансировать торговца или написать диалог для нового персонажа…"
+                />
+              </div>
+
+              <div className="ai-patch-actions">
+                <button type="button" className="btn btn-primary" onClick={handleDownloadTaskBundle} disabled={busy}>
+                  <Ico n="download" /> Скачать чемодан задания
                 </button>
-              )}
+                <button type="button" className="btn" onClick={handleCopyPrompt}>
+                  <Ico n="sparkle" /> Скопировать промпт для чата
+                </button>
+              </div>
             </div>
-            <textarea
-              id={textareaId}
-              className="modal-textarea"
-              rows={6}
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-              placeholder={
-                mode === 'new'
-                  ? 'Опишите идею новой кампании: кто главный герой, где начинается сюжет, с кем предстоит поговорить и какие тайны раскрыть...'
-                  : 'Опишите своими словами, что нужно сделать (например: «Добавь квест у торговца Вольта, пропиши диалоги стражникам и исправь ссылки из проверки»)...'
-              }
-            />
-          </div>
+          )}
 
-          {/* Шаг 3. Выбор сценария передачи */}
-          <div className="fld fld-block" style={{ marginTop: 12 }}>
-            <span style={{ fontWeight: 600, color: '#e2e8f0', marginBottom: 6 }}>3. Как вы работаете с ИИ?</span>
-            <div className="ai-env-cards">
-              <div
-                className={`ai-env-card ${targetEnv === 'git' ? 'active' : ''}`}
-                onClick={() => setTargetEnv('git')}
-              >
-                <div className="ai-env-card-head">
-                  <span><Ico n="folder" /> В репозитории (GitHub Desktop / Cursor)</span>
-                  <span className="ai-env-badge">~70–120 КБ</span>
+          {/* ВКЛАДКА 3: СОЗДАНИЕ НОВОЙ КАМПАНИИ */}
+          {activeTab === 'new' && (
+            <div className="ai-new-section">
+              <div className="fld fld-block">
+                <span>Сеттинг / жанр</span>
+                <div className="chips">
+                  {GENRES.map((value) => (
+                    <button key={value} type="button" className={`chip ${genre === value ? 'chip-on' : ''}`} onClick={() => setGenre(genre === value ? '' : value)}>{value}</button>
+                  ))}
                 </div>
-                <div className="ai-env-card-desc">
-                  Скачивает только папку <code>__chronicle_ai__/</code> (задание <code>TASK.md</code>, руководство и схему) без дублирования тяжелых медиафайлов. Вы распаковываете её в корень своего репозитория и коммитите через GitHub Desktop.
+                {genre === 'Своя тема' && (
+                  <input
+                    type="text"
+                    value={genreText}
+                    onChange={(e) => setGenreText(e.target.value)}
+                    placeholder="Укажите жанр или сеттинг…"
+                  />
+                )}
+              </div>
+
+              <div className="fld fld-block">
+                <span>Тональность</span>
+                <div className="chips">
+                  {TONES.map((value) => (
+                    <button key={value} type="button" className={`chip ${tone === value ? 'chip-on' : ''}`} onClick={() => setTone(tone === value ? '' : value)}>{value}</button>
+                  ))}
                 </div>
               </div>
 
-              <div
-                className={`ai-env-card ${targetEnv === 'chat' ? 'active' : ''}`}
-                onClick={() => setTargetEnv('chat')}
-              >
-                <div className="ai-env-card-head">
-                  <span><Ico n="message" /> В веб-чате (ChatGPT / Claude / DeepSeek)</span>
-                  <span className="ai-env-badge">Полный .chronicle</span>
-                </div>
-                <div className="ai-env-card-desc">
-                  Упаковывает кампанию целиком в готовый архив <code>.chronicle</code> для загрузки в диалог. Нейросеть получит все модули, тексты и медиа прямо в чате.
+              <div className="fld fld-block">
+                <span>Масштаб кампании</span>
+                <div className="chips">
+                  {SCALES.map((item) => (
+                    <button key={item.id} type="button" className={`chip ${scale === item.id ? 'chip-on' : ''}`} onClick={() => setScale(scale === item.id ? '' : item.id)}>{item.label}</button>
+                  ))}
                 </div>
               </div>
+
+              <div className="fld fld-block">
+                <span>Акценты механик</span>
+                <div className="chips">
+                  {['выживание', 'торговля', 'напарники'].map((key) => (
+                    <button key={key} type="button" className={`chip ${accents[key] ? 'chip-on' : ''}`} onClick={() => toggleAccent(key)}>{key}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="fld fld-block">
+                <span>Основная задумка / завязка</span>
+                <textarea
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  placeholder="О чём история, кто главный герой, с чего начинается приключение…"
+                />
+              </div>
+
+              <div className="fld fld-block">
+                <span>Соотношение диалогов и боёвки (необязательно)</span>
+                <label className="settings-row ai-optional-toggle">
+                  <input type="checkbox" checked={battle !== null} onChange={(event) => setBattle(event.target.checked ? 50 : null)} />
+                  <span>Задать соотношение</span>
+                </label>
+                {battle === null ? (
+                  <div className="muted small">Не задано: ИИ сам решит, учитывать ли этот аспект.</div>
+                ) : (
+                  <label className="settings-row ai-battle-range" style={{ gap: 10 }}>
+                    <span className="muted small">диалоги</span>
+                    <input aria-label="Соотношение диалогов и боёвки" type="range" min={0} max={100} value={battle} onChange={(event) => setBattle(Number(event.target.value))} style={{ flex: 1 }} />
+                    <span className="muted small">боёвка</span>
+                    <b className="muted small">{battle}%</b>
+                  </label>
+                )}
+              </div>
+
+              <div className="fld fld-block">
+                <span>Обязательно включить (необязательно)</span>
+                <input
+                  type="text"
+                  value={must}
+                  onChange={(e) => setMust(e.target.value)}
+                  placeholder="Особые элементы, локации, персонажи или механики…"
+                />
+              </div>
+
+              <div className="fld fld-block">
+                <span>Исключить / запретить (необязательно)</span>
+                <input
+                  type="text"
+                  value={mustNot}
+                  onChange={(e) => setMustNot(e.target.value)}
+                  placeholder="Чего точно не должно быть в кампании…"
+                />
+              </div>
+
+              <div className="fld fld-block">
+                <span>Назначенный ID кампании: <code>{assignedId}</code></span>
+                <span className="muted small">ИИ обязан сохранить этот ID в campaign.json, чтобы проект сразу встал на своё место.</span>
+              </div>
+
+              <div className="ai-patch-actions">
+                <button type="button" className="btn btn-primary" onClick={handleDownloadTaskBundle} disabled={busy}>
+                  <Ico n="download" /> Скачать стартовое задание
+                </button>
+                <button type="button" className="btn" onClick={handleCopyPrompt}>
+                  <Ico n="sparkle" /> Скопировать стартовый промпт
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Футер модалки */}
-        <div className="modal-buttons" onClick={(event) => event.stopPropagation()} style={{ marginTop: 14 }}>
-          {copyState && <span className="copy-status" style={{ color: '#8fd6e4', fontSize: 13 }}>{copyState}</span>}
-          <button className="btn" onClick={onClose}>
-            Закрыть
-          </button>
-          <button
-            className="btn"
-            onClick={() => void copyChatMessage()}
-            data-tip="Скопировать короткое и понятное сообщение для вставки в чат с ИИ"
-          >
-            <Ico n="doc" /> Скопировать сообщение для чата
-          </button>
-          <button
-            className="btn btn-primary"
-            onClick={() => void downloadTask()}
-            disabled={busy}
-          >
-            {busy ? 'Сборка…' : targetEnv === 'git' ? 'Скачать чемодан для Git (~70 КБ)' : 'Скачать полный .chronicle'}
-          </button>
+        {copyState && <div className="modal-status copy-status">{copyState}</div>}
+
+        <div className="modal-buttons" style={{ marginTop: 12 }}>
+          <span className="muted small">Chronicle Forge • AI Toolkit 0.8.0</span>
+          <span className="editor-spacer" />
+          <button type="button" className="btn" onClick={onClose}>Закрыть</button>
         </div>
       </div>
     </div>
   )
 }
 
-/** Вспомогательная функция сборки отчёта для ИИ (сохранена для обратной совместимости вызовов). */
 export const aiFixReport = (findings: string[]): string => [
   'Исправь в кампании Chronicle Forge следующие проблемы, сохранив ID и остальной контент:',
   ...findings.map((finding, index) => `${index + 1}. ${finding}`),

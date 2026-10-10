@@ -67,6 +67,68 @@ export async function exportChronicle(
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
 }
 
+/**
+ * Экспорт легковесного пакета изменений (.chronicle) для отправки внешнему ИИ или коллеге:
+ * включает только те файлы, которые мастер реально изменил или добавил в редакторе,
+ * плюс CHANGES.md и инструкцию для агента в __chronicle_ai__/TASK.md.
+ */
+export async function exportPatchChronicle(
+  store: EditorStore,
+): Promise<{ blob: Blob; filename: string; modifiedCount: number }> {
+  const mods = store.getModifiedFiles()
+  const changedFiles = mods.filter((m) => m.status === 'modified' || m.status === 'added')
+
+  if (changedFiles.length === 0) {
+    throw new Error('В кампании нет изменений относительно исходного состояния: нечего экспортировать в патч.')
+  }
+
+  const zip = new JSZip()
+
+  // 1. Укладываем только изменённые и добавленные файлы кампании
+  for (const m of changedFiles) {
+    zip.file(m.path, store.fileText(m.path))
+  }
+
+  // 2. Всегда формируем компактный manifest.json патча
+  const patchManifest = {
+    ...store.manifest,
+    patch: true,
+    base_campaign_id: store.meta.id,
+    patch_timestamp: new Date().toISOString(),
+    patch_files: changedFiles.map((m) => m.path),
+  }
+  zip.file('manifest.json', JSON.stringify(patchManifest, null, 2))
+
+  // 3. Формируем человекочитаемый CHANGES.md
+  const changesDoc = store.getChangesSummaryText()
+  zip.file('CHANGES.md', changesDoc)
+
+  // 4. Формируем задание для ИИ в __chronicle_ai__/TASK.md
+  const aiTaskText = [
+    '# Пакет ручных изменений мастера (Chronicle Forge Patch)',
+    '',
+    `Кампания: ${store.meta.title} (ID: ${store.meta.id})`,
+    `Дата экспорта: ${new Date().toLocaleString('ru')}`,
+    `Количество затронутых файлов: ${changedFiles.length}`,
+    '',
+    '## Что изменил мастер в визуальном редакторе:',
+    ...changedFiles.map((m, i) => `${i + 1}. **${m.title}** (\`${m.path}\`) — ${m.status === 'added' ? 'новый файл' : 'изменён'}${m.diffSummary ? ` (${m.diffSummary})` : ''}`),
+    '',
+    '## Инструкция для ИИ-агента:',
+    '1. Распакуй файлы из этого архива поверх существующего проекта кампании с заменой.',
+    '2. Все остальные файлы проекта (картинки, звуки, неизменённые сцены) сохраняются без изменений.',
+    '3. Продолжай разработку и генерацию с учётом внесённых мастером правок.',
+  ].join('\n')
+  zip.file(`${AI_TASK_DIR}TASK.md`, aiTaskText)
+
+  const dateSlug = new Date().toISOString().slice(0, 10)
+  const safeName = (store.meta.title || store.meta.id || 'campaign').toLowerCase().replace(/[^a-z0-9а-яё_-]+/gi, '_').slice(0, 30)
+  const filename = `${safeName}-patch-${dateSlug}.chronicle`
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
+  return { blob, filename, modifiedCount: changedFiles.length }
+}
+
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -79,6 +141,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
 /**
  * Импорт .chronicle: распаковка в память редактора; ассеты пишутся на диск
  * через dev-эндпоинт (только в vite dev).
+ * Поддерживает как полные архивы кампаний, так и легковесные патчи изменений.
  */
 export async function importChronicle(store: EditorStore, file: File): Promise<{ warnings: string[]; corrections: string[] }> {
   const zip = await JSZip.loadAsync(file)
@@ -87,46 +150,98 @@ export async function importChronicle(store: EditorStore, file: File): Promise<{
   const campaignRel = store.campaignRel()
   const archiveEntries = Object.keys(zip.files).filter((p) => !zip.files[p].dir)
 
-  // Сначала разбираем и проверяем структуру архива, чтобы ошибка JSON не
-  // оставляла редактор частично перезаписанным. Метаданные AI-набора лежат
-  // отдельно и никогда не попадают в файлы кампании.
   for (const p of archiveEntries) {
     if (p.startsWith('/') || p.split('/').includes('..')) throw new Error(`Недопустимый путь в архиве: ${p}`)
   }
   const entries = archiveEntries.filter((path) => !path.startsWith(AI_TASK_DIR))
-  for (const required of ['campaign.json', 'world.json', 'manifest.json']) {
-    if (!zip.files[required] || zip.files[required].dir) throw new Error(`В архиве нет обязательного файла ${required}`)
+
+  if (!zip.files['manifest.json'] || zip.files['manifest.json'].dir) {
+    throw new Error('В архиве нет обязательного файла manifest.json')
   }
-  const meta = JSON.parse(await zip.files['campaign.json'].async('text'))
-  const world = JSON.parse(await zip.files['world.json'].async('text'))
-  const manifest = JSON.parse(await zip.files['manifest.json'].async('text'))
+
+  const rawManifest = JSON.parse(await zip.files['manifest.json'].async('text'))
+  const isPatch = Boolean(rawManifest.patch) || (!zip.files['campaign.json'] && !zip.files['world.json'])
+
+  if (!isPatch) {
+    for (const required of ['campaign.json', 'world.json']) {
+      if (!zip.files[required] || zip.files[required].dir) throw new Error(`В архиве нет обязательного файла ${required}`)
+    }
+  }
+
   const jsonFiles = new Map<string, unknown>()
   const textFiles = new Map<string, string>()
   const assets: string[] = []
+
+  let meta = isPatch ? store.meta : undefined
+  let world = isPatch ? store.world : undefined
+
+  if (zip.files['campaign.json']) {
+    meta = JSON.parse(await zip.files['campaign.json'].async('text'))
+  }
+  if (zip.files['world.json']) {
+    world = JSON.parse(await zip.files['world.json'].async('text'))
+  }
+
   for (const p of entries) {
-    if (p === 'campaign.json' || p === 'world.json' || p === 'manifest.json') continue
-    if (p.endsWith('.ink')) textFiles.set(p, await zip.files[p].async('text'))
+    if (p === 'campaign.json' || p === 'world.json' || p === 'manifest.json' || p === 'CHANGES.md') continue
+    if (p.endsWith('.ink') || p.endsWith('.md')) textFiles.set(p, await zip.files[p].async('text'))
     else if (p.endsWith('.json')) jsonFiles.set(p, JSON.parse(await zip.files[p].async('text')))
     else assets.push(p)
   }
 
-  // Исправляем ссылки манифеста с префиксом каталога и записи диалогов,
-  // ошибочно указывающие на визуальный .dlg.json вместо .ink.
-  const normalized = normalizeChronicleManifest(manifest, jsonFiles, textFiles)
+  // Исправляем ссылки манифеста с префиксом каталога и записи диалогов
+  const normalized = normalizeChronicleManifest(rawManifest, jsonFiles, textFiles)
   corrections.push(...normalized.notes)
   if (normalized.changed) jsonFiles.set('manifest.json', normalized.manifest)
   for (const p of textFiles.keys()) if (!entries.includes(p)) entries.push(p)
 
-  // Архив — полная замена пакета. Удаляем из памяти модули, которых в новом
-  // manifest больше нет, иначе они оставались бы «сиротами» и попадали в экспорт.
-  store.meta = meta
-  store.world = world
-  store.manifest = normalized.manifest
-  store.jsonFiles = jsonFiles
-  store.textFiles = textFiles
-  store.dirty.clear()
-  for (const p of store.allPaths()) if (p.endsWith('.json') || p.endsWith('.ink')) store.dirty.add(p)
-  if (normalized.changed) store.dirty.add('manifest.json')
+  if (isPatch) {
+    // Режим накатывания патча поверх существующей кампании:
+    if (meta) store.meta = meta
+    if (world) store.world = world
+
+    let appliedCount = 0
+    for (const [p, val] of jsonFiles.entries()) {
+      store.jsonFiles.set(p, val)
+      store.dirty.add(p)
+      appliedCount++
+    }
+    for (const [p, val] of textFiles.entries()) {
+      store.textFiles.set(p, val)
+      store.dirty.add(p)
+      appliedCount++
+    }
+
+    // Добавляем новые элементы в списки разделов текущего манифеста
+    for (const sec of ['scenes', 'entities', 'rules', 'arenas', 'quests', 'cutscenes', 'recipes', 'codex', 'dialogues'] as const) {
+      const patchItems = (normalized.manifest[sec] ?? []) as string[]
+      const curItems = new Set<string>((store.manifest[sec] ?? []) as string[])
+      let added = false
+      for (const it of patchItems) {
+        if (!curItems.has(it)) {
+          curItems.add(it)
+          added = true
+        }
+      }
+      if (added) {
+        ;(store.manifest as any)[sec] = Array.from(curItems)
+        store.dirty.add('manifest.json')
+      }
+    }
+
+    corrections.push(`Применён пакет изменений: обновлено файлов: ${appliedCount}`)
+  } else {
+    // Полный архив — полная замена пакета:
+    store.meta = meta!
+    store.world = world!
+    store.manifest = normalized.manifest
+    store.jsonFiles = jsonFiles
+    store.textFiles = textFiles
+    store.dirty.clear()
+    for (const p of store.allPaths()) if (p.endsWith('.json') || p.endsWith('.ink')) store.dirty.add(p)
+    if (normalized.changed) store.dirty.add('manifest.json')
+    store.captureBaseline()
+  }
 
   for (const p of assets) {
     // бинарный ассет → на диск через dev-эндпоинт

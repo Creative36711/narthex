@@ -1816,6 +1816,155 @@ body.cf-editor .modal-overlay .modal-box.ai-wizard {
 body.cf-editor .ai-wizard > .modal-title,
 body.cf-editor .ai-wizard > .modal-body,
 body.cf-editor .ai-wizard > .modal-buttons { flex: 0 0 auto; }
+body.cf-editor .ai-wizard-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--ed-line);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+body.cf-editor .ai-wizard-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: var(--ed-bg-2);
+  color: var(--ed-text-muted);
+  border: 1px solid var(--ed-line);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+body.cf-editor .ai-wizard-tab-btn:hover {
+  background: var(--ed-bg-3);
+  color: var(--ed-text);
+  border-color: var(--ed-line-strong);
+}
+body.cf-editor .ai-wizard-tab-btn.active {
+  background: color-mix(in srgb, #58b7c9 18%, #212530);
+  border-color: #58b7c9;
+  color: #8fd6e4;
+  font-weight: 600;
+}
+body.cf-editor .ai-tab-badge {
+  background: #e5a93c;
+  color: #1a1e28;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 2px;
+}
+.ai-btn-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5a93c;
+  color: #1a1e28;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 0 5px;
+  height: 16px;
+  min-width: 16px;
+  border-radius: 999px;
+  margin-left: 5px;
+  line-height: 1;
+}
+
+/* Секция пакета изменений */
+.ai-patch-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ai-patch-header h3 {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  color: var(--ed-text);
+}
+.ai-patch-stats-bar {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--ed-bg-2);
+  border-radius: 6px;
+  border: 1px solid var(--ed-line);
+  font-size: 13px;
+}
+.ai-patch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--ed-line);
+  border-radius: 6px;
+  padding: 6px;
+  background: var(--ed-bg-inset);
+}
+.ai-patch-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: var(--ed-bg-2);
+  border: 1px solid var(--ed-line);
+}
+.ai-status-badge {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.badge-modified { background: #38bdf826; color: #38bdf8; border: 1px solid #38bdf855; }
+.badge-added { background: #4ade8026; color: #4ade80; border: 1px solid #4ade8055; }
+.badge-deleted { background: #f8717126; color: #f87171; border: 1px solid #f8717155; }
+
+.ai-patch-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.ai-patch-title {
+  font-size: 13px;
+  color: var(--ed-text);
+}
+.ai-patch-path {
+  font-family: monospace;
+  font-size: 11px;
+}
+.ai-patch-diff-summary {
+  font-size: 11.5px;
+  color: #e5a93c;
+  margin-top: 1px;
+}
+.ai-patch-empty {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  background: var(--ed-bg-2);
+  border: 1px dashed var(--ed-line-strong);
+  border-radius: 8px;
+}
+.ai-patch-empty-icon {
+  font-size: 32px;
+  color: #4ade80;
+}
+.ai-patch-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 body.cf-editor .ai-wizard-content {
   flex: 1 1 auto;
   min-height: 0;
@@ -2168,4 +2317,3 @@ body.cf-editor .modal-overlay .ai-wizard input[type='range'] { accent-color: #58
   display: flex;
   justify-content: flex-end;
 }
-
