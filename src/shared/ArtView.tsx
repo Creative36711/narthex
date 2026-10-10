@@ -110,7 +110,7 @@ function escapeXml(s: string): string {
 }
 
 /** SVG-разметка всего ArtDoc (используется и в React, и в экспорте/превью) */
-export function artToSvg(art: ArtDoc | null | undefined, uid = 'art'): string {
+export function artToSvg(art: ArtDoc | null | undefined, uid = 'art', preserveAspectRatio = 'xMidYMid meet'): string {
   if (!art || !Array.isArray(art.layers)) return ''
   const canvas = art.canvas ?? DEFAULT_CANVAS
   let body = ''
@@ -124,7 +124,7 @@ export function artToSvg(art: ArtDoc | null | undefined, uid = 'art'): string {
   // объявления градиентов поднимаем в <defs>
   const gradientDefs = (body.match(/<linearGradient[\s\S]*?<\/linearGradient>/g) ?? []).join('')
   body = body.replace(/<linearGradient[\s\S]*?<\/linearGradient>/g, '')
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvas.w} ${canvas.h}" preserveAspectRatio="none">${
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvas.w} ${canvas.h}" preserveAspectRatio="${preserveAspectRatio}">${
     art.background ? `<rect width="${canvas.w}" height="${canvas.h}" fill="${art.background}"/>` : ''
   }<defs>${gradientDefs}</defs>${body}</svg>`
 }
@@ -134,12 +134,12 @@ export function artToSvg(art: ArtDoc | null | undefined, uid = 'art'): string {
  * dangerouslySetInnerHTML — так один и тот же рендер работает и в игре,
  * и в редакторе, и в превью катсцен.
  */
-export function ArtView({ art, width = '100%', height = '100%', className, style }: ArtViewProps) {
+export function ArtView({ art, width = '100%', height = '100%', className, preserveAspectRatio = 'xMidYMid meet', style }: ArtViewProps) {
   // id градиентов глобальны в документе: у каждого экземпляра — свой префикс,
   // иначе два рисунка на одной странице (переход слайдов, миниатюры в
   // редакторе) «одалживали» бы друг у друга заливки
   const uid = 'art' + useId().replace(/[^a-zA-Z0-9]/g, '')
-  const html = useMemo(() => artToSvg(art, uid), [art, uid])
+  const html = useMemo(() => artToSvg(art, uid, preserveAspectRatio), [art, uid, preserveAspectRatio])
   if (!art || !Array.isArray(art.layers) || art.layers.length === 0) {
     return <div className={`art-view art-empty ${className ?? ''}`} style={{ width, height, ...style }} />
   }

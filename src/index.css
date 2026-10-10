@@ -1730,11 +1730,14 @@ div.scene-bg svg { width: 100%; height: 100%; display: block; }
 /* экран карты — во весь игровой экран (итерация 8, А4) */
 .map-overlay { padding: 0; background: var(--bg-deep); }
 .map-screen {
+  position: relative;
   /* 100vw включает ширину скроллбара → горизонтальный overflow у body.
      100% от fixed overlay (.map-overlay inset:0) безопаснее. */
   width: 100%;
   height: 100%;
   max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--bg-deep);
@@ -1826,14 +1829,32 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .map-pin.reachable .pin-label { color: var(--gold-bright); }
 
 .travel-confirm {
-  margin-top: 12px;
-  padding: 12px;
-  background: var(--panel-2);
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  width: min(540px, calc(100% - 32px));
+  padding: 14px 20px;
+  background: color-mix(in srgb, var(--panel-2) 95%, transparent);
   border: 1px solid var(--gold);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
   text-align: center;
+  animation: cf-pop-in var(--dur) var(--ease) both;
 }
-.travel-confirm p { margin: 0; }
+.travel-confirm p {
+  margin: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text);
+}
+.travel-confirm .row-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
 
 /* диалог */
 

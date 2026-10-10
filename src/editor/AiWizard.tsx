@@ -47,6 +47,17 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
   const outputFormat: AiOutputFormat = 'chronicle'
   const [patchFilter, setPatchFilter] = useState('')
   const [auditAttached, setAuditAttached] = useState(false)
+  const [aiDiffTracking, setAiDiffTracking] = useState<boolean>(() => {
+    return localStorage.getItem('cf_editor_ai_diff') !== '0'
+  })
+  const toggleAiDiffTracking = () => {
+    setAiDiffTracking((prev) => {
+      const next = !prev
+      if (next) localStorage.removeItem('cf_editor_ai_diff')
+      else localStorage.setItem('cf_editor_ai_diff', '0')
+      return next
+    })
+  }
 
   // --- Состояние для создания новой кампании ---
   const [newGenre, setNewGenre] = useState('')
@@ -362,30 +373,38 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
                       <div className="ai-scope-title">
                         ⚡ Только мои правки + инструменты ИИ <span className="ai-scope-size">(~60–90 КБ)</span>
                       </div>
-                      <div className="ai-scope-desc muted small">
-                        Идеально для чата. Содержит только изменённые вами файлы, задачу, схемы и гайд движка. Музыка и картинки не дублируются.
-                      </div>
-                    </div>
-                  </label>
-
-                  <label className={`ai-scope-card ${bundleScope === 'full' ? 'selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="bundleScope"
-                      checked={bundleScope === 'full'}
-                      onChange={() => setBundleScope('full')}
-                    />
-                    <div className="ai-scope-text">
-                      <div className="ai-scope-title">
-                        📦 Вся кампания целиком с медиа <span className="ai-scope-size">(полный архив, 20+ МБ)</span>
-                      </div>
-                      <div className="ai-scope-desc muted small">
-                        Включает все сцены, звуки, портреты и музыку. Нужен только при передаче проекта новому агенту с нуля.
-                      </div>
-                    </div>
-                  </label>
+                  <div className="ai-scope-desc muted small">
+                    Идеально для чата. Содержит только изменённые вами файлы, задачу, схемы и гайд движка. Музыка и картинки не дублируются.
+                  </div>
                 </div>
-              </div>
+              </label>
+
+              <label className={`ai-scope-card ${bundleScope === 'full' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="bundleScope"
+                  checked={bundleScope === 'full'}
+                  onChange={() => setBundleScope('full')}
+                />
+                <div className="ai-scope-text">
+                  <div className="ai-scope-title">
+                    📦 Вся кампания целиком с медиа <span className="ai-scope-size">(полный архив, 20+ МБ)</span>
+                  </div>
+                  <div className="ai-scope-desc muted small">
+                    Включает все сцены, звуки, портреты и музыку. Нужен только при передаче проекта новому агенту с нуля.
+                  </div>
+                </div>
+              </label>
+            </div>
+            <label className="ai-diff-toggle-row muted small" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={aiDiffTracking}
+                onChange={toggleAiDiffTracking}
+              />
+              <span>Отслеживать ручные правки мастера и показывать счётчик изменений в редакторе</span>
+            </label>
+          </div>
 
               {/* Главные действия */}
               <div className="ai-main-actions">

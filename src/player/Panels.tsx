@@ -278,7 +278,21 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
           )
         })}
         </ul>
-        <div className="panel-footer muted">Общий вес: {totalWeight.toFixed(1)} кг</div>
+        {(() => {
+          const maxLoad = engine.maxLoad()
+          const isOver = totalWeight > maxLoad
+          return (
+            <div className="panel-footer">
+              <span
+                className={isOver ? 'overload' : 'muted'}
+                data-tip={`Грузоподъёмность: СИЛ + РАЗМ = ${maxLoad} кг${isOver ? '. Дебафф при перегрузе: −10% к уклонению в бою.' : ''}`}
+              >
+                Груз: {totalWeight.toFixed(1)} / {maxLoad} кг
+                {isOver && ' — перегруз! (−10% к уклонению)'}
+              </span>
+            </div>
+          )
+        })()}
       </div>
       {inspectItem && (
         <div className="overlay item-inspect-overlay" onClick={() => setInspectItem(null)}>
@@ -384,6 +398,7 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
   const factions = (engine.campaign.meta.factions ?? []).filter((f) => !f.hidden)
   const load = engine.currentLoad()
   const maxLoad = engine.maxLoad()
+  const isOver = load > maxLoad
   const weapon = engine.playerWeapon()
   const armor = engine.playerArmor()
   const inventoryOn = featureOn(meta, 'inventory')
@@ -491,8 +506,11 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
           <span>MOV {movement(p.stats)}</span>
         </div>
         <div className="derived-row">
-          <span className={load > maxLoad ? 'overload' : ''}>
-            Груз {load.toFixed(1)}/{maxLoad} кг{load > maxLoad ? '— перегруз!' : ''}
+          <span
+            className={isOver ? 'overload' : ''}
+            data-tip={`Грузоподъёмность: СИЛ (${p.stats.STR}) + РАЗМ (${p.stats.SIZ}) = ${maxLoad} кг${isOver ? '. Дебафф при перегрузе: −10% к навыку Уклонения в бою.' : ''}`}
+          >
+            Груз {load.toFixed(1)}/{maxLoad} кг{isOver ? ' — перегруз! (−10% к уклонению)' : ''}
           </span>
         </div>
         <h3>Снаряжение</h3>

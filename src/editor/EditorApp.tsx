@@ -143,6 +143,18 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     if (v === 'paper') localStorage.removeItem('cf_editor_theme')
     else localStorage.setItem('cf_editor_theme', v)
   }
+  // Отслеживание изменений для ИИ и бейджи (можно отключить для мастеров, не использующих ИИ)
+  const [aiDiffEnabled, setAiDiffEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('cf_editor_ai_diff') !== '0'
+  })
+  const toggleAiDiff = () => {
+    setAiDiffEnabled((prev) => {
+      const next = !prev
+      if (next) localStorage.removeItem('cf_editor_ai_diff')
+      else localStorage.setItem('cf_editor_ai_diff', '0')
+      return next
+    })
+  }
   const [testEngine, setTestEngine] = useState<GameEngine | null>(null)
   const [debugOpen, setDebugOpen] = useState(false)
   const [bookOpen, setBookOpen] = useState(false)
@@ -1035,7 +1047,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const groupCounts = new Map<string, number>()
   for (const it of items) if (it.group) groupCounts.set(it.group, (groupCounts.get(it.group) ?? 0) + 1)
 
-  const modifiedCount = store.getModifiedFiles().length
+  const modifiedCount = aiDiffEnabled ? store.getModifiedFiles().length : 0
 
   return (
     <div className={`editor-root ed-theme-${edTheme}`}>
@@ -1116,6 +1128,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             ><Ico n="check" /> Проверить кампанию</button>
             <button className="editor-toolbar-item" onClick={() => openAiTask()}><Ico n="sparkle" /> Мастер ИИ</button>
             <button className="editor-toolbar-item" onClick={() => { setBookFile('README.md'); setBookContextual(false); setBookOpen(true) }}><Ico n="book" /> Книга мастера</button>
+            <div className="editor-toolbar-divider" />
+            <button
+              className="editor-toolbar-item"
+              onClick={toggleAiDiff}
+              data-tip={aiDiffEnabled ? 'Отключить счётчик и уведомления о правках для ИИ' : 'Включить отслеживание правок и микро-патчи для ИИ'}
+            >
+              <Ico n="sparkle" /> Подсчёт правок для ИИ: {aiDiffEnabled ? 'Включён' : 'Отключён'}
+            </button>
           </div>
         </details>
         {busy && <span className="muted small">{busy}</span>}

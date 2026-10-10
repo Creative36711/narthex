@@ -47,7 +47,7 @@ export function MapScreen({ engine, onClose }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null)
 
-  const size = region?.map_size ?? { w: 1280, h: 720 }
+  const size = region?.map_size ?? region?.map_art?.canvas ?? { w: 1280, h: 720 }
 
   // вписываем карту в экран целиком (базовый масштаб), затем применяем зум
   useLayoutEffect(() => {
