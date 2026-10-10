@@ -1,0 +1,34 @@
+{
+  "id": "item_vein_shard_dim",
+  "type": "item",
+  "category": "misc",
+  "label": "Погасший осколок",
+  "description": "Мутное бирюзовое стекло, холодное и немое. Наверху за такое дадут пару марок — как за красивый камешек.",
+  "weight": 0.1,
+  "stackable": true,
+  "value": {
+    "mark": 3
+  },
+  "sounds": {
+    "pickup": "sfx_glass"
+  },
+  "interact_hint": "Поднести к уху",
+  "interact_options": [
+    {
+      "label": "Поднести к уху",
+      "hint": "погасший осколок: только на продажу",
+      "sound": "sfx_glass",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Тишина. Там, где раньше гудело, теперь просто стекло."
+        }
+      ]
+    }
+  ],
+  "portrait": {
+    "neutral": "assets/img/items/item_vein_shard_dim.jpg"
+  },
+  "image": "assets/img/items/item_vein_shard_dim.jpg"
+}

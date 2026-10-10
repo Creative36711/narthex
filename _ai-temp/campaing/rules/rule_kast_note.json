@@ -1,0 +1,36 @@
+{
+  "id": "rule_kast_note",
+  "label": "Записка показана Каст",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "grant_xp",
+      "points": 10
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_duty",
+      "text_key": "j_forged"
+    },
+    {
+      "type": "change_disposition",
+      "target": "faction_nadzor",
+      "delta": -5
+    },
+    {
+      "type": "play_sound",
+      "sound": "snd_paper",
+      "volume": 0.7
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_kast_note.jpg",
+      "text": "Каст читает записку мастера дважды.",
+      "preset": "шёпот",
+      "seconds": 5
+    }
+  ],
+  "chapter": "ch_price"
+}

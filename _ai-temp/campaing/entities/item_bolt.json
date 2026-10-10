@@ -1,0 +1,35 @@
+{
+  "id": "item_bolt",
+  "type": "item",
+  "category": "misc",
+  "label": "Болт",
+  "description": "Короткий болт с жильным наконечником. Восемь штук — и ты стрелок, два — и ты пешеход.",
+  "weight": 0.05,
+  "stackable": true,
+  "value": {
+    "mark": 1
+  },
+  "image": "assets/img/items/item_bolt.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_bolt.jpg"
+  },
+  "sounds": {
+    "pickup": "sfx_crossbow",
+    "use": "sfx_crossbow"
+  },
+  "interact_hint": "Проверить гранёный наконечник",
+  "interact_options": [
+    {
+      "label": "Проверить гранёный наконечник",
+      "hint": "стальной болт для жильного самострела",
+      "sound": "sfx_crossbow",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Короткий гранёный болт из калёной стали с латунным оперением. Бьёт прямо и пробивает как варёную кирзу, так и шкуру пепельного пса."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "item_satchel",
+  "type": "item",
+  "category": "gear",
+  "label": "Ранец стражи",
+  "description": "Казённый ранец Надзора с жестяной биркой «Смена 13-го. Ярус 8». Лямку ты перевязал по-уставному — теперь он держит груз, а не болтается.",
+  "weight": 0.8,
+  "stackable": false,
+  "value": {
+    "mark": 6
+  },
+  "equip_slot": "back",
+  "carry_bonus": 5,
+  "sounds": {
+    "equip": "snd_cloth",
+    "unequip": "snd_cloth",
+    "pickup": "snd_cloth"
+  },
+  "interact_hint": "Подтянуть лямки",
+  "interact_options": [
+    {
+      "label": "Подтянуть лямки",
+      "hint": "надень на спину: +5 кг к тому, что унесёшь без перегруза",
+      "sound": "snd_cloth",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Ранец сидит высоко, по-строевому. Чужая бирка стучит о пряжку на каждом шаге."
+        }
+      ]
+    }
+  ],
+  "portrait": {
+    "neutral": "assets/img/items/item_satchel.jpg"
+  },
+  "image": "assets/img/items/item_satchel.jpg"
+}

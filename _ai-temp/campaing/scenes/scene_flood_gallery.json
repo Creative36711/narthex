@@ -1,0 +1,215 @@
+{
+  "id": "scene_flood_gallery",
+  "label": "Затопленная галерея",
+  "location": "loc_ward8",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "chapter": "ch_deep",
+  "states": [
+    {
+      "id": "state_main",
+      "label": "Вода у мостков",
+      "condition": null,
+      "image": "assets/img/scenes/scene_flood_gallery.jpg"
+    },
+    {
+      "id": "state_flooded",
+      "label": "Большая вода",
+      "condition": {
+        "flag": "downpour_flood"
+      },
+      "image": "assets/img/scenes/scene_flood_gallery_flooded.jpg",
+      "sound": "sfx_surge",
+      "sound_volume": 0.85
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_pack",
+      "label": "Ранец на наносе",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 245,
+      "y": 486,
+      "w": 250,
+      "h": 204,
+      "condition": {
+        "not_flag": "pack_taken"
+      },
+      "default_entity": "item_pack",
+      "sound": "snd_cloth",
+      "sound_volume": 0.5,
+      "environmental": false
+    },
+    {
+      "id": "slot_pipes",
+      "label": "Трубный узел",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 820,
+      "y": 150,
+      "w": 290,
+      "h": 360,
+      "condition": null,
+      "default_entity": "item_pipes",
+      "sound": "sfx_gear",
+      "sound_volume": 0.6,
+      "environmental": true
+    },
+    {
+      "id": "slot_debris",
+      "label": "Нанос у стенки",
+      "type": [
+        "container",
+        "item"
+      ],
+      "shape": "rect",
+      "x": 0,
+      "y": 390,
+      "w": 233,
+      "h": 270,
+      "condition": null,
+      "default_entity": "item_debris",
+      "sound": "snd_stone",
+      "sound_volume": 0.6,
+      "environmental": true
+    },
+    {
+      "id": "slot_glazier",
+      "label": "Огонёк на уступе",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 260,
+      "y": 140,
+      "w": 115,
+      "h": 330,
+      "condition": {
+        "time_of_day": [
+          "evening",
+          "night"
+        ],
+        "flag": "glazier_trades",
+        "not_flag": "downpour_flood"
+      },
+      "default_entity": "npc_glazier",
+      "sound": "sfx_glass",
+      "sound_volume": 0.5,
+      "environmental": false
+    }
+  ],
+  "navigation": [
+    {
+      "label": "К затвору",
+      "area": {
+        "x": 400,
+        "y": 260,
+        "w": 170,
+        "h": 150
+      },
+      "go_to_scene": "scene_sluice",
+      "cost_ticks": 1
+    },
+    {
+      "label": "В сухой ряд",
+      "area": {
+        "x": 5,
+        "y": 140,
+        "w": 170,
+        "h": 240
+      },
+      "go_to_scene": "scene_dry_row",
+      "cost_ticks": 1
+    },
+    {
+      "label": "На схему ярусов",
+      "area": {
+        "x": 1000,
+        "y": 610,
+        "w": 220,
+        "h": 100
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_alarm"
+      ],
+      "conditions": [
+        {
+          "flag": "lockdown"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_deep"
+      ],
+      "conditions": []
+    }
+  ],
+  "ambient": [
+    {
+      "sounds": [
+        "snd_water_amb"
+      ],
+      "volume": 0.45,
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "downpour_flood"
+        }
+      ]
+    },
+    {
+      "sounds": [
+        "snd_water_amb"
+      ],
+      "volume": 0.85,
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "downpour_flood"
+        }
+      ]
+    },
+    {
+      "sounds": [
+        "snd_rain"
+      ],
+      "volume": 0.35,
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "downpour_flood"
+        }
+      ]
+    }
+  ],
+  "lighting": "none",
+  "particles": "fog",
+  "narrative_intro": [
+    {
+      "text": "Вода стоит по щиколотку и пахнет ржавчиной. Мостки ведут в темноту, которая не кончается.",
+      "sfx": "sfx_wade",
+      "voice": "assets/voice/intro_flood_gallery_1.mp3"
+    },
+    {
+      "text": "По узкому карнизу вдоль стены приходится идти боком, держась за скользкие скобы. В сырой трубе галереи любой шорох разносится на десятки саженей, а из боковых штреков тянет гнилым илом.",
+      "sfx": "sfx_water",
+      "voice": "assets/voice/intro_flood_gallery_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Ступить на мостки ▶"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "rule_kast_burn",
+  "label": "Каст и записка «в печь»",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_duty",
+      "text_key": "j_kast_burn"
+    },
+    {
+      "type": "grant_xp",
+      "points": 5
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "id": "npc_watchman",
+  "type": "npc",
+  "label": "Автомат-смотритель",
+  "description": "Сторожевой механизм Цеха на гусеничном ходу. Стоял здесь до того, как ярус затопило, и стоит до сих пор.",
+  "portrait": {
+    "neutral": "assets/img/npc/watchman_neutral.jpg",
+    "angry": "assets/img/npc/watchman_angry.jpg",
+    "afraid": "assets/img/npc/watchman_afraid.jpg"
+  },
+  "stats": {
+    "STR": 16,
+    "CON": 17,
+    "SIZ": 14,
+    "DEX": 8,
+    "INT": 5,
+    "POW": 10,
+    "CHA": 1
+  },
+  "skills": {
+    "brawl": 45,
+    "perception": 48,
+    "dodge": 15
+  },
+  "slot_type": "person",
+  "armor": 2,
+  "schedule": [],
+  "natural_weapon": {
+    "skill": "brawl",
+    "damage": "1d8",
+    "damage_bonus": false,
+    "range": 1,
+    "attacks_per_round": 1,
+    "parry_capable": false,
+    "label": "Гидрозахват"
+  },
+  "abilities": [
+    "ability_steam",
+    "ability_shock"
+  ],
+  "loot_table": [
+    {
+      "item": "item_scrap",
+      "chance": 0.9,
+      "min": 1,
+      "max": 3
+    },
+    {
+      "item": "item_oil",
+      "chance": 0.5,
+      "min": 1,
+      "max": 1
+    }
+  ],
+  "sounds": {
+    "attack": "sfx_machine",
+    "hit": "sfx_gear",
+    "death": "sfx_machine"
+  },
+  "combat_figure": "assets/img/npc/fig_watchman.png",
+  "figure_mode": "topdown",
+  "breathe": false,
+  "combat_figure_states": {
+    "down": "assets/img/npc/fig_watchman_dead.png",
+    "dead": "assets/img/npc/fig_watchman_dead.png"
+  }
+}

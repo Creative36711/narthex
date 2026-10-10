@@ -1,0 +1,110 @@
+{
+  "id": "item_bench",
+  "type": "item",
+  "category": "prop",
+  "label": "Верстак",
+  "description": "Тиски, наковальня и ящик с ломом. Всё, что можно собрать, здесь собирается само.",
+  "weight": 40,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
+    {
+      "label": "Открыть мастерскую",
+      "effects": [
+        {
+          "type": "open_craft"
+        }
+      ],
+      "message": "Ты разбираешь лом по размеру.",
+      "sound": "sfx_anvil",
+      "hint": "собрать можно то, на что есть рецепт и материалы"
+    },
+    {
+      "label": "Собрать заряд из сердцевины",
+      "effects": [
+        {
+          "type": "open_craft",
+          "recipe": "recipe_charge"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "resh_charge_recipe"
+        }
+      ],
+      "hint": "Реш объяснил, как это делается",
+      "sound": "snd_latch"
+    },
+    {
+      "label": "Сменить банки в дыхателе",
+      "hint": "уголь, тряпьё и час у тисков вернут маске обе банки",
+      "sound": "snd_vent",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_filter"
+        },
+        {
+          "type": "has_item",
+          "item": "item_coal"
+        },
+        {
+          "type": "has_item",
+          "item": "item_cloth"
+        },
+        {
+          "type": "flag_set",
+          "flag": "filter_bank_1"
+        }
+      ],
+      "effects": [
+        {
+          "type": "remove_item",
+          "item": "item_coal",
+          "quantity": 1
+        },
+        {
+          "type": "remove_item",
+          "item": "item_cloth",
+          "quantity": 1
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "clear_flag",
+          "flag": "filter_bank_1"
+        },
+        {
+          "type": "clear_flag",
+          "flag": "filter_bank_2"
+        },
+        {
+          "type": "clear_flag",
+          "flag": "filter_exhausted"
+        },
+        {
+          "type": "remove_status",
+          "target": "player",
+          "status": "status_filter_spent"
+        },
+        {
+          "type": "unlock_codex",
+          "entry": "codex_filter"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты вытряхиваешь из обоймы спекшуюся жильную соль, режешь свежий кружок сукна и засыпаешь дроблёный уголь. Обе банки снова дышат легко."
+        }
+      ]
+    }
+  ],
+  "interact_hint": "Собрать снаряжение",
+  "portrait": {
+    "neutral": "assets/img/items/item_bench.jpg"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "id": "rule_patrol_pump",
+  "label": "Дежурство у седьмой помпы",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "lockdown"
+    },
+    {
+      "type": "player_enters_location",
+      "location": "loc_pump7"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "zhuk_patrol_tip"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "patrol_pump_met"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "patrol_pump_met"
+    },
+    {
+      "type": "skill_check_gate",
+      "skill": "persuade",
+      "difficulty": 50,
+      "success_effects": [
+        {
+          "type": "set_flag",
+          "flag": "patrol_pump_passed"
+        },
+        {
+          "type": "grant_xp",
+          "points": 8
+        },
+        {
+          "type": "show_message",
+          "text": "«Дознаватель, дело сто тридцать семь». Один смотрит на жетон, второй — на лестницу. Приказ никого не пускать писали не про Надзор, и оба это понимают. Тот, что смотрел на лестницу, отводит глаза: стоять за Келла у затвора он больше не пойдёт."
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "start_combat",
+          "enemies": [
+            {
+              "entity": "npc_thug",
+              "count": 2
+            }
+          ],
+          "arena": "arena_pump",
+          "intro": "У помпы теперь дежурство: двое громил из цеховой охраны, тяжёлые ключи в руках и приказ никого не пускать.",
+          "on_victory": [
+            {
+              "type": "show_message",
+              "text": "Караульные уходят из зала, прижимая руки к бокам."
+            },
+            {
+              "type": "grant_xp",
+              "points": 30
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "always"
+}

@@ -1,0 +1,88 @@
+{
+  "id": "player_hero",
+  "type": "npc",
+  "label": "Дознаватель",
+  "description": "Приписной дознаватель седьмого яруса: человек, которого посылают туда, куда не хотят идти стражники.",
+  "portrait": {
+    "neutral": "assets/img/npc/hero_neutral.jpg",
+    "calm": "assets/img/npc/hero_calm.jpg",
+    "thoughtful": "assets/img/npc/hero_thoughtful.jpg",
+    "angry": "assets/img/npc/hero_angry.jpg",
+    "afraid": "assets/img/npc/hero_afraid.jpg",
+    "sad": "assets/img/npc/hero_sad.jpg"
+  },
+  "stats": {
+    "STR": 9,
+    "CON": 11,
+    "SIZ": 11,
+    "DEX": 11,
+    "INT": 13,
+    "POW": 12,
+    "CHA": 11
+  },
+  "skills": {
+    "investigate": 55,
+    "perception": 45,
+    "persuade": 40,
+    "intimidate": 25,
+    "lore": 30,
+    "repair": 30,
+    "medicine": 20,
+    "lockpick": 25,
+    "stealth": 30,
+    "dodge": 40,
+    "blade": 42,
+    "brawl": 42,
+    "shoot": 38,
+    "bargain": 25
+  },
+  "slot_type": "person",
+  "faction": "faction_nadzor",
+  "base_disposition": 0,
+  "schedule": [],
+  "inventory": [
+    {
+      "item": "item_badge",
+      "quantity": 1
+    },
+    {
+      "item": "item_mark",
+      "quantity": 20
+    },
+    {
+      "item": "item_ration",
+      "quantity": 2
+    },
+    {
+      "item": "item_water",
+      "quantity": 1
+    },
+    {
+      "item": "item_knife",
+      "quantity": 1
+    },
+    {
+      "item": "item_wrench",
+      "quantity": 1
+    },
+    {
+      "item": "item_coat",
+      "quantity": 1
+    },
+    {
+      "item": "item_lamp",
+      "quantity": 1
+    },
+    {
+      "item": "item_coal",
+      "quantity": 3
+    }
+  ],
+  "equipment": {
+    "weapon": "item_wrench",
+    "armor": "item_coat",
+    "gear": "item_lamp"
+  },
+  "combat_figure": "assets/img/npc/fig_hero.png",
+  "figure_mode": "topdown"
+}

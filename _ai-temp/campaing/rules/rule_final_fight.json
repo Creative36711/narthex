@@ -1,0 +1,96 @@
+{
+  "id": "rule_final_fight",
+  "label": "Келл перекрыл затвор",
+  "once": false,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "case_ended"
+    }
+  ],
+  "effects": [
+    {
+      "type": "override_music",
+      "tracks": [
+        "music_battle"
+      ],
+      "fade": 1.5
+    },
+    {
+      "type": "skill_check_gate",
+      "skill": "persuade",
+      "difficulty": 50,
+      "success_effects": [
+        {
+          "type": "set_flag",
+          "flag": "kell_stood_down"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты говоришь ровно и долго: про вторую подпись, про смену без записи, про то, кто останется крайним, когда вода пойдёт. Келл слушает, не перебивая. Потом отступает на шаг — не потому, что согласен, а потому, что приказ закончился, а следующий ещё не выписан."
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_end_silence"
+        },
+        {
+          "type": "clear_music_override",
+          "fade": 3
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "set_flag",
+          "flag": "kell_refused"
+        },
+        {
+          "type": "start_combat",
+          "enemies": [
+            {
+              "entity": "npc_kell",
+              "count": 1
+            },
+            {
+              "entity": "npc_thug",
+              "count": 1
+            }
+          ],
+          "arena": "arena_sluice",
+          "intro": "У затвора стоит Келл. Он не удивлён: «Я знал, что ты выберешь воду».",
+          "on_victory": [
+            {
+              "type": "set_flag",
+              "flag": "kell_down"
+            },
+            {
+              "type": "fire_rule",
+              "rule": "rule_end_silence"
+            },
+            {
+              "type": "clear_music_override",
+              "fade": 3
+            }
+          ],
+          "on_defeat": [
+            {
+              "type": "game_over_death",
+              "reason": "Тебя нашли у затвора, когда вода уже шла."
+            }
+          ],
+          "on_fled": [
+            {
+              "type": "show_message",
+              "text": "Ты отходишь от затвора. Заряд уже в колодке — это не отменяется, но и не торопится."
+            },
+            {
+              "type": "clear_music_override",
+              "fade": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_final"
+}

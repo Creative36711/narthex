@@ -1,0 +1,30 @@
+{
+  "id": "rule_ira_rig_tip",
+  "label": "Ира показала ригель",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_ira_wade.jpg",
+      "text": "К ригелю — по воде.",
+      "preset": "шёпот",
+      "seconds": 5
+    },
+    {
+      "type": "grant_xp",
+      "points": 5
+    },
+    {
+      "type": "show_message",
+      "text": "Подсказка Иры: к ригелю под нижними мостками можно подойти по воде незамеченным. Заложить заряд на замедлитель станет проще: ремонт 50 вместо 65, и если Ира в отряде, хватит успеха любого из вас."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_water",
+      "volume": 0.6
+    }
+  ],
+  "chapter": "ch_deep"
+}

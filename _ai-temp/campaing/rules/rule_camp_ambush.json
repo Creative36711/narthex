@@ -1,0 +1,25 @@
+{
+  "id": "rule_camp_ambush",
+  "label": "Ночная вылазка у лагеря",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_rotling",
+          "count": 1
+        }
+      ],
+      "arena": "arena_gallery",
+      "intro": "Из воды поднимается то, что раньше ходило на смену."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_hit",
+      "volume": 0.9
+    }
+  ]
+}

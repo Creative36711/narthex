@@ -1,0 +1,44 @@
+{
+  "id": "rule_gate_first",
+  "label": "Первый вход в шлюз",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_gate_hall"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "gate_intro_done"
+    }
+  ],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_gate_first.jpg",
+      "text": "Обратно — только с подписью.",
+      "preset": "шёпот",
+      "seconds": 4
+    },
+    {
+      "type": "set_flag",
+      "flag": "gate_intro_done"
+    },
+    {
+      "type": "reveal_location",
+      "location": "loc_pump7"
+    },
+    {
+      "type": "show_message",
+      "text": "За спиной лязгает затвор. Обратно — только с подписью инспектора."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_door",
+      "volume": 1
+    }
+  ],
+  "chapter": "ch_arrival",
+  "trigger": "enter_scene"
+}

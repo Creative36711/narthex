@@ -1,0 +1,82 @@
+{
+  "id": "arena_office",
+  "label": "Приёмная Надзора (бой)",
+  "image": "assets/img/arena_office.jpg",
+  "hex_grid": {
+    "cols": 10,
+    "rows": 6,
+    "hex_size": 44,
+    "offset": "odd-r",
+    "blocked_hexes": [
+      [
+        0,
+        2
+      ],
+      [
+        0,
+        3
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        2,
+        4
+      ]
+    ],
+    "difficult_terrain": [],
+    "cover_hexes": []
+  },
+  "spawn_zones": {
+    "player": {
+      "hexes": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          4
+        ]
+      ]
+    },
+    "enemy": {
+      "hexes": [
+        [
+          9,
+          2
+        ],
+        [
+          9,
+          3
+        ]
+      ]
+    }
+  },
+  "music": "music_battle"
+}

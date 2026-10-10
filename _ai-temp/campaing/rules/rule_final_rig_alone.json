@@ -1,0 +1,96 @@
+{
+  "id": "rule_final_rig_alone",
+  "label": "Заряд на замедлителе (Келл один)",
+  "once": false,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "case_ended"
+    }
+  ],
+  "effects": [
+    {
+      "type": "advance_time",
+      "ticks": 1
+    },
+    {
+      "type": "skill_check_gate",
+      "skill": "repair",
+      "difficulty": 65,
+      "success_effects": [
+        {
+          "type": "set_flag",
+          "flag": "charge_rigged"
+        },
+        {
+          "type": "show_message",
+          "text": "Келл стоит у штурвала спиной к нижнему створу и слушает штольню, а не воду. Ты уходишь под мостки, по пояс в тяжёлой воде, и крепишь заряд к ригелю снизу: клин из лома вместо запала, капельная трубка вместо часов. Пока вода не доточит медь, ничего не случится. Через четверть часа ты уже на верхних мостках. Хлопок приходит снизу глухо, как вздох. Келл оборачивается к затвору, который уходит под воду без него."
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_end_silence"
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "set_flag",
+          "flag": "rig_spotted"
+        },
+        {
+          "type": "show_message",
+          "text": "Ключ соскальзывает с ригеля и звенит о сталь. Наверху замолкают шаги."
+        },
+        {
+          "type": "override_music",
+          "tracks": [
+            "music_battle"
+          ],
+          "fade": 1.5
+        },
+        {
+          "type": "start_combat",
+          "enemies": [
+            {
+              "entity": "npc_kell",
+              "count": 1
+            }
+          ],
+          "arena": "arena_sluice",
+          "intro": "Келл смотрит вниз, на тебя по пояс в воде под мостками. Рядом с ним никого: позвать ему некого. «Под мостками прячутся крысы, дознаватель. Вылезай».",
+          "on_victory": [
+            {
+              "type": "set_flag",
+              "flag": "kell_down"
+            },
+            {
+              "type": "fire_rule",
+              "rule": "rule_end_silence"
+            },
+            {
+              "type": "clear_music_override",
+              "fade": 3
+            }
+          ],
+          "on_defeat": [
+            {
+              "type": "game_over_death",
+              "reason": "Тебя нашли у затвора, когда вода уже шла."
+            }
+          ],
+          "on_fled": [
+            {
+              "type": "show_message",
+              "text": "Ты отходишь от затвора. Заряд уже в колодке — это не отменяется, но и не торопится."
+            },
+            {
+              "type": "clear_music_override",
+              "fade": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_final"
+}

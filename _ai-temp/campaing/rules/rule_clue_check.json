@@ -1,0 +1,38 @@
+{
+  "id": "rule_clue_check",
+  "label": "Улик довольно: пора искать мастера",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "quest_at_stage",
+      "quest": "quest_pump",
+      "stage": "stage_clues"
+    },
+    {
+      "type": "variable_compare",
+      "var": "clues",
+      "operator": ">=",
+      "value": 3
+    }
+  ],
+  "effects": [
+    {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_resh"
+    },
+    {
+      "type": "banner",
+      "text": "Картина сходится",
+      "preset": "шёпот",
+      "seconds": 3
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_heavy_water"
+    }
+  ],
+  "chapter": "ch_signs",
+  "trigger": "always"
+}

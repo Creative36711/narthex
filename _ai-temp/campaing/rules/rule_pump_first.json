@@ -1,0 +1,41 @@
+{
+  "id": "rule_pump_first",
+  "label": "Машинный зал: помпа стоит",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_pump_hall"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "pump_seen"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "pump_seen"
+    },
+    {
+      "type": "banner",
+      "text": "Седьмая помпа",
+      "preset": "глава",
+      "enter": "тянуть",
+      "seconds": 3
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_ira",
+      "state": "afraid"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_clues"
+    }
+  ],
+  "chapter": "ch_signs",
+  "trigger": "enter_scene"
+}
