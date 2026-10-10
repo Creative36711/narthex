@@ -45,6 +45,13 @@
         {
           "type": "show_message",
           "text": "Ты идёшь по мокрому бетону, считая шаги между гулом вентиляции. Смотритель поворачивает голову — и не находит, на что смотреть."
+        },
+        {
+          "type": "postcard",
+          "image": "assets/img/pc_watchman_pass.jpg",
+          "text": "Жёлтый глаз ищет — и не находит.",
+          "preset": "шёпот",
+          "seconds": 5
         }
       ],
       "fail_effects": [
@@ -66,6 +73,13 @@
             {
               "type": "show_message",
               "text": "Смотритель оседает на рельсы. В его захвате зажат кусок лома."
+            },
+            {
+              "type": "postcard",
+              "image": "assets/img/pc_watchman_down.jpg",
+              "text": "Смотритель оседает на рельсы.",
+              "preset": "шёпот",
+              "seconds": 5
             }
           ],
           "on_fled": [

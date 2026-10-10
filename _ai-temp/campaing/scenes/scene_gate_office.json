@@ -87,14 +87,31 @@
         "workbench"
       ],
       "shape": "rect",
-      "x": 1000,
+      "x": 1020,
       "y": 420,
-      "w": 280,
+      "w": 260,
       "h": 280,
       "condition": null,
       "default_entity": "item_bench",
       "sound": "sfx_anvil",
       "sound_volume": 0.7,
+      "environmental": true
+    },
+    {
+      "id": "slot_stove",
+      "label": "Печка",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 940,
+      "y": 300,
+      "w": 75,
+      "h": 170,
+      "condition": null,
+      "default_entity": "item_stove",
+      "sound": "snd_pot",
+      "sound_volume": 0.5,
       "environmental": true
     }
   ],

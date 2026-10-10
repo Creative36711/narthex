@@ -110,9 +110,10 @@ SCEN = [
     ('Гнилец ×1 (засада лагеря / таблицы)', [('npc_rotling', 1)], False),
     ('Гнилец ×2 (таблицы enc_*)',           [('npc_rotling', 2)], False),
     ('Пёс ×1 (галерея)',                    [('npc_ashhound', 1)], False),
-    ('Пёс ×2 (enc_deep)',                   [('npc_ashhound', 2)], False),
+    ('Пёс ×2 (справочно)',                  [('npc_ashhound', 2)], False),
     ('Громила ×1 (патруль шлюза)',          [('npc_thug', 1)], False),
     ('Громила ×2 (патруль помпы)',          [('npc_thug', 2)], False),
+    ('Громила ×1 (ночной визит в контору)', [('npc_thug', 1)], False),
     ('Смотритель (штольня)',                [('npc_watchman', 1)], False),
     ('Стекольщик ×1 (enc_deep, драка)',     [('npc_glazier', 1)], False),
     ('Келл один (финал с делом / повтор)',  [('npc_kell', 1)], False),
@@ -140,3 +141,8 @@ if __name__ == '__main__':
     for e in ['npc_rotling', 'npc_ashhound', 'npc_thug', 'npc_watchman', 'npc_kell']:
         f = F(e, 1); print(f'  {e:14} HP {f.max:2} броня {f.armor} {f.w["damage"]}{f.db} ({f.w["skill"]} {f.sk.get(f.w["skill"])}) dodge {f.sk.get("dodge", 20)}')
     run(N)
+    # перегруз (meta.encumbrance): штраф к уклонению героя
+    base = dict(h.sk)
+    for pen, lbl in ((10, 'лёгкий перегруз: уклонение −10'), (20, 'тяжёлый перегруз: уклонение −20')):
+        sk = dict(base); sk['dodge'] = max(0, sk.get('dodge', 20) - pen)
+        run(N // 2, {'sk': sk}, lbl)

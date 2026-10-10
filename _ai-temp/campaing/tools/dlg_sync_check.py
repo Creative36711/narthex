@@ -34,4 +34,10 @@ for d in sorted(glob.glob('dialogues/*.dlg.json')):
     for x in sorted(dl - il, key=str): print(f'{d}: ТОЛЬКО В DLG  {x}'); bad += 1
     for x in sorted(ic - dc): print(f'{i}: выбор только в ink: {x}'); bad += 1
     for x in sorted(dc - ic): print(f'{d}: выбор только в dlg: {x}'); bad += 1
+for i in sorted(glob.glob('dialogues/*.ink')):
+    t = open(i, encoding='utf-8').read()
+    ext = set(re.findall(r'^EXTERNAL (\w+)\(', t, re.M))
+    body = '\n'.join(l for l in t.split('\n') if not l.startswith('EXTERNAL'))
+    for fn in sorted(set(re.findall(r'(?<![\w.])([a-z_]+)\(', body)) - ext - {'not', 'and', 'or'}):
+        print(f'{i}: вызов без EXTERNAL: {fn}'); bad += 1
 print('расхождений:', bad); sys.exit(1 if bad else 0)

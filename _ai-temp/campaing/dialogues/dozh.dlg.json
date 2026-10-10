@@ -289,6 +289,13 @@
                   }
                 },
                 {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_porters"
+                  }
+                },
+                {
                   "kind": "line",
                   "line": {
                     "text": "Тяжёлое тут таскают на горбу, а горб у каждого один. Кто нагрузится сверх меры, тот идёт вдвое дольше — и дышит вдвое чаще.",
@@ -302,6 +309,30 @@
                     "text": "Возьми короб: плетёный, на ремнях, с ним ещё девять кило унесёшь. Восемнадцать марок — дешевле, чем надорваться.",
                     "voice": "assets/voice/dozh_18.mp3",
                     "emotion": "calm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true
+        },
+        {
+          "text": "Векс прислал тебе уголь.",
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_coal_sack"
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_coal_delivered"
                   }
                 }
               ]

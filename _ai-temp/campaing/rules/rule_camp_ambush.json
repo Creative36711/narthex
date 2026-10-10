@@ -1,25 +1,13 @@
 {
   "id": "rule_camp_ambush",
-  "label": "Ночная вылазка у лагеря",
+  "label": "Ночная вылазка у лагеря (развилка по ярусу)",
   "once": true,
   "manual": true,
   "conditions": [],
   "effects": [
     {
-      "type": "start_combat",
-      "enemies": [
-        {
-          "entity": "npc_rotling",
-          "count": 1
-        }
-      ],
-      "arena": "arena_gallery",
-      "intro": "Из воды поднимается то, что раньше ходило на смену."
-    },
-    {
-      "type": "play_sound",
-      "sound": "sfx_hit",
-      "volume": 0.9
+      "type": "set_flag",
+      "flag": "camp_ambush_pending"
     }
   ]
 }

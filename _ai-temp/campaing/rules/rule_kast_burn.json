@@ -13,6 +13,13 @@
     {
       "type": "grant_xp",
       "points": 5
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_kast_burn.jpg",
+      "text": "Завиток вместо подписи.",
+      "preset": "шёпот",
+      "seconds": 5
     }
   ]
 }

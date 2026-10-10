@@ -25,6 +25,13 @@
       "seconds": 4
     },
     {
+      "type": "postcard",
+      "image": "assets/img/pc_deadline.jpg",
+      "text": "Вода идёт по заклёпкам.",
+      "preset": "шёпот",
+      "seconds": 5
+    },
+    {
       "type": "journal_update",
       "quest": "quest_pump",
       "text_key": "j_water"

@@ -91,13 +91,6 @@
           "flag": "office_visit"
         },
         {
-          "type": "postcard",
-          "image": "assets/img/pc_office_night.jpg",
-          "text": "У шкафа с делами кто-то есть.",
-          "preset": "шёпот",
-          "seconds": 4
-        },
-        {
           "type": "group_stat_check",
           "mode": "skill",
           "skill": "perception",
@@ -105,6 +98,13 @@
           "helpers": 1,
           "need": 1,
           "success_effects": [
+            {
+              "type": "postcard",
+              "image": "assets/img/pc_office_night.jpg",
+              "text": "У шкафа с делами кто-то есть.",
+              "preset": "шёпот",
+              "seconds": 4
+            },
             {
               "type": "show_message",
               "text": "Под утро половица у шкафа скрипит не в такт печке. Ты открываешь глаза раньше, чем понимаешь почему."
@@ -117,7 +117,7 @@
                   "count": 1
                 }
               ],
-              "arena": "arena_office",
+              "arena": "arena_night_office",
               "intro": "У открытого шкафа стоит человек в кирзе, в руке — лист из твоей папки. Он не бежит: «Спал бы ты, дознаватель».",
               "on_victory": [
                 {
@@ -140,6 +140,13 @@
               ],
               "on_fled": [
                 {
+                  "type": "postcard",
+                  "image": "assets/img/pc_office_ash.jpg",
+                  "text": "В печке — свежий пепел.",
+                  "preset": "шёпот",
+                  "seconds": 4
+                },
+                {
                   "type": "change_variable",
                   "var": "case_filed",
                   "delta": -1
@@ -156,6 +163,13 @@
             }
           ],
           "fail_effects": [
+            {
+              "type": "postcard",
+              "image": "assets/img/pc_office_ash.jpg",
+              "text": "В печке — свежий пепел.",
+              "preset": "шёпот",
+              "seconds": 4
+            },
             {
               "type": "change_variable",
               "var": "case_filed",
@@ -200,6 +214,10 @@
         {
           "type": "flag_not_set",
           "flag": "office_bolted"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "patrol_gate_passed"
         }
       ]
     },
@@ -229,23 +247,23 @@
           "flag": "office_visit"
         },
         {
-          "type": "postcard",
-          "image": "assets/img/pc_office_night.jpg",
-          "text": "У шкафа с делами кто-то есть.",
-          "preset": "шёпот",
-          "seconds": 4
-        },
-        {
           "type": "group_stat_check",
           "mode": "skill",
           "skill": "perception",
-          "difficulty": 20,
+          "difficulty": 25,
           "helpers": 1,
           "need": 1,
           "success_effects": [
             {
+              "type": "postcard",
+              "image": "assets/img/pc_office_night.jpg",
+              "text": "У шкафа с делами кто-то есть.",
+              "preset": "шёпот",
+              "seconds": 4
+            },
+            {
               "type": "show_message",
-              "text": "Под утро задвижка на двери звякает о табурет — тихо, но ты уже сидишь на койке."
+              "text": "Под утро в дверь коротко стучат — два раза, по-караульному. Голос патрульного, которого ты уговорил у затвора: «Дознаватель. К тебе гость». Шаги уходят. У шкафа уже кто-то есть."
             },
             {
               "type": "start_combat",
@@ -255,7 +273,7 @@
                   "count": 1
                 }
               ],
-              "arena": "arena_office",
+              "arena": "arena_night_office",
               "intro": "У открытого шкафа стоит человек в кирзе, в руке — лист из твоей папки. Он не бежит: «Спал бы ты, дознаватель».",
               "on_victory": [
                 {
@@ -278,6 +296,169 @@
               ],
               "on_fled": [
                 {
+                  "type": "postcard",
+                  "image": "assets/img/pc_office_ash.jpg",
+                  "text": "В печке — свежий пепел.",
+                  "preset": "шёпот",
+                  "seconds": 4
+                },
+                {
+                  "type": "change_variable",
+                  "var": "case_filed",
+                  "delta": -1
+                },
+                {
+                  "type": "set_flag",
+                  "flag": "office_page_lost"
+                },
+                {
+                  "type": "show_message",
+                  "text": "Утром папка лежит на месте, только тоньше на лист. В печке — свежий пепел, который не похож на уголь. Пока дело не сшито и не зарегистрировано, его можно растаскивать по листу."
+                }
+              ]
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "postcard",
+              "image": "assets/img/pc_office_ash.jpg",
+              "text": "В печке — свежий пепел.",
+              "preset": "шёпот",
+              "seconds": 4
+            },
+            {
+              "type": "change_variable",
+              "var": "case_filed",
+              "delta": -1
+            },
+            {
+              "type": "set_flag",
+              "flag": "office_page_lost"
+            },
+            {
+              "type": "show_message",
+              "text": "Утром папка лежит на месте, только тоньше на лист. В печке — свежий пепел, который не похож на уголь. Пока дело не сшито и не зарегистрировано, его можно растаскивать по листу."
+            }
+          ]
+        }
+      ],
+      "sound": "snd_cloth",
+      "hint": "Восемь часов из семидесяти двух: +2 здоровья, +15 тепла, запас сна до полной шкалы. Голод и жажда за эти часы продолжают расти. Патрульный у затвора тебя запомнил.",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "kell_pressed"
+        },
+        {
+          "type": "variable_compare",
+          "var": "case_filed",
+          "operator": ">=",
+          "value": 1
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_full"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_registered"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "office_visit"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "office_bolted"
+        },
+        {
+          "type": "flag_set",
+          "flag": "patrol_gate_passed"
+        }
+      ]
+    },
+    {
+      "label": "Поспать восемь часов",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 8
+        },
+        {
+          "type": "change_need",
+          "need": "need_rest",
+          "delta": 100
+        },
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 15
+        },
+        {
+          "type": "change_hp",
+          "delta": 2
+        },
+        {
+          "type": "set_flag",
+          "flag": "office_visit"
+        },
+        {
+          "type": "group_stat_check",
+          "mode": "skill",
+          "skill": "perception",
+          "difficulty": 20,
+          "helpers": 1,
+          "need": 1,
+          "success_effects": [
+            {
+              "type": "postcard",
+              "image": "assets/img/pc_office_night.jpg",
+              "text": "У шкафа с делами кто-то есть.",
+              "preset": "шёпот",
+              "seconds": 4
+            },
+            {
+              "type": "show_message",
+              "text": "Под утро задвижка на двери звякает о табурет — тихо, но ты уже сидишь на койке."
+            },
+            {
+              "type": "start_combat",
+              "enemies": [
+                {
+                  "entity": "npc_thug",
+                  "count": 1
+                }
+              ],
+              "arena": "arena_night_office",
+              "intro": "У открытого шкафа стоит человек в кирзе, в руке — лист из твоей папки. Он не бежит: «Спал бы ты, дознаватель».",
+              "on_victory": [
+                {
+                  "type": "set_flag",
+                  "flag": "office_thief_caught"
+                },
+                {
+                  "type": "add_item",
+                  "item": "item_burn_note",
+                  "quantity": 1
+                },
+                {
+                  "type": "grant_xp",
+                  "points": 15
+                },
+                {
+                  "type": "show_message",
+                  "text": "Лист из папки он так и не выпустил — ты забираешь его обратно. В кармане кирзовой куртки — сложенная вчетверо записка: «Папку 137 — в печь. Листы по одному, чтобы не дымило». Подписи нет, только завиток."
+                }
+              ],
+              "on_fled": [
+                {
+                  "type": "postcard",
+                  "image": "assets/img/pc_office_ash.jpg",
+                  "text": "В печке — свежий пепел.",
+                  "preset": "шёпот",
+                  "seconds": 4
+                },
+                {
                   "type": "change_variable",
                   "var": "case_filed",
                   "delta": -1
@@ -294,6 +475,13 @@
             }
           ],
           "fail_effects": [
+            {
+              "type": "postcard",
+              "image": "assets/img/pc_office_ash.jpg",
+              "text": "В печке — свежий пепел.",
+              "preset": "шёпот",
+              "seconds": 4
+            },
             {
               "type": "change_variable",
               "var": "case_filed",

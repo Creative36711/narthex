@@ -37,6 +37,13 @@
         {
           "type": "clear_music_override",
           "fade": 3
+        },
+        {
+          "type": "postcard",
+          "image": "assets/img/pc_kell_yields.jpg",
+          "text": "Рука сползает со штурвала.",
+          "preset": "шёпот",
+          "seconds": 5
         }
       ],
       "fail_effects": [

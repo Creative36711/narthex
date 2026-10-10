@@ -29,9 +29,10 @@ EXTERNAL get_flag(a0)
     Пломба не предъявлена. Наряды без пломбы не выдаются. # emotion: calm # sfx: sfx_error # voice: assets/voice/registrar_7.mp3
     -> Начало_hub
 + [Ведомость седьмой помпы.]
+    ~ set_flag("reg_ledger_seen")
 Расход мазута, смены мастера Реша Э. Пометка: «режим тишины — смотри приложение». Приложение изъято. # emotion: calm # voice: assets/voice/registrar_3.mp3
     -> Начало_hub
-+ [Кто изъял приложение?]
++ { get_flag("reg_ledger_seen") } [Кто изъял приложение?]
     Инспектор Каст В. Основание: пункт девятый. Пункт девятый гласит: «в интересах яруса». # emotion: calm # voice: assets/voice/registrar_6.mp3
     ~ set_flag("kast_alerted")
     -> Начало_hub

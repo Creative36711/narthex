@@ -161,6 +161,13 @@
             {
               "steps": [
                 {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "reg_ledger_seen"
+                  }
+                },
+                {
                   "kind": "line",
                   "line": {
                     "text": "Расход мазута, смены мастера Реша Э. Пометка: «режим тишины — смотри приложение». Приложение изъято.",
@@ -196,7 +203,13 @@
               ]
             }
           ],
-          "goto": "stay"
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "reg_ledger_seen"
+            }
+          ]
         },
         {
           "text": "Зарегистрировать сшитое дело №137 (1 ч).",

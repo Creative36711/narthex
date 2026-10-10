@@ -1,0 +1,26 @@
+{
+  "id": "rule_water_rises_pc",
+  "label": "Открытка: мостки ушли под воду",
+  "once": true,
+  "manual": false,
+  "trigger": "always",
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 68
+    },
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_flood_gallery"
+    }
+  ],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_water_rises.jpg",
+      "text": "Мостки ушли под воду.",
+      "preset": "шёпот",
+      "seconds": 5
+    }
+  ]
+}

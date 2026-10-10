@@ -15,7 +15,7 @@ VAR r = 0
 
 === Начало ===
 Ира стирает мазут с ладоней ветошью и смотрит на тебя исподлобья. # action # voice: assets/voice/narr_ira_1.mp3
-Ты насчёт помпы? Я уже всё рассказала старшине. Он велел не мешать. # voice: assets/voice/ira_1.mp3 # emotion: afraid
+Ты насчёт помпы? Я Ира Ярова, помощница мастера. Всё уже рассказала старшине — он велел не мешать. # voice: assets/voice/ira_1.mp3 # emotion: afraid
 ~ learn_name("npc_ira")
 -> Начало_hub
 
@@ -28,12 +28,12 @@ VAR r = 0
     ~ change_disposition("npc_ira", 6)
     ~ fire_rule("rule_ira_story")
     -> Начало_hub
-* { not (has_item("item_key_resh")) and not (get_flag("resh_room_open")) } [Где ключ от его каморки?]
+* { not (has_item("item_key_resh")) and not (get_flag("resh_room_open")) } [Где ключ от каморки мастера?]
     ~ r = skill_check("persuade", 50)
     {r: -> Начало_hub_ok1 | -> Начало_hub_no1}
 * { get_flag("clue_guard") and not (get_flag("ira_told_brother")) } [Твой брат — Стась Яров?]
     Она замирает. Ветошь падает на пол. # action # voice: assets/voice/narr_ira_3.mp3
-    Он в ночную сменился. Двенадцатого. Сказал — к утру. # voice: assets/voice/ira_8.mp3
+    Он в ночную сменился. Тринадцатого. Сказал — к утру вернётся. # voice: assets/voice/ira_8.mp3
     -> Брат
 * { has_item("item_guard_token") and get_flag("ira_told_brother") } [Я нашёл его жетон.]
     Она берёт жетон двумя руками, как воду. # action # sfx: snd_tag # voice: assets/voice/narr_ira_4.mp3
@@ -68,7 +68,7 @@ VAR r = 0
     ~ change_disposition("npc_ira", 4)
     ~ learn_name("npc_ayla")
     -> Начало_hub
-* { get_flag("pack_tag") and not (get_flag("ira_pack")) } [В галерее лежит казённый ранец. Бирка: «Смена 13-го. Ярус 8».]
+* { get_flag("pack_tag") and not (get_flag("ira_pack")) } [В галерее я нашёл казённый ранец. Бирка: «Смена 13-го. Ярус 8».]
     ~ set_flag("ira_pack")
     Лямку узлом он вязал. Устав велит пряжкой, а Стась говорил: пряжка на бегу расстёгивается. Это его ранец. # emotion: sad # voice: assets/voice/ira_28.mp3
     Паёк и флягу бросил... Значит, не прятался. Бежал к затвору — закрывать воду, пока ещё можно было. # emotion: thoughtful # voice: assets/voice/ira_29.mp3

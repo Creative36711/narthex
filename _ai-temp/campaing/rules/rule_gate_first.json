@@ -15,13 +15,6 @@
   ],
   "effects": [
     {
-      "type": "postcard",
-      "image": "assets/img/pc_gate_first.jpg",
-      "text": "Обратно — только с подписью.",
-      "preset": "шёпот",
-      "seconds": 4
-    },
-    {
       "type": "set_flag",
       "flag": "gate_intro_done"
     },
@@ -31,7 +24,7 @@
     },
     {
       "type": "show_message",
-      "text": "За спиной лязгает затвор. Обратно — только с подписью инспектора."
+      "text": "За спиной лязгает затвор. Векс заносит тебя в журнал: время, номер жетона, «вниз»."
     },
     {
       "type": "play_sound",

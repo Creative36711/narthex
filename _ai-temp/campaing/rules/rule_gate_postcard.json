@@ -1,0 +1,27 @@
+{
+  "id": "rule_gate_postcard",
+  "label": "Открытка: затвор за спиной (после пролога)",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "case_opened"
+    },
+    {
+      "type": "flag_set",
+      "flag": "gate_intro_done"
+    }
+  ],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_gate_first.jpg",
+      "text": "Вниз — записан. Наверх — посмотрим.",
+      "preset": "шёпот",
+      "seconds": 5
+    }
+  ],
+  "chapter": "ch_arrival",
+  "trigger": "always"
+}

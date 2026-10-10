@@ -1,0 +1,39 @@
+{
+  "id": "rule_camp_ambush_ward",
+  "label": "Вылазка у лагеря: восьмой ярус",
+  "once": false,
+  "manual": false,
+  "trigger": "always",
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "camp_ambush_pending"
+    },
+    {
+      "type": "player_enters_location",
+      "location": "loc_ward8"
+    }
+  ],
+  "effects": [
+    {
+      "type": "clear_flag",
+      "flag": "camp_ambush_pending"
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_hit",
+      "volume": 0.9
+    },
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_rotling",
+          "count": 1
+        }
+      ],
+      "arena": "arena_gallery",
+      "intro": "Из воды у края уступа поднимается то, что раньше ходило на смену."
+    }
+  ]
+}

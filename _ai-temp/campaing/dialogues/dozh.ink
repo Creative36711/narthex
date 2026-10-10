@@ -1,3 +1,4 @@
+EXTERNAL fire_rule(a0)
 EXTERNAL add_item(a0, a1)
 EXTERNAL change_disposition(a0, a1)
 EXTERNAL get_flag(a0)
@@ -52,8 +53,12 @@ EXTERNAL unlock_codex(a0)
     -> Начало_hub
 * { not (get_flag("dozh_back")) } [Как тут таскают тяжёлое?]
     ~ set_flag("dozh_back")
+    ~ unlock_codex("codex_porters")
     Тяжёлое тут таскают на горбу, а горб у каждого один. Кто нагрузится сверх меры, тот идёт вдвое дольше — и дышит вдвое чаще. # emotion: thoughtful # voice: assets/voice/dozh_17.mp3
     Возьми короб: плетёный, на ремнях, с ним ещё девять кило унесёшь. Восемнадцать марок — дешевле, чем надорваться. # emotion: calm # voice: assets/voice/dozh_18.mp3
+    -> Начало_hub
+* { has_item("item_coal_sack") } [Векс прислал тебе уголь.]
+    ~ fire_rule("rule_coal_delivered")
     -> Начало_hub
 + [Почему у тебя всё дороже, чем наверху?]
     Потому что сверху вещи возят, а сюда их носят на себе. Спина — тоже цена. # emotion: calm # voice: assets/voice/dozh_5.mp3

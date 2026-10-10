@@ -229,7 +229,13 @@
               ]
             }
           ],
-          "goto": "stay"
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "clue_guard"
+            }
+          ]
         },
         {
           "text": "Торговать.",

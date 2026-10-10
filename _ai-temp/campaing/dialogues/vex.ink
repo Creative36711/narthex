@@ -60,6 +60,11 @@ VAR r = 0
     А сколько вернулось, я вслух не считаю. Принеси наряд из архива, и посчитаем вместе. # emotion: thoughtful # voice: assets/voice/vex_19.mp3
     ~ change_disposition("npc_vex", 4)
     -> Начало_hub
++ { not (get_flag("coal_job_offered")) and not (get_flag("coal_job_taken")) } [Мне вниз. Передать что-нибудь?]
+    Передай. Носильщики после воды вниз не ходят, а в Сухом ряду топить нечем. # emotion: thoughtful # voice: assets/voice/vex_21.mp3
+    У ящика стоит мешок с биркой «Сухой ряд», шесть кило. Отдашь старьёвщику — заплатит пятнадцать марок. И не отсыпай: он взвесит. # emotion: calm # voice: assets/voice/vex_22.mp3
+    ~ set_flag("coal_job_offered")
+    -> Начало_hub
 + [Покажи, что есть в продаже.]
     Торг без разговоров. Люблю такие. # emotion: calm # voice: assets/voice/vex_7.mp3
     ~ open_trade("npc_vex")

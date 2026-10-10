@@ -41,7 +41,7 @@ EXTERNAL learn_name(a0)
     ~ set_flag("ayla_recipe")
     ~ change_disposition("npc_ayla", 10)
     -> Начало_hub
-+ [Ты знала стража Ярова?]
++ { get_flag("clue_guard") } [Ты знала стража Ярова?]
 Яров? Приходил за бинтами тринадцатого, вечером. Уходил не один — со стражей. # emotion: thoughtful # voice: assets/voice/ayla_2.mp3
     Сказал: «затвор закрывать». Я спросила: «а люди?» Он не ответил. # voice: assets/voice/ayla_3.mp3
     ~ set_description("npc_ayla", "Лекарь Сухого ряда. Знает, кто уходил закрывать затвор — и кто не вернулся.")

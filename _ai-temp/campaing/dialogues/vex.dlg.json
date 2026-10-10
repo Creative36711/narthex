@@ -429,6 +429,51 @@
           ]
         },
         {
+          "text": "Мне вниз. Передать что-нибудь?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Передай. Носильщики после воды вниз не ходят, а в Сухом ряду топить нечем.",
+                    "voice": "assets/voice/vex_21.mp3",
+                    "emotion": "thoughtful"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "У ящика стоит мешок с биркой «Сухой ряд», шесть кило. Отдашь старьёвщику — заплатит пятнадцать марок. И не отсыпай: он взвесит.",
+                    "voice": "assets/voice/vex_22.mp3",
+                    "emotion": "calm"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "coal_job_offered"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "coal_job_offered",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "coal_job_taken",
+              "not": true
+            }
+          ]
+        },
+        {
           "text": "Покажи, что есть в продаже.",
           "sections": [
             {
