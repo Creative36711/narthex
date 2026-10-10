@@ -42,7 +42,8 @@
     "smoke:stranger": "tsx scripts/smoke-stranger-and-triggers.mts",
     "smoke:dlg-script": "tsx scripts/dlg-script-smoke.mts",
     "smoke:dlg-ui": "tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts",
-    "smoke:folder-import": "tsx scripts/smoke-round35-folder-import.mts"
+    "smoke:folder-import": "tsx scripts/smoke-round35-folder-import.mts",
+    "smoke:narrative-builder": "tsx scripts/smoke-narrative-builder-and-docs.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

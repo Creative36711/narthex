@@ -1556,7 +1556,7 @@ export type NarrativeIntroEntry =
       voice?: string
       sfx?: string
       image?: string
-      camera?: CameraDoc
+      camera?: string | CameraDoc
       conditions?: Condition[]
       duration?: number
     }

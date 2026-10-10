@@ -9,7 +9,6 @@ import { playInteraction } from '../shared/audio'
 import { playVoiceAudio, stopVoiceAudio } from '../shared/voiceAudio'
 import { useSettings, voiceVolume } from '../shared/settings'
 import { Ico } from '../shared/icons'
-import { evalCondition } from '../core/conditions'
 import { getUiLabel, type ItemDef, type NarrativeIntroEntry, type SceneStateDef, type SlotDef, type SlotUseWith } from '../shared/types'
 
 interface Props {
@@ -100,7 +99,14 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const scene = engine.currentScene()
   const sceneId = scene?.id
   const state = scene ? engine.activeSceneState(scene) : null
+  const camStyle = useCameraStyle(state?.camera ?? null)
   const stateKey = scene && state ? `${scene.id}:${state.id}` : ''
+  const hasImage = !!state?.image
+  const background: SceneBackground = hasImage
+    ? { kind: 'image', src: assetUrl(engine.campaign, firstFrame(state.image)), label: state.label }
+    : state?.art
+      ? { kind: 'art', art: state.art }
+      : { kind: 'fallback' }
 
   // ── Вводное повествование от третьего лица (стиль Tiny Bunny / новелла) ──
   // Если идёт катсцена, диалог или бой — нарративное интро сцены ждёт их завершения
@@ -123,35 +129,12 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
     }
   }, [sceneId, engine, engine.cutscene, engine.dialogue, engine.combat])
 
-  const rawIntroList = useMemo<NarrativeIntroEntry[]>(() => scene?.narrative_intro ?? [], [scene?.narrative_intro])
-  const introList = useMemo<NarrativeIntroEntry[]>(() => {
-    return rawIntroList.filter((entry) => {
-      if (typeof entry === 'string') return true
-      if (!entry.conditions || entry.conditions.length === 0) return true
-      return entry.conditions.every((c) => evalCondition(c, engine))
-    })
-  }, [rawIntroList, engine])
-
+  const introList = useMemo<NarrativeIntroEntry[]>(() => scene?.narrative_intro ?? [], [scene?.narrative_intro])
   const currentIntro = narrativeStep != null ? introList[narrativeStep] : null
   const currentIntroItem = useMemo(() => {
     if (!currentIntro) return null
     return typeof currentIntro === 'string' ? { text: currentIntro } : currentIntro
   }, [currentIntro])
-
-  // Камера: если у активного шага нарратива задана собственная камера, переключаемся на неё
-  const activeCamera = (narrativeStep != null && currentIntroItem?.camera) ? currentIntroItem.camera : (state?.camera ?? null)
-  const camStyle = useCameraStyle(activeCamera)
-
-  // Фон сцены: если у шага нарратива задана своя иллюстрация, отображаем её
-  const activeImage = (narrativeStep != null && currentIntroItem?.image)
-    ? currentIntroItem.image
-    : (state?.image ? firstFrame(state.image) : null)
-
-  const background: SceneBackground = activeImage
-    ? { kind: 'image', src: assetUrl(engine.campaign, activeImage), label: state?.label ?? '' }
-    : state?.art
-      ? { kind: 'art', art: state.art }
-      : { kind: 'fallback' }
 
   // Звук и озвучка текущей реплики нарратива через глобальный Voice Coordinator
   useEffect(() => {
@@ -210,15 +193,6 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [narrativeStep, scene, advanceNarrative, engine])
-
-  // Автоперелистывание по duration (если задано автором)
-  useEffect(() => {
-    if (narrativeStep == null || !currentIntroItem?.duration || currentIntroItem.duration <= 0) return
-    const t = window.setTimeout(() => {
-      advanceNarrative()
-    }, currentIntroItem.duration * 1000)
-    return () => window.clearTimeout(t)
-  }, [narrativeStep, currentIntroItem, advanceNarrative])
 
   // Подсветка хотспотов по зажатию Tab
   useEffect(() => {
