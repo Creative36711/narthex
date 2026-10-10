@@ -410,24 +410,53 @@ export class GameEngine {
     seconds?: number
     camera?: CameraDoc
   } | null = null
+  private postcardTimer: ReturnType<typeof setTimeout> | null = null
+  private postcardPendingSeconds = 0
   private bannerSerial = 1
+  private bannerPendingTimers: Array<{ serial: number; seconds: number }> = []
 
   private showBanner(e: { text: string; preset?: string; enter?: string; seconds?: number; position?: string; accent?: string }): void {
     const serial = this.bannerSerial++
     this.banners = [...this.banners, { serial, ...e }]
     const seconds = e.seconds ?? Math.min(8, Math.max(3, e.text.length * 0.06))
-    // таймер через globalThis: в node-смоуке engine тоже живёт
-    globalThis.setTimeout(() => {
-      if (this.banners.some((b) => b.serial === serial)) {
-        this.banners = this.banners.filter((b) => b.serial !== serial)
-        this.notify()
-      }
-    }, seconds * 1000)
+    if (this.cutsceneQueue.length > 0) {
+      // Пока идет катсцена, таймер баннера ждет ее окончания
+      this.bannerPendingTimers.push({ serial, seconds })
+    } else {
+      globalThis.setTimeout(() => {
+        if (this.banners.some((b) => b.serial === serial)) {
+          this.banners = this.banners.filter((b) => b.serial !== serial)
+          this.notify()
+        }
+      }, seconds * 1000)
+    }
+    this.notify()
+  }
+
+  showPostcard(e: { image?: string; art?: ArtDoc; text?: string; preset?: string; seconds?: number; camera?: CameraDoc }): void {
+    if (this.postcardTimer) {
+      clearTimeout(this.postcardTimer)
+      this.postcardTimer = null
+    }
+    this.postcard = { image: e.image, art: e.art, text: e.text, preset: e.preset, seconds: e.seconds, camera: e.camera }
+    const at = Math.max(1, e.seconds ?? 6)
+    if (this.cutsceneQueue.length > 0) {
+      // Идет катсцена: открытка ждет ее завершения и не сгорает в фоне
+      this.postcardPendingSeconds = at
+    } else if ((e.seconds ?? 6) > 0) {
+      this.postcardPendingSeconds = 0
+      this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
+    }
     this.notify()
   }
 
   /** закрыть «открытку» (тап или таймер) */
   hidePostcard(): void {
+    if (this.postcardTimer) {
+      clearTimeout(this.postcardTimer)
+      this.postcardTimer = null
+    }
+    this.postcardPendingSeconds = 0
     if (!this.postcard) return
     this.postcard = null
     this.notify()
@@ -449,6 +478,24 @@ export class GameEngine {
     stopVoiceAudio()
     this.cutsceneQueue.shift()
     if (!this.cutsceneQueue.length) {
+      // Активируем отложенные таймеры баннеров
+      if (this.bannerPendingTimers.length) {
+        for (const item of this.bannerPendingTimers) {
+          globalThis.setTimeout(() => {
+            if (this.banners.some((b) => b.serial === item.serial)) {
+              this.banners = this.banners.filter((b) => b.serial !== item.serial)
+              this.notify()
+            }
+          }, item.seconds * 1000)
+        }
+        this.bannerPendingTimers = []
+      }
+      // Если во время катсцены была выставлена открытка — запускаем её таймер только сейчас!
+      if (this.postcard && this.postcardPendingSeconds > 0) {
+        const at = this.postcardPendingSeconds
+        this.postcardPendingSeconds = 0
+        this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
+      }
       this.checkRules()
       this.autosave()
     }
@@ -3440,12 +3487,7 @@ export class GameEngine {
       case 'clear_price_event': this.setPriceEvent(e.id ?? '', false); break
       case 'banner': this.showBanner(e); break
       case 'postcard':
-        this.postcard = { image: e.image, art: e.art, text: e.text, preset: e.preset, seconds: e.seconds, camera: e.camera }
-        if ((e.seconds ?? 6) > 0) {
-          const at = Math.max(1, e.seconds ?? 6)
-          globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
-        }
-        this.notify()
+        this.showPostcard(e)
         break
       case 'grant_xp': this.grantXp(e.points); break
       case 'grant_feat': this.grantFeat(e.id); break

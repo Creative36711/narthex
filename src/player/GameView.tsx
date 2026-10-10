@@ -217,8 +217,9 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
       )}
 
       {/* мастерские надписи и «открытка» (эффекты правил) — поверх всего */}
-      <BannerLayer banners={engine.banners} />
-      {engine.postcard && (
+      {/* мастерские надписи и «открытка» (эффекты правил) показываются, когда нет катсцены */}
+      {!cutscene && <BannerLayer banners={engine.banners} />}
+      {!cutscene && engine.postcard && (
         <PostcardLayer
           postcard={engine.postcard}
           srcOf={resolveAsset}
