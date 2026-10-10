@@ -52,16 +52,19 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
     return () => window.clearTimeout(timer)
   }, [engine, engine.state.player.hp])
   // транзитные подсказки (получено/потеряно): каждая гаснет по таймеру
+  const cutscene = engine.cutscene
+  const isIntroActive = engine.isSceneIntroActive()
+  const isPostcardActive = !cutscene && !isIntroActive && !!engine.postcard
+  const isMessageActive = !cutscene && !isIntroActive && !isPostcardActive && !!engine.messages[0]
+  const isStoryActive = !!cutscene || isIntroActive || isPostcardActive || isMessageActive
+
   const toasts = engine.toasts
   useEffect(() => {
-    if (!toasts.length) return
+    if (!toasts.length || isStoryActive) return
     const timers = toasts.map((t) => window.setTimeout(() => engine.dismissToast(t.id), 4200))
     return () => { for (const t of timers) window.clearTimeout(t) }
-  }, [engine, toasts])
-  const message = engine.messages[0]
-  // катсцена (итерация 8, блок E): пока идёт ролик, экраны остальных эффектов
-  // (диалог, бой, торговля, сообщения, финал) ждут его окончания
-  const cutscene = engine.cutscene
+  }, [engine, toasts, isStoryActive])
+  const message = isMessageActive ? engine.messages[0] : null
   const resolveAsset = useCallback((p: string) => assetUrl(engine.campaign, p), [engine])
   const endCutscene = useCallback(() => engine.endCutscene(), [engine])
   const resolveTrack = useCallback(
@@ -159,7 +162,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
 
       {!cutscene && engine.dialogue && !engine.combat && !engine.trade && <DialogueOverlay engine={engine} />}
 
-      {toasts.length > 0 && (
+      {!isStoryActive && toasts.length > 0 && (
         <div className="toast-stack" aria-live="polite">
           {toasts.map((t) => (
             <div key={t.id} className={`toast toast-${t.kind}`} onClick={() => engine.dismissToast(t.id)}>
@@ -170,7 +173,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
         </div>
       )}
 
-      {!cutscene && message && (
+      {message && (
         <div className="overlay message-overlay" onClick={() => engine.dismissMessage()}>
           <div className="message-box" onClick={(e) => e.stopPropagation()}>
             {(() => {
@@ -216,16 +219,15 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
         />
       )}
 
-      {/* мастерские надписи и «открытка» (эффекты правил) — поверх всего */}
-      {/* мастерские надписи и «открытка» (эффекты правил) показываются, когда нет катсцены */}
-      {!cutscene && <BannerLayer banners={engine.banners} />}
-      {!cutscene && engine.postcard && (
+      {/* Последовательная подача нарратива: открытка, затем сообщения, затем баннеры и тосты */}
+      {isPostcardActive && engine.postcard && (
         <PostcardLayer
           postcard={engine.postcard}
           srcOf={resolveAsset}
           onTap={() => engine.hidePostcard()}
         />
       )}
+      {!isStoryActive && <BannerLayer banners={engine.banners} />}
     </div>
   )
 }

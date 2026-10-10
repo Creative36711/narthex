@@ -275,14 +275,29 @@ export class GameEngine {
     return !(this.state.seen_narrative_intros ?? []).includes(scene.id)
   }
 
+  /** Активно ли сейчас нарративное вводное повествование сцены */
+  isSceneIntroActive(): boolean {
+    const sc = this.campaign.scenes[this.state.scene]
+    if (!sc) return false
+    return this.shouldShowNarrativeIntro(sc) && !this.cutscene && !this.dialogue && !this.combat
+  }
+
   /** Пометить вводное повествование сцены как просмотренное */
   markNarrativeIntroSeen(sceneId: string): void {
     if (!this.state.seen_narrative_intros) this.state.seen_narrative_intros = []
     if (!this.state.seen_narrative_intros.includes(sceneId)) {
       this.state.seen_narrative_intros.push(sceneId)
       this.autosave()
-      this.notify()
     }
+    // После завершения нарративного интро сцены активируем отложенную открытку или баннеры
+    if (this.postcard && this.postcardPendingSeconds > 0 && !this.cutsceneQueue.length) {
+      const at = this.postcardPendingSeconds
+      this.postcardPendingSeconds = 0
+      this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
+    } else {
+      this.flushPendingBannersIfClear()
+    }
+    this.notify()
   }
 
   /** Установить флаг (с поддержкой сброса при false) */
@@ -440,8 +455,8 @@ export class GameEngine {
     }
     this.postcard = { image: e.image, art: e.art, text: e.text, preset: e.preset, seconds: e.seconds, camera: e.camera }
     const at = Math.max(1, e.seconds ?? 6)
-    if (this.cutsceneQueue.length > 0) {
-      // Идет катсцена: открытка ждет ее завершения и не сгорает в фоне
+    if (this.cutsceneQueue.length > 0 || this.isSceneIntroActive()) {
+      // Идет катсцена или нарративное интро сцены: открытка ждет завершения
       this.postcardPendingSeconds = at
     } else if ((e.seconds ?? 6) > 0) {
       this.postcardPendingSeconds = 0
@@ -459,7 +474,24 @@ export class GameEngine {
     this.postcardPendingSeconds = 0
     if (!this.postcard) return
     this.postcard = null
+    this.flushPendingBannersIfClear()
     this.notify()
+  }
+
+  private flushPendingBannersIfClear(): void {
+    if (!this.cutsceneQueue.length && !this.isSceneIntroActive() && !this.postcard && !this.messages.length) {
+      if (this.bannerPendingTimers.length) {
+        for (const item of this.bannerPendingTimers) {
+          globalThis.setTimeout(() => {
+            if (this.banners.some((b) => b.serial === item.serial)) {
+              this.banners = this.banners.filter((b) => b.serial !== item.serial)
+              this.notify()
+            }
+          }, item.seconds * 1000)
+        }
+        this.bannerPendingTimers = []
+      }
+    }
   }
 
   playCutscene(id: string): void {
@@ -478,23 +510,14 @@ export class GameEngine {
     stopVoiceAudio()
     this.cutsceneQueue.shift()
     if (!this.cutsceneQueue.length) {
-      // Активируем отложенные таймеры баннеров
-      if (this.bannerPendingTimers.length) {
-        for (const item of this.bannerPendingTimers) {
-          globalThis.setTimeout(() => {
-            if (this.banners.some((b) => b.serial === item.serial)) {
-              this.banners = this.banners.filter((b) => b.serial !== item.serial)
-              this.notify()
-            }
-          }, item.seconds * 1000)
+      // Если интро сцены не активно и открытка ждала — запускаем открытку
+      if (!this.isSceneIntroActive()) {
+        if (this.postcard && this.postcardPendingSeconds > 0) {
+          const at = this.postcardPendingSeconds
+          this.postcardPendingSeconds = 0
+          this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
         }
-        this.bannerPendingTimers = []
-      }
-      // Если во время катсцены была выставлена открытка — запускаем её таймер только сейчас!
-      if (this.postcard && this.postcardPendingSeconds > 0) {
-        const at = this.postcardPendingSeconds
-        this.postcardPendingSeconds = 0
-        this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
+        this.flushPendingBannersIfClear()
       }
       this.checkRules()
       this.autosave()
@@ -4119,6 +4142,7 @@ export class GameEngine {
 
   dismissMessage(): void {
     this.messages.shift()
+    this.flushPendingBannersIfClear()
     this.notify()
   }
 
