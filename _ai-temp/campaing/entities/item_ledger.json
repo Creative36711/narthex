@@ -1,0 +1,35 @@
+{
+  "id": "item_ledger",
+  "type": "item",
+  "category": "clue",
+  "label": "Гроссбух седьмой помпы",
+  "description": "Толстая конторская книга. На последней заполненной странице — расход «режима тишины» и аккуратная подпись: В. Каст.",
+  "weight": 1.4,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "quest_item": true,
+  "sounds": {
+    "use": "sfx_flip"
+  },
+  "portrait": {
+    "neutral": "assets/img/items/item_ledger.jpg"
+  },
+  "image": "assets/img/items/item_ledger.jpg",
+  "interact_hint": "Сверить последнюю страницу",
+  "interact_options": [
+    {
+      "label": "Сверить последнюю страницу",
+      "hint": "подпись и статья расхода",
+      "sound": "sfx_flip",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "В графе «Седьмая помпа — режим тишины» проведены сорок две марки на караульную партию и две свинцовые пломбы №13-К. Рука ровная, чернила конторские, подпись внизу листа — В. Каст."
+        }
+      ]
+    }
+  ]
+}

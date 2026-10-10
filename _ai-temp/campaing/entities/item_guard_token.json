@@ -1,0 +1,35 @@
+{
+  "id": "item_guard_token",
+  "type": "item",
+  "category": "clue",
+  "label": "Жетон стража Стася Ярова",
+  "description": "Номерной жетон со следами тяжёлой воды. Ира всё ещё ждёт брата с ночной смены.",
+  "weight": 0.05,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "quest_item": true,
+  "sounds": {
+    "use": "snd_tag"
+  },
+  "portrait": {
+    "neutral": "assets/img/items/item_guard_token.jpg"
+  },
+  "image": "assets/img/items/item_guard_token.jpg",
+  "interact_hint": "Осмотреть жетон с изнанки",
+  "interact_options": [
+    {
+      "label": "Осмотреть жетон с изнанки",
+      "hint": "номер партии и налёт воды",
+      "sound": "snd_tag",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Восьмигранная латунь потемнела от тяжёлой воды. Выбито: «13-К · Яров С.». Шнурок не перетёрся — его рванули резко, когда тело тащили к решётке."
+        }
+      ]
+    }
+  ]
+}

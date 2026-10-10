@@ -1,0 +1,44 @@
+{
+  "id": "item_cot",
+  "type": "item",
+  "category": "prop",
+  "label": "Койка",
+  "description": "Железная койка с тощим матрасом. Внизу спят одетыми — на всякий случай.",
+  "weight": 20,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
+    {
+      "label": "Поспать восемь часов",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 8
+        },
+        {
+          "type": "change_need",
+          "need": "need_rest",
+          "delta": 100
+        },
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 15
+        },
+        {
+          "type": "change_hp",
+          "delta": 2
+        }
+      ],
+      "message": "Ты проваливаешься в сон под ровный гул помпы, которой нет.",
+      "sound": "snd_cloth",
+      "hint": "Восемь часов из семидесяти двух: +2 здоровья, +15 тепла, запас сна до полной шкалы. Голод и жажда за эти часы продолжают расти."
+    }
+  ],
+  "interact_hint": "Поспать восемь часов",
+  "portrait": {
+    "neutral": "assets/img/items/item_cot.jpg"
+  }
+}

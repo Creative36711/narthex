@@ -1,0 +1,51 @@
+{
+  "id": "rule_resh_found",
+  "label": "Мастер найден",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_face"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "resh_found"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "resh_found"
+    },
+    {
+      "type": "set_flag",
+      "flag": "final_ready"
+    },
+    {
+      "type": "banner",
+      "text": "Слепой забой",
+      "preset": "глава",
+      "seconds": 3
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_verdict"
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_hum",
+      "volume": 0.6
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_resh_found.jpg",
+      "text": "Мастер Реш. Живой — и всё ещё с записями.",
+      "preset": "глава",
+      "seconds": 6
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "enter_scene"
+}

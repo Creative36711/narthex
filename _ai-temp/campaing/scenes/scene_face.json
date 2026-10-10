@@ -1,0 +1,172 @@
+{
+  "id": "scene_face",
+  "label": "Слепой забой",
+  "location": "loc_deep9",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "chapter": "ch_deep",
+  "states": [
+    {
+      "id": "state_main",
+      "label": "Жила в породе",
+      "condition": null,
+      "image": "assets/img/scenes/scene_face.jpg"
+    },
+    {
+      "id": "state_sealed",
+      "label": "Шов стянут",
+      "condition": {
+        "flag": "vein_braced",
+        "not_flag": "core_taken"
+      },
+      "image": "assets/img/scenes/scene_face_sealed.jpg",
+      "sound": "sfx_brace",
+      "sound_volume": 0.8
+    },
+    {
+      "id": "state_collared",
+      "label": "Сердцевина вынута",
+      "condition": {
+        "flag": "core_taken"
+      },
+      "image": "assets/img/scenes/scene_face_collared.jpg",
+      "sound": "sfx_hum",
+      "sound_volume": 0.7
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_resh",
+      "label": "Мастер у жилы",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 110,
+      "y": 280,
+      "w": 150,
+      "h": 420,
+      "condition": {
+        "not_flag": "resh_joined"
+      },
+      "default_entity": "npc_resh",
+      "sound": "sfx_hum",
+      "sound_volume": 0.7
+    },
+    {
+      "id": "slot_vein",
+      "label": "Жила в породе",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 300,
+      "y": 100,
+      "w": 680,
+      "h": 520,
+      "condition": {
+        "not_flag": "vein_hidden"
+      },
+      "default_entity": "npc_vein",
+      "sound": "sfx_hum",
+      "sound_volume": 0.8
+    },
+    {
+      "id": "slot_hoist",
+      "label": "Подъёмник",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 990,
+      "y": 80,
+      "w": 220,
+      "h": 600,
+      "condition": null,
+      "default_entity": "item_hoist",
+      "sound": "snd_chain",
+      "sound_volume": 0.7,
+      "environmental": true
+    }
+  ],
+  "navigation": [
+    {
+      "label": "Назад в штольню",
+      "area": {
+        "x": 20,
+        "y": 60,
+        "w": 200,
+        "h": 170
+      },
+      "go_to_scene": "scene_drift",
+      "cost_ticks": 1
+    },
+    {
+      "label": "На схему ярусов",
+      "area": {
+        "x": 500,
+        "y": 20,
+        "w": 240,
+        "h": 70
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_alarm"
+      ],
+      "conditions": [
+        {
+          "flag": "lockdown"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_vein"
+      ],
+      "conditions": []
+    }
+  ],
+  "ambient": [
+    {
+      "sounds": [
+        "snd_deep_drone"
+      ],
+      "volume": 0.7
+    },
+    {
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "vein_heard"
+        }
+      ],
+      "sounds": [
+        "snd_water_amb"
+      ],
+      "volume": 0.5
+    }
+  ],
+  "lighting": "none",
+  "particles": "sparks",
+  "narrative_intro": [
+    {
+      "text": "На старых маркшейдерских картах этот тупик помечен как пустой слепой забой. Но здесь, на самом дне шахты, порода разошлась живым швом, и в нише у ручного подъёмника горит тусклый ночник.",
+      "sfx": "sfx_hum",
+      "voice": "assets/voice/intro_face_1.mp3"
+    },
+    {
+      "text": "Сквозь трещину в чёрном камне сочится ровный бирюзовый свет, от которого не падают тени. Вся выработка дышит в такт глубокому подземному пульсу, ожидая твоего последнего решения.",
+      "sfx": "snd_chain",
+      "voice": "assets/voice/intro_face_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Прислушаться к Жиле ▶"
+}

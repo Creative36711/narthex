@@ -1,0 +1,160 @@
+{
+  "id": "scene_drift",
+  "label": "Штольня «Слепой забой»",
+  "location": "loc_deep9",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "chapter": "ch_deep",
+  "states": [
+    {
+      "id": "state_main",
+      "label": "Глухая штольня",
+      "condition": null,
+      "image": "assets/img/scenes/scene_drift.jpg"
+    },
+    {
+      "id": "state_open",
+      "label": "Открытый тайник",
+      "condition": {
+        "flag": "cache_open"
+      },
+      "image": "assets/img/scenes/scene_drift_open.jpg",
+      "sound": "sfx_lock",
+      "sound_volume": 0.7
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_cache",
+      "label": "Схрон мастера",
+      "type": [
+        "container",
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 960,
+      "y": 400,
+      "w": 260,
+      "h": 230,
+      "condition": null,
+      "default_entity": "item_cache",
+      "sound": "sfx_lock",
+      "sound_volume": 0.7,
+      "environmental": true
+    },
+    {
+      "id": "slot_vent",
+      "label": "Отдушина",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 275,
+      "y": 30,
+      "w": 150,
+      "h": 160,
+      "condition": null,
+      "default_entity": "item_vent",
+      "sound": "snd_vent",
+      "sound_volume": 0.6,
+      "environmental": true
+    },
+    {
+      "id": "slot_marker",
+      "label": "Маркер забоя",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 365,
+      "y": 245,
+      "w": 130,
+      "h": 160,
+      "condition": null,
+      "default_entity": "item_marker",
+      "sound": "snd_stone",
+      "sound_volume": 0.5,
+      "environmental": true
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В забой",
+      "area": {
+        "x": 700,
+        "y": 300,
+        "w": 240,
+        "h": 220
+      },
+      "go_to_scene": "scene_face",
+      "cost_ticks": 1
+    },
+    {
+      "label": "На схему ярусов",
+      "area": {
+        "x": 20,
+        "y": 560,
+        "w": 200,
+        "h": 150
+      },
+      "open_map": true
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_alarm"
+      ],
+      "conditions": [
+        {
+          "flag": "lockdown"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_vein"
+      ],
+      "conditions": []
+    }
+  ],
+  "ambient": [
+    {
+      "sounds": [
+        "snd_deep_drone"
+      ],
+      "volume": 0.8
+    },
+    {
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "flood"
+        }
+      ],
+      "sounds": [
+        "snd_water_amb"
+      ],
+      "volume": 0.7
+    }
+  ],
+  "lighting": "indoor",
+  "particles": "fog",
+  "narrative_intro": [
+    {
+      "text": "Девятый ярус давно вычеркнут из сменных нарядов: крепи здесь рассохлись, а воздух густой и тёплый, как в кузнечном горне. На каждом вдохе сквозь угольную пыль проступает тяжёлый, сладковатый привкус жильного пара.",
+      "sfx": "snd_stone",
+      "voice": "assets/voice/intro_drift_1.mp3"
+    },
+    {
+      "text": "Свет масляной лампы вязнет в сизом тумане и едва достаёт до обрушенных стоек старой выработки. Где-то впереди за поворотом штольни глухо и размеренно гудит сам камень.",
+      "sfx": "sfx_machine",
+      "voice": "assets/voice/intro_drift_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Вглядеться в штольню ▶"
+}

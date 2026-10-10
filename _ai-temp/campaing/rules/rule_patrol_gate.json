@@ -1,0 +1,62 @@
+{
+  "id": "rule_patrol_gate",
+  "label": "Патруль на шлюзе",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "lockdown"
+    },
+    {
+      "type": "player_enters_location",
+      "location": "loc_gate"
+    }
+  ],
+  "effects": [
+    {
+      "type": "skill_check_gate",
+      "skill": "persuade",
+      "difficulty": 45,
+      "success_effects": [
+        {
+          "type": "set_flag",
+          "flag": "patrol_gate_passed"
+        },
+        {
+          "type": "grant_xp",
+          "points": 8
+        },
+        {
+          "type": "show_message",
+          "text": "Ты не достаёшь жетон — просто держишь руку у груди, где он лежит. «Дознаватель. Я к инспектору». Человек смотрит на плащ, на пустые руки и отходит: связываться с Надзором ему платят не по этой статье."
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "start_combat",
+          "enemies": [
+            {
+              "entity": "npc_thug",
+              "count": 1
+            }
+          ],
+          "arena": "arena_gate",
+          "intro": "Из-под эстакады выходит один в кирзе: «Документы. И не дёргайся».",
+          "on_victory": [
+            {
+              "type": "show_message",
+              "text": "Он остаётся лежать у эстакады. Убежать не успел — или не захотел."
+            },
+            {
+              "type": "grant_xp",
+              "points": 20
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "always"
+}

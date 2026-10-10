@@ -1,0 +1,923 @@
+{
+  "version": 2,
+  "label": "Ира Ярова, помощница мастера",
+  "nodes": [
+    {
+      "id": "Начало",
+      "label": "Начало разговора",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ира стирает мазут с ладоней ветошью и смотрит на тебя исподлобья.",
+                "action": true,
+                "voice": "assets/voice/narr_ira_1.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ты насчёт помпы? Я уже всё рассказала старшине. Он велел не мешать.",
+                "voice": "assets/voice/ira_1.mp3",
+                "emotion": "afraid"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "learn_name",
+                "entity": "npc_ira",
+                "silent": true
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Расскажи, что случилось в ночь тринадцатого.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "ira_story"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Смена шла ровно. В восемнадцать сорок мастер спустился в шахту: сказал — проверить привод.",
+                    "voice": "assets/voice/ira_4.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "В девятнадцать десять помпа встала. В двадцать ноль-ноль в зал зашёл Келл со взводом и велел всем выйти.",
+                    "voice": "assets/voice/ira_2.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она вытирает ладони о штаны. Полотно всё равно чёрное.",
+                    "action": true,
+                    "sfx": "snd_cloth",
+                    "voice": "assets/voice/narr_ira_2.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 6
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_ira_story"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true,
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ira_story",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Где ключ от его каморки?",
+          "sections": [],
+          "goto": "stay",
+          "check": {
+            "skill": "persuade",
+            "difficulty": 50,
+            "success": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "У меня был второй, на случай смены. Держи — только не говори, что я дала.",
+                        "voice": "assets/voice/ira_12.mp3"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "add_item",
+                        "item": "item_key_resh",
+                        "qty": 1
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "change_disposition",
+                        "target": "npc_ira",
+                        "delta": 6
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "stay"
+            },
+            "fail": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "У нас был один ключ. Он ушёл вместе с ним.",
+                        "voice": "assets/voice/ira_13.mp3"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "change_disposition",
+                        "target": "npc_ira",
+                        "delta": -3
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "stay"
+            }
+          },
+          "once": true,
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_key_resh",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "resh_room_open",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Твой брат — Стась Яров?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она замирает. Ветошь падает на пол.",
+                    "action": true,
+                    "voice": "assets/voice/narr_ira_3.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Он в ночную сменился. Двенадцатого. Сказал — к утру.",
+                    "voice": "assets/voice/ira_8.mp3"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "Брат",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "clue_guard"
+            },
+            {
+              "type": "flag",
+              "flag": "ira_told_brother",
+              "not": true
+            }
+          ],
+          "once": true
+        },
+        {
+          "text": "Я нашёл его жетон.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она берёт жетон двумя руками, как воду.",
+                    "action": true,
+                    "sfx": "snd_tag",
+                    "voice": "assets/voice/narr_ira_4.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Спасибо. За то, что не написал «погиб при исполнении». Он не при исполнении.",
+                    "voice": "assets/voice/ira_3.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_ira_brother"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_guard_token"
+            },
+            {
+              "type": "flag",
+              "flag": "ira_told_brother"
+            }
+          ],
+          "once": true
+        },
+        {
+          "text": "Векс записал: вниз ушли двенадцать, вернулись одиннадцать.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "ira_journal"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она долго молчит, сжимая ветошь в кулаке.",
+                    "action": true,
+                    "voice": "assets/voice/narr_ira_9.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Одиннадцать. Значит, его не забыли записать. Его не вернули.",
+                    "emotion": "sad",
+                    "voice": "assets/voice/ira_18.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Келл сказал матери — перевели на другой ярус. На другой ярус без записи не переводят.",
+                    "emotion": "angry",
+                    "voice": "assets/voice/ira_19.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 6
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true,
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ira_journal",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "vex_journal"
+            },
+            {
+              "type": "flag",
+              "flag": "ira_told_brother"
+            }
+          ]
+        },
+        {
+          "text": "Векс говорит: сводки о воде пишут под диктовку.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "ira_gauge"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Я это по помпе слышала раньше, чем он по рейке. Когда привод стоит, вода стабильной не бывает. Стабильной бывает только ложь.",
+                    "emotion": "angry",
+                    "voice": "assets/voice/ira_20.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 4
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true,
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ira_gauge",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "vex_job_done"
+            }
+          ]
+        },
+        {
+          "text": "Кто, по-твоему, остановил помпу?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Кто-то, кому выгодно, чтобы восьмой затопило.",
+                    "voice": "assets/voice/ira_10.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Надзор два года просил Цех отдать девятый ярус. Теперь он ничей — и под водой.",
+                    "emotion": "thoughtful",
+                    "voice": "assets/voice/ira_5.mp3"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Пойдём со мной. Здесь тебя не защитят.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она кивает раньше, чем ты договорил.",
+                    "action": true,
+                    "voice": "assets/voice/narr_ira_5.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Только дай взять ключ. И фонарь. И ещё раз ключ.",
+                    "voice": "assets/voice/ira_9.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_ira_joins"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ira_joined",
+              "not": true
+            },
+            {
+              "type": "disp_ge",
+              "target": "npc_ira",
+              "value": 25
+            }
+          ]
+        },
+        {
+          "text": "Показать рукавицу с привода.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ira_glove",
+              "not": true
+            },
+            {
+              "type": "has_item",
+              "item": "item_glove"
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "ira_glove"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она берёт рукавицу за манжет двумя пальцами, как чужую вещь.",
+                    "action": true,
+                    "voice": "assets/voice/narr_ira_6.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Реш носил кожаные и жаловался, что они жмут. А заплату ставили в Сухом ряду: у Айлы так штопают, когда нечем платить.",
+                    "voice": "assets/voice/ira_16.mp3",
+                    "emotion": "thoughtful",
+                    "sfx": "snd_cloth"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 4
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "learn_name",
+                    "entity": "npc_ayla"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true
+        },
+        {
+          "text": "В галерее лежит казённый ранец. Бирка: «Смена 13-го. Ярус 8».",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "pack_tag"
+            },
+            {
+              "type": "flag",
+              "flag": "ira_pack",
+              "not": true
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "ira_pack"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Лямку узлом он вязал. Устав велит пряжкой, а Стась говорил: пряжка на бегу расстёгивается. Это его ранец.",
+                    "voice": "assets/voice/ira_28.mp3",
+                    "emotion": "sad"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Паёк и флягу бросил... Значит, не прятался. Бежал к затвору — закрывать воду, пока ещё можно было.",
+                    "voice": "assets/voice/ira_29.mp3",
+                    "emotion": "thoughtful"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 4
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_ira_pack"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true
+        },
+        {
+          "text": "Мне пора.",
+          "sections": [],
+          "goto": "end"
+        }
+      ]
+    },
+    {
+      "id": "Брат",
+      "label": "Разговор о брате",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Она поднимает ветошь, но не вытирает руки.",
+                "action": true,
+                "voice": "assets/voice/narr_ira_7.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Говори. Ты же не просто так спросил.",
+                "voice": "assets/voice/ira_14.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Только не говори «погиб». Это про него уже сказали, а я его ещё не видела.",
+                "voice": "assets/voice/ira_15.mp3"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "ira_told_brother"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Он не вышел со смены. Я нашёл тело у затвора.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Значит, он всё-таки закрывал затвор. Его послали туда, где он умел.",
+                    "emotion": "sad",
+                    "voice": "assets/voice/ira_7.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 12
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "Начало",
+          "once": true
+        },
+        {
+          "text": "Я найду того, кто это сделал.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Не надо «найду». Надо «назову». Назови имя, и я поверю.",
+                    "emotion": "angry",
+                    "voice": "assets/voice/ira_6.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 8
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "Начало",
+          "once": true
+        },
+        {
+          "text": "Я не знал его. Прости.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Никто его не знал. Он стоял внизу, когда все спали. Вот и всё.",
+                    "emotion": "sad",
+                    "voice": "assets/voice/ira_11.mp3"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "Начало",
+          "once": true
+        }
+      ],
+      "timer": {
+        "seconds": 18,
+        "node": "Молчание"
+      }
+    },
+    {
+      "id": "Молчание",
+      "label": "Молчание",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ты молчишь. Она ждёт — и поднимает ветошь с пола.",
+                "action": true,
+                "voice": "assets/voice/narr_ira_8.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Вот и я молчу третий день. Ничего, привыкла.",
+                "voice": "assets/voice/ira_17.mp3"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "Начало"
+    },
+    {
+      "id": "У_затвора",
+      "label": "Ира у затвора (отряд)",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ира останавливается у края воды и долго смотрит на штурвал. Ключ в её руке висит, как лишний.",
+                "action": true,
+                "sfx": "sfx_water",
+                "voice": "assets/voice/narr_ira_10.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Стась здесь стоял каждую смену. Говорил: затвор — как сердце. Пока ходит, ярус живёт.",
+                "emotion": "sad",
+                "voice": "assets/voice/ira_21.mp3"
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "clue_guard"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "А его здесь оставили. Одного, у воды. Свои оставили.",
+                "emotion": "angry",
+                "voice": "assets/voice/ira_22.mp3"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Мы закончим то, что он не успел.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Тогда по-честному. Чтобы в отчёте стояло его имя, а не «пропал без вести».",
+                    "emotion": "calm",
+                    "voice": "assets/voice/ira_23.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 5
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true,
+          "conds": []
+        },
+        {
+          "text": "Ты знаешь, как он устроен?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "ira_rig_tip"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Стась показывал. Под нижними мостками есть ригель. К нему можно подойти по воде, и сверху тебя не видно. Он там от старшины прятался, когда курил.",
+                    "emotion": "thoughtful",
+                    "voice": "assets/voice/ira_24.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_ira_rig_tip"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true,
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ira_rig_tip",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Пойдём.",
+          "sections": [],
+          "goto": "end",
+          "conds": []
+        }
+      ]
+    },
+    {
+      "id": "В_штольне",
+      "label": "Ира в штольне (отряд)",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ира поднимает фонарь и замирает. Из-за крепи доносится тонкий звон, будто кто-то ведёт пальцем по краю стакана.",
+                "action": true,
+                "sfx": "sfx_hum",
+                "voice": "assets/voice/narr_ira_11.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Слышишь? Отец говорил: жила поёт тем, кто стоит к ней слишком долго. Не стой долго.",
+                "emotion": "afraid",
+                "voice": "assets/voice/ira_25.mp3"
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_vein_shard"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "И от тебя звенит. Ты носишь стекляшку того, с гогглами? Выбрось, пока она тебя не выбрала.",
+                "emotion": "angry",
+                "voice": "assets/voice/ira_27.mp3"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Что ещё говорил твой отец?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Что жилу не продают. Её либо закрывают, либо она закрывает тебя. Он закрыл одну, на седьмом. Потом кашлял до последнего дня.",
+                    "emotion": "sad",
+                    "voice": "assets/voice/ira_26.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 3
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_vein"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true,
+          "conds": []
+        },
+        {
+          "text": "Пойдём.",
+          "sections": [],
+          "goto": "end",
+          "conds": []
+        }
+      ]
+    }
+  ]
+}

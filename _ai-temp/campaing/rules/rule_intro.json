@@ -1,0 +1,44 @@
+{
+  "id": "rule_intro",
+  "label": "Пролог: дело №137",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "tick_elapsed",
+      "min_tick": 0
+    }
+  ],
+  "effects": [
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_intro"
+    },
+    {
+      "type": "banner",
+      "text": "Дело №137",
+      "preset": "заголовок",
+      "enter": "тянуть",
+      "seconds": 3,
+      "position": "верх"
+    },
+    {
+      "type": "set_flag",
+      "flag": "case_opened"
+    },
+    {
+      "type": "start_quest",
+      "quest": "quest_pump"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_karkas"
+    },
+    {
+      "type": "unlock_codex",
+      "entry": "codex_time"
+    }
+  ],
+  "chapter": "ch_arrival",
+  "trigger": "always"
+}

@@ -1,0 +1,29 @@
+{
+  "id": "cutscene_final_vein",
+  "label": "Жила проснулась",
+  "music": "music_end",
+  "chapter": "ch_final",
+  "slides": [
+    {
+      "text": "Сердцевина уходит в камень. Стена вздыхает — и семь помп начинают работать сами, без смен и без Надзора.",
+      "duration": 7,
+      "transition": "panzoom",
+      "voice": "assets/voice/final_vein_1.mp3",
+      "image": "assets/img/cut_final_vein_1.jpg"
+    },
+    {
+      "text": "Говорят, на девятом теперь светло и никто не работает. Говорят, там никого не осталось. Ты слышишь гул в груди — и знаешь, что это не эхо.",
+      "duration": 7,
+      "transition": "fade",
+      "image": "assets/img/cut_final_vein_2.jpg",
+      "voice": "assets/voice/final_vein_2.mp3"
+    },
+    {
+      "text": "Тёплый пар поднимается по стволу до самого Сухого ряда, и рудокопы впервые за сто лет снимают респираторы. Папка дела номер сто тридцать семь остаётся лежать открытой на пустом столе конторы.",
+      "duration": 9,
+      "transition": "fade",
+      "image": "assets/img/cut_final_vein_3.jpg",
+      "voice": "assets/voice/final_vein_3.mp3"
+    }
+  ]
+}

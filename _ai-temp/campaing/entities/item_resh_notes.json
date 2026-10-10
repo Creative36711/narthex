@@ -1,0 +1,64 @@
+{
+  "id": "item_resh_notes",
+  "type": "item",
+  "category": "prop",
+  "label": "Стол мастера",
+  "description": "Чертежи помпы, счётная линейка и стопка листов, верхний исписан посередине фразы.",
+  "weight": 30,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
+    {
+      "label": "Прочесть записи",
+      "effects": [
+        {
+          "type": "unlock_codex",
+          "entry": "codex_resh_notes"
+        },
+        {
+          "type": "start_quest",
+          "quest": "quest_ledger"
+        },
+        {
+          "type": "reveal_location",
+          "location": "loc_deep9"
+        },
+        {
+          "type": "set_flag",
+          "flag": "deep_revealed"
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "show_message",
+          "text": "«Жила на девятом не выработана. Если её взять, восьмой сядет. Они всё равно возьмут». Дальше — клякса и приписка другим почерком: «старая штольня, ящик под крепью, ключ без номера». Гроссбух он унёс с собой — вниз."
+        }
+      ],
+      "once": true,
+      "sound": "sfx_flip",
+      "hint": "почерк мастера: он писал для себя"
+    },
+    {
+      "label": "Работать на верстаке мастера",
+      "effects": [
+        {
+          "type": "open_craft"
+        }
+      ],
+      "message": "Ты сдвигаешь чертежи и кладёшь лом на плиту. Здесь собирается всё, что собирается.",
+      "sound": "sfx_anvil",
+      "hint": "инструмент мастера лучше, чем ничего"
+    }
+  ],
+  "interact_hint": "Прочесть записи мастера",
+  "sounds": {
+    "use": "sfx_flip"
+  },
+  "portrait": {
+    "neutral": "assets/img/items/item_resh_notes.jpg"
+  }
+}

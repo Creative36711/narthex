@@ -1,0 +1,50 @@
+{
+  "id": "rule_glazier_fight",
+  "label": "Стычка со стекольщиком",
+  "once": false,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "clear_flag",
+      "flag": "glazier_trades"
+    },
+    {
+      "type": "start_combat",
+      "enemies": [
+        {
+          "entity": "npc_glazier",
+          "count": 1
+        }
+      ],
+      "arena": "arena_deep",
+      "intro": "Сыч сбрасывает короб на сухой уступ и выдёргивает нож из рукава.",
+      "on_victory": [
+        {
+          "type": "set_flag",
+          "flag": "glazier_beaten"
+        },
+        {
+          "type": "grant_xp",
+          "points": 10
+        }
+      ],
+      "on_defeat": [
+        {
+          "type": "game_over_death",
+          "reason": "Стекольщик ушёл наверх с коробом, а ты остался в штольне."
+        }
+      ],
+      "on_fled": [
+        {
+          "type": "set_flag",
+          "flag": "glazier_beaten"
+        },
+        {
+          "type": "show_message",
+          "text": "Ты отступаешь в темноту. Сыч не преследует: стекло ему дороже."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "id": "item_stew",
+  "type": "item",
+  "category": "food",
+  "label": "Горячая похлёбка",
+  "description": "Миска густого варева из Сухого ряда. Что в нём было — лучше не спрашивать, но руки греет.",
+  "weight": 0.6,
+  "stackable": true,
+  "value": {
+    "mark": 7
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_hunger",
+        "delta": 55
+      },
+      {
+        "type": "change_need",
+        "need": "need_warmth",
+        "delta": 20
+      }
+    ],
+    "consume": true
+  },
+  "sounds": {
+    "pickup": "snd_pot",
+    "use": "snd_pot"
+  },
+  "image": "assets/img/items/item_stew.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_stew.jpg"
+  },
+  "interact_hint": "Поднять крышку котелка",
+  "interact_options": [
+    {
+      "label": "Поднять крышку котелка",
+      "hint": "горячее варево (+55 к сытости и +25 к теплу)",
+      "sound": "snd_pot",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Густая перловая похлёбка с солониной и сушёным корнем в закопчённом жестяном котелке. Держит жар и сразу возвращает тепло в пальцы."
+        }
+      ]
+    }
+  ]
+}

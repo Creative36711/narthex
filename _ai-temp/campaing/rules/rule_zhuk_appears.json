@@ -1,0 +1,38 @@
+{
+  "id": "rule_zhuk_appears",
+  "label": "Жук вышел на связь",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_gate_hall"
+    },
+    {
+      "type": "variable_compare",
+      "var": "clues",
+      "operator": ">=",
+      "value": 1
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "zhuk_at_gate"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "zhuk_at_gate"
+    },
+    {
+      "type": "show_message",
+      "text": "У затвора мелькает человек в чужой кепке и тут же уходит вниз по лестнице восьмого яруса. Новости в Каркасе бегут быстрее приписных: ищи его у жаровни в Сухом ряду."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_coins",
+      "volume": 0.8
+    }
+  ],
+  "trigger": "enter_scene"
+}

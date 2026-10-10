@@ -1,0 +1,29 @@
+{
+  "id": "cutscene_final_pump",
+  "label": "Помпа пошла",
+  "music": "music_end",
+  "chapter": "ch_final",
+  "slides": [
+    {
+      "text": "Сердцевина садится в обойму. Привод кашляет, дёрнулся — и пошёл.",
+      "duration": 6,
+      "transition": "panzoom",
+      "image": "assets/img/cut_final_pump_1.jpg",
+      "voice": "assets/voice/final_pump_1.mp3"
+    },
+    {
+      "text": "Вода уходит из восьмого обратно в жилу. Порядок восстановлен: семь помп, шесть причин, одно имя под арестом.",
+      "duration": 7,
+      "transition": "fade",
+      "voice": "assets/voice/final_pump_2.mp3",
+      "image": "assets/img/cut_final_pump_2.jpg"
+    },
+    {
+      "text": "Папка дела номер сто тридцать семь ложится на стол архива со штампом «Исполнено». Наверху празднуют спасение выработок, а внизу седьмая помпа снова гонит жильную кровь по чугунным трубам.",
+      "duration": 9,
+      "transition": "fade",
+      "image": "assets/img/cut_final_pump_3.jpg",
+      "voice": "assets/voice/final_pump_3.mp3"
+    }
+  ]
+}

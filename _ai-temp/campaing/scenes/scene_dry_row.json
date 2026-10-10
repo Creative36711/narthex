@@ -1,0 +1,197 @@
+{
+  "id": "scene_dry_row",
+  "label": "Сухой ряд",
+  "location": "loc_ward8",
+  "canvas": {
+    "w": 1280,
+    "h": 720
+  },
+  "chapter": "ch_deep",
+  "states": [
+    {
+      "id": "state_day",
+      "label": "У общего огня",
+      "condition": null,
+      "image": "assets/img/scenes/scene_dry_row.jpg"
+    },
+    {
+      "id": "state_night",
+      "label": "Ночной Сухой ряд",
+      "condition": {
+        "time_of_day": [
+          "night"
+        ]
+      },
+      "image": "assets/img/scenes/scene_dry_row_night.jpg",
+      "sound": "sfx_bell",
+      "sound_volume": 0.5
+    }
+  ],
+  "slots": [
+    {
+      "id": "slot_dozh",
+      "label": "Прилавок старьёвщика",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 280,
+      "y": 286,
+      "w": 150,
+      "h": 420,
+      "condition": null,
+      "default_entity": "npc_dozh",
+      "sound": "sfx_coins",
+      "sound_volume": 0.6
+    },
+    {
+      "id": "slot_ayla",
+      "label": "Стол лекаря",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 850,
+      "y": 307,
+      "w": 150,
+      "h": 380,
+      "condition": null,
+      "default_entity": "npc_ayla",
+      "sound": "sfx_glass",
+      "sound_volume": 0.6
+    },
+    {
+      "id": "slot_zhuk",
+      "label": "У жаровни",
+      "type": [
+        "person"
+      ],
+      "shape": "rect",
+      "x": 533,
+      "y": 305,
+      "w": 108,
+      "h": 310,
+      "condition": null,
+      "default_entity": "npc_zhuk",
+      "sound": "snd_pot",
+      "sound_volume": 0.6
+    },
+    {
+      "id": "slot_brazier",
+      "label": "Жаровня",
+      "type": [
+        "prop",
+        "workbench"
+      ],
+      "shape": "rect",
+      "x": 645,
+      "y": 445,
+      "w": 140,
+      "h": 145,
+      "condition": null,
+      "default_entity": "item_brazier",
+      "sound": "snd_pot",
+      "sound_volume": 0.5,
+      "environmental": true
+    },
+    {
+      "id": "slot_bench_row",
+      "label": "Верстак у стены",
+      "type": [
+        "person",
+        "prop",
+        "workbench"
+      ],
+      "shape": "rect",
+      "x": 440,
+      "y": 438,
+      "w": 85,
+      "h": 100,
+      "condition": null,
+      "default_entity": "item_bench",
+      "sound": "sfx_anvil",
+      "sound_volume": 0.7,
+      "environmental": true
+    }
+  ],
+  "navigation": [
+    {
+      "label": "В затопленную галерею",
+      "area": {
+        "x": 1,
+        "y": 500,
+        "w": 159,
+        "h": 220
+      },
+      "go_to_scene": "scene_flood_gallery",
+      "cost_ticks": 1,
+      "conditions": []
+    },
+    {
+      "label": "На схему ярусов",
+      "area": {
+        "x": 1130,
+        "y": 500,
+        "w": 149,
+        "h": 220
+      },
+      "open_map": true,
+      "conditions": []
+    }
+  ],
+  "music": [
+    {
+      "tracks": [
+        "music_alarm"
+      ],
+      "conditions": [
+        {
+          "flag": "lockdown"
+        }
+      ]
+    },
+    {
+      "tracks": [
+        "music_deep"
+      ],
+      "conditions": []
+    }
+  ],
+  "ambient": [
+    {
+      "sounds": [
+        "snd_crowd"
+      ],
+      "volume": 0.5,
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "lockdown"
+        }
+      ]
+    },
+    {
+      "sounds": [
+        "snd_fire"
+      ],
+      "volume": 0.3
+    }
+  ],
+  "lighting": "indoor",
+  "particles": "embers",
+  "narrative_intro": [
+    {
+      "text": "Ряд зовётся Сухим, потому что вода сюда не дошла. Пока не дошла.",
+      "sfx": "sfx_fire",
+      "voice": "assets/voice/intro_dry_row_1.mp3"
+    },
+    {
+      "text": "У жаровни греются не от холода: здесь греются, чтобы не думать о том, что будет, когда вода дойдёт.",
+      "sfx": "sfx_coins",
+      "voice": "assets/voice/intro_dry_row_2.mp3"
+    }
+  ],
+  "narrative_intro_once": true,
+  "narrative_intro_next_label": "Далее ▶",
+  "narrative_intro_done_label": "Выйти в ряд ▶"
+}
