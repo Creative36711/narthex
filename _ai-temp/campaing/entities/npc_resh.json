@@ -48,5 +48,7 @@
   "equipment": {
     "weapon": "item_wrench",
     "armor": "item_coat"
-  }
+  },
+  "combat_figure": "assets/img/npc/fig_resh.png",
+  "figure_mode": "topdown"
 }

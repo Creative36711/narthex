@@ -4,7 +4,7 @@
   "category": "container",
   "label": "Нанос у стенки",
   "description": "Всё, что вода принесла и не унесла обратно: тряпьё, щепа, куски крепи.",
-  "weight": 0.0,
+  "weight": 0,
   "stackable": false,
   "value": {
     "mark": 0

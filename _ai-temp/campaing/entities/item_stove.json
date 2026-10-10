@@ -4,7 +4,7 @@
   "category": "prop",
   "label": "Печка",
   "description": "Чугунная печка с выводом в вентиляцию. Топят здесь углём, а не надеждой: уголь в ведёрке кончается быстрее, чем кажется.",
-  "weight": 90.0,
+  "weight": 90,
   "stackable": false,
   "value": {
     "mark": 0
@@ -77,6 +77,46 @@
           "min_quantity": 1
         }
       ]
+    },
+    {
+      "label": "Разогреть похлёбку",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_stew_cold",
+          "min_quantity": 1
+        },
+        {
+          "type": "has_item",
+          "item": "item_coal",
+          "min_quantity": 1
+        }
+      ],
+      "effects": [
+        {
+          "type": "remove_item",
+          "item": "item_coal",
+          "quantity": 1
+        },
+        {
+          "type": "remove_item",
+          "item": "item_stew_cold",
+          "quantity": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_stew",
+          "quantity": 1
+        },
+        {
+          "type": "change_need",
+          "need": "need_warmth",
+          "delta": 15
+        }
+      ],
+      "message": "Жир тает, варево снова пахнет едой. Пока котелок греется, греешься и ты.",
+      "sound": "snd_pot",
+      "hint": "уголь: остывшая похлёбка снова горячая (на 10 часов), заодно +15 к теплу"
     },
     {
       "label": "Печка холодная",

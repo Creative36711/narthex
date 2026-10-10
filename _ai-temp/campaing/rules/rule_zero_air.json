@@ -37,7 +37,7 @@
     {
       "type": "play_sound",
       "sound": "sfx_gasp",
-      "volume": 1.0
+      "volume": 1
     },
     {
       "type": "set_flag",

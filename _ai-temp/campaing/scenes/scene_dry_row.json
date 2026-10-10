@@ -10,20 +10,18 @@
   "states": [
     {
       "id": "state_day",
-      "label": "Днём и вечером",
-      "condition": {
-        "time_of_day": [
-          "morning",
-          "day",
-          "evening"
-        ]
-      },
+      "label": "У общего огня",
+      "condition": null,
       "image": "assets/img/scenes/scene_dry_row.jpg"
     },
     {
       "id": "state_night",
-      "label": "Ночью",
-      "condition": null,
+      "label": "Ночной Сухой ряд",
+      "condition": {
+        "time_of_day": [
+          "night"
+        ]
+      },
       "image": "assets/img/scenes/scene_dry_row_night.jpg",
       "sound": "sfx_bell",
       "sound_volume": 0.5
@@ -37,10 +35,10 @@
         "person"
       ],
       "shape": "rect",
-      "x": 200,
-      "y": 250,
-      "w": 240,
-      "h": 300,
+      "x": 280,
+      "y": 286,
+      "w": 150,
+      "h": 420,
       "condition": null,
       "default_entity": "npc_dozh",
       "sound": "sfx_coins",
@@ -53,10 +51,10 @@
         "person"
       ],
       "shape": "rect",
-      "x": 820,
-      "y": 250,
-      "w": 240,
-      "h": 300,
+      "x": 850,
+      "y": 307,
+      "w": 150,
+      "h": 380,
       "condition": null,
       "default_entity": "npc_ayla",
       "sound": "sfx_glass",
@@ -69,10 +67,10 @@
         "person"
       ],
       "shape": "rect",
-      "x": 560,
-      "y": 290,
-      "w": 190,
-      "h": 150,
+      "x": 533,
+      "y": 305,
+      "w": 108,
+      "h": 310,
       "condition": null,
       "default_entity": "npc_zhuk",
       "sound": "snd_pot",
@@ -86,10 +84,10 @@
         "workbench"
       ],
       "shape": "rect",
-      "x": 570,
-      "y": 450,
-      "w": 170,
-      "h": 140,
+      "x": 645,
+      "y": 445,
+      "w": 140,
+      "h": 145,
       "condition": null,
       "default_entity": "item_brazier",
       "sound": "snd_pot",
@@ -105,10 +103,10 @@
         "workbench"
       ],
       "shape": "rect",
-      "x": 150,
-      "y": 565,
-      "w": 230,
-      "h": 125,
+      "x": 440,
+      "y": 438,
+      "w": 85,
+      "h": 100,
       "condition": null,
       "default_entity": "item_bench",
       "sound": "sfx_anvil",
@@ -120,23 +118,25 @@
     {
       "label": "В затопленную галерею",
       "area": {
-        "x": 0,
+        "x": 1,
         "y": 500,
-        "w": 110,
+        "w": 159,
         "h": 220
       },
       "go_to_scene": "scene_flood_gallery",
-      "cost_ticks": 1
+      "cost_ticks": 1,
+      "conditions": []
     },
     {
       "label": "На схему ярусов",
       "area": {
-        "x": 1170,
+        "x": 1130,
         "y": 500,
-        "w": 110,
+        "w": 149,
         "h": 220
       },
-      "open_map": true
+      "open_map": true,
+      "conditions": []
     }
   ],
   "music": [
@@ -182,7 +182,7 @@
   "narrative_intro": [
     {
       "text": "Ряд зовётся Сухим, потому что вода сюда не дошла. Пока не дошла.",
-      "sfx": "snd_fire",
+      "sfx": "sfx_fire",
       "voice": "assets/voice/intro_dry_row_1.mp3"
     },
     {

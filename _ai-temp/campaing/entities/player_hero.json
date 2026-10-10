@@ -82,5 +82,7 @@
     "weapon": "item_wrench",
     "armor": "item_coat",
     "gear": "item_lamp"
-  }
+  },
+  "combat_figure": "assets/img/npc/fig_hero.png",
+  "figure_mode": "topdown"
 }

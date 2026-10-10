@@ -38,7 +38,7 @@
     {
       "type": "play_sound",
       "sound": "snd_charge",
-      "volume": 1.0
+      "volume": 1
     },
     {
       "type": "game_over_victory"

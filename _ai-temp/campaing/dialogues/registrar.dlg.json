@@ -1,236 +1,271 @@
 {
- "version": 2,
- "label": "Регистратор архива",
- "nodes": [
-  {
-   "id": "Начало",
-   "label": "Начало разговора",
-   "sections": [
+  "version": 2,
+  "label": "Регистратор архива",
+  "nodes": [
     {
-     "steps": [
-      {
-       "kind": "line",
-       "line": {
-        "text": "Регистратор щёлкает реле: два стеклянных глаза разгораются бирюзой.",
-        "action": true,
-        "sfx": "sfx_click",
-        "voice": "assets/voice/narr_registrar_1.mp3"
-       }
-      },
-      {
-       "kind": "line",
-       "line": {
-        "text": "Назовите номер дела, шифр или дату. Говорите чётко: я пишу, как слышу.",
-        "voice": "assets/voice/registrar_1.mp3",
-        "sfx": "sfx_tick"
-       }
-      },
-      {
-       "kind": "line",
-       "line": {
-        "text": "Срок дознания по делу сто тридцать семь — семьдесят два часа. Он идёт, пока вы стоите и молчите.",
-        "voice": "assets/voice/registrar_8.mp3"
-       }
-      },
-      {
-       "kind": "line",
-       "line": {
-        "text": "Срок дознания не продлевают. Его переписывают — и в новой бумаге он идёт сначала. Так что спешите с первой, а не со второй.",
-        "voice": "assets/voice/registrar_9.mp3"
-       }
-      }
-     ]
+      "id": "Начало",
+      "label": "Начало разговора",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Регистратор щёлкает реле: два стеклянных глаза разгораются бирюзой.",
+                "action": true,
+                "sfx": "sfx_click",
+                "voice": "assets/voice/narr_registrar_1.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Назовите номер дела, шифр или дату. Говорите чётко: я пишу, как слышу.",
+                "voice": "assets/voice/registrar_1.mp3",
+                "sfx": "sfx_tick"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Срок дознания по делу сто тридцать семь — семьдесят два часа. Чтение и разговор время не расходуют. Переходы и работа учитываются отдельно.",
+                "voice": "assets/voice/registrar_8.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Срок дознания не продлевают. Новая бумага не остановит воду. До истечения срока вы должны решить судьбу седьмой помпы.",
+                "voice": "assets/voice/registrar_9.mp3"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Дело сто тридцать шесть.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Дело сто тридцать шесть. Затопление девятого яруса. Исполнено. Подпись: инспектор Каст.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/registrar_2.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_case136"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true
+        },
+        {
+          "text": "Наряд стражи за ночь тринадцатого.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Пломба предъявлена. Выдаю.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/registrar_4.mp3",
+                    "sfx": "snd_latch"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Взвод старшины Келла Ястреба, двенадцать человек, седьмой ярус, с двадцати до шести. Пометки о смене нет.",
+                    "voice": "assets/voice/registrar_5.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "add_item",
+                    "item": "item_roster",
+                    "qty": 1
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_roster_got"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "advance_time",
+                    "ticks": 1
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_plate"
+            },
+            {
+              "type": "flag",
+              "flag": "clue_roster",
+              "not": true
+            }
+          ],
+          "once": true
+        },
+        {
+          "text": "Наряд стражи за ночь тринадцатого.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Пломба не предъявлена. Наряды без пломбы не выдаются.",
+                    "emotion": "calm",
+                    "sfx": "sfx_error",
+                    "voice": "assets/voice/registrar_7.mp3"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_plate",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Ведомость седьмой помпы.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Расход мазута, смены мастера Реша Э. Пометка: «режим тишины — смотри приложение». Приложение изъято.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/registrar_3.mp3"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Кто изъял приложение?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Инспектор Каст В. Основание: пункт девятый. Пункт девятый гласит: «в интересах яруса».",
+                    "emotion": "calm",
+                    "voice": "assets/voice/registrar_6.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "kast_alerted"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Зарегистрировать сшитое дело №137 (1 ч).",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "case_full"
+            },
+            {
+              "type": "flag",
+              "flag": "case_registered",
+              "not": true
+            }
+          ],
+          "goto": "stay",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Материалы подшиты. Ставлю входящий штамп. Дело сто тридцать семь внесено в реестр. Изъятие оставит запись. Даже инспектор обязан указать основание.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/registrar_10.mp3",
+                    "sfx": "sfx_stamp"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_register_case"
+                  }
+                }
+              ]
+            }
+          ],
+          "once": true
+        },
+        {
+          "text": "Перечитать полученный наряд.",
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "clue_roster"
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Взвод старшины Келла Ястреба, двенадцать человек, седьмой ярус, с двадцати до шести. Пометки о смене нет.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/registrar_5.mp3"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "text": "Отключись.",
+          "sections": [],
+          "goto": "end"
+        }
+      ]
     }
-   ],
-   "choices": [
-    {
-     "text": "Дело сто тридцать шесть.",
-     "sections": [
-      {
-       "steps": [
-        {
-         "kind": "line",
-         "line": {
-          "text": "Дело сто тридцать шесть. Затопление девятого яруса. Исполнено. Подпись: инспектор Каст.",
-          "emotion": "calm",
-          "voice": "assets/voice/registrar_2.mp3"
-         }
-        },
-        {
-         "kind": "effect",
-         "effect": {
-          "type": "unlock_codex",
-          "entry": "codex_case136"
-         }
-        }
-       ]
-      }
-     ],
-     "goto": "stay",
-     "once": true
-    },
-    {
-     "text": "Наряд стражи за ночь тринадцатого.",
-     "sections": [
-      {
-       "steps": [
-        {
-         "kind": "line",
-         "line": {
-          "text": "Пломба предъявлена. Выдаю.",
-          "emotion": "calm",
-          "voice": "assets/voice/registrar_4.mp3",
-          "sfx": "snd_latch"
-         }
-        },
-        {
-         "kind": "line",
-         "line": {
-          "text": "Взвод старшины Келла Ястреба, двенадцать человек, седьмой ярус, с двадцати до шести. Пометки о смене нет.",
-          "voice": "assets/voice/registrar_5.mp3"
-         }
-        },
-        {
-         "kind": "effect",
-         "effect": {
-          "type": "add_item",
-          "item": "item_roster",
-          "qty": 1
-         }
-        },
-        {
-         "kind": "effect",
-         "effect": {
-          "type": "fire_rule",
-          "rule": "rule_roster_got"
-         }
-        },
-        {
-         "kind": "effect",
-         "effect": {
-          "type": "advance_time",
-          "ticks": 1
-         }
-        }
-       ]
-      }
-     ],
-     "goto": "stay",
-     "conds": [
-      {
-       "type": "has_item",
-       "item": "item_plate"
-      }
-     ],
-     "once": true
-    },
-    {
-     "text": "Наряд стражи за ночь тринадцатого.",
-     "sections": [
-      {
-       "steps": [
-        {
-         "kind": "line",
-         "line": {
-          "text": "Пломба не предъявлена. Наряды без пломбы не выдаются.",
-          "emotion": "calm",
-          "sfx": "sfx_error",
-          "voice": "assets/voice/registrar_7.mp3"
-         }
-        }
-       ]
-      }
-     ],
-     "goto": "stay",
-     "conds": [
-      {
-       "type": "has_item",
-       "item": "item_plate",
-       "not": true
-      }
-     ]
-    },
-    {
-     "text": "Ведомость седьмой помпы.",
-     "sections": [
-      {
-       "steps": [
-        {
-         "kind": "line",
-         "line": {
-          "text": "Расход мазута, смены мастера Реша Э. Пометка: «режим тишины — см. приложение». Приложение изъято.",
-          "emotion": "calm",
-          "voice": "assets/voice/registrar_3.mp3"
-         }
-        }
-       ]
-      }
-     ],
-     "goto": "stay"
-    },
-    {
-     "text": "Кто изъял приложение?",
-     "sections": [
-      {
-       "steps": [
-        {
-         "kind": "line",
-         "line": {
-          "text": "Инспектор Каст В. Основание: пункт девятый. Пункт девятый гласит: «в интересах яруса».",
-          "emotion": "calm",
-          "voice": "assets/voice/registrar_6.mp3"
-         }
-        },
-        {
-         "kind": "effect",
-         "effect": {
-          "type": "set_flag",
-          "flag": "kast_alerted"
-         }
-        }
-       ]
-      }
-     ],
-     "goto": "stay"
-    },
-    {
-     "text": "Дело № 137 сшито. Запишешь во входящие?",
-     "conds": [
-      {
-       "type": "flag",
-       "flag": "case_full"
-      }
-     ],
-     "goto": "stay",
-     "sections": [
-      {
-       "steps": [
-        {
-         "kind": "line",
-         "line": {
-          "text": "Шесть улик на суровой нитке… Давно такого не приносили. Ставлю входящий штамп: теперь эту папку даже инспектор из реестра не вынет.",
-          "emotion": "calm",
-          "voice": "assets/voice/registrar_10.mp3",
-          "sfx": "sfx_stamp"
-         }
-        },
-        {
-         "kind": "effect",
-         "effect": {
-          "type": "unlock_codex",
-          "entry": "codex_case137"
-         }
-        }
-       ]
-      }
-     ]
-    },
-    {
-     "text": "Отключись.",
-     "sections": [],
-     "goto": "end"
-    }
-   ]
-  }
- ]
+  ]
 }

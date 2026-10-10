@@ -811,9 +811,13 @@ export class GameEngine {
       const entries = inv.filter((i) => i.item === id)
       if (!entries.length) break
       const max = this.itemMaxDurability(id)
-      const pick = max === undefined
-        ? entries[0]
-        : entries.reduce((a, b) => ((a.durability ?? max) <= (b.durability ?? max) ? a : b))
+      let pick = entries[0]
+      if (max !== undefined) {
+        pick = entries.reduce((a, b) => ((a.durability ?? max) <= (b.durability ?? max) ? a : b))
+      } else if (entries.some((e) => e.freshness !== undefined)) {
+        // сначала расходуем наиболее близкие к концу срока годности экземпляры
+        pick = entries.reduce((a, b) => ((a.freshness ?? Infinity) <= (b.freshness ?? Infinity) ? a : b))
+      }
       if (pick.quantity > left) {
         pick.quantity -= left
         left = 0

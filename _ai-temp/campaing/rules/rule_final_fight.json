@@ -41,6 +41,10 @@
       ],
       "fail_effects": [
         {
+          "type": "set_flag",
+          "flag": "kell_refused"
+        },
+        {
           "type": "start_combat",
           "enemies": [
             {

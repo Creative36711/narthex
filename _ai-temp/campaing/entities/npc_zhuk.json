@@ -40,5 +40,7 @@
     }
   ],
   "scene_sprite": "assets/img/npc/sprite_zhuk.png",
-  "unknown_label": "Человек у жаровни"
+  "unknown_label": "Человек у жаровни",
+  "combat_figure": "assets/img/npc/fig_zhuk.png",
+  "figure_mode": "topdown"
 }

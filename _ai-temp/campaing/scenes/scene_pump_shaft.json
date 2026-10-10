@@ -9,20 +9,20 @@
   "chapter": "ch_signs",
   "states": [
     {
+      "id": "state_main",
+      "label": "Над чёрным провалом",
+      "condition": null,
+      "image": "assets/img/scenes/scene_pump_shaft.jpg"
+    },
+    {
       "id": "state_roped",
-      "label": "Страховка закреплена",
+      "label": "Спуск со страховкой",
       "condition": {
         "flag": "valve_found"
       },
       "image": "assets/img/scenes/scene_pump_shaft_drained.jpg",
       "sound": "sfx_rungs",
       "sound_volume": 0.75
-    },
-    {
-      "id": "state_main",
-      "label": "Всегда",
-      "condition": null,
-      "image": "assets/img/scenes/scene_pump_shaft.jpg"
     }
   ],
   "slots": [
@@ -33,9 +33,9 @@
         "prop"
       ],
       "shape": "rect",
-      "x": 940,
-      "y": 120,
-      "w": 220,
+      "x": 785,
+      "y": 140,
+      "w": 375,
       "h": 520,
       "condition": null,
       "default_entity": "item_ladder",
@@ -51,10 +51,10 @@
         "container"
       ],
       "shape": "rect",
-      "x": 140,
-      "y": 290,
-      "w": 180,
-      "h": 180,
+      "x": 150,
+      "y": 175,
+      "w": 210,
+      "h": 295,
       "condition": null,
       "default_entity": "item_niche",
       "sound": "snd_stone",
@@ -68,10 +68,10 @@
         "prop"
       ],
       "shape": "rect",
-      "x": 520,
-      "y": 40,
-      "w": 260,
-      "h": 140,
+      "x": 470,
+      "y": 30,
+      "w": 310,
+      "h": 190,
       "condition": null,
       "default_entity": "item_winch",
       "sound": "snd_chain",
@@ -83,10 +83,10 @@
     {
       "label": "Подняться в машинный зал",
       "area": {
-        "x": 20,
-        "y": 20,
-        "w": 220,
-        "h": 150
+        "x": 990,
+        "y": 0,
+        "w": 240,
+        "h": 130
       },
       "go_to_scene": "scene_pump_hall",
       "cost_ticks": 1

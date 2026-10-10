@@ -2543,6 +2543,14 @@
             "flee_chance"
           ],
           "additionalProperties": false
+        },
+        "carry_capacity_bonus": {
+          "type": "number",
+          "description": "Расовый/видовой бонус к переносимому весу (+кг)"
+        },
+        "carry_capacity_mult": {
+          "type": "number",
+          "description": "Расовый/видовой множитель переносимого веса (напр. 3.0 для вьючных животных или мутантов)"
         }
       },
       "required": [
@@ -2675,6 +2683,14 @@
         },
         "loop": {
           "type": "boolean"
+        },
+        "color_inner": {
+          "type": "string",
+          "description": "цвет центра процедурной частицы (rgba/hex, по умолчанию белое/золотое свечение)"
+        },
+        "color_outer": {
+          "type": "string",
+          "description": "цвет внешнего ореола процедурной частицы"
         }
       },
       "required": [
@@ -2683,6 +2699,90 @@
       ],
       "additionalProperties": false,
       "description": "декларативный слой атмосферы («мастерская спецэффектов»): летящие частицы из\nфайла-спрайта с поведением. WeatherDef.overlay = id эффекта (встроенные\nrain/snow/fog/ash продолжают работать)."
+    },
+    "EncumbranceRules": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Включена ли система перегруза (по умолчанию true)"
+        },
+        "formula": {
+          "type": "string",
+          "enum": [
+            "str_siz",
+            "str_siz_sum",
+            "str_con",
+            "str_only",
+            "str_x2",
+            "siz_x2",
+            "str_plus_half_siz",
+            "fixed"
+          ],
+          "description": "Формула базовой грузоподъёмности:\n'str_siz' | 'str_siz_sum' — классика BRP (STR + SIZ в кг), по умолчанию\n'str_con' — сила + телосложение (STR + CON в кг)\n'str_only' | 'str_x2' — чистая сила (STR * 2 в кг)\n'siz_x2' — чистые габариты (SIZ * 2 в кг)\n'str_plus_half_siz' — STR + (SIZ / 2) в кг\n'fixed' — фиксированное значение из base_capacity"
+        },
+        "base_capacity": {
+          "type": "number",
+          "description": "Фиксированная базовая вместимость в кг (при formula === 'fixed', по умолчанию 25)"
+        },
+        "capacity_multiplier": {
+          "type": "number",
+          "description": "Глобальный множитель грузоподъёмности мира (по умолчанию 1.0)"
+        },
+        "travel_penalty": {
+          "type": "boolean",
+          "description": "Влияет ли перегруз на время путешествий между локациями (по умолчанию true)"
+        },
+        "light_travel_multiplier": {
+          "type": "number",
+          "description": "Множитель времени при лёгком перегрузе (>1.0x, по умолчанию 1.5)"
+        },
+        "heavy_travel_multiplier": {
+          "type": "number",
+          "description": "Множитель времени при тяжёлом перегрузе (>1.5x, по умолчанию 2.0)"
+        },
+        "critical_threshold": {
+          "type": "number",
+          "description": "Порог критического перегруза, блокирующего перемещение (по умолчанию 2.0x, 0 = не блокировать)"
+        },
+        "light_dodge_penalty": {
+          "type": "number",
+          "description": "Штраф к уклонению в бою при лёгком перегрузе (%, по умолчанию 10)"
+        },
+        "light_mov_penalty": {
+          "type": "number",
+          "description": "Штраф к перемещению в бою при лёгком перегрузе (MOV, по умолчанию 1)"
+        },
+        "light_agility_skills_penalty": {
+          "type": "number",
+          "description": "Штраф к ловкостным навыкам при лёгком перегрузе (%, по умолчанию 10)"
+        },
+        "heavy_dodge_penalty": {
+          "type": "number",
+          "description": "Штраф к уклонению в бою при тяжёлом перегрузе (%, по умолчанию 25)"
+        },
+        "heavy_mov_penalty": {
+          "type": "number",
+          "description": "Штраф к перемещению в бою при тяжёлом перегрузе (MOV, по умолчанию 2)"
+        },
+        "heavy_agility_skills_penalty": {
+          "type": "number",
+          "description": "Штраф к ловкостным навыкам при тяжёлом перегрузе (%, по умолчанию 25)"
+        },
+        "critical_dodge_penalty": {
+          "type": "number",
+          "description": "Штраф к уклонению в бою при критическом перегрузе (%, по умолчанию 50)"
+        },
+        "critical_mov_penalty": {
+          "type": "number",
+          "description": "Штраф к перемещению в бою при критическом перегрузе (MOV, по умолчанию 3)"
+        },
+        "critical_agility_skills_penalty": {
+          "type": "number",
+          "description": "Штраф к ловкостным навыкам при критическом перегрузе (%, по умолчанию 50)"
+        }
+      },
+      "additionalProperties": false
     },
     "Condition": {
       "anyOf": [
@@ -5466,6 +5566,10 @@
           },
           "description": "реестр атмосферных слоёв из файлов мастера (мастерская спецэффектов)"
         },
+        "encumbrance": {
+          "$ref": "#/$defs/EncumbranceRules",
+          "description": "Правила перегруза и грузоподъёмности мира (универсальная адаптация BRP).\nПозволяет настраивать миры для гигантов, мутантов, хоббитов, фантастики\nи экзоскелетов без правок движка."
+        },
         "camping": {
           "type": "object",
           "properties": {
@@ -6683,6 +6787,69 @@
       "additionalProperties": false,
       "description": "Зона перехода на сцене (итерация 8, А6): только ВНУТРИ локации —\nв другую сцену или «открыть карту» (это и есть выход из локации).\nСтарые `go_to_location` мигрируются при загрузке (shared/migrate.ts)."
     },
+    "SceneParticlesPreset": {
+      "type": "string",
+      "enum": [
+        "dust",
+        "steam",
+        "rain",
+        "snow",
+        "fog",
+        "ash",
+        "sparks",
+        "embers",
+        "none"
+      ]
+    },
+    "SceneParticlesConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/SceneParticlesPreset"
+        },
+        "density": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "speed": {
+          "type": "string",
+          "enum": [
+            "slow",
+            "normal",
+            "fast"
+          ]
+        },
+        "wind": {
+          "type": "string",
+          "enum": [
+            "left",
+            "none",
+            "right"
+          ]
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "SceneParticles": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SceneParticlesPreset"
+        },
+        {
+          "$ref": "#/$defs/SceneParticlesConfig"
+        }
+      ]
+    },
     "NarrativeIntroEntry": {
       "anyOf": [
         {
@@ -6699,6 +6866,28 @@
             },
             "sfx": {
               "type": "string"
+            },
+            "image": {
+              "type": "string"
+            },
+            "camera": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/$defs/CameraDoc"
+                }
+              ]
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            },
+            "duration": {
+              "type": "number"
             }
           },
           "required": [
@@ -6786,19 +6975,8 @@
           "description": "тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров)"
         },
         "particles": {
-          "type": "string",
-          "enum": [
-            "dust",
-            "steam",
-            "rain",
-            "snow",
-            "fog",
-            "ash",
-            "sparks",
-            "embers",
-            "none"
-          ],
-          "description": "атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман)"
+          "$ref": "#/$defs/SceneParticles",
+          "description": "атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) — строка пресета или расширенный конфиг"
         },
         "narrative_intro": {
           "type": "array",
@@ -6888,6 +7066,10 @@
         "durability": {
           "type": "number",
           "description": "Прочность конкретного экземпляра (аудит §5.6 п.10): запись с этим полем —\nотдельная копия многоразового предмета, стакается только с себе равными."
+        },
+        "freshness": {
+          "type": "number",
+          "description": "Срок годности / свежесть конкретного экземпляра в игровых тиках (часах):\nУбывает каждый тик; при достижении 0 превращается в spoil_into или уничтожается."
         }
       },
       "required": [
@@ -7119,6 +7301,10 @@
           "type": "boolean",
           "description": "мягкая тень под спрайтом/фигуркой (по умолчанию включена)"
         },
+        "breathe": {
+          "type": "boolean",
+          "description": "Эффект «живого дыхания» спрайта в сцене:\nДля NPC по умолчанию включён (true). Для роботов, автоматонов, механизмов\nи нежити можно отключить (false)."
+        },
         "token": {
           "type": "string",
           "description": "изображение жетона в бою (когда фигурка не задана)"
@@ -7194,6 +7380,14 @@
         },
         "base_disposition": {
           "type": "number"
+        },
+        "carry_capacity_bonus": {
+          "type": "number",
+          "description": "Расовый/индивидуальный бонус к грузоподъёмности (+кг, напр. +5 кг для выносливых рас)"
+        },
+        "carry_capacity_mult": {
+          "type": "number",
+          "description": "Расовый/индивидуальный множитель грузоподъёмности (напр. 2.5 для мутантов, гигантов, четвероногих)"
         },
         "trader": {
           "anyOf": [
@@ -7377,6 +7571,10 @@
           "$ref": "#/$defs/ImageValue",
           "description": "СПРАЙТ В СЦЕНЕ: картинка предмета в его слоте (целиком, без обрезки).\nНет — в слоте не рисуется ничего (ни портрет, ни иконка).\nМожно цикл кадров (ImageValue) — «живой» предмет."
         },
+        "breathe": {
+          "type": "boolean",
+          "description": "Эффект «живого дыхания» спрайта в сцене:\nПо умолчанию отключён (false). Можно включить для живых или пульсирующих предметов (био-сердце, мимик)."
+        },
         "interactable_when": {
           "type": "array",
           "items": {
@@ -7411,6 +7609,31 @@
           "type": "boolean",
           "description": "сюжетный/квестовый предмет: нельзя случайно выбросить или продать"
         },
+        "decay_ticks": {
+          "type": "number",
+          "description": "Срок годности предмета в игровых тиках (например, 24 = 24 часа). Если не задан — предмет не портится"
+        },
+        "spoil_into": {
+          "type": "string",
+          "description": "В какой предмет превращается после порчи (например item_meat_spoiled или item_scrap)"
+        },
+        "spoil_action": {
+          "type": "string",
+          "enum": [
+            "transform",
+            "destroy",
+            "rule"
+          ],
+          "description": "Действие при порче: 'transform' (в spoil_into), 'destroy' (исчезает), 'rule' (запуск правила)"
+        },
+        "spoil_rule": {
+          "type": "string",
+          "description": "Идентификатор правила, запускаемого при порче (если spoil_action === 'rule')"
+        },
+        "spoil_msg": {
+          "type": "string",
+          "description": "Сообщение в журнал при порче предмета"
+        },
         "weapon_data": {
           "$ref": "#/$defs/WeaponData"
         },
@@ -7434,6 +7657,14 @@
         "equip_slot": {
           "type": "string",
           "description": "слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;\nнет — не экипируется. Старым предметам выставляется миграцией."
+        },
+        "carry_bonus": {
+          "type": "number",
+          "description": "Бонус к переносимому весу при экипировке (+кг, напр. +10 кг для походного рюкзака)"
+        },
+        "carry_mult": {
+          "type": "number",
+          "description": "Множитель грузоподъёмности при экипировке (напр. 2.0 для силового экзоскелета)"
         },
         "hero_appearance": {
           "type": "object",

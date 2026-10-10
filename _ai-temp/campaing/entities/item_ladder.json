@@ -4,7 +4,7 @@
   "category": "prop",
   "label": "Лестница вниз",
   "description": "Скобы в стене шахты, мокрые от конденсата. Ниже восьмой ступени их не чистили месяцами.",
-  "weight": 60.0,
+  "weight": 60,
   "stackable": false,
   "value": {
     "mark": 0

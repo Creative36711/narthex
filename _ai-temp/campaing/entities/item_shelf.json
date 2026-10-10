@@ -4,7 +4,7 @@
   "category": "container",
   "label": "Стеллаж архива",
   "description": "Железный стеллаж от пола до свода: папки, сводки и то, что хранят, чтобы не читать.",
-  "weight": 120.0,
+  "weight": 120,
   "stackable": false,
   "value": {
     "mark": 0

@@ -1,3 +1,4 @@
+EXTERNAL fire_rule(a0)
 EXTERNAL in_party(a0)
 EXTERNAL add_item(a0, a1)
 EXTERNAL change_disposition(a0, a1)
@@ -54,6 +55,17 @@ VAR r = 0
 + { has_item("item_filter") } [Дыхатель держит только две банки?]
     Первая банка садится ещё в штольне, вторая — у самого забоя. Кто спускается в третий раз со старой маской, тот дышит уже собой. # emotion: thoughtful # voice: assets/voice/resh_15.mp3
     ~ unlock_codex("codex_filter")
+    -> Начало_hub
+* { in_party("npc_ira") and not (get_flag("resh_ira")) } [Ира пришла со мной.]
+    ~ set_flag("resh_ira")
+    Реш поднимается со скамьи и долго смотрит на Иру, будто проверяет, не мерещится ли. # action # voice: assets/voice/narr_resh_3.mp3
+    Ира... Я думал, тебя увели наверх вместе со сменой. Хорошо, что не послушалась. # emotion: sad # voice: assets/voice/resh_16.mp3
+    Я шёл мимо затвора той ночью, вниз, с сердцевиной. Стась был там, живой, ругался на пустую колодку. Больше я его не видел. # emotion: thoughtful # voice: assets/voice/resh_17.mp3
+    «Ругался на колодку... Значит, знал, что его поставили к затвору, который не закрыть». # action # voice: assets/voice/ira_30.mp3
+    ~ change_disposition("npc_ira", 5)
+    ~ change_disposition("npc_resh", 5)
+    ~ set_flag("resh_trusts")
+    ~ fire_rule("rule_resh_ira")
     -> Начало_hub
 + [Мне пора.]
     -> DONE

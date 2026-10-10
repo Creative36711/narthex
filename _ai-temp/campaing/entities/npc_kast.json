@@ -39,5 +39,7 @@
       "quantity": 120
     }
   ],
-  "scene_sprite": "assets/img/npc/sprite_kast.png"
+  "scene_sprite": "assets/img/npc/sprite_kast.png",
+  "combat_figure": "assets/img/npc/fig_kast.png",
+  "figure_mode": "topdown"
 }

@@ -14,8 +14,8 @@
           "id": "loc_surface",
           "label": "Контора Надзора",
           "position": {
-            "x": 340,
-            "y": 80
+            "x": 390,
+            "y": 95
           },
           "travel_connections": [
             {
@@ -77,8 +77,8 @@
           "id": "loc_gate",
           "label": "Шлюз седьмого яруса",
           "position": {
-            "x": 400,
-            "y": 230
+            "x": 860,
+            "y": 290
           },
           "travel_connections": [
             {
@@ -140,8 +140,8 @@
           "id": "loc_pump7",
           "label": "Седьмая помпа",
           "position": {
-            "x": 640,
-            "y": 360
+            "x": 900,
+            "y": 440
           },
           "travel_connections": [
             {
@@ -243,7 +243,7 @@
           "id": "loc_ward8",
           "label": "Восьмой ярус",
           "position": {
-            "x": 520,
+            "x": 400,
             "y": 520
           },
           "travel_connections": [
@@ -327,7 +327,7 @@
           "id": "loc_deep9",
           "label": "Девятый ярус",
           "position": {
-            "x": 840,
+            "x": 650,
             "y": 650
           },
           "hidden": true,

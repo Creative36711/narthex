@@ -1,0 +1,25 @@
+{
+  "id": "rule_resh_ira",
+  "label": "Реш и Ира",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_missing",
+      "text_key": "j_resh_saw"
+    },
+    {
+      "type": "grant_xp",
+      "points": 10
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_resh_ira.jpg",
+      "text": "Мастер и сестра стража. Оба были у затвора — в разное время.",
+      "preset": "шёпот",
+      "seconds": 5
+    }
+  ]
+}

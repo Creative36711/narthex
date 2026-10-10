@@ -1,0 +1,55 @@
+{
+  "id": "item_vein_shard",
+  "type": "item",
+  "category": "consumable",
+  "label": "Осколок жильного стекла",
+  "description": "Бирюзовый осколок с янтарными прожилками. Тёплый, как ладонь, и тихо гудит, если поднести к уху. Наверху за такие платят больше, чем за уголь. Вдали от жилы гаснет за полтора суток.",
+  "weight": 0.1,
+  "stackable": true,
+  "value": {
+    "mark": 16
+  },
+  "on_use": {
+    "effects": [
+      {
+        "type": "change_need",
+        "need": "need_warmth",
+        "delta": 35
+      },
+      {
+        "type": "apply_status",
+        "target": "player",
+        "status": "status_veinsong",
+        "duration": 8
+      }
+    ],
+    "consume": true
+  },
+  "sounds": {
+    "pickup": "sfx_glass",
+    "use": "sfx_hum"
+  },
+  "image": "assets/img/items/item_vein_shard.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_vein_shard.jpg"
+  },
+  "interact_hint": "Погреть ладони у осколка",
+  "interact_options": [
+    {
+      "label": "Поднести осколок к уху",
+      "hint": "тепло +35, но жила тебя услышит (зов жилы: знание +20, скрытность −10)",
+      "sound": "sfx_hum",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Осколок гудит на одной ноте, ровно и тонко, как жила в штольне. Тепло от него идёт в пальцы, потом выше, под рёбра. Айла сказала бы: не заслушивайся."
+        }
+      ]
+    }
+  ],
+  "decay_ticks": 36,
+  "spoil_action": "transform",
+  "spoil_into": "item_vein_shard_dim",
+  "spoil_msg": "Осколок жильного стекла погас: ни тепла, ни звона. Вдали от жилы она в стекле не живёт."
+}

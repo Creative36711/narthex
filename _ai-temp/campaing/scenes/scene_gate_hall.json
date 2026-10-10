@@ -10,21 +10,21 @@
   "states": [
     {
       "id": "state_day",
-      "label": "Днём",
-      "condition": {
-        "time_of_day": [
-          "morning",
-          "day"
-        ]
-      },
+      "label": "Свет в шлюзе",
+      "condition": null,
       "image": "assets/img/scenes/scene_gate_hall.jpg",
       "sound": "sfx_lever",
       "sound_volume": 0.6
     },
     {
       "id": "state_night",
-      "label": "Вечером и ночью",
-      "condition": null,
+      "label": "Ночная смена",
+      "condition": {
+        "time_of_day": [
+          "evening",
+          "night"
+        ]
+      },
       "image": "assets/img/scenes/scene_gate_hall_night.jpg",
       "sound": "sfx_bell",
       "sound_volume": 0.7
@@ -38,14 +38,15 @@
         "person"
       ],
       "shape": "rect",
-      "x": 900,
-      "y": 220,
-      "w": 210,
-      "h": 300,
+      "x": 790,
+      "y": 270,
+      "w": 150,
+      "h": 420,
       "condition": null,
       "default_entity": "npc_vex",
       "sound": "sfx_click",
-      "sound_volume": 0.5
+      "sound_volume": 0.5,
+      "sprite_scale": 1
     },
     {
       "id": "slot_board",
@@ -55,10 +56,10 @@
         "prop"
       ],
       "shape": "rect",
-      "x": 520,
-      "y": 180,
-      "w": 210,
-      "h": 160,
+      "x": 116,
+      "y": 183,
+      "w": 197,
+      "h": 209,
       "condition": null,
       "default_entity": "item_board",
       "sound": "snd_paper",
@@ -73,10 +74,10 @@
         "item"
       ],
       "shape": "rect",
-      "x": 380,
-      "y": 520,
-      "w": 140,
-      "h": 110,
+      "x": 198,
+      "y": 453,
+      "w": 253,
+      "h": 210,
       "condition": null,
       "default_entity": "item_crate",
       "sound": "snd_creak",
@@ -91,22 +92,23 @@
       ],
       "shape": "rect",
       "x": 560,
-      "y": 380,
-      "w": 200,
-      "h": 320,
+      "y": 270,
+      "w": 150,
+      "h": 420,
       "condition": null,
       "sound": "sfx_door",
-      "sound_volume": 0.6
+      "sound_volume": 0.6,
+      "sprite_scale": 0.78
     }
   ],
   "navigation": [
     {
       "label": "На схему ярусов",
       "area": {
-        "x": 25,
-        "y": 235,
-        "w": 330,
-        "h": 330
+        "x": 20,
+        "y": 600,
+        "w": 160,
+        "h": 100
       },
       "open_map": true
     },

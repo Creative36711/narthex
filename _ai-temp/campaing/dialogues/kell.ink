@@ -15,14 +15,16 @@ VAR r = 0
 -> Начало_hub
 
 === Начало_hub ===
-* [Где ты был в ночь тринадцатого?]
+* { not (get_flag("kell_asked13")) } [Где ты был в ночь тринадцатого?]
+    ~ set_flag("kell_asked13")
     ~ r = skill_check("intimidate", 50)
     {r: -> Начало_hub_ok1 | -> Начало_hub_no1}
 + [Что такое режим тишины?]
 Это когда ярус закрывают и считают, сколько в нём осталось людей. # emotion: calm # voice: assets/voice/kell_2.mp3
     Хорошая вещь, если ты не из тех, кого считают. # emotion: calm # voice: assets/voice/kell_12.mp3
     -> Начало_hub
-* { get_flag("clue_guard") } [Ты убил стража Ярова.]
+* { not (get_flag("kell_accused")) and get_flag("clue_guard") } [Ты убил стража Ярова.]
+    ~ set_flag("kell_accused")
     ~ r = skill_check("intimidate", 55)
     {r: -> Начало_hub_ok2 | -> Начало_hub_no2}
 + { has_item("item_roster") and not (get_flag("kell_confessed")) } [Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.]
@@ -36,7 +38,8 @@ VAR r = 0
 + [Я иду к инспектору.]
     Иди. Она любит, когда к ней идут с пустыми руками. # emotion: calm # voice: assets/voice/kell_10.mp3
     -> DONE
-* { has_item("item_glove") } [Показать рукавицу с привода.]
+* { not (get_flag("kell_glove")) and has_item("item_glove") } [Показать рукавицу с привода.]
+    ~ set_flag("kell_glove")
     Он берёт рукавицу за манжет, не разворачивая. # action # sfx: snd_cloth # voice: assets/voice/narr_kell_2.mp3
     Рукавица. В машинном зале их сто пар лежит: смене выдают по две на руки. Клади в дело, раз нравится. Мне интереснее, кто её первым снимет. # emotion: calm # voice: assets/voice/kell_13.mp3
     ~ change_disposition("npc_kell", -3)

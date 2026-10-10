@@ -9,20 +9,20 @@
   "chapter": "ch_price",
   "states": [
     {
+      "id": "state_main",
+      "label": "Папки под печатями",
+      "condition": null,
+      "image": "assets/img/scenes/scene_archive.jpg"
+    },
+    {
       "id": "state_opened",
-      "label": "Дело №136 на конторке",
+      "label": "Дело №136 раскрыто",
       "condition": {
         "flag": "case136_read"
       },
       "image": "assets/img/scenes/scene_archive_opened.jpg",
       "sound": "sfx_book",
       "sound_volume": 0.75
-    },
-    {
-      "id": "state_main",
-      "label": "Всегда",
-      "condition": null,
-      "image": "assets/img/scenes/scene_archive.jpg"
     }
   ],
   "slots": [
@@ -33,9 +33,9 @@
         "prop"
       ],
       "shape": "rect",
-      "x": 560,
-      "y": 250,
-      "w": 220,
+      "x": 820,
+      "y": 300,
+      "w": 150,
       "h": 400,
       "condition": null,
       "default_entity": "npc_registrar",
@@ -50,9 +50,9 @@
         "prop"
       ],
       "shape": "rect",
-      "x": 100,
+      "x": 24,
       "y": 120,
-      "w": 340,
+      "w": 487,
       "h": 420,
       "condition": null,
       "default_entity": "item_shelf",

@@ -15,6 +15,13 @@
   ],
   "effects": [
     {
+      "type": "postcard",
+      "image": "assets/img/pc_downpour.jpg",
+      "text": "Сверху прорвало.",
+      "preset": "шёпот",
+      "seconds": 5
+    },
+    {
       "type": "set_flag",
       "flag": "downpour_flood"
     },
@@ -29,7 +36,7 @@
     {
       "type": "play_sound",
       "sound": "sfx_water",
-      "volume": 1.0
+      "volume": 1
     }
   ],
   "trigger": "time_tick"

@@ -28,5 +28,8 @@
   "base_disposition": 0,
   "schedule": [],
   "dialogue": "dialogues/vein.ink",
-  "scene_sprite": "assets/img/npc/sprite_vein.png"
+  "scene_sprite": "assets/img/npc/sprite_vein.png",
+  "combat_figure": "assets/img/npc/fig_vein.png",
+  "figure_mode": "topdown",
+  "breathe": false
 }

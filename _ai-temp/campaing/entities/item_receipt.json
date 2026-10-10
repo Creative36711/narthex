@@ -1,10 +1,17 @@
 {
- "id": "item_receipt",
- "type": "item",
- "category": "misc",
- "label": "Наряд-заказ",
- "description": "Ночные работы у старого лаза. Подпись — «Б», красная бирка.",
- "image": "",
- "weight": 0.05,
- "stackable": true
+  "id": "item_receipt",
+  "type": "item",
+  "category": "clue",
+  "label": "Квитанция стекольщика",
+  "description": "Мятая квитанция без печати: «принято стекла жильного», вес и подпись — петля с завитком. Такой же завиток Сыч видел на нарядах из конторы.",
+  "weight": 0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "quest_item": true,
+  "portrait": {
+    "neutral": "assets/img/items/item_receipt.jpg"
+  },
+  "image": "assets/img/items/item_receipt.jpg"
 }

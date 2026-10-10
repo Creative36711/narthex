@@ -15,6 +15,13 @@
   ],
   "effects": [
     {
+      "type": "postcard",
+      "image": "assets/img/pc_sluice_empty.jpg",
+      "text": "Колодка под клапан пуста.",
+      "preset": "шёпот",
+      "seconds": 5
+    },
+    {
       "type": "set_flag",
       "flag": "sluice_seen"
     },

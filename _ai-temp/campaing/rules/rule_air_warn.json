@@ -31,6 +31,13 @@
   ],
   "effects": [
     {
+      "type": "postcard",
+      "image": "assets/img/pc_air_warn.jpg",
+      "text": "Здесь считают вдохи.",
+      "preset": "шёпот",
+      "seconds": 5
+    },
+    {
       "type": "set_flag",
       "flag": "air_warned"
     },

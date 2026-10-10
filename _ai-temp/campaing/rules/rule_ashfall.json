@@ -11,6 +11,13 @@
   ],
   "effects": [
     {
+      "type": "postcard",
+      "image": "assets/img/pc_ashfall.jpg",
+      "text": "Вентиляция выплёвывает пепел.",
+      "preset": "шёпот",
+      "seconds": 4
+    },
+    {
       "type": "set_weather",
       "weather": "weather_ash"
     },

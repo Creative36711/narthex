@@ -7,9 +7,20 @@
     {
       "type": "flag_not_set",
       "flag": "lockdown"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "kast_hand"
     }
   ],
   "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_lockdown.jpg",
+      "text": "Шлюзы закрыты «до выяснения».",
+      "preset": "шёпот",
+      "seconds": 5
+    },
     {
       "type": "set_flag",
       "flag": "lockdown"

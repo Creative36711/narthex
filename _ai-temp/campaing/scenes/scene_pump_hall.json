@@ -9,20 +9,20 @@
   "chapter": "ch_signs",
   "states": [
     {
+      "id": "state_main",
+      "label": "Помпа молчит",
+      "condition": null,
+      "image": "assets/img/scenes/scene_pump_hall.jpg"
+    },
+    {
       "id": "state_running",
-      "label": "Помпа пошла",
+      "label": "Помпа работает",
       "condition": {
         "flag": "end_pump"
       },
       "image": "assets/img/scenes/scene_pump_hall_running.jpg",
       "sound": "sfx_machine",
-      "sound_volume": 1.0
-    },
-    {
-      "id": "state_main",
-      "label": "Всегда",
-      "condition": null,
-      "image": "assets/img/scenes/scene_pump_hall.jpg"
+      "sound_volume": 1
     }
   ],
   "slots": [
@@ -33,10 +33,10 @@
         "prop"
       ],
       "shape": "rect",
-      "x": 340,
-      "y": 170,
-      "w": 600,
-      "h": 390,
+      "x": 500,
+      "y": 100,
+      "w": 450,
+      "h": 460,
       "condition": null,
       "default_entity": "item_pump_engine",
       "sprite_scale": 0.9,
@@ -51,10 +51,10 @@
         "person"
       ],
       "shape": "rect",
-      "x": 100,
-      "y": 240,
-      "w": 240,
-      "h": 340,
+      "x": 250,
+      "y": 260,
+      "w": 150,
+      "h": 420,
       "condition": {
         "not_flag": "ira_joined"
       },
@@ -70,10 +70,10 @@
         "item"
       ],
       "shape": "rect",
-      "x": 1150,
-      "y": 250,
-      "w": 92,
-      "h": 210,
+      "x": 1030,
+      "y": 225,
+      "w": 110,
+      "h": 235,
       "condition": null,
       "default_entity": "item_resh_door",
       "sound": "sfx_door",
@@ -91,25 +91,26 @@
         "h": 120
       },
       "go_to_scene": "scene_pump_shaft",
-      "cost_ticks": 1
+      "cost_ticks": 1,
+      "conditions": []
     },
     {
       "label": "На схему ярусов",
       "area": {
         "x": 20,
-        "y": 600,
+        "y": 665,
         "w": 220,
-        "h": 110
+        "h": 50
       },
       "open_map": true
     },
     {
       "label": "В каморку мастера",
       "area": {
-        "x": 1140,
-        "y": 470,
+        "x": 1025,
+        "y": 460,
         "w": 120,
-        "h": 90
+        "h": 70
       },
       "go_to_scene": "scene_pump_room",
       "cost_ticks": 0,

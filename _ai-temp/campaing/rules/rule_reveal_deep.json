@@ -1,31 +1,38 @@
 {
- "id": "rule_reveal_deep",
- "label": "Дорога на девятый ярус",
- "once": true,
- "manual": true,
- "conditions": [
-  {
-   "type": "flag_not_set",
-   "flag": "deep_revealed"
-  }
- ],
- "effects": [
-  {
-   "type": "reveal_location",
-   "location": "loc_deep9"
-  },
-  {
-   "type": "set_flag",
-   "flag": "deep_revealed"
-  },
-  {
-   "type": "show_message",
-   "text": "Ход на девятый ярус есть: старая штольня «Слепой забой», мимо затвора восьмого."
-  },
-  {
-   "type": "play_sound",
-   "sound": "snd_creak",
-   "volume": 0.8
-  }
- ]
+  "id": "rule_reveal_deep",
+  "label": "Дорога на девятый ярус",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "deep_revealed"
+    }
+  ],
+  "effects": [
+    {
+      "type": "reveal_location",
+      "location": "loc_deep9"
+    },
+    {
+      "type": "set_flag",
+      "flag": "deep_revealed"
+    },
+    {
+      "type": "show_message",
+      "text": "Ход на девятый ярус есть: старая штольня «Слепой забой», мимо затвора восьмого."
+    },
+    {
+      "type": "play_sound",
+      "sound": "snd_creak",
+      "volume": 0.8
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_deep_path.jpg",
+      "text": "За решёткой — старая штольня. Ход на девятый открыт.",
+      "preset": "шёпот",
+      "seconds": 5
+    }
+  ]
 }

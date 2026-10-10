@@ -4,7 +4,7 @@
   "category": "prop",
   "label": "Стол мастера",
   "description": "Чертежи помпы, счётная линейка и стопка листов, верхний исписан посередине фразы.",
-  "weight": 30.0,
+  "weight": 30,
   "stackable": false,
   "value": {
     "mark": 0

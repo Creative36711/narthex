@@ -4,7 +4,7 @@
   "once": false,
   "manual": false,
   "chapter": "ch_deep",
-  "trigger": "always",
+  "trigger": "enter_scene",
   "conditions": [
     {
       "type": "flag_set",
@@ -15,11 +15,25 @@
       "flag": "filter_exhausted"
     },
     {
-      "type": "not",
-      "condition": {
-        "type": "player_enters_location",
-        "location": "loc_deep9"
-      }
+      "type": "or",
+      "conditions": [
+        {
+          "type": "player_enters_location",
+          "location": "loc_gate"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_pump7"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_surface"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_ward8"
+        }
+      ]
     }
   ],
   "effects": [

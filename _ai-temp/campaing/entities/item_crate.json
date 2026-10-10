@@ -4,7 +4,7 @@
   "category": "container",
   "label": "Ящик с кладью",
   "description": "Кованый ящик под замком. Замок сломан ещё до тебя: на нижних ярусах это считается описью.",
-  "weight": 12.0,
+  "weight": 12,
   "stackable": false,
   "value": {
     "mark": 0

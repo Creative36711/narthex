@@ -4,7 +4,7 @@
   "category": "prop",
   "label": "Лебёдка",
   "description": "Барабан, трос и храповик. Трос уходит вниз и там кончается, не дойдя до воды.",
-  "weight": 120.0,
+  "weight": 120,
   "stackable": false,
   "value": {
     "mark": 0

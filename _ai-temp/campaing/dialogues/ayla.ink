@@ -1,3 +1,4 @@
+EXTERNAL fire_rule(a0)
 EXTERNAL change_disposition(a0, a1)
 EXTERNAL change_hp(a0)
 EXTERNAL get_flag(a0)
@@ -35,6 +36,7 @@ EXTERNAL learn_name(a0)
 * { not (get_flag("ayla_recipe")) } [Научи готовить настой.]
     Рецепт простой, как всё, что спасает жизнь: трава, вода и терпение. # emotion: calm # voice: assets/voice/ayla_6.mp3
     Если пойдёшь на девятый, возьми мой настой. Он не от воды. Он от того, что в воде. # emotion: thoughtful # voice: assets/voice/ayla_9.mp3
+    Если услышишь, что жила поёт — не останавливайся слушать. Её песня не звук, она в костях. Заслушаешься — останешься внизу. # emotion: afraid # voice: assets/voice/ayla_warn.mp3
     ~ unlock_recipe("recipe_tonic")
     ~ set_flag("ayla_recipe")
     ~ change_disposition("npc_ayla", 10)
@@ -53,7 +55,13 @@ EXTERNAL learn_name(a0)
     -> Начало_hub
 + { has_item("item_filter") } [Чем забиваются банки в дыхателе?]
     Жильной взвесью. Она не пыль — она в угле живёт и разбухает от сырости. Продуть банку нельзя, можно только сменить на верстаке. # emotion: calm # voice: assets/voice/ayla_11.mp3
+    Если банки сдохли внизу — не паникуй. Два угля, тряпка и ровный стол. Не экономь на угле: тонкий слой продувается за две минуты. # emotion: calm # voice: assets/voice/ayla_filter.mp3
     ~ unlock_codex("codex_filter")
+    -> Начало_hub
++ { has_status("status_veinsong") } [Под рёбрами гудит. Что со мной?]
+    Зов жилы. Кто-то продал тебе стекло, и ты носишь его у сердца. Носи в сумке, в тряпице, и не слушай. # emotion: angry # voice: assets/voice/ayla_12.mp3
+    Выпей. Горько, зато в голове будет тихо. # emotion: calm # voice: assets/voice/ayla_13.mp3
+    ~ fire_rule("rule_ayla_veinsong")
     -> Начало_hub
 + [Пока.]
     -> DONE

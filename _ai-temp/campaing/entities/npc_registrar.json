@@ -2,11 +2,11 @@
   "id": "npc_registrar",
   "type": "npc",
   "label": "Регистратор",
-  "description": "Считающий механизм архива: медный цилиндр, два стеклянных глаза и голос, который не умеет врать, но умеет не договаривать.",
+  "description": "Архивный автомат из меди и латуни: два стеклянных глаза, счётчик в груди и голос, который не умеет врать, но умеет не договаривать.",
   "portrait": {
     "neutral": "assets/img/npc/registrar_neutral.jpg",
     "angry": "assets/img/npc/registrar_angry.jpg",
-    "afraid": "assets/img/npc/registrar.jpg",
+    "afraid": "assets/img/npc/registrar_afraid.jpg",
     "thoughtful": "assets/img/npc/registrar_thoughtful.jpg",
     "sad": "assets/img/npc/registrar_sad.jpg",
     "calm": "assets/img/npc/registrar_calm.jpg"
@@ -30,5 +30,9 @@
   "base_disposition": 0,
   "schedule": [],
   "dialogue": "dialogues/registrar.ink",
-  "scene_sprite": "assets/img/npc/sprite_registrar.png"
+  "scene_sprite": "assets/img/npc/sprite_registrar.png",
+  "sounds": {},
+  "combat_figure": "assets/img/npc/fig_registrar.png",
+  "figure_mode": "topdown",
+  "breathe": false
 }

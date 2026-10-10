@@ -67,6 +67,11 @@
         "stock": 2
       },
       {
+        "item": "item_backpack",
+        "price": 18,
+        "stock": 1
+      },
+      {
         "item": "item_ration",
         "price": 5,
         "stock": 5
@@ -106,5 +111,7 @@
     "buy_rate": 0.6
   },
   "scene_sprite": "assets/img/npc/sprite_dozh.png",
-  "unknown_label": "Старьёвщик за ящиками"
+  "unknown_label": "Старьёвщик за ящиками",
+  "combat_figure": "assets/img/npc/fig_dozh.png",
+  "figure_mode": "topdown"
 }

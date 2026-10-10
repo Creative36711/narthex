@@ -4,7 +4,7 @@
   "category": "container",
   "label": "Железный шкафчик",
   "description": "Личный шкафчик мастера: спецовка, мыло и то, что не оставляют на столе.",
-  "weight": 45.0,
+  "weight": 45,
   "stackable": false,
   "value": {
     "mark": 0

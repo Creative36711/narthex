@@ -4,7 +4,7 @@
   "category": "prop",
   "label": "Доска объявлений",
   "description": "Листы в два слоя: верхние о режиме тишины, нижние — о пропавших. Нижние висят дольше.",
-  "weight": 8.0,
+  "weight": 8,
   "stackable": false,
   "value": {
     "mark": 0

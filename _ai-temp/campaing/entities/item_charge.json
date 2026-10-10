@@ -35,5 +35,6 @@
         }
       ]
     }
-  ]
+  ],
+  "quest_item": true
 }

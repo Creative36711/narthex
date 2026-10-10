@@ -9,20 +9,20 @@
   "chapter": "ch_deep",
   "states": [
     {
+      "id": "state_main",
+      "label": "Глухая штольня",
+      "condition": null,
+      "image": "assets/img/scenes/scene_drift.jpg"
+    },
+    {
       "id": "state_open",
-      "label": "Тайник вскрыт",
+      "label": "Открытый тайник",
       "condition": {
         "flag": "cache_open"
       },
       "image": "assets/img/scenes/scene_drift_open.jpg",
       "sound": "sfx_lock",
       "sound_volume": 0.7
-    },
-    {
-      "id": "state_main",
-      "label": "Всегда",
-      "condition": null,
-      "image": "assets/img/scenes/scene_drift.jpg"
     }
   ],
   "slots": [
@@ -51,10 +51,10 @@
         "prop"
       ],
       "shape": "rect",
-      "x": 240,
-      "y": 140,
-      "w": 130,
-      "h": 130,
+      "x": 275,
+      "y": 30,
+      "w": 150,
+      "h": 160,
       "condition": null,
       "default_entity": "item_vent",
       "sound": "snd_vent",
@@ -68,10 +68,10 @@
         "item"
       ],
       "shape": "rect",
-      "x": 540,
-      "y": 340,
-      "w": 160,
-      "h": 210,
+      "x": 365,
+      "y": 245,
+      "w": 130,
+      "h": 160,
       "condition": null,
       "default_entity": "item_marker",
       "sound": "snd_stone",
@@ -83,10 +83,10 @@
     {
       "label": "В забой",
       "area": {
-        "x": 1050,
-        "y": 100,
-        "w": 220,
-        "h": 270
+        "x": 700,
+        "y": 300,
+        "w": 240,
+        "h": 220
       },
       "go_to_scene": "scene_face",
       "cost_ticks": 1

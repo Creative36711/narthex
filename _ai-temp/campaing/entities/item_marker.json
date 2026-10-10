@@ -4,7 +4,7 @@
   "category": "clue",
   "label": "Маркер забоя",
   "description": "Железная табличка с номером забоя и меткой Цеха: «не брать». Кто-то закрасил «не».",
-  "weight": 2.0,
+  "weight": 2,
   "stackable": false,
   "value": {
     "mark": 0

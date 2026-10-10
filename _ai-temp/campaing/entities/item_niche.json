@@ -4,7 +4,7 @@
   "category": "container",
   "label": "Ниша в кладке",
   "description": "Узкая ниша, где мастера прячут то, что нельзя носить в кармане наряда.",
-  "weight": 0.0,
+  "weight": 0,
   "stackable": false,
   "value": {
     "mark": 0

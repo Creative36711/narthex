@@ -7,7 +7,7 @@
   "weight": 0.3,
   "stackable": true,
   "value": {
-    "mark": 20
+    "mark": 15
   },
   "on_use": {
     "effects": [

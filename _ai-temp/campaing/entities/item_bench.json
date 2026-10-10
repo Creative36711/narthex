@@ -4,7 +4,7 @@
   "category": "prop",
   "label": "Верстак",
   "description": "Тиски, наковальня и ящик с ломом. Всё, что можно собрать, здесь собирается само.",
-  "weight": 40.0,
+  "weight": 40,
   "stackable": false,
   "value": {
     "mark": 0

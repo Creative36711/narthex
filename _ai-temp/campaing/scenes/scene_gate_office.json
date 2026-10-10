@@ -9,20 +9,20 @@
   "chapter": "ch_arrival",
   "states": [
     {
+      "id": "state_main",
+      "label": "Дело на столе",
+      "condition": null,
+      "image": "assets/img/scenes/scene_gate_office.jpg"
+    },
+    {
       "id": "state_pinned",
-      "label": "Дело №137 сшито",
+      "label": "Сшитое дело",
       "condition": {
         "flag": "case_full"
       },
       "image": "assets/img/scenes/scene_gate_office_pinned.jpg",
       "sound": "sfx_file",
       "sound_volume": 0.75
-    },
-    {
-      "id": "state_main",
-      "label": "Всегда",
-      "condition": null,
-      "image": "assets/img/scenes/scene_gate_office.jpg"
     }
   ],
   "slots": [
@@ -34,10 +34,10 @@
         "item"
       ],
       "shape": "rect",
-      "x": 200,
-      "y": 180,
-      "w": 190,
-      "h": 280,
+      "x": 55,
+      "y": 135,
+      "w": 235,
+      "h": 470,
       "condition": null,
       "default_entity": "item_case",
       "sound": "sfx_book",
@@ -52,10 +52,10 @@
         "item"
       ],
       "shape": "rect",
-      "x": 470,
-      "y": 380,
-      "w": 380,
-      "h": 190,
+      "x": 592,
+      "y": 425,
+      "w": 259,
+      "h": 203,
       "condition": null,
       "default_entity": "item_desk",
       "sound": "snd_paper",
@@ -69,10 +69,10 @@
         "prop"
       ],
       "shape": "rect",
-      "x": 150,
-      "y": 480,
-      "w": 200,
-      "h": 130,
+      "x": 301,
+      "y": 380,
+      "w": 280,
+      "h": 152,
       "condition": null,
       "default_entity": "item_cot",
       "sound": "snd_cloth",
@@ -87,10 +87,10 @@
         "workbench"
       ],
       "shape": "rect",
-      "x": 920,
-      "y": 350,
-      "w": 300,
-      "h": 210,
+      "x": 1000,
+      "y": 420,
+      "w": 280,
+      "h": 280,
       "condition": null,
       "default_entity": "item_bench",
       "sound": "sfx_anvil",
@@ -102,13 +102,14 @@
     {
       "label": "В шлюзовую камеру",
       "area": {
-        "x": 40,
-        "y": 290,
-        "w": 92,
-        "h": 210
+        "x": 690,
+        "y": 140,
+        "w": 165,
+        "h": 275
       },
       "go_to_scene": "scene_gate_hall",
-      "cost_ticks": 0
+      "cost_ticks": 0,
+      "conditions": []
     },
     {
       "label": "На схему ярусов",
@@ -145,6 +146,18 @@
         "snd_city_amb"
       ],
       "volume": 0.38
+    },
+    {
+      "sounds": [
+        "snd_fire"
+      ],
+      "volume": 0.22,
+      "conditions": [
+        {
+          "flag": "lockdown",
+          "type": "flag_not_set"
+        }
+      ]
     }
   ],
   "lighting": "indoor",
@@ -152,7 +165,7 @@
   "narrative_intro": [
     {
       "text": "В будке пахнет маслом и чужим табаком. Журнал лежит раскрытым, будто из него только что вышли.",
-      "sfx": "snd_fire",
+      "sfx": "sfx_fire",
       "voice": "assets/voice/intro_gate_office_1.mp3"
     },
     {

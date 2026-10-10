@@ -4,7 +4,7 @@
   "category": "prop",
   "label": "Дверь каморки мастера",
   "description": "Железная дверь с номером мастера. Замок цел, ключа в связке Надзора не значится.",
-  "weight": 70.0,
+  "weight": 70,
   "stackable": false,
   "value": {
     "mark": 0

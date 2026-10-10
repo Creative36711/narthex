@@ -24,10 +24,20 @@ VAR r = 0
 * { not (get_flag("zhuk_paid")) } [Что ты видел в ночь тринадцатого?]
     ~ r = skill_check("persuade", 50)
     {r: -> Начало_hub_ok1 | -> Начало_hub_no1}
-+ { item_count("item_mark") >= 50 and not (get_flag("zhuk_paid")) } [Пятьдесят марок. Вспоминай.]
++ { item_count("item_mark") >= 35 and get_flag("dozh_who") and not (get_flag("zhuk_paid")) } [Я от Дожа. Тридцать пять марок.]
+    От Дожа? Ладно, старику не откажу: он меня кормил, когда я ещё в карманах путался. Тридцать пять, и ни маркой меньше. # emotion: thoughtful # voice: assets/voice/zhuk_19.mp3
+    Он протягивает руку, не глядя. Марки исчезают в рукаве. # action # sfx: sfx_coin # voice: assets/voice/narr_zhuk_2.mp3
+    Стража Келла, двенадцать человек, вниз. Мастер — наверх, потом снова вниз, с сердцевиной в сумке. А наряд в архиве подшит к делу тринадцать-К: без пломбы тебе его не дадут. # voice: assets/voice/zhuk_11.mp3
+    ~ remove_item("item_mark", 35)
+    ~ set_flag("zhuk_paid")
+    ~ set_flag("zhuk_dozh_price")
+    ~ fire_rule("rule_zhuk_info")
+    -> Начало_hub
++ { item_count("item_mark") >= 50 and not (get_flag("dozh_who")) and not (get_flag("zhuk_paid")) } [Пятьдесят марок. Вспоминай.]
     Он протягивает руку, не глядя. Марки исчезают в рукаве. # action # sfx: sfx_coin # voice: assets/voice/narr_zhuk_2.mp3
     Стража Келла, двенадцать человек, вниз. Мастер — наверх, потом снова вниз, с сердцевиной в сумке. А наряд в архиве подшит к делу тринадцать-К: без пломбы тебе его не дадут. # voice: assets/voice/zhuk_11.mp3
     ~ remove_item("item_mark", 50)
+    ~ set_flag("zhuk_paid")
     ~ fire_rule("rule_zhuk_info")
     -> Начало_hub
 + { get_flag("zhuk_paid") } [Кто заказал остановку помпы?]
@@ -47,9 +57,26 @@ VAR r = 0
 Ниже восьмого. Там, где жила поёт. Хочешь — спускайся, хочешь — живи. # emotion: calm # voice: assets/voice/zhuk_3.mp3
     ~ fire_rule("rule_reveal_deep")
     -> Начало_hub
++ { get_flag("lockdown") and not (get_flag("zhuk_patrol_tip")) and not (get_flag("patrol_pump_met")) and item_count("item_mark") >= 10 } [Сколько стоит пройти мимо дежурных у помпы? (10 марок)]
+    Жук пересчитывает марки на ощупь, не опуская глаз. # action # sfx: sfx_coin # voice: assets/voice/narr_zhuk_7.mp3
+    Дежурным у седьмой платят за смену, не за кровь. Старший — тот, что с перебитым носом: у него жена на девятом, и он считает часы до конца вахты. # emotion: thoughtful # voice: assets/voice/zhuk_15.mp3
+    Назови ему дело и скажи, что после тебя придёт Надзор, а не ты. Ключ держи за поясом: потянешься — разговор кончится, а их там двое. # emotion: calm # voice: assets/voice/zhuk_16.mp3
+    ~ remove_item("item_mark", 10)
+    ~ set_flag("zhuk_patrol_tip")
+    -> Начало_hub
 + { has_item("item_glove") } [Узнаёшь рукавицу? Семёрка на манжете, заплата на пальце.]
     Партия седьмого яруса, прошлогодняя выдача. Я сам эти тюки через шлюз принимал — брезент двойной, сносу нет. # emotion: calm # voice: assets/voice/zhuk_13.mp3
     А заплата — это к Айле или к Ире: караульные у нас гордые, но когда палец мёрзнет, идут кланяться в Сухой ряд. # emotion: thoughtful # voice: assets/voice/zhuk_14.mp3
+    -> Начало_hub
++ { get_flag("glazier_named") and not (get_flag("zhuk_glazier")) } [Сыч носит стекло наверх. Мимо тебя.]
+    ~ set_flag("zhuk_glazier")
+    Мимо меня, это правда. Мне стекло ни к чему: на нём внизу долго не живут. # emotion: calm # voice: assets/voice/zhuk_17.mp3
+    Квитанции с завитком, говоришь? Внизу так не пишут, внизу ставят крестик. Сверь завиток с любой бумагой из конторы — увидишь, чья рука. # emotion: thoughtful # voice: assets/voice/zhuk_18.mp3
+    ~ change_disposition("npc_zhuk", 3)
+    -> Начало_hub
+* { get_flag("kell_pressed") and not (get_flag("case_registered")) and not (get_flag("zhuk_warn")) } [Что слышно про Келла?]
+    ~ set_flag("zhuk_warn")
+    Слыхал, ты Келлу на мозоль наступил. Ночью в конторе дверь подпирай: бумагу, которой нет в реестре, жгут вместе с печкой. # emotion: thoughtful # voice: assets/voice/zhuk_20.mp3
     -> Начало_hub
 + [Пока.]
     -> DONE

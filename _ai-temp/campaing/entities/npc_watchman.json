@@ -18,7 +18,7 @@
     "CHA": 1
   },
   "skills": {
-    "brawl": 50,
+    "brawl": 45,
     "perception": 48,
     "dodge": 15
   },
@@ -56,5 +56,12 @@
     "attack": "sfx_machine",
     "hit": "sfx_gear",
     "death": "sfx_machine"
+  },
+  "combat_figure": "assets/img/npc/fig_watchman.png",
+  "figure_mode": "topdown",
+  "breathe": false,
+  "combat_figure_states": {
+    "down": "assets/img/npc/fig_watchman_dead.png",
+    "dead": "assets/img/npc/fig_watchman_dead.png"
   }
 }

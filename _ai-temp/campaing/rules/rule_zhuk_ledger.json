@@ -18,6 +18,13 @@
       "type": "play_sound",
       "sound": "sfx_flip",
       "volume": 0.7
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_zhuk_ledger.jpg",
+      "text": "Жук листает гроссбух и тихо присвистывает.",
+      "preset": "шёпот",
+      "seconds": 5
     }
   ],
   "chapter": "ch_price"

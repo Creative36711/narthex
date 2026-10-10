@@ -12,16 +12,16 @@
     "calm": "assets/img/npc/kell_calm.jpg"
   },
   "stats": {
-    "STR": 14,
+    "STR": 13,
     "CON": 13,
-    "SIZ": 13,
+    "SIZ": 11,
     "DEX": 11,
     "INT": 10,
     "POW": 11,
     "CHA": 9
   },
   "skills": {
-    "blade": 52,
+    "blade": 48,
     "brawl": 50,
     "shoot": 42,
     "intimidate": 58,
@@ -57,5 +57,11 @@
     "attack": "snd_blade",
     "hit": "sfx_hit",
     "death": "snd_cloth"
+  },
+  "combat_figure": "assets/img/npc/fig_kell.png",
+  "figure_mode": "topdown",
+  "combat_figure_states": {
+    "down": "assets/img/npc/fig_kell_down.png",
+    "dead": "assets/img/npc/fig_kell_down.png"
   }
 }

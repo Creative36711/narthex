@@ -1,43 +1,43 @@
 {
- "id": "recipe_charge",
- "label": "Заряд из сердцевины",
- "description": "Сердцевина, лом и масло. Один удар — и затвор перестаёт существовать.",
- "inputs": [
-  {
-   "item": "item_core",
-   "quantity": 1
+  "id": "recipe_charge",
+  "label": "Заряд из сердцевины",
+  "description": "Сердцевина, лом и масло. Один удар — и затвор перестаёт существовать.",
+  "inputs": [
+    {
+      "item": "item_core",
+      "quantity": 1
+    },
+    {
+      "item": "item_scrap",
+      "quantity": 2
+    },
+    {
+      "item": "item_oil",
+      "quantity": 1
+    }
+  ],
+  "tools": [
+    "item_wrench"
+  ],
+  "skill": {
+    "id": "repair",
+    "difficulty": 55
   },
-  {
-   "item": "item_scrap",
-   "quantity": 2
+  "time_ticks": 2,
+  "output": {
+    "item": "item_charge",
+    "quantity": 1
   },
-  {
-   "item": "item_oil",
-   "quantity": 1
-  }
- ],
- "tools": [
-  "item_wrench"
- ],
- "skill": {
-  "id": "repair",
-  "difficulty": 55
- },
- "time_ticks": 2,
- "output": {
-  "item": "item_charge",
-  "quantity": 1
- },
- "message": "Заряд готов. Он тёплый и, кажется, дышит.",
- "known": false,
- "workbench": true,
- "category": "misc",
- "conditions": [
-  {
-   "type": "flag_set",
-   "flag": "resh_charge_recipe"
-  }
- ],
- "sound": "snd_charge",
- "sound_volume": 0.8
+  "message": "Заряд готов. Он тёплый и, кажется, дышит.",
+  "known": false,
+  "workbench": true,
+  "category": "misc",
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "resh_charge_recipe"
+    }
+  ],
+  "sound": "snd_charge",
+  "sound_volume": 0.8
 }

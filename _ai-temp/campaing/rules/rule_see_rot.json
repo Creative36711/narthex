@@ -11,6 +11,13 @@
   ],
   "effects": [
     {
+      "type": "postcard",
+      "image": "assets/img/pc_rotling.jpg",
+      "text": "Он ждёт твоего шага.",
+      "preset": "шёпот",
+      "seconds": 4
+    },
+    {
       "type": "unlock_codex",
       "entry": "codex_rot"
     },

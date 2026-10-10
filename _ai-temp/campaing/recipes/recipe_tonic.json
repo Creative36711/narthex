@@ -1,27 +1,28 @@
 {
- "id": "recipe_tonic",
- "label": "Настой Айлы",
- "description": "Чистая вода и жильное масло: лекари Сухого ряда клянутся, что помогает.",
- "inputs": [
-  {
-   "item": "item_water",
-   "quantity": 1
+  "id": "recipe_tonic",
+  "label": "Настой Айлы",
+  "description": "Чистая вода и жильное масло: лекари Сухого ряда клянутся, что помогает.",
+  "inputs": [
+    {
+      "item": "item_water",
+      "quantity": 1
+    },
+    {
+      "item": "item_oil",
+      "quantity": 1
+    }
+  ],
+  "skill": {
+    "id": "medicine",
+    "difficulty": 40
   },
-  {
-   "item": "item_oil",
-   "quantity": 1
-  }
- ],
- "skill": {
-  "id": "medicine",
-  "difficulty": 40
- },
- "time_ticks": 1,
- "output": {
-  "item": "item_tonic",
-  "quantity": 1
- },
- "message": "Настой получился мутным, тёплым и почти съедобным.",
- "sound": "snd_pot",
- "sound_volume": 0.8
+  "time_ticks": 1,
+  "output": {
+    "item": "item_tonic",
+    "quantity": 1
+  },
+  "message": "Настой получился мутным, тёплым и почти съедобным.",
+  "sound": "snd_pot",
+  "sound_volume": 0.8,
+  "known": false
 }

@@ -9,6 +9,12 @@
   "chapter": "ch_price",
   "states": [
     {
+      "id": "state_main",
+      "label": "Приёмные часы",
+      "condition": null,
+      "image": "assets/img/scenes/scene_office.jpg"
+    },
+    {
       "id": "state_lockdown",
       "label": "Режим тишины",
       "condition": {
@@ -17,12 +23,6 @@
       "image": "assets/img/scenes/scene_office_lockdown.jpg",
       "sound": "sfx_lockdown",
       "sound_volume": 0.85
-    },
-    {
-      "id": "state_main",
-      "label": "Всегда",
-      "condition": null,
-      "image": "assets/img/scenes/scene_office.jpg"
     }
   ],
   "slots": [
@@ -33,10 +33,10 @@
         "person"
       ],
       "shape": "rect",
-      "x": 520,
-      "y": 230,
-      "w": 280,
-      "h": 310,
+      "x": 250,
+      "y": 170,
+      "w": 150,
+      "h": 420,
       "condition": null,
       "default_entity": "npc_kast",
       "sound": "snd_paper",
@@ -50,9 +50,9 @@
       ],
       "shape": "rect",
       "x": 960,
-      "y": 260,
-      "w": 200,
-      "h": 400,
+      "y": 220,
+      "w": 150,
+      "h": 480,
       "condition": null,
       "default_entity": "npc_kell",
       "sound": "snd_blade",

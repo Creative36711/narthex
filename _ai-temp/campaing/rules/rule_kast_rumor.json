@@ -1,0 +1,47 @@
+{
+  "id": "rule_kast_rumor",
+  "label": "Слух дошёл до инспектора",
+  "once": true,
+  "manual": false,
+  "chapter": "ch_price",
+  "trigger": "always",
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "kast_alerted"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "lockdown"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "case_ended"
+    },
+    {
+      "type": "player_enters_location",
+      "location": "loc_surface"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "kast_hand"
+    }
+  ],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_kast_rumor.jpg",
+      "text": "Наверху уже знают.",
+      "preset": "шёпот",
+      "seconds": 4
+    },
+    {
+      "type": "show_message",
+      "text": "В конторе Надзора на тебя смотрят иначе: писарь у входа слишком старательно не поднимает глаз. Вопрос про подпись на расходе дошёл наверх раньше тебя — внизу языки длинные, а инспектор умеет слушать."
+    },
+    {
+      "type": "fire_rule",
+      "rule": "rule_lockdown"
+    }
+  ]
+}

@@ -1,32 +1,32 @@
 {
- "id": "recipe_filter",
- "label": "Собрать дыхатель",
- "description": "Тряпьё, лом и кусок жильного стекла в обойме: ниже восьмого яруса это единственная вещь, которая считает вдохи.",
- "inputs": [
-  {
-   "item": "item_cloth",
-   "quantity": 2
+  "id": "recipe_filter",
+  "label": "Собрать дыхатель",
+  "description": "Тряпьё, лом и кусок жильного стекла в обойме: ниже восьмого яруса это единственная вещь, которая считает вдохи.",
+  "inputs": [
+    {
+      "item": "item_cloth",
+      "quantity": 2
+    },
+    {
+      "item": "item_scrap",
+      "quantity": 1
+    }
+  ],
+  "tools": [
+    "item_wrench"
+  ],
+  "skill": {
+    "id": "repair",
+    "difficulty": 40
   },
-  {
-   "item": "item_scrap",
-   "quantity": 1
-  }
- ],
- "tools": [
-  "item_wrench"
- ],
- "skill": {
-  "id": "repair",
-  "difficulty": 40
- },
- "time_ticks": 2,
- "output": {
-  "item": "item_filter",
-  "quantity": 1
- },
- "message": "Маска села плотно. Пахнет маслом и, слава помпам, ничем больше.",
- "workbench": true,
- "category": "gear",
- "sound": "sfx_gear",
- "sound_volume": 0.7
+  "time_ticks": 2,
+  "output": {
+    "item": "item_filter",
+    "quantity": 1
+  },
+  "message": "Маска села плотно. Пахнет маслом и, слава помпам, ничем больше.",
+  "workbench": true,
+  "category": "gear",
+  "sound": "sfx_gear",
+  "sound_volume": 0.7
 }

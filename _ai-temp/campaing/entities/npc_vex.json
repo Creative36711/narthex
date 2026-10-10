@@ -2,7 +2,7 @@
   "id": "npc_vex",
   "type": "npc",
   "label": "Векс, смотритель шлюза",
-  "description": "Хозяин седьмого шлюза: крюк вместо левой кисти, вечный мазут на рукавах и привычка считать всех проходящих дважды.",
+  "description": "Хозяин седьмого шлюза: крюк вместо правой кисти, вечный мазут на рукавах и привычка считать всех проходящих дважды.",
   "portrait": {
     "neutral": "assets/img/npc/vex_neutral.jpg",
     "angry": "assets/img/npc/vex_angry.jpg",
@@ -91,5 +91,7 @@
   "sounds": {
     "talk": "sfx_click"
   },
-  "scene_sprite": "assets/img/npc/sprite_vex.png"
+  "scene_sprite": "assets/img/npc/sprite_vex.png",
+  "combat_figure": "assets/img/npc/fig_vex.png",
+  "figure_mode": "topdown"
 }

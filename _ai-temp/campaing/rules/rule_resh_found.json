@@ -37,6 +37,13 @@
       "type": "play_sound",
       "sound": "sfx_hum",
       "volume": 0.6
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_resh_found.jpg",
+      "text": "Мастер Реш. Живой — и всё ещё с записями.",
+      "preset": "глава",
+      "seconds": 6
     }
   ],
   "chapter": "ch_deep",

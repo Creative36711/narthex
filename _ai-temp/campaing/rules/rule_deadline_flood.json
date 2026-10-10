@@ -35,6 +35,5 @@
       "reason": "Семьдесят два часа вышли. Восьмой ярус ушёл под тяжёлую воду."
     }
   ],
-  "chapter": "ch_final",
-  "trigger": "time_tick"
+  "chapter": "ch_final"
 }

@@ -9,10 +9,17 @@
   "chapter": "ch_deep",
   "states": [
     {
+      "id": "state_main",
+      "label": "Жила в породе",
+      "condition": null,
+      "image": "assets/img/scenes/scene_face.jpg"
+    },
+    {
       "id": "state_sealed",
-      "label": "Шов стянут свинцовым бандажом",
+      "label": "Шов стянут",
       "condition": {
-        "flag": "vein_braced"
+        "flag": "vein_braced",
+        "not_flag": "core_taken"
       },
       "image": "assets/img/scenes/scene_face_sealed.jpg",
       "sound": "sfx_brace",
@@ -20,19 +27,13 @@
     },
     {
       "id": "state_collared",
-      "label": "Сердцевина вынута из тайника",
+      "label": "Сердцевина вынута",
       "condition": {
         "flag": "core_taken"
       },
       "image": "assets/img/scenes/scene_face_collared.jpg",
       "sound": "sfx_hum",
       "sound_volume": 0.7
-    },
-    {
-      "id": "state_main",
-      "label": "Всегда",
-      "condition": null,
-      "image": "assets/img/scenes/scene_face.jpg"
     }
   ],
   "slots": [
@@ -43,10 +44,10 @@
         "person"
       ],
       "shape": "rect",
-      "x": 60,
-      "y": 330,
-      "w": 240,
-      "h": 350,
+      "x": 110,
+      "y": 280,
+      "w": 150,
+      "h": 420,
       "condition": {
         "not_flag": "resh_joined"
       },
@@ -65,7 +66,9 @@
       "y": 100,
       "w": 680,
       "h": 520,
-      "condition": null,
+      "condition": {
+        "not_flag": "vein_hidden"
+      },
       "default_entity": "npc_vein",
       "sound": "sfx_hum",
       "sound_volume": 0.8
@@ -77,10 +80,10 @@
         "prop"
       ],
       "shape": "rect",
-      "x": 1060,
-      "y": 100,
+      "x": 990,
+      "y": 80,
       "w": 220,
-      "h": 250,
+      "h": 600,
       "condition": null,
       "default_entity": "item_hoist",
       "sound": "snd_chain",
