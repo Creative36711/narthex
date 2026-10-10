@@ -175,7 +175,25 @@ export class CombatController {
     const appearanceFigure = e.heroCombatFigure()
     const weapon = pw.weapon
     const weaponLabel = pw.label
-    const overloaded = e.isOverloaded()
+    const encDebuffs = e.encumbranceDebuffs()
+    const overloaded = encDebuffs.status !== 'normal'
+
+    let playerSkills = p.skills
+    if (overloaded) {
+      playerSkills = { ...p.skills }
+      if (encDebuffs.dodgePenalty > 0) {
+        playerSkills.dodge = Math.max(0, (playerSkills.dodge ?? 0) - encDebuffs.dodgePenalty)
+      }
+      if (encDebuffs.skillPenalty > 0) {
+        if (playerSkills.stealth !== undefined) {
+          playerSkills.stealth = Math.max(0, playerSkills.stealth - encDebuffs.skillPenalty)
+        }
+        if (playerSkills.athletics !== undefined) {
+          playerSkills.athletics = Math.max(0, playerSkills.athletics - encDebuffs.skillPenalty)
+        }
+      }
+    }
+
     this.combatants.push({
       id: 'c_player',
       entityId: p.entity,
@@ -188,7 +206,7 @@ export class CombatController {
       facing: 90,
       flip: false,
       stats: p.stats,
-      skills: overloaded ? { ...p.skills, dodge: Math.max(0, (p.skills.dodge ?? 0) - 10) } : p.skills,
+      skills: playerSkills,
       weapon,
       weaponLabel,
       weaponItemId: pw.itemId,
@@ -196,7 +214,7 @@ export class CombatController {
       hp: p.hp,
       maxHp: p.max_hp,
       pos: this.takeSpawn(playerSpawns),
-      mov: Math.max(2, movement(p.stats) - (overloaded ? 2 : 0)),
+      mov: Math.max(1, movement(p.stats) - encDebuffs.movPenalty),
       movLeft: 0,
       statuses: [],
       mp: p.mp,
@@ -208,7 +226,13 @@ export class CombatController {
       defensesUsed: 0,
       dead: false,
     })
-    if (overloaded) this.log.push('Вы перегружены: движение −2, уклонение −10.')
+    if (overloaded) {
+      const parts = []
+      if (encDebuffs.movPenalty > 0) parts.push(`движение −${encDebuffs.movPenalty}`)
+      if (encDebuffs.dodgePenalty > 0) parts.push(`уклонение −${encDebuffs.dodgePenalty}%`)
+      if (encDebuffs.skillPenalty > 0) parts.push(`ловкость −${encDebuffs.skillPenalty}%`)
+      this.log.push(`Вы перегружены (${encDebuffs.label}): ${parts.join(', ')}.`)
+    }
 
     // напарники (ТЗ 4.11)
     for (const comp of e.state.party) {

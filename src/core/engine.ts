@@ -1028,7 +1028,7 @@ export class GameEngine {
     this.notify()
   }
 
-  // ─────────────── груз и перегруз (ТЗ 4.6) ───────────────
+  // ─────────────── груз и перегруз (ТЗ 4.6, универсальная BRP-система) ───────────────
 
   currentLoad(): number {
     let sum = 0
@@ -1039,13 +1039,160 @@ export class GameEngine {
     return sum
   }
 
-  maxLoad(): number {
+  /**
+   * Подробный расчёт грузоподъёмности героя с учётом формулы кампании,
+   * расовых/видовых множителей существа и надетой экипировки (рюкзаки, экзоскелеты).
+   */
+  maxLoadDetails(): {
+    base: number
+    formula: string
+    worldMult: number
+    charBonus: number
+    charMult: number
+    equipBonus: number
+    equipMult: number
+    total: number
+  } {
     const s = this.state.player.stats
-    return s.STR + s.SIZ
+    const encRules = this.campaign.meta.encumbrance
+    const formula = encRules?.formula ?? 'str_siz'
+
+    let base = s.STR + s.SIZ
+    if (formula === 'str_con') base = s.STR + s.CON
+    else if (formula === 'str_only') base = s.STR * 2
+    else if (formula === 'fixed') base = Math.max(1, encRules?.capacity_multiplier ?? 20)
+
+    const worldMult = encRules?.capacity_multiplier && formula !== 'fixed' ? encRules.capacity_multiplier : 1.0
+
+    // Расовые/индивидуальные параметры героя
+    const playerDef = this.campaign.entities[this.state.player.entity] as NpcDef | undefined
+    const charBonus = playerDef?.carry_capacity_bonus ?? 0
+    const charMult = playerDef?.carry_capacity_mult ?? 1.0
+
+    // Бонусы от надетой экипировки (рюкзаки, пояса, экзоскелеты)
+    let equipBonus = 0
+    let equipMult = 1.0
+    for (const slotId of Object.keys(this.state.player.equipment)) {
+      const itemId = this.state.player.equipment[slotId]
+      if (!itemId) continue
+      const itemDef = this.campaign.entities[itemId] as ItemDef | undefined
+      if (!itemDef) continue
+      if (typeof itemDef.carry_bonus === 'number') equipBonus += itemDef.carry_bonus
+      if (typeof itemDef.carry_mult === 'number' && itemDef.carry_mult > 0) equipMult *= itemDef.carry_mult
+    }
+
+    const calculated = (base * worldMult * charMult + charBonus + equipBonus) * equipMult
+    const total = Math.max(1, Math.round(calculated * 10) / 10)
+
+    return {
+      base,
+      formula,
+      worldMult,
+      charBonus,
+      charMult,
+      equipBonus,
+      equipMult,
+      total,
+    }
+  }
+
+  maxLoad(): number {
+    return this.maxLoadDetails().total
+  }
+
+  /**
+   * Ступенчатый статус перегруза:
+   * 'normal' — в пределах лимита
+   * 'light' — лёгкий перегруз (1.0x .. 1.5x)
+   * 'heavy' — тяжёлый перегруз (1.5x .. 2.0x)
+   * 'critical' — критический перегруз (> 2.0x, передвижение заблокировано)
+   */
+  encumbranceStatus(): 'normal' | 'light' | 'heavy' | 'critical' {
+    const encRules = this.campaign.meta.encumbrance
+    if (encRules?.enabled === false) return 'normal'
+    const load = this.currentLoad()
+    const max = this.maxLoad()
+    if (load <= max) return 'normal'
+
+    const critThresh = encRules?.critical_threshold ?? 2.0
+    if (critThresh > 0 && load > max * critThresh) return 'critical'
+
+    const heavyThresh = 1.5
+    if (load > max * heavyThresh) return 'heavy'
+
+    return 'light'
+  }
+
+  encumbranceDebuffs(): {
+    status: 'normal' | 'light' | 'heavy' | 'critical'
+    label: string
+    dodgePenalty: number
+    movPenalty: number
+    skillPenalty: number
+    travelMultiplier: number
+    isBlocked: boolean
+  } {
+    const status = this.encumbranceStatus()
+    const encRules = this.campaign.meta.encumbrance
+    if (status === 'normal' || encRules?.enabled === false) {
+      return {
+        status: 'normal',
+        label: 'В норме',
+        dodgePenalty: 0,
+        movPenalty: 0,
+        skillPenalty: 0,
+        travelMultiplier: 1.0,
+        isBlocked: false,
+      }
+    }
+
+    if (status === 'light') {
+      return {
+        status: 'light',
+        label: 'Лёгкий перегруз',
+        dodgePenalty: encRules?.light_dodge_penalty ?? 10,
+        movPenalty: encRules?.light_mov_penalty ?? 1,
+        skillPenalty: encRules?.light_agility_skills_penalty ?? 10,
+        travelMultiplier: encRules?.travel_penalty === false ? 1.0 : (encRules?.light_travel_multiplier ?? 1.5),
+        isBlocked: false,
+      }
+    }
+
+    if (status === 'heavy') {
+      return {
+        status: 'heavy',
+        label: 'Тяжёлый перегруз',
+        dodgePenalty: encRules?.heavy_dodge_penalty ?? 25,
+        movPenalty: encRules?.heavy_mov_penalty ?? 2,
+        skillPenalty: encRules?.heavy_agility_skills_penalty ?? 25,
+        travelMultiplier: encRules?.travel_penalty === false ? 1.0 : (encRules?.heavy_travel_multiplier ?? 2.0),
+        isBlocked: false,
+      }
+    }
+
+    // critical
+    return {
+      status: 'critical',
+      label: 'Критический перегруз',
+      dodgePenalty: encRules?.critical_dodge_penalty ?? 50,
+      movPenalty: encRules?.critical_mov_penalty ?? 3,
+      skillPenalty: encRules?.critical_agility_skills_penalty ?? 50,
+      travelMultiplier: 999,
+      isBlocked: encRules?.travel_penalty !== false,
+    }
   }
 
   isOverloaded(): boolean {
-    return this.currentLoad() > this.maxLoad()
+    return this.encumbranceStatus() !== 'normal'
+  }
+
+  /**
+   * Заблокировано ли перемещение между локациями из-за критического перегруза
+   */
+  isTravelBlockedByOverload(): boolean {
+    const encRules = this.campaign.meta.encumbrance
+    if (encRules?.enabled === false || encRules?.travel_penalty === false) return false
+    return this.encumbranceStatus() === 'critical'
   }
 
   // ─────────────── репутация и фракции (ТЗ 4.8) ───────────────
@@ -2800,9 +2947,19 @@ export class GameEngine {
 
   /** Путешествие между локациями по travel_connections (ТЗ 4.9). */
   travelTo(locationId: string): void {
+    if (this.isTravelBlockedByOverload()) {
+      const load = this.currentLoad()
+      const max = this.maxLoad()
+      this.messages.push({
+        text: `Груз слишком велик (${load.toFixed(1)} кг при лимите ${max.toFixed(1)} кг). Вы не можете отправиться в путь с критическим перегрузом — сбросьте лишние вещи.`,
+      })
+      this.notify()
+      return
+    }
+
     const from = this.findLocation(this.state.location)
     const conn = from?.location.travel_connections.find((c) => c.to === locationId)
-    const cost = conn?.cost_ticks ?? 1
+    const cost = this.travelCost(locationId) ?? conn?.cost_ticks ?? 1
     if (this.state.blocked_paths.includes(`${this.state.location}->${locationId}`)) {
       this.messages.push({ text: 'Путь закрыт.' })
       this.notify()
@@ -2848,10 +3005,42 @@ export class GameEngine {
     )
   }
 
+  /**
+   * Время пути до локации в тиках с учётом штрафов перегруза
+   */
   travelCost(toLocation: string): number | null {
     const from = this.findLocation(this.state.location)
     const conn = from?.location.travel_connections.find((c) => c.to === toLocation)
-    return conn ? conn.cost_ticks : null
+    if (!conn) return null
+    const baseCost = conn.cost_ticks ?? 1
+
+    const encRules = this.campaign.meta.encumbrance
+    if (encRules?.enabled === false || encRules?.travel_penalty === false) {
+      return baseCost
+    }
+
+    const status = this.encumbranceStatus()
+    if (status === 'critical') {
+      return null // заблокировано
+    }
+    if (status === 'heavy') {
+      const mult = encRules?.heavy_travel_multiplier ?? 2.0
+      return Math.max(baseCost + 1, Math.round(baseCost * mult))
+    }
+    if (status === 'light') {
+      const mult = encRules?.light_travel_multiplier ?? 1.5
+      return Math.max(baseCost + 1, Math.round(baseCost * mult))
+    }
+    return baseCost
+  }
+
+  /**
+   * Базовая стоимость пути без учёта штрафа перегруза (для отображения в UI)
+   */
+  travelBaseCost(toLocation: string): number | null {
+    const from = this.findLocation(this.state.location)
+    const conn = from?.location.travel_connections.find((c) => c.to === toLocation)
+    return conn ? (conn.cost_ticks ?? 1) : null
   }
 
   // ─────────────── правила ───────────────

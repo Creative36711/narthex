@@ -495,7 +495,7 @@ function ItemForm({
       )}
 
       <div className="props-group">
-        <h4>Экипировка</h4>
+        <h4>Экипировка и переносимый вес</h4>
         <label className="fld">
           <span>Слот экипировки</span>
           <select
@@ -513,9 +513,43 @@ function ItemForm({
             ))}
           </select>
         </label>
-        <div className="muted small">
+        <div className="muted small" style={{ marginBottom: 8 }}>
           Старым предметам со свойствами оружия/брони слот определяется по этим
           свойствам (Оружие/Броня), пока мастер не выберет свой.
+        </div>
+
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld" data-tip="Добавочная грузоподъёмность героя при надевании этого предмета (рюкзаки, вещевые мешки, портупеи)">
+            <span>Бонус к переносимому весу, кг</span>
+            <input
+              type="number"
+              step="0.5"
+              value={item.carry_bonus ?? ''}
+              placeholder="0"
+              onChange={(e) => {
+                const v = e.target.value === '' ? undefined : Number(e.target.value)
+                if (v !== undefined && v !== 0) item.carry_bonus = v
+                else delete item.carry_bonus
+                commit()
+              }}
+            />
+          </label>
+
+          <label className="fld" data-tip="Множитель переносимого веса при экипировке (например, 1.2 = +20% к лимиту груза)">
+            <span>Множитель веса (x)</span>
+            <input
+              type="number"
+              step="0.05"
+              value={item.carry_mult ?? ''}
+              placeholder="1.0"
+              onChange={(e) => {
+                const v = e.target.value === '' ? undefined : Number(e.target.value)
+                if (v !== undefined && v !== 1) item.carry_mult = v
+                else delete item.carry_mult
+                commit()
+              }}
+            />
+          </label>
         </div>
       </div>
 
@@ -1098,7 +1132,7 @@ function NpcForm({
             </label>
           ))}
         </div>
-        <div className="fld-row" style={{ marginTop: 8 }}>
+        <div className="fld-row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
           <label className="fld" data-tip="Шкура, панцирь, чешуя — снижает получаемый урон. Не путать с надетой бронёй: предмет-броня из снаряжения даёт свои очки поверх природной защиты.">
             <span>Природная защита (очки)</span>
             <input type="number" value={npc.armor ?? 0} onChange={(e) => {
@@ -1107,6 +1141,36 @@ function NpcForm({
               else delete npc.armor
               commit()
             }} />
+          </label>
+          <label className="fld" data-tip="Добавочная грузоподъёмность (кг) сверх формулы STR+SIZ">
+            <span>Бонус к переносимому весу, кг</span>
+            <input
+              type="number"
+              step="1"
+              value={npc.carry_capacity_bonus ?? ''}
+              placeholder="0"
+              onChange={(e) => {
+                const v = e.target.value === '' ? undefined : Number(e.target.value)
+                if (v !== undefined && v !== 0) npc.carry_capacity_bonus = v
+                else delete npc.carry_capacity_bonus
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Множитель переносимого веса (для вьючных животных, мулов, великанов)">
+            <span>Множитель переносимого веса (x)</span>
+            <input
+              type="number"
+              step="0.1"
+              value={npc.carry_capacity_mult ?? ''}
+              placeholder="1.0"
+              onChange={(e) => {
+                const v = e.target.value === '' ? undefined : Number(e.target.value)
+                if (v !== undefined && v !== 1) npc.carry_capacity_mult = v
+                else delete npc.carry_capacity_mult
+                commit()
+              }}
+            />
           </label>
         </div>
         <div className="muted small">

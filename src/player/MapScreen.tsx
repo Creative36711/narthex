@@ -115,7 +115,9 @@ export function MapScreen({ engine, onClose }: Props) {
   if (!region) return null
   const locations = engine.visibleLocations(region)
   const meta = engine.campaign.meta
+  const isOverloadBlocked = engine.isTravelBlockedByOverload()
   const pendingLoc = pending ? locations.find((l) => l.id === pending) : null
+  const pendingBaseCost = pending ? engine.travelBaseCost(pending) : null
   const pendingCost = pending ? engine.travelCost(pending) : null
   const scale = fit * zoom
 
@@ -186,19 +188,22 @@ export function MapScreen({ engine, onClose }: Props) {
             )}
             {locations.map((l) => {
               const here = l.id === engine.state.location
+              const baseCost = engine.travelBaseCost(l.id)
+              const hasRoute = baseCost !== null && !here
               const cost = engine.travelCost(l.id)
               const reachable = cost !== null && !here
+              const blockedByWeight = hasRoute && isOverloadBlocked
               return (
                 <button
                   key={l.id}
-                  className={`map-pin ${here ? 'here' : ''} ${reachable ? 'reachable' : ''} ${l.position.y / size.h > 0.72 ? 'label-up' : ''}`}
+                  className={`map-pin ${here ? 'here' : ''} ${reachable ? 'reachable' : ''} ${blockedByWeight ? 'blocked-weight' : ''} ${l.position.y / size.h > 0.72 ? 'label-up' : ''}`}
                   style={{ left: `${(l.position.x / size.w) * 100}%`, top: `${(l.position.y / size.h) * 100}%` }}
-                  onClick={() => { if (reachable) { setPending(l.id); focusLocation(l.position) } }}
+                  onClick={() => { if (reachable || blockedByWeight) { setPending(l.id); focusLocation(l.position) } }}
                 >
                   <span className="pin-dot" />
                   <span className="pin-label">
                     {l.label}
-                    {here ? '(вы здесь)' : reachable ? ` · ${cost} ${meta.tick_label}.` : ''}
+                    {here ? '(вы здесь)' : blockedByWeight ? ' · ⛔ перегруз' : reachable ? ` · ${cost} ${meta.tick_label}.` : ''}
                   </span>
                 </button>
               )
@@ -223,23 +228,47 @@ export function MapScreen({ engine, onClose }: Props) {
                 </div>
               ) : null
             })()}
-            <p>
-              Отправиться в «{pendingLoc.label}»? Дорога займёт{' '}
-              <b>{pendingCost} {meta.tick_label}.</b>
-            </p>
-            <div className="row-buttons">
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  engine.travelTo(pendingLoc.id)
-                  setPending(null)
-                  onClose()
-                }}
-              >
-                В путь
-              </button>
-              <button className="btn" onClick={() => setPending(null)}>Отмена</button>
-            </div>
+            {isOverloadBlocked ? (
+              <>
+                <p>
+                  <b>⛔ Невозможно отправиться в путь!</b>
+                </p>
+                <p className="small" style={{ color: 'var(--danger, #f56565)', margin: '4px 0 8px' }}>
+                  Критический перегруз: вес поклажи ({engine.currentLoad().toFixed(1)} кг) превышает лимит ({engine.maxLoad().toFixed(1)} кг) более чем вдвое. Сбросьте лишний вес или оставьте вещи в тайнике.
+                </p>
+                <div className="row-buttons">
+                  <button className="btn btn-primary" disabled={true} title="Критический перегруз блокирует путешествия">
+                    В путь
+                  </button>
+                  <button className="btn" onClick={() => setPending(null)}>Отмена</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>
+                  Отправиться в «{pendingLoc.label}»? Дорога займёт{' '}
+                  <b>{pendingCost} {meta.tick_label}.</b>
+                  {pendingBaseCost !== null && pendingCost !== null && pendingCost > pendingBaseCost && (
+                    <span className="small muted" style={{ display: 'block', marginTop: 4, color: 'var(--warn, #ed8936)' }}>
+                      ⚠ Замедление из-за перегруза (+{pendingCost - pendingBaseCost} {meta.tick_label}, базовое время {pendingBaseCost})
+                    </span>
+                  )}
+                </p>
+                <div className="row-buttons">
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      engine.travelTo(pendingLoc.id)
+                      setPending(null)
+                      onClose()
+                    }}
+                  >
+                    В путь
+                  </button>
+                  <button className="btn" onClick={() => setPending(null)}>Отмена</button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

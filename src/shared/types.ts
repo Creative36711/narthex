@@ -848,6 +848,12 @@ export interface CampaignMeta {
   /** реестр атмосферных слоёв из файлов мастера (мастерская спецэффектов) */
   atmospherics?: ParticleEffectDef[]
   /**
+   * Правила перегруза и грузоподъёмности мира (универсальная адаптация BRP).
+   * Позволяет настраивать миры для гигантов, мутантов, хоббитов, фантастики
+   * и экзоскелетов без правок движка.
+   */
+  encumbrance?: EncumbranceRules
+  /**
    * Лагерь и ночлег (аудит B7): действие «Разбить лагерь» в HUD, когда
    * герой в локации с `camp: true`. Отсутствие блока — кнопки нет ни где!
    * Master решает длительность (ticks, умолчание 8), риск вылазки опасности
@@ -1371,6 +1377,51 @@ export interface ParticleEffectDef {
   color_outer?: string
 }
 
+export interface EncumbranceRules {
+  /** Включена ли система перегруза (по умолчанию true) */
+  enabled?: boolean
+  /**
+   * Формула базовой грузоподъёмности:
+   * 'str_siz' | 'str_siz_sum' — классика BRP (STR + SIZ в кг), по умолчанию
+   * 'str_con' — сила + телосложение (STR + CON в кг)
+   * 'str_only' | 'str_x2' — чистая сила (STR * 2 в кг)
+   * 'siz_x2' — чистые габариты (SIZ * 2 в кг)
+   * 'str_plus_half_siz' — STR + (SIZ / 2) в кг
+   * 'fixed' — фиксированное значение из base_capacity
+   */
+  formula?: 'str_siz' | 'str_siz_sum' | 'str_con' | 'str_only' | 'str_x2' | 'siz_x2' | 'str_plus_half_siz' | 'fixed'
+  /** Фиксированная базовая вместимость в кг (при formula === 'fixed', по умолчанию 25) */
+  base_capacity?: number
+  /** Глобальный множитель грузоподъёмности мира (по умолчанию 1.0) */
+  capacity_multiplier?: number
+  /** Влияет ли перегруз на время путешествий между локациями (по умолчанию true) */
+  travel_penalty?: boolean
+  /** Множитель времени при лёгком перегрузе (>1.0x, по умолчанию 1.5) */
+  light_travel_multiplier?: number
+  /** Множитель времени при тяжёлом перегрузе (>1.5x, по умолчанию 2.0) */
+  heavy_travel_multiplier?: number
+  /** Порог критического перегруза, блокирующего перемещение (по умолчанию 2.0x, 0 = не блокировать) */
+  critical_threshold?: number
+  /** Штраф к уклонению в бою при лёгком перегрузе (%, по умолчанию 10) */
+  light_dodge_penalty?: number
+  /** Штраф к перемещению в бою при лёгком перегрузе (MOV, по умолчанию 1) */
+  light_mov_penalty?: number
+  /** Штраф к ловкостным навыкам при лёгком перегрузе (%, по умолчанию 10) */
+  light_agility_skills_penalty?: number
+  /** Штраф к уклонению в бою при тяжёлом перегрузе (%, по умолчанию 25) */
+  heavy_dodge_penalty?: number
+  /** Штраф к перемещению в бою при тяжёлом перегрузе (MOV, по умолчанию 2) */
+  heavy_mov_penalty?: number
+  /** Штраф к ловкостным навыкам при тяжёлом перегрузе (%, по умолчанию 25) */
+  heavy_agility_skills_penalty?: number
+  /** Штраф к уклонению в бою при критическом перегрузе (%, по умолчанию 50) */
+  critical_dodge_penalty?: number
+  /** Штраф к перемещению в бою при критическом перегрузе (MOV, по умолчанию 3) */
+  critical_mov_penalty?: number
+  /** Штраф к ловкостным навыкам при критическом перегрузе (%, по умолчанию 50) */
+  critical_agility_skills_penalty?: number
+}
+
 export interface WeatherDef {
   id: string
   label: string
@@ -1669,6 +1720,10 @@ export interface NpcDef {
   presence_overrides?: PresenceOverride[]
   faction?: string
   base_disposition?: number
+  /** Расовый/индивидуальный бонус к грузоподъёмности (+кг, напр. +5 кг для выносливых рас) */
+  carry_capacity_bonus?: number
+  /** Расовый/индивидуальный множитель грузоподъёмности (напр. 2.5 для мутантов, гигантов, четвероногих) */
+  carry_capacity_mult?: number
   trader?: TraderDef | null
   combat_ai?: string
   /** броня в очках (если нет предмета-брони) */
@@ -1730,6 +1785,10 @@ export interface SpeciesTemplate {
   /** id способностей из реестра кампании */
   abilities?: string[]
   morale?: { below_hp_pct: number; flee_chance: number }
+  /** Расовый/видовой бонус к переносимому весу (+кг) */
+  carry_capacity_bonus?: number
+  /** Расовый/видовой множитель переносимого веса (напр. 3.0 для вьючных животных или мутантов) */
+  carry_capacity_mult?: number
 }
 
 export interface WeaponData {
@@ -1860,6 +1919,10 @@ export interface ItemDef {
   /** слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;
    *  нет — не экипируется. Старым предметам выставляется миграцией. */
   equip_slot?: string
+  /** Бонус к переносимому весу при экипировке (+кг, напр. +10 кг для походного рюкзака) */
+  carry_bonus?: number
+  /** Множитель грузоподъёмности при экипировке (напр. 2.0 для силового экзоскелета) */
+  carry_mult?: number
   /** прозрачный слой поверх портрета героя, когда этот предмет надет */
   hero_appearance?: { overlay: ImageValue; order?: number }
   /** взаимодействие в сцене (бочка с водой и т.п.) */

@@ -114,8 +114,12 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
   else if (sort === 'weight') {
     items.sort((a, b) => (b.def!.weight ?? 0) * b.entry.quantity - (a.def!.weight ?? 0) * a.entry.quantity)
   }
-  const totalWeight = items.reduce((sum, x) => sum + (x.def!.weight ?? 0) * x.entry.quantity, 0)
   const currencies = engine.campaign.meta.currencies
+  const currentLoad = engine.currentLoad()
+  const maxLoad = engine.maxLoad()
+  const loadDetails = engine.maxLoadDetails()
+  const debuffs = engine.encumbranceDebuffs()
+  const isOver = debuffs.status !== 'normal'
 
   return (
     <div className="overlay panel-overlay" onClick={onClose}>
@@ -278,21 +282,24 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
           )
         })}
         </ul>
-        {(() => {
-          const maxLoad = engine.maxLoad()
-          const isOver = totalWeight > maxLoad
-          return (
-            <div className="panel-footer">
-              <span
-                className={isOver ? 'overload' : 'muted'}
-                data-tip={`Грузоподъёмность: СИЛ + РАЗМ = ${maxLoad} кг${isOver ? '. Дебафф при перегрузе: −10% к уклонению в бою.' : ''}`}
-              >
-                Груз: {totalWeight.toFixed(1)} / {maxLoad} кг
-                {isOver && ' — перегруз! (−10% к уклонению)'}
+        <div className="panel-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+          <span
+            className={isOver ? 'overload' : 'muted'}
+            data-tip={`Базовая вместимость: ${loadDetails.base.toFixed(1)} кг (расчёт: ${loadDetails.formula})\n${loadDetails.equipBonus ? `Снаряжение (рюкзаки/сумки): +${loadDetails.equipBonus.toFixed(1)} кг\n` : ''}${loadDetails.charMult !== 1 ? `Расовый множитель: x${loadDetails.charMult}\n` : ''}${loadDetails.equipMult !== 1 ? `Множитель экипировки: x${loadDetails.equipMult}\n` : ''}Итоговый максимум: ${maxLoad.toFixed(1)} кг${isOver ? `\n\nШтрафы перегруза (${debuffs.label}):\n• Уклонение в бою: −${debuffs.dodgePenalty}%\n• Скорость в бою: −${debuffs.movPenalty}\n• Время в пути: ${debuffs.isBlocked ? 'заблокировано (критический вес)' : `+${Math.round((debuffs.travelMultiplier - 1) * 100)}% к длительности дороги`}` : ''}`}
+          >
+            Груз: <b>{currentLoad.toFixed(1)}</b> / {maxLoad.toFixed(1)} кг
+            {isOver && (
+              <span className={`badge ${debuffs.status === 'critical' ? 'badge-danger' : 'badge-warning'}`} style={{ marginLeft: 8 }}>
+                {debuffs.label}
               </span>
-            </div>
-          )
-        })()}
+            )}
+          </span>
+          {isOver && (
+            <span className="small muted" style={{ color: debuffs.status === 'critical' ? 'var(--danger, #f56565)' : 'var(--warn, #ed8936)' }}>
+              {debuffs.isBlocked ? 'Путешествия заблокированы' : `−${debuffs.dodgePenalty}% уклон, −${debuffs.movPenalty} MOV`}
+            </span>
+          )}
+        </div>
       </div>
       {inspectItem && (
         <div className="overlay item-inspect-overlay" onClick={() => setInspectItem(null)}>
@@ -398,7 +405,9 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
   const factions = (engine.campaign.meta.factions ?? []).filter((f) => !f.hidden)
   const load = engine.currentLoad()
   const maxLoad = engine.maxLoad()
-  const isOver = load > maxLoad
+  const loadDetails = engine.maxLoadDetails()
+  const debuffs = engine.encumbranceDebuffs()
+  const isOver = debuffs.status !== 'normal'
   const weapon = engine.playerWeapon()
   const armor = engine.playerArmor()
   const inventoryOn = featureOn(meta, 'inventory')
@@ -508,9 +517,19 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
         <div className="derived-row">
           <span
             className={isOver ? 'overload' : ''}
-            data-tip={`Грузоподъёмность: СИЛ (${p.stats.STR}) + РАЗМ (${p.stats.SIZ}) = ${maxLoad} кг${isOver ? '. Дебафф при перегрузе: −10% к навыку Уклонения в бою.' : ''}`}
+            data-tip={`Базовая вместимость: ${loadDetails.base.toFixed(1)} кг (${loadDetails.formula})
+${loadDetails.equipBonus ? `Снаряжение: +${loadDetails.equipBonus.toFixed(1)} кг
+` : ''}${loadDetails.charMult !== 1 ? `Расовый множитель: x${loadDetails.charMult}
+` : ''}${loadDetails.equipMult !== 1 ? `Множитель экипировки: x${loadDetails.equipMult}
+` : ''}Итоговый максимум: ${maxLoad.toFixed(1)} кг${isOver ? `
+
+Штрафы перегруза (${debuffs.label}):
+• Уклонение в бою: −${debuffs.dodgePenalty}%
+• Скорость в бою: −${debuffs.movPenalty}
+• Время в пути: ${debuffs.isBlocked ? 'заблокировано (критический вес)' : `+${Math.round((debuffs.travelMultiplier - 1) * 100)}%`}` : ''}`}
           >
-            Груз {load.toFixed(1)}/{maxLoad} кг{isOver ? ' — перегруз! (−10% к уклонению)' : ''}
+            Груз {load.toFixed(1)}/{maxLoad.toFixed(1)} кг
+            {isOver && ` — ${debuffs.label} (−${debuffs.dodgePenalty}% уклон${debuffs.movPenalty > 0 ? `, −${debuffs.movPenalty} MOV` : ''})`}`
           </span>
         </div>
         <h3>Снаряжение</h3>

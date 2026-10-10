@@ -1804,6 +1804,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 }
 .map-pin.reachable .pin-dot { background: var(--gold); }
 .map-pin.reachable:hover .pin-dot { background: var(--gold-bright); box-shadow: 0 0 14px var(--gold); }
+.map-pin.blocked-weight .pin-dot { background: var(--red); opacity: 0.85; }
+.map-pin.blocked-weight:hover .pin-dot { background: var(--red-bright); box-shadow: 0 0 12px var(--red); }
 .map-pin.here .pin-dot { background: var(--blue); animation: pulse 2s infinite; }
 .pin-label {
   display: block;
@@ -1827,6 +1829,7 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .map-stage.show-labels .pin-label { opacity: 1; transform: none; }
 .map-pin.here .pin-label { color: var(--blue-bright); }
 .map-pin.reachable .pin-label { color: var(--gold-bright); }
+.map-pin.blocked-weight .pin-label { color: var(--red-bright); }
 
 .travel-confirm {
   position: absolute;
