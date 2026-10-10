@@ -191,8 +191,9 @@ export function DialogueOverlay({ engine }: Props) {
   if (!d) return null
 
   /**
-   * Клик мыши или клавиша: если текущая фраза ещё печатается — показать её сразу;
-   * если фраза завершена и есть ещё реплики — перейти к следующей.
+   * Клик мыши, пробел или кнопка «Далее ▶»:
+   * 1) Если текущая фраза ещё печатается — сразу допечатываем её (показываем предложение целиком).
+   * 2) Если фраза завершена — переходим строго к следующему предложению/реплике.
    */
   const skipOrAdvance = () => {
     clearLineAudio()
@@ -204,21 +205,42 @@ export function DialogueOverlay({ engine }: Props) {
     if (revealed + 1 < lines.length) {
       setTyped(0)
       setRevealed((n) => n + 1)
+    } else {
+      setRevealed(lines.length)
+      setTyped(0)
     }
   }
 
-  // Перелистывание реплик по Space / Enter (стиль визуальных новелл)
+  /**
+   * Кнопка «Пропустить» (или клавиша Esc):
+   * Скипает ВЕСЬ монолог НПС целиком прямо до вариантов ответа игрока.
+   * Озвучка останавливается, все фразы моментально раскрываются и становятся видимыми.
+   */
+  const skipAllLines = () => {
+    clearLineAudio()
+    setLineDone(true)
+    setRevealed(lines.length)
+    setTyped(0)
+  }
+
+  const hasChoices = d.choices.length > 0
+  const allShown = revealed >= lines.length
+
+  // Перелистывание реплик по Space / Enter (одно предложение), скип всего монолога по Escape
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === ' ' || e.key === 'Enter') {
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
         e.preventDefault()
         skipOrAdvance()
+      } else if (e.key === 'Escape' && !allShown) {
+        e.preventDefault()
+        skipAllLines()
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [revealed, typed, full.length, lines.length, current])
+  }, [revealed, typed, full.length, lines.length, current, allShown])
 
   // эмоция реплики, но если правило задало состояние облика (set_entity_state) —
   // оно главнее: персонаж «злой» даже на нейтральной реплике
@@ -230,8 +252,6 @@ export function DialogueOverlay({ engine }: Props) {
     d.npc.portrait?.['default'] ??
     Object.values(d.npc.portrait ?? {})[0]
   const portraitSrc = assetUrlOrNull(engine.campaign, portraitKey)
-  const hasChoices = d.choices.length > 0
-  const allShown = revealed >= lines.length
 
   // ── дедлайн на раздумье (§9 дизайн-документа) ──
   // Отсчёт идёт с момента, когда реплики полностью показаны игроку.
@@ -286,6 +306,19 @@ export function DialogueOverlay({ engine }: Props) {
         </div>
         <div className="dialogue-content">
           <div className="dialogue-top-bar">
+            {!allShown && (
+              <button
+                type="button"
+                className="dlg-skip-btn"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  skipAllLines()
+                }}
+                data-tip="Пропустить весь монолог до вариантов ответа (Esc)"
+              >
+                <Ico n="chevronRight" /> Пропустить
+              </button>
+            )}
             <button
               type="button"
               className="dlg-backlog-btn"
@@ -410,8 +443,20 @@ export function DialogueOverlay({ engine }: Props) {
                   e.stopPropagation()
                   skipOrAdvance()
                 }}
+                data-tip="Следующее предложение (или клик мышью / Пробел)"
               >
                 Далее ▶
+              </button>
+              <button
+                type="button"
+                className="btn btn-small dlg-skip-all-btn"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  skipAllLines()
+                }}
+                data-tip="Пропустить весь монолог до вариантов ответа (Esc)"
+              >
+                Пропустить ⏭
               </button>
             </div>
           )}

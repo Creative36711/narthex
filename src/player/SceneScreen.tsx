@@ -64,6 +64,14 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const [highlightActive, setHighlightActive] = useState(false)
 
+  // Если активировалась открытка, сообщение или катсцена — немедленно закрываем оверлеи взаимодействия с объектами
+  useEffect(() => {
+    if (engine.postcard || engine.messages.length > 0 || engine.cutscene) {
+      setInteractModal(null)
+      setUseModal(null)
+    }
+  }, [engine.postcard, engine.messages.length, engine.cutscene])
+
   // Плавный кинематографичный параллакс фона (lerp в rAF)
   const mouseTarget = useRef({ x: 0, y: 0 })
   const mouseCurrent = useRef({ x: 0, y: 0 })
@@ -499,6 +507,20 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
                 <span className="muted small">
                   {narrativeStep + 1} / {introList.length} · Кликните или нажмите Пробел
                 </span>
+                {introList.length > 1 && narrativeStep + 1 < introList.length && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-small"
+                    onClick={() => {
+                      stopVoiceAudio()
+                      engine.markNarrativeIntroSeen(scene.id)
+                      setNarrativeStep(null)
+                    }}
+                    data-tip="Пропустить всё вступление (Esc)"
+                  >
+                    Пропустить ⏭
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn-primary btn-small"
@@ -515,7 +537,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
       </div>
 
       {/* модалка выбора предмета для слота (блок 8 ТЗ) */}
-      {useModal && (
+      {useModal && !engine.postcard && !engine.messages.length && !engine.cutscene && (
         <div className="overlay message-overlay" onClick={() => setUseModal(null)}>
           <div className="message-box usewith-box" onClick={(e) => e.stopPropagation()}>
             <p>
@@ -544,7 +566,7 @@ export function SceneScreen({ engine, onOpenMap }: Props) {
       )}
 
       {/* окно действий с предметом (фидбек №8): мини-диалог с портретом предмета */}
-      {interactModal && (
+      {interactModal && !engine.postcard && !engine.messages.length && !engine.cutscene && (
         <ItemInteractDialog
           engine={engine}
           item={interactModal.item}
@@ -596,13 +618,8 @@ function ItemInteractDialog({ engine, item, onClose }: { engine: GameEngine; ite
                   onMouseEnter={() => o.emotion && setEmotion(o.emotion)}
                   onMouseLeave={() => setEmotion('neutral')}
                   onClick={() => {
-                    const consume = !!o.consume
-                    const isOpenCraft = o.effects?.some((ef) => ef.type === 'open_craft')
                     engine.runItemInteract(item, o)
-                    // item исчез со сцены, открыт крафт, бой или диалог — немедленно закрываем оверлей предмета!
-                    if (consume || isOpenCraft || engine.craftRequest || engine.combat || engine.dialogue) {
-                      onClose()
-                    }
+                    onClose()
                   }}
                 >
                   <span>{o.label}</span>

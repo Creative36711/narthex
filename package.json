@@ -39,6 +39,7 @@
     "smoke:hero-appearance": "tsx scripts/hero-appearance-smoke.mts",
     "smoke:theme-contrast": "tsx scripts/theme-contrast-smoke.mts",
     "smoke:dialogue-transitions": "tsx scripts/smoke-dialogue-transitions.mts",
+    "smoke:dialogue-skip": "tsx scripts/smoke-dialogue-skip-and-item-modal.mts",
     "smoke:stranger": "tsx scripts/smoke-stranger-and-triggers.mts",
     "smoke:encumbrance": "tsx scripts/encumbrance-smoke.mts",
     "smoke:cutscene-queue": "tsx scripts/smoke-cutscene-postcard-queue.mts",
