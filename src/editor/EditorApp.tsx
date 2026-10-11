@@ -15,7 +15,7 @@ import { WorldEditor } from './WorldEditor'
 import { CutsceneEditor, newCutscene } from './CutsceneEditor'
 import { RecipeEditor, newRecipe } from './RecipeEditor'
 import { CodexEditor, newCodexEntry } from './CodexEditor'
-import { exportChronicle, downloadBlob, importChronicle } from './chronicle'
+import { exportChronicle, exportPatchChronicle, downloadBlob, importChronicle } from './chronicle'
 import {
   createCampaign,
   fetchCampaignIndex,
@@ -23,8 +23,8 @@ import {
   syncIndexEntry,
   type CampaignIndexEntry,
 } from './newCampaign'
-import { stopMusic } from '../shared/music'
-import { setAmbientAudioEnabled } from '../shared/audio'
+import { stopMusic, setMusicCampaign } from '../shared/music'
+import { setAmbientAudioEnabled, setAudioCampaign } from '../shared/audio'
 import { themeVars } from '../shared/theme'
 import { BUILTIN_CODEX_CATEGORIES } from '../shared/types'
 import { ENGINE_VERSION, checkEngine } from '../shared/versions'
@@ -143,12 +143,25 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     if (v === 'paper') localStorage.removeItem('cf_editor_theme')
     else localStorage.setItem('cf_editor_theme', v)
   }
+  // Отслеживание изменений для ИИ и бейджи (можно отключить для мастеров, не использующих ИИ)
+  const [aiDiffEnabled, setAiDiffEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('cf_editor_ai_diff') !== '0'
+  })
+  const toggleAiDiff = () => {
+    setAiDiffEnabled((prev) => {
+      const next = !prev
+      if (next) localStorage.removeItem('cf_editor_ai_diff')
+      else localStorage.setItem('cf_editor_ai_diff', '0')
+      return next
+    })
+  }
   const [testEngine, setTestEngine] = useState<GameEngine | null>(null)
   const [debugOpen, setDebugOpen] = useState(false)
   const [bookOpen, setBookOpen] = useState(false)
   const [bookFile, setBookFile] = useState('README.md')
   const [bookContextual, setBookContextual] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const folderInput = useRef<HTMLInputElement>(null)
 
   const store = useMemo(() => new EditorStore(base), [base])
 
@@ -169,7 +182,21 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     store
       .load()
-      .then(() => setReadyStore(store))
+      .then(() => {
+        setReadyStore(store)
+        // автопочинка при загрузке (битые правила, таблицы встреч не в своём
+        // разделе манифеста): мастер должен видеть, что пакет был повреждён
+        // и что именно редактор исправил на лету
+        if (store.loadWarnings.length) {
+          void showList(
+            'Кампания исправлена при загрузке',
+            store.loadWarnings,
+            'В пакете были файлы, которые движок и редактор не могут читать как есть ' +
+              '(правила без id/conditions или таблицы встреч в manifest.rules). ' +
+              'Редактор разложил их по местам на лету — нажмите «Сохранить», чтобы починка осталась на диске.',
+          )
+        }
+      })
       .catch((e) => setError(String(e)))
   }, [store, base])
 
@@ -520,8 +547,22 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     )
   if (!loaded) return <div className="screen-center"><div className="loading">Загрузка кампании в редактор…</div></div>
 
+  const recordPlaytestResult = async () => {
+    const notes = await askTextArea('Результат плейтеста', {
+      body: 'Запишите, что именно вы проверили, что сработало и какие ошибки встретились. Эта заметка попадёт в отчёт проверки и пакет задания для ИИ.',
+      placeholder: 'Например: прошёл стартовый квест; переход из сцены в храм не срабатывает…',
+      initial: lastPlaytest?.notes ?? '',
+      ok: 'Сохранить результат',
+    })
+    if (notes === null) return
+    setLastPlaytest((previous) => previous ? { ...previous, notes: notes.trim() } : { startedAt: Date.now(), finishedAt: 0, contentHash: '', notes: notes.trim() })
+  }
+
   if (testCampaign) {
     const leaveTest = () => {
+      stopMusic(0.2)
+      setAmbientAudioEnabled(false)
+      setMusicCampaign(null)
       deleteSave(testCampaign.meta.id)
       setLastPlaytest((previous) => previous ? { ...previous, finishedAt: Date.now() } : previous)
       setTestEngine(null)
@@ -530,6 +571,9 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
     const startTest = (choice?: CharChoice) => {
       if (!testCampaign) return
+      setAudioCampaign(testCampaign)
+      setMusicCampaign(testCampaign)
+      setAmbientAudioEnabled(true)
       const e = new GameEngine(testCampaign)
       if (choice) e.applyCharCreation(choice)
       e.start()
@@ -552,7 +596,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           <button className="btn btn-small" onClick={() => void recordPlaytestResult()}>Записать результат</button>
           <button className="btn btn-small" onClick={leaveTest}>Вернуться в редактор</button>
         </div>
-        {debugOpen && testEngine && <PlaytestDebugPanel engine={testEngine} onClose={() => setDebugOpen(false)} />}
+        {debugOpen && testEngine && (
+          <PlaytestDebugPanel
+            engine={testEngine}
+            onClose={() => setDebugOpen(false)}
+            notes={lastPlaytest?.notes ?? ''}
+            onSaveNotes={(n) => setLastPlaytest((prev) => prev ? { ...prev, notes: n } : { startedAt: Date.now(), finishedAt: 0, contentHash: '', notes: n })}
+          />
+        )}
       </div>
     )
   }
@@ -718,22 +769,26 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
-  const recordPlaytestResult = async () => {
-    const notes = await askTextArea('Результат плейтеста', {
-      body: 'Запишите, что именно вы проверили, что сработало и какие ошибки встретились. Эта заметка попадёт в отчёт проверки и пакет задания для ИИ.',
-      placeholder: 'Например: прошёл стартовый квест; переход из сцены в храм не срабатывает…',
-      ok: 'Сохранить результат',
-    })
-    if (notes === null) return
-    setLastPlaytest((previous) => previous ? { ...previous, notes: notes.trim() } : previous)
-  }
-
-  const playtest = async () => {
+  const playtest = async (startSceneId?: string) => {
     try {
       const { doc, warnings } = exportMonolith(store)
       const problems = [...warnings, ...store.validateContent()]
       const campaign = campaignFromMonolith(doc)
       campaign.basePath = base
+      if (startSceneId) {
+        let foundLoc = ''
+        for (const reg of campaign.world.regions) {
+          for (const loc of reg.locations) {
+            if (loc.scenes.includes(startSceneId)) {
+              foundLoc = loc.id
+              break
+            }
+          }
+          if (foundLoc) break
+        }
+        campaign.meta.starting_scene = startSceneId
+        if (foundLoc) campaign.meta.starting_location = foundLoc
+      }
       if (!campaign.meta.starting_scene || !campaign.scenes[campaign.meta.starting_scene]) {
         problems.push(`Стартовая сцена «${campaign.meta.starting_scene || 'не выбрана'}» не найдена.`)
       }
@@ -745,12 +800,21 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       campaign.meta.id = `${campaign.meta.id}__playtest`
       setLastPlaytest({ startedAt: Date.now(), finishedAt: 0, contentHash: campaignContentHash(store) })
       setTestCampaign(campaign)
-      if (!campaign.meta.char_creation) {
+      setMusicCampaign(campaign)
+      setAudioCampaign(campaign)
+      setAmbientAudioEnabled(true)
+      if (startSceneId || !campaign.meta.char_creation) {
         const engine = new GameEngine(campaign)
+        if (startSceneId) {
+          engine.freshRun = false
+        }
         engine.start()
         setTestEngine(engine)
-      } else setTestEngine(null)
-      setDebugOpen(false)
+        setDebugOpen(!!startSceneId)
+      } else {
+        setTestEngine(null)
+        setDebugOpen(false)
+      }
     } catch (e) {
       void showAlert('Не удалось подготовить плейтест', String(e))
     }
@@ -786,6 +850,16 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       void showAlert('Не удалось собрать пакет', String(e))
     } finally {
       setBusy(null)
+    }
+  }
+
+  const doExportPatch = async () => {
+    try {
+      const { blob, filename, modifiedCount } = await exportPatchChronicle(store)
+      downloadBlob(blob, filename)
+      void showAlert('Экспорт изменений для ИИ', `Пакет изменений (${modifiedCount} файлов) успешно сохранён в «${filename}».\nОтправьте этот компактный файл ИИ-агенту — он обновит проект без пересылки всей кампании.`)
+    } catch (e) {
+      void showAlert('Экспорт изменений', String(e))
     }
   }
 
@@ -840,7 +914,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           setSection('scenes')
           const detail = entry.alreadyInstalled
             ? `«${entry.title}» уже установлена; повторная копия не создана.`
-            : `«${entry.title}» добавлена в список кампаний с ID «${entry.id}». Выберите её в списке кампаний сверху, чтобы открыть.`
+            : `«${entry.title}» добавлена в список кампаний — выберите её в списке сверху, чтобы открыть.`
           const importedDetails = [
             detail,
             entry.idWarning,
@@ -920,6 +994,28 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     }
   }
 
+  const doImportDirectory = async (files: FileList | File[]) => {
+    setBusy('Импорт папки…')
+    try {
+      const { importCampaignFromDirectory } = await import('./newCampaign')
+      const entry = await importCampaignFromDirectory(files, resolveChronicleConflict)
+      if (entry.cancelled) return
+      setCampaigns(await fetchCampaignIndex())
+      setSection('scenes')
+      setBase(`/campaigns/${entry.id}`)
+      updateCurrentCampaignDisplay()
+      if (entry.alreadyInstalled) {
+        void showAlert('Кампания открыта', `«${entry.title}» уже установлена в движке.`)
+      } else {
+        void showAlert('Кампания импортирована', `Кампания «${entry.title}» успешно загружена из папки.`)
+      }
+    } catch (e) {
+      void showAlert('Ошибка импорта папки', String(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const chapterOf = (p: string): string | undefined => {
     switch (section) {
       case 'scenes': return store.scene(p)?.chapter
@@ -950,6 +1046,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
   const groupCounts = new Map<string, number>()
   for (const it of items) if (it.group) groupCounts.set(it.group, (groupCounts.get(it.group) ?? 0) + 1)
+
+  const modifiedCount = aiDiffEnabled ? store.getModifiedFiles().length : 0
 
   return (
     <div className={`editor-root ed-theme-${edTheme}`}>
@@ -998,13 +1096,27 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <details className="editor-toolbar-menu">
           <summary className="btn btn-small">Файл <Ico n="chevron" /></summary>
           <div className="editor-toolbar-popup" onClick={(e) => { if ((e.target as HTMLElement).closest('button')) e.currentTarget.closest('details')?.removeAttribute('open') }}>
+            <button className="editor-toolbar-item" onClick={save} disabled={!store.dirty.size}><Ico n="download" /> Сохранить (Ctrl+S)</button>
             <button className="editor-toolbar-item" onClick={newCampaign}><Ico n="plus" /> Новая кампания</button>
-            <button className="editor-toolbar-item danger" onClick={deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
             <div className="editor-toolbar-divider" />
-            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт .chronicle</button>
-            <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON</button>
-            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle…</button>
+            <div className="editor-toolbar-divider" />
+            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle / патча…</button>
+            <button className="editor-toolbar-item" onClick={() => folderInput.current?.click()}><Ico n="folder" /> Импорт папки проекта…</button>
             <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
+            <div className="editor-toolbar-divider" />
+            <button
+              className="editor-toolbar-item"
+              onClick={doExportPatch}
+              disabled={modifiedCount === 0}
+              data-tip={modifiedCount > 0 ? `Экспортировать только изменённые файлы (${modifiedCount}) в микро-архив` : 'Нет изменений относительно исходной базы'}
+            >
+              <Ico n="download" /> Экспорт правок для ИИ (.chronicle)
+              {modifiedCount > 0 && <span className="ai-btn-badge">{modifiedCount}</span>}
+            </button>
+            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт всей кампании (.chronicle)</button>
+            <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON (монолит)</button>
+            <div className="editor-toolbar-divider" />
+            <button className="editor-toolbar-item danger" onClick={deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
           </div>
         </details>
         <details className="editor-toolbar-menu">
@@ -1014,8 +1126,16 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               className="editor-toolbar-item"
               onClick={() => setAuditOpen(true)}
             ><Ico n="check" /> Проверить кампанию</button>
-            <button className="editor-toolbar-item" onClick={() => openAiTask()}><Ico n="sparkle" /> Задание для ИИ</button>
+            <button className="editor-toolbar-item" onClick={() => openAiTask()}><Ico n="sparkle" /> Мастер ИИ</button>
             <button className="editor-toolbar-item" onClick={() => { setBookFile('README.md'); setBookContextual(false); setBookOpen(true) }}><Ico n="book" /> Книга мастера</button>
+            <div className="editor-toolbar-divider" />
+            <button
+              className="editor-toolbar-item"
+              onClick={toggleAiDiff}
+              data-tip={aiDiffEnabled ? 'Отключить счётчик и уведомления о правках для ИИ' : 'Включить отслеживание правок и микро-патчи для ИИ'}
+            >
+              <Ico n="sparkle" /> Подсчёт правок для ИИ: {aiDiffEnabled ? 'Включён' : 'Отключён'}
+            </button>
           </div>
         </details>
         {busy && <span className="muted small">{busy}</span>}
@@ -1025,7 +1145,14 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <button className="btn btn-small btn-primary" onClick={save} disabled={!store.dirty.size} data-tip="Записать изменения кампании на диск">
           <Ico n="download" /> Сохранить
         </button>
-        <button className="btn btn-small editor-playtest-button" onClick={playtest} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" /> Плейтест</button>
+        <button className="btn btn-small editor-audit-button" onClick={() => setAuditOpen(true)} data-tip="Запустить полный аудит кампании (проверка связей, баланса и ошибок)">
+          <Ico n="check" /> Проверка
+        </button>
+        <button className="btn btn-small editor-ai-button" onClick={() => openAiTask()} data-tip="Помощник мастера и ИИ: пакет правок, аудит и чемодан">
+          <Ico n="sparkle" /> Мастер ИИ
+          {modifiedCount > 0 && <span className="ai-btn-badge">{modifiedCount}</span>}
+        </button>
+        <button className="btn btn-small editor-playtest-button" onClick={() => void playtest()} data-tip="Запустить игру поверх редактора без записи изменений на диск"><Ico n="play" /> Плейтест</button>
         <button className="btn btn-small" onClick={() => void exitEditor()} data-tip="Выйти в главное меню игры"><Ico n="exit" /> Выйти</button>
         <input
           ref={fileInput}
@@ -1036,6 +1163,20 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             const f = e.target.files?.[0]
             if (f) doImport(f)
             e.target.value = ''
+          }}
+        />
+        <input
+          ref={folderInput}
+          type="file"
+          // @ts-expect-error webkitdirectory is standard for folder picking
+          webkitdirectory=""
+          directory=""
+          multiple
+          hidden
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? [])
+            e.target.value = ''
+            if (files.length > 0) void doImportDirectory(files)
           }}
         />
       </header>
@@ -1150,7 +1291,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
           {section === 'design' && <DesignDocPanel key={`d-${base}`} store={store} onEditWithAi={() => openAiTask()} />}
           {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
-          {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} />}
+          {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} onPlaytestScene={(sceneId) => void playtest(sceneId)} />}
           {section === 'entities' && sel && <EntityEditor key={sel} store={store} path={sel} />}
           {section === 'rules' && sel && <RuleEditor key={sel} store={store} path={sel} />}
           {section === 'quests' && sel && <QuestEditor key={sel} store={store} path={sel} />}
@@ -1206,6 +1347,17 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         onClose={() => { setAiWizard(false); setAiTaskReport('') }}
       />}
       {bookOpen && <EditorBookPanel section={section} sectionLabel={navLabelOf(section)} initialFile={bookFile} contextual={bookContextual} onClose={() => setBookOpen(false)} />}
+      {busy && (
+        <div className="editor-busy-overlay" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="editor-busy-modal">
+            <div className="spinner" />
+            <div className="editor-busy-title">{busy}</div>
+            <div className="editor-busy-sub muted small">
+              Пожалуйста, подождите: распаковка ресурсов и запись файлов кампании…
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

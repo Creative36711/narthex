@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import {
   charChoiceProblems,
   charCreationTemplateFindings,
@@ -95,7 +95,12 @@ check('бесплатный бонус происхождения к запре�
 
 // Второй образец из локального backlog «Тишина Орфея»: характеристики точны,
 // но исходные призвания недорасходуют 10–30 из 40 очков в разных сочетаниях.
-const monolith = JSON.parse(readFileSync('_backlog/campaign.json', 'utf8')) as { campaign: CampaignMeta & { char_creation: CharCreationDef } }
+// Сам backlog в репозиторий не входит — без него блок пропускается.
+const backlogPath = '_backlog/campaign.json'
+if (!existsSync(backlogPath)) {
+  console.log(`INFO  ${backlogPath} нет — образец «Тишины Орфея» пропущен`)
+} else {
+const monolith = JSON.parse(readFileSync(backlogPath, 'utf8')) as { campaign: CampaignMeta & { char_creation: CharCreationDef } }
 const tishina = monolith.campaign
 const tishinaCreation = tishina.char_creation
 const tishinaFindings = charCreationTemplateFindings(tishinaCreation)
@@ -114,6 +119,7 @@ for (const profession of tishinaCreation.professions ?? []) {
   }
 }
 check('backlog «Тишина Орфея»: все 9 сочетаний после подгонки расходуют ровно 45/40 очков', tishinaExact)
+}
 
 const omittedBrief = buildAiTaskBrief({ mode: 'new' })
 check('по умолчанию бриф не навязывает жанр, масштаб, акценты или боёвку',

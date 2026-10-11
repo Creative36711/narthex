@@ -1,5 +1,6 @@
 import { Ico } from '../shared/icons'
-import { useId, useState } from 'react'
+import { useId, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { FlagAutocomplete } from './FlagAutocomplete'
 import type { Condition, Effect, ImageValue, NpcDef } from '../shared/types'
 import { framesOf } from '../player/frames'
@@ -612,6 +613,20 @@ export function AssetUpload({
   const [url, setUrl] = useState('')
   const [check, setCheck] = useState<UrlCheck | null>(null)
   const [checking, setChecking] = useState(false)
+  const [zoomed, setZoomed] = useState(false)
+
+  useEffect(() => {
+    if (!zoomed) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setZoomed(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoomed])
+
   const accept =
     kind === 'audio'
       ? 'audio/*'
@@ -654,9 +669,22 @@ export function AssetUpload({
           kind === 'audio' ? (
             <audio className="asset-preview-audio" src={assetSrc(store, value)} controls />
           ) : kind === 'font' ? (
-            <div className="img-upload-empty">файл шрифта</div>
+            <div className="asset-preview-font" data-tip={`Подключённый файл: ${value}`}>
+              <div className="asset-font-badge">
+                <Ico n="check" /> Подключён
+              </div>
+              <div className="asset-font-sample">Aa Бб 123</div>
+              <div className="asset-font-filename">{value.split('/').pop() || value}</div>
+            </div>
           ) : (
-            <img className="img-upload-preview" src={assetSrc(store, value)} alt="" />
+            <div
+              className="img-upload-preview-wrap"
+              onClick={() => setZoomed(true)}
+              data-tip="Кликните, чтобы развернуть изображение"
+            >
+              <img className="img-upload-preview" src={assetSrc(store, value)} alt="" />
+              <span className="img-upload-zoom-icon" aria-hidden><Ico n="search" /></span>
+            </div>
           )
         ) : (
           <div className="img-upload-empty">нет файла</div>
@@ -681,6 +709,26 @@ export function AssetUpload({
           )}
         </div>
       </div>
+      {zoomed && value && createPortal(
+        <div className="img-lightbox-overlay" onClick={() => setZoomed(false)}>
+          <div className="img-lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <div className="img-lightbox-header">
+              <span className="img-lightbox-title">{value}</span>
+              <button
+                type="button"
+                className="btn btn-small img-lightbox-close"
+                onClick={() => setZoomed(false)}
+              >
+                <Ico n="close" /> Закрыть (Esc)
+              </button>
+            </div>
+            <div className="img-lightbox-body">
+              <img src={assetSrc(store, value)} alt="" className="img-lightbox-img" />
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
       <div className="img-upload-url">
         <input
           type="url"
@@ -1246,6 +1294,97 @@ export function ChapterSelect({ store, value, onChange }: { store: EditorStore; 
         <option value="">без главы</option>
         {sorted.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
       </select>
+    </label>
+  )
+}
+
+// ─────────────── нотация кубиков без свободного текста ───────────────
+
+/**
+ * Структурный ввод нотации «NdN±M»: число кубиков и тип кости выбираются из
+ * списков, модификатор — числовое поле. Свободный текст в таких полях — это
+ * источник «fdsf654» вместо урона (фидбек 26): списки не дают ввести мусор,
+ * а итоговая строка всегда видна рядом.
+ *
+ * Нестандартное старое значение (например «2d7+1» из импорта) не теряется
+ * молча: показано предупреждением и заменяется только первым же выбором.
+ */
+export function DiceNotationInput({
+  label,
+  value,
+  onChange,
+  tip,
+  optional,
+  compact,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  tip?: string
+  /** разрешить пустое значение («не задано») — с кнопкой сброса */
+  optional?: boolean
+  /** узкий режим (формулы по характеристикам): без итоговой строки «= NdN» */
+  compact?: boolean
+}) {
+  const raw = (value ?? '').trim()
+  const m = /^(\d+)[dD](\d+)([+-]\d+)?$/.exec(raw)
+  const custom = !!raw && !m
+  const count = Number(m?.[1] || 1)
+  const die = Number(m?.[2] || 6)
+  const mod = Number(m?.[3] || 0)
+  const baseCounts = [1, 2, 3, 4, 5, 6]
+  const baseSides = [2, 3, 4, 6, 8, 10, 12, 20, 100]
+  const countOpts = m && !baseCounts.includes(count) ? [...baseCounts, count].sort((a, b) => a - b) : baseCounts
+  const sideOpts = m && !baseSides.includes(die) ? [...baseSides, die].sort((a, b) => a - b) : baseSides
+  const summary = `${count}d${die}${mod > 0 ? `+${mod}` : mod < 0 ? String(mod) : ''}`
+  const emit = (c: number, d: number, mo: number) =>
+    onChange(`${c}d${d}${mo > 0 ? `+${mo}` : mo < 0 ? String(mo) : ''}`)
+  return (
+    <label className={`fld fld-dmg${compact ? ' fld-dmg-compact' : ''}`} data-tip={tip}>
+      <span>{label}</span>
+      <div className="dmg-row">
+        <select value={m ? count : 1} onChange={(e) => emit(Number(e.target.value), die, mod)} aria-label={`${label}: сколько кубиков`}>
+          {countOpts.map((n) => (
+            <option key={n} value={n}>{n}</option>
+          ))}
+        </select>
+        <span className="muted">×</span>
+        <select value={m ? die : 6} onChange={(e) => emit(count, Number(e.target.value), mod)} aria-label={`${label}: тип кости`}>
+          {sideOpts.map((n) => (
+            <option key={n} value={n}>d{n}</option>
+          ))}
+        </select>
+        <span className="muted">+</span>
+        <input
+          type="number"
+          value={m ? mod : 0}
+          onChange={(e) => emit(count, die, Number(e.target.value) || 0)}
+          data-tip="Модификатор (может быть отрицательным)"
+          aria-label={`${label}: модификатор`}
+        />
+        {!compact && (
+          <>
+            <span className="muted">=</span>
+            <span className="dmg-summary">{m ? summary : '—'}</span>
+          </>
+        )}
+        {optional && raw && (
+          <button type="button" className="btn btn-small ce-del" data-tip="Сбросить: не задано" onClick={() => onChange('')}>
+            <Ico n="close" />
+          </button>
+        )}
+      </div>
+      {custom && (
+        <span className="fld-err small" style={{ marginTop: 4, display: 'block' }}>
+          Текущее значение «{raw}» не формата NdN±M — заменится, как только выберете кости.
+        </span>
+      )}
+      {!raw && !optional && (
+        <span className="fld-err small" style={{ marginTop: 4, display: 'block' }}>
+          Значение не задано — выберите кости.
+        </span>
+      )}
+      {!raw && optional && <span className="muted small" style={{ marginTop: 2, display: 'block' }}>не задано</span>}
     </label>
   )
 }

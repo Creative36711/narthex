@@ -63,8 +63,9 @@ function validatePackageSchema(store: EditorStore): string[] {
     }
   }
   for (const filename of store.manifest.encounters ?? []) {
-    const path = `rules/${filename}`
-    issues.push(...validateSchema('EncounterFileDef', store.jsonFiles.get(path), path))
+    const raw = store.jsonFiles.get(`encounters/${filename}`) ?? store.jsonFiles.get(`rules/${filename}`)
+    const path = store.jsonFiles.has(`encounters/${filename}`) ? `encounters/${filename}` : `rules/${filename}`
+    issues.push(...validateSchema('EncounterFileDef', raw, path))
   }
   for (const filename of store.manifest.dialogues ?? []) {
     const path = `dialogues/${filename.replace(/\\.ink$/, '.dlg.json')}`
@@ -133,7 +134,20 @@ export function collectCampaignMedia(store: EditorStore): { local: string[]; ext
   visit(store.world)
   for (const value of store.jsonFiles.values()) visit(value)
   for (const text of store.textFiles.values()) {
+    // 1. Ссылки в кавычках: "assets/..." или 'assets/...'
     for (const match of text.matchAll(/["']([^"'\r\n]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?)(?:[?#][^"'\r\n]*)?)["']/gi)) {
+      const path = match[1].trim()
+      if (isExternal(path)) external.add(path)
+      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ''))
+    }
+    // 2. Ремарки ink без кавычек: # voice: assets/audio/..., # sfx: ..., # music: ...
+    for (const match of text.matchAll(/#\s*(?:voice|sfx|music|ambient|sound|audio)\s*:\s*([^\s\r\n]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?))/gi)) {
+      const path = match[1].trim()
+      if (isExternal(path)) external.add(path)
+      else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ''))
+    }
+    // 3. Любые упоминания путей assets/... без кавычек
+    for (const match of text.matchAll(/\b(assets\/[^\s"'\r\n,;)]+\.(?:avif|gif|jpe?g|png|svg|webp|aac|flac|m4a|mp3|ogg|opus|wav|mp4|mov|webm|otf|ttf|woff2?))/gi)) {
       const path = match[1].trim()
       if (isExternal(path)) external.add(path)
       else local.add(path.split(/[?#]/, 1)[0].replace(/^\.\//, ''))
@@ -180,6 +194,87 @@ async function inspectLocalMedia(store: EditorStore, paths: string[]): Promise<A
   }))
 }
 
+/** Роли изображений, где фон — гарантированный брак: картинка кладётся поверх другого контента. */
+function alphaRolePaths(store: EditorStore): Array<{ path: string; role: string }> {
+  const out: Array<{ path: string; role: string }> = []
+  const art = store.meta.theme?.menu?.title_art
+  if (art) out.push({ path: art, role: 'эмблема меню (theme.menu.title_art) лежит поверх фона меню' })
+  const frameImg = store.meta.theme?.frame?.image
+  if (frameImg) out.push({ path: frameImg, role: 'рамка интерфейса (theme.frame.image) обрамляет окна' })
+
+  for (const atm of store.meta.atmospherics ?? []) {
+    if (atm.sprite) out.push({ path: atm.sprite, role: `спрайт атмосферной частицы «${atm.label || atm.id}»` })
+  }
+
+  for (const p of store.entityPaths()) {
+    const e = store.entity(p)
+    const spr = typeof e.scene_sprite === 'string' ? e.scene_sprite : undefined
+    if (spr) out.push({ path: spr, role: `спрайт в сцене «${e.label}» стоит в слоте поверх фона сцены` })
+    if ('scene_sprite_states' in e && e.scene_sprite_states) {
+      for (const [st, img] of Object.entries(e.scene_sprite_states as Record<string, string>)) {
+        if (typeof img === 'string') out.push({ path: img, role: `спрайт состояния «${st}» в сцене «${e.label}»` })
+      }
+    }
+    const fig = 'combat_figure' in e && typeof e.combat_figure === 'string' ? e.combat_figure : undefined
+    if (fig) out.push({ path: fig, role: `фигурка боя «${e.label}» стоит поверх арены` })
+  }
+  return out
+}
+
+/**
+ * Проверка альфа-канала по углам картинки: если все четыре угла непрозрачные,
+ * изображение почти наверняка с фоном (квадрат-подложка в меню/сцене/бою).
+ * Дыра найдена на кампании «Ржавая литургия»: эмблема меню пришла чёрным
+ * квадратом — чемодан теперь требует прозрачность, а аудит ловит нарушение.
+ */
+async function inspectAlphaRoles(store: EditorStore): Promise<AuditFinding[]> {
+  const findings: AuditFinding[] = []
+  for (const { path, role } of alphaRolePaths(store)) {
+    if (isExternal(path) || path.startsWith('data:') || path.startsWith('blob:')) continue
+    try {
+      const url = `${store.basePath}/${path.split('/').map(encodeURIComponent).join('/')}`
+      const res = await fetch(url, { cache: 'no-store' })
+      if (!res.ok) continue // «файл не найден» уже расскажет медиа-проверка
+      const bmp = await createImageBitmap(await res.blob())
+      const w = bmp.width
+      const h = bmp.height
+      if (!w || !h) continue
+      const ctx = new OffscreenCanvas(w, h).getContext('2d', { willReadFrequently: true })
+      if (!ctx) continue
+      ctx.drawImage(bmp, 0, 0)
+      const corners: Array<[number, number]> = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1]]
+      const opaque = corners.every(([x, y]) => ctx.getImageData(x, y, 1, 1).data[3] === 255)
+      bmp.close?.()
+      if (opaque) {
+        findings.push({
+          severity: 'warning',
+          message: `«${path}»: ${role}, поэтому требуется прозрачный фон (PNG с альфой); у файла непрозрачные углы — похоже на фон-подложку или нарисованную шахматку. Сгенерируйте на хромакее и вырежьте: python3 scripts/cutout-chromakey.py "${path}"`,
+        })
+      }
+    } catch {
+      // не удалось декодить картинку — не критично, расскажут другие проверки
+    }
+  }
+  return findings
+}
+
+/**
+ * Внешние функции, которые движок отдаёт в ink (`src/core/dialogue.ts`).
+ * Если ink зовёт такую функцию без `EXTERNAL`, inkjs не компилирует файл:
+ * проверяем отдельно, потому что симптом — «диалог просто не открылся».
+ */
+const ENGINE_INK_FNS = new Set([
+  'get_flag', 'set_flag', 'add_item', 'remove_item', 'item_count', 'has_item',
+  'skill_check', 'stat_roll', 'opposed_roll', 'get_disposition', 'change_disposition',
+  'in_party', 'join_party', 'open_trade', 'open_craft', 'fire_rule', 'start_quest',
+  'quest_stage', 'advance_time', 'change_need', 'change_hp', 'get_hp', 'get_hp_max',
+  'get_mp', 'get_mp_max', 'get_luck', 'get_level', 'get_xp', 'get_run_day',
+  'get_currency', 'get_need', 'get_stat', 'get_skill', 'get_player_name', 'sleep',
+  'play_cutscene', 'set_description', 'apply_status', 'remove_status', 'has_status',
+  'set_weather', 'weather_is', 'unlock_codex', 'unlock_recipe', 'roll_table', 'gen',
+  'set_dialogue_timer', 'has_meta_achievement', 'get_meta_counter',
+])
+
 export async function validateCampaign(store: EditorStore, lastPlaytest?: PlaytestRecord | null): Promise<CampaignAuditReport> {
   let structure: AuditFinding[] = []
   try {
@@ -198,6 +293,181 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       message: `Шаблон создания персонажа: ${message}`,
     })))
   }
+  // Флаги без пояснения «для чего нужен»: человек ещё вспомнит сам, а ИИ-агент
+  // и чужой мастер — нет. Для ИИ-кампаний поле обязательное (требование чемодана).
+  for (const f of store.meta.flags ?? []) {
+    if (!f.description?.trim()) {
+      structure.push({
+        severity: 'warning',
+        message: `Флаг «${f.label}»: не заполнено поле «Для чего нужен» — без него непонятно, какое событие запоминает флаг и где он читается.`,
+      })
+    }
+  }
+  // Подписи реестров читает человек — и в редакторе, и в HUD (фидбек 27,
+  // пп. 2 и 4). ИИ-агенты иногда кладут в label служебный код вида
+  // «crime_intrusion=Проникновение в тоннели» или «price_blockade*1.5»:
+  // такой реестр мастеру непонятен, а игроку показывается как есть.
+  const registries: Array<{ what: string; items?: Array<{ id: string; label: string }> }> = [
+    { what: 'навыки', items: store.meta.skills },
+    { what: 'категории навыков', items: store.meta.skill_categories },
+    { what: 'преступления', items: store.meta.crimes },
+    { what: 'ценовые события', items: store.meta.price_events },
+    { what: 'флаги', items: store.meta.flags },
+    { what: 'состояния', items: store.meta.statuses },
+    { what: 'потребности', items: store.meta.needs },
+    { what: 'фракции', items: store.meta.factions },
+    { what: 'страсти', items: store.meta.passions_list },
+    { what: 'приверженности', items: store.meta.allegiances },
+    { what: 'категории предметов', items: store.meta.item_categories },
+  ]
+  for (const reg of registries) {
+    for (const item of reg.items ?? []) {
+      const label = (item.label ?? '').trim()
+      if (!label) continue
+      const codeLike =
+        label.includes('=') ||
+        label.includes('*') ||
+        label === item.id ||
+        /^[a-z0-9_]+$/.test(label) && label.includes('_')
+      if (codeLike) {
+        structure.push({
+          severity: 'warning',
+          message: `Подпись в реестре (${reg.what}) «${label}» похожа на служебный код: её читает человек — и мастер в редакторе, и игрок в игре. Напишите название обычными словами, служебное имя подставится само.`,
+        })
+      }
+    }
+  }
+  // Вызов внешней функции без объявления EXTERNAL: inkjs не компилирует файл,
+  // и диалог молча не открывается — самая частая ошибка автора и ИИ.
+  for (const [path, text] of store.textFiles) {
+    if (!/^dialogues\/.+\.ink$/.test(path)) continue
+    const declared = new Set([...text.matchAll(/^\s*EXTERNAL\s+([A-Za-z_][A-Za-z0-9_]*)/gm)].map((m) => m[1]))
+    const missing = new Set<string>()
+    for (const m of text.matchAll(/^\s*~\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/gm)) {
+      const fn = m[1]
+      if (ENGINE_INK_FNS.has(fn) && !declared.has(fn)) missing.add(fn)
+    }
+    for (const m of text.matchAll(/\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)) {
+      const fn = m[1]
+      if (ENGINE_INK_FNS.has(fn) && !declared.has(fn)) missing.add(fn)
+    }
+    if (missing.size) {
+      structure.push({
+        severity: 'error',
+        message: `${path}: вызовы без объявления EXTERNAL — ${[...missing].join(', ')}. inkjs не скомпилирует файл, и диалог не откроется. Добавьте в начало файла строки вида «EXTERNAL ${[...missing][0]}(a0)» (число аргументов — как в вызове).`,
+      })
+    }
+  }
+
+  // Дедлайн на раздумье в диалоге (§9): цель обязана существовать в том же
+  // файле, а слишком короткий дедлайн не даёт прочитать варианты — игрок
+  // проигрывает не по решению, а по скорости чтения.
+  for (const [path, text] of store.textFiles) {
+    if (!/^dialogues\/.+\.ink$/.test(path)) continue
+    const knots = new Set([...text.matchAll(/^===\s*([^\s=]+)\s*===/gm)].map((m) => m[1]))
+    for (const m of text.matchAll(/set_dialogue_timer\(\s*(\d+)\s*(?:,\s*"([^"]*)")?\s*\)/g)) {
+      const secs = Number(m[1])
+      const knot = m[2] ?? ''
+      if (secs > 0 && secs < 5) {
+        structure.push({
+          severity: 'warning',
+          message: `${path}: таймер на раздумье — ${secs} с. Это меньше 5 секунд: игрок не успевает прочитать варианты ответа. Возьмите 8–15 секунд или уберите таймер.`,
+        })
+      }
+      if (knot && !knots.has(knot)) {
+        structure.push({
+          severity: 'warning',
+          message: `${path}: таймер ведёт в узел «${knot}», которого в файле нет. Добавьте «=== ${knot} ===» или оставьте второй аргумент пустым ("" — разговор заканчивается).`,
+        })
+      }
+    }
+  }
+
+  // Ink: условие выбора, записанное ПОСЛЕ квадратных скобок, часть сборок
+  // inkjs печатает как текстовую строку («true» посреди разговора, фидбек 27
+  // п.6). Канонично — перед скобками: `+ { cond } [текст]`.
+  for (const [path, text] of store.textFiles) {
+    if (!/^dialogues\/.+\.ink$/.test(path)) continue
+    const bad = text.split('\n').filter((l) => /^\s*\+\s*\[[^\]]*\]\s*\{/.test(l)).length
+    if (bad) {
+      structure.push({
+        severity: 'warning',
+        message: `${path}: условий после квадратных скобок выбора — ${bad}. inkjs может напечатать значение условия строкой в диалоге; перенесите условие перед скобками: «+ { условие } [текст]».`,
+      })
+    }
+  }
+  // Правила-«призраки»: после санитарной загрузки массивы всегда на месте,
+  // но ручная правка JSON могла их убрать — ловим до выхода в игру.
+  for (const p of store.rulePaths()) {
+    const r = store.rule(p)
+    if (!Array.isArray(r.conditions) || !Array.isArray(r.effects)) {
+      structure.push({
+        severity: 'error',
+        message: `Правило «${r.label ?? r.id}» (${p}): отсутствуют массивы conditions/effects — правило сломает движок при старте.`,
+      })
+    }
+    // Стартовые правила на нулевой тик или катсцену не должны блокироваться триггером time_tick
+    const hasIntroCutscene = (r.effects ?? []).some((e) => e.type === 'play_cutscene')
+    const hasZeroTick = (r.conditions ?? []).some((c) => c.type === 'tick_elapsed' && c.min_tick === 0)
+    if ((hasZeroTick || hasIntroCutscene) && r.trigger === 'time_tick') {
+      structure.push({
+        severity: 'warning',
+        message: `Правило «${r.label ?? r.id}» (${p}): вступительное правило имеет событийный триггер «time_tick». Чтобы катсцена и пролог запускались сразу при старте новой игры, выберите триггер «always» (по умолчанию) или оставьте поле пустым.`,
+      })
+    }
+  }
+
+  // Проверка звуков (пункт 10 аудита): опечатка в sound_id превращается в тишину.
+  const declaredSounds = new Set<string>((store.meta.sounds ?? []).map((s) => s.id))
+  const BUILTIN_SOUNDS = new Set([
+    'click', 'travel', 'craft', 'message', 'open', 'use', 'drop',
+    'equip', 'unequip', 'dialogue_present', 'travel_depart', 'travel_arrive',
+    'panel_open', 'panel_close', 'panel:open', 'panel:close',
+  ])
+  const checkSoundRef = (soundId: string | undefined, context: string): void => {
+    if (!soundId) return
+    const id = soundId.trim()
+    if (!id || /^(?:https?:|\/|\.\/|assets\/)/i.test(id)) return // прямой файл/URL
+    if (!declaredSounds.has(id) && !BUILTIN_SOUNDS.has(id)) {
+      structure.push({
+        severity: 'warning',
+        message: `${context}: звук «${id}» не найден в реестре meta.sounds кампании (опечатка будет звучать как тишина).`,
+      })
+    }
+  }
+  // Проверяем связи локаций
+  for (const r of store.world.regions ?? []) {
+    for (const l of r.locations ?? []) {
+      for (const tc of l.travel_connections ?? []) {
+        checkSoundRef(tc.sound, `Связь ${l.id} -> ${tc.to}`)
+        checkSoundRef(tc.depart_sound, `Отправление ${l.id} -> ${tc.to}`)
+        checkSoundRef(tc.arrive_sound, `Прибытие ${l.id} -> ${tc.to}`)
+      }
+    }
+  }
+  // Проверяем рецепты
+  for (const p of store.recipePaths()) {
+    const rc = store.recipe(p)
+    checkSoundRef(rc.sound, `Рецепт «${rc.label || rc.id}»`)
+  }
+  // Проверяем слоты сцен
+  for (const p of store.scenePaths()) {
+    const sc = store.scene(p)
+    for (const st of sc.states ?? []) {
+      checkSoundRef(st.sound, `Состояние «${st.label || st.id}» сцены ${sc.id}`)
+    }
+    for (const sl of sc.slots ?? []) {
+      checkSoundRef(sl.sound, `Слот «${sl.label || sl.id}» сцены ${sc.id}`)
+    }
+  }
+  // Проверяем статусы
+  for (const st of store.meta.statuses ?? []) {
+    checkSoundRef(st.apply_sound, `Статус «${st.label || st.id}» (apply_sound)`)
+    checkSoundRef(st.remove_sound, `Статус «${st.label || st.id}» (remove_sound)`)
+  }
+
+  // фон там, где его быть не должно: эмблема меню, спрайты сцен, фигурки боя
+  structure.push(...(await inspectAlphaRoles(store)))
 
   const mediaRefs = collectCampaignMedia(store)
   const localFindings = await inspectLocalMedia(store, mediaRefs.local)

@@ -10,6 +10,7 @@ const must = (ok: boolean, name: string) => {
 }
 
 const css = f('src/index.css')
+const ecss = f('src/editor/editor.css')
 const campaign = f('src/editor/CampaignEditor.tsx')
 const world = f('src/editor/WorldEditor.tsx')
 const arena = f('src/editor/ArenaEditor.tsx')
@@ -36,8 +37,8 @@ must(fields.includes('rows={22}') && css.includes('.advanced-json textarea') && 
   '3 раскрытые JSON — высотой 62vh, править файлом удобно')
 
 // 4 — ink диалогов внизу, а не справа
-must(builder.includes('Ink-исходник') && css.includes('.dlg-builder > .advanced-json') && css.includes('.dlg-builder { flex-wrap: wrap; }'),
-  '4 ink-исходник — внизу на всю ширину (не правая колонка)')
+must(builder.includes('Служебный Ink-исходник') && ecss.includes('.dlg-ink { display: flex; flex-direction: column;') && ecss.includes('.dlg-ink .mono-editor') && css.includes('.dlg-builder { flex-direction: column;'),
+  '4 ink-исходник — на всю ширину вкладкой (не правая колонка)')
 
 // 5 — курсор на изображении врага — меч
 must(css.includes('.token-enemy:not(.token-dead) { cursor: var(--cur-sword); }') && css.includes('.token { cursor: var(--cur-cross); }'),

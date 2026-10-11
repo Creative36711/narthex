@@ -54,16 +54,28 @@ export const BUILTIN_SKILL_LABELS: Record<string, string> = {
   claw: 'Когти',
 }
 
-/** встроенные русские названия характеристик */
+/** канонические обозначения главных характеристик (всегда на латинице: STR, CON, SIZ, DEX, INT, POW, CHA, EDU) */
 export const BUILTIN_STAT_LABELS: Record<string, string> = {
-  STR: 'СИЛ',
-  CON: 'ВЫН',
-  SIZ: 'РОСТ',
-  DEX: 'ЛОВ',
-  INT: 'ИНТ',
-  POW: 'ВОЛ',
-  CHA: 'ХАР',
-  EDU: 'ОБР',
+  STR: 'STR',
+  CON: 'CON',
+  SIZ: 'SIZ',
+  DEX: 'DEX',
+  INT: 'INT',
+  POW: 'POW',
+  CHA: 'CHA',
+  EDU: 'EDU',
+}
+
+/** подсказки-расшифровки характеристик для всплывающих подсказок */
+export const STAT_HINTS: Record<string, string> = {
+  STR: 'Сила',
+  CON: 'Телосложение',
+  SIZ: 'Размер / Телосложение',
+  DEX: 'Ловкость',
+  INT: 'Интеллект / Разум',
+  POW: 'Сила воли / Мощь',
+  CHA: 'Обаяние / Харизма',
+  EDU: 'Образование',
 }
 
 /** название навыка: сначала реестр кампании, затем встроенный словарь, затем id */
@@ -72,7 +84,7 @@ export function skillLabel(id: string, campaignSkills?: SkillDef[]): string {
   return fromCampaign ?? BUILTIN_SKILL_LABELS[id] ?? id
 }
 
-/** название характеристики */
+/** каноническое название характеристики (всегда на латинице: STR, CON, SIZ, DEX, INT, POW, CHA, EDU) */
 export function statLabel(id: string): string {
-  return BUILTIN_STAT_LABELS[id] ?? id
+  return BUILTIN_STAT_LABELS[id] ?? id.toUpperCase()
 }

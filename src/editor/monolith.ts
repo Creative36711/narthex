@@ -43,6 +43,7 @@ import type {
 } from '../shared/types'
 import { migrateMeta, migrateNavigation, migrateNeedConditions } from '../shared/migrate'
 import { generateInk, migrateDlgDoc } from './dialogueDoc'
+import { dlgDocFromScript, refsFromMonolith, storeRefs } from './dlgScript'
 import type { EditorStore, ManifestDef } from './store'
 import { slugify } from './ids'
 import { ENGINE_VERSION, PACKAGE_FORMAT } from '../shared/versions'
@@ -153,11 +154,10 @@ export function exportMonolith(store: EditorStore): { doc: MonolithDoc; warnings
     warnings,
   )
 
-  // таблицы встреч: файлы rules/encounters.json с обёрткой { encounter_tables: [...] }
+  // таблицы встреч: файлы rules/encounters.json или encounters/*.json с обёрткой { encounter_tables: [...] }
   const encounters: Record<string, EncounterTableDef> = {}
   for (const p of store.manifest.encounters ?? []) {
-    const path = `rules/${p}`
-    const raw = store.jsonFiles.get(path) as EncounterFileDef | EncounterTableDef | undefined
+    const raw = (store.jsonFiles.get(`encounters/${p}`) ?? store.jsonFiles.get(`rules/${p}`)) as EncounterFileDef | EncounterTableDef | undefined
     if (!raw) continue
     const tables = 'encounter_tables' in raw ? raw.encounter_tables : [raw]
     for (const t of tables) {
@@ -171,7 +171,8 @@ export function exportMonolith(store: EditorStore): { doc: MonolithDoc; warnings
     const key = f.replace(/\.ink$/, '')
     const doc = store.jsonFiles.get(`dialogues/${key}.dlg.json`) as DlgDoc | undefined
     if (doc && Array.isArray(doc.nodes)) {
-      dialogues[key] = migrateDlgDoc(JSON.parse(JSON.stringify(doc)))
+      // сценарий без формы (документ от ИИ) разбираем на месте — реестры редактора те же
+      dialogues[key] = migrateDlgDoc(JSON.parse(JSON.stringify(doc)), storeRefs(store, `dialogues/${key}.ink`))
     } else {
       const ink = store.textFiles.get(`dialogues/${f}`)
       dialogues[key] = { label: key, ink: ink ?? '' }
@@ -1354,12 +1355,21 @@ function repairDialogues(ctx: RepairCtx): void {
       }
       continue
     }
+    // разговор, написанный текстом (так отдаёт ИИ и так хранит редактор): структуры нет
+    const rawDoc = raw as DlgDoc
+    const scriptOnly = !!rawDoc.script && !(rawDoc.nodes?.length)
     let doc: DlgDoc
     try {
       doc = migrateDlgDoc(raw)
     } catch {
       ctx.warn(`${where}: документ повреждён — создан пустой диалог`)
       doc = stubDialogue()
+    }
+    if (scriptOnly && doc.script) {
+      const { issues } = dlgDocFromScript(doc, refsFromMonolith(ctx.doc, key))
+      for (const iss of issues.filter((i) => i.severity === 'error')) {
+        ctx.warn(`${where}: строка ${iss.line} — ${iss.message}${iss.text ? ` («${iss.text}»)` : ''}`)
+      }
     }
     if (!Array.isArray(doc.nodes) || !doc.nodes.length) {
       ctx.warn(`${where}: нет ни одного узла — создан узел «Начало разговора»`)

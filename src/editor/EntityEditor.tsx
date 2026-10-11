@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { Effect, EmotionDef, EntityDef, ItemCategoryDef, ItemDef, NpcDef, StatBlock } from '../shared/types'
 import { DEFAULT_EMOTION, equipmentSlots } from '../shared/types'
 import type { EditorStore } from './store'
-import { ConditionListEditor, EffectListEditor, FlagSelect, ImageUpload, RefSelect, FileAdvancedJson, AnimImageEditor } from './Fields'
+import { ConditionListEditor, EffectListEditor, FlagSelect, ImageUpload, RefSelect, FileAdvancedJson, AnimImageEditor, DiceNotationInput } from './Fields'
 import { BUILTIN_SKILL_LABELS } from '../shared/skills'
 import { SoundHookMapEditor } from './AudioSection'
 import { askText } from './prompt'
@@ -110,6 +110,14 @@ function ItemForm({
           <span>Описание</span>
           <textarea rows={2} value={item.description} onChange={(e) => ((item.description = e.target.value), commit())} />
         </label>
+        <label className="fld fld-block" data-tip="Подсказка действия при наведении курсора на предмет в сцене (например: «Осмотреть замок», «Повернуть вентиль»). Если пусто, игроку показывается обычное описание.">
+          <span>Подсказка действия в сцене (под курсором)</span>
+          <input
+            value={item.interact_hint ?? ''}
+            onChange={(e) => ((item.interact_hint = e.target.value.trim() || undefined), commit())}
+            placeholder="Например: Осмотреть замок, Повернуть вентиль, Разобрать завал…"
+          />
+        </label>
         <div className="fld-row">
           <label className="fld">
             <span>Вес, кг</span>
@@ -200,6 +208,18 @@ function ItemForm({
             }}
           />
           <span>Мягкая тень под спрайтом</span>
+        </label>
+        <label className="fld fld-check" data-tip="По умолчанию предметы статичны. Включите, если предмет живой (например, пульсирующее био-сердце или мимик).">
+          <input
+            type="checkbox"
+            checked={!!item.breathe}
+            onChange={(e) => {
+              if (e.target.checked) item.breathe = true
+              else delete item.breathe
+              commit()
+            }}
+          />
+          <span>Эффект «живого дыхания» (для живых или пульсирующих предметов)</span>
         </label>
 
         <h4 style={{ marginTop: 14 }}>Портреты предмета (окно действий)</h4>
@@ -372,7 +392,7 @@ function ItemForm({
               value={item.weapon_data.skill}
               onChange={(v) => ((item.weapon_data!.skill = v), commit())}
             />
-            <DamageInput label="Урон" value={item.weapon_data.damage} onChange={(v) => ((item.weapon_data!.damage = v), commit())} />
+            <DiceNotationInput label="Урон" value={item.weapon_data.damage} onChange={(v) => ((item.weapon_data!.damage = v), commit())} />
             <label className="fld fld-check">
               <input type="checkbox" checked={item.weapon_data.damage_bonus} onChange={(e) => ((item.weapon_data!.damage_bonus = e.target.checked), commit())} />
               <span>+ бонус силы</span>
@@ -475,7 +495,7 @@ function ItemForm({
       )}
 
       <div className="props-group">
-        <h4>Экипировка</h4>
+        <h4>Экипировка и переносимый вес</h4>
         <label className="fld">
           <span>Слот экипировки</span>
           <select
@@ -493,10 +513,123 @@ function ItemForm({
             ))}
           </select>
         </label>
-        <div className="muted small">
+        <div className="muted small" style={{ marginBottom: 8 }}>
           Старым предметам со свойствами оружия/брони слот определяется по этим
           свойствам (Оружие/Броня), пока мастер не выберет свой.
         </div>
+
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          <label className="fld" data-tip="Добавочная грузоподъёмность героя при надевании этого предмета (рюкзаки, вещевые мешки, портупеи)">
+            <span>Бонус к переносимому весу, кг</span>
+            <input
+              type="number"
+              step="0.5"
+              value={item.carry_bonus ?? ''}
+              placeholder="0"
+              onChange={(e) => {
+                const v = e.target.value === '' ? undefined : Number(e.target.value)
+                if (v !== undefined && v !== 0) item.carry_bonus = v
+                else delete item.carry_bonus
+                commit()
+              }}
+            />
+          </label>
+
+          <label className="fld" data-tip="Множитель переносимого веса при экипировке (например, 1.2 = +20% к лимиту груза)">
+            <span>Множитель веса (x)</span>
+            <input
+              type="number"
+              step="0.05"
+              value={item.carry_mult ?? ''}
+              placeholder="1.0"
+              onChange={(e) => {
+                const v = e.target.value === '' ? undefined : Number(e.target.value)
+                if (v !== undefined && v !== 1) item.carry_mult = v
+                else delete item.carry_mult
+                commit()
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="props-group">
+        <h4>Срок годности и свежесть</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Скоропортящиеся предметы (еда, медикаменты, туши, алхимические смеси): каждый час в игре уменьшает свежесть.
+          При нуле предмет превращается в другой, уничтожается или запускает сюжетное правило.
+        </div>
+        <div className="fld-row">
+          <label className="fld fld-num" data-tip="Срок годности в игровых часах (тиках). 0 или пусто — предмет хранится вечно.">
+            <span>Срок годности (в часах/тиках)</span>
+            <input
+              type="number"
+              min={0}
+              placeholder="0 (вечный)"
+              value={item.decay_ticks ?? ''}
+              onChange={(e) => {
+                const v = Math.max(0, Number(e.target.value) || 0)
+                if (v > 0) item.decay_ticks = v
+                else delete item.decay_ticks
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Что происходит, когда срок годности истекает">
+            <span>Действие при порче</span>
+            <select
+              value={item.spoil_action ?? (item.spoil_into ? 'transform' : 'destroy')}
+              onChange={(e) => {
+                item.spoil_action = e.target.value as any
+                commit()
+              }}
+            >
+              <option value="transform">Превратить в другой предмет</option>
+              <option value="destroy">Уничтожить (исчезает из инвентаря)</option>
+              <option value="rule">Запустить сюжетное правило</option>
+            </select>
+          </label>
+        </div>
+        {(!item.spoil_action || item.spoil_action === 'transform') && (
+          <ItemSelect
+            label="Превращается в предмет"
+            store={store}
+            value={item.spoil_into ?? ''}
+            allowNone
+            onChange={(v) => {
+              if (v) item.spoil_into = v
+              else delete item.spoil_into
+              commit()
+            }}
+          />
+        )}
+        {item.spoil_action === 'rule' && (
+          <RefSelect
+            kind="rule"
+            label="Запускаемое правило"
+            store={store}
+            value={item.spoil_rule ?? ''}
+            optional
+            onChange={(r) => {
+              if (r) item.spoil_rule = r
+              else delete item.spoil_rule
+              commit()
+            }}
+          />
+        )}
+        <label className="fld">
+          <span>Сообщение при порче (в лог и оповещение)</span>
+          <input
+            placeholder="По умолчанию: «...» испортился от времени."
+            value={item.spoil_msg ?? ''}
+            onChange={(e) => {
+              const v = e.target.value.trim()
+              if (v) item.spoil_msg = v
+              else delete item.spoil_msg
+              commit()
+            }}
+          />
+        </label>
       </div>
 
       <div className="props-group">
@@ -573,7 +706,7 @@ function NpcForm({
   return (
     <div className="rule-editor">
       <div className="props-group">
-        <h4>Персонаж (NPC)</h4>
+        <h4>Персонаж</h4>
         <div className="fld-row">
           <label className="fld">
             <span>Имя</span>
@@ -812,6 +945,18 @@ function NpcForm({
           />
           <span>Мягкая тень под персонажем (в сцене и в бою)</span>
         </label>
+        <label className="fld fld-check" data-tip="Плавное покачивание спрайта на сцене, имитирующее дыхание. Включено по умолчанию для живых персонажей; снимите галочку для роботов, автоматонов, механизмов, големов и нежити.">
+          <input
+            type="checkbox"
+            checked={npc.breathe !== false}
+            onChange={(e) => {
+              if (e.target.checked) delete npc.breathe
+              else npc.breathe = false
+              commit()
+            }}
+          />
+          <span>Эффект «живого дыхания» в сцене (снимите для роботов, механизмов и нежити)</span>
+        </label>
       </div>
 
       <div className="props-group">
@@ -987,7 +1132,7 @@ function NpcForm({
             </label>
           ))}
         </div>
-        <div className="fld-row" style={{ marginTop: 8 }}>
+        <div className="fld-row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
           <label className="fld" data-tip="Шкура, панцирь, чешуя — снижает получаемый урон. Не путать с надетой бронёй: предмет-броня из снаряжения даёт свои очки поверх природной защиты.">
             <span>Природная защита (очки)</span>
             <input type="number" value={npc.armor ?? 0} onChange={(e) => {
@@ -996,6 +1141,36 @@ function NpcForm({
               else delete npc.armor
               commit()
             }} />
+          </label>
+          <label className="fld" data-tip="Добавочная грузоподъёмность (кг) сверх формулы STR+SIZ">
+            <span>Бонус к переносимому весу, кг</span>
+            <input
+              type="number"
+              step="1"
+              value={npc.carry_capacity_bonus ?? ''}
+              placeholder="0"
+              onChange={(e) => {
+                const v = e.target.value === '' ? undefined : Number(e.target.value)
+                if (v !== undefined && v !== 0) npc.carry_capacity_bonus = v
+                else delete npc.carry_capacity_bonus
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Множитель переносимого веса (для вьючных животных, мулов, великанов)">
+            <span>Множитель переносимого веса (x)</span>
+            <input
+              type="number"
+              step="0.1"
+              value={npc.carry_capacity_mult ?? ''}
+              placeholder="1.0"
+              onChange={(e) => {
+                const v = e.target.value === '' ? undefined : Number(e.target.value)
+                if (v !== undefined && v !== 1) npc.carry_capacity_mult = v
+                else delete npc.carry_capacity_mult
+                commit()
+              }}
+            />
           </label>
         </div>
         <div className="muted small">
@@ -1493,37 +1668,6 @@ function SlotTypeField({ e, store, commit }: { e: EntityDef; store: EditorStore;
           <option key={t.id} value={t.id}>{t.label}</option>
         ))}
       </select>
-    </label>
-  )
-}
-
-/** Структурный ввод урона: N кубиков dX + модификатор (фидбек №9). */
-function DamageInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  const m = /^(\d+)d(\d+)([+-]\d+)?$/.exec(value.trim()) ?? ['', '1', '6', '']
-  const count = Number(m[1] || 1)
-  const die = Number(m[2] || 6)
-  const mod = Number(m[3] || 0)
-  const emit = (c: number, d: number, mo: number) => onChange(`${c}d${d}${mo > 0 ? `+${mo}` : mo < 0 ? String(mo) : ''}`)
-  return (
-    <label className="fld">
-      <span>{label}</span>
-      <div className="dmg-row">
-        <select value={count} onChange={(e) => emit(Number(e.target.value), die, mod)}>
-          {[1, 2, 3, 4].map((n) => (
-            <option key={n} value={n}>{n}</option>
-          ))}
-        </select>
-        <span className="muted">×</span>
-        <select value={die} onChange={(e) => emit(count, Number(e.target.value), mod)}>
-          {[4, 6, 8, 10, 12, 20].map((n) => (
-            <option key={n} value={n}>d{n}</option>
-          ))}
-        </select>
-        <span className="muted">+</span>
-        <input type="number" value={mod} onChange={(e) => emit(count, die, Number(e.target.value) || 0)} data-tip="Модификатор (может быть отрицательным)" />
-        <span className="muted">=</span>
-        <span className="dmg-summary">{`${count}d${die}${mod > 0 ? `+${mod}` : mod < 0 ? String(mod) : ''}`}</span>
-      </div>
     </label>
   )
 }

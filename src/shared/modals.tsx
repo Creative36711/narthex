@@ -14,6 +14,7 @@ type ModalRequest =
       title: string
       body?: string
       placeholder?: string
+      initial?: string
       ok: string
       fileLabel: string
       resolve: (v: string | null) => void
@@ -49,7 +50,7 @@ export function askText(title: string, placeholder = '', initial = '', ok = 'С�
  */
 export function askTextArea(
   title: string,
-  opts: { body?: string; placeholder?: string; ok?: string; fileLabel?: string } = {},
+  opts: { body?: string; placeholder?: string; initial?: string; ok?: string; fileLabel?: string } = {},
 ): Promise<string | null> {
   return new Promise((resolve) =>
     submit({
@@ -57,6 +58,7 @@ export function askTextArea(
       title,
       body: opts.body,
       placeholder: opts.placeholder,
+      initial: opts.initial,
       ok: opts.ok ?? 'Продолжить',
       fileLabel: opts.fileLabel ?? 'Выбрать файл…',
       resolve,
@@ -139,7 +141,7 @@ export function ModalHost() {
           return cur
         }
         if (r.kind === 'text') setValue(r.initial ?? '')
-        if (r.kind === 'textarea') setValue('')
+        if (r.kind === 'textarea') setValue(r.initial ?? '')
         if (r.kind === 'confirm') setChecked(false)
         return r
       })
@@ -147,7 +149,7 @@ export function ModalHost() {
     if (queue.length > 0) {
       const r = queue.shift()!
       if (r.kind === 'text') setValue(r.initial ?? '')
-      if (r.kind === 'textarea') setValue('')
+      if (r.kind === 'textarea') setValue(r.initial ?? '')
       if (r.kind === 'confirm') setChecked(false)
       setReq(r)
     }
@@ -168,7 +170,7 @@ export function ModalHost() {
   const close = () => {
     const next = queue.shift() ?? null
     if (next?.kind === 'text') setValue(next.initial ?? '')
-    if (next?.kind === 'textarea') setValue('')
+    if (next?.kind === 'textarea') setValue(next.initial ?? '')
     setReq(next)
   }
   const cancel = () => {

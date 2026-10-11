@@ -47,13 +47,14 @@ const dlgs = ['aldric', 'bran', 'corvin', 'maeva', 'yorek'].map((n) => f(`public
 must(!/emotion[":= ]+(happy|angry|sad|fear)/.test(dlgs),
   '6 диалоги и ink не переключают на удалённые состояния')
 
-// 7 — урон оружия: широкие поля + итог
-must(css.includes('min-width: 280px') && css.includes('width: 96px') && css.includes('dmg-summary') && ent.includes('dmg-summary'),
-  '7 урон оружия: широкие поля и видимое итоговое значение')
+// 7 — урон оружия: ряд полей + видимое итоговое значение
+// (ряд живёт в общем DiceNotationInput, ширины компактные — фидбек 27, п.3)
+must(css.includes('.dmg-row') && css.includes('dmg-summary') && ent.includes('DiceNotationInput') && f('src/editor/Fields.tsx').includes('dmg-summary'),
+  '7 урон оружия: поля ввода и видимое итоговое значение')
 
 // 8 — ink-исходник диалогов
-must(dlg.includes('Ink-исходник') && dlg.includes('generateInk(doc)') && dlg.includes('advanced-json'),
-  '8 у диалогов есть ink-исходник (как расширенный JSON)')
+must(dlg.includes('Служебный Ink-исходник') && dlg.includes('InkEditor') && dlg.includes('advanced-json-page') && dlg.includes('Перечитать в формы'),
+  '8 у диалогов есть ink-исходник (как расширенный JSON, вкладка «Служебный ink»)')
 
 // 9 — боевые курсоры
 must(css.includes('--cur-cross') && css.includes('--cur-sword') && css.includes('cursor: var(--cur-cross)') && css.includes('cursor: var(--cur-sword)'),

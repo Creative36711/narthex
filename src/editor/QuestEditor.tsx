@@ -58,7 +58,7 @@ export function QuestEditor({ store, path }: { store: EditorStore; path: string 
           const stages = journalEntryStageLabels(quest, key)
           return (
             <div key={key} className="journal-row">
-              <div className="journal-entry-label" title={`Внутренний ключ: ${key}`}>
+              <div className="journal-entry-label" data-tip={`Внутренний ключ: ${key}`}>
                 <strong>Запись {index + 1}</strong>
                 {stages.length > 0 && <span>{stages.join(' / ')}</span>}
               </div>

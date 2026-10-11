@@ -16,9 +16,9 @@
     },
     {
       "id": "state_roped",
-      "label": "Спуск со страховкой",
+      "label": "Страховка на скобах",
       "condition": {
-        "flag": "valve_found"
+        "flag": "shaft_roped"
       },
       "image": "assets/img/scenes/scene_pump_shaft_drained.jpg",
       "sound": "sfx_rungs",

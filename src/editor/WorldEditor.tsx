@@ -1,12 +1,12 @@
 import { Ico } from '../shared/icons'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { ArtDoc, LocationDef, MusicRule, RegionDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { ImageUpload, JsonField, RefSelect, FileAdvancedJson } from './Fields'
 import { ArtView } from '../shared/ArtView'
 import { makeId } from './ids'
 import { askText, askConfirm } from './prompt'
-import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
+import { MusicRulesEditor, SoundMultiSelect, SoundSelect } from './AudioSection'
 
 /**
  * Редактор мира (фидбек №13): дерево регионов (с вложенностью),
@@ -165,6 +165,55 @@ function RegionPanel({
 
   const sel = r.locations.find((l) => l.id === selLoc) ?? null
 
+  const routes = useMemo(() => {
+    const list: Array<{
+      id: string
+      fromLoc: LocationDef
+      toLoc: LocationDef
+      cost: number
+      isOutgoing: boolean
+      isIncoming: boolean
+      startX: number
+      startY: number
+      endX: number
+      endY: number
+      midX: number
+      midY: number
+    }> = []
+
+    for (const fromLoc of r.locations) {
+      for (const tc of fromLoc.travel_connections ?? []) {
+        const toLoc = r.locations.find((l) => l.id === tc.to)
+        if (!toLoc) continue
+        const dx = toLoc.position.x - fromLoc.position.x
+        const dy = toLoc.position.y - fromLoc.position.y
+        const len = Math.hypot(dx, dy)
+        if (len < 1) continue
+        const startX = fromLoc.position.x + (dx / len) * 16
+        const startY = fromLoc.position.y + (dy / len) * 16
+        const endX = toLoc.position.x - (dx / len) * 24
+        const endY = toLoc.position.y - (dy / len) * 24
+        const midX = (fromLoc.position.x + toLoc.position.x) / 2
+        const midY = (fromLoc.position.y + toLoc.position.y) / 2
+        list.push({
+          id: `${fromLoc.id}->${toLoc.id}`,
+          fromLoc,
+          toLoc,
+          cost: tc.cost_ticks ?? 1,
+          isOutgoing: sel?.id === fromLoc.id,
+          isIncoming: sel?.id === toLoc.id,
+          startX,
+          startY,
+          endX,
+          endY,
+          midX,
+          midY,
+        })
+      }
+    }
+    return list
+  }, [r.locations, sel])
+
   return (
     <div className="region-panel">
       <div className="props-group">
@@ -286,6 +335,61 @@ function RegionPanel({
             <img src={store.assetSrc(r.map_image)} alt="" draggable={false} />
           ) : (
             <div className="world-map-empty muted">Загрузите изображение карты выше — маркеры расставляются прямо на ней.</div>
+          )}
+          {routes.length > 0 && (
+            <svg className="world-map-routes" viewBox={`0 0 ${size.w} ${size.h}`}>
+              <defs>
+                <marker id="wm-arrow-default" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="rgba(255,255,255,0.45)" />
+                </marker>
+                <marker id="wm-arrow-active" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--ed-select-bright, #ffd24d)" />
+                </marker>
+                <marker id="wm-arrow-incoming" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M 0 1 L 9 5 L 0 9 z" fill="#4fd1c5" />
+                </marker>
+              </defs>
+              {routes.map((rt) => {
+                const isSelected = rt.isOutgoing || rt.isIncoming
+                const color = rt.isOutgoing ? 'var(--ed-select-bright, #ffd24d)' : rt.isIncoming ? '#4fd1c5' : 'rgba(255,255,255,0.35)'
+                const marker = rt.isOutgoing ? 'url(#wm-arrow-active)' : rt.isIncoming ? 'url(#wm-arrow-incoming)' : 'url(#wm-arrow-default)'
+                return (
+                  <g key={rt.id}>
+                    <line
+                      x1={rt.startX}
+                      y1={rt.startY}
+                      x2={rt.endX}
+                      y2={rt.endY}
+                      stroke={color}
+                      strokeWidth={isSelected ? 2.5 : 1.5}
+                      strokeDasharray={isSelected ? undefined : '5 4'}
+                      markerEnd={marker}
+                    />
+                    <rect
+                      x={rt.midX - 14}
+                      y={rt.midY - 8}
+                      width={28}
+                      height={16}
+                      rx={4}
+                      fill="rgba(16, 20, 26, 0.88)"
+                      stroke={color}
+                      strokeWidth={isSelected ? 1.2 : 0.8}
+                    />
+                    <text
+                      x={rt.midX}
+                      y={rt.midY + 3.5}
+                      textAnchor="middle"
+                      fill={isSelected ? '#fff' : '#c0c0c0'}
+                      fontSize={10}
+                      fontFamily="sans-serif"
+                      fontWeight={isSelected ? 700 : 500}
+                    >
+                      {rt.cost}ч
+                    </text>
+                  </g>
+                )
+              })}
+            </svg>
           )}
           {r.locations.map((loc) => (
             <div
@@ -425,18 +529,63 @@ function LocationProps({
       <div className="fld-block">
         <span className="fld-caption">Дороги (куда можно дойти отсюда)</span>
         {loc.travel_connections.map((tc, ti) => (
-          <div key={ti} className="journal-row">
-            <select className="journal-key" value={tc.to} onChange={(e) => ((tc.to = e.target.value), commit())}>
-              {!allLocs.some((o) => o.id === tc.to) && <option value={tc.to}>{tc.to || '—'}</option>}
-              {allLocs.map((o) => (
-                <option key={o.id} value={o.id}>{o.label}</option>
-              ))}
-            </select>
-            <label className="fld fld-inline">
-              <span>в пути</span>
-              <input type="number" value={tc.cost_ticks} onChange={(e) => ((tc.cost_ticks = Number(e.target.value)), commit())} />
-            </label>
-            <button className="btn btn-small ce-del" onClick={() => (loc.travel_connections.splice(ti, 1), commit())}><Ico n="close" /> </button>
+          <div key={ti} style={{ marginBottom: 10, padding: '6px 8px', background: 'var(--ed-paper-card, rgba(0,0,0,0.03))', borderRadius: 4, border: '1px solid var(--ed-paper-border, #e0e0e0)' }}>
+            <div className="journal-row" style={{ marginBottom: 4 }}>
+              <select className="journal-key" value={tc.to} onChange={(e) => ((tc.to = e.target.value), commit())}>
+                {!allLocs.some((o) => o.id === tc.to) && <option value={tc.to}>{tc.to || '—'}</option>}
+                {allLocs.map((o) => (
+                  <option key={o.id} value={o.id}>{o.label}</option>
+                ))}
+              </select>
+              <label className="fld fld-inline">
+                <span>в пути</span>
+                <input type="number" value={tc.cost_ticks} onChange={(e) => ((tc.cost_ticks = Number(e.target.value)), commit())} />
+              </label>
+              <button className="btn btn-small ce-del" onClick={() => (loc.travel_connections.splice(ti, 1), commit())}><Ico n="close" /> </button>
+            </div>
+            <details style={{ fontSize: 12 }}>
+              <summary style={{ cursor: 'pointer', color: 'var(--ed-muted, #777)', userSelect: 'none' }}>
+                <Ico n="sound" /> Звуки маршрута {tc.sound || tc.depart_sound || tc.arrive_sound ? '✓' : ''}
+              </summary>
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="audio-row" style={{ padding: 0 }}>
+                  <span className="audio-label" style={{ fontSize: 11 }} data-tip="Звук транспорта/шагов в пути">Звук пути</span>
+                  <SoundSelect
+                    store={store}
+                    value={tc.sound}
+                    onChange={(s) => {
+                      if (s) tc.sound = s
+                      else delete tc.sound
+                      commit()
+                    }}
+                  />
+                </div>
+                <div className="audio-row" style={{ padding: 0 }}>
+                  <span className="audio-label" style={{ fontSize: 11 }} data-tip="Звук в момент отправления">Отправление</span>
+                  <SoundSelect
+                    store={store}
+                    value={tc.depart_sound}
+                    onChange={(s) => {
+                      if (s) tc.depart_sound = s
+                      else delete tc.depart_sound
+                      commit()
+                    }}
+                  />
+                </div>
+                <div className="audio-row" style={{ padding: 0 }}>
+                  <span className="audio-label" style={{ fontSize: 11 }} data-tip="Звук в момент прибытия">Прибытие</span>
+                  <SoundSelect
+                    store={store}
+                    value={tc.arrive_sound}
+                    onChange={(s) => {
+                      if (s) tc.arrive_sound = s
+                      else delete tc.arrive_sound
+                      commit()
+                    }}
+                  />
+                </div>
+              </div>
+            </details>
           </div>
         ))}
         <button

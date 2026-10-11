@@ -7,6 +7,10 @@ import { ConditionListEditor, EffectListEditor, FileAdvancedJson, ChapterSelect 
 /** Визуальный конструктор правил (ТЗ 5.2.4): условия + эффекты. */
 export function RuleEditor({ store, path }: { store: EditorStore; path: string }) {
   const rule = store.rule(path)
+  // защита от битых правил (импорт ИИ-кампании): массивы могут отсутствовать —
+  // восстанавливаем до рендера, иначе `reading 'length'` роняет весь редактор
+  if (!Array.isArray(rule.conditions)) rule.conditions = []
+  if (!Array.isArray(rule.effects)) rule.effects = []
   const [, force] = useState(0)
   const commit = () => {
     store.touch(path)
@@ -22,6 +26,24 @@ export function RuleEditor({ store, path }: { store: EditorStore; path: string }
           <input value={rule.label} onChange={(e) => ((rule.label = e.target.value), commit())} />
         </label>
         <ChapterSelect store={store} value={rule.chapter} onChange={(v) => ((rule.chapter = v), commit())} />
+        <label className="fld" data-tip="Когда движок должен проверять это правило">
+          <span>Событийный триггер</span>
+          <select
+            value={rule.trigger ?? 'always'}
+            onChange={(e) => {
+              const v = e.target.value as RuleDef['trigger']
+              if (!v || v === 'always') delete rule.trigger
+              else rule.trigger = v
+              commit()
+            }}
+          >
+            <option value="always">При любом событии / изменении (по умолчанию)</option>
+            <option value="enter_scene">При входе в сцену (enter_scene)</option>
+            <option value="leave_scene">При выходе из сцены (leave_scene)</option>
+            <option value="interact">При клике / взаимодействии (interact)</option>
+            <option value="time_tick">При ходе / тике времени (time_tick)</option>
+          </select>
+        </label>
         <div className="fld-row">
           <label className="fld fld-check">
             <input type="checkbox" checked={rule.once} onChange={(e) => ((rule.once = e.target.checked), commit())} />

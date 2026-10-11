@@ -81,6 +81,14 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'scene', label: 'Сцена', kind: 'sceneRef' }],
     blank: { scene: '' },
   },
+  npc_known: {
+    label: 'Имя персонажа раскрыто (механика «Незнакомец»)',
+    fields: [
+      { key: 'entity', label: 'Персонаж', kind: 'npcRef' },
+      { key: 'known', label: 'Раскрыто (true) или неизвестно (false)', kind: 'boolean', optional: true },
+    ],
+    blank: { entity: '' },
+  },
   flag_set: {
     label: 'Флаг установлен',
     fields: [{ key: 'flag', label: 'Флаг', kind: 'flagRef' }],
@@ -124,6 +132,11 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
       { key: 'item', label: 'Предмет', kind: 'itemRef' },
       { key: 'min_quantity', label: 'Мин. количество', kind: 'number', optional: true },
     ],
+    blank: { item: '' },
+  },
+  equipped: {
+    label: 'Предмет экипирован',
+    fields: [{ key: 'item', label: 'Предмет', kind: 'itemRef' }],
     blank: { item: '' },
   },
   skill_ge: {
@@ -346,6 +359,14 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     ],
     blank: { text: '', preset: 'глава' },
   },
+  learn_name: {
+    label: 'Раскрыть настоящее имя персонажа (механика «Незнакомец»)',
+    fields: [
+      { key: 'entity', label: 'Персонаж', kind: 'npcRef' },
+      { key: 'silent', label: 'Без сообщения в лог', kind: 'boolean', optional: true },
+    ],
+    blank: { entity: '' },
+  },
   postcard: {
     label: '«Открытка»: иллюстрация на весь экран с подписью',
     fields: [
@@ -392,6 +413,19 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
   unlock_recipe: {
     label: 'Открыть рецепт крафта',
     fields: [{ key: 'recipe', label: 'Рецепт', kind: 'recipeRef' }],
+    blank: { recipe: '' },
+  },
+  open_craft: {
+    label: 'Открыть изготовление (крафт)',
+    fields: [
+      {
+        key: 'recipe',
+        label: 'Рецепт (пусто — весь список)',
+        kind: 'recipeRef',
+        optional: true,
+        placeholder: 'например: ремонт клапана',
+      },
+    ],
     blank: { recipe: '' },
   },
   set_entity_state: {
@@ -796,6 +830,34 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     label: 'Показать катсцену',
     fields: [{ key: 'cutscene', label: 'Катсцена', kind: 'cutsceneRef' }],
     blank: { cutscene: '' },
+  },
+  play_sound: {
+    label: 'Воспроизвести звук',
+    fields: [
+      { key: 'sound', label: 'id звука или файл', kind: 'string' },
+      { key: 'volume', label: 'Громкость (0..1, по умолчанию 1)', kind: 'number', optional: true },
+    ],
+    blank: { sound: '' },
+  },
+  stop_sound: {
+    label: 'Остановить звук',
+    fields: [
+      { key: 'sound', label: 'id звука (пусто — все)', kind: 'string', optional: true },
+    ],
+    blank: {},
+  },
+  override_music: {
+    label: 'Сюжетно переопределить музыку',
+    fields: [
+      { key: 'tracks', label: 'id треков (JSON массив)', kind: 'json' },
+      { key: 'fade', label: 'Кроссфейд (сек)', kind: 'number', optional: true },
+    ],
+    blank: { tracks: [] },
+  },
+  clear_music_override: {
+    label: 'Снять переопределение музыки',
+    fields: [{ key: 'fade', label: 'Затухание (сек)', kind: 'number', optional: true }],
+    blank: {},
   },
 }
 

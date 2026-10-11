@@ -45,7 +45,9 @@
     "item_fur_coat.json",
     "item_tavern_key.json",
     "item_locked_chest.json",
-    "item_travel_lockpicks.json"
+    "item_travel_lockpicks.json",
+    "item_wrench.json",
+    "item_pump.json"
   ],
   "rules": [
     "rule_intro_cutscene.json",
@@ -98,7 +100,8 @@
     "cutscene_intro.json"
   ],
   "recipes": [
-    "recipe_healing_salve.json"
+    "recipe_healing_salve.json",
+    "recipe_pump_water.json"
   ],
   "codex": [
     "codex_kaerden_valley.json",

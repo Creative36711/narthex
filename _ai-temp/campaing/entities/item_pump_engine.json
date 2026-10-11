@@ -178,6 +178,22 @@
       ],
       "once": true,
       "sound": "sfx_gear"
+    },
+    {
+      "label": "Послушать помпу",
+      "hint": "уже осмотрено",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "clue_glove"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Помпа молчит. Срезанная муфта блестит свежим металлом, поддон под приводом пуст."
+        }
+      ]
     }
   ],
   "interact_hint": "Осмотреть привод",

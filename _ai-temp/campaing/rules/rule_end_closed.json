@@ -11,6 +11,10 @@
   ],
   "effects": [
     {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_final_closed"
+    },
+    {
       "type": "banner",
       "text": "Дело закрыто",
       "preset": "заголовок",

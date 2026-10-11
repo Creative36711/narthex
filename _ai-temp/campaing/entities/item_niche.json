@@ -42,11 +42,31 @@
         {
           "type": "show_message",
           "text": "В нише завёрнутая в вощёную бумагу записка мастера."
+        },
+        {
+          "type": "set_flag",
+          "flag": "niche_searched"
         }
       ],
       "once": true,
       "sound": "snd_paper",
       "hint": "мастер прятал бумаги в кладке"
+    },
+    {
+      "label": "Заглянуть в нишу",
+      "hint": "уже осмотрено",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "niche_searched"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Ниша пуста: мастер прятал здесь только записку."
+        }
+      ]
     }
   ],
   "interact_hint": "Обыскать нишу",

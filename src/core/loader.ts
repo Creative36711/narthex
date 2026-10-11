@@ -1,4 +1,5 @@
 import { migrateCampaign, migrateEntity } from '../shared/migrate'
+import { parseRuleFile } from '../shared/ruleFiles'
 import { checkEngine, checkPackage } from '../shared/versions'
 import type {
   ArenaDef,
@@ -72,7 +73,12 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
       quests[q.id] = q
     }),
     ...(manifest.encounters ?? []).map(async (f) => {
-      const tables = await getJSON<EncounterFileDef>(`${basePath}/rules/${f}`)
+      let tables: EncounterFileDef
+      try {
+        tables = await getJSON<EncounterFileDef>(`${basePath}/encounters/${f}`)
+      } catch {
+        tables = await getJSON<EncounterFileDef>(`${basePath}/rules/${f}`)
+      }
       for (const t of tables.encounter_tables) encounters[t.id] = t
     }),
     ...(manifest.cutscenes ?? []).map(async (f) => {
@@ -96,8 +102,21 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
       entities[e.id] = migrateEntity(e)
     }),
     ...manifest.rules.map(async (f) => {
-      const r = await getJSON<RuleDef>(`${basePath}/rules/${f}`)
-      rules[r.id] = r
+      const raw = await getJSON<unknown>(`${basePath}/rules/${f}`)
+      // файл из manifest.rules может оказаться таблицей встреч или битым
+      // правилом (ИИ-агент путает разделы манифеста): разбираем честно,
+      // чтобы движок и редактор не падали на `undefined.conditions`
+      const verdict = parseRuleFile(f, raw)
+      for (const w of verdict.warnings) console.warn(`[chronicle] ${w}`)
+      if (verdict.kind === 'rule') {
+        if (rules[verdict.rule.id]) {
+          console.warn(`[chronicle] rules/${f}: дубль id «${verdict.rule.id}» — файл пропущен.`)
+          return
+        }
+        rules[verdict.rule.id] = verdict.rule
+      } else if (verdict.kind === 'encounters') {
+        for (const t of verdict.tables) encounters[t.id] = t
+      }
     }),
     ...manifest.dialogues.map(async (f) => {
       dialogues[`dialogues/${f}`] = await getText(`${basePath}/dialogues/${f}`)
@@ -118,7 +137,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
  */
 export function assetUrl(campaign: CampaignData, path: string): string {
   if (!path) return path
-  if (/^https?:\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path
+  if (/^(?:https?|asset|tauri|ipc):\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')) return path
   return `${campaign.basePath}/${path}`
 }
 
@@ -137,5 +156,5 @@ export function assetUrlOrNull(campaign: CampaignData, path: string | null | und
 
 /** Это внешняя ссылка, а не файл внутри пакета? */
 export function isExternalUrl(path: string): boolean {
-  return /^(https?:)?\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')
+  return /^(?:https?:)?\/\//i.test(path) || /^(?:asset|tauri|ipc):\/\//i.test(path) || path.startsWith('data:') || path.startsWith('blob:')
 }

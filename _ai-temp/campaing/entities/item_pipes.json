@@ -94,6 +94,22 @@
           "flag": "vex_job_measured"
         }
       ]
+    },
+    {
+      "label": "Осмотреть узел",
+      "hint": "уже осмотрено",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "pipes_closed"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Задвижка сидит плотно, фланец больше не течёт. Испарения уходят вверх."
+        }
+      ]
     }
   ],
   "interact_hint": "Перекрыть узел",

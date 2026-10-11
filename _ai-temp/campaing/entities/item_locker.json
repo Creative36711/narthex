@@ -70,6 +70,22 @@
           "flag": "clue_plate"
         }
       ]
+    },
+    {
+      "label": "Заглянуть в шкафчик",
+      "hint": "уже осмотрено",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "clue_plate"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Спецовка, мыло и запах мазута. Всё, что мастер здесь прятал, уже у тебя."
+        }
+      ]
     }
   ],
   "interact_hint": "Вскрыть шкафчик",

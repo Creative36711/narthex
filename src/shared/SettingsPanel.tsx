@@ -71,6 +71,17 @@ export function SettingsPanel({ open, onClose }: Props) {
           </label>
         </Row>
 
+        <Row label="Камера сцены">
+          <label className="fld-check small">
+            <input
+              type="checkbox"
+              checked={s.camera_parallax !== false}
+              onChange={(e) => patch({ camera_parallax: e.target.checked })}
+            />
+            <span>мягкий параллакс видоискателя вслед за курсором</span>
+          </label>
+        </Row>
+
         <Row label="Размер текста">
           <select value={s.text_scale} onChange={(e) => patch({ text_scale: Number(e.target.value) })}>
             <option value={0.9}>Мельче</option>

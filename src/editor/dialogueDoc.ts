@@ -157,6 +157,7 @@ export type {
   DlgDoc,
 } from '../shared/types'
 import type { DlgCond, DlgDoc, DlgEffect, DlgLine, DlgSection, DlgStep } from '../shared/types'
+import { dlgDocFromScript, type ScriptRefs } from './dlgScript'
 
 export function newDlgDoc(label?: string): DlgDoc {
   return {
@@ -196,18 +197,24 @@ function migrateLineTexts(doc: DlgDoc): DlgDoc {
   const fixLine = (l: DlgLine) => {
     if (l.text) l.text = inkToTokens(l.text)
   }
-  const fixSections = (sections: DlgSection[]) => {
-    for (const sec of sections) {
-      for (const st of sec.steps) if (st.kind === 'line') fixLine(st.line)
+  // v2: тексты могли содержать «сырой» ink (item_count(...) и т.п.) — переводим в токены
+  const fixSections = (sections?: DlgSection[]) => {
+    for (const sec of sections ?? []) {
+      for (const st of sec.steps ?? []) if (st.kind === 'line') fixLine(st.line)
       for (const st of sec.else_steps ?? []) if (st.kind === 'line') fixLine(st.line)
     }
   }
-  for (const node of doc.nodes) {
+  for (const node of doc.nodes ?? []) {
+    node.sections ??= []
+    node.choices ??= []
     fixSections(node.sections)
     for (const c of node.choices) {
       c.text = inkToTokens(c.text ?? '')
+      c.sections ??= []
       fixSections(c.sections)
       if (c.check) {
+        c.check.success.sections ??= []
+        c.check.fail.sections ??= []
         fixSections(c.check.success.sections)
         fixSections(c.check.fail.sections)
       }
@@ -216,11 +223,29 @@ function migrateLineTexts(doc: DlgDoc): DlgDoc {
   return doc
 }
 
-export function migrateDlgDoc(raw: unknown): DlgDoc {
-  const doc = raw as { version: number; label?: string; nodes: unknown[] }
-  // v2: тексты могли содержать «сырой» ink (item_count(...) и т.п.) — переводим в токены
-  if (doc.version === 2) return migrateLineTexts(doc as DlgDoc)
-  const v1nodes = doc.nodes as DlgNodeV1[]
+/**
+ * Привести документ любой версии к v2.
+ *
+ * Если структуры нет, а текст мастерского сценария есть (`script` — так пишет
+ * ИИ и так сохраняет редактор), структура собирается из текста: нужны реестры
+ * кампании (`refs`, см. `refsFromMonolith`). Без реестров документ остаётся
+ * как есть — редактор разберёт его сам и покажет ошибки строками.
+ */
+export function migrateDlgDoc(raw: unknown, refs?: ScriptRefs): DlgDoc {
+  const doc = raw as { version: number; label?: string; nodes?: unknown[]; script?: string }
+  const out = doc.version === 2 ? (doc as unknown as DlgDoc) : migrateV1(doc as { version: number; label?: string; nodes: DlgNodeV1[] })
+  out.nodes ??= []
+  for (const node of out.nodes) {
+    node.sections ??= []
+    node.choices ??= []
+  }
+  if (out.script && !out.nodes.length && refs) dlgDocFromScript(out, refs)
+  return migrateLineTexts(out)
+}
+
+/** старый формат (v1): строки+эффекты вместо секций */
+function migrateV1(doc: { version: number; label?: string; nodes: DlgNodeV1[] }): DlgDoc {
+  const v1nodes = doc.nodes
   const migrated: DlgDoc = {
     version: 2,
     label: doc.label,
@@ -246,7 +271,7 @@ export function migrateDlgDoc(raw: unknown): DlgDoc {
       }),
     })),
   }
-  return migrateLineTexts(migrated)
+  return migrated
 }
 
 // ─────────────── генерация ink ───────────────
@@ -275,6 +300,12 @@ export function condInk(c: DlgCond): string {
       return c.not ? `not has_status(${q(c.status)})` : `has_status(${q(c.status)})`
     case 'weather_is':
       return c.not ? `not weather_is(${q(c.weather)})` : `weather_is(${q(c.weather)})`
+    case 'skill_ge':
+      return c.not ? `get_skill(${q(c.skill)}) < ${c.threshold}` : `get_skill(${q(c.skill)}) >= ${c.threshold}`
+    case 'meta_counter':
+      return c.not ? `get_meta_counter(${q(c.key)}) < ${c.ge}` : `get_meta_counter(${q(c.key)}) >= ${c.ge}`
+    case 'npc_known':
+      return c.not ? `not is_name_known(${q(c.entity)})` : `is_name_known(${q(c.entity)})`
   }
 }
 
@@ -289,12 +320,14 @@ function inkLine(l: DlgLine, indent: string): string {
   if (l.emotion && l.emotion !== 'neutral') tags.push(`# emotion: ${l.emotion}`)
   if (l.action) tags.push('# action')
   if (l.voice) tags.push(`# voice: ${l.voice}`)
+  if (l.timer && l.timer > 0) tags.push(`# timer: ${l.timer}`)
   return `${indent}${text}${tags.length ? ' ' + tags.join(' ') : ''}`
 }
 
 function inkEffect(e: DlgEffect, indent: string): string {
   switch (e.type) {
-    case 'set_flag': return `${indent}~ set_flag(${q(e.flag)})`
+    case 'set_flag': return e.value === false ? `${indent}~ clear_flag(${q(e.flag)})` : `${indent}~ set_flag(${q(e.flag)})`
+    case 'clear_flag': return `${indent}~ clear_flag(${q(e.flag)})`
     case 'add_item': return `${indent}~ add_item(${q(e.item)}, ${e.qty})`
     case 'remove_item': return `${indent}~ remove_item(${q(e.item)}, ${e.qty})`
     case 'fire_rule': return `${indent}~ fire_rule(${q(e.rule)})`
@@ -313,12 +346,29 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'set_weather': return `${indent}~ set_weather(${q(e.weather)})`
     case 'unlock_codex': return `${indent}~ unlock_codex(${q(e.entry)})`
     case 'unlock_recipe': return `${indent}~ unlock_recipe(${q(e.recipe)})`
+    case 'open_craft': return e.recipe ? `${indent}~ open_craft(${q(e.recipe)})` : `${indent}~ open_craft()`
+    case 'set_entity_state': return `${indent}~ set_entity_state(${q(e.entity)}, ${q(e.state)})`
+    case 'learn_name': return `${indent}~ learn_name(${q(e.entity)})`
+    case 'present_item': return `${indent}~ present_item(${q(e.ok)}, ${q(e.fail)}, ${q(e.required ?? '')})`
+    case 'go_to_scene': return `${indent}~ go_to_scene(${q(e.scene)})`
+    case 'start_combat': return `${indent}~ start_combat(${q(e.arena)})`
+    case 'change_scene_state': return `${indent}~ change_scene_state(${q(e.state)})`
+    case 'game_over_death': return `${indent}~ game_over_death(${q(e.message ?? '')})`
+    case 'game_over_victory': return `${indent}~ game_over_victory(${q(e.message ?? '')})`
   }
 }
 
-/** open_trade / fire_rule сами закрывают диалог — после них всегда конец */
+/** open_trade / open_craft / fire_rule / start_combat / game_over сами закрывают диалог — после них всегда конец */
 function isTerminalEffect(e: DlgEffect): boolean {
-  return e.type === 'open_trade' || e.type === 'fire_rule'
+  return (
+    e.type === 'open_trade' ||
+    e.type === 'open_craft' ||
+    e.type === 'fire_rule' ||
+    e.type === 'start_combat' ||
+    e.type === 'game_over_death' ||
+    e.type === 'game_over_victory' ||
+    (e.type === 'go_to_scene' && e.close_dialogue !== false)
+  )
 }
 
 export function generateInk(docRaw: DlgDoc): string {
@@ -367,6 +417,8 @@ export function generateInk(docRaw: DlgDoc): string {
   }
 
   for (const node of doc.nodes) {
+    node.choices ??= []
+    node.sections ??= []
     out.push(`=== ${node.id} ===`)
     emitSections(node.id, node.sections, '')
     if (node.choices.length === 0) {
@@ -374,20 +426,35 @@ export function generateInk(docRaw: DlgDoc): string {
       continue
     }
     out.push(`-> ${node.id}_hub`, '', `=== ${node.id}_hub ===`)
+    // дедлайн на раздумье: сколько секунд игрок выбирает ответ и куда уйти,
+    // если промолчал; 0/пусто — без таймера (фидбек 27, §9)
+    const secs = node.timer?.seconds ?? 0
+    if (secs > 0) {
+      // второй аргумент обязателен: inkjs сверяет число аргументов с EXTERNAL,
+      // пустая строка означает «по истечении разговор заканчивается»
+      const knot = node.timer?.node && node.timer.node !== 'end' ? q(node.timer.node) : '""'
+      out.push(`~ set_dialogue_timer(${Math.max(1, Math.round(secs))}, ${knot})`)
+    }
     // защита от зависания: должен существовать всегда доступный вариант
     const hasAlways = node.choices.some((c) => !c.once && (!c.conds || c.conds.length === 0))
-    for (const c of node.choices) {
+    const checksInNode = node.choices.filter((c) => c.check).length
+    let checkCounter = 0
+    for (let cIdx = 0; cIdx < node.choices.length; cIdx++) {
+      const c = node.choices[cIdx]
       const condStr = c.conds && c.conds.length > 0 ? `{ ${condsInk(c.conds)} } ` : ''
       const marker = c.once ? '*' : '+'
       out.push(`${marker} ${condStr}[${c.text.replace(/\s+/g, ' ').trim()}]`)
       emitSections(node.id, c.sections, '    ')
       if (c.check) {
-        out.push(`    ~ temp d = ${c.check.difficulty}`)
+        checkCounter++
+        const dVar = checksInNode > 1 && checkCounter > 1 ? `d_${checkCounter}` : 'd'
+        const rVar = checksInNode > 1 && checkCounter > 1 ? `r_${checkCounter}` : 'r'
+        out.push(`    ~ temp ${dVar} = ${c.check.difficulty}`)
         for (const m of c.check.mods ?? []) {
-          out.push(`    { ${condsInk(m.conds)}:`, `        ~ d = ${m.value}`, '    }')
+          out.push(`    { ${condsInk(m.conds)}:`, `        ~ ${dVar} = ${m.value}`, '    }')
         }
-        out.push(`    ~ temp r = skill_check(${q(c.check.skill)}, d)`)
-        out.push('    { r == "fail" || r == "fumble":')
+        out.push(`    ~ temp ${rVar} = skill_check(${q(c.check.skill)}, ${dVar})`)
+        out.push(`    { ${rVar} == "fail" || ${rVar} == "fumble":`)
         emitSections(node.id, c.check.fail.sections, '        ')
         out.push(`        -> ${target(node.id, c.check.fail.goto, 'stay')}`)
         out.push('    - else:')
@@ -415,8 +482,10 @@ export function generateInk(docRaw: DlgDoc): string {
     'change_need', 'change_hp', 'get_hp', 'sleep', 'get_need', 'get_stat', 'get_skill',
     'play_cutscene',
     // DlgEffect, добавленные позже блоков статусов/погоды/кодекса/рецептов
-    'set_description', 'apply_status', 'remove_status', 'set_weather',
-    'unlock_codex', 'unlock_recipe',
+    'set_description', 'set_entity_state', 'apply_status', 'remove_status', 'set_weather',
+    'unlock_codex', 'unlock_recipe', 'open_craft', 'set_dialogue_timer', 'present_item',
+    'learn_name', 'is_name_known', 'go_to_scene', 'start_combat', 'change_scene_state',
+    'game_over_death', 'game_over_victory',
     // токены реплик ({имя}, {здоровье_макс}, …) — без EXTERNAL inkjs не компилирует
     'get_player_name', 'get_hp_max', 'get_mp', 'get_mp_max', 'get_luck',
     'get_level', 'get_xp', 'get_run_day', 'get_currency',
@@ -429,8 +498,11 @@ export function generateInk(docRaw: DlgDoc): string {
     change_need: '(id, d)', change_hp: '(d)', get_hp: '()', sleep: '(t)',
     get_need: '(id)', get_stat: '(s)', get_skill: '(s)',
     play_cutscene: '(id)',
-    set_description: '(id, t)', apply_status: '(id, d)', remove_status: '(id)',
-    set_weather: '(id)', unlock_codex: '(id)', unlock_recipe: '(id)',
+    set_description: '(id, t)', set_entity_state: '(e, s)', apply_status: '(id, d)', remove_status: '(id)',
+    set_weather: '(id)', unlock_codex: '(id)', unlock_recipe: '(id)', open_craft: '(id)',
+    set_dialogue_timer: '(s, t)', present_item: '(o, f, r)',
+    learn_name: '(id)', is_name_known: '(id)', go_to_scene: '(s)', start_combat: '(a)',
+    change_scene_state: '(s)', game_over_death: '(m)', game_over_victory: '(m)',
     get_player_name: '()', get_hp_max: '()', get_mp: '()', get_mp_max: '()',
     get_luck: '()', get_level: '()', get_xp: '()', get_run_day: '()', get_currency: '(id)',
   }

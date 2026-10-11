@@ -58,7 +58,7 @@ VAR r = 0
     -> Начало_hub
 + { not (get_flag("ira_joined")) and get_disposition("npc_ira") >= 25 } [Пойдём со мной. Здесь тебя не защитят.]
     Она кивает раньше, чем ты договорил. # action # voice: assets/voice/narr_ira_5.mp3
-    Только дай взять ключ. И фонарь. И ещё раз ключ. # voice: assets/voice/ira_9.mp3
+    Только возьму фонарь. И ключ от затвора — у помощницы мастера он свой. # voice: assets/voice/ira_9.mp3
     ~ fire_rule("rule_ira_joins")
     -> Начало_hub
 * { not (get_flag("ira_glove")) and has_item("item_glove") } [Показать рукавицу с привода.]
@@ -75,6 +75,13 @@ VAR r = 0
     ~ change_disposition("npc_ira", 4)
     ~ fire_rule("rule_ira_pack")
     -> Начало_hub
+* { has_item("item_valve") and not (get_flag("ira_valve")) and not (get_flag("sluice_ready")) } [Показать клапан из шахты.]
+    ~ set_flag("ira_valve")
+    Она проводит пальцем по выбитой семёрке. # action # sfx: snd_tag
+    Седьмой номер — с нашего затвора. Резьба целая: его не сорвало водой, его вывернули ключом. Неси на восьмой, к затвору, пока там ещё есть что закрывать. # emotion: thoughtful # voice: assets/voice/ira_31.mp3
+    ~ change_disposition("npc_ira", 3)
+    ~ fire_rule("rule_ira_valve")
+    -> Начало_hub
 + [Мне пора.]
     -> DONE
 - -> Начало_hub
@@ -82,7 +89,7 @@ VAR r = 0
 === Брат ===
 Она поднимает ветошь, но не вытирает руки. # action # voice: assets/voice/narr_ira_7.mp3
 Говори. Ты же не просто так спросил. Каждый вопрос здесь чего-нибудь стоит. Моего времени, например. # voice: assets/voice/ira_14.mp3
-Только не говори «погиб». Это про него уже сказали, а я его ещё не видела. # voice: assets/voice/ira_15.mp3
+Только не говори «погиб». Матери сказали — перевели на другой ярус. Пусть это ещё побудет правдой. # voice: assets/voice/ira_15.mp3
 ~ set_flag("ira_told_brother")
 -> Брат_hub
 
@@ -103,7 +110,7 @@ VAR r = 0
 === Молчание ===
 Ты молчишь. Она ждёт — и поднимает ветошь с пола. # action # voice: assets/voice/narr_ira_8.mp3
 Вот и я молчу третий день. Ничего, привыкла. # voice: assets/voice/ira_17.mp3
--> Начало
+-> Начало_hub
 
 === Начало_hub_ok1 ===
 У меня был второй, на случай смены. Держи — только не говори, что я дала. # voice: assets/voice/ira_12.mp3
@@ -112,7 +119,7 @@ VAR r = 0
 -> Начало_hub
 
 === Начало_hub_no1 ===
-У нас был один ключ. Он ушёл вместе с ним. # emotion: sad # voice: assets/voice/ira_13.mp3
+Ключ был у мастера. Где мастер — там и ключ. # emotion: sad # voice: assets/voice/ira_13.mp3
 ~ change_disposition("npc_ira", -3)
 -> Начало_hub
 

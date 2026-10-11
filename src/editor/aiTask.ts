@@ -3,10 +3,11 @@ import { createCampaignUuid } from './ids'
 import { AI_KIT_FILES, AI_TASK_DIR } from './aiKit'
 import { exportChronicle } from './chronicle'
 import { formatCampaignAuditReport, validateCampaign, type CampaignAuditReport, type PlaytestRecord } from './campaignAudit'
-import type { EditorStore } from './store'
+import type { EditorStore, ModifiedFileEntry } from './store'
 
 export type AiTaskMode = 'new' | 'edit'
 export type AiOutputFormat = 'chronicle' | 'json'
+export type AiBundleScope = 'patch' | 'full'
 
 export interface AiTaskBriefOptions {
   mode: AiTaskMode
@@ -65,6 +66,14 @@ export function buildAiTaskPrompt(mode: AiTaskMode, task: string, campaignId: st
     'Настройки брифа необязательны: учитывай только явно заданные мастером параметры. Пропущенный аспект не является требованием — выбери его сам или не задавай вовсе; никогда не выводи баланс диалогов и боёвки по умолчанию.',
     'Если задано создание персонажа, каждый шаблон происхождения должен содержать все семь характеристик и распределять ровно total_points, а каждый шаблон призвания — ровно skill_points для каждого происхождения. Считай от минимальных порогов, обязательных навыков и бесплатных skill_bonus происхождения; соблюдай skill_cap и не оставляй ни перерасхода, ни остатка.',
     'Подписи потребностей, статусов и кнопок видны в компактном HUD: делай их короткими (для потребностей желательно до 18 знаков), не включай число/счётчик в подпись. Визуальные надписи внутри арта держи в безопасных полях и не дублируй заголовок сцены крупным текстом; не закрывай большую часть сцены однотонной плашкой — крупные объекты должны читаться как часть локации и не перекрывать важные точки.',
+    'Файлы таблиц встреч (`encounter_tables`) перечисляй только в manifest.encounters, а в manifest.rules — только файлы правил с обязательными массивами conditions и effects (пустые допустимы). Файл встреч в manifest.rules становится «правилом» без условий и ломает старт забега.',
+    'У каждого флага реестра meta.flags обязательно заполняй description — «для чего нужен»: какое событие запоминает и где читается (правило, диалог, квест). Флаги без пояснения аудит помечает предупреждением.',
+    'Эмблему меню (theme.menu.title_art), спрайты сцен и фигурки боя генерируй с прозрачным фоном (PNG с альфа-каналом): они рисуются поверх чужого фона, и собственная подложка выглядит чёрным квадратом. С фоном делай только полноэкранные изображения: theme.menu.background, theme.end.background, фоны сцен и катсцен.',
+    'Ремарки (описания действий) помечай в сыром Ink тегом «# action» в конце строки, а в конструкторе — галочкой «ремарка»: без пометки игрок видит описание действия как реплику собеседника. Эмоция реплики — «# emotion: angry», озвучка — «# voice: assets/voice/x.mp3»; смена облика по ходу разговора — «~ set_entity_state(\"npc_ira\", \"angry\")» (пустая строка состояния возвращает обычный облик).',
+    'Узел с вариантами ответов пиши как «=== <узел>_hub ===» (так делает редактор); допустим и отдельный узел под своим именем («=== hub ===»), если варианты возвращают к нему через «-> hub». Внутри узла-ответов до первого варианта можно ставить эффекты и «~ set_dialogue_timer(…)» — импорт перенесёт их в начало узла, а строки «+ [текст]» / «* {условие} [текст]» станут вариантами.',
+    'В режиме JSON (MonolithDoc) разговор можно отдать текстом: «"dialogues": { "имя": { "version": 2, "label": "…", "script": "=== Начало ===\\n— Привет!", "nodes": [] } }» — редактор разберёт текст в формы и соберёт ink. В .chronicle-пакете так нельзя: движок исполняет ink, и он в пакете обязателен.',
+    'В сыром Ink условия выбора пиши только ПЕРЕД квадратными скобками («+ { условие } [текст]»), а условные текстовые блоки — в одну строку («{ cond: текст }»): запись условия после скобок и многострочные блоки часть сборок inkjs печатает служебной строкой («true») посреди разговора или теряет реплики.',
+    'Действия «по месту» делай доступными из сцены и реплик, а не только кнопкой в интерфейсе: ремонт и изготовление открывает эффект open_craft (в диалоге — «~ open_craft(\"recipe_id\")», с id нужный рецепт подсвечен), торговлю — open_trade. Для сцен, где молчание — часть напряжения (погоня, допрос, «Тихая» у двери), ставь дедлайн на раздумье: в конструкторе диалога поле «Таймер на раздумье», в рукописном ink — «~ set_dialogue_timer(15, \"узел_молчания\")»; короче 5–8 секунд не бери.',
     identity,
     mode === 'edit'
       ? 'Не создавай новую кампанию с нуля и не удаляй существующий контент, если задача явно этого не требует.'
@@ -90,9 +99,27 @@ export function buildAiTaskPrompt(mode: AiTaskMode, task: string, campaignId: st
 async function loadAiDocs(): Promise<Map<string, string>> {
   const docs = new Map<string, string>()
   for (const { name } of AI_KIT_FILES) {
-    const response = await fetch(`ai/${encodeURIComponent(name)}`)
-    if (!response.ok) throw new Error(`Не найден файл набора: ai/${name} (${response.status})`)
-    docs.set(name, await response.text())
+    let text = ''
+    try {
+      const response = await fetch(`/ai/${encodeURIComponent(name)}`)
+      if (response.ok) {
+        text = await response.text()
+      }
+    } catch {
+      // fallback for node / smoke environments
+    }
+    if (!text && typeof process !== 'undefined' && process.versions?.node) {
+      try {
+        const fsMod = 'node:fs'
+        const pathMod = 'node:path'
+        const { readFileSync } = await import(/* @vite-ignore */ fsMod)
+        const { resolve } = await import(/* @vite-ignore */ pathMod)
+        text = readFileSync(resolve(process.cwd(), 'public/ai', name), 'utf8')
+      } catch {
+        // ignore
+      }
+    }
+    docs.set(name, text || '')
   }
   return docs
 }
@@ -102,6 +129,7 @@ export async function createAiTaskBundle(
   options: {
     mode: AiTaskMode
     task: string
+    bundleScope?: AiBundleScope
     lastPlaytest?: PlaytestRecord | null
     assignedCampaignId?: string
     outputFormat?: AiOutputFormat
@@ -112,6 +140,7 @@ export async function createAiTaskBundle(
   const hasCampaign = !!store.basePath && !!store.meta.id
   if (mode === 'edit' && !hasCampaign) throw new Error('Для режима редактирования сначала откройте кампанию.')
 
+  const bundleScope: AiBundleScope = options.bundleScope ?? (mode === 'edit' ? 'patch' : 'full')
   const outputFormat = options.outputFormat ?? 'chronicle'
   const assignedCampaignId = mode === 'edit' ? store.meta.id : outputFormat === 'json' ? '' : options.assignedCampaignId || createCampaignUuid()
   const report: CampaignAuditReport = mode === 'edit'
@@ -123,17 +152,46 @@ export async function createAiTaskBundle(
         playtest: [{ severity: 'info', message: 'Плейтест будет доступен после импорта готовой кампании.' }],
       }
   const reportText = options.previousReport?.trim() || formatCampaignAuditReport(report)
-  const prompt = buildAiTaskPrompt(options.mode, options.task, assignedCampaignId, reportText, outputFormat)
+
+  // Если это режим редактирования, автоматически дополняем задачу списком правок мастера
+  const modifiedEntries = mode === 'edit' ? store.getModifiedFiles() : []
+  let augmentedTask = options.task
+  if (modifiedEntries.length > 0) {
+    augmentedTask = [
+      options.task.trim(),
+      '',
+      '=== РУЧНЫЕ ПРАВКИ МАСТЕРА В ВИЗУАЛЬНОМ РЕДАКТОРЕ ===',
+      store.getChangesSummaryText(),
+    ].filter(Boolean).join('\n\n')
+  }
+
+  const prompt = buildAiTaskPrompt(options.mode, augmentedTask, assignedCampaignId, reportText, outputFormat)
   const zip = new JSZip()
 
   if (mode === 'edit') {
-    // В AI-пакет включаем весь рабочий Campaign Package: JSON/Ink и бинарные
-    // файлы. Битые ссылки пропускаются, но явно попадают в приложенный отчёт.
-    const campaign = await JSZip.loadAsync(await exportChronicle(store, { allowMissingMedia: true }))
-    for (const [path, file] of Object.entries(campaign.files)) {
-      if (file.dir) continue
-      const content = await file.async('uint8array')
-      zip.file(path, content, { compression: /\.(?:json|ink|md)$/i.test(path) ? 'DEFLATE' : 'STORE' })
+    if (bundleScope === 'patch') {
+      // Легковесный патч-чемодан (~50-90 КБ): только изменённые файлы мастера + манифест + CHANGES.md
+      const changed = modifiedEntries.filter((m: ModifiedFileEntry) => m.status === 'modified' || m.status === 'added')
+      for (const m of changed) {
+        zip.file(m.path, store.fileText(m.path))
+      }
+      const patchManifest = {
+        ...store.manifest,
+        patch: true,
+        base_campaign_id: store.meta.id,
+        patch_timestamp: new Date().toISOString(),
+        patch_files: changed.map((m: ModifiedFileEntry) => m.path),
+      }
+      zip.file('manifest.json', JSON.stringify(patchManifest, null, 2))
+      zip.file('CHANGES.md', store.getChangesSummaryText())
+    } else {
+      // Полный пакет кампании с медиа
+      const campaign = await JSZip.loadAsync(await exportChronicle(store, { allowMissingMedia: true }))
+      for (const [path, file] of Object.entries(campaign.files)) {
+        if (file.dir) continue
+        const content = await file.async('uint8array')
+        zip.file(path, content, { compression: /\.(?:json|ink|md)$/i.test(path) ? 'DEFLATE' : 'STORE' })
+      }
     }
   }
 
@@ -145,7 +203,9 @@ export async function createAiTaskBundle(
     '# Chronicle Forge — пакет задания для ИИ',
     '',
     'Прочитай `TASK.md`, затем руководство, схему и бланк дизайн-документа.',
-    'При редактировании файлы кампании находятся в корне архива; `__chronicle_ai__/` — только инструкции и отчёт, не часть кампании.',
+    bundleScope === 'patch'
+      ? 'В корне архива лежат ТОЛЬКО изменённые мастером файлы (патч). Распакуй их поверх проекта кампании с заменой.'
+      : 'При редактировании файлы кампании находятся в корне архива; `__chronicle_ai__/` — только инструкции и отчёт, не часть кампании.',
     resultNote,
     '',
     assignedCampaignId ? `Назначенный ID кампании: ${assignedCampaignId}` : 'ID новой кампании выдаст редактор при импорте.',
@@ -156,11 +216,57 @@ export async function createAiTaskBundle(
   const docs = await loadAiDocs()
   for (const [name, text] of docs) zip.file(aiDir(name), text)
 
-  const suffix = mode === 'edit' ? '-ai-task.chronicle' : '-ai-task.zip'
+  const suffix = mode === 'edit'
+    ? (bundleScope === 'patch' ? '-patch-task.chronicle' : '-full-task.chronicle')
+    : '-ai-task.zip'
   const filename = `${assignedCampaignId || 'new-campaign'}${suffix}`
   return {
     blob: await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }),
     filename,
+    assignedCampaignId,
+    report,
+  }
+}
+
+/**
+ * Создаёт легковесный чемодан задания (__chronicle_ai__-kit.zip, ~70 КБ) для работы
+ * прямо в репозитории кампании (Git / GitHub Desktop). Не включает файлы кампании.
+ */
+export async function createAiTaskRepoKit(
+  store: EditorStore,
+  options: {
+    task: string
+    lastPlaytest?: PlaytestRecord | null
+    previousReport?: string
+  },
+): Promise<AiTaskBundle> {
+  const assignedCampaignId = store.meta.id || createCampaignUuid()
+  const report: CampaignAuditReport = await validateCampaign(store, options.lastPlaytest)
+  const reportText = options.previousReport?.trim() || formatCampaignAuditReport(report)
+  const prompt = buildAiTaskPrompt('edit', options.task, assignedCampaignId, reportText, 'chronicle')
+
+  const zip = new JSZip()
+  const aiDir = (name: string) => `${AI_TASK_DIR}${name}`
+
+  zip.file(aiDir('README.md'), [
+    '# Chronicle Forge — легковесный набор задания для репозитория кампании',
+    '',
+    'Этот архив содержит только папку `__chronicle_ai__/` для работы прямо в репозитории кампании.',
+    'Прочитай `TASK.md`, затем руководство `campaign-guide.md`, схему и инструмент вырезания фона.',
+    'Файлы кампании находятся в корне репозитория (scenes/, entities/, dialogues/ и т.д.).',
+    'Внеси изменения в соответствующие файлы, сохраняя каноническую структуру репозитория.',
+    '',
+    `ID кампании: ${assignedCampaignId}`,
+  ].join('\n'))
+
+  zip.file(aiDir('TASK.md'), prompt)
+  zip.file(aiDir('validation-report.md'), reportText)
+  const docs = await loadAiDocs()
+  for (const [name, text] of docs) zip.file(aiDir(name), text)
+
+  return {
+    blob: await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }),
+    filename: `__chronicle_ai__-kit.zip`,
     assignedCampaignId,
     report,
   }

@@ -40,6 +40,8 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       const entry = s.player.inventory.find((i) => i.item === c.item)
       return !!entry && entry.quantity >= (c.min_quantity ?? 1)
     }
+    case 'equipped':
+      return engine.isEquipped(c.item)
     case 'skill_ge':
       return (s.player.skills[c.skill] ?? 0) >= c.threshold
     case 'stat_ge':
@@ -88,6 +90,10 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.hasStatus(c.status)
     case 'weather_is':
       return (s.weather ?? '') === c.weather
+    case 'npc_known': {
+      const known = engine.isNpcNameKnown(c.entity)
+      return c.known === false ? !known : known
+    }
     case 'random_chance':
       return engine.rng.chance(c.probability)
     case 'crime_committed':
@@ -105,9 +111,9 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
     case 'has_feat':
       return (engine.state.player.feats ?? []).includes(c.id)
     case 'and':
-      return c.conditions.every((x) => evalCondition(x, engine))
+      return (c.conditions ?? []).every((x) => evalCondition(x, engine))
     case 'or':
-      return c.conditions.some((x) => evalCondition(x, engine))
+      return (c.conditions ?? []).some((x) => evalCondition(x, engine))
     case 'not':
       return !evalCondition(c.condition, engine)
     default:

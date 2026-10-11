@@ -373,6 +373,10 @@
         {
           "type": "flag_set",
           "flag": "sluice_seen"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "sluice_ready"
         }
       ],
       "effects": [
@@ -383,6 +387,22 @@
       ],
       "sound": "snd_chain",
       "hint": "перечитать можно бесплатно: без клапана затвор не закрыть"
+    },
+    {
+      "label": "Проверить клапан в колодке",
+      "hint": "клапан на месте",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "sluice_ready"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Клапан сидит в колодке, штурвал идёт тяжело, но до упора. Затвор можно закрыть."
+        }
+      ]
     }
   ],
   "interact_hint": "Осмотреть затвор",

@@ -11,7 +11,7 @@ import { GameView } from './player/GameView'
 import { HelpPanel } from './player/HelpPanel'
 import { CharacterCreation } from './player/CharacterCreation'
 import { createCampaign, fetchCampaignIndex, type CampaignIndexEntry } from './editor/newCampaign'
-import { askText, showAlert } from './shared/modals'
+import { askText, showAlert, showList } from './shared/modals'
 import { setAudioCampaign, playUi, unlockAudio } from './shared/audio'
 import { setMusicCampaign, refreshMusic } from './shared/music'
 import { injectCampaignCustomCss, injectCampaignFonts, themeHasFrame, themeVars } from './shared/theme'
@@ -153,7 +153,8 @@ export default function App() {
   useEffect(() => {
     const unlock = () => {
       unlockAudio()
-      // первый жест разрешает автоплей — запускаем музыку, которая уже должна звучать
+      // первый жест разрешает автоплей — запускаем музыку, которая уже должна звучать (но не в редакторе)
+      if (editor || window.location.hash === '#editor') return
       refreshMusic(engine)
     }
     const onClick = (e: MouseEvent) => {
@@ -166,7 +167,7 @@ export default function App() {
       window.removeEventListener('pointerdown', unlock)
       window.removeEventListener('click', onClick)
     }
-  }, [engine])
+  }, [engine, editor])
 
   useEffect(() => {
     const onHash = () => setEditor(window.location.hash === '#editor')
@@ -174,13 +175,45 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
+  /**
+   * Сбой запуска забега обязан дойти до игрока, а не тихо умереть в консоли
+   * (фидбек 26: «кликнул сто раз — ничего не произошло»). Показываем модалку
+   * с человеческим объяснением и кнопкой копирования текста ошибки.
+   */
+  const reportStartFailure = (err: unknown): void => {
+    console.error('[chronicle] забег не стартовал:', err)
+    const stack = String((err as Error)?.stack ?? err)
+    void showList(
+      'Кампания сломана — забег не запущен',
+      stack.split('\n').map((l) => l.trim()).filter(Boolean),
+      'Кнопка сработала: движок попытался начать забег и остановился на ошибке в файлах кампании. ' +
+        'Это не ваша вина и не «игра зависла». Пришлите текст ниже автору кампании — ' +
+        'он откроет её в редакторе и прогонит «Аудит кампании», чтобы увидеть и починить причину.',
+      { label: 'Скопировать текст ошибки', text: stack },
+    )
+  }
+
+  /** Безопасный старт: конструируем движок и запускаем забег под защитой try/catch. */
+  const runStart = (make: () => GameEngine): GameEngine | null => {
+    try {
+      const e = make()
+      e.start()
+      return e
+    } catch (err) {
+      reportStartFailure(err)
+      return null
+    }
+  }
+
   /** продолжить забег из уже открытого (перенесённого и почищенного) сейва */
   const startFromSave = (opened: OpenedSave) => {
     if (!campaign) return
-    const e = new GameEngine(campaign, opened.state)
-    e.envelope = opened.envelope
-    e.start()
-    setEngine(e)
+    const e = runStart(() => {
+      const eng = new GameEngine(campaign, opened.state)
+      eng.envelope = opened.envelope
+      return eng
+    })
+    if (e) setEngine(e)
   }
 
   const createFirstCampaign = async () => {
@@ -303,9 +336,12 @@ export default function App() {
           campaign={campaign}
           onBack={() => setCreating(false)}
           onStart={(choice) => {
-            const e = new GameEngine(campaign)
-            e.applyCharCreation(choice)
-            e.start()
+            const e = runStart(() => {
+              const eng = new GameEngine(campaign)
+              eng.applyCharCreation(choice)
+              return eng
+            })
+            if (!e) return
             setCreating(false)
             setEngine(e)
           }}
@@ -342,9 +378,8 @@ export default function App() {
               setCreating(true)
               return
             }
-            const e = new GameEngine(campaign)
-            e.start()
-            setEngine(e)
+            const e = runStart(() => new GameEngine(campaign))
+            if (e) setEngine(e)
           }}
           onContinue={() => {
             // полное открытие сейва: перенос формата + вердикт по версиям кампании
@@ -381,9 +416,8 @@ export default function App() {
                 setCreating(true)
                 return
               }
-              const e = new GameEngine(campaign)
-              e.start()
-              setEngine(e)
+              const e = runStart(() => new GameEngine(campaign))
+              if (e) setEngine(e)
             }}
             onExport={() => {
               const text = exportSaveText(campaign.meta.id)
@@ -407,16 +441,28 @@ export default function App() {
     <div className={themeClass} style={themeStyle}>
       <GameView
         engine={engine}
-        onRestart={() => setEngine(engine.restart())}
+        onRestart={() => {
+          try {
+            setEngine(engine.restart())
+          } catch (err) {
+            reportStartFailure(err)
+          }
+        }}
         onNewGamePlus={(next) => setEngine(next)}
-        onExitToMenu={() => setEngine(null)}
+        onExitToMenu={() => {
+          try {
+            engine?.autosave()
+          } catch (err) {
+            console.error('autosave on exit failed', err)
+          }
+          setEngine(null)
+        }}
         onLoadSlot={(slot) => {
           // загрузка из слота: пересобираем движок из состояния слота
           const opened = openSave(engine.campaign.meta.id, engine.campaign, slot)
           if (!opened || opened.verdict.kind !== 'ok') return
-          const fresh = new GameEngine(engine.campaign, opened.state)
-          fresh.start()
-          setEngine(fresh)
+          const fresh = runStart(() => new GameEngine(engine.campaign, opened.state))
+          if (fresh) setEngine(fresh)
         }}
       />
     </div>

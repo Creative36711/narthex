@@ -14,11 +14,12 @@
  * Автоплей — после первого клика (unlockAudio).
  */
 import type { GameEngine } from '../core/engine'
-import type { LocationDef, MusicCondition, MusicDoc, MusicRule, MusicSource, TimeOfDay } from './types'
+import type { Condition, LocationDef, MusicCondition, MusicDoc, MusicRule, MusicSource, TimeOfDay } from './types'
 import { audioCtx, isMusicDoc, startMusicDoc, unlockAudio, type MusicHandle } from './synth'
 import { getSettings, musicVolume } from './settings'
 import { migrateMusicRules } from './migrate'
 import { timeOfDay } from '../core/time'
+import { evalCondition } from '../core/conditions'
 
 /** длительность «куплета» генеративного трека внутри плейлиста, сек */
 const DOC_IN_PLAYLIST_SEC = 48
@@ -135,17 +136,27 @@ export function setMusicCampaign(c: GameEngine['campaign'] | null): void {
 
 // ─────────────── выбор «что должно звучать» ───────────────
 
-function condOk(cond: MusicCondition | undefined, engine: GameEngine | null): boolean {
+function condOk(cond: MusicCondition | Condition | undefined, engine: GameEngine | null): boolean {
   if (!cond) return true
-  if (cond.time_of_day !== undefined) {
+  // Полноценное условие Condition движка (quest_stage, has_item, need, skill, flag...)
+  if ('type' in cond) {
+    if (!engine) return false
+    try {
+      return evalCondition(cond as Condition, engine)
+    } catch {
+      return false
+    }
+  }
+  const mc = cond as MusicCondition
+  if (mc.time_of_day !== undefined) {
     if (!engine) return false
     const tod: TimeOfDay = timeOfDay(engine.state.tick, engine.campaign.meta)
-    const list = Array.isArray(cond.time_of_day) ? cond.time_of_day : [cond.time_of_day]
+    const list = Array.isArray(mc.time_of_day) ? mc.time_of_day : [mc.time_of_day]
     if (!list.includes(tod)) return false
   }
-  if (cond.flag !== undefined && !engine?.state.flags[cond.flag]) return false
-  if (cond.not_flag !== undefined && engine?.state.flags[cond.not_flag]) return false
-  if (cond.weather !== undefined && (engine?.state.weather ?? '') !== cond.weather) return false
+  if (mc.flag !== undefined && !engine?.state.flags[mc.flag]) return false
+  if (mc.not_flag !== undefined && engine?.state.flags[mc.not_flag]) return false
+  if (mc.weather !== undefined && (engine?.state.weather ?? '') !== mc.weather) return false
   return true
 }
 
@@ -158,12 +169,21 @@ function firstMatching(rules: MusicRule[] | undefined, engine: GameEngine | null
 
 /** музыкальный «снимок» стека приоритетов */
 function desiredRule(engine: GameEngine | null): { rule: MusicRule | null; stop: boolean } {
+  // Редактор без запущенного движка молчит. При запущенном engine (режим плейтеста/отладки) музыка играет!
+  if (!engine && typeof window !== 'undefined' && window.location.hash === '#editor') {
+    return { rule: null, stop: true }
+  }
   if (!engine) {
+    if (!menuMode) return { rule: null, stop: true }
     // главное меню звучит темой выбранной кампании
     const menuId = currentCampaign?.meta.ui_sounds?.['menu_music']
     return menuId ? { rule: { tracks: [menuId] }, stop: false } : { rule: null, stop: true }
   }
   if (engine.cutscene) return { rule: null, stop: true } // CutscenePlayer играет свою музыку
+  // Сюжетный оверрайд музыки имеет наивысший приоритет
+  if (engine.musicOverride?.tracks?.length) {
+    return { rule: { tracks: engine.musicOverride.tracks }, stop: false }
+  }
   if (engine.combat) {
     const arenaTrack = engine.combat.arena.music
     const tracks = arenaTrack ? [arenaTrack] : (currentCampaign?.meta.combat_music ?? [])
@@ -199,6 +219,20 @@ function stopCurrent(fade = FADE): void {
   cur = null
 }
 
+let duckFactor = 1.0
+
+/**
+ * Приглушение музыки при репликах с озвучкой / синтезатором речи (Audio Ducking).
+ * @param active true — приглушить, false — вернуть обычную громкость
+ * @param factor коэффициент громкости (по умолчанию 0.5 — приглушение на 50%)
+ */
+export function setMusicDucking(active: boolean, factor = 0.5): void {
+  const nextFactor = active ? Math.max(0.05, Math.min(1, factor)) : 1.0
+  if (duckFactor === nextFactor) return
+  duckFactor = nextFactor
+  applyMusicVolume()
+}
+
 function startTrackAt(state: PlayerState): void {
   const id = state.tracks[state.order[state.pos]]
   const t = id ? resolveTrack(id) : null
@@ -207,7 +241,7 @@ function startTrackAt(state: PlayerState): void {
   if (state.advanceTimer) clearTimeout(state.advanceTimer)
   state.advanceTimer = null
   if (!t) return
-  const vol = musicVolume(getSettings()) * t.volume
+  const vol = musicVolume(getSettings()) * t.volume * duckFactor
   const multi = state.tracks.length > 1
   const adv = multi
     ? () => {
@@ -239,10 +273,10 @@ export function refreshMusic(engine: GameEngine | null): void {
   }
   const { rule, stop } = desiredRule(engine && !menuMode ? engine : null)
   if (stop || !rule || !rule.tracks.length) {
-    stopCurrent()
+    if (cur) stopCurrent()
     return
   }
-  const key = JSON.stringify({ t: rule.tracks, s: !!rule.shuffle, m: menuMode, e: !!engine?.combat })
+  const key = JSON.stringify({ t: rule.tracks, s: !!rule.shuffle, m: menuMode, e: !!engine?.combat, o: !!engine?.musicOverride })
   if (cur && cur.key === key) return
   stopCurrent()
 
@@ -263,7 +297,7 @@ export function applyMusicVolume(): void {
   if (!cur?.handle) return
   const id = cur.tracks[cur.order[cur.pos]]
   const t = id ? resolveTrack(id) : null
-  cur.handle.setVolume(musicVolume(getSettings()) * (t?.volume ?? 1))
+  cur.handle.setVolume(musicVolume(getSettings()) * (t?.volume ?? 1) * duckFactor)
 }
 
 export function stopMusic(fade = 0.5): void {

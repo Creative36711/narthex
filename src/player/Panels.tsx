@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { Ico } from '../shared/icons'
 import { PlayerPortrait } from './PlayerPortrait'
 import { askConfirm } from '../shared/modals'
@@ -6,6 +6,18 @@ import type { GameEngine } from '../core/engine'
 import { featureOn, type Effect, type ItemDef, type NpcDef, type RecipeDef } from '../shared/types'
 import { damageBonus, movement } from '../core/brp'
 import { playInteraction, playUi } from '../shared/audio'
+import { assetUrl } from '../core/loader'
+import { firstFrame } from './frames'
+
+/** URL изображения предмета (image -> scene_sprite -> portrait) */
+export function itemImageSrc(engine: GameEngine, def?: ItemDef): string | null {
+  if (!def) return null
+  const rel =
+    def.image ||
+    (def.scene_sprite ? firstFrame(def.scene_sprite) : null) ||
+    (def.portrait ? def.portrait.neutral || Object.values(def.portrait)[0] : null)
+  return rel ? assetUrl(engine.campaign, rel) : null
+}
 
 /** человекочитаемое описание эффектов on_use (фидбек №7: «сколько HP лечит мазь») */
 function describeUseEffects(engine: GameEngine, effects: Effect[]): string {
@@ -81,6 +93,7 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
   const [equipFilter, setEquipFilter] = useState<(typeof EQUIP_FILTERS)[number]>('all')
   const [cat, setCat] = useState<string>('all')
   const [sort, setSort] = useState<'name' | 'weight' | 'got'>('name')
+  const [inspectItem, setInspectItem] = useState<ItemDef | null>(null)
   const inv = engine.state.player.inventory
   const items = inv
     .map((e) => ({ entry: e, def: engine.campaign.entities[e.item] as ItemDef | undefined }))
@@ -101,14 +114,18 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
   else if (sort === 'weight') {
     items.sort((a, b) => (b.def!.weight ?? 0) * b.entry.quantity - (a.def!.weight ?? 0) * a.entry.quantity)
   }
-  const totalWeight = items.reduce((sum, x) => sum + (x.def!.weight ?? 0) * x.entry.quantity, 0)
   const currencies = engine.campaign.meta.currencies
+  const currentLoad = engine.currentLoad()
+  const maxLoad = engine.maxLoad()
+  const loadDetails = engine.maxLoadDetails()
+  const debuffs = engine.encumbranceDebuffs()
+  const isOver = debuffs.status !== 'normal'
 
   return (
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>Инвентарь</h2>
+          <h2>{engine.uiLabel('inventory_title', engine.uiLabel('inventory', 'Инвентарь'))}</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         {currencies.length > 0 && (
@@ -164,35 +181,62 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
         </div>
         {items.length === 0 && <p className="muted">Пусто.</p>}
         <ul className="inv-list">
-          {items.map(({ entry, def }) => (
-            <li key={`${entry.item}:${entry.durability ?? "full"}:${(def!.weight ?? 0)}`} className="inv-item">
-              <div className="inv-item-main">
-                <b>{def!.label}</b>
-                {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
-                {engine.isEquipped(entry.item) && <span className="equipped-badge"><Ico n="check" />  надето</span>}
-                <div className="muted small">{def!.description}</div>
-                {def!.on_use && describeUseEffects(engine, def!.on_use.effects) && (
-                  <div className="muted small use-effect">{describeUseEffects(engine, def!.on_use.effects)}</div>
-                )}
-                {def!.weapon_data && (
-                  <div className="muted small">
-                    Оружие: {def!.weapon_data.damage}
-                    {def!.weapon_data.damage_bonus ? '+ бонус силы' : ''} · навык «{engine.skillLabel(def!.weapon_data.skill)}»
-                    {def!.weapon_data.durability !== undefined && (
-                      <> · прочность {entry.durability ?? def!.weapon_data.durability}/{def!.weapon_data.durability}
-                        {(entry.durability ?? def!.weapon_data.durability) === 0 && <b> (СЛОМАНО)</b>}
-                      </>
+          {items.map(({ entry, def }) => {
+            const imgSrc = itemImageSrc(engine, def)
+            return (
+              <li key={`${entry.item}:${entry.durability ?? "full"}:${(def!.weight ?? 0)}`} className="inv-item">
+                <div
+                  className="inv-item-thumb-box"
+                  onClick={() => setInspectItem(def!)}
+                  data-tip="Нажмите, чтобы подробно осмотреть предмет"
+                >
+                  {imgSrc ? (
+                    <img className="inv-thumb" src={imgSrc} alt="" />
+                  ) : (
+                    <div className="inv-thumb-placeholder">
+                      <Ico n="bag" />
+                    </div>
+                  )}
+                </div>
+                <div className="inv-item-main" onClick={() => setInspectItem(def!)} style={{ cursor: 'pointer' }}>
+                  <div className="inv-item-header">
+                    <span className="inv-item-name">{def!.label}</span>
+                    {entry.quantity > 1 && <span className="qty">×{entry.quantity}</span>}
+                    {engine.isEquipped(entry.item) && (
+                      <span className="equipped-badge">
+                        <Ico n="check" /> надето
+                      </span>
                     )}
                   </div>
-                )}
-                {def!.armor_data && def!.armor_data.durability !== undefined && (
-                  <div className="muted small">
-                    Прочность брони: {entry.durability ?? def!.armor_data.durability}/{def!.armor_data.durability}
-                    {(entry.durability ?? def!.armor_data.durability) === 0 && <b> (СЛОМАНО)</b>}
-                  </div>
-                )}
-                {def!.armor_data && <div className="muted small">Броня: −{def!.armor_data.points} к урону</div>}
-              </div>
+                  <div className="muted small">{def!.description}</div>
+                  {def!.on_use && describeUseEffects(engine, def!.on_use.effects) && (
+                    <div className="muted small use-effect">{describeUseEffects(engine, def!.on_use.effects)}</div>
+                  )}
+                  {def!.weapon_data && (
+                    <div className="muted small">
+                      Оружие: {def!.weapon_data.damage}
+                      {def!.weapon_data.damage_bonus ? '+ бонус силы' : ''} · навык «{engine.skillLabel(def!.weapon_data.skill)}»
+                      {def!.weapon_data.durability !== undefined && (
+                        <> · прочность {entry.durability ?? def!.weapon_data.durability}/{def!.weapon_data.durability}
+                          {(entry.durability ?? def!.weapon_data.durability) === 0 && <b> (СЛОМАНО)</b>}
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {def!.armor_data && def!.armor_data.durability !== undefined && (
+                    <div className="muted small">
+                      Прочность брони: {entry.durability ?? def!.armor_data.durability}/{def!.armor_data.durability}
+                      {(entry.durability ?? def!.armor_data.durability) === 0 && <b> (СЛОМАНО)</b>}
+                    </div>
+                  )}
+                  {def!.armor_data && <div className="muted small">Броня: −{def!.armor_data.points} к урону</div>}
+                  {entry.freshness !== undefined && def!.decay_ticks !== undefined && (
+                    <div className={`muted small item-freshness ${entry.freshness <= Math.ceil(def!.decay_ticks * 0.25) ? 'freshness-critical' : entry.freshness <= Math.ceil(def!.decay_ticks * 0.5) ? 'freshness-warning' : 'freshness-good'}`}>
+                      Свежесть: {entry.freshness} / {def!.decay_ticks} ч.
+                      {entry.freshness <= Math.ceil(def!.decay_ticks * 0.25) && <b> (Срок на исходе!)</b>}
+                    </div>
+                  )}
+                </div>
               <div className="inv-item-side">
                 <span className="muted small">{(def!.weight * entry.quantity).toFixed(1)} кг</span>
                 {def!.on_use && (
@@ -217,24 +261,136 @@ export function InventoryPanel({ engine, onClose }: { engine: GameEngine; onClos
                       Надеть
                     </button>
                   ))}
+                {!def?.quest_item ? (
+                  <button
+                    className="btn btn-small btn-drop"
+                    data-tip="Выбросить 1 шт."
+                    onClick={async () => {
+                      if (await askConfirm(`Выбросить ${entry.quantity > 1 ? '1 шт. —' : ''}«${def!.label}»?`, 'Выбросить')) {
+                        engine.removeItem(entry.item, 1)
+                        playInteraction('drop', { entity: def })
+                      }
+                    }}
+                  >
+                    <Ico n="trash" /> 
+                  </button>
+                ) : (
+                  <span className="badge badge-quest" data-tip="Сюжетный предмет (нельзя выбросить)"><Ico n="lock" /></span>
+                )}
+              </div>
+            </li>
+          )
+        })}
+        </ul>
+        <div className="panel-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+          <span
+            className={isOver ? 'overload' : 'muted'}
+            data-tip={`Базовая вместимость: ${loadDetails.base.toFixed(1)} кг (расчёт: ${loadDetails.formula})\n${loadDetails.equipBonus ? `Снаряжение (рюкзаки/сумки): +${loadDetails.equipBonus.toFixed(1)} кг\n` : ''}${loadDetails.charMult !== 1 ? `Расовый множитель: x${loadDetails.charMult}\n` : ''}${loadDetails.equipMult !== 1 ? `Множитель экипировки: x${loadDetails.equipMult}\n` : ''}Итоговый максимум: ${maxLoad.toFixed(1)} кг${isOver ? `\n\nШтрафы перегруза (${debuffs.label}):\n• Уклонение в бою: −${debuffs.dodgePenalty}%\n• Скорость в бою: −${debuffs.movPenalty}\n• Время в пути: ${debuffs.isBlocked ? 'заблокировано (критический вес)' : `+${Math.round((debuffs.travelMultiplier - 1) * 100)}% к длительности дороги`}` : ''}`}
+          >
+            Груз: <b>{currentLoad.toFixed(1)}</b> / {maxLoad.toFixed(1)} кг
+            {isOver && (
+              <span className={`badge ${debuffs.status === 'critical' ? 'badge-danger' : 'badge-warning'}`} style={{ marginLeft: 8 }}>
+                {debuffs.label}
+              </span>
+            )}
+          </span>
+          {isOver && (
+            <span className="small muted" style={{ color: debuffs.status === 'critical' ? 'var(--danger, #f56565)' : 'var(--warn, #ed8936)' }}>
+              {debuffs.isBlocked ? 'Путешествия заблокированы' : `−${debuffs.dodgePenalty}% уклон, −${debuffs.movPenalty} MOV`}
+            </span>
+          )}
+        </div>
+      </div>
+      {inspectItem && (
+        <div className="overlay item-inspect-overlay" onClick={() => setInspectItem(null)}>
+          <div className="panel item-inspect-card" onClick={(e) => e.stopPropagation()}>
+            <div className="panel-header">
+              <h3>{inspectItem.label}</h3>
+              <button className="btn btn-small" onClick={() => setInspectItem(null)}>
+                <Ico n="close" />
+              </button>
+            </div>
+            <div className="item-inspect-body">
+              {itemImageSrc(engine, inspectItem) ? (
+                <div className="item-inspect-art-wrap">
+                  <img
+                    className="item-inspect-art"
+                    src={itemImageSrc(engine, inspectItem)!}
+                    alt={inspectItem.label}
+                  />
+                </div>
+              ) : null}
+              <div className="item-inspect-info">
+                {inspectItem.category && (
+                  <span className="item-inspect-category">
+                    {engine.campaign.meta.item_categories?.find((c) => c.id === inspectItem.category)?.label ?? inspectItem.category}
+                  </span>
+                )}
+                <p className="item-inspect-desc">{inspectItem.description}</p>
+                <div className="item-inspect-stats">
+                  <div className="inspect-stat-row">
+                    <span className="muted small">Вес:</span>
+                    <b>{inspectItem.weight} кг</b>
+                  </div>
+                  {inspectItem.value && (
+                    <div className="inspect-stat-row">
+                      <span className="muted small">Базовая стоимость:</span>
+                      <b className="gold">{inspectItem.value[engine.mainCurrency] ?? 0} {engine.campaign.meta.currencies[0]?.symbol ?? 'мон.'}</b>
+                    </div>
+                  )}
+                  {inspectItem.weapon_data && (
+                    <div className="inspect-stat-row">
+                      <span className="muted small">Урон оружия:</span>
+                      <b>{inspectItem.weapon_data.damage} (навык: {engine.skillLabel(inspectItem.weapon_data.skill)})</b>
+                    </div>
+                  )}
+                  {inspectItem.armor_data && (
+                    <div className="inspect-stat-row">
+                      <span className="muted small">Защита брони:</span>
+                      <b>−{inspectItem.armor_data.points} к урону</b>
+                    </div>
+                  )}
+                </div>
+                {inspectItem.on_use && (
+                  <div className="item-inspect-use-hint">
+                    <Ico n="sparkle" /> {describeUseEffects(engine, inspectItem.on_use.effects)}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="item-inspect-actions">
+              {inspectItem.on_use && (
                 <button
-                  className="btn btn-small btn-drop"
-                  data-tip="Выбросить 1 шт."
-                  onClick={async () => {
-                    if (await askConfirm(`Выбросить ${entry.quantity > 1 ? '1 шт. —' : ''}«${def!.label}»?`, 'Выбросить')) {
-                      engine.removeItem(entry.item, 1)
-                      playInteraction('drop', { entity: def })
+                  className="btn btn-primary btn-small"
+                  onClick={() => {
+                    engine.useItem(inspectItem.id)
+                    setInspectItem(null)
+                  }}
+                >
+                  Использовать
+                </button>
+              )}
+              {engine.itemSlot(inspectItem.id) && (
+                <button
+                  className="btn btn-small"
+                  onClick={() => {
+                    if (engine.isEquipped(inspectItem.id)) {
+                      engine.unequipItem(engine.equippedSlotOf(inspectItem.id))
+                    } else {
+                      engine.equipItem(inspectItem.id)
                     }
                   }}
                 >
-                  <Ico n="trash" /> 
+                  {engine.isEquipped(inspectItem.id) ? 'Снять' : 'Надеть'}
                 </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <div className="panel-footer muted">Общий вес: {totalWeight.toFixed(1)} кг</div>
-      </div>
+              )}
+              <button className="btn btn-small" onClick={() => setInspectItem(null)}>
+                Закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -249,6 +405,9 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
   const factions = (engine.campaign.meta.factions ?? []).filter((f) => !f.hidden)
   const load = engine.currentLoad()
   const maxLoad = engine.maxLoad()
+  const loadDetails = engine.maxLoadDetails()
+  const debuffs = engine.encumbranceDebuffs()
+  const isOver = debuffs.status !== 'normal'
   const weapon = engine.playerWeapon()
   const armor = engine.playerArmor()
   const inventoryOn = featureOn(meta, 'inventory')
@@ -356,8 +515,21 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
           <span>MOV {movement(p.stats)}</span>
         </div>
         <div className="derived-row">
-          <span className={load > maxLoad ? 'overload' : ''}>
-            Груз {load.toFixed(1)}/{maxLoad} кг{load > maxLoad ? '— перегруз!' : ''}
+          <span
+            className={isOver ? 'overload' : ''}
+            data-tip={`Базовая вместимость: ${loadDetails.base.toFixed(1)} кг (${loadDetails.formula})
+${loadDetails.equipBonus ? `Снаряжение: +${loadDetails.equipBonus.toFixed(1)} кг
+` : ''}${loadDetails.charMult !== 1 ? `Расовый множитель: x${loadDetails.charMult}
+` : ''}${loadDetails.equipMult !== 1 ? `Множитель экипировки: x${loadDetails.equipMult}
+` : ''}Итоговый максимум: ${maxLoad.toFixed(1)} кг${isOver ? `
+
+Штрафы перегруза (${debuffs.label}):
+• Уклонение в бою: −${debuffs.dodgePenalty}%
+• Скорость в бою: −${debuffs.movPenalty}
+• Время в пути: ${debuffs.isBlocked ? 'заблокировано (критический вес)' : `+${Math.round((debuffs.travelMultiplier - 1) * 100)}%`}` : ''}`}
+          >
+            Груз {load.toFixed(1)}/{maxLoad.toFixed(1)} кг
+            {isOver && ` — ${debuffs.label} (−${debuffs.dodgePenalty}% уклон${debuffs.movPenalty > 0 ? `, −${debuffs.movPenalty} MOV` : ''})`}`
           </span>
         </div>
         <h3>Снаряжение</h3>
@@ -540,26 +712,70 @@ export function CharacterPanel({ engine, onClose }: { engine: GameEngine; onClos
 /** Журнал: квесты (стадии, записи) + события (ТЗ 6.1). */
 export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
   const [qq, setQq] = useState('')
+  const [logTab, setLogTab] = useState<'all' | 'rolls' | 'story' | 'economy'>('all')
   const log = engine.state.log
   const quests = Object.entries(engine.state.quests)
   const active = quests.filter(([, q]) => q.status === 'active')
   const done = quests.filter(([, q]) => q.status !== 'active')
 
+  const filteredLog = useMemo(() => {
+    if (logTab === 'rolls') {
+      return log.filter((l) => /(?:d100|d20|d6|d8|d10|d12|бросок|проверка|успех|провал|критическ|спасбросок)/i.test(l))
+    }
+    if (logTab === 'story') {
+      return log.filter((l) => /(?:квест|задани|дело|цель|найден|открыт|глава|заметк|сцена|разговор|поговорил|журнал)/i.test(l))
+    }
+    if (logTab === 'economy') {
+      return log.filter((l) => /(?:получен|потрачен|купил|продал|монет|золот|изготовлен|инвентар|экипиров)/i.test(l))
+    }
+    return log
+  }, [log, logTab])
+
   const renderQuest = ([id, q]: (typeof quests)[number]) => {
     const def = engine.campaign.quests[id]
     if (!def) return null
+    const currentStageDef = def.stages.find((s) => s.id === q.stage)
+    const currentGoal = currentStageDef?.label || (q.journal.length ? q.journal[q.journal.length - 1] : def.description)
+    const pastEntries = q.journal.length > 1 ? q.journal.slice(0, -1) : []
+
     return (
       <div key={id} className={`quest-card quest-${q.status}`}>
-        <div className="quest-title">
-          {q.status === 'completed' ? '' : q.status === 'failed' ? '×' : '◆'}
-          {def.label}
+        <div className="quest-header-row">
+          <div className="quest-title">
+            <span className={`quest-status-bullet quest-status-${q.status}`}>
+              {q.status === 'completed' ? '✓' : q.status === 'failed' ? '✕' : '◆'}
+            </span>
+            <span>{def.label}</span>
+          </div>
+          <span className={`quest-badge quest-badge-${q.status}`}>
+            {q.status === 'completed' ? 'Завершено' : q.status === 'failed' ? 'Провалено' : 'Активно'}
+          </span>
         </div>
-        <div className="muted small">{def.description}</div>
-        <ul className="quest-journal">
-          {q.journal.map((j, i) => (
-            <li key={i} className={i === q.journal.length - 1 ? '' : 'muted'}>{j}</li>
-          ))}
-        </ul>
+        {def.description && <div className="quest-desc muted small">{def.description}</div>}
+
+        {/* Блок «Текущая цель» */}
+        {q.status === 'active' && (
+          <div className="quest-goal-box">
+            <div className="quest-goal-label">
+              <Ico n="compass" /> Текущая цель:
+            </div>
+            <div className="quest-goal-text">{currentGoal}</div>
+          </div>
+        )}
+
+        {/* Блок «История выполнения» */}
+        {pastEntries.length > 0 && (
+          <details className="quest-history-block" open={q.status !== 'active'}>
+            <summary className="quest-history-summary">
+              История выполнения ({pastEntries.length})
+            </summary>
+            <ul className="quest-journal">
+              {pastEntries.map((j, i) => (
+                <li key={i} className="quest-past-entry">{j}</li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
     )
   }
@@ -568,7 +784,7 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>Журнал</h2>
+          <h2>{engine.uiLabel('journal_title', engine.uiLabel('journal', 'Журнал'))}</h2>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         <h3>Квесты</h3>
@@ -582,10 +798,41 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
         {done
           .filter(([id, q]) => !qq.trim() || `${engine.campaign.quests[id]?.label ?? id} ${q.journal.join(' ')}`.toLowerCase().includes(qq.trim().toLowerCase()))
           .map(renderQuest)}
-        <h3>События</h3>
-        {log.length === 0 && <p className="muted">Записей пока нет.</p>}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+          <h3 style={{ margin: 0 }}>События</h3>
+          <div className="btn-group">
+            <button
+              className={`btn btn-small ${logTab === 'all' ? 'btn-primary' : ''}`}
+              onClick={() => setLogTab('all')}
+            >
+              Все
+            </button>
+            <button
+              className={`btn btn-small ${logTab === 'rolls' ? 'btn-primary' : ''}`}
+              onClick={() => setLogTab('rolls')}
+              data-tip="Броски кубиков и проверки навыков"
+            >
+              🎲 Броски
+            </button>
+            <button
+              className={`btn btn-small ${logTab === 'story' ? 'btn-primary' : ''}`}
+              onClick={() => setLogTab('story')}
+              data-tip="Сюжетные события и задания"
+            >
+              📜 Сюжет
+            </button>
+            <button
+              className={`btn btn-small ${logTab === 'economy' ? 'btn-primary' : ''}`}
+              onClick={() => setLogTab('economy')}
+              data-tip="Предметы, покупки и крафт"
+            >
+              🎒 Вещи
+            </button>
+          </div>
+        </div>
+        {filteredLog.length === 0 && <p className="muted">В этой категории пока нет записей.</p>}
         <ul className="log-list">
-          {[...log].reverse().slice(0, 60).map((l, i) => (
+          {[...filteredLog].reverse().slice(0, 60).map((l, i) => (
             <li key={i}>{l}</li>
           ))}
         </ul>
@@ -595,15 +842,35 @@ export function LogPanel({ engine, onClose }: { engine: GameEngine; onClose: () 
 }
 
 /** Крафт (блок 4 ТЗ): список рецептов, недостающие компоненты, изготовление. */
-export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose: () => void }) {
+export function CraftingPanel({ engine, onClose, focusRecipe }: { engine: GameEngine; onClose: () => void; focusRecipe?: string }) {
   // закрытые рецепты (RecipeDef.known = false) игроку не показываем — пока
   // их не открыл эффект unlock_recipe
   const recipes = engine.knownRecipes()
+  // рецепт, ради которого окно открыли (open_craft): подсвечиваем и
+  // прокручиваем к нему — мастер ведёт игрока к нужному верстаку
+  const focusRef = useRef<HTMLLIElement | null>(null)
+  useEffect(() => {
+    focusRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [focusRecipe])
+  const isWorkbench = engine.isWorkbenchAvailable()
   return (
     <div className="overlay panel-overlay" onClick={onClose}>
       <div className="panel side-panel" onClick={(e) => e.stopPropagation()}>
         <div className="panel-header">
-          <h2>Изготовление</h2>
+          <div>
+            <h2>{engine.uiLabel('craft_title', engine.uiLabel('craft', 'Изготовление'))}</h2>
+            <div className="muted small" style={{ marginTop: 2 }}>
+              {engine.craftSourceEntity ? (
+                <span style={{ color: 'var(--accent, #4fd1c5)' }}>
+                  ⚒ {engine.craftSourceEntity.label} (Мастерская активна)
+                </span>
+              ) : isWorkbench ? (
+                <span style={{ color: 'var(--accent, #4fd1c5)' }}>⚒ Верстак / мастерская доступны</span>
+              ) : (
+                <span>🎒 Походное изготовление (на ходу)</span>
+              )}
+            </div>
+          </div>
           <button className="btn btn-small" onClick={onClose}><Ico n="close" /> </button>
         </div>
         {recipes.length === 0 && <p className="muted">Рецептов пока нет.</p>}
@@ -611,7 +878,17 @@ export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose
           {recipes.map((r) => {
             const missing = engine.recipeMissing(r)
             if (r.repair && !engine.hasDamaged(r.output.item)) missing.push(`нет изношенного «${engine.campaign.entities[r.output.item]?.label ?? r.output.item}» — чинить нечего`)
-            return <CraftRow key={r.id} engine={engine} recipe={r} missing={missing} />
+            const focused = !!focusRecipe && focusRecipe === r.id
+            return (
+              <CraftRow
+                key={r.id}
+                engine={engine}
+                recipe={r}
+                missing={missing}
+                focused={focused}
+                ref={focused ? focusRef : undefined}
+              />
+            )
           })}
         </ul>
       </div>
@@ -619,14 +896,29 @@ export function CraftingPanel({ engine, onClose }: { engine: GameEngine; onClose
   )
 }
 
-function CraftRow({ engine, recipe, missing }: { engine: GameEngine; recipe: RecipeDef; missing: string[] }) {
+const CraftRow = forwardRef<HTMLLIElement, { engine: GameEngine; recipe: RecipeDef; missing: string[]; focused?: boolean }>(
+  function CraftRow({ engine, recipe, missing, focused }, ref) {
   const canCraft = missing.length === 0
   const out = engine.campaign.entities[recipe.output.item] as ItemDef | undefined
   return (
-    <li className={`craft-row ${canCraft ? '' : 'craft-blocked'}`}>
+    <li ref={ref} className={`craft-row ${canCraft ? '' : 'craft-blocked'} ${focused ? 'craft-focused' : ''}`}>
       <div className="inv-item-main">
-        <b>{recipe.label}</b>
-        {recipe.repair && <span className="equipped-badge" data-tip="Восстанавливает прочность изношенного предмета до максимума">починка</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <b>{recipe.label}</b>
+          {recipe.repair && <span className="equipped-badge" data-tip="Восстанавливает прочность изношенного предмета до максимума">починка</span>}
+          {recipe.workbench && (
+            <span
+              className={`equipped-badge ${engine.isWorkbenchAvailable(recipe.workbench) ? '' : 'craft-req-missing'}`}
+              data-tip={
+                engine.isWorkbenchAvailable(recipe.workbench)
+                  ? `Рабочее место доступно: ${engine.workbenchLabel(recipe.workbench)}`
+                  : `Требуется рабочее место: ${engine.workbenchLabel(recipe.workbench)}`
+              }
+            >
+              ⚒ {engine.workbenchLabel(recipe.workbench)}
+            </span>
+          )}
+        </div>
         {recipe.description && <div className="muted small">{recipe.description}</div>}
         {recipe.inputs.length > 0 && (
           <div className="muted small">
@@ -656,4 +948,4 @@ function CraftRow({ engine, recipe, missing }: { engine: GameEngine; recipe: Rec
       </div>
     </li>
   )
-}
+})

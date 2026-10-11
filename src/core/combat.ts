@@ -140,8 +140,8 @@ export class CombatController {
     const arena = engine.campaign.arenas[def.arena]
     if (!arena) throw new Error(`Арена не найдена: ${def.arena}`)
     this.arena = arena
-    this.blocked = new Set(arena.hex_grid.blocked_hexes.map(([c, r]) => `${c},${r}`))
-    this.difficult = new Set(arena.hex_grid.difficult_terrain.map(([c, r]) => `${c},${r}`))
+    this.blocked = new Set((arena.hex_grid.blocked_hexes ?? []).map(([c, r]) => `${c},${r}`))
+    this.difficult = new Set((arena.hex_grid.difficult_terrain ?? []).map(([c, r]) => `${c},${r}`))
     this.coverHexes = new Set((arena.hex_grid.cover_hexes ?? []).map(([c, r]) => `${c},${r}`))
     this.surprise = def.surprise
     this.setup()
@@ -175,7 +175,25 @@ export class CombatController {
     const appearanceFigure = e.heroCombatFigure()
     const weapon = pw.weapon
     const weaponLabel = pw.label
-    const overloaded = e.isOverloaded()
+    const encDebuffs = e.encumbranceDebuffs()
+    const overloaded = encDebuffs.status !== 'normal'
+
+    let playerSkills = p.skills
+    if (overloaded) {
+      playerSkills = { ...p.skills }
+      if (encDebuffs.dodgePenalty > 0) {
+        playerSkills.dodge = Math.max(0, (playerSkills.dodge ?? 0) - encDebuffs.dodgePenalty)
+      }
+      if (encDebuffs.skillPenalty > 0) {
+        if (playerSkills.stealth !== undefined) {
+          playerSkills.stealth = Math.max(0, playerSkills.stealth - encDebuffs.skillPenalty)
+        }
+        if (playerSkills.athletics !== undefined) {
+          playerSkills.athletics = Math.max(0, playerSkills.athletics - encDebuffs.skillPenalty)
+        }
+      }
+    }
+
     this.combatants.push({
       id: 'c_player',
       entityId: p.entity,
@@ -188,7 +206,7 @@ export class CombatController {
       facing: 90,
       flip: false,
       stats: p.stats,
-      skills: overloaded ? { ...p.skills, dodge: Math.max(0, (p.skills.dodge ?? 0) - 10) } : p.skills,
+      skills: playerSkills,
       weapon,
       weaponLabel,
       weaponItemId: pw.itemId,
@@ -196,7 +214,7 @@ export class CombatController {
       hp: p.hp,
       maxHp: p.max_hp,
       pos: this.takeSpawn(playerSpawns),
-      mov: Math.max(2, movement(p.stats) - (overloaded ? 2 : 0)),
+      mov: Math.max(1, movement(p.stats) - encDebuffs.movPenalty),
       movLeft: 0,
       statuses: [],
       mp: p.mp,
@@ -208,13 +226,19 @@ export class CombatController {
       defensesUsed: 0,
       dead: false,
     })
-    if (overloaded) this.log.push('Вы перегружены: движение −2, уклонение −10.')
+    if (overloaded) {
+      const parts = []
+      if (encDebuffs.movPenalty > 0) parts.push(`движение −${encDebuffs.movPenalty}`)
+      if (encDebuffs.dodgePenalty > 0) parts.push(`уклонение −${encDebuffs.dodgePenalty}%`)
+      if (encDebuffs.skillPenalty > 0) parts.push(`ловкость −${encDebuffs.skillPenalty}%`)
+      this.log.push(`Вы перегружены (${encDebuffs.label}): ${parts.join(', ')}.`)
+    }
 
     // напарники (ТЗ 4.11)
     for (const comp of e.state.party) {
       const def = e.campaign.entities[comp.entity] as NpcDef | undefined
       if (!def || def.type !== 'npc') continue
-      const w = this.resolveWeapon(def, def.skills)
+      const w = this.resolveWeapon(def, def.skills ?? {})
       this.combatants.push({
         id: `c_ally_${comp.entity}`,
         entityId: comp.entity,
@@ -227,7 +251,7 @@ export class CombatController {
         facing: 90,
         flip: false,
         stats: def.stats,
-        skills: def.skills,
+        skills: def.skills ?? {},
         weapon: w.weapon,
         weaponLabel: w.weaponLabel,
         weaponItemId: w.weaponItemId,
@@ -257,7 +281,7 @@ export class CombatController {
       for (let i = 0; i < grp.count; i++) {
         a++
         const hp = def.stats.HP ?? derivedHP(def.stats)
-        const w = this.resolveWeapon(def, def.skills)
+        const w = this.resolveWeapon(def, def.skills ?? {})
         this.combatants.push({
           id: `c_tally_${grp.entity}_${a}`,
           entityId: grp.entity,
@@ -270,7 +294,7 @@ export class CombatController {
           facing: 90,
           flip: false,
           stats: def.stats,
-          skills: def.skills,
+          skills: def.skills ?? {},
           weapon: w.weapon,
           weaponLabel: w.weaponLabel,
           weaponItemId: w.weaponItemId,
@@ -300,7 +324,7 @@ export class CombatController {
       for (let i = 0; i < grp.count; i++) {
         n++
         const hp = def.stats.HP ?? derivedHP(def.stats)
-        const w = this.resolveWeapon(def, def.skills)
+        const w = this.resolveWeapon(def, def.skills ?? {})
         this.combatants.push({
           id: `c_enemy_${n}`,
           entityId: def.id,
@@ -313,7 +337,7 @@ export class CombatController {
           facing: -90,
           flip: true,
           stats: def.stats,
-          skills: def.skills,
+          skills: def.skills ?? {},
           weapon: w.weapon,
           weaponLabel: w.weaponLabel,
           weaponItemId: w.weaponItemId,
@@ -617,6 +641,77 @@ export class CombatController {
       this.processUntilPlayer()
     }
     this.engine.notify()
+  }
+
+  /**
+   * Предпросмотр шансов атаки (Combat Forecast) для подсказок и плашек игрока.
+   */
+  estimateAttack(attacker: Combatant, defender: Combatant): {
+    hitChance: number
+    target: number
+    damage: string
+    armor: number
+    penalty: number
+    aim: number
+    cover: number | null
+    fromBehind: boolean
+    fromShadow: boolean
+  } {
+    const apr = Math.max(1, attacker.weapon.attacks_per_round ?? 1)
+    const penalty = (apr - attacker.attacksLeft) * this.multiAttackPenalty
+    const aim = attacker.aimBonus ?? 0
+    const fromShadow = !!attacker.hidden
+    const flank = this.flankRules()
+    const fromBehind = !!flank && this.isRearArc(defender, attacker.pos, flank.arc)
+    const skillVal = Math.max(
+      1,
+      (attacker.skills[attacker.weapon.skill] ?? 25) +
+        this.statusSkillMod(attacker, attacker.weapon.skill) +
+        this.weatherSkillMod(attacker.weapon.skill) +
+        aim,
+    )
+    const coverP = attacker.weapon.range > 1 && this.coverHexes.has(hexKey(defender.pos)) ? this.coverPenalty() : null
+    const target = Math.max(1, Math.min(95, skillVal + penalty + (coverP ?? 0)))
+    const dbNotation = attacker.weapon.damage_bonus ? damageBonus(attacker.stats) : ''
+    const dbStr = dbNotation && dbNotation !== '0' ? (dbNotation.startsWith('+') || dbNotation.startsWith('-') ? dbNotation : `+${dbNotation}`) : ''
+    const damage = `${attacker.weapon.damage}${dbStr}`
+    const armor = defender.armor
+    return {
+      hitChance: target,
+      target,
+      damage,
+      armor,
+      penalty,
+      aim,
+      cover: coverP,
+      fromBehind,
+      fromShadow,
+    }
+  }
+
+  /**
+   * Предпросмотр применения способности по цели.
+   */
+  estimateAbility(caster: Combatant, ab: AbilityDef, _target: Combatant): {
+    hitChance: number
+    targetVal: number
+    effectLabel: string
+  } {
+    if (ab.kind === 'heal') {
+      return { hitChance: 100, targetVal: 100, effectLabel: `Лечение: ${ab.heal ?? '1d6'}` }
+    }
+    const skill = ab.skill ?? 'magic'
+    const base = caster.skills[skill] ?? 25
+    const mod = this.statusSkillMod(caster, skill) + this.weatherSkillMod(skill)
+    const targetVal = Math.max(1, Math.min(95, base + mod))
+    const parts: string[] = []
+    if (ab.damage) parts.push(`Урон: ${ab.damage}`)
+    if (ab.status) parts.push(`Статус: «${this.statusLabel(ab.status)}» (${ab.status_duration ?? 2} р.)`)
+    return {
+      hitChance: targetVal,
+      targetVal,
+      effectLabel: parts.join(' · ') || 'Воздействие',
+    }
   }
 
   /** Может ли игрок бежать из этого боя (аудит §5.6 п.2). */

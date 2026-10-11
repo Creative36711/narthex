@@ -153,6 +153,25 @@
             "items"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "weather"
+            },
+            "weather": {
+              "type": "string"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "weather"
+          ],
+          "additionalProperties": false
         }
       ],
       "description": "Условие для потребности (фидбек №1/№3 седьмого раунда): когда она убывает\nи когда восстанавливается. Пример «Тепло»: убывает ночью, если нет тёплой\nодежды и герой не в таверне; в таверне — восстанавливается.\n\nИтерация 8, А3: множественные значения. «Герой в локации» и «есть/надет\nпредмет» принимают СПИСОК id и означают «любой из» (условия потребности\nсоединяются по «И», поэтому нескольких локаций одним условием раньше было\nне выразить). Одиночные поля старого формата (`location`, `item`)\nмигрируются при загрузке (см. shared/migrate.ts)."
@@ -165,6 +184,14 @@
         },
         "label": {
           "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "description": "Описание потребности для игрока (показывается в тултипе)"
+        },
+        "short_label": {
+          "type": "string",
+          "description": "Короткая подпись для компактного отображения в HUD"
         },
         "max": {
           "type": "number"
@@ -598,6 +625,19 @@
             },
             "flag": {
               "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
             }
           },
           "required": [
@@ -717,6 +757,21 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "open_craft"
+            },
+            "recipe": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "set_entity_state"
             },
             "entity": {
@@ -730,6 +785,25 @@
             "type",
             "entity",
             "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "learn_name"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "silent": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
           ],
           "additionalProperties": false
         },
@@ -2051,6 +2125,77 @@
             "cutscene"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "play_sound"
+            },
+            "sound": {
+              "type": "string"
+            },
+            "volume": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "sound"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "stop_sound"
+            },
+            "sound": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "override_music"
+            },
+            "tracks": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "fade": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "tracks"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "clear_music_override"
+            },
+            "fade": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -2063,12 +2208,24 @@
         "label": {
           "type": "string"
         },
+        "short_label": {
+          "type": "string",
+          "description": "Короткая подпись для компактного отображения в HUD"
+        },
         "description": {
           "type": "string"
         },
         "icon": {
           "type": "string",
           "description": "иконка-файл/ссылка; нет — текстовый чип"
+        },
+        "apply_sound": {
+          "type": "string",
+          "description": "индивидуальный звук при наложении статуса"
+        },
+        "remove_sound": {
+          "type": "string",
+          "description": "индивидуальный звук при спаде/снятии статуса"
         },
         "scope": {
           "type": "string",
@@ -2386,6 +2543,14 @@
             "flee_chance"
           ],
           "additionalProperties": false
+        },
+        "carry_capacity_bonus": {
+          "type": "number",
+          "description": "Расовый/видовой бонус к переносимому весу (+кг)"
+        },
+        "carry_capacity_mult": {
+          "type": "number",
+          "description": "Расовый/видовой множитель переносимого веса (напр. 3.0 для вьючных животных или мутантов)"
         }
       },
       "required": [
@@ -2518,6 +2683,14 @@
         },
         "loop": {
           "type": "boolean"
+        },
+        "color_inner": {
+          "type": "string",
+          "description": "цвет центра процедурной частицы (rgba/hex, по умолчанию белое/золотое свечение)"
+        },
+        "color_outer": {
+          "type": "string",
+          "description": "цвет внешнего ореола процедурной частицы"
         }
       },
       "required": [
@@ -2526,6 +2699,90 @@
       ],
       "additionalProperties": false,
       "description": "декларативный слой атмосферы («мастерская спецэффектов»): летящие частицы из\nфайла-спрайта с поведением. WeatherDef.overlay = id эффекта (встроенные\nrain/snow/fog/ash продолжают работать)."
+    },
+    "EncumbranceRules": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Включена ли система перегруза (по умолчанию true)"
+        },
+        "formula": {
+          "type": "string",
+          "enum": [
+            "str_siz",
+            "str_siz_sum",
+            "str_con",
+            "str_only",
+            "str_x2",
+            "siz_x2",
+            "str_plus_half_siz",
+            "fixed"
+          ],
+          "description": "Формула базовой грузоподъёмности:\n'str_siz' | 'str_siz_sum' — классика BRP (STR + SIZ в кг), по умолчанию\n'str_con' — сила + телосложение (STR + CON в кг)\n'str_only' | 'str_x2' — чистая сила (STR * 2 в кг)\n'siz_x2' — чистые габариты (SIZ * 2 в кг)\n'str_plus_half_siz' — STR + (SIZ / 2) в кг\n'fixed' — фиксированное значение из base_capacity"
+        },
+        "base_capacity": {
+          "type": "number",
+          "description": "Фиксированная базовая вместимость в кг (при formula === 'fixed', по умолчанию 25)"
+        },
+        "capacity_multiplier": {
+          "type": "number",
+          "description": "Глобальный множитель грузоподъёмности мира (по умолчанию 1.0)"
+        },
+        "travel_penalty": {
+          "type": "boolean",
+          "description": "Влияет ли перегруз на время путешествий между локациями (по умолчанию true)"
+        },
+        "light_travel_multiplier": {
+          "type": "number",
+          "description": "Множитель времени при лёгком перегрузе (>1.0x, по умолчанию 1.5)"
+        },
+        "heavy_travel_multiplier": {
+          "type": "number",
+          "description": "Множитель времени при тяжёлом перегрузе (>1.5x, по умолчанию 2.0)"
+        },
+        "critical_threshold": {
+          "type": "number",
+          "description": "Порог критического перегруза, блокирующего перемещение (по умолчанию 2.0x, 0 = не блокировать)"
+        },
+        "light_dodge_penalty": {
+          "type": "number",
+          "description": "Штраф к уклонению в бою при лёгком перегрузе (%, по умолчанию 10)"
+        },
+        "light_mov_penalty": {
+          "type": "number",
+          "description": "Штраф к перемещению в бою при лёгком перегрузе (MOV, по умолчанию 1)"
+        },
+        "light_agility_skills_penalty": {
+          "type": "number",
+          "description": "Штраф к ловкостным навыкам при лёгком перегрузе (%, по умолчанию 10)"
+        },
+        "heavy_dodge_penalty": {
+          "type": "number",
+          "description": "Штраф к уклонению в бою при тяжёлом перегрузе (%, по умолчанию 25)"
+        },
+        "heavy_mov_penalty": {
+          "type": "number",
+          "description": "Штраф к перемещению в бою при тяжёлом перегрузе (MOV, по умолчанию 2)"
+        },
+        "heavy_agility_skills_penalty": {
+          "type": "number",
+          "description": "Штраф к ловкостным навыкам при тяжёлом перегрузе (%, по умолчанию 25)"
+        },
+        "critical_dodge_penalty": {
+          "type": "number",
+          "description": "Штраф к уклонению в бою при критическом перегрузе (%, по умолчанию 50)"
+        },
+        "critical_mov_penalty": {
+          "type": "number",
+          "description": "Штраф к перемещению в бою при критическом перегрузе (MOV, по умолчанию 3)"
+        },
+        "critical_agility_skills_penalty": {
+          "type": "number",
+          "description": "Штраф к ловкостным навыкам при критическом перегрузе (%, по умолчанию 50)"
+        }
+      },
+      "additionalProperties": false
     },
     "Condition": {
       "anyOf": [
@@ -2705,6 +2962,22 @@
             },
             "min_quantity": {
               "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "equipped"
+            },
+            "item": {
+              "type": "string"
             }
           },
           "required": [
@@ -3261,6 +3534,25 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "npc_known"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "known": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "and"
             },
             "conditions": {
@@ -3780,6 +4072,10 @@
             "normal",
             "italic"
           ]
+        },
+        "size_adjust": {
+          "type": "number",
+          "description": "визуальная поправка размера для конкретного шрифта (0.8 .. 1.3, по умолчанию 1)"
         }
       },
       "required": [
@@ -3839,6 +4135,41 @@
           "additionalProperties": false,
           "description": "роли шрифтов — id из `meta.fonts`; отсутствует роль — системный шрифт"
         },
+        "font_scale": {
+          "type": "number",
+          "description": "общий множитель размера шрифта игры (0.8 .. 1.4, по умолчанию 1)"
+        },
+        "font_sizes": {
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "number",
+              "description": "основной текст: описания, сообщения (по умолчанию 15)"
+            },
+            "display": {
+              "type": "number",
+              "description": "заголовки: названия локаций, сцен, панелей (по умолчанию 20)"
+            },
+            "dialogue": {
+              "type": "number",
+              "description": "реплики и варианты ответов в диалогах (по умолчанию 16)"
+            },
+            "ui": {
+              "type": "number",
+              "description": "кнопки, списки, мелкие элементы интерфейса (по умолчанию 13)"
+            }
+          },
+          "additionalProperties": false,
+          "description": "точные размеры шрифтов в пикселях"
+        },
+        "line_height": {
+          "type": "number",
+          "description": "межстрочный интервал (множитель 1.2 .. 2.0, по умолчанию 1.5)"
+        },
+        "letter_spacing": {
+          "type": "string",
+          "description": "межбуквенное расстояние (в em, например 0.01em..0.05em)"
+        },
         "menu": {
           "type": "object",
           "properties": {
@@ -3856,7 +4187,7 @@
             },
             "title_art": {
               "type": "string",
-              "description": "арт/лого кампании над заголовком"
+              "description": "арт/лого кампании над заголовком. ОБЯЗАТЕЛЬНО прозрачный фон (PNG с\nальфой): арт лежит поверх фона меню, с фоном выглядит чёрным квадратом."
             }
           },
           "additionalProperties": false
@@ -5084,6 +5415,14 @@
         "starting_tick": {
           "type": "number"
         },
+        "deadline_ticks": {
+          "type": "number",
+          "description": "Общий дедлайн кампании (число тиков от старта до критического финала).\nЕсли задано (>0) — в HUD отображается индикатор обратного отсчёта."
+        },
+        "deadline_label": {
+          "type": "string",
+          "description": "подпись дедлайна в HUD (например, «До затопления», «До отбытия поезда»)"
+        },
         "needs": {
           "type": "array",
           "items": {
@@ -5226,6 +5565,10 @@
             "$ref": "#/$defs/ParticleEffectDef"
           },
           "description": "реестр атмосферных слоёв из файлов мастера (мастерская спецэффектов)"
+        },
+        "encumbrance": {
+          "$ref": "#/$defs/EncumbranceRules",
+          "description": "Правила перегруза и грузоподъёмности мира (универсальная адаптация BRP).\nПозволяет настраивать миры для гигантов, мутантов, хоббитов, фантастики\nи экзоскелетов без правок движка."
         },
         "camping": {
           "type": "object",
@@ -5592,7 +5935,8 @@
                 "type": "string"
               },
               "description": {
-                "type": "string"
+                "type": "string",
+                "description": "для чего нужен: какое событие запоминает и где читается (правила,\nдиалоги, квесты). Для ИИ-кампаний ОБЯЗАТЕЛЬНОЕ поле (требование чемодана)."
               }
             },
             "required": [
@@ -5687,6 +6031,13 @@
             "type": "string"
           },
           "description": "звуковая тема кампании: хук → id звука из реестра (пустой хук — тишина)"
+        },
+        "ui_labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Настраиваемые надписи системных меню и кнопок интерфейса (design-doc §9).\nПозволяет мастеру задать атмосферные названия:\n\"inventory\": \"Сумка дознавателя\", \"journal\": \"Дело № 137\", \"map\": \"Схема ярусов\",\n\"camp\": \"Перекур\", \"codex\": \"Архив Надзора\", \"pass_turn\": \"Завершить ход\" и т.п."
         },
         "default_music": {
           "type": "array",
@@ -5877,6 +6228,27 @@
         },
         "random_encounter_table": {
           "type": "string"
+        },
+        "sound": {
+          "type": "string",
+          "description": "индивидуальный звук пути (например, шум поезда, плеск волн, стук копыт)"
+        },
+        "sound_volume": {
+          "type": "number"
+        },
+        "depart_sound": {
+          "type": "string",
+          "description": "индивидуальный звук отправления (свисток паровоза, скрип трапа)"
+        },
+        "depart_sound_volume": {
+          "type": "number"
+        },
+        "arrive_sound": {
+          "type": "string",
+          "description": "индивидуальный звук прибытия (скрип тормозов, звон станционного колокола)"
+        },
+        "arrive_sound_volume": {
+          "type": "number"
         }
       },
       "required": [
@@ -5884,6 +6256,35 @@
         "cost_ticks"
       ],
       "additionalProperties": false
+    },
+    "AmbientRule": {
+      "type": "object",
+      "properties": {
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия включения звукового слоя (если условий нет — звучит всегда)"
+        },
+        "sounds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "зацикленные звуки (id из реестра meta.sounds или путь к файлу)"
+        },
+        "sound": {
+          "type": "string",
+          "description": "одиночный id звука для краткости"
+        },
+        "volume": {
+          "type": "number",
+          "description": "громкость слоя 0..1 (по умолчанию 1)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "фоновый зацикленный звуковой слой с условиями активации"
     },
     "MusicCondition": {
       "type": "object",
@@ -5930,8 +6331,16 @@
         "conditions": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/MusicCondition"
-          }
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MusicCondition"
+              },
+              {
+                "$ref": "#/$defs/Condition"
+              }
+            ]
+          },
+          "description": "условия переключения музыки: как специализированные (time_of_day, weather, flag), так и любые Condition движка"
         }
       },
       "required": [
@@ -5999,9 +6408,16 @@
         "ambient": {
           "type": "array",
           "items": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/AmbientRule"
+              }
+            ]
           },
-          "description": "фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6"
+          "description": "фоновые зацикленные звуки (птицы, гул): складываются слоями. Строки id или AmbientRule с условиями"
         },
         "camp": {
           "type": "boolean",
@@ -6161,6 +6577,13 @@
           "$ref": "#/$defs/CameraDoc",
           "description": "кинематографическая камера фона состояния (пан-зум)"
         },
+        "sound": {
+          "type": "string",
+          "description": "звук, воспроизводимый один раз при переключении сцены в это состояние"
+        },
+        "sound_volume": {
+          "type": "number"
+        },
         "condition": {
           "anyOf": [
             {
@@ -6263,12 +6686,23 @@
           "type": "string",
           "description": "состояние спрайта сцены для занятого НПС (ключ из scene_sprite_states,\nid состояния кампании); пусто — обычный спрайт"
         },
+        "sound": {
+          "type": "string",
+          "description": "индивидуальный звук клика/взаимодействия со слотом"
+        },
+        "sound_volume": {
+          "type": "number"
+        },
         "use_with": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/SlotUseWith"
           },
           "description": "предметы, которыми можно воздействовать на слот (блок 8 ТЗ)"
+        },
+        "environmental": {
+          "type": "boolean",
+          "description": "хотспот окружения (нарисован прямо на фоне сцены; в покое невидим, проявляется при наведении или Tab)"
         }
       },
       "required": [
@@ -6325,6 +6759,25 @@
         "hide_label": {
           "type": "boolean",
           "description": "скрывать подпись до наведения курсора (зона как невидимый хотспот)"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "условия доступности перехода (все должны выполниться)"
+        },
+        "blocked_message": {
+          "type": "string",
+          "description": "сообщение игроку, если переход заблокирован"
+        },
+        "intercept_dialogue": {
+          "type": "string",
+          "description": "перехват: вместо перехода запустить диалог (например, окликает страж при попытке выйти)"
+        },
+        "intercept_rule": {
+          "type": "string",
+          "description": "перехват: id правила-перехватчика"
         }
       },
       "required": [
@@ -6333,6 +6786,116 @@
       ],
       "additionalProperties": false,
       "description": "Зона перехода на сцене (итерация 8, А6): только ВНУТРИ локации —\nв другую сцену или «открыть карту» (это и есть выход из локации).\nСтарые `go_to_location` мигрируются при загрузке (shared/migrate.ts)."
+    },
+    "SceneParticlesPreset": {
+      "type": "string",
+      "enum": [
+        "dust",
+        "steam",
+        "rain",
+        "snow",
+        "fog",
+        "ash",
+        "sparks",
+        "embers",
+        "none"
+      ]
+    },
+    "SceneParticlesConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/SceneParticlesPreset"
+        },
+        "density": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "speed": {
+          "type": "string",
+          "enum": [
+            "slow",
+            "normal",
+            "fast"
+          ]
+        },
+        "wind": {
+          "type": "string",
+          "enum": [
+            "left",
+            "none",
+            "right"
+          ]
+        },
+        "color": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "SceneParticles": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SceneParticlesPreset"
+        },
+        {
+          "$ref": "#/$defs/SceneParticlesConfig"
+        }
+      ]
+    },
+    "NarrativeIntroEntry": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "voice": {
+              "type": "string"
+            },
+            "sfx": {
+              "type": "string"
+            },
+            "image": {
+              "type": "string"
+            },
+            "camera": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/$defs/CameraDoc"
+                }
+              ]
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Condition"
+              }
+            },
+            "duration": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        }
+      ]
     },
     "SceneDef": {
       "type": "object",
@@ -6391,9 +6954,48 @@
         "ambient": {
           "type": "array",
           "items": {
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/AmbientRule"
+              }
+            ]
           },
-          "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации)"
+          "description": "фоновые зацикленные звуки сцены (слагаются с фоном локации). Строка id или AmbientRule с условиями"
+        },
+        "lighting": {
+          "type": "string",
+          "enum": [
+            "outdoor",
+            "indoor",
+            "none"
+          ],
+          "description": "тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров)"
+        },
+        "particles": {
+          "$ref": "#/$defs/SceneParticles",
+          "description": "атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) — строка пресета или расширенный конфиг"
+        },
+        "narrative_intro": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NarrativeIntroEntry"
+          },
+          "description": "вводное атмосферное повествование от автора (мысли/описание при входе)"
+        },
+        "narrative_intro_once": {
+          "type": "boolean",
+          "description": "показывать вводное повествование только один раз за забег (по умолчанию true)"
+        },
+        "narrative_intro_next_label": {
+          "type": "string",
+          "description": "переопределение текста кнопки «Далее»"
+        },
+        "narrative_intro_done_label": {
+          "type": "string",
+          "description": "переопределение текста кнопки «Завершить / Осмотреться»"
         },
         "chapter": {
           "type": "string",
@@ -6464,6 +7066,10 @@
         "durability": {
           "type": "number",
           "description": "Прочность конкретного экземпляра (аудит §5.6 п.10): запись с этим полем —\nотдельная копия многоразового предмета, стакается только с себе равными."
+        },
+        "freshness": {
+          "type": "number",
+          "description": "Срок годности / свежесть конкретного экземпляра в игровых тиках (часах):\nУбывает каждый тик; при достижении 0 превращается в spoil_into или уничтожается."
         }
       },
       "required": [
@@ -6645,6 +7251,10 @@
         "label": {
           "type": "string"
         },
+        "unknown_label": {
+          "type": "string",
+          "description": "имя/описание до знакомства (механика «Незнакомец», напр. «Незнакомка в платке»). Пока имя не раскрыто через learn_name / диалог, игрок видит эту подпись"
+        },
         "description": {
           "type": "string",
           "description": "описание сущности (при наведении); можно менять динамически (set_description)"
@@ -6658,7 +7268,7 @@
         },
         "scene_sprite": {
           "$ref": "#/$defs/ImageValue",
-          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);\nнет — в сцене используется портрет (состояние «Обычный»).\nМожно цикл кадров (ImageValue) — «живой» спрайт."
+          "description": "СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG, ОБЯЗАТЕЛЬНО);\nнет — в сцене используется портрет (состояние «Обычный»).\nМожно цикл кадров (ImageValue) — «живой» спрайт."
         },
         "scene_sprite_states": {
           "type": "object",
@@ -6669,7 +7279,7 @@
         },
         "combat_figure": {
           "$ref": "#/$defs/ImageValue",
-          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`.\nМожно цикл кадров (ImageValue)."
+          "description": "ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски\nи рамки стороны); прозрачный фон ОБЯЗАТЕЛЕН; нет — круглый жетон из\n`token ?? portrait.neutral`. Можно цикл кадров (ImageValue)."
         },
         "combat_figure_states": {
           "type": "object",
@@ -6690,6 +7300,10 @@
         "shadow": {
           "type": "boolean",
           "description": "мягкая тень под спрайтом/фигуркой (по умолчанию включена)"
+        },
+        "breathe": {
+          "type": "boolean",
+          "description": "Эффект «живого дыхания» спрайта в сцене:\nДля NPC по умолчанию включён (true). Для роботов, автоматонов, механизмов\nи нежити можно отключить (false)."
         },
         "token": {
           "type": "string",
@@ -6766,6 +7380,14 @@
         },
         "base_disposition": {
           "type": "number"
+        },
+        "carry_capacity_bonus": {
+          "type": "number",
+          "description": "Расовый/индивидуальный бонус к грузоподъёмности (+кг, напр. +5 кг для выносливых рас)"
+        },
+        "carry_capacity_mult": {
+          "type": "number",
+          "description": "Расовый/индивидуальный множитель грузоподъёмности (напр. 2.5 для мутантов, гигантов, четвероногих)"
         },
         "trader": {
           "anyOf": [
@@ -6865,6 +7487,10 @@
           "type": "boolean",
           "description": "после применения предмет исчезает со сцены"
         },
+        "once": {
+          "type": "boolean",
+          "description": "одноразовый вариант: исчезает после выбора (в текущем забеге)"
+        },
         "message": {
           "type": "string",
           "description": "сообщение после применения (оформлено портретом предмета)"
@@ -6872,6 +7498,9 @@
         "sound": {
           "type": "string",
           "description": "звуковой хук взаимодействия (умолчание 'use' или 'open' для контейнера)"
+        },
+        "sound_volume": {
+          "type": "number"
         }
       },
       "required": [
@@ -6942,12 +7571,20 @@
           "$ref": "#/$defs/ImageValue",
           "description": "СПРАЙТ В СЦЕНЕ: картинка предмета в его слоте (целиком, без обрезки).\nНет — в слоте не рисуется ничего (ни портрет, ни иконка).\nМожно цикл кадров (ImageValue) — «живой» предмет."
         },
+        "breathe": {
+          "type": "boolean",
+          "description": "Эффект «живого дыхания» спрайта в сцене:\nПо умолчанию отключён (false). Можно включить для живых или пульсирующих предметов (био-сердце, мимик)."
+        },
         "interactable_when": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/Condition"
           },
           "description": "Взаимодействовать можно только когда условия истинны; пока ложны —\nпредмет «декорация»: виден в слоте, но не нажимается и не подсвечивается."
+        },
+        "interact_hint": {
+          "type": "string",
+          "description": "подсказка действия под курсором в сцене («Осмотреть замок», «Повернуть вентиль»)"
         },
         "interact_options": {
           "type": "array",
@@ -6967,6 +7604,35 @@
         },
         "stackable": {
           "type": "boolean"
+        },
+        "quest_item": {
+          "type": "boolean",
+          "description": "сюжетный/квестовый предмет: нельзя случайно выбросить или продать"
+        },
+        "decay_ticks": {
+          "type": "number",
+          "description": "Срок годности предмета в игровых тиках (например, 24 = 24 часа). Если не задан — предмет не портится"
+        },
+        "spoil_into": {
+          "type": "string",
+          "description": "В какой предмет превращается после порчи (например item_meat_spoiled или item_scrap)"
+        },
+        "spoil_action": {
+          "type": "string",
+          "enum": [
+            "transform",
+            "destroy",
+            "rule"
+          ],
+          "description": "Действие при порче: 'transform' (в spoil_into), 'destroy' (исчезает), 'rule' (запуск правила)"
+        },
+        "spoil_rule": {
+          "type": "string",
+          "description": "Идентификатор правила, запускаемого при порче (если spoil_action === 'rule')"
+        },
+        "spoil_msg": {
+          "type": "string",
+          "description": "Сообщение в журнал при порче предмета"
         },
         "weapon_data": {
           "$ref": "#/$defs/WeaponData"
@@ -6991,6 +7657,14 @@
         "equip_slot": {
           "type": "string",
           "description": "слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;\nнет — не экипируется. Старым предметам выставляется миграцией."
+        },
+        "carry_bonus": {
+          "type": "number",
+          "description": "Бонус к переносимому весу при экипировке (+кг, напр. +10 кг для походного рюкзака)"
+        },
+        "carry_mult": {
+          "type": "number",
+          "description": "Множитель грузоподъёмности при экипировке (напр. 2.0 для силового экзоскелета)"
         },
         "hero_appearance": {
           "type": "object",
@@ -7058,11 +7732,23 @@
           "type": "boolean",
           "description": "manual-правило не проверяется автоматически — только вызывается по id (on_zero_effect и т.п.)"
         },
+        "trigger": {
+          "type": "string",
+          "enum": [
+            "always",
+            "enter_scene",
+            "leave_scene",
+            "interact",
+            "time_tick"
+          ],
+          "description": "триггер проверки: always (по умолчанию), enter_scene (вход на сцену), leave_scene (попытка уйти со сцены), interact (взаимодействие), time_tick"
+        },
         "conditions": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/Condition"
-          }
+          },
+          "description": "УСЛОВИЯ правила (все должны выполниться). Обязательный массив; пустой —\nправило срабатывает при каждой проверке (если не once/manual).\nОтсутствие поля ломает движок при старте забега."
         },
         "conditions_any": {
           "type": "array",
@@ -7078,7 +7764,8 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/Effect"
-          }
+          },
+          "description": "ЭФФЕКТЫ правила по порядку. Обязательный массив (пустой — правило-пустышка).\nОтсутствие поля ломает движок при старте забега."
         },
         "chapter": {
           "type": "string",
@@ -7701,6 +8388,35 @@
         "known": {
           "type": "boolean",
           "description": "`false` — рецепт скрыт от игрока до эффекта `unlock_recipe` (правило,\nдиалог, событие). Старые кампании и сейвы не трогаем: поля нет — рецепт\nизвестен с самого начала."
+        },
+        "sound": {
+          "type": "string",
+          "description": "индивидуальный звук изготовления (например, звон наковальни, шипение реактивов, шорох шитья)"
+        },
+        "sound_volume": {
+          "type": "number"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "динамические условия знания/доступности рецепта (навыки, флаги, черты, квесты)"
+        },
+        "workbench": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Требуется стационарный верстак / мастерская (boolean или id рабочего места).\nБез верстака в полевых условиях такой предмет изготовить нельзя."
+        },
+        "category": {
+          "type": "string",
+          "description": "категория рецепта для фильтрации мастера и игрока"
         }
       },
       "required": [
@@ -7931,6 +8647,74 @@
             "weather"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "skill_ge"
+            },
+            "skill": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "skill",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "meta_counter"
+            },
+            "key": {
+              "type": "string"
+            },
+            "ge": {
+              "type": "number"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "key",
+            "ge"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "npc_known"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "known": {
+              "type": "boolean"
+            },
+            "not": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
         }
       ],
       "description": "условие показа/ветвления (все условия списка должны выполниться)"
@@ -7955,6 +8739,14 @@
         "voice": {
           "type": "string",
           "description": "озвучка реплики: файл пакета (assets/voice/…) или ссылка (итерация 8,\nблок G). Если нет — при включённом синтезаторе реплику читает браузер."
+        },
+        "sfx": {
+          "type": "string",
+          "description": "звуковой эффект реплики: id звука из meta.sounds или путь к файлу (# sfx: ...)"
+        },
+        "timer": {
+          "type": "number",
+          "description": "секундный таймер показа реплики (# timer: 3 или # timeout: 3) — design-doc §9.\nПо истечении времени диалог автоматически переходит дальше."
         }
       },
       "required": [
@@ -7969,6 +8761,35 @@
           "properties": {
             "type": {
               "const": "set_flag"
+            },
+            "flag": {
+              "type": "string"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "clear_flag"
             },
             "flag": {
               "type": "string"
@@ -8065,6 +8886,21 @@
           "required": [
             "type",
             "npc"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "open_craft"
+            },
+            "recipe": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
           ],
           "additionalProperties": false
         },
@@ -8290,6 +9126,152 @@
             "recipe"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "set_entity_state"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "present_item"
+            },
+            "ok": {
+              "type": "string"
+            },
+            "fail": {
+              "type": "string"
+            },
+            "required": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "ok",
+            "fail"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "learn_name"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "silent": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "entity"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "go_to_scene"
+            },
+            "scene": {
+              "type": "string"
+            },
+            "close_dialogue": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "scene"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "start_combat"
+            },
+            "arena": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "arena"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_scene_state"
+            },
+            "state": {
+              "type": "string"
+            },
+            "scene": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "game_over_death"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "game_over_victory"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -8509,6 +9491,23 @@
         "goto": {
           "type": "string",
           "description": "узел без вариантов: куда перейти после реплик ('end' по умолчанию)"
+        },
+        "timer": {
+          "type": "object",
+          "properties": {
+            "seconds": {
+              "type": "number"
+            },
+            "node": {
+              "type": "string",
+              "description": "id узла, куда уйти по истечении; пусто — разговор заканчивается"
+            }
+          },
+          "required": [
+            "seconds"
+          ],
+          "additionalProperties": false,
+          "description": "Дедлайн на раздумье (фидбек 27, §9 дизайн-документа): сколько секунд\nигрок может выбирать ответ в этом узле. Истекло — разговор уходит в\nузел `node` (или заканчивается, если он не задан). Работает только у\nузлов с вариантами ответа; в ink превращается в `set_dialogue_timer`."
         }
       },
       "required": [
@@ -8534,6 +9533,10 @@
           "items": {
             "$ref": "#/$defs/DlgNode"
           }
+        },
+        "script": {
+          "type": "string",
+          "description": "Мастерский сценарий (фидбек 29): текст, который мастер пишет словами.\nКанон для чтения человеком; nodes — структура, собранная из него (её\nчитают формы, ink-генератор и движок). Правка форм пересобирает script."
         }
       },
       "required": [
@@ -8675,7 +9678,8 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "файлы ПРАВИЛ (RuleDef: id/label/once/conditions/effects). Файлы таблиц встреч\n(`encounter_tables`) сюда НЕ перечисляют — только в `encounters`."
         },
         "arenas": {
           "type": "array",
@@ -8693,7 +9697,8 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "файлы-обёртки таблиц встреч `{ encounter_tables: [...] }`: сами лежат в\nкаталоге rules/, но перечисляются ТОЛЬКО здесь (дыра: дубль в `rules`\nдавал «правило» без id/conditions и ронял движок и редактор)."
         },
         "cutscenes": {
           "type": "array",

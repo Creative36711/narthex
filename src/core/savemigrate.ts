@@ -312,16 +312,32 @@ export function repairState(state: GameState, campaign: CampaignData, ctx: Repor
     p.inventory = []
   }
 
-  // экипировка: слот из реестра кампании + предмет из инвентаря
-  const slots = equipmentSlots(meta).map((s) => s.id)
-  const owned = new Set(p.inventory.map((e) => e.item))
+  // экипировка: слот из реестра кампании + предмет, существующий в кампании.
+  // Предмет НЕ обязан лежать в инвентаре: шаблонное снаряжение героя
+  // (default_player / шаблоны создания) надевается без копии в инвентаре —
+  // прежняя проверка «есть в инвентаре» снимала его при каждом продолжении
+  // (фидбек 27, п.7: «начал забег, вышел, продолжил — оружие сняли»).
+  const declaredSlots = new Set(equipmentSlots(meta).map((s) => s.id))
+  // Слоты, явно используемые предметами кампании (weapon, armor и др.)
+  for (const ent of Object.values(ents)) {
+    if (ent.type === 'item') {
+      const s = (ent as { equip_slot?: string; slot?: string }).equip_slot || (ent as { equip_slot?: string; slot?: string }).slot
+      if (s) declaredSlots.add(s)
+    }
+  }
+
   if (p.equipment && typeof p.equipment === 'object') {
     const removed: string[] = []
     for (const [slot, item] of Object.entries(p.equipment)) {
-      if (!slots.includes(slot)) {
-        removed.push(`слот «${slotLabel(meta, slot)}»`)
+      if (!declaredSlots.has(slot)) {
+        if (item && ents[item]) {
+          p.inventory.push({ item, quantity: 1 })
+          removed.push(`слот «${slotLabel(meta, slot)}» (предмет «${entityLabel(campaign, item)}» перемещён в инвентарь)`)
+        } else {
+          removed.push(`слот «${slotLabel(meta, slot)}»`)
+        }
         delete p.equipment[slot]
-      } else if (!item || !owned.has(item)) {
+      } else if (!item || !ents[item]) {
         removed.push(`${slotLabel(meta, slot)}: ${item ? entityLabel(campaign, item) : 'пусто'}`)
         delete p.equipment[slot]
       }
@@ -521,10 +537,13 @@ export function repairState(state: GameState, campaign: CampaignData, ctx: Repor
     if (state.codex_unlocked.length !== before) ctx.note('repaired', 'Из кодекса убраны записи, которых больше нет в кампании.')
   }
   if (state.dispositions) {
+    // в dispositions живут и значения фракций, и ЛИЧНЫЕ сдвиги к NPC
+    // (getDisposition/changeDisposition берут ключом id цели); фильтрация только
+    // по фракциям стирала личные отношения при каждой загрузке (фидбек 27, п.7)
     const factionIds = new Set((meta.factions ?? []).map((f) => f.id))
-    const keys = Object.keys(state.dispositions).filter((id) => !factionIds.has(id))
+    const keys = Object.keys(state.dispositions).filter((id) => !factionIds.has(id) && !ents[id])
     for (const k of keys) delete state.dispositions[k]
-    if (keys.length) ctx.note('repaired', 'Убраны отношения с фракциями, которых больше нет в кампании.')
+    if (keys.length) ctx.note('repaired', 'Убраны отношения с фракциями и персонажами, которых больше нет в кампании.')
   }
 }
 

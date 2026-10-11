@@ -23,6 +23,13 @@
       "stage": "stage_resh"
     },
     {
+      "type": "postcard",
+      "image": "assets/img/pc_clues.jpg",
+      "text": "Рукавица, наряд, жетон. Нитки сходятся в одну точку — к приводу.",
+      "preset": "шёпот",
+      "seconds": 5
+    },
+    {
       "type": "banner",
       "text": "Картина сходится",
       "preset": "шёпот",

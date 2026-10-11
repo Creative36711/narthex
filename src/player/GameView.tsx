@@ -52,16 +52,19 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
     return () => window.clearTimeout(timer)
   }, [engine, engine.state.player.hp])
   // транзитные подсказки (получено/потеряно): каждая гаснет по таймеру
+  const cutscene = engine.cutscene
+  const isIntroActive = engine.isSceneIntroActive()
+  const isPostcardActive = !cutscene && !isIntroActive && !!engine.postcard
+  const isMessageActive = !cutscene && !engine.dialogue && !engine.combat && !isIntroActive && !isPostcardActive && !!engine.messages[0]
+  const isStoryActive = !!cutscene || isIntroActive || isPostcardActive || isMessageActive
+
   const toasts = engine.toasts
   useEffect(() => {
-    if (!toasts.length) return
+    if (!toasts.length || isStoryActive) return
     const timers = toasts.map((t) => window.setTimeout(() => engine.dismissToast(t.id), 4200))
     return () => { for (const t of timers) window.clearTimeout(t) }
-  }, [engine, toasts])
-  const message = engine.messages[0]
-  // катсцена (итерация 8, блок E): пока идёт ролик, экраны остальных эффектов
-  // (диалог, бой, торговля, сообщения, финал) ждут его окончания
-  const cutscene = engine.cutscene
+  }, [engine, toasts, isStoryActive])
+  const message = isMessageActive ? engine.messages[0] : null
   const resolveAsset = useCallback((p: string) => assetUrl(engine.campaign, p), [engine])
   const endCutscene = useCallback(() => engine.endCutscene(), [engine])
   const resolveTrack = useCallback(
@@ -92,15 +95,26 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
       if (id === 'map' && !featureOn(meta, 'map')) return
       if (id === 'inventory' && !featureOn(meta, 'inventory')) return
       onGamePanelOpen?.()
-      playUi('panel_open')
+      playUi(`panel:${id}`)
       setPanel(id)
     },
     [engine, onGamePanelOpen],
   )
   const closePanel = useCallback(() => {
-    playUi('panel_close')
+    if (panel) playUi(`panel:${panel}:close`)
+    else playUi('panel_close')
+    // окно крафта могло быть открыто эффектом `open_craft` — снимаем запрос,
+    // иначе панель тут же откроется снова
+    engine.closeCraft()
     setPanel(null)
-  }, [])
+  }, [engine, panel])
+
+  // `open_craft` (правило, реплика, предмет в сцене) открывает панель крафта
+  // без кнопки HUD: подписка уже перерисовывает GameView, остаётся
+  // синхронизировать локальную панель.
+  useEffect(() => {
+    if (engine.craftRequest) setPanel('craft')
+  }, [engine, engine.craftRequest])
 
   useEffect(() => {
     return () => {
@@ -132,7 +146,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
       )}
       {panel === 'character' && <CharacterPanel engine={engine} onClose={closePanel} />}
       {panel === 'craft' && featureOn(engine.campaign.meta, 'inventory') && (
-        <CraftingPanel engine={engine} onClose={closePanel} />
+        <CraftingPanel engine={engine} onClose={closePanel} focusRecipe={engine.craftRequest?.recipe} />
       )}
       {panel === 'log' && <LogPanel engine={engine} onClose={closePanel} />}
       {panel === 'codex' && <CodexPanel engine={engine} onClose={closePanel} />}
@@ -148,7 +162,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
 
       {!cutscene && engine.dialogue && !engine.combat && !engine.trade && <DialogueOverlay engine={engine} />}
 
-      {toasts.length > 0 && (
+      {!isStoryActive && toasts.length > 0 && (
         <div className="toast-stack" aria-live="polite">
           {toasts.map((t) => (
             <div key={t.id} className={`toast toast-${t.kind}`} onClick={() => engine.dismissToast(t.id)}>
@@ -159,7 +173,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
         </div>
       )}
 
-      {!cutscene && message && (
+      {message && (
         <div className="overlay message-overlay" onClick={() => engine.dismissMessage()}>
           <div className="message-box" onClick={(e) => e.stopPropagation()}>
             {(() => {
@@ -205,15 +219,15 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
         />
       )}
 
-      {/* мастерские надписи и «открытка» (эффекты правил) — поверх всего */}
-      <BannerLayer banners={engine.banners} />
-      {engine.postcard && (
+      {/* Последовательная подача нарратива: открытка, затем сообщения, затем баннеры и тосты */}
+      {isPostcardActive && engine.postcard && (
         <PostcardLayer
           postcard={engine.postcard}
           srcOf={resolveAsset}
           onTap={() => engine.hidePostcard()}
         />
       )}
+      {!isStoryActive && <BannerLayer banners={engine.banners} />}
     </div>
   )
 }

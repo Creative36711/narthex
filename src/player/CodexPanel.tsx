@@ -3,6 +3,7 @@ import { Ico } from '../shared/icons'
 import type { GameEngine } from '../core/engine'
 import type { NpcDef } from '../shared/types'
 import { assetUrl } from '../core/loader'
+import { firstFrame } from './frames'
 
 /**
  * Кодекс/бестиарий (блок 10 ТЗ «Гибкий движок»): разблокированные
@@ -23,6 +24,22 @@ export function CodexPanel({ engine, onClose }: { engine: GameEngine; onClose: (
   const active = grouped.find((c) => c.id === catId) ?? grouped[0]
   const [selId, setSelId] = useState<string | null>(active?.items[0]?.id ?? null)
   const sel = active?.items.find((e) => e.id === selId) ?? active?.items[0]
+
+  const creatureDef = sel?.creature_entity
+    ? (engine.campaign.entities[sel.creature_entity] as NpcDef | undefined)
+    : undefined
+  const creatureArtSrc = creatureDef
+    ? creatureDef.scene_sprite
+      ? firstFrame(creatureDef.scene_sprite)
+      : creatureDef.combat_figure
+        ? firstFrame(creatureDef.combat_figure)
+        : creatureDef.portrait?.neutral || creatureDef.token
+    : null
+  const displayImage = sel?.image
+    ? assetUrl(engine.campaign, sel.image)
+    : creatureArtSrc
+      ? assetUrl(engine.campaign, creatureArtSrc)
+      : null
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -58,8 +75,10 @@ export function CodexPanel({ engine, onClose }: { engine: GameEngine; onClose: (
               {sel && (
                 <>
                   <h3 className="codex-title">{sel.label}</h3>
-                  {sel.image && (
-                    <img className="codex-image" src={assetUrl(engine.campaign, sel.image)} alt={sel.label} />
+                  {displayImage && (
+                    <div className="codex-image-wrap">
+                      <img className="codex-image" src={displayImage} alt={sel.label} />
+                    </div>
                   )}
                   <div className="codex-text">{sel.text}</div>
                   {sel.creature_entity && <CreatureCard engine={engine} entityId={sel.creature_entity} />}

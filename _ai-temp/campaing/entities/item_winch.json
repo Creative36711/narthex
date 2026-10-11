@@ -26,19 +26,44 @@
             {
               "type": "show_message",
               "text": "Трос срезан сверху, но цел снизу: ты сматываешь остаток себе в сумку."
+            },
+            {
+              "type": "set_flag",
+              "flag": "winch_rope_taken"
             }
           ],
           "fail_effects": [
             {
               "type": "show_message",
-              "text": "Трос в масле и ржавчине. Руки скользят."
+              "text": "Трос в масле и ржавчине, руки скользят. Можно попробовать ещё раз."
             }
           ]
         }
       ],
-      "once": true,
       "sound": "snd_chain",
-      "hint": "трос срезан — остаток ещё пригодится"
+      "hint": "трос срезан, остаток пригодится; сорвётся — можно снова",
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "winch_rope_taken"
+        }
+      ]
+    },
+    {
+      "label": "Осмотреть барабан",
+      "hint": "уже осмотрено",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "winch_rope_taken"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Барабан лебёдки пуст: трос срезан сверху, остаток ты уже смотал."
+        }
+      ]
     }
   ],
   "interact_hint": "Проверить трос",

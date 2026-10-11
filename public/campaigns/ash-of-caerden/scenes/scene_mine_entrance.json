@@ -14,7 +14,24 @@
       "condition": null
     }
   ],
-  "slots": [],
+  "slots": [
+    {
+      "id": "slot_wrench",
+      "label": "Ржавый ключ на крепи",
+      "type": [
+        "item"
+      ],
+      "shape": "rect",
+      "x": 380,
+      "y": 430,
+      "w": 130,
+      "h": 110,
+      "default_entity": "item_wrench",
+      "condition": {
+        "not_flag": "wrench_taken"
+      }
+    }
+  ],
   "navigation": [
     {
       "area": {

@@ -140,7 +140,9 @@ console.log(`Кампания: ${campaign.meta.title}`)
 {
   const map = readFileSync('src/player/MapScreen.tsx', 'utf8')
   const cssMap = readFileSync('src/index.css', 'utf8')
-  check('A4 карта во весь экран', /\.map-screen\s*\{[^}]*100vh/.test(cssMap) && map.includes('map-viewport'))
+  // карта занимает весь экран через fixed-оверлей: 100vh/100vw давали overflow
+  // из-за скроллбара (см. комментарий у .map-screen), поэтому сверяем смысл
+  check('A4 карта во весь экран', /\.overlay\s*\{[^}]*position: fixed[^}]*inset: 0/.test(cssMap) && /\.map-screen\s*\{[^}]*height: 100%/.test(cssMap) && map.includes('map-viewport'))
   check('A4 есть зум и пан', map.includes('onWheel') && map.includes('onPointerMove') && map.includes('clampPan'))
   check('A4 названия скрыты по умолчанию', map.includes('show-labels') && map.includes('readLabels'))
   check('A4 состояние галочки в localStorage', map.includes('chronicle-forge:map-labels') && map.includes('writeLabels'))
@@ -217,7 +219,8 @@ console.log(`Кампания: ${campaign.meta.title}`)
   const ed = readFileSync('src/editor/CampaignEditor.tsx', 'utf8')
   check('A7 в редакторе секция правил бросков с пресетами', ed.includes('Правила бросков (d100)') && ed.includes('Классический BRP') && (ed.includes('Хроника (по умолчанию)') || ed.includes('Щедрые')))
   const help = readFileSync('src/player/HelpPanel.tsx', 'utf8')
-  check('A7 справка показывает пороги кампании', help.includes('engine.diceRules') && help.includes('rules.critical_divisor'))
+  // пороги приходят в ChecksBody как DiceRules из engine.diceRules/meta.dice_rules
+  check('A7 справка показывает пороги кампании', help.includes('diceRules') && help.includes('rules.critical_divisor') && help.includes('rules.fumble_from'))
   check('A7 в справке нет захардкоженного «навыка ÷ 5»', !help.includes('навыка ÷ 5'))
 }
 

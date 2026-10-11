@@ -3,7 +3,7 @@ import { useRef, useState, useEffect } from 'react'
 import type { CampaignData } from '../shared/types'
 import { askConfirm, showAlert } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
-import { importChroniclePackage, type CampaignIndexEntry } from '../editor/newCampaign'
+import { importChroniclePackage, importCampaignFromDirectory, type CampaignIndexEntry } from '../editor/newCampaign'
 import { peekSave, importSaveText, deleteSave } from '../core/engine'
 import { ENGINE_VERSION } from '../shared/versions'
 import { setAudioCampaign } from '../shared/audio'
@@ -35,8 +35,9 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   const m = campaign.meta
   const [showList, setShowList] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [importBusy, setImportBusy] = useState(false)
+  const [importBusy, setImportBusy] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const folderRef = useRef<HTMLInputElement>(null)
   const saveRef = useRef<HTMLInputElement>(null)
 
   // музыка меню (блок H): menu_music темы (или default_music)
@@ -48,7 +49,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
   }, [campaign])
 
   const doImport = async (file: File) => {
-    setImportBusy(true)
+    setImportBusy('Распаковка и импорт кампании…')
     try {
       const entry = await importChroniclePackage(file, async (conflict) => {
         const update = await askConfirm(
@@ -70,7 +71,34 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
     } catch (e) {
       void showAlert('Не удалось импортировать кампанию', String(e))
     } finally {
-      setImportBusy(false)
+      setImportBusy(null)
+    }
+  }
+
+  const doImportDirectory = async (files: FileList | File[]) => {
+    setImportBusy('Импорт папки кампании…')
+    try {
+      const entry = await importCampaignFromDirectory(files, async (conflict) => {
+        const update = await askConfirm(
+          `ID «${conflict.id}» уже занят кампанией «${conflict.existingTitle}». Обновить существующую кампанию «${conflict.incomingTitle}» под тем же ID?`,
+          'Обновить кампанию',
+        )
+        if (update) return 'update'
+        const copy = await askConfirm(
+          `Импортировать «${conflict.incomingTitle}» как отдельную копию с новым ID?`,
+          'Импортировать копию',
+        )
+        return copy ? 'copy' : 'cancel'
+      })
+      if (entry.cancelled) return
+      onImported(entry.id)
+      setShowList(false)
+      if (entry.alreadyInstalled) void showAlert('Кампания уже импортирована', `«${entry.title}» уже установлена; вторая копия не создана.`)
+      if (entry.idWarning) void showAlert('ID кампании', entry.idWarning)
+    } catch (e) {
+      void showAlert('Не удалось импортировать папку', String(e))
+    } finally {
+      setImportBusy(null)
     }
   }
 
@@ -174,17 +202,18 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
       <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
 
       {showList && (
-        <div className="campaigns-overlay" onClick={() => setShowList(false)}>
+        <div className="campaigns-overlay" onClick={() => { if (!importBusy) setShowList(false) }}>
           <div className="campaigns-box" onClick={(e) => e.stopPropagation()}>
             <div className="campaigns-head">
               <h2>Кампании</h2>
-              <button className="btn btn-small" onClick={() => setShowList(false)}><Ico n="close" /> </button>
+              <button className="btn btn-small" disabled={!!importBusy} onClick={() => setShowList(false)}><Ico n="close" /> </button>
             </div>
             <div className="campaign-list">
               {campaigns.map((c) => (
                 <div key={c.id} className="campaign-row">
                   <button
                     className={`campaign-card ${c.id === m.id ? 'on' : ''}`}
+                    disabled={!!importBusy}
                     onClick={() => {
                       onSelectCampaign(c.id)
                       setShowList(false)
@@ -197,6 +226,7 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                   <button
                     className="btn btn-small campaign-del"
                     data-tip="Удалить кампанию с диска"
+                    disabled={!!importBusy}
                     onClick={async () => {
                       if (campaigns.length <= 1) {
                         void showAlert('Нельзя удалить последнюю кампанию', 'Сначала создайте или импортируйте другую.')
@@ -230,10 +260,18 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
               ))}
             </div>
             <div className="campaigns-foot">
-              <button className="btn" disabled={importBusy} onClick={() => fileRef.current?.click()}>
+              <button className="btn" disabled={!!importBusy} onClick={() => fileRef.current?.click()}>
                 {importBusy ? 'Импорт…' : <><Ico n="doc" /> Импортировать кампанию (.chronicle)</>}
               </button>
-              <button className="btn" data-tip="Файл .cfsave, сохранённый ранее на этом или другом компьютере" onClick={() => saveRef.current?.click()}>
+              <button
+                className="btn"
+                disabled={!!importBusy}
+                data-tip="Импортировать локальную папку кампании (например из GitHub Desktop). Автоматически отфильтрует .git и tools/"
+                onClick={() => folderRef.current?.click()}
+              >
+                <Ico n="folder" /> Импортировать папку
+              </button>
+              <button className="btn" disabled={!!importBusy} data-tip="Файл .cfsave, сохранённый ранее на этом или другом компьютере" onClick={() => saveRef.current?.click()}>
                 <Ico n="doc" /> Загрузить сохранение (.cfsave)
               </button>
               <input
@@ -258,7 +296,32 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
                   e.target.value = ''
                 }}
               />
+              <input
+                ref={folderRef}
+                type="file"
+                // @ts-expect-error webkitdirectory is standard for folder picking
+                webkitdirectory=""
+                directory=""
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? [])
+                  e.target.value = ''
+                  if (files.length > 0) void doImportDirectory(files)
+                }}
+              />
             </div>
+            {importBusy && (
+              <div className="import-busy-overlay" onClick={(e) => e.stopPropagation()}>
+                <div className="import-busy-card">
+                  <div className="spinner" />
+                  <div className="import-busy-title">{importBusy}</div>
+                  <div className="import-busy-sub muted small">
+                    Пожалуйста, подождите. Идёт распаковка архива и запись файлов на диск…
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

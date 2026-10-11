@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import Editor from '@monaco-editor/react'
 import './monacoSetup'
 import type { EditorStore } from './store'
@@ -72,8 +72,18 @@ export function JsonDocEditor({
   )
 }
 
-/** Ink-диалог с проверкой компиляции (inkjs). */
-export function InkEditor({ store, path }: { store: EditorStore; path: string }) {
+/**
+ * Ink-диалог с проверкой компиляции (inkjs).
+ *
+ * `extra` — дополнительные кнопки в панели (например, «прочитать код обратно
+ * в формы»), `onApplied` — что сделать после успешного «Применить».
+ */
+export function InkEditor({ store, path, extra, onApplied }: {
+  store: EditorStore
+  path: string
+  extra?: ReactNode
+  onApplied?: () => void
+}) {
   const [text, setText] = useState(() => store.textFiles.get(path) ?? '')
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null)
 
@@ -105,12 +115,15 @@ export function InkEditor({ store, path }: { store: EditorStore; path: string })
         <button className="btn btn-small" onClick={check}>
           Проверить (ink)
         </button>
+        {extra}
         <button
           className="btn btn-small btn-primary"
           disabled={!dirty}
           onClick={async () => {
             if (await check()) {
               store.setText(path, text)
+              setText(store.textFiles.get(path) ?? text)
+              onApplied?.()
             }
           }}
         >

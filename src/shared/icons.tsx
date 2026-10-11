@@ -9,9 +9,11 @@ export type IcoName =
   | 'up' | 'down' | 'left' | 'right' | 'chevron' | 'chevronRight' | 'sparkle'
   | 'coin' | 'mic' | 'star' | 'heart' | 'flame' | 'ghost' | 'lock' | 'help'
   | 'message' | 'move' | 'flag' | 'clock' | 'skull' | 'trophy' | 'info' | 'panel' | 'shield' | 'exit'
-  | 'hammer' | 'forge' | 'compass' | 'layers' | 'eye' | 'undo' | 'search'
+  | 'hammer' | 'forge' | 'compass' | 'layers' | 'eye' | 'undo' | 'search' | 'folder'
 
 const P: Record<IcoName, string> = {
+  // папка
+  folder: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z',
   // крестик
   close: 'M6 6l12 12M18 6L6 18',
   // play (треугольник)

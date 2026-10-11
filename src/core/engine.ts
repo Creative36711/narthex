@@ -22,6 +22,8 @@ import type {
   FeatDef,
   MetaStoreState,
   MetaUnlockDef,
+  NavigationZone,
+  Condition,
   NpcDef,
   PlayerState,
   RecipeDef,
@@ -56,9 +58,10 @@ import { evalCondition, evalSceneCondition } from './conditions'
 import { hourOfDay, inTimeRange, timeOfDay } from './time'
 import type { CharChoice } from './charcreate'
 import type { Story } from 'inkjs'
-import { bindExternals, createStory, drainStory, firstInkKnot, type DialogueUI } from './dialogue'
+import { bindExternals, createStory, drainStory, firstInkKnot, type DialogueUI, type DialogueHistoryEntry } from './dialogue'
 import { skillLabel } from '../shared/skills'
-import { playUi, playInteraction } from '../shared/audio'
+import { playUi, playInteraction, stopSound } from '../shared/audio'
+import { stopVoiceAudio } from '../shared/voiceAudio'
 import type { SoundHook } from '../shared/types'
 import { migrateNeedCondition } from '../shared/migrate'
 import { CombatController } from './combat'
@@ -84,12 +87,58 @@ export class GameEngine {
   private activeNpc: NpcDef | null = null
   /** Ink-истории этого забега (состояние once-выборов живёт в пределах забега) */
   dialogue: DialogueUI | null = null
+  /** накопленная история реплик и выборов текущего разговора (backlog) */
+  dialogueHistory: DialogueHistoryEntry[] = []
+  /**
+   * Таймер на выбор в диалоге (фидбек 27, §9): ink-вызов
+   * `~ set_dialogue_timer(15, "node_x")` задаёт дедлайн на текущем наборе
+   * реплик. Пока он жив, плеер показывает полоску обратного отсчёта, а по
+   * истечении вызывает `dialogueTimeout()`. Истёк без цели — разговор
+   * заканчивается сам: игрок промолчал.
+   */
+  dialogueTimer: { seconds: number; knot?: string } | null = null
+  /** таймер, объявленный ink-ом в текущем проходе до показа выбора */
+  private pendingDialogueTimer: { seconds: number; knot?: string } | null = null
+  /** ожидающий запрос предъявления предмета, объявленный ink-ом в текущем проходе */
+  private pendingDialoguePresenting: { ok: string; fail: string; required?: string } | null = null
   combat: CombatController | null = null
+  /** последняя ошибка запуска диалога (компиляция / отсутствующий узел) — для отладки и плейтеста */
+  lastDialogueError: string | null = null
   /** открытая торговля: id NPC-торговца */
   trade: NpcDef | null = null
+  /**
+   * Запрос на открытие окна изготовления (эффект/реплика `open_craft`).
+   * Плеер показывает панель крафта, пока поле не сброшено closeCraft().
+   * `recipe` — рецепт, который надо подсветить (ремонт клапана и т.п.).
+   */
+  craftRequest: { recipe?: string } | null = null
+  /** Конкретная сущность (верстак, плита, наковальня), у которой открыто окно крафта */
+  craftSourceEntity: ItemDef | null = null
   /** транзитные всплывающие подсказки (не в сейве): «Получено: …» и т.п. — UI отображает и сам гасит */
   toasts: { id: number; text: string; kind: 'get' | 'lose' | 'info' }[] = []
   private toastSeq = 0
+
+  /** Последняя осмотренная сущность (для панели отладки и режима инспектора) */
+  inspectedEntityId: string | null = null
+
+  inspectEntity(id: string | null): void {
+    this.inspectedEntityId = id
+    this.notify()
+  }
+
+  /** Сюжетное переопределение музыки (поверх текущей сцены/локации) */
+  musicOverride: { tracks: string[]; fade?: number } | null = null
+
+  setMusicOverride(tracks: string[], fade?: number): void {
+    this.musicOverride = { tracks, fade }
+    this.notify()
+  }
+
+  clearMusicOverride(): void {
+    if (!this.musicOverride) return
+    this.musicOverride = null
+    this.notify()
+  }
 
   /** добавить короткое всплывающее уведомление (записывается и в журнал).
    *  Гаснет само — обращать внимание важно, а закрывать каждое рукой — перебор (баг-фитч №6). */
@@ -123,7 +172,7 @@ export class GameEngine {
   cutsceneQueue: Array<{ def: CutsceneDef; serial: number }> = []
   private cutsceneSerial = 0
   /** забег создан с нуля (а не загружен из сейва) — для правил «на старте» */
-  private freshRun: boolean
+  freshRun: boolean
   /** обёртка последнего сохранения: версии кампании/движка и даты (`SaveEnvelope`) */
   envelope: SaveEnvelope | null = null
 
@@ -210,10 +259,68 @@ export class GameEngine {
       dispositions,
       party: [],
       blocked_paths: [],
+      seen_narrative_intros: [],
+      known_npcs: [],
       log: [],
       game_over: null,
       stats_run: { travels: 0, dialogues: 0, ticks_survived: 0, kills: 0, quests_completed: 0 },
     }
+  }
+
+  /** Нужно ли показывать вводное повествование сцены (narrative_intro) */
+  shouldShowNarrativeIntro(scene: SceneDef): boolean {
+    if (!scene.narrative_intro || scene.narrative_intro.length === 0) return false
+    const once = scene.narrative_intro_once ?? true
+    if (!once) return true
+    return !(this.state.seen_narrative_intros ?? []).includes(scene.id)
+  }
+
+  /** Активно ли сейчас нарративное вводное повествование сцены */
+  isSceneIntroActive(): boolean {
+    const sc = this.campaign.scenes[this.state.scene]
+    if (!sc) return false
+    return this.shouldShowNarrativeIntro(sc) && !this.cutscene && !this.dialogue && !this.combat
+  }
+
+  /** Пометить вводное повествование сцены как просмотренное */
+  markNarrativeIntroSeen(sceneId: string): void {
+    if (!this.state.seen_narrative_intros) this.state.seen_narrative_intros = []
+    if (!this.state.seen_narrative_intros.includes(sceneId)) {
+      this.state.seen_narrative_intros.push(sceneId)
+      this.autosave()
+    }
+    // После завершения нарративного интро сцены активируем отложенную открытку или баннеры
+    if (this.postcard && this.postcardPendingSeconds > 0 && !this.cutsceneQueue.length) {
+      const at = this.postcardPendingSeconds
+      this.postcardPendingSeconds = 0
+      this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
+    } else {
+      this.flushPendingBannersIfClear()
+    }
+    this.notify()
+  }
+
+  /** Установить флаг (с поддержкой сброса при false) */
+  setFlag(f: string, value: unknown = true): void {
+    if (value === false || value === 0 || value === 'false') {
+      delete this.state.flags[f]
+    } else {
+      this.state.flags[f] = (value as any) ?? true
+    }
+    if (!this.combat && !this.trade) this.checkRules()
+    this.notify()
+  }
+
+  /** Сбросить флаг */
+  clearFlag(f: string): void {
+    delete this.state.flags[f]
+    if (!this.combat && !this.trade) this.checkRules()
+    this.notify()
+  }
+
+  /** Проверка присутствия спутника в отряде */
+  inParty(entityId: string): boolean {
+    return this.isInParty(entityId)
   }
 
   /** Вызывается один раз после создания/загрузки. */
@@ -224,6 +331,10 @@ export class GameEngine {
       this.freshRun = false
       this.metaRunStart()
       this.checkRules()
+      // Начальный тик времени и вход на стартовую сцену: запускают стартовые
+      // правила с событийными триггерами (time_tick / enter_scene)
+      this.fireTrigger('time_tick')
+      this.fireTrigger('enter_scene', { sceneId: this.state.scene })
     }
     this.runLocationRules(this.state.location)
     this.autosave()
@@ -314,32 +425,80 @@ export class GameEngine {
     seconds?: number
     camera?: CameraDoc
   } | null = null
+  private postcardTimer: ReturnType<typeof setTimeout> | null = null
+  private postcardPendingSeconds = 0
   private bannerSerial = 1
+  private bannerPendingTimers: Array<{ serial: number; seconds: number }> = []
 
   private showBanner(e: { text: string; preset?: string; enter?: string; seconds?: number; position?: string; accent?: string }): void {
     const serial = this.bannerSerial++
     this.banners = [...this.banners, { serial, ...e }]
     const seconds = e.seconds ?? Math.min(8, Math.max(3, e.text.length * 0.06))
-    // таймер через globalThis: в node-смоуке engine тоже живёт
-    globalThis.setTimeout(() => {
-      if (this.banners.some((b) => b.serial === serial)) {
-        this.banners = this.banners.filter((b) => b.serial !== serial)
-        this.notify()
-      }
-    }, seconds * 1000)
+    if (this.cutsceneQueue.length > 0) {
+      // Пока идет катсцена, таймер баннера ждет ее окончания
+      this.bannerPendingTimers.push({ serial, seconds })
+    } else {
+      globalThis.setTimeout(() => {
+        if (this.banners.some((b) => b.serial === serial)) {
+          this.banners = this.banners.filter((b) => b.serial !== serial)
+          this.notify()
+        }
+      }, seconds * 1000)
+    }
+    this.notify()
+  }
+
+  showPostcard(e: { image?: string; art?: ArtDoc; text?: string; preset?: string; seconds?: number; camera?: CameraDoc }): void {
+    if (this.postcardTimer) {
+      clearTimeout(this.postcardTimer)
+      this.postcardTimer = null
+    }
+    this.postcard = { image: e.image, art: e.art, text: e.text, preset: e.preset, seconds: e.seconds, camera: e.camera }
+    const at = Math.max(1, e.seconds ?? 6)
+    if (this.cutsceneQueue.length > 0 || this.isSceneIntroActive()) {
+      // Идет катсцена или нарративное интро сцены: открытка ждет завершения
+      this.postcardPendingSeconds = at
+    } else if ((e.seconds ?? 6) > 0) {
+      this.postcardPendingSeconds = 0
+      this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
+    }
     this.notify()
   }
 
   /** закрыть «открытку» (тап или таймер) */
   hidePostcard(): void {
+    if (this.postcardTimer) {
+      clearTimeout(this.postcardTimer)
+      this.postcardTimer = null
+    }
+    this.postcardPendingSeconds = 0
     if (!this.postcard) return
     this.postcard = null
+    this.flushPendingBannersIfClear()
     this.notify()
+  }
+
+  private flushPendingBannersIfClear(): void {
+    if (!this.cutsceneQueue.length && !this.isSceneIntroActive() && !this.postcard && !this.messages.length) {
+      if (this.bannerPendingTimers.length) {
+        for (const item of this.bannerPendingTimers) {
+          globalThis.setTimeout(() => {
+            if (this.banners.some((b) => b.serial === item.serial)) {
+              this.banners = this.banners.filter((b) => b.serial !== item.serial)
+              this.notify()
+            }
+          }, item.seconds * 1000)
+        }
+        this.bannerPendingTimers = []
+      }
+    }
   }
 
   playCutscene(id: string): void {
     const def = this.campaign.cutscenes?.[id]
     if (!def || !def.slides?.length) return
+    if (this.cutsceneQueue.some((c) => c.def.id === id)) return
+    stopVoiceAudio()
     this.cutsceneQueue.push({ def, serial: ++this.cutsceneSerial })
     this.pushLog(`Катсцена: «${def.label}»`)
     this.notify()
@@ -348,8 +507,18 @@ export class GameEngine {
   /** катсцена досмотрена или пропущена */
   endCutscene(): void {
     if (!this.cutsceneQueue.length) return
+    stopVoiceAudio()
     this.cutsceneQueue.shift()
     if (!this.cutsceneQueue.length) {
+      // Если интро сцены не активно и открытка ждала — запускаем открытку
+      if (!this.isSceneIntroActive()) {
+        if (this.postcard && this.postcardPendingSeconds > 0) {
+          const at = this.postcardPendingSeconds
+          this.postcardPendingSeconds = 0
+          this.postcardTimer = globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
+        }
+        this.flushPendingBannersIfClear()
+      }
       this.checkRules()
       this.autosave()
     }
@@ -376,6 +545,8 @@ export class GameEngine {
         return (c.items ?? []).some((id) => this.hasItem(id)) !== !!c.not
       case 'equipped':
         return (c.items ?? []).some((id) => this.isEquipped(id)) !== !!c.not
+      case 'weather':
+        return (this.state.weather ?? '') === c.weather !== !!c.not
     }
   }
 
@@ -415,6 +586,8 @@ export class GameEngine {
       // смена суток: самочувствие NPC (спал по расписанию / не спал)
       const tpd = meta.ticks_per_day ?? 24
       if (tpd > 0 && this.state.tick > 0 && this.state.tick % tpd === 0) this.tickNpcMood()
+      // порча скоропортящихся предметов от времени
+      this.tickPerishableItems(1)
     }
     // достижения со счётчиками (прожитые тики и пр.) — после пачки тиков
     this.checkAchievements()
@@ -423,6 +596,46 @@ export class GameEngine {
     // правила на tick_elapsed / need_* (поезд ушёл, таймеры драм) — иначе
     // «последний поезд в 22:00» срабатывал только после смены сцены/диалога
     this.checkRules()
+  }
+
+  /** Обработка порчи скоропортящихся предметов со временем (decay_ticks / freshness) */
+  private tickPerishableItems(ticks: number): void {
+    const inv = this.state.player.inventory
+    for (let i = inv.length - 1; i >= 0; i--) {
+      const slot = inv[i]
+      if (slot.freshness === undefined) continue
+      slot.freshness = Math.max(0, slot.freshness - ticks)
+      if (slot.freshness === 0) {
+        const def = this.campaign.entities[slot.item] as ItemDef | undefined
+        const title = def?.label ?? slot.item
+        const msg = def?.spoil_msg || `«${title}» испортился от времени.`
+        this.pushLog(msg)
+        this.pushToast(msg, 'info')
+
+        if (def?.spoil_action === 'rule' && def.spoil_rule) {
+          this.fireRule(def.spoil_rule)
+        }
+
+        if (def?.spoil_into) {
+          const replacement = def.spoil_into
+          const repDef = this.campaign.entities[replacement] as ItemDef | undefined
+          slot.item = replacement
+          slot.freshness = repDef?.decay_ticks !== undefined ? repDef.decay_ticks : undefined
+          if (repDef?.label) {
+            this.pushLog(`Превратилось в: ${repDef.label}.`)
+          }
+        } else {
+          // удаление из инвентаря
+          inv.splice(i, 1)
+          // если предмет был надет в слот экипировки — снимаем
+          for (const eqSlot of Object.keys(this.state.player.equipment)) {
+            if (this.state.player.equipment[eqSlot] === slot.item) {
+              delete this.state.player.equipment[eqSlot]
+            }
+          }
+        }
+      }
+    }
   }
 
   /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
@@ -485,7 +698,7 @@ export class GameEngine {
       return
     }
     const rule = this.campaign.rules[need.on_zero_effect]
-    if (rule) this.applyEffects(rule.effects)
+    if (rule) this.applyEffects(rule.effects ?? [])
   }
 
   changeNeed(needId: string, delta: number): void {
@@ -595,6 +808,7 @@ export class GameEngine {
     }
     list.push(entry)
     this.pushLog(def.apply_message ?? `${def.label}: эффект наложен.`)
+    if (def.apply_sound) playInteraction(def.apply_sound, { sound: def.apply_sound })
     if (def.on_apply?.length) this.applyEffects(def.on_apply)
     this.notify()
   }
@@ -605,7 +819,10 @@ export class GameEngine {
     if (!list?.some((s) => s.id === id)) return
     this.state.player.statuses = list.filter((s) => s.id !== id)
     const def = this.statusDef(id)
-    if (def) this.pushLog(`${def.label}: эффект снят.`)
+    if (def) {
+      this.pushLog(`${def.label}: эффект снят.`)
+      if (def.remove_sound) playInteraction(def.remove_sound, { sound: def.remove_sound })
+    }
     this.notify()
   }
 
@@ -632,13 +849,24 @@ export class GameEngine {
       .reduce((s, i) => s + i.quantity, 0)
   }
 
-  addItem(id: string, quantity = 1, opts: { silent?: boolean } = {}): void {
+  addItem(id: string, quantity = 1, opts: { silent?: boolean; freshness?: number } = {}): void {
     const inv = this.state.player.inventory
-    // изнашиваемые предметы — отдельные экземпляры (аудит §5.6 п.10)
-    if (this.itemMaxDurability(id) !== undefined) {
-      for (let i = 0; i < quantity; i++) inv.push({ item: id, quantity: 1 })
+    const itemDef = this.campaign.entities[id] as ItemDef | undefined
+    const isPerishable = itemDef?.decay_ticks !== undefined && itemDef.decay_ticks > 0
+    const initialFreshness = opts.freshness ?? itemDef?.decay_ticks
+
+    // изнашиваемые или скоропортящиеся предметы — отдельные экземпляры
+    if (this.itemMaxDurability(id) !== undefined || isPerishable) {
+      for (let i = 0; i < quantity; i++) {
+        inv.push({
+          item: id,
+          quantity: 1,
+          durability: this.itemMaxDurability(id),
+          freshness: initialFreshness,
+        })
+      }
     } else {
-      const entry = inv.find((i) => i.item === id && i.durability === undefined)
+      const entry = inv.find((i) => i.item === id && i.durability === undefined && i.freshness === undefined)
       if (entry) entry.quantity += quantity
       else inv.push({ item: id, quantity })
     }
@@ -653,9 +881,13 @@ export class GameEngine {
       const entries = inv.filter((i) => i.item === id)
       if (!entries.length) break
       const max = this.itemMaxDurability(id)
-      const pick = max === undefined
-        ? entries[0]
-        : entries.reduce((a, b) => ((a.durability ?? max) <= (b.durability ?? max) ? a : b))
+      let pick = entries[0]
+      if (max !== undefined) {
+        pick = entries.reduce((a, b) => ((a.durability ?? max) <= (b.durability ?? max) ? a : b))
+      } else if (entries.some((e) => e.freshness !== undefined)) {
+        // сначала расходуем наиболее близкие к концу срока годности экземпляры
+        pick = entries.reduce((a, b) => ((a.freshness ?? Infinity) <= (b.freshness ?? Infinity) ? a : b))
+      }
       if (pick.quantity > left) {
         pick.quantity -= left
         left = 0
@@ -802,6 +1034,7 @@ export class GameEngine {
     if (!def || def.type !== 'item') return
     const slot = this.itemSlot(id)
     if (!slot) return
+    playInteraction('equip', { entity: def })
     this.state.player.equipment[slot] = id
     this.pushLog(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`)
     this.pushToast(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`, 'info')
@@ -815,6 +1048,7 @@ export class GameEngine {
     const id = eq[slot]
     if (!id) return
     const def = this.campaign.entities[id] as ItemDef | undefined
+    if (def) playInteraction('unequip', { entity: def })
     delete eq[slot]
     this.pushLog(`Снято: ${def?.label ?? id}.`)
     this.pushToast(`Снято: ${def?.label ?? id}.`, 'info')
@@ -868,7 +1102,7 @@ export class GameEngine {
     this.notify()
   }
 
-  // ─────────────── груз и перегруз (ТЗ 4.6) ───────────────
+  // ─────────────── груз и перегруз (ТЗ 4.6, универсальная BRP-система) ───────────────
 
   currentLoad(): number {
     let sum = 0
@@ -879,13 +1113,160 @@ export class GameEngine {
     return sum
   }
 
-  maxLoad(): number {
+  /**
+   * Подробный расчёт грузоподъёмности героя с учётом формулы кампании,
+   * расовых/видовых множителей существа и надетой экипировки (рюкзаки, экзоскелеты).
+   */
+  maxLoadDetails(): {
+    base: number
+    formula: string
+    worldMult: number
+    charBonus: number
+    charMult: number
+    equipBonus: number
+    equipMult: number
+    total: number
+  } {
     const s = this.state.player.stats
-    return s.STR + s.SIZ
+    const encRules = this.campaign.meta.encumbrance
+    const formula = encRules?.formula ?? 'str_siz'
+
+    let base = s.STR + s.SIZ
+    if (formula === 'str_con') base = s.STR + s.CON
+    else if (formula === 'str_only') base = s.STR * 2
+    else if (formula === 'fixed') base = Math.max(1, encRules?.capacity_multiplier ?? 20)
+
+    const worldMult = encRules?.capacity_multiplier && formula !== 'fixed' ? encRules.capacity_multiplier : 1.0
+
+    // Расовые/индивидуальные параметры героя
+    const playerDef = this.campaign.entities[this.state.player.entity] as NpcDef | undefined
+    const charBonus = playerDef?.carry_capacity_bonus ?? 0
+    const charMult = playerDef?.carry_capacity_mult ?? 1.0
+
+    // Бонусы от надетой экипировки (рюкзаки, пояса, экзоскелеты)
+    let equipBonus = 0
+    let equipMult = 1.0
+    for (const slotId of Object.keys(this.state.player.equipment)) {
+      const itemId = this.state.player.equipment[slotId]
+      if (!itemId) continue
+      const itemDef = this.campaign.entities[itemId] as ItemDef | undefined
+      if (!itemDef) continue
+      if (typeof itemDef.carry_bonus === 'number') equipBonus += itemDef.carry_bonus
+      if (typeof itemDef.carry_mult === 'number' && itemDef.carry_mult > 0) equipMult *= itemDef.carry_mult
+    }
+
+    const calculated = (base * worldMult * charMult + charBonus + equipBonus) * equipMult
+    const total = Math.max(1, Math.round(calculated * 10) / 10)
+
+    return {
+      base,
+      formula,
+      worldMult,
+      charBonus,
+      charMult,
+      equipBonus,
+      equipMult,
+      total,
+    }
+  }
+
+  maxLoad(): number {
+    return this.maxLoadDetails().total
+  }
+
+  /**
+   * Ступенчатый статус перегруза:
+   * 'normal' — в пределах лимита
+   * 'light' — лёгкий перегруз (1.0x .. 1.5x)
+   * 'heavy' — тяжёлый перегруз (1.5x .. 2.0x)
+   * 'critical' — критический перегруз (> 2.0x, передвижение заблокировано)
+   */
+  encumbranceStatus(): 'normal' | 'light' | 'heavy' | 'critical' {
+    const encRules = this.campaign.meta.encumbrance
+    if (encRules?.enabled === false) return 'normal'
+    const load = this.currentLoad()
+    const max = this.maxLoad()
+    if (load <= max) return 'normal'
+
+    const critThresh = encRules?.critical_threshold ?? 2.0
+    if (critThresh > 0 && load > max * critThresh) return 'critical'
+
+    const heavyThresh = 1.5
+    if (load > max * heavyThresh) return 'heavy'
+
+    return 'light'
+  }
+
+  encumbranceDebuffs(): {
+    status: 'normal' | 'light' | 'heavy' | 'critical'
+    label: string
+    dodgePenalty: number
+    movPenalty: number
+    skillPenalty: number
+    travelMultiplier: number
+    isBlocked: boolean
+  } {
+    const status = this.encumbranceStatus()
+    const encRules = this.campaign.meta.encumbrance
+    if (status === 'normal' || encRules?.enabled === false) {
+      return {
+        status: 'normal',
+        label: 'В норме',
+        dodgePenalty: 0,
+        movPenalty: 0,
+        skillPenalty: 0,
+        travelMultiplier: 1.0,
+        isBlocked: false,
+      }
+    }
+
+    if (status === 'light') {
+      return {
+        status: 'light',
+        label: 'Лёгкий перегруз',
+        dodgePenalty: encRules?.light_dodge_penalty ?? 10,
+        movPenalty: encRules?.light_mov_penalty ?? 1,
+        skillPenalty: encRules?.light_agility_skills_penalty ?? 10,
+        travelMultiplier: encRules?.travel_penalty === false ? 1.0 : (encRules?.light_travel_multiplier ?? 1.5),
+        isBlocked: false,
+      }
+    }
+
+    if (status === 'heavy') {
+      return {
+        status: 'heavy',
+        label: 'Тяжёлый перегруз',
+        dodgePenalty: encRules?.heavy_dodge_penalty ?? 25,
+        movPenalty: encRules?.heavy_mov_penalty ?? 2,
+        skillPenalty: encRules?.heavy_agility_skills_penalty ?? 25,
+        travelMultiplier: encRules?.travel_penalty === false ? 1.0 : (encRules?.heavy_travel_multiplier ?? 2.0),
+        isBlocked: false,
+      }
+    }
+
+    // critical
+    return {
+      status: 'critical',
+      label: 'Критический перегруз',
+      dodgePenalty: encRules?.critical_dodge_penalty ?? 50,
+      movPenalty: encRules?.critical_mov_penalty ?? 3,
+      skillPenalty: encRules?.critical_agility_skills_penalty ?? 50,
+      travelMultiplier: 999,
+      isBlocked: encRules?.travel_penalty !== false,
+    }
   }
 
   isOverloaded(): boolean {
-    return this.currentLoad() > this.maxLoad()
+    return this.encumbranceStatus() !== 'normal'
+  }
+
+  /**
+   * Заблокировано ли перемещение между локациями из-за критического перегруза
+   */
+  isTravelBlockedByOverload(): boolean {
+    const encRules = this.campaign.meta.encumbrance
+    if (encRules?.enabled === false || encRules?.travel_penalty === false) return false
+    return this.encumbranceStatus() === 'critical'
   }
 
   // ─────────────── репутация и фракции (ТЗ 4.8) ───────────────
@@ -1054,7 +1435,7 @@ export class GameEngine {
       const stage = quest?.stages.find((s) => s.id === qs.stage)
       if (!stage?.transitions) continue
       for (const t of stage.transitions) {
-        if (t.conditions.every((c) => evalCondition(c, this))) {
+        if ((t.conditions ?? []).every((c) => evalCondition(c, this))) {
           this.advanceQuestTo(questId, t.to)
           break
         }
@@ -1177,6 +1558,11 @@ export class GameEngine {
   }
 
   /** репутация включена мастером */
+  /** Настраиваемая системная надпись интерфейса (design-doc §9, meta.ui_labels) */
+  uiLabel(key: string, fallback: string): string {
+    return this.campaign.meta.ui_labels?.[key]?.trim() || fallback
+  }
+
   reputationEnabled(): boolean {
     return !!this.campaign.meta.reputation
   }
@@ -1329,10 +1715,9 @@ export class GameEngine {
     this.notify()
   }
 
-  /** локализованное имя характеристики */
+  /** каноническое имя характеристики (всегда на латинице: STR, CON, SIZ, DEX, INT, POW, CHA, EDU) */
   statLabel(stat: string): string {
-    const labels: Record<string, string> = { STR: 'Сила', CON: 'Телосложение', SIZ: 'Размер', DEX: 'Ловкость', INT: 'Разум', POW: 'Мощь', CHA: 'Обаяние', EDU: 'Образование' }
-    return labels[stat] ?? stat
+    return stat.toUpperCase()
   }
 
   // ─────────────── уровни и черты (аудит B8, opt-in meta.progression) ───────────────
@@ -1577,7 +1962,7 @@ export class GameEngine {
   campAvailable(): { ok: boolean; reason: string } {
     const cfg = this.campaign.meta.camping
     if (!cfg) return { ok: false, reason: 'мастер не включил ночлег (meta.camping)' }
-    if (this.combat || this.trade) return { ok: false, reason: 'сейчас не до отдыха' }
+    if (this.combat || this.trade || this.craftRequest) return { ok: false, reason: 'сейчас не до отдыха' }
     const loc = this.findLocation(this.state.location)?.location
     if (!loc?.camp) return { ok: false, reason: 'здесь лагерь не разбить (location.camp)' }
     return { ok: true, reason: '' }
@@ -1764,10 +2149,10 @@ export class GameEngine {
     st.detected = false
     
     if (st.sneaking) {
-      this.pushLog('👁️‍🗨️ Вы переходите на скрытное передвижение. Бросок скрытности при смене сцены...')
+      this.pushLog('Вы переходите на скрытное передвижение. Бросок скрытности при смене сцены...')
       this.detectCheck('вы появляетесь в поле зрения')
     } else {
-      this.pushLog('👁️ Вы больше не скрываетесь.')
+      this.pushLog('Вы больше не скрываетесь.')
     }
     
     this.autosave()
@@ -1799,7 +2184,7 @@ export class GameEngine {
     const RANK: Record<string, number> = { fumble: 0, fail: 1, success: 2, hard: 3, critical: 4 }
     const wins = (RANK[mine.result] ?? 1) >= (RANK[theirs.result] ?? 1)
     this.pushLog(
-      `🎲 Скрытность (${context}): ваш ${mine.result} (d100=${mine.roll}/${hero}) против «${bestNpc.label}» ${theirs.result} (d100=${theirs.roll}/${bestNpc.value}) → ${wins ? '✅ вас не заметили' : '❌ ВАС ЗАМЕТИЛИ!'}`,
+      `Скрытность (${context}): ваш ${mine.result} (d100=${mine.roll}/${hero}) против «${bestNpc.label}» ${theirs.result} (d100=${theirs.roll}/${bestNpc.value}) → ${wins ? 'вас не заметили' : 'ВАС ЗАМЕТИЛИ!'}`,
     )
     if (!wins) {
       this.state.stealth!.detected = true
@@ -1871,6 +2256,7 @@ export class GameEngine {
     const npc = this.campaign.entities[entityId] as NpcDef | undefined
     if (!npc || npc.type !== 'npc' || !npc.trader) return
     this.dialogue = null
+    this.dialogueTimer = null
     this.trade = npc
     this.notify()
   }
@@ -1878,6 +2264,186 @@ export class GameEngine {
   closeTrade(): void {
     this.trade = null
     this.autosave()
+    this.notify()
+  }
+
+  /**
+   * Открыть окно изготовления по ходу игры (эффект `open_craft`, реплика
+   * `~ open_craft("recipe_id")`). Неизвестный или незаданный рецепт — просто
+   * открывается список: рецепт может открыться позже эффектом unlock_recipe.
+   * Разговор и торговля при этом закрываются, как у `open_trade`.
+   */
+  openCraft(recipeId?: string, sourceEntity?: ItemDef): void {
+    if (!featureOn(this.campaign.meta, 'inventory')) return
+    const known = recipeId && this.knownRecipes().some((r) => r.id === recipeId)
+    this.dialogue = null
+    this.dialogueTimer = null
+    this.activeStory = null
+    this.activeNpc = null
+    this.trade = null
+    if (sourceEntity) this.craftSourceEntity = sourceEntity
+    this.craftRequest = { recipe: known ? recipeId : undefined }
+    this.notify()
+  }
+
+  closeCraft(): void {
+    this.craftRequest = null
+    this.craftSourceEntity = null
+    this.autosave()
+    this.notify()
+  }
+
+  // ─────────────── таймер выбора в диалоге ───────────────
+
+  /**
+   * Ink-вызов `~ set_dialogue_timer(секунды, "узел")`: сколько секунд игрок
+   * может думать над ответами и куда уйти, если он промолчал. Пустой узел —
+   * по истечении разговор заканчивается. `0` снимает таймер.
+   * Действует, только если на узле есть варианты ответа.
+   */
+  setDialogueTimer(seconds: number, knot?: string): void {
+    const s = Math.floor(Number(seconds) || 0)
+    this.pendingDialogueTimer = s > 0 ? { seconds: s, knot: knot ? String(knot) : undefined } : null
+  }
+
+  /**
+   * Зафиксировать таймер, объявленный ink-ом в этом проходе: он живёт, пока
+   * игроку показаны варианты ответа. Без вариантов таймер снимается, а
+   * забытый ink-ом таймер не «переезжает» на следующую реплику.
+   */
+  private commitDialogueTimer(_choices?: number): void {
+    const next = this.pendingDialogueTimer
+    this.pendingDialogueTimer = null
+    this.dialogueTimer = next ? next : null
+  }
+
+  /** Истёк таймер: уходим в назначенный узел или заканчиваем разговор. */
+  dialogueTimeout(): void {
+    const t = this.dialogueTimer
+    const story = this.activeStory
+    this.dialogueTimer = null
+    if (!t || !story || !this.dialogue) return
+    if (!t.knot) {
+      this.pushLog('Разговор оборвался: вы слишком долго молчали.')
+      this.endDialogue()
+      return
+    }
+    try {
+      story.ChoosePathString(t.knot)
+    } catch {
+      this.pushLog(`Узел «${t.knot}» для таймера не найден — разговор заканчивается.`)
+      this.endDialogue()
+      return
+    }
+    this.pushLog('Вы слишком долго молчали — собеседник перевёл разговор на своё.')
+    const drained = drainStory(story)
+    for (const l of drained.lines) {
+      this.dialogueHistory.push({
+        speaker: l.action ? '' : this.dialogue.npc.label,
+        text: l.text,
+        emotion: l.emotion,
+        action: l.action,
+      })
+    }
+    if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
+      this.dialogue = null
+      this.dialogueHistory = []
+      this.activeStory = null
+      this.activeNpc = null
+      this.notify()
+      return
+    }
+    this.dialogue = {
+      npc: this.dialogue.npc,
+      lines: drained.lines,
+      choices: drained.choices,
+      finished: drained.finished,
+      history: [...this.dialogueHistory],
+    }
+    this.commitDialogueTimer(drained.choices.length)
+    this.commitDialoguePresenting()
+    this.dialogue.timer = this.dialogueTimer ?? undefined
+    this.notify()
+  }
+
+  // ─────────────── предъявление предмета в диалоге ───────────────
+
+  /**
+   * Ink-вызов `~ present_item("ok_knot", "fail_knot", "required_item")`:
+   * предлагает игроку выбрать предмет из инвентаря для предъявления собеседнику.
+   */
+  promptPresentItem(okKnot: string, failKnot: string, required?: string): void {
+    this.pendingDialoguePresenting = { ok: okKnot, fail: failKnot, required: required || undefined }
+  }
+
+  private commitDialoguePresenting(): void {
+    const next = this.pendingDialoguePresenting
+    this.pendingDialoguePresenting = null
+    if (this.dialogue) {
+      this.dialogue.presenting = next ? next : undefined
+    }
+  }
+
+  /**
+   * Игрок выбрал предмет для предъявления (или отменил выбор: itemId === null).
+   */
+  submitPresentedItem(itemId: string | null): void {
+    const pres = this.dialogue?.presenting
+    const story = this.activeStory
+    if (!pres || !story || !this.dialogue) return
+    this.dialogue.presenting = undefined
+    if (itemId) {
+      playUi('dialogue_present')
+      const itDef = this.campaign.entities[itemId] as ItemDef | undefined
+      this.dialogueHistory.push({
+        speaker: this.state.player.name || 'Вы',
+        text: `[Предъявлено: ${itDef?.label || itemId}]`,
+        isChoice: true,
+      })
+    } else {
+      playUi('click')
+      this.dialogueHistory.push({
+        speaker: this.state.player.name || 'Вы',
+        text: '[Ничего не предъявлено]',
+        isChoice: true,
+      })
+    }
+    const success = itemId ? (!pres.required || pres.required === itemId) : false
+    const targetKnot = success ? pres.ok : pres.fail
+    try {
+      story.ChoosePathString(targetKnot)
+    } catch {
+      this.pushLog(`Узел «${targetKnot}» для результата предъявления не найден.`)
+      this.endDialogue()
+      return
+    }
+    const drained = drainStory(story)
+    for (const l of drained.lines) {
+      this.dialogueHistory.push({
+        speaker: l.action ? '' : this.dialogue.npc.label,
+        text: l.text,
+        emotion: l.emotion,
+        action: l.action,
+      })
+    }
+    if (this.combat || this.trade || this.craftRequest || this.state.game_over || !this.activeStory) {
+      this.dialogue = null
+      this.dialogueHistory = []
+      this.activeStory = null
+      this.activeNpc = null
+      this.notify()
+      return
+    }
+    this.dialogue = {
+      npc: this.dialogue.npc,
+      lines: drained.lines,
+      choices: drained.choices,
+      finished: drained.finished,
+      history: [...this.dialogueHistory],
+    }
+    this.commitDialogueTimer(drained.choices.length)
+    this.commitDialoguePresenting()
+    this.dialogue.timer = this.dialogueTimer ?? undefined
     this.notify()
   }
 
@@ -1915,17 +2481,62 @@ export class GameEngine {
 
   sellPrice(npc: NpcDef, itemId: string): number {
     const item = this.campaign.entities[itemId] as ItemDef | undefined
+    if (item?.quest_item) return 0
     const base = item?.value?.[this.mainCurrency] ?? 0
     const rate = npc.trader?.buy_rate ?? 0.4
     const dynamic = item ? this.priceEventMultiplier(item) : 1
     return Math.max(0, Math.floor((base * rate * dynamic) / this.priceModifier(npc)))
   }
 
+  /** полный список продаваемых торговцем товаров, включая выкупленные у игрока */
+  traderSells(npc: NpcDef): Array<{ item: string; price?: number; stock?: number }> {
+    if (!npc.trader) return []
+    const base = [...npc.trader.sells]
+    const bought = this.state.trader_bought_items?.[npc.id] ?? []
+    for (const b of bought) {
+      if (!base.some((s) => s.item === b.item)) {
+        base.push(b)
+      }
+    }
+    return base
+  }
+
+  /** текущий остаток товара на складе торговца (undefined — бесконечный запас) */
+  traderItemStock(npcId: string, itemId: string): number | undefined {
+    const npc = this.campaign.entities[npcId] as NpcDef | undefined
+    if (!npc?.trader) return undefined
+    const traderSaved = this.state.trader_stocks?.[npcId]
+    if (traderSaved && itemId in traderSaved) {
+      return traderSaved[itemId]
+    }
+    const sellDef = npc.trader.sells.find((s) => s.item === itemId)
+    if (sellDef && sellDef.stock !== undefined) return sellDef.stock
+    const boughtDef = (this.state.trader_bought_items?.[npcId] ?? []).find((s) => s.item === itemId)
+    if (boughtDef && boughtDef.stock !== undefined) return boughtDef.stock
+    return undefined
+  }
+
   buyItem(itemId: string, price: number): boolean {
     const currencyItem = this.currencyItemId()
     if (this.itemCount(currencyItem) < price) return false
+
+    if (this.trade) {
+      const stock = this.traderItemStock(this.trade.id, itemId)
+      if (stock !== undefined && stock <= 0) return false
+    }
+
     this.removeItem(currencyItem, price, { silent: true })
     this.addItem(itemId, 1, { silent: true })
+
+    if (this.trade) {
+      const stock = this.traderItemStock(this.trade.id, itemId)
+      if (stock !== undefined) {
+        if (!this.state.trader_stocks) this.state.trader_stocks = {}
+        if (!this.state.trader_stocks[this.trade.id]) this.state.trader_stocks[this.trade.id] = {}
+        this.state.trader_stocks[this.trade.id][itemId] = Math.max(0, stock - 1)
+      }
+    }
+
     this.markSkill('bargain')
     playUi('coin')
     this.notify()
@@ -1933,9 +2544,43 @@ export class GameEngine {
   }
 
   sellItem(itemId: string, price: number): boolean {
+    const item = this.campaign.entities[itemId] as ItemDef | undefined
+    if (item?.quest_item) return false
     if (this.itemCount(itemId) < 1) return false
     this.removeItem(itemId, 1, { silent: true })
     this.addItem(this.currencyItemId(), price, { silent: true })
+
+    // Добавляем проданный предмет торговцу для обратного выкупа
+    if (this.trade) {
+      const traderId = this.trade.id
+      const npc = this.campaign.entities[traderId] as NpcDef | undefined
+      if (npc?.trader) {
+        const inBase = npc.trader.sells.some((s) => s.item === itemId)
+        if (inBase) {
+          const curStock = this.traderItemStock(traderId, itemId)
+          if (curStock !== undefined) {
+            if (!this.state.trader_stocks) this.state.trader_stocks = {}
+            if (!this.state.trader_stocks[traderId]) this.state.trader_stocks[traderId] = {}
+            this.state.trader_stocks[traderId][itemId] = curStock + 1
+          }
+        } else {
+          if (!this.state.trader_bought_items) this.state.trader_bought_items = {}
+          if (!this.state.trader_bought_items[traderId]) this.state.trader_bought_items[traderId] = []
+          const existing = this.state.trader_bought_items[traderId].find((s) => s.item === itemId)
+          const curStock = this.traderItemStock(traderId, itemId) ?? 0
+          const nextStock = curStock + 1
+          if (!existing) {
+            this.state.trader_bought_items[traderId].push({ item: itemId, stock: nextStock })
+          } else {
+            existing.stock = nextStock
+          }
+          if (!this.state.trader_stocks) this.state.trader_stocks = {}
+          if (!this.state.trader_stocks[traderId]) this.state.trader_stocks[traderId] = {}
+          this.state.trader_stocks[traderId][itemId] = nextStock
+        }
+      }
+    }
+
     this.markSkill('bargain')
     playUi('coin')
     this.notify()
@@ -1954,9 +2599,81 @@ export class GameEngine {
     return Object.values(this.campaign.recipes).sort((a, b) => a.label.localeCompare(b.label, 'ru'))
   }
 
-  /** чего не хватает для рецепта: компоненты, инструменты, условия */
+  /** доступен ли конкретный верстак / рабочее место в текущем контексте */
+  isWorkbenchAvailable(workbenchReq?: boolean | string): boolean {
+    if (!workbenchReq) return true
+
+    // Если запрошен конкретный id предмета или категория
+    if (typeof workbenchReq === 'string') {
+      // 1. Проверяем источник текущего открытого окна крафта
+      if (this.craftSourceEntity) {
+        if (this.craftSourceEntity.id === workbenchReq || this.craftSourceEntity.category === workbenchReq) {
+          return true
+        }
+      }
+      // 2. Текущая сцена: есть ли в сцене предмет с таким id или категорией
+      const sc = this.campaign.scenes[this.state.scene]
+      if (sc) {
+        const occupants = this.slotOccupants(sc)
+        for (const occ of occupants) {
+          if (!occ.entity) continue
+          const it = occ.entity as ItemDef
+          if (it.id === workbenchReq || it.category === workbenchReq) return true
+          if (occ.slot.type.includes(workbenchReq)) return true
+        }
+      }
+      // 3. Текущая локация
+      const loc = this.findLocation(this.state.location)?.location
+      if (loc && (loc as unknown as Record<string, unknown>)[workbenchReq]) return true
+
+      return false
+    }
+
+    // Если workbenchReq === true — подходит любое рабочее место
+    // 1. Окно крафта открыто по запросу у верстака
+    if (this.craftRequest || this.craftSourceEntity) return true
+
+    // 2. Текущая сцена
+    const sc = this.campaign.scenes[this.state.scene]
+    if (sc) {
+      if ((sc as unknown as { workbench?: boolean }).workbench) return true
+      const occupants = this.slotOccupants(sc)
+      for (const occ of occupants) {
+        if (!occ.entity) continue
+        const it = occ.entity as ItemDef
+        if (it.id === 'item_bench' || it.category === 'workbench') return true
+        if (occ.slot.type.includes('workbench')) return true
+        if (it.interact_options?.some((o) => o.effects?.some((ef) => ef.type === 'open_craft'))) return true
+      }
+    }
+
+    // 3. Текущая локация
+    const loc = this.findLocation(this.state.location)?.location
+    if (loc && (loc as unknown as { workbench?: boolean }).workbench) return true
+
+    return false
+  }
+
+  /** Название рабочего места для подсказки в интерфейсе */
+  workbenchLabel(req?: boolean | string): string {
+    if (!req) return ''
+    if (req === true) return 'Верстак или мастерская'
+    if (typeof req === 'string') {
+      const ent = this.campaign.entities[req]
+      if (ent) return ent.label
+      const cat = this.campaign.meta.item_categories?.find((c) => c.id === req)
+      if (cat) return cat.label
+      return req
+    }
+    return ''
+  }
+
+  /** чего не хватает для рецепта: компоненты, инструменты, условия, верстак */
   recipeMissing(r: RecipeDef): string[] {
     const missing: string[] = []
+    if (r.workbench && !this.isWorkbenchAvailable(r.workbench)) {
+      missing.push(`требуется: ${this.workbenchLabel(r.workbench)}`)
+    }
     for (const need of r.inputs ?? []) {
       const have = this.itemCount(need.item)
       if (have < need.quantity) missing.push(`${this.itemTitle(need.item)} ×${need.quantity} (есть ${have})`)
@@ -2004,7 +2721,8 @@ export class GameEngine {
     const outLabel = this.itemTitle(r.output.item)
     this.pushLog(`Изготовлено: ${outLabel} (рецепт «${r.label}»).`)
     this.messages.push({ text: r.message ?? `Изготовлено: ${outLabel}.` })
-    playUi('craft')
+    if (r.sound) playInteraction(r.sound, { sound: r.sound }, r.sound_volume ?? 1)
+    else playUi('craft')
     this.autosave()
     this.notify()
     return true
@@ -2115,10 +2833,48 @@ export class GameEngine {
 
   /** Активное состояние сцены: первое, чьё условие истинно; иначе первое. */
   activeSceneState(scene: SceneDef): SceneStateDef {
+    // 1. Приоритет явно переключенному состоянию scene_state:<scene>:<state>
     for (const st of scene.states) {
-      if (evalSceneCondition(st.condition, this)) return st
+      if (this.state.flags[`scene_state:${scene.id}:${st.id}`]) return st
     }
-    return scene.states[0]
+    // 2. Специфические условия (время суток, флаги, погода)
+    for (const st of scene.states) {
+      if (st.condition && evalSceneCondition(st.condition, this)) return st
+    }
+    // 3. Базовое состояние (без условий) либо первое в списке
+    const base = scene.states.find((st) => !st.condition)
+    return base ?? scene.states[0]
+  }
+
+  changeSceneState(sceneIdOrState: string, maybeState?: string): void {
+    const sceneId = maybeState ? sceneIdOrState : this.state.scene
+    const stateId = maybeState ?? sceneIdOrState
+    const sc = this.campaign.scenes[sceneId]
+    if (sc) {
+      for (const st of sc.states) {
+        delete this.state.flags[`scene_state:${sceneId}:${st.id}`]
+      }
+      this.state.flags[`scene_state:${sceneId}:${stateId}`] = true
+      this.notify()
+    }
+  }
+
+  goToSceneFromDialogue(sceneId: string, closeDialogue = true): void {
+    if (closeDialogue) {
+      this.endDialogue()
+    }
+    this.goToScene(sceneId, 0)
+  }
+
+  startCombatFromDialogue(arenaId: string): void {
+    const enemyId = this.activeNpc?.id || Object.keys(this.campaign.entities).find((k) => this.campaign.entities[k]?.type === 'npc') || ''
+    this.endDialogue()
+    this.startCombat({
+      type: 'start_combat',
+      arena: arenaId,
+      enemies: [{ entity: enemyId, count: 1 }],
+      intro: `Бой с ${this.activeNpc?.label ?? 'противником'}!`,
+    })
   }
 
   /** Активное «особое место» НПС: первый оверрайд, чей флаг-условие выполнено. */
@@ -2203,6 +2959,7 @@ export class GameEngine {
   goToScene(sceneId: string, costTicks = 0): void {
     const scene = this.campaign.scenes[sceneId]
     if (!scene) return
+    stopVoiceAudio()
     if (costTicks > 0) this.advanceTicks(costTicks)
     if (this.state.game_over) return this.notify()
     playInteraction('travel') // «переход по зоне» (H3); тема — ui_sounds travel/scene_transition
@@ -2216,15 +2973,67 @@ export class GameEngine {
       this.onEnterLocation(scene.location)
     } else {
       this.checkRules()
+      this.autosave()
     }
+    this.fireTrigger('enter_scene', { sceneId })
     this.notify()
+  }
+
+  /**
+   * Проверка и выполнение перехода по зоне навигации (с поддержкой условий блокировки,
+   * сообщений, окликов персонажей и правил-перехватчиков).
+   */
+  navigate(nav: NavigationZone): boolean {
+    if (nav.open_map) return false
+    // 1. Условия блокировки перехода
+    if (nav.conditions && nav.conditions.length > 0) {
+      const ok = nav.conditions.every((c: Condition) => evalCondition(c, this))
+      if (!ok) {
+        if (nav.blocked_message) {
+          this.pushLog(nav.blocked_message)
+          this.messages.push({ text: nav.blocked_message })
+          this.notify()
+        }
+        return false
+      }
+    }
+    // 2. Оклик-диалог перед уходом со сцены
+    if (nav.intercept_dialogue) {
+      this.startDialogue(nav.intercept_dialogue)
+      return false
+    }
+    // 3. Вызов правила-перехватчика
+    if (nav.intercept_rule) {
+      const fired = this.tryFireRule(nav.intercept_rule)
+      if (fired) return false
+    }
+    // 4. Событийный триггер попытки ухода со сцены
+    const blocked = this.fireTrigger('leave_scene', { sceneId: this.state.scene })
+    if (blocked) return false
+
+    // 5. Разрешённый переход
+    if (nav.go_to_scene) {
+      this.goToScene(nav.go_to_scene, nav.cost_ticks ?? 0)
+      return true
+    }
+    return false
   }
 
   /** Путешествие между локациями по travel_connections (ТЗ 4.9). */
   travelTo(locationId: string): void {
+    if (this.isTravelBlockedByOverload()) {
+      const load = this.currentLoad()
+      const max = this.maxLoad()
+      this.messages.push({
+        text: `Груз слишком велик (${load.toFixed(1)} кг при лимите ${max.toFixed(1)} кг). Вы не можете отправиться в путь с критическим перегрузом — сбросьте лишние вещи.`,
+      })
+      this.notify()
+      return
+    }
+
     const from = this.findLocation(this.state.location)
     const conn = from?.location.travel_connections.find((c) => c.to === locationId)
-    const cost = conn?.cost_ticks ?? 1
+    const cost = this.travelCost(locationId) ?? conn?.cost_ticks ?? 1
     if (this.state.blocked_paths.includes(`${this.state.location}->${locationId}`)) {
       this.messages.push({ text: 'Путь закрыт.' })
       this.notify()
@@ -2235,7 +3044,9 @@ export class GameEngine {
       this.notify()
       return
     }
-    playUi('travel_depart')
+    if (conn?.depart_sound) playInteraction(conn.depart_sound, { sound: conn.depart_sound }, conn.depart_sound_volume ?? 1)
+    else if (conn?.sound) playInteraction(conn.sound, { sound: conn.sound }, conn.sound_volume ?? 1)
+    else playUi('travel_depart')
     this.advanceTicks(cost)
     this.state.stats_run.travels += 1
     if (this.state.game_over) return this.notify()
@@ -2246,7 +3057,8 @@ export class GameEngine {
     this.state.location = locationId
     const firstScene = this.arrivalSceneOf(target.location)
     if (firstScene) this.state.scene = firstScene
-    playUi('travel_arrive')
+    if (conn?.arrive_sound) playInteraction(conn.arrive_sound, { sound: conn.arrive_sound }, conn.arrive_sound_volume ?? 1)
+    else playUi('travel_arrive')
     this.onEnterLocation(locationId)
     // случайная встреча в пути (после прибытия)
     if (conn && !this.state.game_over && !this.combat) this.rollEncounter(conn)
@@ -2267,10 +3079,42 @@ export class GameEngine {
     )
   }
 
+  /**
+   * Время пути до локации в тиках с учётом штрафов перегруза
+   */
   travelCost(toLocation: string): number | null {
     const from = this.findLocation(this.state.location)
     const conn = from?.location.travel_connections.find((c) => c.to === toLocation)
-    return conn ? conn.cost_ticks : null
+    if (!conn) return null
+    const baseCost = conn.cost_ticks ?? 1
+
+    const encRules = this.campaign.meta.encumbrance
+    if (encRules?.enabled === false || encRules?.travel_penalty === false) {
+      return baseCost
+    }
+
+    const status = this.encumbranceStatus()
+    if (status === 'critical') {
+      return null // заблокировано
+    }
+    if (status === 'heavy') {
+      const mult = encRules?.heavy_travel_multiplier ?? 2.0
+      return Math.max(baseCost + 1, Math.round(baseCost * mult))
+    }
+    if (status === 'light') {
+      const mult = encRules?.light_travel_multiplier ?? 1.5
+      return Math.max(baseCost + 1, Math.round(baseCost * mult))
+    }
+    return baseCost
+  }
+
+  /**
+   * Базовая стоимость пути без учёта штрафа перегруза (для отображения в UI)
+   */
+  travelBaseCost(toLocation: string): number | null {
+    const from = this.findLocation(this.state.location)
+    const conn = from?.location.travel_connections.find((c) => c.to === toLocation)
+    return conn ? (conn.cost_ticks ?? 1) : null
   }
 
   // ─────────────── правила ───────────────
@@ -2287,26 +3131,75 @@ export class GameEngine {
   checkRules(): void {
     for (const rule of Object.values(this.campaign.rules)) {
       if (rule.manual) continue
+      if (rule.trigger && rule.trigger !== 'always') continue
       this.tryFireRule(rule.id)
     }
     this.checkQuestTransitions()
   }
 
+  /** вызов правил, привязанных к конкретному событийному триггеру */
+  fireTrigger(trigger: 'enter_scene' | 'leave_scene' | 'interact' | 'time_tick', _context?: { sceneId?: string; entityId?: string }): boolean {
+    let anyFired = false
+    for (const rule of Object.values(this.campaign.rules)) {
+      if (rule.manual) continue
+      if (rule.trigger !== trigger) continue
+      if (this.tryFireRule(rule.id)) {
+        anyFired = true
+      }
+    }
+    return anyFired
+  }
+
   /** условия правила: все `conditions` И (если заданы) хотя бы одна ИЛИ-группа */
   private ruleConditionsOk(rule: RuleDef): boolean {
-    if (!rule.conditions.every((c) => evalCondition(c, this))) return false
+    if (!(rule.conditions ?? []).every((c) => evalCondition(c, this))) return false
     const groups = rule.conditions_any
     if (!groups || groups.length === 0) return true
     return groups.some((g) => !g.length || g.every((c) => evalCondition(c, this)))
   }
 
-  private tryFireRule(ruleId: string, depth = 0): void {
+  tryFireRule(ruleId: string, depth = 0): boolean {
     const rule = this.campaign.rules[ruleId]
-    if (!rule) return
-    if (rule.once && this.state.fired_rules.includes(rule.id)) return
-    if (!this.ruleConditionsOk(rule)) return
+    if (!rule) return false
+    if (rule.once && this.state.fired_rules.includes(rule.id)) return false
+    if (!this.ruleConditionsOk(rule)) return false
     this.state.fired_rules.push(rule.id)
-    this.applyEffects(rule.effects, depth)
+    this.applyEffects(rule.effects ?? [], depth)
+    return true
+  }
+
+  // ─────────────── механика «Незнакомец» (Unknown / Anonymous NPC) ───────────────
+
+  /** раскрыто ли настоящее имя персонажа игроку */
+  isNpcNameKnown(entityId: string): boolean {
+    if (this.state.flags[`known_${entityId}`] || this.state.flags[`npc_known_${entityId}`]) return true
+    const def = this.campaign.entities[entityId] as NpcDef | undefined
+    if (!def || !def.unknown_label) return true
+    return (this.state.known_npcs ?? []).includes(entityId)
+  }
+
+  /** актуальное имя персонажа с учётом статуса знакомства */
+  npcLabel(entity: string | NpcDef): string {
+    const def = typeof entity === 'string' ? (this.campaign.entities[entity] as NpcDef | undefined) : entity
+    if (!def) return typeof entity === 'string' ? entity : ''
+    if (!def.unknown_label) return def.label
+    if (this.isNpcNameKnown(def.id)) return def.label
+    return def.unknown_label
+  }
+
+  /** раскрыть настоящее имя персонажа игроку */
+  learnNpcName(npcId: string, silent = false): void {
+    const def = this.campaign.entities[npcId] as NpcDef | undefined
+    const list = (this.state.known_npcs ??= [])
+    if (list.includes(npcId)) return
+    list.push(npcId)
+    if (!silent && def?.unknown_label) {
+      const msg = `Вы узнали: «${def.unknown_label}» — это ${def.label}.`
+      this.pushLog(msg)
+      this.pushToast(msg, 'info')
+    }
+    this.notify()
+    this.checkRules()
   }
 
   // ─────────────── эффекты ───────────────
@@ -2423,6 +3316,9 @@ export class GameEngine {
       case 'unlock_recipe':
         this.unlockRecipe(e.recipe)
         break
+      case 'open_craft':
+        this.openCraft(e.recipe || undefined)
+        break
       case 'set_entity_state': {
         const m = (s.entity_states ??= {})
         if (e.state) m[e.entity] = e.state
@@ -2430,7 +3326,16 @@ export class GameEngine {
         this.notify()
         break
       }
-      case 'set_flag': s.flags[e.flag] = true; break
+      case 'learn_name':
+        this.learnNpcName(e.entity, e.silent)
+        break
+      case 'set_flag':
+        if (e.value === false || e.value === 0 || e.value === 'false') {
+          delete s.flags[e.flag]
+        } else {
+          s.flags[e.flag] = (e.value as any) ?? true
+        }
+        break
       case 'set_description':
         this.setEntityDescription(e.entity, e.text)
         break
@@ -2488,12 +3393,14 @@ export class GameEngine {
           out,
           `Проверка «${this.skillLabel(e.skill)}»`,
           retry,
-          () => this.applyEffects(e.success_effects),
+          () => {
+            this.markSkill(e.skill)
+            this.applyEffects(e.success_effects)
+          },
           () => this.applyEffects(e.fail_effects),
         )
         // с luckOffer эффекты применит resolveLuckOffer
         void deferred
-        if (out.success) this.markSkill(e.skill)
         break
       }
       case 'stat_check': {
@@ -2558,7 +3465,10 @@ export class GameEngine {
       }
       case 'opposed_check': {
         const res = this.opposedCheck(e)
-        const finalize = (r: { success: boolean }) => this.applyEffects(r.success ? e.success_effects : e.fail_effects)
+        const finalize = (r: { success: boolean }) => {
+          if (r.success) this.markSkill(e.skill)
+          this.applyEffects(r.success ? e.success_effects : e.fail_effects)
+        }
         if (res.success) {
           finalize(res)
           break
@@ -2600,17 +3510,16 @@ export class GameEngine {
       case 'clear_price_event': this.setPriceEvent(e.id ?? '', false); break
       case 'banner': this.showBanner(e); break
       case 'postcard':
-        this.postcard = { image: e.image, art: e.art, text: e.text, preset: e.preset, seconds: e.seconds, camera: e.camera }
-        if ((e.seconds ?? 6) > 0) {
-          const at = Math.max(1, e.seconds ?? 6)
-          globalThis.setTimeout(() => this.hidePostcard(), at * 1000)
-        }
-        this.notify()
+        this.showPostcard(e)
         break
       case 'grant_xp': this.grantXp(e.points); break
       case 'grant_feat': this.grantFeat(e.id); break
       case 'meta_currency': this.grantMetaCurrency(e.id, e.amount); break
       case 'roll_event_table': this.rollEventTable(e.table, { forced: true, ignoreFilters: e.ignore_filters }); break
+      case 'play_sound': playInteraction(e.sound, { sound: e.sound }, e.volume ?? 1); break
+      case 'stop_sound': stopSound(e.sound); break
+      case 'override_music': this.setMusicOverride(e.tracks, e.fade); break
+      case 'clear_music_override': this.clearMusicOverride(); break
       case 'generate_variables': {
         for (const p of e.pack) {
           const val = this.genValue(e.generator, p.key, e.seed)
@@ -2749,12 +3658,17 @@ export class GameEngine {
     this.autosave()
   }
 
-  /** рецепт виден игроку? (неизвестные закрыты до unlock_recipe) */
+  /** рецепт виден игроку? (неизвестные закрыты до unlock_recipe или выполнения условий) */
   recipeKnown(id: string): boolean {
     const r = this.campaign.recipes[id]
     if (!r) return false
-    if (r.known !== false) return true
-    return !!this.state.recipes_unlocked?.includes(id)
+    // Проверка явного флага скрытости (unlock_recipe)
+    if (r.known === false && !this.state.recipes_unlocked?.includes(id)) return false
+    // Проверка динамических условий доступности рецепта (изучение, навыки, черты, квесты)
+    if (r.conditions && r.conditions.length > 0) {
+      if (!r.conditions.every((c) => evalCondition(c, this))) return false
+    }
+    return true
   }
 
   /** список рецептов, доступных игроку (вкладка «Крафт») */
@@ -2853,8 +3767,11 @@ export class GameEngine {
   itemInteractOptions(item: ItemDef): ItemInteractOption[] {
     const itemOptions = item.interact_options ?? []
     return itemOptions.filter((o, index) => {
-      // Фильтруем по условиям
-      if (!o.conditions?.every((c) => evalCondition(c, this))) return false
+      // Фильтруем по условиям; условий нет — вариант доступен всегда.
+      // (Классическая ошибка: `!o.conditions?.every(...)` при отсутствии
+      // условий даёт `!undefined` → вариант молча пропадал, и клик по
+      // предмету «ничего не делал» — фидбек 29, п.7.)
+      if (o.conditions && o.conditions.length > 0 && !o.conditions.every((c) => evalCondition(c, this))) return false
       // Фильтруем одноразовые варианты
       if (o.once) {
         const key = `item:${item.id}:${index}`
@@ -2866,10 +3783,18 @@ export class GameEngine {
 
   /** применить выбранный вариант взаимодействия с предметом */
   runItemInteract(item: ItemDef, option: ItemInteractOption): void {
-    playInteraction((option.sound ?? 'use') as SoundHook, { entity: item })
+    const soundOpt = option.sound ?? 'use'
+    playInteraction(soundOpt as SoundHook, { entity: item, sound: option.sound }, option.sound_volume ?? 1)
+    if (option.effects?.some((ef) => ef.type === 'open_craft')) {
+      this.craftSourceEntity = item
+    }
     this.applyEffects(option.effects)
     if (option.message) {
-      this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? 'neutral'] ?? item.portrait?.['neutral'] })
+      if (this.craftRequest || this.combat || this.dialogue) {
+        this.pushToast(this.fmt(option.message), 'info')
+      } else {
+        this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? 'neutral'] ?? item.portrait?.['neutral'] })
+      }
     }
     if (option.consume) this.state.removed_entities.push(item.id)
     // Одноразовые варианты: добавляем в список использованных
@@ -2890,30 +3815,66 @@ export class GameEngine {
 
   interactWithSlot(occ: SlotOccupant): boolean {
     if (!occ.entity) return false
+    this.inspectedEntityId = occ.entity.id
+    if (occ.slot.sound) {
+      playInteraction(occ.slot.sound, { sound: occ.slot.sound }, occ.slot.sound_volume ?? 1)
+    }
     if (occ.entity.type === 'npc') {
-      this.startDialogue(occ.entity.id)
+      const npc = occ.entity as NpcDef
+      if (npc.dialogue) {
+        this.startDialogue(occ.entity.id)
+      } else {
+        const desc = this.descOf(npc.id)
+        if (desc) {
+          this.messages.push({
+            text: desc,
+            portrait: npc.portrait?.neutral || undefined,
+          })
+          this.notify()
+        }
+      }
       return true
     }
     const item = occ.entity as ItemDef
     if (!this.itemInteractable(item)) return false
     const slotType = occ.slot.type[0]
     // предмет с вариантами действий — окно выбора; собирается стороной UI
-    if (this.itemInteractOptions(item).length) return false
+    const opts = this.itemInteractOptions(item)
+    if (opts.length) {
+      console.log('[CF:Debug] Предмет имеет interact_options:', opts.length)
+      return false
+    }
     if (item.on_interact) {
       // «открыть контейнер» vs «использовать»: по типу слота/категории
       const isOpen = occ.slot.type.includes('container') || item.category === 'container'
       playInteraction(isOpen ? 'open' : 'use', { entity: item, slotType })
       this.applyEffects(item.on_interact.effects)
-      if (item.on_interact.message) this.messages.push({ text: this.fmt(item.on_interact.message) })
+      const desc = this.descOf(item.id) || item.description
+      if (item.on_interact.message) {
+        this.messages.push({ text: this.fmt(item.on_interact.message) })
+      } else if (desc) {
+        this.messages.push({
+          text: desc,
+          portrait: item.portrait?.neutral || undefined,
+        })
+      }
       if (item.on_interact.consume) {
         this.state.removed_entities.push(item.id)
       }
       this.checkRules()
       this.notify()
     } else {
-      // Не показываем описание автоматически при клике на предмет без взаимодействия.
-      // Описание видно в тултипе (data-tip в UI).
-      // Если нужно показать описание как сообщение, мастер должен использовать on_interact.message
+      // Предмет без специального взаимодействия: при клике показываем описание сущности
+      const desc = this.descOf(item.id)
+      const textToShow = desc || item.description
+      if (textToShow) {
+        this.messages.push({
+          text: textToShow,
+          portrait: item.portrait?.neutral || undefined,
+        })
+      } else {
+        this.pushToast(`«${item.label}» (нет подробного описания)`)
+      }
       this.notify()
     }
     return true
@@ -3031,7 +3992,11 @@ export class GameEngine {
   }
 
   startDialogue(entityId: string, knot?: string): void {
-    const npc = this.campaign.entities[entityId] as NpcDef | undefined
+    stopVoiceAudio()
+    let npc = this.campaign.entities[entityId] as NpcDef | undefined
+    if (!npc || npc.type !== 'npc') {
+      npc = Object.values(this.campaign.entities).find((e): e is NpcDef => e.type === 'npc' && (e.dialogue === entityId || e.dialogue === `${entityId}.ink`))
+    }
     if (!npc || npc.type !== 'npc' || !npc.dialogue) return
     const resolved = this.resolveDialogueSource(npc.dialogue)
     if (!resolved) return
@@ -3041,11 +4006,13 @@ export class GameEngine {
     // однократные `*`-ветки исчезают до конца разговора и возвращаются в новом,
     // а «навсегда» вещи хранятся только во флагах. (фидбек №3)
     let story: Story
+    this.lastDialogueError = null
     try {
       story = createStory(source, dialogueKey)
     } catch (err) {
       // битый ink не должен валить весь рантайм: сообщение мастеру/игроку и выход
       const msg = err instanceof Error ? err.message : String(err)
+      this.lastDialogueError = msg
       this.pushLog(`Диалог «${dialogueKey}» не скомпилировался.`)
       this.messages.push({ text: `Диалог недоступен (${npc.label}).` })
       console.error(msg)
@@ -3061,24 +4028,48 @@ export class GameEngine {
       story.ChoosePathString(entryKnot)
     } catch {
       const fallback = firstInkKnot(source)
-      if (!fallback || fallback === entryKnot) return
-      try {
-        story.ChoosePathString(fallback)
-      } catch {
+      if (fallback && fallback !== entryKnot) {
+        try {
+          story.ChoosePathString(fallback)
+        } catch {
+          this.lastDialogueError = `Стартовый узел «${fallback}» не найден в диалоге «${dialogueKey}».`
+          return
+        }
+      } else if (!story.canContinue) {
+        this.lastDialogueError = `Узел «${entryKnot}» не найден в диалоге «${dialogueKey}».`
         return
       }
     }
     this.activeStory = story
     this.activeNpc = npc
     this.state.stats_run.dialogues += 1
+    this.dialogueHistory = []
     const drained = drainStory(story)
+    for (const l of drained.lines) {
+      this.dialogueHistory.push({
+        speaker: l.action ? '' : npc.label,
+        text: l.text,
+        emotion: l.emotion,
+        action: l.action,
+      })
+    }
     if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
       // external в первой же реплике: бой / торговля / финал — окна диалога нет
       this.dialogue = null
+      this.dialogueHistory = []
       this.activeStory = null
       this.activeNpc = null
     } else {
-      this.dialogue = { npc, lines: drained.lines, choices: drained.choices, finished: drained.finished }
+      this.dialogue = {
+        npc,
+        lines: drained.lines,
+        choices: drained.choices,
+        finished: drained.finished,
+        history: [...this.dialogueHistory],
+      }
+      this.commitDialogueTimer(drained.choices.length)
+      this.commitDialoguePresenting()
+      this.dialogue.timer = this.dialogueTimer ?? undefined
     }
     this.notify()
   }
@@ -3087,12 +4078,29 @@ export class GameEngine {
     const story = this.activeStory
     const npc = this.activeNpc
     if (!story || !npc) return
+    const chosenChoice = story.currentChoices[index]?.text
+    if (chosenChoice) {
+      this.dialogueHistory.push({
+        speaker: this.state.player.name || 'Вы',
+        text: chosenChoice,
+        isChoice: true,
+      })
+    }
     story.ChooseChoiceIndex(index)
     const drained = drainStory(story)
+    for (const l of drained.lines) {
+      this.dialogueHistory.push({
+        speaker: l.action ? '' : npc.label,
+        text: l.text,
+        emotion: l.emotion,
+        action: l.action,
+      })
+    }
     // external мог закрыть забег/открыть бой/торговлю (game_over чистит
     // activeStory — но drainStory уже отработал). Не восстанавливаем окно.
     if (this.combat || this.trade || this.state.game_over || !this.activeStory) {
       this.dialogue = null
+      this.dialogueHistory = []
       this.activeStory = null
       this.activeNpc = null
       this.notify()
@@ -3103,11 +4111,16 @@ export class GameEngine {
       lines: drained.lines,
       choices: drained.choices,
       finished: drained.finished,
+      history: [...this.dialogueHistory],
     }
+    this.commitDialogueTimer(drained.choices.length)
+    this.commitDialoguePresenting()
+    this.dialogue.timer = this.dialogueTimer ?? undefined
     this.checkRules()
     // правило на checkRules тоже могло вызвать game_over
     if (this.state.game_over) {
       this.dialogue = null
+      this.dialogueHistory = []
       this.activeStory = null
       this.activeNpc = null
     }
@@ -3115,7 +4128,11 @@ export class GameEngine {
   }
 
   endDialogue(): void {
+    stopVoiceAudio()
+    this.dialogueTimer = null
+    this.pendingDialoguePresenting = null
     this.dialogue = null
+    this.dialogueHistory = []
     this.activeStory = null
     this.activeNpc = null
     this.checkRules()
@@ -3125,6 +4142,7 @@ export class GameEngine {
 
   dismissMessage(): void {
     this.messages.shift()
+    this.flushPendingBannersIfClear()
     this.notify()
   }
 
@@ -3147,6 +4165,7 @@ export class GameEngine {
     // `game_over && !dialogue` — типичный путь fire_rule/tick_elapsed →
     // game_over_victory из ink оставлял story «висящей».
     this.dialogue = null
+    this.dialogueTimer = null
     this.activeStory = null
     this.activeNpc = null
     this.trade = null

@@ -189,7 +189,11 @@
     "rule_coal_delivered.json",
     "rule_camp_ambush_ward.json",
     "rule_camp_ambush_deep.json",
-    "rule_water_rises_pc.json"
+    "rule_water_rises_pc.json",
+    "rule_valve_quest_start.json",
+    "rule_valve_quest_got.json",
+    "rule_valve_quest_found.json",
+    "rule_ira_valve.json"
   ],
   "arenas": [
     "arena_gate.json",
@@ -216,7 +220,8 @@
     "cutscene_flood.json",
     "cutscene_final_pump.json",
     "cutscene_final_silence.json",
-    "cutscene_final_vein.json"
+    "cutscene_final_vein.json",
+    "cutscene_final_closed.json"
   ],
   "recipes": [
     "recipe_bandage.json",

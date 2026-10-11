@@ -145,7 +145,7 @@
                     {
                       "kind": "line",
                       "line": {
-                        "text": "У нас был один ключ. Он ушёл вместе с ним.",
+                        "text": "Ключ был у мастера. Где мастер — там и ключ.",
                         "voice": "assets/voice/ira_13.mp3"
                       }
                     },
@@ -409,7 +409,7 @@
                 {
                   "kind": "line",
                   "line": {
-                    "text": "Только дай взять ключ. И фонарь. И ещё раз ключ.",
+                    "text": "Только возьму фонарь. И ключ от затвора — у помощницы мастера он свой.",
                     "voice": "assets/voice/ira_9.mp3"
                   }
                 },
@@ -559,6 +559,71 @@
           "once": true
         },
         {
+          "text": "Показать клапан из шахты.",
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_valve"
+            },
+            {
+              "type": "flag",
+              "flag": "ira_valve",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "sluice_ready",
+              "not": true
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "ira_valve"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она проводит пальцем по выбитой семёрке.",
+                    "action": true,
+                    "sfx": "snd_tag"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Седьмой номер — с нашего затвора. Резьба целая: его не сорвало водой, его вывернули ключом. Неси на восьмой, к затвору, пока там ещё есть что закрывать.",
+                    "voice": "assets/voice/ira_31.mp3",
+                    "emotion": "thoughtful"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 3
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_ira_valve"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true
+        },
+        {
           "text": "Мне пора.",
           "sections": [],
           "goto": "end"
@@ -589,7 +654,7 @@
             {
               "kind": "line",
               "line": {
-                "text": "Только не говори «погиб». Это про него уже сказали, а я его ещё не видела.",
+                "text": "Только не говори «погиб». Матери сказали — перевели на другой ярус. Пусть это ещё побудет правдой.",
                 "voice": "assets/voice/ira_15.mp3"
               }
             },

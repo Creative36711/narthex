@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Ico } from '../shared/icons'
-import type { RecipeDef } from '../shared/types'
+import type { RecipeDef, ItemDef } from '../shared/types'
 import type { EditorStore } from './store'
 import { ConditionListEditor, FileAdvancedJson, RefSelect } from './Fields'
+import { SoundSelect } from './AudioSection'
 
 export function newRecipe(id: string, label: string): RecipeDef {
   return { id, label, inputs: [], output: { item: '', quantity: 1 } }
@@ -19,6 +20,31 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
     store.touch(path)
     force((n) => n + 1)
   }
+
+  const allItemEntities = useMemo(() => {
+    return store.entityPaths()
+      .map((p) => store.entity(p))
+      .filter((e): e is ItemDef => e?.type === 'item')
+      .sort((a, b) => a.label.localeCompare(b.label, 'ru'))
+  }, [store])
+
+  const workbenchEntities = useMemo(() => {
+    return allItemEntities.filter((e) =>
+      e.category === 'workbench' ||
+      e.id === 'item_bench' ||
+      e.id.includes('bench') ||
+      e.id.includes('table') ||
+      e.id.includes('stove') ||
+      e.id.includes('forge') ||
+      e.id.includes('anvil') ||
+      e.interact_options?.some((o) => o.effects?.some((ef) => ef.type === 'open_craft')),
+    )
+  }, [allItemEntities])
+
+  const otherItemEntities = useMemo(() => {
+    const wbSet = new Set(workbenchEntities.map((w) => w.id))
+    return allItemEntities.filter((e) => !wbSet.has(e.id))
+  }, [allItemEntities, workbenchEntities])
 
   return (
     <div className="rule-editor">
@@ -157,7 +183,51 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
           />
           <span>Рецепт починки (восстанавливает прочность)</span>
         </label>
-        <label className="fld fld-check" data-tip="Пока не открыт эффектом unlock_recipe (правило, диалог, событие), рецепта нет во вкладке «Крафт». Приём «открыть по ходу игры».">
+        <label className="fld" data-tip="Какое рабочее место требуется герою для изготовления. Если выбрано «Не требуется», предмет можно сделать прямо на ходу в сумке.">
+          <span>Рабочее место / верстак</span>
+          <select
+            value={
+              recipe.workbench === true
+                ? '__any_workbench__'
+                : typeof recipe.workbench === 'string'
+                  ? recipe.workbench
+                  : ''
+            }
+            onChange={(e) => {
+              const val = e.target.value
+              if (!val) {
+                delete recipe.workbench
+              } else if (val === '__any_workbench__') {
+                recipe.workbench = true
+              } else {
+                recipe.workbench = val
+              }
+              commit()
+            }}
+          >
+            <option value="">🎒 Не требуется (крафт на ходу в сумке / на коленке)</option>
+            <option value="__any_workbench__">⚒ Любой верстак / мастерская общего типа</option>
+            {workbenchEntities.length > 0 && (
+              <optgroup label="Оборудование и станки кампании">
+                {workbenchEntities.map((ent) => (
+                  <option key={ent.id} value={ent.id}>
+                    {ent.label}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {otherItemEntities.length > 0 && (
+              <optgroup label="Другие предметы и мебель">
+                {otherItemEntities.map((ent) => (
+                  <option key={ent.id} value={ent.id}>
+                    {ent.label}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        </label>
+        <label className="fld fld-check" data-tip="Пока рецепт не открыт по ходу игры (правилом, разговором или событием), его нет во вкладке «Изготовление». Так делают редкие рецепты: герой сначала находит знание.">
           <input
             type="checkbox"
             checked={recipe.known === false}
@@ -167,12 +237,24 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
               commit()
             }}
           />
-          <span>Открыть по ходу игры (эффектом unlock_recipe)</span>
+          <span>Открыть по ходу игры (находится героем)</span>
         </label>
         <label className="fld">
           <span>Сообщение об успехе (пусто — стандартное)</span>
           <input value={recipe.message ?? ''} onChange={(e) => ((recipe.message = e.target.value || undefined), commit())} />
         </label>
+        <div className="audio-row" style={{ padding: '4px 0' }} data-tip="Индивидуальный звук крафта: звон наковальни, бульканье зелья, шитьё и т.д.">
+          <span className="audio-label">Звук создания</span>
+          <SoundSelect
+            store={store}
+            value={recipe.sound}
+            onChange={(snd) => {
+              if (snd) recipe.sound = snd
+              else delete recipe.sound
+              commit()
+            }}
+          />
+        </div>
       </div>
 
       <div className="props-group">

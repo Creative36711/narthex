@@ -2,15 +2,16 @@ import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import { Stage, Layer, Image as KImage, Rect, Text, Transformer, Group } from 'react-konva'
 import type Konva from 'konva'
-import type { ArtDoc, NavigationZone, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
+import type { ArtDoc, CameraDoc, Condition, ItemDef, NavigationZone, NpcDef, SceneCondition, SceneDef, SceneStateDef, SlotDef, TimeOfDay } from '../shared/types'
 import { ArtView } from '../shared/ArtView'
 import type { EditorStore } from './store'
-import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, AnimImageEditor, ChapterSelect } from './Fields'
+import { JsonField, RefSelect, FlagSelect, FileAdvancedJson, EffectListEditor, ConditionListEditor, AnimImageEditor, ChapterSelect } from './Fields'
 import { slotTypesFor, effectiveSlotType } from './slotTypes'
 import { makeId } from './ids'
 import { MusicRulesEditor, SoundMultiSelect } from './AudioSection'
 import { firstFrame } from '../player/frames'
 import { CameraEditor } from './AtmosEditors'
+import { playInteraction } from '../shared/audio'
 
 /**
  * Визуальный редактор сцены (ТЗ 5.2.2) на Konva:
@@ -93,9 +94,71 @@ function useImage(src: string | null): HTMLImageElement | null {
   return img
 }
 
-type Sel = { kind: 'slot'; index: number } | { kind: 'nav'; index: number } | null
+function SlotEntitySprite({ slot, store, k }: { slot: SlotDef; store: EditorStore; k: number }) {
+  const entityId = slot.default_entity
+  if (!entityId) return null
+  const allEnts = store.entityPaths().map((p) => store.entity(p))
+  const entity = allEnts.find((e) => e?.id === entityId) as (ItemDef | NpcDef | undefined)
+  if (!entity) return null
 
-export function SceneEditor({ store, path }: { store: EditorStore; path: string }) {
+  const isNpc = entity.type === 'npc'
+  const npc = isNpc ? (entity as NpcDef) : null
+  const item = !isNpc ? (entity as ItemDef) : null
+
+  const stateOfSprite = slot.sprite_state
+  const spriteVal = isNpc
+    ? (stateOfSprite && npc?.scene_sprite_states?.[stateOfSprite]) || npc?.scene_sprite || (npc as any)?.sprite
+    : item?.scene_sprite || (item as any)?.sprite || (item as any)?.image
+
+  const first = spriteVal ? firstFrame(spriteVal) : null
+  const src = first ? store.assetSrc(first) : null
+  return <SlotSpriteImage src={src} slot={slot} k={k} />
+}
+
+function SlotSpriteImage({ src, slot, k }: { src: string | null; slot: SlotDef; k: number }) {
+  const img = useImage(src)
+  if (!img) return null
+
+  const scale = slot.sprite_scale ?? 1
+  const x = slot.x * k
+  const y = slot.y * k
+  const w = slot.w * k
+  const h = slot.h * k
+
+  const natW = img.naturalWidth || 1
+  const natH = img.naturalHeight || 1
+  const imgRatio = natW / natH
+
+  const targetH = h * scale
+  const targetW = targetH * imgRatio
+  const drawX = x + (w - targetW) / 2
+  const drawY = y + (h - targetH)
+
+  return (
+    <KImage
+      image={img}
+      x={drawX}
+      y={drawY}
+      width={targetW}
+      height={targetH}
+      listening={false}
+      opacity={0.92}
+    />
+  )
+}
+
+type Sel = { kind: 'slot'; index: number } | { kind: 'nav'; index: number } | null
+type SceneTab = 'object' | 'scene' | 'states'
+
+export function SceneEditor({
+  store,
+  path,
+  onPlaytestScene,
+}: {
+  store: EditorStore
+  path: string
+  onPlaytestScene?: (sceneId: string) => void
+}) {
   const loadedScene = store.scene(path)
   const scene = loadedScene ?? ({
     id: path,
@@ -107,12 +170,17 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   } as unknown as SceneDef)
   const [stateIdx, setStateIdx] = useState(0)
   const [sel, setSel] = useState<Sel>(null)
+  const [tab, setTab] = useState<SceneTab>('object')
   const [, force] = useState(0)
   const trRef = useRef<Konva.Transformer>(null)
   const selRef = useRef<Konva.Rect>(null)
 
   useEffect(() => setSel(null), [path])
-  useEffect(() => setStateIdx(0), [path])
+  useEffect(() => {
+    // По умолчанию открываем базовое состояние (без условий), если оно есть, иначе 0
+    const baseIdx = scene.states.findIndex((s) => !s.condition)
+    setStateIdx(baseIdx >= 0 ? baseIdx : 0)
+  }, [path, scene])
 
   const canvas = scene.canvas ?? { w: 1280, h: 720 }
   const VIEW_W = 840
@@ -124,8 +192,9 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   // ArtView, что и игрок, — иначе превью и забег расходятся (и data-URL-SVG
   // внутри <img> ведёт себя иначе, чем инлайновый SVG). ArtDoc кладём под
   // прозрачный Konva-холст, обычное изображение — внутри Konva.
-  const hasArt = !!st?.art?.layers?.length
-  const img = useImage(!hasArt && st?.image ? store.assetSrc(firstFrame(st.image)) : null)
+  const hasImage = !!st?.image
+  const hasArt = !hasImage && !!st?.art?.layers?.length
+  const img = useImage(hasImage ? store.assetSrc(firstFrame(st!.image!)) : null)
 
   useEffect(() => {
     // после отката (или удаления) выбранный объект мог исчезнуть — не
@@ -168,8 +237,14 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
     width: r.w * k,
     height: r.h * k,
     draggable: true,
-    onClick: () => setSel({ kind, index: i }),
-    onTap: () => setSel({ kind, index: i }),
+    onClick: () => {
+      setSel({ kind, index: i })
+      setTab('object')
+    },
+    onTap: () => {
+      setSel({ kind, index: i })
+      setTab('object')
+    },
     onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => {
       updateRect(kind, i, { x: e.target.x() / k, y: e.target.y() / k, w: r.w, h: r.h })
     },
@@ -196,15 +271,16 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
   }
 
   return (
-    <div className="scene-editor">
-      <div className="scene-canvas-col">
+    <div className="scene-editor-container">
+      <div className="scene-editor">
+        <div className="scene-canvas-col">
         <div className="scene-toolbar">
           <label className="fld fld-inline">
             <span>Состояние</span>
             <select value={stateIdx} onChange={(e) => setStateIdx(Number(e.target.value))}>
               {scene.states.map((s, i) => (
                 <option key={s.id} value={i}>
-                  {s.label}
+                  {s.label}{!s.condition ? ' (основное)' : ''}
                 </option>
               ))}
             </select>
@@ -223,6 +299,7 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
                 condition: null,
               })
               setSel({ kind: 'slot', index: scene.slots.length - 1 })
+              setTab('object')
               commit()
             }}
           >
@@ -237,6 +314,7 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
                 go_to_scene: '',
               })
               setSel({ kind: 'nav', index: scene.navigation.length - 1 })
+              setTab('object')
               commit()
             }}
           >
@@ -253,6 +331,16 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
               }}
             >
               <Ico n="close" />  удалить выбранное
+            </button>
+          )}
+          {onPlaytestScene && (
+            <button
+              className="btn btn-small btn-primary"
+              style={{ marginLeft: 'auto' }}
+              onClick={() => onPlaytestScene(scene.id)}
+              data-tip="Запустить игру сразу в этой комнате для проверки слотов и переходов"
+            >
+              <Ico n="play" /> Тест сцены
             </button>
           )}
         </div>
@@ -284,20 +372,21 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
             ))}
             {scene.slots.map((s, i) => (
               <Group key={`slot${i}`}>
+                <SlotEntitySprite slot={s} store={store} k={k} />
                 <Rect
                   {...rectProps('slot', i, s)}
                   ref={sel?.kind === 'slot' && sel.index === i ? selRef : undefined}
-                  stroke={sel?.kind === 'slot' && sel.index === i ? '#e8c987' : '#c9a45c'}
+                  stroke={sel?.kind === 'slot' && sel.index === i ? '#e8c987' : s.environmental ? '#88b594' : '#c9a45c'}
                   strokeWidth={sel?.kind === 'slot' && sel.index === i ? 2.5 : 1.5}
-                  fill="rgba(201,164,92,0.15)"
-                  dash={s.condition ? [6, 4] : undefined}
+                  fill={s.environmental ? 'rgba(136,181,148,0.12)' : 'rgba(201,164,92,0.15)'}
+                  dash={s.environmental ? [4, 4] : s.condition ? [6, 4] : undefined}
                 />
                 <Text
                   x={s.x * k + 4}
                   y={s.y * k + 4}
-                  text={s.default_entity ? store.labelFor('entity', s.default_entity) : 'пустой слот'}
+                  text={`${s.default_entity ? store.labelFor('entity', s.default_entity) : 'пустой слот'}${s.environmental ? ' 👁' : ''}`}
                   fontSize={12}
-                  fill="#e8c987"
+                  fill={s.environmental ? '#a8d5b4' : '#e8c987'}
                   listening={false}
                 />
               </Group>
@@ -322,14 +411,151 @@ export function SceneEditor({ store, path }: { store: EditorStore; path: string 
       </div>
 
       <div className="scene-props">
-        <SceneMeta scene={scene} store={store} commit={commit} />
-        {selSlot && <SlotProps slot={selSlot} store={store} commit={commit} />}
-        {selNav && <NavProps nav={selNav} scene={scene} store={store} commit={commit} />}
-        {!sel && <StatesProps scene={scene} store={store} commit={commit} />}
+        <div className="ce-tabs scene-inspector-tabs">
+          <button
+            type="button"
+            className={`ce-tab ${tab === 'object' ? 'on' : ''}`}
+            onClick={() => setTab('object')}
+          >
+            {selSlot
+              ? `Слот: ${selSlot.label || (selSlot.default_entity ? store.labelFor('entity', selSlot.default_entity) : `#${sel!.index + 1}`)}`
+              : selNav
+              ? `Переход: ${selNav.label || `#${sel!.index + 1}`}`
+              : `Объекты (${scene.slots.length + scene.navigation.length})`}
+          </button>
+          <button
+            type="button"
+            className={`ce-tab ${tab === 'scene' ? 'on' : ''}`}
+            onClick={() => setTab('scene')}
+          >
+            Параметры сцены
+          </button>
+          <button
+            type="button"
+            className={`ce-tab ${tab === 'states' ? 'on' : ''}`}
+            onClick={() => setTab('states')}
+          >
+            Фон и состояния ({scene.states.length})
+          </button>
+        </div>
+
+        <div className="scene-tab-content">
+          {tab === 'object' && (
+            selSlot ? (
+              <>
+                <div className="scene-selected-bar">
+                  <span className="scene-selected-badge scene-badge-slot">
+                    Слот {sel!.index + 1} из {scene.slots.length}
+                  </span>
+                  <div className="scene-selected-actions">
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      onClick={() => setSel(null)}
+                      data-tip="Снять выбор и показать список всех объектов сцены"
+                    >
+                      Все объекты
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-small ce-del"
+                      onClick={() => {
+                        scene.slots.splice(sel!.index, 1)
+                        setSel(null)
+                        commit()
+                      }}
+                      data-tip="Удалить этот слот"
+                    >
+                      <Ico n="close" /> Удалить
+                    </button>
+                  </div>
+                </div>
+                <SlotProps slot={selSlot} store={store} commit={commit} />
+              </>
+            ) : selNav ? (
+              <>
+                <div className="scene-selected-bar">
+                  <span className="scene-selected-badge scene-badge-nav">
+                    Переход {sel!.index + 1} из {scene.navigation.length}
+                  </span>
+                  <div className="scene-selected-actions">
+                    <button
+                      type="button"
+                      className="btn btn-small"
+                      onClick={() => setSel(null)}
+                      data-tip="Снять выбор и показать список всех объектов сцены"
+                    >
+                      Все объекты
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-small ce-del"
+                      onClick={() => {
+                        scene.navigation.splice(sel!.index, 1)
+                        setSel(null)
+                        commit()
+                      }}
+                      data-tip="Удалить этот переход"
+                    >
+                      <Ico n="close" /> Удалить
+                    </button>
+                  </div>
+                </div>
+                <NavProps nav={selNav} scene={scene} store={store} commit={commit} />
+              </>
+            ) : (
+              <SceneObjectsCatalog
+                scene={scene}
+                store={store}
+                onSelectSlot={(idx) => {
+                  setSel({ kind: 'slot', index: idx })
+                  setTab('object')
+                }}
+                onSelectNav={(idx) => {
+                  setSel({ kind: 'nav', index: idx })
+                  setTab('object')
+                }}
+                onAddSlot={() => {
+                  scene.slots.push({
+                    id: makeId('slot_', `${scene.id}_${scene.slots.length + 1}`, scene.slots.map((x) => x.id)),
+                    type: ['item'],
+                    shape: 'rect',
+                    x: Math.round(canvas.w / 2 - 60),
+                    y: Math.round(canvas.h / 2 - 60),
+                    w: 120,
+                    h: 120,
+                    condition: null,
+                  })
+                  setSel({ kind: 'slot', index: scene.slots.length - 1 })
+                  setTab('object')
+                  commit()
+                }}
+                onAddNav={() => {
+                  scene.navigation.push({
+                    area: { x: 40, y: Math.round(canvas.h / 2), w: 150, h: 200 },
+                    label: 'Переход',
+                    go_to_scene: '',
+                  })
+                  setSel({ kind: 'nav', index: scene.navigation.length - 1 })
+                  setTab('object')
+                  commit()
+                }}
+              />
+            )
+          )}
+
+          {tab === 'scene' && (
+            <SceneMeta scene={scene} store={store} commit={commit} />
+          )}
+
+          {tab === 'states' && (
+            <StatesProps scene={scene} store={store} commit={commit} />
+          )}
+        </div>
       </div>
-    
-      <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} label="Расширенный JSON сцены (все поля)" />
-</div>
+    </div>
+    <FileAdvancedJson store={store} path={path} commit={() => store.touch(path)} label="Расширенный JSON сцены (все поля)" />
+  </div>
   )
 }
 
@@ -349,6 +575,42 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
         value={scene.location}
         onChange={(v) => ((scene.location = v ?? ''), commit())}
       />
+      <label className="fld">
+        <span>Освещение сцены</span>
+        <select
+          value={scene.lighting ?? 'outdoor'}
+          onChange={(e) => {
+            scene.lighting = e.target.value as 'outdoor' | 'indoor' | 'none'
+            commit()
+          }}
+        >
+          <option value="outdoor">Уличное (суточный шейдер: утро, день, закат, ночь)</option>
+          <option value="indoor">Помещение (стабильный свет ламп)</option>
+          <option value="none">Без фильтров освещения</option>
+        </select>
+      </label>
+      <label className="fld">
+        <span>Атмосферные частицы</span>
+        <select
+          value={typeof scene.particles === 'object' ? scene.particles.type : (scene.particles ?? 'none')}
+          onChange={(e) => {
+            if (e.target.value === 'none') delete scene.particles
+            else scene.particles = e.target.value as any
+            commit()
+          }}
+        >
+          <option value="none">Без частиц</option>
+          <option value="dust">Пылинки в воздухе</option>
+          <option value="steam">Клубы пара и дыма</option>
+          <option value="sparks">Искры</option>
+          <option value="embers">Тлеющие угли</option>
+          <option value="rain">Дождь</option>
+          <option value="snow">Снег</option>
+          <option value="fog">Туман</option>
+          <option value="ash">Пепел</option>
+        </select>
+      </label>
+      <NarrativeIntroEditor scene={scene} store={store} commit={commit} />
       <MusicRulesEditor
         store={store}
         value={scene.music ?? (scene.music = [])}
@@ -370,6 +632,415 @@ function SceneMeta({ scene, store, commit }: { scene: SceneDef; store: EditorSto
   )
 }
 
+function NarrativeIntroEditor({
+  scene,
+  store,
+  commit,
+}: {
+  scene: SceneDef
+  store: EditorStore
+  commit: () => void
+}) {
+  const [mode, setMode] = useState<'text' | 'slides'>('slides')
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  const stopVoice = () => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+    setPlayingVoice(null)
+  }
+
+  const playVoice = (srcPath: string) => {
+    stopVoice()
+    const full = store.assetSrc(srcPath)
+    const audio = new Audio(full)
+    audioRef.current = audio
+    setPlayingVoice(srcPath)
+    audio.onended = () => setPlayingVoice(null)
+    audio.onerror = () => setPlayingVoice(null)
+    audio.play().catch(() => setPlayingVoice(null))
+  }
+
+  const rawEntries = scene.narrative_intro ?? []
+  const slides = rawEntries.map((e) => (typeof e === 'string' ? { text: e } : { ...e }))
+
+  type SlideDoc = {
+    text: string
+    voice?: string
+    sfx?: string
+    image?: string
+    camera?: string | CameraDoc
+    conditions?: Condition[]
+    duration?: number
+  }
+
+  const saveSlides = (newSlides: SlideDoc[]) => {
+    if (newSlides.length === 0) {
+      delete scene.narrative_intro
+    } else {
+      scene.narrative_intro = newSlides
+    }
+    commit()
+  }
+
+  const updateSlide = (idx: number, patch: Partial<SlideDoc>) => {
+    const next = [...slides]
+    next[idx] = { ...next[idx], ...patch }
+    saveSlides(next)
+  }
+
+  const moveSlide = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir
+    if (target < 0 || target >= slides.length) return
+    const next = [...slides]
+    const temp = next[idx]
+    next[idx] = next[target]
+    next[target] = temp
+    saveSlides(next)
+  }
+
+  const removeSlide = (idx: number) => {
+    const next = slides.filter((_, i) => i !== idx)
+    saveSlides(next)
+  }
+
+  const addSlide = () => {
+    const next = [...slides, { text: '' }]
+    saveSlides(next)
+    setMode('slides')
+  }
+
+  const handleUploadAudio = async (idx: number, file: File) => {
+    try {
+      const clean = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '_')
+      const rel = `assets/voice/${clean}`
+      await store.saveBinary(rel, file)
+      updateSlide(idx, { voice: rel })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleUploadImage = async (idx: number, file: File) => {
+    try {
+      const clean = file.name.toLowerCase().replace(/[^a-z0-9._-]+/g, '_')
+      const rel = `assets/img/cutscenes/${clean}`
+      await store.saveBinary(rel, file)
+      updateSlide(idx, { image: rel })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const soundOptions = (store.meta.sounds ?? []).map((s) => ({ value: s.id, label: s.label || s.id }))
+
+  return (
+    <details className="spoiler-block" open={Boolean(scene.narrative_intro?.length)}>
+      <summary>Вводное повествование (мысли при входе){(scene.narrative_intro?.length ?? 0) ? ` — ${scene.narrative_intro!.length}` : ''}</summary>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+        <label className="checkbox-row" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
+          <input
+            type="checkbox"
+            checked={scene.narrative_intro_once !== false}
+            onChange={(e) => {
+              scene.narrative_intro_once = e.target.checked ? undefined : false
+              commit()
+            }}
+          />
+          <span>Показывать только один раз (при первом входе)</span>
+        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <label className="fld" style={{ margin: 0 }}>
+            <span style={{ fontSize: '0.8rem' }}>Кнопка перехода</span>
+            <input
+              placeholder="По умолчанию: Далее ▶"
+              value={scene.narrative_intro_next_label ?? ''}
+              onChange={(e) => {
+                scene.narrative_intro_next_label = e.target.value.trim() || undefined
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" style={{ margin: 0 }}>
+            <span style={{ fontSize: '0.8rem' }}>Кнопка завершения</span>
+            <input
+              placeholder="По умолчанию: Осмотреться ▶"
+              value={scene.narrative_intro_done_label ?? ''}
+              onChange={(e) => {
+                scene.narrative_intro_done_label = e.target.value.trim() || undefined
+                commit()
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="narrative-top-tabs">
+          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+            Слайды нарратива ({slides.length})
+          </span>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <div className="narrative-mode-btn-group">
+              <button
+                type="button"
+                className={`narrative-mode-btn ${mode === 'text' ? 'on' : ''}`}
+                onClick={() => setMode('text')}
+              >
+                Текст
+              </button>
+              <button
+                type="button"
+                className={`narrative-mode-btn ${mode === 'slides' ? 'on' : ''}`}
+                onClick={() => setMode('slides')}
+              >
+                Конструктор слайдов
+              </button>
+            </div>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={addSlide}
+              data-tip="Добавить новый слайд"
+            >
+              <Ico n="plus" /> Слайд
+            </button>
+          </div>
+        </div>
+
+        {mode === 'text' ? (
+          <label className="fld" data-tip="Закадровый текст или мысли героя при входе (каждая строка — отдельный слайд)">
+            <textarea
+              rows={4}
+              placeholder="Холодный ветер обжёг лицо...&#10;В глубине шахты послышался металлический скрежет..."
+              value={slides.map((s) => s.text).join('\n')}
+              onChange={(e) => {
+                const lines = e.target.value.split('\n')
+                const newSlides = lines
+                  .map((l, i) => {
+                    const text = l.trim()
+                    if (!text) return null
+                    const existing = slides[i]
+                    return existing ? { ...existing, text } : { text }
+                  })
+                  .filter(Boolean) as Array<{ text: string; voice?: string; sfx?: string; image?: string; camera?: string; duration?: number }>
+                saveSlides(newSlides)
+              }}
+            />
+          </label>
+        ) : (
+          <div className="narrative-builder">
+            {slides.length === 0 ? (
+              <div className="muted small" style={{ textAlign: 'center', padding: '16px 8px' }}>
+                Слайды не созданы. Нажмите «+ Слайд», чтобы добавить вводный текст.
+              </div>
+            ) : (
+              slides.map((slide, idx) => (
+                <div className="narrative-slide-card" key={idx}>
+                  <div className="narrative-slide-head">
+                    <span className="narrative-slide-badge">Слайд {idx + 1}</span>
+                    <div className="narrative-slide-order-actions">
+                      <button
+                        type="button"
+                        className="btn btn-small"
+                        disabled={idx === 0}
+                        onClick={() => moveSlide(idx, -1)}
+                        data-tip="Переместить слайд выше"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-small"
+                        disabled={idx === slides.length - 1}
+                        onClick={() => moveSlide(idx, 1)}
+                        data-tip="Переместить слайд ниже"
+                      >
+                        ▼
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-small ce-del"
+                        onClick={() => removeSlide(idx)}
+                        data-tip="Удалить этот слайд"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+
+                  <textarea
+                    rows={2}
+                    className="narrative-slide-text"
+                    placeholder="Текст слайда..."
+                    value={slide.text}
+                    onChange={(e) => updateSlide(idx, { text: e.target.value })}
+                  />
+
+                  <div className="narrative-slide-row">
+                    <label className="fld fld-inline" style={{ flex: 1, margin: 0 }}>
+                      <select
+                        value={slide.sfx ?? ''}
+                        onChange={(e) => updateSlide(idx, { sfx: e.target.value || undefined })}
+                      >
+                        <option value="">— без звука —</option>
+                        {soundOptions.map((s) => (
+                          <option key={s.value} value={s.value}>{s.label}</option>
+                        ))}
+                      </select>
+                      {slide.sfx && (
+                        <button
+                          type="button"
+                          className="btn btn-small"
+                          onClick={() => playInteraction(slide.sfx as any, { sound: slide.sfx })}
+                          data-tip="Прослушать звук"
+                        >
+                          ▶
+                        </button>
+                      )}
+                    </label>
+
+                    <label className="fld fld-inline" style={{ flex: 1, margin: 0 }}>
+                      <select
+                        value={typeof slide.camera === 'string' ? slide.camera : ''}
+                        onChange={(e) => updateSlide(idx, { camera: e.target.value || undefined })}
+                      >
+                        <option value="">Камера: по умолчанию</option>
+                        <option value="center">Камера: наезд по центру</option>
+                        <option value="top">Камера: наезд вверх</option>
+                        <option value="bottom">Камера: наезд вниз</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  {/* Секция медиа: Озвучка и Арт */}
+                  <div className="narrative-media-container">
+                    {/* Озвучка */}
+                    <div className="narrative-media-box">
+                      <span className="narrative-media-label">Озвучка</span>
+                      <div className="narrative-media-btn-row">
+                        <input
+                          type="text"
+                          className="narrative-media-input"
+                          style={{ flex: 1 }}
+                          placeholder="assets/voice/... или ссылка (http)"
+                          value={slide.voice ?? ''}
+                          onChange={(e) => updateSlide(idx, { voice: e.target.value || undefined })}
+                        />
+                        <label className="btn btn-small narrative-file-btn">
+                          Выбрать файл…
+                          <input
+                            type="file"
+                            accept="audio/*"
+                            hidden
+                            onChange={(e) => {
+                              const f = e.target.files?.[0]
+                              if (f) handleUploadAudio(idx, f)
+                            }}
+                          />
+                        </label>
+                        {slide.voice && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-small"
+                              onClick={() => {
+                                if (playingVoice === slide.voice) stopVoice()
+                                else playVoice(slide.voice!)
+                              }}
+                              data-tip="Прослушать голос"
+                            >
+                              {playingVoice === slide.voice ? '■' : '▶'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-small ce-del"
+                              onClick={() => {
+                                stopVoice()
+                                updateSlide(idx, { voice: undefined })
+                              }}
+                              data-tip="Убрать озвучку"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Арт слайда */}
+                    <div className="narrative-media-box">
+                      <span className="narrative-media-label">Арт слайда (опционально)</span>
+                      <div className="narrative-art-row">
+                        <div className="narrative-art-thumb">
+                          {slide.image ? (
+                            <img src={store.assetSrc(slide.image)} alt="" />
+                          ) : (
+                            <span className="muted small">нет файла</span>
+                          )}
+                        </div>
+                        <div className="narrative-art-actions">
+                          <input
+                            type="text"
+                            className="narrative-media-input"
+                            placeholder="assets/img/... или ссылка"
+                            value={slide.image ?? ''}
+                            onChange={(e) => updateSlide(idx, { image: e.target.value || undefined })}
+                          />
+                          <div className="narrative-media-btn-row">
+                            <label className="btn btn-small narrative-file-btn">
+                              Выбрать файл…
+                              <input
+                                type="file"
+                                accept="image/*"
+                                hidden
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0]
+                                  if (f) handleUploadImage(idx, f)
+                                }}
+                              />
+                            </label>
+                            {slide.image && (
+                              <button
+                                type="button"
+                                className="btn btn-small ce-del"
+                                onClick={() => updateSlide(idx, { image: undefined })}
+                                data-tip="Убрать изображение"
+                              >
+                                ✕ убрать
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Автопереход */}
+                  <div className="narrative-slide-footer">
+                    <label className="fld fld-inline" style={{ margin: 0 }}>
+                      <span className="small muted">Автопереход через (сек.): 0 = только по клику</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        style={{ width: 64, marginLeft: 8 }}
+                        value={slide.duration ?? 0}
+                        onChange={(e) => updateSlide(idx, { duration: Number(e.target.value) || undefined })}
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </details>
+  )
+}
+
 /**
  * Фон состояния: изображение ИЛИ векторный ArtDoc (итерация 8, блок D).
  * ArtDoc — генераторский формат: его рисует ИИ или вставляется JSON'ом,
@@ -385,10 +1056,42 @@ function StateBackground({
   commit: () => void
 }) {
   const [editJson, setEditJson] = useState(false)
+  if (state.image) {
+    return (
+      <div className="fld fld-block">
+        <AnimImageEditor
+          label="Фон сцены (изображение)"
+          value={state.image}
+          dir="assets/img/scenes"
+          store={store}
+          onChange={(v) => {
+            if (v) state.image = v
+            else delete state.image
+            commit()
+          }}
+        />
+        {state.art && (
+          <div className="muted small" style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+            <span>Есть скрытый векторный рисунок (изображение в приоритете).</span>
+            <button
+              className="btn btn-small ce-del"
+              onClick={() => {
+                delete state.art
+                commit()
+              }}
+              data-tip="Удалить неиспользуемый векторный рисунок из файла сцены"
+            >
+              Удалить векторный рисунок
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
   if (state.art) {
     return (
       <div className="fld fld-block">
-        <span>Фон сцены — векторная картинка (ArtDoc)</span>
+        <span>Фон сцены — векторный рисунок</span>
         <ArtView className="art-preview" art={state.art} />
         <div className="art-preview-tools">
           <button
@@ -407,7 +1110,7 @@ function StateBackground({
         </div>
         {editJson && (
           <JsonField
-            label="ArtDoc (слои примитивов)"
+            label="Слои векторного рисунка"
             rows={14}
             pretty
             value={state.art}
@@ -436,14 +1139,14 @@ function StateBackground({
       <div className="art-preview-tools">
         <button
           className="btn btn-small"
-          data-tip="Нарисовать фон примитивами (формат ArtDoc) — удобно для генерации"
+          data-tip="Нарисовать фон векторными примитивами — удобно для прототипирования"
           onClick={() => {
             state.art = { canvas: { w: 1280, h: 720 }, background: '#20242c', layers: [] }
             delete state.image
             commit()
           }}
         >
-          <Ico n="palette" />  Сделать векторным (ArtDoc)
+          <Ico n="palette" />  Сделать векторным рисунком
         </button>
       </div>
       <div className="muted small">
@@ -568,6 +1271,18 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
         Список отфильтрован по типам слота. Тип сущности задаётся в её карточке
         («Тип в слотах сцены»).
       </div>
+      <label className="fld-check" data-tip="Объект уже нарисован на фоне сцены. В покое рамка скрыта; подсвечивается только при наведении или по Tab.">
+        <input
+          type="checkbox"
+          checked={!!slot.environmental}
+          onChange={(e) => {
+            if (e.target.checked) slot.environmental = true
+            else delete slot.environmental
+            commit()
+          }}
+        />
+        <span>Хотспот окружения (нарисован на фоне сцены, скрыт в покое)</span>
+      </label>
       <label className="fld" data-tip="Множитель размера спрайта сцены в этом слоте: один и тот же персонаж в толпе — меньше, на авансцене — больше. Пусто = 1.">
         <span>Масштаб спрайта (1 — по высоте слота)</span>
         <input
@@ -647,8 +1362,85 @@ function SlotProps({ slot, store, commit }: { slot: SlotDef; store: EditorStore;
         </button>
       </div>
       <SceneConditionEditor value={slot.condition} store={store} onChange={(v) => ((slot.condition = v), commit())} />
-      <div className="muted small">
-        Положение: x {slot.x} · y {slot.y} · размер {slot.w}×{slot.h}
+      <RectCoordsEditor rect={slot} onChange={commit} label="Положение и размер слота" />
+    </div>
+  )
+}
+
+function RectCoordsEditor({
+  rect,
+  onChange,
+  label = 'Положение и размер на сцене',
+}: {
+  rect: { x: number; y: number; w: number; h: number }
+  onChange: () => void
+  label?: string
+}) {
+  return (
+    <div className="fld fld-block" style={{ marginTop: 8 }}>
+      <span style={{ fontWeight: 600, fontSize: 12 }}>{label}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 12px', marginTop: 4 }}>
+        <label className="fld fld-inline" style={{ margin: 0 }}>
+          <span style={{ minWidth: 20 }}>X</span>
+          <input
+            type="number"
+            value={Math.round(rect.x)}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (Number.isFinite(v)) {
+                rect.x = Math.round(v)
+                onChange()
+              }
+            }}
+          />
+        </label>
+        <label className="fld fld-inline" style={{ margin: 0 }}>
+          <span style={{ minWidth: 20 }}>Y</span>
+          <input
+            type="number"
+            value={Math.round(rect.y)}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (Number.isFinite(v)) {
+                rect.y = Math.round(v)
+                onChange()
+              }
+            }}
+          />
+        </label>
+        <label className="fld fld-inline" style={{ margin: 0 }}>
+          <span style={{ minWidth: 20 }}>Ширина</span>
+          <input
+            type="number"
+            min={1}
+            value={Math.round(rect.w)}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (Number.isFinite(v) && v > 0) {
+                rect.w = Math.round(v)
+                onChange()
+              }
+            }}
+          />
+        </label>
+        <label className="fld fld-inline" style={{ margin: 0 }}>
+          <span style={{ minWidth: 20 }}>Высота</span>
+          <input
+            type="number"
+            min={1}
+            value={Math.round(rect.h)}
+            onChange={(e) => {
+              const v = Number(e.target.value)
+              if (Number.isFinite(v) && v > 0) {
+                rect.h = Math.round(v)
+                onChange()
+              }
+            }}
+          />
+        </label>
+      </div>
+      <div className="muted small" style={{ marginTop: 4 }}>
+        Положение: x {Math.round(rect.x)} · y {Math.round(rect.y)} · размер {Math.round(rect.w)}×{Math.round(rect.h)}
       </div>
     </div>
   )
@@ -767,6 +1559,176 @@ function NavProps({
           }}
         />
       </label>
+      <div className="props-group" style={{ marginTop: 8 }}>
+        <h5>Перехват и реакции (событийные триггеры)</h5>
+        <label className="fld" data-tip="Запустить диалог с персонажем при попытке пройти (например, караульный окликает героя перед выходом)">
+          <span>Оклик перед уходом (персонаж / диалог)</span>
+          <select
+            value={nav.intercept_dialogue ?? ''}
+            onChange={(e) => {
+              if (!e.target.value) delete nav.intercept_dialogue
+              else nav.intercept_dialogue = e.target.value
+              commit()
+            }}
+          >
+            <option value="">— без оклика —</option>
+            {store.options('npc').map((o) => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="fld" data-tip="Запустить правило кампании при попытке совершить переход (напр. засада или проверка бдительности)">
+          <span>Правило-перехватчик</span>
+          <select
+            value={nav.intercept_rule ?? ''}
+            onChange={(e) => {
+              if (!e.target.value) delete nav.intercept_rule
+              else nav.intercept_rule = e.target.value
+              commit()
+            }}
+          >
+            <option value="">— без правила —</option>
+            {store.options('rule').map((o) => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="fld" data-tip="Сообщение игроку, если переход заблокирован условиями ниже (напр. «Дверь заперта на засов»)">
+          <span>Сообщение при блокировке перехода</span>
+          <input
+            value={nav.blocked_message ?? ''}
+            placeholder="например «Дверь заперта на засов изнутри»"
+            onChange={(e) => {
+              if (!e.target.value.trim()) delete nav.blocked_message
+              else nav.blocked_message = e.target.value
+              commit()
+            }}
+          />
+        </label>
+        <div style={{ marginTop: 8 }}>
+          <span className="small muted" style={{ display: 'block', marginBottom: 4 }}>
+            Условия доступности перехода (если не выполнены — проход заблокирован):
+          </span>
+          <ConditionListEditor
+            store={store}
+            conditions={nav.conditions ?? (nav.conditions = [])}
+            onChange={(c) => {
+              if (c.length === 0) delete nav.conditions
+              else nav.conditions = c
+              commit()
+            }}
+          />
+        </div>
+      </div>
+      <RectCoordsEditor rect={nav.area} onChange={commit} label="Положение и размер зоны перехода" />
+    </div>
+  )
+}
+
+function SceneObjectsCatalog({
+  scene,
+  store,
+  onSelectSlot,
+  onSelectNav,
+  onAddSlot,
+  onAddNav,
+}: {
+  scene: SceneDef
+  store: EditorStore
+  onSelectSlot: (idx: number) => void
+  onSelectNav: (idx: number) => void
+  onAddSlot: () => void
+  onAddNav: () => void
+}) {
+  return (
+    <div className="props-group scene-objects-catalog">
+      <div className="scene-catalog-head">
+        <h4>Интерактивные объекты</h4>
+        <div className="muted small">
+          Выберите объект на холсте или в списке ниже, чтобы настроить его параметры.
+        </div>
+      </div>
+
+      <div className="scene-catalog-section">
+        <div className="scene-catalog-section-bar">
+          <span className="scene-catalog-title">
+            Слоты сцены <span className="scene-catalog-count">({scene.slots.length})</span>
+          </span>
+          <button type="button" className="btn btn-small" onClick={onAddSlot}>
+            <Ico n="plus" /> слот
+          </button>
+        </div>
+
+        {scene.slots.length === 0 ? (
+          <div className="scene-catalog-empty">
+            Слоты пока не созданы. Нажмите «+ слот», чтобы разместить предмет или персонажа.
+          </div>
+        ) : (
+          <div className="scene-catalog-items">
+            {scene.slots.map((s, idx) => {
+              const entityName = s.default_entity ? store.labelFor('entity', s.default_entity) : 'Пустой слот'
+              const label = s.label || entityName
+              return (
+                <div
+                  key={s.id || idx}
+                  className="scene-catalog-item"
+                  onClick={() => onSelectSlot(idx)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="scene-catalog-item-info">
+                    <span className="scene-catalog-item-idx">#{idx + 1}</span>
+                    <span className="scene-catalog-item-name">{label}</span>
+                  </div>
+                  <div className="scene-catalog-item-meta muted small">
+                    {Math.round(s.w)}×{Math.round(s.h)} px
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="scene-catalog-section" style={{ marginTop: 14 }}>
+        <div className="scene-catalog-section-bar">
+          <span className="scene-catalog-title">
+            Переходы <span className="scene-catalog-count">({scene.navigation.length})</span>
+          </span>
+          <button type="button" className="btn btn-small" onClick={onAddNav}>
+            <Ico n="plus" /> переход
+          </button>
+        </div>
+
+        {scene.navigation.length === 0 ? (
+          <div className="scene-catalog-empty">
+            Переходы не созданы. Нажмите «+ переход», чтобы добавить переход в другую сцену или на карту.
+          </div>
+        ) : (
+          <div className="scene-catalog-items">
+            {scene.navigation.map((n, idx) => {
+              const target = n.open_map ? 'Открыть карту' : n.go_to_scene ? store.labelFor('scene', n.go_to_scene) : 'Не выбрана'
+              return (
+                <div
+                  key={idx}
+                  className="scene-catalog-item scene-catalog-item-nav"
+                  onClick={() => onSelectNav(idx)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="scene-catalog-item-info">
+                    <span className="scene-catalog-item-idx">⇨ {idx + 1}</span>
+                    <span className="scene-catalog-item-name">{n.label || 'Без подписи'}</span>
+                  </div>
+                  <div className="scene-catalog-item-meta muted small">
+                    {target}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,10 +1,10 @@
 import { DEFAULT_EMOTION } from '../shared/types'
 import { Ico } from '../shared/icons'
 import { useEffect, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { EditorStore } from './store'
-import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect } from './Fields'
-import { BUILTIN_SKILL_LABELS, BUILTIN_STAT_LABELS, statLabel } from '../shared/skills'
+import { AnimImageEditor, AssetUpload, ConditionListEditor, EffectListEditor, ImageUpload, JsonField, RefSelect, DiceNotationInput } from './Fields'
+import { BUILTIN_SKILL_LABELS, BUILTIN_STAT_LABELS } from '../shared/skills'
 import { makeId } from './ids'
 import { FlagSelect } from './Fields'
 import { ParticleListEditor } from './AtmosEditors'
@@ -47,6 +47,8 @@ const NEED_COND_TYPES: Array<{ id: string; label: string }> = [
   { id: 'has_item!', label: 'Нет ни одного из предметов' },
   { id: 'equipped', label: 'Надет любой из предметов' },
   { id: 'equipped!', label: 'Не надет ни один из предметов' },
+  { id: 'weather', label: 'Погода — текущая' },
+  { id: 'weather!', label: 'Погода НЕ текущая' },
 ]
 
 function blankNeedCond(key: string): NeedCondition {
@@ -58,7 +60,218 @@ function blankNeedCond(key: string): NeedCondition {
     case 'in_location': return { type, locations: [], not }
     case 'has_item': return { type, items: [], not }
     case 'equipped': return { type, items: [], not }
+    case 'weather': return { type, weather: '', not }
   }
+}
+
+/**
+ * Реестр строками: название — обычное поле, служебный код мастеру не показывается и
+ * редактируется (ломает ссылки), добавление — через диалог имени.
+ * Заменяет прежний ввод «id=Название через запятую»: человек не должен
+ * читать и писать парсерный формат (фидбек 27, п.2 и п.4).
+ */
+function RegistryRows<T extends { id: string; label: string }>({
+  items,
+  onChange,
+  addTitle,
+  prefix = '',
+  render,
+}: {
+  items: T[]
+  onChange: (next: T[]) => void
+  addTitle: string
+  prefix?: string
+  render?: (item: T, patch: (p: Partial<T>) => void) => ReactNode
+}) {
+  const add = async () => {
+    const label = await askText(addTitle, 'например «Кража»')
+    if (!label?.trim()) return
+    onChange([...items, { ...({ id: makeId(prefix, label.trim(), items.map((x) => x.id)), label: label.trim() } as T) }])
+  }
+  return (
+    <div>
+      {items.map((it, i) => (
+        <div key={it.id} className="fld-row need-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <label className="fld" style={{ flex: 2, minWidth: 180 }}>
+            <span>Название</span>
+            <input
+              value={it.label}
+              onChange={(e) => {
+                const next = [...items]
+                next[i] = { ...it, label: e.target.value }
+                onChange(next)
+              }}
+            />
+          </label>
+          {render?.(it, (patch) => {
+            const next = [...items]
+            next[i] = { ...it, ...patch }
+            onChange(next)
+          })}
+          <button className="btn btn-small ce-del" data-tip="Удалить из реестра" onClick={() => onChange(items.filter((_, j) => j !== i))}>
+            <Ico n="close" />
+          </button>
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={() => void add()}>
+        <Ico n="plus" /> добавить
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Модификаторы черты строками «что — насколько»: без парсерного текста
+ * «навык=+5, hp=+2» (фидбек 27, п.2: в редакторе всё читается человеком).
+ */
+type FeatModKind = 'skill' | 'stat' | 'hp' | 'mp' | 'mov'
+const FEAT_MOD_KINDS: Array<{ id: FeatModKind; label: string }> = [
+  { id: 'skill', label: 'Навык' },
+  { id: 'stat', label: 'Характеристика' },
+  { id: 'hp', label: 'Здоровье (HP)' },
+  { id: 'mp', label: 'Мана (MP)' },
+  { id: 'mov', label: 'Движение (MOV)' },
+]
+
+function FeatModRows({ store, mods, onChange }: {
+  store: EditorStore
+  mods: FeatDef['mods']
+  onChange: (mods: FeatDef['mods']) => void
+}) {
+  type Row = { kind: FeatModKind; key: string; value: number }
+  const rows: Row[] = [
+    ...Object.entries(mods?.skills ?? {}).map(([key, value]) => ({ kind: 'skill' as const, key, value })),
+    ...Object.entries(mods?.stats ?? {}).map(([key, value]) => ({ kind: 'stat' as const, key, value })),
+    ...(mods?.hp ? [{ kind: 'hp' as const, key: '', value: mods.hp }] : []),
+    ...(mods?.mp ? [{ kind: 'mp' as const, key: '', value: mods.mp }] : []),
+    ...(mods?.mov ? [{ kind: 'mov' as const, key: '', value: mods.mov }] : []),
+  ]
+  const skills = store.options('skill')
+  const stats = Object.entries(BUILTIN_STAT_LABELS).map(([id, label]) => ({ id, label }))
+  const push = (next: Row[]) => {
+    const out: NonNullable<FeatDef['mods']> = {}
+    const skillMap: Record<string, number> = {}
+    const statMap: Partial<Record<'STR' | 'CON' | 'SIZ' | 'DEX' | 'INT' | 'POW' | 'CHA' | 'EDU', number>> = {}
+    for (const r of next) {
+      if (r.kind === 'skill' && r.key) skillMap[r.key] = r.value
+      else if (r.kind === 'stat' && r.key) statMap[r.key as keyof typeof statMap] = r.value
+      else if (r.kind === 'hp' && r.value) out.hp = r.value
+      else if (r.kind === 'mp' && r.value) out.mp = r.value
+      else if (r.kind === 'mov' && r.value) out.mov = r.value
+    }
+    if (Object.keys(skillMap).length) out.skills = skillMap
+    if (Object.keys(statMap).length) out.stats = statMap
+    onChange(Object.keys(out).length ? out : undefined)
+  }
+  return (
+    <div>
+      {rows.map((r, i) => (
+        <div key={i} className="fld-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 4 }}>
+          <label className="fld" style={{ flex: 1, minWidth: 140 }}>
+            <span>Что даёт</span>
+            <select
+              value={r.kind}
+              onChange={(e) => {
+                const kind = e.target.value as FeatModKind
+                const next = [...rows]
+                const key = kind === 'skill' ? (skills[0]?.id ?? '') : kind === 'stat' ? 'STR' : ''
+                next[i] = { kind, key, value: r.value || 5 }
+                push(next)
+              }}
+            >
+              {FEAT_MOD_KINDS.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(r.kind === 'skill' || r.kind === 'stat') && (
+            <label className="fld" style={{ flex: 2, minWidth: 160 }}>
+              <span>{r.kind === 'skill' ? 'Навык' : 'Характеристика'}</span>
+              <select
+                value={r.key}
+                onChange={(e) => {
+                  const next = [...rows]
+                  next[i] = { ...r, key: e.target.value }
+                  push(next)
+                }}
+              >
+                {(r.kind === 'skill' ? skills : stats).map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="fld fld-num" data-tip="Прибавка при взятии черты (можно отрицательную)">
+            <span>Прибавка</span>
+            <input
+              type="number"
+              value={r.value}
+              onChange={(e) => {
+                const next = [...rows]
+                next[i] = { ...r, value: Number(e.target.value) || 0 }
+                push(next)
+              }}
+            />
+          </label>
+          <button className="btn btn-small ce-del" data-tip="Убрать модификатор" onClick={() => push(rows.filter((_, j) => j !== i))}>
+            <Ico n="close" />
+          </button>
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={() => push([...rows, { kind: 'skill', key: skills[0]?.id ?? '', value: 5 }])}>
+        <Ico n="plus" /> добавить модификатор
+      </button>
+    </div>
+  )
+}
+
+/** Сдвиги навыков под погодой: строка «навык — сдвиг» вместо текста «dodge=-10». */
+function SkillDeltaRows({ store, mods, onChange }: {
+  store: EditorStore
+  mods: Array<{ skill: string; delta: number }>
+  onChange: (mods: Array<{ skill: string; delta: number }>) => void
+}) {
+  const skills = store.options('skill')
+  return (
+    <div>
+      {mods.map((m, i) => (
+        <div key={i} className="fld-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 4 }}>
+          <label className="fld" style={{ flex: 2, minWidth: 160 }}>
+            <span>Навык</span>
+            <select
+              value={m.skill}
+              onChange={(e) => onChange(mods.map((x, j) => (j === i ? { ...x, skill: e.target.value } : x)))}
+            >
+              {!!m.skill && !skills.some((o) => o.id === m.skill) && <option value={m.skill}>{m.skill}</option>}
+              {skills.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="fld fld-num" data-tip="Сдвиг навыка в бою под этой погодой: минус — штраф">
+            <span>Сдвиг</span>
+            <input
+              type="number"
+              value={m.delta}
+              onChange={(e) => onChange(mods.map((x, j) => (j === i ? { ...x, delta: Number(e.target.value) || 0 } : x)))}
+            />
+          </label>
+          <button className="btn btn-small ce-del" data-tip="Убрать сдвиг" onClick={() => onChange(mods.filter((_, j) => j !== i))}>
+            <Ico n="close" />
+          </button>
+        </div>
+      ))}
+      <button className="btn btn-small" onClick={() => onChange([...mods, { skill: skills[0]?.id ?? '', delta: -10 }])}>
+        <Ico n="plus" /> добавить сдвиг
+      </button>
+    </div>
+  )
 }
 
 /**
@@ -123,7 +336,7 @@ function DiceRulesEditor({
     !value.fumble_low_skill
   return (
     <div className="props-group">
-      <h4>Правила бросков (d100)</h4>
+      <h4>Правила бросков</h4>
       <div className="muted small" style={{ marginBottom: 8 }}>
         Пороги успеха и провала для проверок навыков. Показываются игроку в справке,
         поэтому менять их стоит до начала забега.
@@ -293,6 +506,15 @@ function NeedCondEditor({
                 c.items = v
                 commit()
               }}
+            />
+          )}
+          {c.type === 'weather' && (
+            <RefSelect
+              label=""
+              kind="weather"
+              store={store}
+              value={c.weather}
+              onChange={(w) => ((c.weather = w ?? ''), commit())}
             />
           )}
           <button className="btn btn-small ce-del" onClick={() => onChange(conds.filter((_, j) => j !== i))}><Ico n="close" /> </button>
@@ -625,6 +847,45 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
       </div>
 
       <div className="props-group">
+        <h4>Надписи системных меню и кнопок</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Задайте атмосферные названия системных элементов под мир вашей кампании (пусто — названия по умолчанию).
+        </div>
+        <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+          {([
+            ['inventory', 'Инвентарь', 'например «Сумка дознавателя»'],
+            ['journal', 'Журнал', 'например «Дело № 137»'],
+            ['map', 'Карта', 'например «Схема ярусов»'],
+            ['camp', 'Лагерь / Отдых', 'например «Перекур»'],
+            ['codex', 'Кодекс', 'например «Архив Надзора»'],
+            ['craft', 'Ремесло', 'например «Верстак»'],
+            ['character', 'Герой / Персонаж', 'например «Досье»'],
+            ['pass_turn', 'Завершить ход в бою', 'например «Выждать»'],
+            ['flee', 'Отступить из боя', 'например «Бежать»'],
+          ] as const).map(([key, label, ph]) => {
+            const u = meta.ui_labels ?? {}
+            return (
+              <label key={key} className="fld" style={{ minWidth: 200, flex: '1 1 200px' }}>
+                <span>{label}</span>
+                <input
+                  value={u[key] ?? ''}
+                  placeholder={ph}
+                  onChange={(e) => {
+                    const next = { ...(meta.ui_labels ?? {}) }
+                    if (e.target.value.trim()) next[key] = e.target.value
+                    else delete next[key]
+                    if (Object.keys(next).length > 0) meta.ui_labels = next
+                    else delete meta.ui_labels
+                    commit()
+                  }}
+                />
+              </label>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="props-group">
         <h4>Шрифты кампании</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Загруженные шрифты применяются ко всей игре: диалогам, панелям, меню. Редактор остаётся
@@ -665,6 +926,23 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
                   <option value="normal">Прямой</option>
                   <option value="italic">Курсив</option>
                 </select>
+              </label>
+              <label className="fld" data-tip="Поправка размера шрифта: 100% — как есть, 90% — чуть уменьшить, 110% — увеличить">
+                <span>Масштаб шрифта</span>
+                <input
+                  type="number"
+                  min={0.7}
+                  max={1.4}
+                  step={0.05}
+                  placeholder="1.0"
+                  value={f.size_adjust ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value ? Number(e.target.value) : undefined
+                    if (val === 1 || !val) delete f.size_adjust
+                    else f.size_adjust = val
+                    commit()
+                  }}
+                />
               </label>
             </div>
             <AssetUpload
@@ -722,6 +1000,182 @@ function ThemeTab({ meta, store, commit }: { meta: CampaignMeta; store: EditorSt
             <FontSample store={store} fontId={theme.fonts?.[role.key] ?? ''} meta={meta} role={role} />
           </div>
         ))}
+      </div>
+
+      <div className="props-group">
+        <h4>Размеры текста и типографика</h4>
+        <div className="fld-row">
+          <label className="fld" data-tip="Общий масштаб текста всей кампании (80% .. 140%)">
+            <span>Общий масштаб текста: {Math.round((theme.font_scale ?? 1) * 100)}%</span>
+            <input
+              type="range"
+              min={0.8}
+              max={1.4}
+              step={0.05}
+              value={theme.font_scale ?? 1}
+              onChange={(e) => {
+                theme.font_scale = Number(e.target.value) === 1 ? undefined : Number(e.target.value)
+                commit()
+              }}
+            />
+          </label>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', paddingBottom: 4 }}>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => { theme.font_scale = 0.9; commit() }}
+            >
+              90%
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => { theme.font_scale = undefined; commit() }}
+            >
+              100%
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => { theme.font_scale = 1.15; commit() }}
+            >
+              115%
+            </button>
+            <button
+              type="button"
+              className="btn btn-small"
+              onClick={() => { theme.font_scale = 1.25; commit() }}
+            >
+              125%
+            </button>
+          </div>
+        </div>
+
+        <div className="fld-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginTop: 8 }}>
+          <label className="fld" data-tip="Размер основного текста, описаний сцен и предметов (в пикселях, по умолчанию 15)">
+            <span>Основной текст</span>
+            <input
+              type="number"
+              min={11}
+              max={28}
+              placeholder="15"
+              value={theme.font_sizes?.body ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                theme.font_sizes = { ...(theme.font_sizes ?? {}), body: val }
+                if (!theme.font_sizes.body && !theme.font_sizes.display && !theme.font_sizes.dialogue && !theme.font_sizes.ui) {
+                  delete theme.font_sizes
+                }
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Размер реплик и вариантов ответов в диалогах (в пикселях, по умолчанию 16)">
+            <span>Диалоги</span>
+            <input
+              type="number"
+              min={12}
+              max={30}
+              placeholder="16"
+              value={theme.font_sizes?.dialogue ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                theme.font_sizes = { ...(theme.font_sizes ?? {}), dialogue: val }
+                if (!theme.font_sizes.body && !theme.font_sizes.display && !theme.font_sizes.dialogue && !theme.font_sizes.ui) {
+                  delete theme.font_sizes
+                }
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Базовый размер заголовков локаций, сцен, панелей (в пикселях, по умолчанию 20)">
+            <span>Заголовки</span>
+            <input
+              type="number"
+              min={14}
+              max={36}
+              placeholder="20"
+              value={theme.font_sizes?.display ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                theme.font_sizes = { ...(theme.font_sizes ?? {}), display: val }
+                if (!theme.font_sizes.body && !theme.font_sizes.display && !theme.font_sizes.dialogue && !theme.font_sizes.ui) {
+                  delete theme.font_sizes
+                }
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Размер кнопок, списков и элементов интерфейса (в пикселях, по умолчанию 13)">
+            <span>Кнопки и интерфейс</span>
+            <input
+              type="number"
+              min={10}
+              max={22}
+              placeholder="13"
+              value={theme.font_sizes?.ui ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                theme.font_sizes = { ...(theme.font_sizes ?? {}), ui: val }
+                if (!theme.font_sizes.body && !theme.font_sizes.display && !theme.font_sizes.dialogue && !theme.font_sizes.ui) {
+                  delete theme.font_sizes
+                }
+                commit()
+              }}
+            />
+          </label>
+        </div>
+
+        <div className="fld-row" style={{ marginTop: 8 }}>
+          <label className="fld" data-tip="Межстрочный интервал (множитель 1.2 .. 2.0, по умолчанию 1.5)">
+            <span>Межстрочный интервал: {theme.line_height ?? 1.5}</span>
+            <input
+              type="range"
+              min={1.2}
+              max={2.0}
+              step={0.05}
+              value={theme.line_height ?? 1.5}
+              onChange={(e) => {
+                const val = Number(e.target.value)
+                theme.line_height = val === 1.5 ? undefined : val
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Межбуквенный интервал, например 0.02em (по умолчанию обычно)">
+            <span>Межбуквенный интервал</span>
+            <input
+              type="text"
+              placeholder="напр. 0.02em"
+              value={theme.letter_spacing ?? ''}
+              onChange={(e) => {
+                theme.letter_spacing = e.target.value.trim() || undefined
+                commit()
+              }}
+            />
+          </label>
+        </div>
+
+        <div
+          className="font-preview-box"
+          style={{
+            marginTop: 12,
+            padding: 12,
+            border: '1px solid var(--ed-line)',
+            borderRadius: 6,
+            background: 'var(--ed-bg-2)',
+          }}
+        >
+          <div style={{ fontSize: `${Math.round((theme.font_sizes?.display ?? 20) * (theme.font_scale ?? 1))}px`, fontWeight: 'bold', color: 'var(--gold, #d4af37)', marginBottom: 6 }}>
+            Пример заголовка сцены
+          </div>
+          <div style={{ fontSize: `${Math.round((theme.font_sizes?.dialogue ?? 16) * (theme.font_scale ?? 1))}px`, color: 'var(--ed-text)', lineHeight: theme.line_height ?? 1.5, marginBottom: 6 }}>
+            «Здравствуй, путник. Здесь каждый шаг отдаётся эхом в пустых шлюзах.»
+          </div>
+          <div style={{ fontSize: `${Math.round((theme.font_sizes?.body ?? 15) * (theme.font_scale ?? 1))}px`, color: 'var(--ed-text-muted, #aaa)', lineHeight: theme.line_height ?? 1.5 }}>
+            Листы объявлений трепещут на ржавой доске под порывами сырого сквозняка.
+          </div>
+        </div>
       </div>
 
       <div className="props-group">
@@ -831,9 +1285,6 @@ function ChaptersEditor({ m, commit }: { m: CampaignMeta; commit: () => void }) 
               <span>Порядок</span>
               <input type="number" value={c.order ?? sorted.indexOf(c) + 1} onChange={(e) => upd(c.id, { order: Number(e.target.value) || undefined })} />
             </label>
-            <span className="muted small" data-tip={`id: ${c.id} (техническое имя, не меняется)`} style={{ alignSelf: 'end', paddingBottom: 8 }}>
-              {c.id}
-            </span>
             <button
               className="btn btn-small ce-del"
               style={{ alignSelf: 'end' }}
@@ -883,14 +1334,18 @@ function AttributionEditor({ m, commit, store }: { m: CampaignMeta; commit: () =
           <input value={a.author ?? ''} onChange={(e) => upd({ author: e.target.value || undefined })} />
         </label>
         <label className="fld" data-tip="Каноническая копия — репозиторий мастера; история коммитов доказывает первую публикацию">
-          <span>Канонический адрес (GitHub)</span>
+          <span>Канонический адрес репозитория</span>
           <input value={a.origin_url ?? ''} placeholder="https://github.com/автор/кампания" onChange={(e) => upd({ origin_url: e.target.value || undefined })} />
         </label>
       </div>
       <div className="fld-row">
         <label className="fld">
-          <span>Вышла (дата, ISO)</span>
-          <input value={a.published_at ?? ''} placeholder="2026-09-28" onChange={(e) => upd({ published_at: e.target.value || undefined })} />
+          <span>Вышла (дата)</span>
+          <input
+            type="date"
+            value={/^\d{4}-\d{2}-\d{2}$/.test(a.published_at ?? '') ? a.published_at : ''}
+            onChange={(e) => upd({ published_at: e.target.value || undefined })}
+          />
         </label>
       </div>
       <label className="fld fld-block">
@@ -923,6 +1378,46 @@ function AttributionEditor({ m, commit, store }: { m: CampaignMeta; commit: () =
       </div>
     </div>
   )
+}
+
+function parseSkillBase(base: string | number | undefined): { fixedNum: number | undefined; statKey: string; mult: number } {
+  if (typeof base === 'number') {
+    return { fixedNum: base, statKey: '', mult: 1 }
+  }
+  if (typeof base === 'string') {
+    let fixedNum: number | undefined
+    let statKey = ''
+    let mult = 1
+    const parts = base.split('+').map((p) => p.trim())
+    for (const part of parts) {
+      if (/^\d+$/.test(part)) {
+        fixedNum = parseInt(part, 10)
+      } else {
+        const m = part.match(/^([A-Za-z]+)(?:\s*[×x*]\s*(\d+))?$/)
+        if (m) {
+          statKey = m[1].toUpperCase()
+          mult = m[2] ? parseInt(m[2], 10) : 1
+        }
+      }
+    }
+    return { fixedNum, statKey, mult }
+  }
+  return { fixedNum: undefined, statKey: '', mult: 1 }
+}
+
+function buildSkillBase(fixedNum: number | undefined, statKey: string, mult: number): string | number | undefined {
+  const cleanStat = statKey.trim().toUpperCase()
+  if (cleanStat) {
+    const statPart = mult > 1 ? `${cleanStat}×${mult}` : cleanStat
+    if (fixedNum != null && !isNaN(fixedNum) && fixedNum > 0) {
+      return `${fixedNum}+${statPart}`
+    }
+    return statPart
+  }
+  if (fixedNum != null && !isNaN(fixedNum)) {
+    return fixedNum
+  }
+  return undefined
 }
 
 export function CampaignEditor({ store }: { store: EditorStore }) {
@@ -1256,6 +1751,122 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               </label>
             )
           })}
+
+          <h4>Грузоподъёмность и перегруз</h4>
+          <p className="muted small">
+            Настройка формулы переноски груза и последствий перегруза для героя. По умолчанию используется классическая формула BRP (STR + SIZ кг).
+          </p>
+          {(() => {
+            const enc = m.encumbrance ?? {}
+            const enabled = enc.enabled !== false
+            const formula = enc.formula ?? 'str_siz_sum'
+            const travelPenalty = enc.travel_penalty !== false
+            const updateEnc = (patch: Partial<NonNullable<typeof m.encumbrance>>) => {
+              m.encumbrance = { ...enc, ...patch }
+              commit()
+            }
+            return (
+              <div className="panel" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <label className="fld fld-check">
+                  <input
+                    type="checkbox"
+                    checked={enabled}
+                    onChange={(e) => updateEnc({ enabled: e.target.checked })}
+                  />
+                  <span>
+                    <b>Учитывать перегруз и штрафы за переносимый вес</b>
+                  </span>
+                </label>
+
+                {enabled && (
+                  <>
+                    <div className="fld-row" style={{ flexWrap: 'wrap' }}>
+                      <label className="fld" style={{ minWidth: 260 }}>
+                        <span>Базовая формула грузоподъёмности</span>
+                        <select
+                          value={formula}
+                          onChange={(e) => updateEnc({ formula: e.target.value as any })}
+                        >
+                          <option value="str_siz_sum">STR + SIZ (кг) — классика BRP / РунКвест</option>
+                          <option value="str_x2">STR × 2 (кг) — упор на чистую силу</option>
+                          <option value="siz_x2">SIZ × 2 (кг) — упор на габариты тела</option>
+                          <option value="str_plus_half_siz">STR + (SIZ / 2) (кг)</option>
+                          <option value="fixed">Фиксированное значение (кг)</option>
+                        </select>
+                      </label>
+
+                      {formula === 'fixed' && (
+                        <label className="fld" style={{ width: 140 }}>
+                          <span>Базовый лимит, кг</span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={enc.base_capacity ?? 25}
+                            onChange={(e) => updateEnc({ base_capacity: Number(e.target.value) || 25 })}
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    <div className="fld-row" style={{ flexWrap: 'wrap', marginTop: 4 }}>
+                      <label className="fld fld-check" style={{ width: '100%' }}>
+                        <input
+                          type="checkbox"
+                          checked={travelPenalty}
+                          onChange={(e) => updateEnc({ travel_penalty: e.target.checked })}
+                        />
+                        <span>Штрафы на путешествия по карте при перегрузе (увеличение времени пути / блокировка)</span>
+                      </label>
+                    </div>
+
+                    {travelPenalty && (
+                      <div className="fld-row" style={{ flexWrap: 'wrap', gap: 12 }}>
+                        <label className="fld" data-tip="Во сколько раз дольше путь при лёгком перегрузе (1.0x - 1.5x)">
+                          <span>Замедление (лёгкий перегруз), x</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="1.0"
+                            max="5.0"
+                            value={enc.light_travel_multiplier ?? 1.5}
+                            onChange={(e) => updateEnc({ light_travel_multiplier: Number(e.target.value) || 1.5 })}
+                          />
+                        </label>
+
+                        <label className="fld" data-tip="Во сколько раз дольше путь при тяжёлом перегрузе (1.5x - 2.0x)">
+                          <span>Замедление (тяжёлый перегруз), x</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="1.0"
+                            max="5.0"
+                            value={enc.heavy_travel_multiplier ?? 2.0}
+                            onChange={(e) => updateEnc({ heavy_travel_multiplier: Number(e.target.value) || 2.0 })}
+                          />
+                        </label>
+
+                        <label className="fld" data-tip="При превышении лимита более чем в N раз путешествия блокируются (0 — не блокировать)">
+                          <span>Критический порог блокировки, x</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="10.0"
+                            value={enc.critical_threshold ?? 2.0}
+                            onChange={(e) => updateEnc({ critical_threshold: Number(e.target.value) || 2.0 })}
+                          />
+                        </label>
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: 4 }}>
+                      <span className="muted small"><b>Штрафы уклонения в бою:</b> лёгкий: −{enc.light_dodge_penalty ?? 10}%, тяжёлый: −{enc.heavy_dodge_penalty ?? 25}%, критический: −{enc.critical_dodge_penalty ?? 50}%.</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -1290,7 +1901,7 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
       <ChaptersEditor m={m} commit={commit} />
 
       <div className="props-group">
-        <h4>Серия и части (DLC)</h4>
+        <h4>Серия и дополнения</h4>
         <div className="fld-row">
           <label className="fld" data-tip="id базовой кампании (без него — эта кампания основная часть)">
             <span>Продолжает кампанию</span>
@@ -1343,6 +1954,36 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <input type="number" value={m.time_of_day![k]} onChange={(e) => ((m.time_of_day![k] = Number(e.target.value)), commit())} />
             </label>
           ))}
+        </div>
+        <div className="fld-row">
+          <label className="fld" data-tip="Дедлайн кампании: общее число тиков/часов до критического события (0 или пусто — без таймера)">
+            <span>Дедлайн кампании (тиков)</span>
+            <input
+              type="number"
+              min={0}
+              placeholder="нет (0)"
+              value={m.deadline_ticks ?? ''}
+              onChange={(e) => {
+                const val = e.target.value ? Number(e.target.value) : undefined
+                if (!val || val <= 0) delete m.deadline_ticks
+                else m.deadline_ticks = val
+                commit()
+              }}
+            />
+          </label>
+          <label className="fld" data-tip="Подпись таймера дедлайна в HUD (например, «До затопления шахты», «До отбытия поезда»)">
+            <span>Подпись дедлайна в HUD</span>
+            <input
+              placeholder="До срока"
+              value={m.deadline_label ?? ''}
+              onChange={(e) => {
+                const val = e.target.value.trim()
+                if (!val) delete m.deadline_label
+                else m.deadline_label = val
+                commit()
+              }}
+            />
+          </label>
         </div>
       </div>
 
@@ -1459,36 +2100,24 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               }}
             />
           </label>
-          <label className="fld" data-tip="id=Название страстей через запятую: honor=Честь, loyalty=Верность">
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Страсти героя: их названия видит игрок, а в правилах и проверках они выбираются списком — писать ничего не нужно">
             <span>Страсти</span>
-            <input
-              value={(m.passions_list ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [id, label] = x.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id }
-                }).filter((x) => x.id)
-                if (arr.length) m.passions_list = arr
-                else delete m.passions_list
-                commit()
-              }}
+            <RegistryRows
+              items={m.passions_list ?? []}
+              onChange={(v) => ((m.passions_list = v.length ? v : undefined), commit())}
+              addTitle="Название новой страсти"
+              prefix="passion_"
             />
-          </label>
-          <label className="fld" data-tip="id=Название сил причастности через запятую: storm_goddess=Богиня Грозы">
+          </div>
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Силы причастности: названия видит игрок, в эффектах и условиях они выбираются списком">
             <span>Причастность</span>
-            <input
-              value={(m.allegiances ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [id, label] = x.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id }
-                }).filter((x) => x.id)
-                if (arr.length) m.allegiances = arr
-                else delete m.allegiances
-                commit()
-              }}
+            <RegistryRows
+              items={m.allegiances ?? []}
+              onChange={(v) => ((m.allegiances = v.length ? v : undefined), commit())}
+              addTitle="Название новой силы причастности"
+              prefix="power_"
             />
-          </label>
+          </div>
           <label className="fld" data-tip="Книжный уровень мощи кампании; для heroic+ используйте формулы 2d6+6 в генерации характеристик">
             <span>Уровень мощи</span>
             <select
@@ -1555,118 +2184,67 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
         {m.progression && (
           <div className="fld-row" style={{ flexDirection: 'column', gap: 8 }}>
-            <label className="fld" data-tip="Одна черта на строку. Новые строки создают черты; удалённые строки удаляют черту вместе с её модификаторами и условиями">
-              <span>Черты (по строке)</span>
-              <textarea
-                rows={(m.progression.feats?.length ?? 0) + 2}
-                value={(m.progression.feats ?? []).map((f) => `${f.id}=${f.label}`).join('\n')}
-                onChange={(e) => {
-                  const lines = e.target.value.split('\n')
-                  const next: FeatDef[] = []
-                  for (const line of lines) {
-                    if (!line.trim()) continue
-                    const [id, ...rest] = line.split('=')
-                    const fid = (id ?? '').trim()
-                    if (!fid) continue
-                    const flabel = rest.join('=').trim() || fid
-                    const prev = (m.progression!.feats ?? []).find((f) => f.id === fid)
-                    next.push(prev ? { ...prev, label: flabel } : { id: fid, label: flabel })
-                  }
-                  m.progression!.feats = next
-                  commit()
-                }}
-              />
-            </label>
-            {(m.progression.feats ?? []).map((f, i) => (
-              <div key={f.id} className="panel" style={{ padding: 8 }}>
-                <div className="fld-row">
-                  <b>{f.label}</b>
-                </div>
-                <div className="fld-row">
-                  <label className="fld" style={{ flex: 1 }}>
-                    <span>Описание</span>
-                    <input
-                      value={f.description ?? ''}
-                      onChange={(e) => { const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, description: e.target.value || undefined } : x); m.progression!.feats = feats; commit() }}
-                    />
-                  </label>
-                  <label className="fld" data-tip="Что даёт черта. Формат через запятую: навык=+5 — прибавка к навыку, характеристика=+1 — к характеристике, hp=+2 — к здоровью, mp=+2 — к мане, mov=+1 — к скорости. Пример: внимательность=+5, hp=+2">
-                    <span>Модификаторы</span>
-                    <input
-                      defaultValue={[
-                        ...Object.entries(f.mods?.skills ?? {}).map(([k, v]) => `${store.labelFor('skill', k)}=${v >= 0 ? '+' : ''}${v}`),
-                        ...Object.entries(f.mods?.stats ?? {}).map(([k, v]) => `${statLabel(k)}=${v >= 0 ? '+' : ''}${v}`),
-                        ...(f.mods?.hp ? [`hp=+${f.mods.hp}`] : []),
-                        ...(f.mods?.mp ? [`mp=+${f.mods.mp}`] : []),
-                        ...(f.mods?.mov ? [`mov=+${f.mods.mov}`] : []),
-                      ].join(', ')}
-                      placeholder="внимательность=+5, hp=+2"
-                      onBlur={(e) => {
-                        const skills: Record<string, number> = {}
-                        const stats: Record<string, number> = {}
-                        let hp = 0; let mp = 0; let mov = 0
-                        for (const part of e.target.value.split(',')) {
-                          const [k, v] = part.split('='); const n = parseInt(v ?? '', 10)
-                          if (!k || Number.isNaN(n)) continue
-                          const key = k.trim()
-                          // Поддержка как старого формата (skill:навык=+5), так и нового (навык=+5)
-                          const skillKey = key.startsWith('skill:') ? key.slice(6) : key
-                          const statKey = key.startsWith('stat:') ? key.slice(5) : key
-                          // Пробуем найти навык по русскому названию или id
-                          const skillId = store.options('skill').find(s => s.label === key || s.id === skillKey || s.id === key)?.id
-                          // Для характеристик используем встроенные метки
-                          const statEntry = Object.entries(BUILTIN_SKILL_LABELS).find(([id, label]) => label === key) ??
-                            Object.entries(BUILTIN_STAT_LABELS).find(([id, label]) => label === key)
-                          const statId = statEntry?.[0] || store.options('need').find(s => s.label === key || s.id === statKey || s.id === key)?.id
-                          if (skillId) skills[skillId] = n
-                          else if (statId) stats[statId] = n
-                          else if (key === 'hp') hp = n
-                          else if (key === 'mp') mp = n
-                          else if (key === 'mov') mov = n
-                        }
-                        const mods: NonNullable<FeatDef['mods']> = {}
-                        if (Object.keys(skills).length) mods.skills = skills
-                        if (Object.keys(stats).length) mods.stats = stats
-                        if (hp) mods.hp = hp
-                        if (mp) mods.mp = mp
-                        if (mov) mods.mov = mov
-                        const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, mods: Object.keys(mods).length ? mods : undefined } : x)
-                        m.progression!.feats = feats
+            <div className="muted small" data-tip="Каждая черта: название и описание видит игрок, модификаторы и требования — движок">
+              Черты прокачки (что герой выбирает за уровни)
+            </div>
+            {(m.progression.feats ?? []).map((f, i) => {
+              const patchFeat = (p: Partial<FeatDef>) => {
+                const feats = (m.progression!.feats ?? []).map((x, j) => (j === i ? { ...x, ...p } : x))
+                m.progression!.feats = feats
+                commit()
+              }
+              return (
+                <div key={f.id} className="panel" style={{ padding: 8 }}>
+                  <div className="fld-row">
+                    <label className="fld" style={{ flex: 1, minWidth: 200 }}>
+                      <span>Название черты</span>
+                      <input value={f.label} onChange={(e) => patchFeat({ label: e.target.value })} />
+                    </label>
+                    <label className="fld" style={{ flex: 2, minWidth: 240 }}>
+                      <span>Описание (что даёт)</span>
+                      <input value={f.description ?? ''} onChange={(e) => patchFeat({ description: e.target.value || undefined })} />
+                    </label>
+                    <button
+                      className="btn btn-small ce-del"
+                      style={{ alignSelf: 'end' }}
+                      data-tip="Удалить черту"
+                      onClick={() => {
+                        m.progression!.feats = (m.progression!.feats ?? []).filter((_, j) => j !== i)
                         commit()
                       }}
-                    />
-                  </label>
-                  <label className="fld" data-tip="Кто может взять черту (через запятую). level_ge:3 — уровень 3 и выше; has_feat:keen — уже есть черта; has_item:id — есть предмет; flag_set:key — взведён флаг; skill_ge:melee=60 — навык от 60; variable_compare:var>=5 — переменная от 5">
-                    <span>Требования</span>
-                    <input
-                      defaultValue={(f.requires ?? []).map((c) => c.type === 'level_ge' ? `level_ge:${c.level}`
-                        : c.type === 'has_feat' ? `has_feat:${c.id}`
-                        : c.type === 'has_item' ? `has_item:${c.item}`
-                        : c.type === 'flag_set' ? `flag_set:${c.flag}`
-                        : c.type === 'skill_ge' ? `skill_ge:${c.skill}=${c.threshold}`
-                        : c.type === 'variable_compare' ? `variable_compare:${c.var}${c.operator}${String(c.value)}`
-                        : c.type).join(', ')}
-                      placeholder="level_ge:3, has_feat:keen"
-                      onBlur={(e) => {
-                        const reqs: NonNullable<FeatDef['requires']> = []
-                        for (const part of e.target.value.split(',')) {
-                          const [t, ...rest] = part.trim().split(':'); const v = rest.join(':')
-                          if (t === 'level_ge') reqs.push({ type: 'level_ge', level: parseInt(v, 10) || 1 })
-                          else if (t === 'has_feat' && v) reqs.push({ type: 'has_feat', id: v })
-                          else if (t === 'has_item' && v) reqs.push({ type: 'has_item', item: v })
-                          else if (t === 'flag_set' && v) reqs.push({ type: 'flag_set', flag: v })
-                          else if (t === 'skill_ge') { const [sk, n] = (v || '').split('='); if (sk) reqs.push({ type: 'skill_ge', skill: sk, threshold: parseInt(n, 10) || 0 }) }
-                          else if (t === 'variable_compare') { const mch = (v || '').match(/^([A-Za-z_0-9-]+)(==|!=|>=|<=|>|<)(-?\d+)$/); if (mch) reqs.push({ type: 'variable_compare', var: mch[1], operator: mch[2] as '==' | '!=' | '<' | '>' | '<=' | '>=', value: parseInt(mch[3], 10) }) }
-                        }
-                        const feats = (m.progression!.feats ?? []).map((x, j) => j === i ? { ...x, requires: reqs.length ? reqs : undefined } : x)
-                        m.progression!.feats = feats
-                        commit()
-                      }}
-                    />
-                  </label>
+                    >
+                      <Ico n="close" />
+                    </button>
+                  </div>
+                  <div className="fld-row">
+                    <div className="fld" style={{ flex: 2, minWidth: 280 }} data-tip="Что даёт черта при взятии: прибавки к навыкам, характеристикам, здоровью, мане и движению">
+                      <span>Модификаторы (что даёт черта)</span>
+                      <FeatModRows store={store} mods={f.mods} onChange={(mods) => patchFeat({ mods })} />
+                    </div>
+                    <div className="fld" style={{ flex: 2, minWidth: 280 }} data-tip="Кто может взять черту: требования выбираются списком. Пусто — без требований">
+                      <span>Требования (кто может взять)</span>
+                      <ConditionListEditor
+                        store={store}
+                        conditions={f.requires ?? []}
+                        onChange={(c) => patchFeat({ requires: c.length ? c : undefined })}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
+            <button
+              className="btn btn-small"
+              onClick={() => void (async () => {
+                const label = await askText('Название новой черты', 'например «Твёрдая рука»')
+                if (!label?.trim()) return
+                const feats = m.progression!.feats ?? []
+                m.progression!.feats = [...feats, { id: makeId('feat_', label.trim(), feats.map((x) => x.id)), label: label.trim() }]
+                commit()
+              })()}
+            >
+              <Ico n="plus" /> черта
+            </button>
           </div>
         )}
       </div>
@@ -1704,13 +2282,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                   onChange={(e) => ((m.camping!.ambush_chance = Math.max(0, Math.min(1, Number(e.target.value) || 0))), commit())}
                 />
               </label>
-              <label className="fld" data-tip="Id правила из реестра, отвечающего за вылазку (спавн врагов, бой, плен)">
-                <span>Правило засады</span>
-                <input
-                  value={m.camping.ambush_rule ?? ''}
-                  onChange={(e) => ((m.camping!.ambush_rule = e.target.value || undefined), commit())}
-                />
-              </label>
+              <RefSelect
+                label="Правило засады"
+                kind="rule"
+                store={store}
+                value={m.camping.ambush_rule ?? ''}
+                optional
+                onChange={(v) => ((m.camping!.ambush_rule = v || undefined), commit())}
+              />
             </>
           )}
           <label className="fld fld-num" data-tip="Метров падения на один кубик урона (книжное умолчание 3)">
@@ -1723,37 +2302,45 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           </label>
         </div>
         <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-          <label className="fld" data-tip="Реестр преступлений: id=Название через запятую (theft=Кража, murder=Убийство); совершаются эффектом commit_crime">
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Преступления: названия видит игрок; герой «совершает преступление» эффектом, выбрав его из списка">
             <span>Преступления</span>
-            <input
-              value={(m.crimes ?? []).map((c) => `${c.id}=${c.label}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [id, label] = x.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id }
-                }).filter((x) => x.id)
-                if (arr.length) m.crimes = arr
-                else delete m.crimes
-                commit()
-              }}
+            <RegistryRows
+              items={m.crimes ?? []}
+              onChange={(v) => ((m.crimes = v.length ? v : undefined), commit())}
+              addTitle="Название нового преступления"
+              prefix="crime_"
             />
-          </label>
-          <label className="fld" data-tip="Ценовые события: id=Название*множитель через запятую (war=Война*1.5); задать фильтры по предметам/категориям можно в JSON; включаются эффектом set_price_event">
+          </div>
+          <div className="fld" style={{ flex: 1, minWidth: 340 }} data-tip="Ценовые события: множитель и фильтр категорий; включаются эффектом «Ценовое событие» (правило, диалог или квест)">
             <span>Ценовые события</span>
-            <input
-              value={(m.price_events ?? []).map((e2) => `${e2.id}=${e2.label}*${e2.multiplier}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [pair, mult] = x.split('*')
-                  const [id, label] = pair.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id, multiplier: Number(mult) || 1.5 }
-                }).filter((x) => x.id)
-                if (arr.length) m.price_events = arr
-                else delete m.price_events
-                commit()
-              }}
+            <RegistryRows
+              items={m.price_events ?? []}
+              onChange={(v) => ((m.price_events = v.length ? v : undefined), commit())}
+              addTitle="Название нового ценового события"
+              prefix="price_"
+              render={(ev, patch) => (
+                <>
+                  <label className="fld fld-num" data-tip="Множитель цены: 1.5 — выкуп дороже на 50%">
+                    <span>Множитель ×</span>
+                    <input
+                      type="number" step={0.1} min={0.1}
+                      value={ev.multiplier}
+                      onChange={(e) => patch({ multiplier: Math.max(0.1, Number(e.target.value) || 1) })}
+                    />
+                  </label>
+                  <div className="fld" style={{ flex: 2, minWidth: 200 }}>
+                    <span data-tip="Пусто — цены меняются на все предметы">Категории предметов</span>
+                    <ChipMultiSelect
+                      options={store.options('itemCategory')}
+                      value={ev.categories ?? []}
+                      emptyLabel="все категории — нажмите, чтобы ограничить"
+                      onChange={(v) => patch({ categories: v.length ? v : undefined })}
+                    />
+                  </div>
+                </>
+              )}
             />
-          </label>
+          </div>
         </div>
       </div>
 
@@ -1905,14 +2492,12 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
             </label>
             {m.char_creation.roll && (
               <div className="fld-row" style={{ flexWrap: 'wrap' }}>
-                <label className="fld">
-                  <span>Базовая формула броска</span>
-                  <input
-                    value={m.char_creation.roll.notation ?? '3d6'}
-                    placeholder="3d6"
-                    onChange={(e) => ((m.char_creation!.roll!.notation = e.target.value || '3d6'), commit())}
-                  />
-                </label>
+                <DiceNotationInput
+                  label="Базовая формула броска"
+                  tip="Сколько и каких костей бросается на характеристику по умолчанию"
+                  value={m.char_creation.roll.notation ?? '3d6'}
+                  onChange={(v) => ((m.char_creation!.roll!.notation = v || '3d6'), commit())}
+                />
                 <label className="fld fld-num" data-tip="Сколько наборов бросается, игрок выбирает один">
                   <span>Наборов на выбор</span>
                   <input type="number" min={1} value={m.char_creation.roll.arrays ?? 1} onChange={(e) => ((m.char_creation!.roll!.arrays = Math.max(1, Number(e.target.value) || 1)), commit())} />
@@ -1934,20 +2519,22 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 </span>
                 <div className="fld-row" style={{ flexWrap: 'wrap' }}>
                   {(['STR', 'CON', 'SIZ', 'DEX', 'INT', 'POW', 'CHA'] as const).map((k) => (
-                    <label key={k} className="fld" style={{ maxWidth: 90 }}>
-                      <span>{k}</span>
-                      <input
+                    <div key={k} style={{ maxWidth: 240, minWidth: 190 }}>
+                      <DiceNotationInput
+                        label={k}
+                        compact
+                        optional
+                        tip="Своя формула броска характеристики (пусто — базовая)"
                         value={m.char_creation!.roll!.per_stat?.[k] ?? ''}
-                        placeholder={m.char_creation!.roll!.notation ?? '3d6'}
-                        onChange={(e) => {
+                        onChange={(v) => {
                           const per = { ...(m.char_creation!.roll!.per_stat ?? {}) }
-                          if (e.target.value.trim()) per[k] = e.target.value.trim()
+                          if (v.trim()) per[k] = v.trim()
                           else delete per[k]
                           m.char_creation!.roll!.per_stat = Object.keys(per).length ? per : undefined
                           commit()
                         }}
                       />
-                    </label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -2181,6 +2768,10 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Короткое имя</span>
               <input value={n.short_label ?? ''} onChange={(e) => ((n.short_label = e.target.value || undefined), commit())} placeholder="например: Голод" />
             </label>
+            <label className="fld" style={{ flex: 2, minWidth: 220 }} data-tip="Полное описание потребности: игрок видит его в подсказке к полоске">
+              <span>Описание (подсказка игроку)</span>
+              <input value={n.description ?? ''} onChange={(e) => ((n.description = e.target.value || undefined), commit())} placeholder="например: «Без еды слабеешь: падает урон и внимание»" />
+            </label>
             <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.needs.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
@@ -2304,21 +2895,14 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
           в бою и во всех выпадающих списках редактора.
         </div>
         <div className="fld-row" style={{ flexWrap: 'wrap', marginBottom: 6 }}>
-          <label className="fld" data-tip="id=Название категорий навыков через запятую: combat=Бой, social=Общение. Пусто — без категорий">
+          <div className="fld" style={{ flex: 1, minWidth: 300 }} data-tip="Категории навыков для группировки в листе персонажа: названия видит игрок">
             <span>Категории навыков</span>
-            <input
-              value={(m.skill_categories ?? []).map((p) => `${p.id}=${p.label}`).join(', ')}
-              onChange={(e) => {
-                const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                  const [id, label] = x.split('=').map((y) => y.trim())
-                  return { id: id || '', label: label || id }
-                }).filter((x) => x.id)
-                if (arr.length) m.skill_categories = arr
-                else delete m.skill_categories
-                commit()
-              }}
+            <RegistryRows
+              items={m.skill_categories ?? []}
+              onChange={(v) => ((m.skill_categories = v.length ? v : undefined), commit())}
+              addTitle="Название новой категории навыков"
             />
-          </label>
+          </div>
         </div>
         {(m.skills ?? []).map((sk, i) => (
           <div key={i} className="fld-row need-row">
@@ -2344,19 +2928,73 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 </select>
               </label>
             )}
-            <label className="fld" data-tip="Базовый шанс без обучения: число (25) или формула (DEX×2, INT×5). Пусто — 0%">
-              <span>Базовый шанс</span>
-              <input
-                value={sk.base ?? ''}
-                placeholder="0"
-                onChange={(e) => {
-                  const v = e.target.value.trim()
-                  if (!v) delete sk.base
-                  else sk.base = /^\d+$/.test(v) ? Number(v) : v
-                  commit()
-                }}
-              />
-            </label>
+            {(() => {
+              const { fixedNum, statKey, mult } = parseSkillBase(sk.base)
+              const availableStats = Object.entries(BUILTIN_STAT_LABELS).map(([id, label]) => ({
+                id,
+                label: `${id} (${label})`,
+              }))
+              return (
+                <>
+                  <label className="fld fld-narrow" data-tip="Базовый шанс без обучения (число в процентах, например 25)">
+                    <span>Базовый %</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={fixedNum ?? ''}
+                      placeholder="0"
+                      onChange={(e) => {
+                        const val = e.target.value.trim() === '' ? undefined : Math.max(0, parseInt(e.target.value, 10) || 0)
+                        const res = buildSkillBase(val, statKey, mult)
+                        if (res === undefined) delete sk.base
+                        else sk.base = res
+                        commit()
+                      }}
+                    />
+                  </label>
+                  <label className="fld" data-tip="Зависимость базового шанса от характеристики (DEX, INT и др.) по желанию">
+                    <span>Характеристика</span>
+                    <select
+                      value={statKey}
+                      onChange={(e) => {
+                        const nextStat = e.target.value
+                        const res = buildSkillBase(fixedNum, nextStat, mult)
+                        if (res === undefined) delete sk.base
+                        else sk.base = res
+                        commit()
+                      }}
+                    >
+                      <option value="">— нет —</option>
+                      {availableStats.map((st) => (
+                        <option key={st.id} value={st.id}>{st.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {statKey ? (
+                    <label className="fld fld-narrow" data-tip="Множитель характеристики в формуле (например DEX×2)">
+                      <span>Множитель</span>
+                      <select
+                        value={mult}
+                        onChange={(e) => {
+                          const nextMult = parseInt(e.target.value, 10) || 1
+                          const res = buildSkillBase(fixedNum, statKey, nextMult)
+                          if (res === undefined) delete sk.base
+                          else sk.base = res
+                          commit()
+                        }}
+                      >
+                        <option value={1}>×1</option>
+                        <option value={2}>×2</option>
+                        <option value={3}>×3</option>
+                        <option value={4}>×4</option>
+                        <option value={5}>×5</option>
+                      </select>
+                    </label>
+                  ) : null}
+                </>
+              )
+            })()}
             <button className="btn btn-small ce-del" data-tip="Удалить" onClick={() => (m.skills!.splice(i, 1), commit())}><Ico n="close" /> </button>
           </div>
         ))}
@@ -2594,11 +3232,11 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                     <option value={w.overlay}>{w.overlay} (вне реестра)</option>
                   )}
                   <option value="none">Без слоя</option>
-                  <optgroup label="Встроенные движком">
-                    <option value="rain">Дождь (встроенный)</option>
-                    <option value="snow">Снег (встроенный)</option>
-                    <option value="fog">Туман (встроенный)</option>
-                    <option value="ash">Пепел (встроенный)</option>
+                  <optgroup label="Встроенные эффекты">
+                    <option value="rain">Дождь</option>
+                    <option value="snow">Снег</option>
+                    <option value="fog">Туман</option>
+                    <option value="ash">Пепел</option>
                   </optgroup>
                   <optgroup label="Слои кампании (реестр выше)">
                     {(m.overlay_layers ?? []).map((l) => (
@@ -2630,19 +3268,31 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               >
                 <option value="">+ добавить звук…</option>
                 {(m.sounds ?? [])
-                  .filter((s) => !(w.ambient ?? []).includes(s.id))
+                  .filter((s) => !(w.ambient ?? []).includes(s.id) && !(w.ambient ?? []).includes(s.id.replace(/^sfx_/, 'snd_')) && !(w.ambient ?? []).includes(s.id.replace(/^snd_/, 'sfx_')))
                   .map((s) => (
                     <option key={s.id} value={s.id}>{s.label || s.id}</option>
                   ))}
               </select>
             </label>
             <div className="chips">
-              {(w.ambient ?? []).map((id) => (
-                <span key={id} className="chip">
-                  {(m.sounds ?? []).find((s) => s.id === id)?.label || id}
-                  <button className="chip-del" data-tip="Убрать звук" onClick={() => ((w.ambient = (w.ambient ?? []).filter((x) => x !== id)), commit())}><Ico n="close" /> </button>
-                </span>
-              ))}
+              {(w.ambient ?? []).map((id) => {
+                const sl = (sounds?: Array<{ id: string; label?: string }>) => {
+                  const exact = (sounds ?? []).find((s) => s.id === id)
+                  if (exact) return exact.label || exact.id
+                  const alt = id.startsWith('snd_') ? id.replace(/^snd_/, 'sfx_') : id.startsWith('sfx_') ? id.replace(/^sfx_/, 'snd_') : ''
+                  if (alt) {
+                    const found = (sounds ?? []).find((s) => s.id === alt)
+                    if (found) return found.label || found.id
+                  }
+                  return id.replace(/^(snd_|sfx_)/, '').replace(/_/g, ' ')
+                }
+                return (
+                  <span key={id} className="chip">
+                    {sl(m.sounds)}
+                    <button className="chip-del" data-tip="Убрать звук" onClick={() => ((w.ambient = (w.ambient ?? []).filter((x) => x !== id)), commit())}><Ico n="close" /> </button>
+                  </span>
+                )
+              })}
             </div>
             <div className="fld-row" style={{ flexWrap: 'wrap' }} data-tip="Влияние этой погоды на бой: действует на обе стороны">
               <label className="fld fld-num" data-tip="Общий штраф всему движению (и бойцам игрока, и врагам); итог не ниже 1">
@@ -2671,21 +3321,18 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                   }}
                 />
               </label>
-              <label className="fld" data-tip="Сдвиг навыков под погодой: навык=±сдвиг через запятую (dodge=-10, ranged=-20)">
+              <div className="fld" style={{ flex: 2, minWidth: 260 }} data-tip="Сдвиги навыков в бою под этой погодой: строка «навык — сдвиг», минус — штраф">
                 <span>Сдвиг навыков</span>
-                <input
-                  value={(w.combat?.skill_mods ?? []).map((x) => `${x.skill}=${x.delta}`).join(', ')}
-                  onChange={(e) => {
-                    const arr = e.target.value.split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
-                      const [skill, delta] = x.split('=').map((y) => y.trim())
-                      return { skill: skill || '', delta: Number(delta) || 0 }
-                    }).filter((x) => x.skill)
+                <SkillDeltaRows
+                  store={store}
+                  mods={w.combat?.skill_mods ?? []}
+                  onChange={(arr) => {
                     if (arr.length) w.combat = { ...(w.combat ?? {}), skill_mods: arr }
                     else if (w.combat) delete w.combat.skill_mods
                     commit()
                   }}
                 />
-              </label>
+              </div>
               <label className="fld" data-tip="Статус, который действует на всех бойцов в бою под этой погодой (мороз, пар)">
                 <span>Статус в бою</span>
                 <select
@@ -2910,11 +3557,11 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
               <span>Название</span>
               <input value={f.label} onChange={(e) => ((f.label = e.target.value), commit())} />
             </label>
-            <label className="fld" style={{ flex: 2 }}>
-              <span>Для чего нужен</span>
+            <label className="fld" style={{ flex: 2 }} data-tip="Какое событие запоминает флаг и где он читается (правила, диалоги, квесты). Для ИИ-кампаний поле обязательное.">
+              <span>Для чего нужен{!f.description?.trim() && <span className="fld-err"> — не заполнено</span>}</span>
               <input
                 value={f.description ?? ''}
-                placeholder="необязательно"
+                placeholder="напр.: поднята, когда следователь нашёл квитанцию; читается в финале"
                 onChange={(e) => {
                   if (e.target.value) f.description = e.target.value
                   else delete f.description
@@ -3517,10 +4164,13 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                 onChange={(v) => ((a.skill = v || undefined), commit())}
               />
               {a.kind === 'damage' && (
-                <label className="fld" data-tip="Нотация кубиков, напр. 1d6+2. Бонус силы НЕ добавляется; броня цели поглощает.">
-                  <span>Урон (кубики)</span>
-                  <input value={a.damage ?? ''} placeholder="1d6" onChange={(e) => ((a.damage = e.target.value || undefined), commit())} />
-                </label>
+                <DiceNotationInput
+                  label="Урон (кубики)"
+                  tip="Нотация кубиков, напр. 1d6+2. Бонус силы НЕ добавляется; броня цели поглощает."
+                  optional
+                  value={a.damage ?? ''}
+                  onChange={(v) => ((a.damage = v || undefined), commit())}
+                />
               )}
               {a.kind === 'status' && (
                 <>
@@ -3545,10 +4195,13 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                 </>
               )}
               {a.kind === 'heal' && (
-                <label className="fld" data-tip="Нотация кубиков, напр. 1d6">
-                  <span>Лечение (кубики)</span>
-                  <input value={a.heal ?? ''} placeholder="1d6" onChange={(e) => ((a.heal = e.target.value || undefined), commit())} />
-                </label>
+                <DiceNotationInput
+                  label="Лечение (кубики)"
+                  tip="Нотация кубиков, напр. 1d6"
+                  optional
+                  value={a.heal ?? ''}
+                  onChange={(v) => ((a.heal = v || undefined), commit())}
+                />
               )}
               <label className="fld fld-check" data-tip="Заклинание действует только подготовленное в слот (слоты задаются ниже — «Слоты подготовки магии»)">
                 <input type="checkbox" checked={!!a.prepare} onChange={(e) => ((a.prepare = e.target.checked || undefined), commit())} />
@@ -3568,11 +4221,11 @@ function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorSt
                   </label>
                   <label className="fld fld-num" data-tip="Знаковое: −2 — заклинатель теряет 2 HP">
                     <span>HP ±</span>
-                    <input value={b.hp_delta ?? ''} placeholder="0" onChange={(e) => ((b.hp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
+                    <input type="number" value={b.hp_delta ?? ''} placeholder="0" onChange={(e) => ((b.hp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
                   </label>
                   <label className="fld fld-num" data-tip="Знаковое: −3 — заклинатель теряет 3 MP">
                     <span>MP ±</span>
-                    <input value={b.mp_delta ?? ''} placeholder="0" onChange={(e) => ((b.mp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
+                    <input type="number" value={b.mp_delta ?? ''} placeholder="0" onChange={(e) => ((b.mp_delta = e.target.value === '' ? undefined : Number(e.target.value) || 0), commit())} />
                   </label>
                   <RefSelect
                     label="Статус заклинателю"
@@ -4028,10 +4681,12 @@ function SpeciesRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorS
             {sp.natural_weapon && (
               <div className="fld-row" style={{ flexWrap: 'wrap' }}>
                 <RefSelect label="Навык атаки" kind="skill" store={store} value={sp.natural_weapon.skill} optional={false} onChange={(v) => ((sp.natural_weapon!.skill = v ?? ''), commit())} />
-                <label className="fld">
-                  <span>Урон</span>
-                  <input value={sp.natural_weapon.damage} onChange={(e) => ((sp.natural_weapon!.damage = e.target.value), commit())} />
-                </label>
+                <DiceNotationInput
+                  label="Урон"
+                  tip="Нотация кубиков природной атаки, напр. 1d4"
+                  value={sp.natural_weapon.damage}
+                  onChange={(v) => ((sp.natural_weapon!.damage = v), commit())}
+                />
                 <label className="fld">
                   <span>Название удара</span>
                   <input value={sp.natural_weapon.label ?? ''} onChange={(e) => ((sp.natural_weapon!.label = e.target.value || undefined), commit())} />

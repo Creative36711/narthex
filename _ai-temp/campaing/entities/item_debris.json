@@ -49,11 +49,31 @@
               "duration": 24
             }
           ]
+        },
+        {
+          "type": "set_flag",
+          "flag": "debris_searched"
         }
       ],
       "once": true,
       "sound": "snd_stone",
       "hint": "нанос смывает всё, что упало выше"
+    },
+    {
+      "label": "Осмотреть нанос",
+      "hint": "уже осмотрено",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "debris_searched"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Нанос разгребён: ил, щепа и ржавые стружки. Вода принесёт новое — но не сегодня."
+        }
+      ]
     }
   ],
   "interact_hint": "Разгрести нанос",

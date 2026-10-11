@@ -1,5 +1,6 @@
 import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
 import { isExternalUrl } from '../core/loader'
+import { parseRuleFile } from '../shared/ruleFiles'
 import { compareVersions } from '../shared/versions'
 import { DEFAULT_EMOTION } from '../shared/types'
 import { skillLabel } from '../shared/skills'
@@ -11,6 +12,7 @@ import type {
   CodexEntryDef,
   CutsceneDef,
   EntityDef,
+  NpcDef,
   QuestDef,
   RecipeDef,
   RuleDef,
@@ -25,6 +27,14 @@ import type {
  */
 
 export type ManifestDef = CampaignManifest
+
+export interface ModifiedFileEntry {
+  path: string
+  status: 'modified' | 'added' | 'deleted'
+  category: 'scene' | 'dialogue' | 'entity' | 'quest' | 'rule' | 'recipe' | 'arena' | 'cutscene' | 'codex' | 'meta' | 'world' | 'other'
+  title: string
+  diffSummary?: string
+}
 
 /**
  * Глубина вложенных вызовов правил (эффект fire_rule). Продублировано из
@@ -81,6 +91,8 @@ export class EditorStore {
   jsonFiles = new Map<string, unknown>()
   /** текстовые документы (.ink) по путям пакета */
   textFiles = new Map<string, string>()
+  /** предупреждения загрузки (битые/перепутанные файлы пакета): показывает баннер */
+  loadWarnings: string[] = []
 
   dirty = new Set<string>()
   private listeners = new Set<() => void>()
@@ -91,6 +103,8 @@ export class EditorStore {
   private snapshots = new Map<string, string>()
   /** содержимое файлов на диске (на момент загрузки/сохранения) — для точного счётчика «несохранено» */
   private saved = new Map<string, string>()
+  /** исходные снимки файлов на момент загрузки/импорта кампании для фиксации изменений мастера */
+  private baseline = new Map<string, string>()
   private lastTouch = { path: '', group: '', at: 0 }
 
   constructor(basePath: string) {
@@ -137,7 +151,25 @@ export class EditorStore {
     for (const f of this.manifest.rules) loadJson(`rules/${f}`)
     for (const f of this.manifest.arenas ?? []) loadJson(`arenas/${f}`)
     for (const f of this.manifest.quests ?? []) loadJson(`quests/${f}`)
-    for (const f of this.manifest.encounters ?? []) loadJson(`rules/${f}`)
+    for (const f of this.manifest.encounters ?? []) {
+      jobs.push(
+        (async () => {
+          let r = await fetch(`${this.basePath}/encounters/${f}?t=${Date.now()}`)
+          let path = `encounters/${f}`
+          if (!r.ok) {
+            r = await fetch(`${this.basePath}/rules/${f}?t=${Date.now()}`)
+            path = `rules/${f}`
+          }
+          if (r.ok) {
+            try {
+              this.jsonFiles.set(path, await r.json())
+            } catch {
+              // malformed json
+            }
+          }
+        })(),
+      )
+    }
     for (const f of this.manifest.cutscenes ?? []) loadJson(`cutscenes/${f}`)
     for (const f of this.manifest.recipes ?? []) loadJson(`recipes/${f}`)
     for (const f of this.manifest.codex ?? []) loadJson(`codex/${f}`)
@@ -156,6 +188,9 @@ export class EditorStore {
       )
     }
     await Promise.all(jobs)
+    // санитарная обработка manifest.rules: ИИ-агенты порой кладут туда таблицы
+    // встреч или правила без id/conditions — редактор не должен падать на них
+    this.sanitizeRules()
     // мягкие миграции старого контента (итерация 8): условия потребностей,
     // переходы «в локацию» из сцен
     this.migrateContent()
@@ -164,6 +199,38 @@ export class EditorStore {
       this.snapshots.set(p, this.fileText(p))
       this.saved.set(p, this.fileText(p))
     }
+    this.captureBaseline()
+  }
+
+  /**
+   * Разбор файлов из manifest.rules: таблицы встреч уходят в manifest.encounters,
+   * файлы без id отбрасываются, у правил восстанавливаются массивы conditions/
+   * effects. Всё предупреждениями в loadWarnings — их показывает баннер редактора.
+   */
+  private sanitizeRules(): void {
+    this.loadWarnings = []
+    const kept: string[] = []
+    const seenIds = new Set<string>()
+    for (const f of this.manifest.rules) {
+      const rel = `rules/${f}`
+      const verdict = parseRuleFile(f, this.jsonFiles.get(rel))
+      if (verdict.warnings.length) this.loadWarnings.push(...verdict.warnings)
+      if (verdict.kind === 'rule') {
+        if (seenIds.has(verdict.rule.id)) {
+          this.loadWarnings.push(`rules/${f}: дубль id «${verdict.rule.id}» — файл исключён из manifest.rules.`)
+          continue
+        }
+        seenIds.add(verdict.rule.id)
+        this.jsonFiles.set(rel, verdict.rule)
+        kept.push(f)
+      } else if (verdict.kind === 'encounters') {
+        this.jsonFiles.set(rel, { encounter_tables: verdict.tables })
+        if (!this.manifest.encounters) this.manifest.encounters = []
+        if (!this.manifest.encounters.includes(f)) this.manifest.encounters.push(f)
+      }
+    }
+    const dropped = this.manifest.rules.length - kept.length
+    if (dropped > 0) this.manifest.rules = kept
   }
 
   // ─────────────── доступ с типами ───────────────
@@ -183,6 +250,43 @@ export class EditorStore {
   questPaths(): string[] {
     return (this.manifest.quests ?? []).map((f) => `quests/${f}`)
   }
+  /**
+   * Персонаж, который ведёт этот диалог (ссылка `dialogue` в сущности NPC).
+   * Нужен, чтобы в списках вместо имени файла стояло человеческое имя.
+   */
+  npcForDialogue(inkPath: string): NpcDef | undefined {
+    for (const p of this.entityPaths()) {
+      const e = this.entity(p)
+      if (e?.type === 'npc' && e.dialogue === inkPath) return e
+    }
+    return undefined
+  }
+
+  /** Читаемое имя диалога: подпись документа → имя ведущего персонажа → русское имя или имя файла словами. */
+  dialogueLabel(inkPath: string): string {
+    const doc = this.jsonFiles.get(inkPath.replace(/\.ink$/, '.dlg.json')) as { label?: string } | undefined
+    if (doc?.label) return doc.label
+    const npc = this.npcForDialogue(inkPath)
+    if (npc) return npc.label
+    const base = inkPath.replace('dialogues/', '').replace(/\.ink$/, '')
+    const DIALOGUE_RU: Record<string, string> = {
+      heart: 'Сердце',
+      core: 'Ядро',
+      choir: 'Хор',
+      clock: 'Часы',
+      guard: 'Стража',
+      abbot: 'Настоятель',
+    }
+    if (DIALOGUE_RU[base.toLowerCase()]) return DIALOGUE_RU[base.toLowerCase()]
+    const allEnts = this.entityPaths().map((p) => this.entity(p))
+    for (const ent of allEnts) {
+      if (ent && (ent.id === base || ent.id === `item_${base}` || ent.id === `npc_${base}`) && ent.label) {
+        return ent.label
+      }
+    }
+    return base.replace(/[_-]+/g, ' ').replace(/^./, (ch) => ch.toUpperCase())
+  }
+
   dialoguePaths(): string[] {
     return this.manifest.dialogues.map((f) => `dialogues/${f}`)
   }
@@ -353,10 +457,7 @@ export class EditorStore {
       }
       walk(this.world.regions)
     } else if (kind === 'dialogue') {
-      for (const p of this.dialoguePaths()) {
-        const doc = this.jsonFiles.get(p.replace(/\.ink$/, '.dlg.json')) as { label?: string } | undefined
-        out.push({ id: p, label: doc?.label || p.replace('dialogues/', '').replace(/\.ink$/, '') })
-      }
+      for (const p of this.dialoguePaths()) out.push({ id: p, label: this.dialogueLabel(p) })
     } else if (kind === 'faction') {
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: f.label || f.id })
     } else if (kind === 'skill') {
@@ -485,6 +586,18 @@ export class EditorStore {
   migrateContent(): string[] {
     const notes: string[] = []
     migrateMeta(this.meta)
+
+    // автосопоставление алиасов звуков погоды (snd_ <-> sfx_)
+    const soundIds = new Set((this.meta.sounds ?? []).map((s) => s.id))
+    for (const w of this.meta.weathers ?? []) {
+      if (!w.ambient?.length) continue
+      w.ambient = w.ambient.map((id) => {
+        if (soundIds.has(id)) return id
+        const alt = id.startsWith('snd_') ? id.replace(/^snd_/, 'sfx_') : id.startsWith('sfx_') ? id.replace(/^sfx_/, 'snd_') : ''
+        return alt && soundIds.has(alt) ? alt : id
+      })
+    }
+
     for (const p of this.scenePaths()) {
       const sc = this.scene(p)
       if (!sc) continue
@@ -771,7 +884,7 @@ export class EditorStore {
 
   /** создать новый файл и внести в манифест */
   createFile(section: keyof ManifestDef, filename: string, data: unknown | string): string {
-    const dir = section === 'encounters' ? 'rules' : section
+    const dir = section
     const path = `${dir}/${filename}`
     const list = (this.manifest[section] ?? (this.manifest[section] = [] as string[])) as string[]
     if (!list.includes(filename)) list.push(filename)
@@ -784,14 +897,16 @@ export class EditorStore {
   }
 
   deleteFile(section: keyof ManifestDef, filename: string): void {
-    const dir = section === 'encounters' ? 'rules' : section
+    const dir = section
     const path = `${dir}/${filename}`
     const list = (this.manifest[section] ?? []) as string[]
     const i = list.indexOf(filename)
     if (i >= 0) list.splice(i, 1)
     this.jsonFiles.delete(path)
+    if (section === 'encounters') this.jsonFiles.delete(`encounters/${filename}`)
     this.textFiles.delete(path)
     this.dirty.delete(path)
+    if (section === 'encounters') this.dirty.delete(`encounters/${filename}`)
     this.dirty.add('manifest.json')
     this.notify()
   }
@@ -804,6 +919,189 @@ export class EditorStore {
     if (path === 'manifest.json') return JSON.stringify(this.manifest, null, 2)
     if (this.textFiles.has(path)) return this.textFiles.get(path)!
     return JSON.stringify(this.jsonFiles.get(path), null, 2)
+  }
+
+  hasFile(path: string): boolean {
+    return (
+      path === 'campaign.json' ||
+      path === 'world.json' ||
+      path === 'manifest.json' ||
+      this.jsonFiles.has(path) ||
+      this.textFiles.has(path)
+    )
+  }
+
+  /** Зафиксировать текущее состояние кампании как исходную базу для диффа изменений */
+  captureBaseline(): void {
+    this.baseline.clear()
+    for (const p of this.allPaths()) {
+      this.baseline.set(p, this.fileText(p))
+    }
+  }
+
+  /** Имеются ли зафиксированные данные базового снимка */
+  hasBaseline(): boolean {
+    return this.baseline.size > 0
+  }
+
+  /**
+   * Список файлов, которые реально изменились относительно исходного состояния
+   * (добавленные, изменённые или удалённые файлы).
+   */
+  getModifiedFiles(): ModifiedFileEntry[] {
+    const list: ModifiedFileEntry[] = []
+    const currentPaths = new Set(this.allPaths())
+
+    // 1. Проверяем текущие файлы на добавление и изменение
+    for (const p of currentPaths) {
+      const currentText = this.fileText(p)
+      const baseText = this.baseline.get(p)
+
+      if (baseText === undefined) {
+        list.push({
+          path: p,
+          status: 'added',
+          category: this.categorizePath(p),
+          title: this.titleForPath(p),
+        })
+      } else if (currentText !== baseText) {
+        list.push({
+          path: p,
+          status: 'modified',
+          category: this.categorizePath(p),
+          title: this.titleForPath(p),
+          diffSummary: this.buildDiffSummary(p, baseText, currentText),
+        })
+      }
+    }
+
+    // 2. Проверяем удалённые файлы (были в baseline, но удалены сейчас)
+    for (const [p] of this.baseline) {
+      if (!currentPaths.has(p)) {
+        list.push({
+          path: p,
+          status: 'deleted',
+          category: this.categorizePath(p),
+          title: this.titleForPath(p),
+        })
+      }
+    }
+
+    return list.sort((a, b) => a.path.localeCompare(b.path, 'ru'))
+  }
+
+  private categorizePath(path: string): ModifiedFileEntry['category'] {
+    if (path === 'campaign.json') return 'meta'
+    if (path === 'world.json') return 'world'
+    if (path.startsWith('scenes/')) return 'scene'
+    if (path.startsWith('dialogues/')) return 'dialogue'
+    if (path.startsWith('entities/')) return 'entity'
+    if (path.startsWith('quests/')) return 'quest'
+    if (path.startsWith('rules/')) return 'rule'
+    if (path.startsWith('recipes/')) return 'recipe'
+    if (path.startsWith('arenas/')) return 'arena'
+    if (path.startsWith('cutscenes/')) return 'cutscene'
+    if (path.startsWith('codex/')) return 'codex'
+    return 'other'
+  }
+
+  private titleForPath(path: string): string {
+    if (path === 'campaign.json') return `Паспорт кампании «${this.meta.title || this.meta.id}»`
+    if (path === 'world.json') return 'Карта мира и локации'
+    if (path === 'manifest.json') return 'Манифест структуры'
+
+    if (path.startsWith('scenes/')) {
+      const doc = this.jsonFiles.get(path) as SceneDef | undefined
+      return doc?.label ? `Сцена: ${doc.label}` : path
+    }
+    if (path.startsWith('entities/')) {
+      const doc = this.jsonFiles.get(path) as any
+      const kind = doc?.type === 'npc' ? 'Персонаж' : 'Предмет'
+      return doc?.label ? `${kind}: ${doc.label}` : path
+    }
+    if (path.startsWith('dialogues/')) {
+      const clean = path.replace(/^dialogues\//, '').replace(/\.(ink|dlg\.json)$/, '')
+      return `Диалог: ${clean}`
+    }
+    if (path.startsWith('quests/')) {
+      const doc = this.jsonFiles.get(path) as QuestDef | undefined
+      return doc?.label ? `Квест: ${doc.label}` : path
+    }
+    if (path.startsWith('recipes/')) {
+      const doc = this.jsonFiles.get(path) as RecipeDef | undefined
+      return doc?.label ? `Рецепт: ${doc.label}` : path
+    }
+    if (path.startsWith('rules/')) {
+      const doc = this.jsonFiles.get(path) as any
+      return doc?.label || doc?.id ? `Правило: ${doc.label || doc.id}` : path
+    }
+    if (path.startsWith('cutscenes/')) {
+      const doc = this.jsonFiles.get(path) as CutsceneDef | undefined
+      return doc?.label ? `Катсцена: ${doc.label}` : path
+    }
+    if (path.startsWith('arenas/')) {
+      const doc = this.jsonFiles.get(path) as ArenaDef | undefined
+      return doc?.label ? `Арена: ${doc.label}` : path
+    }
+    if (path.startsWith('codex/')) {
+      const doc = this.jsonFiles.get(path) as CodexEntryDef | undefined
+      return doc?.label ? `Кодекс: ${doc.label}` : path
+    }
+    return path
+  }
+
+  private buildDiffSummary(path: string, baseText: string, currentText: string): string | undefined {
+    if (path.endsWith('.json')) {
+      try {
+        const baseObj = JSON.parse(baseText)
+        const curObj = JSON.parse(currentText)
+        if (typeof baseObj === 'object' && baseObj && typeof curObj === 'object' && curObj) {
+          const changedKeys: string[] = []
+          const allKeys = new Set([...Object.keys(baseObj), ...Object.keys(curObj)])
+          for (const k of allKeys) {
+            if (JSON.stringify(baseObj[k]) !== JSON.stringify(curObj[k])) {
+              changedKeys.push(k)
+            }
+          }
+          if (changedKeys.length > 0 && changedKeys.length <= 4) {
+            return `изменены поля: ${changedKeys.join(', ')}`
+          } else if (changedKeys.length > 4) {
+            return `изменено ${changedKeys.length} полей (${changedKeys.slice(0, 3).join(', ')}…)`
+          }
+        }
+      } catch {
+        // игнорируем ошибку парсинга
+      }
+    }
+    return undefined
+  }
+
+  /**
+   * Сформировать понятную сводку изменений для чата с ИИ
+   */
+  getChangesSummaryText(): string {
+    const mods = this.getModifiedFiles()
+    if (mods.length === 0) {
+      return `Кампания «${this.meta.title}» (${this.meta.id}): нет изменений относительно исходного состояния.`
+    }
+
+    const lines: string[] = [
+      `### Изменения мастера в кампании «${this.meta.title}» (${this.meta.id}):`,
+      `Всего затронуто файлов: ${mods.length}`,
+      '',
+    ]
+
+    for (let i = 0; i < mods.length; i++) {
+      const m = mods[i]
+      const statusLabel = m.status === 'added' ? 'Новый' : m.status === 'deleted' ? 'Удалён' : 'Изменён'
+      const detail = m.diffSummary ? ` — ${m.diffSummary}` : ''
+      lines.push(`${i + 1}. [${statusLabel}] ${m.title} (\`${m.path}\`)${detail}`)
+    }
+
+    lines.push('')
+    lines.push('Примени эти изменения поверх своей версии проекта кампании и продолжай разработку с их учётом.')
+
+    return lines.join('\n')
   }
 
   allPaths(): string[] {

@@ -103,6 +103,12 @@ export function CombatScreen({ engine }: Props) {
     }
   }, [arena, canvas.w, canvas.h, size])
 
+  const hoverOccupant = useMemo(() => {
+    if (!hoverHex) return null
+    const [c, r] = hoverHex.split(',').map(Number)
+    return combat.occupantAt({ col: c, row: r })
+  }, [hoverHex, combat])
+
   const playerTurn = combat.isPlayerTurn()
   const reach = useMemo(
     () => (playerTurn ? combat.reachableHexes() : new Map<string, number>()),
@@ -137,6 +143,19 @@ export function CombatScreen({ engine }: Props) {
     return new Set(combat.abilityTargets(pendingAbility).map((t) => t.id))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAbility, playerTurn, combat.round, combat.active.pos.col, combat.active.pos.row])
+
+  const selectedAbilityDef = pendingAbility ? combat.abilityDef(pendingAbility) : null
+  const hoverEnemy = hoverOccupant && hoverOccupant.side === 'enemy' && !hoverOccupant.dead && !hoverOccupant.down
+  const targetForecast = useMemo(() => {
+    if (!playerTurn || !hoverOccupant || hoverOccupant.dead || hoverOccupant.down) return null
+    if (pendingAbility && selectedAbilityDef && abilityTargetIds.has(hoverOccupant.id)) {
+      return combat.estimateAbility(activePlayer, selectedAbilityDef, hoverOccupant)
+    }
+    if (!pendingAbility && hoverEnemy && combat.canAttack(activePlayer, hoverOccupant)) {
+      return combat.estimateAttack(activePlayer, hoverOccupant)
+    }
+    return null
+  }, [playerTurn, hoverOccupant, pendingAbility, selectedAbilityDef, abilityTargetIds, hoverEnemy, combat, activePlayer])
 
   const onHexClick = (h: Hex) => {
     if (!playerTurn) return
@@ -258,13 +277,24 @@ export function CombatScreen({ engine }: Props) {
                     <div className="token-hp">
                       <div className="token-hp-fill" style={{ width: `${Math.max(0, (c.hp / c.maxHp) * 100)}%` }} />
                     </div>
+                    {playerTurn && !c.dead && !c.down && (() => {
+                      if (pendingAbility && selectedAbilityDef && abilityTargetIds.has(c.id)) {
+                        const est = combat.estimateAbility(activePlayer, selectedAbilityDef, c)
+                        return <span className="token-forecast-badge">{est.hitChance}%</span>
+                      }
+                      if (!pendingAbility && c.side === 'enemy' && combat.canAttack(activePlayer, c)) {
+                        const est = combat.estimateAttack(activePlayer, c)
+                        return <span className="token-forecast-badge">{est.hitChance}%</span>
+                      }
+                      return null
+                    })()}
                   </div>
                 )
               }
               return (
                 <div
                   key={c.id}
-                  className={`token token-${c.side} ${c.dead || c.down ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead && !c.down ? 'token-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
+                  className={`token token-${c.side} ${c.dead || c.down ? 'token-dead' : ''} ${c.id === combat.active.id && !c.dead && !c.down ? 'figure-active' : ''} ${recentDamage.has(c.id) ? 'token-hit' : ''} ${rollFeedback?.actor === c.id ? 'token-lunge' : ''}`}
                   style={posStyle}
                   data-tip={tip}
                   onClick={() => onHexClick(c.pos)}
@@ -283,6 +313,17 @@ export function CombatScreen({ engine }: Props) {
                       style={{ width: `${Math.max(0, (c.hp / c.maxHp) * 100)}%` }}
                     />
                   </div>
+                  {playerTurn && !c.dead && !c.down && (() => {
+                    if (pendingAbility && selectedAbilityDef && abilityTargetIds.has(c.id)) {
+                      const est = combat.estimateAbility(activePlayer, selectedAbilityDef, c)
+                      return <span className="token-forecast-badge">{est.hitChance}%</span>
+                    }
+                    if (!pendingAbility && c.side === 'enemy' && combat.canAttack(activePlayer, c)) {
+                      const est = combat.estimateAttack(activePlayer, c)
+                      return <span className="token-forecast-badge">{est.hitChance}%</span>
+                    }
+                    return null
+                  })()}
                 </div>
               )
             })}
@@ -333,6 +374,27 @@ export function CombatScreen({ engine }: Props) {
                       ? 'Кликните по подсвеченной цели, чтобы применить способность (клик мимо — отмена).'
                       : 'Клик по подсвеченному гексу — движение, по врагу в досягаемости — атака.'}
                   </div>
+                  {targetForecast && hoverOccupant && (
+                    <div className="combat-forecast-box">
+                      <div style={{ fontWeight: 600, color: 'var(--accent, #e5a93c)' }}>
+                        🎯 Цель: {hoverOccupant.label}
+                      </div>
+                      {'damage' in targetForecast ? (
+                        <>
+                          <div>Шанс попадания: <b>{targetForecast.hitChance}%</b> (порог d100 ≤ {targetForecast.target})</div>
+                          <div>Оружие: <b>{targetForecast.damage}</b> урона · Броня цели: <b>{targetForecast.armor}</b></div>
+                          {targetForecast.fromBehind && <div className="gold">⚡ Удар в спину (без защиты)!</div>}
+                          {targetForecast.fromShadow && <div className="gold">⚡ Атака из тени (враг врасплох)!</div>}
+                          {targetForecast.cover != null && <div className="muted">🛡 Штраф укрытия: {targetForecast.cover}%</div>}
+                        </>
+                      ) : (
+                        <>
+                          <div>Шанс эффекта: <b>{targetForecast.hitChance}%</b></div>
+                          <div>Эффект: <b>{targetForecast.effectLabel}</b></div>
+                        </>
+                      )}
+                    </div>
+                  )}
                   {combat.playerAbilities().length > 0 && (
                     <div className="combat-abilities">
                       {combat.playerAbilities().map(({ def, usable, reason }) => (
@@ -410,7 +472,7 @@ export function CombatScreen({ engine }: Props) {
                       data-tip={'Отступление из боя.\nВраги в досягаемости ударят напоследок, затем проверка навыка отступления (уклонение или DEX×5).\nПровал — ход потерян.'}
                       onClick={() => combat.playerFlee()}
                     >
-                      Бежать из боя
+                      {engine.uiLabel('flee', 'Бежать из боя')}
                     </button>
                   )}
                   <button
@@ -418,7 +480,7 @@ export function CombatScreen({ engine }: Props) {
                     data-tip="Закончить ход без атаки (после атаки ход завершается сам)"
                     onClick={() => combat.playerEndTurn()}
                   >
-                    Пропустить ход
+                    {engine.uiLabel('pass_turn', 'Пропустить ход')}
                   </button>
                 </>
               ) : combat.result === 'victory' ? (

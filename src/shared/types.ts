@@ -22,6 +22,8 @@ export type NeedCondition =
   | { type: 'in_location'; locations: string[]; not?: boolean; location?: string }
   | { type: 'has_item'; items: string[]; not?: boolean; item?: string }
   | { type: 'equipped'; items: string[]; not?: boolean; item?: string }
+  /** текущая погода: «Тепло убывает, пока метель» (design-doc §9, пункт 2) */
+  | { type: 'weather'; weather: string; not?: boolean }
 
 /**
  * Настройки бросков d100 (итерация 8, А7). Хранятся в campaign.json —
@@ -88,6 +90,10 @@ export interface StatusDef {
   description?: string
   /** иконка-файл/ссылка; нет — текстовый чип */
   icon?: string
+  /** индивидуальный звук при наложении статуса */
+  apply_sound?: string
+  /** индивидуальный звук при спаде/снятии статуса */
+  remove_sound?: string
   /** мир — тики, бой — раунды; 'both' — и там и там */
   scope: 'world' | 'combat' | 'both'
   /** длительность по умолчанию (мировые тики / боевые раунды) */
@@ -607,6 +613,8 @@ export interface FontDef {
   /** начертание для @font-face (например '400', '700'); по умолчанию '400' */
   weight?: string
   style?: 'normal' | 'italic'
+  /** визуальная поправка размера для конкретного шрифта (0.8 .. 1.3, по умолчанию 1) */
+  size_adjust?: number
 }
 
 /**
@@ -657,6 +665,23 @@ export interface ThemeDoc {
     /** «рукописный»: журнал, записки, кодекс */
     hand?: string
   }
+  /** общий множитель размера шрифта игры (0.8 .. 1.4, по умолчанию 1) */
+  font_scale?: number
+  /** точные размеры шрифтов в пикселях */
+  font_sizes?: {
+    /** основной текст: описания, сообщения (по умолчанию 15) */
+    body?: number
+    /** заголовки: названия локаций, сцен, панелей (по умолчанию 20) */
+    display?: number
+    /** реплики и варианты ответов в диалогах (по умолчанию 16) */
+    dialogue?: number
+    /** кнопки, списки, мелкие элементы интерфейса (по умолчанию 13) */
+    ui?: number
+  }
+  /** межстрочный интервал (множитель 1.2 .. 2.0, по умолчанию 1.5) */
+  line_height?: number
+  /** межбуквенное расстояние (в em, например 0.01em..0.05em) */
+  letter_spacing?: string
   menu?: {
     /** фон главного меню (файл пакета или ссылка) */
     background?: string
@@ -664,7 +689,8 @@ export interface ThemeDoc {
     dim?: number
     /** медленный зум фона («кен-бёрнс») */
     ken_burns?: boolean
-    /** арт/лого кампании над заголовком */
+    /** арт/лого кампании над заголовком. ОБЯЗАТЕЛЬНО прозрачный фон (PNG с
+     *  альфой): арт лежит поверх фона меню, с фоном выглядит чёрным квадратом. */
     title_art?: string
   }
   /** фон экрана финала; нет — используется фон меню */
@@ -762,6 +788,13 @@ export interface CampaignMeta {
   starting_location: string
   starting_scene: string
   starting_tick?: number
+  /**
+   * Общий дедлайн кампании (число тиков от старта до критического финала).
+   * Если задано (>0) — в HUD отображается индикатор обратного отсчёта.
+   */
+  deadline_ticks?: number
+  /** подпись дедлайна в HUD (например, «До затопления», «До отбытия поезда») */
+  deadline_label?: string
   needs: NeedDef[]
   /** реестр статусов: яды, кровотечения, баффы (блок 5 ТЗ) */
   statuses?: StatusDef[]
@@ -814,6 +847,12 @@ export interface CampaignMeta {
   weathers?: WeatherDef[]
   /** реестр атмосферных слоёв из файлов мастера (мастерская спецэффектов) */
   atmospherics?: ParticleEffectDef[]
+  /**
+   * Правила перегруза и грузоподъёмности мира (универсальная адаптация BRP).
+   * Позволяет настраивать миры для гигантов, мутантов, хоббитов, фантастики
+   * и экзоскелетов без правок движка.
+   */
+  encumbrance?: EncumbranceRules
   /**
    * Лагерь и ночлег (аудит B7): действие «Разбить лагерь» в HUD, когда
    * герой в локации с `camp: true`. Отсутствие блока — кнопки нет ни где!
@@ -930,7 +969,13 @@ export interface CampaignMeta {
   /** реестр типов слотов сцены (что можно ставить в слот); по умолчанию — встроенные */
   slot_types?: Array<{ id: string; label: string; sounds?: SoundHookMap }>
   /** реестр флагов: русское название и назначение (редактор показывает названия, движку важен только id) */
-  flags?: Array<{ id: string; label: string; description?: string }>
+  flags?: Array<{
+    id: string
+    label: string
+    /** для чего нужен: какое событие запоминает и где читается (правила,
+     *  диалоги, квесты). Для ИИ-кампаний ОБЯЗАТЕЛЬНОЕ поле (требование чемодана). */
+    description?: string
+  }>
   /** состояния портретов (встроенные + свои), фидбек 9.14 */
   emotions?: EmotionDef[]
   currencies: CurrencyDef[]
@@ -968,6 +1013,13 @@ export interface CampaignMeta {
   sounds?: SoundDef[]
   /** звуковая тема кампании: хук → id звука из реестра (пустой хук — тишина) */
   ui_sounds?: Record<string, string>
+  /**
+   * Настраиваемые надписи системных меню и кнопок интерфейса (design-doc §9).
+   * Позволяет мастеру задать атмосферные названия:
+   * "inventory": "Сумка дознавателя", "journal": "Дело № 137", "map": "Схема ярусов",
+   * "camp": "Перекур", "codex": "Архив Надзора", "pass_turn": "Завершить ход" и т.п.
+   */
+  ui_labels?: Record<string, string>
   /** трек(и) кампании по умолчанию, когда у локации/сцены своей музыки нет */
   default_music?: string[]
   /** трек(и) боя по умолчанию (если у арены нет своего arena.music) */
@@ -1063,6 +1115,27 @@ export interface TravelConnection {
   cost_ticks: number
   requirements?: Condition[]
   random_encounter_table?: string
+  /** индивидуальный звук пути (например, шум поезда, плеск волн, стук копыт) */
+  sound?: string
+  sound_volume?: number
+  /** индивидуальный звук отправления (свисток паровоза, скрип трапа) */
+  depart_sound?: string
+  depart_sound_volume?: number
+  /** индивидуальный звук прибытия (скрип тормозов, звон станционного колокола) */
+  arrive_sound?: string
+  arrive_sound_volume?: number
+}
+
+/** фоновый зацикленный звуковой слой с условиями активации */
+export interface AmbientRule {
+  /** условия включения звукового слоя (если условий нет — звучит всегда) */
+  conditions?: Condition[]
+  /** зацикленные звуки (id из реестра meta.sounds или путь к файлу) */
+  sounds?: string[]
+  /** одиночный id звука для краткости */
+  sound?: string
+  /** громкость слоя 0..1 (по умолчанию 1) */
+  volume?: number
 }
 
 export interface LocationDef {
@@ -1080,8 +1153,8 @@ export interface LocationDef {
   on_enter_rules?: string[]
   hidden?: boolean // скрыта, пока не открыта эффектом reveal_location
   ambient_audio?: string // легаси: один звук фона
-  /** фоновые зацикленные звуки (птицы, гул): складываются слоями, фидбек 9.6 */
-  ambient?: string[]
+  /** фоновые зацикленные звуки (птицы, гул): складываются слоями. Строки id или AmbientRule с условиями */
+  ambient?: Array<string | AmbientRule>
   /** здесь можно разбить лагерь (аудит B7); конфиг ночлега — meta.camping */
   camp?: boolean
   /**
@@ -1262,6 +1335,9 @@ export interface SceneStateDef {
   art?: ArtDoc
   /** кинематографическая камера фона состояния (пан-зум) */
   camera?: CameraDoc
+  /** звук, воспроизводимый один раз при переключении сцены в это состояние */
+  sound?: string
+  sound_volume?: number
   condition: SceneCondition | null
 }
 
@@ -1295,6 +1371,55 @@ export interface ParticleEffectDef {
   blur?: number
   blend?: 'normal' | 'screen'
   loop?: boolean
+  /** цвет центра процедурной частицы (rgba/hex, по умолчанию белое/золотое свечение) */
+  color_inner?: string
+  /** цвет внешнего ореола процедурной частицы */
+  color_outer?: string
+}
+
+export interface EncumbranceRules {
+  /** Включена ли система перегруза (по умолчанию true) */
+  enabled?: boolean
+  /**
+   * Формула базовой грузоподъёмности:
+   * 'str_siz' | 'str_siz_sum' — классика BRP (STR + SIZ в кг), по умолчанию
+   * 'str_con' — сила + телосложение (STR + CON в кг)
+   * 'str_only' | 'str_x2' — чистая сила (STR * 2 в кг)
+   * 'siz_x2' — чистые габариты (SIZ * 2 в кг)
+   * 'str_plus_half_siz' — STR + (SIZ / 2) в кг
+   * 'fixed' — фиксированное значение из base_capacity
+   */
+  formula?: 'str_siz' | 'str_siz_sum' | 'str_con' | 'str_only' | 'str_x2' | 'siz_x2' | 'str_plus_half_siz' | 'fixed'
+  /** Фиксированная базовая вместимость в кг (при formula === 'fixed', по умолчанию 25) */
+  base_capacity?: number
+  /** Глобальный множитель грузоподъёмности мира (по умолчанию 1.0) */
+  capacity_multiplier?: number
+  /** Влияет ли перегруз на время путешествий между локациями (по умолчанию true) */
+  travel_penalty?: boolean
+  /** Множитель времени при лёгком перегрузе (>1.0x, по умолчанию 1.5) */
+  light_travel_multiplier?: number
+  /** Множитель времени при тяжёлом перегрузе (>1.5x, по умолчанию 2.0) */
+  heavy_travel_multiplier?: number
+  /** Порог критического перегруза, блокирующего перемещение (по умолчанию 2.0x, 0 = не блокировать) */
+  critical_threshold?: number
+  /** Штраф к уклонению в бою при лёгком перегрузе (%, по умолчанию 10) */
+  light_dodge_penalty?: number
+  /** Штраф к перемещению в бою при лёгком перегрузе (MOV, по умолчанию 1) */
+  light_mov_penalty?: number
+  /** Штраф к ловкостным навыкам при лёгком перегрузе (%, по умолчанию 10) */
+  light_agility_skills_penalty?: number
+  /** Штраф к уклонению в бою при тяжёлом перегрузе (%, по умолчанию 25) */
+  heavy_dodge_penalty?: number
+  /** Штраф к перемещению в бою при тяжёлом перегрузе (MOV, по умолчанию 2) */
+  heavy_mov_penalty?: number
+  /** Штраф к ловкостным навыкам при тяжёлом перегрузе (%, по умолчанию 25) */
+  heavy_agility_skills_penalty?: number
+  /** Штраф к уклонению в бою при критическом перегрузе (%, по умолчанию 50) */
+  critical_dodge_penalty?: number
+  /** Штраф к перемещению в бою при критическом перегрузе (MOV, по умолчанию 3) */
+  critical_mov_penalty?: number
+  /** Штраф к ловкостным навыкам при критическом перегрузе (%, по умолчанию 50) */
+  critical_agility_skills_penalty?: number
 }
 
 export interface WeatherDef {
@@ -1402,8 +1527,13 @@ export interface SlotDef {
   /** состояние спрайта сцены для занятого НПС (ключ из scene_sprite_states,
    *  id состояния кампании); пусто — обычный спрайт */
   sprite_state?: string
+  /** индивидуальный звук клика/взаимодействия со слотом */
+  sound?: string
+  sound_volume?: number
   /** предметы, которыми можно воздействовать на слот (блок 8 ТЗ) */
   use_with?: SlotUseWith[]
+  /** хотспот окружения (нарисован прямо на фоне сцены; в покое невидим, проявляется при наведении или Tab) */
+  environmental?: boolean
 }
 
 /**
@@ -1419,7 +1549,27 @@ export interface NavigationZone {
   cost_ticks?: number
   /** скрывать подпись до наведения курсора (зона как невидимый хотспот) */
   hide_label?: boolean
+  /** условия доступности перехода (все должны выполниться) */
+  conditions?: Condition[]
+  /** сообщение игроку, если переход заблокирован */
+  blocked_message?: string
+  /** перехват: вместо перехода запустить диалог (например, окликает страж при попытке выйти) */
+  intercept_dialogue?: string
+  /** перехват: id правила-перехватчика */
+  intercept_rule?: string
 }
+
+export type SceneParticlesPreset = 'dust' | 'steam' | 'rain' | 'snow' | 'fog' | 'ash' | 'sparks' | 'embers' | 'none'
+
+export interface SceneParticlesConfig {
+  type: SceneParticlesPreset
+  density?: 'low' | 'medium' | 'high'
+  speed?: 'slow' | 'normal' | 'fast'
+  wind?: 'left' | 'none' | 'right'
+  color?: string
+}
+
+export type SceneParticles = SceneParticlesPreset | SceneParticlesConfig
 
 export interface SceneDef {
   id: string
@@ -1432,11 +1582,35 @@ export interface SceneDef {
   navigation: NavigationZone[]
   /** переопределение музыки сцены (тот же формат, что у локации) */
   music?: MusicRule[]
-  /** фоновые зацикленные звуки сцены (слагаются с фоном локации) */
-  ambient?: string[]
+  /** фоновые зацикленные звуки сцены (слагаются с фоном локации). Строка id или AmbientRule с условиями */
+  ambient?: Array<string | AmbientRule>
+  /** тип освещения сцены: outdoor (по умолчанию, фазы суток), indoor (помещение), none (без фильтров) */
+  lighting?: 'outdoor' | 'indoor' | 'none'
+  /** атмосферные частицы сцены (пыль, пар, искры, дождь, снег, туман) — строка пресета или расширенный конфиг */
+  particles?: SceneParticles
+  /** вводное атмосферное повествование от автора (мысли/описание при входе) */
+  narrative_intro?: NarrativeIntroEntry[]
+  /** показывать вводное повествование только один раз за забег (по умолчанию true) */
+  narrative_intro_once?: boolean
+  /** переопределение текста кнопки «Далее» */
+  narrative_intro_next_label?: string
+  /** переопределение текста кнопки «Завершить / Осмотреться» */
+  narrative_intro_done_label?: string
   /** глава (id из meta.chapters) — группировка в редакторе; двигатель значения не ждёт */
   chapter?: string
 }
+
+export type NarrativeIntroEntry =
+  | string
+  | {
+      text: string
+      voice?: string
+      sfx?: string
+      image?: string
+      camera?: string | CameraDoc
+      conditions?: Condition[]
+      duration?: number
+    }
 
 // ───────────────────────── сущности ─────────────────────────
 
@@ -1479,6 +1653,11 @@ export interface InventoryEntry {
    * отдельная копия многоразового предмета, стакается только с себе равными.
    */
   durability?: number
+  /**
+   * Срок годности / свежесть конкретного экземпляра в игровых тиках (часах):
+   * Убывает каждый тик; при достижении 0 превращается в spoil_into или уничтожается.
+   */
+  freshness?: number
 }
 
 export interface TraderDef {
@@ -1494,11 +1673,13 @@ export interface NpcDef {
   id: string
   type: 'npc'
   label: string
+  /** имя/описание до знакомства (механика «Незнакомец», напр. «Незнакомка в платке»). Пока имя не раскрыто через learn_name / диалог, игрок видит эту подпись */
+  unknown_label?: string
   /** описание сущности (при наведении); можно менять динамически (set_description) */
   description: string
   /** ПОРТРЕТ (диалог): состояние → изображение (блок 3 ТЗ «Гибкий движок») */
   portrait: Record<string, string> // emotion -> image
-  /** СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG);
+  /** СПРАЙТ В СЦЕНЕ: изображение с вырезанным фоном (прозрачный PNG, ОБЯЗАТЕЛЬНО);
    *  нет — в сцене используется портрет (состояние «Обычный»).
    *  Можно цикл кадров (ImageValue) — «живой» спрайт. */
   scene_sprite?: ImageValue
@@ -1507,8 +1688,8 @@ export interface NpcDef {
    *  (SlotDef.sprite_state). Пустого ключа нет: «Обычный» — это scene_sprite. */
   scene_sprite_states?: Record<string, ImageValue>
   /** ФИГУРКА БОЯ: отображается на арене ВМЕСТО жетона (без круглой маски
-   *  и рамки стороны); нет — круглый жетон из `token ?? portrait.neutral`.
-   *  Можно цикл кадров (ImageValue). */
+   *  и рамки стороны); прозрачный фон ОБЯЗАТЕЛЕН; нет — круглый жетон из
+   *  `token ?? portrait.neutral`. Можно цикл кадров (ImageValue). */
   combat_figure?: ImageValue
   /** состояния фигурки боя: 'dead' — погиб, 'down' — без сознания/выведен,
    *  id статуса — пока статус активен. Пустой ключ = обычная (combat_figure). */
@@ -1518,6 +1699,12 @@ export interface NpcDef {
   figure_mode?: 'topdown' | 'side' | 'static'
   /** мягкая тень под спрайтом/фигуркой (по умолчанию включена) */
   shadow?: boolean
+  /**
+   * Эффект «живого дыхания» спрайта в сцене:
+   * Для NPC по умолчанию включён (true). Для роботов, автоматонов, механизмов
+   * и нежити можно отключить (false).
+   */
+  breathe?: boolean
   /** изображение жетона в бою (когда фигурка не задана) */
   token?: string
   stats: StatBlock
@@ -1533,6 +1720,10 @@ export interface NpcDef {
   presence_overrides?: PresenceOverride[]
   faction?: string
   base_disposition?: number
+  /** Расовый/индивидуальный бонус к грузоподъёмности (+кг, напр. +5 кг для выносливых рас) */
+  carry_capacity_bonus?: number
+  /** Расовый/индивидуальный множитель грузоподъёмности (напр. 2.5 для мутантов, гигантов, четвероногих) */
+  carry_capacity_mult?: number
   trader?: TraderDef | null
   combat_ai?: string
   /** броня в очках (если нет предмета-брони) */
@@ -1594,6 +1785,10 @@ export interface SpeciesTemplate {
   /** id способностей из реестра кампании */
   abilities?: string[]
   morale?: { below_hp_pct: number; flee_chance: number }
+  /** Расовый/видовой бонус к переносимому весу (+кг) */
+  carry_capacity_bonus?: number
+  /** Расовый/видовой множитель переносимого веса (напр. 3.0 для вьючных животных или мутантов) */
+  carry_capacity_mult?: number
 }
 
 export interface WeaponData {
@@ -1658,6 +1853,7 @@ export interface ItemInteractOption {
   message?: string
   /** звуковой хук взаимодействия (умолчание 'use' или 'open' для контейнера) */
   sound?: string
+  sound_volume?: number
 }
 
 export interface ItemDef {
@@ -1679,15 +1875,34 @@ export interface ItemDef {
    *  Можно цикл кадров (ImageValue) — «живой» предмет. */
   scene_sprite?: ImageValue
   /**
+   * Эффект «живого дыхания» спрайта в сцене:
+   * По умолчанию отключён (false). Можно включить для живых или пульсирующих предметов (био-сердце, мимик).
+   */
+  breathe?: boolean
+  /**
    * Взаимодействовать можно только когда условия истинны; пока ложны —
    * предмет «декорация»: виден в слоте, но не нажимается и не подсвечивается.
    */
   interactable_when?: Condition[]
+  /** подсказка действия под курсором в сцене («Осмотреть замок», «Повернуть вентиль») */
+  interact_hint?: string
   /** варианты действий по клику (выбор как в диалоге); приоритет над on_interact */
   interact_options?: ItemInteractOption[]
   weight: number
   value?: Record<string, number>
   stackable: boolean
+  /** сюжетный/квестовый предмет: нельзя случайно выбросить или продать */
+  quest_item?: boolean
+  /** Срок годности предмета в игровых тиках (например, 24 = 24 часа). Если не задан — предмет не портится */
+  decay_ticks?: number
+  /** В какой предмет превращается после порчи (например item_meat_spoiled или item_scrap) */
+  spoil_into?: string
+  /** Действие при порче: 'transform' (в spoil_into), 'destroy' (исчезает), 'rule' (запуск правила) */
+  spoil_action?: 'transform' | 'destroy' | 'rule'
+  /** Идентификатор правила, запускаемого при порче (если spoil_action === 'rule') */
+  spoil_rule?: string
+  /** Сообщение в журнал при порче предмета */
+  spoil_msg?: string
   weapon_data?: WeaponData
   /** броня: очки поглощения урона */
   armor_data?: {
@@ -1704,6 +1919,10 @@ export interface ItemDef {
   /** слот экипировки (блок 7 ТЗ): предмет надевается в этот слот;
    *  нет — не экипируется. Старым предметам выставляется миграцией. */
   equip_slot?: string
+  /** Бонус к переносимому весу при экипировке (+кг, напр. +10 кг для походного рюкзака) */
+  carry_bonus?: number
+  /** Множитель грузоподъёмности при экипировке (напр. 2.0 для силового экзоскелета) */
+  carry_mult?: number
   /** прозрачный слой поверх портрета героя, когда этот предмет надет */
   hero_appearance?: { overlay: ImageValue; order?: number }
   /** взаимодействие в сцене (бочка с водой и т.п.) */
@@ -1854,14 +2073,15 @@ export interface MusicCondition {
 export interface MusicRule {
   tracks: string[]
   shuffle?: boolean
-  conditions?: MusicCondition[]
+  /** условия переключения музыки: как специализированные (time_of_day, weather, flag), так и любые Condition движка */
+  conditions?: Array<MusicCondition | Condition>
 }
 
-/** хуки звуков взаимодействий (звук сущности/категории/типа слота) */
-export type SoundHook = 'pickup' | 'use' | 'open' | 'talk' | 'drop' | 'travel'
+/** хуки звуков взаимодействий (звук сущности/категории/типа слота) — открытая строка с каскадом */
+export type SoundHook = string
 
 /** карта «хук → id звука реестра» */
-export type SoundHookMap = Partial<Record<SoundHook, string>>
+export type SoundHookMap = Record<string, string>
 
 // ───────────────────────── диалоги (.dlg.json, итерация 8) ─────────────────────────
 
@@ -1878,6 +2098,13 @@ export interface DlgLine {
    * блок G). Если нет — при включённом синтезаторе реплику читает браузер.
    */
   voice?: string
+  /** звуковой эффект реплики: id звука из meta.sounds или путь к файлу (# sfx: ...) */
+  sfx?: string
+  /**
+   * секундный таймер показа реплики (# timer: 3 или # timeout: 3) — design-doc §9.
+   * По истечении времени диалог автоматически переходит дальше.
+   */
+  timer?: number
 }
 
 /** условие показа/ветвления (все условия списка должны выполниться) */
@@ -1891,14 +2118,28 @@ export type DlgCond =
   | { type: 'hp_ge'; value: number; not?: boolean } // здоровье ≥ (not: <)
   | { type: 'has_status'; status: string; not?: boolean } // статус активен (блок 5 ТЗ)
   | { type: 'weather_is'; weather: string; not?: boolean } // текущая погода (блок 9 ТЗ; '' — ясно)
+  /** навык героя не ниже порога (not: ниже) — светские проверки в разговоре */
+  | { type: 'skill_ge'; skill: string; threshold: number; not?: boolean }
+  /** счётчик хроники не ниже значения (not: ниже) — «новый круг», достижения */
+  | { type: 'meta_counter'; key: string; ge: number; not?: boolean }
+  /** известно ли настоящее имя персонажа (механика «Незнакомец») */
+  | { type: 'npc_known'; entity: string; known?: boolean; not?: boolean }
 
 export type DlgEffect =
-  | { type: 'set_flag'; flag: string }
+  | { type: 'set_flag'; flag: string; value?: boolean | number | string }
+  | { type: 'clear_flag'; flag: string }
   | { type: 'add_item'; item: string; qty: number }
   | { type: 'remove_item'; item: string; qty: number }
   | { type: 'fire_rule'; rule: string }
   | { type: 'join_party'; npc: string }
   | { type: 'open_trade'; npc: string }
+  /**
+   * Открыть окно изготовления (крафта) прямо по ходу сцены или реплики —
+   * без кнопки в интерфейсе. `recipe` (необязательно) подсвечивает нужный
+   * рецепт: «применить гаечный ключ к клапану → открылось изготовление
+   * клапана». Разговор/торговлю окно крафта закрывает.
+   */
+  | { type: 'open_craft'; recipe?: string }
   | { type: 'start_quest'; quest: string }
   | { type: 'advance_time'; ticks: number }
   | { type: 'change_need'; need: string; delta: number }
@@ -1919,6 +2160,29 @@ export type DlgEffect =
    * Повтор — no-op; рецепт без `known: false` открыт с самого начала.
    */
   | { type: 'unlock_recipe'; recipe: string }
+  /**
+   * Сменить облик/эмоцию персонажа репликой: портрет и спрайт переключаются
+   * на состояние `state` (ключ из портретов персонажа); `""` — обычный облик.
+   * В сыром ink — `~ set_entity_state("npc_ira", "angry")`.
+   */
+  | { type: 'set_entity_state'; entity: string; state: string }
+  /**
+   * Предъявить предмет/улику из инвентаря:
+   * `~ present_item("ok_knot", "fail_knot", "required_item_id")`.
+   */
+  | { type: 'present_item'; ok: string; fail: string; required?: string }
+  /** раскрыть настоящее имя персонажа игроку (механика «Незнакомец») */
+  | { type: 'learn_name'; entity: string; silent?: boolean }
+  /** перейти в другую сцену прямо из диалога (смена ракурса, крупный план или переезд) */
+  | { type: 'go_to_scene'; scene: string; close_dialogue?: boolean }
+  /** начать бой прямо из диалога (диалог закрывается и открывается боевая арена) */
+  | { type: 'start_combat'; arena: string }
+  /** сменить декорацию / состояние текущей сцены прямо под диалогом */
+  | { type: 'change_scene_state'; state: string; scene?: string }
+  /** завершить игру поражением / гибелью */
+  | { type: 'game_over_death'; message?: string }
+  /** завершить игру победой / успешным финалом */
+  | { type: 'game_over_victory'; message?: string }
 
 /** шаг: реплика или игровое действие (порядок важен) */
 export type DlgStep =
@@ -1970,6 +2234,17 @@ export interface DlgNode {
   choices: DlgChoice[]
   /** узел без вариантов: куда перейти после реплик ('end' по умолчанию) */
   goto?: string
+  /**
+   * Дедлайн на раздумье (фидбек 27, §9 дизайн-документа): сколько секунд
+   * игрок может выбирать ответ в этом узле. Истекло — разговор уходит в
+   * узел `node` (или заканчивается, если он не задан). Работает только у
+   * узлов с вариантами ответа; в ink превращается в `set_dialogue_timer`.
+   */
+  timer?: {
+    seconds: number
+    /** id узла, куда уйти по истечении; пусто — разговор заканчивается */
+    node?: string
+  }
 }
 
 export interface DlgDoc {
@@ -1977,6 +2252,12 @@ export interface DlgDoc {
   /** название диалога для мастера (в списках вместо имени файла) */
   label?: string
   nodes: DlgNode[] // nodes[0] — начало разговора (knot main)
+  /**
+   * Мастерский сценарий (фидбек 29): текст, который мастер пишет словами.
+   * Канон для чтения человеком; nodes — структура, собранная из него (её
+   * читают формы, ink-генератор и движок). Правка форм пересобирает script.
+   */
+  script?: string
 }
 
 // ───────────────────────── арены (ТЗ 3.9) ─────────────────────────
@@ -2045,6 +2326,18 @@ export interface RecipeDef {
    * известен с самого начала.
    */
   known?: boolean
+  /** индивидуальный звук изготовления (например, звон наковальни, шипение реактивов, шорох шитья) */
+  sound?: string
+  sound_volume?: number
+  /** динамические условия знания/доступности рецепта (навыки, флаги, черты, квесты) */
+  conditions?: Condition[]
+  /**
+   * Требуется стационарный верстак / мастерская (boolean или id рабочего места).
+   * Без верстака в полевых условиях такой предмет изготовить нельзя.
+   */
+  workbench?: boolean | string
+  /** категория рецепта для фильтрации мастера и игрока */
+  category?: string
 }
 
 // ───────────────────────── квесты (ТЗ 3.7) ─────────────────────────
@@ -2114,9 +2407,14 @@ export interface EncounterFileDef {
 export interface CampaignManifest {
   scenes: string[]
   entities: string[]
+  /** файлы ПРАВИЛ (RuleDef: id/label/once/conditions/effects). Файлы таблиц встреч
+   *  (`encounter_tables`) сюда НЕ перечисляют — только в `encounters`. */
   rules: string[]
   arenas?: string[]
   quests?: string[]
+  /** файлы-обёртки таблиц встреч `{ encounter_tables: [...] }`: сами лежат в
+   *  каталоге rules/, но перечисляются ТОЛЬКО здесь (дыра: дубль в `rules`
+   *  давал «правило» без id/conditions и ронял движок и редактор). */
   encounters?: string[]
   cutscenes?: string[]
   recipes?: string[]
@@ -2144,6 +2442,8 @@ export type Condition =
   | { type: 'tick_elapsed'; min_tick: number }
   | { type: 'quest_at_stage'; quest: string; stage: string }
   | { type: 'has_item'; item: string; min_quantity?: number }
+  /** предмет экипирован на герое в любом слоте */
+  | { type: 'equipped'; item: string }
   | { type: 'skill_ge'; skill: string; threshold: number }
   /** характеристика героя не ниже порога (аудит §5.6 п.6) */
   | { type: 'stat_ge'; stat: string; threshold: number }
@@ -2196,12 +2496,14 @@ export type Condition =
   | { type: 'random_chance'; probability: number }
   | { type: 'has_status'; status: string }
   | { type: 'weather_is'; weather: string }
+  /** известно ли настоящее имя персонажа (механика «Незнакомец») */
+  | { type: 'npc_known'; entity: string; known?: boolean }
   | { type: 'and'; conditions: Condition[] }
   | { type: 'or'; conditions: Condition[] }
   | { type: 'not'; condition: Condition }
 
 export type Effect =
-  | { type: 'set_flag'; flag: string }
+  | { type: 'set_flag'; flag: string; value?: boolean | number | string }
   | { type: 'clear_flag'; flag: string }
   /** наложить статус (блок 5 ТЗ); цель в мире — игрок */
   | { type: 'apply_status'; target: 'player'; status: string; duration?: number }
@@ -2217,12 +2519,20 @@ export type Effect =
    */
   | { type: 'unlock_recipe'; recipe: string }
   /**
+   * Открыть окно изготовления (крафта) эффектом правила, предмета или
+   * реплики — как `open_trade`, только про верстак. `recipe` подсвечивает
+   * нужный рецепт (например ремонт клапана из окна сцены).
+   */
+  | { type: 'open_craft'; recipe?: string }
+  /**
    * Сменить состояние облика сущности (ключ из `portrait` НПЦ или
    * `scene_sprite_states`): правило переводит персонажа в «злой/испуганный/
    * раненый». Пустая строка state возвращает обычный облик. Опечатку в
    * состоянии ловит «Проверить кампанию» — иначе она тихо ничего не делала бы.
    */
   | { type: 'set_entity_state'; entity: string; state: string }
+  /** раскрыть настоящее имя персонажа игроку (механика «Незнакомец») */
+  | { type: 'learn_name'; entity: string; silent?: boolean }
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
@@ -2463,6 +2773,10 @@ export type Effect =
   | { type: 'game_over_victory' }
   | { type: 'game_over_death'; reason?: string }
   | { type: 'play_cutscene'; cutscene: string }
+  | { type: 'play_sound'; sound: string; volume?: number }
+  | { type: 'stop_sound'; sound?: string }
+  | { type: 'override_music'; tracks: string[]; fade?: number }
+  | { type: 'clear_music_override'; fade?: number }
 
 export interface RuleDef {
   id: string
@@ -2470,11 +2784,18 @@ export interface RuleDef {
   once: boolean
   /** manual-правило не проверяется автоматически — только вызывается по id (on_zero_effect и т.п.) */
   manual?: boolean
+  /** триггер проверки: always (по умолчанию), enter_scene (вход на сцену), leave_scene (попытка уйти со сцены), interact (взаимодействие), time_tick */
+  trigger?: 'always' | 'enter_scene' | 'leave_scene' | 'interact' | 'time_tick'
+  /** УСЛОВИЯ правила (все должны выполниться). Обязательный массив; пустой —
+   *  правило срабатывает при каждой проверке (если не once/manual).
+   *  Отсутствие поля ломает движок при старте забега. */
   conditions: Condition[]
   /** ИЛИ-группы условий: И внутри группы, ИЛИ между группами. Правило активно,
    *  когда верны все `conditions` И хотя бы одна группа. Пусто/нет — как раньше.
    *  Вложенность ещё глубже не допускается (довольно и `and`/`or` в самих условиях). */
   conditions_any?: Condition[][]
+  /** ЭФФЕКТЫ правила по порядку. Обязательный массив (пустой — правило-пустышка).
+   *  Отсутствие поля ломает движок при старте забега. */
   effects: Effect[]
   /** глава (id из meta.chapters) — группировка в редакторе */
   chapter?: string
@@ -2787,6 +3108,10 @@ export interface GameState {
     calling?: string
     skills: Record<string, number>
   }
+  /** id персонажей, чьи имена раскрыты игроку (механика «Незнакомец») */
+  known_npcs?: string[]
+  /** id сцен, для которых вводное повествование (narrative_intro) уже было просмотрено */
+  seen_narrative_intros?: string[]
   flags: Record<string, boolean>
   variables: Record<string, number | string>
   /** динамические описания сущностей (действие set_description) */
@@ -2806,6 +3131,10 @@ export interface GameState {
   /** активные ценовые события (аудит B7) */
   price_events?: string[]
   party: CompanionState[]
+  /** остатки товаров на складах торговцев: traderId -> itemId -> текущий остаток */
+  trader_stocks?: Record<string, Record<string, number>>
+  /** выкупленные торговцем предметы у игрока: traderId -> массив выкупленных товаров для обратной продажи */
+  trader_bought_items?: Record<string, Array<{ item: string; price?: number; stock?: number }>>
   /**
    * Самочувствие NPC (потребность в отдыхе, аудит §5.6): 0..100, умолчание 50.
    * Каждую новую сутки: персонаж, у которого расписание покрывает ночь,
@@ -2901,3 +3230,9 @@ export const MONOLITH_REQUIRED_KEYS = [
   'campaign', 'world', 'scenes', 'entities', 'rules', 'quests', 'arenas', 'cutscenes', 'dialogues',
 ] as const satisfies readonly (keyof MonolithDoc)[]
 export const MONOLITH_OPTIONAL_KEYS = ['encounters', 'recipes', 'codex'] as const satisfies readonly (keyof MonolithDoc)[]
+
+/** Получить настраиваемую системную надпись интерфейса с фоллбэком по умолчанию */
+export function getUiLabel(meta: CampaignMeta | undefined, key: string, fallback: string): string {
+  const val = meta?.ui_labels?.[key]?.trim()
+  return val || fallback
+}
