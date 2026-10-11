@@ -10,8 +10,14 @@ EXTERNAL fire_rule(a0)
 VAR r = 0
 
 === Начало ===
+{ get_flag("met_kell"): -> Снова }
 Келл не встаёт. Он просто кладёт руку на рукоять клинка. # action # sfx: snd_blade # voice: assets/voice/narr_kell_1.mp3
 Дознаватель. Я тебя не вызывал. # voice: assets/voice/kell_6.mp3
+~ set_flag("met_kell")
+-> Начало_hub
+
+=== Снова ===
+Келл узнаёт тебя и не убирает руки с рукояти. # action # voice: assets/voice/narr_kell_rep.mp3
 -> Начало_hub
 
 === Начало_hub ===
@@ -29,7 +35,7 @@ VAR r = 0
     {r: -> Начало_hub_ok2 | -> Начало_hub_no2}
 + { has_item("item_roster") and not (get_flag("kell_confessed")) } [Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.]
     -> Наряд
-+ { has_item("item_guard_token") and not (get_flag("kell_token")) } [Положить перед Келлом жетон стража.]
++ { not (get_flag("kell_token")) } [Положить перед Келлом находку.]
     ~ present_item("Жетон", "Жетон_мимо", "item_guard_token")
     -> DONE
 + [Пропусти меня к помпе.]
@@ -90,5 +96,4 @@ VAR r = 0
 
 === Жетон_мимо ===
 Келл смотрит сначала на вещь, потом на тебя — и без всякого интереса. # action # voice: assets/voice/narr_kell_5.mp3
-Я жетоны не собираю. Положи, где взял. # emotion: calm # voice: assets/voice/kell_8.mp3
 -> Начало_hub

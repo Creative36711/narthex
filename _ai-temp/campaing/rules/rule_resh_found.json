@@ -43,7 +43,13 @@
       "image": "assets/img/pc_resh_found.jpg",
       "text": "Мастер Реш. Живой — и всё ещё с записями.",
       "preset": "глава",
-      "seconds": 6
+      "seconds": 6,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 7
+      }
     }
   ],
   "chapter": "ch_deep",

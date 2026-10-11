@@ -12,7 +12,20 @@
       "id": "state_main",
       "label": "Жила в породе",
       "condition": null,
-      "image": "assets/img/scenes/scene_face.jpg"
+      "image": {
+        "frames": [
+          "assets/img/scenes/anim/face_vein_1.jpg",
+          "assets/img/scenes/anim/face_vein_2.jpg",
+          "assets/img/scenes/anim/face_vein_3.jpg",
+          "assets/img/scenes/anim/face_vein_4.jpg",
+          "assets/img/scenes/anim/face_vein_5.jpg",
+          "assets/img/scenes/anim/face_vein_6.jpg",
+          "assets/img/scenes/anim/face_vein_7.jpg",
+          "assets/img/scenes/anim/face_vein_8.jpg"
+        ],
+        "fps": 4,
+        "loop": true
+      }
     },
     {
       "id": "state_sealed",

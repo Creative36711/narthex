@@ -48,7 +48,13 @@
           "image": "assets/img/pc_patrol_pump.jpg",
           "text": "Один смотрит на жетон, второй — в сторону.",
           "preset": "шёпот",
-          "seconds": 5
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
         }
       ],
       "fail_effects": [
@@ -76,7 +82,13 @@
               "image": "assets/img/pc_patrol_beaten.jpg",
               "text": "Караульные уходят, прижимая руки к бокам.",
               "preset": "шёпот",
-              "seconds": 5
+              "seconds": 5,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 6
+              }
             }
           ]
         }

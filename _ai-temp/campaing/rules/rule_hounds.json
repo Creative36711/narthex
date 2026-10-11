@@ -37,7 +37,13 @@
           "image": "assets/img/pc_hounds_pass.jpg",
           "text": "Псы теряют след в стоячей воде.",
           "preset": "шёпот",
-          "seconds": 5
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
         }
       ],
       "fail_effects": [
@@ -65,7 +71,13 @@
               "image": "assets/img/pc_hound_retreats.jpg",
               "text": "Пёс уходит в воду.",
               "preset": "шёпот",
-              "seconds": 5
+              "seconds": 5,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 6
+              }
             }
           ]
         },

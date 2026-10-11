@@ -12,7 +12,20 @@
       "id": "state_main",
       "label": "Вода давит на затвор",
       "condition": null,
-      "image": "assets/img/scenes/scene_sluice.jpg"
+      "image": {
+        "frames": [
+          "assets/img/scenes/anim/sluice_1.jpg",
+          "assets/img/scenes/anim/sluice_2.jpg",
+          "assets/img/scenes/anim/sluice_3.jpg",
+          "assets/img/scenes/anim/sluice_4.jpg",
+          "assets/img/scenes/anim/sluice_5.jpg",
+          "assets/img/scenes/anim/sluice_6.jpg",
+          "assets/img/scenes/anim/sluice_7.jpg",
+          "assets/img/scenes/anim/sluice_8.jpg"
+        ],
+        "fps": 6,
+        "loop": true
+      }
     },
     {
       "id": "state_drained",

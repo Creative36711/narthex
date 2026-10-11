@@ -19,7 +19,13 @@
       "image": "assets/img/pc_pack.jpg",
       "text": "Узел на лямке. Так вязал только Стась.",
       "preset": "шёпот",
-      "seconds": 5
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     }
   ]
 }

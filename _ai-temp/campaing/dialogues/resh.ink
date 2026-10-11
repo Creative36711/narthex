@@ -1,3 +1,4 @@
+EXTERNAL change_companion_need(a0, a1, a2)
 EXTERNAL fire_rule(a0)
 EXTERNAL in_party(a0)
 EXTERNAL add_item(a0, a1)
@@ -14,11 +15,22 @@ EXTERNAL learn_name(a0)
 VAR r = 0
 
 === Начало ===
+{ get_flag("met_resh"): -> Снова }
 Реш сидит спиной к стене и смотрит не на тебя — в стену. # action # voice: assets/voice/narr_resh_1.mp3
 Ты пришёл меня арестовать или послушать? Арестовывать удобнее: для этого не надо понимать. # voice: assets/voice/resh_1.mp3
 Семёрку не чинили, потому что ей не давали ходу. Это разные вещи, и разница между ними стоит семьдесят два часа. # voice: assets/voice/resh_12.mp3
 Я не прятался. Я ждал, пока кто-нибудь спустится и задаст правильный вопрос. # voice: assets/voice/resh_13.mp3
 ~ learn_name("npc_resh")
+~ set_flag("met_resh")
+-> Начало_hub
+
+=== Снова ===
+{ in_party("npc_resh"): -> В_пути }
+Реш поворачивает голову на звук шагов: он уже знает, кто пришёл. # action # voice: assets/voice/narr_resh_rep.mp3
+-> Начало_hub
+
+=== В_пути ===
+Реш шагает следом, придерживаясь ладонью за стену, и ждёт, что ты скажешь. # action
 -> Начало_hub
 
 === Начало_hub ===
@@ -33,7 +45,8 @@ VAR r = 0
     Стража. Я видел пломбу на их рукавицах: тринадцать-К. У нас на ярусе пломбы только у тех, кто закрывает. # emotion: angry # voice: assets/voice/resh_6.mp3
     Муфту резали ключом на пятьдесят два, в перчатках: на срезе ни одной мозоли. Сорок лет смотрю, как режут, — по металлу видно, чья рука держала ключ. # emotion: thoughtful # voice: assets/voice/resh_14.mp3
     -> Начало_hub
-* { not (has_item("item_core")) and not (has_item("item_key_cache")) } [Отдай сердцевину.]
+* { not (has_item("item_core")) and not (has_item("item_key_cache")) and not (get_flag("resh_core_asked")) and not (get_flag("sluice_ready")) } [Отдай сердцевину.]
+    ~ set_flag("resh_core_asked")
     ~ r = skill_check("persuade", 55)
     {r: -> Начало_hub_ok1 | -> Начало_hub_no1}
 + [Что такое жила?]
@@ -51,6 +64,10 @@ VAR r = 0
     Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту. # voice: assets/voice/resh_8.mp3
     ~ join_party("npc_resh")
     ~ set_flag("resh_joined")
+    ~ change_companion_need("npc_resh", "need_hunger", -72)
+    ~ change_companion_need("npc_resh", "need_thirst", -50)
+    ~ change_companion_need("npc_resh", "need_rest", -45)
+    ~ fire_rule("rule_resh_joins_card")
     -> Начало_hub
 + { has_item("item_filter") } [Дыхатель держит только две банки?]
     Первая банка садится ещё в штольне, вторая — у самого забоя. Кто спускается в третий раз со старой маской, тот дышит уже собой. # emotion: thoughtful # voice: assets/voice/resh_15.mp3
@@ -67,7 +84,21 @@ VAR r = 0
     ~ set_flag("resh_trusts")
     ~ fire_rule("rule_resh_ira")
     -> Начало_hub
-+ [Мне пора.]
+* { get_flag("sluice_ready") and not (has_item("item_core")) and not (has_item("item_key_cache")) and not (get_flag("core_taken")) } [Затвор держит. Теперь отдай сердцевину.]
+    Слышал, как он сел, — по трубам слышно. Ладно. Бери сердцевину и ключ от схрона. Только не торопи воду: она помнит, кто её торопил. # emotion: thoughtful # voice: assets/voice/resh_18.mp3
+    ~ add_item("item_core", 1)
+    ~ add_item("item_key_cache", 1)
+    ~ set_flag("core_taken")
+    ~ fire_rule("rule_resh_core_given")
+    -> Начало_hub
++ { get_flag("resh_joined") and not (in_party("npc_resh")) } [Пойдём со мной снова.]
+    Он встаёт тяжело, опираясь о стену ладонью. # action # sfx: snd_stone # voice: assets/voice/narr_resh_2.mp3
+    Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту. # voice: assets/voice/resh_8.mp3
+    ~ join_party("npc_resh")
+    -> DONE
++ { not (in_party("npc_resh")) } [Мне пора.]
+    -> DONE
++ { in_party("npc_resh") } [Идём дальше.]
     -> DONE
 - -> Начало_hub
 

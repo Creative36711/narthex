@@ -34,5 +34,6 @@
   "sounds": {},
   "combat_figure": "assets/img/npc/fig_registrar.png",
   "figure_mode": "topdown",
-  "breathe": false
+  "breathe": false,
+  "facing_offset": 180
 }

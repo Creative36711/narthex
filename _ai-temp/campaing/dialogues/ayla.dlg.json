@@ -7,7 +7,23 @@
       "label": "Начало разговора",
       "sections": [
         {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_ayla"
+            }
+          ],
           "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Айла кивает на табурет, не отрываясь от бинтов.",
+                "action": true,
+                "voice": "assets/voice/narr_ayla_rep.mp3"
+              }
+            }
+          ],
+          "else_steps": [
             {
               "kind": "line",
               "line": {
@@ -37,6 +53,13 @@
                 "type": "learn_name",
                 "entity": "npc_ayla",
                 "silent": true
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_ayla"
               }
             }
           ]

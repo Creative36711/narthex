@@ -39,7 +39,13 @@
           "image": "assets/img/pc_charge_rigged.jpg",
           "text": "Капля за каплей вода точит медь.",
           "preset": "шёпот",
-          "seconds": 5
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
         }
       ],
       "fail_effects": [

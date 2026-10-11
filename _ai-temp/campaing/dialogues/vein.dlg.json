@@ -7,7 +7,23 @@
       "label": "Начало разговора",
       "sections": [
         {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_vein"
+            }
+          ],
           "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Свет в стене вздрагивает и разгорается ровнее, узнавая тебя.",
+                "action": true,
+                "voice": "assets/voice/narr_vein_rep.mp3"
+              }
+            }
+          ],
+          "else_steps": [
             {
               "kind": "line",
               "line": {
@@ -35,6 +51,13 @@
               "line": {
                 "text": "Ты считаешь, что спасаешь город. Я под ним стою сто тридцать семь лет: мне виднее, что здесь спасать.",
                 "voice": "assets/voice/vein_8.mp3"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_vein"
               }
             }
           ]
@@ -212,7 +235,7 @@
         }
       ],
       "choices": [],
-      "goto": "Начало"
+      "goto": "end"
     }
   ]
 }

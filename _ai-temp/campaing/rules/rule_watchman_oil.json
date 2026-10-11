@@ -58,7 +58,13 @@
           "image": "assets/img/pc_watchman_oil.jpg",
           "text": "Маслёнка до краёв. Глаз смотрителя гаснет.",
           "preset": "шёпот",
-          "seconds": 5
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
         }
       ],
       "fail_effects": [

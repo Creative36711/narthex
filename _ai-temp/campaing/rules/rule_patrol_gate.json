@@ -36,7 +36,13 @@
           "image": "assets/img/pc_patrol_gate.jpg",
           "text": "С дознавателем связываться ему не платят.",
           "preset": "шёпот",
-          "seconds": 5
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
         }
       ],
       "fail_effects": [
@@ -58,6 +64,19 @@
             {
               "type": "grant_xp",
               "points": 20
+            },
+            {
+              "type": "postcard",
+              "image": "assets/img/pc_patrol_beaten.jpg",
+              "text": "Документы он больше не спросит.",
+              "preset": "шёпот",
+              "seconds": 5,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 6
+              }
             }
           ]
         }

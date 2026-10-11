@@ -60,5 +60,6 @@
   "combat_figure_states": {
     "down": "assets/img/npc/fig_ashhound_dead.png",
     "dead": "assets/img/npc/fig_ashhound_dead.png"
-  }
+  },
+  "facing_offset": 180
 }

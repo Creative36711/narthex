@@ -12,7 +12,18 @@
       "id": "state_day",
       "label": "У общего огня",
       "condition": null,
-      "image": "assets/img/scenes/scene_dry_row.jpg"
+      "image": {
+        "frames": [
+          "assets/img/scenes/anim/dry_row_fire_1.jpg",
+          "assets/img/scenes/anim/dry_row_fire_2.jpg",
+          "assets/img/scenes/anim/dry_row_fire_3.jpg",
+          "assets/img/scenes/anim/dry_row_fire_4.jpg",
+          "assets/img/scenes/anim/dry_row_fire_5.jpg",
+          "assets/img/scenes/anim/dry_row_fire_6.jpg"
+        ],
+        "fps": 7,
+        "loop": true
+      }
     },
     {
       "id": "state_night",
@@ -22,7 +33,18 @@
           "night"
         ]
       },
-      "image": "assets/img/scenes/scene_dry_row_night.jpg",
+      "image": {
+        "frames": [
+          "assets/img/scenes/anim/dry_row_night_fire_1.jpg",
+          "assets/img/scenes/anim/dry_row_night_fire_2.jpg",
+          "assets/img/scenes/anim/dry_row_night_fire_3.jpg",
+          "assets/img/scenes/anim/dry_row_night_fire_4.jpg",
+          "assets/img/scenes/anim/dry_row_night_fire_5.jpg",
+          "assets/img/scenes/anim/dry_row_night_fire_6.jpg"
+        ],
+        "fps": 6,
+        "loop": true
+      },
       "sound": "sfx_bell",
       "sound_volume": 0.5
     }
@@ -96,7 +118,7 @@
     },
     {
       "id": "slot_bench_row",
-      "label": "Верстак у стены",
+      "label": "Скамья у стены",
       "type": [
         "person",
         "prop",
@@ -108,7 +130,7 @@
       "w": 85,
       "h": 100,
       "condition": null,
-      "default_entity": "item_bench",
+      "default_entity": "item_row_bench",
       "sound": "sfx_anvil",
       "sound_volume": 0.7,
       "environmental": true

@@ -27,6 +27,10 @@
         {
           "type": "grant_xp",
           "points": 10
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_glazier_card"
         }
       ],
       "on_defeat": [

@@ -1,0 +1,22 @@
+{
+  "id": "rule_resh_core_given",
+  "label": "Реш отдаёт сердцевину",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_resh_core.jpg",
+      "text": "Сердцевина тёплая, как будто её только что вынули из груди.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    }
+  ]
+}

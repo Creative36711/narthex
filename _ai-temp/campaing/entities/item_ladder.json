@@ -40,7 +40,13 @@
               "image": "assets/img/pc_valve_found.jpg",
               "text": "Клапан с семёркой — примотан проволокой к скобе. Не потерян. Спрятан.",
               "preset": "шёпот",
-              "seconds": 5
+              "seconds": 5,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 6
+              }
             }
           ],
           "fail_effects": [
@@ -113,7 +119,13 @@
           "image": "assets/img/pc_valve_found.jpg",
           "text": "Клапан с семёркой — примотан проволокой к скобе. Не потерян. Спрятан.",
           "preset": "шёпот",
-          "seconds": 5
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
         }
       ]
     },
@@ -132,7 +144,13 @@
           "image": "assets/img/pc_shaft_water.jpg",
           "text": "Девятая скоба — и чёрная вода. Здесь вниз не пройти.",
           "preset": "шёпот",
-          "seconds": 4
+          "seconds": 4,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 5
+          }
         },
         {
           "type": "show_message",

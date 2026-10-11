@@ -7,7 +7,23 @@
       "label": "Начало разговора",
       "sections": [
         {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_vex"
+            }
+          ],
           "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Векс кивает от пульта, не прерывая записи в журнале.",
+                "action": true,
+                "voice": "assets/voice/narr_vex_rep.mp3"
+              }
+            }
+          ],
+          "else_steps": [
             {
               "kind": "line",
               "line": {
@@ -36,6 +52,13 @@
               "line": {
                 "text": "Журнал врёт редко. Чаще его просто не дописывают до конца смены.",
                 "voice": "assets/voice/vex_10.mp3"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_vex"
               }
             }
           ]
@@ -80,7 +103,61 @@
               ]
             }
           ],
-          "goto": "stay"
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "in_party",
+              "npc": "npc_resh",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Что с седьмой помпой?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Стоит. Третий день стоит. Механики приходили, слушали, уходили, а вода всё прибывает.",
+                    "voice": "assets/voice/vex_5.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Он крутит маховик на четверть оборота — тот идёт свободно, как в пустоте.",
+                    "action": true,
+                    "sfx": "sfx_gear",
+                    "voice": "assets/voice/narr_vex_2.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "А вот и сам мастер. Я тебя записал вниз в восемнадцать сорок, Эрдан. Обратно так и не записал. Сейчас запишу.",
+                    "voice": "assets/voice/vex_23.mp3",
+                    "emotion": "thoughtful"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_pumps"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "in_party",
+              "npc": "npc_resh"
+            }
+          ]
         },
         {
           "text": "Кто проходил через шлюз в ночь тринадцатого?",

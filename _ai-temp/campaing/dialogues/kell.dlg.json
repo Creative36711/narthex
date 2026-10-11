@@ -7,7 +7,23 @@
       "label": "Начало разговора",
       "sections": [
         {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_kell"
+            }
+          ],
           "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Келл узнаёт тебя и не убирает руки с рукояти.",
+                "action": true,
+                "voice": "assets/voice/narr_kell_rep.mp3"
+              }
+            }
+          ],
+          "else_steps": [
             {
               "kind": "line",
               "line": {
@@ -22,6 +38,13 @@
               "line": {
                 "text": "Дознаватель. Я тебя не вызывал.",
                 "voice": "assets/voice/kell_6.mp3"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_kell"
               }
             }
           ]
@@ -251,7 +274,7 @@
           "goto": "Наряд"
         },
         {
-          "text": "Положить перед Келлом жетон стража.",
+          "text": "Положить перед Келлом находку.",
           "sections": [
             {
               "steps": [
@@ -269,10 +292,6 @@
           ],
           "goto": "Жетон",
           "conds": [
-            {
-              "type": "has_item",
-              "item": "item_guard_token"
-            },
             {
               "type": "flag",
               "flag": "kell_token",
@@ -507,14 +526,6 @@
                 "text": "Келл смотрит сначала на вещь, потом на тебя — и без всякого интереса.",
                 "action": true,
                 "voice": "assets/voice/narr_kell_5.mp3"
-              }
-            },
-            {
-              "kind": "line",
-              "line": {
-                "text": "Я жетоны не собираю. Положи, где взял.",
-                "emotion": "calm",
-                "voice": "assets/voice/kell_8.mp3"
               }
             }
           ]

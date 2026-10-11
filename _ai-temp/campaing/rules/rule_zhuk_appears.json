@@ -25,7 +25,13 @@
       "image": "assets/img/pc_zhuk_gate.jpg",
       "text": "Чужая кепка уходит вниз.",
       "preset": "шёпот",
-      "seconds": 4
+      "seconds": 4,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 5
+      }
     },
     {
       "type": "set_flag",

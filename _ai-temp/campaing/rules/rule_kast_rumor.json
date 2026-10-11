@@ -33,7 +33,13 @@
       "image": "assets/img/pc_kast_rumor.jpg",
       "text": "Наверху уже знают.",
       "preset": "шёпот",
-      "seconds": 4
+      "seconds": 4,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 5
+      }
     },
     {
       "type": "show_message",

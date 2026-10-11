@@ -29,7 +29,13 @@
       "image": "assets/img/pc_kast_note.jpg",
       "text": "Каст читает записку мастера дважды.",
       "preset": "шёпот",
-      "seconds": 5
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     }
   ],
   "chapter": "ch_price"

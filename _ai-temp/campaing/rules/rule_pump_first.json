@@ -30,7 +30,13 @@
       "image": "assets/img/pc_pump_first.jpg",
       "text": "Седьмая помпа молчит. Муфта срезана, и тишина здесь громче привода.",
       "preset": "шёпот",
-      "seconds": 5
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     },
     {
       "type": "set_entity_state",

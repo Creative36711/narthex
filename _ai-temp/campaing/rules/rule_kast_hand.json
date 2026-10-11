@@ -32,7 +32,13 @@
       "image": "assets/img/pc_lockdown_lifted.jpg",
       "text": "Режим тишины снят. Шлюзы держат открытыми.",
       "preset": "шёпот",
-      "seconds": 5
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     },
     {
       "type": "show_message",
