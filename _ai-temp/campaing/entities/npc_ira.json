@@ -9,7 +9,8 @@
     "afraid": "assets/img/npc/ira_afraid.jpg",
     "thoughtful": "assets/img/npc/ira_thoughtful.jpg",
     "sad": "assets/img/npc/ira_sad.jpg",
-    "calm": "assets/img/npc/ira_calm.jpg"
+    "calm": "assets/img/npc/ira_calm.jpg",
+    "tired": "assets/img/npc/ira_tired.jpg"
   },
   "stats": {
     "STR": 8,
@@ -63,5 +64,13 @@
   "combat_figure_states": {
     "down": "assets/img/npc/fig_ira_down.png",
     "dead": "assets/img/npc/fig_ira_down.png"
-  }
+  },
+  "companion_needs": [
+    "need_hunger",
+    "need_thirst",
+    "need_rest",
+    "need_warmth"
+  ],
+  "companion_carry": true,
+  "facing_offset": 180
 }

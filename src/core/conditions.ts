@@ -86,6 +86,14 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.getDisposition(c.target) <= c.threshold
     case 'in_party':
       return engine.isInParty(c.entity)
+    case 'companion_need_le': {
+      const v = engine.companionNeed(c.entity, c.need)
+      return v != null && v <= c.threshold
+    }
+    case 'companion_need_ge': {
+      const v = engine.companionNeed(c.entity, c.need)
+      return v == null || v >= c.threshold
+    }
     case 'has_status':
       return engine.hasStatus(c.status)
     case 'weather_is':

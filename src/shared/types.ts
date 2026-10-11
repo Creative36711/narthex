@@ -449,6 +449,8 @@ export interface HeroPortraitOption {
   /** необязательная постоянная фигурка боя, выбираемая только при создании героя */
   combat_figure?: ImageValue
   combat_figure_mode?: 'topdown' | 'side' | 'static'
+  /** сдвиг разворота этой фигурки, градусы (см. NpcDef.facing_offset) */
+  combat_facing_offset?: number
 }
 
 /**
@@ -470,6 +472,8 @@ export interface HeroPortraitLayerDef {
     /** постоянная фигурка боя, если этот выбор характеризует стартовый облик */
     combat_figure?: ImageValue
     combat_figure_mode?: 'topdown' | 'side' | 'static'
+    /** сдвиг разворота этой фигурки, градусы (см. NpcDef.facing_offset) */
+    combat_facing_offset?: number
   }>
 }
 
@@ -1694,9 +1698,20 @@ export interface NpcDef {
   /** состояния фигурки боя: 'dead' — погиб, 'down' — без сознания/выведен,
    *  id статуса — пока статус активен. Пустой ключ = обычная (combat_figure). */
   combat_figure_states?: Record<string, ImageValue>
-  /** как разворачивать фигурку: вид сверху (поворот), вид сбоку (зеркало),
-   *  не разворачивать; по умолчанию 'topdown' */
+  /** как разворачивать фигурку: 'topdown' — поворот картинки к цели (арту «вид сверху»),
+   *  'side' — только зеркало влево/вправо, БЕЗ поворота (исключительно для фронтального/
+   *  вертикального арта; на арте «сверху» фигурка вечно смотрит в камеру — частая ошибка),
+   *  'static' — не разворачивать; по умолчанию 'topdown'. Режим выбирается стилем арта и
+   *  в одной кампании, как правило, один на всех сущностей — при перегенерации арта
+   *  синхронизируй figure_mode/facing_offset у всех. */
   figure_mode?: 'topdown' | 'side' | 'static'
+  /** сдвиг разворота фигурки, градусы по часовой (только режим 'topdown'):
+   *  прибавляется к вычисленному движком направлению при отрисовке. Нужен,
+   *  если готовый арт смотрит не строго «вверх» (0°): 180 — фигурка нарисована
+   *  вниз (на юг), 90 — вправо, -90 — влево. Влияет только на картинку:
+   *  игровая логика (задняя дуга удара в спину и т.п.) считается по реальному
+   *  направлению бойца. По умолчанию 0. */
+  facing_offset?: number
   /** мягкая тень под спрайтом/фигуркой (по умолчанию включена) */
   shadow?: boolean
   /**
@@ -1724,6 +1739,21 @@ export interface NpcDef {
   carry_capacity_bonus?: number
   /** Расовый/индивидуальный множитель грузоподъёмности (напр. 2.5 для мутантов, гигантов, четвероногих) */
   carry_capacity_mult?: number
+  /** НАПАРНИК: набор потребностей, которые тикают у существа в отряде (id из
+   *  реестра `meta.needs`; пусто/нет — потребностей нет: робот, нежить).
+   *  Убывают и восстанавливаются по тикам теми же правилами, что у героя; общий
+   *  стол: когда потребность героя растёт (еда, сон — эффект change_need с
+   *  положительной дельтой), напарник, отслеживающий ту же потребность, растёт
+   *  на столько же. Ниже `critical_threshold` собственной потребности — штраф
+   *  навыкам в бою и метка «истощён». Читать/менять из правил и ink:
+   *  условия `companion_need_le`/`companion_need_ge`, эффект
+   *  `change_companion_need`. */
+  companion_needs?: string[]
+  /** НАПАРНИК: «вторая сумка» — у существа есть собственный инвентарь, между
+   *  героем и напарником можно передавать предметы; надетые напарником оружие
+   *  и броня используются им в бою. Грузоподъёмность считается по тем же
+   *  формулам энкадменса, что у героя */
+  companion_carry?: boolean
   trader?: TraderDef | null
   combat_ai?: string
   /** броня в очках (если нет предмета-брони) */
@@ -1891,7 +1921,9 @@ export interface ItemDef {
   weight: number
   value?: Record<string, number>
   stackable: boolean
-  /** сюжетный/квестовый предмет: нельзя случайно выбросить или продать */
+  /** сюжетный/квестовый предмет: нельзя случайно выбросить, продать или передать
+   *  напарнику через сумку (уход/гибель напарника не съест критическую вещь).
+   *  Скриптовая передача эффектом transfer_to_companion остаётся решением мастера. */
   quest_item?: boolean
   /** Срок годности предмета в игровых тиках (например, 24 = 24 часа). Если не задан — предмет не портится */
   decay_ticks?: number
@@ -2144,6 +2176,16 @@ export type DlgEffect =
   | { type: 'advance_time'; ticks: number }
   | { type: 'change_need'; need: string; delta: number }
   | { type: 'change_hp'; delta: number }
+  /** сдвинуть потребность напарника (id из его companion_needs) на дельту;
+   *  в сыром ink — `~ change_companion_need("npc_ira", "need_hunger", 30)` */
+  | { type: 'change_companion_need'; npc: string; need: string; delta: number }
+  /** передать предмет из сумки героя напарнику с включённой «второй сумкой»
+   *  (companion_carry) — в сыром ink `~ give_to("npc_ira", "item_filter", 1)`;
+   *  нет сумки/предмета — эффект тихо не срабатывает */
+  | { type: 'transfer_to_companion'; npc: string; item: string; qty: number }
+  /** напарник покидает отряд (возвращается к своему расписанию);
+   *  в сыром ink — `~ leave_party("npc_ira")` */
+  | { type: 'leave_party'; npc: string }
   | { type: 'sleep'; ticks: number }
   | { type: 'change_disposition'; target: string; delta: number }
   | { type: 'play_cutscene'; cutscene: string }
@@ -2493,6 +2535,11 @@ export type Condition =
   | { type: 'disposition_ge'; target: string; threshold: number }
   | { type: 'disposition_le'; target: string; threshold: number }
   | { type: 'in_party'; entity: string }
+  /** потребность напарника (NpcDef.companion_needs) не выше / не ниже порога;
+   *  у существа вне отряда le — ложь, ge — истина; неотслеживаемая потребность
+   *  считается полной (робот не голодает) */
+  | { type: 'companion_need_le'; entity: string; need: string; threshold: number }
+  | { type: 'companion_need_ge'; entity: string; need: string; threshold: number }
   | { type: 'random_chance'; probability: number }
   | { type: 'has_status'; status: string }
   | { type: 'weather_is'; weather: string }
@@ -2565,6 +2612,10 @@ export type Effect =
   | { type: 'remove_item'; item: string; quantity?: number }
   | { type: 'change_need'; need: string; delta: number }
   | { type: 'change_hp'; delta: number }
+  /** сдвинуть потребность напарника (id из его companion_needs) на дельту */
+  | { type: 'change_companion_need'; entity: string; need: string; delta: number }
+  /** передать предмет из сумки героя напарнику со «второй сумкой» (companion_carry) */
+  | { type: 'transfer_to_companion'; entity: string; item: string; quantity?: number }
   | { type: 'change_skill'; skill: string; delta: number }
   | {
       type: 'skill_check_gate'
@@ -2962,6 +3013,14 @@ export interface CompanionState {
    * 'hold' (стоять и защищаться), 'retreat' (держаться подальше, не нападать).
    */
   order?: 'free' | 'follow' | 'hold' | 'retreat'
+  /** живые потребности напарника (только id из NpcDef.companion_needs):
+   *  need id → текущее значение 0..NeedDef.max; создаются при вступлении */
+  needs?: Record<string, number>
+  /** собственная сумка напарника (если у NpcDef включён companion_carry) */
+  inventory?: InventoryEntry[]
+  /** надетое снаряжение напарника: слот из meta.equipment_slots → id предмета
+   *  из его сумки; в бою замещает equipment карточки NPC */
+  equipment?: Record<string, string>
   /** цель приказа 'focus' на этот бой: id подразделения противника (в памяти боя) */
   focus?: string
 }

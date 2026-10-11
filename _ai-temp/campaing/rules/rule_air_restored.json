@@ -56,6 +56,10 @@
     {
       "type": "stop_sound",
       "sound": "sfx_gasp"
+    },
+    {
+      "type": "fire_rule",
+      "rule": "rule_air_back_card"
     }
   ],
   "chapter": "ch_deep",

@@ -27,7 +27,13 @@
       "image": "assets/img/pc_clues.jpg",
       "text": "Рукавица, наряд, жетон. Нитки сходятся в одну точку — к приводу.",
       "preset": "шёпот",
-      "seconds": 5
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     },
     {
       "type": "banner",

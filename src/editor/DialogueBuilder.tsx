@@ -82,6 +82,9 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'sleep', label: 'Сон (время + отдых)' },
   { id: 'start_quest', label: 'Начать квест' },
   { id: 'join_party', label: 'Взять в отряд' },
+  { id: 'leave_party', label: 'Напарник покидает отряд' },
+  { id: 'change_companion_need', label: 'Изменить потребность напарника' },
+  { id: 'transfer_to_companion', label: 'Передать предмет напарнику' },
   { id: 'play_cutscene', label: 'Показать катсцену' },
   { id: 'set_description', label: 'Изменить описание' },
   { id: 'apply_status', label: 'Наложить статус' },
@@ -109,6 +112,9 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'remove_item': return { type, item: '', qty: 1 }
     case 'fire_rule': return { type, rule: '' }
     case 'join_party': return { type, npc: '' }
+    case 'leave_party': return { type, npc: '' }
+    case 'change_companion_need': return { type, npc: '', need: '', delta: 10 }
+    case 'transfer_to_companion': return { type, npc: '', item: '', qty: 1 }
     case 'open_trade': return { type, npc: '' }
     case 'start_quest': return { type, quest: '' }
     case 'advance_time': return { type, ticks: 1 }
@@ -1155,8 +1161,22 @@ function EffectRow({
         </>
       )}
       {e.type === 'fire_rule' && <InlineRef kind="rule" store={store} value={e.rule} onChange={(v) => ((e.rule = v), commit())} />}
-      {(e.type === 'join_party' || e.type === 'open_trade') && (
+      {(e.type === 'join_party' || e.type === 'open_trade' || e.type === 'leave_party') && (
         <InlineRef kind="npc" store={store} value={e.npc} onChange={(v) => ((e.npc = v), commit())} />
+      )}
+      {e.type === 'change_companion_need' && (
+        <>
+          <InlineRef kind="npc" store={store} value={e.npc} onChange={(v) => ((e.npc = v), commit())} />
+          <InlineRef kind="need" store={store} value={e.need} onChange={(v) => ((e.need = v), commit())} />
+          <input type="number" value={e.delta} onChange={(ev) => ((e.delta = Number(ev.target.value)), commit())} />
+        </>
+      )}
+      {e.type === 'transfer_to_companion' && (
+        <>
+          <InlineRef kind="npc" store={store} value={e.npc} onChange={(v) => ((e.npc = v), commit())} />
+          <InlineRef kind="item" store={store} value={e.item} onChange={(v) => ((e.item = v), commit())} />
+          <input type="number" min={1} value={e.qty} onChange={(ev) => ((e.qty = Math.max(1, Number(ev.target.value))), commit())} />
+        </>
       )}
       {e.type === 'learn_name' && (
         <InlineRef kind="npc" store={store} value={e.entity} onChange={(v) => ((e.entity = v), commit())} />

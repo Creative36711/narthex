@@ -40,6 +40,8 @@ import type {
   PresenceOverride,
   SkillDifficulty,
   WeaponData,
+  CompanionState,
+  NeedDef,
 
   ImageValue,
 } from '../shared/types'
@@ -576,6 +578,33 @@ export class GameEngine {
           if (next <= 0 && cur > 0) this.onNeedZero(need.id)
         }
       }
+      // потребности напарников (NpcDef.companion_needs): те же темпы и условия
+      // убыли/восстановления, что у героя; без «на нуле»-исходов — это
+      // истощение существа, а не конец игры (последствия описывает мастер
+      // правилами через условия companion_need_le/ge)
+      if (needsOn && this.state.party.length) {
+        for (const comp of this.state.party) {
+          if (!comp.needs) continue
+          for (const need of meta.needs) {
+            const cur = comp.needs[need.id]
+            if (cur === undefined) continue
+            let next = cur
+            const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
+            if (decays) next = Math.max(0, next - need.decay_per_tick * (this.difficultyDef()?.need_decay ?? 1))
+            if (
+              need.restore_per_tick &&
+              (!need.restore_when?.length || need.restore_when.every((c) => this.needCondOk(c)))
+            ) {
+              next = Math.min(need.max, next + need.restore_per_tick)
+            }
+            comp.needs[need.id] = next
+            if (next <= 0 && cur > 0) {
+              const cdef = this.campaign.entities[comp.entity] as NpcDef | undefined
+              this.pushLog(`${cdef?.label ?? comp.entity} на пределе: ${need.label.toLowerCase()} на нуле.`)
+            }
+          }
+        }
+      }
       // статусы игрока (блок 5 ТЗ): DoT, декремент, истечение
       this.tickStatuses()
       // преследование (start_pursuit): периодические цепочные проверки маскировки
@@ -708,6 +737,13 @@ export class GameEngine {
     const cur = this.state.player.needs[needId] ?? 0
     const next = Math.min(need.max, Math.max(0, cur + delta))
     this.state.player.needs[needId] = next
+    // общий стол: рост потребности героя делят напарники, отслеживающие ту же
+    // потребность (еда/вода/сон на двоих); убыль — всегда личная
+    if (delta > 0) {
+      for (const comp of this.state.party) {
+        if (comp.needs?.[needId] !== undefined) this.changeCompanionNeed(comp.entity, needId, delta)
+      }
+    }
     if (next <= 0 && cur > 0) this.onNeedZero(needId)
   }
 
@@ -749,6 +785,17 @@ export class GameEngine {
       if (healed > 0) {
         p.hp += healed
         this.pushLog(`Отдых восстанавливает ${healed} HP.`)
+      }
+    }
+    // напарники отдыхают вместе с отрядом: те же кости естественного лечения
+    for (const comp of this.state.party) {
+      if (comp.hp > 0 && comp.hp < comp.max_hp) {
+        const cHealed = Math.min(comp.max_hp - comp.hp, rollDice(rest?.hp ?? '1d3', this.rng))
+        if (cHealed > 0) {
+          comp.hp += cHealed
+          const cdef = this.campaign.entities[comp.entity] as NpcDef | undefined
+          this.pushLog(`${cdef?.label ?? comp.entity} подлатался: +${cHealed} HP.`)
+        }
       }
     }
     const mpFull = rest?.mp_full ?? true
@@ -1337,19 +1384,32 @@ export class GameEngine {
   }
 
   /** Статичная боевая фигурка выбирается только из постоянного облика при создании. */
-  heroCombatFigure(): { figure?: ImageValue; mode?: 'topdown' | 'side' | 'static' } {
+  heroCombatFigure(): {
+    figure?: ImageValue
+    mode?: 'topdown' | 'side' | 'static'
+    offset?: number
+  } {
     const meta = this.campaign.meta.char_creation
     const choice = this.state.player.portrait_choice
     if (!meta || !choice) return {}
     if (choice.layers && meta.portrait_layers?.length) {
       for (const layer of meta.portrait_layers) {
         const option = layer.options.find((o) => o.id === choice.layers![layer.id])
-        if (option?.combat_figure) return { figure: option.combat_figure, mode: option.combat_figure_mode }
+        if (option?.combat_figure)
+          return {
+            figure: option.combat_figure,
+            mode: option.combat_figure_mode,
+            offset: option.combat_facing_offset,
+          }
       }
     }
     const portrait = meta.portraits?.find((p) => p.id === choice.gallery)
     return portrait?.combat_figure
-      ? { figure: portrait.combat_figure, mode: portrait.combat_figure_mode }
+      ? {
+          figure: portrait.combat_figure,
+          mode: portrait.combat_figure_mode,
+          offset: portrait.combat_facing_offset,
+        }
       : {}
   }
 
@@ -1452,14 +1512,192 @@ export class GameEngine {
     const def = this.campaign.entities[entityId] as NpcDef | undefined
     if (!def || def.type !== 'npc') return
     const hp = def.stats.HP ?? derivedHP(def.stats)
-    this.state.party.push({ entity: entityId, hp, max_hp: hp })
+    const comp: CompanionState = { entity: entityId, hp, max_hp: hp }
+    // потребности напарника (NpcDef.companion_needs) стартуют полными
+    if (def.companion_needs?.length && featureOn(this.campaign.meta, 'needs')) {
+      comp.needs = {}
+      for (const id of def.companion_needs) {
+        const need = this.campaign.meta.needs.find((n) => n.id === id)
+        if (need) comp.needs[id] = need.max
+      }
+      if (!Object.keys(comp.needs).length) delete comp.needs
+    }
+    if (def.companion_carry) comp.inventory = []
+    this.state.party.push(comp)
     this.pushLog(`${def.label} присоединяется к вам.`)
     this.messages.push({ text: `${def.label} присоединяется к отряду.` })
   }
 
+  /** Текущее значение потребности напарника; null — не в отряде или у существа
+   *  потребность не отслеживается… но по контракту «робот не голодает»
+   *  неотслеживаемая потребность возвращается максимальной, а не null. */
+  companionNeed(entity: string, needId: string): number | null {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    if (!comp) return null
+    const need = this.campaign.meta.needs.find((n) => n.id === needId)
+    if (!need) return null
+    return comp.needs?.[needId] ?? need.max
+  }
+
+  /** Сдвиг потребности напарника; переход через ноль — заметка в лог (без game over). */
+  changeCompanionNeed(entity: string, needId: string, delta: number): void {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    const need = this.campaign.meta.needs.find((n) => n.id === needId)
+    if (!comp || !need || comp.needs?.[needId] === undefined) return
+    const cur = comp.needs[needId]
+    const next = Math.min(need.max, Math.max(0, cur + delta))
+    comp.needs[needId] = next
+    if (next <= 0 && cur > 0) {
+      const def = this.campaign.entities[entity] as NpcDef | undefined
+      this.pushLog(`${def?.label ?? entity} на пределе: ${need.label.toLowerCase()} на нуле.`)
+    }
+  }
+
+  /** Набор отслеживаемых напарником потребностей (для UI): определения из meta.needs. */
+  companionNeedDefs(entity: string): NeedDef[] {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    if (!comp?.needs) return []
+    return this.campaign.meta.needs.filter((n) => comp.needs![n.id] !== undefined)
+  }
+
+  // ── «вторая сумка» напарника (NpcDef.companion_carry) ──
+
+  /** Груз в сумке напарника, кг. */
+  companionLoad(entity: string): number {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    let sum = 0
+    for (const e of comp?.inventory ?? []) {
+      const def = this.campaign.entities[e.item] as ItemDef | undefined
+      if (def?.type === 'item') sum += (def.weight ?? 0) * e.quantity
+    }
+    return Math.round(sum * 10) / 10
+  }
+
+  /** Грузоподъёмность напарника: та же формула энкадменса, что у героя,
+   *  но по характеристикам существа (его carry_capacity_bonus/mult учтены). */
+  companionCapacity(entity: string): number {
+    const def = this.campaign.entities[entity] as NpcDef | undefined
+    if (!def?.stats) return 0
+    const encRules = this.campaign.meta.encumbrance
+    const formula = encRules?.formula ?? 'str_siz'
+    let base = (def.stats.STR ?? 10) + (def.stats.SIZ ?? 10)
+    if (formula === 'str_con') base = (def.stats.STR ?? 10) + (def.stats.CON ?? 10)
+    else if (formula === 'str_only') base = (def.stats.STR ?? 10) * 2
+    else if (formula === 'fixed') base = Math.max(1, encRules?.capacity_multiplier ?? 20)
+    const worldMult = encRules?.capacity_multiplier && formula !== 'fixed' ? encRules.capacity_multiplier : 1.0
+    const total = base * worldMult * (def.carry_capacity_mult ?? 1.0) + (def.carry_capacity_bonus ?? 0)
+    return Math.max(1, Math.round(total * 10) / 10)
+  }
+
+  /** Передать предмет из сумки героя напарнику (нужны оба: в отряде, companion_carry).
+   *  Сюжетные предметы (quest_item) — как выбросить и продать — отдать нельзя:
+   *  уход или гибель напарника не должна стирать критические вещи навсегда.
+   *  `opts.forceQuest` — только для сюжетных эффектов (transfer_to_companion):
+   *  мастер сам решает отдать квестовый предмет скриптом. */
+  giveItemToCompanion(entity: string, itemId: string, quantity = 1, opts: { forceQuest?: boolean } = {}): boolean {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    const def = this.campaign.entities[entity] as NpcDef | undefined
+    if (!comp || !def?.companion_carry || quantity <= 0) return false
+    const itemDef = this.campaign.entities[itemId]
+    if ((itemDef as ItemDef | undefined)?.quest_item && !opts.forceQuest) {
+      this.pushToast(`${itemDef?.label ?? itemId} — сюжетная вещь: её нельзя передать напарнику.`, 'info')
+      return false
+    }
+    const have = this.state.player.inventory.find((i) => i.item === itemId)?.quantity ?? 0
+    if (have < quantity) return false
+    if (!comp.inventory) comp.inventory = []
+    this.removeItem(itemId, quantity, { silent: true })
+    const slot = comp.inventory.find((i) => i.item === itemId)
+    if (slot) slot.quantity += quantity
+    else comp.inventory.push({ item: itemId, quantity })
+    this.pushLog(`${def.label} берёт: ${itemDef?.label ?? itemId} ×${quantity}.`)
+    this.notify()
+    return true
+  }
+
+  /** Забрать предмет из сумки напарника себе. */
+  takeItemFromCompanion(entity: string, itemId: string, quantity = 1): boolean {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    const slot = comp?.inventory?.find((i) => i.item === itemId)
+    if (!comp || !slot || slot.quantity < quantity || quantity <= 0) return false
+    slot.quantity -= quantity
+    if (slot.quantity <= 0) {
+      comp.inventory = comp.inventory!.filter((i) => i.quantity > 0)
+      // снятое/отданное: если предмет был надет и кончился — снимаем со слота
+      for (const [k, v] of Object.entries(comp.equipment ?? {})) if (v === itemId && !comp.inventory!.some((i) => i.item === itemId)) delete comp.equipment![k]
+    }
+    this.addItem(itemId, quantity, { silent: true })
+    const def = this.campaign.entities[entity] as NpcDef | undefined
+    const itemDef = this.campaign.entities[itemId]
+    this.pushLog(`${def?.label ?? entity} возвращает: ${itemDef?.label ?? itemId} ×${quantity}.`)
+    this.notify()
+    return true
+  }
+
+  /** Надеть/снять предмет из сумки напарника на слот экипировки (null — снять). */
+  equipCompanionItem(entity: string, slotId: string, itemId: string | null): void {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    if (!comp) return
+    if (itemId && !comp.inventory?.some((i) => i.item === itemId)) return
+    comp.equipment = { ...(comp.equipment ?? {}) }
+    if (itemId) comp.equipment[slotId] = itemId
+    else delete comp.equipment[slotId]
+    this.notify()
+  }
+
+  /** Применить предмет из сумки героя к напарнику: перенаправляет on_use-эффекты
+   *  «здоровье» (change_hp) и «потребности» (change_need) на напарника, остальные
+   *  эффекты игнорируются; расход предмета — как у героя (on_use.consume). */
+  useItemOnCompanion(entity: string, itemId: string): boolean {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    const def = this.campaign.entities[entity] as NpcDef | undefined
+    const item = this.campaign.entities[itemId] as ItemDef | undefined
+    if (!comp || !def || !item || item.type !== 'item' || !item.on_use) return false
+    if (!(this.state.player.inventory.find((i) => i.item === itemId)?.quantity ?? 0)) return false
+    let touched = false
+    for (const eff of item.on_use.effects) {
+      if (eff.type === 'change_hp' && comp.hp > 0) {
+        const before = comp.hp
+        comp.hp = Math.max(1, Math.min(comp.max_hp, comp.hp + eff.delta))
+        if (comp.hp !== before) touched = true
+      } else if (eff.type === 'change_need') {
+        if (comp.needs?.[eff.need] !== undefined) {
+          this.changeCompanionNeed(entity, eff.need, eff.delta)
+          touched = true
+        }
+      }
+    }
+    if (!touched) return false
+    playInteraction('use', { entity: item })
+    if (item.on_use.consume !== false) this.removeItem(itemId, 1, { verb: 'Использовано' })
+    this.pushLog(`${item.label} — применено к ${def.label}.`)
+    this.checkRules()
+    this.notify()
+    return true
+  }
+
+  /** Напарник покидает отряд (отпустить, скрипт, гибель в бою).
+   *  Его сумка возвращается герою — иначе переданные вещи стирались бы навсегда
+   *  (до этого так и было: мягкая блокировка при гибели носильщика). */
   leaveParty(entityId: string): void {
     const i = this.state.party.findIndex((c) => c.entity === entityId)
-    if (i >= 0) this.state.party.splice(i, 1)
+    if (i < 0) return
+    const comp = this.state.party[i]
+    const def = this.campaign.entities[entityId] as NpcDef | undefined
+    const returned = (comp.inventory ?? []).filter((e) => e.quantity > 0)
+    if (returned.length) {
+      for (const e of returned) this.addItem(e.item, e.quantity, { silent: true })
+      const list = returned
+        .map((e) => `${this.campaign.entities[e.item]?.label ?? e.item}${e.quantity > 1 ? ` ×${e.quantity}` : ''}`)
+        .join(', ')
+      this.pushLog(`${def?.label ?? entityId} отдаёт вам: ${list}.`)
+      this.pushToast(`${def?.label ?? entityId} отдаёт вам вещи из сумки: ${list}.`, 'get')
+    }
+    this.state.party.splice(i, 1)
+    // состав отряда сменился: слоты сцен (isInParty), карточки и док чипов должны
+    // перечитаться сразу; заодно даём правилам кампании шанс отреагировать на уход
+    // (сторож вида «флаг найма стоит, а NPC не в отряде» — снять флаг и вернуть героя на сцену)
+    this.notify()
   }
 
   isInParty(entityId: string): boolean {
@@ -3379,6 +3617,9 @@ export class GameEngine {
       case 'remove_item': this.removeItem(e.item, e.quantity ?? 1); break
       case 'change_need': this.changeNeed(e.need, e.delta); break
       case 'change_hp': this.changeHp(e.delta); break
+      case 'change_companion_need': this.changeCompanionNeed(e.entity, e.need, e.delta); break
+      // сюжетный эффект мастера: quest_item-ограничение не применяется — мастер решает сам
+      case 'transfer_to_companion': this.giveItemToCompanion(e.entity, e.item, e.quantity ?? 1, { forceQuest: true }); break
       case 'change_skill': {
         if (!featureOn(this.campaign.meta, 'skills')) break
         const cur = s.player.skills[e.skill] ?? 0
@@ -3928,6 +4169,15 @@ export class GameEngine {
     const combat = this.combat
     if (!combat) return
     this.combat = null
+    // похороны отряда: погибшие в бою напарники покидают отряд навсегда
+    for (const ally of combat.combatants.filter((c) => c.id.startsWith('c_ally_') && c.dead)) {
+      const comp = this.state.party.find((p) => p.entity === ally.entityId)
+      if (comp) {
+        comp.hp = 0
+        this.leaveParty(ally.entityId)
+        this.messages.push({ text: `${ally.label} погиб(ла). Тело осталось на «${combat.arena.label}».`, portrait: ally.portrait })
+      }
+    }
     if (combat.result === 'victory' || combat.result === 'fled') {
       // основная часть эффектов уже применена в момент исхода (onCombatResolve)
       const deferred = this.postCombatEffects

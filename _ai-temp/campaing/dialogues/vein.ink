@@ -1,3 +1,4 @@
+EXTERNAL get_flag(a0)
 EXTERNAL clear_flag(a0)
 EXTERNAL apply_status(a0, a1)
 EXTERNAL fire_rule(a0)
@@ -8,10 +9,16 @@ EXTERNAL set_flag(a0)
 EXTERNAL unlock_codex(a0)
 
 === Начало ===
+{ get_flag("met_vein"): -> Снова }
 Стена светится ровно, как бирюза под водой. Звук идёт не из породы — из груди. # action # voice: assets/voice/narr_vein_1.mp3
 Ты пришёл с чужим жетоном и чужим сроком. Я помню всех, кто брал. # voice: assets/voice/vein_1.mp3
 Семь помп считали мои годы. Когда седьмая замолчала, я впервые за сто тридцать семь лет услышала, как тихо. # voice: assets/voice/vein_6.mp3
 Ты считаешь, что спасаешь город. Я под ним стою сто тридцать семь лет: мне виднее, что здесь спасать. # voice: assets/voice/vein_8.mp3
+~ set_flag("met_vein")
+-> Начало_hub
+
+=== Снова ===
+Свет в стене вздрагивает и разгорается ровнее, узнавая тебя. # action # voice: assets/voice/narr_vein_rep.mp3
 -> Начало_hub
 
 === Начало_hub ===
@@ -41,4 +48,4 @@ EXTERNAL unlock_codex(a0)
 Ты молчишь. Я слышала этот ответ от всех, кто брал. Он всегда означал «дам». # voice: assets/voice/vein_2.mp3
 Молчание — тоже ответ. Просто не тот, который ты надеялся дать. # voice: assets/voice/vein_7.mp3
 Если уйдёшь сейчас, седьмая простоит ещё сутки. Я умею ждать. Вода — нет. # voice: assets/voice/vein_10.mp3
--> Начало
+-> DONE

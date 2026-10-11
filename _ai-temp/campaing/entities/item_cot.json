@@ -103,7 +103,13 @@
               "image": "assets/img/pc_office_night.jpg",
               "text": "У шкафа с делами кто-то есть.",
               "preset": "шёпот",
-              "seconds": 4
+              "seconds": 4,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 5
+              }
             },
             {
               "type": "show_message",
@@ -144,7 +150,13 @@
                   "image": "assets/img/pc_office_ash.jpg",
                   "text": "В печке — свежий пепел.",
                   "preset": "шёпот",
-                  "seconds": 4
+                  "seconds": 4,
+                  "camera": {
+                    "zoom": 1.08,
+                    "pan_x": 0,
+                    "pan_y": 0,
+                    "duration": 5
+                  }
                 },
                 {
                   "type": "change_variable",
@@ -168,7 +180,13 @@
               "image": "assets/img/pc_office_ash.jpg",
               "text": "В печке — свежий пепел.",
               "preset": "шёпот",
-              "seconds": 4
+              "seconds": 4,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 5
+              }
             },
             {
               "type": "change_variable",
@@ -259,7 +277,13 @@
               "image": "assets/img/pc_office_night.jpg",
               "text": "У шкафа с делами кто-то есть.",
               "preset": "шёпот",
-              "seconds": 4
+              "seconds": 4,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 5
+              }
             },
             {
               "type": "show_message",
@@ -300,7 +324,13 @@
                   "image": "assets/img/pc_office_ash.jpg",
                   "text": "В печке — свежий пепел.",
                   "preset": "шёпот",
-                  "seconds": 4
+                  "seconds": 4,
+                  "camera": {
+                    "zoom": 1.08,
+                    "pan_x": 0,
+                    "pan_y": 0,
+                    "duration": 5
+                  }
                 },
                 {
                   "type": "change_variable",
@@ -324,7 +354,13 @@
               "image": "assets/img/pc_office_ash.jpg",
               "text": "В печке — свежий пепел.",
               "preset": "шёпот",
-              "seconds": 4
+              "seconds": 4,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 5
+              }
             },
             {
               "type": "change_variable",
@@ -415,7 +451,13 @@
               "image": "assets/img/pc_office_night.jpg",
               "text": "У шкафа с делами кто-то есть.",
               "preset": "шёпот",
-              "seconds": 4
+              "seconds": 4,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 5
+              }
             },
             {
               "type": "show_message",
@@ -456,7 +498,13 @@
                   "image": "assets/img/pc_office_ash.jpg",
                   "text": "В печке — свежий пепел.",
                   "preset": "шёпот",
-                  "seconds": 4
+                  "seconds": 4,
+                  "camera": {
+                    "zoom": 1.08,
+                    "pan_x": 0,
+                    "pan_y": 0,
+                    "duration": 5
+                  }
                 },
                 {
                   "type": "change_variable",
@@ -480,7 +528,13 @@
               "image": "assets/img/pc_office_ash.jpg",
               "text": "В печке — свежий пепел.",
               "preset": "шёпот",
-              "seconds": 4
+              "seconds": 4,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 5
+              }
             },
             {
               "type": "change_variable",

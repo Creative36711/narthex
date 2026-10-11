@@ -7,16 +7,28 @@
     {
       "text": "Семьдесят два часа вышли. Вода идёт по восьмому ярусу ровно, как по расписанию. И расписание это писал не ты.",
       "duration": 6,
-      "transition": "panzoom",
+      "transition": "fade",
       "image": "assets/img/cut_flood_1.jpg",
-      "voice": "assets/voice/flood_1.mp3"
+      "voice": "assets/voice/flood_1.mp3",
+      "camera": {
+        "zoom": 1.2,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     },
     {
       "text": "Помпу так и не запустили. Дело №137 закрыто за невозможностью исполнения.",
       "duration": 6,
       "transition": "fade",
       "image": "assets/img/cut_flood_2.jpg",
-      "voice": "assets/voice/flood_2.mp3"
+      "voice": "assets/voice/flood_2.mp3",
+      "camera": {
+        "zoom": 1.12,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     }
   ]
 }

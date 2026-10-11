@@ -7,7 +7,23 @@
       "label": "Начало разговора",
       "sections": [
         {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_dozh"
+            }
+          ],
           "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Дож узнаёт тебя и молча кивает на прилавок.",
+                "action": true,
+                "voice": "assets/voice/narr_dozh_rep.mp3"
+              }
+            }
+          ],
+          "else_steps": [
             {
               "kind": "line",
               "line": {
@@ -29,6 +45,13 @@
                 "type": "learn_name",
                 "entity": "npc_dozh",
                 "silent": true
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_dozh"
               }
             }
           ]
@@ -403,7 +426,7 @@
         }
       ],
       "choices": [],
-      "goto": "Начало"
+      "goto": "end"
     },
     {
       "id": "Оценка",

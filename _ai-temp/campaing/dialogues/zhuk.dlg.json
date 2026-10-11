@@ -7,7 +7,23 @@
       "label": "Начало разговора",
       "sections": [
         {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_zhuk"
+            }
+          ],
           "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Жук снова ждёт. Цена, судя по лицу, не упала.",
+                "action": true,
+                "voice": "assets/voice/narr_zhuk_rep.mp3"
+              }
+            }
+          ],
+          "else_steps": [
             {
               "kind": "line",
               "line": {
@@ -30,6 +46,13 @@
                 "entity": "npc_zhuk",
                 "silent": true
               }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_zhuk"
+              }
             }
           ]
         }
@@ -37,7 +60,19 @@
       "choices": [
         {
           "text": "Что ты видел в ночь тринадцатого?",
-          "sections": [],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "zhuk_asked"
+                  }
+                }
+              ]
+            }
+          ],
           "goto": "stay",
           "check": {
             "skill": "persuade",
@@ -94,6 +129,11 @@
             {
               "type": "flag",
               "flag": "zhuk_paid",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "zhuk_asked",
               "not": true
             }
           ]
@@ -325,7 +365,7 @@
           ]
         },
         {
-          "text": "Дать Жуку полистать гроссбух.",
+          "text": "Показать Жуку находку.",
           "sections": [
             {
               "steps": [
@@ -343,10 +383,6 @@
           ],
           "goto": "Расход",
           "conds": [
-            {
-              "type": "has_item",
-              "item": "item_ledger"
-            },
             {
               "type": "flag",
               "flag": "zhuk_ledger",
@@ -625,7 +661,7 @@
         }
       ],
       "choices": [],
-      "goto": "Начало"
+      "goto": "end"
     },
     {
       "id": "Расход",

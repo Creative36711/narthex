@@ -312,6 +312,24 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'entity', label: 'NPC', kind: 'npcRef' }],
     blank: { entity: '' },
   },
+  companion_need_le: {
+    label: 'У напарника потребность ≤',
+    fields: [
+      { key: 'entity', label: 'Напарник (NPC)', kind: 'npcRef' },
+      { key: 'need', label: 'Потребность', kind: 'needRef' },
+      { key: 'threshold', label: 'Порог', kind: 'number' },
+    ],
+    blank: { entity: '', need: '', threshold: 20 },
+  },
+  companion_need_ge: {
+    label: 'У напарника потребность ≥',
+    fields: [
+      { key: 'entity', label: 'Напарник (NPC)', kind: 'npcRef' },
+      { key: 'need', label: 'Потребность', kind: 'needRef' },
+      { key: 'threshold', label: 'Порог', kind: 'number' },
+    ],
+    blank: { entity: '', need: '', threshold: 20 },
+  },
   random_chance: {
     label: 'Случайный шанс',
     fields: [{ key: 'probability', label: 'Вероятность (0–1)', kind: 'number' }],
@@ -517,6 +535,24 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'delta', label: 'Дельта', kind: 'number' },
     ],
     blank: { need: '', delta: 10 },
+  },
+  change_companion_need: {
+    label: 'Изменить потребность напарника',
+    fields: [
+      { key: 'entity', label: 'Напарник (NPC)', kind: 'npcRef' },
+      { key: 'need', label: 'Потребность', kind: 'needRef' },
+      { key: 'delta', label: 'Дельта', kind: 'number' },
+    ],
+    blank: { entity: '', need: '', delta: 10 },
+  },
+  transfer_to_companion: {
+    label: 'Передать предмет напарнику',
+    fields: [
+      { key: 'entity', label: 'Напарник (NPC)', kind: 'npcRef' },
+      { key: 'item', label: 'Предмет', kind: 'itemRef' },
+      { key: 'quantity', label: 'Количество', kind: 'number', optional: true },
+    ],
+    blank: { entity: '', item: '', quantity: 1 },
   },
   change_hp: {
     label: 'Изменить HP',

@@ -40,6 +40,9 @@ export interface Combatant {
   facing: number
   /** зеркало по горизонтали (режим 'side') */
   flip: boolean
+  /** сдвиг разворота арта фигурки, градусы по часовой (режим 'topdown'):
+   *  прибавляется к `facing` только при отрисовке; на логику не влияет */
+  facing_offset?: number
   stats: StatBlock
   skills: Record<string, number>
   weapon: WeaponData
@@ -205,6 +208,7 @@ export class CombatController {
       figure_shadow: playerDef.shadow,
       facing: 90,
       flip: false,
+      facing_offset: appearanceFigure.offset ?? playerDef.facing_offset,
       stats: p.stats,
       skills: playerSkills,
       weapon,
@@ -238,7 +242,24 @@ export class CombatController {
     for (const comp of e.state.party) {
       const def = e.campaign.entities[comp.entity] as NpcDef | undefined
       if (!def || def.type !== 'npc') continue
-      const w = this.resolveWeapon(def, def.skills ?? {})
+      if (comp.hp <= 0) continue // погибший/выбывший напарник в строй не встаёт
+      // снаряжение из «второй сумки» напарника замещает equipment карточки NPC
+      const battleDef: NpcDef =
+        comp.equipment && Object.keys(comp.equipment).length
+          ? { ...def, equipment: { ...(def.equipment ?? {}), ...comp.equipment } }
+          : def
+      const w = this.resolveWeapon(battleDef, def.skills ?? {})
+      // истощение: любая отслеживаемая потребность (companion_needs) на/ниже
+      // critical_threshold — мягкий штраф навыков −10% на этот бой
+      let allySkills = def.skills ?? {}
+      const exhausted = Object.entries(comp.needs ?? {}).some(([id, v]) => {
+        const nd = e.campaign.meta.needs.find((n) => n.id === id)
+        return nd != null && v <= nd.critical_threshold
+      })
+      if (exhausted) {
+        allySkills = Object.fromEntries(Object.entries(allySkills).map(([k, v]) => [k, Math.max(0, Math.round(v * 0.9))]))
+        this.log.push(`${def.label} истощён(а): навыки −10%.`)
+      }
       this.combatants.push({
         id: `c_ally_${comp.entity}`,
         entityId: comp.entity,
@@ -250,12 +271,13 @@ export class CombatController {
         figure_shadow: def.shadow,
         facing: 90,
         flip: false,
+        facing_offset: def.facing_offset,
         stats: def.stats,
-        skills: def.skills ?? {},
+        skills: allySkills,
         weapon: w.weapon,
         weaponLabel: w.weaponLabel,
         weaponItemId: w.weaponItemId,
-        armor: this.resolveArmor(def),
+        armor: this.resolveArmor(battleDef),
         hp: comp.hp,
         maxHp: comp.max_hp,
         pos: this.takeSpawn(playerSpawns),
@@ -293,6 +315,7 @@ export class CombatController {
           figure_shadow: def.shadow,
           facing: 90,
           flip: false,
+          facing_offset: def.facing_offset,
           stats: def.stats,
           skills: def.skills ?? {},
           weapon: w.weapon,
@@ -336,6 +359,7 @@ export class CombatController {
           figure_shadow: def.shadow,
           facing: -90,
           flip: true,
+          facing_offset: def.facing_offset,
           stats: def.stats,
           skills: def.skills ?? {},
           weapon: w.weapon,
@@ -1640,7 +1664,7 @@ export class CombatController {
       this.engine.state.player.hp = Math.max(0, pc.hp)
       this.engine.state.player.mp = Math.max(0, Math.min(pc.mp, this.engine.state.player.max_mp))
     }
-    for (const ally of this.combatants.filter((x) => x.id.startsWith('c_ally_') && !x.dead)) {
+    for (const ally of this.combatants.filter((x) => x.id.startsWith('c_ally_'))) {
       const comp = this.engine.state.party.find((c) => c.entity === ally.entityId)
       if (comp) comp.hp = Math.max(0, ally.hp)
     }

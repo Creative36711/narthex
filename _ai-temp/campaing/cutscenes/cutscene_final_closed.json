@@ -7,20 +7,41 @@
     {
       "text": "Каст ставит печать ровно, не глядя. Гроссбух уходит в ящик стола, ключ поворачивается дважды.",
       "duration": 6,
-      "transition": "panzoom",
-      "image": "assets/img/cut_final_closed_1.jpg"
+      "transition": "fade",
+      "image": "assets/img/cut_final_closed_1.jpg",
+      "camera": {
+        "zoom": 1.18,
+        "pan_x": -8,
+        "pan_y": 0,
+        "duration": 6
+      },
+      "voice": "assets/voice/final_closed_1.mp3"
     },
     {
       "text": "Седьмую помпу опечатывают. В сводке напишут: встала по вине смены. Подпись под сводкой будет ровной, а почерк — чужим.",
       "duration": 7,
       "transition": "fade",
-      "image": "assets/img/cut_final_closed_2.jpg"
+      "image": "assets/img/cut_final_closed_2.jpg",
+      "camera": {
+        "zoom": 1.12,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 7
+      },
+      "voice": "assets/voice/final_closed_2.mp3"
     },
     {
       "text": "Вода на восьмом поднимается медленно — так, что никто не успевает испугаться. Тебе выдают марки за три дня и пропуск в клеть наверх. Дело закрыто.",
       "duration": 9,
       "transition": "fade",
-      "image": "assets/img/cut_final_closed_3.jpg"
+      "image": "assets/img/cut_final_closed_3.jpg",
+      "camera": {
+        "zoom": 1.15,
+        "pan_x": 0,
+        "pan_y": 4,
+        "duration": 9
+      },
+      "voice": "assets/voice/final_closed_3.mp3"
     }
   ]
 }

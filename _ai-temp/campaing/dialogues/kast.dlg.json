@@ -7,7 +7,23 @@
       "label": "Начало разговора",
       "sections": [
         {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_kast"
+            }
+          ],
           "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Каст отрывается от бумаг ровно на один взгляд.",
+                "action": true,
+                "voice": "assets/voice/narr_kast_rep.mp3"
+              }
+            }
+          ],
+          "else_steps": [
             {
               "kind": "line",
               "line": {
@@ -21,6 +37,13 @@
               "line": {
                 "text": "Дело сто тридцать семь. У тебя семьдесят два часа, дознаватель. Говори коротко.",
                 "voice": "assets/voice/kast_1.mp3"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_kast"
               }
             }
           ]
@@ -129,7 +152,7 @@
           ]
         },
         {
-          "text": "Протянуть Каст записку мастера.",
+          "text": "Предъявить улику.",
           "sections": [
             {
               "steps": [
@@ -147,10 +170,6 @@
           ],
           "goto": "Записка",
           "conds": [
-            {
-              "type": "has_item",
-              "item": "item_note"
-            },
             {
               "type": "flag",
               "flag": "kast_note",
@@ -342,6 +361,11 @@
             {
               "type": "flag",
               "flag": "kast_resh",
+              "not": true
+            },
+            {
+              "type": "in_party",
+              "npc": "npc_resh",
               "not": true
             }
           ],
@@ -644,7 +668,7 @@
         }
       ],
       "choices": [],
-      "goto": "Начало"
+      "goto": "end"
     },
     {
       "id": "Записка",

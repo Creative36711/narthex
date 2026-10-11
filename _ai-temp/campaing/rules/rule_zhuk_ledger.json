@@ -24,7 +24,13 @@
       "image": "assets/img/pc_zhuk_ledger.jpg",
       "text": "Жук листает гроссбух и тихо присвистывает.",
       "preset": "шёпот",
-      "seconds": 5
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     }
   ],
   "chapter": "ch_price"

@@ -1,0 +1,24 @@
+{
+  "id": "rule_ira_hungry",
+  "label": "Ира голодна",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "in_party",
+      "entity": "npc_ira"
+    },
+    {
+      "type": "companion_need_le",
+      "entity": "npc_ira",
+      "need": "need_hunger",
+      "threshold": 20
+    }
+  ],
+  "effects": [
+    {
+      "type": "show_message",
+      "text": "Ира старается не показать, но у неё урчит в животе: с утра она только перехватила корку у печки. Раздели с ней паёк — общий стол делит и её голод."
+    }
+  ]
+}

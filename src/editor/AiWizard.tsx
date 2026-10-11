@@ -58,6 +58,12 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
       return next
     })
   }
+  // счётчик смены точки отсчёта диффа — просто заставляет useMemo пересчитать список
+  const [baselineResetAt, setBaselineResetAt] = useState(0)
+  const resetDiffBaseline = () => {
+    store.captureBaseline()
+    setBaselineResetAt(Date.now())
+  }
 
   // --- Состояние для создания новой кампании ---
   const [newGenre, setNewGenre] = useState('')
@@ -75,8 +81,13 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
   const [busy, setBusy] = useState(false)
   const textareaId = useId()
 
-  // Список изменённых файлов мастера из EditorStore
-  const modifiedFiles = useMemo(() => hasCampaign ? store.getModifiedFiles() : [], [store, hasCampaign])
+  // Список изменённых файлов мастера из EditorStore.
+  // baselineResetAt — тикер: не участвует в расчёте, лишь заставляет memo пересчитаться
+  // после кнопки «Начать отсчёт правок заново».
+  const modifiedFiles = useMemo(() => {
+    void baselineResetAt
+    return hasCampaign ? store.getModifiedFiles() : []
+  }, [store, hasCampaign, baselineResetAt])
 
   // Фильтрация списка изменений, если файлов много
   const filteredMods = useMemo(() => {
@@ -339,6 +350,18 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
                                 <span className="ai-patch-row-diff">{m.diffSummary}</span>
                               )}
                             </div>
+                            <button
+                              type="button"
+                              className="btn btn-small ai-patch-drop"
+                              aria-label="Убрать эту правку из списка"
+                              data-tip="Убрать эту правку из списка: её текущее состояние станет базовым (правки остальных файлов сохранятся)"
+                              onClick={() => {
+                                store.acceptChangeAsBaseline(m.path)
+                                setBaselineResetAt(Date.now())
+                              }}
+                            >
+                              ✕
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -347,8 +370,8 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
                         <button
                           type="button"
                           className="btn btn-small"
-                          onClick={() => store.captureBaseline()}
-                          data-tip="Считать текущее состояние исходной базой (сбросить список изменений)"
+                          onClick={resetDiffBaseline}
+                          data-tip="Считать текущее состояние исходной базой (список правок сразу очистится)"
                         >
                           Зафиксировать как новую базу
                         </button>
@@ -404,6 +427,16 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
               />
               <span>Отслеживать ручные правки мастера и показывать счётчик изменений в редакторе</span>
             </label>
+            <div className="muted small" style={{ marginTop: 4 }}>
+              Список правок копится с момента последнего принятого чемодана ИИ и сохраняется между сессиями — редактор и игру можно закрывать полностью.
+            </div>
+            <button
+              type="button"
+              className="btn btn-small"
+              style={{ marginTop: 6 }}
+              onClick={resetDiffBaseline}
+              data-tip="Считать текущее состояние кампании точкой отсчёта: список ручных правок очистится"
+            >⟲ Начать отсчёт правок заново</button>
           </div>
 
               {/* Главные действия */}

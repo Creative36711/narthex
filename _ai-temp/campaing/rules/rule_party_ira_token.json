@@ -1,0 +1,31 @@
+{
+  "id": "rule_party_ira_token",
+  "label": "Ира в отряде: жетон",
+  "once": true,
+  "trigger": "enter_scene",
+  "conditions": [
+    {
+      "type": "in_party",
+      "entity": "npc_ira"
+    },
+    {
+      "type": "has_item",
+      "item": "item_guard_token"
+    },
+    {
+      "type": "flag_set",
+      "flag": "ira_told_brother"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "body_returned"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_dialogue",
+      "entity": "npc_ira",
+      "dialogue_knot": "В_пути"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "rule_party_resh_recipe",
+  "label": "Реш в отряде: заряд",
+  "once": true,
+  "trigger": "enter_scene",
+  "conditions": [
+    {
+      "type": "in_party",
+      "entity": "npc_resh"
+    },
+    {
+      "type": "flag_set",
+      "flag": "resh_trusts"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "resh_charge_recipe"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_dialogue",
+      "entity": "npc_resh",
+      "dialogue_knot": "В_пути"
+    }
+  ]
+}

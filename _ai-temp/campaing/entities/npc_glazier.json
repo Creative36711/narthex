@@ -105,5 +105,6 @@
     "down": "assets/img/npc/fig_glazier_down.png",
     "dead": "assets/img/npc/fig_glazier_down.png"
   },
-  "scene_sprite": "assets/img/npc/sprite_glazier.png"
+  "scene_sprite": "assets/img/npc/sprite_glazier.png",
+  "facing_offset": 180
 }

@@ -14,14 +14,21 @@ EXTERNAL learn_name(a0)
 VAR r = 0
 
 === Начало ===
+{ get_flag("met_zhuk"): -> Снова }
 Жук не здоровается. Он просто ждёт, сколько ты заплатишь. # action # voice: assets/voice/narr_zhuk_1.mp3
 Слушаю. Дорого. # voice: assets/voice/zhuk_5.mp3
 ~ learn_name("npc_zhuk")
+~ set_flag("met_zhuk")
+-> Начало_hub
+
+=== Снова ===
+Жук снова ждёт. Цена, судя по лицу, не упала. # action # voice: assets/voice/narr_zhuk_rep.mp3
 -> Начало_hub
 
 === Начало_hub ===
 ~ set_dialogue_timer(15, "Молчание")
-* { not (get_flag("zhuk_paid")) } [Что ты видел в ночь тринадцатого?]
+* { not (get_flag("zhuk_paid")) and not (get_flag("zhuk_asked")) } [Что ты видел в ночь тринадцатого?]
+    ~ set_flag("zhuk_asked")
     ~ r = skill_check("persuade", 50)
     {r: -> Начало_hub_ok1 | -> Начало_hub_no1}
 + { item_count("item_mark") >= 35 and get_flag("dozh_who") and not (get_flag("zhuk_paid")) } [Я от Дожа. Тридцать пять марок.]
@@ -50,7 +57,7 @@ VAR r = 0
     Тогда слушай другое. Гроссбух Реш не в конторе держал и не в каморке: он его в штольне девятого яруса спрятал, под чугунной плитой у старой крепи. # emotion: thoughtful # voice: assets/voice/zhuk_12.mp3
     ~ set_flag("zhuk_cache_hint")
     -> Начало_hub
-+ { has_item("item_ledger") and not (get_flag("zhuk_ledger")) } [Дать Жуку полистать гроссбух.]
++ { not (get_flag("zhuk_ledger")) } [Показать Жуку находку.]
     ~ present_item("Расход", "Расход_мимо", "item_ledger")
     -> DONE
 * { not (get_flag("resh_found")) and not (npc_known("npc_resh")) } [Где мастер?]
@@ -85,7 +92,7 @@ VAR r = 0
 === Молчание ===
 Жук ждёт ровно столько, сколько стоит твоё молчание. # action # voice: assets/voice/narr_zhuk_3.mp3
 Молчишь? Значит, не заплатишь. Бывай. # voice: assets/voice/zhuk_8.mp3
--> Начало
+-> DONE
 
 === Начало_hub_ok1 ===
 Келл со взводом, двенадцать человек, вниз — и ни одного обратно до утра. Ещё: мастер выходил из шахты не один. Но это ты не от меня слышал. # voice: assets/voice/zhuk_9.mp3

@@ -991,7 +991,55 @@ function NpcForm({
             <option value="side">Вид сбоку — зеркало влево/вправо</option>
             <option value="static">Не разворачивать</option>
           </select>
+          <span className="muted small">
+            «Вид сверху» корректно вращает только арт, нарисованный строго сверху
+            (видны макушка и плечи): вертикальный или фронтальный арт при повороте
+            ляжет на бок и будет выглядеть «спиной». Для такого арта выбирайте режим
+            «Вид сбоку» — движок ограничится зеркалированием, и фигурка останется на ногах.
+            Проверка: в тестовом бою при старте фигурки должны смотреть друг на друга.
+          </span>
         </label>
+        {(npc.figure_mode ?? 'topdown') === 'topdown' && (
+          <div className="fld">
+            <span>Сдвиг разворота, градусы (0 — арт смотрит вверх)</span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                type="number"
+                step={45}
+                style={{ width: 90 }}
+                value={npc.facing_offset ?? 0}
+                onChange={(e) => {
+                  const v = Number(e.target.value)
+                  if (!Number.isFinite(v) || v === 0) delete npc.facing_offset
+                  else npc.facing_offset = v
+                  commit()
+                }}
+              />
+              {[0, 90, 180, -90].map((deg) => (
+                <button
+                  key={deg}
+                  type="button"
+                  className="btn btn-small"
+                  onClick={() => {
+                    if (deg === 0) delete npc.facing_offset
+                    else npc.facing_offset = deg
+                    commit()
+                  }}
+                  data-tip={`Арт нарисован «лицом ${deg === 0 ? 'вверх' : deg === 90 ? 'вправо' : deg === 180 ? 'вниз' : 'влево'}»`}
+                >
+                  {deg === 0 ? '↑ 0' : deg === 90 ? '→ 90' : deg === 180 ? '↓ 180' : '← −90'}
+                </button>
+              ))}
+            </div>
+            <span className="muted small">
+              Запасной вариант, если готовый арт смотрит не вверх: 180 — фигурка нарисована
+              вниз, 90 — вправо, -90 — влево. Влияет только на картинку, не на логику боя
+              (умение «удар в спину» считывает реальное направление бойца). Если после
+              подбора угла фигурка всё равно «лежит» — арт не вид сверху: верните 0
+              и переключите режим на «Вид сбоку».
+            </span>
+          </div>
+        )}
         <h4 style={{ marginTop: 14 }}>Состояния фигурки боя</h4>
         <div className="muted small" style={{ marginBottom: 8 }}>
           Свои изображения для особых моментов боя: «Погиб» — когда персонаж убит,
@@ -1062,6 +1110,71 @@ function NpcForm({
         <div className="muted small">Если и жетон не задан, в бою используется обычный портрет.</div>
       </div>
 
+      </details>
+
+      <details className="spoiler-block" {...((npc.companion_needs?.length ?? 0) > 0 || npc.companion_carry ? { open: true } : {})}>
+        <summary>Напарник (отряд)</summary>
+      <div className="props-group">
+        <h4>Напарник в отряде</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Когда этот персонаж идёт с героем (эффект «Взять в отряд» / join_party), игрок
+          видит карточку напарника: поговорить, применить к нему бинт или еду, посмотреть
+          сумку и отпустить. Здесь вы решаете, какая «живая» часть у напарника есть:
+          свои потребности и собственная сумка. Роботу, голему или нежити обычно не нужно
+          ни того, ни другого.
+        </div>
+
+        <h4 style={{ marginTop: 4 }}>Его потребности</h4>
+        <div className="muted small" style={{ marginBottom: 8 }}>
+          Отмеченные потребности убывают в пути тем же темпом, что у героя, и делят его
+          общий стол: когда герой ест, пьёт или спит, напарник с той же потребностью
+          восстанавливает столько же. Истощённый напарник дерётся хуже (навыки −10%).
+          Правила могут читать и менять их условиями «У напарника потребность ≤/≥» и
+          эффектом «Изменить потребность напарника». Реестр потребностей —
+          «Кампания и реестры» → «Потребности».
+        </div>
+        {(store.meta.needs ?? []).length === 0 && (
+          <div className="muted small">Потребностей в кампании нет — сначала заведите их в реестре.</div>
+        )}
+        <div className="chips" style={{ marginBottom: 10 }}>
+          {(store.meta.needs ?? []).map((n) => {
+            const on = (npc.companion_needs ?? []).includes(n.id)
+            return (
+              <button
+                key={n.id}
+                type="button"
+                className={`chip${on ? ' on' : ''}`}
+                data-tip={n.description ?? n.label}
+                onClick={() => {
+                  const cur = npc.companion_needs ?? []
+                  npc.companion_needs = on ? cur.filter((x) => x !== n.id) : [...cur, n.id]
+                  if (!npc.companion_needs.length) delete npc.companion_needs
+                  commit()
+                }}
+              >
+                {on ? '✓ ' : ''}{n.short_label ?? n.label}
+              </button>
+            )
+          })}
+        </div>
+
+        <label className="fld fld-check" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            checked={npc.companion_carry === true}
+            onChange={(e) => {
+              if (e.target.checked) npc.companion_carry = true
+              else delete npc.companion_carry
+              commit()
+            }}
+          />
+          <span>
+            <b>Вторая сумка</b> — у напарника есть собственный инвентарь: игрок передаёт ему
+            вещи карточкой отряда, а надетые оружие и броня используются им в бою.
+            Грузоподъёмность считается по формулам энкадменса из его характеристик.
+          </span>
+        </label>
+      </div>
       </details>
 
       <details className="spoiler-block" {...((npc.abilities?.length ?? 0) > 0 || !!npc.morale) ? { open: true } : {}}>

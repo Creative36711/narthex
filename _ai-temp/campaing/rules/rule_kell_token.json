@@ -24,7 +24,13 @@
       "image": "assets/img/pc_kell_token.jpg",
       "text": "Келл узнаёт жетон раньше, чем ты называешь имя.",
       "preset": "шёпот",
-      "seconds": 5
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     }
   ],
   "chapter": "ch_signs"

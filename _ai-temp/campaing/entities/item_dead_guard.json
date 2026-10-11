@@ -53,7 +53,17 @@
               "image": "assets/img/pc_guard.jpg",
               "text": "Сорванная цепочка в сведённых пальцах.",
               "preset": "шёпот",
-              "seconds": 5
+              "seconds": 5,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 6
+              }
+            },
+            {
+              "type": "set_flag",
+              "flag": "guard_found_now"
             }
           ],
           "fail_effects": [
@@ -176,6 +186,10 @@
         {
           "type": "show_message",
           "text": "Ты разжимаешь сведённые пальцы и снимаешь с сорванной цепочки номерной жетон: Стась Яров. Он умер не от воды — на затылке след удара."
+        },
+        {
+          "type": "set_flag",
+          "flag": "guard_found_now"
         }
       ]
     },

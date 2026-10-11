@@ -140,7 +140,9 @@ export function sanitizeInkSource(source: string): string {
     'set_flag(f)', 'clear_flag(f)', 'apply_status(p, s, d)', 'remove_status(p, s)',
     'set_weather(w)', 'unlock_codex(e)', 'unlock_recipe(r)', 'open_trade(n)',
     'open_craft(r)', 'add_item(id, n)', 'remove_item(id, q)', 'change_disposition(t, d)',
-    'join_party(e)', 'start_combat(a)', 'start_quest(q)', 'advance_quest(q, s)',
+    'join_party(e)', 'leave_party(e)', 'change_companion_need(e, n, d)',
+    'get_companion_need(e, n)', 'give_to(e, id, q)',
+    'start_combat(a)', 'start_quest(q)', 'advance_quest(q, s)',
     'fail_quest(q)', 'journal_update(q, k)', 'fire_rule(r)', 'change_hp(d)',
     'change_need(n, d)', 'advance_time(t)', 'sleep(h)', 'set_dialogue_timer(s, k)',
     'present_item(o, f, r)', 'play_sound(s, v)', 'set_entity_state(e, s)',
@@ -335,6 +337,16 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   })
   bind('set_description', (entityId: string, text: string) => { engine.setEntityDescription(entityId, text); return 0 })
   bind('join_party', (entityId: string) => { engine.joinParty(entityId); return 0 })
+  bind('leave_party', (entityId: string) => { engine.leaveParty(entityId); return 0 })
+  // потребности и «вторая сумка» напарника: `~ change_companion_need("npc_ira", "need_hunger", 30)`
+  bind('change_companion_need', (entity: string, need: string, delta: number) => {
+    engine.changeCompanionNeed(String(entity), String(need), Number(delta) || 0)
+    return 0
+  })
+  bind('get_companion_need', (entity: string, need: string) => engine.companionNeed(String(entity), String(need)) ?? -1)
+  // передать предмет напарнику со «второй сумкой»: `~ give_to("npc_ira", "item_filter", 1)`
+  bind('give_to', (entity: string, item: string, qty?: number) =>
+    engine.giveItemToCompanion(String(entity), String(item), Number(qty) || 1) ? 1 : 0)
   bind('in_party', (entityId: string) => (engine.isInParty(entityId) ? 1 : 0))
   bind('start_quest', (questId: string) => { engine.startQuest(questId); return 0 })
   bind('quest_stage', (questId: string) => engine.state.quests[questId]?.stage ?? '')

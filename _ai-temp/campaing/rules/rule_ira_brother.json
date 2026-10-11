@@ -48,7 +48,13 @@
       "image": "assets/img/pc_token.jpg",
       "text": "Стась Яров вернулся домой — хотя бы жетоном.",
       "preset": "шёпот",
-      "seconds": 6
+      "seconds": 6,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 7
+      }
     }
   ],
   "chapter": "ch_deep"

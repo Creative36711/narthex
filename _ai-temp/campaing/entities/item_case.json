@@ -361,7 +361,13 @@
               "image": "assets/img/pc_hand_match.jpg",
               "text": "Одна петля. Одна рука.",
               "preset": "записочный",
-              "seconds": 5
+              "seconds": 5,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 6
+              }
             },
             {
               "type": "show_message",

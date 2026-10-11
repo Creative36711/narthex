@@ -4,6 +4,7 @@ import type { CampaignData } from '../shared/types'
 import { askConfirm, showAlert } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
 import { importChroniclePackage, importCampaignFromDirectory, type CampaignIndexEntry } from '../editor/newCampaign'
+import { clearAiDiffSnapshot } from '../shared/aiBaseline'
 import { peekSave, importSaveText, deleteSave } from '../core/engine'
 import { ENGINE_VERSION } from '../shared/versions'
 import { setAudioCampaign } from '../shared/audio'
@@ -65,6 +66,9 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
       })
       if (entry.cancelled) return
       onImported(entry.id)
+      // содержимое кампании заменено пакетом — отслеживание ручных правок
+      // мастера начинается заново (старый снимок не воскресает)
+      clearAiDiffSnapshot(`/campaigns/${entry.id}`)
       setShowList(false)
       if (entry.alreadyInstalled) void showAlert('Кампания уже импортирована', `«${entry.title}» уже установлена; вторая копия не создана.`)
       if (entry.idWarning) void showAlert('ID кампании', entry.idWarning)
@@ -92,6 +96,8 @@ export function MainMenu({ campaign, campaigns, onSelectCampaign, onImported, ca
       })
       if (entry.cancelled) return
       onImported(entry.id)
+      // то же самое, что и при импорте пакета: фиксация правок с чистого листа
+      clearAiDiffSnapshot(`/campaigns/${entry.id}`)
       setShowList(false)
       if (entry.alreadyInstalled) void showAlert('Кампания уже импортирована', `«${entry.title}» уже установлена; вторая копия не создана.`)
       if (entry.idWarning) void showAlert('ID кампании', entry.idWarning)

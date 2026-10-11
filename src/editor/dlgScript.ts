@@ -1014,6 +1014,9 @@ function effectToScript(e: DlgEffect, refs: ScriptRefs): string {
     case 'remove_item': return `→ забрать: ${label('item', e.item)}${e.qty > 1 ? ` ×${e.qty}` : ''}`
     case 'fire_rule': return `→ правило: ${label('rule', e.rule)}`
     case 'join_party': return `→ отряд: ${label('npc', e.npc)}`
+    case 'leave_party': return `→ отряд: ${label('npc', e.npc)} уходит`
+    case 'change_companion_need': return `→ у напарника ${label('npc', e.npc)}: ${label('need', e.need)} ${e.delta > 0 ? '+' : ''}${e.delta}`
+    case 'transfer_to_companion': return `→ напарнику ${label('npc', e.npc)}: ${label('item', e.item)}${e.qty > 1 ? ` ×${e.qty}` : ''}`
     case 'open_trade': return `→ торговля: ${label('npc', e.npc)}`
     case 'open_craft': return e.recipe ? `→ изготовление: ${label('recipe', e.recipe)}` : '→ изготовление'
     case 'start_quest': return `→ квест: ${label('quest', e.quest)}`

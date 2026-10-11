@@ -15,6 +15,18 @@
       "entity": "npc_ira"
     },
     {
+      "type": "change_companion_need",
+      "entity": "npc_ira",
+      "need": "need_hunger",
+      "delta": -20
+    },
+    {
+      "type": "change_companion_need",
+      "entity": "npc_ira",
+      "need": "need_rest",
+      "delta": -35
+    },
+    {
       "type": "set_flag",
       "flag": "ira_joined"
     },
@@ -28,7 +40,13 @@
       "image": "assets/img/pc_ira_joins.jpg",
       "text": "Ира Ярова идёт с тобой.",
       "preset": "шёпот",
-      "seconds": 5
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
     }
   ]
 }

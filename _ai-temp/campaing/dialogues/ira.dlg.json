@@ -7,6 +7,58 @@
       "label": "Начало разговора",
       "sections": [
         {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_ira"
+            },
+            {
+              "type": "in_party",
+              "npc": "npc_ira"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ира идёт рядом, держа фонарь пониже, и ждёт, что ты скажешь.",
+                "action": true,
+                "voice": "assets/voice/narr_ira_14.mp3"
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_ira"
+            },
+            {
+              "type": "in_party",
+              "not": true,
+              "npc": "npc_ira"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ира поднимает глаза от пульта и ждёт, что ты скажешь.",
+                "action": true,
+                "voice": "assets/voice/narr_ira_rep.mp3"
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_ira",
+              "not": true
+            }
+          ],
           "steps": [
             {
               "kind": "line",
@@ -30,6 +82,13 @@
                 "type": "learn_name",
                 "entity": "npc_ira",
                 "silent": true
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_ira"
               }
             }
           ]
@@ -101,7 +160,19 @@
         },
         {
           "text": "Где ключ от каморки мастера?",
-          "sections": [],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "ira_key_asked"
+                  }
+                }
+              ]
+            }
+          ],
           "goto": "stay",
           "check": {
             "skill": "persuade",
@@ -173,6 +244,16 @@
             {
               "type": "flag",
               "flag": "resh_room_open",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "ira_key_asked",
+              "not": true
+            },
+            {
+              "type": "in_party",
+              "npc": "npc_ira",
               "not": true
             }
           ]
@@ -254,6 +335,55 @@
             {
               "type": "flag",
               "flag": "ira_told_brother"
+            },
+            {
+              "type": "flag",
+              "flag": "ira_saw_body",
+              "not": true
+            }
+          ],
+          "once": true
+        },
+        {
+          "text": "Возьми жетон Стася. Он твой.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Она берёт жетон двумя руками, как воду.",
+                    "action": true,
+                    "sfx": "snd_tag",
+                    "voice": "assets/voice/narr_ira_4.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Спасибо. За то, что не написал «погиб при исполнении». Он не при исполнении.",
+                    "voice": "assets/voice/ira_3.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_ira_brother"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_guard_token"
+            },
+            {
+              "type": "flag",
+              "flag": "ira_saw_body"
             }
           ],
           "once": true
@@ -499,7 +629,7 @@
           "once": true
         },
         {
-          "text": "В галерее я нашёл казённый ранец. Бирка: «Смена 13-го. Ярус 8».",
+          "text": "Ранец из галереи. Бирка: «Смена 13-го. Ярус 8». Чей он?",
           "conds": [
             {
               "type": "flag",
@@ -591,7 +721,8 @@
                   "line": {
                     "text": "Она проводит пальцем по выбитой семёрке.",
                     "action": true,
-                    "sfx": "snd_tag"
+                    "sfx": "snd_tag",
+                    "voice": "assets/voice/narr_ira_15.mp3"
                   }
                 },
                 {
@@ -624,7 +755,155 @@
           "once": true
         },
         {
+          "text": "Пойдём со мной снова.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ira_joined"
+            },
+            {
+              "type": "in_party",
+              "npc": "npc_ira",
+              "not": true
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Опять вниз? Пойдём. Фонарь я так и не выпустила из рук.",
+                    "voice": "assets/voice/ira_38.mp3",
+                    "emotion": "calm"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "join_party",
+                    "npc": "npc_ira"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_description",
+                    "entity": "npc_ira",
+                    "text": "Помощница мастера, пошедшая с дознавателем. Знает помпу по звуку и не верит бумагам."
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "text": "Как ты держишься?",
+          "conds": [
+            {
+              "type": "in_party",
+              "npc": "npc_ira"
+            }
+          ],
+          "sections": [
+            {
+              "conds": [
+                {
+                  "type": "flag",
+                  "flag": "ira_worn"
+                }
+              ],
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ноги сами идут, а голова уже нет. Дай поесть или дай поспать — что-нибудь одно, я не гордая.",
+                    "voice": "assets/voice/ira_35.mp3",
+                    "emotion": "tired"
+                  }
+                }
+              ],
+              "else_steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Держусь. Пока ты идёшь — и я иду. Только фонарь у меня, так что не убегай вперёд.",
+                    "voice": "assets/voice/ira_36.mp3",
+                    "emotion": "calm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Возвращайся к пульту. Дальше я сам.",
+          "conds": [
+            {
+              "type": "in_party",
+              "npc": "npc_ira"
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ладно, вернусь к пульту. Только не пропадай там внизу, как он.",
+                    "voice": "assets/voice/ira_37.mp3",
+                    "emotion": "sad"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "leave_party",
+                    "npc": "npc_ira"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_ira_returns_card"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_description",
+                    "entity": "npc_ira",
+                    "text": "Помощница мастера. Ходила с дознавателем вниз, теперь снова ждёт у пульта."
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
+        },
+        {
           "text": "Мне пора.",
+          "sections": [],
+          "goto": "end",
+          "conds": [
+            {
+              "type": "in_party",
+              "npc": "npc_ira",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Идём дальше.",
+          "conds": [
+            {
+              "type": "in_party",
+              "npc": "npc_ira"
+            }
+          ],
           "sections": [],
           "goto": "end"
         }
@@ -773,7 +1052,7 @@
         }
       ],
       "choices": [],
-      "goto": "Начало"
+      "goto": "end"
     },
     {
       "id": "У_затвора",
@@ -983,6 +1262,161 @@
           "conds": []
         }
       ]
+    },
+    {
+      "id": "У_тела",
+      "label": "Ира у тела брата (отряд)",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "ira_saw_body"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "ira_told_brother"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ира опускает фонарь. Свет ложится на казённую куртку и на сорванную цепочку в сведённых пальцах.",
+                "action": true,
+                "voice": "assets/voice/narr_ira_12.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Не свети ему в лицо, я и так знаю, кто это. Матери сказали — перевели на другой ярус. Вот он, другой ярус.",
+                "voice": "assets/voice/ira_32.mp3",
+                "emotion": "sad"
+              }
+            }
+          ]
+        }
+      ],
+      "timer": {
+        "seconds": 12,
+        "node": "У_тела_молчание"
+      },
+      "choices": [
+        {
+          "text": "Мне жаль, Ира.",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Не жалей. Запомни, как он лежит и что у него в пальцах. Теперь это улика, а не брат.",
+                    "voice": "assets/voice/ira_33.mp3",
+                    "emotion": "angry"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 8
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "У_тела_конец"
+        },
+        {
+          "text": "Он держал затвор до последнего.",
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Знал, что вода пойдёт, и всё равно стоял. Только ударили его сзади. Вода так не бьёт.",
+                    "voice": "assets/voice/ira_34.mp3",
+                    "emotion": "sad"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "change_disposition",
+                    "target": "npc_ira",
+                    "delta": 10
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "У_тела_конец"
+        }
+      ]
+    },
+    {
+      "id": "У_тела_молчание",
+      "label": "Ира молчит у тела",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ира стоит над братом, пока фонарь в её руке не перестаёт дрожать.",
+                "action": true,
+                "voice": "assets/voice/narr_ira_13.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Вот и я молчу третий день. Ничего, привыкла.",
+                "voice": "assets/voice/ira_17.mp3",
+                "emotion": "sad"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "change_disposition",
+                "target": "npc_ira",
+                "delta": 4
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "У_тела_конец",
+      "choices": []
+    },
+    {
+      "id": "У_тела_конец",
+      "label": "Конец сцены у тела",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "fire_rule",
+                "rule": "rule_ira_body_card"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "end",
+      "choices": []
     }
   ]
 }

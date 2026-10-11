@@ -1,0 +1,36 @@
+{
+  "id": "rule_banter_ira_drift",
+  "label": "Ира в пути: штольня",
+  "once": true,
+  "trigger": "enter_scene",
+  "chapter": "ch_deep",
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_drift"
+    },
+    {
+      "type": "in_party",
+      "entity": "npc_ira"
+    }
+  ],
+  "effects": [
+    {
+      "type": "show_message",
+      "text": "У входа в штольню Ира останавливается. «Дальше Стась не ходил. Говорил, в штольне воздух чужой». Она поправляет маску на груди — и всё-таки идёт."
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_ira_drift.jpg",
+      "text": "Дальше брат не ходил.",
+      "preset": "шёпот",
+      "seconds": 6,
+      "camera": {
+        "zoom": 1.1,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 7
+      }
+    }
+  ]
+}
