@@ -13,11 +13,16 @@ import { MusicTrackSelect } from './AudioSection'
 
 type Brush = 'blocked' | 'difficult' | 'cover' | 'spawn_player' | 'spawn_enemy' | 'erase'
 
-const BRUSHES: Array<{ id: Brush; label: string; color: string }> = [
+const BRUSHES: Array<{ id: Brush; label: string; color: string; tip?: string }> = [
   { id: 'blocked', label: 'Блок', color: '#b03a2e' },
   { id: 'difficult', label: 'Сложная местность', color: '#8c7a4a' },
   { id: 'cover', label: 'Укрытие', color: '#4a6b8c' },
-  { id: 'spawn_player', label: 'Спавн игрока', color: '#5a7d43' },
+  {
+    id: 'spawn_player',
+    label: 'Спавн отряда',
+    color: '#5a7d43',
+    tip: 'Зона появления отряда: первый гекс — герою, остальные — напарникам по порядку отряда. Гексов должно быть не меньше, чем герой + максимум напарников кампании; переполненный боец встанет в ближайший свободный гекс к герою.',
+  },
   { id: 'spawn_enemy', label: 'Спавн врагов', color: '#7d435a' },
   { id: 'erase', label: 'Ластик', color: '#666' },
 ]
@@ -86,6 +91,7 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
               key={b.id}
               className={`btn btn-small brush ${brush === b.id ? 'brush-on' : ''}`}
               style={{ borderColor: brush === b.id ? b.color : undefined }}
+              data-tip={b.tip}
               onClick={() => setBrush(b.id)}
             >
               <i className="brush-dot" style={{ background: b.color }} /> {b.label}
@@ -158,7 +164,8 @@ export function ArenaEditor({ store, path }: { store: EditorStore; path: string 
             </label>
           </div>
           <div className="muted small">
-            Спавн игрока: {arena.spawn_zones.player.hexes.length} · врагов: {arena.spawn_zones.enemy.hexes.length}
+            Спавн отряда (первый гекс — герою, остальные — напарникам по порядку):{' '}
+            {arena.spawn_zones.player.hexes.length} · врагов: {arena.spawn_zones.enemy.hexes.length}
             <br />
             Блоков: {arena.hex_grid.blocked_hexes.length} · сложных: {arena.hex_grid.difficult_terrain.length} · укрытий: {(arena.hex_grid.cover_hexes ?? []).length}
             <br />
