@@ -3196,7 +3196,7 @@ export class GameEngine {
     if (!silent && def?.unknown_label) {
       const msg = `Вы узнали: «${def.unknown_label}» — это ${def.label}.`
       this.pushLog(msg)
-      this.messages.push({ text: msg })
+      this.pushToast(msg, 'info')
     }
     this.notify()
     this.checkRules()

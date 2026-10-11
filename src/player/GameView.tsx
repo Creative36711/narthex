@@ -55,7 +55,7 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
   const cutscene = engine.cutscene
   const isIntroActive = engine.isSceneIntroActive()
   const isPostcardActive = !cutscene && !isIntroActive && !!engine.postcard
-  const isMessageActive = !cutscene && !isIntroActive && !isPostcardActive && !!engine.messages[0]
+  const isMessageActive = !cutscene && !engine.dialogue && !engine.combat && !isIntroActive && !isPostcardActive && !!engine.messages[0]
   const isStoryActive = !!cutscene || isIntroActive || isPostcardActive || isMessageActive
 
   const toasts = engine.toasts
