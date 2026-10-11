@@ -41,6 +41,5 @@
   ],
   "scene_sprite": "assets/img/npc/sprite_kast.png",
   "combat_figure": "assets/img/npc/fig_kast.png",
-  "figure_mode": "topdown",
-  "facing_offset": 180
+  "figure_mode": "side"
 }

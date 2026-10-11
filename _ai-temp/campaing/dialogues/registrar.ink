@@ -16,7 +16,7 @@ EXTERNAL get_flag(a0)
 -> Начало_hub
 
 === Снова ===
-Реле щёлкают, стеклянные глаза регистратора снова разгораются бирюзой. # action # sfx: sfx_click
+Реле щёлкают, стеклянные глаза регистратора снова разгораются бирюзой. # action # sfx: sfx_click # voice: assets/voice/narr_registrar_2.mp3
 -> Начало_hub
 
 === Начало_hub ===

@@ -72,6 +72,5 @@
   "scene_sprite": "assets/img/npc/sprite_ayla.png",
   "unknown_label": "Женщина с бинтами",
   "combat_figure": "assets/img/npc/fig_ayla.png",
-  "figure_mode": "topdown",
-  "facing_offset": 180
+  "figure_mode": "side"
 }

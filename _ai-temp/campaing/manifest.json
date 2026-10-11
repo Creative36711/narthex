@@ -221,7 +221,17 @@
     "rule_glazier_card.json",
     "rule_camp_ambush_card.json",
     "rule_resh_joins_card.json",
-    "rule_air_back_card.json"
+    "rule_air_back_card.json",
+    "rule_banter_ira_gallery.json",
+    "rule_banter_ira_dryrow.json",
+    "rule_banter_ira_drift.json",
+    "rule_banter_ira_face.json",
+    "rule_banter_resh_pump.json",
+    "rule_banter_resh_sluice.json",
+    "rule_banter_resh_gate.json",
+    "rule_banter_resh_dryrow.json",
+    "rule_ira_returns_card.json",
+    "rule_resh_returns_card.json"
   ],
   "arenas": [
     "arena_gate.json",

@@ -19,7 +19,8 @@
               "line": {
                 "text": "Реле щёлкают, стеклянные глаза регистратора снова разгораются бирюзой.",
                 "action": true,
-                "sfx": "sfx_click"
+                "sfx": "sfx_click",
+                "voice": "assets/voice/narr_registrar_2.mp3"
               }
             }
           ],

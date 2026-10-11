@@ -1,3 +1,4 @@
+EXTERNAL leave_party(a0)
 EXTERNAL change_companion_need(a0, a1, a2)
 EXTERNAL fire_rule(a0)
 EXTERNAL in_party(a0)
@@ -30,7 +31,7 @@ VAR r = 0
 -> Начало_hub
 
 === В_пути ===
-Реш шагает следом, придерживаясь ладонью за стену, и ждёт, что ты скажешь. # action
+Реш шагает следом, придерживаясь ладонью за стену, и ждёт, что ты скажешь. # action # voice: assets/voice/narr_resh_4.mp3
 -> Начало_hub
 
 === Начало_hub ===
@@ -96,11 +97,26 @@ VAR r = 0
     Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту. # voice: assets/voice/resh_8.mp3
     ~ join_party("npc_resh")
     -> DONE
++ { in_party("npc_resh") } [Как ты держишься?]
+    { get_flag("resh_worn"): -> Самочувствие_плохо | -> Самочувствие_хорошо }
++ { in_party("npc_resh") } [Возвращайся к забою. Дальше я сам.]
+    Ладно. Вернусь к забою: там стена тёплая и жилу слышно. Позовёшь — приду. # emotion: calm # voice: assets/voice/resh_21.mp3
+    ~ leave_party("npc_resh")
+    ~ fire_rule("rule_resh_returns_card")
+    -> DONE
 + { not (in_party("npc_resh")) } [Мне пора.]
     -> DONE
 + { in_party("npc_resh") } [Идём дальше.]
     -> DONE
 - -> Начало_hub
+
+=== Самочувствие_плохо ===
+Колени не держат, а живот гудит громче жилы. Дай хоть сухарь и глоток воды — и пойду дальше. # emotion: tired # voice: assets/voice/resh_19.mp3
+-> Начало_hub
+
+=== Самочувствие_хорошо ===
+Сорок лет под землёй. Ещё один день я выдержу — лишь бы не зря. # emotion: calm # voice: assets/voice/resh_20.mp3
+-> Начало_hub
 
 === Начало_hub_ok1 ===
 Бери. Только сначала почини затвор: без него ты затопишь восьмой быстрее, чем они успеют подписать бумагу. # voice: assets/voice/resh_11.mp3

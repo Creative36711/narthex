@@ -84,6 +84,5 @@
     "gear": "item_lamp"
   },
   "combat_figure": "assets/img/npc/fig_hero.png",
-  "figure_mode": "topdown",
-  "facing_offset": 180
+  "figure_mode": "side"
 }

@@ -1,3 +1,4 @@
+EXTERNAL learn_name(a0)
 EXTERNAL in_party(a0)
 EXTERNAL change_disposition(a0, a1)
 EXTERNAL fire_rule(a0)
@@ -12,6 +13,7 @@ VAR r = 0
 
 === Начало ===
 { get_flag("met_vex"): -> Снова }
+~ learn_name("npc_vex")
 Векс поднимает глаза от пульта и долго смотрит на твой жетон. # action # sfx: sfx_click # voice: assets/voice/narr_vex_1.mp3
 Приписной дознаватель? Проходи в контору за дверью, там печка топится. Здесь у затвора только сквозняк и чужие. # voice: assets/voice/vex_1.mp3
 Я своим журналом отвечаю за каждого, кто прошёл. # voice: assets/voice/vex_2.mp3

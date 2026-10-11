@@ -118,8 +118,18 @@ SCEN = [
     ('Стекольщик ×1 (enc_deep, драка)',     [('npc_glazier', 1)], False),
     ('Келл один (финал с делом / повтор)',  [('npc_kell', 1)], False),
     ('Келл + громила (финал)',              [('npc_kell', 1), ('npc_thug', 1)], False),
-    ('Келл + громила (финал, с Ирой)',      [('npc_kell', 1), ('npc_thug', 1)], True),
+    ('Келл + громила (финал, с Ирой)',      [('npc_kell', 1), ('npc_thug', 1)], ['npc_ira']),
+    ('Келл + громила (финал, с Решем)',     [('npc_kell', 1), ('npc_thug', 1)], ['npc_resh']),
+    ('Келл + громила (с Ирой и Решем)',     [('npc_kell', 1), ('npc_thug', 1)], ['npc_ira', 'npc_resh']),
+    ('Келл + громила (Ира и Реш истощены)', [('npc_kell', 1), ('npc_thug', 1)], ['npc_ira!', 'npc_resh!']),
+    ('Громила ×2 (патруль помпы, с Решем)', [('npc_thug', 2)], ['npc_resh']),
 ]
+
+def comp(cid):
+    # «!» — напарник истощён (нужда <= critical): −10% навыков (раздел «Отряд» гайда)
+    tired = cid.endswith('!'); f = F(cid.rstrip('!'), 0)
+    if tired: f.sk = {k: int(v * 0.9) for k, v in f.sk.items()}
+    return f
 
 def run(N=4000, hero_over=None, label=''):
     print(f'\n== {label or "текущие значения"} (N={N})')
@@ -128,7 +138,7 @@ def run(N=4000, hero_over=None, label=''):
         w = 0; rr = 0; hpl = 0
         for _ in range(N):
             hero = F('player_hero', 0, hero_over)
-            allies = [hero] + ([F('npc_ira', 0)] if ira else [])
+            allies = [hero] + [comp(c) for c in (ira or [])]
             enemies = [F(e, 1) for e, c in en for _ in range(c)]
             ok, r = fight(allies, enemies); rr += r
             if ok: w += 1; hpl += hero.hp

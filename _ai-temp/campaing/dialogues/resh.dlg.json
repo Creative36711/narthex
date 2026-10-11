@@ -22,7 +22,8 @@
               "kind": "line",
               "line": {
                 "text": "Реш шагает следом, придерживаясь ладонью за стену, и ждёт, что ты скажешь.",
-                "action": true
+                "action": true,
+                "voice": "assets/voice/narr_resh_4.mp3"
               }
             }
           ]
@@ -683,6 +684,84 @@
               "not": true
             }
           ]
+        },
+        {
+          "text": "Как ты держишься?",
+          "conds": [
+            {
+              "type": "in_party",
+              "npc": "npc_resh"
+            }
+          ],
+          "sections": [
+            {
+              "conds": [
+                {
+                  "type": "flag",
+                  "flag": "resh_worn"
+                }
+              ],
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Колени не держат, а живот гудит громче жилы. Дай хоть сухарь и глоток воды — и пойду дальше.",
+                    "voice": "assets/voice/resh_19.mp3",
+                    "emotion": "tired"
+                  }
+                }
+              ],
+              "else_steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Сорок лет под землёй. Ещё один день я выдержу — лишь бы не зря.",
+                    "voice": "assets/voice/resh_20.mp3",
+                    "emotion": "calm"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Возвращайся к забою. Дальше я сам.",
+          "conds": [
+            {
+              "type": "in_party",
+              "npc": "npc_resh"
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ладно. Вернусь к забою: там стена тёплая и жилу слышно. Позовёшь — приду.",
+                    "voice": "assets/voice/resh_21.mp3",
+                    "emotion": "calm"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "leave_party",
+                    "npc": "npc_resh"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_resh_returns_card"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end"
         },
         {
           "text": "Мне пора.",

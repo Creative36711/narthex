@@ -60,12 +60,11 @@
   "scene_sprite": "assets/img/npc/sprite_ira.png",
   "unknown_label": "Девушка у пульта",
   "combat_figure": "assets/img/npc/fig_ira.png",
-  "figure_mode": "topdown",
+  "figure_mode": "side",
   "combat_figure_states": {
     "down": "assets/img/npc/fig_ira_down.png",
     "dead": "assets/img/npc/fig_ira_down.png"
   },
-  "facing_offset": 180,
   "companion_needs": [
     "need_hunger",
     "need_thirst",

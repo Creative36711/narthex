@@ -22,7 +22,8 @@
               "kind": "line",
               "line": {
                 "text": "Ира идёт рядом, держа фонарь пониже, и ждёт, что ты скажешь.",
-                "action": true
+                "action": true,
+                "voice": "assets/voice/narr_ira_14.mp3"
               }
             }
           ]
@@ -720,7 +721,8 @@
                   "line": {
                     "text": "Она проводит пальцем по выбитой семёрке.",
                     "action": true,
-                    "sfx": "snd_tag"
+                    "sfx": "snd_tag",
+                    "voice": "assets/voice/narr_ira_15.mp3"
                   }
                 },
                 {
@@ -860,6 +862,13 @@
                   "effect": {
                     "type": "leave_party",
                     "npc": "npc_ira"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_ira_returns_card"
                   }
                 },
                 {

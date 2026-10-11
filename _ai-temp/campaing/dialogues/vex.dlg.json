@@ -25,6 +25,14 @@
           ],
           "else_steps": [
             {
+              "kind": "effect",
+              "effect": {
+                "type": "learn_name",
+                "entity": "npc_vex",
+                "silent": true
+              }
+            },
+            {
               "kind": "line",
               "line": {
                 "text": "Векс поднимает глаза от пульта и долго смотрит на твой жетон.",

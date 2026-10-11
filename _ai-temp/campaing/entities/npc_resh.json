@@ -51,8 +51,7 @@
     "armor": "item_coat"
   },
   "combat_figure": "assets/img/npc/fig_resh.png",
-  "figure_mode": "topdown",
-  "facing_offset": 180,
+  "figure_mode": "side",
   "companion_needs": [
     "need_hunger",
     "need_thirst",
