@@ -10,6 +10,60 @@
           "conds": [
             {
               "type": "flag",
+              "flag": "glazier_robbed"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Короб с бирюзовым светом снова выныривает из темноты штрека. Человек узнаёт тебя раньше, чем ты его.",
+                "voice": "assets/voice/narr_glazier_2.mp3",
+                "action": true
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Зря ты так, дознаватель. Внизу Надзора нет.",
+                "voice": "assets/voice/glazier_7.mp3",
+                "emotion": "angry"
+              }
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "glazier_beaten"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Короб с бирюзовым светом снова выныривает из темноты штрека. Человек узнаёт тебя раньше, чем ты его.",
+                "voice": "assets/voice/narr_glazier_2.mp3",
+                "action": true
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Зря ты так, дознаватель. Внизу Надзора нет.",
+                "voice": "assets/voice/glazier_7.mp3",
+                "emotion": "angry"
+              }
+            }
+          ],
+          "goto": "end"
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
               "flag": "glazier_met"
             }
           ],
@@ -311,11 +365,51 @@
           }
         },
         {
+          "text": "Показать ему вещь.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "present_item",
+                    "ok": "Вещь",
+                    "fail": "Вещь",
+                    "required": ""
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "Вещь",
+          "conds": []
+        },
+        {
           "text": "Иди своей дорогой.",
           "sections": [],
           "goto": "end"
         }
       ]
+    },
+    {
+      "id": "Вещь",
+      "label": "Показал вещь",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Не покупаю. Стекло — да, а это неси в Сухой ряд.",
+                "voice": "assets/voice/glazier_8.mp3",
+                "emotion": "calm"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
     }
   ]
 }

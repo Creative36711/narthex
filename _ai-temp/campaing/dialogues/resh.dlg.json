@@ -38,6 +38,11 @@
               "type": "in_party",
               "not": true,
               "npc": "npc_resh"
+            },
+            {
+              "type": "flag",
+              "flag": "resh_quarrel",
+              "not": true
             }
           ],
           "steps": [
@@ -47,6 +52,41 @@
                 "text": "Реш поворачивает голову на звук шагов: он уже знает, кто пришёл.",
                 "action": true,
                 "voice": "assets/voice/narr_resh_rep.mp3"
+              }
+            }
+          ]
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_resh"
+            },
+            {
+              "type": "in_party",
+              "not": true,
+              "npc": "npc_resh"
+            },
+            {
+              "type": "flag",
+              "flag": "resh_quarrel"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Реш не оборачивается. Ладонь лежит на жиле, как на плече больного.",
+                "voice": "assets/voice/narr_resh_6.mp3",
+                "action": true
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Говори, раз пришёл. Только про помпу — не со мной.",
+                "voice": "assets/voice/resh_30.mp3",
+                "emotion": "sad"
               }
             }
           ]
@@ -401,6 +441,13 @@
                 {
                   "kind": "effect",
                   "effect": {
+                    "type": "set_flag",
+                    "flag": "resh_recruited"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
                     "type": "change_companion_need",
                     "npc": "npc_resh",
                     "need": "need_hunger",
@@ -443,7 +490,7 @@
             },
             {
               "type": "flag",
-              "flag": "resh_joined",
+              "flag": "resh_recruited",
               "not": true
             }
           ],
@@ -658,6 +705,67 @@
                 {
                   "kind": "line",
                   "line": {
+                    "text": "Пойдём. Про муфту я своё сказал — дальше твоя рука.",
+                    "voice": "assets/voice/resh_29.mp3",
+                    "emotion": "calm"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "join_party",
+                    "npc": "npc_resh"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "resh_joined"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "resh_recruited"
+            },
+            {
+              "type": "in_party",
+              "npc": "npc_resh",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "resh_quarrel",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "resh_allows_pump"
+            }
+          ]
+        },
+        {
+          "text": "Пойдём со мной снова.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Он встаёт тяжело, опираясь о стену ладонью.",
+                    "action": true,
+                    "sfx": "snd_stone",
+                    "voice": "assets/voice/narr_resh_2.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
                     "text": "Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту.",
                     "voice": "assets/voice/resh_8.mp3"
                   }
@@ -668,6 +776,13 @@
                     "type": "join_party",
                     "npc": "npc_resh"
                   }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "resh_joined"
+                  }
                 }
               ]
             }
@@ -676,11 +791,51 @@
           "conds": [
             {
               "type": "flag",
-              "flag": "resh_joined"
+              "flag": "resh_recruited"
             },
             {
               "type": "in_party",
               "npc": "npc_resh",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "resh_quarrel",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "resh_allows_pump",
+              "not": true
+            }
+          ]
+        },
+        {
+          "text": "Показать находку с привода.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "present_item",
+                    "ok": "Рукавица",
+                    "fail": "Не_то",
+                    "required": "item_glove"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "Рукавица",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "clue_glove"
+            },
+            {
+              "type": "flag",
+              "flag": "resh_glove",
               "not": true
             }
           ]
@@ -754,6 +909,13 @@
                 {
                   "kind": "effect",
                   "effect": {
+                    "type": "clear_flag",
+                    "flag": "resh_joined"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
                     "type": "fire_rule",
                     "rule": "rule_resh_returns_card"
                   }
@@ -787,6 +949,454 @@
           "goto": "end"
         }
       ]
+    },
+    {
+      "id": "У_помпы",
+      "label": "У помпы: Реш против запуска",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Реш встаёт между тобой и приводом и кладёт ладонь на срезанную муфту.",
+                "voice": "assets/voice/narr_resh_5.mp3",
+                "action": true
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Стой. Я говорил: вставишь сердцевину — лягу на муфту. Затвор держит, да. Но жила под нами живая, и ты её сейчас выпьешь.",
+                "voice": "assets/voice/resh_23.mp3",
+                "emotion": "angry"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Восьмой ярус утонет без помпы. Отойди, мастер.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "resh_pump_asked",
+              "not": true
+            }
+          ],
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "resh_pump_asked"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end",
+          "check": {
+            "skill": "persuade",
+            "difficulty": 50,
+            "success": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Сорок лет я выбирал между ярусом и жилой. Теперь выбирай ты. Только я смотреть не буду.",
+                        "voice": "assets/voice/resh_24.mp3",
+                        "emotion": "sad"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "set_flag",
+                        "flag": "resh_allows_pump"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "end"
+            },
+            "fail": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Нет. Хочешь пустить её — пускай без меня. Я к жиле: кто-то должен быть рядом, когда она начнёт остывать.",
+                        "voice": "assets/voice/resh_25.mp3",
+                        "emotion": "angry"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "change_disposition",
+                        "target": "npc_resh",
+                        "delta": -15
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "set_flag",
+                        "flag": "resh_quarrel"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "leave_party",
+                        "npc": "npc_resh"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "clear_flag",
+                        "flag": "resh_joined"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "fire_rule",
+                        "rule": "rule_resh_quarrel"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "end"
+            }
+          }
+        },
+        {
+          "text": "Стась бежал к затвору, чтобы восьмой не утонул. Не дай этому пропасть.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "ira_pack"
+            },
+            {
+              "type": "flag",
+              "flag": "resh_pump_asked",
+              "not": true
+            }
+          ],
+          "once": true,
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "resh_pump_asked"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end",
+          "check": {
+            "skill": "persuade",
+            "difficulty": 35,
+            "success": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Сорок лет я выбирал между ярусом и жилой. Теперь выбирай ты. Только я смотреть не буду.",
+                        "voice": "assets/voice/resh_24.mp3",
+                        "emotion": "sad"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "set_flag",
+                        "flag": "resh_allows_pump"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "end"
+            },
+            "fail": {
+              "sections": [
+                {
+                  "steps": [
+                    {
+                      "kind": "line",
+                      "line": {
+                        "text": "Нет. Хочешь пустить её — пускай без меня. Я к жиле: кто-то должен быть рядом, когда она начнёт остывать.",
+                        "voice": "assets/voice/resh_25.mp3",
+                        "emotion": "angry"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "change_disposition",
+                        "target": "npc_resh",
+                        "delta": -15
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "set_flag",
+                        "flag": "resh_quarrel"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "leave_party",
+                        "npc": "npc_resh"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "clear_flag",
+                        "flag": "resh_joined"
+                      }
+                    },
+                    {
+                      "kind": "effect",
+                      "effect": {
+                        "type": "fire_rule",
+                        "rule": "rule_resh_quarrel"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "goto": "end"
+            }
+          }
+        },
+        {
+          "text": "Ладно. Не сейчас.",
+          "sections": [
+            {
+              "steps": []
+            }
+          ],
+          "goto": "end"
+        }
+      ],
+      "goto": "end"
+    },
+    {
+      "id": "Б_помпа",
+      "label": "В пути: помпа",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Сорок лет я слушал её вот так. Теперь она молчит, и это громче всего, что я слышал.",
+                "voice": "assets/voice/resh_26.mp3",
+                "emotion": "sad"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "Б_журнал",
+      "label": "В пути: журнал шлюза",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Восемнадцать сорок, вниз. Обратно не записан. Выходит, по бумагам я всё ещё там.",
+                "voice": "assets/voice/resh_27.mp3",
+                "emotion": "thoughtful"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "П_смерть_иры",
+      "label": "Ира погибла",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Девочка шла за фонарём, а не за мной. Надо было оставить её у пульта.",
+                "voice": "assets/voice/resh_28.mp3",
+                "emotion": "sad"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "Б_ряд",
+      "label": "В пути: Сухой ряд",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "В Сухом ряду мне должны за насос. Не напоминай им, что я живой.",
+                "voice": "assets/voice/resh_32.mp3",
+                "emotion": "thoughtful"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "Б_каморка",
+      "label": "В пути: каморка",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Моя каморка. Сорок лет одна кружка и один табурет — гостей тут не ждали.",
+                "voice": "assets/voice/resh_31.mp3",
+                "emotion": "calm"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "Б_галерея",
+      "label": "В пути: галерея",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Вода стоит на ладонь выше, чем позавчера. Каркас пьёт медленно, но не останавливается.",
+                "voice": "assets/voice/resh_33.mp3",
+                "emotion": "thoughtful"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "Рукавица",
+      "label": "Рукавица с привода",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Караульная, брезентовая. Мои кожаные — ты видел. Кто в такой лез в привод, тот привода не знал: брезент к муфте липнет.",
+                "voice": "assets/voice/resh_34.mp3",
+                "emotion": "thoughtful"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "resh_glove"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "fire_rule",
+                "rule": "rule_resh_glove"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
+    },
+    {
+      "id": "Не_то",
+      "label": "Не та вещь",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Это не моё и не помпы. Мне такое показывать без толку.",
+                "voice": "assets/voice/resh_35.mp3",
+                "emotion": "calm"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
+    },
+    {
+      "id": "Б_затвор",
+      "label": "В пути: затвор",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Швы держат, пока давит снизу. Сядет затвор, только если в колодке будет клапан. Без клапана хоть плечом дави.",
+                "voice": "assets/voice/resh_36.mp3",
+                "emotion": "thoughtful"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
     }
   ]
 }

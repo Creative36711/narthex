@@ -71,9 +71,10 @@
     "death": "snd_cloth"
   },
   "combat_figure": "assets/img/npc/fig_thug.png",
-  "figure_mode": "side",
+  "figure_mode": "topdown",
   "combat_figure_states": {
     "down": "assets/img/npc/fig_thug_down.png",
     "dead": "assets/img/npc/fig_thug_down.png"
-  }
+  },
+  "facing_offset": 180
 }

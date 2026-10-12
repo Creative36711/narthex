@@ -65,6 +65,13 @@ EXTERNAL set_flag(a0)
     Приведи его, если сможешь. Если нет — больше никому не говори, что он жив. # emotion: calm # voice: assets/voice/kast_21.mp3
     ~ fire_rule("rule_kast_resh")
     -> Начало_hub
+* { in_party("npc_resh") and not (get_flag("kast_resh")) } [Мастер Реш со мной.]
+    ~ set_flag("kast_resh")
+    Мастер Реш. Живой, в пыли и на своих ногах. Значит, в сводке соврали ещё в одном месте. # emotion: thoughtful # voice: assets/voice/kast_24.mp3
+    «Я живой, пока об этом не знают наверху. Теперь знаешь ты. Решай, инспектор». # action # voice: assets/voice/resh_22.mp3
+    Тогда молчи до конца срока, мастер. И держись за спиной дознавателя: свидетели в моём отделе долго не живут. # emotion: calm # voice: assets/voice/kast_25.mp3
+    ~ fire_rule("rule_kast_resh_party")
+    -> Начало_hub
 * { has_item("item_burn_note") and not (get_flag("kast_burn")) } [Ночью за моим делом приходили. Вот что было у вора.]
     ~ set_flag("kast_burn")
     Каст читает записку дважды, второй раз — подняв её к лампе, будто ищет водяной знак. # action # voice: assets/voice/narr_kast_9.mp3

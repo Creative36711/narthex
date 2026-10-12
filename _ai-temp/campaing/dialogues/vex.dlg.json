@@ -629,11 +629,112 @@
           "once": true
         },
         {
+          "text": "Показать Вексу находку у затвора.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "present_item",
+                    "ok": "Жетон",
+                    "fail": "Не_то",
+                    "required": "item_guard_token"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "Жетон",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "clue_guard"
+            },
+            {
+              "type": "flag",
+              "flag": "vex_token",
+              "not": true
+            }
+          ]
+        },
+        {
           "text": "Мне пора.",
           "sections": [],
           "goto": "end"
         }
       ]
+    },
+    {
+      "id": "Жетон",
+      "label": "Жетон с тела у затвора",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Векс ведёт пальцем по журналу, пока не находит номер.",
+                "voice": "assets/voice/narr_vex_5.mp3",
+                "action": true,
+                "sfx": "snd_page"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Медь взвода Ястреба. По журналу этот номер ушёл вниз тринадцатого, а обратно никто не расписался.",
+                "voice": "assets/voice/vex_24.mp3",
+                "emotion": "thoughtful"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "vex_token"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "change_disposition",
+                "target": "npc_vex",
+                "delta": 3
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "fire_rule",
+                "rule": "rule_vex_token"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
+    },
+    {
+      "id": "Не_то",
+      "label": "Не та вещь",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Мне это ни к чему. Я пишу, кто прошёл, а не что у них в карманах.",
+                "voice": "assets/voice/vex_25.mp3",
+                "emotion": "calm"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
     }
   ]
 }

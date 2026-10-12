@@ -12,7 +12,7 @@
   "effects": [
     {
       "type": "postcard",
-      "image": "assets/img/pc_resh_room.jpg",
+      "image": "assets/img/pc_resh_room_empty.jpg",
       "text": "Здесь собирались вернуться.",
       "preset": "шёпот",
       "seconds": 5,

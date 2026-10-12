@@ -1,0 +1,28 @@
+{
+  "id": "rule_resh_unflag",
+  "label": "Реш ушёл(ла) из отряда — вернуть к забою",
+  "once": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "resh_joined"
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "in_party",
+        "entity": "npc_resh"
+      }
+    },
+    {
+      "type": "entity_alive",
+      "entity": "npc_resh"
+    }
+  ],
+  "effects": [
+    {
+      "type": "clear_flag",
+      "flag": "resh_joined"
+    }
+  ]
+}

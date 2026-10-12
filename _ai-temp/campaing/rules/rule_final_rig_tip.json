@@ -54,6 +54,10 @@
           "flag": "rig_spotted"
         },
         {
+          "type": "set_flag",
+          "flag": "kell_at_gate"
+        },
+        {
           "type": "show_message",
           "text": "Ключ соскальзывает с ригеля и звенит о сталь. Наверху замолкают шаги."
         },

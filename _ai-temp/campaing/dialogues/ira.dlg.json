@@ -63,7 +63,7 @@
             {
               "kind": "line",
               "line": {
-                "text": "Ира стирает мазут с ладоней ветошью и смотрит на тебя исподлобья.",
+                "text": "Девушка у пульта стирает мазут с ладоней ветошью и смотрит на тебя исподлобья.",
                 "action": true,
                 "voice": "assets/voice/narr_ira_1.mp3"
               }
@@ -557,7 +557,7 @@
           "conds": [
             {
               "type": "flag",
-              "flag": "ira_joined",
+              "flag": "ira_recruited",
               "not": true
             },
             {
@@ -568,65 +568,34 @@
           ]
         },
         {
-          "text": "Показать рукавицу с привода.",
-          "conds": [
-            {
-              "type": "flag",
-              "flag": "ira_glove",
-              "not": true
-            },
-            {
-              "type": "has_item",
-              "item": "item_glove"
-            }
-          ],
+          "text": "Показать находку с привода.",
           "sections": [
             {
               "steps": [
                 {
                   "kind": "effect",
                   "effect": {
-                    "type": "set_flag",
-                    "flag": "ira_glove"
-                  }
-                },
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Она берёт рукавицу за манжет двумя пальцами, как чужую вещь.",
-                    "action": true,
-                    "voice": "assets/voice/narr_ira_6.mp3"
-                  }
-                },
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Реш носил кожаные и жаловался, что они жмут. А заплату ставили в Сухом ряду: у Айлы так штопают, когда нечем платить.",
-                    "voice": "assets/voice/ira_16.mp3",
-                    "emotion": "thoughtful",
-                    "sfx": "snd_cloth"
-                  }
-                },
-                {
-                  "kind": "effect",
-                  "effect": {
-                    "type": "change_disposition",
-                    "target": "npc_ira",
-                    "delta": 4
-                  }
-                },
-                {
-                  "kind": "effect",
-                  "effect": {
-                    "type": "learn_name",
-                    "entity": "npc_ayla"
+                    "type": "present_item",
+                    "ok": "Рукавица",
+                    "fail": "Не_то",
+                    "required": "item_glove"
                   }
                 }
               ]
             }
           ],
-          "goto": "stay",
-          "once": true
+          "goto": "Рукавица",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "clue_glove"
+            },
+            {
+              "type": "flag",
+              "flag": "ira_glove",
+              "not": true
+            }
+          ]
         },
         {
           "text": "Ранец из галереи. Бирка: «Смена 13-го. Ярус 8». Чей он?",
@@ -689,11 +658,27 @@
           "once": true
         },
         {
-          "text": "Показать клапан из шахты.",
+          "text": "Показать деталь из шахты.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "present_item",
+                    "ok": "Клапан",
+                    "fail": "Не_то",
+                    "required": "item_valve"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "Клапан",
           "conds": [
             {
-              "type": "has_item",
-              "item": "item_valve"
+              "type": "flag",
+              "flag": "valve_found"
             },
             {
               "type": "flag",
@@ -705,61 +690,14 @@
               "flag": "sluice_ready",
               "not": true
             }
-          ],
-          "sections": [
-            {
-              "steps": [
-                {
-                  "kind": "effect",
-                  "effect": {
-                    "type": "set_flag",
-                    "flag": "ira_valve"
-                  }
-                },
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Она проводит пальцем по выбитой семёрке.",
-                    "action": true,
-                    "sfx": "snd_tag",
-                    "voice": "assets/voice/narr_ira_15.mp3"
-                  }
-                },
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Седьмой номер — с нашего затвора. Резьба целая: его не сорвало водой, его вывернули ключом. Неси на восьмой, к затвору, пока там ещё есть что закрывать.",
-                    "voice": "assets/voice/ira_31.mp3",
-                    "emotion": "thoughtful"
-                  }
-                },
-                {
-                  "kind": "effect",
-                  "effect": {
-                    "type": "change_disposition",
-                    "target": "npc_ira",
-                    "delta": 3
-                  }
-                },
-                {
-                  "kind": "effect",
-                  "effect": {
-                    "type": "fire_rule",
-                    "rule": "rule_ira_valve"
-                  }
-                }
-              ]
-            }
-          ],
-          "goto": "stay",
-          "once": true
+          ]
         },
         {
           "text": "Пойдём со мной снова.",
           "conds": [
             {
               "type": "flag",
-              "flag": "ira_joined"
+              "flag": "ira_recruited"
             },
             {
               "type": "in_party",
@@ -783,6 +721,13 @@
                   "effect": {
                     "type": "join_party",
                     "npc": "npc_ira"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "ira_joined"
                   }
                 },
                 {
@@ -862,6 +807,13 @@
                   "effect": {
                     "type": "leave_party",
                     "npc": "npc_ira"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "clear_flag",
+                    "flag": "ira_joined"
                   }
                 },
                 {
@@ -1416,6 +1368,268 @@
         }
       ],
       "goto": "end",
+      "choices": []
+    },
+    {
+      "id": "Б_галерея",
+      "label": "В пути: галерея",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Стась водил меня сюда смотреть, как светится вода. Говорил: не трогай, оно запоминает руки.",
+                "voice": "assets/voice/ira_39.mp3",
+                "emotion": "sad"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "Б_ряд",
+      "label": "В пути: Сухой ряд",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "В Сухом ряду все друг другу должны, поэтому никто никого не выдаёт. Держи руки на виду.",
+                "voice": "assets/voice/ira_40.mp3",
+                "emotion": "thoughtful"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "Б_штольня",
+      "label": "В пути: штольня",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Дальше Стась не ходил. Говорил, в штольне воздух чужой.",
+                "voice": "assets/voice/ira_41.mp3",
+                "emotion": "afraid"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "Б_забой",
+      "label": "В пути: забой",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Так вот куда мастер уходил по ночам. Говорил — к больному.",
+                "voice": "assets/voice/ira_42.mp3",
+                "emotion": "thoughtful"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "П_ссора",
+      "label": "После ссоры с Решем",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Он не вернётся. Сорок лет он выбирал жилу — и сегодня выбрал снова.",
+                "voice": "assets/voice/ira_43.mp3",
+                "emotion": "sad"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "П_смерть_реша",
+      "label": "Реш погиб",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Он учил меня слушать помпу. Говорил: если замолчит — ищи, кто её заткнул. Теперь замолчал он.",
+                "voice": "assets/voice/ira_44.mp3",
+                "emotion": "sad"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "П_уступил",
+      "label": "Реш уступил у помпы",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Спасибо, мастер. Я запомню, что ты отошёл сам.",
+                "voice": "assets/voice/ira_45.mp3",
+                "emotion": "calm"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    },
+    {
+      "id": "Рукавица",
+      "label": "Рукавица с привода",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "ira_glove"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Она берёт рукавицу за манжет двумя пальцами, как чужую вещь.",
+                "action": true,
+                "voice": "assets/voice/narr_ira_6.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Реш носил кожаные и жаловался, что они жмут. А заплату ставили в Сухом ряду: у Айлы так штопают, когда нечем платить.",
+                "voice": "assets/voice/ira_16.mp3",
+                "emotion": "thoughtful",
+                "sfx": "snd_cloth"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "change_disposition",
+                "target": "npc_ira",
+                "delta": 4
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "learn_name",
+                "entity": "npc_ayla"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
+    },
+    {
+      "id": "Клапан",
+      "label": "Клапан из шахты",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "ira_valve"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Она проводит пальцем по выбитой семёрке.",
+                "action": true,
+                "sfx": "snd_tag",
+                "voice": "assets/voice/narr_ira_15.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Седьмой номер — с нашего затвора. Резьба целая: его не сорвало водой, его вывернули ключом. Неси на восьмой, к затвору, пока там ещё есть что закрывать.",
+                "voice": "assets/voice/ira_31.mp3",
+                "emotion": "thoughtful"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "change_disposition",
+                "target": "npc_ira",
+                "delta": 3
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "fire_rule",
+                "rule": "rule_ira_valve"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
+    },
+    {
+      "id": "Не_то",
+      "label": "Не та вещь",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Не узнаю. Я помпу знаю, а не чужие карманы.",
+                "voice": "assets/voice/ira_46.mp3",
+                "emotion": "thoughtful"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
       "choices": []
     }
   ]

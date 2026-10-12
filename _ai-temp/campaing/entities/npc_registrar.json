@@ -33,6 +33,7 @@
   "scene_sprite": "assets/img/npc/sprite_registrar.png",
   "sounds": {},
   "combat_figure": "assets/img/npc/fig_registrar.png",
-  "figure_mode": "side",
-  "breathe": false
+  "figure_mode": "topdown",
+  "breathe": false,
+  "facing_offset": 180
 }

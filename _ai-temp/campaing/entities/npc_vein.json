@@ -30,6 +30,7 @@
   "dialogue": "dialogues/vein.ink",
   "scene_sprite": "assets/img/npc/sprite_vein.png",
   "combat_figure": "assets/img/npc/fig_vein.png",
-  "figure_mode": "side",
-  "breathe": false
+  "figure_mode": "topdown",
+  "breathe": false,
+  "facing_offset": 180
 }

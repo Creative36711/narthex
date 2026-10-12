@@ -1,3 +1,4 @@
+EXTERNAL present_item(a0, a1, a2)
 EXTERNAL add_item(a0, a1)
 EXTERNAL advance_time(a0)
 EXTERNAL fire_rule(a0)
@@ -53,6 +54,13 @@ EXTERNAL get_flag(a0)
     Срок дознания по делу сто тридцать семь — семьдесят два часа. Чтение и разговор время не расходуют. Переходы и работа учитываются отдельно. # voice: assets/voice/registrar_8.mp3
     Срок дознания не продлевают. Новая бумага не остановит воду. До истечения срока вы должны решить судьбу седьмой помпы. # voice: assets/voice/registrar_9.mp3
     -> Начало_hub
++ [Положить вещь на стойку.]
+    ~ present_item("Вещь", "Вещь", "")
+    -> DONE
 + [Отключись.]
     -> DONE
 - -> Начало_hub
+
+=== Вещь ===
+Регистратор смотрит на вещь поверх очков и молча отодвигает: в реестр такое не вносят. # action # voice: assets/voice/narr_registrar_3.mp3
+-> Начало_hub

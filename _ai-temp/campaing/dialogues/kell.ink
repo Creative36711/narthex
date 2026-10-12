@@ -44,12 +44,9 @@ VAR r = 0
 + [Я иду к инспектору.]
     Иди. Она любит, когда к ней идут с пустыми руками. # emotion: calm # voice: assets/voice/kell_10.mp3
     -> DONE
-* { not (get_flag("kell_glove")) and has_item("item_glove") } [Показать рукавицу с привода.]
-    ~ set_flag("kell_glove")
-    Он берёт рукавицу за манжет, не разворачивая. # action # sfx: snd_cloth # voice: assets/voice/narr_kell_2.mp3
-    Рукавица. В машинном зале их сто пар лежит: смене выдают по две на руки. Клади в дело, раз нравится. Мне интереснее, кто её первым снимет. # emotion: calm # voice: assets/voice/kell_13.mp3
-    ~ change_disposition("npc_kell", -3)
-    -> Начало_hub
++ { get_flag("clue_glove") and not (get_flag("kell_glove")) } [Показать находку с привода.]
+    ~ present_item("Рукавица", "Жетон_мимо", "item_glove")
+    -> DONE
 - -> Начало_hub
 
 === Наряд ===
@@ -96,4 +93,11 @@ VAR r = 0
 
 === Жетон_мимо ===
 Келл смотрит сначала на вещь, потом на тебя — и без всякого интереса. # action # voice: assets/voice/narr_kell_5.mp3
+-> Начало_hub
+
+=== Рукавица ===
+~ set_flag("kell_glove")
+Он берёт рукавицу за манжет, не разворачивая. # action # sfx: snd_cloth # voice: assets/voice/narr_kell_2.mp3
+Рукавица. В машинном зале их сто пар лежит: смене выдают по две на руки. Клади в дело, раз нравится. Мне интереснее, кто её первым снимет. # emotion: calm # voice: assets/voice/kell_13.mp3
+~ change_disposition("npc_kell", -3)
 -> Начало_hub

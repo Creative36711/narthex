@@ -113,5 +113,6 @@
   "scene_sprite": "assets/img/npc/sprite_dozh.png",
   "unknown_label": "Старьёвщик за ящиками",
   "combat_figure": "assets/img/npc/fig_dozh.png",
-  "figure_mode": "side"
+  "figure_mode": "topdown",
+  "facing_offset": 180
 }

@@ -6,7 +6,7 @@
   "conditions": [
     {
       "type": "flag_not_set",
-      "flag": "ira_joined"
+      "flag": "ira_recruited"
     }
   ],
   "effects": [
@@ -29,6 +29,10 @@
     {
       "type": "set_flag",
       "flag": "ira_joined"
+    },
+    {
+      "type": "set_flag",
+      "flag": "ira_recruited"
     },
     {
       "type": "set_description",

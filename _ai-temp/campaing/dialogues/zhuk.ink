@@ -15,8 +15,8 @@ VAR r = 0
 
 === Начало ===
 { get_flag("met_zhuk"): -> Снова }
-Жук не здоровается. Он просто ждёт, сколько ты заплатишь. # action # voice: assets/voice/narr_zhuk_1.mp3
-Слушаю. Дорого. # voice: assets/voice/zhuk_5.mp3
+Человек у жаровни не здоровается. Он просто ждёт, сколько ты заплатишь. # action # voice: assets/voice/narr_zhuk_1.mp3
+Жук. Слушаю. Дорого. # voice: assets/voice/zhuk_21.mp3
 ~ learn_name("npc_zhuk")
 ~ set_flag("met_zhuk")
 -> Начало_hub

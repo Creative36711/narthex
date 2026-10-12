@@ -1,3 +1,5 @@
+EXTERNAL present_item(a0, a1, a2)
+EXTERNAL clear_flag(a0)
 EXTERNAL leave_party(a0)
 EXTERNAL change_companion_need(a0, a1, a2)
 EXTERNAL fire_rule(a0)
@@ -27,7 +29,13 @@ VAR r = 0
 
 === Снова ===
 { in_party("npc_resh"): -> В_пути }
+{ get_flag("resh_quarrel"): -> Обида }
 Реш поворачивает голову на звук шагов: он уже знает, кто пришёл. # action # voice: assets/voice/narr_resh_rep.mp3
+-> Начало_hub
+
+=== Обида ===
+Реш не оборачивается. Ладонь лежит на жиле, как на плече больного. # action # voice: assets/voice/narr_resh_6.mp3
+Говори, раз пришёл. Только про помпу — не со мной. # emotion: sad # voice: assets/voice/resh_30.mp3
 -> Начало_hub
 
 === В_пути ===
@@ -60,11 +68,12 @@ VAR r = 0
     ~ unlock_recipe("recipe_charge")
     ~ set_flag("resh_charge_recipe")
     -> Начало_hub
-* { get_flag("resh_trusts") and not (get_flag("resh_joined")) } [Пойдём со мной.]
+* { get_flag("resh_trusts") and not (get_flag("resh_recruited")) } [Пойдём со мной.]
     Он встаёт тяжело, опираясь о стену ладонью. # action # sfx: snd_stone # voice: assets/voice/narr_resh_2.mp3
     Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту. # voice: assets/voice/resh_8.mp3
     ~ join_party("npc_resh")
     ~ set_flag("resh_joined")
+    ~ set_flag("resh_recruited")
     ~ change_companion_need("npc_resh", "need_hunger", -72)
     ~ change_companion_need("npc_resh", "need_thirst", -50)
     ~ change_companion_need("npc_resh", "need_rest", -45)
@@ -92,16 +101,27 @@ VAR r = 0
     ~ set_flag("core_taken")
     ~ fire_rule("rule_resh_core_given")
     -> Начало_hub
-+ { get_flag("resh_joined") and not (in_party("npc_resh")) } [Пойдём со мной снова.]
++ { get_flag("resh_recruited") and not (in_party("npc_resh")) and not (get_flag("resh_quarrel")) and get_flag("resh_allows_pump") } [Пойдём со мной снова.]
+    Он встаёт тяжело, опираясь о стену ладонью. # action # sfx: snd_stone # voice: assets/voice/narr_resh_2.mp3
+    Пойдём. Про муфту я своё сказал — дальше твоя рука. # emotion: calm # voice: assets/voice/resh_29.mp3
+    ~ join_party("npc_resh")
+    ~ set_flag("resh_joined")
+    -> DONE
++ { get_flag("resh_recruited") and not (in_party("npc_resh")) and not (get_flag("resh_quarrel")) and not (get_flag("resh_allows_pump")) } [Пойдём со мной снова.]
     Он встаёт тяжело, опираясь о стену ладонью. # action # sfx: snd_stone # voice: assets/voice/narr_resh_2.mp3
     Хорошо. Но если я увижу, что ты вставишь сердцевину в привод — я лягу на муфту. # voice: assets/voice/resh_8.mp3
     ~ join_party("npc_resh")
+    ~ set_flag("resh_joined")
+    -> DONE
++ { get_flag("clue_glove") and not (get_flag("resh_glove")) } [Показать находку с привода.]
+    ~ present_item("Рукавица", "Не_то", "item_glove")
     -> DONE
 + { in_party("npc_resh") } [Как ты держишься?]
     { get_flag("resh_worn"): -> Самочувствие_плохо | -> Самочувствие_хорошо }
 + { in_party("npc_resh") } [Возвращайся к забою. Дальше я сам.]
     Ладно. Вернусь к забою: там стена тёплая и жилу слышно. Позовёшь — приду. # emotion: calm # voice: assets/voice/resh_21.mp3
     ~ leave_party("npc_resh")
+    ~ clear_flag("resh_joined")
     ~ fire_rule("rule_resh_returns_card")
     -> DONE
 + { not (in_party("npc_resh")) } [Мне пора.]
@@ -129,3 +149,69 @@ VAR r = 0
 Нет. Ты её вставишь, и восьмой ярус утонет за ночь. Я сорок лет слушал, как дышит город. # voice: assets/voice/resh_5.mp3
 ~ change_disposition("npc_resh", -5)
 -> Начало_hub
+
+=== У_помпы ===
+Реш встаёт между тобой и приводом и кладёт ладонь на срезанную муфту. # action # voice: assets/voice/narr_resh_5.mp3
+Стой. Я говорил: вставишь сердцевину — лягу на муфту. Затвор держит, да. Но жила под нами живая, и ты её сейчас выпьешь. # emotion: angry # voice: assets/voice/resh_23.mp3
+* { not (get_flag("resh_pump_asked")) } [Восьмой ярус утонет без помпы. Отойди, мастер.]
+    ~ set_flag("resh_pump_asked")
+    ~ r = skill_check("persuade", 50)
+    {r: -> У_помпы_да | -> У_помпы_нет}
+* { get_flag("ira_pack") and not (get_flag("resh_pump_asked")) } [Стась бежал к затвору, чтобы восьмой не утонул. Не дай этому пропасть.]
+    ~ set_flag("resh_pump_asked")
+    ~ r = skill_check("persuade", 35)
+    {r: -> У_помпы_да | -> У_помпы_нет}
++ [Ладно. Не сейчас.]
+    -> DONE
+
+=== У_помпы_да ===
+Сорок лет я выбирал между ярусом и жилой. Теперь выбирай ты. Только я смотреть не буду. # emotion: sad # voice: assets/voice/resh_24.mp3
+~ set_flag("resh_allows_pump")
+-> DONE
+
+=== У_помпы_нет ===
+Нет. Хочешь пустить её — пускай без меня. Я к жиле: кто-то должен быть рядом, когда она начнёт остывать. # emotion: angry # voice: assets/voice/resh_25.mp3
+~ change_disposition("npc_resh", -15)
+~ set_flag("resh_quarrel")
+~ leave_party("npc_resh")
+~ clear_flag("resh_joined")
+~ fire_rule("rule_resh_quarrel")
+-> DONE
+
+=== Б_помпа ===
+Сорок лет я слушал её вот так. Теперь она молчит, и это громче всего, что я слышал. # emotion: sad # voice: assets/voice/resh_26.mp3
+-> DONE
+
+=== Б_журнал ===
+Восемнадцать сорок, вниз. Обратно не записан. Выходит, по бумагам я всё ещё там. # emotion: thoughtful # voice: assets/voice/resh_27.mp3
+-> DONE
+
+=== П_смерть_иры ===
+Девочка шла за фонарём, а не за мной. Надо было оставить её у пульта. # emotion: sad # voice: assets/voice/resh_28.mp3
+-> DONE
+
+=== Б_ряд ===
+В Сухом ряду мне должны за насос. Не напоминай им, что я живой. # emotion: thoughtful # voice: assets/voice/resh_32.mp3
+-> DONE
+
+=== Б_каморка ===
+Моя каморка. Сорок лет одна кружка и один табурет — гостей тут не ждали. # emotion: calm # voice: assets/voice/resh_31.mp3
+-> DONE
+
+=== Б_галерея ===
+Вода стоит на ладонь выше, чем позавчера. Каркас пьёт медленно, но не останавливается. # emotion: thoughtful # voice: assets/voice/resh_33.mp3
+-> DONE
+
+=== Рукавица ===
+Караульная, брезентовая. Мои кожаные — ты видел. Кто в такой лез в привод, тот привода не знал: брезент к муфте липнет. # emotion: thoughtful # voice: assets/voice/resh_34.mp3
+~ set_flag("resh_glove")
+~ fire_rule("rule_resh_glove")
+-> Начало_hub
+
+=== Не_то ===
+Это не моё и не помпы. Мне такое показывать без толку. # emotion: calm # voice: assets/voice/resh_35.mp3
+-> Начало_hub
+
+=== Б_затвор ===
+Швы держат, пока давит снизу. Сядет затвор, только если в колодке будет клапан. Без клапана хоть плечом дави. # emotion: thoughtful # voice: assets/voice/resh_36.mp3
+-> DONE

@@ -53,7 +53,9 @@
       "y": 150,
       "w": 200,
       "h": 560,
-      "condition": null,
+      "condition": {
+        "not_flag": "kell_at_gate"
+      },
       "default_entity": "npc_kell",
       "sound": "snd_blade",
       "sound_volume": 0.5

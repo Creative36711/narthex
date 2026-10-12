@@ -1,3 +1,4 @@
+EXTERNAL present_item(a0, a1, a2)
 EXTERNAL fire_rule(a0)
 EXTERNAL change_disposition(a0, a1)
 EXTERNAL change_hp(a0)
@@ -16,8 +17,8 @@ EXTERNAL learn_name(a0)
 
 === Начало ===
 { get_flag("met_ayla"): -> Снова }
-Айла промокает бинт и не смотрит на твои руки. # action # sfx: sfx_water # voice: assets/voice/narr_ayla_1.mp3
-Сядь. У тебя ссадина на костяшках и вид человека, который не спал двое суток. # voice: assets/voice/ayla_1.mp3
+Женщина промокает бинт и не смотрит на твои руки. # action # sfx: sfx_water # voice: assets/voice/narr_ayla_1.mp3
+Я Айла. Сядь. У тебя ссадина на костяшках и вид человека, который не спал двое суток. # voice: assets/voice/ayla_14.mp3
 Двое суток без сна — это полдела. За трое начинают мерещиться вещи, которые потом вносят в протокол. # voice: assets/voice/ayla_8.mp3
 ~ learn_name("npc_ayla")
 ~ set_flag("met_ayla")
@@ -56,9 +57,9 @@ EXTERNAL learn_name(a0)
     Бери, что нужно. И оставь себе на воду — воды всегда нужно больше. # emotion: calm # voice: assets/voice/ayla_7.mp3
     ~ open_trade("npc_ayla")
     -> DONE
-+ { has_item("item_glove") } [Показать Айле рукавицу с привода.]
-    Заплату на рукавице я узнаю: ставила осенью, в рядке. Чья — не помню: ладони у всех в мазуте, а имён я не спрашиваю. А клеймо караульное, это точно. # emotion: thoughtful # voice: assets/voice/ayla_10.mp3
-    -> Начало_hub
++ { get_flag("clue_glove") and not (get_flag("ayla_glove")) } [Показать Айле находку с привода.]
+    ~ present_item("Рукавица", "Не_то", "item_glove")
+    -> DONE
 + { has_item("item_filter") } [Чем забиваются банки в дыхателе?]
     Жильной взвесью. Она не пыль — она в угле живёт и разбухает от сырости. Продуть банку нельзя, можно только сменить на верстаке. # emotion: calm # voice: assets/voice/ayla_11.mp3
     Если банки сдохли внизу — не паникуй. Два угля, тряпка и ровный стол. Не экономь на угле: тонкий слой продувается за две минуты. # emotion: calm # voice: assets/voice/ayla_filter.mp3
@@ -72,3 +73,12 @@ EXTERNAL learn_name(a0)
 + [Пока.]
     -> DONE
 - -> Начало_hub
+
+=== Рукавица ===
+~ set_flag("ayla_glove")
+Заплату на рукавице я узнаю: ставила осенью, в рядке. Чья — не помню: ладони у всех в мазуте, а имён я не спрашиваю. А клеймо караульное, это точно. # emotion: thoughtful # voice: assets/voice/ayla_10.mp3
+-> Начало_hub
+
+=== Не_то ===
+Это не по моей части. Я штопаю и лечу, а железо неси Дожу. # emotion: calm # voice: assets/voice/ayla_15.mp3
+-> Начало_hub

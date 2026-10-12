@@ -25,7 +25,7 @@
     {
       "type": "postcard",
       "image": "assets/img/pc_ira_sluice.jpg",
-      "text": "Здесь Стась стоял каждую смену.",
+      "text": "Ира смотрит на штурвал затвора.",
       "preset": "шёпот",
       "seconds": 5,
       "camera": {
