@@ -10,6 +10,9 @@ export const AI_KIT_FILES = [
   { name: 'campaign.schema.json', title: 'JSON Schema всех полей' },
   { name: 'design-template.md', title: 'Бланк дизайн-документа' },
   { name: 'cutout-chromakey.py', title: 'Инструмент вырезания хромакея' },
+  // собирается из scripts/campaign-audit.mts командой build:ai-bundle (один
+  // файл, ноль зависимостей, поведение = «Проверке кампании» в редакторе)
+  { name: 'campaign-audit.mjs', title: 'Аудит кампании из командной строки: node campaign-audit.mjs <папка> (без репозитория движка)' },
 ] as const
 
 /**

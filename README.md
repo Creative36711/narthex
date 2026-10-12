@@ -190,6 +190,9 @@ npm run audit:campaign -- <папка кампании>             # та же 
                                                       # (для ИИ-мастеров; машинный вывод:
                                                       # npm run --silent audit:campaign -- <папка> -- --json;
                                                       # exit 1 при ERROR-рядах)
+node public/ai/campaign-audit.mjs <папка кампании>    # то же самое БЕЗ репозитория: собранный bundle
+                                                      # из чемодана ИИ-мастера (ноль зависимостей,
+                                                      # Node.js 18+; обновляется вместе с build)
 ```
 
 Десктоп (Tauri v2, нужен Rust-тулчейн — https://rustup.rs; на Linux ещё

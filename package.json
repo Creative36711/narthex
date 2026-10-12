@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && npm run build:ai-bundle && vite build",
+    "build:ai-bundle": "esbuild scripts/campaign-audit.mts --bundle --platform=node --format=esm --target=node18 --outfile=public/ai/campaign-audit.mjs",
     "generate:campaign-schema": "tsx scripts/gen-schema.mts",
     "audit:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
     "lint": "oxlint",
