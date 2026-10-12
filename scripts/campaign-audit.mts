@@ -20,6 +20,11 @@
  *   - WebP с альфой не раскодируется — такой файл не вызовет предупреждения об
  *     углах (браузерный аудит проверяет по-настоящему);
  *   - интерлейсированные/16-битные PNG пропускаются с пометкой.
+ *
+ * Запуск — ТОЛЬКО через tsx: npm run audit:campaign -- <папка> .
+ * Прямой `node scripts/campaign-audit.mts` не работает (ESM-импорты ядра без
+ * расширений резолвит только tsx); без репозитория используйте самодостаточный
+ * bundle из чемодана: node public/ai/campaign-audit.mjs <папка>.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join, resolve, extname } from 'path'
@@ -218,6 +223,11 @@ const mimeByExt: Record<string, string> = {
 /** Sentinel-basePath, под который грузится стор — шим срезает его перед чтением с диска. */
 const STORE_BASE = '/campaigns/__audit__'
 
+/** blob → относительный путь: fetch-шим помечает, createImageBitmap-шим читает. */
+const blobPaths = new WeakMap<Blob, string>()
+/** Путь → почему прозрачность углов не проверена (d.note из декодера). */
+const imageNotes = new Map<string, string>()
+
 function installFetchShim(): void {
   const decodePath = (url: string): string => {
     return url.split(/[?#]/, 1)[0]!
@@ -235,11 +245,13 @@ function installFetchShim(): void {
       return { ok: false, status: 404, headers: { get: () => null }, blob: async () => new Blob([]) }
     }
     const buf = readFileSync(abs)
+    const blob = new Blob([buf])
+    blobPaths.set(blob, rel)
     return {
       ok: true,
       status: 200,
       headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? mimeByExt[extname(abs).toLowerCase()] ?? 'application/octet-stream' : null) },
-      blob: async () => new Blob([buf]),
+      blob: async () => blob,
     }
   }
 }
@@ -264,8 +276,11 @@ function installImageShims(): void {
       pix.set(`0,${h - 1}`, lb!)
       pix.set(`${w - 1},${h - 1}`, rb!)
     } else {
-      // недекодированный формат — считаем углы прозрачными (не ругаться), это
-      // безопаснее ложного срабатывания; браузерный аудит проверит по-честному
+      // недекодированный формат — считаем углы прозрачными (не ругаться), но
+      // регистрируем заметку: main() выдаст warning «углы НЕ проверены», чтобы
+      // пропуск не был тихим (WebP с альфой, 16-бит PNG, интерлейс, экзотика)
+      const rel = blobPaths.get(blob)
+      if (rel && dec.note) imageNotes.set(rel, dec.note)
       const w = Math.max(1, dec.width || 1), h = Math.max(1, dec.height || 1)
       pix.set(`0,0`, [0, 0, 0, 0])
       pix.set(`${w - 1},0`, [0, 0, 0, 0])
@@ -368,6 +383,14 @@ async function main(): Promise<void> {
   }
 
   const report = await validateCampaign(store, null)
+  // форматы, чьи углы headless не смог проверить: честный warning вместо тихого
+  // пропуска — иначе сценарист проносит «прозрачный» спрайт с непрозрачными углами
+  for (const [path, note] of imageNotes) {
+    report.media.push({
+      severity: 'warning',
+      message: `«${path}»: прозрачность углов headless НЕ проверена (${note}). Роль изображения требует прозрачного фона; проверьте углы кнопкой «Проверить кампанию» в редакторе или конвертируйте в PNG 8-бит без интерлейса.`,
+    })
+  }
 
   if (json) {
     console.log(JSON.stringify(report, null, 2))

@@ -48,6 +48,8 @@
     "smoke:spoil": "tsx scripts/spoil-smoke.mts",
     "smoke:time-semantics": "tsx scripts/time-semantics-smoke.mts",
     "smoke:ai-diff": "tsx scripts/ai-diff-smoke.mts",
+    "smoke:view-write": "tsx scripts/view-write-smoke.mts",
+    "smoke:core": "tsx scripts/core-semantics-smoke.mts",
     "audit:campaign": "tsx scripts/campaign-audit.mts",
     "smoke:dlg-script": "tsx scripts/dlg-script-smoke.mts",
     "smoke:dlg-ui": "tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts",

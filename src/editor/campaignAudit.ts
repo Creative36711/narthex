@@ -253,7 +253,15 @@ async function inspectAlphaRoles(store: EditorStore): Promise<AuditFinding[]> {
         })
       }
     } catch {
-      // не удалось декодить картинку — не критично, расскажут другие проверки
+      // картинку не удалось декодировать: раньше это был тихий пропуск, и
+      // сценарист искренне верил, что «углы проверены». Честно говорим, что
+      // именно не проверено — иначе сюда пролезает «прозрачный» спрайт с
+      // непрозрачными углами (WebP с альфой, 16-бит/интерлейс PNG в headless,
+      // битый файл или экзотический формат в браузере).
+      findings.push({
+        severity: 'warning',
+        message: `«${path}»: ${role}, требуется прозрачный фон, но углы проверить не удалось — изображение не декодируется (битый файл или формат вне поддержки проверки). Конвертируйте в PNG 8-бит без интерлейса и перепроверьте.`,
+      })
     }
   }
   return findings
@@ -348,6 +356,44 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       }
     }
   }
+  // Флаги, поставленные вне реестра meta.flags: сырой ink («~ set_flag») и
+  // эффекты set_flag/clear_flag ставят их мимо реестра — такой флаг не имеет
+  // описания для мастера, не виден в редакторе и ловится только в рантайме.
+  // Внутренние динамические ключи движка (known_*, npc_known_* — «герой
+  // знаком»; scene_state:* — состояние сцены) реестру не принадлежат.
+  const flagInternal = (f: string): boolean => f.startsWith('known_') || f.startsWith('npc_known_') || f.startsWith('scene_state:')
+  const flagUses = new Map<string, string>() // flag → где впервые увидели
+  const noteFlag = (f: string, where: string): void => {
+    if (!flagUses.has(f)) flagUses.set(f, where)
+  }
+  for (const [path, text] of store.textFiles) {
+    if (!/^dialogues\/.+\.ink$/.test(path)) continue
+    for (const m of text.matchAll(/~\s*(?:set_flag|clear_flag)\(\s*"([^"]+)"/g)) noteFlag(m[1]!, path)
+  }
+  const walkFlags = (value: unknown, where: string): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) walkFlags(item, where)
+      return
+    }
+    if (value && typeof value === 'object') {
+      const rec = value as Record<string, unknown>
+      if ((rec.type === 'set_flag' || rec.type === 'clear_flag') && typeof rec.flag === 'string') noteFlag(rec.flag, where)
+      for (const item of Object.values(rec)) walkFlags(item, where)
+    }
+  }
+  walkFlags(store.meta, 'campaign.json')
+  walkFlags(store.world, 'world.json')
+  for (const [path, doc] of store.jsonFiles) walkFlags(doc, path)
+  const flagRegistry = new Set((store.meta.flags ?? []).map((f) => f.id))
+  const flagOrphans = [...flagUses].filter(([f]) => !flagRegistry.has(f) && !flagInternal(f))
+  if (flagOrphans.length) {
+    const shown = flagOrphans.slice(0, 6).map(([f, where]) => `«${f}» (${where})`).join(', ')
+    structure.push({
+      severity: 'error',
+      message: `Флаги ставятся в ink/эффектах, но отсутствуют в реестре meta.flags: ${shown}${flagOrphans.length > 6 ? ` и ещё ${flagOrphans.length - 6}` : ''}. Флаг вне реестра не имеет описания «для чего нужен» и не виден мастеру в редакторе. Добавьте его в реестр флагов (Паспорт кампании) с пояснением — так же как делает конструктор диалогов при первом сохранении.`,
+    })
+  }
+
   // Вызов внешней функции без объявления EXTERNAL: inkjs не компилирует файл,
   // и диалог молча не открывается — самая частая ошибка автора и ИИ.
   for (const [path, text] of store.textFiles) {

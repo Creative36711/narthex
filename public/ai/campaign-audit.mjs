@@ -19809,6 +19809,10 @@ async function inspectAlphaRoles(store) {
         });
       }
     } catch {
+      findings.push({
+        severity: "warning",
+        message: `\xAB${path}\xBB: ${role}, \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u044B\u0439 \u0444\u043E\u043D, \u043D\u043E \u0443\u0433\u043B\u044B \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u2014 \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435 \u043D\u0435 \u0434\u0435\u043A\u043E\u0434\u0438\u0440\u0443\u0435\u0442\u0441\u044F (\u0431\u0438\u0442\u044B\u0439 \u0444\u0430\u0439\u043B \u0438\u043B\u0438 \u0444\u043E\u0440\u043C\u0430\u0442 \u0432\u043D\u0435 \u043F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0438 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438). \u041A\u043E\u043D\u0432\u0435\u0440\u0442\u0438\u0440\u0443\u0439\u0442\u0435 \u0432 PNG 8-\u0431\u0438\u0442 \u0431\u0435\u0437 \u0438\u043D\u0442\u0435\u0440\u043B\u0435\u0439\u0441\u0430 \u0438 \u043F\u0435\u0440\u0435\u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435.`
+      });
     }
   }
   return findings;
@@ -19870,6 +19874,38 @@ async function validateCampaign(store, lastPlaytest) {
         });
       }
     }
+  }
+  const flagInternal = (f) => f.startsWith("known_") || f.startsWith("npc_known_") || f.startsWith("scene_state:");
+  const flagUses = /* @__PURE__ */ new Map();
+  const noteFlag = (f, where) => {
+    if (!flagUses.has(f)) flagUses.set(f, where);
+  };
+  for (const [path, text] of store.textFiles) {
+    if (!/^dialogues\/.+\.ink$/.test(path)) continue;
+    for (const m of text.matchAll(/~\s*(?:set_flag|clear_flag)\(\s*"([^"]+)"/g)) noteFlag(m[1], path);
+  }
+  const walkFlags = (value, where) => {
+    if (Array.isArray(value)) {
+      for (const item of value) walkFlags(item, where);
+      return;
+    }
+    if (value && typeof value === "object") {
+      const rec = value;
+      if ((rec.type === "set_flag" || rec.type === "clear_flag") && typeof rec.flag === "string") noteFlag(rec.flag, where);
+      for (const item of Object.values(rec)) walkFlags(item, where);
+    }
+  };
+  walkFlags(store.meta, "campaign.json");
+  walkFlags(store.world, "world.json");
+  for (const [path, doc] of store.jsonFiles) walkFlags(doc, path);
+  const flagRegistry = new Set((store.meta.flags ?? []).map((f) => f.id));
+  const flagOrphans = [...flagUses].filter(([f]) => !flagRegistry.has(f) && !flagInternal(f));
+  if (flagOrphans.length) {
+    const shown = flagOrphans.slice(0, 6).map(([f, where]) => `\xAB${f}\xBB (${where})`).join(", ");
+    structure.push({
+      severity: "error",
+      message: `\u0424\u043B\u0430\u0433\u0438 \u0441\u0442\u0430\u0432\u044F\u0442\u0441\u044F \u0432 ink/\u044D\u0444\u0444\u0435\u043A\u0442\u0430\u0445, \u043D\u043E \u043E\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0443\u044E\u0442 \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435 meta.flags: ${shown}${flagOrphans.length > 6 ? ` \u0438 \u0435\u0449\u0451 ${flagOrphans.length - 6}` : ""}. \u0424\u043B\u0430\u0433 \u0432\u043D\u0435 \u0440\u0435\u0435\u0441\u0442\u0440\u0430 \u043D\u0435 \u0438\u043C\u0435\u0435\u0442 \u043E\u043F\u0438\u0441\u0430\u043D\u0438\u044F \xAB\u0434\u043B\u044F \u0447\u0435\u0433\u043E \u043D\u0443\u0436\u0435\u043D\xBB \u0438 \u043D\u0435 \u0432\u0438\u0434\u0435\u043D \u043C\u0430\u0441\u0442\u0435\u0440\u0443 \u0432 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0435. \u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u0435\u0433\u043E \u0432 \u0440\u0435\u0435\u0441\u0442\u0440 \u0444\u043B\u0430\u0433\u043E\u0432 (\u041F\u0430\u0441\u043F\u043E\u0440\u0442 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438) \u0441 \u043F\u043E\u044F\u0441\u043D\u0435\u043D\u0438\u0435\u043C \u2014 \u0442\u0430\u043A \u0436\u0435 \u043A\u0430\u043A \u0434\u0435\u043B\u0430\u0435\u0442 \u043A\u043E\u043D\u0441\u0442\u0440\u0443\u043A\u0442\u043E\u0440 \u0434\u0438\u0430\u043B\u043E\u0433\u043E\u0432 \u043F\u0440\u0438 \u043F\u0435\u0440\u0432\u043E\u043C \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u0438\u0438.`
+    });
   }
   for (const [path, text] of store.textFiles) {
     if (!/^dialogues\/.+\.ink$/.test(path)) continue;
@@ -20329,6 +20365,8 @@ var mimeByExt = {
   ".ink": "text/plain"
 };
 var STORE_BASE = "/campaigns/__audit__";
+var blobPaths = /* @__PURE__ */ new WeakMap();
+var imageNotes = /* @__PURE__ */ new Map();
 function installFetchShim() {
   const decodePath = (url) => {
     return url.split(/[?#]/, 1)[0].split("/").map((seg) => {
@@ -20349,11 +20387,13 @@ function installFetchShim() {
       return { ok: false, status: 404, headers: { get: () => null }, blob: async () => new Blob([]) };
     }
     const buf = readFileSync(abs);
+    const blob = new Blob([buf]);
+    blobPaths.set(blob, rel);
     return {
       ok: true,
       status: 200,
       headers: { get: (name) => name.toLowerCase() === "content-type" ? mimeByExt[extname(abs).toLowerCase()] ?? "application/octet-stream" : null },
-      blob: async () => new Blob([buf])
+      blob: async () => blob
     };
   };
 }
@@ -20371,6 +20411,8 @@ function installImageShims() {
       pix.set(`0,${h - 1}`, lb);
       pix.set(`${w - 1},${h - 1}`, rb);
     } else {
+      const rel = blobPaths.get(blob);
+      if (rel && dec.note) imageNotes.set(rel, dec.note);
       const w = Math.max(1, dec.width || 1), h = Math.max(1, dec.height || 1);
       pix.set(`0,0`, [0, 0, 0, 0]);
       pix.set(`${w - 1},0`, [0, 0, 0, 0]);
@@ -20462,6 +20504,12 @@ async function main() {
     }
   }
   const report = await validateCampaign2(store, null);
+  for (const [path, note] of imageNotes) {
+    report.media.push({
+      severity: "warning",
+      message: `\xAB${path}\xBB: \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u043E\u0441\u0442\u044C \u0443\u0433\u043B\u043E\u0432 headless \u041D\u0415 \u043F\u0440\u043E\u0432\u0435\u0440\u0435\u043D\u0430 (${note}). \u0420\u043E\u043B\u044C \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u043F\u0440\u043E\u0437\u0440\u0430\u0447\u043D\u043E\u0433\u043E \u0444\u043E\u043D\u0430; \u043F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0443\u0433\u043B\u044B \u043A\u043D\u043E\u043F\u043A\u043E\u0439 \xAB\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u044E\xBB \u0432 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0435 \u0438\u043B\u0438 \u043A\u043E\u043D\u0432\u0435\u0440\u0442\u0438\u0440\u0443\u0439\u0442\u0435 \u0432 PNG 8-\u0431\u0438\u0442 \u0431\u0435\u0437 \u0438\u043D\u0442\u0435\u0440\u043B\u0435\u0439\u0441\u0430.`
+    });
+  }
   if (json) {
     console.log(JSON.stringify(report, null, 2));
   } else {

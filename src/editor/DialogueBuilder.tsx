@@ -264,6 +264,11 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       const res = scriptToDlg(doc.script, refs, doc)
       doc.nodes = res.doc.nodes
       if (res.doc.label !== undefined) doc.label = res.doc.label
+      // oxlint-disable react/set-state-in-effect -- эффект синхронизирует
+      // внешнее состояние (кэш документов EditorStore) с UI: результат парса
+      // текста документа ИИ показывается списком ошибок и очередью флагов.
+      // Перенос в useMemo не эквивалентен: парс здесь ещё и нормализует doc
+      // (write-through кэш — осознанная мутация, см. политику в .oxlintrc.json).
       setIssues(res.issues)
       setPendingFlags(res.newFlags)
       dirty = true
@@ -460,16 +465,6 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       )}
     </div>
   )
-}
-
-/** есть ли у ink визуальный исходник конструктора */
-export function hasDlgDoc(store: EditorStore, inkPath: string): boolean {
-  return store.jsonFiles.has(inkPath.replace(/\.ink$/, '.dlg.json'))
-}
-
-/** название диалога (для списков): подпись документа, иначе имя персонажа-собеседника */
-export function dialogueTitle(store: EditorStore, inkPath: string): string {
-  return store.dialogueLabel(inkPath)
 }
 
 // ─────────────── узел ───────────────
