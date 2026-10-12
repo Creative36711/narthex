@@ -1,4 +1,7 @@
 import type { Condition, Effect } from '../shared/types'
+import { startTick } from '../shared/types'
+import type { CampaignMeta } from '../shared/types'
+import { dayNumber, hourOfDay } from '../core/time'
 
 /**
  * Схемы полей условий и эффектов для визуальных конструкторов (ТЗ 5.2.4).
@@ -911,6 +914,8 @@ export interface LabelSource {
   labelFor(kind: string, id: string): string
   /** название стадии/журнальной записи квеста */
   questStageLabel?(questId: string, key: string): string
+  /** метаданные кампании (EditorStore.meta) — для расшифровки временных условий */
+  meta?: CampaignMeta
 }
 
 export const TIME_OF_DAY_LABELS: Record<string, string> = {
@@ -974,6 +979,21 @@ function fieldValueText(f: FieldSpec, v: unknown, labels?: LabelSource, obj?: Re
 }
 
 export function conditionSummary(c: Condition, labels?: LabelSource): string {
+  // временные условия — с расшифровкой, чтобы абсолютный тик и «елapsed»
+  // не путались (аудит «Каркаса» 2026-10): «79 → день 4, 07:00 (через 72 ч от старта)»
+  const meta = labels?.meta
+  if (c.type === 'tick_elapsed' && meta) {
+    const unit = meta.tick_label || 'ч'
+    const elapsed = c.min_tick - startTick(meta)
+    const when = `день ${dayNumber(c.min_tick, meta)}, ${String(hourOfDay(c.min_tick, meta)).padStart(2, '0')}:00`
+    return `Тик игры ≥ ${c.min_tick}: ${when}${elapsed >= 0 ? ` (через ${elapsed} ${unit} от старта)` : ''}`
+  }
+  if (c.type === 'elapsed_ge' && meta) {
+    const unit = meta.tick_label || 'ч'
+    const abs = startTick(meta) + c.min
+    const when = `день ${dayNumber(abs, meta)}, ${String(hourOfDay(abs, meta)).padStart(2, '0')}:00`
+    return `Через ${c.min} ${unit} от старта: тик ${abs} = ${when}`
+  }
   const s = CONDITION_SCHEMAS[c.type]
   const vals = s
     ? s.fields

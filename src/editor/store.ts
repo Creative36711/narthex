@@ -1030,6 +1030,31 @@ export class EditorStore {
    * Список файлов, которые реально изменились относительно исходного состояния
    * (добавленные, изменённые или удалённые файлы).
    */
+  /** каноничная строка JSON для сравнения: ключи по алфавиту рекурсивно.
+   *  Защита от ложного «изменилось»: перестановка ключей или перевод
+   *  сериализации (отступы/переносы) не считается правкой мастера (фидбек:
+   *  «просто просмотрел диалог — ИИ-мастер записал как изменение»). */
+  private static canonJson(o: unknown): string {
+    if (Array.isArray(o)) return `[${o.map((x) => EditorStore.canonJson(x)).join(',')}]`
+    if (o && typeof o === 'object') {
+      return `{${Object.keys(o as Record<string, unknown>)
+        .sort()
+        .map((k) => `${JSON.stringify(k)}:${EditorStore.canonJson((o as Record<string, unknown>)[k])}`)
+        .join(',')}}`
+    }
+    return JSON.stringify(o)
+  }
+
+  private textsEqualForDiff(path: string, a: string, b: string): boolean {
+    if (a === b) return true
+    if (!path.endsWith('.json')) return false
+    try {
+      return EditorStore.canonJson(JSON.parse(a)) === EditorStore.canonJson(JSON.parse(b))
+    } catch {
+      return false
+    }
+  }
+
   getModifiedFiles(): ModifiedFileEntry[] {
     const list: ModifiedFileEntry[] = []
     const currentPaths = new Set(this.allPaths())
@@ -1046,7 +1071,7 @@ export class EditorStore {
           category: this.categorizePath(p),
           title: this.titleForPath(p),
         })
-      } else if (currentText !== baseText) {
+      } else if (!this.textsEqualForDiff(p, baseText, currentText)) {
         list.push({
           path: p,
           status: 'modified',

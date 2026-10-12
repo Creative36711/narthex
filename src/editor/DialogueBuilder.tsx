@@ -246,6 +246,12 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
     doc ? (doc.script ?? dlgToScript(doc, refs)) : '')
   const [issues, setIssues] = useState<ScriptIssue[]>([])
 
+  // придуманные в сценарии, но не зарегистрированные флаги — НЕ пишем в
+  // реестр при просмотре (иначе простой осмотр диалога меняет campaign.json
+  // и всплывёт как «изменение» в списке ИИ-мастера); регистрируем при первой
+  // настоящей правке мастера (см. commit)
+  const [pendingFlags, setPendingFlags] = useState<Array<{ id: string; label: string }>>([])
+
   useEffect(() => {
     if (!doc) return
     let dirty = doc !== raw // миграция v1 → v2 на месте
@@ -259,15 +265,26 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       doc.nodes = res.doc.nodes
       if (res.doc.label !== undefined) doc.label = res.doc.label
       setIssues(res.issues)
-      registerNewFlags(store, res.newFlags, `Придуман в разговоре «${doc.label ?? store.dialogueLabel(path)}».`)
+      setPendingFlags(res.newFlags)
       dirty = true
     }
-    if (dirty) store.jsonFiles.set(dlgPath, doc)
+    if (dirty) {
+      store.jsonFiles.set(dlgPath, doc)
+      // производная нормализация (миграция/парс при открытии) — не правка
+      // мастера: пиннем её как точку отсчёта, чтобы просмотр не всплывал в списке изменений
+      store.acceptChangeAsBaseline(dlgPath)
+    }
   }, [doc, raw, dlgPath, store, refs])
 
   if (!doc) return null
 
   const commit = (group = '') => {
+    // правка мастера по-настоящему легла — теперь регистрация придуманных в
+    // сценарии флагов законна и честно всплывёт как изменение campaign.json
+    if (pendingFlags.length) {
+      registerNewFlags(store, pendingFlags, `Придуман в разговоре «${doc.label ?? store.dialogueLabel(path)}».`)
+      setPendingFlags([])
+    }
     store.textFiles.set(path, generateInk(doc))
     store.touch(dlgPath, group)
     store.touch(path, group)

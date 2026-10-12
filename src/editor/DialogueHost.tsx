@@ -22,6 +22,10 @@ export function DialogueHost({ store, path }: { store: EditorStore; path: string
     doc.label ??= store.dialogueLabel(path)
     store.jsonFiles.set(dlgPath, doc)
     store.touch(dlgPath)
+    // плод автоконвертации — не правка мастера: фиксируем производный файл
+    // как точку отсчёта, чтобы простой просмотр диалога не висел в списке
+    // изменений ИИ-мастера (фидбек «просмотрел диалог — записал изменение»)
+    store.acceptChangeAsBaseline(dlgPath)
     setDocReady(true)
   }, [docReady, dlgPath, path, store])
 

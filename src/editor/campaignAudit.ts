@@ -3,6 +3,7 @@ import campaignSchemaJson from '../../docs/campaign.schema.json' with { type: 'j
 import type { ErrorObject, ValidateFunction } from 'ajv'
 import type { EditorStore } from './store'
 import { charCreationTemplateFindings } from '../core/charcreate'
+import { featureOn } from '../shared/types'
 
 export type AuditSeverity = 'error' | 'warning' | 'info'
 export interface AuditFinding {
@@ -302,6 +303,16 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
         message: `Флаг «${f.label}»: не заполнено поле «Для чего нужен» — без него непонятно, какое событие запоминает флаг и где он читается.`,
       })
     }
+  }
+  // Конфиг без рёбер, но с неожиданным поведением (аудит «Каркаса», 2026-10):
+  // лагерь включён, нужды включены, а restore пуст — кнопка обещает сон, но
+  // потребности ночлег не восстановит. Поведение остаётся мастерским, движок
+  // только голосует одной строкой.
+  if (store.meta.camping && featureOn(store.meta, 'needs') && (store.meta.needs?.length ?? 0) > 0 && !store.meta.camping.restore) {
+    structure.push({
+      severity: 'warning',
+      message: 'Лагерь включён (meta.camping), нужды включены, но meta.camping.restore не задан: ночлег ходит время, лечит раны и растит навыки, но потребности (в т.ч. отдых) не восстанавливает. Если сон должен восполнять — задайте в паспорте restore, например { "need_rest": 100 }; если задумано, что лагерь — только передышка, игнорируйте это предупреждение.',
+    })
   }
   // Подписи реестров читает человек — и в редакторе, и в HUD (фидбек 27,
   // пп. 2 и 4). ИИ-агенты иногда кладут в label служебный код вида
