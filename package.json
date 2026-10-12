@@ -45,6 +45,7 @@
     "smoke:encumbrance": "tsx scripts/encumbrance-smoke.mts",
     "smoke:cutscene-queue": "tsx scripts/smoke-cutscene-postcard-queue.mts",
     "smoke:spoil": "tsx scripts/spoil-smoke.mts",
+    "smoke:time-semantics": "tsx scripts/time-semantics-smoke.mts",
     "smoke:dlg-script": "tsx scripts/dlg-script-smoke.mts",
     "smoke:dlg-ui": "tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts",
     "smoke:folder-import": "tsx scripts/smoke-round35-folder-import.mts",

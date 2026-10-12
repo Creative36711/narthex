@@ -606,6 +606,13 @@ export function featureOn(meta: CampaignMeta, key: keyof CampaignFeatures): bool
   return meta.features?.[key] !== false
 }
 
+/** Эффективный стартовый тик забега: единая точка (движок, HUD-дедлайн и
+ *  условие elapsed_ge), чтобы «умолчание» не разъезжалось. Историческое
+ *  умолчание движка — 8 (утро первого дня). */
+export function startTick(meta: CampaignMeta): number {
+  return meta.starting_tick ?? 8
+}
+
 /**
  * Шрифт кампании (блок 2 ТЗ «Гибкий движок»): файл пакета (обычно
  * `assets/fonts/…`) или внешняя ссылка. Подключается `@font-face` на лету.
@@ -868,6 +875,14 @@ export interface CampaignMeta {
     ticks?: number
     ambush_chance?: number
     ambush_rule?: string
+    /** Восстановление потребностей за ночлег: `need_id → значение` (напр.
+     *  { "need_rest": 100 }). Идёт через changeNeed: положительная дельта
+     *  делится с напарниками («общий стол»), значения клапятся в 0..100.
+     *  По умолчанию лагерь потребности НЕ восстанавливает — управляется
+     *  только самими предметами-контентом (кровать и т.п.). Внимание: после
+     *  advanceTicks(ticks) потребности уже просели, поэтому 100 тут ≠ «как
+     *  было при открытии меню». */
+    restore?: Record<string, number>
   }
   /**
    * Числа опасностей (аудит B7): падение — по {fall_meters_per_die} метрам
@@ -2485,7 +2500,14 @@ export type Condition =
   | { type: 'flag_not_set'; flag: string }
   | { type: 'variable_compare'; var: string; operator: '==' | '!=' | '<' | '>' | '<=' | '>='; value: number | string }
   | { type: 'time_of_day'; value: TimeOfDay | TimeOfDay[] }
+  /** сравнение с АБСОЛЮТНЫМ игровым тиком: `state.tick >= min_tick`. ВАЖНО:
+   *  это не «прошло с начала забега» — для отсчёта от старта используйте
+   *  `elapsed_ge` или пишите порог с учётом meta.starting_tick. */
   | { type: 'tick_elapsed'; min_tick: number }
+  /** с начала забега прошло ≥ N тиков: `state.tick − (meta.starting_tick ?? 0) >= min`.
+   *  Единственное верное средство сроков вида «через 72 часа от старта» при
+   *  ненулевом starting_tick. */
+  | { type: 'elapsed_ge'; min: number }
   | { type: 'quest_at_stage'; quest: string; stage: string }
   | { type: 'has_item'; item: string; min_quantity?: number }
   /** предмет экипирован на герое в любом слоте */

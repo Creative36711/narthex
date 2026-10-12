@@ -4,7 +4,7 @@ import { askConfirm } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
 import type { GameEngine } from '../core/engine'
 import { formatDate, formatTime, timeOfDay, TIME_OF_DAY_LABEL } from '../core/time'
-import { featureOn } from '../shared/types'
+import { featureOn, startTick } from '../shared/types'
 import { assetUrl } from '../core/loader'
 
 interface Props {
@@ -180,7 +180,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
               return w ? <div className="hud-weather">{w.label}</div> : null
             })()}
             {meta.deadline_ticks !== undefined && meta.deadline_ticks > 0 && (() => {
-              const start = meta.starting_tick ?? 0
+              const start = startTick(meta)
               const elapsed = s.tick - start
               const left = Math.max(0, meta.deadline_ticks - elapsed)
               const unit = meta.tick_label || 'ч'
@@ -232,11 +232,20 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
               const ticks = engine.campaign.meta.camping?.ticks ?? 8
               const label = engine.campaign.meta.tick_label || 'ч'
               const ambush = (engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможна ночная засада!' : ''
-              if (await askConfirm(`Разбить лагерь и отдохнуть?\nСон займёт ${ticks} ${label}.${ambush}`, 'Отдохнуть', 'Отмена')) {
+              // аудит кампании 2026: обещание UI не должно расходиться с движком —
+              // потребности лагерь восстанавливает только если мастер задал meta.camping.restore
+              const restore = Object.entries(engine.campaign.meta.camping?.restore ?? {})
+              const restoreLine = restore.length
+                ? ` Восстановит потребности: ${restore.map(([id, v]) => {
+                    const need = engine.campaign.meta.needs?.find((n) => n.id === id)
+                    return `${need?.label ?? id} +${v}`
+                  }).join(', ')}.`
+                : ''
+              if (await askConfirm(`Разбить лагерь и отдохнуть?\nСон займёт ${ticks} ${label} — лечит раны и растит навыки.${restoreLine}${ambush}`, 'Отдохнуть', 'Отмена')) {
                 engine.campRest()
               }
             }}
-            data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}
+            data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${Object.keys(engine.campaign.meta.camping?.restore ?? {}).length ? ' Восстанавливает потребности.' : ''}${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}
           >
             <Ico n="flame" />  {engine.uiLabel('camp', 'Лагерь')}
           </button>

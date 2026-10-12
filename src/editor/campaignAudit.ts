@@ -473,7 +473,11 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
   const localFindings = await inspectLocalMedia(store, mediaRefs.local)
   const media: AuditFinding[] = localFindings.filter((finding) => finding.severity !== 'info')
   if (mediaRefs.local.length && media.length === 0) {
-    media.push({ severity: 'info', message: `Проверено локальных медиафайлов: ${mediaRefs.local.length}; все найдены.` })
+    // аудит кампании 2026-10: проверка покрывает ССЫЛКИ на медиа в данных
+    // кампании (json + ink), а не все файлы на диске — раньше строка звучала
+    // как полное покрытие («786 vs 952»). Файлы без ссылок — легальные запасные,
+    // движок их не удаляет и лимитов размера не применяет (политика без лимитов).
+    media.push({ severity: 'info', message: `Проверено ссылок на локальные медиа в контенте кампании: ${mediaRefs.local.length}; все найдены. Проверка покрывает только упомянутые в данных пути — файлы на диске без ссылок не считаются и не удаляются.` })
   }
   for (const url of mediaRefs.external) {
     media.push({

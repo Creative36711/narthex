@@ -53,6 +53,8 @@ export interface TypeSchema {
   fields: FieldSpec[]
   /** заготовка при создании */
   blank: Record<string, unknown>
+  /** пояснение семантики — показывается мелким текстом при выбранном типе (чтобы «прошло тиков» не путали с «абсолютные тики» и т.п.) */
+  hint?: string
 }
 
 // ─────────────── условия ───────────────
@@ -114,9 +116,16 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     blank: { value: ['day'] },
   },
   tick_elapsed: {
-    label: 'Прошло тиков (глобально)',
-    fields: [{ key: 'min_tick', label: 'Минимальный тик', kind: 'number' }],
+    label: 'Тик игры ≥ (абсолютный)',
+    fields: [{ key: 'min_tick', label: 'Абсолютный тик игры не ниже', kind: 'number' }],
     blank: { min_tick: 0 },
+    hint: 'Сравнивает СЧЁТЧИК времени игры (с нуля), а не «прошло с начала». Для «через N часов от старта» возьмите условие «Прошло тиков с начала».',
+  },
+  elapsed_ge: {
+    label: 'Прошло тиков с начала (≥)',
+    fields: [{ key: 'min', label: 'Минимум тиков с начала забега', kind: 'number' }],
+    blank: { min: 72 },
+    hint: 'Учитывает meta.starting_tick: при старте в тике 7 порог 72 сработает на абсолютном тике 79. Единственный верный способ сроков «через N часов от старта».',
   },
   quest_at_stage: {
     label: 'Квест на стадии',

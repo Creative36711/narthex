@@ -2290,6 +2290,64 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 optional
                 onChange={(v) => ((m.camping!.ambush_rule = v || undefined), commit())}
               />
+              <div
+                className="fld"
+                style={{ flex: 1, minWidth: 300 }}
+                data-tip="Сколько восстанавливает ночлег. Применяется ПОСЛЕ хода времени: 8 часов сна снимают свою долю, восстановление покрывает и её. Рост делится с напарниками («общий стол»). Пустой блок — классика: лагерь сам по себе потребности не лечит, помогут только предметы (кровать, одеяло и т.п.); тексты кнопки сна обещают лишь прирост навыков и лечение."
+              >
+                <span>Восстановление потребностей</span>
+                {Object.entries(m.camping.restore ?? {}).map(([needId, val]) => (
+                  <div key={needId} className="fld-row" style={{ gap: 6, alignItems: 'center' }}>
+                    <RefSelect
+                      label="Потребность"
+                      store={store}
+                      kind="need"
+                      value={needId}
+                      onChange={(v) => {
+                        if (!v) return
+                        const next = { ...(m.camping!.restore ?? {}) }
+                        delete next[needId]
+                        next[v] = val
+                        m.camping!.restore = next
+                        commit()
+                      }}
+                    />
+                    <input
+                      type="number"
+                      style={{ width: 80 }}
+                      value={val}
+                      onChange={(e) => {
+                        m.camping!.restore = { ...(m.camping!.restore ?? {}), [needId]: Number(e.target.value) || 0 }
+                        commit()
+                      }}
+                    />
+                    <button
+                      className="btn btn-small"
+                      onClick={() => {
+                        const next = { ...(m.camping!.restore ?? {}) }
+                        delete next[needId]
+                        if (Object.keys(next).length) m.camping!.restore = next
+                        else delete m.camping!.restore
+                        commit()
+                      }}
+                    >
+                      <Ico n="close" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  className="btn btn-small"
+                  onClick={() => {
+                    const opts = store.options('need').filter((o) => !(m.camping!.restore ?? {})[o.id])
+                    const first = opts[0]?.id
+                    if (!first) return
+                    m.camping!.restore = { ...(m.camping!.restore ?? {}), [first]: 100 }
+                    commit()
+                  }}
+                >
+                  <Ico n="plus" /> потребность
+                </button>
+              </div>
             </>
           )}
           <label className="fld fld-num" data-tip="Метров падения на один кубик урона (книжное умолчание 3)">
@@ -2353,9 +2411,9 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
         </div>
         <div className="fld-row">
           <SelectFld label="Персонаж игрока" value={m.default_player} options={npcOpts} onChange={(v) => ((m.default_player = v), commit())} />
-          <label className="fld">
+          <label className="fld" data-tip="Абсолютный тик игры, с которого начинается забег (умолчание движка — 8, утро первого дня). Условие «Прошло тиков с начала» и таймер дедлайна отсчитываются именно от него.">
             <span>Стартовый тик</span>
-            <input type="number" value={m.starting_tick ?? 0} onChange={(e) => ((m.starting_tick = Number(e.target.value)), commit())} />
+            <input type="number" value={m.starting_tick ?? 8} onChange={(e) => ((m.starting_tick = Number(e.target.value)), commit())} />
           </label>
           <label className="fld">
             <span>Макс. напарников</span>

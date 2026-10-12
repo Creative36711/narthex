@@ -472,6 +472,8 @@ body.cf-editor { overflow: hidden; }
 
 .ce-list { display: flex; flex-direction: column; gap: 6px; }
 .ce-item { border: 1px solid var(--ed-paper-line); border-radius: 6px; background: var(--ed-paper); }
+/* пояснение семантики выбранного типа условия/эффекта (см. schemas.ts TypeSchema.hint) */
+.ce-hint { margin: 2px 0 6px; padding-left: 2px; line-height: 1.35; }
 .ce-head {
   display: flex;
   align-items: center;

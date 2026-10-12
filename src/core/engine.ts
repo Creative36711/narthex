@@ -45,7 +45,7 @@ import type {
 
   ImageValue,
 } from '../shared/types'
-import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES } from '../shared/types'
+import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES, startTick } from '../shared/types'
 import {
   inspectSave,
   loadState,
@@ -245,7 +245,7 @@ export class GameEngine {
       save_version: SAVE_VERSION,
       campaign_id: meta.id,
       seed: this.rng.seed,
-      tick: meta.starting_tick ?? 8,
+      tick: startTick(meta),
       region: meta.starting_region,
       location: meta.starting_location,
       scene: meta.starting_scene,
@@ -2209,7 +2209,9 @@ export class GameEngine {
   /**
    * Ночлег в лагере (аудит B7): advanceTicks(cfg.ticks), рост навыков,
    * естественное лечение, возможная засада — правило мастера
-   * (meta.camping.ambush_rule, шанс ambush_chance).
+   * (meta.camping.ambush_rule, шанс ambush_chance). Восстановление
+   * потребностей — опционально, meta.camping.restore (аудит кампании 2026):
+   * применяется ПОСЛЕ хода времени через changeNeed (общий стол для плюса).
    */
   campRest(): void {
     const cfg = this.campaign.meta.camping
@@ -2218,6 +2220,11 @@ export class GameEngine {
     this.advanceTicks(cfg.ticks ?? 8)
     this.restAndGrow()
     this.restHeal()
+    if (cfg.restore) {
+      for (const [needId, v] of Object.entries(cfg.restore)) {
+        if (v !== 0) this.changeNeed(needId, v)
+      }
+    }
     const chance = Math.max(0, Math.min(1, cfg.ambush_chance ?? 0))
     if (chance > 0 && this.rng.chance(chance)) {
       this.pushLog('Ночью — тревога! В лагерь кто-то прокрался!')

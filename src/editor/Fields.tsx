@@ -1111,6 +1111,7 @@ export function ConditionListEditor({
                     ))}
                   </select>
                 </label>
+                {schema.hint && <div className="muted small ce-hint">{schema.hint}</div>}
                 <SchemaForm
                   fields={schema.fields}
                   obj={c as unknown as Record<string, unknown>}
@@ -1201,6 +1202,7 @@ export function EffectListEditor({
                     ))}
                   </select>
                 </label>
+                {schema.hint && <div className="muted small ce-hint">{schema.hint}</div>}
                 <SchemaForm
                   fields={schema.fields}
                   obj={ef as unknown as Record<string, unknown>}

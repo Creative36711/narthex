@@ -2982,6 +2982,22 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "elapsed_ge"
+            },
+            "min": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "min"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "quest_at_stage"
             },
             "quest": {
@@ -5684,6 +5700,13 @@
             },
             "ambush_rule": {
               "type": "string"
+            },
+            "restore": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              },
+              "description": "Восстановление потребностей за ночлег: `need_id → значение` (напр.\n{ \"need_rest\": 100 }). Идёт через changeNeed: положительная дельта\nделится с напарниками («общий стол»), значения клапятся в 0..100.\nПо умолчанию лагерь потребности НЕ восстанавливает — управляется\nтолько самими предметами-контентом (кровать и т.п.). Внимание: после\nadvanceTicks(ticks) потребности уже просели, поэтому 100 тут ≠ «как\nбыло при открытии меню»."
             }
           },
           "additionalProperties": false,
