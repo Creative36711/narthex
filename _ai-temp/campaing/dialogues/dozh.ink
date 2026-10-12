@@ -14,8 +14,8 @@ EXTERNAL unlock_codex(a0)
 
 === Начало ===
 { get_flag("met_dozh"): -> Снова }
-Дож что-то взвешивает на ладони и прячет в рукав, не глядя. # action # voice: assets/voice/narr_dozh_1.mp3
-Смотри, не покупатель. С покупателями я вежливей. # voice: assets/voice/dozh_4.mp3
+Старьёвщик что-то взвешивает на ладони и прячет в рукав, не глядя. # action # voice: assets/voice/narr_dozh_1.mp3
+Я Дож. Вижу — не покупатель. С покупателями я вежливей. # voice: assets/voice/dozh_19.mp3
 ~ learn_name("npc_dozh")
 ~ set_flag("met_dozh")
 -> Начало_hub
@@ -47,7 +47,7 @@ EXTERNAL unlock_codex(a0)
     ~ remove_item("item_mark", 34)
     ~ add_item("item_filter", 1)
     -> Начало_hub
-* [Показать Дожу вещь.]
+* { not (get_flag("dozh_appraised")) } [Показать Дожу вещь.]
     ~ present_item("Оценка", "Оценка_мимо", "")
     -> DONE
 * { not (get_flag("dozh_kit")) } [Что берут с собой те, кто ходит ниже восьмого?]
@@ -83,6 +83,7 @@ EXTERNAL unlock_codex(a0)
 Дож вертит вещь двумя пальцами, прищурившись. # action # sfx: snd_latch # voice: assets/voice/narr_dozh_3.mp3
 Вещь стоящая — для того, кто её ищет. Я таких не знаю, но за полцены возьму. # emotion: calm # voice: assets/voice/dozh_6.mp3
 ~ change_disposition("npc_dozh", 2)
+~ set_flag("dozh_appraised")
 -> Начало_hub
 
 === Оценка_мимо ===

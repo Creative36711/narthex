@@ -27,7 +27,7 @@
             {
               "kind": "line",
               "line": {
-                "text": "Дож что-то взвешивает на ладони и прячет в рукав, не глядя.",
+                "text": "Старьёвщик что-то взвешивает на ладони и прячет в рукав, не глядя.",
                 "action": true,
                 "voice": "assets/voice/narr_dozh_1.mp3"
               }
@@ -35,8 +35,8 @@
             {
               "kind": "line",
               "line": {
-                "text": "Смотри, не покупатель. С покупателями я вежливей.",
-                "voice": "assets/voice/dozh_4.mp3"
+                "text": "Я Дож. Вижу — не покупатель. С покупателями я вежливей.",
+                "voice": "assets/voice/dozh_19.mp3"
               }
             },
             {
@@ -233,7 +233,14 @@
             }
           ],
           "goto": "stay",
-          "once": true
+          "once": true,
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "dozh_appraised",
+              "not": true
+            }
+          ]
         },
         {
           "text": "Что берут с собой те, кто ходит ниже восьмого?",
@@ -457,6 +464,13 @@
                 "type": "change_disposition",
                 "delta": 2,
                 "target": "npc_dozh"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "dozh_appraised"
               }
             }
           ]

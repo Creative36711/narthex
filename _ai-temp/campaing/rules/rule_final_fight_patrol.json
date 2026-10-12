@@ -58,6 +58,10 @@
           "flag": "kell_refused"
         },
         {
+          "type": "set_flag",
+          "flag": "kell_at_gate"
+        },
+        {
           "type": "start_combat",
           "enemies": [
             {

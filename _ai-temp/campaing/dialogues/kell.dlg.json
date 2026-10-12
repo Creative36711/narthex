@@ -336,58 +336,34 @@
           "goto": "end"
         },
         {
-          "text": "Показать рукавицу с привода.",
-          "conds": [
-            {
-              "type": "flag",
-              "flag": "kell_glove",
-              "not": true
-            },
-            {
-              "type": "has_item",
-              "item": "item_glove"
-            }
-          ],
+          "text": "Показать находку с привода.",
           "sections": [
             {
               "steps": [
                 {
                   "kind": "effect",
                   "effect": {
-                    "type": "set_flag",
-                    "flag": "kell_glove"
-                  }
-                },
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Он берёт рукавицу за манжет, не разворачивая.",
-                    "action": true,
-                    "voice": "assets/voice/narr_kell_2.mp3"
-                  }
-                },
-                {
-                  "kind": "line",
-                  "line": {
-                    "text": "Рукавица. В машинном зале их сто пар лежит: смене выдают по две на руки. Клади в дело, раз нравится. Мне интереснее, кто её первым снимет.",
-                    "voice": "assets/voice/kell_13.mp3",
-                    "emotion": "calm",
-                    "sfx": "snd_cloth"
-                  }
-                },
-                {
-                  "kind": "effect",
-                  "effect": {
-                    "type": "change_disposition",
-                    "target": "npc_kell",
-                    "delta": -3
+                    "type": "present_item",
+                    "ok": "Рукавица",
+                    "fail": "Жетон_мимо",
+                    "required": "item_glove"
                   }
                 }
               ]
             }
           ],
-          "goto": "stay",
-          "once": true
+          "goto": "Рукавица",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "clue_glove"
+            },
+            {
+              "type": "flag",
+              "flag": "kell_glove",
+              "not": true
+            }
+          ]
         }
       ]
     },
@@ -526,6 +502,50 @@
                 "text": "Келл смотрит сначала на вещь, потом на тебя — и без всякого интереса.",
                 "action": true,
                 "voice": "assets/voice/narr_kell_5.mp3"
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
+    },
+    {
+      "id": "Рукавица",
+      "label": "Рукавица с привода",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "kell_glove"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Он берёт рукавицу за манжет, не разворачивая.",
+                "action": true,
+                "voice": "assets/voice/narr_kell_2.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Рукавица. В машинном зале их сто пар лежит: смене выдают по две на руки. Клади в дело, раз нравится. Мне интереснее, кто её первым снимет.",
+                "voice": "assets/voice/kell_13.mp3",
+                "emotion": "calm",
+                "sfx": "snd_cloth"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "change_disposition",
+                "target": "npc_kell",
+                "delta": -3
               }
             }
           ]

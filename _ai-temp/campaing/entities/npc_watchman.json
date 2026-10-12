@@ -23,7 +23,7 @@
     "dodge": 15
   },
   "slot_type": "person",
-  "armor": 2,
+  "armor": 1,
   "schedule": [],
   "natural_weapon": {
     "skill": "brawl",

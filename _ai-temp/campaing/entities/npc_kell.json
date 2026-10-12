@@ -64,5 +64,6 @@
     "down": "assets/img/npc/fig_kell_down.png",
     "dead": "assets/img/npc/fig_kell_down.png"
   },
-  "facing_offset": 180
+  "facing_offset": 180,
+  "unknown_label": "Человек в чёрном плаще"
 }

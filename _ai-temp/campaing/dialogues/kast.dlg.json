@@ -409,6 +409,66 @@
           "once": true
         },
         {
+          "text": "Мастер Реш со мной.",
+          "once": true,
+          "conds": [
+            {
+              "type": "in_party",
+              "npc": "npc_resh"
+            },
+            {
+              "type": "flag",
+              "flag": "kast_resh",
+              "not": true
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "kast_resh"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Мастер Реш. Живой, в пыли и на своих ногах. Значит, в сводке соврали ещё в одном месте.",
+                    "voice": "assets/voice/kast_24.mp3",
+                    "emotion": "thoughtful"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "«Я живой, пока об этом не знают наверху. Теперь знаешь ты. Решай, инспектор».",
+                    "voice": "assets/voice/resh_22.mp3",
+                    "action": true
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Тогда молчи до конца срока, мастер. И держись за спиной дознавателя: свидетели в моём отделе долго не живут.",
+                    "voice": "assets/voice/kast_25.mp3",
+                    "emotion": "calm"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_kast_resh_party"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
           "text": "Ночью за моим делом приходили. Вот что было у вора.",
           "conds": [
             {

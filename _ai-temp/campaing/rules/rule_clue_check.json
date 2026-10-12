@@ -25,7 +25,7 @@
     {
       "type": "postcard",
       "image": "assets/img/pc_clues.jpg",
-      "text": "Рукавица, наряд, жетон. Нитки сходятся в одну точку — к приводу.",
+      "text": "Три нитки сходятся в одну точку — к приводу и к мастеру.",
       "preset": "шёпот",
       "seconds": 5,
       "camera": {
@@ -44,6 +44,10 @@
     {
       "type": "unlock_codex",
       "entry": "codex_heavy_water"
+    },
+    {
+      "type": "fire_rule",
+      "rule": "rule_reveal_deep"
     }
   ],
   "chapter": "ch_signs",

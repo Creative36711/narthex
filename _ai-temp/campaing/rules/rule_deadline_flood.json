@@ -27,6 +27,11 @@
       "flag": "case_ended"
     },
     {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_flooded"
+    },
+    {
       "type": "fail_quest",
       "quest": "quest_pump"
     },

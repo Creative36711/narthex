@@ -128,10 +128,55 @@
         {
           "type": "flag_set",
           "flag": "sluice_ready"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "not",
+              "condition": {
+                "type": "in_party",
+                "entity": "npc_resh"
+              }
+            },
+            {
+              "type": "flag_set",
+              "flag": "resh_allows_pump"
+            }
+          ]
         }
       ],
       "hint": "ремонт 55 (1 ч при срыве): нужна сердцевина и исправный затвор восьмого яруса",
       "sound": "snd_latch"
+    },
+    {
+      "label": "Вставить сердцевину и запустить помпу",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_core"
+        },
+        {
+          "type": "flag_set",
+          "flag": "sluice_ready"
+        },
+        {
+          "type": "in_party",
+          "entity": "npc_resh"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "resh_allows_pump"
+        }
+      ],
+      "effects": [
+        {
+          "type": "start_dialogue",
+          "entity": "npc_resh",
+          "dialogue_knot": "У_помпы"
+        }
+      ],
+      "hint": "ремонт 55 (1 ч при срыве): нужна сердцевина и исправный затвор восьмого яруса"
     },
     {
       "label": "Снять слепок с муфты",

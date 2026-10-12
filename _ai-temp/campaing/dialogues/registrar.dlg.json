@@ -322,11 +322,51 @@
           "goto": "stay"
         },
         {
+          "text": "Положить вещь на стойку.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "present_item",
+                    "ok": "Вещь",
+                    "fail": "Вещь",
+                    "required": ""
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "Вещь",
+          "conds": []
+        },
+        {
           "text": "Отключись.",
           "sections": [],
           "goto": "end"
         }
       ]
+    },
+    {
+      "id": "Вещь",
+      "label": "Показал вещь",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Регистратор смотрит на вещь поверх очков и молча отодвигает: в реестр такое не вносят.",
+                "voice": "assets/voice/narr_registrar_3.mp3",
+                "action": true
+              }
+            }
+          ]
+        }
+      ],
+      "goto": "Начало",
+      "choices": []
     }
   ]
 }

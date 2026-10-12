@@ -1,0 +1,37 @@
+{
+  "id": "rule_kast_resh_party",
+  "label": "Каст видит Реша",
+  "once": true,
+  "manual": true,
+  "chapter": "ch_price",
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_duty",
+      "text_key": "j_kast_resh_party"
+    },
+    {
+      "type": "grant_xp",
+      "points": 5
+    },
+    {
+      "type": "change_disposition",
+      "target": "npc_resh",
+      "delta": 3
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_kast_resh_face.jpg",
+      "text": "Свидетель стоит перед ней сам.",
+      "preset": "шёпот",
+      "seconds": 6,
+      "camera": {
+        "zoom": 1.1,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 7
+      }
+    }
+  ]
+}

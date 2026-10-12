@@ -67,6 +67,62 @@
         {
           "type": "flag_not_set",
           "flag": "patrol_pump_passed"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "not",
+              "condition": {
+                "type": "in_party",
+                "entity": "npc_ira"
+              }
+            },
+            {
+              "type": "not",
+              "condition": {
+                "type": "in_party",
+                "entity": "npc_resh"
+              }
+            }
+          ]
+        }
+      ],
+      "hint": "Затвор уйдёт под воду вместе с жилой",
+      "sound": "snd_charge"
+    },
+    {
+      "label": "Заложить заряд",
+      "effects": [
+        {
+          "type": "fire_rule",
+          "rule": "rule_final_fight_party"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_charge"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_full"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "kell_refused"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "patrol_pump_passed"
+        },
+        {
+          "type": "in_party",
+          "entity": "npc_ira"
+        },
+        {
+          "type": "in_party",
+          "entity": "npc_resh"
         }
       ],
       "hint": "Затвор уйдёт под воду вместе с жилой",
@@ -150,6 +206,62 @@
         {
           "type": "flag_not_set",
           "flag": "patrol_pump_passed"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "not",
+              "condition": {
+                "type": "in_party",
+                "entity": "npc_ira"
+              }
+            },
+            {
+              "type": "not",
+              "condition": {
+                "type": "in_party",
+                "entity": "npc_resh"
+              }
+            }
+          ]
+        }
+      ],
+      "hint": "Келл уже отказал: теперь только бой",
+      "sound": "snd_charge"
+    },
+    {
+      "label": "Заложить заряд",
+      "effects": [
+        {
+          "type": "fire_rule",
+          "rule": "rule_final_rematch_party"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_charge"
+        },
+        {
+          "type": "flag_set",
+          "flag": "kell_refused"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_full"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "patrol_pump_passed"
+        },
+        {
+          "type": "in_party",
+          "entity": "npc_ira"
+        },
+        {
+          "type": "in_party",
+          "entity": "npc_resh"
         }
       ],
       "hint": "Келл уже отказал: теперь только бой",
@@ -241,6 +353,70 @@
         {
           "type": "flag_not_set",
           "flag": "case_full"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "not",
+              "condition": {
+                "type": "in_party",
+                "entity": "npc_ira"
+              }
+            },
+            {
+              "type": "not",
+              "condition": {
+                "type": "in_party",
+                "entity": "npc_resh"
+              }
+            }
+          ]
+        }
+      ],
+      "hint": "ремонт 65: обойти Келла под мостками и поставить заряд на капельный замедлитель. Сорвётся — бой",
+      "sound": "snd_charge"
+    },
+    {
+      "label": "Заложить заряд снизу, на замедлитель",
+      "effects": [
+        {
+          "type": "fire_rule",
+          "rule": "rule_final_rig_party"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_charge"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_ended"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "rig_spotted"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "ira_rig_tip"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "patrol_pump_passed"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_full"
+        },
+        {
+          "type": "in_party",
+          "entity": "npc_ira"
+        },
+        {
+          "type": "in_party",
+          "entity": "npc_resh"
         }
       ],
       "hint": "ремонт 65: обойти Келла под мостками и поставить заряд на капельный замедлитель. Сорвётся — бой",
@@ -320,6 +496,70 @@
         {
           "type": "flag_not_set",
           "flag": "case_full"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "not",
+              "condition": {
+                "type": "in_party",
+                "entity": "npc_ira"
+              }
+            },
+            {
+              "type": "not",
+              "condition": {
+                "type": "in_party",
+                "entity": "npc_resh"
+              }
+            }
+          ]
+        }
+      ],
+      "hint": "ремонт 50, сцепленная проверка: хватит успеха героя или Иры, если она в отряде. Сорвётся — бой",
+      "sound": "snd_charge"
+    },
+    {
+      "label": "Заложить заряд снизу, путём Стася",
+      "effects": [
+        {
+          "type": "fire_rule",
+          "rule": "rule_final_rig_tip_party"
+        }
+      ],
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_charge"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_ended"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "rig_spotted"
+        },
+        {
+          "type": "flag_set",
+          "flag": "ira_rig_tip"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "patrol_pump_passed"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_full"
+        },
+        {
+          "type": "in_party",
+          "entity": "npc_ira"
+        },
+        {
+          "type": "in_party",
+          "entity": "npc_resh"
         }
       ],
       "hint": "ремонт 50, сцепленная проверка: хватит успеха героя или Иры, если она в отряде. Сорвётся — бой",

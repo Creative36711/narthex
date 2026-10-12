@@ -1,3 +1,4 @@
+EXTERNAL present_item(a0, a1, a2)
 EXTERNAL learn_name(a0)
 EXTERNAL in_party(a0)
 EXTERNAL change_disposition(a0, a1)
@@ -89,6 +90,9 @@ VAR r = 0
     Сняли. Вводят шёпотом и снимают шёпотом, а журнал всё помнит. Проходи, дознаватель: сегодня тебя записываю я, а не Келл. # emotion: calm # voice: assets/voice/vex_20.mp3
     ~ change_disposition("npc_vex", 3)
     -> Начало_hub
++ { get_flag("clue_guard") and not (get_flag("vex_token")) } [Показать Вексу находку у затвора.]
+    ~ present_item("Жетон", "Не_то", "item_guard_token")
+    -> DONE
 + [Мне пора.]
     -> DONE
 - -> Начало_hub
@@ -101,4 +105,16 @@ VAR r = 0
 === Начало_hub_no1 ===
 Записи я веду, а не пересказываю. Приди с бумагой от инспектора — покажу журнал целиком. # voice: assets/voice/vex_9.mp3
 ~ change_disposition("npc_vex", -4)
+-> Начало_hub
+
+=== Жетон ===
+Векс ведёт пальцем по журналу, пока не находит номер. # action # sfx: snd_page # voice: assets/voice/narr_vex_5.mp3
+Медь взвода Ястреба. По журналу этот номер ушёл вниз тринадцатого, а обратно никто не расписался. # emotion: thoughtful # voice: assets/voice/vex_24.mp3
+~ set_flag("vex_token")
+~ change_disposition("npc_vex", 3)
+~ fire_rule("rule_vex_token")
+-> Начало_hub
+
+=== Не_то ===
+Мне это ни к чему. Я пишу, кто прошёл, а не что у них в карманах. # emotion: calm # voice: assets/voice/vex_25.mp3
 -> Начало_hub
