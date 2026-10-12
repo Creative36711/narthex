@@ -184,6 +184,14 @@ npm run build     # прод-сборка в dist/
 npm run preview   # прогон прод-сборки
 ```
 
+```bash
+npm run audit:campaign -- <папка кампании>             # та же «Проверка кампании», что в редакторе,
+                                                      # но headless: отчёт движка на файлах кампании
+                                                      # (для ИИ-мастеров; машинный вывод:
+                                                      # npm run --silent audit:campaign -- <папка> -- --json;
+                                                      # exit 1 при ERROR-рядах)
+```
+
 Десктоп (Tauri v2, нужен Rust-тулчейн — https://rustup.rs; на Linux ещё
 webkit2gtk/gtk):
 
