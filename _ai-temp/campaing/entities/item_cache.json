@@ -22,6 +22,110 @@
       "hint": "замок под ключ без номера: ключ у того, кто прятал"
     },
     {
+      "label": "Отпереть ключом",
+      "hint": "бронзовый ключ с квадратным гнездом подходит к замку",
+      "sound": "snd_latch",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_key_cache"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "cache_open"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "core_taken"
+        }
+      ],
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_open_cache"
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_open_cache_core"
+        }
+      ]
+    },
+    {
+      "label": "Отпереть ключом",
+      "hint": "бронзовый ключ с квадратным гнездом подходит к замку",
+      "sound": "snd_latch",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_key_cache"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "cache_open"
+        },
+        {
+          "type": "flag_set",
+          "flag": "core_taken"
+        }
+      ],
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_open_cache"
+        }
+      ]
+    },
+    {
+      "label": "Взломать крышку",
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "skill_check_gate",
+          "skill": "lockpick",
+          "difficulty": 55,
+          "success_effects": [
+            {
+              "type": "fire_rule",
+              "rule": "rule_open_cache"
+            },
+            {
+              "type": "fire_rule",
+              "rule": "rule_open_cache_core"
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Крышка гудит, но держится. Инструмент срывается."
+            }
+          ]
+        }
+      ],
+      "sound": "snd_creak",
+      "hint": "отмычка; провал только инструментом, крышка не сломается",
+      "conditions": [
+        {
+          "type": "flag_not_set",
+          "flag": "cache_open"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "core_taken"
+        }
+      ]
+    },
+    {
       "label": "Взломать крышку",
       "effects": [
         {
@@ -52,6 +156,10 @@
         {
           "type": "flag_not_set",
           "flag": "cache_open"
+        },
+        {
+          "type": "flag_set",
+          "flag": "core_taken"
         }
       ]
     }

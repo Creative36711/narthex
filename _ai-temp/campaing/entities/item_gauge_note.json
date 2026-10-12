@@ -12,5 +12,6 @@
   "portrait": {
     "neutral": "assets/img/items/item_gauge_note.jpg"
   },
-  "quest_item": true
+  "quest_item": true,
+  "image": "assets/img/items/item_gauge_note.jpg"
 }

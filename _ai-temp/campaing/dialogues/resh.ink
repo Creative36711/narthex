@@ -54,7 +54,7 @@ VAR r = 0
     Стража. Я видел пломбу на их рукавицах: тринадцать-К. У нас на ярусе пломбы только у тех, кто закрывает. # emotion: angry # voice: assets/voice/resh_6.mp3
     Муфту резали ключом на пятьдесят два, в перчатках: на срезе ни одной мозоли. Сорок лет смотрю, как режут, — по металлу видно, чья рука держала ключ. # emotion: thoughtful # voice: assets/voice/resh_14.mp3
     -> Начало_hub
-* { not (has_item("item_core")) and not (has_item("item_key_cache")) and not (get_flag("resh_core_asked")) and not (get_flag("sluice_ready")) } [Отдай сердцевину.]
+* { not (has_item("item_core")) and not (has_item("item_key_cache")) and not (get_flag("resh_core_asked")) and not (get_flag("sluice_ready")) and not (get_flag("core_taken")) } [Отдай сердцевину.]
     ~ set_flag("resh_core_asked")
     ~ r = skill_check("persuade", 55)
     {r: -> Начало_hub_ok1 | -> Начало_hub_no1}
@@ -65,6 +65,7 @@ VAR r = 0
     -> Начало_hub
 * { get_flag("resh_trusts") and not (get_flag("resh_charge_recipe")) } [Научи собирать заряд.]
     Сердцевина, лом, масло и ровные руки. Если руки дрожат — не берись, это не лекарство. # emotion: calm # voice: assets/voice/resh_10.mp3
+    Ключ на пятьдесят два и ровный стол: верстак у шлюза или скамья в Сухом ряду. На коленке не собирай. # emotion: thoughtful # voice: assets/voice/resh_37.mp3
     ~ unlock_recipe("recipe_charge")
     ~ set_flag("resh_charge_recipe")
     -> Начало_hub

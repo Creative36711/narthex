@@ -1,0 +1,18 @@
+{
+  "id": "rule_vex_return_hand",
+  "label": "Векс: взвод вписал старшина",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "journal_update",
+      "quest": "quest_pump",
+      "text_key": "j_vex_hand"
+    },
+    {
+      "type": "grant_xp",
+      "points": 5
+    }
+  ]
+}

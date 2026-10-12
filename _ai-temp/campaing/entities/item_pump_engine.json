@@ -37,10 +37,6 @@
               "delta": 1
             },
             {
-              "type": "fire_rule",
-              "rule": "rule_clue_check"
-            },
-            {
               "type": "unlock_codex",
               "entry": "codex_pumps"
             },

@@ -171,44 +171,30 @@
           ]
         },
         {
-          "text": "Купить дыхатель (34 марки).",
+          "text": "Мне нужен дыхатель.",
           "sections": [
             {
               "steps": [
                 {
                   "kind": "line",
                   "line": {
-                    "text": "Дыхатель — это не товар, это время. Держи, не задохнись.",
-                    "emotion": "calm",
-                    "voice": "assets/voice/dozh_2.mp3"
+                    "text": "Дыхатель — это не товар, это время. Цена на прилавке: сколько оно нынче стоит, столько и плати.",
+                    "voice": "assets/voice/dozh_20.mp3",
+                    "emotion": "calm"
                   }
                 },
                 {
                   "kind": "effect",
                   "effect": {
-                    "type": "remove_item",
-                    "item": "item_mark",
-                    "qty": 34
-                  }
-                },
-                {
-                  "kind": "effect",
-                  "effect": {
-                    "type": "add_item",
-                    "item": "item_filter",
-                    "qty": 1
+                    "type": "open_trade",
+                    "npc": "npc_dozh"
                   }
                 }
               ]
             }
           ],
-          "goto": "stay",
+          "goto": "end",
           "conds": [
-            {
-              "type": "item_ge",
-              "item": "item_mark",
-              "count": 34
-            },
             {
               "type": "has_item",
               "item": "item_filter",

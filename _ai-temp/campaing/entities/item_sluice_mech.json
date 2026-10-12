@@ -44,6 +44,48 @@
       "sound": "snd_latch"
     },
     {
+      "label": "Заложить заряд у пустого затвора",
+      "hint": "караул сняли вместе с режимом тишины",
+      "conditions": [
+        {
+          "type": "has_item",
+          "item": "item_charge"
+        },
+        {
+          "type": "flag_set",
+          "flag": "kast_hand"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "kell_at_gate"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "case_ended"
+        }
+      ],
+      "effects": [
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "show_message",
+          "text": "У затвора никого. На мостках — окурки и примятый плащом песок: караул ушёл вместе с приказом, как и велела Каст. Ты закладываешь заряд в колодку не торопясь, в первый раз за трое суток — без чужого взгляда в спину."
+        },
+        {
+          "type": "remove_item",
+          "item": "item_charge",
+          "quantity": 1
+        },
+        {
+          "type": "fire_rule",
+          "rule": "rule_end_silence"
+        }
+      ],
+      "sound": "snd_charge"
+    },
+    {
       "label": "Заложить заряд",
       "effects": [
         {
@@ -86,6 +128,19 @@
               }
             }
           ]
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "Затвор уйдёт под воду вместе с жилой",
@@ -123,6 +178,19 @@
         {
           "type": "in_party",
           "entity": "npc_resh"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "Затвор уйдёт под воду вместе с жилой",
@@ -152,6 +220,19 @@
         {
           "type": "flag_set",
           "flag": "patrol_pump_passed"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "Затвор уйдёт под воду вместе с жилой. Дежурный с помпы не придёт: Келл будет один",
@@ -177,6 +258,19 @@
         {
           "type": "flag_not_set",
           "flag": "kell_refused"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "Затвор уйдёт под воду вместе с жилой. Сшитое дело — аргумент для Келла",
@@ -225,6 +319,19 @@
               }
             }
           ]
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "Келл уже отказал: теперь только бой",
@@ -262,6 +369,19 @@
         {
           "type": "in_party",
           "entity": "npc_resh"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "Келл уже отказал: теперь только бой",
@@ -291,6 +411,19 @@
         {
           "type": "flag_set",
           "flag": "patrol_pump_passed"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "Келл уже отказал: теперь только бой. Дежурный с помпы не придёт: Келл будет один",
@@ -316,6 +449,19 @@
         {
           "type": "flag_set",
           "flag": "case_full"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "Келл уже отказал: теперь только бой, но громила ушёл",
@@ -372,6 +518,19 @@
               }
             }
           ]
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "ремонт 65: обойти Келла под мостками и поставить заряд на капельный замедлитель. Сорвётся — бой",
@@ -417,6 +576,19 @@
         {
           "type": "in_party",
           "entity": "npc_resh"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "ремонт 65: обойти Келла под мостками и поставить заряд на капельный замедлитель. Сорвётся — бой",
@@ -457,6 +629,19 @@
             {
               "type": "flag_set",
               "flag": "case_full"
+            }
+          ]
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
             }
           ]
         }
@@ -515,6 +700,19 @@
               }
             }
           ]
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "ремонт 50, сцепленная проверка: хватит успеха героя или Иры, если она в отряде. Сорвётся — бой",
@@ -560,6 +758,19 @@
         {
           "type": "in_party",
           "entity": "npc_resh"
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
+            }
+          ]
         }
       ],
       "hint": "ремонт 50, сцепленная проверка: хватит успеха героя или Иры, если она в отряде. Сорвётся — бой",
@@ -600,6 +811,19 @@
             {
               "type": "flag_set",
               "flag": "case_full"
+            }
+          ]
+        },
+        {
+          "type": "or",
+          "conditions": [
+            {
+              "type": "flag_not_set",
+              "flag": "kast_hand"
+            },
+            {
+              "type": "flag_set",
+              "flag": "kell_at_gate"
             }
           ]
         }

@@ -3,7 +3,7 @@
   "label": "Ира в пути: слепой забой",
   "once": true,
   "trigger": "enter_scene",
-  "chapter": "ch_deep",
+  "chapter": "ch_final",
   "conditions": [
     {
       "type": "player_enters_scene",

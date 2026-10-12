@@ -12,5 +12,6 @@
   },
   "portrait": {
     "neutral": "assets/img/items/item_burn_note.jpg"
-  }
+  },
+  "image": "assets/img/items/item_burn_note.jpg"
 }

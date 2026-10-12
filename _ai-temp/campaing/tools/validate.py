@@ -104,6 +104,14 @@ def main():
         for fid,fd in (meta.get("flags") or {}).items():
             if not isinstance(fd,dict) or not fd.get("description"):
                 warns.append(f"meta.flags.{fid}: нет description")
+    # главы: каждое поле chapter должно ссылаться на объявленную главу
+    try:
+        _c=lj(os.path.join(ROOT,"campaign.json")); _ch={x["id"] for x in _c.get("chapters",[])}
+        for _k in ("rules","scenes","quests","cutscenes"):
+            for _f in glob.glob(os.path.join(ROOT,_k,"*.json")):
+                _ci=lj(_f).get("chapter")
+                if _ci and _ci not in _ch: errs.append(f"{_k}/{os.path.basename(_f)}: неизвестная глава {_ci}")
+    except Exception as e: warns.append(f"проверка глав: {e}")
     print(f"Файлов: {fc}, медиа-ссылок: {len(seen)}, отсутствует: {miss}")
     print(f"\nERRORS: {len(errs)}")
     for e in errs[:80]: print(f"  ✗ {e}")

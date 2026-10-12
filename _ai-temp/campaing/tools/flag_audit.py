@@ -27,7 +27,9 @@ c = json.load(open('campaign.json'))
 for e in c.get('endings', []): walk(e, 'campaign.json:endings')
 reg = {x['id'] for x in c.get('flags', [])}
 dead = sorted(k for k in READ if k not in SET)
-unused = sorted(k for k in SET if k not in READ)
+trace = {x['id'] for x in c.get('flags', []) if str(x.get('description','')).startswith('След')}
+unused = sorted(k for k in SET if k not in READ and k not in trace)
+print('== следы (ставятся намеренно, не читаются):', len(trace))
 print('== читаются, но нигде не ставятся:'); [print('  ', k, sorted(READ[k])[:3]) for k in dead]
 print('== ставятся, но нигде не читаются:'); [print('  ', k, sorted(SET[k])[:2]) for k in unused]
 print('== не в реестре flags:', sorted((set(SET) | set(READ)) - reg))

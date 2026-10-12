@@ -42,11 +42,10 @@ EXTERNAL unlock_codex(a0)
     ~ change_disposition("npc_zhuk", 8)
     ~ learn_name("npc_zhuk")
     -> Начало_hub
-+ { item_count("item_mark") >= 34 and not (has_item("item_filter")) } [Купить дыхатель (34 марки).]
-Дыхатель — это не товар, это время. Держи, не задохнись. # emotion: calm # voice: assets/voice/dozh_2.mp3
-    ~ remove_item("item_mark", 34)
-    ~ add_item("item_filter", 1)
-    -> Начало_hub
++ { not (has_item("item_filter")) } [Мне нужен дыхатель.]
+Дыхатель — это не товар, это время. Цена на прилавке: сколько оно нынче стоит, столько и плати. # emotion: calm # voice: assets/voice/dozh_20.mp3
+    ~ open_trade("npc_dozh")
+    -> DONE
 * { not (get_flag("dozh_appraised")) } [Показать Дожу вещь.]
     ~ present_item("Оценка", "Оценка_мимо", "")
     -> DONE

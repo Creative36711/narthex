@@ -256,6 +256,11 @@
               "type": "flag",
               "flag": "sluice_ready",
               "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "core_taken",
+              "not": true
             }
           ],
           "check": {
@@ -370,6 +375,14 @@
                     "text": "Сердцевина, лом, масло и ровные руки. Если руки дрожат — не берись, это не лекарство.",
                     "emotion": "calm",
                     "voice": "assets/voice/resh_10.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ключ на пятьдесят два и ровный стол: верстак у шлюза или скамья в Сухом ряду. На коленке не собирай.",
+                    "voice": "assets/voice/resh_37.mp3",
+                    "emotion": "thoughtful"
                   }
                 },
                 {

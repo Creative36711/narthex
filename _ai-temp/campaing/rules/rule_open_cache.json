@@ -20,15 +20,6 @@
       "quantity": 1
     },
     {
-      "type": "add_item",
-      "item": "item_core",
-      "quantity": 1
-    },
-    {
-      "type": "set_flag",
-      "flag": "core_taken"
-    },
-    {
       "type": "set_flag",
       "flag": "vein_hidden"
     },

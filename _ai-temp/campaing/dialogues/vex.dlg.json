@@ -379,6 +379,11 @@
               "type": "flag",
               "flag": "vex_job",
               "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "coal_stolen",
+              "not": true
             }
           ]
         },
@@ -582,6 +587,50 @@
             }
           ],
           "goto": "end"
+        },
+        {
+          "text": "Строка о возвращении написана не твоей рукой.",
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "vex_journal"
+            },
+            {
+              "type": "flag",
+              "flag": "vex_return_hand",
+              "not": true
+            }
+          ],
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "vex_return_hand"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Не моя. В шесть утра журнал был у старшины: он сам вписал взвод обратно, конторскими чернилами, а мне велел поставить время. Я поставил. Время — единственное, что там правда.",
+                    "voice": "assets/voice/vex_26.mp3",
+                    "emotion": "thoughtful"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_vex_return_hand"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay",
+          "once": true
         },
         {
           "text": "Режим тишины сняли.",
