@@ -5,8 +5,8 @@
   "manual": false,
   "conditions": [
     {
-      "type": "tick_elapsed",
-      "min_tick": 68
+      "type": "elapsed_ge",
+      "min": 61
     },
     {
       "type": "flag_not_set",

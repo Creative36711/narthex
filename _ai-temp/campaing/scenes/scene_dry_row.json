@@ -200,7 +200,12 @@
     }
   ],
   "lighting": "indoor",
-  "particles": "embers",
+  "particles": {
+    "type": "embers",
+    "density": "low",
+    "speed": "slow",
+    "color": "#e8a24a"
+  },
   "narrative_intro": [
     {
       "text": "Ряд зовётся Сухим, потому что вода сюда не дошла. Пока не дошла.",

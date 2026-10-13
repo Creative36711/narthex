@@ -133,7 +133,11 @@
     }
   ],
   "lighting": "indoor",
-  "particles": "dust",
+  "particles": {
+    "type": "dust",
+    "density": "low",
+    "speed": "slow"
+  },
   "narrative_intro": [
     {
       "text": "Чужую каморку открывают ключом, а читают глазами. Записи лежат так, будто хозяин собирался вернуться через час.",

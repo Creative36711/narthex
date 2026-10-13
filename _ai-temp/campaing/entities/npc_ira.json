@@ -72,5 +72,10 @@
     "need_warmth"
   ],
   "companion_carry": true,
-  "facing_offset": 180
+  "facing_offset": 180,
+  "sounds": {
+    "attack": "sfx_hit",
+    "hit": "sfx_gasp",
+    "death": "snd_cloth"
+  }
 }

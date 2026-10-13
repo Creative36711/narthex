@@ -196,7 +196,11 @@
     }
   ],
   "lighting": "none",
-  "particles": "fog",
+  "particles": {
+    "type": "fog",
+    "density": "medium",
+    "speed": "slow"
+  },
   "narrative_intro": [
     {
       "text": "Вода стоит по щиколотку и пахнет ржавчиной. Мостки ведут в темноту, которая не кончается.",

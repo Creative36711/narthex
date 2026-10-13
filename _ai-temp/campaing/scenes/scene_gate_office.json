@@ -178,7 +178,11 @@
     }
   ],
   "lighting": "indoor",
-  "particles": "dust",
+  "particles": {
+    "type": "dust",
+    "density": "low",
+    "speed": "slow"
+  },
   "narrative_intro": [
     {
       "text": "В будке пахнет маслом и чужим табаком. Журнал лежит раскрытым, будто из него только что вышли.",

@@ -111,7 +111,11 @@
     }
   ],
   "lighting": "indoor",
-  "particles": "ash",
+  "particles": {
+    "type": "dust",
+    "density": "low",
+    "speed": "slow"
+  },
   "narrative_intro": [
     {
       "text": "Наверху сухо, светло и тихо. Здесь решают, кому достанется вода, и не спрашивают, кому она достанется на самом деле.",

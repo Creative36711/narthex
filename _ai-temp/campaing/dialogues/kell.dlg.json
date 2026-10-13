@@ -258,7 +258,7 @@
           "once": true
         },
         {
-          "text": "Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.",
+          "text": "Наряд тринадцатого: твой взвод ушёл вниз, а по бумагам стоял на седьмом.",
           "conds": [
             {
               "type": "has_item",
@@ -267,6 +267,35 @@
             {
               "type": "flag",
               "flag": "kell_confessed",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "vex_journal"
+            }
+          ],
+          "sections": [],
+          "goto": "Наряд"
+        },
+        {
+          "text": "Наряд тринадцатого: твой взвод ушёл вниз, а по бумагам стоял на седьмом.",
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_roster"
+            },
+            {
+              "type": "flag",
+              "flag": "kell_confessed",
+              "not": true
+            },
+            {
+              "type": "flag",
+              "flag": "clue_guard"
+            },
+            {
+              "type": "flag",
+              "flag": "vex_journal",
               "not": true
             }
           ],

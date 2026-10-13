@@ -33,7 +33,7 @@ VAR r = 0
     ~ set_flag("kell_accused")
     ~ r = skill_check("intimidate", 55)
     {r: -> Начало_hub_ok2 | -> Начало_hub_no2}
-+ { has_item("item_roster") and not (get_flag("kell_confessed")) } [Наряд тринадцатого: твой взвод шёл вниз, а запись делали наверх.]
++ { has_item("item_roster") and (get_flag("vex_journal") or get_flag("clue_guard")) and not (get_flag("kell_confessed")) } [Наряд тринадцатого: твой взвод ушёл вниз, а по бумагам стоял на седьмом.]
     -> Наряд
 + { not (get_flag("kell_token")) } [Положить перед Келлом находку.]
     ~ present_item("Жетон", "Жетон_мимо", "item_guard_token")

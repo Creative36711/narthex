@@ -180,7 +180,11 @@
     }
   ],
   "lighting": "indoor",
-  "particles": "dust",
+  "particles": {
+    "type": "steam",
+    "density": "medium",
+    "speed": "slow"
+  },
   "narrative_intro": [
     {
       "text": "Седьмая помпа стоит. Она не сломана и не заржавела: она просто молчит, и это молчание слышно на весь ярус.",

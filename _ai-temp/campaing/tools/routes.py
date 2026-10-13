@@ -58,7 +58,7 @@ ROUTES = {
         ('use', 'item_sluice_mech', 'Заложить заряд снизу, на замедлитель', {'rolls': [True]})]),
     'death_at_sluice': R('prof_inspector', 'diff_inspector', 'ending_death', CORE + CHARGE + [
         ('use', 'item_sluice_mech', 'Заложить заряд', {'rolls': [False], 'combat': 'defeat'})]),
-    'flood_deadline': R('prof_inspector', 'diff_inspector', 'ending_flood', [('go', 'scene_gate_hall'), ('wait', 80)]),
+    'flood_deadline': R('prof_inspector', 'diff_inspector', 'ending_flood', [('go', 'scene_gate_hall'), ('wait', 72)]),
     # «Тишина» без Келла: завиток на квитанциях → Каст снимает режим и караул у затвора
     'silence_plain_investigator': R('prof_inspector', 'diff_watchman', 'ending_silence', CORE + [
         ('go', 'scene_pump_hall'), ('use', 'item_resh_door', 'Взломать замок'),

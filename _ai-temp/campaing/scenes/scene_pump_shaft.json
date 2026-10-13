@@ -143,7 +143,11 @@
     }
   ],
   "lighting": "indoor",
-  "particles": "steam",
+  "particles": {
+    "type": "fog",
+    "density": "low",
+    "speed": "slow"
+  },
   "narrative_intro": [
     {
       "text": "Лестница уходит вниз, насколько видит глаз, и дальше — насколько слышит ухо.",

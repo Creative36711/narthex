@@ -1,24 +1,11 @@
 # Аудит достижимости: что определено, но никогда не выдаётся/не вызывается.
-# ВНИМАНИЕ (аудит 2026-10): это эвристика по строковым совпадениям id, а НЕ
-# полноценный симулятор маршрута. Проза проектных текстов (design_doc) из
-# выборки исключена — упоминание id глаголом в дизлайн-доке не является
-# «достижимостью». Ручные ложные срабатывания возможны в обе стороны.
 import json,glob,re,os
 os.chdir(os.path.dirname(os.path.abspath(__file__))+'/..')
 def load(p): return json.load(open(p))
-PROSE_FIELDS={'design_doc'}  # проектное повествование — не источник ссылок
 ALL=''
 for p in glob.glob('**/*.json',recursive=True)+glob.glob('dialogues/*.ink'):
     if p.startswith('__chronicle') or p.startswith('_ai-temp'): continue
-    raw=open(p,encoding='utf-8').read()
-    try:
-        doc=json.loads(raw)
-        if isinstance(doc,dict) and PROSE_FIELDS & set(doc.keys()):
-            doc={k:v for k,v in doc.items() if k not in PROSE_FIELDS}
-            raw=json.dumps(doc,ensure_ascii=False)
-    except Exception:
-        pass
-    ALL+=raw+'\n'
+    ALL+=open(p,encoding='utf-8').read()+'\n'
 m=load('manifest.json'); c=load('campaign.json')
 def defs(section,folder):
     out=[]

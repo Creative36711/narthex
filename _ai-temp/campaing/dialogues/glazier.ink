@@ -13,6 +13,7 @@ EXTERNAL unlock_codex(a0)
 VAR r = 0
 
 === Начало ===
+{ get_flag("glazier_downed"): -> DONE }
 { get_flag("glazier_robbed") or get_flag("glazier_beaten"): -> Ушёл }
 { get_flag("glazier_met"): -> Снова }
 Из бокового штрека выходит человек с заплечным коробом, обмотанным мешковиной. Сквозь мешковину сочится бирюзовый свет. # action # sfx: snd_cloth # voice: assets/voice/narr_glazier_1.mp3

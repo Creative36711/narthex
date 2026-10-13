@@ -22,6 +22,10 @@
       "on_victory": [
         {
           "type": "set_flag",
+          "flag": "glazier_downed"
+        },
+        {
+          "type": "set_flag",
           "flag": "glazier_beaten"
         },
         {

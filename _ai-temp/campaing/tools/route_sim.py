@@ -39,7 +39,7 @@ class Sim:
         self.quests, self.statuses, self.known, self.recipes = {}, set(), set(), set()
         self.disp = {k: e.get('base_disposition', 0) or 0 for k, e in ENT.items() if k.startswith('npc_')}
         self.fired, self.dead, self.price_events = set(), set(), set()
-        self.tick, self.scene, self.ending = 0, None, None
+        self.tick, self.scene, self.ending = C.get('starting_tick', 0), None, None
         self.revealed = {k for k, l in W.items() if not l.get('hidden')}
         self.log, self.risks, self.diff, self.warn = [], [], DIFF[diff], []
         self.outcomes = []  # очередь исходов бросков для текущего шага
@@ -71,7 +71,7 @@ class Sim:
         if t in ('flag_set', 'flag'): return c['flag'] in self.flags
         if t == 'flag_not_set': return c['flag'] not in self.flags
         if t == 'has_item':
-            return self.items.get(c['item'], 0) >= c.get('quantity', c.get('qty', 1))
+            return self.items.get(c['item'], 0) >= c.get('min_quantity', 1)
         if t == 'not': return not self.cond(c['condition'], ctx)
         if t == 'or': return any(self.cond(x, ctx) for x in c['conditions'])
         if t == 'and': return all(self.cond(x, ctx) for x in c['conditions'])
@@ -82,7 +82,8 @@ class Sim:
         if t == 'player_enters_scene': return ctx.get('entered') == c.get('scene')
         if t == 'player_enters_location':
             return ctx.get('entered') and SCN[ctx['entered']]['location'] == c.get('location')
-        if t == 'tick_elapsed': return self.tick >= c.get('min_tick', 0)
+        if t == 'tick_elapsed': return self.tick >= c.get('min_tick', 0)  # абсолютный тик
+        if t == 'elapsed_ge': return self.tick - C.get('starting_tick', 0) >= c.get('min', 0)  # от старта
         if t == 'quest_at_stage': return self.quests.get(c['quest']) == c['stage']
         if t == 'has_status': return c.get('status') in self.statuses
         if t == 'entity_dead': return c['entity'] in self.dead
@@ -119,7 +120,7 @@ class Sim:
             if not self.cond(r.get('conditions')):
                 self.log.append(f'  ! fire_rule {r["id"]}: условия правила ложны')
                 self.warn.append(f'fire_rule {r["id"]} при ложных условиях ({where})')
-                if not os.environ.get('LAX'): return  # строгий режим: движок проверяет условия
+                if not os.environ.get('LAX'): return  # движок перепроверяет условия вызываемого правила (гайд §fire_rule)
             self.run_rule(r, 'fire_rule')
         elif t == 'skill_check_gate':
             ok = self.roll(f'{where}: {e["skill"]} {e["difficulty"]}')
@@ -344,6 +345,10 @@ class Sim:
         elif kind == 'buy': self.buy(s[1], s[2], s[3] if len(s) > 3 and isinstance(s[3], int) else 1)
         elif kind == 'craft': self.craft(s[1])
         elif kind == 'wait': self.time(s[1])
+        elif kind == 'camp':  # «Разбить лагерь»: только в локации с camp:true
+            loc = SCN[self.scene]['location']
+            if not W[loc].get('camp'): raise RouteError(f'в {loc} нельзя встать лагерем')
+            self.time(C['camping'].get('ticks', 8))
         elif kind == 'party':  # набор напарника вне ink (через правило) — только для проверки боёв
             self.party.append(s[1])
         else: raise RouteError(f'неизвестный шаг {kind}')
@@ -376,7 +381,7 @@ if __name__ == '__main__':
     bad = 0
     for n in want:
         sim, ok, err = run(n, ROUTES[n])
-        print(f'{"✓" if ok else "✗"} {n}: ждали {ROUTES[n]["expect"]}, получили {sim.ending}; тик {sim.tick}, марок {sim.items.get("item_mark", 0)}, '
+        print(f'{"✓" if ok else "✗"} {n}: ждали {ROUTES[n]["expect"]}, получили {sim.ending}; час {sim.tick - C["starting_tick"]} от старта, марок {sim.items.get("item_mark", 0)}, '
               f'отряд {sim.party}, бросков {len(sim.risks)}')
         if err: print('   ', err)
         if verbose or not ok:
@@ -390,6 +395,6 @@ if __name__ == '__main__':
             exp = r.get('expect') or ('отказ: ' + r['expect_error'] if r.get('expect_error') else '— (без концовки)')
             res = ('✓ ' if ok else '✗ ') + (sim.ending or ('отказ по деньгам' if err and r.get('expect_error') else ('шаги пройдены' if not err else err)))
             rolls = '; '.join(x.split(': ', 1)[-1] for x in sim.risks)
-            out.append(f"| {n} | {r['prof'][5:]} / {r['diff'][5:]} | {exp} | {res} | {sim.tick} | {sim.items.get('item_mark', 0)} | {', '.join(sim.party) or 'соло'} | {rolls} |")
+            out.append(f"| {n} | {r['prof'][5:]} / {r['diff'][5:]} | {exp} | {res} | {sim.tick - C['starting_tick']} | {sim.items.get('item_mark', 0)} | {', '.join(sim.party) or 'соло'} | {rolls} |")
         open('/tmp/routes_table.md', 'w').write('\n'.join(out) + '\n')
     sys.exit(1 if bad else 0)

@@ -10,6 +10,16 @@
           "conds": [
             {
               "type": "flag",
+              "flag": "glazier_downed"
+            }
+          ],
+          "steps": [],
+          "goto": "end"
+        },
+        {
+          "conds": [
+            {
+              "type": "flag",
               "flag": "glazier_robbed"
             }
           ],

@@ -151,7 +151,12 @@
     }
   ],
   "lighting": "indoor",
-  "particles": "steam",
+  "particles": {
+    "type": "steam",
+    "density": "low",
+    "speed": "slow",
+    "wind": "right"
+  },
   "narrative_intro": [
     {
       "text": "Седьмой ярус встречают не запахом, а звуком: где-то ниже ходит вода, которой здесь быть не должно.",

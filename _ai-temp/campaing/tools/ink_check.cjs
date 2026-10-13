@@ -1,5 +1,3 @@
-// Проверка компиляции .ink через inkjs (аудит 2026-10: переименован во .cjs —
-// CommonJS-импорт под ESM-пакетами). Требует: npm i inkjs. См. tools/README.md.
 const {Compiler}=require('inkjs/full');
 const fs=require('fs');
 let bad=0;

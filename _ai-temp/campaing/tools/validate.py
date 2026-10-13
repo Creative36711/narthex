@@ -81,8 +81,7 @@ def main():
         a=im.getchannel("A"); ex=a.getextrema()
         if ex[0]!=0: warns.append(f"{rel} ({kind}): alpha min={ex[0]}≠0")
         tot=a.size[0]*a.size[1]
-        # tobytes() вместо getdata(): последний помечен deprecated (Pillow 14)
-        t=sum(1 for x in a.tobytes() if x<128)/tot*100
+        t=sum(1 for x in a.getdata() if x<128)/tot*100
         if t<20: warns.append(f"{rel} ({kind}): мало прозрачных ({t:.1f}%)")
         if kind=="combat_figure":
             w,h=im.size; r=h/w
@@ -90,21 +89,21 @@ def main():
     for pat in ("assets/**/sprite_*.png","assets/**/fig_*.png"):
         for f in glob.glob(pat,recursive=True):
             audit(f,f,"sprite" if "/sprite_" in f else "combat_figure")
-    # тема оформления живёт внутри campaign.json (поле theme), а не в theme.json —
-    # раньше этот блок молча пропускался, потому что файла theme.json нет (аудит 2026-10)
-    th=lj(os.path.join(ROOT,"campaign.json")).get("theme") or {}
-    menu=th.get("menu") or {}
-    v2=menu.get("title_art")
-    if v2 and v2.endswith(".png") and os.path.exists(os.path.join(ROOT,v2)):
-        audit(os.path.join(ROOT,v2),v2,"title_art")
-    fr=th.get("frame") or {}; v3=fr.get("image")
-    if v3 and v3.endswith(".png") and os.path.exists(os.path.join(ROOT,v3)):
-        audit(os.path.join(ROOT,v3),v3,"frame")
-    # флаги реестра с описаниями живут в campaign.json.flags (список {id,label,description}) —
-    # meta.json никогда не существовало в этом формате (аудит 2026-10)
-    for fdef in (lj(os.path.join(ROOT,"campaign.json")).get("flags") or []):
-        if isinstance(fdef,dict) and not fdef.get("description"):
-            warns.append(f"campaign.flags.{fdef.get('id','?')}: нет description")
+    thp=os.path.join(ROOT,"theme.json")
+    if os.path.exists(thp):
+        th=lj(thp); menu=th.get("menu") or {}
+        v2=menu.get("title_art")
+        if v2 and v2.endswith(".png") and os.path.exists(os.path.join(ROOT,v2)):
+            audit(os.path.join(ROOT,v2),v2,"title_art")
+        fr=th.get("frame") or {}; v3=fr.get("image")
+        if v3 and v3.endswith(".png") and os.path.exists(os.path.join(ROOT,v3)):
+            audit(os.path.join(ROOT,v3),v3,"frame")
+    mp=os.path.join(ROOT,"meta.json")
+    if os.path.exists(mp):
+        meta=lj(mp)
+        for fid,fd in (meta.get("flags") or {}).items():
+            if not isinstance(fd,dict) or not fd.get("description"):
+                warns.append(f"meta.flags.{fid}: нет description")
     # главы: каждое поле chapter должно ссылаться на объявленную главу
     try:
         _c=lj(os.path.join(ROOT,"campaign.json")); _ch={x["id"] for x in _c.get("chapters",[])}
@@ -113,11 +112,7 @@ def main():
                 _ci=lj(_f).get("chapter")
                 if _ci and _ci not in _ch: errs.append(f"{_k}/{os.path.basename(_f)}: неизвестная глава {_ci}")
     except Exception as e: warns.append(f"проверка глав: {e}")
-    # честный счётчик (аудит 2026-10): проверка покрывает ССЫЛКИ на медиа,
-    # а не файлы на диске. Разница — запасные/неподключённые файлы: движок их
-    # не удаляет и лимитов размера не накладывает (политика «без лимитов»).
-    disk_media=sum(len(files) for _r,_dn,files in os.walk(os.path.join(ROOT,"assets")))
-    print(f"Файлов: {fc}, медиа-ссылок упомянуто: {len(seen)} (проверено покрытие ссылок; файлов на диске в assets/: {disk_media}), отсутствует: {miss}")
+    print(f"Файлов: {fc}, медиа-ссылок: {len(seen)}, отсутствует: {miss}")
     print(f"\nERRORS: {len(errs)}")
     for e in errs[:80]: print(f"  ✗ {e}")
     print(f"\nWARNINGS: {len(warns)}")

@@ -111,7 +111,11 @@
     }
   ],
   "lighting": "indoor",
-  "particles": "dust",
+  "particles": {
+    "type": "dust",
+    "density": "low",
+    "speed": "slow"
+  },
   "narrative_intro": [
     {
       "text": "В архиве своя погода: пыль, лампа под зелёным стеклом и шелест бумаги, которой сто лет.",
