@@ -55,7 +55,8 @@
     "smoke:dlg-ui": "tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts",
     "smoke:folder-import": "tsx scripts/smoke-round35-folder-import.mts",
     "smoke:narrative-builder": "tsx scripts/smoke-narrative-builder-and-docs.mts",
-    "smoke:patch": "tsx scripts/smoke-patch-export-and-import.mts"
+    "smoke:patch": "tsx scripts/smoke-patch-export-and-import.mts",
+    "smoke:cutout": "tsx scripts/smoke-chromakey-guide.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
