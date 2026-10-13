@@ -316,11 +316,56 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
   // лагерь включён, нужды включены, а restore пуст — кнопка обещает сон, но
   // потребности ночлег не восстановит. Поведение остаётся мастерским, движок
   // только голосует одной строкой.
-  if (store.meta.camping && featureOn(store.meta, 'needs') && (store.meta.needs?.length ?? 0) > 0 && !store.meta.camping.restore) {
+  if (store.meta.camping && featureOn(store.meta, 'needs') && (store.meta.needs?.length ?? 0) > 0 && !store.meta.camping.restore && !store.meta.camping.per_tick?.length) {
     structure.push({
       severity: 'warning',
-      message: 'Лагерь включён (meta.camping), нужды включены, но meta.camping.restore не задан: ночлег ходит время, лечит раны и растит навыки, но потребности (в т.ч. отдых) не восстанавливает. Если сон должен восполнять — задайте в паспорте restore, например { "need_rest": 100 }; если задумано, что лагерь — только передышка, игнорируйте это предупреждение.',
+      message: 'Лагерь включён (meta.camping), нужды включены, но ни meta.camping.restore, ни meta.camping.per_tick не заданы: ночлег ходит время, лечит раны и растит навыки, но потребности (в т.ч. отдых) не восстанавливает. Если сон должен восполнять — задайте в паспорте restore, например { "need_rest": 100 }, либо почасовое per_tick (за каждый час сна), например change_need "+12"; если задумано, что лагерь — только передышка, игнорируйте это предупреждение.',
     })
+  }
+
+  // ── длительные действия (dz.20) ───────────────────────────────────────────
+  {
+    const TICK_WHITELIST = new Set(['change_need', 'change_hp', 'change_fatigue', 'change_sanity'])
+    const acts = store.meta.duration_actions ?? []
+    const ruleIds = new Set(store.options('rule').map((o) => o.id))
+    const seen = new Set<string>()
+    for (const a of acts) {
+      if (!a.id || seen.has(a.id)) {
+        structure.push({ severity: 'error', message: `Длительное действие: пустой или повторяющийся id «${a.id}» — ссылки из эффекта «Начать длительное действие» неотличимы.` })
+      }
+      seen.add(a.id)
+      const minT = a.min_ticks ?? 1
+      const maxT = a.max_ticks ?? minT
+      if (maxT < minT) {
+        structure.push({ severity: 'error', message: `Длительное действие «${a.label || a.id}»: max_ticks (${maxT}) меньше min_ticks (${minT}) — игрок не сможет его запустить.` })
+      }
+      if (a.interrupt_rule && !ruleIds.has(a.interrupt_rule)) {
+        structure.push({ severity: 'warning', message: `Длительное действие «${a.label || a.id}»: правило прерывания «${a.interrupt_rule}» не найдено в реестре правил.` })
+      }
+      if ((a.interrupt_chance_per_tick ?? 0) > 0 && !a.interrupt_rule) {
+        structure.push({ severity: 'warning', message: `Длительное действие «${a.label || a.id}»: задан шанс прерывания, но не задано правило прерывания — сон просто оборвётся без события. Если так задумано, игнорируйте.` })
+      }
+      for (const fx of a.per_tick ?? []) {
+        if (!TICK_WHITELIST.has(fx.type)) {
+          structure.push({ severity: 'error', message: `Длительное действие «${a.label || a.id}»: почасовой эффект «${fx.type}» вне белого списка (разрешены change_need, change_hp, change_fatigue, change_sanity) — движок его пропустит. Вынесите его в on_finish, если он нужен по завершении.` })
+        }
+      }
+      if (a.per_tick?.some((fx) => fx.type === 'change_need' && !store.meta.needs?.some((n) => n.id === (fx as { need?: string }).need))) {
+        structure.push({ severity: 'warning', message: `Длительное действие «${a.label || a.id}»: почасовой эффект ссылается на потребность, которой нет в реестре нужд кампании.` })
+      }
+    }
+    if (store.meta.camping) {
+      const campMin = store.meta.camping.min_ticks ?? store.meta.camping.ticks ?? 8
+      const campMax = store.meta.camping.max_ticks ?? store.meta.camping.ticks ?? 8
+      if (campMax < campMin) {
+        structure.push({ severity: 'error', message: `Лагерь: max_ticks (${campMax}) меньше min_ticks (${campMin}) — ночлег недоступен.` })
+      }
+      for (const fx of store.meta.camping.per_tick ?? []) {
+        if (!TICK_WHITELIST.has(fx.type)) {
+          structure.push({ severity: 'error', message: `Лагерь: почасовой эффект «${fx.type}» вне белого списка (разрешены change_need, change_hp, change_fatigue, change_sanity) — движок его пропустит.` })
+        }
+      }
+    }
   }
   // Подписи реестров читает человек — и в редакторе, и в HUD (фидбек 27,
   // пп. 2 и 4). ИИ-агенты иногда кладут в label служебный код вида

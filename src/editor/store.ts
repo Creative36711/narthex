@@ -422,7 +422,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency' | 'recipe' | 'emotion'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency' | 'recipe' | 'emotion' | 'duration_action'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'currency') {
       for (const c of this.meta.currencies ?? []) out.push({ id: c.id, label: c.label })
@@ -498,6 +498,8 @@ export class EditorStore {
       // отношение можно менять и к фракции, и к отдельному NPC
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: `${f.label || f.id} (фракция)` })
       for (const o of this.options('npc')) out.push({ id: o.id, label: `${o.label} (NPC)` })
+    } else if (kind === 'duration_action') {
+      for (const d of this.meta.duration_actions ?? []) out.push({ id: d.id, label: d.label || d.id })
     } else if (kind === 'itemCategory') {
       for (const c of this.meta.item_categories ?? []) out.push({ id: c.id, label: c.label || c.id })
     } else if (kind === 'flag') {

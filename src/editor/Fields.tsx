@@ -54,6 +54,7 @@ export function Field({
     statusRef: 'status',
     weatherRef: 'weather',
     codexRef: 'codex',
+    durationActionRef: 'duration_action',
   }
 
   if (spec.kind === 'number') {

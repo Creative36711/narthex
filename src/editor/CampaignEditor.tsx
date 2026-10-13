@@ -1874,6 +1874,8 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
 
       {tab === 'statuses' && <StatusRegistry m={m} store={store} commit={commit} />}
 
+      {tab === 'mechanics' && <DurationActionsRegistry m={m} store={store} commit={commit} />}
+
       {tab === 'main' && (
         <>
       <div className="props-group">
@@ -2290,6 +2292,34 @@ export function CampaignEditor({ store }: { store: EditorStore }) {
                 optional
                 onChange={(v) => ((m.camping!.ambush_rule = v || undefined), commit())}
               />
+              <label className="fld fld-num" data-tip="Минимальная длительность ночлега. Сделайте её меньше максимальной — и игрок сам выберет в окне, сколько спать. По умолчанию равна «Длительности» (сон фиксированный)">
+                <span>Минимум, тиков</span>
+                <input
+                  type="number" min={1}
+                  value={m.camping.min_ticks ?? m.camping.ticks ?? 8}
+                  onChange={(e) => ((m.camping!.min_ticks = Math.max(1, Number(e.target.value) || (m.camping!.ticks ?? 8))), commit())}
+                />
+              </label>
+              <label className="fld fld-num" data-tip="Максимальная длительность ночлега. Если больше минимума — открывается окно выбора с прогнозом по часам">
+                <span>Максимум, тиков</span>
+                <input
+                  type="number" min={1}
+                  value={m.camping.max_ticks ?? m.camping.ticks ?? 8}
+                  onChange={(e) => ((m.camping!.max_ticks = Math.max(1, Number(e.target.value) || (m.camping!.ticks ?? 8))), commit())}
+                />
+              </label>
+              <div
+                className="fld"
+                style={{ flex: 1, minWidth: 300 }}
+                data-tip="Применяются ЗА КАЖДЫЙ тик сна (до природного тикания потребностей): сон на 6 часов даёт в 6 раз больше, чем на 1. Белый список: Потребность, ХП, Усталость, Рассудок — остальные эффекты движок пропускает с записью в журнал"
+              >
+                <span>Почасовые эффекты (за тик)</span>
+                <EffectListEditor
+                  store={store}
+                  effects={m.camping.per_tick ?? []}
+                  onChange={(fx) => ((m.camping!.per_tick = fx.length ? fx : undefined), commit())}
+                />
+              </div>
               <div
                 className="fld"
                 style={{ flex: 1, minWidth: 300 }}
@@ -3941,6 +3971,124 @@ function SelectFld({ label, value, options, onChange }: { label: string; value: 
  * Реестр статусов кампании (блок 5 ТЗ «Гибкий движок»). Вкладка называется
  * «Статусы и способности» — блок 6 добавит сюда же способности.
  */
+/**
+ * «Длительные действия» (dz.20): сон на выбранное число часов, медитация,
+ * дежурство, чтение — реестр meta.duration_actions. Запускаются эффектом
+ * «Начать длительное действие» из диалога/правила/точки взаимодействия.
+ */
+function DurationActionsRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorStore; commit: () => void }) {
+  const list = (m.duration_actions ??= [])
+  return (
+    <div className="props-group">
+      <h4>Длительные действия (сон, медитация, дежурство)</h4>
+      <p className="muted small">
+        Действие занимает часы игрового времени (потребности тикают, смерть во сне честна);
+        длину в пределах «минимум…максимум» игрок выбирает в окне с прогнозом.
+        Почасовые эффекты (потребности/ХП/усталость/рассудок) идут за каждый прожитый час:
+        прервали на 3-м часу — герой получил пользу за 3 часа. Вероятность прерывания почасовая:
+        за n часов она накапливается как 1−(1−шанс)ⁿ (0,05/час → ≈34% за 8 часов).
+        Запуск — эффектом «Начать длительное действие» из диалога, правила или точки взаимодействия.
+      </p>
+      {list.map((d, i) => (
+        <details key={d.id || i} className="need-conds" open>
+          <summary>
+            {d.label || '(без названия)'} · {d.min_ticks ?? 1}–{d.max_ticks ?? d.min_ticks ?? 1} {m.tick_label || 'ч'}
+            <button
+              className="btn btn-small ce-del"
+              data-tip="Удалить действие"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                list.splice(i, 1)
+                commit()
+              }}
+            >
+              <Ico n="close" />
+            </button>
+          </summary>
+          <div className="fld-row">
+            <label className="fld">
+              <span>Название</span>
+              <input value={d.label} onChange={(e) => ((d.label = e.target.value), commit())} />
+            </label>
+            <label className="fld" data-tip="Id — для ссылки из эффекта «Начать длительное действие». После создания не меняется">
+              <span>Id</span>
+              <input value={d.id} readOnly style={{ opacity: 0.7 }} />
+            </label>
+            <label className="fld fld-num" data-tip="Минимум часов (не меньше 1)">
+              <span>Минимум, тиков</span>
+              <input type="number" min={1} value={d.min_ticks ?? 1} onChange={(e) => ((d.min_ticks = Math.max(1, Number(e.target.value) || 1)), commit())} />
+            </label>
+            <label className="fld fld-num" data-tip="Максимум часов; равен минимуму — действие фиксированной длины (окно выбора не открывается)">
+              <span>Максимум, тиков</span>
+              <input type="number" min={1} value={d.max_ticks ?? d.min_ticks ?? 1} onChange={(e) => ((d.max_ticks = Math.max(1, Number(e.target.value) || 1)), commit())} />
+            </label>
+            <label className="fld fld-num" data-tip="Шаг выбора в окне: 1 — любое число часов, 2 — только 2/4/6…">
+              <span>Шаг</span>
+              <input type="number" min={1} value={d.step ?? 1} onChange={(e) => ((d.step = Math.max(1, Number(e.target.value) || 1)), commit())} />
+            </label>
+          </div>
+          <div className="fld" data-tip="За каждый прожитый час ДО тикания потребностей. Белый список: Нет нужды → Потребность, Урон+ХП, Усталость, Рассудок — остальное двигатель пропускает с записью в журнал (и аудит ругается)">
+            <span>Почасовые эффекты (за тик)</span>
+            <EffectListEditor
+              store={store}
+              effects={d.per_tick ?? []}
+              onChange={(fx) => ((d.per_tick = fx.length ? fx : undefined), commit())}
+            />
+          </div>
+          <div className="fld-row">
+            <label className="fld fld-num" data-tip="Честная вероятность за ОДИН час (0..1). За n часов риск накапливается: 0,05/час → ≈34% за 8 часов сна">
+              <span>Шанс прерывания/час</span>
+              <input type="number" min={0} max={1} step={0.01} value={d.interrupt_chance_per_tick ?? 0} onChange={(e) => ((d.interrupt_chance_per_tick = Math.max(0, Math.min(1, Number(e.target.value) || 0)) || undefined), commit())} />
+            </label>
+            <RefSelect
+              label="Правило при прерывании"
+              kind="rule"
+              store={store}
+              value={d.interrupt_rule ?? ''}
+              optional
+              onChange={(v) => ((d.interrupt_rule = v || undefined), commit())}
+            />
+          </div>
+          <div className="fld" data-tip="Проверяется после каждого часа; если исполнилось — действие прерывается (правило выше тоже стреляет). Например: «будить, когда бодрость полная»">
+            <span>Условия досрочной остановки</span>
+            <ConditionListEditor
+              store={store}
+              conditions={d.break_when ?? []}
+              onChange={(conds) => ((d.break_when = conds.length ? conds : undefined), commit())}
+            />
+          </div>
+          <div className="fld" data-tip="Срабатывают один раз, только если действие завершилось полностью (без прерывания)">
+            <span>Эффекты нормального завершения</span>
+            <EffectListEditor
+              store={store}
+              effects={d.on_finish ?? []}
+              onChange={(fx) => ((d.on_finish = fx.length ? fx : undefined), commit())}
+            />
+          </div>
+          <div className="fld" data-tip="Действие доступно, только если все условия выполнены: время суток, переменная, виза… Проверяется и перед стартом">
+            <span>Условия доступности</span>
+            <ConditionListEditor
+              store={store}
+              conditions={d.available_when ?? []}
+              onChange={(conds) => ((d.available_when = conds.length ? conds : undefined), commit())}
+            />
+          </div>
+        </details>
+      ))}
+      <button
+        className="btn btn-small"
+        onClick={() => {
+          list.push({ id: `act_${Date.now()}`, label: 'Новое действие', min_ticks: 1, max_ticks: 8 })
+          commit()
+        }}
+      >
+        <Ico n="plus" /> действие
+      </button>
+    </div>
+  )
+}
+
 function StatusRegistry({ m, store, commit }: { m: CampaignMeta; store: EditorStore; commit: () => void }) {
   const list = (m.statuses ??= [])
   return (

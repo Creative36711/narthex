@@ -228,23 +228,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
         {engine.campAvailable().ok && (
           <button
             className="hud-btn"
-            onClick={async () => {
-              const ticks = engine.campaign.meta.camping?.ticks ?? 8
-              const label = engine.campaign.meta.tick_label || 'ч'
-              const ambush = (engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможна ночная засада!' : ''
-              // аудит кампании 2026: обещание UI не должно расходиться с движком —
-              // потребности лагерь восстанавливает только если мастер задал meta.camping.restore
-              const restore = Object.entries(engine.campaign.meta.camping?.restore ?? {})
-              const restoreLine = restore.length
-                ? ` Восстановит потребности: ${restore.map(([id, v]) => {
-                    const need = engine.campaign.meta.needs?.find((n) => n.id === id)
-                    return `${need?.label ?? id} +${v}`
-                  }).join(', ')}.`
-                : ''
-              if (await askConfirm(`Разбить лагерь и отдохнуть?\nСон займёт ${ticks} ${label} — лечит раны и растит навыки.${restoreLine}${ambush}`, 'Отдохнуть', 'Отмена')) {
-                engine.campRest()
-              }
-            }}
+            onClick={() => engine.requestCampRest()}
             data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${Object.keys(engine.campaign.meta.camping?.restore ?? {}).length ? ' Восстанавливает потребности.' : ''}${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}
           >
             <Ico n="flame" />  {engine.uiLabel('camp', 'Лагерь')}

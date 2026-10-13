@@ -7,6 +7,7 @@ import type {
   CodexEntryDef,
   CutsceneDef,
   DiceRules,
+  DurationActionDef,
   Effect,
   EncounterEntry,
   EntityDef,
@@ -2213,27 +2214,213 @@ export class GameEngine {
    * потребностей — опционально, meta.camping.restore (аудит кампании 2026):
    * применяется ПОСЛЕ хода времени через changeNeed (общий стол для плюса).
    */
-  campRest(): void {
-    const cfg = this.campaign.meta.camping
-    if (!cfg || !this.campAvailable().ok) return
-    this.pushLog('Вы разбиваете лагерь и устраиваетесь на ночлег…')
-    this.advanceTicks(cfg.ticks ?? 8)
-    this.restAndGrow()
-    this.restHeal()
-    if (cfg.restore) {
-      for (const [needId, v] of Object.entries(cfg.restore)) {
-        if (v !== 0) this.changeNeed(needId, v)
+  // ─────────────── длительные действия (dz.20) ───────────────
+
+  /**
+   * Запрос окна выбора длительности (сон и т.п.). Не сохраняется в сейв:
+   * если игрок закрыл игру с открытым окном — действие просто не началось.
+   */
+  durationRequest: { kind: 'camp' } | { kind: 'action'; action: DurationActionDef } | null = null
+
+  /** Типы эффектов, разрешённых в почасовом per_tick (белый список dz.20). */
+  private static readonly DURATION_TICK_EFFECTS = new Set([
+    'change_need', 'change_hp', 'change_fatigue', 'change_sanity',
+  ])
+
+  private applyTickEffects(effects: Effect[] | undefined, skipped: { done: boolean }): void {
+    if (!effects) return
+    for (const fx of effects) {
+      if (!GameEngine.DURATION_TICK_EFFECTS.has(fx.type)) {
+        if (!skipped.done) {
+          this.pushLog(`Двигатель: эффект '${fx.type}' не входит в белый список длительного действия и пропущен.`)
+          skipped.done = true
+        }
+        continue
+      }
+      this.applyEffect(fx)
+    }
+  }
+
+  /**
+   * Общий цикл «провести N тиков»: почасовое применение per_tick ДО
+   * тикания потребностей, честные почасовые прерывания, стан-условия
+   * break_when, эффекты on_finish — только при полном завершении.
+   * Смерть/конец игры посреди цикла обрывают действие (on_zero_effect
+   * потребностей и смертельный урон честны: «умереть во сне» возможно).
+   */
+  private runTicksFlow(opts: {
+    label: string
+    ticks: number
+    perTick?: Effect[]
+    interruptChance?: number
+    interruptRule?: string
+    breakWhen?: Condition[]
+    onFinish?: Effect[]
+    after?: () => void
+  }): void {
+    const skipped = { done: false }
+    for (let i = 0; i < opts.ticks; i++) {
+      if (this.state.game_over) return
+      this.applyTickEffects(opts.perTick, skipped)
+      this.advanceTicks(1)
+      if (this.state.game_over) return
+      if (opts.breakWhen && opts.breakWhen.some((c) => evalCondition(c, this))) {
+        this.interruptTicksFlow(opts.label, opts.interruptRule, i + 1)
+        return
+      }
+      if ((opts.interruptChance ?? 0) > 0 && this.rng.chance(opts.interruptChance!)) {
+        this.interruptTicksFlow(opts.label, opts.interruptRule, i + 1)
+        return
       }
     }
-    const chance = Math.max(0, Math.min(1, cfg.ambush_chance ?? 0))
-    if (chance > 0 && this.rng.chance(chance)) {
-      this.pushLog('Ночью — тревога! В лагерь кто-то прокрался!')
-      if (cfg.ambush_rule) this.fireRule(cfg.ambush_rule)
-    } else {
-      this.pushLog('Ночь прошла спокойно.')
+    opts.after?.()
+    if (opts.onFinish) {
+      for (const fx of opts.onFinish) this.applyEffect(fx)
     }
+    this.pushLog(`${opts.label} завершено: прошло ${opts.ticks} ч.`)
     this.autosave()
     this.notify()
+  }
+
+  private interruptTicksFlow(label: string, rule: string | undefined, afterTicks: number): void {
+    this.pushLog(`${label} прервано на ${afterTicks}-м часу: что-то пошло не по плану.`)
+    if (rule) this.fireRule(rule)
+    this.autosave()
+    this.notify()
+  }
+
+  /** Границы/параметры текущего запроса — читает UI-окно выбора. */
+  durationRequestInfo(): {
+    label: string
+    min: number
+    max: number
+    step: number
+    perTick?: Effect[]
+    interruptChance: number
+    startTick: number
+  } | null {
+    const req = this.durationRequest
+    if (!req) return null
+    if (req.kind === 'camp') {
+      const cfg = this.campaign.meta.camping
+      if (!cfg) return null
+      const min = Math.max(1, Math.floor(cfg.min_ticks ?? cfg.ticks ?? 8))
+      return {
+        label: 'Ночлег',
+        min,
+        max: Math.max(min, Math.floor(cfg.max_ticks ?? cfg.ticks ?? 8)),
+        step: 1,
+        perTick: cfg.per_tick,
+        interruptChance: 0,
+        startTick: this.state.tick,
+      }
+    }
+    const def = req.action
+    const min = Math.max(1, Math.floor(def.min_ticks ?? 1))
+    return {
+      label: def.label,
+      min,
+      max: Math.max(min, Math.floor(def.max_ticks ?? min)),
+      step: Math.max(1, Math.floor(def.step ?? 1)),
+      perTick: def.per_tick,
+      interruptChance: Math.max(0, Math.min(1, def.interrupt_chance_per_tick ?? 0)),
+      startTick: this.state.tick,
+    }
+  }
+
+  cancelDurationRequest(): void {
+    if (!this.durationRequest) return
+    this.durationRequest = null
+    this.notify()
+  }
+
+  /** Игрок подтвердил длину в окне выбора. */
+  confirmDurationRequest(ticks: number): void {
+    const req = this.durationRequest
+    if (!req) return
+    this.durationRequest = null
+    if (req.kind === 'camp') { this.campRest(ticks); return }
+    this.runDurationAction(req.action, ticks)
+  }
+
+  /** Игрок нажал «Разбить лагерь»: всегда через окно выбора (при фиксированной длине — как окно подтверждения с прогнозом). */
+  requestCampRest(): void {
+    const cfg = this.campaign.meta.camping
+    if (!cfg || !this.campAvailable().ok) return
+    this.durationRequest = { kind: 'camp' }
+    this.notify()
+  }
+
+  /**
+   * Запуск длительного действия из реестра (эффект start_duration_action).
+   * ticks задан — запуск немедленно; не задан — окно выбора (или мгновенный
+   * запуск при фиксированной длине min == max). Недоступное (available_when
+   * ложно) действие молча отказывает: контент должен был скрыть вариант.
+   */
+  requestDurationAction(id: string, ticks?: number | null): void {
+    const def = (this.campaign.meta.duration_actions ?? []).find((d) => d.id === id)
+    if (!def) {
+      this.pushLog(`Двигатель: длительное действие '${id}' не найдено в реестре кампании.`)
+      this.notify()
+      return
+    }
+    if (def.available_when && !def.available_when.every((c) => evalCondition(c, this))) return
+    const min = Math.max(1, Math.floor(def.min_ticks ?? 1))
+    const max = Math.max(min, Math.floor(def.max_ticks ?? min))
+    if (ticks != null && ticks > 0) { this.runDurationAction(def, ticks); return }
+    if (max === min) { this.runDurationAction(def, min); return }
+    this.durationRequest = { kind: 'action', action: def }
+    this.notify()
+  }
+
+  /** Выполнить длительное действие (с клампом длины в min..max и выравниванием по step). */
+  runDurationAction(def: DurationActionDef, ticks: number): void {
+    const min = Math.max(1, Math.floor(def.min_ticks ?? 1))
+    const max = Math.max(min, Math.floor(def.max_ticks ?? min))
+    const step = Math.max(1, Math.floor(def.step ?? 1))
+    let chosen = Math.min(max, Math.max(min, Number.isFinite(ticks) ? Math.floor(ticks) : min))
+    chosen = Math.min(max, min + step * Math.round((chosen - min) / step))
+    if (def.available_when && !def.available_when.every((c) => evalCondition(c, this))) return
+    this.pushLog(`${def.label}: начало — ${chosen} ч.`)
+    this.runTicksFlow({
+      label: def.label,
+      ticks: chosen,
+      perTick: def.per_tick,
+      interruptChance: Math.max(0, Math.min(1, def.interrupt_chance_per_tick ?? 0)),
+      interruptRule: def.interrupt_rule,
+      breakWhen: def.break_when,
+      onFinish: def.on_finish,
+    })
+  }
+
+  campRest(ticks?: number): void {
+    const cfg = this.campaign.meta.camping
+    if (!cfg || !this.campAvailable().ok) return
+    const min = Math.max(1, Math.floor(cfg.min_ticks ?? cfg.ticks ?? 8))
+    const max = Math.max(min, Math.floor(cfg.max_ticks ?? cfg.ticks ?? 8))
+    const chosen = Math.min(max, Math.max(min, Math.floor(ticks ?? cfg.ticks ?? 8)))
+    this.pushLog('Вы разбиваете лагерь и устраиваетесь на ночлег…')
+    this.runTicksFlow({
+      label: 'Ночлег',
+      ticks: chosen,
+      perTick: cfg.per_tick,
+      after: () => {
+        this.restAndGrow()
+        this.restHeal()
+        if (cfg.restore) {
+          for (const [needId, v] of Object.entries(cfg.restore)) {
+            if (v !== 0) this.changeNeed(needId, v)
+          }
+        }
+        const chance = Math.max(0, Math.min(1, cfg.ambush_chance ?? 0))
+        if (chance > 0 && this.rng.chance(chance)) {
+          this.pushLog('Ночью — тревога! В лагерь кто-то прокрался!')
+          if (cfg.ambush_rule) this.fireRule(cfg.ambush_rule)
+        } else {
+          this.pushLog('Ночь прошла спокойно.')
+        }
+      },
+    })
   }
 
   /**
@@ -3601,6 +3788,11 @@ export class GameEngine {
       case 'change_variable':
         s.variables[e.var] = Number(s.variables[e.var] ?? 0) + e.delta
         break
+      case 'start_duration_action': {
+        // dz.20: без ticks — открывается окно выбора длительности; с ticks — действие идёт сразу
+        this.requestDurationAction(e.action, e.ticks ?? null)
+        break
+      }
       case 'start_dialogue':
         this.startDialogue(e.entity, e.dialogue_knot)
         break

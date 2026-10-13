@@ -13,6 +13,7 @@ import { EndScreen } from './EndScreen'
 import { HelpPanel } from './HelpPanel'
 import { CombatScreen } from './CombatScreen'
 import { PartyPanel } from './PartyPanel'
+import { DurationModal } from './DurationModal'
 import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { CutscenePlayer } from '../shared/CutscenePlayer'
 import { BannerLayer, PostcardLayer } from './Atmosphere'
@@ -142,6 +143,8 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
       <SceneScreen engine={engine} onOpenMap={() => openPanel('map')} />
 
       {!cutscene && !engine.combat && !engine.dialogue && !engine.trade && <PartyPanel engine={engine} />}
+
+      <DurationModal engine={engine} />
 
       {panel === 'map' && featureOn(engine.campaign.meta, 'map') && <MapScreen engine={engine} onClose={closePanel} />}
       {panel === 'inventory' && featureOn(engine.campaign.meta, 'inventory') && (

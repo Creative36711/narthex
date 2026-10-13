@@ -38,6 +38,7 @@ export type FieldKind =
   | 'statusRef' // статус из реестра кампании (блок 5 ТЗ)
   | 'weatherRef' // погода из реестра кампании (блок 9 ТЗ)
   | 'codexRef' // запись кодекса (блок 10 ТЗ)
+  | 'durationActionRef' // длительное действие из реестра meta.duration_actions (dz.20)
   | 'recipeRef' // рецепт крафта (открытие по ходу игры)
   | 'npcStateRef' // состояние облика НПЦ: его портреты/спрайты + реестр эмоций
   | 'portraitPick' // портрет: из персонажа или своё изображение
@@ -488,6 +489,14 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'delta', label: 'Дельта', kind: 'number' },
     ],
     blank: { var: '', delta: 1 },
+  },
+  start_duration_action: {
+    label: 'Начать длительное действие',
+    fields: [
+      { key: 'action', label: 'Действие', kind: 'durationActionRef' },
+      { key: 'ticks', label: 'Тиков сразу (без окна выбора; пусто — игрок выберет сам)', kind: 'number', optional: true },
+    ],
+    blank: { action: '' },
   },
   start_dialogue: {
     label: 'Начать диалог',
