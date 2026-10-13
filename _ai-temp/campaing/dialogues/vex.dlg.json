@@ -694,7 +694,7 @@
               ]
             }
           ],
-          "goto": "Жетон",
+          "goto": "end",
           "conds": [
             {
               "type": "flag",

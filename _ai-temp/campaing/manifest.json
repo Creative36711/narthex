@@ -98,7 +98,8 @@
     "item_stew_sour.json",
     "item_vein_shard_dim.json",
     "item_coal_sack.json",
-    "item_row_bench.json"
+    "item_row_bench.json",
+    "item_dozh_bales.json"
   ],
   "rules": [
     "rule_air_restored.json",
@@ -257,7 +258,8 @@
     "rule_air_shelter_off.json",
     "rule_air_shelter_hint.json",
     "rule_open_cache_core.json",
-    "rule_vex_return_hand.json"
+    "rule_vex_return_hand.json",
+    "rule_unload_hurt.json"
   ],
   "arenas": [
     "arena_gate.json",

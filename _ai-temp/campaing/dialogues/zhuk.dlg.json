@@ -381,7 +381,7 @@
               ]
             }
           ],
-          "goto": "Расход",
+          "goto": "end",
           "conds": [
             {
               "type": "flag",

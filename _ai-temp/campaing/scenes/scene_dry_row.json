@@ -134,6 +134,23 @@
       "sound": "sfx_anvil",
       "sound_volume": 0.7,
       "environmental": true
+    },
+    {
+      "id": "slot_bales",
+      "label": "Тюки у прилавка",
+      "type": [
+        "prop"
+      ],
+      "shape": "rect",
+      "x": 345,
+      "y": 555,
+      "w": 130,
+      "h": 85,
+      "condition": null,
+      "default_entity": "item_dozh_bales",
+      "sound": "snd_cloth",
+      "sound_volume": 0.5,
+      "environmental": true
     }
   ],
   "navigation": [

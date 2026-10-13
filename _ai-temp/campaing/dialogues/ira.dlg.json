@@ -584,7 +584,7 @@
               ]
             }
           ],
-          "goto": "Рукавица",
+          "goto": "end",
           "conds": [
             {
               "type": "flag",
@@ -674,7 +674,7 @@
               ]
             }
           ],
-          "goto": "Клапан",
+          "goto": "end",
           "conds": [
             {
               "type": "flag",

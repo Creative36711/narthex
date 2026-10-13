@@ -46,7 +46,7 @@ EXTERNAL unlock_codex(a0)
 Дыхатель — это не товар, это время. Цена на прилавке: сколько оно нынче стоит, столько и плати. # emotion: calm # voice: assets/voice/dozh_20.mp3
     ~ open_trade("npc_dozh")
     -> DONE
-* { not (get_flag("dozh_appraised")) } [Показать Дожу вещь.]
++ { not (get_flag("dozh_appraised")) } [Показать Дожу вещь.]
     ~ present_item("Оценка", "Оценка_мимо", "")
     -> DONE
 * { not (get_flag("dozh_kit")) } [Что берут с собой те, кто ходит ниже восьмого?]

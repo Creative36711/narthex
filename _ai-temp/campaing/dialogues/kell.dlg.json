@@ -303,7 +303,7 @@
           "goto": "Наряд"
         },
         {
-          "text": "Положить перед Келлом находку.",
+          "text": "Положить перед Келлом находку у затвора.",
           "sections": [
             {
               "steps": [
@@ -319,8 +319,12 @@
               ]
             }
           ],
-          "goto": "Жетон",
+          "goto": "end",
           "conds": [
+            {
+              "type": "flag",
+              "flag": "clue_guard"
+            },
             {
               "type": "flag",
               "flag": "kell_token",
@@ -381,7 +385,7 @@
               ]
             }
           ],
-          "goto": "Рукавица",
+          "goto": "end",
           "conds": [
             {
               "type": "flag",

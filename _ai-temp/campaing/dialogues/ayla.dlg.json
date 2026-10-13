@@ -302,7 +302,7 @@
               ]
             }
           ],
-          "goto": "Рукавица",
+          "goto": "end",
           "conds": [
             {
               "type": "flag",

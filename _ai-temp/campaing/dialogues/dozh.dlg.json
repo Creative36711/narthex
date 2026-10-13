@@ -218,8 +218,7 @@
               ]
             }
           ],
-          "goto": "stay",
-          "once": true,
+          "goto": "end",
           "conds": [
             {
               "type": "flag",
