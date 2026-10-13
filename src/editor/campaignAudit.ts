@@ -551,6 +551,14 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
   for (const p of store.recipePaths()) {
     const rc = store.recipe(p)
     checkSoundRef(rc.sound, `Рецепт «${rc.label || rc.id}»`)
+    // экономика попыток (кейс «дыхатель», 2026-10): успех стоит часы, промах — бесплатен →
+    // рациональный спам «Изготовить» обесценивает проверку навыка
+    if (rc.skill && (rc.time_ticks ?? 0) > 0 && !(rc.fail_time_ticks ?? 0)) {
+      structure.push({
+        severity: 'warning',
+        message: `Рецепт «${rc.label || rc.id}»: успех стоит ${rc.time_ticks} тик(ов), но время промаха (fail_time_ticks) не задано — неудачная попытка бесплатна, и игрок будет давить «Изготовить» до победы. Задайте время при неудаче (материалы остаются целыми); если бесплатный промах задуман — игнорируйте.`,
+      })
+    }
   }
   // Проверяем слоты сцен
   for (const p of store.scenePaths()) {

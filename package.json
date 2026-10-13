@@ -57,7 +57,8 @@
     "smoke:narrative-builder": "tsx scripts/smoke-narrative-builder-and-docs.mts",
     "smoke:patch": "tsx scripts/smoke-patch-export-and-import.mts",
     "smoke:cutout": "tsx scripts/smoke-chromakey-guide.mts",
-    "smoke:duration-actions": "tsx scripts/smoke-duration-actions.mts"
+    "smoke:duration-actions": "tsx scripts/smoke-duration-actions.mts",
+    "smoke:craft-fail-time": "tsx scripts/smoke-craft-fail-time.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

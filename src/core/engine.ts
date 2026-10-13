@@ -3137,7 +3137,10 @@ export class GameEngine {
     if (r.skill) {
       const out = this.playerSkillCheck(r.skill.id, r.skill.difficulty)
       if (!out.success) {
-        this.messages.push({ text: `Не получилось изготовить «${r.label}». Материалы остались целы.` })
+        // время промаха (экономика попыток): мастерская работа заполняет часы и при неудаче
+        const spent = Math.max(0, Math.floor(r.fail_time_ticks ?? 0))
+        if (spent > 0 && !this.state.game_over) this.advanceTicks(spent)
+        this.messages.push({ text: `Не получилось изготовить «${r.label}». Материалы остались целы.${spent > 0 ? ` Потрачено ${spent} тик(ов) времени.` : ''}` })
         this.autosave()
         this.notify()
         return false
