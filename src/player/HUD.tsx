@@ -225,15 +225,24 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
             <Ico n="star" />  {engine.uiLabel('meta', 'Хроника')}
           </button>
         )}
-        {engine.campAvailable().ok && (
-          <button
-            className="hud-btn"
-            onClick={() => engine.requestCampRest()}
-            data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${Object.keys(engine.campaign.meta.camping?.restore ?? {}).length ? ' Восстанавливает потребности.' : ''}${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}
-          >
-            <Ico n="flame" />  {engine.uiLabel('camp', 'Лагерь')}
-          </button>
-        )}
+        {!!engine.campaign.meta.camping && (() => {
+          // дз.22: кнопка видна всегда при включённом ночлеге — серая с причиной,
+          // иначе игрок не догадывается, что механика существует (кейс «Каркаса»)
+          const camp = engine.campAvailable()
+          const tip = camp.ok
+            ? `Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${Object.keys(engine.campaign.meta.camping?.restore ?? {}).length ? ' Восстанавливает потребности.' : ''}${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`
+            : `Ночлег здесь невозможен: ${camp.reason}`
+          return (
+            <button
+              className="hud-btn"
+              disabled={!camp.ok}
+              onClick={() => engine.requestCampRest()}
+              data-tip={tip}
+            >
+              <Ico n="flame" />  {engine.uiLabel('camp', 'Лагерь')}
+            </button>
+          )
+        })()}
         {(s.codex_unlocked ?? []).length > 0 && (
           <button className="hud-btn" onClick={onOpenCodex} data-tip="Разблокированные записи о мире">
             <Ico n="book" />  {engine.uiLabel('codex', 'Кодекс')}

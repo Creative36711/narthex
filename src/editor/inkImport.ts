@@ -204,13 +204,14 @@ function parseEffectLine(line: string, warnings: string[], where: string): DlgEf
 function parseTextLine(line: string): DlgLine {
   const l: DlgLine = { text: '' }
   let text = line
-  const tags = text.match(/(?:^|\s)#\s*(action|emotion:\s*[\w-]+|voice:\s*[\w"'. /\\-]+|sfx:\s*[\w"'. /\\-]+|timer:\s*\d+|timeout:\s*\d+)/g) ?? []
+  const tags = text.match(/(?:^|\s)#\s*(action|emotion:\s*[\w-]+|speaker:\s*[\w-]+|voice:\s*[\w"'. /\\-]+|sfx:\s*[\w"'. /\\-]+|timer:\s*\d+|timeout:\s*\d+)/g) ?? []
   for (const tag of tags) {
     const t = tag.trim().slice(1).trim()
     if (t === 'action') l.action = true
     else if (t.startsWith('emotion:')) l.emotion = t.slice(8).trim()
     else if (t.startsWith('voice:')) l.voice = t.slice(6).trim()
     else if (t.startsWith('sfx:')) l.sfx = t.slice(4).trim()
+    else if (t.startsWith('speaker:')) l.speaker = t.slice(8).trim()
     else if (t.startsWith('timer:')) l.timer = Number(t.slice(6).trim())
     else if (t.startsWith('timeout:')) l.timer = Number(t.slice(8).trim())
     text = text.replace(tag, ' ')

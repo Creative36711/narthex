@@ -319,6 +319,7 @@ function inkLine(l: DlgLine, indent: string): string {
   const tags: string[] = []
   if (l.emotion && l.emotion !== 'neutral') tags.push(`# emotion: ${l.emotion}`)
   if (l.action) tags.push('# action')
+  if (l.speaker && !l.action) tags.push(`# speaker: ${l.speaker}`)
   if (l.voice) tags.push(`# voice: ${l.voice}`)
   if (l.timer && l.timer > 0) tags.push(`# timer: ${l.timer}`)
   return `${indent}${text}${tags.length ? ' ' + tags.join(' ') : ''}`

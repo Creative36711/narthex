@@ -1095,18 +1095,36 @@ function LineRow({
             <option key={em.id} value={em.id}>{em.label}</option>
           ))}
         </select>
-        <label className="fld-check small" data-tip="Ремарка — описание действия, выводится курсивом">
+        <label className="fld-check small" data-tip="Ремарка — описание действия, выводится курсивом. У ремарки спикера нет: это проза повествования">
           <input
             type="checkbox"
             checked={!!line.action}
             onChange={(e) => {
-              if (e.target.checked) line.action = true
+              if (e.target.checked) { line.action = true; delete line.speaker }
               else delete line.action
               commit()
             }}
           />
           <span>ремарка</span>
         </label>
+        {!line.action && (
+          <span data-tip="Спикер — говорит не собеседник диалога, а другой персонаж (спутник, голос из-за двери). Портрет, имя и эмоция берутся у него. Присутствие спикера рядом обеспечьте условиями ветки (например, «напарник в отряде») — движитель физику не проверяет.">
+            <select
+              value={line.speaker ?? ''}
+              className="dlg-line-speaker"
+              onChange={(e) => {
+                if (e.target.value) line.speaker = e.target.value
+                else delete line.speaker
+                commit()
+              }}
+            >
+              <option value="">— говорит собеседник —</option>
+              {store.options('npc').map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+          </span>
+        )}
         <button
           className={`btn btn-small ${line.voice ? 'btn-primary' : ''}`}
           data-tip={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики или ремарки: файл или ссылка'}

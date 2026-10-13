@@ -214,6 +214,13 @@ export class GameEngine {
     if (this.state.log.length > 200) this.state.log.shift()
   }
 
+  /** подпись спикера реплики в истории диалога: явный # speaker — его имя, иначе собеседник */
+  private dlgSpeakerLabel(line: { speaker?: string }, npc: NpcDef): string {
+    if (!line.speaker) return npc.label
+    const ent = this.campaign.entities[line.speaker] as NpcDef | undefined
+    return ent?.label ?? npc.label
+  }
+
   // ─────────────── создание нового забега ───────────────
 
   private newState(): GameState {
@@ -2771,7 +2778,7 @@ export class GameEngine {
     const drained = drainStory(story)
     for (const l of drained.lines) {
       this.dialogueHistory.push({
-        speaker: l.action ? '' : this.dialogue.npc.label,
+        speaker: l.action ? '' : this.dlgSpeakerLabel(l, this.dialogue.npc),
         text: l.text,
         emotion: l.emotion,
         action: l.action,
@@ -2852,7 +2859,7 @@ export class GameEngine {
     const drained = drainStory(story)
     for (const l of drained.lines) {
       this.dialogueHistory.push({
-        speaker: l.action ? '' : this.dialogue.npc.label,
+        speaker: l.action ? '' : this.dlgSpeakerLabel(l, this.dialogue.npc),
         text: l.text,
         emotion: l.emotion,
         action: l.action,
@@ -4499,7 +4506,7 @@ export class GameEngine {
     const drained = drainStory(story)
     for (const l of drained.lines) {
       this.dialogueHistory.push({
-        speaker: l.action ? '' : npc.label,
+        speaker: l.action ? '' : this.dlgSpeakerLabel(l, npc),
         text: l.text,
         emotion: l.emotion,
         action: l.action,
@@ -4542,7 +4549,7 @@ export class GameEngine {
     const drained = drainStory(story)
     for (const l of drained.lines) {
       this.dialogueHistory.push({
-        speaker: l.action ? '' : npc.label,
+        speaker: l.action ? '' : this.dlgSpeakerLabel(l, npc),
         text: l.text,
         emotion: l.emotion,
         action: l.action,

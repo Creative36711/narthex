@@ -4,6 +4,7 @@ import type { ErrorObject, ValidateFunction } from 'ajv'
 import type { EditorStore } from './store'
 import { charCreationTemplateFindings } from '../core/charcreate'
 import { featureOn } from '../shared/types'
+import type { DlgDoc, DlgLine, DlgStep, DlgSection } from '../shared/types'
 
 export type AuditSeverity = 'error' | 'warning' | 'info'
 export interface AuditFinding {
@@ -367,6 +368,73 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       }
     }
   }
+  // ── рогалик и сохранения (обсуждение 2026-10): пермадет, обходимый ручным
+  // слотом, не пермадет, а штраф смерти; честный железный рогалик = только
+  // автосейв (стирается смертью), т.е. save_slots: 0 ────────────────────────
+  if (store.meta.roguelike?.permadeath && (store.meta.save_slots ?? 3) > 0) {
+    structure.push({
+      severity: 'warning',
+      message: `Рогалик с необратимой гибелью (permadeath), но ручных слотов сохранения ${store.meta.save_slots ?? 3}: смерть стирает только автосейв, ручной слот переживает забег и перезаписывает концовку. Для честного железного рогалика задайте save_slots: 0; если «снимок на всякий случай» задуман — игнорируйте.`,
+    })
+  }
+
+  // ── спикеры реплик (# speaker): ссылка на NPC, не у ремарок, и физическое
+  // присутствие — через условия (dz.22) ─────────────────────────────────────
+  {
+    const npcIds = new Set(store.options('npc').map((o) => o.id))
+    // владелец диалога ищется по npc.dialogue, как в dlgScript
+    const ownerOf = (path: string): string | undefined => {
+      for (const ep of store.entityPaths()) {
+        const e = store.entity(ep) as { type?: string; dialogue?: string } | undefined
+        if (e?.type === 'npc' && e.dialogue === path) return (e as { id?: string }).id
+      }
+      return undefined
+    }
+    for (const f of store.manifest.dialogues ?? []) {
+      const inkPath = `dialogues/${f}`
+      const doc = store.jsonFiles.get(inkPath.replace(/\.ink$/, '.dlg.json')) as DlgDoc | undefined
+      if (!doc?.nodes) continue
+      const owner = ownerOf(inkPath)
+      const lines: Array<{ l: DlgLine; where: string }> = []
+      const walkSteps = (steps: DlgStep[] | undefined, where: string): void => {
+        for (const st of steps ?? []) if (st.kind === 'line') lines.push({ l: st.line, where })
+      }
+      const walkSections = (secs: DlgSection[] | undefined, where: string): void => {
+        for (const sec of secs ?? []) { walkSteps(sec.steps, where); walkSteps(sec.else_steps, where) }
+      }
+      for (const node of doc.nodes) {
+        walkSections(node.sections, `узел «${node.label || node.id}»`)
+        for (const ch of node.choices) {
+          walkSections(ch.sections, `вариант «${ch.text.slice(0, 30)}…» узла «${node.id}»`)
+          if (ch.check) {
+            walkSections(ch.check.success.sections, `проверка (успех) узла «${node.id}»`)
+            walkSections(ch.check.fail.sections, `проверка (провал) узла «${node.id}»`)
+          }
+        }
+      }
+      const foreign = new Set<string>()
+      const docText = JSON.stringify(doc)
+      for (const { l, where } of lines) {
+        if (!l.speaker) continue
+        if (l.action) {
+          structure.push({ severity: 'error', message: `Диалог ${inkPath}, ${where}: у ремарки задан спикер «${l.speaker}» — ремарка это проза повествования, спикера у неё нет; движитель спикера проигнорирует.` })
+          continue
+        }
+        if (!npcIds.has(l.speaker)) {
+          structure.push({ severity: 'error', message: `Диалог ${inkPath}, ${where}: спикер «${l.speaker}» не найден в реестре NPC кампании.` })
+          continue
+        }
+        if (owner && l.speaker !== owner) foreign.add(l.speaker)
+      }
+      for (const sp of foreign) {
+        const partyGate = docText.includes('"in_party"') && docText.includes(`"${sp}"`)
+        if (!partyGate) {
+          structure.push({ severity: 'warning', message: `Диалог ${inkPath}: спикер «${sp}» говорит в чужом разговоре, но ни одна ветка не проверяет его присутствие (in_party/условием) — он может заговорить из пустоты. Отгейтуйте ветку условием присутствия спикера; если голос «из-за двери» задуман — игнорируйте.` })
+        }
+      }
+    }
+  }
+
   // Подписи реестров читает человек — и в редакторе, и в HUD (фидбек 27,
   // пп. 2 и 4). ИИ-агенты иногда кладут в label служебный код вида
   // «crime_intrusion=Проникновение в тоннели» или «price_blockade*1.5»:
