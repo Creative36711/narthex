@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chronicle Forge — открыть следующего агента
 // @namespace    https://arena.ai/
-// @version      0.13.17
+// @version      0.13.23
 // @description  Role-aware Arena handoff with a marker-gated Coordinator cycle, FIFO queue, and master alerts.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -87,7 +87,9 @@
     }
     for (const entry of consoleEntries.slice(-60)) {
       const row = document.createElement("div");
-      row.style.cssText = `padding:6px 8px;border-bottom:1px solid #ffffff12;color:${entry.error ? "#ffb4a8" : "#e0e8e3"};font:12px/1.4 system-ui;white-space:pre-wrap;overflow-wrap:anywhere`;
+      row.style.cssText = entry.error
+        ? "padding:7px 9px;border-bottom:1px solid #ff7b6b40;border-left:3px solid #ff7b6b;background:#4a1f1b88;color:#ffe2dc;font:600 12px/1.4 system-ui;white-space:pre-wrap;overflow-wrap:anywhere"
+        : "padding:6px 8px;border-bottom:1px solid #ffffff12;color:#e0e8e3;font:12px/1.4 system-ui;white-space:pre-wrap;overflow-wrap:anywhere";
       const time = new Date(entry.at).toLocaleTimeString();
       row.textContent = `${time}  ${entry.text}`;
       list.appendChild(row);
@@ -180,30 +182,89 @@
     const logger = console[level] || console.info;
     logger.call(console, "[ChronicleForge:diagnostic]", { at: new Date(now).toISOString(), event, ...details });
   }
-  function logEvent(msg, error = false) {
-    const entry = { at: Date.now(), text: String(msg), error: Boolean(error) };
+  const IMPORTANT_QUIET_NTFY_PATTERNS = [
+    /^Полная автоматизация включена\./,
+    /^Автоматизация (продолжена человеком|возобновлена)/,
+    /^Задача «.+» (подготовлена для отправки агенту|отмечена Running)/,
+    /^Новая попытка задачи «.+» запущена для /,
+    /^Задание (отправлено кнопкой Send|для .+ отправлено нажатием Send)/,
+    /^Подготовлена новая попытка:/,
+    /^Ответ .+ записан в Dispatch-Run; Notion → Submitted\./,
+    /^Ход (Координатора|review) завершён; /,
+    /^Координатор исправил preflight-задачу /,
+    /^Ответ Координатора по ходу .+ завершился без маркера; автоматически отправляю /,
+  ];
+  function classifyNtfyPush(text, isError = false, options = {}) {
+    if (options?.skipNtfy || options?.ntfy === false) return null;
+    const clean = String(text || "").trim();
+    if (!clean) return null;
+    if (options?.ntfy === "loud" || options?.urgent === true) {
+      return {
+        level: "loud",
+        urgent: true,
+        priority: "5",
+        tags: "warning,rotating_light",
+        title: options?.title || "Chronicle Forge: требуется Мастер",
+      };
+    }
+    if (options?.ntfy === "quiet") {
+      return {
+        level: "quiet",
+        urgent: false,
+        priority: "2",
+        tags: "memo",
+        title: options?.title || "Chronicle Forge",
+      };
+    }
+    if (isError) {
+      if (/^Автопередача ждёт:/.test(clean)) return null;
+      return {
+        level: "loud",
+        urgent: true,
+        priority: "5",
+        tags: "warning,rotating_light",
+        title: options?.title || "Chronicle Forge: alert",
+      };
+    }
+    if (IMPORTANT_QUIET_NTFY_PATTERNS.some((pattern) => pattern.test(clean))) {
+      return {
+        level: "quiet",
+        urgent: false,
+        priority: "2",
+        tags: "memo",
+        title: options?.title || "Chronicle Forge",
+      };
+    }
+    return null;
+  }
+  function logEvent(msg, error = false, options = {}) {
+    const isError = Boolean(error);
+    const entry = { at: Date.now(), text: String(msg), error: isError };
     consoleEntries.push(entry);
     consoleEntries = consoleEntries.slice(-60);
     const root = ensureConsole();
     renderConsoleLogs();
     const status = document.getElementById(C.consoleStatus);
-    if (status) { status.textContent = entry.text; status.title = entry.text; status.style.color = error ? "#ff9e8d" : "#b7c4bd"; }
+    if (status) { status.textContent = entry.text; status.title = entry.text; status.style.color = isError ? "#ff9e8d" : "#b7c4bd"; }
     historyWrite = historyWrite.then(async () => {
       const saved = await GM_getValue(C.logHistory, []);
       const history = Array.isArray(saved) ? saved : [];
       await GM_setValue(C.logHistory, [...history, entry].slice(-60));
     }).catch(() => {});
     if (!root) console.info("[Chronicle Forge]", entry.text);
-    notifyNtfy(entry.text, { urgent: false });
+    const ntfyPlan = classifyNtfyPush(entry.text, isError, options);
+    if (ntfyPlan) {
+      notifyNtfy(entry.text, ntfyPlan);
+    }
   }
-  function ntfyRequest(topic, token, message, { urgent = false, title = "Chronicle Forge" } = {}) {
+  function ntfyRequest(topic, token, message, { urgent = false, priority, tags, title = "Chronicle Forge" } = {}) {
     return new Promise((resolve, reject) => {
       const headers = {
         "Content-Type": "text/plain; charset=utf-8",
         "X-Title": title,
-        "X-Priority": urgent ? "5" : "1",
+        "X-Priority": priority || (urgent ? "5" : "2"),
       };
-      if (urgent) headers["X-Tags"] = "warning,rotating_light";
+      if (tags || urgent) headers["X-Tags"] = tags || "warning,rotating_light";
       if (token) headers.Authorization = `Bearer ${token}`;
       GM_xmlhttpRequest({
         method: "POST",
@@ -220,12 +281,12 @@
     });
   }
   let lastNtfyWarningAt = 0;
-  async function notifyNtfy(message, { urgent = false, title } = {}) {
+  async function notifyNtfy(message, { urgent = false, priority, tags, title } = {}) {
     try {
       const topic = String(await GM_getValue(C.ntfyTopic, "")).trim();
       if (!topic) return;
       const token = String(await GM_getValue(C.ntfyToken, "")).trim();
-      await ntfyRequest(topic, token, message, { urgent, title: title || "Chronicle Forge" });
+      await ntfyRequest(topic, token, message, { urgent, priority, tags, title: title || "Chronicle Forge" });
     } catch (error) {
       // Do not call logEvent here: delivery errors must not recurse into ntfy.
       if (Date.now() - lastNtfyWarningAt > 60000) {
@@ -293,9 +354,9 @@
     const status = document.createElement("div");
     status.style.cssText = "min-height:20px;color:#b7c4bd;margin:4px 0 10px";
     const heading = document.createElement("strong");
-    heading.textContent = "Бесшумные логи и срочные сигналы ntfy";
+    heading.textContent = "Важные уведомления ntfy (тихие вехи и громкие тревоги)";
     const help = document.createElement("p");
-    help.textContent = "Создайте случайный topic в ntfy.sh и подпишитесь на него в приложении ntfy. Каждый лог отправляется с низшим приоритетом; остановка автоматизации — с высоким приоритетом и звуковым сигналом. Без токена topic доступен всем, кто знает его имя.";
+    help.textContent = "Создайте случайный topic в ntfy.sh и подпишитесь на него в приложении ntfy. Промежуточные шаги остаются только в консоли; в ntfy уходят только важные события: тихие пуши (отправка задачи, сохранение ответа в Submitted, итог хода Координатора) и громкие пуши со звуком (любая остановка, пауза, ошибка или завершение кампании).";
     help.style.cssText = "color:#c0cbc4;margin:8px 0 10px";
     const topicLabel = document.createElement("label"); topicLabel.textContent = "Topic";
     const tokenLabel = document.createElement("label"); tokenLabel.textContent = "Токен доступа (необязательно)";
@@ -303,14 +364,15 @@
     const button = (text, color) => { const b=document.createElement("button"); b.type="button"; b.textContent=text; b.style.cssText=`padding:8px 11px;border:0;border-radius:8px;background:${color};color:#fff;cursor:pointer;font:600 12px system-ui`; return b; };
     const cancel = button("Закрыть", "#454545");
     const disable = button("Отключить", "#5a2a2a");
-    const test = button("Сохранить и тестировать", "#245c46");
+    const testQuiet = button("Тест тихого пуша", "#245c46");
+    const testLoud = button("Тест громкого пуша", "#8c3b2b");
     const save = button("Сохранить", "#454545");
     cancel.onclick = () => dialog.close();
     disable.onclick = async () => {
       await GM_setValue(C.ntfyTopic, "");
       await GM_setValue(C.ntfyToken, "");
       topic.value = ""; token.value = "";
-      status.textContent = "ntfy отключён; новые логи больше не отправляются.";
+      status.textContent = "ntfy отключён; новые уведомления больше не отправляются.";
     };
     const persist = async () => {
       const name = topic.value.trim();
@@ -320,35 +382,56 @@
       return { name, accessToken: token.value.trim() };
     };
     save.onclick = async () => {
-      try { await persist(); status.textContent = "Настройки сохранены. Новые логи будут приходить бесшумно."; }
+      try { await persist(); status.textContent = "Настройки сохранены. В ntfy будут приходить только важные тихие и громкие пуши."; }
       catch (error) { status.textContent = error.message || String(error); }
     };
-    test.onclick = async () => {
-      test.disabled = true; status.textContent = "Проверяю подключение…";
+    testQuiet.onclick = async () => {
+      testQuiet.disabled = true; status.textContent = "Отправляю тихий тестовый пуш…";
       try {
         const saved = await persist();
-        await ntfyRequest(saved.name, saved.accessToken, "Тест Chronicle Forge: подключение работает. Это тихое уведомление.", { title: "Chronicle Forge test", urgent: false });
-        status.textContent = "Тест отправлен с низшим приоритетом. Проверьте подписку в приложении ntfy.";
+        await ntfyRequest(saved.name, saved.accessToken, "Тест Chronicle Forge: тихое уведомление о важной вехе цикла (Priority 2).", { title: "Chronicle Forge (тихий тест)", urgent: false, priority: "2", tags: "memo" });
+        status.textContent = "Тихий тест отправлен (Priority 2). Проверьте подписку в приложении ntfy.";
       } catch (error) { status.textContent = error.message || String(error); }
-      finally { test.disabled = false; }
+      finally { testQuiet.disabled = false; }
     };
-    buttons.append(cancel, disable, test, save);
+    testLoud.onclick = async () => {
+      testLoud.disabled = true; status.textContent = "Отправляю громкий тестовый пуш…";
+      try {
+        const saved = await persist();
+        await ntfyRequest(saved.name, saved.accessToken, "Тест Chronicle Forge: громкое уведомление об остановке/ошибке, требующей Мастера (Priority 5).", { title: "Chronicle Forge: alert (громкий тест)", urgent: true, priority: "5", tags: "warning,rotating_light" });
+        status.textContent = "Громкий тест отправлен (Priority 5). Проверьте звуковой сигнал в приложении ntfy.";
+      } catch (error) { status.textContent = error.message || String(error); }
+      finally { testLoud.disabled = false; }
+    };
+    buttons.append(cancel, disable, testQuiet, testLoud, save);
     dialog.append(heading, help, topicLabel, topic, tokenLabel, token, status, buttons);
     document.body.appendChild(dialog);
     dialog.addEventListener("close", () => dialog.remove(), { once: true });
     dialog.showModal();
   }
-  function toast(msg, error = false) { logEvent(msg, error); }
+  function toast(msg, error = false, options = {}) { logEvent(msg, error, options); }
   function buttonText(text) {
     const button = document.getElementById(C.button);
     if (button) button.textContent = text;
     const status = document.getElementById(C.consoleStatus);
     if (status) { status.textContent = text; status.title = text; }
-    logEvent(text);
+    logEvent(text, false, { skipNtfy: true });
   }
   function idleButtonText(text) {
     const button = document.getElementById(C.button);
     if (button) button.dataset.idleText = text;
+  }
+  const ACTION_LOCK_TTL_MS = 90000;
+  async function isActionLockHeld() {
+    if (!(await GM_getValue(C.lock, false))) return false;
+    const owner = await GM_getValue(C.lockOwner, null);
+    const startedMs = owner?.startedAt ? Date.parse(owner.startedAt) : NaN;
+    if (!Number.isFinite(startedMs) || Date.now() - startedMs > ACTION_LOCK_TTL_MS) {
+      await GM_setValue(C.lock, false);
+      await GM_setValue(C.lockOwner, null);
+      return false;
+    }
+    return true;
   }
   async function acquireActionLock(action) {
     const owner = {
@@ -514,8 +597,7 @@
     b.onclick = async () => {
       const enabled = await autoEnabled();
       if (enabled && !(await autoIsPaused())) {
-        await GM_setValue(C.autoMode, false);
-        toast("Автоматизация выключена. Ручная кнопка и автоматическая передача готового результата сохранены.");
+        await stopAutomation("Автоматизация выключена. Ручная кнопка и автоматическая передача готового результата сохранены.", { clearHandoff: false, sound: false, title: "Chronicle Forge: automation stopped" });
       } else if (enabled) {
         const pauseContext = await GM_getValue(C.autoPauseContext, null);
         const coordinatorTurn = await GM_getValue(C.pendingCoordinatorTurn, null);
@@ -600,9 +682,7 @@
     exit.style.cssText = "display:none;flex:1;min-width:0;padding:8px 10px;border:1px solid #d29b62;border-radius:9px;background:#5c3c24;color:#fff;cursor:pointer;font:600 12px system-ui;text-align:center;align-items:center;justify-content:center;white-space:nowrap";
     exit.onclick = async () => {
       if (!(await autoEnabled())) return;
-      await GM_setValue(C.autoMode, false);
-      await GM_setValue(C.autoPaused, false);
-      toast("Автоматизация выключена. Включён ручной режим; текущая задача и её лог сохранены.");
+      await stopAutomation("Автоматизация выключена. Включён ручной режим; текущая задача и её лог сохранены.", { clearHandoff: false, sound: false, title: "Chronicle Forge: manual mode" });
       await refresh();
       scheduleAutoSend();
       scheduleCoordinatorHandoff();
@@ -758,20 +838,58 @@
       );
     return out;
   }
+  function extractAgentIdFromUrl(rawUrl) {
+    const match = String(rawUrl || "").trim().match(/\/agent\/([A-Za-z0-9-]+)/);
+    return match ? match[1] : "";
+  }
+  function resolveRoleAgentIdentity(rawId, rawUrl) {
+    const idFromUrl = extractAgentIdFromUrl(rawUrl);
+    const trimmedId = String(rawId || "").trim();
+    const id = idFromUrl || trimmedId;
+    const url = String(rawUrl || "").trim() || (id ? `https://arena.ai/agent/${id}` : "");
+    return { id, url };
+  }
   async function roleList() {
-    const rows = (await query(C.roles)).map((p) => ({
-      id: rt(p.properties?.["Arena Agent ID"]),
-      name: rt(p.properties?.["Роль"]),
-      url: p.properties?.["Arena Agent URL"]?.url || "",
-      notionUrl: p.url || (p.id ? `https://app.notion.com/p/${p.id.replaceAll("-", "")}` : ""),
-      target: sel(p.properties?.["Execution Target"]),
-      dispatchFunction: sel(p.properties?.["Dispatch Function"]),
-    })).filter((r) => r.id && r.url && r.target === "Arena agent" && r.dispatchFunction);
+    const rows = (await query(C.roles)).map((p) => {
+      const { id, url } = resolveRoleAgentIdentity(
+        rt(p.properties?.["Arena Agent ID"]),
+        p.properties?.["Arena Agent URL"]?.url || "",
+      );
+      return {
+        id,
+        name: rt(p.properties?.["Роль"]),
+        url,
+        notionUrl: p.url || (p.id ? `https://app.notion.com/p/${p.id.replaceAll("-", "")}` : ""),
+        target: sel(p.properties?.["Execution Target"]),
+        dispatchFunction: sel(p.properties?.["Dispatch Function"]),
+      };
+    }).filter((r) => r.id && r.url && r.target === "Arena agent" && r.dispatchFunction);
     const ids = rows.map((r) => norm(r.id));
     if (new Set(ids).size !== ids.length) throw Error("В реестре Notion повторяется Arena Agent ID.");
     if (rows.filter((r) => r.dispatchFunction === "Coordinator").length !== 1)
       throw Error("В Notion должен быть ровно один активный Coordinator.");
     return rows;
+  }
+  function findExecutorRoleForTask(task, roles) {
+    const rname = recipientRole(task);
+    const rid = recipient(task);
+    if (!rname && !rid) return null;
+    if (rname) {
+      const byRole = roles.find((x) => x.name === rname && x.dispatchFunction === "Executor");
+      if (byRole) return byRole;
+    }
+    if (rid) {
+      return roles.find((x) => norm(x.id) === norm(rid) && x.dispatchFunction === "Executor" && (!rname || x.name === rname)) || null;
+    }
+    return null;
+  }
+  function taskMatchesExecutorRole(task, role, pageAgentId = role?.id) {
+    if (!task || !role || role.dispatchFunction !== "Executor") return false;
+    if (pageAgentId && norm(role.id) !== norm(pageAgentId)) return false;
+    const rname = recipientRole(task);
+    const rid = recipient(task);
+    if (rname && rname === role.name) return true;
+    return Boolean(!rname && rid && norm(rid) === norm(role.id));
   }
   function roleContextText(role) {
     if (!role?.name || !role.notionUrl)
@@ -784,7 +902,7 @@
   }
   function technicalHandoffFooter(role, dispatchId, runId, campaign) {
     const campaignReminder = campaign ? `\nТекущая кампания: ${rt(campaign.properties?.["Кампания"])}.\nСтатус команды из Notion: ${campaignTeamState(campaign) || "не задан"}.\nКритерии завершения этой кампании из Notion (источник истины, не подменять предположениями): ${campaignCompletionCriteria(campaign) || "НЕ ЗАПОЛНЕНЫ — запроси у Координатора/Мастера уточнение; не объявляй кампанию завершённой."}\nВсе индивидуальные задачи Accepted означают только, что Координатору пора проверить очередь/запросить следующие задачи; это само по себе НЕ закрывает кампанию.` : "";
-    return `\n\n---\nТЕХНИЧЕСКОЕ ЗАВЕРШЕНИЕ ЭСТАФЕТЫ\nВ конце завершённого ответа добавьте последней строкой, отдельно, без блока кода и без текста после неё, точный JSON-маркер. После отправки видимое последнее сообщение будет проверено и передано Координатору. Не пропускайте маркер и не ставьте его, пока работа не завершена.\n${roleContextText(role)}${campaignReminder}\nCF_AGENT_RESULT {"dispatch_id":"${dispatchId}","run_id":"${runId}","status":"submitted"}\n---`;
+    return `\n\n---\nТЕХНИЧЕСКОЕ ЗАВЕРШЕНИЕ ЭСТАФЕТЫ\nВ конце завершённого ответа добавьте последней строкой, отдельно, без блока кода и без текста после неё, точный JSON-маркер. После отправки видимое последнее сообщение будет проверено и передано Координатору. Не пропускайте маркер и не ставьте его, пока работа не завершена.\nВАЖНО: не перезаписывайте системный файл лога из поля «Output Drive File ID» (${dispatchId}_${runId}.md) через инструменты Google Drive (и не меняйте его MIME-тип на text/markdown), не меняйте поле «Output Drive File ID» и НЕ меняйте поля «Dispatch State», «Статус» или «Run ID» карточки запроса в Notion вручную через инструменты Notion — запись ответа в системный лог и перевод статуса Running → Submitted автоматически выполнит ScriptCat после вашего маркера CF_AGENT_RESULT. Дополнительные отчёты при необходимости загружайте отдельными файлами в Drive.\n${roleContextText(role)}${campaignReminder}\nCF_AGENT_RESULT {"dispatch_id":"${dispatchId}","run_id":"${runId}","status":"submitted"}\n---`;
   }
   function coordinatorTurnFooter(turn) {
     const payload = {
@@ -887,6 +1005,8 @@
       throw Error(matches.length ? `Кампания «${campaignKey}» неоднозначно сопоставлена с реестром Notion.` : `Кампания «${campaignKey}» не сопоставлена с реестром Notion «Кампании».`);
     return matches[0];
   }
+  const ACTIVE_CAMPAIGN_STATUSES = ["В работе", "На ревью", "Доработка", "Приёмка QA/TD"];
+  const isCampaignStatusActive = (campaign) => ACTIVE_CAMPAIGN_STATUSES.includes(sel(campaign?.properties?.["Статус"]));
   const campaignTeamState = (campaign) => sel(campaign?.properties?.["Состояние команды"]);
   const campaignCompletionCriteria = (campaign) => rt(campaign?.properties?.["Критерии завершения"]).trim();
   async function assertCampaignDispatchAllowed(task) {
@@ -895,7 +1015,7 @@
     const teamState = campaignTeamState(campaign);
     if (teamState === "Завершена — ждёт Мастера" || teamState === "Ожидает решения Мастера")
       throw Error(`Кампания «${rt(campaign.properties?.["Кампания"])}» явно остановлена в Notion: «${teamState}». Следующую кампанию разрешает только Мастер.`);
-    if (!["В работе", "На ревью", "Доработка"].includes(campaignStatus))
+    if (!isCampaignStatusActive(campaign))
       throw Error(`Шлюз кампаний остановил передачу: «${rt(campaign.properties?.["Кампания"])}» имеет статус «${campaignStatus || "не задан"}». Для следующей кампании требуется явное решение Мастера и статус «В работе».`);
   }
   const fresh = (id) => notion("GET", `pages/${id}`),
@@ -905,6 +1025,10 @@
     if (Object.hasOwn(v, "run"))
       p["Run ID"] = {
         rich_text: v.run ? [{ type: "text", text: { content: v.run } }] : [],
+      };
+    if (Object.hasOwn(v, "recipient"))
+      p["Recipient Agent ID"] = {
+        rich_text: v.recipient ? [{ type: "text", text: { content: v.recipient } }] : [],
       };
     if (Object.hasOwn(v, "out"))
       p["Output Drive File ID"] = {
@@ -1044,6 +1168,80 @@
       );
     }
   }
+  function deriveFallbackRunLogKey(run) {
+    const clean = String(run || "").trim();
+    if (!/^[0-9a-f-]{36}$/i.test(clean)) return crypto.randomUUID();
+    const last = clean.slice(-1).toLowerCase();
+    const replacement = last === "f" ? "e" : "f";
+    return `${clean.slice(0, -1)}${replacement}`;
+  }
+  async function appendWithRunLogFallback(log, dispatchId, run, roleName, agentId, text, messageId) {
+    try {
+      const appendResult = await append(log, dispatchId, run, roleName, agentId, text, messageId);
+      return { appendResult, logId: log, recovered: false };
+    } catch (error) {
+      const msg = String(error?.message || error);
+      if (!/Запись разрешена только в текстовые файлы папки логов Dispatch-Run/.test(msg)) {
+        throw error;
+      }
+      logEvent("Основной файл Output Drive File ID отклонён шлюзом (перезаписан или сменён MIME-тип на text/markdown); восстанавливаю текстовый лог Dispatch-Run.");
+      let preservedNote = "";
+      try {
+        const previousContent = String(await gateway("read", log) || "").trim();
+        if (previousContent) {
+          preservedNote = `\n\n[Предыдущее содержимое файла ${log} (https://drive.google.com/file/d/${log}/view), перезаписанного агентом]:\n${previousContent}`;
+        }
+      } catch (readErr) {
+        console.warn("[CF] Could not read previous log content during fallback", readErr);
+      }
+      const combinedText = preservedNote ? `${text}${preservedNote}` : text;
+      const canonical = await createRunLog(dispatchId, run);
+      if (canonical?.fileId && canonical.fileId !== log) {
+        try {
+          const appendResult = await append(canonical.fileId, dispatchId, run, roleName, agentId, combinedText, messageId);
+          return { appendResult, logId: canonical.fileId, recovered: true };
+        } catch (canonicalErr) {
+          if (!/Запись разрешена только в текстовые файлы папки логов Dispatch-Run/.test(String(canonicalErr?.message || canonicalErr))) {
+            throw canonicalErr;
+          }
+        }
+      }
+      const fallbackKey = deriveFallbackRunLogKey(run);
+      const fallbackLog = await createRunLog(dispatchId, fallbackKey);
+      if (!fallbackLog?.fileId) throw error;
+      const appendResult = await append(fallbackLog.fileId, dispatchId, run, roleName, agentId, combinedText, messageId);
+      return { appendResult, logId: fallbackLog.fileId, recovered: true };
+    }
+  }
+  function extractRenderedMessageProse(source) {
+    if (!source) return "";
+    const bodies = Array.from(source.querySelectorAll(".prose.body-base"))
+      .filter(isVisible);
+    const proseNodes = bodies.length ? bodies : Array.from(source.querySelectorAll(".prose")).filter(isVisible);
+    if (!proseNodes.length) return "";
+    return proseNodes
+      .map((body) => String(body.innerText || body.textContent || "").trim())
+      .filter(Boolean)
+      .join("\n")
+      .replace(/[\u200B-\u200D\uFEFF]/g, "")
+      .replace(/\u00a0/g, " ")
+      .replace(/\r\n?/g, "\n")
+      .trim();
+  }
+  function isUserTranscriptMessage(message) {
+    if (!message) return false;
+    return Boolean(
+      message.matches?.('[data-user-message-layout="true"]') ||
+      message.querySelector?.('[data-user-message-layout="true"]'),
+    );
+  }
+  function isDispatchedPromptEcho(text) {
+    const clean = String(text || "");
+    return (
+      clean.includes("ТЕХНИЧЕСКОЕ ЗАВЕРШЕНИЕ ЭСТАФЕТЫ") ||
+      clean.includes("ЗАВЕРШЕНИЕ ХОДА КООРДИНАТОРА")
+    );
+  }
   function captureAssistantMessage() {
     // Manual and automatic submission must inspect the exact same rendered text.
     return captureLatestRenderedAssistantMessage();
@@ -1053,6 +1251,9 @@
     const messages = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]'));
     const source = messages.at(-1);
     if (!source) throw Error("Не найдено ни одного сообщения агента в текущем transcript DOM.");
+    if (isUserTranscriptMessage(source)) {
+      throw Error("Последнее сообщение в чате — пользовательский запрос; ответ агента ещё не появился.");
+    }
     const idFromElement = source.id.slice("chat-message-".length);
     const declaredId = source.getAttribute("data-chat-message-id") || "";
     if (declaredId && declaredId !== idFromElement) throw Error("ID последнего сообщения не совпадают между DOM-атрибутами.");
@@ -1065,15 +1266,11 @@
       .filter(isVisible);
     const proseNodes = bodies.length ? bodies : Array.from(source.querySelectorAll(".prose")).filter(isVisible);
     if (!proseNodes.length) throw Error("В последнем сообщении не найден видимый блок ответа агента.");
-    const text = proseNodes
-      .map((body) => String(body.innerText || body.textContent || "").trim())
-      .filter(Boolean)
-      .join("\n")
-      .replace(/[\u200B-\u200D\uFEFF]/g, "")
-      .replace(/\u00a0/g, " ")
-      .replace(/\r\n?/g, "\n")
-      .trim();
+    const text = extractRenderedMessageProse(source);
     if (!text) throw Error("Rendered prose последнего сообщения пуст.");
+    if (isDispatchedPromptEcho(text)) {
+      throw Error("Последнее сообщение в чате содержит текст отправленного задания, а не ответ агента.");
+    }
     return { text, messageId };
   }
   function isFreshExecutorMessage(messageId, pending) {
@@ -1119,6 +1316,24 @@
       throw Error("Маркер CF_AGENT_RESULT повреждён. Статус оставлен Running.");
     }
   }
+  function tryParseAgentResult(text) {
+    try {
+      return agentResult(text);
+    } catch {
+      return null;
+    }
+  }
+  function taskHasScriptCatSubmittedAnswer(task, messageId = "") {
+    const answerText = rt(task?.properties?.["Ответ"]);
+    if (!answerText.includes("записан в Dispatch-Run; ожидается Координатор")) return false;
+    if (messageId && !answerText.includes(`chat-message-${messageId}`)) return false;
+    return true;
+  }
+  function isAdoptedExecutorRunCompletion(captured, result, pendingPrompt) {
+    if (!captured?.messageId || !result?.dispatch_id || result.status !== "submitted") return false;
+    if (pendingPrompt && !pendingPrompt.sentAt && pendingPrompt.dispatchId === result.dispatch_id) return true;
+    return false;
+  }
   async function dispatch(task, roles, { retryRunning = false } = {}) {
     const p = await fresh(task.id);
     const priorState = state(p);
@@ -1128,22 +1343,24 @@
       previousLog = outputId(p);
     if (retryRunning && (!previousRun || !previousLog))
       throw Error("Running-задача не содержит старых Run ID и Output Drive File ID; повтор остановлен.");
-    const rid = recipient(p),
-      rname = recipientRole(p),
-      pid = payloadId(p);
-    if (!rid || !rname || !pid)
+    const pid = payloadId(p);
+    const role = findExecutorRoleForTask(p, roles);
+    const rid = role?.id || "",
+      rname = role?.name || recipientRole(p);
+    if (!rname || !pid)
       throw Error("В Notion не заполнены адресат/payload.");
-    const role = roles.find((x) => norm(x.id) === norm(rid));
     if (
       !role ||
-      role.name !== rname ||
       role.dispatchFunction !== "Executor" ||
-      !role.url.includes(rid)
+      !role.id ||
+      !role.url.includes(role.id)
     )
       throw Error("Адресат не совпадает с активной ролью Executor в Notion «Роли».");
     const coordinator = roles.find((item) => item.dispatchFunction === "Coordinator");
     const currentAgentId = location.pathname.match(/\/agent\/([\w-]+)/)?.[1] || "";
-    if (!coordinator || norm(currentAgentId) !== norm(coordinator.id))
+    const onActiveCoordinatorPage = Boolean(coordinator && norm(currentAgentId) === norm(coordinator.id));
+    const onTargetExecutorPage = Boolean(retryRunning && rid && norm(currentAgentId) === norm(rid));
+    if (!onActiveCoordinatorPage && !onTargetExecutorPage)
       throw Error("Создание передачи разрешено только со страницы активного Координатора.");
     await assertCampaignDispatchAllowed(p);
     buttonText("Читаю текст задания из Drive…");
@@ -1182,6 +1399,7 @@
       p.id,
       props("Running", {
         run,
+        recipient: rid,
         start: new Date().toISOString(),
         out: log.fileId,
         ...(answer ? { answer } : {}),
@@ -1218,11 +1436,12 @@
     buttonText("Сверяю запуск с Notion…");
     const p = await fresh(task.id),
       run = runId(p);
+    const pending = await GM_getValue(C.pendingPrompt, null);
+    const currentState = state(p);
+    const allowSelfSubmitted = currentState === "Submitted" && !taskHasScriptCatSubmittedAnswer(p, captured?.messageId);
     if (
-      state(p) !== "Running" ||
-      norm(recipient(p)) !== norm(id) ||
-      norm(recipient(p)) !== norm(role.id) ||
-      recipientRole(p) !== role.name ||
+      (currentState !== "Running" && !allowSelfSubmitted) ||
+      !taskMatchesExecutorRole(p, role, id) ||
       !run
     )
       throw Error(
@@ -1230,36 +1449,55 @@
       );
     buttonText("Проверяю конечный маркер…");
     const result = agentResult(captured.text);
+    const adoptedSameDispatch = result.dispatch_id === p.id &&
+      result.status === "submitted" &&
+      ((pending && !pending.sentAt && pending.dispatchId === p.id) || allowSelfSubmitted);
     if (
       result.dispatch_id !== p.id ||
-      result.run_id !== run ||
+      (result.run_id !== run && !adoptedSameDispatch) ||
       result.status !== "submitted"
     )
       throw Error(
         "Маркер не совпадает с текущими Dispatch/Run ID. Задача осталась Running; лог не отправлен.",
       );
-    const log = outputId(p);
-    if (!log) throw Error("В Notion не указан отдельный лог Dispatch-Run.");
+    const initialLog = outputId(p);
+    if (!initialLog) throw Error("В Notion не указан отдельный лог Dispatch-Run.");
     const co = (await roleList()).find((x) => x.dispatchFunction === "Coordinator");
     if (!co?.url)
       throw Error("URL Координатора отсутствует в Notion; ответ не отправлен.");
 
     logEvent(`Проверен ответ ${role.name}: ${captured.text.length} символов, chat-message-${captured.messageId}.`);
     buttonText("Сохраняю ответ в Google Drive…");
-    const appendResult = await append(log, p.id, run, role.name, id, captured.text, captured.messageId);
+    const { appendResult, logId: log, recovered } = await appendWithRunLogFallback(
+      initialLog,
+      p.id,
+      run,
+      role.name,
+      id,
+      captured.text,
+      captured.messageId,
+    );
     if (!["appended", "duplicate"].includes(appendResult)) throw Error(`Неожиданный ответ Drive append: ${String(appendResult)}`);
+    if (recovered && log !== initialLog) {
+      logEvent(`Создан/восстановлен текстовый лог Dispatch-Run (${log}) взамен перезаписанного файла ${initialLog}.`);
+      try {
+        await recordRunLog(p.id, p.id, run, { fileId: log });
+      } catch (recordErr) {
+        console.warn("[CF] Could not append recovered run log link to Notion blocks", recordErr);
+      }
+    }
     logEvent(appendResult === "duplicate" ? "Запись уже была в Drive; повторная копия не создана." : "Текст ответа записан в Drive.");
     buttonText("Отмечаю Submitted в Notion…");
     await patch(
       p.id,
       props("Submitted", {
+        recipient: id,
         out: log,
         submit: new Date().toISOString(),
         answer: `Ответ взят из chat-message-${captured.messageId} агента ${id} и записан в Dispatch-Run; ожидается Координатор.`,
       }),
     );
-    const pending = await GM_getValue(C.pendingPrompt, null);
-    if (pending?.dispatchId === p.id && pending?.runId === run) await GM_setValue(C.pendingPrompt, null);
+    if (pending?.dispatchId === p.id) await GM_setValue(C.pendingPrompt, null);
     await GM_setValue(autoCountKey(p.id), 0);
     await GM_setValue(`${C.reloadCountPrefix}${p.id}`, 0);
     closeCompletionPanel();
@@ -1284,7 +1522,7 @@
     location.assign(co.url);
   }
   async function run(capturedOverride = null) {
-    if (await GM_getValue(C.lock, false)) throw await actionLockError();
+    if (await isActionLockHeld()) throw await actionLockError();
     const lockOwner = await acquireActionLock("ручная/автоматическая передача ответа или выдача задачи");
     buttonText("Проверяю роль и очередь в Notion…");
     try {
@@ -1311,7 +1549,7 @@
         const s = await tasks("Submitted");
         if (s.length) {
           const p = s[0];
-          if (!runId(p) || !recipient(p) || !outputId(p))
+          if (!runId(p) || !(recipient(p) || recipientRole(p)) || !outputId(p))
             throw Error(`Первая Submitted-задача в очереди «${title(p)}» неполная; исправьте её в Notion перед продолжением.`);
           const remaining = s.length - 1;
           toast(
@@ -1321,7 +1559,7 @@
         }
         buttonText("Проверяю незавершённые попытки…");
         const running = (await tasks("Running")).filter(
-          (p) => recipient(p) && recipientRole(p) && payloadId(p),
+          (p) => (recipientRole(p) || recipient(p)) && payloadId(p),
         );
         if (running.length > 1)
           throw Error(
@@ -1346,13 +1584,22 @@
       if (role.dispatchFunction !== "Executor")
         throw Error("Эта роль не имеет функции Executor в реестре Notion.");
       buttonText("Ищу Running-задачу для этого агента…");
-      const q = (await tasks("Running")).filter(
+      const runningForRole = (await tasks("Running")).filter(
         (p) =>
-          norm(recipient(p)) === norm(id) &&
-          recipientRole(p) === role.name &&
+          taskMatchesExecutorRole(p, role, id) &&
           runId(p) &&
           outputId(p),
       );
+      const selfSubmittedForRole = runningForRole.length
+        ? []
+        : (await tasks("Submitted")).filter(
+          (p) =>
+            taskMatchesExecutorRole(p, role, id) &&
+            runId(p) &&
+            outputId(p) &&
+            !taskHasScriptCatSubmittedAnswer(p),
+        );
+      const q = runningForRole.length ? runningForRole : selfSubmittedForRole;
       if (q.length !== 1)
         throw Error(
           q.length
@@ -1361,15 +1608,19 @@
         );
       buttonText("Считываю последнее сообщение агента…");
       const captured = capturedOverride || captureAssistantMessage();
+      const parsedResult = tryParseAgentResult(captured.text);
       const pendingPrompt = await currentPendingForPage();
       const manualPrepared = pendingPrompt ? null : await GM_getValue(C.manualPrepared, null);
+      const adoptedCompletion = isAdoptedExecutorRunCompletion(captured, parsedResult, pendingPrompt)
+        || (state(q[0]) === "Submitted" && !taskHasScriptCatSubmittedAnswer(q[0], captured.messageId) && parsedResult?.dispatch_id === q[0].id && parsedResult?.status === "submitted");
       const freshAfterSend = isFreshExecutorMessage(captured.messageId, pendingPrompt)
-        || isFreshManualExecutorMessage(captured.messageId, manualPrepared);
+        || isFreshManualExecutorMessage(captured.messageId, manualPrepared)
+        || adoptedCompletion;
       if (!freshAfterSend)
         throw Error("Последнее сообщение не подтверждено как ответ после отправки текущего Dispatch/Run; ничего не записано, состояние оставлено без изменений.");
-      if (pendingPrompt && (pendingPrompt.dispatchId !== q[0].id || pendingPrompt.runId !== runId(q[0])))
+      if (pendingPrompt && (pendingPrompt.dispatchId !== q[0].id || (pendingPrompt.runId !== runId(q[0]) && !adoptedCompletion)))
         throw Error("Сохранённая отправка относится к другому Dispatch/Run; ничего не записано.");
-      if (!pendingPrompt && !manualPreparedMatchesRun(manualPrepared, q[0].id, runId(q[0])))
+      if (!pendingPrompt && !adoptedCompletion && !manualPreparedMatchesRun(manualPrepared, q[0].id, runId(q[0])))
         throw Error("Сохранённая ручная отправка относится к другому Dispatch/Run; ничего не записано.");
       await submitAgent(id, role, q[0], captured);
     } finally {
@@ -1382,6 +1633,25 @@
   let autoCoordinatorBusy = false;
   let autoReviewNoticeKey = "";
   let pauseAutomationBusy = false;
+  async function stopAutomation(reason, { clearHandoff = true, sound = true, title = "Chronicle Forge: automation stopped" } = {}) {
+    await GM_setValue(C.autoMode, false);
+    await GM_setValue(C.autoPaused, false);
+    if (clearHandoff) {
+      await GM_setValue(C.pendingCoordinatorNote, null);
+      await GM_setValue(C.pendingCoordinatorTurn, null);
+      await GM_setValue(C.coordinatorNeedsAdoption, null);
+    }
+    logEvent(reason, true, { urgent: true, title });
+    if (sound) playMasterAlert();
+    const b = document.getElementById(C.modeButton);
+    if (b) {
+      b.textContent = "Ручной режим";
+      b.style.background = "#454545";
+      b.setAttribute("aria-pressed", "false");
+    }
+    updateManualButtonVisibility(false);
+    void refreshCoordinatorResetButton();
+  }
   async function pauseAutomation(reason, context = null) {
     if (pauseAutomationBusy) return;
     pauseAutomationBusy = true;
@@ -1389,7 +1659,7 @@
       if (await autoIsPaused()) return;
       await GM_setValue(C.autoPauseContext, { ...(context || {}), kind: context?.kind || "generic", reason: String(reason), at: Date.now() });
       await GM_setValue(C.autoPaused, true);
-      toast(`Автоматизация остановлена и ждёт человека: ${reason}`, true);
+      toast(`Автоматизация остановлена и ждёт человека: ${reason}`, true, { skipNtfy: true });
       playMasterAlert();
       void notifyNtfy(`Требуется внимание Мастера: ${reason}`, { urgent: true, title: "Chronicle Forge: automation paused" });
       const b = document.getElementById(C.modeButton);
@@ -1401,8 +1671,19 @@
   }
   async function currentPendingForPage() {
     const pending = await GM_getValue(C.pendingPrompt, null);
+    if (!pending) return null;
     const id = location.pathname.match(/\/agent\/([\w-]+)/)?.[1] || "";
-    return pending && norm(pending.agentId) === norm(id) ? pending : null;
+    if (!id) return null;
+    if (norm(pending.agentId) === norm(id)) return pending;
+    if (!pending.roleName) return null;
+    const roles = await roleList();
+    const role = roles.find((item) => norm(item.id) === norm(id));
+    if (role && role.dispatchFunction === "Executor" && role.name === pending.roleName) {
+      pending.agentId = id;
+      await GM_setValue(C.pendingPrompt, pending);
+      return pending;
+    }
+    return null;
   }
   let manualPrepareInFlight = false;
   let manualPrepareNoticeKey = "";
@@ -1459,8 +1740,7 @@
       if (!pending) {
         // Recovery path for a manual Running task created by an earlier userscript version.
         const candidates = (await tasks("Running")).filter((task) =>
-          norm(recipient(task)) === norm(agentId) &&
-          recipientRole(task) === role.name &&
+          taskMatchesExecutorRole(task, role, agentId) &&
           runId(task) && outputId(task) && payloadId(task),
         );
         if (candidates.length !== 1) return;
@@ -1487,7 +1767,7 @@
       const task = await fresh(pending.dispatchId);
       if (
         state(task) !== "Running" || runId(task) !== pending.runId ||
-        norm(recipient(task)) !== norm(agentId) || recipientRole(task) !== role.name
+        !taskMatchesExecutorRole(task, role, agentId)
       ) {
         await GM_setValue(C.pendingPrompt, null);
         logEvent("Ручная подготовка остановлена: Notion не подтверждает активный Dispatch/Run для этой роли.", true);
@@ -1559,13 +1839,31 @@
         }
         const pending = await currentPendingForPage();
         if (!pending || pending.sentAt) return;
+        if (generatingNow()) return;
+        const id = location.pathname.match(/\/agent\/([\w-]+)/)?.[1] || "";
+        const roles = await roleList();
+        const role = roles.find((item) => norm(item.id) === norm(id));
         const task = await fresh(pending.dispatchId);
-        if (state(task) !== "Running" || runId(task) !== pending.runId || norm(recipient(task)) !== norm(pending.agentId)) {
+        let completedForSameDispatch = false;
+        try {
+          const latest = captureLatestRenderedAssistantMessage();
+          const parsed = tryParseAgentResult(latest.text);
+          if (parsed && parsed.dispatch_id === pending.dispatchId && parsed.status === "submitted") {
+            completedForSameDispatch = true;
+          }
+        } catch {
+          // No completed assistant message with CF_AGENT_RESULT yet.
+        }
+        if (completedForSameDispatch || (taskMatchesExecutorRole(task, role, id) && ["Submitted", "Accepted"].includes(state(task)))) {
+          logEvent("Задача уже имеет готовый ответ или переведена в Submitted; повторная отправка промпта не требуется, запускаю сохранение ответа.", false, { skipNtfy: true });
+          scheduleAutoSubmit();
+          return;
+        }
+        if (state(task) !== "Running" || runId(task) !== pending.runId || !taskMatchesExecutorRole(task, role, id)) {
           await GM_setValue(C.pendingPrompt, null);
           await pauseAutomation("Notion не подтверждает текущий Run; автоматическое действие остановлено.");
           return;
         }
-        if (generatingNow()) return;
         if (hasVisibleOptionalCard() && !(await clickVisibleOptionalSkip())) {
           await pauseAutomation("Не удалось автоматически закрыть карточку опроса/аудио кнопкой Skip; автоматизация остановлена для проверки.");
           return;
@@ -1604,6 +1902,10 @@
         pending.sendOrdinal = count + 1;
         await GM_setValue(autoCountKey(pending.dispatchId), count + 1);
         await GM_setValue(C.pendingPrompt, pending);
+        if (autoSubmitTimer) {
+          clearTimeout(autoSubmitTimer);
+          autoSubmitTimer = null;
+        }
         button.click();
         toast(`Задание отправлено кнопкой Send (попытка ${count + 1} из ${AUTO.maxSends}); ожидаю ответ.`);
       } catch (error) {
@@ -1621,7 +1923,7 @@
       await pauseAutomation(`${reason}; выполнены все три разрешённые попытки без маркера завершения.`);
       return;
     }
-    if (await GM_getValue(C.lock, false)) return;
+    if (await isActionLockHeld()) return;
     const lockOwner = await acquireActionLock("автоподготовка повтора отправки задачи");
     try {
       const task = await fresh(pending.dispatchId);
@@ -1670,12 +1972,15 @@
         return;
       }
       const all = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]'));
-      const freshMessages = all.filter((m) => !pending.baselineMessageIds?.includes(m.id));
+      const freshMessages = all.filter(
+        (m) => !pending.baselineMessageIds?.includes(m.id) && !isUserTranscriptMessage(m),
+      );
       if (generatingNow()) return;
       const now = Date.now();
       const last = freshMessages.at(-1);
       if (last) {
-        const text = (last.innerText || "").trim();
+        const text = extractRenderedMessageProse(last) || (last.innerText || "").trim();
+        if (isDispatchedPromptEcho(text)) return;
         let marker = null;
         try { marker = agentResult(text); } catch {}
         if (
@@ -1705,10 +2010,10 @@
   let coordinatorHandoffNotice = "";
   async function scheduleCoordinatorHandoff() {
     if (coordinatorHandoffTimer || coordinatorHandoffBusy) return;
-    const pending = await GM_getValue(C.pendingCoordinatorNote, null);
-    if (!pending || pending.blocked) return;
+    let pending = await GM_getValue(C.pendingCoordinatorNote, null);
+    if (!pending) return;
     const id = location.pathname.match(/\/agent\/([\w-]+)/)?.[1] || "";
-    if (norm(pending.coordinatorId) !== norm(id)) return;
+    if (!id) return;
     coordinatorHandoffTimer = setTimeout(async () => {
       coordinatorHandoffTimer = null;
       if (coordinatorHandoffBusy) return;
@@ -1717,26 +2022,25 @@
         const roles = await roleList();
         const role = roles.find((item) => norm(item.id) === norm(id));
         if (!role || role.dispatchFunction !== "Coordinator") return;
+        pending = await GM_getValue(C.pendingCoordinatorNote, null);
+        if (!pending) return;
+        if (!pending.coordinatorId || norm(pending.coordinatorId) !== norm(role.id)) {
+          await clearForeignCoordinatorHandoffState(role.id);
+          setTimeout(scheduleCoordinatorAuto, 250);
+          return;
+        }
+        if (pending.blocked) return;
         if (pending.kind === "campaign-queue" || pending.kind === "cycle-check") {
           const campaign = await fresh(pending.campaignId);
           if (!campaign?.id) throw Error("Не удалось перечитать кампанию перед ходом Координатора.");
           const teamState = campaignTeamState(campaign);
           const campaignStatus = sel(campaign.properties?.["Статус"]);
-          if (!["В работе", "На ревью", "Доработка"].includes(campaignStatus)) {
-            await GM_setValue(C.pendingCoordinatorNote, null);
-            await GM_setValue(C.pendingCoordinatorTurn, null);
-            await GM_setValue(C.coordinatorNeedsAdoption, null);
-            await GM_setValue(C.autoMode, false);
-            await GM_setValue(C.autoPaused, false);
-            logEvent(`Кампания больше не активна (статус «${campaignStatus || "не задан"}»); handoff отменён, следующая кампания не выбирается.`);
+          if (!isCampaignStatusActive(campaign)) {
+            await stopAutomation(`Кампания больше не активна (статус «${campaignStatus || "не задан"}»); handoff отменён, следующая кампания не выбирается.`);
             return;
           }
           if (["Завершена — ждёт Мастера", "Ожидает решения Мастера"].includes(teamState)) {
-            await GM_setValue(C.pendingCoordinatorNote, null);
-            await GM_setValue(C.pendingCoordinatorTurn, null);
-            await GM_setValue(C.autoMode, false);
-            await GM_setValue(C.autoPaused, false);
-            logEvent(`Кампания уже отмечена в Notion как «${teamState}»; уведомление очереди отменено, цикл ждёт Мастера.`);
+            await stopAutomation(`Кампания уже отмечена в Notion как «${teamState}»; уведомление очереди отменено, цикл ждёт Мастера.`);
             return;
           }
           if (!pending.turn) pending.turn = createCoordinatorTurn({ coordinatorId: role.id, campaignId: campaign.id, kind: pending.kind });
@@ -1866,7 +2170,7 @@
   }
   async function activeCampaignForQueue() {
     const rows = await query(C.campaigns);
-    const active = rows.filter((campaign) => ["В работе", "На ревью", "Доработка"].includes(sel(campaign.properties?.["Статус"])));
+    const active = rows.filter((campaign) => isCampaignStatusActive(campaign));
     if (active.length > 1) throw Error(`В Notion отмечено несколько активных кампаний (${active.length}); автоматическое определение очереди остановлено.`);
     return active[0] || null;
   }
@@ -1956,32 +2260,39 @@ ${roleContextText(coordinator)}
   let coordinatorQueueNoticeTimer = null;
   let coordinatorQueueNoticeBusy = false;
   let coordinatorQueueNoticeLastAt = 0;
+  async function clearForeignCoordinatorHandoffState(activeCoordinatorId) {
+    const turn = await GM_getValue(C.pendingCoordinatorTurn, null);
+    if (turn && (!turn.coordinatorId || norm(turn.coordinatorId) !== norm(activeCoordinatorId)))
+      await GM_setValue(C.pendingCoordinatorTurn, null);
+    const note = await GM_getValue(C.pendingCoordinatorNote, null);
+    if (note && (!note.coordinatorId || norm(note.coordinatorId) !== norm(activeCoordinatorId)))
+      await GM_setValue(C.pendingCoordinatorNote, null);
+    const adoption = await GM_getValue(C.coordinatorNeedsAdoption, null);
+    if (adoption && (!adoption.coordinatorId || norm(adoption.coordinatorId) !== norm(activeCoordinatorId)))
+      await GM_setValue(C.coordinatorNeedsAdoption, null);
+  }
   async function scheduleCoordinatorQueueNotice() {
     if (coordinatorQueueNoticeTimer || coordinatorQueueNoticeBusy || Date.now() - coordinatorQueueNoticeLastAt < 12000 || !/\/agent\/[\w-]+/.test(location.pathname)) return;
     coordinatorQueueNoticeLastAt = Date.now();
     coordinatorQueueNoticeTimer = setTimeout(async () => {
       coordinatorQueueNoticeTimer = null;
-      if (coordinatorQueueNoticeBusy || await GM_getValue(C.lock, false)) return;
+      if (coordinatorQueueNoticeBusy || await isActionLockHeld()) return;
       coordinatorQueueNoticeBusy = true;
       let ownsActionLock = null;
       try {
         const id = location.pathname.match(/\/agent\/([\w-]+)/)?.[1] || "";
         const coordinator = (await roleList()).find((role) => norm(role.id) === norm(id));
         if (!coordinator || coordinator.dispatchFunction !== "Coordinator") return;
+        await clearForeignCoordinatorHandoffState(coordinator.id);
         if (!(await autoEnabled()) || (await autoIsPaused())) return;
         if (await GM_getValue(C.pendingCoordinatorTurn, null) || await GM_getValue(C.pendingCoordinatorNote, null)) return;
         if (generatingNow()) return;
-        if (await GM_getValue(C.lock, false)) return;
+        if (await isActionLockHeld()) return;
         ownsActionLock = await acquireActionLock("проверка очереди и состояния кампании координатора");
         const campaign = await activeCampaignForQueue();
         if (!campaign) return;
         if (["Завершена — ждёт Мастера", "Ожидает решения Мастера"].includes(campaignTeamState(campaign))) {
-          await GM_setValue(C.autoMode, false);
-          await GM_setValue(C.autoPaused, false);
-          await GM_setValue(C.pendingCoordinatorTurn, null);
-          await GM_setValue(C.pendingCoordinatorNote, null);
-          await GM_setValue(C.coordinatorNeedsAdoption, null);
-          logEvent(`Кампания «${rt(campaign.properties?.["Кампания"])}» ожидает Мастера; автоматический цикл остановлен.`);
+          await stopAutomation(`Кампания «${rt(campaign.properties?.["Кампания"])}» ожидает Мастера; автоматический цикл остановлен.`);
           return;
         }
         if (await GM_getValue(C.pendingCoordinatorTurn, null)) return;
@@ -2007,7 +2318,7 @@ ${roleContextText(coordinator)}
     if (autoDispatchTimer || !document.body || !(await autoEnabled()) || (await autoIsPaused()) || !/\/agent\/[\w-]+/.test(location.pathname)) return;
     autoDispatchTimer = setTimeout(async () => {
       autoDispatchTimer = null;
-      if (autoCoordinatorBusy || await GM_getValue(C.lock, false)) {
+      if (autoCoordinatorBusy || await isActionLockHeld()) {
         setTimeout(scheduleCoordinatorAuto, 1500);
         return;
       }
@@ -2022,34 +2333,25 @@ ${roleContextText(coordinator)}
         const coordinator = roles.find((role) => norm(role.id) === norm(id));
         if (!coordinator || coordinator.dispatchFunction !== "Coordinator") return;
         isCoordinatorPage = true;
-        // Do not take the global action lock on Executor pages. Previously this
-        // scheduler locked first and only then discovered that it was not on
-        // the Coordinator, intermittently blocking valid auto-submission.
-        if (await GM_getValue(C.lock, false)) return;
-        lockOwner = await acquireActionLock("автопроверка очереди координатора");
-        const campaign = await activeCampaignForQueue();
-        if (!campaign) {
-          await GM_setValue(C.autoMode, false);
-          await GM_setValue(C.autoPaused, false);
-          await GM_setValue(C.pendingCoordinatorNote, null);
-          await GM_setValue(C.pendingCoordinatorTurn, null);
-          await GM_setValue(C.coordinatorNeedsAdoption, null);
-          logEvent("В Notion нет активной кампании; автоматизация остановлена без выбора следующей кампании. Возобновление — после явного решения Мастера.");
-          return;
-        }
-        if (["Завершена — ждёт Мастера", "Ожидает решения Мастера"].includes(campaignTeamState(campaign))) {
-          await GM_setValue(C.autoMode, false);
-          await GM_setValue(C.autoPaused, false);
-          await GM_setValue(C.pendingCoordinatorNote, null);
-          await GM_setValue(C.pendingCoordinatorTurn, null);
-          await GM_setValue(C.coordinatorNeedsAdoption, null);
-          logEvent(`Кампания «${rt(campaign.properties?.["Кампания"])}» отмечена в Notion как «${campaignTeamState(campaign)}»; автоматический цикл остановлен до явного решения Мастера.`);
-          return;
-        }
+        await clearForeignCoordinatorHandoffState(coordinator.id);
         if (await GM_getValue(C.pendingCoordinatorTurn, null) || await GM_getValue(C.pendingCoordinatorNote, null)) return;
         let adoption = await GM_getValue(C.coordinatorNeedsAdoption, null);
         if (generatingNow()) {
           if (!adoption) await GM_setValue(C.coordinatorNeedsAdoption, { coordinatorId: coordinator.id, startedAt: Date.now() });
+          return;
+        }
+        // Do not take the global action lock on Executor pages. Previously this
+        // scheduler locked first and only then discovered that it was not on
+        // the Coordinator, intermittently blocking valid auto-submission.
+        if (await isActionLockHeld()) return;
+        lockOwner = await acquireActionLock("автопроверка очереди координатора");
+        const campaign = await activeCampaignForQueue();
+        if (!campaign) {
+          await stopAutomation("В Notion нет активной кампании; автоматизация остановлена без выбора следующей кампании. Возобновление — после явного решения Мастера.");
+          return;
+        }
+        if (["Завершена — ждёт Мастера", "Ожидает решения Мастера"].includes(campaignTeamState(campaign))) {
+          await stopAutomation(`Кампания «${rt(campaign.properties?.["Кампания"])}» отмечена в Notion как «${campaignTeamState(campaign)}»; автоматический цикл остановлен до явного решения Мастера.`);
           return;
         }
         if (adoption && norm(adoption.coordinatorId) === norm(coordinator.id)) {
@@ -2127,15 +2429,26 @@ ${roleContextText(coordinator)}
       try {
         const id = location.pathname.match(/\/agent\/([\w-]+)/)?.[1] || "";
         const turn = await GM_getValue(C.pendingCoordinatorTurn, null);
-        if (!turn || norm(turn.coordinatorId) !== norm(id)) return;
+        if (!turn) return;
         const roles = await roleList();
         const coordinator = roles.find((role) => norm(role.id) === norm(id));
         if (!coordinator || coordinator.dispatchFunction !== "Coordinator") return;
+        if (norm(turn.coordinatorId) !== norm(coordinator.id)) {
+          await clearForeignCoordinatorHandoffState(coordinator.id);
+          reschedule = true;
+          return;
+        }
         if (generatingNow()) {
           debugConsole(`coordinator-generating:${turn.turnId}`, "waiting for the Coordinator's current response to finish", { coordinatorId: id, campaignId: turn.campaignId, turnId: turn.turnId });
           return;
         }
-        const captured = captureLatestRenderedAssistantMessage();
+        let captured;
+        try {
+          captured = captureLatestRenderedAssistantMessage();
+        } catch (error) {
+          debugConsole(`coordinator-capture:${turn.turnId}`, "unable to capture Coordinator assistant message yet", { coordinatorId: id, campaignId: turn.campaignId, turnId: turn.turnId, error: String(error?.message || error) });
+          return;
+        }
         if ((turn.baselineMessageIds || []).includes(`chat-message-${captured.messageId}`) || (turn.baselineMessageIds || []).includes(captured.messageId)) return;
         const result = coordinatorResult(captured.text);
         if (!result) {
@@ -2197,18 +2510,14 @@ ${roleContextText(coordinator)}
           await pauseAutomation(`Маркер Координатора не совпадает с ожидающим ходом ${turn.turnId}. Ничего не запускаю; проверьте соответствие кампании, Dispatch и Run ID.`);
           return;
         }
-        if (await GM_getValue(C.lock, false)) return;
+        if (await isActionLockHeld()) return;
         owner = await acquireActionLock("проверка завершения хода Координатора");
         const campaign = await fresh(turn.campaignId);
         if (!campaign?.id) throw Error("Кампания из маркера Координатора не найдена в Notion.");
         const teamState = campaignTeamState(campaign);
         logEvent(`Принят CF_COORDINATOR_RESULT для кампании «${rt(campaign.properties?.["Кампания"])}»; сверяю очередь и флаг завершения в Notion.`);
         if (["Завершена — ждёт Мастера", "Ожидает решения Мастера"].includes(teamState)) {
-          await GM_setValue(C.pendingCoordinatorTurn, null);
-          await GM_setValue(C.pendingCoordinatorNote, null);
-          await GM_setValue(C.autoMode, false);
-          await GM_setValue(C.autoPaused, false);
-          logEvent(`Координатор установил в Notion «${teamState}». Цикл завершён и остановлен; возобновление — только после явного решения Мастера.`);
+          await stopAutomation(`Координатор установил в Notion «${teamState}». Цикл завершён и остановлен; возобновление — только после явного решения Мастера.`);
           return;
         }
         if (turn.dispatchId) {
@@ -2224,13 +2533,12 @@ ${roleContextText(coordinator)}
         const ready = campaignTasks.filter((task) => state(task) === "Ready").sort(compareTaskQueue);
         if (turn.kind === "dispatch-preflight" && turn.dispatchId) {
           const repaired = await fresh(turn.dispatchId);
-          const repairedRecipient = recipient(repaired);
-          const repairedRoleName = recipientRole(repaired);
-          const recipientIsValid = roles.some((candidate) =>
-            norm(candidate.id) === norm(repairedRecipient) &&
-            candidate.name === repairedRoleName &&
-            candidate.dispatchFunction === "Executor" &&
-            candidate.url.includes(repairedRecipient),
+          const repairedRole = findExecutorRoleForTask(repaired, roles);
+          const recipientIsValid = Boolean(
+            repairedRole &&
+            repairedRole.dispatchFunction === "Executor" &&
+            repairedRole.id &&
+            repairedRole.url.includes(repairedRole.id),
           );
           const repairedPayloadId = payloadId(repaired);
           const repairedPayloadUrl = payloadUrl(repaired);
@@ -2351,19 +2659,6 @@ ${roleContextText(coordinator)}
         }
         const pendingPrompt = await currentPendingForPage();
         const manualPrepared = pendingPrompt ? null : await GM_getValue(C.manualPrepared, null);
-        const freshAfterSend = isFreshExecutorMessage(captured.messageId, pendingPrompt)
-          || isFreshManualExecutorMessage(captured.messageId, manualPrepared);
-        if (!freshAfterSend) {
-          debugConsole(`stale-marker:${id}:${captured.messageId}`, "terminal marker is not from a post-send message; ignoring", {
-            ...baseDetails,
-            capturedMessageId: captured.messageId,
-            pendingDispatchId: pendingPrompt?.dispatchId || null,
-            pendingRunId: pendingPrompt?.runId || null,
-            sentAt: pendingPrompt?.sentAt || manualPrepared?.sentAt || null,
-            manualPreparedKey: manualPrepared?.key || null,
-          });
-          return;
-        }
         const finalLine = (captured.text.trimEnd().split("\n").at(-1) || "")
           .replace(/[\u200B-\u200D\uFEFF]/g, "")
           .replace(/\u00a0/g, " ")
@@ -2375,6 +2670,21 @@ ${roleContextText(coordinator)}
         debugConsole(`marker-seen:${id}:${captured.messageId}`, "terminal marker detected", { ...baseDetails, capturedMessageId: captured.messageId, textLength: captured.text.length, markerLine: finalLine.slice(0, 240) });
         markerCandidate = true;
         const result = agentResult(captured.text);
+        const adoptedFromPending = isAdoptedExecutorRunCompletion(captured, result, pendingPrompt);
+        const freshAfterSend = isFreshExecutorMessage(captured.messageId, pendingPrompt)
+          || isFreshManualExecutorMessage(captured.messageId, manualPrepared)
+          || adoptedFromPending;
+        if (!freshAfterSend) {
+          debugConsole(`stale-marker:${id}:${captured.messageId}`, "terminal marker is not from a post-send message; ignoring", {
+            ...baseDetails,
+            capturedMessageId: captured.messageId,
+            pendingDispatchId: pendingPrompt?.dispatchId || null,
+            pendingRunId: pendingPrompt?.runId || null,
+            sentAt: pendingPrompt?.sentAt || manualPrepared?.sentAt || null,
+            manualPreparedKey: manualPrepared?.key || null,
+          });
+          return;
+        }
         if (!pendingPrompt && !manualPreparedMatchesRun(manualPrepared, result.dispatch_id, result.run_id)) {
           debugConsole(`manual-marker-run-mismatch:${id}:${captured.messageId}`, "manual send record does not match terminal marker; ignoring transcript message", {
             ...baseDetails,
@@ -2402,25 +2712,32 @@ ${roleContextText(coordinator)}
           return;
         }
         const running = (await tasks("Running")).filter((p) =>
-          norm(recipient(p)) === norm(id) && recipientRole(p) === role.name && runId(p) && outputId(p));
-        const currentRun = running.find((p) => p.id === result.dispatch_id && runId(p) === result.run_id);
+          taskMatchesExecutorRole(p, role, id) && runId(p) && outputId(p));
+        const submittedList = (await tasks("Submitted")).filter((p) =>
+          taskMatchesExecutorRole(p, role, id) && runId(p) && outputId(p));
+        let currentRun = running.find((p) => p.id === result.dispatch_id && (runId(p) === result.run_id || adoptedFromPending));
         const coordinator = roles.find((x) => x.dispatchFunction === "Coordinator");
         if (!currentRun) {
-          const submitted = (await tasks("Submitted")).find((p) =>
-            p.id === result.dispatch_id && runId(p) === result.run_id &&
-            norm(recipient(p)) === norm(id) && recipientRole(p) === role.name && outputId(p));
+          const submitted = submittedList.find((p) =>
+            p.id === result.dispatch_id && (runId(p) === result.run_id || adoptedFromPending));
           if (submitted) {
-            autoSubmitState(key, "submitted", "Ответ уже записан в Drive и отмечен Submitted; восстанавливаю переход к Координатору.");
-            redirectSubmittedRun(key, coordinator);
+            if (taskHasScriptCatSubmittedAnswer(submitted, captured.messageId)) {
+              if (pendingPrompt?.dispatchId === submitted.id) await GM_setValue(C.pendingPrompt, null);
+              autoSubmitState(key, "submitted", "Ответ уже записан в Drive и отмечен Submitted; восстанавливаю переход к Координатору.");
+              redirectSubmittedRun(key, coordinator);
+              return;
+            }
+            // Agent set Dispatch State = Submitted via Notion MCP before ScriptCat wrote the chat response to Drive.
+            currentRun = submitted;
+          } else {
+            const sameDispatchDifferentRun = running.find((p) => p.id === result.dispatch_id);
+            if (sameDispatchDifferentRun) {
+              autoSubmitState(key, "terminal", "Маркер относится к старому Run ID; текущая Running-попытка не изменена.", { error: true });
+              return;
+            }
+            autoSubmitState(key, "waiting", "Маркер найден, но соответствующая задача пока не подтверждена как Running или Submitted; повторно сверю состояние позже.", { error: true, retryMs: 15000 });
             return;
           }
-          const sameDispatchDifferentRun = running.find((p) => p.id === result.dispatch_id);
-          if (sameDispatchDifferentRun) {
-            autoSubmitState(key, "terminal", "Маркер относится к старому Run ID; текущая Running-попытка не изменена.", { error: true });
-            return;
-          }
-          autoSubmitState(key, "waiting", "Маркер найден, но соответствующая задача пока не подтверждена как Running или Submitted; повторно сверю состояние позже.", { error: true, retryMs: 15000 });
-          return;
         }
         autoSubmitStates.set(key, { status: "submitting", retryAt: 0 });
         buttonText("Маркер готовности найден — сохраняю ответ…");
@@ -2510,7 +2827,7 @@ ${roleContextText(coordinator)}
   mount();
   mountModeToggle();
   Promise.all([autoEnabled(), autoIsPaused()]).then(([enabled, paused]) => debugConsole(`startup:${location.pathname}`, "userscript initialized", {
-    version: "0.13.17",
+    version: "0.13.22",
     pathname: location.pathname,
     autoEnabled: Boolean(enabled),
     paused: Boolean(paused),

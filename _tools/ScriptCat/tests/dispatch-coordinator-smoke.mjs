@@ -79,3 +79,30 @@ const coordinatorAutoStart = source.indexOf('  async function scheduleCoordinato
 const coordinatorAutoEnd = source.indexOf('  let coordinatorResultTimer', coordinatorAutoStart);
 assert(source.slice(coordinatorAutoStart, coordinatorAutoEnd).includes('let dispatchingTask = null;'), 'auto-dispatch failure handler keeps the current task in scope');
 assert(source.slice(coordinatorAutoStart, coordinatorAutoEnd).includes('let roles = [];'), 'role registry remains available to dispatch error recovery');
+assert(source.includes('async function clearForeignCoordinatorHandoffState(activeCoordinatorId)'), 'foreign Coordinator handoff state cleanup helper exists');
+assert(source.slice(coordinatorAutoStart, coordinatorAutoEnd).includes('await clearForeignCoordinatorHandoffState(coordinator.id);'), 'Coordinator auto-dispatch clears stale handoff state from a replaced Coordinator agent');
+const identityStart = source.indexOf('  function extractAgentIdFromUrl(');
+const identityEnd = source.indexOf('  async function roleList()', identityStart);
+assert(identityStart >= 0 && identityEnd > identityStart, 'role agent identity helpers exist');
+const { extractAgentIdFromUrl, resolveRoleAgentIdentity } = new Function(`${source.slice(identityStart, identityEnd)}\nreturn { extractAgentIdFromUrl, resolveRoleAgentIdentity };`)();
+assert.equal(extractAgentIdFromUrl('https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4'), '01a14fa6-df25-71d3-8238-5bbbc91bd7a4', 'extracts agent ID from Arena URL');
+assert.deepEqual(
+  resolveRoleAgentIdentity('01a14fa6-df25-ё-8238-5bbbc91bd7a4', 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4'),
+  { id: '01a14fa6-df25-71d3-8238-5bbbc91bd7a4', url: 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4' },
+  'URL takes precedence when Arena Agent ID is stale or mistyped',
+);
+assert.deepEqual(
+  resolveRoleAgentIdentity('01a14fa6-df25-71d3-8238-5bbbc91bd7a4', ''),
+  { id: '01a14fa6-df25-71d3-8238-5bbbc91bd7a4', url: 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4' },
+  'synthesizes Arena Agent URL when only Arena Agent ID is provided',
+);
+assert.deepEqual(
+  resolveRoleAgentIdentity('', 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4'),
+  { id: '01a14fa6-df25-71d3-8238-5bbbc91bd7a4', url: 'https://arena.ai/agent/01a14fa6-df25-71d3-8238-5bbbc91bd7a4' },
+  'derives Arena Agent ID when only Arena Agent URL is provided',
+);
+assert(source.includes('function findExecutorRoleForTask(task, roles)'), 'Executor lookup resolves by role name first');
+assert(source.includes('function taskMatchesExecutorRole(task, role, pageAgentId = role?.id)'), 'Executor task matching supports replaced agents by role name');
+assert(source.includes('async function isActionLockHeld()'), 'stale action locks auto-expire safely');
+
+
