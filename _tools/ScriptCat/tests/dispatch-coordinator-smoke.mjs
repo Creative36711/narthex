@@ -9,19 +9,22 @@ assert.equal(Number(autoBudget[1]), 2, 'automatic mode allows two total sends: i
 assert(source.includes('Достигнут предел в две отправки (исходная и один повтор) без маркера завершения.'), 'pause message matches the two-send budget');
 assert(readme.includes('максимум две отправки всего'), 'README documents the two-send maximum');
 assert(!/до трёх попыток|максимум три отправки|После третьей неудачи/.test(readme), 'README has no stale three-attempt limit');
-const sendButtonStart = source.indexOf('  function normalizedButtonLabel(value) {');
+const sendButtonStart = source.indexOf('  function markManualSendRequired(pending, baselineMessageIds, at = Date.now()) {');
 const sendButtonEnd = source.indexOf('  function closeCompletionPanel()', sendButtonStart);
 assert(sendButtonStart >= 0 && sendButtonEnd > sendButtonStart, 'send-button selector helpers exist');
-const sendButtonHelpers = new Function('isVisible', `${source.slice(sendButtonStart, sendButtonEnd)}\nreturn { isSendButtonCandidate, isSendButtonDisabled, chooseSendButton, isSendButtonReady };`)(
+const sendButtonHelpers = new Function('isVisible', `${source.slice(sendButtonStart, sendButtonEnd)}\nreturn { markManualSendRequired, isSendButtonCandidate, isSendButtonDisabled, isComposerFormButton, chooseSendButton, isSendButtonReady };`)(
   (button) => Boolean(button?.visible),
 );
-const fakeSendButton = ({ aria = '', title = '', testId = '', text = '', disabled = false, ariaDisabled = '', visible = true, isConnected = true } = {}) => ({
+const fakeSendButton = ({ aria = '', title = '', testId = '', text = '', value = '', name = '', id = '', type = '', disabled = false, ariaDisabled = '', visible = true, isConnected = true, form = null } = {}) => ({
   disabled,
   isConnected,
   visible,
   textContent: text,
-  getAttribute(name) {
-    return ({ 'aria-label': aria, title, 'data-testid': testId, 'aria-disabled': ariaDisabled })[name] || null;
+  value,
+  type,
+  form,
+  getAttribute(attribute) {
+    return ({ 'aria-label': aria, title, 'data-testid': testId, 'data-test-id': testId, 'aria-disabled': ariaDisabled, value, name, id, type })[attribute] || null;
   },
 });
 const hiddenSendButton = fakeSendButton({ aria: 'Send message', visible: false });
@@ -31,6 +34,23 @@ assert.equal(sendButtonHelpers.isSendButtonCandidate(activeSendButton), true, 's
 assert.equal(sendButtonHelpers.chooseSendButton([hiddenSendButton, disabledSendButton, activeSendButton], (button) => button.visible), activeSendButton, 'visible enabled Send wins over an earlier hidden/disabled duplicate');
 assert.equal(sendButtonHelpers.isSendButtonReady(activeSendButton), true, 'visible enabled Send candidate is actionable');
 assert.equal(sendButtonHelpers.isSendButtonReady(fakeSendButton({ aria: 'Send message', ariaDisabled: 'true' })), false, 'aria-disabled Send is not clicked');
+const composerForm = { id: 'composer-form', contains(button) { return button.form === this; } };
+const formSubmit = fakeSendButton({ type: 'submit', form: composerForm });
+assert.equal(sendButtonHelpers.isSendButtonCandidate(formSubmit, composerForm), true, 'submit control associated with the composer form is a safe Send candidate');
+assert.equal(sendButtonHelpers.chooseSendButton([formSubmit], (button) => button.visible, composerForm), formSubmit, 'composer-form submit control is preferred as Send');
+assert.equal(sendButtonHelpers.isSendButtonCandidate(fakeSendButton({ type: 'submit' }), composerForm), false, 'unrelated submit controls are not treated as Send');
+const manualPending = sendButtonHelpers.markManualSendRequired({ dispatchId: 'dispatch-1', runId: 'run-1' }, ['chat-message-old'], 123);
+assert.equal(manualPending.manualSendRequired, true, 'unconfirmed Send is persisted as a manual-only action');
+assert.equal(manualPending.sentAt, undefined, 'manual fallback does not claim the prompt was sent');
+assert.deepEqual(manualPending.manualSendBaselineMessageIds, ['chat-message-old'], 'manual fallback captures a pre-click transcript baseline');
+const autoSendStart = source.indexOf('  async function scheduleAutoSend() {');
+const autoSendEnd = source.indexOf('  async function retryPending(', autoSendStart);
+assert(autoSendStart >= 0 && autoSendEnd > autoSendStart, 'automatic Send path exists');
+const autoSendBody = source.slice(autoSendStart, autoSendEnd);
+assert(autoSendBody.includes('if (pending.manualSendRequired)'), 'manual fallback suppresses subsequent automatic clicks for this Run');
+assert(autoSendBody.includes('markManualSendRequired(pending, baselineMessageIds)'), 'unconfirmed Send persists a safe manual fallback');
+assert(autoSendBody.includes('Нажмите Send вручную один раз'), 'false-negative message tells the user how to continue');
+assert(!autoSendBody.includes('throw Error("Не удалось подтвердить доступную кнопку Send'), 'button-detection false negative no longer escalates into a full automation stop');
 const dispatchStart = source.indexOf('  async function dispatch(task, roles, { retryRunning = false } = {}) {');
 const dispatchEnd = source.indexOf('  async function submitAgent(', dispatchStart);
 assert(dispatchStart >= 0 && dispatchEnd > dispatchStart, 'Dispatch helper exists for retry budget reset check');
@@ -51,6 +71,14 @@ assert.equal(isFreshExecutorMessage('new-id', submittedPrompt), true, 'a post-se
 assert.equal(isFreshExecutorMessage('new-id', { ...submittedPrompt, baselineMessageIds: ['new-id'] }), false, 'accepts baseline IDs with or without DOM prefix');
 assert.equal(isFreshExecutorMessage('new-id', { ...submittedPrompt, baselineMessageIds: [] }), true, 'fresh message is permitted when send baseline was empty');
 assert.equal(isFreshExecutorMessage('new-id', { baselineMessageIds: [] }), false, 'messages are not fresh without a confirmed send timestamp');
+const adoptedStart = source.indexOf('  function isAdoptedExecutorRunCompletion(captured, result, pendingPrompt) {');
+const adoptedEnd = source.indexOf('  async function dispatch(', adoptedStart);
+assert(adoptedStart >= 0 && adoptedEnd > adoptedStart, 'manual fallback result adoption helper exists');
+const adoptedExecutor = new Function(`${source.slice(adoptedStart, adoptedEnd)}\nreturn { isAdoptedExecutorRunCompletion };`)();
+const manualFallbackPending = { dispatchId: 'dispatch-1', runId: 'run-1', manualSendRequired: true, manualSendBaselineMessageIds: ['chat-message-old'] };
+assert.equal(adoptedExecutor.isAdoptedExecutorRunCompletion({ messageId: 'fresh-id' }, { dispatch_id: 'dispatch-1', run_id: 'run-1', status: 'submitted' }, manualFallbackPending), true, 'fresh result for the exact Run may be adopted after one manual Send');
+assert.equal(adoptedExecutor.isAdoptedExecutorRunCompletion({ messageId: 'old' }, { dispatch_id: 'dispatch-1', run_id: 'run-1', status: 'submitted' }, manualFallbackPending), false, 'pre-fallback transcript messages cannot be adopted');
+assert.equal(adoptedExecutor.isAdoptedExecutorRunCompletion({ messageId: 'fresh-id' }, { dispatch_id: 'dispatch-1', run_id: 'run-other', status: 'submitted' }, manualFallbackPending), false, 'manual fallback cannot adopt a different Run');
 const makeUuidV7 = (ms) => {
   const hex = BigInt(ms).toString(16).padStart(12, '0');
   return `${hex.slice(0, 8)}-${hex.slice(8)}-7000-8000-000000000000`;
@@ -67,6 +95,15 @@ const manualSendStart = source.indexOf('  async function sendPreparedManualPromp
 const manualSendEnd = source.indexOf('  async function prepareManualPrompt(', manualSendStart);
 const manualSendBody = source.slice(manualSendStart, manualSendEnd);
 assert(manualSendBody.includes('baselineMessageIds') && manualSendBody.includes('await GM_setValue(C.pendingPrompt, sentPrompt);'), 'manual Send preserves post-send correlation and baseline');
+const manualNoButtonEnd = manualSendBody.indexOf('    // Persist one-shot send intent plus a pre-send transcript baseline.');
+const manualNoButtonBody = manualSendBody.slice(0, manualNoButtonEnd);
+assert(manualNoButtonBody.includes('markManualSendRequired(pending, baselineMessageIds)'), 'manual-mode false negative is persisted as a manual-only Run');
+assert(manualNoButtonBody.includes('await GM_setValue(C.pendingPrompt, manualPending);'), 'manual fallback survives mutation-driven re-entry');
+assert(!manualNoButtonBody.includes('button.click()'), 'manual fallback never clicks an unconfirmed Send control');
+const manualPrepareStart = source.indexOf('  async function prepareManualPrompt() {');
+const manualPrepareEnd = source.indexOf('  async function scheduleAutoSend()', manualPrepareStart);
+const manualPrepareBody = source.slice(manualPrepareStart, manualPrepareEnd);
+assert(manualPrepareBody.indexOf('if (pending.manualSendRequired)') < manualPrepareBody.indexOf('fillComposer(editor, pending.prompt)'), 'manual-only Run blocks re-insertion and any later automatic send attempt');
 assert(!manualSendBody.includes('await GM_setValue(C.pendingPrompt, null);'), 'manual Send does not erase the correlation before the reply arrives');
 assert(!source.includes('copy(coordinatorNote)'), 'Coordinator dispatch notification is not copied to clipboard');
 assert(!source.includes('Текст уведомления Координатору скопирован в буфер'), 'obsolete clipboard log is absent');

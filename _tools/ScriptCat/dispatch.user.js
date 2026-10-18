@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chronicle Forge — открыть следующего агента
 // @namespace    https://arena.ai/
-// @version      0.13.26
+// @version      0.13.27
 // @description  Role-aware Arena handoff with a marker-gated Coordinator cycle, FIFO queue, and master alerts.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -497,6 +497,14 @@
       .trim();
   }
   const sameComposerText = (a, b) => composerKey(a) === composerKey(b);
+  function markManualSendRequired(pending, baselineMessageIds, at = Date.now()) {
+    return {
+      ...pending,
+      manualSendRequired: true,
+      manualSendRequiredAt: at,
+      manualSendBaselineMessageIds: Array.from(baselineMessageIds || []),
+    };
+  }
   function normalizedButtonLabel(value) {
     return String(value || "")
       .replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -504,58 +512,94 @@
       .trim()
       .toLowerCase();
   }
+  const SEND_BUTTON_CONTROL_SELECTOR = 'button, [role="button"], input[type="submit"], [data-testid], [data-test-id], [aria-label], [title]';
   function sendButtonLabels(button) {
     return [
       button?.getAttribute?.("aria-label"),
       button?.getAttribute?.("title"),
       button?.getAttribute?.("data-testid"),
       button?.getAttribute?.("data-test-id"),
+      button?.getAttribute?.("name"),
+      button?.getAttribute?.("id"),
+      button?.getAttribute?.("value"),
+      button?.value,
       button?.textContent,
     ].map(normalizedButtonLabel).filter(Boolean);
   }
-  function isSendButtonCandidate(button) {
+  function isComposerFormButton(button, form) {
+    if (!button || !form) return false;
+    const formId = String(form.id || "");
+    return button.form === form
+      || Boolean(form.contains?.(button))
+      || Boolean(formId && String(button.getAttribute?.("form") || "") === formId);
+  }
+  function isSendButtonCandidate(button, composerForm = null) {
     const labels = sendButtonLabels(button);
-    return labels.some((label) => /^(?:send|send message|send a message|send prompt|submit|submit message|отправить|отправить сообщение)$/i.test(label))
-      || labels.some((label) => /(^|[-_ ])(?:send|submit)([-_ ]|$)/i.test(label));
+    const type = normalizedButtonLabel(button?.getAttribute?.("type") || button?.type);
+    const scopedSubmit = type === "submit" && isComposerFormButton(button, composerForm);
+    return scopedSubmit
+      || labels.some((label) => /^(?:send|send message|send a message|send prompt|submit|submit message|отправить|отправить сообщение)$/i.test(label))
+      || labels.some((label) => /(^|[-_ ])(?:send|submit)([-_ ]|$)/i.test(label))
+      || labels.some((label) => /\b(?:send|submit)\b|отправ/i.test(label));
   }
   function isSendButtonDisabled(button) {
     return Boolean(button?.disabled
       || String(button?.getAttribute?.("aria-disabled") || "").toLowerCase() === "true"
       || String(button?.getAttribute?.("data-disabled") || "").toLowerCase() === "true");
   }
-  function chooseSendButton(buttons, visible = isVisible) {
-    const candidates = Array.from(buttons || []).filter(isSendButtonCandidate);
-    return candidates.find((button) => visible(button) && !isSendButtonDisabled(button))
-      || candidates.find(visible)
-      || candidates.find((button) => button?.isConnected !== false)
+  function chooseSendButton(buttons, visible = isVisible, composerForm = null) {
+    const candidates = Array.from(buttons || []).filter((button) => isSendButtonCandidate(button, composerForm));
+    const scoped = composerForm ? candidates.filter((button) => isComposerFormButton(button, composerForm)) : [];
+    const pool = scoped.length ? scoped : candidates;
+    return pool.find((button) => visible(button) && !isSendButtonDisabled(button))
+      || pool.find(visible)
+      || pool.find((button) => button?.isConnected !== false)
       || null;
   }
-  function sendButton() {
-    return chooseSendButton(document.querySelectorAll('button, [role="button"]'));
+  function sendButton(editor = findComposer()) {
+    const composerForm = editor?.closest?.("form") || null;
+    return chooseSendButton(document.querySelectorAll(SEND_BUTTON_CONTROL_SELECTOR), isVisible, composerForm);
   }
   function isSendButtonReady(button) {
     return Boolean(button && isVisible(button) && !isSendButtonDisabled(button));
   }
-  async function waitForSendButton(timeoutMs = 1800, pollMs = 100) {
+  async function waitForSendButton(timeoutMs = 3000, pollMs = 100, editor = findComposer()) {
     const deadline = Date.now() + timeoutMs;
     do {
-      const button = sendButton();
+      const button = sendButton(editor);
       if (isSendButtonReady(button)) return button;
       if (Date.now() >= deadline) break;
       await new Promise((resolve) => setTimeout(resolve, pollMs));
     } while (true);
     return null;
   }
-  function sendButtonDiagnostics() {
-    return Array.from(document.querySelectorAll('button, [role="button"]'))
-      .filter(isSendButtonCandidate)
-      .slice(0, 5)
-      .map((button) => ({
-        labels: sendButtonLabels(button).slice(0, 4),
-        visible: isVisible(button),
-        disabled: isSendButtonDisabled(button),
-        ariaDisabled: button.getAttribute("aria-disabled") || "",
-      }));
+  function sendButtonDiagnostics(editor = findComposer()) {
+    const composerForm = editor?.closest?.("form") || null;
+    const controls = Array.from(document.querySelectorAll(SEND_BUTTON_CONTROL_SELECTOR));
+    const matching = controls.filter((button) => isSendButtonCandidate(button, composerForm));
+    const formControls = composerForm
+      ? controls.filter((button) => isComposerFormButton(button, composerForm))
+      : [];
+    const editorRect = editor?.getBoundingClientRect?.();
+    const nearby = editorRect ? controls.filter((button) => {
+      if (!isVisible(button)) return false;
+      const rect = button.getBoundingClientRect();
+      return rect.bottom >= editorRect.top - 80 && rect.top <= editorRect.bottom + 160
+        && rect.right >= editorRect.left - 50 && rect.left <= editorRect.right + 50;
+    }) : [];
+    const candidates = Array.from(new Set([...matching, ...formControls, ...nearby])).slice(0, 12);
+    return candidates.map((button) => ({
+      tag: String(button.tagName || "").toLowerCase(),
+      labels: sendButtonLabels(button).slice(0, 6),
+      visible: isVisible(button),
+      disabled: isSendButtonDisabled(button),
+      nativeDisabled: Boolean(button.disabled),
+      ariaDisabled: button.getAttribute("aria-disabled") || "",
+      dataDisabled: button.getAttribute("data-disabled") || "",
+      type: button.getAttribute("type") || "",
+      role: button.getAttribute("role") || "",
+      inComposerForm: isComposerFormButton(button, composerForm),
+    }));
   }
   function closeCompletionPanel() {
     const panels = Array.from(document.querySelectorAll("div.border-border-medium.bg-surface-secondary.w-full.rounded-md.border.shadow-sm.outline-none")).filter(isVisible);
@@ -1388,8 +1432,13 @@
   }
   function isAdoptedExecutorRunCompletion(captured, result, pendingPrompt) {
     if (!captured?.messageId || !result?.dispatch_id || result.status !== "submitted") return false;
-    if (pendingPrompt && !pendingPrompt.sentAt && pendingPrompt.dispatchId === result.dispatch_id) return true;
-    return false;
+    if (pendingPrompt?.manualSendRequired) {
+      if (pendingPrompt.sentAt || pendingPrompt.dispatchId !== result.dispatch_id || pendingPrompt.runId !== result.run_id) return false;
+      const baseline = pendingPrompt.manualSendBaselineMessageIds;
+      const domId = `chat-message-${captured.messageId}`;
+      return Array.isArray(baseline) && !baseline.includes(captured.messageId) && !baseline.includes(domId);
+    }
+    return Boolean(pendingPrompt && !pendingPrompt.sentAt && pendingPrompt.dispatchId === result.dispatch_id);
   }
   async function dispatch(task, roles, { retryRunning = false } = {}) {
     const p = await fresh(task.id);
@@ -1512,7 +1561,7 @@
     const result = agentResult(captured.text);
     const adoptedSameDispatch = result.dispatch_id === p.id &&
       result.status === "submitted" &&
-      ((pending && !pending.sentAt && pending.dispatchId === p.id) || allowSelfSubmitted);
+      (isAdoptedExecutorRunCompletion(captured, result, pending) || allowSelfSubmitted);
     if (
       result.dispatch_id !== p.id ||
       (result.run_id !== run && !adoptedSameDispatch) ||
@@ -1750,15 +1799,20 @@
   let manualPrepareNoticeKey = "";
   let manualPrepareBlocked = null;
   function manualSendReady() {
-    return isSendButtonReady(sendButton());
+    return isSendButtonReady(sendButton(findComposer()));
   }
   async function sendPreparedManualPrompt(editor, pending, key, roleName) {
-    const button = await waitForSendButton(1000);
+    const button = await waitForSendButton(1000, 100, editor);
     if (!button) {
       const current = composerKey(editor.innerText || editor.textContent);
+      const baselineMessageIds = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]'))
+        .map((message) => message.id);
+      const manualPending = markManualSendRequired(pending, baselineMessageIds);
+      await GM_setValue(C.pendingPrompt, manualPending);
       if (manualPrepareBlocked?.key !== key || manualPrepareBlocked.current !== current)
-        logEvent("Задание подготовлено, но кнопка Send пока недоступна; ожидаю её появления. Повторная отправка не выполняется.", true);
-      manualPrepareBlocked = { key, agentId: pending.agentId, current, waitingSend: true };
+        logEvent("Кнопка Send не подтверждена; промпт оставлен в редакторе. Нажмите Send вручную один раз — повторного авто-клика по этому Run не будет.", true, { ntfy: "quiet", title: "Chronicle Forge: требуется ручной Send" });
+      manualPrepareBlocked = null;
+      manualPrepareNoticeKey = key;
       return false;
     }
     // Persist one-shot send intent plus a pre-send transcript baseline. Keep the
@@ -1814,6 +1868,13 @@
         const prompt = `${body.trimEnd()}${technicalHandoffFooter(role, task.id, runId(task), campaign)}`;
         pending = { dispatchId: task.id, runId: runId(task), agentId, roleName: role.name, prompt, preparedAt: Date.now(), manual: true };
         await GM_setValue(C.pendingPrompt, pending);
+      }
+      if (pending.manualSendRequired) {
+        const key = `${pending.dispatchId}:${pending.runId}`;
+        if (manualPrepareNoticeKey !== key)
+          logEvent("Автоотправка этого Run передана человеку из-за нераспознанной кнопки Send; промпт не перезаписывается и не отправляется повторно. Нажмите Send вручную один раз.", true, { ntfy: "quiet", title: "Chronicle Forge: требуется ручной Send" });
+        manualPrepareNoticeKey = key;
+        return;
       }
       if (typeof pending.prompt !== "string")
         throw Error("В сохранённой ручной передаче нет текста задания; подготовка остановлена.");
@@ -1898,8 +1959,18 @@
           return;
         }
         const pending = await currentPendingForPage();
-        if (!pending || pending.sentAt) return;
-        if (generatingNow()) return;
+        if (!pending) return;
+        if (pending.manualSendRequired) {
+          if (!pending.sentAt && generatingNow()) {
+            pending.sentAt = Date.now();
+            pending.baselineMessageIds = pending.manualSendBaselineMessageIds || [];
+            pending.manualSendObservedAt = pending.sentAt;
+            await GM_setValue(C.pendingPrompt, pending);
+            logEvent("Обнаружена генерация после ручного нажатия Send; автоклик для этого Run отключён, ожидаю CF_AGENT_RESULT.", false, { skipNtfy: true });
+          }
+          return;
+        }
+        if (pending.sentAt || generatingNow()) return;
         const id = location.pathname.match(/\/agent\/([\w-]+)/)?.[1] || "";
         const roles = await roleList();
         const role = roles.find((item) => norm(item.id) === norm(id));
@@ -1948,16 +2019,23 @@
           await pauseAutomation("Текст задания не подтвердился в редакторе; он не отправлен.");
           return;
         }
-        const button = await waitForSendButton();
+        const button = await waitForSendButton(3000, 100, editor);
         if (!button) {
-          const candidates = sendButtonDiagnostics();
-          debugConsole(`send-button-not-ready:${pending.dispatchId}:${pending.runId}`, "send button not actionable after prompt fill", {
+          const baselineMessageIds = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]'))
+            .map((message) => message.id);
+          const manualPending = markManualSendRequired(pending, baselineMessageIds);
+          await GM_setValue(C.pendingPrompt, manualPending);
+          const candidates = sendButtonDiagnostics(editor);
+          debugConsole(`send-button-not-ready:${pending.dispatchId}:${pending.runId}`, "send button not actionable after prompt fill; waiting for one manual click", {
             dispatchId: pending.dispatchId,
             runId: pending.runId,
+            composerFound: Boolean(editor),
+            composerFormFound: Boolean(editor.closest?.("form")),
             candidateCount: candidates.length,
             candidates,
           });
-          throw Error("Не удалось подтвердить доступную кнопку Send за 1,8 с ожидания; текст оставлен в редакторе, отправка не выполнена.");
+          logEvent("Кнопку Send не удалось подтвердить за 3 секунды. Автоклик не выполнялся; промпт оставлен в редакторе. Нажмите Send вручную один раз — для этого Run ScriptCat больше не будет нажимать Send автоматически.", true, { ntfy: "quiet", title: "Chronicle Forge: требуется ручной Send" });
+          return;
         }
         if (!(await autoEnabled()) || (await autoIsPaused())) return;
         const messages = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]')).map((m) => m.id);
@@ -1980,17 +2058,22 @@
           await restoreUnsentIntent();
           return;
         }
-        const latestButton = sendButton();
+        const latestButton = sendButton(editor);
         if (!isSendButtonReady(latestButton)) {
           await restoreUnsentIntent();
-          const candidates = sendButtonDiagnostics();
-          debugConsole(`send-button-lost:${pending.dispatchId}:${pending.runId}`, "send button changed before click", {
+          const manualPending = markManualSendRequired(unsentPending, messages);
+          await GM_setValue(C.pendingPrompt, manualPending);
+          const candidates = sendButtonDiagnostics(editor);
+          debugConsole(`send-button-lost:${pending.dispatchId}:${pending.runId}`, "send button changed before click; waiting for one manual click", {
             dispatchId: pending.dispatchId,
             runId: pending.runId,
+            composerFound: Boolean(editor),
+            composerFormFound: Boolean(editor.closest?.("form")),
             candidateCount: candidates.length,
             candidates,
           });
-          throw Error("Кнопка Send изменилась до клика; текст оставлен в редакторе, отправка не выполнена.");
+          logEvent("Кнопка Send изменилась перед кликом. Автонажатие отменено, счётчик отправок восстановлен. Нажмите Send вручную один раз; автоматического повторного клика по этому Run не будет.", true, { ntfy: "quiet", title: "Chronicle Forge: требуется ручной Send" });
+          return;
         }
         if (autoSubmitTimer) {
           clearTimeout(autoSubmitTimer);
@@ -2231,7 +2314,7 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         const filled = (editor.innerText || editor.textContent || "").trim();
         if (!sameComposerText(filled, pending.note)) throw Error("Текст уведомления не подтвердился в редакторе.");
-        let button = await waitForSendButton();
+        let button = await waitForSendButton(3000, 100, editor);
         if (pending.kind === "campaign-queue" && pending.notificationKey)
           await GM_setValue(pending.notificationKey, true);
         // Save the baseline and correlation before either a scripted or manual send.
@@ -2249,7 +2332,7 @@
         }
         await GM_setValue(C.pendingCoordinatorTurn, pending.turn);
         await GM_setValue(C.pendingCoordinatorNote, pending);
-        button = sendButton();
+        button = sendButton(editor);
         if (!isSendButtonReady(button)) {
           pending.blocked = true;
           pending.manualFallback = true;
@@ -2938,7 +3021,7 @@ ${roleContextText(coordinator)}
   mount();
   mountModeToggle();
   Promise.all([autoEnabled(), autoIsPaused()]).then(([enabled, paused]) => debugConsole(`startup:${location.pathname}`, "userscript initialized", {
-    version: "0.13.26",
+    version: "0.13.27",
     pathname: location.pathname,
     autoEnabled: Boolean(enabled),
     paused: Boolean(paused),

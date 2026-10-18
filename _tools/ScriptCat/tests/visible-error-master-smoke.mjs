@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../dispatch.user.js', import.meta.url), 'utf8');
 const gatewaySource = await readFile(new URL('../drive-gateway.gs', import.meta.url), 'utf8');
-assert.match(source, /@version\s+0\.13\.26/, 'userscript version is bumped');
+assert.match(source, /@version\s+0\.13\.27/, 'userscript version is bumped');
 assert(source.includes('b.textContent = enabled ? (paused ? "Возобновить автоочередь" : "Остановить автоочередь") : "Запустить автоочередь";'), 'mode toggle labels state-changing actions clearly');
 assert(source.includes('exit.textContent = "Остановить автоматику";'), 'manual-mode exit button is an explicit stop action');
 assert(source.includes('if (!confirm("Запустить автоматическую очередь?'), 'starting the automatic queue requires explicit confirmation');
@@ -70,6 +70,9 @@ const loudStop = classifyNtfyPush('Автоматизация остановле
 assert.equal(loudStop?.level, 'loud', 'automation stop sends a loud ntfy push');
 assert.equal(loudStop?.urgent, true, 'loud ntfy push is urgent');
 assert.equal(loudStop?.priority, '5', 'loud ntfy push uses max priority 5');
+const manualSendNotice = classifyNtfyPush('Кнопку Send не удалось подтвердить; нажмите Send вручную один раз.', true, { ntfy: 'quiet', title: 'Chronicle Forge: требуется ручной Send' });
+assert.equal(manualSendNotice?.level, 'quiet', 'manual Send fallback is visible but does not create an urgent automation-stop alert');
+assert.equal(manualSendNotice?.urgent, false, 'manual Send fallback is non-urgent');
 const pauseFnStart = source.indexOf('  async function pauseAutomation(');
 const pauseFnEnd = source.indexOf('  async function currentPendingForPage(', pauseFnStart);
 assert(source.slice(pauseFnStart, pauseFnEnd).includes('GM_setValue(C.autoPauseContext'), 'pause reason and reset scope persist across reloads');
