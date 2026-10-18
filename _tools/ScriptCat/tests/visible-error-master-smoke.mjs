@@ -3,7 +3,10 @@ import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../dispatch.user.js', import.meta.url), 'utf8');
 const gatewaySource = await readFile(new URL('../drive-gateway.gs', import.meta.url), 'utf8');
-assert.match(source, /@version\s+0\.13\.25/, 'userscript version is bumped');
+assert.match(source, /@version\s+0\.13\.26/, 'userscript version is bumped');
+assert(source.includes('b.textContent = enabled ? (paused ? "Возобновить автоочередь" : "Остановить автоочередь") : "Запустить автоочередь";'), 'mode toggle labels state-changing actions clearly');
+assert(source.includes('exit.textContent = "Остановить автоматику";'), 'manual-mode exit button is an explicit stop action');
+assert(source.includes('if (!confirm("Запустить автоматическую очередь?'), 'starting the automatic queue requires explicit confirmation');
 assert(source.includes('const ACTIVE_CAMPAIGN_STATUSES = ["В работе", "На ревью", "Доработка", "Приёмка QA/TD"];'), 'Приёмка QA/TD is recognized as an active campaign status');
 assert(source.includes('border-left:3px solid #ff7b6b;background:#4a1f1b88;color:#ffe2dc;font:600 12px/1.4 system-ui'), 'important/error log entries have distinct highlighted styling');
 assert.equal((source.match(/GM_setValue\(C\.autoMode,\s*false\)/g) || []).length, 1, 'all stops of automated mode route through stopAutomation');

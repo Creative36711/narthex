@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chronicle Forge — открыть следующего агента
 // @namespace    https://arena.ai/
-// @version      0.13.25
+// @version      0.13.26
 // @description  Role-aware Arena handoff with a marker-gated Coordinator cycle, FIFO queue, and master alerts.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -640,12 +640,12 @@
     b.style.cssText = "flex:1;min-width:0;padding:8px 10px;border:0;border-radius:9px;background:#454545;color:#fff;cursor:pointer;font:600 12px system-ui";
     const refresh = async () => {
       const enabled = await autoEnabled(), paused = await autoIsPaused();
-      b.textContent = enabled ? (paused ? "Авто: пауза" : "Автоматизация: ВКЛ") : "Ручной режим";
+      b.textContent = enabled ? (paused ? "Возобновить автоочередь" : "Остановить автоочередь") : "Запустить автоочередь";
       b.title = enabled
         ? (paused
-          ? "Автоматизация на паузе. Нажмите для явного подтверждения; при лимите маркера будет предложен отдельный сброс только напоминаний. Перезагрузка вкладки счётчики не сбрасывает."
-          : "Автоматизация выдаёт Ready-задачи и фиксирует ответы по маркеру. Вердикт Координатора остаётся ручным.")
-        : "Ручной режим: нажимайте основную кнопку для передачи задания или сохранения ответа. Вердикт Координатора вносится вручную в Drive/Notion.";
+          ? "Автоочередь на паузе. Нажмите, чтобы продолжить; для лимита маркера будет отдельное подтверждение сброса только счётчика напоминаний. Перезагрузка не сбрасывает счётчики."
+          : "Автоочередь работает. Нажмите, чтобы остановить её и перейти в ручной режим. Текущая задача и её лог сохранятся.")
+        : "Автоочередь выключена. Нажмите, затем подтвердите запуск, чтобы последовательно выполнять Ready-задачи. В ручном режиме нижняя кнопка используется только для явной передачи/сохранения ответа.";
       b.style.background = enabled && !paused ? "#245c46" : "#454545";
       b.setAttribute("aria-pressed", String(enabled && !paused));
       updateManualButtonVisibility(enabled);
@@ -695,7 +695,7 @@
           toast("Автоматизация возобновлена; счётчики отправок сброшены для текущей Dispatch-задачи.");
         }
       } else {
-        if (!confirm("Включить последовательную автоматическую очередь? Ready-задачи запускаются по Sequence, строго по одной; следующая ждёт вердикта Координатора. При любой видимой ошибке автоматизация останавливается и вызывает Мастера; исходное сообщение не перезагружается и не отправляется повторно автоматически. Видимые карточки опроса/аудио с кнопкой Skip будут пропущены автоматически.")) return;
+        if (!confirm("Запустить автоматическую очередь? Ready-задачи запускаются по Sequence, строго по одной; следующая ждёт вердикта Координатора. При любой видимой ошибке автоматизация останавливается и вызывает Мастера; исходное сообщение не перезагружается и не отправляется повторно автоматически. Видимые карточки опроса/аудио с кнопкой Skip будут пропущены автоматически.")) return;
         prepareMasterAlertAudio();
         await GM_setValue(C.autoMode, true);
         await GM_setValue(C.autoPaused, false);
@@ -734,8 +734,8 @@
     const exit = document.createElement("button");
     exit.id = C.manualModeButton;
     exit.type = "button";
-    exit.textContent = "В ручной режим";
-    exit.title = "Немедленно выключить автоматическую очередь и перейти в ручной режим. Текущая задача и её лог сохраняются.";
+    exit.textContent = "Остановить автоматику";
+    exit.title = "Немедленно остановить автоочередь и перейти в ручной режим. Текущая задача и её лог сохраняются; повторной отправки не будет.";
     exit.style.cssText = "display:none;flex:1;min-width:0;padding:8px 10px;border:1px solid #d29b62;border-radius:9px;background:#5c3c24;color:#fff;cursor:pointer;font:600 12px system-ui;text-align:center;align-items:center;justify-content:center;white-space:nowrap";
     exit.onclick = async () => {
       if (!(await autoEnabled())) return;
@@ -1706,7 +1706,7 @@
     if (sound) playMasterAlert();
     const b = document.getElementById(C.modeButton);
     if (b) {
-      b.textContent = "Ручной режим";
+      b.textContent = "Запустить автоочередь";
       b.style.background = "#454545";
       b.setAttribute("aria-pressed", "false");
     }
@@ -1724,7 +1724,7 @@
       playMasterAlert();
       void notifyNtfy(`Требуется внимание Мастера: ${reason}`, { urgent: true, title: "Chronicle Forge: automation paused" });
       const b = document.getElementById(C.modeButton);
-      if (b) b.textContent = "Авто: пауза";
+      if (b) b.textContent = "Возобновить автоочередь";
       void refreshCoordinatorResetButton();
     } finally {
       pauseAutomationBusy = false;
@@ -2938,7 +2938,7 @@ ${roleContextText(coordinator)}
   mount();
   mountModeToggle();
   Promise.all([autoEnabled(), autoIsPaused()]).then(([enabled, paused]) => debugConsole(`startup:${location.pathname}`, "userscript initialized", {
-    version: "0.13.25",
+    version: "0.13.26",
     pathname: location.pathname,
     autoEnabled: Boolean(enabled),
     paused: Boolean(paused),
