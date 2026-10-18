@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chronicle Forge — открыть следующего агента
 // @namespace    https://arena.ai/
-// @version      0.13.24
+// @version      0.13.25
 // @description  Role-aware Arena handoff with a marker-gated Coordinator cycle, FIFO queue, and master alerts.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -497,8 +497,65 @@
       .trim();
   }
   const sameComposerText = (a, b) => composerKey(a) === composerKey(b);
+  function normalizedButtonLabel(value) {
+    return String(value || "")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }
+  function sendButtonLabels(button) {
+    return [
+      button?.getAttribute?.("aria-label"),
+      button?.getAttribute?.("title"),
+      button?.getAttribute?.("data-testid"),
+      button?.getAttribute?.("data-test-id"),
+      button?.textContent,
+    ].map(normalizedButtonLabel).filter(Boolean);
+  }
+  function isSendButtonCandidate(button) {
+    const labels = sendButtonLabels(button);
+    return labels.some((label) => /^(?:send|send message|send a message|send prompt|submit|submit message|отправить|отправить сообщение)$/i.test(label))
+      || labels.some((label) => /(^|[-_ ])(?:send|submit)([-_ ]|$)/i.test(label));
+  }
+  function isSendButtonDisabled(button) {
+    return Boolean(button?.disabled
+      || String(button?.getAttribute?.("aria-disabled") || "").toLowerCase() === "true"
+      || String(button?.getAttribute?.("data-disabled") || "").toLowerCase() === "true");
+  }
+  function chooseSendButton(buttons, visible = isVisible) {
+    const candidates = Array.from(buttons || []).filter(isSendButtonCandidate);
+    return candidates.find((button) => visible(button) && !isSendButtonDisabled(button))
+      || candidates.find(visible)
+      || candidates.find((button) => button?.isConnected !== false)
+      || null;
+  }
   function sendButton() {
-    return Array.from(document.querySelectorAll("button")).find((b) => /^(send message|отправить сообщение)$/i.test((b.getAttribute("aria-label") || b.textContent || "").trim()));
+    return chooseSendButton(document.querySelectorAll('button, [role="button"]'));
+  }
+  function isSendButtonReady(button) {
+    return Boolean(button && isVisible(button) && !isSendButtonDisabled(button));
+  }
+  async function waitForSendButton(timeoutMs = 1800, pollMs = 100) {
+    const deadline = Date.now() + timeoutMs;
+    do {
+      const button = sendButton();
+      if (isSendButtonReady(button)) return button;
+      if (Date.now() >= deadline) break;
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+    } while (true);
+    return null;
+  }
+  function sendButtonDiagnostics() {
+    return Array.from(document.querySelectorAll('button, [role="button"]'))
+      .filter(isSendButtonCandidate)
+      .slice(0, 5)
+      .map((button) => ({
+        labels: sendButtonLabels(button).slice(0, 4),
+        visible: isVisible(button),
+        disabled: isSendButtonDisabled(button),
+        ariaDisabled: button.getAttribute("aria-disabled") || "",
+      }));
   }
   function closeCompletionPanel() {
     const panels = Array.from(document.querySelectorAll("div.border-border-medium.bg-surface-secondary.w-full.rounded-md.border.shadow-sm.outline-none")).filter(isVisible);
@@ -1693,12 +1750,11 @@
   let manualPrepareNoticeKey = "";
   let manualPrepareBlocked = null;
   function manualSendReady() {
-    const button = sendButton();
-    return Boolean(button && !button.disabled && isVisible(button));
+    return isSendButtonReady(sendButton());
   }
   async function sendPreparedManualPrompt(editor, pending, key, roleName) {
-    const button = sendButton();
-    if (!button || button.disabled || !isVisible(button)) {
+    const button = await waitForSendButton(1000);
+    if (!button) {
       const current = composerKey(editor.innerText || editor.textContent);
       if (manualPrepareBlocked?.key !== key || manualPrepareBlocked.current !== current)
         logEvent("Задание подготовлено, но кнопка Send пока недоступна; ожидаю её появления. Повторная отправка не выполняется.", true);
@@ -1892,8 +1948,17 @@
           await pauseAutomation("Текст задания не подтвердился в редакторе; он не отправлен.");
           return;
         }
-        const button = sendButton();
-        if (!button || button.disabled || !isVisible(button)) throw Error("Кнопка Send message не найдена или выключена после заполнения редактора.");
+        const button = await waitForSendButton();
+        if (!button) {
+          const candidates = sendButtonDiagnostics();
+          debugConsole(`send-button-not-ready:${pending.dispatchId}:${pending.runId}`, "send button not actionable after prompt fill", {
+            dispatchId: pending.dispatchId,
+            runId: pending.runId,
+            candidateCount: candidates.length,
+            candidates,
+          });
+          throw Error("Не удалось подтвердить доступную кнопку Send за 1,8 с ожидания; текст оставлен в редакторе, отправка не выполнена.");
+        }
         if (!(await autoEnabled()) || (await autoIsPaused())) return;
         const messages = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]')).map((m) => m.id);
         const count = Number(await GM_getValue(autoCountKey(pending.dispatchId), 0)) || 0;
@@ -1901,16 +1966,37 @@
           await pauseAutomation("Достигнут предел в две отправки (исходная и один повтор) без маркера завершения.");
           return;
         }
+        const unsentPending = { ...pending };
         pending.sentAt = Date.now();
         pending.baselineMessageIds = messages;
         pending.sendOrdinal = count + 1;
         await GM_setValue(autoCountKey(pending.dispatchId), count + 1);
         await GM_setValue(C.pendingPrompt, pending);
+        const restoreUnsentIntent = async () => {
+          await GM_setValue(autoCountKey(pending.dispatchId), count);
+          await GM_setValue(C.pendingPrompt, unsentPending);
+        };
+        if (!(await autoEnabled()) || (await autoIsPaused())) {
+          await restoreUnsentIntent();
+          return;
+        }
+        const latestButton = sendButton();
+        if (!isSendButtonReady(latestButton)) {
+          await restoreUnsentIntent();
+          const candidates = sendButtonDiagnostics();
+          debugConsole(`send-button-lost:${pending.dispatchId}:${pending.runId}`, "send button changed before click", {
+            dispatchId: pending.dispatchId,
+            runId: pending.runId,
+            candidateCount: candidates.length,
+            candidates,
+          });
+          throw Error("Кнопка Send изменилась до клика; текст оставлен в редакторе, отправка не выполнена.");
+        }
         if (autoSubmitTimer) {
           clearTimeout(autoSubmitTimer);
           autoSubmitTimer = null;
         }
-        button.click();
+        latestButton.click();
         toast(`Задание отправлено кнопкой Send (попытка ${count + 1} из ${AUTO.maxSends}); ожидаю ответ.`);
       } catch (error) {
         console.error(automatic ? "[CF auto-send]" : "[CF manual-prompt]", error);
@@ -2145,14 +2231,14 @@
         await new Promise((resolve) => setTimeout(resolve, 350));
         const filled = (editor.innerText || editor.textContent || "").trim();
         if (!sameComposerText(filled, pending.note)) throw Error("Текст уведомления не подтвердился в редакторе.");
-        const button = sendButton();
+        let button = await waitForSendButton();
         if (pending.kind === "campaign-queue" && pending.notificationKey)
           await GM_setValue(pending.notificationKey, true);
         // Save the baseline and correlation before either a scripted or manual send.
         pending.turn.baselineMessageIds = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]')).map((message) => message.id);
         pending.turn.sentAt = Date.now();
         pending.turn.sentText = pending.note;
-        if (!button || button.disabled || !isVisible(button)) {
+        if (!isSendButtonReady(button)) {
           pending.blocked = true;
           pending.manualFallback = true;
           await GM_setValue(C.pendingCoordinatorTurn, pending.turn);
@@ -2163,6 +2249,15 @@
         }
         await GM_setValue(C.pendingCoordinatorTurn, pending.turn);
         await GM_setValue(C.pendingCoordinatorNote, pending);
+        button = sendButton();
+        if (!isSendButtonReady(button)) {
+          pending.blocked = true;
+          pending.manualFallback = true;
+          await GM_setValue(C.pendingCoordinatorNote, pending);
+          logEvent("Кнопка Send изменилась до клика; текст и ход сохранены. Отправьте уведомление вручную один раз; дальнейший цикл ждёт CF_COORDINATOR_RESULT.", true);
+          coordinatorHandoffNotice = "manual-send";
+          return;
+        }
         button.click();
         await new Promise((resolve) => setTimeout(resolve, 1000));
         const stillInComposer = sameComposerText((editor.innerText || editor.textContent || "").trim(), pending.note);
@@ -2843,7 +2938,7 @@ ${roleContextText(coordinator)}
   mount();
   mountModeToggle();
   Promise.all([autoEnabled(), autoIsPaused()]).then(([enabled, paused]) => debugConsole(`startup:${location.pathname}`, "userscript initialized", {
-    version: "0.13.24",
+    version: "0.13.25",
     pathname: location.pathname,
     autoEnabled: Boolean(enabled),
     paused: Boolean(paused),

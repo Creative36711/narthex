@@ -9,6 +9,28 @@ assert.equal(Number(autoBudget[1]), 2, 'automatic mode allows two total sends: i
 assert(source.includes('Достигнут предел в две отправки (исходная и один повтор) без маркера завершения.'), 'pause message matches the two-send budget');
 assert(readme.includes('максимум две отправки всего'), 'README documents the two-send maximum');
 assert(!/до трёх попыток|максимум три отправки|После третьей неудачи/.test(readme), 'README has no stale three-attempt limit');
+const sendButtonStart = source.indexOf('  function normalizedButtonLabel(value) {');
+const sendButtonEnd = source.indexOf('  function closeCompletionPanel()', sendButtonStart);
+assert(sendButtonStart >= 0 && sendButtonEnd > sendButtonStart, 'send-button selector helpers exist');
+const sendButtonHelpers = new Function('isVisible', `${source.slice(sendButtonStart, sendButtonEnd)}\nreturn { isSendButtonCandidate, isSendButtonDisabled, chooseSendButton, isSendButtonReady };`)(
+  (button) => Boolean(button?.visible),
+);
+const fakeSendButton = ({ aria = '', title = '', testId = '', text = '', disabled = false, ariaDisabled = '', visible = true, isConnected = true } = {}) => ({
+  disabled,
+  isConnected,
+  visible,
+  textContent: text,
+  getAttribute(name) {
+    return ({ 'aria-label': aria, title, 'data-testid': testId, 'aria-disabled': ariaDisabled })[name] || null;
+  },
+});
+const hiddenSendButton = fakeSendButton({ aria: 'Send message', visible: false });
+const disabledSendButton = fakeSendButton({ aria: 'Send message', disabled: true });
+const activeSendButton = fakeSendButton({ testId: 'composer-sendButton' });
+assert.equal(sendButtonHelpers.isSendButtonCandidate(activeSendButton), true, 'send-button test IDs are recognized even without an aria-label');
+assert.equal(sendButtonHelpers.chooseSendButton([hiddenSendButton, disabledSendButton, activeSendButton], (button) => button.visible), activeSendButton, 'visible enabled Send wins over an earlier hidden/disabled duplicate');
+assert.equal(sendButtonHelpers.isSendButtonReady(activeSendButton), true, 'visible enabled Send candidate is actionable');
+assert.equal(sendButtonHelpers.isSendButtonReady(fakeSendButton({ aria: 'Send message', ariaDisabled: 'true' })), false, 'aria-disabled Send is not clicked');
 const dispatchStart = source.indexOf('  async function dispatch(task, roles, { retryRunning = false } = {}) {');
 const dispatchEnd = source.indexOf('  async function submitAgent(', dispatchStart);
 assert(dispatchStart >= 0 && dispatchEnd > dispatchStart, 'Dispatch helper exists for retry budget reset check');
