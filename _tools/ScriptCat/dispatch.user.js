@@ -533,10 +533,34 @@
       || Boolean(form.contains?.(button))
       || Boolean(formId && String(button.getAttribute?.("form") || "") === formId);
   }
+  function isNearComposer(button, editor) {
+    const editorRect = editor?.getBoundingClientRect?.();
+    const buttonRect = button?.getBoundingClientRect?.();
+    if (!editorRect || !buttonRect) return false;
+    return buttonRect.bottom >= editorRect.top - 80 && buttonRect.top <= editorRect.bottom + 160
+      && buttonRect.right >= editorRect.left - 50 && buttonRect.left <= editorRect.right + 50;
+  }
+  function isUniqueComposerSubmit(button, form) {
+    if (!button || !form) return false;
+    const controls = Array.from(form.elements || []);
+    const submits = controls.filter((control) =>
+      normalizedButtonLabel(control?.getAttribute?.("type") || control?.type) === "submit",
+    );
+    return submits.length === 1 && submits[0] === button;
+  }
   function isSendButtonCandidate(button, composerForm = null) {
-    const labels = sendButtonLabels(button);
+    const tag = String(button?.tagName || "").toLowerCase();
     const type = normalizedButtonLabel(button?.getAttribute?.("type") || button?.type);
-    const scopedSubmit = type === "submit" && isComposerFormButton(button, composerForm);
+    const role = normalizedButtonLabel(button?.getAttribute?.("role") || button?.role);
+    const interactive = tag === "button"
+      || (tag === "input" && ["button", "submit"].includes(type))
+      || role === "button"
+      || Number(button?.tabIndex) >= 0;
+    if (!interactive) return false;
+    const labels = sendButtonLabels(button);
+    const scopedSubmit = type === "submit"
+      && isComposerFormButton(button, composerForm)
+      && isUniqueComposerSubmit(button, composerForm);
     return scopedSubmit
       || labels.some((label) => /^(?:send|send message|send a message|send prompt|submit|submit message|отправить|отправить сообщение)$/i.test(label))
       || labels.some((label) => /(^|[-_ ])(?:send|submit)([-_ ]|$)/i.test(label))
@@ -557,8 +581,16 @@
       || null;
   }
   function sendButton(editor = findComposer()) {
-    const composerForm = editor?.closest?.("form") || null;
-    return chooseSendButton(document.querySelectorAll(SEND_BUTTON_CONTROL_SELECTOR), isVisible, composerForm);
+    if (!editor) return null;
+    const composerForm = editor.closest?.("form") || null;
+    const controls = Array.from(document.querySelectorAll(SEND_BUTTON_CONTROL_SELECTOR));
+    const candidates = controls.filter((button) => isSendButtonCandidate(button, composerForm));
+    const scoped = composerForm
+      ? candidates.filter((button) => isComposerFormButton(button, composerForm))
+      : [];
+    const nearby = candidates.filter((button) => isNearComposer(button, editor));
+    const pool = scoped.length ? scoped : nearby;
+    return chooseSendButton(pool, isVisible, composerForm);
   }
   function isSendButtonReady(button) {
     return Boolean(button && isVisible(button) && !isSendButtonDisabled(button));
@@ -580,13 +612,9 @@
     const formControls = composerForm
       ? controls.filter((button) => isComposerFormButton(button, composerForm))
       : [];
-    const editorRect = editor?.getBoundingClientRect?.();
-    const nearby = editorRect ? controls.filter((button) => {
-      if (!isVisible(button)) return false;
-      const rect = button.getBoundingClientRect();
-      return rect.bottom >= editorRect.top - 80 && rect.top <= editorRect.bottom + 160
-        && rect.right >= editorRect.left - 50 && rect.left <= editorRect.right + 50;
-    }) : [];
+    const nearby = editor
+      ? controls.filter((button) => isVisible(button) && isNearComposer(button, editor))
+      : [];
     const candidates = Array.from(new Set([...matching, ...formControls, ...nearby])).slice(0, 12);
     return candidates.map((button) => ({
       tag: String(button.tagName || "").toLowerCase(),
@@ -1802,11 +1830,11 @@
     return isSendButtonReady(sendButton(findComposer()));
   }
   async function sendPreparedManualPrompt(editor, pending, key, roleName) {
+    const baselineMessageIds = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]'))
+      .map((message) => message.id);
     const button = await waitForSendButton(1000, 100, editor);
     if (!button) {
       const current = composerKey(editor.innerText || editor.textContent);
-      const baselineMessageIds = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]'))
-        .map((message) => message.id);
       const manualPending = markManualSendRequired(pending, baselineMessageIds);
       await GM_setValue(C.pendingPrompt, manualPending);
       if (manualPrepareBlocked?.key !== key || manualPrepareBlocked.current !== current)
@@ -1819,8 +1847,6 @@
     // sent correlation until the response is submitted so manual-mode replies
     // remain verifiably fresh after the send itself.
     const sentAt = Date.now();
-    const baselineMessageIds = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]'))
-      .map((message) => message.id);
     const sentPrompt = { ...pending, sentAt, baselineMessageIds, manual: true };
     await GM_setValue(C.manualPrepared, { key, preparedAt: sentAt, sentAt, baselineMessageIds, sent: true });
     await GM_setValue(C.pendingPrompt, sentPrompt);
@@ -1962,11 +1988,15 @@
         if (!pending) return;
         if (pending.manualSendRequired) {
           if (!pending.sentAt && generatingNow()) {
+            const sendCount = Number(await GM_getValue(autoCountKey(pending.dispatchId), 0)) || 0;
             pending.sentAt = Date.now();
             pending.baselineMessageIds = pending.manualSendBaselineMessageIds || [];
             pending.manualSendObservedAt = pending.sentAt;
+            pending.sendOrdinal = Math.min(AUTO.maxSends, sendCount + 1);
+            if (sendCount < AUTO.maxSends)
+              await GM_setValue(autoCountKey(pending.dispatchId), sendCount + 1);
             await GM_setValue(C.pendingPrompt, pending);
-            logEvent("Обнаружена генерация после ручного нажатия Send; автоклик для этого Run отключён, ожидаю CF_AGENT_RESULT.", false, { skipNtfy: true });
+            logEvent("Обнаружена генерация после ручного нажатия Send; ручная отправка учтена в лимите, автоклик для этого Run отключён. Ожидаю CF_AGENT_RESULT.", false, { skipNtfy: true });
           }
           return;
         }
@@ -2019,10 +2049,10 @@
           await pauseAutomation("Текст задания не подтвердился в редакторе; он не отправлен.");
           return;
         }
+        const baselineMessageIds = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]'))
+          .map((message) => message.id);
         const button = await waitForSendButton(3000, 100, editor);
         if (!button) {
-          const baselineMessageIds = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]'))
-            .map((message) => message.id);
           const manualPending = markManualSendRequired(pending, baselineMessageIds);
           await GM_setValue(C.pendingPrompt, manualPending);
           const candidates = sendButtonDiagnostics(editor);
@@ -2038,7 +2068,7 @@
           return;
         }
         if (!(await autoEnabled()) || (await autoIsPaused())) return;
-        const messages = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]')).map((m) => m.id);
+        const messages = baselineMessageIds;
         const count = Number(await GM_getValue(autoCountKey(pending.dispatchId), 0)) || 0;
         if (count >= AUTO.maxSends) {
           await pauseAutomation("Достигнут предел в две отправки (исходная и один повтор) без маркера завершения.");

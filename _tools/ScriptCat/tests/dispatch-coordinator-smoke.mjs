@@ -12,19 +12,23 @@ assert(!/до трёх попыток|максимум три отправки|�
 const sendButtonStart = source.indexOf('  function markManualSendRequired(pending, baselineMessageIds, at = Date.now()) {');
 const sendButtonEnd = source.indexOf('  function closeCompletionPanel()', sendButtonStart);
 assert(sendButtonStart >= 0 && sendButtonEnd > sendButtonStart, 'send-button selector helpers exist');
-const sendButtonHelpers = new Function('isVisible', `${source.slice(sendButtonStart, sendButtonEnd)}\nreturn { markManualSendRequired, isSendButtonCandidate, isSendButtonDisabled, isComposerFormButton, chooseSendButton, isSendButtonReady };`)(
+const sendButtonHelpers = new Function('isVisible', `${source.slice(sendButtonStart, sendButtonEnd)}\nreturn { markManualSendRequired, isSendButtonCandidate, isSendButtonDisabled, isComposerFormButton, isNearComposer, isUniqueComposerSubmit, chooseSendButton, isSendButtonReady };`)(
   (button) => Boolean(button?.visible),
 );
-const fakeSendButton = ({ aria = '', title = '', testId = '', text = '', value = '', name = '', id = '', type = '', disabled = false, ariaDisabled = '', visible = true, isConnected = true, form = null } = {}) => ({
+const fakeSendButton = ({ aria = '', title = '', testId = '', text = '', value = '', name = '', id = '', type = '', role = '', tagName = 'BUTTON', tabIndex = -1, disabled = false, ariaDisabled = '', visible = true, isConnected = true, form = null, rect = null } = {}) => ({
   disabled,
   isConnected,
   visible,
   textContent: text,
   value,
   type,
+  role,
+  tagName,
+  tabIndex,
   form,
+  getBoundingClientRect() { return rect; },
   getAttribute(attribute) {
-    return ({ 'aria-label': aria, title, 'data-testid': testId, 'data-test-id': testId, 'aria-disabled': ariaDisabled, value, name, id, type })[attribute] || null;
+    return ({ 'aria-label': aria, title, 'data-testid': testId, 'data-test-id': testId, 'aria-disabled': ariaDisabled, value, name, id, type, role })[attribute] || null;
   },
 });
 const hiddenSendButton = fakeSendButton({ aria: 'Send message', visible: false });
@@ -34,11 +38,25 @@ assert.equal(sendButtonHelpers.isSendButtonCandidate(activeSendButton), true, 's
 assert.equal(sendButtonHelpers.chooseSendButton([hiddenSendButton, disabledSendButton, activeSendButton], (button) => button.visible), activeSendButton, 'visible enabled Send wins over an earlier hidden/disabled duplicate');
 assert.equal(sendButtonHelpers.isSendButtonReady(activeSendButton), true, 'visible enabled Send candidate is actionable');
 assert.equal(sendButtonHelpers.isSendButtonReady(fakeSendButton({ aria: 'Send message', ariaDisabled: 'true' })), false, 'aria-disabled Send is not clicked');
-const composerForm = { id: 'composer-form', contains(button) { return button.form === this; } };
+const composerForm = { id: 'composer-form', elements: [], contains(button) { return button.form === this; } };
 const formSubmit = fakeSendButton({ type: 'submit', form: composerForm });
-assert.equal(sendButtonHelpers.isSendButtonCandidate(formSubmit, composerForm), true, 'submit control associated with the composer form is a safe Send candidate');
+composerForm.elements = [formSubmit];
+assert.equal(sendButtonHelpers.isSendButtonCandidate(formSubmit, composerForm), true, 'unique submit control associated with the composer form is a safe Send candidate');
+assert.equal(sendButtonHelpers.isUniqueComposerSubmit(formSubmit, composerForm), true, 'unlabelled form submit is accepted only when it is the sole submit control');
+const competingSubmit = fakeSendButton({ type: 'submit', form: composerForm });
+composerForm.elements = [formSubmit, competingSubmit];
+assert.equal(sendButtonHelpers.isSendButtonCandidate(formSubmit, composerForm), false, 'ambiguous unlabelled submit controls are not clicked');
+composerForm.elements = [formSubmit];
+assert.equal(sendButtonHelpers.isSendButtonCandidate(fakeSendButton({ aria: 'Send message', tagName: 'DIV' }), composerForm), false, 'a Send-labelled non-interactive container is not clicked');
 assert.equal(sendButtonHelpers.chooseSendButton([formSubmit], (button) => button.visible, composerForm), formSubmit, 'composer-form submit control is preferred as Send');
 assert.equal(sendButtonHelpers.isSendButtonCandidate(fakeSendButton({ type: 'submit' }), composerForm), false, 'unrelated submit controls are not treated as Send');
+const composerEditor = { getBoundingClientRect() { return { top: 100, bottom: 140, left: 20, right: 420 }; } };
+assert.equal(sendButtonHelpers.isNearComposer(fakeSendButton({ rect: { top: 145, bottom: 175, left: 350, right: 380 } }), composerEditor), true, 'nearby controls can be scoped to the editor without a form');
+assert.equal(sendButtonHelpers.isNearComposer(fakeSendButton({ rect: { top: 500, bottom: 530, left: 350, right: 380 } }), composerEditor), false, 'distant Send-labelled controls are not considered the composer Send button');
+const sendButtonBodyStart = source.indexOf('  function sendButton(editor = findComposer()) {');
+const sendButtonBodyEnd = source.indexOf('  function isSendButtonReady(', sendButtonBodyStart);
+const sendButtonBody = source.slice(sendButtonBodyStart, sendButtonBodyEnd);
+assert(sendButtonBody.includes('if (!editor) return null;') && sendButtonBody.includes('const pool = scoped.length ? scoped : nearby;'), 'real Send selection is limited to the composer form or its vicinity');
 const manualPending = sendButtonHelpers.markManualSendRequired({ dispatchId: 'dispatch-1', runId: 'run-1' }, ['chat-message-old'], 123);
 assert.equal(manualPending.manualSendRequired, true, 'unconfirmed Send is persisted as a manual-only action');
 assert.equal(manualPending.sentAt, undefined, 'manual fallback does not claim the prompt was sent');
@@ -48,9 +66,16 @@ const autoSendEnd = source.indexOf('  async function retryPending(', autoSendSta
 assert(autoSendStart >= 0 && autoSendEnd > autoSendStart, 'automatic Send path exists');
 const autoSendBody = source.slice(autoSendStart, autoSendEnd);
 assert(autoSendBody.includes('if (pending.manualSendRequired)'), 'manual fallback suppresses subsequent automatic clicks for this Run');
+assert(autoSendBody.includes('await GM_setValue(autoCountKey(pending.dispatchId), sendCount + 1)'), 'observed manual send is counted against the existing per-Dispatch send limit');
+assert(autoSendBody.includes('pending.sendOrdinal = Math.min(AUTO.maxSends, sendCount + 1)'), 'manual send correlation preserves its bounded attempt ordinal');
 assert(autoSendBody.includes('markManualSendRequired(pending, baselineMessageIds)'), 'unconfirmed Send persists a safe manual fallback');
 assert(autoSendBody.includes('Нажмите Send вручную один раз'), 'false-negative message tells the user how to continue');
 assert(!autoSendBody.includes('throw Error("Не удалось подтвердить доступную кнопку Send'), 'button-detection false negative no longer escalates into a full automation stop');
+const noButtonStart = autoSendBody.indexOf('const button = await waitForSendButton(3000, 100, editor)');
+const noButtonEnd = autoSendBody.indexOf('if (!(await autoEnabled()) || (await autoIsPaused())) return;', noButtonStart);
+const noButtonBranch = autoSendBody.slice(noButtonStart, noButtonEnd);
+assert(noButtonBranch.includes('markManualSendRequired(pending, baselineMessageIds)'), 'no-button branch records the manual-only Run');
+assert(!noButtonBranch.includes('autoCountKey(') && !noButtonBranch.includes('button.click()'), 'no-button fallback neither consumes the send budget nor clicks');
 const dispatchStart = source.indexOf('  async function dispatch(task, roles, { retryRunning = false } = {}) {');
 const dispatchEnd = source.indexOf('  async function submitAgent(', dispatchStart);
 assert(dispatchStart >= 0 && dispatchEnd > dispatchStart, 'Dispatch helper exists for retry budget reset check');
