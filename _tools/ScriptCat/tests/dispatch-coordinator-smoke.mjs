@@ -2,6 +2,22 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../dispatch.user.js', import.meta.url), 'utf8');
+const readme = await readFile(new URL('../README-авторизация.md', import.meta.url), 'utf8');
+const autoBudget = source.match(/const AUTO = \{ maxSends: (\d+),/);
+assert.ok(autoBudget, 'automatic send budget is declared');
+assert.equal(Number(autoBudget[1]), 2, 'automatic mode allows two total sends: initial send plus one retry');
+assert(source.includes('Достигнут предел в две отправки (исходная и один повтор) без маркера завершения.'), 'pause message matches the two-send budget');
+assert(readme.includes('максимум две отправки всего'), 'README documents the two-send maximum');
+assert(!/до трёх попыток|максимум три отправки|После третьей неудачи/.test(readme), 'README has no stale three-attempt limit');
+const dispatchStart = source.indexOf('  async function dispatch(task, roles, { retryRunning = false } = {}) {');
+const dispatchEnd = source.indexOf('  async function submitAgent(', dispatchStart);
+assert(dispatchStart >= 0 && dispatchEnd > dispatchStart, 'Dispatch helper exists for retry budget reset check');
+assert(source.slice(dispatchStart, dispatchEnd).includes('await GM_setValue(autoCountKey(p.id), 0);'), 'fresh Ready dispatch resets the prior retry budget');
+const retryStart = source.indexOf('  async function retryPending(pending, reason) {');
+const retryEnd = source.indexOf('  async function monitorVisibleChatError()', retryStart);
+assert(retryStart >= 0 && retryEnd > retryStart, 'automatic retry helper exists');
+const retryBody = source.slice(retryStart, retryEnd);
+assert(retryBody.indexOf('currentState !== "Running" || !sameRun') < retryBody.indexOf('const count ='), 'stale/non-Running attempts are discarded before retry-budget checks');
 const freshnessStart = source.indexOf('  function isFreshExecutorMessage(');
 const freshnessEnd = source.indexOf('  function agentResult(', freshnessStart);
 assert(freshnessStart >= 0 && freshnessEnd > freshnessStart, 'Executor freshness helpers exist');
@@ -104,5 +120,3 @@ assert.deepEqual(
 assert(source.includes('function findExecutorRoleForTask(task, roles)'), 'Executor lookup resolves by role name first');
 assert(source.includes('function taskMatchesExecutorRole(task, role, pageAgentId = role?.id)'), 'Executor task matching supports replaced agents by role name');
 assert(source.includes('async function isActionLockHeld()'), 'stale action locks auto-expire safely');
-
-

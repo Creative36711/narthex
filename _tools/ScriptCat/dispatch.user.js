@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chronicle Forge — открыть следующего агента
 // @namespace    https://arena.ai/
-// @version      0.13.23
+// @version      0.13.24
 // @description  Role-aware Arena handoff with a marker-gated Coordinator cycle, FIFO queue, and master alerts.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -52,7 +52,7 @@
     reloadCountPrefix: "cf-auto-error-reload-count:",
     autoPauseContext: "cf-automation-pause-context",
   };
-  const AUTO = { maxSends: 3, noStartMs: 90000, idleMs: 18000, coordinatorMarkerRetries: 2 };
+  const AUTO = { maxSends: 2, noStartMs: 90000, idleMs: 18000, coordinatorMarkerRetries: 2 };
   const rt = (p) =>
     (p?.rich_text || p?.title || [])
       .map((x) => x.plain_text || x.text?.content || "")
@@ -1383,6 +1383,10 @@
         runId: run,
         createdAt: reusablePending ? pending.createdAt : Date.now(),
       });
+      // A fresh Ready dispatch starts a new logical attempt budget; only retryRunning
+      // carries the current Run's existing count forward.
+      await GM_setValue(autoCountKey(p.id), 0);
+      await GM_setValue(`${C.reloadCountPrefix}${p.id}`, 0);
     }
     buttonText(reusablePending ? "Возобновляю создание того же лога…" : "Создаю отдельный лог…");
     const log = await createRunLog(p.id, run);
@@ -1894,7 +1898,7 @@
         const messages = Array.from(document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]')).map((m) => m.id);
         const count = Number(await GM_getValue(autoCountKey(pending.dispatchId), 0)) || 0;
         if (count >= AUTO.maxSends) {
-          await pauseAutomation("Достигнут предел в три попытки без маркера завершения.");
+          await pauseAutomation("Достигнут предел в две отправки (исходная и один повтор) без маркера завершения.");
           return;
         }
         pending.sentAt = Date.now();
@@ -1918,9 +1922,21 @@
     }, 1300);
   }
   async function retryPending(pending, reason) {
+    const currentTask = await fresh(pending.dispatchId);
+    const currentState = state(currentTask);
+    const sameRun = runId(currentTask) === pending.runId;
+    if (currentState === "Submitted" && sameRun) return;
+    if (currentState !== "Running" || !sameRun) {
+      const storedPending = await GM_getValue(C.pendingPrompt, null);
+      if (storedPending?.dispatchId === pending.dispatchId && storedPending?.runId === pending.runId) {
+        await GM_setValue(C.pendingPrompt, null);
+        logEvent("Сохранённая автоматическая попытка устарела: Dispatch больше не Running или уже имеет другой Run. Повтор не отправлен.", false, { skipNtfy: true });
+      }
+      return;
+    }
     const count = Number(await GM_getValue(autoCountKey(pending.dispatchId), 0)) || 0;
     if (count >= AUTO.maxSends) {
-      await pauseAutomation(`${reason}; выполнены все три разрешённые попытки без маркера завершения.`);
+      await pauseAutomation(`${reason}; выполнены обе разрешённые отправки без маркера завершения.`);
       return;
     }
     if (await isActionLockHeld()) return;
@@ -2827,7 +2843,7 @@ ${roleContextText(coordinator)}
   mount();
   mountModeToggle();
   Promise.all([autoEnabled(), autoIsPaused()]).then(([enabled, paused]) => debugConsole(`startup:${location.pathname}`, "userscript initialized", {
-    version: "0.13.22",
+    version: "0.13.24",
     pathname: location.pathname,
     autoEnabled: Boolean(enabled),
     paused: Boolean(paused),
