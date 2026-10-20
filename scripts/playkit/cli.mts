@@ -570,6 +570,10 @@ interface Injection {
   /** квест → стадия */
   quests: Array<[string, string]>
   weather: string | null
+  /** валюта → количество */
+  currencies: Array<[string, number]>
+  /** навык → значение */
+  skills: Array<[string, number]>
 }
 
 function parseInjection(flags: Flags): Injection {
@@ -584,6 +588,8 @@ function parseInjection(flags: Flags): Injection {
     entities: [],
     quests: [],
     weather: null,
+    currencies: [],
+    skills: [],
   }
   for (const entry of flagList(flags, 'set')) {
     const [name, raw] = entry.split('=')
@@ -617,6 +623,14 @@ function parseInjection(flags: Flags): Injection {
     if (id && stage) injection.quests.push([id, stage])
   }
   injection.weather = flagText(flags, 'weather')
+  for (const entry of flagList(flags, 'currency')) {
+    const [id, raw = '0'] = entry.split(':')
+    if (id) injection.currencies.push([id, Number(raw) || 0])
+  }
+  for (const entry of flagList(flags, 'skill')) {
+    const [id, raw = '0'] = entry.split('=')
+    if (id) injection.skills.push([id, Number(raw) || 0])
+  }
   return injection
 }
 
@@ -632,6 +646,8 @@ function injectionNotes(injection: Injection): string[] {
   for (const [id, state] of injection.entities) notes.push(`облик ${id} → ${state || 'сброс'}`)
   for (const [id, stage] of injection.quests) notes.push(`квест ${id} → ${stage}`)
   if (injection.weather) notes.push(`погода → ${injection.weather}`)
+  for (const [id, qty] of injection.currencies) notes.push(`валюта ${id}+${qty}`)
+  for (const [id, value] of injection.skills) notes.push(`навык ${id}=${value}`)
   return notes
 }
 
@@ -661,6 +677,14 @@ function applyInjection(engine: AnyObj, injection: Injection): void {
   for (const [id, state] of injection.entities) engine.applyEffect({ type: 'set_entity_state', entity: id, state })
   for (const [id, stage] of injection.quests) engine.advanceQuestTo(id, stage)
   if (injection.weather) engine.applyEffect({ type: 'set_weather', weather: injection.weather })
+  for (const [id, qty] of injection.currencies) {
+    state.currencies ??= {}
+    state.currencies[id] = Number(state.currencies[id] ?? 0) + qty
+  }
+  for (const [id, value] of injection.skills) {
+    state.player.skills ??= {}
+    state.player.skills[id] = value
+  }
   engine.checkRules()
   if (injection.scene) {
     // сцена без своей локации оставила бы игрока «в воздухе»: переносим и локацию
@@ -1262,6 +1286,7 @@ const USAGE = [
   'отладочные правки состояния (как панель отладки в редакторе):',
   '  --set flag=1  --var name=3  --item id:2  --tick 40  --scene scene_id  --hp 5  --god',
   '  --entity npc_id=state  --quest quest_id=stage  --weather weather_id',
+  '  --currency coin:5  --skill melee=60',
 ].join('\n')
 
 async function main(): Promise<void> {

@@ -18116,7 +18116,9 @@ function parseInjection(flags) {
     god: false,
     entities: [],
     quests: [],
-    weather: null
+    weather: null,
+    currencies: [],
+    skills: []
   };
   for (const entry of flagList(flags, "set")) {
     const [name, raw] = entry.split("=");
@@ -18150,6 +18152,14 @@ function parseInjection(flags) {
     if (id && stage) injection.quests.push([id, stage]);
   }
   injection.weather = flagText(flags, "weather");
+  for (const entry of flagList(flags, "currency")) {
+    const [id, raw = "0"] = entry.split(":");
+    if (id) injection.currencies.push([id, Number(raw) || 0]);
+  }
+  for (const entry of flagList(flags, "skill")) {
+    const [id, raw = "0"] = entry.split("=");
+    if (id) injection.skills.push([id, Number(raw) || 0]);
+  }
   return injection;
 }
 function injectionNotes(injection) {
@@ -18164,6 +18174,8 @@ function injectionNotes(injection) {
   for (const [id, state] of injection.entities) notes.push(`\u043E\u0431\u043B\u0438\u043A ${id} \u2192 ${state || "\u0441\u0431\u0440\u043E\u0441"}`);
   for (const [id, stage] of injection.quests) notes.push(`\u043A\u0432\u0435\u0441\u0442 ${id} \u2192 ${stage}`);
   if (injection.weather) notes.push(`\u043F\u043E\u0433\u043E\u0434\u0430 \u2192 ${injection.weather}`);
+  for (const [id, qty] of injection.currencies) notes.push(`\u0432\u0430\u043B\u044E\u0442\u0430 ${id}+${qty}`);
+  for (const [id, value] of injection.skills) notes.push(`\u043D\u0430\u0432\u044B\u043A ${id}=${value}`);
   return notes;
 }
 function isInjected(injection) {
@@ -18183,6 +18195,14 @@ function applyInjection(engine, injection) {
   for (const [id, state2] of injection.entities) engine.applyEffect({ type: "set_entity_state", entity: id, state: state2 });
   for (const [id, stage] of injection.quests) engine.advanceQuestTo(id, stage);
   if (injection.weather) engine.applyEffect({ type: "set_weather", weather: injection.weather });
+  for (const [id, qty] of injection.currencies) {
+    state.currencies ??= {};
+    state.currencies[id] = Number(state.currencies[id] ?? 0) + qty;
+  }
+  for (const [id, value] of injection.skills) {
+    state.player.skills ??= {};
+    state.player.skills[id] = value;
+  }
   engine.checkRules();
   if (injection.scene) {
     const target = engine.campaign?.scenes?.[injection.scene];
@@ -18680,7 +18700,8 @@ var USAGE = [
   "",
   "\u043E\u0442\u043B\u0430\u0434\u043E\u0447\u043D\u044B\u0435 \u043F\u0440\u0430\u0432\u043A\u0438 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F (\u043A\u0430\u043A \u043F\u0430\u043D\u0435\u043B\u044C \u043E\u0442\u043B\u0430\u0434\u043A\u0438 \u0432 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0435):",
   "  --set flag=1  --var name=3  --item id:2  --tick 40  --scene scene_id  --hp 5  --god",
-  "  --entity npc_id=state  --quest quest_id=stage  --weather weather_id"
+  "  --entity npc_id=state  --quest quest_id=stage  --weather weather_id",
+  "  --currency coin:5  --skill melee=60"
 ].join("\n");
 async function main() {
   const { command, positional, flags } = parseArgs(process.argv.slice(2));
