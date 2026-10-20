@@ -30,6 +30,7 @@ import { GameEngine } from '../../src/core/engine'
 import { PRNG } from '../../src/core/prng'
 import { newCharChoice } from '../../src/core/charcreate'
 import { ENGINE_VERSION } from '../../src/shared/versions'
+import { analyzeCampaign, formatGraphReport } from './analyze'
 
 const PLAYKIT_VERSION = '0.1.0'
 const DEFAULT_ORIGIN = 'http://cf-play.local/'
@@ -57,26 +58,47 @@ function stableJson(value: unknown): string {
   })
 }
 
-function parseArgs(argv: string[]): { command: string; positional: string[]; flags: Record<string, string | boolean> } {
+type FlagValue = string | boolean
+type Flags = Record<string, FlagValue | FlagValue[]>
+
+function parseArgs(argv: string[]): { command: string; positional: string[]; flags: Flags } {
   const [command, ...rest] = argv
   const positional: string[] = []
-  const flags: Record<string, string | boolean> = {}
+  const flags: Flags = {}
+  const put = (key: string, value: FlagValue) => {
+    const current = flags[key]
+    if (current === undefined) flags[key] = value
+    else if (Array.isArray(current)) current.push(value)
+    else flags[key] = [current, value]
+  }
   for (let i = 0; i < rest.length; i++) {
     const token = rest[i]!
     if (token.startsWith('--')) {
       const key = token.slice(2)
       const next = rest[i + 1]
       if (next !== undefined && !next.startsWith('--')) {
-        flags[key] = next
+        put(key, next)
         i++
       } else {
-        flags[key] = true
+        put(key, true)
       }
     } else {
       positional.push(token)
     }
   }
   return { command: command ?? '', positional, flags }
+}
+
+function flagList(flags: Flags, key: string): string[] {
+  const value = flags[key]
+  if (value === undefined) return []
+  return (Array.isArray(value) ? value : [value]).map(String)
+}
+
+function flagText(flags: Flags, key: string): string | null {
+  const value = flags[key]
+  if (value === undefined || value === true) return null
+  return String(Array.isArray(value) ? value[value.length - 1] : value)
 }
 
 async function walk(dir: string, acc: string[] = []): Promise<string[]> {
@@ -316,7 +338,7 @@ function makeObserver(engine: AnyObj, campaign: AnyObj) {
         mp: Number(state.player?.mp ?? 0),
         max_mp: Number(state.player?.max_mp ?? 0),
         needs: { ...(state.player?.needs ?? {}) },
-        quests: Object.entries(state.quests ?? {}).map(([id, q]: [string, AnyObj]) => ({
+        quests: Object.entries((state.quests ?? {}) as Record<string, AnyObj>).map(([id, q]) => ({
           id,
           label: String(campaign.quests?.[id]?.label ?? id),
           stage: String(q?.stage ?? ''),
@@ -534,6 +556,91 @@ function checkExpectation(engine: AnyObj, expectation: AnyObj): { name: string; 
 
 // ─────────────────────────────── прогон ─────────────────────────────────────
 
+/** Отладочные правки состояния — аналог панели отладки у человека. */
+interface Injection {
+  flags: Array<[string, boolean]>
+  variables: Array<[string, number | string]>
+  items: Array<[string, number]>
+  tick: number | null
+  scene: string | null
+  hp: number | null
+  god: boolean
+}
+
+function parseInjection(flags: Flags): Injection {
+  const injection: Injection = { flags: [], variables: [], items: [], tick: null, scene: null, hp: null, god: false }
+  for (const entry of flagList(flags, 'set')) {
+    const [name, raw] = entry.split('=')
+    if (!name) continue
+    const value = raw === undefined ? true : !['0', 'false', 'no', ''].includes(raw.toLowerCase())
+    injection.flags.push([name, value])
+  }
+  for (const entry of flagList(flags, 'var')) {
+    const [name, raw = '0'] = entry.split('=')
+    if (!name) continue
+    const num = Number(raw)
+    injection.variables.push([name, raw.trim() !== '' && Number.isFinite(num) ? num : raw])
+  }
+  for (const entry of flagList(flags, 'item')) {
+    const [id, raw = '1'] = entry.split(':')
+    if (!id) continue
+    injection.items.push([id, Math.max(1, Number(raw) || 1)])
+  }
+  const tick = flagText(flags, 'tick')
+  if (tick !== null && Number.isFinite(Number(tick))) injection.tick = Number(tick)
+  injection.scene = flagText(flags, 'scene')
+  const hp = flagText(flags, 'hp')
+  if (hp !== null && Number.isFinite(Number(hp))) injection.hp = Number(hp)
+  injection.god = !!flags.god
+  return injection
+}
+
+function injectionNotes(injection: Injection): string[] {
+  const notes: string[] = []
+  for (const [name, value] of injection.flags) notes.push(`флаг ${name}=${value}`)
+  for (const [name, value] of injection.variables) notes.push(`переменная ${name}=${String(value)}`)
+  for (const [id, qty] of injection.items) notes.push(`предмет ${id}×${qty}`)
+  if (injection.tick !== null) notes.push(`тик → ${injection.tick}`)
+  if (injection.scene) notes.push(`переход в сцену ${injection.scene}`)
+  if (injection.hp !== null) notes.push(`HP → ${injection.hp}`)
+  if (injection.god) notes.push('режим бессмертия')
+  return notes
+}
+
+function isInjected(injection: Injection): boolean {
+  return (
+    injection.flags.length > 0 ||
+    injection.variables.length > 0 ||
+    injection.items.length > 0 ||
+    injection.tick !== null ||
+    injection.scene !== null ||
+    injection.hp !== null ||
+    injection.god
+  )
+}
+
+function applyInjection(engine: AnyObj, injection: Injection): void {
+  const state = engine.state
+  for (const [name, value] of injection.flags) {
+    if (value) state.flags[name] = true
+    else delete state.flags[name]
+  }
+  for (const [name, value] of injection.variables) state.variables[name] = value
+  for (const [id, qty] of injection.items) engine.addItem(id, qty, { silent: true })
+  if (injection.hp !== null) state.player.hp = Math.max(0, Math.min(state.player.max_hp, injection.hp))
+  if (injection.tick !== null) state.tick = Math.max(state.tick, injection.tick)
+  if (injection.god) engine.debugInvincible = true
+  engine.checkRules()
+  if (injection.scene) {
+    // сцена без своей локации оставила бы игрока «в воздухе»: переносим и локацию
+    const target = engine.campaign?.scenes?.[injection.scene]
+    if (target?.location && state.current_location !== target.location) {
+      state.current_location = target.location
+    }
+    engine.goToScene(injection.scene)
+  }
+}
+
 interface RunConfig {
   campaignDir: string
   seed: string
@@ -541,6 +648,8 @@ interface RunConfig {
   debug: boolean
   routeName?: string
   quiet: boolean
+  injection: Injection
+  record: string | null
 }
 
 interface RunResult {
@@ -549,7 +658,10 @@ interface RunResult {
   campaign: { id: string; title: string; version: string; logicDigest: string }
   seed: string
   route: string | null
-  mode: 'run' | 'fuzz' | 'explore'
+  mode: 'run' | 'fuzz' | 'explore' | 'sweep'
+  /** honest — честное прохождение; injected — с отладочными правками состояния */
+  evidence: 'honest' | 'injected'
+  injected: string[]
   status: 'ok' | 'failed' | 'softlock' | 'error'
   steps: number
   assertions: Array<{ name: string; ok: boolean; detail: string }>
@@ -559,7 +671,7 @@ interface RunResult {
   error?: string
 }
 
-async function loadEngine(campaignDir: string, seed: string, _debug: boolean) {
+async function loadEngine(campaignDir: string, seed: string, _debug: boolean, injection: Injection) {
   installShims(campaignDir)
   const campaign = (await loadCampaign(DEFAULT_ORIGIN)) as AnyObj
   const engine = new GameEngine(campaign as never) as AnyObj
@@ -574,6 +686,7 @@ async function loadEngine(campaignDir: string, seed: string, _debug: boolean) {
     engine.applyCharCreation(newCharChoice(creation, template, campaign.meta))
   }
   engine.start()
+  applyInjection(engine, injection)
   return { campaign, engine, engineVersion: String(ENGINE_VERSION) }
 }
 
@@ -584,6 +697,8 @@ function renderTranscript(config: RunConfig, campaign: AnyObj, engineVersion: st
   lines.push(`- кампания: \`${campaign.meta.id}\` v${campaign.meta.version}`)
   lines.push(`- движок: ${engineVersion} · playkit ${PLAYKIT_VERSION}`)
   lines.push(`- seed: \`${config.seed}\` · логика кампании: \`${digest.slice(0, 23)}…\``)
+  const notes = injectionNotes(config.injection)
+  if (notes.length) lines.push(`- **отладочные правки:** ${notes.join('; ')}`)
   lines.push('')
   for (const step of steps) {
     const obs = step.observation as Observation
@@ -631,6 +746,19 @@ async function writeRun(config: RunConfig, result: RunResult, steps: AnyObj[], e
   const runJson = stableJson({ config: { seed: config.seed, route: result.route, mode: result.mode }, steps })
   result.hashes.run = sha256(runJson)
 
+  if (config.record && result.mode !== 'run') {
+    const actions = steps
+      .slice(1)
+      .map((step) => step.action)
+      .filter((action): action is AnyObj => !!action)
+      .map((action) => {
+        const { detail: _detail, ...rest } = action
+        return rest
+      })
+    const route = { name: `${result.campaign.id} / записано ${result.mode} seed ${result.seed}`, steps: actions }
+    await writeFile(resolve(config.record), JSON.stringify(route, null, 2) + '\n', 'utf8')
+  }
+
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true })
     await writeFile(join(config.outDir, 'transcript.md'), transcript, 'utf8')
@@ -643,10 +771,10 @@ async function writeRun(config: RunConfig, result: RunResult, steps: AnyObj[], e
 
 function collectCoverage(engine: AnyObj, campaign: AnyObj, seen: { scenes: Set<string>; locations: Set<string>; dialogues: Set<string>; choices: Set<string>; endings: Set<string> }): AnyObj {
   const allScenes = Object.keys(campaign.scenes ?? {})
-  const allLocations = Object.values(campaign.world?.regions ?? {}).flatMap((r: AnyObj) => (r.locations ?? []).map((l: AnyObj) => l.id))
-  const allDialogues = Object.values(campaign.entities ?? {})
-    .filter((e: AnyObj) => e.type === 'npc' && e.dialogue)
-    .map((e: AnyObj) => e.id)
+  const allLocations = (Object.values(campaign.world?.regions ?? {}) as AnyObj[]).flatMap((r) => ((r.locations ?? []) as AnyObj[]).map((l) => l.id))
+  const allDialogues = (Object.values(campaign.entities ?? {}) as AnyObj[])
+    .filter((e) => e.type === 'npc' && e.dialogue)
+    .map((e) => e.id)
   const allEndings = Object.keys(campaign.meta?.endings ?? {})
   const state = engine.state
   return {
@@ -660,7 +788,7 @@ function collectCoverage(engine: AnyObj, campaign: AnyObj, seen: { scenes: Set<s
 }
 
 async function cmdRun(config: RunConfig, script: AnyObj): Promise<RunResult> {
-  const { campaign, engine, engineVersion } = await loadEngine(config.campaignDir, config.seed, config.debug)
+  const { campaign, engine, engineVersion } = await loadEngine(config.campaignDir, config.seed, config.debug, config.injection)
   const observe = makeObserver(engine, campaign)
   const steps: AnyObj[] = []
   const assertions: Array<{ name: string; ok: boolean; detail: string }> = []
@@ -714,6 +842,8 @@ async function cmdRun(config: RunConfig, script: AnyObj): Promise<RunResult> {
     seed: config.seed,
     route: config.routeName ?? null,
     mode: 'run',
+    evidence: isInjected(config.injection) ? 'injected' : 'honest',
+    injected: injectionNotes(config.injection),
     status,
     steps: steps.length,
     assertions,
@@ -754,7 +884,7 @@ function chooseAction(rng: () => number, observation: Observation, mode: 'fuzz' 
 }
 
 async function cmdSearch(config: RunConfig, mode: 'fuzz' | 'explore', stepsLimit: number): Promise<RunResult> {
-  const { campaign, engine, engineVersion } = await loadEngine(config.campaignDir, config.seed, config.debug)
+  const { campaign, engine, engineVersion } = await loadEngine(config.campaignDir, config.seed, config.debug, config.injection)
   const rng = seedrandom(`${config.seed}:${mode}`) as unknown as () => number
   const observe = makeObserver(engine, campaign)
   const steps: AnyObj[] = []
@@ -815,6 +945,8 @@ async function cmdSearch(config: RunConfig, mode: 'fuzz' | 'explore', stepsLimit
     seed: config.seed,
     route: null,
     mode,
+    evidence: isInjected(config.injection) ? 'injected' : 'honest',
+    injected: injectionNotes(config.injection),
     status,
     steps: steps.length,
     assertions: [],
@@ -826,7 +958,245 @@ async function cmdSearch(config: RunConfig, mode: 'fuzz' | 'explore', stepsLimit
   return result
 }
 
-async function cmdVerify(dir: string, expectEngine: string | null): Promise<number> {
+// ─────────────────────────── обзор диалога ─────────────────────────────────
+
+interface DialogueBranch {
+  path: number[]
+  lines: Array<{ speaker: string; text: string }>
+  choices: string[]
+  chosen: string[]
+  flags: Record<string, boolean>
+  quests: Record<string, string>
+  combat: string | null
+  over: string | null
+  closed: boolean
+  errors: string[]
+}
+
+async function cmdDialogue(
+  config: RunConfig,
+  target: string,
+  maxDepth: number,
+  maxNodes: number,
+): Promise<{ branches: DialogueBranch[]; report: AnyObj; text: string }> {
+  const { campaign, engine } = await loadEngine(config.campaignDir, config.seed, true, config.injection)
+  const { GameEngine } = await import('../../src/core/engine')
+
+  let npcId = target
+  if (!campaign.entities?.[npcId] || campaign.entities[npcId].type !== 'npc') {
+    const found = (Object.values(campaign.entities ?? {}) as AnyObj[]).find(
+      (entity) => entity.type === 'npc' && String(entity.dialogue ?? '') === target,
+    )
+    if (!found) throw new Error(`не найден NPC или диалог «${target}»`)
+    npcId = String(found.id)
+  }
+  const npc = campaign.entities[npcId] as AnyObj
+  const baseState = JSON.parse(JSON.stringify(engine.state)) as AnyObj
+  const baseFlags = { ...(baseState.flags ?? {}) }
+  const baseQuests = Object.fromEntries(Object.entries((baseState.quests ?? {}) as Record<string, AnyObj>).map(([id, q]) => [id, String(q?.stage ?? '')]))
+
+  const branches: DialogueBranch[] = []
+  const seenFlags = new Set<string>()
+  const queue: Array<{ path: number[]; chosen: string[] }> = [{ path: [], chosen: [] }]
+  let truncated = false
+
+  while (queue.length) {
+    if (branches.length >= maxNodes) {
+      truncated = true
+      break
+    }
+    const item = queue.shift()!
+    const state = JSON.parse(JSON.stringify(baseState)) as AnyObj
+    const probe = new GameEngine(campaign as never, state as never) as AnyObj
+    const lines: Array<{ speaker: string; text: string }> = []
+    const errors: string[] = []
+    const pushLine = (speaker: string, text: string) => {
+      const last = lines[lines.length - 1]
+      if (last && last.text === text && last.speaker === speaker) return
+      lines.push({ speaker, text })
+    }
+    try {
+      probe.startDialogue(npcId)
+    } catch (error) {
+      errors.push(String((error as Error)?.message ?? error))
+    }
+    if (probe.lastDialogueError) errors.push(String(probe.lastDialogueError))
+    for (const index of item.path) {
+      if (!probe.dialogue) break
+      probe.chooseDialogueOption(index)
+      if (probe.lastDialogueError && !errors.includes(String(probe.lastDialogueError))) {
+        errors.push(String(probe.lastDialogueError))
+      }
+    }
+    // История хранит и реплики, и эхо выбора; текущие строки берём из неё,
+    // а из открытого диалога — только то, чего в истории ещё нет.
+    for (const line of (probe.dialogueHistory ?? []) as AnyObj[]) {
+      pushLine(String(line.speaker ?? npc.label ?? ''), String(line.text ?? ''))
+    }
+    const ui = probe.dialogue as AnyObj | null
+    for (const line of ((ui?.lines ?? []) as AnyObj[])) {
+      if (line.action) continue
+      pushLine(String(line.speaker ?? npc.label ?? ''), String(line.text ?? ''))
+    }
+
+    const flags = Object.fromEntries(
+      Object.entries(probe.state.flags ?? {}).filter(([name, value]) => !baseFlags[name] && value),
+    ) as Record<string, boolean>
+    for (const name of Object.keys(flags)) seenFlags.add(name)
+    const quests = Object.fromEntries(
+      Object.entries((probe.state.quests ?? {}) as Record<string, AnyObj>)
+        .map(([id, q]) => [id, String(q?.stage ?? '')])
+        .filter(([id, stage]) => baseQuests[id] !== stage),
+    ) as Record<string, string>
+
+    const choices = ui ? ((ui.choices ?? []) as AnyObj[]).map((choice) => String(choice.text)) : []
+    branches.push({
+      path: item.path,
+      lines,
+      choices,
+      chosen: item.chosen,
+      flags,
+      quests,
+      combat: probe.combat ? String(probe.combat.arena?.id ?? 'combat') : null,
+      over: probe.state.game_over ? `${probe.state.game_over.type}: ${probe.state.game_over.reason ?? ''}` : null,
+      closed: !ui && !probe.combat && !probe.state.game_over,
+      errors,
+    })
+
+    if (ui && choices.length && item.path.length < maxDepth) {
+      for (let index = 0; index < choices.length; index++) {
+        queue.push({ path: [...item.path, index], chosen: [...item.chosen, choices[index]!] })
+      }
+    }
+  }
+
+  const uniqueLines = new Set(branches.flatMap((branch) => branch.lines.map((line) => line.text))).size
+  const uniqueChoices = new Set(branches.flatMap((branch) => branch.choices)).size
+  const report = {
+    npc: npcId,
+    npcLabel: String(npc.label ?? npcId),
+    dialogue: String(npc.dialogue ?? ''),
+    branches: branches.length,
+    maxDepth,
+    truncated,
+    uniqueLines,
+    uniqueChoices,
+    flags: [...seenFlags].sort(),
+    closedWithoutEffect: branches.filter((branch) => branch.closed).length,
+    errors: [...new Set(branches.flatMap((branch) => branch.errors))],
+    paths: branches.map((branch) => ({
+      chosen: branch.chosen,
+      choicesLeft: branch.choices.length,
+      flags: branch.flags,
+      quests: branch.quests,
+      combat: branch.combat,
+      over: branch.over,
+    })),
+  }
+
+  const lines: string[] = []
+  lines.push(`# Разбор диалога · ${report.npcLabel}`)
+  lines.push('')
+  lines.push(`файл \`${report.dialogue}\` · ветвей ${report.branches} · реплик ${report.uniqueLines} · вариантов ${report.uniqueChoices}`)
+  if (truncated) lines.push('')
+  if (truncated) lines.push('> обход обрезан по лимиту ветвей; увеличьте --max-nodes')
+  if (report.errors.length) {
+    lines.push('', '## Ошибки')
+    for (const error of report.errors) lines.push(`- ✗ ${error}`)
+  }
+  const flagLine = report.flags.length ? report.flags.join(', ') : 'нет'
+  lines.push('', `**Флаги, которые выставляет разговор:** ${flagLine}`)
+  lines.push('', '## Ветви')
+  for (const branch of branches) {
+    const path = branch.chosen.length ? branch.chosen.join(' → ') : '(начало)'
+    lines.push('')
+    lines.push(`### ${path}`)
+    for (const line of branch.lines.slice(0, 12)) lines.push(`- ${line.speaker ? `**${line.speaker}:** ` : ''}${line.text}`)
+    if (branch.lines.length > 12) lines.push(`- … ещё ${branch.lines.length - 12} реплик`)
+    if (branch.choices.length) lines.push(`- варианты: ${branch.choices.map((choice) => `«${choice}»`).join(' · ')}`)
+    if (Object.keys(branch.flags).length) lines.push(`- флаги: ${Object.keys(branch.flags).join(', ')}`)
+    if (Object.keys(branch.quests).length) lines.push(`- квесты: ${Object.entries(branch.quests).map(([id, stage]) => `${id}→${stage}`).join(', ')}`)
+    if (branch.combat) lines.push(`- бой: ${branch.combat}`)
+    if (branch.over) lines.push(`- финал: ${branch.over}`)
+    if (branch.closed) lines.push('- диалог закрылся без последствий (нет боя, финала и новых вариантов)')
+  }
+  return { branches, report, text: lines.join('\n') + '\n' }
+}
+
+// ──────────────────────────────── sweep ─────────────────────────────────────
+
+async function cmdSweep(config: RunConfig, seeds: [number, number], stepsLimit: number): Promise<{ result: RunResult; text: string }> {
+  const runs: RunResult[] = []
+  const scenes = new Set<string>()
+  const locations = new Set<string>()
+  const dialogues = new Set<string>()
+  const endings = new Set<string>()
+  const deaths: Record<string, number> = {}
+  const finals: Record<string, number> = {}
+
+  for (let seed = seeds[0]; seed <= seeds[1]; seed++) {
+    const one = await cmdSearch(
+      { ...config, seed: String(seed), outDir: config.outDir ? join(config.outDir, `seed-${seed}`) : null },
+      'explore',
+      stepsLimit,
+    )
+    runs.push(one)
+    for (const scene of (one.coverage.scenes as AnyObj).seen) scenes.add(String(scene))
+    for (const location of (one.coverage.locations as AnyObj).seen) locations.add(String(location))
+    for (const dialogue of (one.coverage.dialogues as AnyObj).seen) dialogues.add(String(dialogue))
+    for (const ending of (one.coverage.endings as AnyObj).seen) endings.add(String(ending))
+    const over = (one.coverage.final as AnyObj)?.game_over as AnyObj | null
+    const key = over ? `${over.type}: ${over.reason ?? ''}` : 'не завершён'
+    finals[over?.type ?? 'open'] = (finals[over?.type ?? 'open'] ?? 0) + 1
+    if (over?.type === 'death') deaths[key] = (deaths[key] ?? 0) + 1
+    if (!config.quiet) console.log(`seed ${seed}: ${one.status}, шагов ${one.steps}, финал ${over?.type ?? '—'}`)
+  }
+
+  const bad = runs.filter((run) => run.status !== 'ok')
+  const first = runs[0]!
+  const result: RunResult = {
+    ...first,
+    mode: 'sweep',
+    status: bad.length ? 'failed' : 'ok',
+    steps: runs.reduce((sum, run) => sum + run.steps, 0),
+    assertions: bad.map((run) => ({ name: `seed ${run.seed}`, ok: false, detail: run.status })),
+    stats: {
+      seeds: runs.length,
+      ok: runs.length - bad.length,
+      failed: bad.length,
+      finals,
+      deaths,
+    },
+    hashes: { transcript: '', run: '' },
+  }
+
+  const lines: string[] = []
+  lines.push(`# Обзор прогонов · ${first.campaign.title}`)
+  lines.push('')
+  lines.push(`seed'ов ${runs.length} · успешных ${runs.length - bad.length} · проблемных ${bad.length} · движок ${first.engine}`)
+  lines.push('')
+  lines.push(`Посещено сцен: ${scenes.size} · локаций: ${locations.size} · диалогов: ${dialogues.size} · концовок: ${endings.size}`)
+  lines.push('')
+  lines.push('## Исходы')
+  for (const [type, count] of Object.entries(finals).sort((a, b) => b[1] - a[1])) lines.push(`- ${type}: ${count}`)
+  if (Object.keys(deaths).length) {
+    lines.push('', '## Причины смерти')
+    for (const [reason, count] of Object.entries(deaths).sort((a, b) => b[1] - a[1])) lines.push(`- ${reason}: ${count}`)
+  }
+  if (endings.size) lines.push('', `Концовки: ${[...endings].join(', ')}`)
+  if (bad.length) {
+    lines.push('', '## Проблемные прогоны')
+    for (const run of bad) lines.push(`- seed ${run.seed}: ${run.status}`)
+  }
+  if (config.outDir) {
+    await mkdir(config.outDir, { recursive: true })
+    await writeFile(join(config.outDir, 'sweep.json'), JSON.stringify(result, null, 2), 'utf8')
+    await writeFile(join(config.outDir, 'sweep.md'), lines.join('\n') + '\n', 'utf8')
+  }
+  return { result, text: lines.join('\n') + '\n' }
+}
+
+async function cmdVerify(dir: string, expectEngine: string | null, honestOnly: boolean): Promise<number> {
   const resultRaw = await readFile(join(dir, 'result.json'), 'utf8')
   const transcript = await readFile(join(dir, 'transcript.md'), 'utf8')
   const runRaw = await readFile(join(dir, 'run.json'), 'utf8')
@@ -836,6 +1206,7 @@ async function cmdVerify(dir: string, expectEngine: string | null): Promise<numb
   if (sha256(runRaw) !== result.hashes.run) failures.push('run.json не совпадает с хешем в result.json')
   if (expectEngine && result.engine !== expectEngine) failures.push(`движок ${result.engine} ≠ ожидаемого ${expectEngine}`)
   if (result.status !== 'ok') failures.push(`статус прогона: ${result.status}`)
+  if (honestOnly && result.evidence === 'injected') failures.push('прогон с отладочными правками состояния не годится как приёмка (--honest)')
   if (failures.length) {
     for (const f of failures) console.error(`✗ ${f}`)
     return 1
@@ -847,28 +1218,52 @@ async function cmdVerify(dir: string, expectEngine: string | null): Promise<numb
 // ──────────────────────────────── main ──────────────────────────────────────
 
 const USAGE = [
-  'команды: run | fuzz | explore | verify',
+  'команды: graph | dialogue | run | explore | sweep | verify',
   '',
-  '  node cf-play.mjs run     <папка кампании> --seed 42 --script route.json --out runs/a',
-  '  node cf-play.mjs fuzz    <папка кампании> --seeds 1-20 --steps 400 --out runs/fuzz',
-  '  node cf-play.mjs explore <папка кампании> --seed 7 --steps 300',
-  '  node cf-play.mjs verify  <папка прогона> [--expect-engine 0.8.0]',
+  '  node cf-play.mjs graph    <папка кампании> [--out dir] [--json]',
+  '  node cf-play.mjs dialogue <папка кампании> <npcId|dialogues/x.ink> [--depth 3] [--max-nodes 40]',
+  '  node cf-play.mjs run      <папка кампании> --seed 42 --script route.json --out runs/a',
+  '  node cf-play.mjs explore  <папка кампании> --seed 7 --steps 300 [--record route.json]',
+  '  node cf-play.mjs fuzz     <папка кампании> --seeds 1-20 --steps 400 [--record route.json]',
+  '  node cf-play.mjs sweep    <папка кампании> --seeds 1-20 [--steps 300] [--out runs/sweep]',
+  '  node cf-play.mjs verify   <папка прогона> [--expect-engine 0.8.0] [--honest]',
+  '',
+  'отладочные правки состояния (как панель отладки в редакторе):',
+  '  --set flag=1  --var name=3  --item id:2  --tick 40  --scene scene_id  --hp 5  --god',
 ].join('\n')
 
 async function main(): Promise<void> {
   const { command, positional, flags } = parseArgs(process.argv.slice(2))
   const campaignDir = positional[0] ? resolve(positional[0]) : ''
   const seed = String(flags.seed ?? '1')
-  const outDir = flags.out ? resolve(String(flags.out)) : null
+  const outDir = flagText(flags, 'out') ? resolve(String(flagText(flags, 'out'))) : null
   const debug = !!flags.debug
   const asJson = !!flags.json
 
   if (command === 'verify') {
     if (!campaignDir) die('verify: укажите папку прогона (с result.json)')
-    process.exit(await cmdVerify(campaignDir, flags['expect-engine'] ? String(flags['expect-engine']) : null))
+    process.exit(
+      await cmdVerify(campaignDir, flagText(flags, 'expect-engine'), !!flags.honest),
+    )
   }
 
-  if (!['run', 'fuzz', 'explore'].includes(command)) die(USAGE)
+  if (command === 'graph') {
+    if (!campaignDir) die('graph: укажите папку кампании')
+    const { campaign } = await loadEngine(campaignDir, seed, debug, parseInjection(flags))
+    const report = analyzeCampaign(campaign)
+    const text = formatGraphReport(report)
+    if (outDir) {
+      await mkdir(outDir, { recursive: true })
+      await writeFile(join(outDir, 'graph.json'), JSON.stringify(report, null, 2), 'utf8')
+      await writeFile(join(outDir, 'graph.md'), text, 'utf8')
+    }
+    if (asJson) console.log(JSON.stringify(report, null, 2))
+    else console.log(text)
+    const errors = report.findings.filter((finding) => finding.severity === 'error').length
+    process.exit(errors ? 1 : 0)
+  }
+
+  if (!['dialogue', 'run', 'fuzz', 'explore', 'sweep'].includes(command)) die(USAGE)
   if (!campaignDir) die(`${command}: укажите папку кампании`)
 
   const config: RunConfig = {
@@ -877,33 +1272,67 @@ async function main(): Promise<void> {
     outDir,
     debug,
     quiet: asJson,
-    routeName: flags.route ? String(flags.route) : undefined,
+    routeName: flagText(flags, 'route') ?? undefined,
+    injection: parseInjection(flags),
+    record: flagText(flags, 'record') ? resolve(String(flagText(flags, 'record'))) : null,
+  }
+
+  if (command === 'dialogue') {
+    const target = positional[1]
+    if (!target) die('dialogue: укажите npcId или путь диалога (dialogues/x.ink)')
+    const { report, text } = await cmdDialogue(
+      config,
+      target,
+      Number(flagText(flags, 'depth') ?? 3),
+      Number(flagText(flags, 'max-nodes') ?? 40),
+    )
+    if (outDir) {
+      await mkdir(outDir, { recursive: true })
+      await writeFile(join(outDir, 'dialogue.json'), JSON.stringify(report, null, 2), 'utf8')
+      await writeFile(join(outDir, 'dialogue.md'), text, 'utf8')
+    }
+    if (asJson) console.log(JSON.stringify(report, null, 2))
+    else console.log(text)
+    process.exit(report.errors.length ? 1 : 0)
+  }
+
+  if (command === 'sweep') {
+    const range = flagText(flags, 'seeds') ?? '1-10'
+    const [from, to] = range.includes('-') ? range.split('-').map(Number) : [Number(range), Number(range)]
+    const { result, text } = await cmdSweep(config, [from!, to!], Number(flagText(flags, 'steps') ?? 300))
+    if (asJson) console.log(JSON.stringify(result, null, 2))
+    else console.log(text)
+    process.exit(result.status === 'ok' ? 0 : 1)
   }
 
   let result: RunResult
   if (command === 'run') {
-    const scriptPath = flags.script ? String(flags.script) : ''
+    const scriptPath = flagText(flags, 'script')
     if (!scriptPath) die('run: нужен --script route.json')
     const script = JSON.parse(await readFile(resolve(scriptPath), 'utf8')) as AnyObj
     result = await cmdRun(config, script)
   } else if (command === 'explore') {
-    result = await cmdSearch(config, 'explore', Number(flags.steps ?? 300))
+    result = await cmdSearch(config, 'explore', Number(flagText(flags, 'steps') ?? 300))
   } else {
-    const range = String(flags.seeds ?? '1-10')
+    const range = flagText(flags, 'seeds') ?? '1-10'
     const [from, to] = range.includes('-') ? range.split('-').map(Number) : [Number(range), Number(range)]
     const runs: RunResult[] = []
-    for (let s = from!; s <= to!; s++) {
-      const one = await cmdSearch({ ...config, seed: String(s), outDir: outDir ? join(outDir, `seed-${s}`) : null }, 'fuzz', Number(flags.steps ?? 400))
+    for (let current = from!; current <= to!; current++) {
+      const one = await cmdSearch(
+        { ...config, seed: String(current), outDir: outDir ? join(outDir, `seed-${current}`) : null },
+        'fuzz',
+        Number(flagText(flags, 'steps') ?? 400),
+      )
       runs.push(one)
-      if (!asJson) console.log(`seed ${s}: ${one.status}, шагов ${one.steps}, финал ${one.coverage.final?.game_over?.type ?? '—'}`)
+      if (!asJson) console.log(`seed ${current}: ${one.status}, шагов ${one.steps}, финал ${one.coverage.final?.game_over?.type ?? '—'}`)
     }
-    const bad = runs.filter((r) => r.status !== 'ok')
+    const bad = runs.filter((run) => run.status !== 'ok')
     result = {
       ...runs[0]!,
       mode: 'fuzz',
       status: bad.length ? 'failed' : 'ok',
-      steps: runs.reduce((a, r) => a + r.steps, 0),
-      assertions: bad.map((r) => ({ name: `seed ${r.seed}`, ok: false, detail: r.status })),
+      steps: runs.reduce((sum, run) => sum + run.steps, 0),
+      assertions: bad.map((run) => ({ name: `seed ${run.seed}`, ok: false, detail: run.status })),
       coverage: runs[0]!.coverage,
       hashes: { transcript: '', run: '' },
     }
@@ -916,13 +1345,24 @@ async function main(): Promise<void> {
   if (asJson) {
     console.log(
       JSON.stringify(
-        { status: result.status, campaign: result.campaign, seed: result.seed, steps: result.steps, assertions: result.assertions, coverage: result.coverage, hashes: result.hashes },
+        {
+          status: result.status,
+          evidence: result.evidence,
+          injected: result.injected,
+          campaign: result.campaign,
+          seed: result.seed,
+          steps: result.steps,
+          assertions: result.assertions,
+          coverage: result.coverage,
+          hashes: result.hashes,
+        },
         null,
         2,
       ),
     )
   } else {
     console.log(`\n${result.status === 'ok' ? '✓' : '✗'} ${result.campaign.title}: ${result.status}, шагов ${result.steps}, seed ${result.seed}`)
+    if (result.evidence === 'injected') console.log(`  ! прогон с отладочными правками: ${result.injected.join('; ')}`)
     if (config.outDir) console.log(`  transcript: ${join(config.outDir, 'transcript.md')}`)
     const scenes = result.coverage.scenes as AnyObj
     if (scenes?.missing?.length) console.log(`  не посещено сцен: ${scenes.missing.length} из ${scenes.missing.length + scenes.seen.length}`)
