@@ -18569,10 +18569,15 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir) {
   for (const file of routeFiles.sort()) {
     const script = JSON.parse(await readFile(file, "utf8"));
     const out = config.outDir ? join(config.outDir, "routes", basename(file, ".json")) : null;
-    const run = await cmdRun({ ...config, seed: config.seed, outDir: out, routeName: file }, script);
+    const routeSeed = script.seed === void 0 ? config.seed : String(script.seed);
+    const run = await cmdRun({ ...config, seed: routeSeed, outDir: out, routeName: file }, script);
     routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript });
   }
-  const sweep = await cmdSweep({ ...config, outDir: config.outDir ? join(config.outDir, "sweep") : null }, seeds, stepsLimit);
+  const sweep = await cmdSweep(
+    { ...config, quiet: true, outDir: config.outDir ? join(config.outDir, "sweep") : null },
+    seeds,
+    stepsLimit
+  );
   const sweepResult = sweep.result;
   const visited = /* @__PURE__ */ new Set();
   const seenScenes = sweepResult.coverage?.scenes ?? {};

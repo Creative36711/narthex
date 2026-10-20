@@ -84,7 +84,10 @@ node __chronicle_ai__/cf-play.mjs sweep . --seeds 1-10 --steps 300
 
 Проверки: `scene`, `flag`, `no_flag`, `has_item`, `game_over` (`null` — забег
 идёт), `tick_at_least`, `quest_at_stage`. `{"do":"snapshot","label":"…"}` —
-метка в транскрипте.
+метка в транскрипте. Если маршруту нужен свой seed, добавь `"seed": 7` рядом
+с `"steps"` — `check` возьмёт его вместо общего.
+
+Артефакты `check` пишет в `.cf-play/`, добавь это в `.gitignore` кампании.
 
 ## Что этот инструмент не проверяет
 
