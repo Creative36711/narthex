@@ -87,7 +87,8 @@ function doPost(e) {
       while (parents.hasNext()) {
         if (parents.next().getId() === CF_RUN_LOG_FOLDER_ID) isRunLog = true;
       }
-      if (!isRunLog || file.getMimeType() !== MimeType.PLAIN_TEXT)
+      const mime = String(file.getMimeType() || "");
+      if (!isRunLog || !mime.startsWith("text/"))
         throw new Error("Запись разрешена только в текстовые файлы папки логов Dispatch-Run.");
       const marker = String(request.marker || "");
       const entry = String(request.entry || "");
