@@ -1,0 +1,63 @@
+{
+  "name": "01-night-pass / smoke",
+  "steps": [
+    {
+      "do": "interact",
+      "entity": "npc_vyaz"
+    },
+    {
+      "do": "interact",
+      "entity": "item_sled_crate"
+    },
+    {
+      "do": "interact_option",
+      "entity": "item_sled_crate",
+      "index": 0
+    },
+    {
+      "do": "interact",
+      "entity": "item_sled_crate"
+    },
+    {
+      "do": "travel",
+      "to": "loc_serpentine"
+    },
+    {
+      "do": "fight"
+    },
+    {
+      "do": "travel",
+      "to": "loc_signpost"
+    },
+    {
+      "do": "fight"
+    },
+    {
+      "do": "travel",
+      "to": "loc_gully"
+    },
+    {
+      "do": "fight"
+    },
+    {
+      "do": "travel",
+      "to": "loc_outpost"
+    },
+    {
+      "do": "fight"
+    },
+    {
+      "do": "interact",
+      "entity": "npc_brann"
+    },
+    {
+      "do": "snapshot",
+      "label": "диалог"
+    },
+    {
+      "do": "expect",
+      "scene": "scene_outpost_yard"
+    }
+  ],
+  "description": "Минимальный маршрут: осмотр сцены, меню предмета, дорога до заставы, диалог с лекарем. Бои на дороге закрываются помощником fight."
+}

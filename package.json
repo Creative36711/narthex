@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && npm run build:ai-bundle && vite build",
     "build:ai-bundle": "esbuild scripts/campaign-audit.mts --bundle --platform=node --format=esm --target=node18 --outfile=public/ai/campaign-audit.mjs",
+    "build:playkit-bundle": "esbuild scripts/playkit/cli.mts --bundle --platform=node --format=esm --target=node20 --legal-comments=none --define:__CF_ENGINE_VERSION__=\\\"$npm_package_version\\\" --outfile=public/ai/cf-play.mjs",
+    "play": "tsx scripts/playkit/cli.mts",
     "generate:campaign-schema": "tsx scripts/gen-schema.mts",
     "audit:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
     "lint": "oxlint",
