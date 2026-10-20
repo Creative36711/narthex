@@ -302,6 +302,34 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
     dialogues.push({ path, knots: parsed.knots, problems })
   }
 
+  // ── мир: дороги и сцены локаций
+  for (const region of Object.values(campaign.world?.regions ?? {}) as AnyObj[]) {
+    for (const location of (region.locations ?? []) as AnyObj[]) {
+      for (const conn of (location.travel_connections ?? []) as AnyObj[]) {
+        if (conn.to && !(campaign.world?.regions ?? []).some((r: AnyObj) => (r.locations ?? []).some((l: AnyObj) => l.id === conn.to))) {
+          findings.push({
+            code: 'travel_target_missing',
+            severity: 'error',
+            message: `дорога из «${location.id}» ведёт в несуществующую локацию «${conn.to}»`,
+            where: 'world.json',
+          })
+        }
+      }
+      const listed = ([...(location.scenes ?? []), location.arrival_scene].filter(Boolean) as string[])
+      for (const sceneId of listed) {
+        if (!campaign.scenes?.[sceneId]) {
+          findings.push({
+            code: 'location_scene_missing',
+            severity: 'error',
+            message: `локация «${location.id}» ссылается на несуществующую сцену «${sceneId}»`,
+            where: 'world.json',
+            hint: 'Сцена удалена или переименована — игрок увидит пустую локацию',
+          })
+        }
+      }
+    }
+  }
+
   // ── сцены
   for (const scene of Object.values(campaign.scenes ?? {}) as AnyObj[]) {
     if (!graph.sceneHasExit.get(String(scene.id))) {
@@ -317,7 +345,49 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
         })
       }
     }
+    if (scene.location && !(campaign.world?.regions ?? []).some((r: AnyObj) => (r.locations ?? []).some((l: AnyObj) => l.id === scene.location))) {
+      findings.push({
+        code: 'scene_location_missing',
+        severity: 'error',
+        message: `сцена «${scene.label ?? scene.id}» привязана к несуществующей локации «${scene.location}»`,
+        where: `scenes/${scene.id}`,
+      })
+    }
+    for (const zone of (scene.navigation ?? []) as AnyObj[]) {
+      if (zone.go_to_scene && !campaign.scenes?.[zone.go_to_scene]) {
+        findings.push({
+          code: 'nav_scene_missing',
+          severity: 'error',
+          message: `переход «${zone.label ?? zone.id ?? '?'}» ведёт в несуществующую сцену «${zone.go_to_scene}»`,
+          where: `scenes/${scene.id}`,
+        })
+      }
+      if (zone.intercept_dialogue && !campaign.entities?.[zone.intercept_dialogue]) {
+        findings.push({
+          code: 'nav_intercept_missing',
+          severity: 'error',
+          message: `перехват перехода ссылается на несуществующую сущность «${zone.intercept_dialogue}»`,
+          where: `scenes/${scene.id}`,
+        })
+      }
+      if (zone.intercept_rule && !campaign.rules?.[zone.intercept_rule]) {
+        findings.push({
+          code: 'nav_rule_missing',
+          severity: 'error',
+          message: `перехват перехода ссылается на несуществующее правило «${zone.intercept_rule}»`,
+          where: `scenes/${scene.id}`,
+        })
+      }
+    }
     for (const slot of (scene.slots ?? []) as AnyObj[]) {
+      if (slot.default_entity && !campaign.entities?.[slot.default_entity]) {
+        findings.push({
+          code: 'slot_entity_missing',
+          severity: 'error',
+          message: `слот «${slot.label ?? slot.id}» назначает несуществующую сущность «${slot.default_entity}»`,
+          where: `scenes/${scene.id}`,
+        })
+      }
       const slotType = Array.isArray(slot.type) ? slot.type : [slot.type]
       if (slotType.includes('person') && !slot.default_entity && !slot.condition) {
         const usedBySchedule = (Object.values(campaign.entities ?? {}) as AnyObj[]).some((entity) =>

@@ -4291,7 +4291,7 @@ export class GameEngine {
     // предмет с вариантами действий — окно выбора; собирается стороной UI
     const opts = this.itemInteractOptions(item)
     if (opts.length) {
-      console.log('[CF:Debug] Предмет имеет interact_options:', opts.length)
+      // варианты действий показывает UI; в headless-прогоне это просто «не авто-действие»
       return false
     }
     if (item.on_interact) {

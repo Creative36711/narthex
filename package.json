@@ -61,7 +61,8 @@
     "smoke:cutout": "tsx scripts/smoke-chromakey-guide.mts",
     "smoke:duration-actions": "tsx scripts/smoke-duration-actions.mts",
     "smoke:craft-fail-time": "tsx scripts/smoke-craft-fail-time.mts",
-    "smoke:dialogue-speaker": "tsx scripts/smoke-dialogue-speaker.mts"
+    "smoke:dialogue-speaker": "tsx scripts/smoke-dialogue-speaker.mts",
+    "pack:ai-kit": "tsx scripts/pack-ai-kit.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

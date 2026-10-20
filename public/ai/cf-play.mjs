@@ -16269,7 +16269,6 @@ var init_engine = __esm({
         const slotType = occ.slot.type[0];
         const opts = this.itemInteractOptions(item);
         if (opts.length) {
-          console.log("[CF:Debug] \u041F\u0440\u0435\u0434\u043C\u0435\u0442 \u0438\u043C\u0435\u0435\u0442 interact_options:", opts.length);
           return false;
         }
         if (item.on_interact) {
@@ -16979,8 +16978,9 @@ var init_engine = __esm({
 // scripts/playkit/cli.mts
 var import_seedrandom3 = __toESM(require_seedrandom2(), 1);
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { extname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
 
 // src/core/loader.ts
 init_migrate();
@@ -17465,6 +17465,32 @@ function analyzeCampaign(campaign2) {
     findings.push(...problems);
     dialogues.push({ path, knots: parsed.knots, problems });
   }
+  for (const region of Object.values(campaign2.world?.regions ?? {})) {
+    for (const location of region.locations ?? []) {
+      for (const conn of location.travel_connections ?? []) {
+        if (conn.to && !(campaign2.world?.regions ?? []).some((r2) => (r2.locations ?? []).some((l2) => l2.id === conn.to))) {
+          findings.push({
+            code: "travel_target_missing",
+            severity: "error",
+            message: `\u0434\u043E\u0440\u043E\u0433\u0430 \u0438\u0437 \xAB${location.id}\xBB \u0432\u0435\u0434\u0451\u0442 \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u043B\u043E\u043A\u0430\u0446\u0438\u044E \xAB${conn.to}\xBB`,
+            where: "world.json"
+          });
+        }
+      }
+      const listed = [...location.scenes ?? [], location.arrival_scene].filter(Boolean);
+      for (const sceneId of listed) {
+        if (!campaign2.scenes?.[sceneId]) {
+          findings.push({
+            code: "location_scene_missing",
+            severity: "error",
+            message: `\u043B\u043E\u043A\u0430\u0446\u0438\u044F \xAB${location.id}\xBB \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${sceneId}\xBB`,
+            where: "world.json",
+            hint: "\u0421\u0446\u0435\u043D\u0430 \u0443\u0434\u0430\u043B\u0435\u043D\u0430 \u0438\u043B\u0438 \u043F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u043D\u0430 \u2014 \u0438\u0433\u0440\u043E\u043A \u0443\u0432\u0438\u0434\u0438\u0442 \u043F\u0443\u0441\u0442\u0443\u044E \u043B\u043E\u043A\u0430\u0446\u0438\u044E"
+          });
+        }
+      }
+    }
+  }
   for (const scene of Object.values(campaign2.scenes ?? {})) {
     if (!graph.sceneHasExit.get(String(scene.id))) {
       const locationId = String(scene.location ?? "");
@@ -17479,7 +17505,49 @@ function analyzeCampaign(campaign2) {
         });
       }
     }
+    if (scene.location && !(campaign2.world?.regions ?? []).some((r2) => (r2.locations ?? []).some((l2) => l2.id === scene.location))) {
+      findings.push({
+        code: "scene_location_missing",
+        severity: "error",
+        message: `\u0441\u0446\u0435\u043D\u0430 \xAB${scene.label ?? scene.id}\xBB \u043F\u0440\u0438\u0432\u044F\u0437\u0430\u043D\u0430 \u043A \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0439 \u043B\u043E\u043A\u0430\u0446\u0438\u0438 \xAB${scene.location}\xBB`,
+        where: `scenes/${scene.id}`
+      });
+    }
+    for (const zone of scene.navigation ?? []) {
+      if (zone.go_to_scene && !campaign2.scenes?.[zone.go_to_scene]) {
+        findings.push({
+          code: "nav_scene_missing",
+          severity: "error",
+          message: `\u043F\u0435\u0440\u0435\u0445\u043E\u0434 \xAB${zone.label ?? zone.id ?? "?"}\xBB \u0432\u0435\u0434\u0451\u0442 \u0432 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0446\u0435\u043D\u0443 \xAB${zone.go_to_scene}\xBB`,
+          where: `scenes/${scene.id}`
+        });
+      }
+      if (zone.intercept_dialogue && !campaign2.entities?.[zone.intercept_dialogue]) {
+        findings.push({
+          code: "nav_intercept_missing",
+          severity: "error",
+          message: `\u043F\u0435\u0440\u0435\u0445\u0432\u0430\u0442 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0430 \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0443\u0449\u043D\u043E\u0441\u0442\u044C \xAB${zone.intercept_dialogue}\xBB`,
+          where: `scenes/${scene.id}`
+        });
+      }
+      if (zone.intercept_rule && !campaign2.rules?.[zone.intercept_rule]) {
+        findings.push({
+          code: "nav_rule_missing",
+          severity: "error",
+          message: `\u043F\u0435\u0440\u0435\u0445\u0432\u0430\u0442 \u043F\u0435\u0440\u0435\u0445\u043E\u0434\u0430 \u0441\u0441\u044B\u043B\u0430\u0435\u0442\u0441\u044F \u043D\u0430 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0435\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u043E \xAB${zone.intercept_rule}\xBB`,
+          where: `scenes/${scene.id}`
+        });
+      }
+    }
     for (const slot of scene.slots ?? []) {
+      if (slot.default_entity && !campaign2.entities?.[slot.default_entity]) {
+        findings.push({
+          code: "slot_entity_missing",
+          severity: "error",
+          message: `\u0441\u043B\u043E\u0442 \xAB${slot.label ?? slot.id}\xBB \u043D\u0430\u0437\u043D\u0430\u0447\u0430\u0435\u0442 \u043D\u0435\u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044E\u0449\u0443\u044E \u0441\u0443\u0449\u043D\u043E\u0441\u0442\u044C \xAB${slot.default_entity}\xBB`,
+          where: `scenes/${scene.id}`
+        });
+      }
       const slotType = Array.isArray(slot.type) ? slot.type : [slot.type];
       if (slotType.includes("person") && !slot.default_entity && !slot.condition) {
         const usedBySchedule = Object.values(campaign2.entities ?? {}).some(
@@ -18178,6 +18246,22 @@ function injectionNotes(injection) {
   for (const [id, value] of injection.skills) notes.push(`\u043D\u0430\u0432\u044B\u043A ${id}=${value}`);
   return notes;
 }
+function emptyInjection() {
+  return {
+    flags: [],
+    variables: [],
+    items: [],
+    tick: null,
+    scene: null,
+    hp: null,
+    god: false,
+    entities: [],
+    quests: [],
+    weather: null,
+    currencies: [],
+    skills: []
+  };
+}
 function isInjected(injection) {
   return injection.flags.length > 0 || injection.variables.length > 0 || injection.items.length > 0 || injection.tick !== null || injection.scene !== null || injection.hp !== null || injection.god;
 }
@@ -18285,6 +18369,7 @@ async function writeRun(config, result, steps, engine, campaign2, debug) {
       return rest;
     });
     const route = { name: `${result.campaign.id} / \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u043E ${result.mode} seed ${result.seed}`, steps: actions };
+    await mkdir(dirname(resolve(config.record)), { recursive: true });
     await writeFile(resolve(config.record), JSON.stringify(route, null, 2) + "\n", "utf8");
   }
   if (config.outDir) {
@@ -18469,6 +18554,89 @@ async function cmdSearch(config, mode, stepsLimit) {
   };
   await writeRun(config, result, steps, engine, campaign2, config.debug);
   return result;
+}
+async function cmdCheck(config, seeds, stepsLimit, routesDir) {
+  const { campaign: campaign2 } = await loadEngine(config.campaignDir, config.seed, false, emptyInjection());
+  const graph = analyzeCampaign(campaign2);
+  const errors = graph.findings.filter((finding) => finding.severity === "error");
+  const warnings = graph.findings.filter((finding) => finding.severity === "warning");
+  const routeFiles = [];
+  const dir = routesDir ?? join(config.campaignDir, "routes");
+  if (existsSync(dir)) {
+    for (const name of await readdir(dir)) if (name.endsWith(".json")) routeFiles.push(join(dir, name));
+  }
+  const routeRuns = [];
+  for (const file of routeFiles.sort()) {
+    const script = JSON.parse(await readFile(file, "utf8"));
+    const out = config.outDir ? join(config.outDir, "routes", basename(file, ".json")) : null;
+    const run = await cmdRun({ ...config, seed: config.seed, outDir: out, routeName: file }, script);
+    routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript });
+  }
+  const sweep = await cmdSweep({ ...config, outDir: config.outDir ? join(config.outDir, "sweep") : null }, seeds, stepsLimit);
+  const sweepResult = sweep.result;
+  const visited = /* @__PURE__ */ new Set();
+  const seenScenes = sweepResult.coverage?.scenes ?? {};
+  for (const scene of seenScenes.seen ?? []) visited.add(String(scene));
+  const uncovered = graph.reachability.scenes.reachable.filter((scene) => !visited.has(scene));
+  const problems = [];
+  if (errors.length) problems.push(`\u0441\u0442\u0430\u0442\u0438\u0447\u0435\u0441\u043A\u0438\u0445 \u043E\u0448\u0438\u0431\u043E\u043A: ${errors.length}`);
+  for (const run of routeRuns) if (run.status !== "ok") problems.push(`\u043C\u0430\u0440\u0448\u0440\u0443\u0442 ${run.file}: ${run.status}`);
+  if (sweepResult.status !== "ok") problems.push(`sweep: ${sweepResult.status}`);
+  const verdict = problems.length ? "failed" : "ok";
+  const result = {
+    campaign: { id: graph.campaign.id, title: graph.campaign.title },
+    verdict,
+    problems,
+    graph: {
+      counts: graph.counts,
+      errors: errors.map((finding) => `${finding.code}: ${finding.message}`),
+      warnings: warnings.map((finding) => `${finding.code}: ${finding.message}`),
+      reachability: graph.reachability
+    },
+    routes: routeRuns,
+    sweep: {
+      status: sweepResult.status,
+      seeds: sweepResult.stats?.seeds,
+      finals: sweepResult.stats?.finals,
+      deaths: sweepResult.stats?.deaths
+    },
+    coverage: { visited: visited.size, total: graph.reachability.scenes.reachable.length, uncovered }
+  };
+  const text = [];
+  text.push(`# \u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \xB7 ${graph.campaign.title}`);
+  text.push("");
+  text.push(verdict === "ok" ? "\u2713 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u0430" : "\u2717 \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 \u043D\u0435 \u043F\u0440\u043E\u0439\u0434\u0435\u043D\u0430");
+  if (problems.length) {
+    text.push("");
+    for (const problem of problems) text.push(`- \u2717 ${problem}`);
+  }
+  text.push("");
+  text.push("## \u0421\u0442\u0430\u0442\u0438\u043A\u0430");
+  text.push(`${graph.counts.scenes} \u0441\u0446\u0435\u043D \xB7 ${graph.counts.locations} \u043B\u043E\u043A\u0430\u0446\u0438\u0439 \xB7 ${graph.counts.dialogues} \u0434\u0438\u0430\u043B\u043E\u0433\u043E\u0432 \xB7 ${graph.counts.inkKnots} \u0443\u0437\u043B\u043E\u0432 ink`);
+  text.push(`\u043E\u0448\u0438\u0431\u043E\u043A ${errors.length} \xB7 \u043F\u0440\u0435\u0434\u0443\u043F\u0440\u0435\u0436\u0434\u0435\u043D\u0438\u0439 ${warnings.length}`);
+  for (const finding of [...errors, ...warnings].slice(0, 12)) text.push(`- ${finding.code}: ${finding.message}`);
+  text.push("");
+  text.push("## \u041C\u0430\u0440\u0448\u0440\u0443\u0442\u044B");
+  if (!routeFiles.length) text.push(`\u043C\u0430\u0440\u0448\u0440\u0443\u0442\u043E\u0432 \u043D\u0435\u0442 (${dir}) \u2014 \u043F\u0440\u043E\u0433\u043E\u043D \u0442\u043E\u043B\u044C\u043A\u043E \u043F\u043E seed'\u0430\u043C`);
+  for (const run of routeRuns) text.push(`- ${basename(run.file)}: ${run.status}, \u0448\u0430\u0433\u043E\u0432 ${run.steps}`);
+  text.push("");
+  text.push("## \u041C\u0430\u0442\u0440\u0438\u0446\u0430 seed'\u043E\u0432");
+  text.push(`seed'\u043E\u0432 ${sweepResult.stats?.seeds ?? 0} \xB7 \u0438\u0441\u0445\u043E\u0434\u044B ${JSON.stringify(sweepResult.stats?.finals ?? {})}`);
+  if (Object.keys(sweepResult.stats?.deaths ?? {}).length) {
+    text.push(`\u0441\u043C\u0435\u0440\u0442\u0438: ${JSON.stringify(sweepResult.stats?.deaths)}`);
+  }
+  text.push("");
+  text.push("## \u041F\u043E\u043A\u0440\u044B\u0442\u0438\u0435");
+  text.push(`\u043F\u043E\u0441\u0435\u0449\u0435\u043D\u043E ${visited.size} \u0438\u0437 ${graph.reachability.scenes.reachable.length} \u0434\u043E\u0441\u0442\u0438\u0436\u0438\u043C\u044B\u0445 \u0441\u0446\u0435\u043D`);
+  if (uncovered.length) text.push(`\u043D\u0435 \u043F\u043E\u043A\u0440\u044B\u0442\u043E: ${uncovered.slice(0, 15).join(", ")}${uncovered.length > 15 ? ` \u2026 \u0435\u0449\u0451 ${uncovered.length - 15}` : ""}`);
+  if (config.outDir) {
+    await mkdir(config.outDir, { recursive: true });
+    await writeFile(join(config.outDir, "report.json"), JSON.stringify(result, null, 2), "utf8");
+    await writeFile(join(config.outDir, "report.md"), text.join("\n") + "\n", "utf8");
+    await writeFile(join(config.outDir, "graph.json"), JSON.stringify(graph, null, 2), "utf8");
+    await writeFile(join(config.outDir, "graph.md"), formatGraphReport(graph), "utf8");
+  }
+  return { result, text: text.join("\n") + "\n" };
 }
 async function cmdDialogue(config, target, maxDepth, maxNodes) {
   const { campaign: campaign2, engine } = await loadEngine(config.campaignDir, config.seed, true, config.injection);
@@ -18688,7 +18856,9 @@ async function cmdVerify(dir, expectEngine, honestOnly) {
   return 0;
 }
 var USAGE = [
-  "\u043A\u043E\u043C\u0430\u043D\u0434\u044B: graph | dialogue | run | explore | sweep | verify",
+  "\u043A\u043E\u043C\u0430\u043D\u0434\u044B: check | graph | dialogue | run | explore | sweep | verify",
+  "",
+  "  node cf-play.mjs check    <\u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438> [--seeds 1-5] [--steps 300] [--routes dir] [--out runs/check]",
   "",
   "  node cf-play.mjs graph    <\u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438> [--out dir] [--json]",
   "  node cf-play.mjs dialogue <\u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438> <npcId|dialogues/x.ink> [--depth 3] [--max-nodes 40]",
@@ -18715,6 +18885,33 @@ async function main() {
     process.exit(
       await cmdVerify(campaignDir, flagText(flags, "expect-engine"), !!flags.honest)
     );
+  }
+  const CAMPAIGN_COMMANDS = ["check", "graph", "dialogue", "run", "fuzz", "explore", "sweep"];
+  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync(join(campaignDir, "campaign.json"))) {
+    die(`${command}: \u0432 \xAB${campaignDir}\xBB \u043D\u0435\u0442 campaign.json \u2014 \u044D\u0442\u043E \u043D\u0435 \u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438`);
+  }
+  if (command === "check") {
+    if (!campaignDir) die("check: \u0443\u043A\u0430\u0436\u0438\u0442\u0435 \u043F\u0430\u043F\u043A\u0443 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438");
+    const range = flagText(flags, "seeds") ?? "1-5";
+    const [from, to] = range.includes("-") ? range.split("-").map(Number) : [Number(range), Number(range)];
+    const config2 = {
+      campaignDir,
+      seed,
+      outDir: outDir ?? resolve(join(campaignDir, ".cf-play", "check")),
+      debug,
+      quiet: asJson,
+      injection: emptyInjection(),
+      record: null
+    };
+    const { result: result2, text } = await cmdCheck(
+      config2,
+      [from, to],
+      Number(flagText(flags, "steps") ?? 300),
+      flagText(flags, "routes") ? resolve(String(flagText(flags, "routes"))) : null
+    );
+    if (asJson) console.log(JSON.stringify(result2, null, 2));
+    else console.log(text);
+    process.exit(result2.verdict === "ok" ? 0 : 1);
   }
   if (command === "graph") {
     if (!campaignDir) die("graph: \u0443\u043A\u0430\u0436\u0438\u0442\u0435 \u043F\u0430\u043F\u043A\u0443 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438");
@@ -18768,6 +18965,9 @@ async function main() {
     if (asJson) console.log(JSON.stringify(result2, null, 2));
     else console.log(text);
     process.exit(result2.status === "ok" ? 0 : 1);
+  }
+  if (command === "run" && config.record) {
+    die("run: --record \u043D\u0435 \u043D\u0443\u0436\u0435\u043D \u2014 \u043C\u0430\u0440\u0448\u0440\u0443\u0442 \u0437\u0430\u043F\u0438\u0441\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u0438\u0437 explore/fuzz, \u0430 run \u0435\u0433\u043E \u043F\u0440\u043E\u0438\u0433\u0440\u044B\u0432\u0430\u0435\u0442");
   }
   let result;
   if (command === "run") {
@@ -18834,6 +19034,8 @@ ${result.status === "ok" ? "\u2713" : "\u2717"} ${result.campaign.title}: ${resu
   process.exit(result.status === "ok" ? 0 : 1);
 }
 main().catch((error) => {
-  console.error(`cf-play: ${error?.stack || error}`);
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`cf-play: ${message}`);
+  if (process.argv.includes("--debug") && error instanceof Error && error.stack) console.error(error.stack);
   process.exit(2);
 });

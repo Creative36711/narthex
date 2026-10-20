@@ -22,8 +22,9 @@
  */
 
 import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
-import { extname, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 import seedrandom from 'seedrandom'
 import { loadCampaign } from '../../src/core/loader'
 import { GameEngine } from '../../src/core/engine'
@@ -651,6 +652,23 @@ function injectionNotes(injection: Injection): string[] {
   return notes
 }
 
+function emptyInjection(): Injection {
+  return {
+    flags: [],
+    variables: [],
+    items: [],
+    tick: null,
+    scene: null,
+    hp: null,
+    god: false,
+    entities: [],
+    quests: [],
+    weather: null,
+    currencies: [],
+    skills: [],
+  }
+}
+
 function isInjected(injection: Injection): boolean {
   return (
     injection.flags.length > 0 ||
@@ -811,6 +829,7 @@ async function writeRun(config: RunConfig, result: RunResult, steps: AnyObj[], e
         return rest
       })
     const route = { name: `${result.campaign.id} / записано ${result.mode} seed ${result.seed}`, steps: actions }
+    await mkdir(dirname(resolve(config.record)), { recursive: true })
     await writeFile(resolve(config.record), JSON.stringify(route, null, 2) + '\n', 'utf8')
   }
 
@@ -1011,6 +1030,104 @@ async function cmdSearch(config: RunConfig, mode: 'fuzz' | 'explore', stepsLimit
   }
   await writeRun(config, result, steps, engine, campaign, config.debug)
   return result
+}
+
+// ──────────────────────────────── check ─────────────────────────────────────
+
+async function cmdCheck(
+  config: RunConfig,
+  seeds: [number, number],
+  stepsLimit: number,
+  routesDir: string | null,
+): Promise<{ result: AnyObj; text: string }> {
+  const { campaign } = await loadEngine(config.campaignDir, config.seed, false, emptyInjection())
+  const graph = analyzeCampaign(campaign)
+  const errors = graph.findings.filter((finding) => finding.severity === 'error')
+  const warnings = graph.findings.filter((finding) => finding.severity === 'warning')
+
+  const routeFiles: string[] = []
+  const dir = routesDir ?? join(config.campaignDir, 'routes')
+  if (existsSync(dir)) {
+    for (const name of await readdir(dir)) if (name.endsWith('.json')) routeFiles.push(join(dir, name))
+  }
+  const routeRuns: AnyObj[] = []
+  for (const file of routeFiles.sort()) {
+    const script = JSON.parse(await readFile(file, 'utf8')) as AnyObj
+    const out = config.outDir ? join(config.outDir, 'routes', basename(file, '.json')) : null
+    const run = await cmdRun({ ...config, seed: config.seed, outDir: out, routeName: file }, script)
+    routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript })
+  }
+
+  const sweep = await cmdSweep({ ...config, outDir: config.outDir ? join(config.outDir, 'sweep') : null }, seeds, stepsLimit)
+  const sweepResult = sweep.result
+  const visited = new Set<string>()
+  // покрытие из sweep.result.coverage.scenes.seen
+  const seenScenes = ((sweepResult.coverage as AnyObj)?.scenes ?? {}) as AnyObj
+  for (const scene of (seenScenes.seen ?? []) as string[]) visited.add(String(scene))
+  const uncovered = (graph.reachability.scenes.reachable as string[]).filter((scene) => !visited.has(scene))
+
+  const problems: string[] = []
+  if (errors.length) problems.push(`статических ошибок: ${errors.length}`)
+  for (const run of routeRuns) if (run.status !== 'ok') problems.push(`маршрут ${run.file}: ${run.status}`)
+  if (sweepResult.status !== 'ok') problems.push(`sweep: ${sweepResult.status}`)
+
+  const verdict = problems.length ? 'failed' : 'ok'
+  const result = {
+    campaign: { id: graph.campaign.id, title: graph.campaign.title },
+    verdict,
+    problems,
+    graph: {
+      counts: graph.counts,
+      errors: errors.map((finding) => `${finding.code}: ${finding.message}`),
+      warnings: warnings.map((finding) => `${finding.code}: ${finding.message}`),
+      reachability: graph.reachability,
+    },
+    routes: routeRuns,
+    sweep: {
+      status: sweepResult.status,
+      seeds: (sweepResult.stats as AnyObj)?.seeds,
+      finals: (sweepResult.stats as AnyObj)?.finals,
+      deaths: (sweepResult.stats as AnyObj)?.deaths,
+    },
+    coverage: { visited: visited.size, total: graph.reachability.scenes.reachable.length, uncovered },
+  }
+
+  const text: string[] = []
+  text.push(`# Проверка кампании · ${graph.campaign.title}`)
+  text.push('')
+  text.push(verdict === 'ok' ? '✓ проверка пройдена' : '✗ проверка не пройдена')
+  if (problems.length) {
+    text.push('')
+    for (const problem of problems) text.push(`- ✗ ${problem}`)
+  }
+  text.push('')
+  text.push('## Статика')
+  text.push(`${graph.counts.scenes} сцен · ${graph.counts.locations} локаций · ${graph.counts.dialogues} диалогов · ${graph.counts.inkKnots} узлов ink`)
+  text.push(`ошибок ${errors.length} · предупреждений ${warnings.length}`)
+  for (const finding of [...errors, ...warnings].slice(0, 12)) text.push(`- ${finding.code}: ${finding.message}`)
+  text.push('')
+  text.push('## Маршруты')
+  if (!routeFiles.length) text.push(`маршрутов нет (${dir}) — прогон только по seed'ам`)
+  for (const run of routeRuns) text.push(`- ${basename(run.file)}: ${run.status}, шагов ${run.steps}`)
+  text.push('')
+  text.push('## Матрица seed\'ов')
+  text.push(`seed'ов ${(sweepResult.stats as AnyObj)?.seeds ?? 0} · исходы ${JSON.stringify((sweepResult.stats as AnyObj)?.finals ?? {})}`)
+  if (Object.keys(((sweepResult.stats as AnyObj)?.deaths ?? {}) as AnyObj).length) {
+    text.push(`смерти: ${JSON.stringify((sweepResult.stats as AnyObj)?.deaths)}`)
+  }
+  text.push('')
+  text.push('## Покрытие')
+  text.push(`посещено ${visited.size} из ${graph.reachability.scenes.reachable.length} достижимых сцен`)
+  if (uncovered.length) text.push(`не покрыто: ${uncovered.slice(0, 15).join(', ')}${uncovered.length > 15 ? ` … ещё ${uncovered.length - 15}` : ''}`)
+
+  if (config.outDir) {
+    await mkdir(config.outDir, { recursive: true })
+    await writeFile(join(config.outDir, 'report.json'), JSON.stringify(result, null, 2), 'utf8')
+    await writeFile(join(config.outDir, 'report.md'), text.join('\n') + '\n', 'utf8')
+    await writeFile(join(config.outDir, 'graph.json'), JSON.stringify(graph, null, 2), 'utf8')
+    await writeFile(join(config.outDir, 'graph.md'), formatGraphReport(graph), 'utf8')
+  }
+  return { result, text: text.join('\n') + '\n' }
 }
 
 // ─────────────────────────── обзор диалога ─────────────────────────────────
@@ -1273,7 +1390,9 @@ async function cmdVerify(dir: string, expectEngine: string | null, honestOnly: b
 // ──────────────────────────────── main ──────────────────────────────────────
 
 const USAGE = [
-  'команды: graph | dialogue | run | explore | sweep | verify',
+  'команды: check | graph | dialogue | run | explore | sweep | verify',
+  '',
+  '  node cf-play.mjs check    <папка кампании> [--seeds 1-5] [--steps 300] [--routes dir] [--out runs/check]',
   '',
   '  node cf-play.mjs graph    <папка кампании> [--out dir] [--json]',
   '  node cf-play.mjs dialogue <папка кампании> <npcId|dialogues/x.ink> [--depth 3] [--max-nodes 40]',
@@ -1302,6 +1421,35 @@ async function main(): Promise<void> {
     process.exit(
       await cmdVerify(campaignDir, flagText(flags, 'expect-engine'), !!flags.honest),
     )
+  }
+
+  const CAMPAIGN_COMMANDS = ['check', 'graph', 'dialogue', 'run', 'fuzz', 'explore', 'sweep']
+  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync(join(campaignDir, 'campaign.json'))) {
+    die(`${command}: в «${campaignDir}» нет campaign.json — это не папка кампании`)
+  }
+
+  if (command === 'check') {
+    if (!campaignDir) die('check: укажите папку кампании')
+    const range = flagText(flags, 'seeds') ?? '1-5'
+    const [from, to] = range.includes('-') ? range.split('-').map(Number) : [Number(range), Number(range)]
+    const config: RunConfig = {
+      campaignDir,
+      seed,
+      outDir: outDir ?? resolve(join(campaignDir, '.cf-play', 'check')),
+      debug,
+      quiet: asJson,
+      injection: emptyInjection(),
+      record: null,
+    }
+    const { result, text } = await cmdCheck(
+      config,
+      [from!, to!],
+      Number(flagText(flags, 'steps') ?? 300),
+      flagText(flags, 'routes') ? resolve(String(flagText(flags, 'routes'))) : null,
+    )
+    if (asJson) console.log(JSON.stringify(result, null, 2))
+    else console.log(text)
+    process.exit(result.verdict === 'ok' ? 0 : 1)
   }
 
   if (command === 'graph') {
@@ -1360,6 +1508,10 @@ async function main(): Promise<void> {
     if (asJson) console.log(JSON.stringify(result, null, 2))
     else console.log(text)
     process.exit(result.status === 'ok' ? 0 : 1)
+  }
+
+  if (command === 'run' && config.record) {
+    die('run: --record не нужен — маршрут записывается из explore/fuzz, а run его проигрывает')
   }
 
   let result: RunResult
@@ -1428,6 +1580,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(`cf-play: ${error?.stack || error}`)
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(`cf-play: ${message}`)
+  if (process.argv.includes('--debug') && error instanceof Error && error.stack) console.error(error.stack)
   process.exit(2)
 })
