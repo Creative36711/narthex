@@ -3,6 +3,7 @@ import { createCampaignUuid } from './ids'
 import { AI_KIT_FILES, AI_TASK_DIR } from './aiKit'
 import { exportChronicle } from './chronicle'
 import { formatCampaignAuditReport, validateCampaign, type CampaignAuditReport, type PlaytestRecord } from './campaignAudit'
+import { ENGINE_VERSION } from '../shared/versions'
 import type { EditorStore, ModifiedFileEntry } from './store'
 
 export type AiTaskMode = 'new' | 'edit'
@@ -124,6 +125,34 @@ async function loadAiDocs(): Promise<Map<string, string>> {
   return docs
 }
 
+/**
+ * Паспорт набора: версия, время сборки и хэши файлов. Тот же формат, что
+ * `pack:ai-kit` пишет в `dist-ai/__chronicle_ai__/KIT.json`; в редакторе
+ * коммита нет, поэтому поле `commit` отсутствует.
+ */
+async function kitPassport(docs: Map<string, string>): Promise<string> {
+  const encoder = new TextEncoder()
+  const files: Array<{ file: string; bytes: number; sha256: string }> = []
+  for (const [name, text] of docs) {
+    const bytes = encoder.encode(text)
+    let digest = ''
+    try {
+      const hash = await crypto.subtle.digest('SHA-256', bytes)
+      digest = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('')
+    } catch {
+      // окружение без WebCrypto: паспорт остаётся без хэша, набор собирается
+    }
+    files.push({ file: name, bytes: bytes.length, sha256: digest })
+  }
+  const passport = {
+    kit: '__chronicle_ai__',
+    version: ENGINE_VERSION,
+    built_at: new Date().toISOString(),
+    files,
+  }
+  return `${JSON.stringify(passport, null, 2)}\n`
+}
+
 export async function createAiTaskBundle(
   store: EditorStore,
   options: {
@@ -202,7 +231,8 @@ export async function createAiTaskBundle(
   zip.file(aiDir('README.md'), [
     '# Chronicle Forge — пакет задания для ИИ',
     '',
-    'Прочитай `TASK.md`, затем руководство, схему и бланк дизайн-документа.',
+    'Прочитай `TASK.md`, затем `PLAYKIT.md`, руководство, схему и бланк дизайн-документа.',
+    'Перед сдачей обязателен прогон `node __chronicle_ai__/cf-play.mjs check . --seeds 1-5 --steps 300 --out .cf-play/check`: код 0 — чисто.',
     bundleScope === 'patch'
       ? 'В корне архива лежат ТОЛЬКО изменённые мастером файлы (патч). Распакуй их поверх проекта кампании с заменой.'
       : 'При редактировании файлы кампании находятся в корне архива; `__chronicle_ai__/` — только инструкции и отчёт, не часть кампании.',
@@ -215,6 +245,7 @@ export async function createAiTaskBundle(
   zip.file(aiDir('validation-report.md'), reportText)
   const docs = await loadAiDocs()
   for (const [name, text] of docs) zip.file(aiDir(name), text)
+  zip.file(aiDir('KIT.json'), await kitPassport(docs))
 
   const suffix = mode === 'edit'
     ? (bundleScope === 'patch' ? '-patch-task.chronicle' : '-full-task.chronicle')
@@ -252,7 +283,8 @@ export async function createAiTaskRepoKit(
     '# Chronicle Forge — легковесный набор задания для репозитория кампании',
     '',
     'Этот архив содержит только папку `__chronicle_ai__/` для работы прямо в репозитории кампании.',
-    'Прочитай `TASK.md`, затем руководство `campaign-guide.md`, схему и инструмент вырезания фона.',
+    'Прочитай `TASK.md`, затем `PLAYKIT.md`, руководство `campaign-guide.md`, схему и инструмент вырезания фона.',
+    'Перед сдачей прогони `node __chronicle_ai__/cf-play.mjs check . --seeds 1-5 --steps 300 --out .cf-play/check` — приёмка только при коде 0.',
     'Файлы кампании находятся в корне репозитория (scenes/, entities/, dialogues/ и т.д.).',
     'Внеси изменения в соответствующие файлы, сохраняя каноническую структуру репозитория.',
     '',
@@ -263,6 +295,7 @@ export async function createAiTaskRepoKit(
   zip.file(aiDir('validation-report.md'), reportText)
   const docs = await loadAiDocs()
   for (const [name, text] of docs) zip.file(aiDir(name), text)
+  zip.file(aiDir('KIT.json'), await kitPassport(docs))
 
   return {
     blob: await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }),

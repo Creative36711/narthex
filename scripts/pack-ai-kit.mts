@@ -26,7 +26,6 @@ for (const name of (await readdir(source)).sort()) {
   }
 }
 
-await copy(join(root, 'docs', 'playkit-agent.md'), join(kit, 'PLAYKIT.md'))
 
 const readme = `# __chronicle_ai__ — чемодан агента
 
