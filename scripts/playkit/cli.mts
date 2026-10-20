@@ -565,10 +565,26 @@ interface Injection {
   scene: string | null
   hp: number | null
   god: boolean
+  /** состояние облика сущности: id → state */
+  entities: Array<[string, string]>
+  /** квест → стадия */
+  quests: Array<[string, string]>
+  weather: string | null
 }
 
 function parseInjection(flags: Flags): Injection {
-  const injection: Injection = { flags: [], variables: [], items: [], tick: null, scene: null, hp: null, god: false }
+  const injection: Injection = {
+    flags: [],
+    variables: [],
+    items: [],
+    tick: null,
+    scene: null,
+    hp: null,
+    god: false,
+    entities: [],
+    quests: [],
+    weather: null,
+  }
   for (const entry of flagList(flags, 'set')) {
     const [name, raw] = entry.split('=')
     if (!name) continue
@@ -592,6 +608,15 @@ function parseInjection(flags: Flags): Injection {
   const hp = flagText(flags, 'hp')
   if (hp !== null && Number.isFinite(Number(hp))) injection.hp = Number(hp)
   injection.god = !!flags.god
+  for (const entry of flagList(flags, 'entity')) {
+    const [id, state = ''] = entry.split('=')
+    if (id) injection.entities.push([id, state])
+  }
+  for (const entry of flagList(flags, 'quest')) {
+    const [id, stage = ''] = entry.split('=')
+    if (id && stage) injection.quests.push([id, stage])
+  }
+  injection.weather = flagText(flags, 'weather')
   return injection
 }
 
@@ -604,6 +629,9 @@ function injectionNotes(injection: Injection): string[] {
   if (injection.scene) notes.push(`переход в сцену ${injection.scene}`)
   if (injection.hp !== null) notes.push(`HP → ${injection.hp}`)
   if (injection.god) notes.push('режим бессмертия')
+  for (const [id, state] of injection.entities) notes.push(`облик ${id} → ${state || 'сброс'}`)
+  for (const [id, stage] of injection.quests) notes.push(`квест ${id} → ${stage}`)
+  if (injection.weather) notes.push(`погода → ${injection.weather}`)
   return notes
 }
 
@@ -630,6 +658,9 @@ function applyInjection(engine: AnyObj, injection: Injection): void {
   if (injection.hp !== null) state.player.hp = Math.max(0, Math.min(state.player.max_hp, injection.hp))
   if (injection.tick !== null) state.tick = Math.max(state.tick, injection.tick)
   if (injection.god) engine.debugInvincible = true
+  for (const [id, state] of injection.entities) engine.applyEffect({ type: 'set_entity_state', entity: id, state })
+  for (const [id, stage] of injection.quests) engine.advanceQuestTo(id, stage)
+  if (injection.weather) engine.applyEffect({ type: 'set_weather', weather: injection.weather })
   engine.checkRules()
   if (injection.scene) {
     // сцена без своей локации оставила бы игрока «в воздухе»: переносим и локацию
@@ -1230,6 +1261,7 @@ const USAGE = [
   '',
   'отладочные правки состояния (как панель отладки в редакторе):',
   '  --set flag=1  --var name=3  --item id:2  --tick 40  --scene scene_id  --hp 5  --god',
+  '  --entity npc_id=state  --quest quest_id=stage  --weather weather_id',
 ].join('\n')
 
 async function main(): Promise<void> {

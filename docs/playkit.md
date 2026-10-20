@@ -83,7 +83,8 @@ node cf-play.mjs verify <runs/a> --expect-engine 0.8.0 --honest
 ```bash
 node cf-play.mjs run <кампания> --seed 7 --script route.json \
   --scene scene_outpost_room --flag order_delivered --var var_heat=3 \
-  --item item_rope:1 --tick 40 --hp 12 --god
+  --item item_rope:1 --tick 40 --hp 12 --god \
+  --entity npc_brann=injured --quest quest_order=stage_done --weather blizzard
 ```
 
 Такие прогоны помечаются `evidence: injected` в `result.json` и строкой

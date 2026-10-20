@@ -18106,7 +18106,18 @@ function checkExpectation(engine, expectation) {
   return { name: `unknown expectation ${stableJson(expectation)}`, ok: false, detail: "\u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u0430\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0430" };
 }
 function parseInjection(flags) {
-  const injection = { flags: [], variables: [], items: [], tick: null, scene: null, hp: null, god: false };
+  const injection = {
+    flags: [],
+    variables: [],
+    items: [],
+    tick: null,
+    scene: null,
+    hp: null,
+    god: false,
+    entities: [],
+    quests: [],
+    weather: null
+  };
   for (const entry of flagList(flags, "set")) {
     const [name, raw] = entry.split("=");
     if (!name) continue;
@@ -18130,6 +18141,15 @@ function parseInjection(flags) {
   const hp = flagText(flags, "hp");
   if (hp !== null && Number.isFinite(Number(hp))) injection.hp = Number(hp);
   injection.god = !!flags.god;
+  for (const entry of flagList(flags, "entity")) {
+    const [id, state = ""] = entry.split("=");
+    if (id) injection.entities.push([id, state]);
+  }
+  for (const entry of flagList(flags, "quest")) {
+    const [id, stage = ""] = entry.split("=");
+    if (id && stage) injection.quests.push([id, stage]);
+  }
+  injection.weather = flagText(flags, "weather");
   return injection;
 }
 function injectionNotes(injection) {
@@ -18141,6 +18161,9 @@ function injectionNotes(injection) {
   if (injection.scene) notes.push(`\u043F\u0435\u0440\u0435\u0445\u043E\u0434 \u0432 \u0441\u0446\u0435\u043D\u0443 ${injection.scene}`);
   if (injection.hp !== null) notes.push(`HP \u2192 ${injection.hp}`);
   if (injection.god) notes.push("\u0440\u0435\u0436\u0438\u043C \u0431\u0435\u0441\u0441\u043C\u0435\u0440\u0442\u0438\u044F");
+  for (const [id, state] of injection.entities) notes.push(`\u043E\u0431\u043B\u0438\u043A ${id} \u2192 ${state || "\u0441\u0431\u0440\u043E\u0441"}`);
+  for (const [id, stage] of injection.quests) notes.push(`\u043A\u0432\u0435\u0441\u0442 ${id} \u2192 ${stage}`);
+  if (injection.weather) notes.push(`\u043F\u043E\u0433\u043E\u0434\u0430 \u2192 ${injection.weather}`);
   return notes;
 }
 function isInjected(injection) {
@@ -18157,6 +18180,9 @@ function applyInjection(engine, injection) {
   if (injection.hp !== null) state.player.hp = Math.max(0, Math.min(state.player.max_hp, injection.hp));
   if (injection.tick !== null) state.tick = Math.max(state.tick, injection.tick);
   if (injection.god) engine.debugInvincible = true;
+  for (const [id, state2] of injection.entities) engine.applyEffect({ type: "set_entity_state", entity: id, state: state2 });
+  for (const [id, stage] of injection.quests) engine.advanceQuestTo(id, stage);
+  if (injection.weather) engine.applyEffect({ type: "set_weather", weather: injection.weather });
   engine.checkRules();
   if (injection.scene) {
     const target = engine.campaign?.scenes?.[injection.scene];
@@ -18653,7 +18679,8 @@ var USAGE = [
   "  node cf-play.mjs verify   <\u043F\u0430\u043F\u043A\u0430 \u043F\u0440\u043E\u0433\u043E\u043D\u0430> [--expect-engine 0.8.0] [--honest]",
   "",
   "\u043E\u0442\u043B\u0430\u0434\u043E\u0447\u043D\u044B\u0435 \u043F\u0440\u0430\u0432\u043A\u0438 \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044F (\u043A\u0430\u043A \u043F\u0430\u043D\u0435\u043B\u044C \u043E\u0442\u043B\u0430\u0434\u043A\u0438 \u0432 \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440\u0435):",
-  "  --set flag=1  --var name=3  --item id:2  --tick 40  --scene scene_id  --hp 5  --god"
+  "  --set flag=1  --var name=3  --item id:2  --tick 40  --scene scene_id  --hp 5  --god",
+  "  --entity npc_id=state  --quest quest_id=stage  --weather weather_id"
 ].join("\n");
 async function main() {
   const { command, positional, flags } = parseArgs(process.argv.slice(2));
