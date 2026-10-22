@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Chronicle Forge — открыть следующего агента
+// @name         Narthex — открыть следующего агента
 // @namespace    https://arena.ai/
 // @version      0.14.0
 // @description  Role-aware Arena handoff with a marker-gated Coordinator cycle, FIFO queue, and master alerts.
@@ -102,12 +102,12 @@
     if (root) return root;
     root = document.createElement("section");
     root.id = C.console;
-    root.setAttribute("aria-label", "Chronicle Forge — управление и журнал");
+    root.setAttribute("aria-label", "Narthex — управление и журнал");
     root.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:2147483647;width:min(420px,calc(100vw - 28px));max-height:52vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid #ffffff30;border-radius:14px;background:#17211df5;color:#fff;box-shadow:0 10px 36px #0008;font-family:system-ui,sans-serif;backdrop-filter:blur(12px)";
     const header = document.createElement("div");
     header.style.cssText = "display:flex;align-items:center;gap:8px;padding:9px 10px;border-bottom:1px solid #ffffff1c";
     const brand = document.createElement("strong");
-    brand.textContent = "Chronicle Forge";
+    brand.textContent = "Narthex";
     brand.style.cssText = "font-size:13px;white-space:nowrap";
     const status = document.createElement("span");
     status.id = C.consoleStatus;
@@ -204,7 +204,7 @@
         urgent: true,
         priority: "5",
         tags: "warning,rotating_light",
-        title: options?.title || "Chronicle Forge: требуется Мастер",
+        title: options?.title || "Narthex: требуется Мастер",
       };
     }
     if (options?.ntfy === "quiet") {
@@ -213,7 +213,7 @@
         urgent: false,
         priority: "2",
         tags: "memo",
-        title: options?.title || "Chronicle Forge",
+        title: options?.title || "Narthex",
       };
     }
     if (isError) {
@@ -223,7 +223,7 @@
         urgent: true,
         priority: "5",
         tags: "warning,rotating_light",
-        title: options?.title || "Chronicle Forge: alert",
+        title: options?.title || "Narthex: alert",
       };
     }
     if (IMPORTANT_QUIET_NTFY_PATTERNS.some((pattern) => pattern.test(clean))) {
@@ -232,7 +232,7 @@
         urgent: false,
         priority: "2",
         tags: "memo",
-        title: options?.title || "Chronicle Forge",
+        title: options?.title || "Narthex",
       };
     }
     return null;
@@ -251,13 +251,13 @@
       const history = Array.isArray(saved) ? saved : [];
       await GM_setValue(C.logHistory, [...history, entry].slice(-60));
     }).catch(() => {});
-    if (!root) console.info("[Chronicle Forge]", entry.text);
+    if (!root) console.info("[Narthex]", entry.text);
     const ntfyPlan = classifyNtfyPush(entry.text, isError, options);
     if (ntfyPlan) {
       notifyNtfy(entry.text, ntfyPlan);
     }
   }
-  function ntfyRequest(topic, token, message, { urgent = false, priority, tags, title = "Chronicle Forge" } = {}) {
+  function ntfyRequest(topic, token, message, { urgent = false, priority, tags, title = "Narthex" } = {}) {
     return new Promise((resolve, reject) => {
       const headers = {
         "Content-Type": "text/plain; charset=utf-8",
@@ -286,12 +286,12 @@
       const topic = String(await GM_getValue(C.ntfyTopic, "")).trim();
       if (!topic) return;
       const token = String(await GM_getValue(C.ntfyToken, "")).trim();
-      await ntfyRequest(topic, token, message, { urgent, priority, tags, title: title || "Chronicle Forge" });
+      await ntfyRequest(topic, token, message, { urgent, priority, tags, title: title || "Narthex" });
     } catch (error) {
       // Do not call logEvent here: delivery errors must not recurse into ntfy.
       if (Date.now() - lastNtfyWarningAt > 60000) {
         lastNtfyWarningAt = Date.now();
-        console.warn("[Chronicle Forge ntfy]", error?.message || error);
+        console.warn("[Narthex ntfy]", error?.message || error);
       }
     }
   }
@@ -303,7 +303,7 @@
       alertAudioContext ||= new AudioCtx();
       if (alertAudioContext.state === "suspended") void alertAudioContext.resume().catch(() => {});
     } catch (error) {
-      console.warn("[Chronicle Forge audio setup]", error);
+      console.warn("[Narthex audio setup]", error);
     }
   }
   function playMasterAlert() {
@@ -331,7 +331,7 @@
       if (context.state === "suspended") context.resume().then(play).catch(() => {});
       else play();
     } catch (error) {
-      console.warn("[Chronicle Forge audio alert]", error);
+      console.warn("[Narthex audio alert]", error);
     }
   }
   async function openNtfySettings() {
@@ -389,7 +389,7 @@
       testQuiet.disabled = true; status.textContent = "Отправляю тихий тестовый пуш…";
       try {
         const saved = await persist();
-        await ntfyRequest(saved.name, saved.accessToken, "Тест Chronicle Forge: тихое уведомление о важной вехе цикла (Priority 2).", { title: "Chronicle Forge (тихий тест)", urgent: false, priority: "2", tags: "memo" });
+        await ntfyRequest(saved.name, saved.accessToken, "Тест Narthex: тихое уведомление о важной вехе цикла (Priority 2).", { title: "Narthex (тихий тест)", urgent: false, priority: "2", tags: "memo" });
         status.textContent = "Тихий тест отправлен (Priority 2). Проверьте подписку в приложении ntfy.";
       } catch (error) { status.textContent = error.message || String(error); }
       finally { testQuiet.disabled = false; }
@@ -398,7 +398,7 @@
       testLoud.disabled = true; status.textContent = "Отправляю громкий тестовый пуш…";
       try {
         const saved = await persist();
-        await ntfyRequest(saved.name, saved.accessToken, "Тест Chronicle Forge: громкое уведомление об остановке/ошибке, требующей Мастера (Priority 5).", { title: "Chronicle Forge: alert (громкий тест)", urgent: true, priority: "5", tags: "warning,rotating_light" });
+        await ntfyRequest(saved.name, saved.accessToken, "Тест Narthex: громкое уведомление об остановке/ошибке, требующей Мастера (Priority 5).", { title: "Narthex: alert (громкий тест)", urgent: true, priority: "5", tags: "warning,rotating_light" });
         status.textContent = "Громкий тест отправлен (Priority 5). Проверьте звуковой сигнал в приложении ntfy.";
       } catch (error) { status.textContent = error.message || String(error); }
       finally { testLoud.disabled = false; }
@@ -726,7 +726,7 @@
     b.onclick = async () => {
       const enabled = await autoEnabled();
       if (enabled && !(await autoIsPaused())) {
-        await stopAutomation("Автоматизация выключена. Ручная кнопка и автоматическая передача готового результата сохранены.", { clearHandoff: false, sound: false, title: "Chronicle Forge: automation stopped" });
+        await stopAutomation("Автоматизация выключена. Ручная кнопка и автоматическая передача готового результата сохранены.", { clearHandoff: false, sound: false, title: "Narthex: automation stopped" });
       } else if (enabled) {
         const pauseContext = await GM_getValue(C.autoPauseContext, null);
         const coordinatorTurn = await GM_getValue(C.pendingCoordinatorTurn, null);
@@ -811,7 +811,7 @@
     exit.style.cssText = "display:none;flex:1;min-width:0;padding:8px 10px;border:1px solid #d29b62;border-radius:9px;background:#5c3c24;color:#fff;cursor:pointer;font:600 12px system-ui;text-align:center;align-items:center;justify-content:center;white-space:nowrap";
     exit.onclick = async () => {
       if (!(await autoEnabled())) return;
-      await stopAutomation("Автоматизация выключена. Включён ручной режим; текущая задача и её лог сохранены.", { clearHandoff: false, sound: false, title: "Chronicle Forge: manual mode" });
+      await stopAutomation("Автоматизация выключена. Включён ручной режим; текущая задача и её лог сохранены.", { clearHandoff: false, sound: false, title: "Narthex: manual mode" });
       await refresh();
       scheduleAutoSend();
       scheduleCoordinatorHandoff();
@@ -1774,7 +1774,7 @@
   let autoCoordinatorBusy = false;
   let autoReviewNoticeKey = "";
   let pauseAutomationBusy = false;
-  async function stopAutomation(reason, { clearHandoff = true, sound = true, title = "Chronicle Forge: automation stopped" } = {}) {
+  async function stopAutomation(reason, { clearHandoff = true, sound = true, title = "Narthex: automation stopped" } = {}) {
     await GM_setValue(C.autoMode, false);
     await GM_setValue(C.autoPaused, false);
     if (clearHandoff) {
@@ -1802,7 +1802,7 @@
       await GM_setValue(C.autoPaused, true);
       toast(`Автоматизация остановлена и ждёт человека: ${reason}`, true, { skipNtfy: true });
       playMasterAlert();
-      void notifyNtfy(`Требуется внимание Мастера: ${reason}`, { urgent: true, title: "Chronicle Forge: automation paused" });
+      void notifyNtfy(`Требуется внимание Мастера: ${reason}`, { urgent: true, title: "Narthex: automation paused" });
       const b = document.getElementById(C.modeButton);
       if (b) b.textContent = "Возобновить автоочередь";
       void refreshCoordinatorResetButton();
@@ -1841,7 +1841,7 @@
       const manualPending = markManualSendRequired(pending, baselineMessageIds);
       await GM_setValue(C.pendingPrompt, manualPending);
       if (manualPrepareBlocked?.key !== key || manualPrepareBlocked.current !== current)
-        logEvent("Кнопка Send не подтверждена; промпт оставлен в редакторе. Нажмите Send вручную один раз — повторного авто-клика по этому Run не будет.", true, { ntfy: "quiet", title: "Chronicle Forge: требуется ручной Send" });
+        logEvent("Кнопка Send не подтверждена; промпт оставлен в редакторе. Нажмите Send вручную один раз — повторного авто-клика по этому Run не будет.", true, { ntfy: "quiet", title: "Narthex: требуется ручной Send" });
       manualPrepareBlocked = null;
       manualPrepareNoticeKey = key;
       return false;
@@ -1901,7 +1901,7 @@
       if (pending.manualSendRequired) {
         const key = `${pending.dispatchId}:${pending.runId}`;
         if (manualPrepareNoticeKey !== key)
-          logEvent("Автоотправка этого Run передана человеку из-за нераспознанной кнопки Send; промпт не перезаписывается и не отправляется повторно. Нажмите Send вручную один раз.", true, { ntfy: "quiet", title: "Chronicle Forge: требуется ручной Send" });
+          logEvent("Автоотправка этого Run передана человеку из-за нераспознанной кнопки Send; промпт не перезаписывается и не отправляется повторно. Нажмите Send вручную один раз.", true, { ntfy: "quiet", title: "Narthex: требуется ручной Send" });
         manualPrepareNoticeKey = key;
         return;
       }
@@ -2067,7 +2067,7 @@
             candidateCount: candidates.length,
             candidates,
           });
-          logEvent("Кнопку Send не удалось подтвердить за 3 секунды. Автоклик не выполнялся; промпт оставлен в редакторе. Нажмите Send вручную один раз — для этого Run ScriptCat больше не будет нажимать Send автоматически.", true, { ntfy: "quiet", title: "Chronicle Forge: требуется ручной Send" });
+          logEvent("Кнопку Send не удалось подтвердить за 3 секунды. Автоклик не выполнялся; промпт оставлен в редакторе. Нажмите Send вручную один раз — для этого Run ScriptCat больше не будет нажимать Send автоматически.", true, { ntfy: "quiet", title: "Narthex: требуется ручной Send" });
           return;
         }
         if (!(await autoEnabled()) || (await autoIsPaused())) return;
@@ -2105,7 +2105,7 @@
             candidateCount: candidates.length,
             candidates,
           });
-          logEvent("Кнопка Send изменилась перед кликом. Автонажатие отменено, счётчик отправок восстановлен. Нажмите Send вручную один раз; автоматического повторного клика по этому Run не будет.", true, { ntfy: "quiet", title: "Chronicle Forge: требуется ручной Send" });
+          logEvent("Кнопка Send изменилась перед кликом. Автонажатие отменено, счётчик отправок восстановлен. Нажмите Send вручную один раз; автоматического повторного клика по этому Run не будет.", true, { ntfy: "quiet", title: "Narthex: требуется ручной Send" });
           return;
         }
         if (autoSubmitTimer) {
@@ -3019,7 +3019,7 @@ ${roleContextText(coordinator)}
       try {
         await run();
       } catch (e) {
-        console.error("[Chronicle Forge]", e);
+        console.error("[Narthex]", e);
         const message = String(e?.message || e).trim();
         if (message.startsWith("Другое действие уже выполняется:") && !(await autoEnabled())) {
           toast(message, true);

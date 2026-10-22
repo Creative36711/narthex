@@ -12,7 +12,7 @@ interface Props {
 }
 
 /** ключ localStorage: показывать ли названия локаций на карте */
-const LABELS_KEY = 'chronicle-forge:map-labels'
+const LABELS_KEY = 'narthex:map-labels'
 
 function readLabels(): boolean {
   try {

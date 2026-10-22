@@ -184,7 +184,7 @@ for (const campaignId of dirs) {
   const expectedCanonical = JSON.parse(JSON.stringify(repairMonolith(doc).doc))
   assert.deepEqual(JSON.parse(JSON.stringify(roundTrip)), expectedCanonical, `${campaignId}: Campaign Package → MonolithDoc → Campaign Package → MonolithDoc изменил данные вне нормализованных значений по умолчанию`)
 
-  // .chronicle — ZIP того же модульного пакета; повторный импорт обязан
+  // .narthex — ZIP того же модульного пакета; повторный импорт обязан
   // полностью удалить старые модули, отсутствующие в новом manifest.
   const archive = new JSZip()
   for (const path of store.allPaths()) archive.file(path, store.fileText(path))
@@ -192,8 +192,8 @@ for (const campaignId of dirs) {
   const archiveStore = new EditorStore(`/campaigns/${campaignId}`)
   archiveStore.jsonFiles.set('scenes/orphan_from_previous_package.json', { id: 'orphan' })
   await importChronicle(archiveStore, archiveBuffer as unknown as File)
-  assert.equal(archiveStore.jsonFiles.has('scenes/orphan_from_previous_package.json'), false, `${campaignId}: импорт .chronicle оставил старый модуль-сироту`)
-  assert.deepEqual(exportMonolith(archiveStore).doc, doc, `${campaignId}: архив .chronicle отличается от модульного пакета`)
+  assert.equal(archiveStore.jsonFiles.has('scenes/orphan_from_previous_package.json'), false, `${campaignId}: импорт .narthex оставил старый модуль-сироту`)
+  assert.deepEqual(exportMonolith(archiveStore).doc, doc, `${campaignId}: архив .narthex отличается от модульного пакета`)
 }
 
 const guide = readFileSync(join(root, 'docs/ai-campaign-guide.md'), 'utf8')

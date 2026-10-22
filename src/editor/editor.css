@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   Chronicle Forge — Editor Mode: фирменная тема «Ателье хроник»
+   Narthex — Editor Mode: фирменная тема «Ателье хроник»
    (редизайн 2026). Не наследует тему кампании и не перекрашивается
    при переключении между кампаниями.
 
@@ -1604,7 +1604,7 @@ body.cf-editor { overflow: hidden; }
 .flag-autocomplete-option.is-selected { color: var(--ed-select-bright); }
 .flag-autocomplete-empty { padding: 7px 8px; color: var(--ed-faint); font-size: 12px; }
 
-/* Режим плейтеста: оболочка — хром Chronicle Forge, игра — тема кампании
+/* Режим плейтеста: оболочка — хром Narthex, игра — тема кампании
    (через .cf-themed внутри). */
 .playtest-shell { position: fixed; inset: 0; z-index: 20000; display: flex; flex-direction: column; background: var(--ed-bg); color: var(--ed-text); font-family: 'Segoe UI', system-ui, sans-serif; }
 .playtest-shell > .game-view { flex: 1 1 0; min-height: 0; height: auto; width: 100%; }

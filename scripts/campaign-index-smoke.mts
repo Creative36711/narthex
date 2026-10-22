@@ -65,7 +65,7 @@ const read = (p: string) => readFileSync(p, 'utf8')
 {
   const ed = read('src/editor/EditorApp.tsx')
   check('редактор сохраняет кампанию под неизменным ID из папки', ed.includes('const stableId = campaignIdFromPath(base)') && ed.includes('await store.saveToDisk()') && ed.includes('await pushIndex()'))
-  check('импорт .chronicle обновляет подпись, сохраняя ID текущей папки', ed.includes('updateCurrentCampaignDisplay()') && ed.includes('ID кампании') && ed.includes('store.setCampaignId(stableId)'))
+  check('импорт .narthex обновляет подпись, сохраняя ID текущей папки', ed.includes('updateCurrentCampaignDisplay()') && ed.includes('ID кампании') && ed.includes('store.setCampaignId(stableId)'))
   check('в выпадающем списке редактора живое название открытой папки', ed.includes('`/campaigns/${c.id}` === base ? store.meta.title : c.title'))
   const app = read('src/App.tsx')
   check('меню дописывает текущую кампанию в список из файла', app.includes('const entry = {\n      id: campaign.meta.id,') || app.includes('title: campaign.meta.title'))

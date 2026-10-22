@@ -4,6 +4,12 @@ import path from 'node:path'
 import { loadCampaign } from '../src/core/loader'
 import { normalizeChronicleManifest } from '../src/editor/chronicleManifest'
 import type { CampaignManifest } from '../src/shared/types'
+import { skipIfMissingFixture } from './fixture-guard.mts'
+
+skipIfMissingFixture(
+  '_ai-temp/campaing/campaign',
+  'загрузка кампании с таблицами встреч (encounters/ и rules/)',
+)
 
 console.log('--- Смоук-тест: Загрузка кампаний с таблицами встреч (encounters/ и rules/) ---')
 

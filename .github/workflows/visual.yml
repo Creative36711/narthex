@@ -27,6 +27,14 @@ jobs:
       - name: Установить зависимости
         run: npm ci
 
+      # Дешёвые стражи — до сборки: расхождение версии или бренда должно
+      # падать за 20 секунд, а не после десяти минут скриншотов.
+      - name: Стражи (бренд, контракты, версия)
+        run: |
+          npm run check:brand
+          npm run check:contracts
+          npm run check:version
+
       - name: Собрать проект
         run: npm run build
 

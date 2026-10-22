@@ -50,7 +50,7 @@ import { EditorBookPanel } from './EditorBookPanel'
 import { DesignDocPanel } from './DesignDocPanel'
 
 /**
- * Chronicle Forge — Editor Mode (Фаза 4, ТЗ 5).
+ * Narthex — Editor Mode (Фаза 4, ТЗ 5).
  * Работает поверх dev-сервера vite: сохранение пишет файлы кампании на диск.
  */
 
@@ -478,13 +478,13 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <div className="panel no-campaign-panel">
           <div className="brand-row">
             <span className="brand">
-              <Ico n="forge" /> Редактор Chronicle Forge
+              <Ico n="forge" /> Редактор Narthex
             </span>
           </div>
           <h2>Кампаний пока нет</h2>
           <p>
             В <code>public/campaigns</code> пока нет кампаний. Создайте первую вручную, импортируйте JSON или подготовьте задание для внешнего ИИ;
-            готовую кампанию можно вернуть одним файлом <code>.chronicle</code>.
+            готовую кампанию можно вернуть одним файлом <code>.narthex</code>.
           </p>
           <div className="menu-buttons">
             <button className="btn btn-primary" onClick={() => void newCampaign()} disabled={!!busy}>
@@ -494,12 +494,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               Импортировать JSON
             </button>
             <button className="btn" onClick={() => fileInput.current?.click()} disabled={!!busy}>
-              Импортировать .chronicle
+              Импортировать .narthex
             </button>
             <input
               ref={fileInput}
               type="file"
-              accept=".chronicle,application/zip"
+              accept=".narthex,.chronicle,application/zip"
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0]
@@ -828,12 +828,12 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     const res = await askChecked(
       external.length
         ? `Экспорт «${store.meta.title}». В кампании ${external.length} внешних ссылок (картинки/звук с чужого сервера).`
-        : `Экспорт «${store.meta.title}» одним файлом .chronicle.`,
+        : `Экспорт «${store.meta.title}» одним файлом .narthex.`,
       'Вшить внешние ссылки в пакет (кампания станет автономной)',
       'Экспорт',
     )
     if (!res.ok) return
-    setBusy('Экспорт .chronicle…')
+    setBusy('Экспорт .narthex…')
     try {
       const notes: string[] = []
       if (res.checked) {
@@ -841,7 +841,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         notes.push(...(await embedExternalAssets(store)))
       }
       const blob = await exportChronicle(store)
-      downloadBlob(blob, `${store.meta.id}.chronicle`)
+      downloadBlob(blob, `${store.meta.id}.narthex`)
       if (notes.length) {
         void showList(
           `Пакет собран (${notes.length} внешних файлов)`,
@@ -906,7 +906,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       const sameId = !!identity.id && normalizeCampaignId(identity.id) === normalizeCampaignId(stableId)
       if (!sameId) {
         const importSeparately = await askConfirm(
-          `.chronicle содержит ID «${identity.id || 'не задан'}» для «${identity.title}», а сейчас открыта кампания «${store.meta.title}» с ID «${stableId}». Импортировать файл как отдельную кампанию? При выборе обновления содержимое заменится, но ID открытой кампании сохранится.`,
+          `.narthex содержит ID «${identity.id || 'не задан'}» для «${identity.title}», а сейчас открыта кампания «${store.meta.title}» с ID «${stableId}». Импортировать файл как отдельную кампанию? При выборе обновления содержимое заменится, но ID открытой кампании сохранится.`,
           'Импортировать отдельно',
           'Обновить открытую',
         )
@@ -938,7 +938,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         const contentIssues = store.validateContent()
         if (canOfferEngineVersionRepair(store.meta, contentIssues)) {
           const correctVersion = await askConfirm(
-            `В пакете версия кампании ${store.meta.version} совпадает с min_engine «${requiredEngine}», но Chronicle Forge сейчас ${ENGINE_VERSION}. Формат пакета поддерживается, а проверка содержимого не нашла ошибок. Похоже, генератор скопировал версию кампании в поле версии движка. Заменить min_engine и устаревшее engine_version на ${ENGINE_VERSION}? Версия кампании останется ${store.meta.version}.`,
+            `В пакете версия кампании ${store.meta.version} совпадает с min_engine «${requiredEngine}», но Narthex сейчас ${ENGINE_VERSION}. Формат пакета поддерживается, а проверка содержимого не нашла ошибок. Похоже, генератор скопировал версию кампании в поле версии движка. Заменить min_engine и устаревшее engine_version на ${ENGINE_VERSION}? Версия кампании останется ${store.meta.version}.`,
             `Исправить на ${ENGINE_VERSION}`,
             'Оставить требование',
           )
@@ -1058,7 +1058,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     <div className={`editor-root ed-theme-${edTheme}`}>
       <header className="editor-topbar">
         <span className="editor-brand">
-          <Ico n="forge" /> Chronicle Forge <span className="editor-brand-sub">· редактор</span>
+          <Ico n="forge" /> Narthex <span className="editor-brand-sub">· редактор</span>
         </span>
         <select
           className="editor-theme-select"
@@ -1105,7 +1105,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
             <button className="editor-toolbar-item" onClick={newCampaign}><Ico n="plus" /> Новая кампания</button>
             <div className="editor-toolbar-divider" />
             <div className="editor-toolbar-divider" />
-            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .chronicle / патча…</button>
+            <button className="editor-toolbar-item" onClick={() => fileInput.current?.click()}><Ico n="up" /> Импорт .narthex / патча…</button>
             <button className="editor-toolbar-item" onClick={() => folderInput.current?.click()}><Ico n="folder" /> Импорт папки проекта…</button>
             <button className="editor-toolbar-item" onClick={doImportJson}><Ico n="up" /> Импорт из JSON</button>
             <div className="editor-toolbar-divider" />
@@ -1115,10 +1115,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
               disabled={modifiedCount === 0}
               data-tip={modifiedCount > 0 ? `Экспортировать только изменённые файлы (${modifiedCount}) в микро-архив` : 'Нет изменений относительно исходной базы'}
             >
-              <Ico n="download" /> Экспорт правок для ИИ (.chronicle)
+              <Ico n="download" /> Экспорт правок для ИИ (.narthex)
               {modifiedCount > 0 && <span className="ai-btn-badge">{modifiedCount}</span>}
             </button>
-            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт всей кампании (.chronicle)</button>
+            <button className="editor-toolbar-item" onClick={doExport}><Ico n="download" /> Экспорт всей кампании (.narthex)</button>
             <button className="editor-toolbar-item" onClick={doExportJson}><Ico n="download" /> Экспорт JSON (монолит)</button>
             <div className="editor-toolbar-divider" />
             <button className="editor-toolbar-item danger" onClick={deleteCampaign}><Ico n="trash" /> Удалить кампанию</button>
@@ -1162,7 +1162,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
         <input
           ref={fileInput}
           type="file"
-          accept=".chronicle,.zip"
+          accept=".narthex,.chronicle,.zip"
           hidden
           onChange={(e) => {
             const f = e.target.files?.[0]

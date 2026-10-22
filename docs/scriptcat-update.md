@@ -48,9 +48,9 @@ for t in tests/*.mjs; do node "$t" || exit 1; done
 
 ## 3. Порядок обновления
 
-1. `chronicle-forge`: `npm run build:playkit-bundle && npm run pack:ai-kit`.
+1. `narthex`: `npm run build:playkit-bundle && npm run pack:ai-kit`.
 2. В репозитории кампаний: `npm run sync:ai-kit -- ../campaign-2`
-   (из `chronicle-forge`), затем коммит `__chronicle_ai__/` в `main`.
+   (из `narthex`), затем коммит `__chronicle_ai__/` в `main`.
 3. В ветке TGD выполнить `git merge main` (или перебазировать), чтобы агент
    увидел новый кит.
 4. В ScriptCat: заменить `dispatch.user.js` на версию `0.14.0`, перезагрузить

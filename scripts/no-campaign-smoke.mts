@@ -58,7 +58,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
   check('выбор кампании идёт из реестра', app.includes('function pickCampaign('))
   check('пустой реестр не грузит несуществующий путь', app.includes('if (!campaignId) return'))
   check('движок показывает экран без кампаний', app.includes('<NoCampaignScreen'))
-  check('экран пустого реестра предлагает создать и загрузить кампанию', read('src/player/NoCampaignScreen.tsx').includes('Создать кампанию') && read('src/player/NoCampaignScreen.tsx').includes('.chronicle'))
+  check('экран пустого реестра предлагает создать и загрузить кампанию', read('src/player/NoCampaignScreen.tsx').includes('Создать кампанию') && read('src/player/NoCampaignScreen.tsx').includes('.narthex'))
   check('движок и редактор целы', existsSync('src/core/engine.ts') && existsSync('src/editor/EditorApp.tsx'))
   check('создание выдаёт UUID, а не slug названия', newCampaign.includes('newAvailableCampaignId(index.map') && newCampaign.includes('createCampaignUuid'))
   check('JSON-импорт пустого редактора выдаёт приложением новый ID', editor.includes('newAvailableCampaignId(index.map((entry) => entry.id))'))
@@ -67,7 +67,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
   check('редактор доступен без кампании', editor.includes('Кампаний пока нет'))
   check('из пустого редактора можно создать и импортировать кампанию', editor.includes('onClick={() => void newCampaign()}') && editor.includes('onClick={() => void doImportJson()}'))
   check('ID инициализируется при пустом JSON-импорте', editor.includes('newAvailableCampaignId(index.map((entry) => entry.id))'))
-  check('импорт .chronicle спрашивает об обновлении/копии при конфликте', noCampaign.includes('Обновить кампанию') && noCampaign.includes('Импортировать копию'))
+  check('импорт .narthex спрашивает об обновлении/копии при конфликте', noCampaign.includes('Обновить кампанию') && noCampaign.includes('Импортировать копию'))
 }
 
 const importedIds: string[] = []
@@ -94,7 +94,7 @@ try {
   store.setCampaignId(originalId)
   check('смена названия не связана с ID', store.meta.id === originalId && store.meta.title === 'Колокол без имени')
 
-  // Минимальный автономный архив .chronicle.
+  // Минимальный автономный архив .narthex.
   const fixtureMeta = JSON.parse(read('public/campaigns/ash-of-caerden/campaign.json')) as Record<string, unknown>
   const baseMeta = {
     ...fixtureMeta,
@@ -107,12 +107,12 @@ try {
     zip.file('campaign.json', JSON.stringify(meta, null, 2))
     if (includeWorld) zip.file('world.json', JSON.stringify(world, null, 2))
     zip.file('manifest.json', JSON.stringify({ scenes: [], entities: [], rules: [], quests: [], dialogues: [] }, null, 2))
-    return new File([await zip.generateAsync({ type: 'uint8array' })], 'offline-test.chronicle')
+    return new File([await zip.generateAsync({ type: 'uint8array' })], 'offline-test.narthex')
   }
 
   const initial = await importChroniclePackage(await makeArchive(baseMeta))
   importedIds.push(initial.id)
-  check('свободный .chronicle сохраняет исходный стабильный ID', initial.id === baseMeta.id)
+  check('свободный .narthex сохраняет исходный стабильный ID', initial.id === baseMeta.id)
   const same = await importChroniclePackage(await makeArchive(baseMeta))
   check('повторный идентичный импорт распознаётся и не дублируется', same.alreadyInstalled === true && same.id === initial.id)
   let missingFileConflict = false

@@ -898,7 +898,7 @@ function checkEngine(required) {
     ok: false,
     required: req,
     actual,
-    message: `\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0440\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u043D\u0430 \u043D\u0430 \u0434\u0432\u0438\u0436\u043E\u043A ${req} \u0438 \u043D\u043E\u0432\u0435\u0435, \u0430 \u0437\u0430\u043F\u0443\u0449\u0435\u043D ${actual}. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 Chronicle Forge \u2014 \u0438\u043D\u0430\u0447\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \u0438 \u043C\u0435\u0445\u0430\u043D\u0438\u043A\u0438 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u043C\u043E\u0433\u0443\u0442 \u0440\u0430\u0431\u043E\u0442\u0430\u0442\u044C \u043D\u0435\u0432\u0435\u0440\u043D\u043E.`
+    message: `\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0440\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u043D\u0430 \u043D\u0430 \u0434\u0432\u0438\u0436\u043E\u043A ${req} \u0438 \u043D\u043E\u0432\u0435\u0435, \u0430 \u0437\u0430\u043F\u0443\u0449\u0435\u043D ${actual}. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 Narthex \u2014 \u0438\u043D\u0430\u0447\u0435 \u043F\u0440\u0430\u0432\u0438\u043B\u0430 \u0438 \u043C\u0435\u0445\u0430\u043D\u0438\u043A\u0438 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 \u043C\u043E\u0433\u0443\u0442 \u0440\u0430\u0431\u043E\u0442\u0430\u0442\u044C \u043D\u0435\u0432\u0435\u0440\u043D\u043E.`
   };
 }
 function checkPackage(declared, oldest = OLDEST_PACKAGE_FORMAT) {
@@ -908,7 +908,7 @@ function checkPackage(declared, oldest = OLDEST_PACKAGE_FORMAT) {
       ok: false,
       declared: format,
       supported: PACKAGE_FORMAT,
-      message: `\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0441\u043E\u0431\u0440\u0430\u043D\u0430 \u0432 \u0444\u043E\u0440\u043C\u0430\u0442\u0435 \u043F\u0430\u043A\u0435\u0442\u0430 v${format}, \u0430 \u044D\u0442\u043E\u0442 \u0434\u0432\u0438\u0436\u043E\u043A \u043F\u043E\u043D\u0438\u043C\u0430\u0435\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043E v${PACKAGE_FORMAT}. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 Chronicle Forge, \u0447\u0442\u043E\u0431\u044B \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u044E.`
+      message: `\u041A\u0430\u043C\u043F\u0430\u043D\u0438\u044F \u0441\u043E\u0431\u0440\u0430\u043D\u0430 \u0432 \u0444\u043E\u0440\u043C\u0430\u0442\u0435 \u043F\u0430\u043A\u0435\u0442\u0430 v${format}, \u0430 \u044D\u0442\u043E\u0442 \u0434\u0432\u0438\u0436\u043E\u043A \u043F\u043E\u043D\u0438\u043C\u0430\u0435\u0442 \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043E v${PACKAGE_FORMAT}. \u041E\u0431\u043D\u043E\u0432\u0438\u0442\u0435 Narthex, \u0447\u0442\u043E\u0431\u044B \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u044E.`
     };
   }
   if (format < oldest) {
@@ -1101,13 +1101,13 @@ var init_brp = __esm({
 
 // src/core/savemigrate.ts
 function saveKey(campaignId) {
-  return `chronicle-forge:save:${campaignId}`;
+  return `narthex:save:${campaignId}`;
 }
 function backupKey(campaignId) {
-  return `chronicle-forge:save-backup:${campaignId}`;
+  return `narthex:save-backup:${campaignId}`;
 }
 function slotKey(campaignId, slot = "auto") {
-  return slot === "auto" ? saveKey(campaignId) : `chronicle-forge:save:${campaignId}@${slot}`;
+  return slot === "auto" ? saveKey(campaignId) : `narthex:save:${campaignId}@${slot}`;
 }
 function slotBackupKey(campaignId, slot = "auto") {
   return slot === "auto" ? backupKey(campaignId) : `${slotKey(campaignId, slot)}-backup`;
@@ -9981,7 +9981,7 @@ var init_settings = __esm({
       animations: true,
       camera_parallax: true
     };
-    KEY = "chronicle-forge:settings";
+    KEY = "narthex:settings";
     cache = null;
   }
 });
@@ -16626,7 +16626,7 @@ var init_engine = __esm({
         return !!this.campaign.meta.metaprogress;
       }
       static metaKey(campaignId) {
-        return `chronicle-forge:meta:${campaignId}`;
+        return `narthex:meta:${campaignId}`;
       }
       metaState = null;
       static blankMetaState() {
@@ -17048,7 +17048,7 @@ async function loadCampaign(basePath) {
   const pkg = checkPackage(meta.package_format);
   if (!pkg.ok) throw new Error(pkg.message);
   const engine = checkEngine(meta.min_engine ?? meta.engine_version);
-  if (!engine.ok) console.warn(`[chronicle] ${engine.message}`);
+  if (!engine.ok) console.warn(`[narthex] ${engine.message}`);
   const scenes = {};
   const entities = {};
   const rules = {};
@@ -17100,10 +17100,10 @@ async function loadCampaign(basePath) {
     ...manifest.rules.map(async (f2) => {
       const raw = await getJSON(`${basePath}/rules/${f2}`);
       const verdict = parseRuleFile(f2, raw);
-      for (const w2 of verdict.warnings) console.warn(`[chronicle] ${w2}`);
+      for (const w2 of verdict.warnings) console.warn(`[narthex] ${w2}`);
       if (verdict.kind === "rule") {
         if (rules[verdict.rule.id]) {
-          console.warn(`[chronicle] rules/${f2}: \u0434\u0443\u0431\u043B\u044C id \xAB${verdict.rule.id}\xBB \u2014 \u0444\u0430\u0439\u043B \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D.`);
+          console.warn(`[narthex] rules/${f2}: \u0434\u0443\u0431\u043B\u044C id \xAB${verdict.rule.id}\xBB \u2014 \u0444\u0430\u0439\u043B \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D.`);
           return;
         }
         rules[verdict.rule.id] = verdict.rule;

@@ -37,12 +37,12 @@ import { compareVersions } from '../shared/versions'
 export const OLDEST_SAVE_VERSION = 1
 
 export function saveKey(campaignId: string): string {
-  return `chronicle-forge:save:${campaignId}`
+  return `narthex:save:${campaignId}`
 }
 
 /** Резервная копия сейва до первой правки (миграция/починка). */
 export function backupKey(campaignId: string): string {
-  return `chronicle-forge:save-backup:${campaignId}`
+  return `narthex:save-backup:${campaignId}`
 }
 
 // ───────────────────────── слоты сохранений (аудит §5.6 п.9) ─────────────────────────
@@ -58,7 +58,7 @@ export const MAX_SAVE_SLOTS = 5
 
 /** Ключ хранилища для слота: автосейв — старый общий ключ кампании. */
 export function slotKey(campaignId: string, slot: SaveSlot = 'auto'): string {
-  return slot === 'auto' ? saveKey(campaignId) : `chronicle-forge:save:${campaignId}@${slot}`
+  return slot === 'auto' ? saveKey(campaignId) : `narthex:save:${campaignId}@${slot}`
 }
 
 /** Резерв слота (до первой правки). */

@@ -1022,7 +1022,7 @@ function startBasicCombat(e: GameEngine, extra: Record<string, unknown> = {}): C
 // ═══ §20. Мета-прогресс между забегами (B8b) ═══
 {
   // чистим мета-хранилище тестовой кампании
-  const metaKey = 'chronicle-forge:meta:ash-of-caerden'
+  const metaKey = 'narthex:meta:ash-of-caerden'
   localStorage.removeItem(metaKey)
 
   const mk = () => new GameEngine(synth((camp) => {

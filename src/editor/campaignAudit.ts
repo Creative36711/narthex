@@ -683,7 +683,7 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
 
 export function formatCampaignAuditReport(report: CampaignAuditReport): string {
   const lines = [
-    `Проверка Chronicle Forge — ${new Date(report.checkedAt).toLocaleString()}`,
+    `Проверка Narthex — ${new Date(report.checkedAt).toLocaleString()}`,
     '',
     'СТРУКТУРА И ССЫЛКИ',
     ...(report.structure.length ? report.structure.map((finding) => `${finding.severity.toUpperCase()}: ${finding.message}`) : ['ПРОБЛЕМ НЕТ']),

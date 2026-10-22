@@ -213,7 +213,7 @@ const campaign: CampaignData = {
   e3.gameOver('victory', 'без хроники')
   check(
     '4 без metaprogress хроника на диск не пишется',
-    !mem.has(`chronicle-forge:meta:${noMeta.meta.id}`),
+    !mem.has(`narthex:meta:${noMeta.meta.id}`),
     [...mem.keys()].join(', '),
   )
   const ok = evalCondition({ type: 'meta_counter', key: 'endings_seen', ge: 1 }, e2)

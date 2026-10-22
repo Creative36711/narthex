@@ -4703,7 +4703,7 @@ export class GameEngine {
   }
 
   private static metaKey(campaignId: string): string {
-    return `chronicle-forge:meta:${campaignId}`
+    return `narthex:meta:${campaignId}`
   }
 
   private metaState: MetaStoreState | null = null

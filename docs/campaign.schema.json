@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://chronicle-forge.local/docs/campaign.schema.json",
-  "title": "Chronicle Forge — монолитная кампания и схемы файлов пакета",
-  "description": "Монолитный JSON Chronicle Forge: обязательные ключи campaign, world, scenes, entities, rules, quests, arenas, cutscenes, dialogues; необязательные encounters, recipes, codex. В $defs также CampaignIndexEntry, CampaignManifest и EncounterFileDef для реестра и отдельных файлов Campaign Package. Сгенерировано из src/shared/types.ts (scripts/gen-schema.mts). Гайд для ИИ-генераторов: docs/ai-campaign-guide.md.",
+  "$id": "https://narthex.local/docs/campaign.schema.json",
+  "title": "Narthex — монолитная кампания и схемы файлов пакета",
+  "description": "Монолитный JSON Narthex: обязательные ключи campaign, world, scenes, entities, rules, quests, arenas, cutscenes, dialogues; необязательные encounters, recipes, codex. В $defs также CampaignIndexEntry, CampaignManifest и EncounterFileDef для реестра и отдельных файлов Campaign Package. Сгенерировано из src/shared/types.ts (scripts/gen-schema.mts). Гайд для ИИ-генераторов: docs/ai-campaign-guide.md.",
   "$ref": "#/$defs/MonolithDoc",
   "$defs": {
     "TimeOfDayThresholds": {
@@ -6360,7 +6360,7 @@
         },
         "metaprogress": {
           "$ref": "#/$defs/MetaProgressDef",
-          "description": "Мета-прогресс между забегами (аудит B8b): достижения, метавалюты и\nпостоянные усиления. Сохранение — отдельным ключом localStorage\n`chronicle-forge:meta:<campaignId>`, живёт перекрёстно между сейвами.\nОтсутствие блока — мета-прогресса нет (мастер может опустить весь пласт)."
+          "description": "Мета-прогресс между забегами (аудит B8b): достижения, метавалюты и\nпостоянные усиления. Сохранение — отдельным ключом localStorage\n`narthex:meta:<campaignId>`, живёт перекрёстно между сейвами.\nОтсутствие блока — мета-прогресса нет (мастер может опустить весь пласт)."
         },
         "generators": {
           "$ref": "#/$defs/GeneratorsDef",

@@ -70,7 +70,7 @@ const loudStop = classifyNtfyPush('Автоматизация остановле
 assert.equal(loudStop?.level, 'loud', 'automation stop sends a loud ntfy push');
 assert.equal(loudStop?.urgent, true, 'loud ntfy push is urgent');
 assert.equal(loudStop?.priority, '5', 'loud ntfy push uses max priority 5');
-const manualSendNotice = classifyNtfyPush('Кнопку Send не удалось подтвердить; нажмите Send вручную один раз.', true, { ntfy: 'quiet', title: 'Chronicle Forge: требуется ручной Send' });
+const manualSendNotice = classifyNtfyPush('Кнопку Send не удалось подтвердить; нажмите Send вручную один раз.', true, { ntfy: 'quiet', title: 'Narthex: требуется ручной Send' });
 assert.equal(manualSendNotice?.level, 'quiet', 'manual Send fallback is visible but does not create an urgent automation-stop alert');
 assert.equal(manualSendNotice?.urgent, false, 'manual Send fallback is non-urgent');
 const pauseFnStart = source.indexOf('  async function pauseAutomation(');

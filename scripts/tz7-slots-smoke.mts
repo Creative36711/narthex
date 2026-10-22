@@ -31,7 +31,7 @@ const demo = await loadCampaign(base)
 
 // ── 1. миграция сейва в3 → в4 ──
 {
-  const key = 'chronicle-forge:save:tz7-test'
+  const key = 'narthex:save:tz7-test'
   const v3 = {
     save_version: 3,
     seed: 'x',
