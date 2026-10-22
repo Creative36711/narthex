@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.2.0
+// @version      1.2.1
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -84,6 +84,12 @@
   const rt = (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || "").join("");
   const sel = (p) => p?.select?.name || "";
   const uid = () => crypto.randomUUID();
+
+  /** Шлюз 1.5 — первый, который пишет только в Arena; всё старше — предупреждение. */
+  const gatewayIsOld = (version) => {
+    const [major, minor] = String(version).split(".").map((x) => Number(x) || 0);
+    return major < 1 || (major === 1 && minor < 5);
+  };
 
   let entries = [];
 
@@ -199,7 +205,14 @@
     try {
       const me = await notion("GET", "users/me");
       const ping = await gateway("ping", "");
-      log(`Настройка сохранена: ${me.name || "Notion OK"}, шлюз ${ping.result || "OK"}.`);
+      const gatewayVersion = String(ping.version || "1.0");
+      log(
+        `Настройка сохранена: ${me.name || "Notion OK"}, шлюз ${ping.result || "OK"} v${gatewayVersion}` +
+          (ping.logs?.name ? `, логи в ${ping.arena?.name || "Arena"}/${ping.logs.name}` : "."),
+      );
+      if (gatewayIsOld(gatewayVersion)) {
+        log("Шлюз старше 1.5: логи уедут в корень Диска. Обновите drive-gateway.gs.", true);
+      }
     } catch (e) {
       log(`Настройка сохранена, но проверка не прошла: ${e.message}`, true);
     }
