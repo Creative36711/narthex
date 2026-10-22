@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../dispatch.user.js', import.meta.url), 'utf8');
 const gatewaySource = await readFile(new URL('../drive-gateway.gs', import.meta.url), 'utf8');
-assert.match(source, /@version\s+0\.13\.27/, 'userscript version is bumped');
+assert.match(source, /@version\s+0\.14\.0/, 'userscript version is bumped');
 assert(source.includes('b.textContent = enabled ? (paused ? "Возобновить автоочередь" : "Остановить автоочередь") : "Запустить автоочередь";'), 'mode toggle labels state-changing actions clearly');
 assert(source.includes('exit.textContent = "Остановить автоматику";'), 'manual-mode exit button is an explicit stop action');
 assert(source.includes('if (!confirm("Запустить автоматическую очередь?'), 'starting the automatic queue requires explicit confirmation');

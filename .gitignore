@@ -27,3 +27,6 @@ out/
 # Tauri
 src-tauri/target/
 src-tauri/gen/
+
+# AI-кит для кампаний (собирается npm run pack:ai-kit)
+dist-ai

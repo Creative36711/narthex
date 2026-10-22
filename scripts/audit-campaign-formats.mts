@@ -220,6 +220,12 @@ console.log(`✓ Проверена JSON Schema Draft 2020-12: ${Object.keys(sch
   const guide = readFileSync(join(root, 'docs/ai-campaign-guide.md'), 'utf8')
   const schemaText = readFileSync(join(root, 'docs/campaign.schema.json'), 'utf8')
   const designTemplate = readFileSync(join(root, 'docs/ai-design-template.md'), 'utf8')
+  const playkitDoc = readFileSync(join(root, 'docs/playkit-agent.md'), 'utf8')
+  assert.equal(
+    readFileSync(join(root, 'public/ai/PLAYKIT.md'), 'utf8'),
+    playkitDoc,
+    'public/ai/PLAYKIT.md рассинхронизирован: копия docs/playkit-agent.md',
+  )
   for (const [src, dst] of [
     [guide, join(root, 'public/ai/campaign-guide.md')],
     [schemaText, join(root, 'public/ai/campaign.schema.json')],
