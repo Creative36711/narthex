@@ -41,7 +41,7 @@ function setupGatewayKey() {
 function doGet() {
   return json_({
     ok: true,
-    service: "Narthex / Chronicle Forge Drive gateway",
+    service: "Narthex Drive gateway",
     version: "1.5",
     layout: CF_ARENA_FOLDER_NAME + "/{" + CF_LOG_FOLDER_NAME + "," + CF_PAYLOAD_FOLDER_NAME + "}",
   });

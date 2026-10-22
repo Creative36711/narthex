@@ -15,7 +15,7 @@ const start = src.indexOf('  const TECH_OPEN =');
 const end = src.indexOf('  // ───────────────────────────── промпты');
 assert.ok(start > 0 && end > start, 'секция технической информации найдена');
 
-const C = { repo: 'Creative36711/chronicle-forge' };
+const C = { repo: 'Creative36711/narthex' };
 const { technicalInfo, TECH_OPEN, TECH_CLOSE } = new Function(
   'C',
   `${src.slice(start, end)}\nreturn { technicalInfo, TECH_OPEN, TECH_CLOSE };`,

@@ -17,8 +17,8 @@
 import type { CampaignCompat, CampaignMeta, CompatChanges, WorldDef } from './types'
 import { bumpVersion, stableVersion } from './versions'
 
-export const COMPAT_FORMAT = 'chronicle-compat/1'
-export const INVENTORY_FORMAT = 'chronicle-inventory/1'
+export const COMPAT_FORMAT = 'narthex-compat/1'
+export const INVENTORY_FORMAT = 'narthex-inventory/1'
 
 /** Словарь видов объектов пакета: что сравниваем и как это назвать по-русски. */
 export const CHANGE_KINDS: Record<string, { label: string; cls: 'S' | 'A' | 'B' | 'C' | 'D' }> = {

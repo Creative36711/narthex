@@ -1,5 +1,5 @@
 {
-  "name": "chronicle-forge",
+  "name": "narthex",
   "private": true,
   "version": "0.8.0",
   "type": "module",
@@ -68,6 +68,7 @@
     "pack:ai-kit": "tsx scripts/pack-ai-kit.mts",
     "sync:ai-kit": "tsx scripts/pack-ai-kit.mts --copy",
     "check:contracts": "tsx scripts/contracts-check.mts",
+    "check:brand": "tsx scripts/brand-guard.mts",
     "shot": "node scripts/visual/shot.mjs",
     "visual:shots": "node scripts/visual/shots.mjs"
   },

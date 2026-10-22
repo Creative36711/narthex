@@ -20,7 +20,7 @@ import type {
 
 /**
  * Загрузка Campaign Package из директории (Фаза 0 — распакованная структура;
- * .chronicle-архив появится вместе с редактором в Фазе 4).
+ * .narthex-архив появится вместе с редактором в Фазе 4).
  *
  * Манифест manifest.json перечисляет файлы пакета, чтобы фронтенд мог
  * загрузить их без листинга директорий.
@@ -50,7 +50,7 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
   const pkg = checkPackage(meta.package_format)
   if (!pkg.ok) throw new Error(pkg.message)
   const engine = checkEngine(meta.min_engine ?? meta.engine_version)
-  if (!engine.ok) console.warn(`[chronicle] ${engine.message}`)
+  if (!engine.ok) console.warn(`[narthex] ${engine.message}`)
 
   const scenes: Record<string, SceneDef> = {}
   const entities: Record<string, EntityDef> = {}
@@ -107,10 +107,10 @@ export async function loadCampaign(basePath: string): Promise<CampaignData> {
       // правилом (ИИ-агент путает разделы манифеста): разбираем честно,
       // чтобы движок и редактор не падали на `undefined.conditions`
       const verdict = parseRuleFile(f, raw)
-      for (const w of verdict.warnings) console.warn(`[chronicle] ${w}`)
+      for (const w of verdict.warnings) console.warn(`[narthex] ${w}`)
       if (verdict.kind === 'rule') {
         if (rules[verdict.rule.id]) {
-          console.warn(`[chronicle] rules/${f}: дубль id «${verdict.rule.id}» — файл пропущен.`)
+          console.warn(`[narthex] rules/${f}: дубль id «${verdict.rule.id}» — файл пропущен.`)
           return
         }
         rules[verdict.rule.id] = verdict.rule

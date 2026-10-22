@@ -1,7 +1,7 @@
 /**
  * Смоук раунда фидбека 29: новая кампания «Каркас: Медное сердце», которую
  * сделал ИИ-агент. Проверки идут по НАСТОЯЩЕМУ пакету из `_ai-temp`
- * (`karkas_mednoe_serdce.chronicle`): архив распаковывается во временную
+ * (`karkas_mednoe_serdce.narthex`): архив распаковывается во временную
  * папку, загрузчик читает её через подменённый `fetch` — браузер не нужен.
  *
  *  A. Клик по предмету с вариантами действий работает (баг 29/7):
@@ -29,7 +29,7 @@ function check(name: string, ok: boolean, extra = '') {
   if (!ok) failed++
 }
 
-const PACKAGE = '_ai-temp/campaing/karkas_mednoe_serdce.chronicle'
+const PACKAGE = '_ai-temp/campaing/karkas_mednoe_serdce.narthex'
 
 // ── распаковка пакета и чтение его как кампании ──
 const root = mkdtempSync(join(tmpdir(), 'karkas-'))

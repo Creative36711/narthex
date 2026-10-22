@@ -36,7 +36,7 @@ try {
   const media = collectCampaignMedia(store)
   check('медиа-аудит видит локальные ссылки, не только assets/', media.local.includes('scenes/img/scene_start.jpg'))
   const bundle = await createAiTaskBundle(store, { mode: 'edit', task: 'Проверь пакет без изменения сюжета.' })
-  check('пакет редактирования получает расширение .chronicle', bundle.filename === `${id}-ai-task.chronicle`, bundle.filename)
+  check('пакет редактирования получает расширение .narthex', bundle.filename === `${id}-ai-task.narthex`, bundle.filename)
 
   const zip = await JSZip.loadAsync(bundle.blob)
   check('AI-пакет сохраняет структуру Campaign Package', !!zip.files['campaign.json'] && !!zip.files['world.json'] && !!zip.files['manifest.json'])
@@ -58,13 +58,13 @@ try {
   const campaignMeta = JSON.parse(await editedArchive.files['campaign.json'].async('text')) as Record<string, unknown>
   campaignMeta.title = 'AI Task Smoke — modified'
   editedArchive.file('campaign.json', JSON.stringify(campaignMeta, null, 2))
-  const returned = new File([await editedArchive.generateAsync({ type: 'uint8array' })], 'returned-ai.chronicle')
+  const returned = new File([await editedArchive.generateAsync({ type: 'uint8array' })], 'returned-ai.narthex')
   const copied = await importChroniclePackage(returned, async () => 'copy')
   createdIds.push(copied.id)
   const directory = await fetch(`/__editor/campaign-files?id=${encodeURIComponent(copied.id)}`).then((response) => response.json()) as { files: string[] }
   check('служебная папка AI не попадает в установленную кампанию', !directory.files.some((path) => path.startsWith('__chronicle_ai__/')))
 
-  const identical = await importChroniclePackage(new File([await zip.generateAsync({ type: 'uint8array' })], 'same-ai-task.chronicle'))
+  const identical = await importChroniclePackage(new File([await zip.generateAsync({ type: 'uint8array' })], 'same-ai-task.narthex'))
   check('повтор того же AI-пакета распознаётся как тот же пакет', identical.alreadyInstalled === true && identical.id === id, JSON.stringify(identical))
 } finally {
   for (const id of new Set(createdIds)) await deleteCampaignFolder(id).catch(() => undefined)

@@ -269,7 +269,7 @@ $ node cf-play.mjs verify runs/a --expect-engine 9.9.9
    без `node_modules` и без сети.
 2. **Дальше:** CI собирает бандл и публикует артефактом релиза/в публичный
    `engine-dist`; агент скачивает его `git clone`.
-3. **Позже:** пакет в npm (`npx @chronicle-forge/playkit …`) — установка без
+3. **Позже:** пакет в npm (`npx @narthex/playkit …`) — установка без
    репозитория; имена пакетов свободны. Тогда же — `graph` в CI как
    блокирующий шаг: кампания с `error`-находками не мержится.
 4. **Опционально:** MCP-обёртка (`cf_start_run`, `cf_step`, `cf_get_state`) для

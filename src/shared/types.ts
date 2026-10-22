@@ -1,5 +1,5 @@
 /**
- * Chronicle Forge — типы формата кампании (Campaign Package).
+ * Narthex — типы формата кампании (Campaign Package).
  * Соответствуют ТЗ, раздел 3.
  */
 
@@ -190,7 +190,7 @@ export interface MetaUnlockDef {
 }
 
 /**
- * Снимок мета-хранилища кампании (localStorage `chronicle-forge:meta:<id>`):
+ * Снимок мета-хранилища кампании (localStorage `narthex:meta:<id>`):
  * счётчики забегов, метавалюты, открытые достижения, купленные усиления,
  * суммарная статистика всех забегов.
  */
@@ -1101,7 +1101,7 @@ export interface CampaignMeta {
   /**
    * Мета-прогресс между забегами (аудит B8b): достижения, метавалюты и
    * постоянные усиления. Сохранение — отдельным ключом localStorage
-   * `chronicle-forge:meta:<campaignId>`, живёт перекрёстно между сейвами.
+   * `narthex:meta:<campaignId>`, живёт перекрёстно между сейвами.
    * Отсутствие блока — мета-прогресса нет (мастер может опустить весь пласт).
    */
   metaprogress?: MetaProgressDef
@@ -3210,10 +3210,10 @@ export interface CompatChanges {
 /**
  * `compat.json` — контракт совместимости пакета. Пишет редактор при
  * публикации обновления; игрок читает его, чтобы узнать, поддержится ли его
- * сохранение. Поля формата: `format: 'chronicle-compat/1'`.
+ * сохранение. Поля формата: `format: 'narthex-compat/1'`.
  */
 export interface CampaignCompat {
-  format: 'chronicle-compat/1'
+  format: 'narthex-compat/1'
   /** версия кампании, к которой относится контракт */
   version: string
   /** сохранения от какой версии ещё поддерживаются */

@@ -197,7 +197,7 @@ engine.start()
   check('8 в меню видны версия и дата сохранения', menu.includes('menu-save-note') && menu.includes('peekSave(m.id)'))
   check('8 предупреждение о движке показывается в меню', menu.includes('engineWarning') && menu.includes('menu-warning'))
   check('8 отчёт сейва объясняет причину и не удаляет файл', modal.includes('Сохранение не поддерживается') && modal.includes('не удалено'))
-  check('8 справка рассказывает про сохранения и обновления', help.includes("id: 'saves'") && help.includes('.cfsave'))
+  check('8 справка рассказывает про сохранения и обновления', help.includes("id: 'saves'") && help.includes('.nxsave'))
   check('8 переименование id отклоняется с объяснением', fields.includes('Менять id нельзя'))
 }
 

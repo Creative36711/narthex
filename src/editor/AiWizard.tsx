@@ -173,7 +173,7 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
         mustNot: newMustNot,
       })
       return [
-        'Привет! Создай новую кампанию для тактической RPG Chronicle Forge.',
+        'Привет! Создай новую кампанию для тактической RPG Narthex.',
         '',
         brief,
         '',
@@ -447,7 +447,7 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
                   onClick={handleDownloadTaskBundle}
                   disabled={busy}
                 >
-                  <Ico n="download" /> {bundleScope === 'patch' ? 'Скачать чемодан с правками (.chronicle)' : 'Скачать полный чемодан (.chronicle)'}
+                  <Ico n="download" /> {bundleScope === 'patch' ? 'Скачать чемодан с правками (.narthex)' : 'Скачать полный чемодан (.narthex)'}
                 </button>
                 <button
                   type="button"
@@ -621,7 +621,7 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
         {copyState && <div className="modal-status copy-status">{copyState}</div>}
 
         <div className="modal-buttons" style={{ marginTop: 10 }}>
-          <span className="muted small">Chronicle Forge • AI Toolkit 0.8.0</span>
+          <span className="muted small">Narthex • AI Toolkit 0.8.0</span>
           <span className="editor-spacer" />
           <button type="button" className="btn" onClick={onClose}>Закрыть</button>
         </div>
@@ -631,6 +631,6 @@ export function AiWizard({ store, hasCampaign, lastPlaytest, initialReport = '',
 }
 
 export const aiFixReport = (findings: string[]): string => [
-  'Исправь в кампании Chronicle Forge следующие проблемы, сохранив ID и остальной контент:',
+  'Исправь в кампании Narthex следующие проблемы, сохранив ID и остальной контент:',
   ...findings.map((finding, index) => `${index + 1}. ${finding}`),
 ].join('\n')

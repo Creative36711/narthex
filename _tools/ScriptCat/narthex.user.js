@@ -47,7 +47,7 @@
     missions: "c84a3f11-2dcf-414d-b4bf-35beaa7b2c0c",
     requests: "11b41fcc-7c84-406d-bc3b-5bf76ace79bb",
     pageUrl: "https://app.notion.com/p/Narthex-4016f0cf570581f7a1f7c3661c608ffd",
-    repo: "Creative36711/chronicle-forge", // для ссылки на PR из номера
+    repo: "Creative36711/narthex", // для ссылки на PR из номера
     tickMs: 15000,
     mergeGraceMs: 90000, // сколько ждём мерж, прежде чем нажать кнопки за агента
     prWaitMs: 300000, // общий предел ожидания мержа

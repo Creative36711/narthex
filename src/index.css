@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════
-   Chronicle Forge — Player Mode
+   Narthex — Player Mode
    Токен-система редизайна 2026: один набор семантических переменных,
    13 именованных визуальных профилей (.cf-profile-forge и др.),
    shared/profiles.ts) и переопределения кампании (шрифты/акцент — инлайном).
@@ -14,7 +14,7 @@
   --ease: cubic-bezier(0.25, 0.8, 0.35, 1);
   --ease-out: cubic-bezier(0.2, 0.7, 0.3, 1);
   color-scheme: dark;
-  /* fallback-токены = фирменный профиль «Chronicle Forge»
+  /* fallback-токены = фирменный профиль «Narthex»
      (экраны вне .cf-themed: загрузка, ошибки, модалки редактора) */
   --bg: #14161c;
   --bg-deep: #0e1014;
@@ -99,12 +99,12 @@ button { font-family: inherit; }
    Каждый профиль задаёт полный набор токенов + именованный атмосферный
    эффект. Кампания поверх профиля может переопределить --cf-font-* и
    --gold (через инлайн-стиль контейнера .cf-themed) — см. shared/theme.ts.
-   Фирменный профиль «Chronicle Forge» (forge) — дефолт; старым id
+   Фирменный профиль «Narthex» (forge) — дефолт; старым id
    fantasy/horror/survival сопоставлены dark-fantasy/gothic-horror/wilderness
    (см. shared/profiles.ts).
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── Chronicle Forge (фирменный, по умолчанию): графит-индиго, латунь ── */
+/* ── Narthex (фирменный, по умолчанию): графит-индиго, латунь ── */
 .cf-profile-forge {
   --bg: #14161c;
   --bg-deep: #0e1014;
@@ -825,7 +825,7 @@ html.cf-profile-modern {
 }
 /* ────────── Индивидуальный почерк интерфейса по профилям кампании ────────── */
 
-/* 1. Chronicle Forge: латунные акценты, строгие панели */
+/* 1. Narthex: латунные акценты, строгие панели */
 .cf-profile-forge .panel,
 .cf-profile-forge .side-panel {
   border-top: 2px solid color-mix(in srgb, var(--gold) 65%, var(--border));
