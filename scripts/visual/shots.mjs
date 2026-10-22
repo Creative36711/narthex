@@ -21,25 +21,36 @@ const states = [
   { name: 'editor', path: '/#editor', waitMs: 2500 },
 ];
 
-let chromium;
-try {
-  ({ chromium } = await import('playwright'));
-} catch {
-  console.error('Нет пакета playwright. Установите: npm i --no-save playwright && npx playwright install --with-deps chromium');
-  process.exit(2);
-}
-
 mkdirSync(outDir, { recursive: true });
 const report = { base, startedAt: new Date().toISOString(), states: [], ok: true };
 
+/**
+ * Два способа получить браузер, в порядке предпочтения:
+ *   1. `playwright` с его собственным браузером (CI: npx playwright install);
+ *   2. локальный Chromium из `@sparticuz/chromium` (песочница агента, без root).
+ * Второй путь описан в docs/agents/browser.md.
+ */
 let browser;
+let engine = 'unknown';
 try {
+  const { chromium } = await import('playwright');
   browser = await chromium.launch();
-} catch (error) {
-  console.error('Браузер не запускается в этом окружении:', error.message.split('\n')[0]);
-  console.error('Это ожидаемо в песочнице: снимки делает CI (см. docs/agents/visual.md).');
-  process.exit(2);
+  engine = 'playwright (свой браузер)';
+} catch (first) {
+  try {
+    const { launchChromium, chromiumVersion } = await import('./local-browser.mjs');
+    browser = await launchChromium();
+    engine = chromiumVersion();
+  } catch (second) {
+    console.error('Браузера нет ни одним из двух способов.');
+    console.error('  CI:        npm i --no-save playwright && npx playwright install --with-deps chromium');
+    console.error('  песочница: npm i --no-save @sparticuz/chromium@131 playwright-core@1.49.1');
+    console.error('Причины:', String(first.message).split('\n')[0], '/', String(second.message).split('\n')[0]);
+    process.exit(2);
+  }
 }
+report.engine = engine;
+console.log(`Движок: ${engine}`);
 
 const viewports = [
   { label: 'desktop', width: 1440, height: 900 },
