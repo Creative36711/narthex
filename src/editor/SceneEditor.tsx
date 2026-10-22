@@ -14,6 +14,17 @@ import { CameraEditor } from './AtmosEditors'
 import { playInteraction } from '../shared/audio'
 
 /**
+ * Рабочая ширина холста сцены: сколько полотна помещается в редактор между
+ * списком сцен (158+228) и инспектором. Запас под инспектор считаем по
+ * минимальной ширине (320) с небольшим скидом — «лишнее» достаётся холсту.
+ */
+function sceneStageWidth(): number {
+  if (typeof window === 'undefined') return 840
+  const budget = window.innerWidth - (158 + 228 + 36 + 14 + 340)
+  return Math.min(1080, Math.max(560, budget))
+}
+
+/**
  * Визуальный редактор сцены (ТЗ 5.2.2) на Konva:
  * фон = изображение активного состояния, слоты и навигационные зоны —
  * перетаскиваемые/масштабируемые прямоугольники.
@@ -183,7 +194,16 @@ export function SceneEditor({
   }, [path, scene])
 
   const canvas = scene.canvas ?? { w: 1280, h: 720 }
-  const VIEW_W = 840
+  // Ширина холста — по свободному месту окна: на широких экранах справа от
+  // инспектора не должно оставаться мёртвой пустоты, на узких — скролл в пределах
+  // полотна (как и раньше), а не разъезд всей страницы.
+  const [viewW, setViewW] = useState<number>(() => sceneStageWidth())
+  useEffect(() => {
+    const onResize = () => setViewW(sceneStageWidth())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  const VIEW_W = viewW
   const k = VIEW_W / canvas.w
   const VIEW_H = canvas.h * k
 

@@ -1,4 +1,5 @@
 import { allLocations, migrateMeta, migrateNavigation } from '../shared/migrate'
+import { aiDiffSnapshotKey } from '../shared/aiBaseline'
 import { isExternalUrl } from '../core/loader'
 import { parseRuleFile } from '../shared/ruleFiles'
 import { compareVersions } from '../shared/versions'
@@ -107,6 +108,11 @@ export class EditorStore {
   private baseline = new Map<string, string>()
   private lastTouch = { path: '', group: '', at: 0 }
 
+  /** версия формата сохранённого снимка базы правок мастера (при смене формата старые ключи игнорируются) */
+  private static readonly AI_BASELINE_VERSION = 1
+  /** верхний лимит сохраняемого снимка в символах JSON — страховка от квоты localStorage (~5 МБ в браузерах) */
+  private static readonly AI_BASELINE_LIMIT = 4 * 1024 * 1024
+
   constructor(basePath: string) {
     this.basePath = basePath
   }
@@ -199,7 +205,10 @@ export class EditorStore {
       this.snapshots.set(p, this.fileText(p))
       this.saved.set(p, this.fileText(p))
     }
-    this.captureBaseline()
+    // база для диффа правок мастера: сначала пробуем восстановить снимок из
+    // прошлых сессий (отслеживание переживает закрытие редактора и всей игры),
+    // а если его нет — фиксируем текущее состояние как точку отсчёта
+    if (!this.restoreBaseline()) this.captureBaseline()
   }
 
   /**
@@ -413,7 +422,7 @@ export class EditorStore {
   }
 
   /** пары id+label для выпадающих списков (в UI мастер видит названия, не id) */
-  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency' | 'recipe' | 'emotion'): Array<{ id: string; label: string }> {
+  options(kind: 'entity' | 'scene' | 'location' | 'quest' | 'arena' | 'rule' | 'item' | 'npc' | 'dialogue' | 'faction' | 'skill' | 'need' | 'disposition' | 'itemCategory' | 'flag' | 'cutscene' | 'status' | 'ability' | 'weather' | 'codex' | 'currency' | 'recipe' | 'emotion' | 'duration_action'): Array<{ id: string; label: string }> {
     const out: Array<{ id: string; label: string }> = []
     if (kind === 'currency') {
       for (const c of this.meta.currencies ?? []) out.push({ id: c.id, label: c.label })
@@ -489,6 +498,8 @@ export class EditorStore {
       // отношение можно менять и к фракции, и к отдельному NPC
       for (const f of this.meta.factions ?? []) out.push({ id: f.id, label: `${f.label || f.id} (фракция)` })
       for (const o of this.options('npc')) out.push({ id: o.id, label: `${o.label} (NPC)` })
+    } else if (kind === 'duration_action') {
+      for (const d of this.meta.duration_actions ?? []) out.push({ id: d.id, label: d.label || d.id })
     } else if (kind === 'itemCategory') {
       for (const c of this.meta.item_categories ?? []) out.push({ id: c.id, label: c.label || c.id })
     } else if (kind === 'flag') {
@@ -937,6 +948,79 @@ export class EditorStore {
     for (const p of this.allPaths()) {
       this.baseline.set(p, this.fileText(p))
     }
+    this.persistBaseline()
+    // список правок и счётчик в шапке редактора пересчитываются сразу,
+    // а не при следующем открытии мастера ИИ
+    this.notify()
+  }
+
+  /**
+   * Принять один файл в базовый снимок: убрать его из списка ручных правок,
+   * не сбрасывая отслеживание остальных (нужна мастеру ИИ кнопка «убрать
+   * правку» рядом с каждой строкой). Удалённым файлам снимок попросту не нужен.
+   */
+  acceptChangeAsBaseline(path: string): void {
+    if (this.hasFile(path)) this.baseline.set(path, this.fileText(path))
+    else this.baseline.delete(path)
+    this.persistBaseline()
+    this.notify()
+  }
+
+  /** ключ localStorage, по которому лежит снимок базы правок мастера для этой кампании */
+  private get aiBaselineKey(): string {
+    return aiDiffSnapshotKey(this.basePath)
+  }
+
+  /**
+   * Сохранить базу правок мастера между сессиями. Снимок живёт в localStorage,
+   * поэтому отслеживание изменений продолжается после закрытия редактора и самой
+   * игры. Если кампания слишком велика для localStorage, слежение остаётся только
+   * в рамках текущей сессии (поведение по умолчанию).
+   */
+  private persistBaseline(): void {
+    try {
+      const payload = JSON.stringify({
+        v: EditorStore.AI_BASELINE_VERSION,
+        campaign: this.meta?.id ?? '',
+        capturedAt: Date.now(),
+        files: Object.fromEntries(this.baseline),
+      })
+      if (payload.length > EditorStore.AI_BASELINE_LIMIT) {
+        // не влезаем в квоту — сносим возможный устаревший снимок, чтобы при
+        // следующем запуске не воскресить базу от более раннего состояния
+        localStorage.removeItem(this.aiBaselineKey)
+        console.warn('[ai-diff] снимок базы правок слишком велик для localStorage; отслеживание не переживёт перезапуск')
+        return
+      }
+      localStorage.setItem(this.aiBaselineKey, payload)
+    } catch {
+      // localStorage недоступен (приватный режим, эмулятор) — дифф проживёт только эту сессию
+    }
+  }
+
+  /**
+   * Восстановить сохранённую базу правок мастера. Возвращает true, если снимок
+   * найден и принят; иначе false — вызывающий код фиксирует новую точку отсчёта.
+   * Чужой кампании снимок не достанется: он кешируется по basePath и сверяется
+   * с id кампании из campaign.json.
+   */
+  private restoreBaseline(): boolean {
+    try {
+      const raw = localStorage.getItem(this.aiBaselineKey)
+      if (!raw) return false
+      const data = JSON.parse(raw) as { v?: unknown; campaign?: unknown; files?: unknown }
+      if (data.v !== EditorStore.AI_BASELINE_VERSION) return false
+      if (typeof data.files !== 'object' || data.files === null) return false
+      if (typeof data.campaign === 'string' && data.campaign && this.meta?.id && data.campaign !== this.meta.id) return false
+      const files = data.files as Record<string, unknown>
+      this.baseline.clear()
+      for (const [p, text] of Object.entries(files)) {
+        if (typeof p === 'string' && p && typeof text === 'string') this.baseline.set(p, text)
+      }
+      return this.baseline.size > 0
+    } catch {
+      return false
+    }
   }
 
   /** Имеются ли зафиксированные данные базового снимка */
@@ -948,6 +1032,31 @@ export class EditorStore {
    * Список файлов, которые реально изменились относительно исходного состояния
    * (добавленные, изменённые или удалённые файлы).
    */
+  /** каноничная строка JSON для сравнения: ключи по алфавиту рекурсивно.
+   *  Защита от ложного «изменилось»: перестановка ключей или перевод
+   *  сериализации (отступы/переносы) не считается правкой мастера (фидбек:
+   *  «просто просмотрел диалог — ИИ-мастер записал как изменение»). */
+  private static canonJson(o: unknown): string {
+    if (Array.isArray(o)) return `[${o.map((x) => EditorStore.canonJson(x)).join(',')}]`
+    if (o && typeof o === 'object') {
+      return `{${Object.keys(o as Record<string, unknown>)
+        .sort()
+        .map((k) => `${JSON.stringify(k)}:${EditorStore.canonJson((o as Record<string, unknown>)[k])}`)
+        .join(',')}}`
+    }
+    return JSON.stringify(o)
+  }
+
+  private textsEqualForDiff(path: string, a: string, b: string): boolean {
+    if (a === b) return true
+    if (!path.endsWith('.json')) return false
+    try {
+      return EditorStore.canonJson(JSON.parse(a)) === EditorStore.canonJson(JSON.parse(b))
+    } catch {
+      return false
+    }
+  }
+
   getModifiedFiles(): ModifiedFileEntry[] {
     const list: ModifiedFileEntry[] = []
     const currentPaths = new Set(this.allPaths())
@@ -964,7 +1073,7 @@ export class EditorStore {
           category: this.categorizePath(p),
           title: this.titleForPath(p),
         })
-      } else if (currentText !== baseText) {
+      } else if (!this.textsEqualForDiff(p, baseText, currentText)) {
         list.push({
           path: p,
           status: 'modified',

@@ -7,7 +7,7 @@ import { RuleEditor, newRule } from './RuleEditor'
 import { QuestEditor, newQuest } from './QuestEditor'
 import { DialogueHost } from './DialogueHost'
 import { EntityEditor } from './EntityEditor'
-import { dialogueTitle } from './DialogueBuilder'
+import { dialogueTitle } from './dialogueIndex'
 import { generateInk, newDlgDoc } from './dialogueDoc'
 import { CampaignEditor } from './CampaignEditor'
 import { CombatRulesEditor } from './CombatRulesEditor'
@@ -41,6 +41,7 @@ import { exportMonolith, importMonolithText } from './monolith'
 import { campaignFromMonolith } from './playtest'
 import type { CampaignData, ItemDef } from '../shared/types'
 import { GameEngine, deleteSave } from '../core/engine'
+import { clearAiDiffSnapshot } from '../shared/aiBaseline'
 import { GameView } from '../player/GameView'
 import { CharacterCreation } from '../player/CharacterCreation'
 import { PlaytestDebugPanel } from './PlaytestDebugPanel'
@@ -366,6 +367,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       })
       if (!saveRes.ok) throw new Error(`${saveRes.status} ${await saveRes.text()}`)
       setCampaigns(next)
+      // не оставляем в localStorage брошенный снимок базы правок мастера удалённой кампании
+      clearAiDiffSnapshot(base)
       // удалили последнюю — редактор покажет пустой экран, а не путь в никуда
       setBase(next.length ? `/campaigns/${next[0].id}` : '')
     } catch (e) {
@@ -1000,6 +1003,8 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       const { importCampaignFromDirectory } = await import('./newCampaign')
       const entry = await importCampaignFromDirectory(files, resolveChronicleConflict)
       if (entry.cancelled) return
+      // импортированная кампания — новая точка отсчёта ручных правок мастера
+      clearAiDiffSnapshot(`/campaigns/${entry.id}`)
       setCampaigns(await fetchCampaignIndex())
       setSection('scenes')
       setBase(`/campaigns/${entry.id}`)

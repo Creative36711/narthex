@@ -2,6 +2,7 @@ import { Ico } from '../shared/icons'
 import { useEffect, useRef, useState } from 'react'
 import type { GameEngine } from '../core/engine'
 import type { DialogueLine } from '../core/dialogue'
+import type { NpcDef } from '../shared/types'
 import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { tipSeen, markTip } from './tips'
 import { useSettings, voiceVolume } from '../shared/settings'
@@ -242,16 +243,22 @@ export function DialogueOverlay({ engine }: Props) {
     return () => window.removeEventListener('keydown', handleKey)
   }, [revealed, typed, full.length, lines.length, current, allShown])
 
+  // спикер реплики (# speaker): третье лицо в разговоре — портрет/имя его;
+  // ремарки (повествование) спикера не имеют — показываем собеседника диалога
+  const displayedNpc: NpcDef = (!activeLine?.action && activeLine?.speaker
+    ? (engine.campaign.entities[activeLine.speaker] as NpcDef | undefined)
+    : undefined) ?? d.npc
   // эмоция реплики, но если правило задало состояние облика (set_entity_state) —
   // оно главнее: персонаж «злой» даже на нейтральной реплике
-  const emotion = engine.entityState(d.npc.id) ?? activeLine?.emotion ?? 'neutral'
+  const emotion = engine.entityState(displayedNpc.id) ?? activeLine?.emotion ?? 'neutral'
   // пустая строка portrait: '' — не URL (assetUrlOrNull → null)
-  const portraitKey =
-    d.npc.portrait?.[emotion] ??
-    d.npc.portrait?.['neutral'] ??
-    d.npc.portrait?.['default'] ??
-    Object.values(d.npc.portrait ?? {})[0]
-  const portraitSrc = assetUrlOrNull(engine.campaign, portraitKey)
+  const portraitSrc = assetUrlOrNull(
+    engine.campaign,
+    displayedNpc.portrait?.[emotion] ??
+    displayedNpc.portrait?.['neutral'] ??
+    displayedNpc.portrait?.['default'] ??
+    Object.values(displayedNpc.portrait ?? {})[0],
+  )
 
   // ── дедлайн на раздумье (§9 дизайн-документа) ──
   // Отсчёт идёт с момента, когда реплики полностью показаны игроку.
@@ -287,14 +294,14 @@ export function DialogueOverlay({ engine }: Props) {
       <div className={`dialogue-box${portraitSrc ? '' : ' dialogue-box-noportrait'}`} onClick={skipOrAdvance}>
         <div className={`dialogue-portrait${portraitSrc ? '' : ' dialogue-portrait-empty'}`}>
           {portraitSrc ? (
-            <img src={portraitSrc} alt={d.npc.label} draggable={false} />
+            <img src={portraitSrc} alt={displayedNpc.label} draggable={false} />
           ) : (
             <div className="dialogue-portrait-placeholder" aria-hidden>
               <Ico n="user" />
             </div>
           )}
           <div className="dialogue-npc-name">
-            {d.npc.label}
+            {displayedNpc.label}
             {(() => {
               // самочувствие собеседника (выспался/устал) — мягкая подсказка игроку
               const mood = engine.npcMood(d.npc.id)

@@ -159,10 +159,10 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
           </div>
         )}
         {recipe.skill && (
-          <div className="muted small">Провал проверки сохраняет материалы. Успех ставит «галочку» роста навыка.</div>
+          <div className="muted small">Провал проверки сохраняет материалы. Успех ставит «галочку» роста навыка. Время промаха настраивается отдельно ниже.</div>
         )}
         <label className="fld fld-num">
-          <span>Время (тиков, 0 — мгновенно)</span>
+          <span>Время при успехе (тиков, 0 — мгновенно)</span>
           <input
             type="number"
             min={0}
@@ -171,6 +171,20 @@ export function RecipeEditor({ store, path }: { store: EditorStore; path: string
               const v = Math.max(0, Number(e.target.value) || 0)
               if (v > 0) recipe.time_ticks = v
               else delete recipe.time_ticks
+              commit()
+            }}
+          />
+        </label>
+        <label className="fld fld-num" data-tip="Сколько тиков сгорает при провале проверки навыка (материалы при этом целы). 0 — промах бесплатен: игрок будет давить «Изготовить» до победы, и проверка навыка перестанет что-либо значить. Работа за верстаком стоит времени независимо от результата — для рецептов с проверкой задавайте хотя бы малое значение.">
+          <span>Время при неудаче (тиков)</span>
+          <input
+            type="number"
+            min={0}
+            value={recipe.fail_time_ticks ?? 0}
+            onChange={(e) => {
+              const v = Math.max(0, Number(e.target.value) || 0)
+              if (v > 0) recipe.fail_time_ticks = v
+              else delete recipe.fail_time_ticks
               commit()
             }}
           />

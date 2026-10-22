@@ -1,0 +1,88 @@
+{
+  "id": "rule_patrol_gate",
+  "label": "Патруль на шлюзе",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "lockdown"
+    },
+    {
+      "type": "player_enters_location",
+      "location": "loc_gate"
+    }
+  ],
+  "effects": [
+    {
+      "type": "skill_check_gate",
+      "skill": "persuade",
+      "difficulty": 45,
+      "success_effects": [
+        {
+          "type": "set_flag",
+          "flag": "patrol_gate_passed"
+        },
+        {
+          "type": "grant_xp",
+          "points": 8
+        },
+        {
+          "type": "show_message",
+          "text": "Ты не достаёшь жетон — просто держишь руку у груди, где он лежит. «Дознаватель. Я к инспектору». Человек смотрит на плащ, на пустые руки и отходит: связываться с дознавателем ему платят не по этой статье."
+        },
+        {
+          "type": "postcard",
+          "image": "assets/img/pc_patrol_gate.jpg",
+          "text": "С дознавателем связываться ему не платят.",
+          "preset": "шёпот",
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "start_combat",
+          "enemies": [
+            {
+              "entity": "npc_thug",
+              "count": 1
+            }
+          ],
+          "arena": "arena_gate",
+          "intro": "Из-под эстакады выходит один в кирзе: «Документы. И не дёргайся».",
+          "on_victory": [
+            {
+              "type": "show_message",
+              "text": "Он остаётся лежать у эстакады. Убежать не успел — или не захотел."
+            },
+            {
+              "type": "grant_xp",
+              "points": 20
+            },
+            {
+              "type": "postcard",
+              "image": "assets/img/pc_patrol_beaten.jpg",
+              "text": "Документы он больше не спросит.",
+              "preset": "шёпот",
+              "seconds": 5,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 6
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "always"
+}

@@ -3222,7 +3222,8 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
   margin-top: 4px;
   overflow-wrap: anywhere;
 }
-.campaigns-foot { padding: 12px 20px 18px; }
+.campaigns-foot { padding: 12px 20px 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+.campaigns-foot > .btn { flex: 1 1 220px; justify-content: center; }
 
 /* Блокирующий оверлей распаковки/импорта кампании */
 .import-busy-overlay {
@@ -3345,7 +3346,9 @@ div.map-bg svg { width: 100%; height: 100%; display: block; }
 .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 
 .campaign-row { display: flex; gap: 8px; align-items: stretch; }
-.campaign-row .campaign-card { flex: 1; }
+/* в ряду с кнопкой удаления отступ под карточкой ломает выравнивание —
+   интервал уже даёт gap самого списка */
+.campaign-row .campaign-card { flex: 1; margin-bottom: 0; }
 .campaign-del { align-self: center; flex: 0 0 auto; }
 
 .help-foot { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-soft); text-align: right; }
@@ -4620,3 +4623,119 @@ img.scene-bg { object-fit: fill; }
   .char-create-inner { width: 100%; max-height: calc(100vh - 20px); padding: 16px; }
   .campaigns-box { width: calc(100vw - 24px); max-height: 88vh; }
 }
+
+/* ── отряд: чипы напарников и карточка (консоль отряда) ── */
+/* Док отряда: правый нижний угол — раньше чип висел слева по вертикали
+   посередине экрана и перекрывал кликабельные точки сцены и их подписи.
+   Горизонтальный ряд на подложке: читается на любом фоне, фокус из сцены ушёл. */
+.party-panel {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: min(420px, 62vw);
+  gap: 8px;
+  padding: 6px;
+  background: var(--panel, rgba(20, 20, 24, 0.85));
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  border-radius: 12px;
+  backdrop-filter: blur(6px);
+  z-index: 25;
+}
+.party-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 64px;
+  padding: 5px 4px 6px;
+  background: var(--panel, rgba(20, 20, 24, 0.85));
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color var(--dur, 0.2s);
+}
+.party-chip:hover { border-color: var(--accent, #c9a86a); }
+.party-chip.warn { border-color: var(--danger, #b5503c); box-shadow: 0 0 6px rgba(181, 80, 60, 0.45); }
+.party-chip-face {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+}
+.party-chip-face img { width: 100%; height: 100%; object-fit: cover; }
+.party-chip-name { font-size: 11px; line-height: 1; opacity: 0.9; }
+.party-chip-hp {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.party-chip-hp-fill { display: block; height: 100%; background: var(--hp, #7ba05b); transition: width 0.25s; }
+/* карточка напарника: чуть уже и строго в пределах экрана — сумка при длинном
+   списке прокручивается, а не уползает за край (отчёт №11-10-2026) */
+.party-card {
+  max-width: 560px;
+  width: min(560px, 92vw);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 64px);
+}
+.party-card .party-subview { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.party-card .party-subview .panel-head,
+.party-card .party-subview .party-weight { flex: 0 0 auto; }
+/* сумка и список «применить предмет» прокручиваются внутри карточки; шапка остаётся */
+.party-card .party-bag-cols,
+.party-card .party-subview > .inv-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding-right: 4px;
+  padding-bottom: 2px;
+}
+.party-quest-mark { color: var(--accent, #c9a86a); margin-left: 5px; }
+.party-card-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+.party-card-head h3 { margin: 0 0 4px; }
+.party-portrait {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+}
+.party-portrait img { width: 100%; height: 100%; object-fit: cover; }
+.party-hp-bar, .party-need-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  margin-top: 6px;
+}
+.party-hp-fill { display: block; height: 100%; background: var(--hp, #7ba05b); }
+.party-needs { margin: 8px 0 12px; display: flex; flex-direction: column; gap: 6px; }
+.party-need { display: grid; grid-template-columns: 90px 1fr 34px; align-items: center; gap: 8px; }
+.party-need-fill { display: block; height: 100%; background: var(--accent, #c9a86a); transition: width 0.25s; }
+.party-need.critical .party-need-fill { background: var(--danger, #b5503c); }
+.party-need.critical .party-need-label, .party-need.critical .party-need-value { color: var(--danger, #b5503c); }
+.party-need-value { text-align: right; font-size: 12px; }
+.party-need-fill.over { background: var(--danger, #b5503c); }
+.party-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.party-subview { margin-top: 4px; }
+.party-weight { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.party-weight .party-need-bar { flex: 1; margin-top: 0; }
+.party-bag-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 560px) { .party-bag-cols { grid-template-columns: 1fr; } }

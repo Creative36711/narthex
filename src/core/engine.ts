@@ -7,6 +7,7 @@ import type {
   CodexEntryDef,
   CutsceneDef,
   DiceRules,
+  DurationActionDef,
   Effect,
   EncounterEntry,
   EntityDef,
@@ -40,10 +41,12 @@ import type {
   PresenceOverride,
   SkillDifficulty,
   WeaponData,
+  CompanionState,
+  NeedDef,
 
   ImageValue,
 } from '../shared/types'
-import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES } from '../shared/types'
+import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES, startTick } from '../shared/types'
 import {
   inspectSave,
   loadState,
@@ -211,6 +214,13 @@ export class GameEngine {
     if (this.state.log.length > 200) this.state.log.shift()
   }
 
+  /** подпись спикера реплики в истории диалога: явный # speaker — его имя, иначе собеседник */
+  private dlgSpeakerLabel(line: { speaker?: string }, npc: NpcDef): string {
+    if (!line.speaker) return npc.label
+    const ent = this.campaign.entities[line.speaker] as NpcDef | undefined
+    return ent?.label ?? npc.label
+  }
+
   // ─────────────── создание нового забега ───────────────
 
   private newState(): GameState {
@@ -243,7 +253,7 @@ export class GameEngine {
       save_version: SAVE_VERSION,
       campaign_id: meta.id,
       seed: this.rng.seed,
-      tick: meta.starting_tick ?? 8,
+      tick: startTick(meta),
       region: meta.starting_region,
       location: meta.starting_location,
       scene: meta.starting_scene,
@@ -576,6 +586,33 @@ export class GameEngine {
           if (next <= 0 && cur > 0) this.onNeedZero(need.id)
         }
       }
+      // потребности напарников (NpcDef.companion_needs): те же темпы и условия
+      // убыли/восстановления, что у героя; без «на нуле»-исходов — это
+      // истощение существа, а не конец игры (последствия описывает мастер
+      // правилами через условия companion_need_le/ge)
+      if (needsOn && this.state.party.length) {
+        for (const comp of this.state.party) {
+          if (!comp.needs) continue
+          for (const need of meta.needs) {
+            const cur = comp.needs[need.id]
+            if (cur === undefined) continue
+            let next = cur
+            const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
+            if (decays) next = Math.max(0, next - need.decay_per_tick * (this.difficultyDef()?.need_decay ?? 1))
+            if (
+              need.restore_per_tick &&
+              (!need.restore_when?.length || need.restore_when.every((c) => this.needCondOk(c)))
+            ) {
+              next = Math.min(need.max, next + need.restore_per_tick)
+            }
+            comp.needs[need.id] = next
+            if (next <= 0 && cur > 0) {
+              const cdef = this.campaign.entities[comp.entity] as NpcDef | undefined
+              this.pushLog(`${cdef?.label ?? comp.entity} на пределе: ${need.label.toLowerCase()} на нуле.`)
+            }
+          }
+        }
+      }
       // статусы игрока (блок 5 ТЗ): DoT, декремент, истечение
       this.tickStatuses()
       // преследование (start_pursuit): периодические цепочные проверки маскировки
@@ -708,6 +745,13 @@ export class GameEngine {
     const cur = this.state.player.needs[needId] ?? 0
     const next = Math.min(need.max, Math.max(0, cur + delta))
     this.state.player.needs[needId] = next
+    // общий стол: рост потребности героя делят напарники, отслеживающие ту же
+    // потребность (еда/вода/сон на двоих); убыль — всегда личная
+    if (delta > 0) {
+      for (const comp of this.state.party) {
+        if (comp.needs?.[needId] !== undefined) this.changeCompanionNeed(comp.entity, needId, delta)
+      }
+    }
     if (next <= 0 && cur > 0) this.onNeedZero(needId)
   }
 
@@ -749,6 +793,17 @@ export class GameEngine {
       if (healed > 0) {
         p.hp += healed
         this.pushLog(`Отдых восстанавливает ${healed} HP.`)
+      }
+    }
+    // напарники отдыхают вместе с отрядом: те же кости естественного лечения
+    for (const comp of this.state.party) {
+      if (comp.hp > 0 && comp.hp < comp.max_hp) {
+        const cHealed = Math.min(comp.max_hp - comp.hp, rollDice(rest?.hp ?? '1d3', this.rng))
+        if (cHealed > 0) {
+          comp.hp += cHealed
+          const cdef = this.campaign.entities[comp.entity] as NpcDef | undefined
+          this.pushLog(`${cdef?.label ?? comp.entity} подлатался: +${cHealed} HP.`)
+        }
       }
     }
     const mpFull = rest?.mp_full ?? true
@@ -1337,19 +1392,32 @@ export class GameEngine {
   }
 
   /** Статичная боевая фигурка выбирается только из постоянного облика при создании. */
-  heroCombatFigure(): { figure?: ImageValue; mode?: 'topdown' | 'side' | 'static' } {
+  heroCombatFigure(): {
+    figure?: ImageValue
+    mode?: 'topdown' | 'side' | 'static'
+    offset?: number
+  } {
     const meta = this.campaign.meta.char_creation
     const choice = this.state.player.portrait_choice
     if (!meta || !choice) return {}
     if (choice.layers && meta.portrait_layers?.length) {
       for (const layer of meta.portrait_layers) {
         const option = layer.options.find((o) => o.id === choice.layers![layer.id])
-        if (option?.combat_figure) return { figure: option.combat_figure, mode: option.combat_figure_mode }
+        if (option?.combat_figure)
+          return {
+            figure: option.combat_figure,
+            mode: option.combat_figure_mode,
+            offset: option.combat_facing_offset,
+          }
       }
     }
     const portrait = meta.portraits?.find((p) => p.id === choice.gallery)
     return portrait?.combat_figure
-      ? { figure: portrait.combat_figure, mode: portrait.combat_figure_mode }
+      ? {
+          figure: portrait.combat_figure,
+          mode: portrait.combat_figure_mode,
+          offset: portrait.combat_facing_offset,
+        }
       : {}
   }
 
@@ -1452,14 +1520,192 @@ export class GameEngine {
     const def = this.campaign.entities[entityId] as NpcDef | undefined
     if (!def || def.type !== 'npc') return
     const hp = def.stats.HP ?? derivedHP(def.stats)
-    this.state.party.push({ entity: entityId, hp, max_hp: hp })
+    const comp: CompanionState = { entity: entityId, hp, max_hp: hp }
+    // потребности напарника (NpcDef.companion_needs) стартуют полными
+    if (def.companion_needs?.length && featureOn(this.campaign.meta, 'needs')) {
+      comp.needs = {}
+      for (const id of def.companion_needs) {
+        const need = this.campaign.meta.needs.find((n) => n.id === id)
+        if (need) comp.needs[id] = need.max
+      }
+      if (!Object.keys(comp.needs).length) delete comp.needs
+    }
+    if (def.companion_carry) comp.inventory = []
+    this.state.party.push(comp)
     this.pushLog(`${def.label} присоединяется к вам.`)
     this.messages.push({ text: `${def.label} присоединяется к отряду.` })
   }
 
+  /** Текущее значение потребности напарника; null — не в отряде или у существа
+   *  потребность не отслеживается… но по контракту «робот не голодает»
+   *  неотслеживаемая потребность возвращается максимальной, а не null. */
+  companionNeed(entity: string, needId: string): number | null {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    if (!comp) return null
+    const need = this.campaign.meta.needs.find((n) => n.id === needId)
+    if (!need) return null
+    return comp.needs?.[needId] ?? need.max
+  }
+
+  /** Сдвиг потребности напарника; переход через ноль — заметка в лог (без game over). */
+  changeCompanionNeed(entity: string, needId: string, delta: number): void {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    const need = this.campaign.meta.needs.find((n) => n.id === needId)
+    if (!comp || !need || comp.needs?.[needId] === undefined) return
+    const cur = comp.needs[needId]
+    const next = Math.min(need.max, Math.max(0, cur + delta))
+    comp.needs[needId] = next
+    if (next <= 0 && cur > 0) {
+      const def = this.campaign.entities[entity] as NpcDef | undefined
+      this.pushLog(`${def?.label ?? entity} на пределе: ${need.label.toLowerCase()} на нуле.`)
+    }
+  }
+
+  /** Набор отслеживаемых напарником потребностей (для UI): определения из meta.needs. */
+  companionNeedDefs(entity: string): NeedDef[] {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    if (!comp?.needs) return []
+    return this.campaign.meta.needs.filter((n) => comp.needs![n.id] !== undefined)
+  }
+
+  // ── «вторая сумка» напарника (NpcDef.companion_carry) ──
+
+  /** Груз в сумке напарника, кг. */
+  companionLoad(entity: string): number {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    let sum = 0
+    for (const e of comp?.inventory ?? []) {
+      const def = this.campaign.entities[e.item] as ItemDef | undefined
+      if (def?.type === 'item') sum += (def.weight ?? 0) * e.quantity
+    }
+    return Math.round(sum * 10) / 10
+  }
+
+  /** Грузоподъёмность напарника: та же формула энкадменса, что у героя,
+   *  но по характеристикам существа (его carry_capacity_bonus/mult учтены). */
+  companionCapacity(entity: string): number {
+    const def = this.campaign.entities[entity] as NpcDef | undefined
+    if (!def?.stats) return 0
+    const encRules = this.campaign.meta.encumbrance
+    const formula = encRules?.formula ?? 'str_siz'
+    let base = (def.stats.STR ?? 10) + (def.stats.SIZ ?? 10)
+    if (formula === 'str_con') base = (def.stats.STR ?? 10) + (def.stats.CON ?? 10)
+    else if (formula === 'str_only') base = (def.stats.STR ?? 10) * 2
+    else if (formula === 'fixed') base = Math.max(1, encRules?.capacity_multiplier ?? 20)
+    const worldMult = encRules?.capacity_multiplier && formula !== 'fixed' ? encRules.capacity_multiplier : 1.0
+    const total = base * worldMult * (def.carry_capacity_mult ?? 1.0) + (def.carry_capacity_bonus ?? 0)
+    return Math.max(1, Math.round(total * 10) / 10)
+  }
+
+  /** Передать предмет из сумки героя напарнику (нужны оба: в отряде, companion_carry).
+   *  Сюжетные предметы (quest_item) — как выбросить и продать — отдать нельзя:
+   *  уход или гибель напарника не должна стирать критические вещи навсегда.
+   *  `opts.forceQuest` — только для сюжетных эффектов (transfer_to_companion):
+   *  мастер сам решает отдать квестовый предмет скриптом. */
+  giveItemToCompanion(entity: string, itemId: string, quantity = 1, opts: { forceQuest?: boolean } = {}): boolean {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    const def = this.campaign.entities[entity] as NpcDef | undefined
+    if (!comp || !def?.companion_carry || quantity <= 0) return false
+    const itemDef = this.campaign.entities[itemId]
+    if ((itemDef as ItemDef | undefined)?.quest_item && !opts.forceQuest) {
+      this.pushToast(`${itemDef?.label ?? itemId} — сюжетная вещь: её нельзя передать напарнику.`, 'info')
+      return false
+    }
+    const have = this.state.player.inventory.find((i) => i.item === itemId)?.quantity ?? 0
+    if (have < quantity) return false
+    if (!comp.inventory) comp.inventory = []
+    this.removeItem(itemId, quantity, { silent: true })
+    const slot = comp.inventory.find((i) => i.item === itemId)
+    if (slot) slot.quantity += quantity
+    else comp.inventory.push({ item: itemId, quantity })
+    this.pushLog(`${def.label} берёт: ${itemDef?.label ?? itemId} ×${quantity}.`)
+    this.notify()
+    return true
+  }
+
+  /** Забрать предмет из сумки напарника себе. */
+  takeItemFromCompanion(entity: string, itemId: string, quantity = 1): boolean {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    const slot = comp?.inventory?.find((i) => i.item === itemId)
+    if (!comp || !slot || slot.quantity < quantity || quantity <= 0) return false
+    slot.quantity -= quantity
+    if (slot.quantity <= 0) {
+      comp.inventory = comp.inventory!.filter((i) => i.quantity > 0)
+      // снятое/отданное: если предмет был надет и кончился — снимаем со слота
+      for (const [k, v] of Object.entries(comp.equipment ?? {})) if (v === itemId && !comp.inventory!.some((i) => i.item === itemId)) delete comp.equipment![k]
+    }
+    this.addItem(itemId, quantity, { silent: true })
+    const def = this.campaign.entities[entity] as NpcDef | undefined
+    const itemDef = this.campaign.entities[itemId]
+    this.pushLog(`${def?.label ?? entity} возвращает: ${itemDef?.label ?? itemId} ×${quantity}.`)
+    this.notify()
+    return true
+  }
+
+  /** Надеть/снять предмет из сумки напарника на слот экипировки (null — снять). */
+  equipCompanionItem(entity: string, slotId: string, itemId: string | null): void {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    if (!comp) return
+    if (itemId && !comp.inventory?.some((i) => i.item === itemId)) return
+    comp.equipment = { ...(comp.equipment ?? {}) }
+    if (itemId) comp.equipment[slotId] = itemId
+    else delete comp.equipment[slotId]
+    this.notify()
+  }
+
+  /** Применить предмет из сумки героя к напарнику: перенаправляет on_use-эффекты
+   *  «здоровье» (change_hp) и «потребности» (change_need) на напарника, остальные
+   *  эффекты игнорируются; расход предмета — как у героя (on_use.consume). */
+  useItemOnCompanion(entity: string, itemId: string): boolean {
+    const comp = this.state.party.find((c) => c.entity === entity)
+    const def = this.campaign.entities[entity] as NpcDef | undefined
+    const item = this.campaign.entities[itemId] as ItemDef | undefined
+    if (!comp || !def || !item || item.type !== 'item' || !item.on_use) return false
+    if (!(this.state.player.inventory.find((i) => i.item === itemId)?.quantity ?? 0)) return false
+    let touched = false
+    for (const eff of item.on_use.effects) {
+      if (eff.type === 'change_hp' && comp.hp > 0) {
+        const before = comp.hp
+        comp.hp = Math.max(1, Math.min(comp.max_hp, comp.hp + eff.delta))
+        if (comp.hp !== before) touched = true
+      } else if (eff.type === 'change_need') {
+        if (comp.needs?.[eff.need] !== undefined) {
+          this.changeCompanionNeed(entity, eff.need, eff.delta)
+          touched = true
+        }
+      }
+    }
+    if (!touched) return false
+    playInteraction('use', { entity: item })
+    if (item.on_use.consume !== false) this.removeItem(itemId, 1, { verb: 'Использовано' })
+    this.pushLog(`${item.label} — применено к ${def.label}.`)
+    this.checkRules()
+    this.notify()
+    return true
+  }
+
+  /** Напарник покидает отряд (отпустить, скрипт, гибель в бою).
+   *  Его сумка возвращается герою — иначе переданные вещи стирались бы навсегда
+   *  (до этого так и было: мягкая блокировка при гибели носильщика). */
   leaveParty(entityId: string): void {
     const i = this.state.party.findIndex((c) => c.entity === entityId)
-    if (i >= 0) this.state.party.splice(i, 1)
+    if (i < 0) return
+    const comp = this.state.party[i]
+    const def = this.campaign.entities[entityId] as NpcDef | undefined
+    const returned = (comp.inventory ?? []).filter((e) => e.quantity > 0)
+    if (returned.length) {
+      for (const e of returned) this.addItem(e.item, e.quantity, { silent: true })
+      const list = returned
+        .map((e) => `${this.campaign.entities[e.item]?.label ?? e.item}${e.quantity > 1 ? ` ×${e.quantity}` : ''}`)
+        .join(', ')
+      this.pushLog(`${def?.label ?? entityId} отдаёт вам: ${list}.`)
+      this.pushToast(`${def?.label ?? entityId} отдаёт вам вещи из сумки: ${list}.`, 'get')
+    }
+    this.state.party.splice(i, 1)
+    // состав отряда сменился: слоты сцен (isInParty), карточки и док чипов должны
+    // перечитаться сразу; заодно даём правилам кампании шанс отреагировать на уход
+    // (сторож вида «флаг найма стоит, а NPC не в отряде» — снять флаг и вернуть героя на сцену)
+    this.notify()
   }
 
   isInParty(entityId: string): boolean {
@@ -1971,24 +2217,217 @@ export class GameEngine {
   /**
    * Ночлег в лагере (аудит B7): advanceTicks(cfg.ticks), рост навыков,
    * естественное лечение, возможная засада — правило мастера
-   * (meta.camping.ambush_rule, шанс ambush_chance).
+   * (meta.camping.ambush_rule, шанс ambush_chance). Восстановление
+   * потребностей — опционально, meta.camping.restore (аудит кампании 2026):
+   * применяется ПОСЛЕ хода времени через changeNeed (общий стол для плюса).
    */
-  campRest(): void {
-    const cfg = this.campaign.meta.camping
-    if (!cfg || !this.campAvailable().ok) return
-    this.pushLog('Вы разбиваете лагерь и устраиваетесь на ночлег…')
-    this.advanceTicks(cfg.ticks ?? 8)
-    this.restAndGrow()
-    this.restHeal()
-    const chance = Math.max(0, Math.min(1, cfg.ambush_chance ?? 0))
-    if (chance > 0 && this.rng.chance(chance)) {
-      this.pushLog('Ночью — тревога! В лагерь кто-то прокрался!')
-      if (cfg.ambush_rule) this.fireRule(cfg.ambush_rule)
-    } else {
-      this.pushLog('Ночь прошла спокойно.')
+  // ─────────────── длительные действия (dz.20) ───────────────
+
+  /**
+   * Запрос окна выбора длительности (сон и т.п.). Не сохраняется в сейв:
+   * если игрок закрыл игру с открытым окном — действие просто не началось.
+   */
+  durationRequest: { kind: 'camp' } | { kind: 'action'; action: DurationActionDef } | null = null
+
+  /** Типы эффектов, разрешённых в почасовом per_tick (белый список dz.20). */
+  private static readonly DURATION_TICK_EFFECTS = new Set([
+    'change_need', 'change_hp', 'change_fatigue', 'change_sanity',
+  ])
+
+  private applyTickEffects(effects: Effect[] | undefined, skipped: { done: boolean }): void {
+    if (!effects) return
+    for (const fx of effects) {
+      if (!GameEngine.DURATION_TICK_EFFECTS.has(fx.type)) {
+        if (!skipped.done) {
+          this.pushLog(`Двигатель: эффект '${fx.type}' не входит в белый список длительного действия и пропущен.`)
+          skipped.done = true
+        }
+        continue
+      }
+      this.applyEffect(fx)
     }
+  }
+
+  /**
+   * Общий цикл «провести N тиков»: почасовое применение per_tick ДО
+   * тикания потребностей, честные почасовые прерывания, стан-условия
+   * break_when, эффекты on_finish — только при полном завершении.
+   * Смерть/конец игры посреди цикла обрывают действие (on_zero_effect
+   * потребностей и смертельный урон честны: «умереть во сне» возможно).
+   */
+  private runTicksFlow(opts: {
+    label: string
+    ticks: number
+    perTick?: Effect[]
+    interruptChance?: number
+    interruptRule?: string
+    breakWhen?: Condition[]
+    onFinish?: Effect[]
+    after?: () => void
+  }): void {
+    const skipped = { done: false }
+    for (let i = 0; i < opts.ticks; i++) {
+      if (this.state.game_over) return
+      this.applyTickEffects(opts.perTick, skipped)
+      this.advanceTicks(1)
+      if (this.state.game_over) return
+      if (opts.breakWhen && opts.breakWhen.some((c) => evalCondition(c, this))) {
+        this.interruptTicksFlow(opts.label, opts.interruptRule, i + 1)
+        return
+      }
+      if ((opts.interruptChance ?? 0) > 0 && this.rng.chance(opts.interruptChance!)) {
+        this.interruptTicksFlow(opts.label, opts.interruptRule, i + 1)
+        return
+      }
+    }
+    opts.after?.()
+    if (opts.onFinish) {
+      for (const fx of opts.onFinish) this.applyEffect(fx)
+    }
+    this.pushLog(`${opts.label} завершено: прошло ${opts.ticks} ч.`)
     this.autosave()
     this.notify()
+  }
+
+  private interruptTicksFlow(label: string, rule: string | undefined, afterTicks: number): void {
+    this.pushLog(`${label} прервано на ${afterTicks}-м часу: что-то пошло не по плану.`)
+    if (rule) this.fireRule(rule)
+    this.autosave()
+    this.notify()
+  }
+
+  /** Границы/параметры текущего запроса — читает UI-окно выбора. */
+  durationRequestInfo(): {
+    label: string
+    min: number
+    max: number
+    step: number
+    perTick?: Effect[]
+    interruptChance: number
+    startTick: number
+  } | null {
+    const req = this.durationRequest
+    if (!req) return null
+    if (req.kind === 'camp') {
+      const cfg = this.campaign.meta.camping
+      if (!cfg) return null
+      const min = Math.max(1, Math.floor(cfg.min_ticks ?? cfg.ticks ?? 8))
+      return {
+        label: 'Ночлег',
+        min,
+        max: Math.max(min, Math.floor(cfg.max_ticks ?? cfg.ticks ?? 8)),
+        step: 1,
+        perTick: cfg.per_tick,
+        interruptChance: 0,
+        startTick: this.state.tick,
+      }
+    }
+    const def = req.action
+    const min = Math.max(1, Math.floor(def.min_ticks ?? 1))
+    return {
+      label: def.label,
+      min,
+      max: Math.max(min, Math.floor(def.max_ticks ?? min)),
+      step: Math.max(1, Math.floor(def.step ?? 1)),
+      perTick: def.per_tick,
+      interruptChance: Math.max(0, Math.min(1, def.interrupt_chance_per_tick ?? 0)),
+      startTick: this.state.tick,
+    }
+  }
+
+  cancelDurationRequest(): void {
+    if (!this.durationRequest) return
+    this.durationRequest = null
+    this.notify()
+  }
+
+  /** Игрок подтвердил длину в окне выбора. */
+  confirmDurationRequest(ticks: number): void {
+    const req = this.durationRequest
+    if (!req) return
+    this.durationRequest = null
+    if (req.kind === 'camp') { this.campRest(ticks); return }
+    this.runDurationAction(req.action, ticks)
+  }
+
+  /** Игрок нажал «Разбить лагерь»: всегда через окно выбора (при фиксированной длине — как окно подтверждения с прогнозом). */
+  requestCampRest(): void {
+    const cfg = this.campaign.meta.camping
+    if (!cfg || !this.campAvailable().ok) return
+    this.durationRequest = { kind: 'camp' }
+    this.notify()
+  }
+
+  /**
+   * Запуск длительного действия из реестра (эффект start_duration_action).
+   * ticks задан — запуск немедленно; не задан — окно выбора (или мгновенный
+   * запуск при фиксированной длине min == max). Недоступное (available_when
+   * ложно) действие молча отказывает: контент должен был скрыть вариант.
+   */
+  requestDurationAction(id: string, ticks?: number | null): void {
+    const def = (this.campaign.meta.duration_actions ?? []).find((d) => d.id === id)
+    if (!def) {
+      this.pushLog(`Двигатель: длительное действие '${id}' не найдено в реестре кампании.`)
+      this.notify()
+      return
+    }
+    if (def.available_when && !def.available_when.every((c) => evalCondition(c, this))) return
+    const min = Math.max(1, Math.floor(def.min_ticks ?? 1))
+    const max = Math.max(min, Math.floor(def.max_ticks ?? min))
+    if (ticks != null && ticks > 0) { this.runDurationAction(def, ticks); return }
+    if (max === min) { this.runDurationAction(def, min); return }
+    this.durationRequest = { kind: 'action', action: def }
+    this.notify()
+  }
+
+  /** Выполнить длительное действие (с клампом длины в min..max и выравниванием по step). */
+  runDurationAction(def: DurationActionDef, ticks: number): void {
+    const min = Math.max(1, Math.floor(def.min_ticks ?? 1))
+    const max = Math.max(min, Math.floor(def.max_ticks ?? min))
+    const step = Math.max(1, Math.floor(def.step ?? 1))
+    let chosen = Math.min(max, Math.max(min, Number.isFinite(ticks) ? Math.floor(ticks) : min))
+    chosen = Math.min(max, min + step * Math.round((chosen - min) / step))
+    if (def.available_when && !def.available_when.every((c) => evalCondition(c, this))) return
+    this.pushLog(`${def.label}: начало — ${chosen} ч.`)
+    this.runTicksFlow({
+      label: def.label,
+      ticks: chosen,
+      perTick: def.per_tick,
+      interruptChance: Math.max(0, Math.min(1, def.interrupt_chance_per_tick ?? 0)),
+      interruptRule: def.interrupt_rule,
+      breakWhen: def.break_when,
+      onFinish: def.on_finish,
+    })
+  }
+
+  campRest(ticks?: number): void {
+    const cfg = this.campaign.meta.camping
+    if (!cfg || !this.campAvailable().ok) return
+    const min = Math.max(1, Math.floor(cfg.min_ticks ?? cfg.ticks ?? 8))
+    const max = Math.max(min, Math.floor(cfg.max_ticks ?? cfg.ticks ?? 8))
+    const chosen = Math.min(max, Math.max(min, Math.floor(ticks ?? cfg.ticks ?? 8)))
+    this.pushLog('Вы разбиваете лагерь и устраиваетесь на ночлег…')
+    this.runTicksFlow({
+      label: 'Ночлег',
+      ticks: chosen,
+      perTick: cfg.per_tick,
+      after: () => {
+        this.restAndGrow()
+        this.restHeal()
+        if (cfg.restore) {
+          for (const [needId, v] of Object.entries(cfg.restore)) {
+            if (v !== 0) this.changeNeed(needId, v)
+          }
+        }
+        const chance = Math.max(0, Math.min(1, cfg.ambush_chance ?? 0))
+        if (chance > 0 && this.rng.chance(chance)) {
+          this.pushLog('Ночью — тревога! В лагерь кто-то прокрался!')
+          if (cfg.ambush_rule) this.fireRule(cfg.ambush_rule)
+        } else {
+          this.pushLog('Ночь прошла спокойно.')
+        }
+      },
+    })
   }
 
   /**
@@ -2339,7 +2778,7 @@ export class GameEngine {
     const drained = drainStory(story)
     for (const l of drained.lines) {
       this.dialogueHistory.push({
-        speaker: l.action ? '' : this.dialogue.npc.label,
+        speaker: l.action ? '' : this.dlgSpeakerLabel(l, this.dialogue.npc),
         text: l.text,
         emotion: l.emotion,
         action: l.action,
@@ -2420,7 +2859,7 @@ export class GameEngine {
     const drained = drainStory(story)
     for (const l of drained.lines) {
       this.dialogueHistory.push({
-        speaker: l.action ? '' : this.dialogue.npc.label,
+        speaker: l.action ? '' : this.dlgSpeakerLabel(l, this.dialogue.npc),
         text: l.text,
         emotion: l.emotion,
         action: l.action,
@@ -2705,7 +3144,10 @@ export class GameEngine {
     if (r.skill) {
       const out = this.playerSkillCheck(r.skill.id, r.skill.difficulty)
       if (!out.success) {
-        this.messages.push({ text: `Не получилось изготовить «${r.label}». Материалы остались целы.` })
+        // время промаха (экономика попыток): мастерская работа заполняет часы и при неудаче
+        const spent = Math.max(0, Math.floor(r.fail_time_ticks ?? 0))
+        if (spent > 0 && !this.state.game_over) this.advanceTicks(spent)
+        this.messages.push({ text: `Не получилось изготовить «${r.label}». Материалы остались целы.${spent > 0 ? ` Потрачено ${spent} тик(ов) времени.` : ''}` })
         this.autosave()
         this.notify()
         return false
@@ -3356,6 +3798,11 @@ export class GameEngine {
       case 'change_variable':
         s.variables[e.var] = Number(s.variables[e.var] ?? 0) + e.delta
         break
+      case 'start_duration_action': {
+        // dz.20: без ticks — открывается окно выбора длительности; с ticks — действие идёт сразу
+        this.requestDurationAction(e.action, e.ticks ?? null)
+        break
+      }
       case 'start_dialogue':
         this.startDialogue(e.entity, e.dialogue_knot)
         break
@@ -3379,6 +3826,9 @@ export class GameEngine {
       case 'remove_item': this.removeItem(e.item, e.quantity ?? 1); break
       case 'change_need': this.changeNeed(e.need, e.delta); break
       case 'change_hp': this.changeHp(e.delta); break
+      case 'change_companion_need': this.changeCompanionNeed(e.entity, e.need, e.delta); break
+      // сюжетный эффект мастера: quest_item-ограничение не применяется — мастер решает сам
+      case 'transfer_to_companion': this.giveItemToCompanion(e.entity, e.item, e.quantity ?? 1, { forceQuest: true }); break
       case 'change_skill': {
         if (!featureOn(this.campaign.meta, 'skills')) break
         const cur = s.player.skills[e.skill] ?? 0
@@ -3928,6 +4378,15 @@ export class GameEngine {
     const combat = this.combat
     if (!combat) return
     this.combat = null
+    // похороны отряда: погибшие в бою напарники покидают отряд навсегда
+    for (const ally of combat.combatants.filter((c) => c.id.startsWith('c_ally_') && c.dead)) {
+      const comp = this.state.party.find((p) => p.entity === ally.entityId)
+      if (comp) {
+        comp.hp = 0
+        this.leaveParty(ally.entityId)
+        this.messages.push({ text: `${ally.label} погиб(ла). Тело осталось на «${combat.arena.label}».`, portrait: ally.portrait })
+      }
+    }
     if (combat.result === 'victory' || combat.result === 'fled') {
       // основная часть эффектов уже применена в момент исхода (onCombatResolve)
       const deferred = this.postCombatEffects
@@ -4047,7 +4506,7 @@ export class GameEngine {
     const drained = drainStory(story)
     for (const l of drained.lines) {
       this.dialogueHistory.push({
-        speaker: l.action ? '' : npc.label,
+        speaker: l.action ? '' : this.dlgSpeakerLabel(l, npc),
         text: l.text,
         emotion: l.emotion,
         action: l.action,
@@ -4090,7 +4549,7 @@ export class GameEngine {
     const drained = drainStory(story)
     for (const l of drained.lines) {
       this.dialogueHistory.push({
-        speaker: l.action ? '' : npc.label,
+        speaker: l.action ? '' : this.dlgSpeakerLabel(l, npc),
         text: l.text,
         emotion: l.emotion,
         action: l.action,

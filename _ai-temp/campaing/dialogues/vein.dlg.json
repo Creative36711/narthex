@@ -1,0 +1,241 @@
+{
+  "version": 2,
+  "label": "Жила",
+  "nodes": [
+    {
+      "id": "Начало",
+      "label": "Начало разговора",
+      "sections": [
+        {
+          "conds": [
+            {
+              "type": "flag",
+              "flag": "met_vein"
+            }
+          ],
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Свет в стене вздрагивает и разгорается ровнее, узнавая тебя.",
+                "action": true,
+                "voice": "assets/voice/narr_vein_rep.mp3"
+              }
+            }
+          ],
+          "else_steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Стена светится ровно, как бирюза под водой. Звук идёт не из породы — из груди.",
+                "action": true,
+                "voice": "assets/voice/narr_vein_1.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ты пришёл с чужим жетоном и чужим сроком. Я помню всех, кто брал.",
+                "voice": "assets/voice/vein_1.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Семь помп считали мои годы. Когда седьмая замолчала, я впервые за сто тридцать семь лет услышала, как тихо.",
+                "voice": "assets/voice/vein_6.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ты считаешь, что спасаешь город. Я под ним стою сто тридцать семь лет: мне виднее, что здесь спасать.",
+                "voice": "assets/voice/vein_8.mp3"
+              }
+            },
+            {
+              "kind": "effect",
+              "effect": {
+                "type": "set_flag",
+                "flag": "met_vein"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [
+        {
+          "text": "Что ты такое?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Я то, что было здесь до города, и то, что будет после. Вы называете это жилой, потому что вам нужно что-то вынимать.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/vein_3.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Мастер не прятался от вас. Он сидел у меня и слушал — чтобы вы не услышали, как я прошу.",
+                    "voice": "assets/voice/vein_9.mp3"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Почему помпы молчат?",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Потому что вы качаете меня наружу уже сто тридцать семь лет. У меня кончается терпение, а не вода.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/vein_5.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "unlock_codex",
+                    "entry": "codex_vein"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "set_flag",
+                    "flag": "vein_heard"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "stay"
+        },
+        {
+          "text": "Вложить сердцевину в стену.",
+          "sections": [
+            {
+              "steps": [
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Ты кладёшь ладонь на камень. Он тёплый и отвечает на пульс.",
+                    "action": true,
+                    "sfx": "sfx_hum",
+                    "voice": "assets/voice/narr_vein_2.mp3"
+                  }
+                },
+                {
+                  "kind": "line",
+                  "line": {
+                    "text": "Бери. И помни: я помню всех, кто брал, — и всех, кто вернул.",
+                    "emotion": "calm",
+                    "voice": "assets/voice/vein_4.mp3"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "remove_item",
+                    "item": "item_core",
+                    "qty": 1
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "apply_status",
+                    "status": "status_veinsong",
+                    "duration": 24
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "clear_flag",
+                    "flag": "vein_braced"
+                  }
+                },
+                {
+                  "kind": "effect",
+                  "effect": {
+                    "type": "fire_rule",
+                    "rule": "rule_end_vein"
+                  }
+                }
+              ]
+            }
+          ],
+          "goto": "end",
+          "conds": [
+            {
+              "type": "has_item",
+              "item": "item_core"
+            }
+          ]
+        },
+        {
+          "text": "Я ухожу.",
+          "sections": [],
+          "goto": "end"
+        }
+      ],
+      "timer": {
+        "seconds": 20,
+        "node": "Молчание"
+      }
+    },
+    {
+      "id": "Молчание",
+      "label": "Молчание",
+      "sections": [
+        {
+          "steps": [
+            {
+              "kind": "line",
+              "line": {
+                "text": "Молчание длится, пока не закладывает уши.",
+                "action": true,
+                "sfx": "sfx_hum",
+                "voice": "assets/voice/narr_vein_3.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Ты молчишь. Я слышала этот ответ от всех, кто брал. Он всегда означал «дам».",
+                "voice": "assets/voice/vein_2.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Молчание — тоже ответ. Просто не тот, который ты надеялся дать.",
+                "voice": "assets/voice/vein_7.mp3"
+              }
+            },
+            {
+              "kind": "line",
+              "line": {
+                "text": "Если уйдёшь сейчас, седьмая простоит ещё сутки. Я умею ждать. Вода — нет.",
+                "voice": "assets/voice/vein_10.mp3"
+              }
+            }
+          ]
+        }
+      ],
+      "choices": [],
+      "goto": "end"
+    }
+  ]
+}

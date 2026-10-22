@@ -449,6 +449,8 @@ export interface HeroPortraitOption {
   /** необязательная постоянная фигурка боя, выбираемая только при создании героя */
   combat_figure?: ImageValue
   combat_figure_mode?: 'topdown' | 'side' | 'static'
+  /** сдвиг разворота этой фигурки, градусы (см. NpcDef.facing_offset) */
+  combat_facing_offset?: number
 }
 
 /**
@@ -470,6 +472,8 @@ export interface HeroPortraitLayerDef {
     /** постоянная фигурка боя, если этот выбор характеризует стартовый облик */
     combat_figure?: ImageValue
     combat_figure_mode?: 'topdown' | 'side' | 'static'
+    /** сдвиг разворота этой фигурки, градусы (см. NpcDef.facing_offset) */
+    combat_facing_offset?: number
   }>
 }
 
@@ -600,6 +604,13 @@ export interface CampaignFeatures {
 /** механика включена, если поле отсутствует или истинно */
 export function featureOn(meta: CampaignMeta, key: keyof CampaignFeatures): boolean {
   return meta.features?.[key] !== false
+}
+
+/** Эффективный стартовый тик забега: единая точка (движок, HUD-дедлайн и
+ *  условие elapsed_ge), чтобы «умолчание» не разъезжалось. Историческое
+ *  умолчание движка — 8 (утро первого дня). */
+export function startTick(meta: CampaignMeta): number {
+  return meta.starting_tick ?? 8
 }
 
 /**
@@ -862,9 +873,35 @@ export interface CampaignMeta {
    */
   camping?: {
     ticks?: number
+    /** Минимальная длительность ночлега (по умолчанию = ticks: фиксированный сон).
+     *  Если min_ticks < max_ticks — игрок сам выбирает, сколько спать, из окна выбора. */
+    min_ticks?: number
+    /** Максимальная длительность ночлега (по умолчанию = ticks). */
+    max_ticks?: number
+    /** Почасовые эффекты ночлега: применяются КАЖДЫЙ тик сна ДО тикания потребностей,
+     *  поэтому голод тикает, а восстановление считается за каждый час честно.
+     *  Белый список эффектов: change_need, change_hp, change_fatigue, change_sanity —
+     *  остальные движок пропускает с записью в журнал (audit выдаст ошибку мастеру). */
+    per_tick?: Effect[]
     ambush_chance?: number
     ambush_rule?: string
+    /** Восстановление потребностей за ночлег: `need_id → значение` (напр.
+     *  { "need_rest": 100 }). Идёт через changeNeed: положительная дельта
+     *  делится с напарниками («общий стол»), значения клапятся в 0..100.
+     *  По умолчанию лагерь потребности НЕ восстанавливает — управляется
+     *  только самими предметами-контентом (кровать и т.п.). Внимание: после
+     *  advanceTicks(ticks) потребности уже просели, поэтому 100 тут ≠ «как
+     *  было при открытии меню». Для пропорционального к часам восстановления
+     *  используйте per_tick вместо фиксированной суммы. */
+    restore?: Record<string, number>
   }
+  /**
+   * Реестр длительных действий (сон/медитация/дежурство/чтение — без
+   * привязки к лагерю): действие стоит тики игрового времени, эффект
+   * пропорционален потраченным тикам, длину в пределах min..max выбирает
+   * игрок в окне выбора. Запускается эффектом start_duration_action из
+   * диалога, правила, use_with или interact_options кровати/скамьи. */
+  duration_actions?: DurationActionDef[]
   /**
    * Числа опасностей (аудит B7): падение — по {fall_meters_per_die} метрам
    * на один кубик урона {fall_damage} (книжное умолчание 3 м на 1d6);
@@ -1136,6 +1173,52 @@ export interface AmbientRule {
   sound?: string
   /** громкость слоя 0..1 (по умолчанию 1) */
   volume?: number
+}
+
+/**
+ * Длительное действие (dz.20): сон на N часов, медитация, дежурство, чтение —
+ * любое занятие, которое стоит часы игрового времени без разбивки по тикам-шагам.
+ *
+ * Безопасность intentionally BRP-дарёная:
+ * — применение per_tick идёт ПОЧАСОВО (внутри цикла advanceTicks(1)), поэтому
+ *   прервавшийся сон дал столько пользы, сколько часов проспали;
+ * — смерть/конец игры посреди действия обрывают цикл (on_zero_effect потребностей
+ *   срабатывает честно, «убить во сне» — дело правил мастера);
+ * — вероятность прерывания честная: interrupt_chance_per_tick — шанс за ОДИН тик;
+ *   шанс «хотя бы раз за n тиков» = 1 − (1−p)ⁿ (для p=0.05 и n=8 это ≈ 34%);
+ * — пер BD-ролловертель: roll в движении сна НЕ происходит (просто «сон +8 часов»);
+ *   попущенное восстановление HP по кости meta.rest.hp идёт ПОСЛЕ
+ *   завершения (BRP-характерное лечение — не тут, а в лагере campRest).
+ */
+export interface DurationActionDef {
+  /** Уникальный id действия (на него ссылается эффект start_duration_action). */
+  id: string
+  /** Имя для окна выбора и журнала («Ночной сон», «Медитация»). */
+  label: string
+  /** Минимальная длительность в тиках (по умолчанию 1, минимум 1). */
+  min_ticks?: number
+  /** Максимальная длительность в тиках (по умолчанию = min_ticks — действие фиксированной длины). */
+  max_ticks?: number
+  /** Шаг выбора длины в окне выбора (по умолчанию 1: выбрать 3, 4, 5… часов). */
+  step?: number
+  /**
+   * Почасовые эффекты действия: каждый тик ДО тикания потребностей.
+   * Белый список (прочее движок пропускает, audit ругается):
+   *   change_need — +дельта общего стола / −личная деградация;
+   *   change_hp / change_fatigue / change_sanity — личные числа.
+   * Целые дельты в списке схемы — только положительные/отрицательные целые.
+   */
+  per_tick?: Effect[]
+  /** Шанс прерывания за один тик (0..1). Сравнивается после каждого прожитого часа. */
+  interrupt_chance_per_tick?: number
+  /** Правило, стреляющее при прерывании (набег, кошмар, стражник потревожил). После правила действие завершается — вернувшийся персонаж «не проснулся», а остановился. */
+  interrupt_rule?: string
+  /** Условия-станные «хватит»: после каждого тика проверяются; если хотя бы одно истинно — действие завершается как прерывание (с правилом interrupt_rule, если задан). Например: будить, когда need_energy >= 100. */
+  break_when?: Condition[]
+  /** Эффекты НОРМАЛЬНОГО завершения (доспал): срабатывают один раз, только если цикл дошёл до конца без прерывания/смерти. */
+  on_finish?: Effect[]
+  /** Если заданы, действие доступно только при истинности всех условий (день/ночь, переменная, нужна скамейка в локации и т.п.). */
+  available_when?: Condition[]
 }
 
 export interface LocationDef {
@@ -1694,9 +1777,20 @@ export interface NpcDef {
   /** состояния фигурки боя: 'dead' — погиб, 'down' — без сознания/выведен,
    *  id статуса — пока статус активен. Пустой ключ = обычная (combat_figure). */
   combat_figure_states?: Record<string, ImageValue>
-  /** как разворачивать фигурку: вид сверху (поворот), вид сбоку (зеркало),
-   *  не разворачивать; по умолчанию 'topdown' */
+  /** как разворачивать фигурку: 'topdown' — поворот картинки к цели (арту «вид сверху»),
+   *  'side' — только зеркало влево/вправо, БЕЗ поворота (исключительно для фронтального/
+   *  вертикального арта; на арте «сверху» фигурка вечно смотрит в камеру — частая ошибка),
+   *  'static' — не разворачивать; по умолчанию 'topdown'. Режим выбирается стилем арта и
+   *  в одной кампании, как правило, один на всех сущностей — при перегенерации арта
+   *  синхронизируй figure_mode/facing_offset у всех. */
   figure_mode?: 'topdown' | 'side' | 'static'
+  /** сдвиг разворота фигурки, градусы по часовой (только режим 'topdown'):
+   *  прибавляется к вычисленному движком направлению при отрисовке. Нужен,
+   *  если готовый арт смотрит не строго «вверх» (0°): 180 — фигурка нарисована
+   *  вниз (на юг), 90 — вправо, -90 — влево. Влияет только на картинку:
+   *  игровая логика (задняя дуга удара в спину и т.п.) считается по реальному
+   *  направлению бойца. По умолчанию 0. */
+  facing_offset?: number
   /** мягкая тень под спрайтом/фигуркой (по умолчанию включена) */
   shadow?: boolean
   /**
@@ -1724,6 +1818,21 @@ export interface NpcDef {
   carry_capacity_bonus?: number
   /** Расовый/индивидуальный множитель грузоподъёмности (напр. 2.5 для мутантов, гигантов, четвероногих) */
   carry_capacity_mult?: number
+  /** НАПАРНИК: набор потребностей, которые тикают у существа в отряде (id из
+   *  реестра `meta.needs`; пусто/нет — потребностей нет: робот, нежить).
+   *  Убывают и восстанавливаются по тикам теми же правилами, что у героя; общий
+   *  стол: когда потребность героя растёт (еда, сон — эффект change_need с
+   *  положительной дельтой), напарник, отслеживающий ту же потребность, растёт
+   *  на столько же. Ниже `critical_threshold` собственной потребности — штраф
+   *  навыкам в бою и метка «истощён». Читать/менять из правил и ink:
+   *  условия `companion_need_le`/`companion_need_ge`, эффект
+   *  `change_companion_need`. */
+  companion_needs?: string[]
+  /** НАПАРНИК: «вторая сумка» — у существа есть собственный инвентарь, между
+   *  героем и напарником можно передавать предметы; надетые напарником оружие
+   *  и броня используются им в бою. Грузоподъёмность считается по тем же
+   *  формулам энкадменса, что у героя */
+  companion_carry?: boolean
   trader?: TraderDef | null
   combat_ai?: string
   /** броня в очках (если нет предмета-брони) */
@@ -1891,7 +2000,9 @@ export interface ItemDef {
   weight: number
   value?: Record<string, number>
   stackable: boolean
-  /** сюжетный/квестовый предмет: нельзя случайно выбросить или продать */
+  /** сюжетный/квестовый предмет: нельзя случайно выбросить, продать или передать
+   *  напарнику через сумку (уход/гибель напарника не съест критическую вещь).
+   *  Скриптовая передача эффектом transfer_to_companion остаётся решением мастера. */
   quest_item?: boolean
   /** Срок годности предмета в игровых тиках (например, 24 = 24 часа). Если не задан — предмет не портится */
   decay_ticks?: number
@@ -2094,6 +2205,15 @@ export interface DlgLine {
   /** авторская ремарка (курсивом, не влияет на портрет) */
   action?: boolean
   /**
+   * Спикер — не собеседник диалога, а другой персонаж (id NPC кампании):
+   * спутник встревает в допрос, голос из-за двери, мастер за спиной героя.
+   * Портрет, имя и эмоция реплики берутся у указанного спикера.
+   * Несовместимо с ремаркой (ремарка — проза повествования, спикера у неё нет).
+   * Присутствие спикера на месте — ответственность мастера: отгейтуйте ветку
+   * условиями (in_party, флаг), движитель физику присутствия не проверяет.
+   */
+  speaker?: string
+  /**
    * озвучка реплики: файл пакета (assets/voice/…) или ссылка (итерация 8,
    * блок G). Если нет — при включённом синтезаторе реплику читает браузер.
    */
@@ -2144,6 +2264,16 @@ export type DlgEffect =
   | { type: 'advance_time'; ticks: number }
   | { type: 'change_need'; need: string; delta: number }
   | { type: 'change_hp'; delta: number }
+  /** сдвинуть потребность напарника (id из его companion_needs) на дельту;
+   *  в сыром ink — `~ change_companion_need("npc_ira", "need_hunger", 30)` */
+  | { type: 'change_companion_need'; npc: string; need: string; delta: number }
+  /** передать предмет из сумки героя напарнику с включённой «второй сумкой»
+   *  (companion_carry) — в сыром ink `~ give_to("npc_ira", "item_filter", 1)`;
+   *  нет сумки/предмета — эффект тихо не срабатывает */
+  | { type: 'transfer_to_companion'; npc: string; item: string; qty: number }
+  /** напарник покидает отряд (возвращается к своему расписанию);
+   *  в сыром ink — `~ leave_party("npc_ira")` */
+  | { type: 'leave_party'; npc: string }
   | { type: 'sleep'; ticks: number }
   | { type: 'change_disposition'; target: string; delta: number }
   | { type: 'play_cutscene'; cutscene: string }
@@ -2281,6 +2411,10 @@ export interface ArenaDef {
     /** гексы-укрытия (мастер размечает кистью «Укрытие»); влияют на стрельбу, если в правилах боя включены укрытия */
     cover_hexes?: HexCoord[]
   }
+  /** зоны появления сторон. player — спавн ВСЕГО отряда: точки выдаются по очереди
+   *  (первая — герою, дальше — напарникам по порядку отряда); гексов должно быть
+   *  не меньше, чем герой + максимум напарников кампании. Непроходимые точки зоны
+   *  движок пропускает; переполненный боец встаёт в ближайший свободный к герою. */
   spawn_zones: {
     player: { hexes: HexCoord[] }
     enemy: { hexes: HexCoord[] }
@@ -2312,10 +2446,14 @@ export interface RecipeDef {
   repair?: boolean
   /** декларативные условия возможности крафта (локация, флаг, …) */
   requires?: Condition[]
-  /** проверка навыка при изготовлении; успех = создал, провал = компоненты целы */
+  /** проверка навыка при изготовлении; успех = создал и ставит «галочку» опыта, провал = компоненты целы (время промаха — fail_time_ticks) */
   skill?: { id: string; difficulty: SkillDifficulty }
   /** время изготовления (промотка тиков после успеха) */
   time_ticks?: number
+  /** время неудачной попытки (промотка тиков при провале проверки навыка; по умолчанию 0 — промах бесплатен).
+   *  Экономика попыток: если успех стоит часы, а провал — ноль, игрок рационально давит «Изготовить» до победы;
+   *  BRP-привычная цена промаха время/материалы, поэтому для верстачной работы с проверкой задавайте хотя бы малое значение. */
+  fail_time_ticks?: number
   /** результат */
   output: { item: string; quantity: number }
   /** сообщение об успехе (нет — стандартное) */
@@ -2439,7 +2577,14 @@ export type Condition =
   | { type: 'flag_not_set'; flag: string }
   | { type: 'variable_compare'; var: string; operator: '==' | '!=' | '<' | '>' | '<=' | '>='; value: number | string }
   | { type: 'time_of_day'; value: TimeOfDay | TimeOfDay[] }
+  /** сравнение с АБСОЛЮТНЫМ игровым тиком: `state.tick >= min_tick`. ВАЖНО:
+   *  это не «прошло с начала забега» — для отсчёта от старта используйте
+   *  `elapsed_ge` или пишите порог с учётом meta.starting_tick. */
   | { type: 'tick_elapsed'; min_tick: number }
+  /** с начала забега прошло ≥ N тиков: `state.tick − (meta.starting_tick ?? 0) >= min`.
+   *  Единственное верное средство сроков вида «через 72 часа от старта» при
+   *  ненулевом starting_tick. */
+  | { type: 'elapsed_ge'; min: number }
   | { type: 'quest_at_stage'; quest: string; stage: string }
   | { type: 'has_item'; item: string; min_quantity?: number }
   /** предмет экипирован на герое в любом слоте */
@@ -2493,6 +2638,11 @@ export type Condition =
   | { type: 'disposition_ge'; target: string; threshold: number }
   | { type: 'disposition_le'; target: string; threshold: number }
   | { type: 'in_party'; entity: string }
+  /** потребность напарника (NpcDef.companion_needs) не выше / не ниже порога;
+   *  у существа вне отряда le — ложь, ge — истина; неотслеживаемая потребность
+   *  считается полной (робот не голодает) */
+  | { type: 'companion_need_le'; entity: string; need: string; threshold: number }
+  | { type: 'companion_need_ge'; entity: string; need: string; threshold: number }
   | { type: 'random_chance'; probability: number }
   | { type: 'has_status'; status: string }
   | { type: 'weather_is'; weather: string }
@@ -2536,6 +2686,10 @@ export type Effect =
   | { type: 'set_variable'; var: string; value: number | string }
   | { type: 'change_variable'; var: string; delta: number }
   | { type: 'start_dialogue'; entity: string; dialogue_knot?: string }
+  /** Начать длительное действие из реестра meta.duration_actions (dz.20):
+   *  без `ticks` — игрок выбирает длину из окна выбора min..max,
+   *  с `ticks` — действие запускается сразу на указанное число тиков. */
+  | { type: 'start_duration_action'; action: string; ticks?: number }
   | {
       type: 'start_combat'
       enemies: Array<{ entity: string; count: number }>
@@ -2565,6 +2719,10 @@ export type Effect =
   | { type: 'remove_item'; item: string; quantity?: number }
   | { type: 'change_need'; need: string; delta: number }
   | { type: 'change_hp'; delta: number }
+  /** сдвинуть потребность напарника (id из его companion_needs) на дельту */
+  | { type: 'change_companion_need'; entity: string; need: string; delta: number }
+  /** передать предмет из сумки героя напарнику со «второй сумкой» (companion_carry) */
+  | { type: 'transfer_to_companion'; entity: string; item: string; quantity?: number }
   | { type: 'change_skill'; skill: string; delta: number }
   | {
       type: 'skill_check_gate'
@@ -2962,6 +3120,14 @@ export interface CompanionState {
    * 'hold' (стоять и защищаться), 'retreat' (держаться подальше, не нападать).
    */
   order?: 'free' | 'follow' | 'hold' | 'retreat'
+  /** живые потребности напарника (только id из NpcDef.companion_needs):
+   *  need id → текущее значение 0..NeedDef.max; создаются при вступлении */
+  needs?: Record<string, number>
+  /** собственная сумка напарника (если у NpcDef включён companion_carry) */
+  inventory?: InventoryEntry[]
+  /** надетое снаряжение напарника: слот из meta.equipment_slots → id предмета
+   *  из его сумки; в бою замещает equipment карточки NPC */
+  equipment?: Record<string, string>
   /** цель приказа 'focus' на этот бой: id подразделения противника (в памяти боя) */
   focus?: string
 }

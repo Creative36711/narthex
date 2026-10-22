@@ -1,0 +1,46 @@
+{
+  "id": "rule_ira_drift_talk",
+  "label": "Ира слышит жилу",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_drift"
+    },
+    {
+      "type": "in_party",
+      "entity": "npc_ira"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "ira_drift_talk"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "ira_drift_talk"
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_ira_drift.jpg",
+      "text": "Жила поёт тем, кто стоит к ней слишком долго.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    },
+    {
+      "type": "start_dialogue",
+      "entity": "npc_ira",
+      "dialogue_knot": "В_штольне"
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "enter_scene"
+}

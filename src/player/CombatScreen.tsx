@@ -253,7 +253,7 @@ export function CombatScreen({ engine }: Props) {
                   (c.dead ? fstates?.['dead'] : c.down ? fstates?.['down'] : statusOverride) ?? c.figure
                 const transform =
                   mode === 'topdown'
-                    ? `rotate(${c.facing}deg)`
+                    ? `rotate(${c.facing + (c.facing_offset ?? 0)}deg)`
                     : mode === 'side'
                       ? `scaleX(${c.flip ? -1 : 1})`
                       : undefined

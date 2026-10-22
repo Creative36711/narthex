@@ -3,6 +3,8 @@ import campaignSchemaJson from '../../docs/campaign.schema.json' with { type: 'j
 import type { ErrorObject, ValidateFunction } from 'ajv'
 import type { EditorStore } from './store'
 import { charCreationTemplateFindings } from '../core/charcreate'
+import { featureOn } from '../shared/types'
+import type { DlgDoc, DlgLine, DlgStep, DlgSection } from '../shared/types'
 
 export type AuditSeverity = 'error' | 'warning' | 'info'
 export interface AuditFinding {
@@ -252,7 +254,15 @@ async function inspectAlphaRoles(store: EditorStore): Promise<AuditFinding[]> {
         })
       }
     } catch {
-      // не удалось декодить картинку — не критично, расскажут другие проверки
+      // картинку не удалось декодировать: раньше это был тихий пропуск, и
+      // сценарист искренне верил, что «углы проверены». Честно говорим, что
+      // именно не проверено — иначе сюда пролезает «прозрачный» спрайт с
+      // непрозрачными углами (WebP с альфой, 16-бит/интерлейс PNG в headless,
+      // битый файл или экзотический формат в браузере).
+      findings.push({
+        severity: 'warning',
+        message: `«${path}»: ${role}, требуется прозрачный фон, но углы проверить не удалось — изображение не декодируется (битый файл или формат вне поддержки проверки). Конвертируйте в PNG 8-бит без интерлейса и перепроверьте.`,
+      })
     }
   }
   return findings
@@ -303,6 +313,128 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       })
     }
   }
+  // Конфиг без рёбер, но с неожиданным поведением (аудит «Каркаса», 2026-10):
+  // лагерь включён, нужды включены, а restore пуст — кнопка обещает сон, но
+  // потребности ночлег не восстановит. Поведение остаётся мастерским, движок
+  // только голосует одной строкой.
+  if (store.meta.camping && featureOn(store.meta, 'needs') && (store.meta.needs?.length ?? 0) > 0 && !store.meta.camping.restore && !store.meta.camping.per_tick?.length) {
+    structure.push({
+      severity: 'warning',
+      message: 'Лагерь включён (meta.camping), нужды включены, но ни meta.camping.restore, ни meta.camping.per_tick не заданы: ночлег ходит время, лечит раны и растит навыки, но потребности (в т.ч. отдых) не восстанавливает. Если сон должен восполнять — задайте в паспорте restore, например { "need_rest": 100 }, либо почасовое per_tick (за каждый час сна), например change_need "+12"; если задумано, что лагерь — только передышка, игнорируйте это предупреждение.',
+    })
+  }
+
+  // ── длительные действия (dz.20) ───────────────────────────────────────────
+  {
+    const TICK_WHITELIST = new Set(['change_need', 'change_hp', 'change_fatigue', 'change_sanity'])
+    const acts = store.meta.duration_actions ?? []
+    const ruleIds = new Set(store.options('rule').map((o) => o.id))
+    const seen = new Set<string>()
+    for (const a of acts) {
+      if (!a.id || seen.has(a.id)) {
+        structure.push({ severity: 'error', message: `Длительное действие: пустой или повторяющийся id «${a.id}» — ссылки из эффекта «Начать длительное действие» неотличимы.` })
+      }
+      seen.add(a.id)
+      const minT = a.min_ticks ?? 1
+      const maxT = a.max_ticks ?? minT
+      if (maxT < minT) {
+        structure.push({ severity: 'error', message: `Длительное действие «${a.label || a.id}»: max_ticks (${maxT}) меньше min_ticks (${minT}) — игрок не сможет его запустить.` })
+      }
+      if (a.interrupt_rule && !ruleIds.has(a.interrupt_rule)) {
+        structure.push({ severity: 'warning', message: `Длительное действие «${a.label || a.id}»: правило прерывания «${a.interrupt_rule}» не найдено в реестре правил.` })
+      }
+      if ((a.interrupt_chance_per_tick ?? 0) > 0 && !a.interrupt_rule) {
+        structure.push({ severity: 'warning', message: `Длительное действие «${a.label || a.id}»: задан шанс прерывания, но не задано правило прерывания — сон просто оборвётся без события. Если так задумано, игнорируйте.` })
+      }
+      for (const fx of a.per_tick ?? []) {
+        if (!TICK_WHITELIST.has(fx.type)) {
+          structure.push({ severity: 'error', message: `Длительное действие «${a.label || a.id}»: почасовой эффект «${fx.type}» вне белого списка (разрешены change_need, change_hp, change_fatigue, change_sanity) — движок его пропустит. Вынесите его в on_finish, если он нужен по завершении.` })
+        }
+      }
+      if (a.per_tick?.some((fx) => fx.type === 'change_need' && !store.meta.needs?.some((n) => n.id === (fx as { need?: string }).need))) {
+        structure.push({ severity: 'warning', message: `Длительное действие «${a.label || a.id}»: почасовой эффект ссылается на потребность, которой нет в реестре нужд кампании.` })
+      }
+    }
+    if (store.meta.camping) {
+      const campMin = store.meta.camping.min_ticks ?? store.meta.camping.ticks ?? 8
+      const campMax = store.meta.camping.max_ticks ?? store.meta.camping.ticks ?? 8
+      if (campMax < campMin) {
+        structure.push({ severity: 'error', message: `Лагерь: max_ticks (${campMax}) меньше min_ticks (${campMin}) — ночлег недоступен.` })
+      }
+      for (const fx of store.meta.camping.per_tick ?? []) {
+        if (!TICK_WHITELIST.has(fx.type)) {
+          structure.push({ severity: 'error', message: `Лагерь: почасовой эффект «${fx.type}» вне белого списка (разрешены change_need, change_hp, change_fatigue, change_sanity) — движок его пропустит.` })
+        }
+      }
+    }
+  }
+  // ── рогалик и сохранения (обсуждение 2026-10): пермадет, обходимый ручным
+  // слотом, не пермадет, а штраф смерти; честный железный рогалик = только
+  // автосейв (стирается смертью), т.е. save_slots: 0 ────────────────────────
+  if (store.meta.roguelike?.permadeath && (store.meta.save_slots ?? 3) > 0) {
+    structure.push({
+      severity: 'warning',
+      message: `Рогалик с необратимой гибелью (permadeath), но ручных слотов сохранения ${store.meta.save_slots ?? 3}: смерть стирает только автосейв, ручной слот переживает забег и перезаписывает концовку. Для честного железного рогалика задайте save_slots: 0; если «снимок на всякий случай» задуман — игнорируйте.`,
+    })
+  }
+
+  // ── спикеры реплик (# speaker): ссылка на NPC, не у ремарок, и физическое
+  // присутствие — через условия (dz.22) ─────────────────────────────────────
+  {
+    const npcIds = new Set(store.options('npc').map((o) => o.id))
+    // владелец диалога ищется по npc.dialogue, как в dlgScript
+    const ownerOf = (path: string): string | undefined => {
+      for (const ep of store.entityPaths()) {
+        const e = store.entity(ep) as { type?: string; dialogue?: string } | undefined
+        if (e?.type === 'npc' && e.dialogue === path) return (e as { id?: string }).id
+      }
+      return undefined
+    }
+    for (const f of store.manifest.dialogues ?? []) {
+      const inkPath = `dialogues/${f}`
+      const doc = store.jsonFiles.get(inkPath.replace(/\.ink$/, '.dlg.json')) as DlgDoc | undefined
+      if (!doc?.nodes) continue
+      const owner = ownerOf(inkPath)
+      const lines: Array<{ l: DlgLine; where: string }> = []
+      const walkSteps = (steps: DlgStep[] | undefined, where: string): void => {
+        for (const st of steps ?? []) if (st.kind === 'line') lines.push({ l: st.line, where })
+      }
+      const walkSections = (secs: DlgSection[] | undefined, where: string): void => {
+        for (const sec of secs ?? []) { walkSteps(sec.steps, where); walkSteps(sec.else_steps, where) }
+      }
+      for (const node of doc.nodes) {
+        walkSections(node.sections, `узел «${node.label || node.id}»`)
+        for (const ch of node.choices) {
+          walkSections(ch.sections, `вариант «${ch.text.slice(0, 30)}…» узла «${node.id}»`)
+          if (ch.check) {
+            walkSections(ch.check.success.sections, `проверка (успех) узла «${node.id}»`)
+            walkSections(ch.check.fail.sections, `проверка (провал) узла «${node.id}»`)
+          }
+        }
+      }
+      const foreign = new Set<string>()
+      const docText = JSON.stringify(doc)
+      for (const { l, where } of lines) {
+        if (!l.speaker) continue
+        if (l.action) {
+          structure.push({ severity: 'error', message: `Диалог ${inkPath}, ${where}: у ремарки задан спикер «${l.speaker}» — ремарка это проза повествования, спикера у неё нет; движитель спикера проигнорирует.` })
+          continue
+        }
+        if (!npcIds.has(l.speaker)) {
+          structure.push({ severity: 'error', message: `Диалог ${inkPath}, ${where}: спикер «${l.speaker}» не найден в реестре NPC кампании.` })
+          continue
+        }
+        if (owner && l.speaker !== owner) foreign.add(l.speaker)
+      }
+      for (const sp of foreign) {
+        const partyGate = docText.includes('"in_party"') && docText.includes(`"${sp}"`)
+        if (!partyGate) {
+          structure.push({ severity: 'warning', message: `Диалог ${inkPath}: спикер «${sp}» говорит в чужом разговоре, но ни одна ветка не проверяет его присутствие (in_party/условием) — он может заговорить из пустоты. Отгейтуйте ветку условием присутствия спикера; если голос «из-за двери» задуман — игнорируйте.` })
+        }
+      }
+    }
+  }
+
   // Подписи реестров читает человек — и в редакторе, и в HUD (фидбек 27,
   // пп. 2 и 4). ИИ-агенты иногда кладут в label служебный код вида
   // «crime_intrusion=Проникновение в тоннели» или «price_blockade*1.5»:
@@ -337,6 +469,44 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
       }
     }
   }
+  // Флаги, поставленные вне реестра meta.flags: сырой ink («~ set_flag») и
+  // эффекты set_flag/clear_flag ставят их мимо реестра — такой флаг не имеет
+  // описания для мастера, не виден в редакторе и ловится только в рантайме.
+  // Внутренние динамические ключи движка (known_*, npc_known_* — «герой
+  // знаком»; scene_state:* — состояние сцены) реестру не принадлежат.
+  const flagInternal = (f: string): boolean => f.startsWith('known_') || f.startsWith('npc_known_') || f.startsWith('scene_state:')
+  const flagUses = new Map<string, string>() // flag → где впервые увидели
+  const noteFlag = (f: string, where: string): void => {
+    if (!flagUses.has(f)) flagUses.set(f, where)
+  }
+  for (const [path, text] of store.textFiles) {
+    if (!/^dialogues\/.+\.ink$/.test(path)) continue
+    for (const m of text.matchAll(/~\s*(?:set_flag|clear_flag)\(\s*"([^"]+)"/g)) noteFlag(m[1]!, path)
+  }
+  const walkFlags = (value: unknown, where: string): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) walkFlags(item, where)
+      return
+    }
+    if (value && typeof value === 'object') {
+      const rec = value as Record<string, unknown>
+      if ((rec.type === 'set_flag' || rec.type === 'clear_flag') && typeof rec.flag === 'string') noteFlag(rec.flag, where)
+      for (const item of Object.values(rec)) walkFlags(item, where)
+    }
+  }
+  walkFlags(store.meta, 'campaign.json')
+  walkFlags(store.world, 'world.json')
+  for (const [path, doc] of store.jsonFiles) walkFlags(doc, path)
+  const flagRegistry = new Set((store.meta.flags ?? []).map((f) => f.id))
+  const flagOrphans = [...flagUses].filter(([f]) => !flagRegistry.has(f) && !flagInternal(f))
+  if (flagOrphans.length) {
+    const shown = flagOrphans.slice(0, 6).map(([f, where]) => `«${f}» (${where})`).join(', ')
+    structure.push({
+      severity: 'error',
+      message: `Флаги ставятся в ink/эффектах, но отсутствуют в реестре meta.flags: ${shown}${flagOrphans.length > 6 ? ` и ещё ${flagOrphans.length - 6}` : ''}. Флаг вне реестра не имеет описания «для чего нужен» и не виден мастеру в редакторе. Добавьте его в реестр флагов (Паспорт кампании) с пояснением — так же как делает конструктор диалогов при первом сохранении.`,
+    })
+  }
+
   // Вызов внешней функции без объявления EXTERNAL: inkjs не компилирует файл,
   // и диалог молча не открывается — самая частая ошибка автора и ИИ.
   for (const [path, text] of store.textFiles) {
@@ -449,6 +619,14 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
   for (const p of store.recipePaths()) {
     const rc = store.recipe(p)
     checkSoundRef(rc.sound, `Рецепт «${rc.label || rc.id}»`)
+    // экономика попыток (кейс «дыхатель», 2026-10): успех стоит часы, промах — бесплатен →
+    // рациональный спам «Изготовить» обесценивает проверку навыка
+    if (rc.skill && (rc.time_ticks ?? 0) > 0 && !(rc.fail_time_ticks ?? 0)) {
+      structure.push({
+        severity: 'warning',
+        message: `Рецепт «${rc.label || rc.id}»: успех стоит ${rc.time_ticks} тик(ов), но время промаха (fail_time_ticks) не задано — неудачная попытка бесплатна, и игрок будет давить «Изготовить» до победы. Задайте время при неудаче (материалы остаются целыми); если бесплатный промах задуман — игнорируйте.`,
+      })
+    }
   }
   // Проверяем слоты сцен
   for (const p of store.scenePaths()) {
@@ -473,7 +651,11 @@ export async function validateCampaign(store: EditorStore, lastPlaytest?: Playte
   const localFindings = await inspectLocalMedia(store, mediaRefs.local)
   const media: AuditFinding[] = localFindings.filter((finding) => finding.severity !== 'info')
   if (mediaRefs.local.length && media.length === 0) {
-    media.push({ severity: 'info', message: `Проверено локальных медиафайлов: ${mediaRefs.local.length}; все найдены.` })
+    // аудит кампании 2026-10: проверка покрывает ССЫЛКИ на медиа в данных
+    // кампании (json + ink), а не все файлы на диске — раньше строка звучала
+    // как полное покрытие («786 vs 952»). Файлы без ссылок — легальные запасные,
+    // движок их не удаляет и лимитов размера не применяет (политика без лимитов).
+    media.push({ severity: 'info', message: `Проверено ссылок на локальные медиа в контенте кампании: ${mediaRefs.local.length}; все найдены. Проверка покрывает только упомянутые в данных пути — файлы на диске без ссылок не считаются и не удаляются.` })
   }
   for (const url of mediaRefs.external) {
     media.push({

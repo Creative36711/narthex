@@ -1,0 +1,23 @@
+{
+  "id": "rule_resh_mourns_ira",
+  "label": "Реш: гибель Иры",
+  "once": true,
+  "trigger": "always",
+  "conditions": [
+    {
+      "type": "flag_set",
+      "flag": "ira_dead"
+    },
+    {
+      "type": "in_party",
+      "entity": "npc_resh"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_dialogue",
+      "entity": "npc_resh",
+      "dialogue_knot": "П_смерть_иры"
+    }
+  ]
+}

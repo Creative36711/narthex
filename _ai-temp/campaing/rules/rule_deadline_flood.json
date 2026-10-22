@@ -1,0 +1,44 @@
+{
+  "id": "rule_deadline_flood",
+  "label": "Срок дела истёк",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "elapsed_ge",
+      "min": 72
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "case_ended"
+    }
+  ],
+  "effects": [
+    {
+      "type": "play_cutscene",
+      "cutscene": "cutscene_flood"
+    },
+    {
+      "type": "set_flag",
+      "flag": "flood"
+    },
+    {
+      "type": "set_flag",
+      "flag": "case_ended"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_flooded"
+    },
+    {
+      "type": "fail_quest",
+      "quest": "quest_pump"
+    },
+    {
+      "type": "game_over_death",
+      "reason": "Семьдесят два часа вышли. Восьмой ярус ушёл под тяжёлую воду."
+    }
+  ],
+  "chapter": "ch_final"
+}

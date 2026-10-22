@@ -1,0 +1,23 @@
+{
+  "id": "rule_resh_joins_card",
+  "label": "Открытка: Реш идёт с тобой",
+  "once": true,
+  "manual": true,
+  "chapter": "ch_deep",
+  "conditions": [],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_resh_joins.jpg",
+      "text": "Эрдан Реш встаёт от жилы и идёт с тобой.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.1,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    }
+  ]
+}

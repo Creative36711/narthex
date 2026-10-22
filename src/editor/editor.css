@@ -12,6 +12,11 @@
    · активный выбор/ссылки — отдельный бирюзовый цвет (--ed-select).
    ═══════════════════════════════════════════════════════════════════ */
 
+/* Редактор — приложение во весь вьюпорт со своими зонами прокрутки:
+   прокрутка самой страницы не нужна и выглядит как случайный микро-скролл
+   справа (класс cf-editor вешает App.tsx на <body> в режиме редактора). */
+body.cf-editor { overflow: hidden; }
+
 .editor-root,
 .playtest-shell {
   /* ── хром ── */
@@ -467,6 +472,8 @@
 
 .ce-list { display: flex; flex-direction: column; gap: 6px; }
 .ce-item { border: 1px solid var(--ed-paper-line); border-radius: 6px; background: var(--ed-paper); }
+/* пояснение семантики выбранного типа условия/эффекта (см. schemas.ts TypeSchema.hint) */
+.ce-hint { margin: 2px 0 6px; padding-left: 2px; line-height: 1.35; }
 .ce-head {
   display: flex;
   align-items: center;
@@ -505,10 +512,12 @@
 .scene-props {
   flex: 1;
   min-width: 320px;
-  max-width: 440px;
+  max-width: 520px;
   position: sticky;
   top: 12px;
-  max-height: calc(100vh - 40px);
+  /* высота от видимой зоны полотна (экран минус топбар и поля), а не от всего
+     viewport: иначе собственная прокрутка колонки срабатывала «вхолостую» */
+  max-height: calc(100vh - 130px);
   overflow-y: auto;
   scrollbar-width: thin;
 }
@@ -2036,6 +2045,15 @@ body.cf-editor .ai-tab-badge {
   justify-content: flex-end;
   margin-top: 2px;
 }
+/* пофайловое снятие правки из отслеживания (мастер ИИ) */
+.ai-patch-drop {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 2px 8px;
+  line-height: 1.2;
+  opacity: 0.7;
+}
+.ai-patch-drop:hover { opacity: 1; border-color: var(--ed-danger); color: var(--ed-danger); }
 
 /* ── Выбор состава архива ── */
 .ai-scope-selector {

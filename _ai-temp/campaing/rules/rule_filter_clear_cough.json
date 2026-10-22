@@ -1,0 +1,38 @@
+{
+  "id": "rule_filter_clear_cough",
+  "label": "Кашель отпускает на верхнем воздухе",
+  "trigger": "enter_scene",
+  "conditions": [
+    {
+      "type": "has_status",
+      "status": "status_filter_spent"
+    },
+    {
+      "type": "or",
+      "conditions": [
+        {
+          "type": "player_enters_location",
+          "location": "loc_gate"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_pump7"
+        },
+        {
+          "type": "player_enters_location",
+          "location": "loc_surface"
+        }
+      ]
+    }
+  ],
+  "effects": [
+    {
+      "type": "remove_status",
+      "target": "player",
+      "status": "status_filter_spent"
+    }
+  ],
+  "once": false,
+  "manual": false,
+  "chapter": "ch_deep"
+}

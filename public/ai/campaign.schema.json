@@ -877,6 +877,25 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "start_duration_action"
+            },
+            "action": {
+              "type": "string"
+            },
+            "ticks": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "action"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "start_combat"
             },
             "enemies": {
@@ -1078,6 +1097,53 @@
           "required": [
             "type",
             "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_companion_need"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "need": {
+              "type": "string"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "need",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "transfer_to_companion"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "item": {
+              "type": "string"
+            },
+            "quantity": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "item"
           ],
           "additionalProperties": false
         },
@@ -2935,6 +3001,22 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "elapsed_ge"
+            },
+            "min": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "min"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "quest_at_stage"
             },
             "quest": {
@@ -3486,6 +3568,54 @@
           "type": "object",
           "properties": {
             "type": {
+              "const": "companion_need_le"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "need": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "need",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "companion_need_ge"
+            },
+            "entity": {
+              "type": "string"
+            },
+            "need": {
+              "type": "string"
+            },
+            "threshold": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "entity",
+            "need",
+            "threshold"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
               "const": "random_chance"
             },
             "probability": {
@@ -3604,6 +3734,73 @@
           "additionalProperties": false
         }
       ]
+    },
+    "DurationActionDef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Уникальный id действия (на него ссылается эффект start_duration_action)."
+        },
+        "label": {
+          "type": "string",
+          "description": "Имя для окна выбора и журнала («Ночной сон», «Медитация»)."
+        },
+        "min_ticks": {
+          "type": "number",
+          "description": "Минимальная длительность в тиках (по умолчанию 1, минимум 1)."
+        },
+        "max_ticks": {
+          "type": "number",
+          "description": "Максимальная длительность в тиках (по умолчанию = min_ticks — действие фиксированной длины)."
+        },
+        "step": {
+          "type": "number",
+          "description": "Шаг выбора длины в окне выбора (по умолчанию 1: выбрать 3, 4, 5… часов)."
+        },
+        "per_tick": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          },
+          "description": "Почасовые эффекты действия: каждый тик ДО тикания потребностей.\nБелый список (прочее движок пропускает, audit ругается):\n  change_need — +дельта общего стола / −личная деградация;\n  change_hp / change_fatigue / change_sanity — личные числа.\nЦелые дельты в списке схемы — только положительные/отрицательные целые."
+        },
+        "interrupt_chance_per_tick": {
+          "type": "number",
+          "description": "Шанс прерывания за один тик (0..1). Сравнивается после каждого прожитого часа."
+        },
+        "interrupt_rule": {
+          "type": "string",
+          "description": "Правило, стреляющее при прерывании (набег, кошмар, стражник потревожил). После правила действие завершается — вернувшийся персонаж «не проснулся», а остановился."
+        },
+        "break_when": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "Условия-станные «хватит»: после каждого тика проверяются; если хотя бы одно истинно — действие завершается как прерывание (с правилом interrupt_rule, если задан). Например: будить, когда need_energy >= 100."
+        },
+        "on_finish": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Effect"
+          },
+          "description": "Эффекты НОРМАЛЬНОГО завершения (доспал): срабатывают один раз, только если цикл дошёл до конца без прерывания/смерти."
+        },
+        "available_when": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Condition"
+          },
+          "description": "Если заданы, действие доступно только при истинности всех условий (день/ночь, переменная, нужна скамейка в локации и т.п.)."
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "Длительное действие (dz.20): сон на N часов, медитация, дежурство, чтение —\nлюбое занятие, которое стоит часы игрового времени без разбивки по тикам-шагам.\n\nБезопасность intentionally BRP-дарёная:\n— применение per_tick идёт ПОЧАСОВО (внутри цикла advanceTicks(1)), поэтому\n  прервавшийся сон дал столько пользы, сколько часов проспали;\n— смерть/конец игры посреди действия обрывают цикл (on_zero_effect потребностей\n  срабатывает честно, «убить во сне» — дело правил мастера);\n— вероятность прерывания честная: interrupt_chance_per_tick — шанс за ОДИН тик;\n  шанс «хотя бы раз за n тиков» = 1 − (1−p)ⁿ (для p=0.05 и n=8 это ≈ 34%);\n— пер BD-ролловертель: roll в движении сна НЕ происходит (просто «сон +8 часов»);\n  попущенное восстановление HP по кости meta.rest.hp идёт ПОСЛЕ\n  завершения (BRP-характерное лечение — не тут, а в лагере campRest)."
     },
     "EndingDef": {
       "type": "object",
@@ -4437,6 +4634,10 @@
             "side",
             "static"
           ]
+        },
+        "combat_facing_offset": {
+          "type": "number",
+          "description": "сдвиг разворота этой фигурки, градусы (см. NpcDef.facing_offset)"
         }
       },
       "required": [
@@ -4502,6 +4703,10 @@
                   "side",
                   "static"
                 ]
+              },
+              "combat_facing_offset": {
+                "type": "number",
+                "description": "сдвиг разворота этой фигурки, градусы (см. NpcDef.facing_offset)"
               }
             },
             "required": [
@@ -5576,15 +5781,44 @@
             "ticks": {
               "type": "number"
             },
+            "min_ticks": {
+              "type": "number",
+              "description": "Минимальная длительность ночлега (по умолчанию = ticks: фиксированный сон).\nЕсли min_ticks < max_ticks — игрок сам выбирает, сколько спать, из окна выбора."
+            },
+            "max_ticks": {
+              "type": "number",
+              "description": "Максимальная длительность ночлега (по умолчанию = ticks)."
+            },
+            "per_tick": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Effect"
+              },
+              "description": "Почасовые эффекты ночлега: применяются КАЖДЫЙ тик сна ДО тикания потребностей,\nпоэтому голод тикает, а восстановление считается за каждый час честно.\nБелый список эффектов: change_need, change_hp, change_fatigue, change_sanity —\nостальные движок пропускает с записью в журнал (audit выдаст ошибку мастеру)."
+            },
             "ambush_chance": {
               "type": "number"
             },
             "ambush_rule": {
               "type": "string"
+            },
+            "restore": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              },
+              "description": "Восстановление потребностей за ночлег: `need_id → значение` (напр.\n{ \"need_rest\": 100 }). Идёт через changeNeed: положительная дельта\nделится с напарниками («общий стол»), значения клапятся в 0..100.\nПо умолчанию лагерь потребности НЕ восстанавливает — управляется\nтолько самими предметами-контентом (кровать и т.п.). Внимание: после\nadvanceTicks(ticks) потребности уже просели, поэтому 100 тут ≠ «как\nбыло при открытии меню». Для пропорционального к часам восстановления\nиспользуйте per_tick вместо фиксированной суммы."
             }
           },
           "additionalProperties": false,
           "description": "Лагерь и ночлег (аудит B7): действие «Разбить лагерь» в HUD, когда\nгерой в локации с `camp: true`. Отсутствие блока — кнопки нет ни где!\nMaster решает длительность (ticks, умолчание 8), риск вылазки опасности\n(ambush_chance 0..1, умолчание 0 — безопасный лагерь) и сюжет засады\n(ambush_rule — правило из реестра rules)."
+        },
+        "duration_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DurationActionDef"
+          },
+          "description": "Реестр длительных действий (сон/медитация/дежурство/чтение — без\nпривязки к лагерю): действие стоит тики игрового времени, эффект\nпропорционален потраченным тикам, длину в пределах min..max выбирает\nигрок в окне выбора. Запускается эффектом start_duration_action из\nдиалога, правила, use_with или interact_options кровати/скамьи."
         },
         "hazards": {
           "type": "object",
@@ -7295,7 +7529,11 @@
             "side",
             "static"
           ],
-          "description": "как разворачивать фигурку: вид сверху (поворот), вид сбоку (зеркало),\nне разворачивать; по умолчанию 'topdown'"
+          "description": "как разворачивать фигурку: 'topdown' — поворот картинки к цели (арту «вид сверху»),\n'side' — только зеркало влево/вправо, БЕЗ поворота (исключительно для фронтального/\nвертикального арта; на арте «сверху» фигурка вечно смотрит в камеру — частая ошибка),\n'static' — не разворачивать; по умолчанию 'topdown'. Режим выбирается стилем арта и\nв одной кампании, как правило, один на всех сущностей — при перегенерации арта\nсинхронизируй figure_mode/facing_offset у всех."
+        },
+        "facing_offset": {
+          "type": "number",
+          "description": "сдвиг разворота фигурки, градусы по часовой (только режим 'topdown'):\nприбавляется к вычисленному движком направлению при отрисовке. Нужен,\nесли готовый арт смотрит не строго «вверх» (0°): 180 — фигурка нарисована\nвниз (на юг), 90 — вправо, -90 — влево. Влияет только на картинку:\nигровая логика (задняя дуга удара в спину и т.п.) считается по реальному\nнаправлению бойца. По умолчанию 0."
         },
         "shadow": {
           "type": "boolean",
@@ -7388,6 +7626,17 @@
         "carry_capacity_mult": {
           "type": "number",
           "description": "Расовый/индивидуальный множитель грузоподъёмности (напр. 2.5 для мутантов, гигантов, четвероногих)"
+        },
+        "companion_needs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "НАПАРНИК: набор потребностей, которые тикают у существа в отряде (id из\nреестра `meta.needs`; пусто/нет — потребностей нет: робот, нежить).\nУбывают и восстанавливаются по тикам теми же правилами, что у героя; общий\nстол: когда потребность героя растёт (еда, сон — эффект change_need с\nположительной дельтой), напарник, отслеживающий ту же потребность, растёт\nна столько же. Ниже `critical_threshold` собственной потребности — штраф\nнавыкам в бою и метка «истощён». Читать/менять из правил и ink:\nусловия `companion_need_le`/`companion_need_ge`, эффект\n`change_companion_need`."
+        },
+        "companion_carry": {
+          "type": "boolean",
+          "description": "НАПАРНИК: «вторая сумка» — у существа есть собственный инвентарь, между\nгероем и напарником можно передавать предметы; надетые напарником оружие\nи броня используются им в бою. Грузоподъёмность считается по тем же\nформулам энкадменса, что у героя"
         },
         "trader": {
           "anyOf": [
@@ -7607,7 +7856,7 @@
         },
         "quest_item": {
           "type": "boolean",
-          "description": "сюжетный/квестовый предмет: нельзя случайно выбросить или продать"
+          "description": "сюжетный/квестовый предмет: нельзя случайно выбросить, продать или передать\nнапарнику через сумку (уход/гибель напарника не съест критическую вещь).\nСкриптовая передача эффектом transfer_to_companion остаётся решением мастера."
         },
         "decay_ticks": {
           "type": "number",
@@ -8014,7 +8263,8 @@
             "player",
             "enemy"
           ],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "description": "зоны появления сторон. player — спавн ВСЕГО отряда: точки выдаются по очереди\n(первая — герою, дальше — напарникам по порядку отряда); гексов должно быть\nне меньше, чем герой + максимум напарников кампании. Непроходимые точки зоны\nдвижок пропускает; переполненный боец встаёт в ближайший свободный к герою."
         },
         "ambient_audio": {
           "type": "string"
@@ -8358,11 +8608,15 @@
             "difficulty"
           ],
           "additionalProperties": false,
-          "description": "проверка навыка при изготовлении; успех = создал, провал = компоненты целы"
+          "description": "проверка навыка при изготовлении; успех = создал и ставит «галочку» опыта, провал = компоненты целы (время промаха — fail_time_ticks)"
         },
         "time_ticks": {
           "type": "number",
           "description": "время изготовления (промотка тиков после успеха)"
+        },
+        "fail_time_ticks": {
+          "type": "number",
+          "description": "время неудачной попытки (промотка тиков при провале проверки навыка; по умолчанию 0 — промах бесплатен).\nЭкономика попыток: если успех стоит часы, а провал — ноль, игрок рационально давит «Изготовить» до победы;\nBRP-привычная цена промаха время/материалы, поэтому для верстачной работы с проверкой задавайте хотя бы малое значение."
         },
         "output": {
           "type": "object",
@@ -8736,6 +8990,10 @@
           "type": "boolean",
           "description": "авторская ремарка (курсивом, не влияет на портрет)"
         },
+        "speaker": {
+          "type": "string",
+          "description": "Спикер — не собеседник диалога, а другой персонаж (id NPC кампании):\nспутник встревает в допрос, голос из-за двери, мастер за спиной героя.\nПортрет, имя и эмоция реплики берутся у указанного спикера.\nНесовместимо с ремаркой (ремарка — проза повествования, спикера у неё нет).\nПрисутствие спикера на месте — ответственность мастера: отгейтуйте ветку\nусловиями (in_party, флаг), движитель физику присутствия не проверяет."
+        },
         "voice": {
           "type": "string",
           "description": "озвучка реплики: файл пакета (assets/voice/…) или ссылка (итерация 8,\nблок G). Если нет — при включённом синтезаторе реплику читает браузер."
@@ -8969,6 +9227,70 @@
           "required": [
             "type",
             "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "change_companion_need"
+            },
+            "npc": {
+              "type": "string"
+            },
+            "need": {
+              "type": "string"
+            },
+            "delta": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "npc",
+            "need",
+            "delta"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "transfer_to_companion"
+            },
+            "npc": {
+              "type": "string"
+            },
+            "item": {
+              "type": "string"
+            },
+            "qty": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "npc",
+            "item",
+            "qty"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "leave_party"
+            },
+            "npc": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "npc"
           ],
           "additionalProperties": false
         },

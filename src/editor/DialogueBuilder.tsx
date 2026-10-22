@@ -82,6 +82,9 @@ const EFFECT_TYPES: Array<{ id: DlgEffect['type']; label: string }> = [
   { id: 'sleep', label: 'Сон (время + отдых)' },
   { id: 'start_quest', label: 'Начать квест' },
   { id: 'join_party', label: 'Взять в отряд' },
+  { id: 'leave_party', label: 'Напарник покидает отряд' },
+  { id: 'change_companion_need', label: 'Изменить потребность напарника' },
+  { id: 'transfer_to_companion', label: 'Передать предмет напарнику' },
   { id: 'play_cutscene', label: 'Показать катсцену' },
   { id: 'set_description', label: 'Изменить описание' },
   { id: 'apply_status', label: 'Наложить статус' },
@@ -109,6 +112,9 @@ function blankEffect(type: DlgEffect['type']): DlgEffect {
     case 'remove_item': return { type, item: '', qty: 1 }
     case 'fire_rule': return { type, rule: '' }
     case 'join_party': return { type, npc: '' }
+    case 'leave_party': return { type, npc: '' }
+    case 'change_companion_need': return { type, npc: '', need: '', delta: 10 }
+    case 'transfer_to_companion': return { type, npc: '', item: '', qty: 1 }
     case 'open_trade': return { type, npc: '' }
     case 'start_quest': return { type, quest: '' }
     case 'advance_time': return { type, ticks: 1 }
@@ -240,6 +246,12 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
     doc ? (doc.script ?? dlgToScript(doc, refs)) : '')
   const [issues, setIssues] = useState<ScriptIssue[]>([])
 
+  // придуманные в сценарии, но не зарегистрированные флаги — НЕ пишем в
+  // реестр при просмотре (иначе простой осмотр диалога меняет campaign.json
+  // и всплывёт как «изменение» в списке ИИ-мастера); регистрируем при первой
+  // настоящей правке мастера (см. commit)
+  const [pendingFlags, setPendingFlags] = useState<Array<{ id: string; label: string }>>([])
+
   useEffect(() => {
     if (!doc) return
     let dirty = doc !== raw // миграция v1 → v2 на месте
@@ -252,16 +264,32 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       const res = scriptToDlg(doc.script, refs, doc)
       doc.nodes = res.doc.nodes
       if (res.doc.label !== undefined) doc.label = res.doc.label
+      // oxlint-disable react/set-state-in-effect -- эффект синхронизирует
+      // внешнее состояние (кэш документов EditorStore) с UI: результат парса
+      // текста документа ИИ показывается списком ошибок и очередью флагов.
+      // Перенос в useMemo не эквивалентен: парс здесь ещё и нормализует doc
+      // (write-through кэш — осознанная мутация, см. политику в .oxlintrc.json).
       setIssues(res.issues)
-      registerNewFlags(store, res.newFlags, `Придуман в разговоре «${doc.label ?? store.dialogueLabel(path)}».`)
+      setPendingFlags(res.newFlags)
       dirty = true
     }
-    if (dirty) store.jsonFiles.set(dlgPath, doc)
+    if (dirty) {
+      store.jsonFiles.set(dlgPath, doc)
+      // производная нормализация (миграция/парс при открытии) — не правка
+      // мастера: пиннем её как точку отсчёта, чтобы просмотр не всплывал в списке изменений
+      store.acceptChangeAsBaseline(dlgPath)
+    }
   }, [doc, raw, dlgPath, store, refs])
 
   if (!doc) return null
 
   const commit = (group = '') => {
+    // правка мастера по-настоящему легла — теперь регистрация придуманных в
+    // сценарии флагов законна и честно всплывёт как изменение campaign.json
+    if (pendingFlags.length) {
+      registerNewFlags(store, pendingFlags, `Придуман в разговоре «${doc.label ?? store.dialogueLabel(path)}».`)
+      setPendingFlags([])
+    }
     store.textFiles.set(path, generateInk(doc))
     store.touch(dlgPath, group)
     store.touch(path, group)
@@ -437,16 +465,6 @@ export function DialogueBuilder({ store, path }: { store: EditorStore; path: str
       )}
     </div>
   )
-}
-
-/** есть ли у ink визуальный исходник конструктора */
-export function hasDlgDoc(store: EditorStore, inkPath: string): boolean {
-  return store.jsonFiles.has(inkPath.replace(/\.ink$/, '.dlg.json'))
-}
-
-/** название диалога (для списков): подпись документа, иначе имя персонажа-собеседника */
-export function dialogueTitle(store: EditorStore, inkPath: string): string {
-  return store.dialogueLabel(inkPath)
 }
 
 // ─────────────── узел ───────────────
@@ -1077,18 +1095,36 @@ function LineRow({
             <option key={em.id} value={em.id}>{em.label}</option>
           ))}
         </select>
-        <label className="fld-check small" data-tip="Ремарка — описание действия, выводится курсивом">
+        <label className="fld-check small" data-tip="Ремарка — описание действия, выводится курсивом. У ремарки спикера нет: это проза повествования">
           <input
             type="checkbox"
             checked={!!line.action}
             onChange={(e) => {
-              if (e.target.checked) line.action = true
+              if (e.target.checked) { line.action = true; delete line.speaker }
               else delete line.action
               commit()
             }}
           />
           <span>ремарка</span>
         </label>
+        {!line.action && (
+          <span data-tip="Спикер — говорит не собеседник диалога, а другой персонаж (спутник, голос из-за двери). Портрет, имя и эмоция берутся у него. Присутствие спикера рядом обеспечьте условиями ветки (например, «напарник в отряде») — движитель физику не проверяет.">
+            <select
+              value={line.speaker ?? ''}
+              className="dlg-line-speaker"
+              onChange={(e) => {
+                if (e.target.value) line.speaker = e.target.value
+                else delete line.speaker
+                commit()
+              }}
+            >
+              <option value="">— говорит собеседник —</option>
+              {store.options('npc').map((o) => (
+                <option key={o.id} value={o.id}>{o.label}</option>
+              ))}
+            </select>
+          </span>
+        )}
         <button
           className={`btn btn-small ${line.voice ? 'btn-primary' : ''}`}
           data-tip={line.voice ? `Озвучка: ${line.voice} (нажмите, чтобы изменить)` : 'Озвучка реплики или ремарки: файл или ссылка'}
@@ -1155,8 +1191,22 @@ function EffectRow({
         </>
       )}
       {e.type === 'fire_rule' && <InlineRef kind="rule" store={store} value={e.rule} onChange={(v) => ((e.rule = v), commit())} />}
-      {(e.type === 'join_party' || e.type === 'open_trade') && (
+      {(e.type === 'join_party' || e.type === 'open_trade' || e.type === 'leave_party') && (
         <InlineRef kind="npc" store={store} value={e.npc} onChange={(v) => ((e.npc = v), commit())} />
+      )}
+      {e.type === 'change_companion_need' && (
+        <>
+          <InlineRef kind="npc" store={store} value={e.npc} onChange={(v) => ((e.npc = v), commit())} />
+          <InlineRef kind="need" store={store} value={e.need} onChange={(v) => ((e.need = v), commit())} />
+          <input type="number" value={e.delta} onChange={(ev) => ((e.delta = Number(ev.target.value)), commit())} />
+        </>
+      )}
+      {e.type === 'transfer_to_companion' && (
+        <>
+          <InlineRef kind="npc" store={store} value={e.npc} onChange={(v) => ((e.npc = v), commit())} />
+          <InlineRef kind="item" store={store} value={e.item} onChange={(v) => ((e.item = v), commit())} />
+          <input type="number" min={1} value={e.qty} onChange={(ev) => ((e.qty = Math.max(1, Number(ev.target.value))), commit())} />
+        </>
       )}
       {e.type === 'learn_name' && (
         <InlineRef kind="npc" store={store} value={e.entity} onChange={(v) => ((e.entity = v), commit())} />

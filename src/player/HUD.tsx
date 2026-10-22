@@ -4,7 +4,7 @@ import { askConfirm } from '../shared/modals'
 import { SettingsPanel } from '../shared/SettingsPanel'
 import type { GameEngine } from '../core/engine'
 import { formatDate, formatTime, timeOfDay, TIME_OF_DAY_LABEL } from '../core/time'
-import { featureOn } from '../shared/types'
+import { featureOn, startTick } from '../shared/types'
 import { assetUrl } from '../core/loader'
 
 interface Props {
@@ -180,7 +180,7 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
               return w ? <div className="hud-weather">{w.label}</div> : null
             })()}
             {meta.deadline_ticks !== undefined && meta.deadline_ticks > 0 && (() => {
-              const start = meta.starting_tick ?? 0
+              const start = startTick(meta)
               const elapsed = s.tick - start
               const left = Math.max(0, meta.deadline_ticks - elapsed)
               const unit = meta.tick_label || 'ч'
@@ -225,22 +225,24 @@ export function HUD({ engine, onOpenMap, onOpenInventory, onOpenCharacter, onOpe
             <Ico n="star" />  {engine.uiLabel('meta', 'Хроника')}
           </button>
         )}
-        {engine.campAvailable().ok && (
-          <button
-            className="hud-btn"
-            onClick={async () => {
-              const ticks = engine.campaign.meta.camping?.ticks ?? 8
-              const label = engine.campaign.meta.tick_label || 'ч'
-              const ambush = (engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможна ночная засада!' : ''
-              if (await askConfirm(`Разбить лагерь и отдохнуть?\nСон займёт ${ticks} ${label}.${ambush}`, 'Отдохнуть', 'Отмена')) {
-                engine.campRest()
-              }
-            }}
-            data-tip={`Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`}
-          >
-            <Ico n="flame" />  {engine.uiLabel('camp', 'Лагерь')}
-          </button>
-        )}
+        {!!engine.campaign.meta.camping && (() => {
+          // дз.22: кнопка видна всегда при включённом ночлеге — серая с причиной,
+          // иначе игрок не догадывается, что механика существует (кейс «Каркаса»)
+          const camp = engine.campAvailable()
+          const tip = camp.ok
+            ? `Разбить лагерь и переночевать (${engine.campaign.meta.camping?.ticks ?? 8} ${engine.campaign.meta.tick_label}): отдых лечит, навыки растут.${Object.keys(engine.campaign.meta.camping?.restore ?? {}).length ? ' Восстанавливает потребности.' : ''}${(engine.campaign.meta.camping?.ambush_chance ?? 0) > 0 ? ' Возможны ночные гости…' : ''}`
+            : `Ночлег здесь невозможен: ${camp.reason}`
+          return (
+            <button
+              className="hud-btn"
+              disabled={!camp.ok}
+              onClick={() => engine.requestCampRest()}
+              data-tip={tip}
+            >
+              <Ico n="flame" />  {engine.uiLabel('camp', 'Лагерь')}
+            </button>
+          )
+        })()}
         {(s.codex_unlocked ?? []).length > 0 && (
           <button className="hud-btn" onClick={onOpenCodex} data-tip="Разблокированные записи о мире">
             <Ico n="book" />  {engine.uiLabel('codex', 'Кодекс')}

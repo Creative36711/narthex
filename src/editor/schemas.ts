@@ -1,4 +1,7 @@
 import type { Condition, Effect } from '../shared/types'
+import { startTick } from '../shared/types'
+import type { CampaignMeta } from '../shared/types'
+import { dayNumber, hourOfDay } from '../core/time'
 
 /**
  * Схемы полей условий и эффектов для визуальных конструкторов (ТЗ 5.2.4).
@@ -35,6 +38,7 @@ export type FieldKind =
   | 'statusRef' // статус из реестра кампании (блок 5 ТЗ)
   | 'weatherRef' // погода из реестра кампании (блок 9 ТЗ)
   | 'codexRef' // запись кодекса (блок 10 ТЗ)
+  | 'durationActionRef' // длительное действие из реестра meta.duration_actions (dz.20)
   | 'recipeRef' // рецепт крафта (открытие по ходу игры)
   | 'npcStateRef' // состояние облика НПЦ: его портреты/спрайты + реестр эмоций
   | 'portraitPick' // портрет: из персонажа или своё изображение
@@ -53,6 +57,8 @@ export interface TypeSchema {
   fields: FieldSpec[]
   /** заготовка при создании */
   blank: Record<string, unknown>
+  /** пояснение семантики — показывается мелким текстом при выбранном типе (чтобы «прошло тиков» не путали с «абсолютные тики» и т.п.) */
+  hint?: string
 }
 
 // ─────────────── условия ───────────────
@@ -114,9 +120,16 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     blank: { value: ['day'] },
   },
   tick_elapsed: {
-    label: 'Прошло тиков (глобально)',
-    fields: [{ key: 'min_tick', label: 'Минимальный тик', kind: 'number' }],
+    label: 'Тик игры ≥ (абсолютный)',
+    fields: [{ key: 'min_tick', label: 'Абсолютный тик игры не ниже', kind: 'number' }],
     blank: { min_tick: 0 },
+    hint: 'Сравнивает СЧЁТЧИК времени игры (с нуля), а не «прошло с начала». Для «через N часов от старта» возьмите условие «Прошло тиков с начала».',
+  },
+  elapsed_ge: {
+    label: 'Прошло тиков с начала (≥)',
+    fields: [{ key: 'min', label: 'Минимум тиков с начала забега', kind: 'number' }],
+    blank: { min: 72 },
+    hint: 'Учитывает meta.starting_tick: при старте в тике 7 порог 72 сработает на абсолютном тике 79. Единственный верный способ сроков «через N часов от старта».',
   },
   quest_at_stage: {
     label: 'Квест на стадии',
@@ -312,6 +325,24 @@ export const CONDITION_SCHEMAS: Record<Condition['type'], TypeSchema> = {
     fields: [{ key: 'entity', label: 'NPC', kind: 'npcRef' }],
     blank: { entity: '' },
   },
+  companion_need_le: {
+    label: 'У напарника потребность ≤',
+    fields: [
+      { key: 'entity', label: 'Напарник (NPC)', kind: 'npcRef' },
+      { key: 'need', label: 'Потребность', kind: 'needRef' },
+      { key: 'threshold', label: 'Порог', kind: 'number' },
+    ],
+    blank: { entity: '', need: '', threshold: 20 },
+  },
+  companion_need_ge: {
+    label: 'У напарника потребность ≥',
+    fields: [
+      { key: 'entity', label: 'Напарник (NPC)', kind: 'npcRef' },
+      { key: 'need', label: 'Потребность', kind: 'needRef' },
+      { key: 'threshold', label: 'Порог', kind: 'number' },
+    ],
+    blank: { entity: '', need: '', threshold: 20 },
+  },
   random_chance: {
     label: 'Случайный шанс',
     fields: [{ key: 'probability', label: 'Вероятность (0–1)', kind: 'number' }],
@@ -459,6 +490,14 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
     ],
     blank: { var: '', delta: 1 },
   },
+  start_duration_action: {
+    label: 'Начать длительное действие',
+    fields: [
+      { key: 'action', label: 'Действие', kind: 'durationActionRef' },
+      { key: 'ticks', label: 'Тиков сразу (без окна выбора; пусто — игрок выберет сам)', kind: 'number', optional: true },
+    ],
+    blank: { action: '' },
+  },
   start_dialogue: {
     label: 'Начать диалог',
     fields: [
@@ -517,6 +556,24 @@ export const EFFECT_SCHEMAS: Record<Effect['type'], TypeSchema> = {
       { key: 'delta', label: 'Дельта', kind: 'number' },
     ],
     blank: { need: '', delta: 10 },
+  },
+  change_companion_need: {
+    label: 'Изменить потребность напарника',
+    fields: [
+      { key: 'entity', label: 'Напарник (NPC)', kind: 'npcRef' },
+      { key: 'need', label: 'Потребность', kind: 'needRef' },
+      { key: 'delta', label: 'Дельта', kind: 'number' },
+    ],
+    blank: { entity: '', need: '', delta: 10 },
+  },
+  transfer_to_companion: {
+    label: 'Передать предмет напарнику',
+    fields: [
+      { key: 'entity', label: 'Напарник (NPC)', kind: 'npcRef' },
+      { key: 'item', label: 'Предмет', kind: 'itemRef' },
+      { key: 'quantity', label: 'Количество', kind: 'number', optional: true },
+    ],
+    blank: { entity: '', item: '', quantity: 1 },
   },
   change_hp: {
     label: 'Изменить HP',
@@ -866,6 +923,8 @@ export interface LabelSource {
   labelFor(kind: string, id: string): string
   /** название стадии/журнальной записи квеста */
   questStageLabel?(questId: string, key: string): string
+  /** метаданные кампании (EditorStore.meta) — для расшифровки временных условий */
+  meta?: CampaignMeta
 }
 
 export const TIME_OF_DAY_LABELS: Record<string, string> = {
@@ -929,6 +988,21 @@ function fieldValueText(f: FieldSpec, v: unknown, labels?: LabelSource, obj?: Re
 }
 
 export function conditionSummary(c: Condition, labels?: LabelSource): string {
+  // временные условия — с расшифровкой, чтобы абсолютный тик и «елapsed»
+  // не путались (аудит «Каркаса» 2026-10): «79 → день 4, 07:00 (через 72 ч от старта)»
+  const meta = labels?.meta
+  if (c.type === 'tick_elapsed' && meta) {
+    const unit = meta.tick_label || 'ч'
+    const elapsed = c.min_tick - startTick(meta)
+    const when = `день ${dayNumber(c.min_tick, meta)}, ${String(hourOfDay(c.min_tick, meta)).padStart(2, '0')}:00`
+    return `Тик игры ≥ ${c.min_tick}: ${when}${elapsed >= 0 ? ` (через ${elapsed} ${unit} от старта)` : ''}`
+  }
+  if (c.type === 'elapsed_ge' && meta) {
+    const unit = meta.tick_label || 'ч'
+    const abs = startTick(meta) + c.min
+    const when = `день ${dayNumber(abs, meta)}, ${String(hourOfDay(abs, meta)).padStart(2, '0')}:00`
+    return `Через ${c.min} ${unit} от старта: тик ${abs} = ${when}`
+  }
   const s = CONDITION_SCHEMAS[c.type]
   const vals = s
     ? s.fields

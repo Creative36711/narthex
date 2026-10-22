@@ -20,15 +20,18 @@ export interface DialogueLine {
   sfx?: string
   /** секундный таймер показа реплики (# timer: 3 или # timeout: 3) */
   timer?: number
+  /** спикер — другой персонаж, не собеседник диалога (# speaker: npc_…) */
+  speaker?: string
 }
 
-/** разбор тегов реплики: # emotion: … / # action / # voice: … / # sfx: … / # timer: N */
-export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string; sfx?: string; timer?: number } {
+/** разбор тегов реплики: # emotion: … / # action / # voice: … / # sfx: … / # timer: N / # speaker: npc_… */
+export function parseLineTags(tags: string[]): { emotion: string; action?: boolean; voice?: string; sfx?: string; timer?: number; speaker?: string } {
   let emotion = 'neutral'
   let action = false
   let voice: string | undefined
   let sfx: string | undefined
   let timer: number | undefined
+  let speaker: string | undefined
   for (const t of tags) {
     const em = t.match(/^emotion:\s*(\w+)/)
     if (em) emotion = em[1]
@@ -37,10 +40,12 @@ export function parseLineTags(tags: string[]): { emotion: string; action?: boole
     if (vo) voice = vo[1].trim()
     const sf = t.match(/^(?:sfx|sound):\s*(.+)$/)
     if (sf) sfx = sf[1].trim()
+    const sp = t.match(/^speaker:\s*(.+)$/)
+    if (sp) speaker = sp[1].trim()
     const tm = t.match(/^(?:timer|timeout):\s*(\d+)/)
     if (tm) timer = Number(tm[1])
   }
-  return { emotion, action: action || undefined, voice, sfx, timer }
+  return { emotion, action: action || undefined, voice, sfx, timer, speaker }
 }
 
 export interface DialogueHistoryEntry {
@@ -140,7 +145,9 @@ export function sanitizeInkSource(source: string): string {
     'set_flag(f)', 'clear_flag(f)', 'apply_status(p, s, d)', 'remove_status(p, s)',
     'set_weather(w)', 'unlock_codex(e)', 'unlock_recipe(r)', 'open_trade(n)',
     'open_craft(r)', 'add_item(id, n)', 'remove_item(id, q)', 'change_disposition(t, d)',
-    'join_party(e)', 'start_combat(a)', 'start_quest(q)', 'advance_quest(q, s)',
+    'join_party(e)', 'leave_party(e)', 'change_companion_need(e, n, d)',
+    'get_companion_need(e, n)', 'give_to(e, id, q)',
+    'start_combat(a)', 'start_quest(q)', 'advance_quest(q, s)',
     'fail_quest(q)', 'journal_update(q, k)', 'fire_rule(r)', 'change_hp(d)',
     'change_need(n, d)', 'advance_time(t)', 'sleep(h)', 'set_dialogue_timer(s, k)',
     'present_item(o, f, r)', 'play_sound(s, v)', 'set_entity_state(e, s)',
@@ -335,6 +342,16 @@ export function bindExternals(story: Story, engine: GameEngine): void {
   })
   bind('set_description', (entityId: string, text: string) => { engine.setEntityDescription(entityId, text); return 0 })
   bind('join_party', (entityId: string) => { engine.joinParty(entityId); return 0 })
+  bind('leave_party', (entityId: string) => { engine.leaveParty(entityId); return 0 })
+  // потребности и «вторая сумка» напарника: `~ change_companion_need("npc_ira", "need_hunger", 30)`
+  bind('change_companion_need', (entity: string, need: string, delta: number) => {
+    engine.changeCompanionNeed(String(entity), String(need), Number(delta) || 0)
+    return 0
+  })
+  bind('get_companion_need', (entity: string, need: string) => engine.companionNeed(String(entity), String(need)) ?? -1)
+  // передать предмет напарнику со «второй сумкой»: `~ give_to("npc_ira", "item_filter", 1)`
+  bind('give_to', (entity: string, item: string, qty?: number) =>
+    engine.giveItemToCompanion(String(entity), String(item), Number(qty) || 1) ? 1 : 0)
   bind('in_party', (entityId: string) => (engine.isInParty(entityId) ? 1 : 0))
   bind('start_quest', (questId: string) => { engine.startQuest(questId); return 0 })
   bind('quest_stage', (questId: string) => engine.state.quests[questId]?.stage ?? '')
@@ -414,8 +431,8 @@ export function drainStory(story: Story): { lines: DialogueLine[]; choices: { in
     const rawText = (story.Continue() ?? '').trim()
     const text = cleanDialogueLine(rawText)
     const tags = story.currentTags ?? []
-    const { emotion, action, voice, sfx, timer } = parseLineTags(tags)
-    if (text && !SYSTEM_LITERAL_LINE.test(text)) lines.push({ text, emotion, action, voice, sfx, timer })
+    const { emotion, action, voice, sfx, timer, speaker } = parseLineTags(tags)
+    if (text && !SYSTEM_LITERAL_LINE.test(text)) lines.push({ text, emotion, action, voice, sfx, timer, speaker })
   }
   const choices = story.currentChoices.map((c, i) => ({ index: i, text: c.text }))
   return { lines, choices, finished: choices.length === 0 && !story.canContinue }

@@ -184,6 +184,20 @@ npm run build     # прод-сборка в dist/
 npm run preview   # прогон прод-сборки
 ```
 
+```bash
+npm run audit:campaign -- <папка кампании>             # та же «Проверка кампании», что в редакторе,
+                                                      # но headless: отчёт движка на файлах кампании
+                                                      # (для ИИ-мастеров; машинный вывод:
+                                                      # npm run --silent audit:campaign -- <папка> -- --json;
+                                                      # exit 1 при ERROR-рядах)
+node public/ai/campaign-audit.mjs <папка кампании>    # то же самое БЕЗ репозитория: собранный bundle
+                                                      # из чемодана ИИ-мастера (ноль зависимостей,
+                                                      # Node.js 18+; обновляется вместе с build)
+                                                      # bundle (~920 КБ) лежит в git осознанно:
+                                                      # линтер диффов на него — шум, зато чемодан
+                                                      # собирается из public/ai любым `vite dev`
+```
+
 Десктоп (Tauri v2, нужен Rust-тулчейн — https://rustup.rs; на Linux ещё
 webkit2gtk/gtk):
 

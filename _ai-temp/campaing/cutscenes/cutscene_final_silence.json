@@ -1,0 +1,47 @@
+{
+  "id": "cutscene_final_silence",
+  "label": "Тишина",
+  "music": "music_end",
+  "chapter": "ch_final",
+  "slides": [
+    {
+      "text": "Заряд уходит под воду вместе с затвором. Жила накрыта: брать здесь больше нечего — и некому.",
+      "duration": 6,
+      "transition": "fade",
+      "image": "assets/img/cut_final_silence_1.jpg",
+      "voice": "assets/voice/final_silence_1.mp3",
+      "camera": {
+        "zoom": 1.15,
+        "pan_x": 3,
+        "pan_y": 0,
+        "duration": 6
+      }
+    },
+    {
+      "text": "Нижние ярусы молчат. Это тоже победа: её просто некому записать в сводку.",
+      "duration": 7,
+      "transition": "fade",
+      "voice": "assets/voice/final_silence_2.mp3",
+      "image": "assets/img/cut_final_silence_2.jpg",
+      "camera": {
+        "zoom": 1.12,
+        "pan_x": 10,
+        "pan_y": 0,
+        "duration": 7
+      }
+    },
+    {
+      "text": "Чугунная переборка запечатывает восьмой ярус навсегда, оставляя под завалом и жилу, и тайну конторы. Наверху напишут «авария». Правду о той ночи теперь знают только те, кто спускался вниз, — и ты.",
+      "duration": 9,
+      "transition": "fade",
+      "image": "assets/img/cut_final_silence_3.jpg",
+      "voice": "assets/voice/final_silence_3.mp3",
+      "camera": {
+        "zoom": 1.18,
+        "pan_x": -12,
+        "pan_y": 6,
+        "duration": 9
+      }
+    }
+  ]
+}

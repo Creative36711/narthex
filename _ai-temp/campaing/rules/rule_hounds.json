@@ -1,0 +1,94 @@
+{
+  "id": "rule_hounds",
+  "label": "Пепельные псы в галерее",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_flood_gallery"
+    }
+  ],
+  "effects": [
+    {
+      "type": "skill_check_gate",
+      "skill": "stealth",
+      "difficulty": 50,
+      "success_effects": [
+        {
+          "type": "set_flag",
+          "flag": "hounds_past"
+        },
+        {
+          "type": "grant_xp",
+          "points": 10
+        },
+        {
+          "type": "play_sound",
+          "sound": "sfx_wade",
+          "volume": 0.6
+        },
+        {
+          "type": "show_message",
+          "text": "Ты снимаешь ботинки и идёшь по пояс в воде вдоль стенки, где глубже всего. Псы берут след у самой арки и теряют его в стоячей воде: в ней человек не пахнет. Через минуту ты уже на той стороне."
+        },
+        {
+          "type": "postcard",
+          "image": "assets/img/pc_hounds_pass.jpg",
+          "text": "Псы теряют след в стоячей воде.",
+          "preset": "шёпот",
+          "seconds": 5,
+          "camera": {
+            "zoom": 1.08,
+            "pan_x": 0,
+            "pan_y": 0,
+            "duration": 6
+          }
+        }
+      ],
+      "fail_effects": [
+        {
+          "type": "start_combat",
+          "enemies": [
+            {
+              "entity": "npc_ashhound",
+              "count": 1
+            }
+          ],
+          "arena": "arena_gallery",
+          "intro": "Из-под арки выходит пёс: пепельная шерсть, красные глаза, ни звука. Он идёт не спеша, прижимаясь к стенке, — и загораживает галерею.",
+          "on_victory": [
+            {
+              "type": "show_message",
+              "text": "Пёс уходит в воду. Там его и кормили."
+            },
+            {
+              "type": "grant_xp",
+              "points": 15
+            },
+            {
+              "type": "postcard",
+              "image": "assets/img/pc_hound_retreats.jpg",
+              "text": "Пёс уходит в воду.",
+              "preset": "шёпот",
+              "seconds": 5,
+              "camera": {
+                "zoom": 1.08,
+                "pan_x": 0,
+                "pan_y": 0,
+                "duration": 6
+              }
+            }
+          ]
+        },
+        {
+          "type": "play_sound",
+          "sound": "snd_stone",
+          "volume": 0.7
+        }
+      ]
+    }
+  ],
+  "chapter": "ch_deep",
+  "trigger": "enter_scene"
+}

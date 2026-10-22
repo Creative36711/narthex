@@ -1,0 +1,84 @@
+{
+  "id": "item_pack",
+  "type": "item",
+  "category": "container",
+  "label": "Брошенный ранец",
+  "description": "Ранец стражи Надзора, клапан затянут по-уставному. Лежит на наносе, будто его сбросили на бегу.",
+  "weight": 0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
+    {
+      "label": "Открыть ранец",
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "pack_tag"
+        },
+        {
+          "type": "advance_time",
+          "ticks": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_ration",
+          "quantity": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_water",
+          "quantity": 1
+        },
+        {
+          "type": "add_item",
+          "item": "item_bandage",
+          "quantity": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Пайка, фляга, бинт — собран на долгую смену и не тронут. На лямке жестяная бирка: «Смена 13-го. Ярус 8», а сама лямка перехвачена тугим узлом, не по уставу. Хозяин уходил отсюда налегке. Или бегом."
+        }
+      ],
+      "once": true,
+      "sound": "snd_cloth",
+      "hint": "казённый ранец бросают только тогда, когда бегут"
+    },
+    {
+      "label": "Забрать ранец",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "pack_tag"
+        },
+        {
+          "type": "flag_not_set",
+          "flag": "pack_taken"
+        }
+      ],
+      "effects": [
+        {
+          "type": "set_flag",
+          "flag": "pack_taken"
+        },
+        {
+          "type": "add_item",
+          "item": "item_satchel",
+          "quantity": 1
+        },
+        {
+          "type": "show_message",
+          "text": "Ты вскидываешь ранец на плечо. Тугой узел на лямке не трогаешь — он держит не хуже пряжки, и кто-то вязал его на бегу. Ранец пустой, но крепкий: хозяину он больше не понадобился."
+        }
+      ],
+      "once": true,
+      "sound": "snd_cloth",
+      "hint": "казённый ранец на спину: +5 кг без перегруза"
+    }
+  ],
+  "interact_hint": "Открыть ранец",
+  "portrait": {
+    "neutral": "assets/img/items/item_pack.jpg"
+  }
+}

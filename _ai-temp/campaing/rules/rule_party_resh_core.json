@@ -1,0 +1,41 @@
+{
+  "id": "rule_party_resh_core",
+  "label": "Реш в отряде: сердцевина",
+  "once": true,
+  "trigger": "enter_scene",
+  "conditions": [
+    {
+      "type": "in_party",
+      "entity": "npc_resh"
+    },
+    {
+      "type": "flag_set",
+      "flag": "sluice_ready"
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "has_item",
+        "item": "item_core"
+      }
+    },
+    {
+      "type": "not",
+      "condition": {
+        "type": "has_item",
+        "item": "item_key_cache"
+      }
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "core_taken"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_dialogue",
+      "entity": "npc_resh",
+      "dialogue_knot": "В_пути"
+    }
+  ]
+}

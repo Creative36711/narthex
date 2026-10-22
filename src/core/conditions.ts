@@ -1,4 +1,5 @@
 import type { Condition, SceneCondition, TimeOfDay } from '../shared/types'
+import { startTick } from '../shared/types'
 import type { GameEngine } from './engine'
 import { timeOfDay } from './time'
 
@@ -34,6 +35,11 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
     }
     case 'tick_elapsed':
       return s.tick >= c.min_tick
+    case 'elapsed_ge':
+      // семантика «прошло с начала забега»: учитывает ненулевой starting_tick,
+      // которого у tick_elapsed (абсолютного) исторически нет; умолчание —
+      // как у движка (startTick), иначе день 8:00 считался бы «8 часов прошло»
+      return s.tick - startTick(engine.campaign.meta) >= c.min
     case 'quest_at_stage':
       return s.quests[c.quest]?.stage === c.stage
     case 'has_item': {
@@ -86,6 +92,14 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
       return engine.getDisposition(c.target) <= c.threshold
     case 'in_party':
       return engine.isInParty(c.entity)
+    case 'companion_need_le': {
+      const v = engine.companionNeed(c.entity, c.need)
+      return v != null && v <= c.threshold
+    }
+    case 'companion_need_ge': {
+      const v = engine.companionNeed(c.entity, c.need)
+      return v == null || v >= c.threshold
+    }
     case 'has_status':
       return engine.hasStatus(c.status)
     case 'weather_is':

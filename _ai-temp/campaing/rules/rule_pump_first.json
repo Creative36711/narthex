@@ -1,0 +1,54 @@
+{
+  "id": "rule_pump_first",
+  "label": "Машинный зал: помпа стоит",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "player_enters_scene",
+      "scene": "scene_pump_hall"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "pump_seen"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "pump_seen"
+    },
+    {
+      "type": "banner",
+      "text": "Седьмая помпа",
+      "preset": "глава",
+      "enter": "тянуть",
+      "seconds": 3
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_pump_first.jpg",
+      "text": "Седьмая помпа молчит. Муфта срезана, и тишина здесь громче привода.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    },
+    {
+      "type": "set_entity_state",
+      "entity": "npc_ira",
+      "state": "afraid"
+    },
+    {
+      "type": "advance_quest",
+      "quest": "quest_pump",
+      "stage": "stage_clues"
+    }
+  ],
+  "chapter": "ch_signs",
+  "trigger": "enter_scene"
+}

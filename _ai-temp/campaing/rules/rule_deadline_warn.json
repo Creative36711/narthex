@@ -1,0 +1,60 @@
+{
+  "id": "rule_deadline_warn",
+  "label": "Вода прибывает",
+  "once": true,
+  "manual": false,
+  "conditions": [
+    {
+      "type": "elapsed_ge",
+      "min": 48
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "case_ended"
+    }
+  ],
+  "effects": [
+    {
+      "type": "set_weather",
+      "weather": "weather_damp"
+    },
+    {
+      "type": "banner",
+      "text": "Вода прибывает",
+      "preset": "проклятье",
+      "seconds": 4
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_deadline.jpg",
+      "text": "Вода идёт по заклёпкам.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    },
+    {
+      "type": "journal_update",
+      "quest": "quest_pump",
+      "text_key": "j_water"
+    },
+    {
+      "type": "override_music",
+      "tracks": [
+        "music_alarm"
+      ],
+      "fade": 3
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_horn",
+      "volume": 0.9
+    }
+  ],
+  "chapter": "ch_final",
+  "trigger": "time_tick"
+}

@@ -40,6 +40,9 @@ export interface Combatant {
   facing: number
   /** зеркало по горизонтали (режим 'side') */
   flip: boolean
+  /** сдвиг разворота арта фигурки, градусы по часовой (режим 'topdown'):
+   *  прибавляется к `facing` только при отрисовке; на логику не влияет */
+  facing_offset?: number
   stats: StatBlock
   skills: Record<string, number>
   weapon: WeaponData
@@ -169,6 +172,14 @@ export class CombatController {
     const playerDef = e.campaign.entities[p.entity] as NpcDef
     const playerSpawns = [...this.arena.spawn_zones.player.hexes]
     const enemySpawns = [...this.arena.spawn_zones.enemy.hexes]
+    // опорные точки переполнения зоны: разумная «домашняя» точка каждой стороны
+    // (первая точка зоны; пустая зона — центр арены)
+    const center: Hex = {
+      col: Math.floor(this.arena.hex_grid.cols / 2),
+      row: Math.floor(this.arena.hex_grid.rows / 2),
+    }
+    const playerAnchor: Hex = playerSpawns.length ? { col: playerSpawns[0][0], row: playerSpawns[0][1] } : center
+    const enemyAnchor: Hex = enemySpawns.length ? { col: enemySpawns[0][0], row: enemySpawns[0][1] } : center
 
     const pw = e.playerWeapon()
     const pa = e.playerArmor()
@@ -205,6 +216,7 @@ export class CombatController {
       figure_shadow: playerDef.shadow,
       facing: 90,
       flip: false,
+      facing_offset: appearanceFigure.offset ?? playerDef.facing_offset,
       stats: p.stats,
       skills: playerSkills,
       weapon,
@@ -213,7 +225,7 @@ export class CombatController {
       armor: pa.points,
       hp: p.hp,
       maxHp: p.max_hp,
-      pos: this.takeSpawn(playerSpawns),
+      pos: this.takeSpawn(playerSpawns, playerAnchor),
       mov: Math.max(1, movement(p.stats) - encDebuffs.movPenalty),
       movLeft: 0,
       statuses: [],
@@ -238,7 +250,24 @@ export class CombatController {
     for (const comp of e.state.party) {
       const def = e.campaign.entities[comp.entity] as NpcDef | undefined
       if (!def || def.type !== 'npc') continue
-      const w = this.resolveWeapon(def, def.skills ?? {})
+      if (comp.hp <= 0) continue // погибший/выбывший напарник в строй не встаёт
+      // снаряжение из «второй сумки» напарника замещает equipment карточки NPC
+      const battleDef: NpcDef =
+        comp.equipment && Object.keys(comp.equipment).length
+          ? { ...def, equipment: { ...(def.equipment ?? {}), ...comp.equipment } }
+          : def
+      const w = this.resolveWeapon(battleDef, def.skills ?? {})
+      // истощение: любая отслеживаемая потребность (companion_needs) на/ниже
+      // critical_threshold — мягкий штраф навыков −10% на этот бой
+      let allySkills = def.skills ?? {}
+      const exhausted = Object.entries(comp.needs ?? {}).some(([id, v]) => {
+        const nd = e.campaign.meta.needs.find((n) => n.id === id)
+        return nd != null && v <= nd.critical_threshold
+      })
+      if (exhausted) {
+        allySkills = Object.fromEntries(Object.entries(allySkills).map(([k, v]) => [k, Math.max(0, Math.round(v * 0.9))]))
+        this.log.push(`${def.label} истощён(а): навыки −10%.`)
+      }
       this.combatants.push({
         id: `c_ally_${comp.entity}`,
         entityId: comp.entity,
@@ -250,15 +279,16 @@ export class CombatController {
         figure_shadow: def.shadow,
         facing: 90,
         flip: false,
+        facing_offset: def.facing_offset,
         stats: def.stats,
-        skills: def.skills ?? {},
+        skills: allySkills,
         weapon: w.weapon,
         weaponLabel: w.weaponLabel,
         weaponItemId: w.weaponItemId,
-        armor: this.resolveArmor(def),
+        armor: this.resolveArmor(battleDef),
         hp: comp.hp,
         maxHp: comp.max_hp,
-        pos: this.takeSpawn(playerSpawns),
+        pos: this.takeSpawn(playerSpawns, this.combatants[0]?.pos ?? playerAnchor),
         mov: movement(def.stats),
         movLeft: 0,
         statuses: [],
@@ -293,6 +323,7 @@ export class CombatController {
           figure_shadow: def.shadow,
           facing: 90,
           flip: false,
+          facing_offset: def.facing_offset,
           stats: def.stats,
           skills: def.skills ?? {},
           weapon: w.weapon,
@@ -301,7 +332,7 @@ export class CombatController {
           armor: this.resolveArmor(def),
           hp,
           maxHp: hp,
-          pos: this.takeSpawn(playerSpawns),
+          pos: this.takeSpawn(playerSpawns, this.combatants[0]?.pos ?? playerAnchor),
           mov: movement(def.stats),
           movLeft: 0,
           statuses: [],
@@ -336,6 +367,7 @@ export class CombatController {
           figure_shadow: def.shadow,
           facing: -90,
           flip: true,
+          facing_offset: def.facing_offset,
           stats: def.stats,
           skills: def.skills ?? {},
           weapon: w.weapon,
@@ -344,7 +376,7 @@ export class CombatController {
           armor: this.resolveArmor(def),
           hp,
           maxHp: hp,
-          pos: this.takeSpawn(enemySpawns),
+          pos: this.takeSpawn(enemySpawns, enemyAnchor),
           mov: movement(def.stats),
           movLeft: 0,
           statuses: [],
@@ -364,12 +396,35 @@ export class CombatController {
     this.combatants.sort((a, b) => b.stats.DEX - a.stats.DEX || (this.engine.rng.chance(0.5) ? -1 : 1))
   }
 
-  private takeSpawn(spawns: Array<[number, number]>): Hex {
+  private takeSpawn(spawns: Array<[number, number]>, anchor: Hex): Hex {
+    // зона спавна: выдаём только свободные и ПРОХОДИМЫЕ гексы —
+    // пометка спавна поверх стены больше не телепортирует бойца в препятствие
     while (spawns.length) {
       const [col, row] = spawns.shift()!
-      if (!this.occupantAt({ col, row })) return { col, row }
+      const h = { col, row }
+      if (this.inBounds(h) && !this.isBlocked(h) && !this.occupantAt(h)) return h
     }
-    return { col: 0, row: 0 }
+    // зоны не хватило (например, гексов меньше, чем бойцов в отряде):
+    // встаём в ближайший к anchor свободный проходимый гекс, а не в [0,0]
+    return this.nearestFreeHex(anchor)
+  }
+
+  /** ближайший к anchor свободный и проходимый гекс сетки (кольцевой обход) */
+  private nearestFreeHex(anchor: Hex): Hex {
+    let best: Hex | null = null
+    let bestD = Infinity
+    for (let row = 0; row < this.arena.hex_grid.rows; row++) {
+      for (let col = 0; col < this.arena.hex_grid.cols; col++) {
+        const h = { col, row }
+        if (this.isBlocked(h) || this.occupantAt(h)) continue
+        const d = hexDistance(anchor, h)
+        if (d < bestD) {
+          bestD = d
+          best = h
+        }
+      }
+    }
+    return best ?? anchor
   }
 
   private resolveWeapon(def: NpcDef, skills: Record<string, number>): { weapon: WeaponData; weaponLabel: string; weaponItemId: string | null } {
@@ -1640,7 +1695,7 @@ export class CombatController {
       this.engine.state.player.hp = Math.max(0, pc.hp)
       this.engine.state.player.mp = Math.max(0, Math.min(pc.mp, this.engine.state.player.max_mp))
     }
-    for (const ally of this.combatants.filter((x) => x.id.startsWith('c_ally_') && !x.dead)) {
+    for (const ally of this.combatants.filter((x) => x.id.startsWith('c_ally_'))) {
       const comp = this.engine.state.party.find((c) => c.entity === ally.entityId)
       if (comp) comp.hp = Math.max(0, ally.hp)
     }

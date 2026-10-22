@@ -1,0 +1,31 @@
+{
+  "id": "rule_party_ira_journal",
+  "label": "Ира в отряде: журнал Векса",
+  "once": true,
+  "trigger": "enter_scene",
+  "conditions": [
+    {
+      "type": "in_party",
+      "entity": "npc_ira"
+    },
+    {
+      "type": "flag_set",
+      "flag": "vex_journal"
+    },
+    {
+      "type": "flag_set",
+      "flag": "ira_told_brother"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "ira_journal"
+    }
+  ],
+  "effects": [
+    {
+      "type": "start_dialogue",
+      "entity": "npc_ira",
+      "dialogue_knot": "В_пути"
+    }
+  ]
+}

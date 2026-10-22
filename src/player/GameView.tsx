@@ -12,6 +12,8 @@ import { TradePanel } from './TradePanel'
 import { EndScreen } from './EndScreen'
 import { HelpPanel } from './HelpPanel'
 import { CombatScreen } from './CombatScreen'
+import { PartyPanel } from './PartyPanel'
+import { DurationModal } from './DurationModal'
 import { assetUrl, assetUrlOrNull } from '../core/loader'
 import { CutscenePlayer } from '../shared/CutscenePlayer'
 import { BannerLayer, PostcardLayer } from './Atmosphere'
@@ -140,6 +142,10 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
       />
       <SceneScreen engine={engine} onOpenMap={() => openPanel('map')} />
 
+      {!cutscene && !engine.combat && !engine.dialogue && !engine.trade && <PartyPanel engine={engine} />}
+
+      <DurationModal engine={engine} />
+
       {panel === 'map' && featureOn(engine.campaign.meta, 'map') && <MapScreen engine={engine} onClose={closePanel} />}
       {panel === 'inventory' && featureOn(engine.campaign.meta, 'inventory') && (
         <InventoryPanel engine={engine} onClose={closePanel} />
@@ -156,7 +162,9 @@ export function GameView({ engine, onRestart, onNewGamePlus, onExitToMenu, onLoa
         <SavesPanel engine={engine} onClose={closePanel} onLoadSlot={(slot) => { closePanel(); onLoadSlot(slot) }} />
       )}
 
-      {!cutscene && engine.combat && <CombatScreen engine={engine} />}
+      {/* после смерти героя бой не рисуем: экран исхода (EndScreen) не должен
+          конкурировать с живым HUD/летописью боя под полупрозрачным фоном */}
+      {!cutscene && engine.combat && !engine.state.game_over && <CombatScreen engine={engine} />}
 
       {!cutscene && engine.trade && !engine.combat && <TradePanel engine={engine} />}
 

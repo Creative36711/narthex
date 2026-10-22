@@ -319,6 +319,7 @@ function inkLine(l: DlgLine, indent: string): string {
   const tags: string[] = []
   if (l.emotion && l.emotion !== 'neutral') tags.push(`# emotion: ${l.emotion}`)
   if (l.action) tags.push('# action')
+  if (l.speaker && !l.action) tags.push(`# speaker: ${l.speaker}`)
   if (l.voice) tags.push(`# voice: ${l.voice}`)
   if (l.timer && l.timer > 0) tags.push(`# timer: ${l.timer}`)
   return `${indent}${text}${tags.length ? ' ' + tags.join(' ') : ''}`
@@ -332,6 +333,9 @@ function inkEffect(e: DlgEffect, indent: string): string {
     case 'remove_item': return `${indent}~ remove_item(${q(e.item)}, ${e.qty})`
     case 'fire_rule': return `${indent}~ fire_rule(${q(e.rule)})`
     case 'join_party': return `${indent}~ join_party(${q(e.npc)})`
+    case 'leave_party': return `${indent}~ leave_party(${q(e.npc)})`
+    case 'change_companion_need': return `${indent}~ change_companion_need(${q(e.npc)}, ${q(e.need)}, ${e.delta})`
+    case 'transfer_to_companion': return `${indent}~ give_to(${q(e.npc)}, ${q(e.item)}, ${e.qty})`
     case 'open_trade': return `${indent}~ open_trade(${q(e.npc)})`
     case 'start_quest': return `${indent}~ start_quest(${q(e.quest)})`
     case 'advance_time': return `${indent}~ advance_time(${e.ticks})`

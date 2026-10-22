@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && npm run build:ai-bundle && vite build",
+    "build:ai-bundle": "esbuild scripts/campaign-audit.mts --bundle --platform=node --format=esm --target=node18 --outfile=public/ai/campaign-audit.mjs",
     "generate:campaign-schema": "tsx scripts/gen-schema.mts",
     "audit:campaign-formats": "tsx scripts/audit-campaign-formats.mts",
     "lint": "oxlint",
@@ -45,11 +46,20 @@
     "smoke:encumbrance": "tsx scripts/encumbrance-smoke.mts",
     "smoke:cutscene-queue": "tsx scripts/smoke-cutscene-postcard-queue.mts",
     "smoke:spoil": "tsx scripts/spoil-smoke.mts",
+    "smoke:time-semantics": "tsx scripts/time-semantics-smoke.mts",
+    "smoke:ai-diff": "tsx scripts/ai-diff-smoke.mts",
+    "smoke:view-write": "tsx scripts/view-write-smoke.mts",
+    "smoke:core": "tsx scripts/core-semantics-smoke.mts",
+    "audit:campaign": "tsx scripts/campaign-audit.mts",
     "smoke:dlg-script": "tsx scripts/dlg-script-smoke.mts",
     "smoke:dlg-ui": "tsx --tsconfig tsconfig.app.json scripts/dlg-ui-smoke.mts",
     "smoke:folder-import": "tsx scripts/smoke-round35-folder-import.mts",
     "smoke:narrative-builder": "tsx scripts/smoke-narrative-builder-and-docs.mts",
-    "smoke:patch": "tsx scripts/smoke-patch-export-and-import.mts"
+    "smoke:patch": "tsx scripts/smoke-patch-export-and-import.mts",
+    "smoke:cutout": "tsx scripts/smoke-chromakey-guide.mts",
+    "smoke:duration-actions": "tsx scripts/smoke-duration-actions.mts",
+    "smoke:craft-fail-time": "tsx scripts/smoke-craft-fail-time.mts",
+    "smoke:dialogue-speaker": "tsx scripts/smoke-dialogue-speaker.mts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

@@ -1,33 +1,47 @@
 #!/usr/bin/env python3
 """
-scripts/cutout-chromakey.py
+cutout-chromakey.py
 
-Утилита удаления хромакея (зелёного фона #00FF00) для спрайтов, эмблем и боевых фигурок.
-Поддерживает удаление фона снаружи, зачистку внутренних замкнутых полостей
-(отверстия в шестерёнках, ручки предметов, буквы логотипов A/O/P/D/B, просветы между конечностями),
-а также автоматическую обрезку пустых прозрачных полей (tight bounding box / autocrop)
-и оптимизацию размера файлов для контроля веса кампании.
+Утилита удаления хромакея (ярко-зелёного фона #00FF00) для спрайтов, эмблем и боевых фигурок,
+плюс «лечилка» иконок, уже изуродованных старыми вырезками.
+
+ВАЖНО ПРО БИРЮЗУ (урок кампании «Каркас»): старые версии принимали бирюзовые детали
+(вены, звуковые кольца, патину) за зелёный фон и делали их прозрачными. Теперь ключ строгий:
+пиксель считается фоном, только если КАНАЛ ЯРЧАЙШЕ ЗЕЛЁНЫЙ (green > 140), зелёный доминирует
+над остальными перекрытием больше порога, И это не циан/бирюза (blue < 75% от green).
+Пиксели с синей составляющей, близкой к зелёной, — не фон и не вырезаются ни в одном режиме
+(отключается флагом --allow-cyan для съёмки на бирюзовом фоне).
 
 Использование:
-  python3 scripts/cutout-chromakey.py input.png output.png [опции]
+  python3 cutout-chromakey.py input.png output.png [опции]
+  python3 cutout-chromakey.py --heal сломанная.png починенная.png
 
 Опции:
   --mode {auto, color, flood, points}
-      auto    - (по умолчанию) удаляет внешний фон + зачищает все внутренние замкнутые зелёные полости + despill ореола.
-      color   - глобальный цветовой кеинг по всему изображению (удаляет зелёный везде, идеально для логотипов без зелёных деталей).
-      flood   - только внешний заливной контур от краёв (0,0).
-      points  - зачистка конкретных полостей по координатам X,Y (через запятую или пробел).
+      auto    - (по умолчанию) строгий ключ с краёв + зачистка внутренних замкнутых зелёных
+                полостей (отверстия шестерёнок/ручек, буквы A/O/P/D/B) + despill ореола.
+      color   - глобальный ключ по всей картинке (тем же СТРОГИМ зелёным предикатом; для
+                логотипов без зелёных деталей; бирюзу всё равно не съедает).
+      flood   - только внешний контур заливкой от краёв кадра.
+      points  - зачистка полостей по координатам X,Y (через запятую или пробел).
   --tol <int>
-      Порог чувствительности к зелёному (по умолчанию 35; для тусклого/тёмного хромакея снижайте до 20-25).
+      Минимальное доминирование зелёного канала (по умолчанию 70 — строго; для тусклого
+      хромакея снижайте до 40-50, защита бирюзы всё равно держится).
+  --allow-cyan
+      Разрешить вырезать бирюзу/циан — только если фон снят именно в бирюзе.
   --despill
-      Подавление паразитного зелёного ореола на кромках (включено по умолчанию в auto и color).
+      Подавление паразитного зелёного ореола на кромках (по умолчанию включено в auto/color).
   --points "X1,Y1 X2,Y2 ..."
-      Список координат внутренних полостей для точечного удаления.
+      Координаты внутренних полостей для точечного удаления.
+  --heal
+      Режим лечилки: НИЧЕГО не вырезает. Пиксели внутри фигуры (не связанные с внешним фоном),
+      ставшие прозрачными, но чей сохранившийся цвет — не чистый ключевой зелёный, снова
+      становятся непрозрачными. Цвет под прозрачностью вырезки сохраняется, поэтому
+      восстановление точное. Чисто зелёные внутренние полости (окна/отверстия) не трогаются.
   --crop / --no-crop
-      Автоматическая обрезка пустых прозрачных краёв вплотную к объекту (autocrop по bbox).
-      Включена по умолчанию для предотвращения раздутия разрешения и веса.
+      Обрезка пустых прозрачных краёв (в heal-режиме отключена: геометрия не меняется).
   --max-size <int>
-      Максимальная длина большей стороны в пикселях (например, 256 для фигурок боя или 512 для спрайтов).
+      Максимальная длина большей стороны (например, 256 для фигурок боя, 512 для спрайтов).
 """
 
 import sys
@@ -35,19 +49,41 @@ import os
 import argparse
 import subprocess
 
+
+def green_key(r, g, b, tol, allow_cyan=False):
+    """Строгий зелёный ключ: бирюза/циан не пройдёт (b близко к g)."""
+    if g <= 140:
+        return False
+    if (g - max(r, b)) <= tol:
+        return False
+    if not allow_cyan and b >= g * 0.75:
+        return False
+    return True
+
+
+def semi_green(r, g, b, tol, allow_cyan=False):
+    """Полупрозрачный зелёный ореол с кромки — мягче, но всё ещё не бирюза."""
+    if g <= 100:
+        return False
+    if (g - max(r, b)) <= max(12, tol // 4):
+        return False
+    if not allow_cyan and b >= g * 0.75:
+        return False
+    return True
+
+
 def run_imagemagick(input_path, output_path, mode, tol, points_list, crop=True, max_size=None):
-    """Fallback через ImageMagick convert, если PIL/Pillow не установлен."""
-    fuzz = f"{int(tol * 100 / 255)}%"
+    """Fallback через ImageMagick convert, если PIL/Pillow не установлен (без --heal)."""
+    fuzz = f"{int(min(tol, 40) * 100 / 255)}%"
     cmd = ["convert", input_path, "-fuzz", fuzz]
     if mode == "color" or mode == "auto":
         cmd += ["-transparent", "#00FF00"]
     elif mode == "flood":
         cmd += ["-fill", "none", "-draw", "matte 0,0 floodfill"]
     elif mode == "points" and points_list:
-        draw_cmds = []
+        cmd += ["-fill", "none"]
         for x, y in points_list:
-            draw_cmds.extend(["-draw", f"matte {x},{y} floodfill"])
-        cmd += ["-fill", "none"] + draw_cmds
+            cmd += ["-draw", f"matte {x},{y} floodfill"]
 
     if crop:
         cmd += ["-trim", "+repage"]
@@ -57,7 +93,9 @@ def run_imagemagick(input_path, output_path, mode, tol, points_list, crop=True, 
     cmd.append(output_path)
     return subprocess.run(cmd, check=True)
 
-def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=True, points_list=None, crop=True, max_size=None):
+
+def process_with_pillow(input_path, output_path, mode="auto", tol=70, despill=True,
+                        points_list=None, crop=True, max_size=None, allow_cyan=False):
     from PIL import Image
     from collections import deque
 
@@ -65,11 +103,11 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
     w, h = img.size
     px = img.load()
 
-    def is_green(r, g, b):
-        return g > 55 and (g - max(r, b)) > tol
+    def key(r, g, b):
+        return green_key(r, g, b, tol, allow_cyan)
 
-    def is_semi_green(r, g, b):
-        return g > 50 and (g - max(r, b)) > max(12, tol // 2)
+    def semi(r, g, b):
+        return semi_green(r, g, b, tol, allow_cyan)
 
     if mode == "color":
         for y in range(h):
@@ -78,10 +116,10 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
                 if a == 0:
                     continue
                 diff = g - max(r, b)
-                if g > 55 and diff > tol:
+                if key(r, g, b):
                     px[x, y] = (r, min(g, max(r, b)), b, 0)
-                elif despill and g > 50 and diff > 15:
-                    k = (diff - 15) / max(1, tol - 15)
+                elif despill and semi(r, g, b):
+                    k = min(1.0, (diff - 15) / max(1, tol - 15))
                     new_a = int(a * max(0.0, 1.0 - k))
                     new_g = min(g, max(r, b) + 4)
                     px[x, y] = (r, new_g, b, new_a)
@@ -93,14 +131,14 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
         for x in range(w):
             for y in (0, h - 1):
                 r, g, b, a = px[x, y]
-                if is_green(r, g, b) or a == 0:
+                if key(r, g, b) or a == 0:
                     queue.append((x, y))
                     visited.add((x, y))
         for y in range(h):
             for x in (0, w - 1):
                 if (x, y) not in visited:
                     r, g, b, a = px[x, y]
-                    if is_green(r, g, b) or a == 0:
+                    if key(r, g, b) or a == 0:
                         queue.append((x, y))
                         visited.add((x, y))
 
@@ -113,15 +151,16 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
                 nx, ny = cx + dx, cy + dy
                 if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
                     nr, ng, nb, na = px[nx, ny]
-                    if is_green(nr, ng, nb):
+                    if key(nr, ng, nb):
                         visited.add((nx, ny))
                         queue.append((nx, ny))
 
+        # внутренние замкнутые полости чистого ключа (острова, не связанные с краем)
         for y in range(h):
             for x in range(w):
                 if (x, y) not in visited:
                     r, g, b, a = px[x, y]
-                    if a > 0 and is_green(r, g, b):
+                    if a > 0 and key(r, g, b):
                         island_q = deque([(x, y)])
                         visited.add((x, y))
                         while island_q:
@@ -132,7 +171,7 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
                                 nx, ny = ix + dx, iy + dy
                                 if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
                                     nr, ng, nb, na = px[nx, ny]
-                                    if is_green(nr, ng, nb):
+                                    if key(nr, ng, nb):
                                         visited.add((nx, ny))
                                         island_q.append((nx, ny))
 
@@ -140,9 +179,9 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
             for y in range(h):
                 for x in range(w):
                     r, g, b, a = px[x, y]
-                    if a > 0 and is_semi_green(r, g, b):
+                    if a > 0 and semi(r, g, b):
                         diff = g - max(r, b)
-                        k = (diff - 12) / max(1, tol - 12)
+                        k = min(1.0, (diff - 12) / max(1, tol - 12))
                         new_a = int(a * max(0.0, 1.0 - k * 0.7))
                         new_g = min(g, max(r, b) + 3)
                         px[x, y] = (r, new_g, b, new_a)
@@ -161,11 +200,10 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
                 nx, ny = cx + dx, cy + dy
                 if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in visited:
                     nr, ng, nb, na = px[nx, ny]
-                    if is_green(nr, ng, nb):
+                    if key(nr, ng, nb):
                         visited.add((nx, ny))
                         queue.append((nx, ny))
 
-    # Автоматическая обрезка пустых прозрачных полей (autocrop)
     if crop:
         bbox = img.getbbox()
         if bbox:
@@ -173,7 +211,6 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
             box = (max(0, bbox[0] - pad), max(0, bbox[1] - pad), min(w, bbox[2] + pad), min(h, bbox[3] + pad))
             img = img.crop(box)
 
-    # Ограничение максимального разрешения (downscale для контроля веса)
     if max_size and max_size > 0:
         resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
         img.thumbnail((max_size, max_size), resample_filter)
@@ -181,21 +218,86 @@ def process_with_pillow(input_path, output_path, mode="auto", tol=35, despill=Tr
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     img.save(output_path, "PNG", optimize=True)
 
+
+def heal_with_pillow(input_path, output_path, tol=70, allow_cyan=False):
+    """Лечит прозрачные «дыры» внутри фигуры: alpha 0/низкая, не связана с внешним фоном,
+    цвет не чистый ключевой зелёный → alpha = 255. Чисто зелёные внутренние полости
+    (легальные окна/отверстия) остаются прозрачными."""
+    from PIL import Image
+    from collections import deque
+
+    img = Image.open(input_path).convert("RGBA")
+    w, h = img.size
+    px = img.load()
+
+    # внешний фон = прозрачная область, связанная с краем кадра
+    outside = set()
+    queue = deque()
+    for x in range(w):
+        for y in (0, h - 1):
+            if px[x, y][3] < 20:
+                outside.add((x, y))
+                queue.append((x, y))
+    for y in range(h):
+        for x in (0, w - 1):
+            if (x, y) not in outside and px[x, y][3] < 20:
+                outside.add((x, y))
+                queue.append((x, y))
+    while queue:
+        cx, cy = queue.popleft()
+        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            nx, ny = cx + dx, cy + dy
+            if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in outside and px[nx, ny][3] < 20:
+                outside.add((nx, ny))
+                queue.append((nx, ny))
+
+    tapered = set()
+
+    def near_outside(x, y):
+        # кольцо в 2 пикселя вокруг внешнего фона не лечим: там антиалиас кромки
+        for dx in (-2, -1, 0, 1, 2):
+            for dy in (-2, -1, 0, 1, 2):
+                if (x + dx, y + dy) in outside:
+                    return True
+        return False
+
+    fixed = 0
+    left_key = 0
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a >= 250 or (x, y) in outside or near_outside(x, y):
+                continue
+            if green_key(r, g, b, tol, allow_cyan):
+                left_key += 1  # внутренняя чисто зелёная полость — легальное отверстие
+                continue
+            px[x, y] = (r, g, b, 255)
+            fixed += 1
+
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    img.save(output_path, "PNG", optimize=True)
+    print(f"✓ heal: {output_path} — восстановлено пикселей: {fixed}; "
+          f"внутренних чисто зелёных полостей оставлено: {left_key}")
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Вырезание хромакея (#00FF00), зачистка полостей и обрезка полей")
+    parser = argparse.ArgumentParser(description="Вырезка хромакея (#00FF00) строгим ключом + лечилка дыр")
     parser.add_argument("input", help="Путь к исходному файлу (.png/.jpg)")
     parser.add_argument("output", help="Путь к результирующему PNG")
     parser.add_argument("--mode", choices=["auto", "color", "flood", "points"], default="auto",
-                        help="Режим: auto (снаружи + внутри), color (глобальный), points (по координатам)")
-    parser.add_argument("--tol", type=int, default=35, help="Порог чувствительности (по умолчанию 35)")
-    parser.add_argument("--despill", action="store_true", default=True, help="Подавление паразитного ореола")
-    parser.add_argument("--points", type=str, default="", help="Координаты внутренних точек 'X1,Y1 X2,Y2'")
+                        help="Режим вырезки (по умолчанию auto)")
+    parser.add_argument("--tol", type=int, default=70,
+                        help="Порог доминирования зелёного (по умолчанию 70 — строго; тусклый фон: 40-50)")
+    parser.add_argument("--allow-cyan", action="store_true", default=False,
+                        help="Разрешить вырезать бирюзу/циан (только для фона в бирюзе)")
+    parser.add_argument("--despill", action="store_true", default=True, help="Подавление зелёного ореола")
+    parser.add_argument("--points", type=str, default="", help="Координаты полостей 'X1,Y1 X2,Y2'")
+    parser.add_argument("--heal", action="store_true", default=False,
+                        help="Лечилка: вернуть непрозрачность пикселям внутри фигуры (ничего не вырезает)")
     parser.add_argument("--crop", dest="crop", action="store_true", default=True,
-                        help="Обрезать пустые прозрачные поля (по умолчанию включено)")
-    parser.add_argument("--no-crop", dest="crop", action="store_false",
-                        help="Не обрезать изображение по границам объекта")
-    parser.add_argument("--max-size", type=int, default=None,
-                        help="Максимальный размер стороны в пикселях (downscale)")
+                        help="Обрезать пустые поля (по умолчанию включено; в heal всегда выключено)")
+    parser.add_argument("--no-crop", dest="crop", action="store_false")
+    parser.add_argument("--max-size", type=int, default=None, help="Максимальный размер стороны (downscale)")
 
     args = parser.parse_args()
 
@@ -204,18 +306,26 @@ def main():
         raw_pts = args.points.replace(";", " ").replace(",", " ").split()
         for i in range(0, len(raw_pts), 2):
             if i + 1 < len(raw_pts):
-                pts.append((int(raw_pts[i]), int(raw_pts[i+1])))
+                pts.append((int(raw_pts[i]), int(raw_pts[i + 1])))
 
     try:
-        import PIL
-        process_with_pillow(args.input, args.output, mode=args.mode, tol=args.tol,
-                            despill=args.despill, points_list=pts, crop=args.crop, max_size=args.max_size)
-        print(f"✓ Успешно обработано через Pillow: {args.output} (режим {args.mode}, crop={args.crop})")
+        import PIL  # noqa: F401
+        if args.heal:
+            heal_with_pillow(args.input, args.output, tol=args.tol, allow_cyan=args.allow_cyan)
+        else:
+            process_with_pillow(args.input, args.output, mode=args.mode, tol=args.tol,
+                                despill=args.despill, points_list=pts, crop=args.crop,
+                                max_size=args.max_size, allow_cyan=args.allow_cyan)
+            print(f"✓ Успешно обработано через Pillow: {args.output} (режим {args.mode}, crop={args.crop})")
     except ImportError:
+        if args.heal:
+            print("✗ --heal требует Pillow (ImageMagick-fallback лечилки не умеет).", file=sys.stderr)
+            sys.exit(2)
         print("Pillow не найден, используется ImageMagick fallback...")
         run_imagemagick(args.input, args.output, mode=args.mode, tol=args.tol,
                         points_list=pts, crop=args.crop, max_size=args.max_size)
         print(f"✓ Успешно обработано через ImageMagick: {args.output} (режим {args.mode}, crop={args.crop})")
+
 
 if __name__ == "__main__":
     main()
