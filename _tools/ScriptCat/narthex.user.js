@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.2.1
+// @version      1.3.0
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -612,30 +612,124 @@
   const hasMergedClaim = (result) =>
     !!result && (result.merged === true || String(result.status || "").toLowerCase() === "merged");
 
+  // ───────────────────────── техническая информация ─────────────────────────
+  /**
+   * Блок, который ScriptCat дописывает в КАЖДОЕ исходящее сообщение.
+   *
+   * Зачем: агент попадает в песочницу, где checkout — не main, а ветка-снимок
+   * без общей истории с main (проверено: `git merge-base HEAD origin/main`
+   * пусто, 46 файлов main в снимке отсутствуют). Агент, который этого не
+   * знает, коммитит в мёртвую историю, а его PR показывает удаление чужих
+   * файлов. Ни Координатор, ни регламент этого не видят — знание о среде
+   * должно приходить автоматически, вместе с заданием.
+   *
+   * Блок разный по функции роли (поле «Функция» в базе «Роли»):
+   *   Executor    — стартовый ритуал, зона, порядок PR и маркер;
+   *   Auditor     — только origin/main, писать нельзя;
+   *   Coordinator — git не нужен вообще, инструменты Notion и Drive.
+   */
+
+  const TECH_OPEN = "<!-- CF_TECH v1 -->";
+  const TECH_CLOSE = "<!-- /CF_TECH -->";
+  const TECH_TITLE = "ТЕХНИЧЕСКАЯ ИНФОРМАЦИЯ";
+
+  const stampUtc = () => `${new Date().toISOString().replace("T", " ").slice(0, 16)} UTC`;
+
+  /** Шапка блока: предупреждение, что это не задание. */
+  function techHeader(role) {
+    return [
+      TECH_OPEN,
+      `━━━ ${TECH_TITLE} · ${role.name} · ${stampUtc()} ━━━`,
+      "Сгенерировано ScriptCat. Это не задание и не текст Координатора: это факты о",
+      "среде, в которой ты работаешь. Задание — ниже, под блоком.",
+    ].join("\n");
+  }
+
+  /** Факт о стартовом состоянии: он одинаков для всех, кто трогает репозиторий. */
+  const SNAPSHOT_FACT = [
+    `Репозиторий: ${C.repo}, единственная ветка для мержа — main.`,
+    "ВНИМАНИЕ: Arena может посадить сессию на ветку-СНИМОК. У неё нет общей истории",
+    "с main: `git merge-base HEAD origin/main` печатает пусто, а в дереве нет файлов,",
+    "которые в main уже есть (замер 2026-10-22: 46 файлов, включая сам этот скрипт;",
+    "число растёт с каждой миссией).",
+    "Коммит в такой ветке в main не попадёт, а PR покажет удаление чужих файлов.",
+  ].join("\n");
+
+  const EXECUTOR_TECH = [
+    SNAPSHOT_FACT,
+    "",
+    "СТАРТ (до первой правки):",
+    "  git fetch origin main",
+    "  git merge-base HEAD origin/main     # пусто → ты на снимке",
+    "  git status --short                  # есть незапушенное — сначала сохрани",
+    "  git reset --hard origin/main        # дерево как в main, история остаётся",
+    "  git switch -c nar/<номер> origin/main",
+    "  git diff --stat main                # до работы — пусто",
+    "",
+    "ЗАПРЕЩЕНО: работать на снимке; коммитить в ветку без общей истории с main;",
+    "трогать пути вне своего Scope; мержить кнопкой в интерфейсе.",
+    "РАЗРЕШЕНО: только своя зона из карточки, PR в main через `gh`, squash-мерж.",
+  ].join("\n");
+
+  const AUDITOR_TECH = [
+    SNAPSHOT_FACT,
+    "",
+    "ТЫ НЕ ПИШЕШЬ: ни ветки, ни коммита, ни пуша, ни PR. Твой выход — отчёт.",
+    "ИСТОЧНИК ИСТИНЫ — origin/main, а не твоё рабочее дерево и не ветка сессии:",
+    "  git fetch origin main",
+    "  git log --oneline -5 origin/main",
+    "  git show origin/main:<путь>          # файл из main, без checkout",
+    "Проверяемая работа — это PR, слитый в main:",
+    "  gh pr view <номер> --json state,mergeCommit",
+    "  gh pr diff <номер>",
+    "Свою ветку как эталон не используй: она может быть снимком без части файлов.",
+  ].join("\n");
+
+  const COORDINATOR_TECH = [
+    "Git и репозиторий тебе не нужны: ты не читаешь код и не запускаешь команды.",
+    "Твои инструменты — Notion (Миссии, Запросы, Роли) и Drive (логи передач).",
+    "Ветки, коммиты и PR — не твоя зона: за них отвечают Executor и Auditor.",
+  ].join("\n");
+
+  const TECH_BY_FN = {
+    Executor: EXECUTOR_TECH,
+    Auditor: AUDITOR_TECH,
+    Coordinator: COORDINATOR_TECH,
+  };
+
+  /**
+   * Полный блок для роли. Неизвестная функция трактуется как Executor:
+   * забыть поле «Функция» безопаснее в сторону «проверь ветку», чем в
+   * сторону «делай что хочешь».
+   */
+  function technicalInfo(role) {
+    const body = TECH_BY_FN[role.fn] || EXECUTOR_TECH;
+    return [techHeader(role), "", body, "", TECH_CLOSE].join("\n");
+  }
+
   // ───────────────────────────── промпты ─────────────────────────────
+  /** Правило поведения зависит от функции: аудитору и координатору мерж не положен. */
+  function roleRule(role) {
+    if (role.fn === "Auditor") return "Ты ничего не меняешь в репозитории: находки идут в отчёт, чинит исполнитель.";
+    if (role.fn === "Coordinator") return "Ты принимаешь решения в Notion; код, ветки и PR — не твоя зона.";
+    return "Не меняй чужие зоны. Мерж PR делаешь сам командой, кнопки интерфейса не нажимай.";
+  }
+
   function roleContext(role) {
     return [
       `Ты — ${role.name}.`,
       role.zone ? `Твоя зона записи: ${role.zone}.` : "",
       role.gate ? `Гейт: ${role.gate}.` : "",
       `Регламент: ${C.pageUrl}`,
-      "Не меняй чужие зоны. Мерж PR делаешь сам командой, кнопки интерфейса не нажимай.",
+      roleRule(role),
     ].filter(Boolean).join("\n");
   }
 
-  function executorPrompt(task, role, payload, logId, runId) {
+  /** Порядок работы для того, кто пишет код: коммит, пуш, PR, мерж. */
+  function executorOrder(task, runId) {
     return [
-      `Задача ${taskTitle(task)} (dispatch ${task.id}, run ${runId}).`,
-      "",
-      "ЦЕЛЬ И ГРАНИЦЫ",
-      `Scope: ${rt(task.properties["Scope"]) || "не задан"}`,
-      `Критерий приёмки: ${rt(task.properties["Acceptance"]) || "не задан"}`,
-      "",
-      "ЗАДАНИЕ",
-      payload || "(текст задания не найден — работай по карточке)",
-      "",
       "ПОРЯДОК (каждый ход, обязательно)",
-      "1. Ветка: git switch -c nar/<номер задачи> от свежего main (или продолжай текущую).",
+      "1. Ветка: git switch -c nar/<номер задачи> от свежего main (ритуал старта — в блоке выше).",
       "2. Коммит: git add -A && git commit -m \"<номер>: <суть>\".",
       "3. Пуш: git push -u origin HEAD.",
       "4. PR и мерж — САМ, командами, не кнопками:",
@@ -648,6 +742,38 @@
       "",
       "Кнопки «Create pull request» и «Merge pull request» нажимать не нужно: их нажимает",
       "ScriptCat только если ты не запушил. После мержа ScriptCat сам нажмёт Continue.",
+    ];
+  }
+
+  /** Порядок для аудитора: ничего не менять, только проверить и вынести вердикт. */
+  function auditorOrder(task, runId) {
+    return [
+      "ПОРЯДОК (каждый ход, обязательно)",
+      "1. В репозитории ничего не менять: ни ветки, ни коммита, ни пуша, ни PR.",
+      "2. Собрать факты из origin/main и из слитого PR (команды — в блоке выше).",
+      "3. Вердикт: pass или fail, каждое утверждение — с командой, которой его проверить.",
+      "4. Находки — в отчёт; чинить их будет исполнитель, а не ты.",
+      "5. Последней строкой ответа — ровно один маркер:",
+      `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","check":0,"report":"<путь к отчёту>"}`,
+      "`check: 0` — вердикт pass, любой другой код — fail. PR и merged для аудита не нужны:",
+      "отдельного PR у тебя нет, ScriptCat не ждёт мержа и сразу запишет ответ.",
+    ];
+  }
+
+  function executorPrompt(task, role, payload, logId, runId) {
+    return [
+      technicalInfo(role),
+      "",
+      `Задача ${taskTitle(task)} (dispatch ${task.id}, run ${runId}).`,
+      "",
+      "ЦЕЛЬ И ГРАНИЦЫ",
+      `Scope: ${rt(task.properties["Scope"]) || "не задан"}`,
+      `Критерий приёмки: ${rt(task.properties["Acceptance"]) || "не задан"}`,
+      "",
+      "ЗАДАНИЕ",
+      payload || "(текст задания не найден — работай по карточке)",
+      "",
+      ...(role.fn === "Auditor" ? auditorOrder(task, runId) : executorOrder(task, runId)),
       "",
       roleContext(role),
       `Лог попытки: https://drive.google.com/file/d/${logId}/view`,
@@ -656,6 +782,8 @@
 
   function coordinatorPrompt(mission, role, queueSummary, turnId, note = "") {
     return [
+      technicalInfo(role),
+      "",
       `Миссия: ${rt(mission.properties["Миссия"])}.`,
       `ТЗ: ${mission.properties["ТЗ URL"]?.url || "не задано"}`,
       `Очередь: ${queueSummary}`,
@@ -703,7 +831,9 @@
       entry: `\n\n${marker}\n## Ответ ${role.name}\n\n${hit.text}\n`,
     });
 
-    const merged = await ensureMerged(page);
+    // Аудитор не открывает PR: ждать мерж и нажимать Continue нечего.
+    // Иначе цикл встал бы на 5 минут на каждом аудите.
+    const merged = role.fn === "Auditor" ? "none" : await ensureMerged(page);
 
     // PR закрыт. Так выглядит и ручной мерж через GitHub, и отказ от работы:
     // различаем по маркеру. Без заявки о мерже работа в main не попала —

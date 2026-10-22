@@ -13,8 +13,9 @@ import assert from 'node:assert/strict';
 const path = new URL('../narthex.user.js', import.meta.url);
 const src = readFileSync(path, 'utf8');
 
-// 1. Версия: Closed появился в 1.2.0, проверка шлюза — в 1.2.1.
-assert.match(src, /@version\s+1\.2\.1/, 'версия 1.2.1');
+// 1. Версия: Closed появился в 1.2.0, проверка шлюза — в 1.2.1,
+//    технический блок — в 1.3.0.
+assert.match(src, /@version\s+1\.3\.0/, 'версия 1.3.0');
 assert.match(src, /gatewayIsOld/, 'есть проверка версии шлюза: старый пишет мимо Arena');
 assert.match(src, /major === 1 && minor < 5/, 'порог — шлюз 1.5');
 assert.match(src, /repo:\s*"[^"]+\/[^"]+"/, 'в конфиге есть repo для ссылки на PR');
@@ -60,4 +61,4 @@ assert.match(prFn, /\^\\d\+\$/, 'номер превращается в ссыл
 // 8. Сводка Координатору показывает Rework: иначе причина теряется.
 assert.match(src, /Есть Rework: посмотри «Ответ»/, 'Координатор получает подсказку про Rework');
 
-console.log('OK: narthex 1.2.1 — Merged / Closed / Timeout, Closed без мержа → Rework, шлюз 1.5');
+console.log('OK: narthex 1.3.0 — Merged / Closed / Timeout, Closed без мержа → Rework, шлюз 1.5');
