@@ -30,3 +30,6 @@ src-tauri/gen/
 
 # AI-кит для кампаний (собирается npm run pack:ai-kit)
 dist-ai
+
+# Отчёты cf-play — артефакт прогона, а не содержимое пакета
+.cf-play/
