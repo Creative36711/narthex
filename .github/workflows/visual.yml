@@ -1,8 +1,12 @@
 name: visual
 
-# Пиксельная проверка UI. В песочнице агента браузер не запускается
-# (нет libnss3/libnspr4, нет root), а на раннере GitHub — запускается.
-# Поэтому визуальный гейт живёт здесь, а не в песочнице.
+# Пиксельная проверка интерфейса: собрать проект, поднять предпросмотр,
+# снять экраны, проверить утверждения и положить PNG в артефакт.
+#
+# Зачем в CI, если браузер работает и в песочнице агента (docs/agents/browser.md):
+#   * прогон остаётся в истории и его можно перепроверить через месяцы;
+#   * скриншоты видны в PR всем, без запуска чужой песочницы;
+#   * CI — независимый от агента свидетель: он не «забыл снять».
 
 on:
   pull_request:
@@ -26,23 +30,35 @@ jobs:
       - name: Собрать проект
         run: npm run build
 
-      - name: Поставить браузер с системными библиотеками
+      - name: Поставить Chromium с системными библиотеками
         run: |
           npm i --no-save playwright@1.49.1
           npx playwright install --with-deps chromium
 
-      - name: Поднять предпросмотр
-        run: |
-          npx vite preview --port 4173 --strictPort &
-          npx --yes wait-on@8 http://localhost:4173 --timeout 60000
-
+      # Сервер и проверка — в одном шаге: фоновый процесс не переживает
+      # границу шага, а «сервер не поднялся» должен падать здесь, а не тихо.
       - name: Снять экраны и проверить утверждения
-        run: node scripts/visual/shots.mjs http://localhost:4173 out/visual
+        run: |
+          set +e
+          npx vite preview --port 4173 --strictPort --host 127.0.0.1 &
+          SERVER_PID=$!
+          npx --yes wait-on@8 http://127.0.0.1:4173 --timeout 60000
+          WAIT=$?
+          if [ "$WAIT" -ne 0 ]; then
+            echo "Предпросмотр не поднялся за 60 с"
+            kill "$SERVER_PID" 2>/dev/null
+            exit 1
+          fi
+          node scripts/visual/shots.mjs http://127.0.0.1:4173 out/visual
+          STATUS=$?
+          kill "$SERVER_PID" 2>/dev/null
+          exit "$STATUS"
 
-      - name: Сохранить снимки
+      - name: Сохранить снимки и отчёт
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: visual-report
           path: out/visual
           retention-days: 14
+          if-no-files-found: warn
