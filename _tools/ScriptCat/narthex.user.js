@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.1.0
+// @version      1.2.0
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -26,7 +26,15 @@
  *  - РЕШЕНИЯ (какая задача, принята ли работа, конец миссии) принимает только
  *    Координатор. Скрипт исполняет и останавливается по next:"done".
  *
- * Требует шлюза Drive v1.3 и Notion-токена с доступом к трём источникам.
+ * Состояния PR, которые скрипт различает:
+ *   Merged   — бейдж «Pull request merged»; мерж подтверждён интерфейсом.
+ *   Closed   — бейдж «Pull request closed». Так выглядит и PR, слитый через
+ *              GitHub, и PR, закрытый без мержа; что именно — решает маркер
+ *              исполнителя (`merged: true`). Без заявки о мерже карточка
+ *              уходит в Rework с причиной, а цикл продолжается.
+ *   Timeout  — за prWaitMs мерж не появился: пауза, решение за человеком.
+ *
+ * Требует шлюза Drive v1.4 и Notion-токена с доступом к трём источникам.
  */
 
 (() => {
@@ -39,6 +47,7 @@
     missions: "c84a3f11-2dcf-414d-b4bf-35beaa7b2c0c",
     requests: "11b41fcc-7c84-406d-bc3b-5bf76ace79bb",
     pageUrl: "https://app.notion.com/p/Narthex-4016f0cf570581f7a1f7c3661c608ffd",
+    repo: "Creative36711/chronicle-forge", // для ссылки на PR из номера
     tickMs: 15000,
     mergeGraceMs: 90000, // сколько ждём мерж, прежде чем нажать кнопки за агента
     prWaitMs: 300000, // общий предел ожидания мержа
@@ -442,7 +451,25 @@
   }
 
   // ───────────────────────────── PR ─────────────────────────────
-  const visible = (el) => !!(el && el.offsetParent !== null);
+  /**
+   * Видимость по геометрии плюс computed style. Поймано пробой на разметке
+   * Arena: скрытый бейдж «Merged» остаётся в DOM рядом с видимым «Closed»,
+   * а поиск по одному querySelector находил именно скрытый и считал
+   * закрытый PR слитым.
+   */
+  const visible = (el) => {
+    if (!el || el.getClientRects().length === 0) return false;
+    const style = getComputedStyle(el);
+    return style.visibility !== "hidden" && style.display !== "none";
+  };
+
+  /**
+   * Бейдж ищем только среди видимых. В DOM Arena остаются скрытые элементы
+   * прошлых состояний: без этой проверки «Merged» находился на странице, где
+   * показан только «Closed».
+   */
+  const badgeVisible = (label) =>
+    [...document.querySelectorAll(`[aria-label="${label}"]`)].some(visible);
 
   const createPr = () =>
     [...document.querySelectorAll('button[aria-label="Create pull request"]')].find(visible) || null;
@@ -450,7 +477,14 @@
   const mergePr = () =>
     [...document.querySelectorAll('button[aria-label="Merge pull request"]')].find(visible) || null;
 
-  const mergedFlag = () => !!document.querySelector('[aria-label="Pull request merged"]');
+  const mergedFlag = () => badgeVisible("Pull request merged");
+
+  /**
+   * «Closed» — не синоним ошибки. Так выглядит и PR, слитый через GitHub, и PR,
+   * закрытый без мержа. Что именно произошло, решает маркер исполнителя
+   * (`merged: true`), а не бейдж: из ScriptCat нет доступа к API GitHub.
+   */
+  const closedFlag = () => badgeVisible("Pull request closed");
 
   function continueButton() {
     return [...document.querySelectorAll("button")].find(
@@ -479,7 +513,9 @@
     let clickedMerge = false;
 
     while (Date.now() - started < C.prWaitMs) {
-      if (mergedFlag() || continueButton()) return finishMerge(task, key);
+      if (mergedFlag()) return finishMerge(task, key);
+      if (closedFlag()) return finishClosed(task, key);
+      if (continueButton()) return finishMerge(task, key);
 
       if (Date.now() > grace) {
         const create = createPr();
@@ -525,6 +561,44 @@
     return "merged";
   }
 
+  /**
+   * PR закрыт. Дальше на странице остаётся только Continue — жмём её, чтобы
+   * цикл не встал, и читаем новую рабочую ветку. Решение «слито или провалено»
+   * принимает вызывающий код по маркеру исполнителя.
+   */
+  async function finishClosed(task, key) {
+    const cont = continueButton();
+    if (cont) {
+      cont.click();
+      log("PR закрыт: нажата Continue, состояние передано дальше.");
+      await sleep(3000);
+    }
+    const branch = branchName();
+    if (branch) {
+      GM_setValue(K.branch, branch);
+      try {
+        await patch(task.id, { Branch: { rich_text: [{ type: "text", text: { content: branch } }] } });
+        log(`Рабочая ветка: ${branch}`);
+      } catch (e) {
+        log(`Ветка ${branch} не записана в Notion: ${e.message}`, true);
+      }
+    }
+    GM_setValue(key, "closed");
+    return "closed";
+  }
+
+  /** Ссылка на PR: принимаем и номер, и готовый URL. */
+  function prUrl(pr) {
+    const value = String(pr ?? "").trim().replace(/^#/, "");
+    if (!value) return "";
+    if (/^https?:\/\//.test(value)) return value;
+    return /^\d+$/.test(value) ? `https://github.com/${C.repo}/pull/${value}` : "";
+  }
+
+  /** Исполнитель утверждает, что слил PR сам. Единственный доступный сигнал. */
+  const hasMergedClaim = (result) =>
+    !!result && (result.merged === true || String(result.status || "").toLowerCase() === "merged");
+
   // ───────────────────────────── промпты ─────────────────────────────
   function roleContext(role) {
     return [
@@ -556,7 +630,8 @@
       "   gh pr merge --squash --delete-branch",
       "5. Проверка: команда, код возврата, путь к отчёту.",
       "6. Последней строкой ответа — ровно один маркер:",
-      `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","check":0,"report":"<путь>"}`,
+      `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
+      "`pr` и `merged: true` обязательны, если PR слит: по ним ScriptCat отличает «слит» от «закрыт без мержа» — бейдж в интерфейсе у обоих случаев один и тот же (Closed).",
       "",
       "Кнопки «Create pull request» и «Merge pull request» нажимать не нужно: их нажимает",
       "ScriptCat только если ты не запушил. После мержа ScriptCat сам нажмёт Continue.",
@@ -616,6 +691,33 @@
     });
 
     const merged = await ensureMerged(page);
+
+    // PR закрыт. Так выглядит и ручной мерж через GitHub, и отказ от работы:
+    // различаем по маркеру. Без заявки о мерже работа в main не попала —
+    // возвращаем карточку в Rework с причиной, решение остаётся за Координатором.
+    if (merged === "closed" && !hasMergedClaim(result)) {
+      const reason = "PR закрыт без мержа (Closed). Работа в main не попала — нужна повторная выдача.";
+      try {
+        await gateway("append", logId, {
+          marker: `<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id}:closed -->`,
+          entry: `\n\n<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id}:closed -->\n## PR закрыт без мержа\n\n${reason}\n`,
+        });
+      } catch (e) {
+        log(`Причина не записана в лог: ${e.message}`, true);
+      }
+      await patch(result.dispatch_id, {
+        "Dispatch State": { select: { name: "Rework" } },
+        "Ответ": { rich_text: [{ type: "text", text: { content: `${reason} Ответ ${hit.id} в логе ${logId}.` } }] },
+      });
+      GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
+      log(`«${taskTitle(page)}» → Rework: PR закрыт без мержа.`);
+      const coord = (await roles()).find((r) => r.fn === "Coordinator");
+      if (!coord) throw new Error("Нет активного Coordinator.");
+      GM_setValue(K.expect, null);
+      await goTo(coord);
+      return true;
+    }
+
     if (merged === "timeout")
       throw new Error(`PR по «${taskTitle(page)}» не слит за отведённое время. Проверьте страницу Arena.`);
 
@@ -626,9 +728,14 @@
     };
     if (typeof result.check === "number") props["Check"] = { select: { name: result.check === 0 ? "pass" : "fail" } };
     if (result.report) props["Report SHA"] = { rich_text: [{ type: "text", text: { content: String(result.report).slice(0, 200) } }] };
+    const link = prUrl(result.pr);
+    if (link) props["PR"] = { url: link };
     await patch(result.dispatch_id, props);
     GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
-    log(`Ответ ${role.name} записан, PR слит, задача → Submitted.`);
+    log(
+      `Ответ ${role.name} записан, PR ${merged === "closed" ? "закрыт как слитый" : "слит"}, задача → Submitted.` +
+        (link ? ` PR: ${link}` : " (номер PR не указан в маркере)"),
+    );
 
     const co = (await roles()).find((r) => r.fn === "Coordinator");
     if (!co) throw new Error("Нет активного Coordinator.");
@@ -662,6 +769,7 @@
     const submitted = await tasks("Submitted", mission);
     const running = await tasks("Running", mission);
     const ready = await tasks("Ready", mission);
+    const rework = await tasks("Rework", mission);
 
     if (expect && expect.kind === "plan") {
       const decision = messagesAfter(expect.watermark)
@@ -692,8 +800,12 @@
     if (Date.now() - lastPlan < 60_000) return false;
     GM_setValue("cfn-plan-at", Date.now());
 
-    const summary = `${submitted.length} Submitted, ${running.length} Running, ${ready.length} Ready`;
-    const note = submitted.length ? "Сначала разбери Submitted." : "";
+    const summary = `${submitted.length} Submitted, ${running.length} Running, ${ready.length} Ready, ${rework.length} Rework`;
+    const note = submitted.length
+      ? "Сначала разбери Submitted."
+      : rework.length
+        ? "Есть Rework: посмотри «Ответ» — там причина (например, PR закрыт без мержа)."
+        : "";
     await sendToRole(role, coordinatorPrompt(mission, role, summary, uid(), note), "plan", mission.id);
     return true;
   }
