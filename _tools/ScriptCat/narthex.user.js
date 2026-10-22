@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.3.0
+// @version      1.3.1
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -900,7 +900,7 @@
     }
   }
 
-  async function coordinatorStep(role, expect) {
+  async function coordinatorStep(role, expect, manual = false) {
     const mission = await activeMission();
     if (!mission) {
       log("Нет активной миссии — ждём.");
@@ -940,7 +940,12 @@
     }
 
     const lastPlan = GM_getValue("cfn-plan-at", 0);
-    if (Date.now() - lastPlan < 60_000) return false;
+    // Защита от спама: план Координатора — не чаще раза в минуту. В ручном
+    // режиме это иначе выглядит как «кнопка не работает».
+    if (Date.now() - lastPlan < 60_000) {
+      if (manual) log(`Шаг не выполнен: план запрашивали ${Math.ceil((60_000 - (Date.now() - lastPlan)) / 1000)} с назад.`);
+      return false;
+    }
     GM_setValue("cfn-plan-at", Date.now());
 
     const summary = `${submitted.length} Submitted, ${running.length} Running, ${ready.length} Ready, ${rework.length} Rework`;
@@ -998,15 +1003,30 @@
       if (!meId) return;
       const list = await roles();
       const me = list.find((r) => norm(r.id) === norm(meId));
-      if (!me) return;
+      if (!me) {
+        if (fromToggle)
+          log(
+            list.length
+              ? `Шаг не выполнен: страница ${meId} не привязана к активной роли. Проверьте её «Agent URL».`
+              : "Шаг не выполнен: нет ни одной активной роли с заполненным «Agent URL» — заполните поле в базе «Роли».",
+            true,
+          );
+        return;
+      }
       GM_setValue("cfn-me", me.name);
       setStatus();
-      if (generating()) return;
+      if (generating()) {
+        if (fromToggle) log("Шаг не выполнен: агент ещё отвечает.");
+        return;
+      }
 
       const expect = GM_getValue(K.expect, null);
-      if (expect && norm(expect.roleId) !== norm(me.id)) return;
+      if (expect && norm(expect.roleId) !== norm(me.id)) {
+        if (fromToggle) log("Шаг не выполнен: сейчас очередь другой роли.");
+        return;
+      }
 
-      if (me.fn === "Coordinator") await coordinatorStep(me, expect);
+      if (me.fn === "Coordinator") await coordinatorStep(me, expect, fromToggle);
       else await submitExecutor(me, expect);
     } catch (e) {
       log(`Ошибка цикла: ${e.message}`, true);
