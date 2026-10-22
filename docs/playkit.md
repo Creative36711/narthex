@@ -78,7 +78,7 @@ node cf-play.mjs explore <кампания> --seed 7 --steps 300
 node cf-play.mjs sweep <кампания> --seeds 1-20 --steps 300 --out runs/sweep
 
 # проверка целостности готового прогона
-node cf-play.mjs verify <runs/a> --expect-engine 0.8.0 --honest
+node cf-play.mjs verify <runs/a> --expect-engine 0.9.0 --honest
 ```
 
 ### Отладочные правки состояния — как панель отладки в редакторе
@@ -156,11 +156,11 @@ runs/a/
 `verify` пересчитывает хеши и сверяет версию движка:
 
 ```bash
-$ node cf-play.mjs verify runs/a --expect-engine 0.8.0
-✓ прогон цел: 115be504-… seed 7, движок 0.8.0, шагов 15
+$ node cf-play.mjs verify runs/a --expect-engine 0.9.0
+✓ прогон цел: 115be504-… seed 7, движок 0.9.0, шагов 15
 
 $ node cf-play.mjs verify runs/a --expect-engine 9.9.9
-✗ движок 0.8.0 ≠ ожидаемого 9.9.9
+✗ движок 0.9.0 ≠ ожидаемого 9.9.9
 ```
 
 Отсюда правило, которое снимает главный риск «агент поправил движок и сдал

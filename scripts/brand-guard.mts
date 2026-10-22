@@ -36,7 +36,9 @@ const BRAND_PATTERNS = [
  *  - этот страж и его собственные образцы.
  */
 const ALLOW = [
-  { file: 'docs/contracts/adr/0001-platform-name.md' },
+  { file: 'docs/contracts/adr/0001-platform-name.md' }, // решение о переименовании обязано называть прежнее имя
+  { file: 'docs/contracts/adr/0005-versioning.md' }, // объясняет, почему 0.8.x остаётся в истории версий
+  { file: 'CHANGELOG.md' }, // история версий обязана называть прежнее имя
   { file: 'scripts/brand-guard.mts' },
 ];
 const ALLOW_LINE = [/accept="/, /\.nxsave,\.cfsave/];

@@ -35,8 +35,10 @@ try {
 
   const media = collectCampaignMedia(store)
   check('медиа-аудит видит локальные ссылки, не только assets/', media.local.includes('scenes/img/scene_start.jpg'))
-  const bundle = await createAiTaskBundle(store, { mode: 'edit', task: 'Проверь пакет без изменения сюжета.' })
-  check('пакет редактирования получает расширение .narthex', bundle.filename === `${id}-ai-task.narthex`, bundle.filename)
+  // Полный чемодан: смоук проверяет состав пакета и импорт правки назад,
+  // а не экономию байт патч-режима (тот по умолчанию для 'edit' и меты не несёт).
+  const bundle = await createAiTaskBundle(store, { mode: 'edit', bundleScope: 'full', task: 'Проверь пакет без изменения сюжета.' })
+  check('полный пакет редактирования получает расширение .narthex', bundle.filename === `${id}-full-task.narthex`, bundle.filename)
 
   const zip = await JSZip.loadAsync(bundle.blob)
   check('AI-пакет сохраняет структуру Campaign Package', !!zip.files['campaign.json'] && !!zip.files['world.json'] && !!zip.files['manifest.json'])

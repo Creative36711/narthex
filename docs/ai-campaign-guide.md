@@ -375,7 +375,7 @@ dialogues/<имя>.ink           исходник, который читает �
 ```json
 "campaign": {
   "id": "my_campaign", "title": "Моя кампания", "version": "0.1.0",
-  "engine_version": "0.8.0", "min_engine": "0.8.0", "package_format": 1,
+  "engine_version": "0.9.0", "min_engine": "0.9.0", "package_format": 1,
   "author": "ИИ", "description": "…",
   "tick_label": "час", "ticks_per_day": 24,
   "time_of_day": { "morning": 6, "day": 10, "evening": 18, "night": 22 },
@@ -678,7 +678,7 @@ dialogues/<имя>.ink           исходник, который читает �
   существующей кампании сохрани оба значения из исходного файла. Для новой
   кампании используй версию движка, переданную приложением в исходном пакете
   или задании. **Не копируй сюда `campaign.version` и не выдумывай `1.0`: это
-  независимые номера.** Сейчас движок этой версии гайда — `0.8.0`.
+  независимые номера.** Сейчас движок этой версии гайда — `0.9.0`.
 - `package_format` — версия формата пакета (`1`). Ставь текущую.
 - `save_base_version` — сохранения от какой версии кампании ещё
   поддерживаются. **При первой генерации не заполняй**: поле проставляет
@@ -3020,7 +3020,7 @@ npm run --silent audit:campaign -- <папка кампании> -- --json # м�
 ```json
 {
   "campaign": {
-    "id": "tract", "title": "Тракт", "version": "0.1.0", "engine_version": "0.8.0", "min_engine": "0.8.0",
+    "id": "tract", "title": "Тракт", "version": "0.1.0", "engine_version": "0.9.0", "min_engine": "0.9.0",
     "author": "ИИ", "description": "Короткая прогулка по тракту.",
     "tick_label": "час", "ticks_per_day": 24,
     "time_of_day": { "morning": 6, "day": 10, "evening": 18, "night": 22 },

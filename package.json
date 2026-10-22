@@ -1,7 +1,7 @@
 {
   "name": "narthex",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -69,6 +69,8 @@
     "sync:ai-kit": "tsx scripts/pack-ai-kit.mts --copy",
     "check:contracts": "tsx scripts/contracts-check.mts",
     "check:brand": "tsx scripts/brand-guard.mts",
+    "check:version": "tsx scripts/version.mts check",
+    "version:bump": "tsx scripts/version.mts bump",
     "shot": "node scripts/visual/shot.mjs",
     "visual:shots": "node scripts/visual/shots.mjs"
   },
