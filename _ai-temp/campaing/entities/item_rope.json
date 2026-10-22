@@ -1,0 +1,35 @@
+{
+  "id": "item_rope",
+  "type": "item",
+  "category": "gear",
+  "label": "Верёвка с крюком",
+  "description": "Пеньковая верёвка, пропитанная маслом. Пахнет помпой и спасёнными жизнями — в основном первым.",
+  "weight": 2,
+  "stackable": false,
+  "value": {
+    "mark": 8
+  },
+  "image": "assets/img/items/item_rope.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_rope.jpg"
+  },
+  "sounds": {
+    "pickup": "snd_cloth",
+    "use": "snd_chain"
+  },
+  "interact_hint": "Проверить узлы и кошку",
+  "interact_options": [
+    {
+      "label": "Проверить узлы и кошку",
+      "hint": "смолёный канат с трёхзубым крюком",
+      "sound": "snd_chain",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Двадцать локтей смолёной пеньки и кованый трёхзубый крюк-кошка. Нити целые, без гнили: удержит двоих над затопленным колодцем."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "id": "rule_lockdown",
+  "label": "Режим тишины",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "lockdown"
+    },
+    {
+      "type": "flag_not_set",
+      "flag": "kast_hand"
+    }
+  ],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_lockdown.jpg",
+      "text": "Шлюзы закрыты «до выяснения».",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    },
+    {
+      "type": "set_flag",
+      "flag": "lockdown"
+    },
+    {
+      "type": "set_price_event",
+      "id": "pe_lockdown"
+    },
+    {
+      "type": "banner",
+      "text": "Режим тишины",
+      "preset": "проклятье",
+      "seconds": 4
+    },
+    {
+      "type": "change_disposition",
+      "target": "faction_nadzor",
+      "delta": -25
+    },
+    {
+      "type": "change_disposition",
+      "target": "faction_bottom",
+      "delta": 10
+    },
+    {
+      "type": "show_message",
+      "text": "Шлюзы нижних ярусов закрыты «до выяснения». В Сухом ряду всё сразу подорожало."
+    },
+    {
+      "type": "play_sound",
+      "sound": "sfx_lockdown",
+      "volume": 0.9
+    }
+  ],
+  "chapter": "ch_price"
+}

@@ -1,6 +1,14 @@
-/** Chronicle Forge ScriptCat Drive gateway. Deploy as a web app executing as the owner. */
-const CF_RUN_LOG_FOLDER_ID = "19ljf2TgeDg6j-jIamGira8K8_2NjC1BT";
+/**
+ * Drive-шлюз для ScriptCat: Narthex (новый цикл) и кампанийный dispatch (legacy).
+ * Разворачивается как веб-приложение от имени владельца.
+ */
 const CF_KEY_PROPERTY = "CF_GATEWAY_KEY";
+// Папка логов Narthex: Script Property → поиск по имени → создание.
+const CF_LOG_FOLDER_PROPERTY = "CF_LOG_FOLDER_ID";
+const CF_LOG_FOLDER_NAME = "Narthex — логи";
+// Папка логов кампанийного dispatch.user.js (legacy): id зашит намеренно —
+// старый скрипт присылает именно его и другую папку не знает.
+const CF_RUN_LOG_FOLDER_ID = "19ljf2TgeDg6j-jIamGira8K8_2NjC1BT";
 
 /** Run once in the Apps Script editor; copy the returned key into ScriptCat. */
 function setupGatewayKey() {
@@ -19,9 +27,29 @@ function setupGatewayKey() {
 function doGet() {
   return json_({
     ok: true,
-    service: "Chronicle Forge Drive gateway",
-    version: "1.2",
+    service: "Narthex / Chronicle Forge Drive gateway",
+    version: "1.4",
   });
+}
+
+/**
+ * Папка логов: Script Property → существующий id, иначе ищем по имени, иначе
+ * создаём. Так развёртывание не зависит от того, какой id был у старого проекта.
+ */
+function logFolder_() {
+  const props = PropertiesService.getScriptProperties();
+  const saved = props.getProperty(CF_LOG_FOLDER_PROPERTY);
+  if (saved) {
+    try {
+      return DriveApp.getFolderById(saved);
+    } catch (error) {
+      props.deleteProperty(CF_LOG_FOLDER_PROPERTY);
+    }
+  }
+  const found = DriveApp.getFoldersByName(CF_LOG_FOLDER_NAME);
+  const folder = found.hasNext() ? found.next() : DriveApp.createFolder(CF_LOG_FOLDER_NAME);
+  props.setProperty(CF_LOG_FOLDER_PROPERTY, folder.getId());
+  return folder;
 }
 
 function doPost(e) {
@@ -32,21 +60,28 @@ function doPost(e) {
     if (!expected || !constantTimeEqual_(String(request.key || ""), expected)) {
       return json_({ ok: false, error: "Неверный ключ шлюза." });
     }
-    if (request.action === "ping") return json_({ ok: true, result: "pong" });
+    if (request.action === "ping") {
+      const folder = logFolder_();
+      return json_({ ok: true, result: "pong", folderId: folder.getId(), folderName: folder.getName() });
+    }
 
     if (request.action === "createLog") {
-      const folderId = String(request.folderId || "");
+      const requestedFolder = String(request.folderId || "");
+      if (requestedFolder && requestedFolder === CF_RUN_LOG_FOLDER_ID) {
+        // legacy-путь: кампанийный dispatch.user.js работает со своей папкой
+        return createRunLogLegacy_(request);
+      }
+      const folder = logFolder_();
       const dispatchId = String(request.dispatchId || "");
       const runId = String(request.runId || "");
-      if (folderId !== CF_RUN_LOG_FOLDER_ID)
-        throw new Error("Создание разрешено только в папке логов Dispatch-Run.");
+      if (requestedFolder && requestedFolder !== folder.getId())
+        throw new Error("Создание разрешено только в папке логов.");
       if (!/^[0-9a-f-]{36}$/i.test(dispatchId) || !/^[0-9a-f-]{36}$/i.test(runId))
         throw new Error("Некорректные Dispatch ID или Run ID.");
       const name = dispatchId + "_" + runId + ".md";
       const lock = LockService.getScriptLock();
       lock.waitLock(15000);
       try {
-        const folder = DriveApp.getFolderById(CF_RUN_LOG_FOLDER_ID);
         const matches = folder.getFilesByName(name);
         if (matches.hasNext()) {
           const existing = matches.next();
@@ -82,10 +117,11 @@ function doPost(e) {
 
     if (request.action === "append") {
       const file = DriveApp.getFileById(id);
+      const allowed = [logFolder_().getId(), CF_RUN_LOG_FOLDER_ID];
       const parents = file.getParents();
       let isRunLog = false;
       while (parents.hasNext()) {
-        if (parents.next().getId() === CF_RUN_LOG_FOLDER_ID) isRunLog = true;
+        if (allowed.indexOf(parents.next().getId()) !== -1) isRunLog = true;
       }
       const mime = String(file.getMimeType() || "");
       if (!isRunLog || !mime.startsWith("text/"))
@@ -112,6 +148,36 @@ function doPost(e) {
     throw new Error("Неизвестное действие шлюза.");
   } catch (error) {
     return json_({ ok: false, error: String(error?.message || error) });
+  }
+}
+
+/**
+ * Лог кампанийного dispatch (legacy). Повторный вызов идемпотентен: файл с тем
+ * же именем не создаётся второй раз.
+ */
+function createRunLogLegacy_(request) {
+  const dispatchId = String(request.dispatchId || "");
+  const runId = String(request.runId || "");
+  if (!/^[0-9a-f-]{36}$/i.test(dispatchId) || !/^[0-9a-f-]{36}$/i.test(runId))
+    throw new Error("Некорректные Dispatch ID или Run ID.");
+  const name = dispatchId + "_" + runId + ".md";
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    const folder = DriveApp.getFolderById(CF_RUN_LOG_FOLDER_ID);
+    const matches = folder.getFilesByName(name);
+    if (matches.hasNext()) {
+      const existing = matches.next();
+      const result = { fileId: existing.getId(), name: name };
+      return json_({ ok: true, fileId: result.fileId, name: result.name, result: result });
+    }
+    const content =
+      "# Dispatch-Run log\n\nDispatch ID: " + dispatchId + "\nRun ID: " + runId + "\n";
+    const file = folder.createFile(name, content, MimeType.PLAIN_TEXT);
+    const result = { fileId: file.getId(), name: name };
+    return json_({ ok: true, fileId: result.fileId, name: result.name, result: result });
+  } finally {
+    lock.releaseLock();
   }
 }
 

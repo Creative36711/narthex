@@ -1,0 +1,35 @@
+{
+  "id": "item_cloth",
+  "type": "item",
+  "category": "material",
+  "label": "Тряпьё",
+  "description": "Грубое полотно, бывшее когда-то одеждой, а потом — бинтом, а потом снова одеждой.",
+  "weight": 0.3,
+  "stackable": true,
+  "value": {
+    "mark": 1
+  },
+  "image": "assets/img/items/item_cloth.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_cloth.jpg"
+  },
+  "sounds": {
+    "pickup": "snd_cloth",
+    "use": "snd_cloth"
+  },
+  "interact_hint": "Проверить плотность сукна",
+  "interact_options": [
+    {
+      "label": "Проверить плотность сукна",
+      "hint": "промасленное сукно и чистая ветошь",
+      "sound": "snd_cloth",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Свёрток плотного сукна и стиранной холстины. Годится и на перевязку, и на фильтрующую прокладку в дыхатель мастера."
+        }
+      ]
+    }
+  ]
+}

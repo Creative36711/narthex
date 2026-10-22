@@ -1,0 +1,23 @@
+{
+  "id": "rule_ira_body_card",
+  "label": "Открытка: Ира у тела брата",
+  "once": true,
+  "manual": true,
+  "chapter": "ch_deep",
+  "conditions": [],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_ira_body.jpg",
+      "text": "Стась Яров. Восьмой ярус, у затвора.",
+      "preset": "шёпот",
+      "seconds": 6,
+      "camera": {
+        "zoom": 1.12,
+        "pan_x": 0,
+        "pan_y": -4,
+        "duration": 7
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "rule_camp_ambush_card",
+  "label": "Открытка: засада на привале отбита",
+  "once": true,
+  "manual": true,
+  "chapter": "ch_deep",
+  "conditions": [],
+  "effects": [
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_camp_ambush.jpg",
+      "text": "Огонь ещё горит. По воде расходятся круги.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.1,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    }
+  ]
+}

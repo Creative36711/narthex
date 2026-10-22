@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://narthex.local/contracts/pack.schema.json",
+  "title": "Capability pack manifest",
+  "description": "pack.json — манифест пака возможностей. Пак приносит направление целиком: схему данных, панели студии, статические валидаторы и динамические пробы. Четыре части provides обязательны: пак без валидаторов или проб не принимается, потому что его невозможно проверить.",
+  "type": "object",
+  "required": ["id", "title", "version", "runtime", "provides", "saves", "requires"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "runtime": {
+      "enum": ["turn", "realtime", "none"],
+      "description": "Какой исполнитель нужен паку. turn — пошаговый, realtime — цикл реального времени, none — только данные и панели."
+    },
+    "provides": {
+      "type": "object",
+      "required": ["schema", "panels", "validators", "probes"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "boolean",
+          "description": "Пак объявляет новый тип проекта (kind). В v2 такой пак только narrative; сторонние kinds появятся в v3."
+        },
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "description": "JSON Schema данных пака относительно корня пака."
+        },
+        "panels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/panel" }
+        },
+        "validators": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/validator" }
+        },
+        "probes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/probe" }
+        }
+      }
+    },
+    "saves": {
+      "type": "object",
+      "required": ["namespace", "version", "migrations"],
+      "additionalProperties": false,
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "Пространство сейвов пака: два пака не могут писать в одно."
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "migrations": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Сколько миграций описано. Увеличение version без миграции — ошибка контракта."
+        }
+      }
+    },
+    "requires": {
+      "type": "object",
+      "required": ["core"],
+      "additionalProperties": false,
+      "properties": {
+        "core": {
+          "type": "string",
+          "pattern": "^>=\\d+\\.\\d+\\.\\d+$"
+        },
+        "packs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "caps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Возможности других паков, без которых этот пак не работает. Циклические зависимости запрещены."
+        }
+      }
+    },
+    "caps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "description": "Возможности, которые пак объявляет своими. Обязаны совпадать с реестром caps.json один-к-одному."
+    }
+  },
+  "$defs": {
+    "panel": {
+      "type": "object",
+      "required": ["id", "title", "slot"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "slot": { "enum": ["left", "center", "right", "bottom", "modal"] },
+        "schema": { "type": "string", "minLength": 1 },
+        "caps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Панель показывается, только если в проекте включена хотя бы одна из этих возможностей."
+        },
+        "order": { "type": "integer" }
+      }
+    },
+    "validator": {
+      "type": "object",
+      "required": ["id", "title", "severity", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["error", "warn"] },
+        "description": { "type": "string", "minLength": 1 },
+        "caps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Валидатор запускается, только если включена одна из этих возможностей."
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "required": ["id", "title", "kind", "budget_ms", "checks"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["graph", "run", "soak", "snapshot"] },
+        "budget_ms": { "type": "integer", "minimum": 1 },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Что именно утверждает проба. Формулировки — проверяемые, а не «работает хорошо»."
+        },
+        "caps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

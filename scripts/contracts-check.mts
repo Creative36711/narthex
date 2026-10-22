@@ -1,0 +1,234 @@
+/**
+ * Проверка контрактов платформы.
+ *
+ * Контракты в docs/contracts — не справка, а исполняемые документы: схемы
+ * компилируются, примеры валидируются, семантические правила (kind→caps,
+ * совместимость рантаймов, совпадение пака с реестром) проверяются кодом.
+ * Негативные примеры обязаны падать — иначе схема ничего не запрещает.
+ *
+ * Запуск: npm run check:contracts
+ */
+import { readdir, readFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
+import Ajv2020 from 'ajv/dist/2020.js'
+
+const root = resolve(import.meta.dirname, '..')
+const dir = join(root, 'docs', 'contracts')
+
+type Json = Record<string, any>
+
+const failures: string[] = []
+let checks = 0
+
+const check = (name: string, ok: boolean, detail?: string) => {
+  checks += 1
+  if (ok) {
+    console.log(`  ✓ ${name}`)
+  } else {
+    failures.push(detail ? `${name}: ${detail}` : name)
+    console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
+  }
+}
+
+const readJson = async (path: string): Promise<Json> => JSON.parse(await readFile(join(dir, path), 'utf8'))
+
+const registry = await readJson('caps.json')
+const projectSchema = await readJson('project.schema.json')
+const packSchema = await readJson('pack.schema.json')
+
+const ajv = new Ajv2020({ allErrors: true, strict: false })
+const validateProject = ajv.compile(projectSchema)
+const validatePack = ajv.compile(packSchema)
+
+const formatErrors = (errors: unknown) =>
+  (errors as Array<{ instancePath?: string; message?: string }>)
+    .map((e) => `${e.instancePath || '/'} ${e.message}`)
+    .join('; ')
+
+// ── реестр: целостность ──────────────────────────────────────────────
+const capIds = new Set<string>()
+const packIds = new Set<string>()
+const kindIds = new Set<string>()
+
+for (const cap of registry.caps) {
+  if (capIds.has(cap.id)) failures.push(`реестр: повторяющийся id возможности ${cap.id}`)
+  capIds.add(cap.id)
+}
+for (const pack of registry.packs) {
+  if (packIds.has(pack.id)) failures.push(`реестр: повторяющийся id пака ${pack.id}`)
+  packIds.add(pack.id)
+}
+for (const kind of registry.kinds) {
+  if (kindIds.has(kind.id)) failures.push(`реестр: повторяющийся id типа проекта ${kind.id}`)
+  kindIds.add(kind.id)
+}
+
+const packById = new Map(registry.packs.map((p: Json) => [p.id, p]))
+const capById = new Map(registry.caps.map((c: Json) => [c.id, c]))
+
+const badRuntime = registry.caps.filter((c: Json) => !registry.runtimes.includes(capRuntime(c)))
+const badStatus = registry.caps.filter((c: Json) => !registry.statuses.includes(c.status))
+
+function capRuntime(cap: Json): string {
+  if (!cap.pack) return 'none'
+  return packById.get(cap.pack)?.runtime ?? 'unknown'
+}
+
+// ── семантика проекта ────────────────────────────────────────────────
+function projectProblems(project: Json): string[] {
+  const problems: string[] = []
+  if (!kindIds.has(project.kind)) problems.push(`неизвестный kind ${project.kind}`)
+  const kind = registry.kinds.find((k: Json) => k.id === project.kind)
+  for (const cap of project.caps ?? []) {
+    const entry = capById.get(cap)
+    if (!entry) {
+      problems.push(`возможность ${cap} отсутствует в реестре`)
+      continue
+    }
+    if (!['stable', 'experimental'].includes(entry.status)) {
+      problems.push(`возможность ${cap} в статусе ${entry.status}, проект не может её включать`)
+    }
+  }
+  for (const required of kind?.requires ?? []) {
+    if (!(project.caps ?? []).includes(required)) {
+      problems.push(`тип ${project.kind} требует возможность ${required}`)
+    }
+  }
+  const runtimes = new Set(
+    (project.caps ?? []).map((cap: string) => capRuntime(capById.get(cap) ?? {})).filter((r: string) => r !== 'none'),
+  )
+  if (runtimes.size > 1) problems.push(`смешаны рантаймы: ${[...runtimes].join(', ')}`)
+  if (project.engine?.tested && project.engine.min && semverParts(project.engine.tested) < semverParts(project.engine.min)) {
+    problems.push(`tested ${project.engine.tested} ниже min ${project.engine.min}`)
+  }
+  return problems
+}
+
+function semverParts(v: string): number {
+  const [a, b, c] = v.split('.').map(Number)
+  return a * 1e6 + b * 1e3 + c
+}
+
+// ── семантика пака ───────────────────────────────────────────────────
+function packProblems(pack: Json): string[] {
+  const problems: string[] = []
+  const entry = packById.get(pack.id)
+  if (!entry) {
+    problems.push(`пак ${pack.id} отсутствует в реестре`)
+    return problems
+  }
+  if (pack.runtime !== entry.runtime) problems.push(`runtime ${pack.runtime} ≠ реестр ${entry.runtime}`)
+  const owned = registry.caps.filter((c: Json) => c.pack === pack.id).map((c: Json) => c.id)
+  const declared: string[] = pack.caps ?? []
+  const missing = owned.filter((id: string) => !declared.includes(id))
+  const extra = declared.filter((id: string) => !owned.includes(id))
+  if (missing.length) problems.push(`пак не объявляет свои возможности: ${missing.join(', ')}`)
+  if (extra.length) problems.push(`пак объявляет чужие возможности: ${extra.join(', ')}`)
+  if (pack.provides?.kind && !registry.kinds.some((k: Json) => k.pack === pack.id)) {
+    problems.push('пак объявляет kind, но реестр типов этого не знает')
+  }
+  for (const key of ['panels', 'validators', 'probes'] as const) {
+    const ids = (pack.provides?.[key] ?? []).map((item: Json) => item.id)
+    if (new Set(ids).size !== ids.length) problems.push(`повторяющиеся id в ${key}`)
+    for (const item of pack.provides?.[key] ?? []) {
+      for (const cap of item.caps ?? []) {
+        if (!capIds.has(cap)) problems.push(`${key}.${item.id}: неизвестная возможность ${cap}`)
+      }
+    }
+  }
+  for (const cap of pack.requires?.caps ?? []) {
+    if (!capIds.has(cap)) problems.push(`requires: неизвестная возможность ${cap}`)
+    if (pack.caps?.includes(cap)) problems.push(`requires: возможность ${cap} уже своя`)
+  }
+  for (const other of pack.requires?.packs ?? []) {
+    if (!packIds.has(other)) problems.push(`requires: неизвестный пак ${other}`)
+    if (other === pack.id) problems.push('requires: пак требует сам себя')
+  }
+  if ((pack.saves?.migrations ?? 0) > 0 && (pack.saves?.version ?? 1) < 2) {
+    problems.push('миграции объявлены, но version = 1')
+  }
+  if (pack.provides?.probes?.length === 0) problems.push('пак без проб не принимается')
+  return problems
+}
+
+// ── прогон ───────────────────────────────────────────────────────────
+console.log('\nреестр возможностей')
+check('ids возможностей уникальны', new Set(registry.caps.map((c: Json) => c.id)).size === registry.caps.length)
+check('ids паков уникальны', new Set(registry.packs.map((p: Json) => p.id)).size === registry.packs.length)
+check('ids типов проектов уникальны', new Set(registry.kinds.map((k: Json) => k.id)).size === registry.kinds.length)
+check('у каждой возможности валидный статус', badStatus.length === 0, badStatus.map((c: Json) => c.id).join(', '))
+check('у каждой возможности известный рантайм', badRuntime.length === 0, badRuntime.map((c: Json) => c.id).join(', '))
+check(
+  'kind ссылается на существующий пак',
+  registry.kinds.every((k: Json) => packIds.has(k.pack)),
+  registry.kinds.filter((k: Json) => !packIds.has(k.pack)).map((k: Json) => k.id).join(', '),
+)
+check(
+  'kind требует только свои возможности',
+  registry.kinds.every((k: Json) =>
+    (k.requires ?? []).every((cap: string) => capById.get(cap)?.pack === k.pack),
+  ),
+)
+check(
+  'зарезервированная возможность не принадлежит паку',
+  registry.caps.every((c: Json) => (c.status === 'reserved' ? c.pack === null : c.pack !== null)),
+)
+check(
+  'каждый пак владеет хотя бы одной возможностью',
+  registry.packs.every((p: Json) => registry.caps.some((c: Json) => c.pack === p.id)),
+)
+
+console.log('\nпример пака narrative')
+const narrativePack = await readJson('examples/pack.narrative.json')
+const narrativeSchemaOk = validatePack(narrativePack)
+check('проходит схему', narrativeSchemaOk, narrativeSchemaOk ? undefined : formatErrors(validatePack.errors))
+const narrativePackProblems = packProblems(narrativePack)
+check('проходит семантику', narrativePackProblems.length === 0, narrativePackProblems.join('; '))
+
+console.log('\nпример пака grid-strategy')
+const gridPack = await readJson('examples/pack.grid-strategy.json')
+const gridSchemaOk = validatePack(gridPack)
+check('проходит схему', gridSchemaOk, gridSchemaOk ? undefined : formatErrors(validatePack.errors))
+const gridPackProblems = packProblems(gridPack)
+check('проходит семантику', gridPackProblems.length === 0, gridPackProblems.join('; '))
+
+console.log('\nпример проекта narrative')
+const narrativeProject = await readJson('examples/project.narrative.json')
+const projectSchemaOk = validateProject(narrativeProject)
+check('проходит схему', projectSchemaOk, projectSchemaOk ? undefined : formatErrors(validateProject.errors))
+const projectProblemsList = projectProblems(narrativeProject)
+check('проходит семантику', projectProblemsList.length === 0, projectProblemsList.join('; '))
+
+console.log('\nнегативные примеры обязаны падать')
+const invalidDir = 'examples/invalid'
+let rejectedBySemantics = 0
+for (const name of (await readdir(join(dir, invalidDir))).sort()) {
+  const sample = await readJson(join(invalidDir, name))
+  const schemaOk = validateProject(sample)
+  const problems = schemaOk ? projectProblems(sample) : []
+  const layer = schemaOk ? 'семантика' : 'схема'
+  if (schemaOk && problems.length) rejectedBySemantics += 1
+  check(`${name}: отклонён (${layer})`, !schemaOk || problems.length > 0, schemaOk ? 'плохой пример прошёл всё' : undefined)
+}
+check('семантика ловит то, что схема пропускает', rejectedBySemantics > 0)
+
+console.log('\nполнота контрактов')
+const stableKinds = registry.kinds.filter((k: Json) => packById.get(k.pack)?.status === 'stable').map((k: Json) => k.id)
+check(
+  'у каждого стабильного kind есть пример проекта',
+  stableKinds.every((id: string) => narrativeProject.kind === id),
+  stableKinds.join(', '),
+)
+const stablePacks = registry.packs.filter((p: Json) => p.status === 'stable').map((p: Json) => p.id)
+check(
+  'у каждого стабильного пака есть манифест-пример',
+  stablePacks.every((id: string) => narrativePack.id === id),
+  stablePacks.join(', '),
+)
+
+if (failures.length) {
+  console.error(`\nПРОВАЛЕНО: ${failures.length}`)
+  for (const failure of failures) console.error(`  - ${failure}`)
+  process.exit(1)
+}
+console.log(`\nконтракты согласованы: ${checks} проверок`)

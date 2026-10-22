@@ -1,0 +1,26 @@
+{
+  "id": "rule_ira_valve",
+  "label": "Ира узнаёт клапан",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "grant_xp",
+      "points": 5
+    },
+    {
+      "type": "postcard",
+      "image": "assets/img/pc_ira_valve.jpg",
+      "text": "Резьба целая. Его не сорвало — его вывернули.",
+      "preset": "шёпот",
+      "seconds": 5,
+      "camera": {
+        "zoom": 1.08,
+        "pan_x": 0,
+        "pan_y": 0,
+        "duration": 6
+      }
+    }
+  ]
+}

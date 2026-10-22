@@ -63,7 +63,10 @@
     "smoke:craft-fail-time": "tsx scripts/smoke-craft-fail-time.mts",
     "smoke:dialogue-speaker": "tsx scripts/smoke-dialogue-speaker.mts",
     "pack:ai-kit": "tsx scripts/pack-ai-kit.mts",
-    "sync:ai-kit": "tsx scripts/pack-ai-kit.mts --copy"
+    "sync:ai-kit": "tsx scripts/pack-ai-kit.mts --copy",
+    "check:contracts": "tsx scripts/contracts-check.mts",
+    "shot": "node scripts/visual/shot.mjs",
+    "visual:shots": "node scripts/visual/shots.mjs"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

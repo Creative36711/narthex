@@ -1,0 +1,71 @@
+{
+  "id": "item_vent",
+  "type": "item",
+  "category": "prop",
+  "label": "Отдушина",
+  "description": "Решётка в породе. Оттуда тянет не шахтой, а чем-то тёплым и медленным.",
+  "weight": 0,
+  "stackable": false,
+  "value": {
+    "mark": 0
+  },
+  "interact_options": [
+    {
+      "label": "Прислушаться",
+      "effects": [
+        {
+          "type": "skill_check_gate",
+          "skill": "perception",
+          "difficulty": 45,
+          "success_effects": [
+            {
+              "type": "unlock_codex",
+              "entry": "codex_vein"
+            },
+            {
+              "type": "grant_xp",
+              "points": 25
+            },
+            {
+              "type": "show_message",
+              "text": "Из отдушины идёт ровный гул, как от помпы, которой нет. Он совпадает с твоим пульсом — и это не совпадение."
+            }
+          ],
+          "fail_effects": [
+            {
+              "type": "show_message",
+              "text": "Только капли и чьё-то дыхание, которого здесь быть не должно."
+            }
+          ]
+        },
+        {
+          "type": "set_flag",
+          "flag": "vent_heard"
+        }
+      ],
+      "once": true,
+      "sound": "snd_vent",
+      "hint": "если воздух идёт, значит выход есть"
+    },
+    {
+      "label": "Прислушаться ещё раз",
+      "hint": "уже осмотрено",
+      "conditions": [
+        {
+          "type": "flag_set",
+          "flag": "vent_heard"
+        }
+      ],
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Из решётки тянет теплом и медленным гулом — ровным, как чьё-то дыхание."
+        }
+      ]
+    }
+  ],
+  "interact_hint": "Прислушаться",
+  "portrait": {
+    "neutral": "assets/img/items/item_vent.jpg"
+  }
+}

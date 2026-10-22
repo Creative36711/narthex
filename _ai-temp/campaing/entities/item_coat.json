@@ -1,0 +1,40 @@
+{
+  "id": "item_coat",
+  "type": "item",
+  "category": "armor",
+  "label": "Плащ дознавателя",
+  "description": "Длинный промасленный плащ с глубоким капюшоном. Внизу он важнее брони: он держит сырость.",
+  "weight": 2,
+  "stackable": false,
+  "value": {
+    "mark": 19
+  },
+  "equip_slot": "armor",
+  "armor_data": {
+    "points": 2
+  },
+  "sounds": {
+    "pickup": "snd_cloth",
+    "equip": "snd_cloth",
+    "unequip": "snd_cloth"
+  },
+  "image": "assets/img/items/item_coat.jpg",
+  "portrait": {
+    "neutral": "assets/img/items/item_coat.jpg"
+  },
+  "interact_hint": "Отряхнуть угольную пыль с воротника",
+  "interact_options": [
+    {
+      "label": "Отряхнуть угольную пыль с воротника",
+      "hint": "промасленное сукно и медные пряжки",
+      "sound": "snd_cloth",
+      "once": true,
+      "effects": [
+        {
+          "type": "show_message",
+          "text": "Тяжёлый дорожный плащ из двойного промасленного сукна. Смягчает скользящий удар и держит капель на верхних ярусах, но от ледяной сырости восьмого и девятого спасает только печка."
+        }
+      ]
+    }
+  ]
+}

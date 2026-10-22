@@ -1,0 +1,13 @@
+{
+  "id": "rule_camp_ambush",
+  "label": "Ночная вылазка у лагеря (развилка по ярусу)",
+  "once": true,
+  "manual": true,
+  "conditions": [],
+  "effects": [
+    {
+      "type": "set_flag",
+      "flag": "camp_ambush_pending"
+    }
+  ]
+}

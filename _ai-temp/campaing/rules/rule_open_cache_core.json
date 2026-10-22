@@ -1,0 +1,27 @@
+{
+  "id": "rule_open_cache_core",
+  "label": "Сердцевина в схроне",
+  "once": true,
+  "manual": true,
+  "conditions": [
+    {
+      "type": "flag_not_set",
+      "flag": "core_taken"
+    }
+  ],
+  "effects": [
+    {
+      "type": "add_item",
+      "item": "item_core",
+      "quantity": 1
+    },
+    {
+      "type": "set_flag",
+      "flag": "core_taken"
+    },
+    {
+      "type": "show_message",
+      "text": "Под гроссбухом, в промасленной тряпке, лежит сердцевина. Она тёплая, хотя ящик стоял в холодной породе."
+    }
+  ]
+}
