@@ -1,6 +1,7 @@
-/** Chronicle Forge ScriptCat Drive gateway. Deploy as a web app executing as the owner. */
-const CF_RUN_LOG_FOLDER_ID = "19ljf2TgeDg6j-jIamGira8K8_2NjC1BT";
+/** Narthex ScriptCat Drive gateway. Deploy as a web app executing as the owner. */
 const CF_KEY_PROPERTY = "CF_GATEWAY_KEY";
+const CF_LOG_FOLDER_PROPERTY = "CF_LOG_FOLDER_ID";
+const CF_LOG_FOLDER_NAME = "Narthex — логи";
 
 /** Run once in the Apps Script editor; copy the returned key into ScriptCat. */
 function setupGatewayKey() {
@@ -19,9 +20,29 @@ function setupGatewayKey() {
 function doGet() {
   return json_({
     ok: true,
-    service: "Chronicle Forge Drive gateway",
-    version: "1.2",
+    service: "Narthex Drive gateway",
+    version: "1.3",
   });
+}
+
+/**
+ * Папка логов: Script Property → существующий id, иначе ищем по имени, иначе
+ * создаём. Так развёртывание не зависит от того, какой id был у старого проекта.
+ */
+function logFolder_() {
+  const props = PropertiesService.getScriptProperties();
+  const saved = props.getProperty(CF_LOG_FOLDER_PROPERTY);
+  if (saved) {
+    try {
+      return DriveApp.getFolderById(saved);
+    } catch (error) {
+      props.deleteProperty(CF_LOG_FOLDER_PROPERTY);
+    }
+  }
+  const found = DriveApp.getFoldersByName(CF_LOG_FOLDER_NAME);
+  const folder = found.hasNext() ? found.next() : DriveApp.createFolder(CF_LOG_FOLDER_NAME);
+  props.setProperty(CF_LOG_FOLDER_PROPERTY, folder.getId());
+  return folder;
 }
 
 function doPost(e) {
@@ -32,21 +53,24 @@ function doPost(e) {
     if (!expected || !constantTimeEqual_(String(request.key || ""), expected)) {
       return json_({ ok: false, error: "Неверный ключ шлюза." });
     }
-    if (request.action === "ping") return json_({ ok: true, result: "pong" });
+    if (request.action === "ping") {
+      const folder = logFolder_();
+      return json_({ ok: true, result: "pong", folderId: folder.getId(), folderName: folder.getName() });
+    }
 
     if (request.action === "createLog") {
-      const folderId = String(request.folderId || "");
+      const folder = logFolder_();
+      const requestedFolder = String(request.folderId || "");
       const dispatchId = String(request.dispatchId || "");
       const runId = String(request.runId || "");
-      if (folderId !== CF_RUN_LOG_FOLDER_ID)
-        throw new Error("Создание разрешено только в папке логов Dispatch-Run.");
+      if (requestedFolder && requestedFolder !== folder.getId())
+        throw new Error("Создание разрешено только в папке логов Narthex.");
       if (!/^[0-9a-f-]{36}$/i.test(dispatchId) || !/^[0-9a-f-]{36}$/i.test(runId))
         throw new Error("Некорректные Dispatch ID или Run ID.");
       const name = dispatchId + "_" + runId + ".md";
       const lock = LockService.getScriptLock();
       lock.waitLock(15000);
       try {
-        const folder = DriveApp.getFolderById(CF_RUN_LOG_FOLDER_ID);
         const matches = folder.getFilesByName(name);
         if (matches.hasNext()) {
           const existing = matches.next();
@@ -82,10 +106,11 @@ function doPost(e) {
 
     if (request.action === "append") {
       const file = DriveApp.getFileById(id);
+      const folderId = logFolder_().getId();
       const parents = file.getParents();
       let isRunLog = false;
       while (parents.hasNext()) {
-        if (parents.next().getId() === CF_RUN_LOG_FOLDER_ID) isRunLog = true;
+        if (parents.next().getId() === folderId) isRunLog = true;
       }
       const mime = String(file.getMimeType() || "");
       if (!isRunLog || !mime.startsWith("text/"))
