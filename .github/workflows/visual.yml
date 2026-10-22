@@ -1,0 +1,48 @@
+name: visual
+
+# Пиксельная проверка UI. В песочнице агента браузер не запускается
+# (нет libnss3/libnspr4, нет root), а на раннере GitHub — запускается.
+# Поэтому визуальный гейт живёт здесь, а не в песочнице.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Установить зависимости
+        run: npm ci
+
+      - name: Собрать проект
+        run: npm run build
+
+      - name: Поставить браузер с системными библиотеками
+        run: |
+          npm i --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+
+      - name: Поднять предпросмотр
+        run: |
+          npx vite preview --port 4173 --strictPort &
+          npx --yes wait-on@8 http://localhost:4173 --timeout 60000
+
+      - name: Снять экраны и проверить утверждения
+        run: node scripts/visual/shots.mjs http://localhost:4173 out/visual
+
+      - name: Сохранить снимки
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-report
+          path: out/visual
+          retention-days: 14
