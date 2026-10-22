@@ -71,7 +71,17 @@ assert.equal(calls[1].extra.dispatchId, 'dispatch-id');
 assert.equal(calls[1].extra.runId, 'run-id');
 
 const gateway = await readFile(new URL('../drive-gateway.gs', import.meta.url), 'utf8');
-assert.equal((gateway.match(/fileId: result\.fileId/g) || []).length, 2, 'new and idempotent gateway results expose a top-level fileId');
-assert(gateway.includes('version: "1.2"'), 'gateway source version reflects the response-contract change');
+const createLogStart = gateway.indexOf('if (request.action === "createLog")');
+const createLogEnd = gateway.indexOf('if (request.action === "savePayload")', createLogStart);
+assert(createLogStart > 0 && createLogEnd > createLogStart, 'gateway keeps a createLog branch');
+const createLog = gateway.slice(createLogStart, createLogEnd);
+assert.equal((createLog.match(/^\s*fileId: /gm) || []).length, 2, 'new and idempotent createLog results expose a top-level fileId');
+assert.equal((createLog.match(/result: \{ fileId: /g) || []).length, 2, 'both createLog branches keep the nested result for older callers');
+const version = gateway.match(/version: "(\d+)\.(\d+)"/);
+assert(version, 'gateway source declares its contract version');
+assert(
+  Number(version[1]) > 1 || (Number(version[1]) === 1 && Number(version[2]) >= 2),
+  `gateway version ${version[1]}.${version[2]} is older than the 1.2 response contract`,
+);
 
 console.log('ScriptCat Gateway run-log contract smoke checks passed.');
