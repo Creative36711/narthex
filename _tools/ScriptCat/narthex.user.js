@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.9
+// @version      1.4.10
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -109,7 +109,12 @@
    * проверки «Stop» находится на странице, где агент давно молчит.
    */
   const visible = (el) => {
-    if (!el || !el.isConnected || el.getClientRects().length === 0) return false;
+    if (!el || !el.isConnected) return false;
+    // Нулевая площадь — не «видно». В DOM Arena остаются кнопки и плашки
+    // прошлых состояний: rect у них есть, а ширины и высоты нет. Именно такая
+    // кнопка Stop от прошлой генерации держала шаг в ожидании.
+    const rect = el.getBoundingClientRect?.();
+    if (!rect || !(rect.width > 0 && rect.height > 0)) return false;
     const style = getComputedStyle(el);
     return style.visibility !== "hidden" && style.display !== "none";
   };
@@ -216,7 +221,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.9";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.10";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -964,8 +969,27 @@
     return [...document.querySelectorAll('[data-agent-transcript-message="true"][id^="chat-message-"]')];
   }
 
+  /**
+   * Тело сообщения — последний настоящий блок `.prose`.
+   *
+   * В живой разметке Arena первым `[class*="prose"]` оказывается `not-prose`:
+   * свёрнутая плашка «Thought for 2 seconds» с черновиком рассуждения. Из-за
+   * этого ответом считалось рассуждение без маркера: шаг писал «дописывает
+   * ответ» и готовил напоминание, хотя настоящий ответ с маркером лежал
+   * следующим блоком.
+   */
+  const proseBlocks = (node) =>
+    [...node.querySelectorAll(".prose")].filter(
+      (el) => !el.classList.contains("not-prose") && !el.closest(".not-prose"),
+    );
+
+  function messageBody(node) {
+    const blocks = proseBlocks(node);
+    return blocks.at(-1) || node;
+  }
+
   function messageText(node) {
-    const prose = node.querySelector('[class*="prose"]') || node;
+    const prose = messageBody(node);
     const clone = prose.cloneNode(true);
     clone.querySelectorAll("button,svg,[role='alert']").forEach((n) => n.remove());
     const shown = clone.innerText?.trim() || "";
@@ -980,10 +1004,17 @@
    * клона. Именно на этом разбор маркера и падал в живом чате.
    */
   function messageRaw(node) {
-    const prose = node.querySelector('[class*="prose"]') || node;
-    const clone = prose.cloneNode(true);
-    clone.querySelectorAll("button,svg,[role='alert']").forEach((n) => n.remove());
-    return String(clone.textContent || "").replace(/\u00a0/g, " ");
+    const blocks = proseBlocks(node);
+    // Разбор идёт по всем настоящим блокам: маркер может оказаться не в
+    // последнем, а рассуждения из `not-prose` в него не попадают вовсе.
+    return (blocks.length ? blocks : [node])
+      .map((el) => {
+        const clone = el.cloneNode(true);
+        clone.querySelectorAll("button,svg,[role='alert']").forEach((n) => n.remove());
+        return String(clone.textContent || "");
+      })
+      .join("\n")
+      .replace(/\u00a0/g, " ");
   }
 
   /**
@@ -1009,7 +1040,7 @@
     const list = messages().filter(
       (n) => !n.querySelector('[data-user-message-layout="true"]') && !isOwnPrompt(n.textContent),
     );
-    const one = (n) => ({ id: nodeId(n), text: messageText(n), raw: messageRaw(n) });
+    const one = (n) => ({ id: nodeId(n), text: messageText(n), raw: messageRaw(n), ended: replyEnded(n) });
     if (!watermark) return list.map(one);
     const out = [];
     for (let i = list.length - 1; i >= 0; i -= 1) {
@@ -1021,6 +1052,24 @@
   }
 
   const nodeId = (n) => n.id.replace("chat-message-", "");
+
+  /**
+   * Ответ закончен — по разметке Arena, а не по таймеру.
+   *
+   * Внизу завершённого ответа стоит `data-latest-assistant-response-bottom`,
+   * а у времени ответа есть подпись «Response ended …». Это точный признак:
+   * не нужно ждать 20 секунд «стабильности», чтобы прочитать уже готовый
+   * ответ. Пока агент печатает, подписи нет.
+   */
+  function replyEnded(node) {
+    if (!node) return false;
+    const labels = [...node.querySelectorAll("[aria-label]")].map((el) => el.getAttribute("aria-label") || "");
+    if (labels.some((text) => /response ended|ответ заверш|generation complete/i.test(text))) return true;
+    const bottom = document.querySelector('[data-latest-assistant-response-bottom="true"]');
+    if (!bottom) return false;
+    // Узел идёт в документе раньше отметки о конце ответа.
+    return Boolean(node.compareDocumentPosition(bottom) & 4);
+  }
 
   /**
    * Вырезает первый сбалансированный JSON-объект, начиная с ближайшей `{`.
@@ -1103,19 +1152,51 @@
     return null;
   }
 
+  /** Короткая подпись элемента для журнала: без разметки и лишнего текста. */
+  const shortLabel = (el) =>
+    `${el?.getAttribute?.("aria-label") || el?.getAttribute?.("title") || el?.textContent || ""}`
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 60);
+
   /**
-   * Агент отвечает, только если кнопка остановки видна. Скрытый `stop-button`
-   * из прошлой генерации держал `generating()` вечно true, и все шаги молча
-   * возвращались: «кнопка не работает», хотя цикл просто ждал призрака.
+   * Причина «агент ещё работает» — или null.
+   *
+   * Раньше это были два независимых поиска, и любой ложный признак держал шаг.
+   * Теперь признак один и у него есть причина, которую видно в журнале:
+   *   • кнопка Stop — только с площадью, не disabled и не прозрачная;
+   *   • «думающая» плашка — только короткая подпись, не свёрнутая история
+   *     («Thought for 2 seconds» — это прошлое, а не работа) и не транскрипт.
    */
-  const generating = () =>
-    [...document.querySelectorAll("button, [role=\"button\"]")].some(
-      (b) =>
-        visible(b) &&
-        /stop generating|остановить генерац|stop response/i.test(
-          `${b.getAttribute("aria-label") || ""} ${b.getAttribute("title") || ""} ${b.textContent || ""}`,
-        ),
+  function busyReason() {
+    const stop = [...document.querySelectorAll('button, [role="button"]')].find((b) => {
+      if (!visible(b) || b.disabled || b.getAttribute("aria-hidden") === "true") return false;
+      if (Number(getComputedStyle(b).opacity) === 0) return false;
+      if (getComputedStyle(b).pointerEvents === "none") return false;
+      return /stop generating|остановить генерац|stop response/i.test(shortLabel(b));
+    });
+    if (stop) return { kind: "stop", label: shortLabel(stop) || "кнопка Stop" };
+
+    const marks = document.querySelectorAll(
+      '[role="status"], [aria-live], [class*="thinking"], [class*="reasoning"], [class*="typing"]',
     );
+    for (const el of marks) {
+      if (!visible(el)) continue;
+      // Свёрнутая история рассуждений — это уже прошлое.
+      if (el.closest('[data-state="closed"], .not-prose')) continue;
+      const label = shortLabel(el);
+      if (!label || label.length > 80) continue; // длинный текст — транскрипт, а не индикатор
+      if (!/thinking|reasoning|typing|дума|размышл|анализ/i.test(label)) continue;
+      if (/^thought\b|^думал|^размышлял/i.test(label)) continue; // прошедшее время
+      return { kind: "status", label };
+    }
+    return null;
+  }
+
+  const generating = () => busyReason()?.kind === "stop";
+
+  const busyLabel = (reason) =>
+    reason?.kind === "stop" ? `кнопка «${reason.label}»` : `плашка «${reason?.label || "думает"}»`;
 
   // ───────────────────────── ответ без маркера ─────────────────────────
   /**
@@ -1171,15 +1252,7 @@
    * Пока они видны, любой текст в чате — черновик, а не ответ.
    */
   function stillWorking() {
-    if (generating()) return true;
-    const marks = document.querySelectorAll(
-      '[role="status"], [aria-live], [class*="thinking"], [class*="reasoning"], [class*="typing"]',
-    );
-    return [...marks].some((el) => {
-      if (!visible(el)) return false;
-      const label = `${el.getAttribute?.("aria-label") || ""} ${(el.textContent || "").slice(0, 40)}`.trim();
-      return /thinking|reasoning|typing|дума|размышл|анализ/i.test(label);
-    });
+    return Boolean(busyReason());
   }
 
   /** Хвост текста для журнала: по нему видно, ответ это или «думаю…». */
@@ -1196,7 +1269,7 @@
     // Пока агент печатает или «думает», ответа ещё нет: молчим, но по нажатию
     // «Шаг» объясняем, что именно ждём.
     if (stillWorking()) {
-      if (manual) log(`${role.name} ещё отвечает — подождите, потом нажмите «Шаг».`);
+      if (manual) log(`${role.name} ещё отвечает (${busyLabel(busyReason())}) — подождите, потом нажмите «Шаг».`);
       return false;
     }
     const replies = messagesAfter(expect.watermark || "");
@@ -1219,12 +1292,14 @@
     // Подпись считается по сырому тексту: текст, который «дописывается»,
     // каждый раз даёт другую подпись и откладывает решение.
     const signature = `${last.id}:${last.raw.length}`;
-    if (expect.lastReplySig !== signature) {
+    // Ответ, который Arena уже закрыла, читается сразу: ждать «стабильности»
+    // незачем, иначе нажатый «Шаг» дважды отвечает «дописывает».
+    if (!last.ended && expect.lastReplySig !== signature) {
       GM_setValue(K.expect, { ...expect, lastReplySig: signature, lastReplyAt: Date.now() });
       if (manual) log(`${role.name} дописывает ответ — дочитаю, когда закончит.`);
       return false;
     }
-    if (Date.now() - (expect.lastReplyAt || Date.now()) < C.markerIdleMs) {
+    if (!last.ended && Date.now() - (expect.lastReplyAt || Date.now()) < C.markerIdleMs) {
       if (manual) log(`Ответ ${role.name} ещё может дописаться — подождите.`);
       return false;
     }
@@ -2664,7 +2739,7 @@
       GM_setValue("cfn-me", me.name);
       setStatus();
       if (generating()) {
-        if (fromToggle) log("Шаг не выполнен: агент ещё отвечает.");
+        if (fromToggle) log(`Шаг не выполнен: агент ещё отвечает (${busyLabel(busyReason())}).`);
         return;
       }
 

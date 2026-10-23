@@ -17,7 +17,7 @@ const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8')
 
 // ── 1. Разбор маркера: код берём из самого скрипта, не копию ─────────────────
 const from = src.indexOf('  function braceJson(rest) {');
-const to = src.indexOf('  /**\n   * Агент отвечает, только если кнопка остановки видна.');
+const to = src.indexOf('  /** Короткая подпись элемента для журнала');
 assert.ok(from > 0 && to > from, 'блок разбора маркера на месте');
 const block = src.slice(from, to);
 assert.match(block, /function braceJson\(rest\)/, 'скобочный разбор');
@@ -94,9 +94,56 @@ assert.match(src, /parseMarker\(m\.raw, "CF_COORDINATOR_RESULT"\)/, 'Коорд�
 assert.match(src, /const isOwnPrompt = \(raw\) => \/CF_TECH\/\.test/, 'свой промпт опознаётся по CF_TECH');
 assert.match(src, /!isOwnPrompt\(n\.textContent\)/, 'свои тексты выкидываются из списка ответов');
 
+// ── 2.2. Тело ответа — настоящий `.prose`, а не свёрнутое `not-prose` ───────
+// Arena кладёт первым `[class*="prose"]` плашку «Thought for 2 seconds» с
+// черновиком рассуждения. Из-за этого ответом считалось рассуждение: маркер
+// «не находился», шаг писал «дописывает ответ» и готовил напоминание.
+assert.match(src, /function messageBody\(node\)/, 'есть выбор тела сообщения');
+assert.match(src, /node\.querySelectorAll\("\.prose"\)/, 'блок берётся по классу .prose');
+assert.match(src, /el\.closest\("\.not-prose"\)/, 'свёрнутые рассуждения отбрасываются');
+assert.doesNotMatch(src, /querySelector\('\[class\*="prose"\]'\)/, 'селектор, ловивший not-prose, убран');
+assert.match(src, /const prose = messageBody\(node\);/, 'текст идёт через messageBody');
+assert.match(src, /function messageRaw\(node\) \{\s*const blocks = proseBlocks\(node\);/s, 'сырой разбор берёт все настоящие блоки');
+
+const bodyFrom = src.indexOf('  const proseBlocks = (node) =>');
+const bodyTo = src.indexOf('  function messageText(node) {');
+assert.ok(bodyFrom > 0 && bodyTo > bodyFrom, 'блок messageBody на месте');
+const { messageBody } = new Function(`${src.slice(bodyFrom, bodyTo)}; return { messageBody };`)();
+const fake = (name, { notProse = false } = {}) => ({
+  name,
+  classList: { contains: (c) => c === 'not-prose' && notProse },
+  closest: (sel) => (notProse && String(sel).includes('.not-prose') ? {} : null),
+});
+const thought = fake('thought', { notProse: true });
+const answer = fake('answer');
+assert.equal(
+  messageBody({ querySelectorAll: () => [thought, answer] }),
+  answer,
+  'рассуждение в not-prose не становится телом ответа',
+);
+const lonely = { querySelectorAll: () => [] };
+assert.equal(messageBody(lonely), lonely, 'без .prose телом остаётся само сообщение');
+
+// ── 2.3. Признаки работы не должны срабатывать на прошлом ───────────────────
+assert.match(src, /const rect = el\.getBoundingClientRect\?\.\(\);/, 'видимость считается по площади');
+assert.match(src, /rect\.width > 0 && rect\.height > 0/, 'нулевая площадь — не «видно»');
+assert.match(src, /function busyReason\(\)/, 'причина работы ищется в одном месте');
+assert.match(src, /el\.closest\('\[data-state="closed"\], \.not-prose'\)/, 'свёрнутая история — не работа');
+assert.match(src, /\^thought\\b\|\^думал\|\^размышлял/, 'прошедшее время не считается работой');
+assert.match(src, /label\.length > 80/, 'длинный текст транскрипта не считается индикатором');
+assert.match(src, /busyLabel\(busyReason\(\)\)/, 'в журнале видно, что именно держит шаг');
+
+// 2.4. Завершённый ответ читается сразу, без ожидания «стабильности».
+assert.match(src, /function replyEnded\(node\)/, 'есть проверка «ответ закончен»');
+assert.match(src, /response ended\|ответ заверш\|generation complete/i, 'подпись «Response ended» — признак конца');
+assert.match(src, /data-latest-assistant-response-bottom="true"/, 'отметка низа ответа — признак конца');
+assert.match(src, /ended: replyEnded\(n\)/, 'признак считается для каждого ответа');
+assert.match(src, /if \(!last\.ended && expect\.lastReplySig !== signature\)/, 'закрытый ответ не ждёт стабильности');
+assert.match(src, /if \(!last\.ended && Date\.now\(\) - \(expect\.lastReplyAt/, 'таймер дописывания не держит готовый ответ');
+
 // ── 3. Ответ, который ещё печатается, — не ответ ────────────────────────────
 assert.match(src, /function stillWorking\(\)/, 'есть проверка «ещё работает»');
-assert.match(src, /if \(generating\(\)\) return true;/, 'кнопка Stop — признак работы');
+assert.match(src, /const generating = \(\) => busyReason\(\)\?\.kind === "stop";/, 'кнопка Stop — признак работы');
 assert.match(src, /thinking\|reasoning\|typing\|дума\|размышл\|анализ/i, 'плашка «думаю» — тоже признак');
 assert.match(src, /if \(stillWorking\(\)\) \{/, 'ожидание маркера не срабатывает во время работы');
 assert.match(src, /const signature = `\$\{last\.id\}:\$\{last\.raw\.length\}`;/, 'подпись ответа по сырому тексту');
@@ -160,4 +207,4 @@ assert.match(src, /await sleep\(450 \+ Math\.floor\(Math\.random\(\) \* 900\)\);
 assert.match(src, /await sleep\(500 \+ Math\.floor\(Math\.random\(\) \* 1200\)\);/, 'пауза перед нажатием Send');
 assert.match(src, /«\$\{role\.name\}» уже открыт — отправляю задание здесь\./, 'свою же страницу не перезагружаем');
 
-console.log('OK: narthex 1.4.9 — ответ разбирается по сырому тексту, «думаю» не считается ответом, один шаг = одна отправка');
+console.log('OK: narthex 1.4.10 — ответ берётся из настоящего .prose, а не из «Thought for…», «думаю» не считается ответом, один шаг = одна отправка');
