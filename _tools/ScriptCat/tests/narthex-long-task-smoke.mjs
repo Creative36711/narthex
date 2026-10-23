@@ -22,6 +22,7 @@ const MIN = 60_000;
 
 function make({ pending = null, expect = null, cards = [] } = {}) {
   const patched = [];
+  const full = [];
   const logs = [];
   const store = { 'cfn-pending': pending, 'cfn-expect': expect };
   const releaseStalled = new Function(
@@ -32,12 +33,15 @@ function make({ pending = null, expect = null, cards = [] } = {}) {
     { pending: 'cfn-pending', expect: 'cfn-expect' },
     (x) => String(x || '').replace(/-/g, '').toLowerCase(),
     async () => cards,
-    async (id, props) => patched.push({ id, name: props['Dispatch State'].select.name }),
+    async (id, props) => {
+      full.push({ id, props });
+      patched.push({ id, name: props['Dispatch State'].select.name });
+    },
     (text, error) => logs.push({ text, error: Boolean(error) }),
     (card) => card.properties['Запрос'].title[0].plain_text,
     { stalledMs: 45 * MIN },
   );
-  return { releaseStalled, patched, logs };
+  return { releaseStalled, patched, full, logs };
 }
 
 const card = (id, minutesAgo, title = `NAR-${id}`) => ({
@@ -70,6 +74,8 @@ const card = (id, minutesAgo, title = `NAR-${id}`) => ({
   const h = make({ expect, cards: [card('c1', 180), card('c2', 180)] });
   await h.releaseStalled({ id: 'm' });
   assert.deepEqual(h.patched, [{ id: 'c1', name: 'Ready' }], 'брошенная карточка возвращается, живая — нет');
+  assert.equal(h.full[0].props['Started At'].date, null, '«Started At» снимается вместе со статусом');
+  assert.deepEqual(h.full[0].props['Run ID'].rich_text, [], 'Run ID снимается вместе со статусом');
   assert.match(h.logs[0].text, /180 мин без хода скрипта/, 'в журнале видно, сколько висела');
 }
 

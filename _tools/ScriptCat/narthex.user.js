@@ -3443,7 +3443,13 @@
       const started = card.properties["Started At"]?.date?.start;
       if (!started) continue;
       if (Date.now() - Date.parse(started) < C.stalledMs) continue;
-      await patch(card.id, { "Dispatch State": { select: { name: "Ready" } } });
+      // Ready — это «хода на карточке нет»: снимаем и след выдачи, иначе
+      // карточка выглядит выданной, хотя её уже никто не ведёт.
+      await patch(card.id, {
+        "Dispatch State": { select: { name: "Ready" } },
+        "Started At": { date: null },
+        "Run ID": { rich_text: [] },
+      });
       log(
         `«${taskTitle(card)}» висит в Running ${Math.round((Date.now() - Date.parse(started)) / 60000)} мин без хода скрипта — возвращена в Ready.`,
         false,
