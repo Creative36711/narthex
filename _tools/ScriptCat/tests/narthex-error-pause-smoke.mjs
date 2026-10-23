@@ -1,5 +1,5 @@
 /**
- * Структурная проба narthex.user.js 1.4.8: журнал, пауза, маркеры, ntfy.
+ * Структурная проба narthex.user.js 1.4.9: журнал, пауза, маркеры, ntfy.
  *
  * Проверяет инварианты, которые легко потерять при правке транспорта:
  *  - журнал ограничен и очищается кнопкой;
@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.8/, 'версия 1.4.8');
+assert.match(src, /@version\s+1\.4\.9/, 'версия 1.4.9');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -24,7 +24,8 @@ assert.match(src, /entries\s*=\s*entries\.slice\(-C\.maxLog\)/, 'старые з
 assert.match(src, /GM_getValue\(K\.log, \[\]\) \|\| \[\]\)\.slice\(-C\.maxLog\)/, 'хвост обрезается при загрузке');
 assert.match(src, /function clearLog\(\)/, 'есть очистка журнала');
 assert.match(src, /GM_setValue\(K\.log, \[\]\)/, 'очистка стирает сохранённый хвост');
-assert.match(src, /title="Очистить журнал"/, 'кнопка очистки есть в панели');
+assert.match(src, /title="Очистить журнал/, 'кнопка очистки есть в панели');
+assert.match(src, /title="Сбросить очередь и ожидание прошлых попыток/, 'кнопка сброса состояния есть в панели');
 assert.match(src, /id="\$\{ui\.count\}"/, 'в панели виден размер журнала');
 
 // 3. Пауза — единственная точка остановки.
@@ -92,4 +93,4 @@ assert.match(src, /Тихий тест/, 'тихий тест доступен �
 assert.match(src, /Громкий тест/, 'громкий тест доступен из панели');
 assert.ok(!src.includes('location.reload()'), 'видимая ошибка не перезагружает страницу');
 
-console.log('OK: narthex 1.4.8 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
+console.log('OK: narthex 1.4.9 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');

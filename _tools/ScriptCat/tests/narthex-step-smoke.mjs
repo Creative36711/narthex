@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.8/, 'версия 1.4.8');
+assert.match(src, /@version\s+1\.4\.9/, 'версия 1.4.9');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -149,7 +149,7 @@ assert.match(tickBody, /if \(expect && !Number\(expect\.sentAt\)\)/, 'ожида
 const noSendBlock = tickBody.slice(tickBody.indexOf('!Number(expect.sentAt)'), tickBody.indexOf('const waited'));
 assert.match(noSendBlock, /GM_setValue\(K\.expect, null\);/, 'ожидание снимается');
 assert.match(noSendBlock, /GM_setValue\("cfn-plan-at", 0\);/, 'троттлинг плана сбрасывается');
-assert.match(noSendBlock, /ожидание снято, начинаю ход заново/, 'причина видна в журнале');
+assert.match(noSendBlock, /снимаю ожидание и начинаю ход заново/, 'причина видна в журнале');
 assert.match(noSendBlock, /expect = null;/, 'шаг продолжается без ожидания');
 assert.match(src, /watermark, sentAt: Date\.now\(\), verified: true/, 'отметка ставится только после подтверждённой доставки');
 assert.match(src, /pendingTtlMs: 600000/, 'TTL очереди в конфиге');
@@ -422,4 +422,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.8 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.9 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");

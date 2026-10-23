@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.8
+// @version      1.4.9
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -77,6 +77,7 @@
     step: "cfn-step-request",
     debug: "cfn-debug",
     lastSend: "cfn-last-send",
+    stateV: "cfn-state-v",
   };
 
   const ui = {
@@ -88,6 +89,7 @@
     setup: "cfn-setup",
     stop: "cfn-stop",
     clear: "cfn-clear",
+    reset: "cfn-reset",
     ntfy: "cfn-ntfy",
     count: "cfn-log-count",
     debug: "cfn-debug-toggle",
@@ -214,7 +216,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.8";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.9";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -441,6 +443,8 @@
       return "задание возвращено в очередь";
     },
     step: () => tick(true),
+    /** Снять очередь и ожидание прошлой попытки, не трогая журнал. */
+    reset: () => resetStateDialog(),
   };
   /** Пульт появляется в консоли только когда отладка включена. */
   function installDebugApi() {
@@ -589,6 +593,7 @@
     panel.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1b1e25;border-bottom:1px solid #2b2f38;flex-wrap:wrap">
         <strong style="font-size:12px">Narthex</strong>
+        <span style="opacity:.45;font-size:10px" title="версия скрипта">v${SCRIPT_VERSION}</span>
         <span id="${ui.status}" style="opacity:.75;font-size:11px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">…</span>
         <span id="${ui.count}" style="opacity:.45;font-size:10px">0/${C.maxLog}</span>
         <span style="flex:1"></span>
@@ -596,7 +601,8 @@
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
         <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
         <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
-        <button id="${ui.clear}" title="Очистить журнал" style="${btnStyle()}">🧹</button>
+        <button id="${ui.reset}" title="Сбросить очередь и ожидание прошлых попыток (журнал и настройки останутся)" style="${btnStyle()}">↺</button>
+        <button id="${ui.clear}" title="Очистить журнал; очередь снимается кнопкой ↺" style="${btnStyle()}">🧹</button>
         <button id="${ui.setup}" title="Настройка" style="${btnStyle()}">⚙</button>
         <button id="${ui.stop}" title="Остановить цикл и снять паузу" style="${btnStyle()}">✕</button>
       </div>
@@ -604,6 +610,7 @@
     document.body.appendChild(panel);
 
     document.getElementById(ui.setup).onclick = () => setup(true);
+    document.getElementById(ui.reset).onclick = () => resetStateDialog();
     document.getElementById(ui.clear).onclick = () => clearLog();
     document.getElementById(ui.debug).onclick = () => {
       const on = !debugOn();
@@ -1882,6 +1889,93 @@
     return true;
   }
 
+  // ───────────────────── следы прошлых попыток (очистка) ─────────────────────
+  /**
+   * Хранилище ScriptCat не обнуляется при обновлении скрипта.
+   *
+   * Поэтому очередь и ожидание, записанные прошлой версией, «всплывали» уже
+   * в новом запуске: шаг ссылался на отправку, которой не было, а журнал
+   * выглядел так, будто скрипт помнит что-то постороннее. Начиная с 1.4.9
+   * состояние помечается версией и после обновления снимается один раз.
+   */
+  function transientState() {
+    return {
+      pending: GM_getValue(K.pending, null),
+      expect: GM_getValue(K.expect, null),
+      last: GM_getValue(K.lastSend, null),
+    };
+  }
+
+  /** Понятное описание того, что накопилось: без чтения кода. */
+  function describeTransient(state) {
+    const parts = [];
+    if (state.pending) {
+      parts.push(
+        `очередь: «${state.pending.roleId}», ${String(state.pending.text || "").length} симв.`,
+      );
+    }
+    if (state.expect) {
+      parts.push(
+        `ожидание: «${state.expect.roleName || state.expect.roleId}», ${state.expect.kind || "?"}` +
+          (state.expect.sentAt ? "" : ", без отметки отправки"),
+      );
+    }
+    if (state.last) parts.push("защита от повторов");
+    return parts.join("; ");
+  }
+
+  /** Снять очередь, ожидание и защиту от повторов. Журнал и настройки не трогаем. */
+  function resetState() {
+    const state = transientState();
+    GM_setValue(K.pending, null);
+    GM_setValue(K.expect, null);
+    GM_setValue(K.lastSend, null);
+    GM_setValue("cfn-plan-at", 0);
+    GM_setValue(K.step, false);
+    GM_setValue(K.stateV, SCRIPT_VERSION);
+    return { ...state, text: describeTransient(state) };
+  }
+
+  /**
+   * Один раз после обновления.
+   *
+   * Снимаем только то, что заведомо не доходило до чата: ожидание без отметки
+   * отправки. Настоящая отправка (`sentAt` стоит после появления сообщения)
+   * и очередь с текстом остаются — иначе обновление посреди хода потеряло бы
+   * задание или заставило Координатора выдать второй план.
+   */
+  function migrateState() {
+    const seen = String(GM_getValue(K.stateV, "") || "");
+    if (seen === SCRIPT_VERSION) return "";
+    GM_setValue(K.stateV, SCRIPT_VERSION);
+
+    const expect = GM_getValue(K.expect, null);
+    if (!expect || Number(expect.sentAt)) return "";
+    GM_setValue(K.expect, null);
+    GM_setValue("cfn-plan-at", 0);
+    const who = `«${expect.roleName || expect.roleId}», ${expect.kind || "?"}`;
+    log(
+      `Обновился до ${SCRIPT_VERSION}${seen ? ` с ${seen}` : ""}: снял ожидание без отметки отправки (${who}) — ` +
+        "в чат оно не уходило, это след прошлой попытки. Очередь и журнал на месте.",
+      false,
+      { skip: true },
+    );
+    return who;
+  }
+
+  /** Кнопка ↺: очистка по воле Мастера, с показом того, что снимается. */
+  function resetStateDialog() {
+    const what = describeTransient(transientState());
+    if (!what) {
+      log("Сбрасывать нечего: очередь пуста, ожидания нет.");
+      return;
+    }
+    if (!confirm(`Сбросить очередь и ожидание?\n\n${what}\n\nЖурнал и настройки останутся.`)) return;
+    resetState();
+    log(`Сбросил состояние вручную (${what}). Нажмите «Шаг», чтобы начать с чистого листа.`);
+    setStatus();
+  }
+
   // ───────────────────────────── PR ─────────────────────────────
   /**
    * Проверка видимости — общая (`visible` в утилитах). Поймано пробой на
@@ -2598,7 +2692,7 @@
         GM_setValue(K.expect, null);
         GM_setValue("cfn-plan-at", 0);
         log(
-          `${me.name}: прошлое задание так и не ушло в чат (нет отметки отправки) — ожидание снято, начинаю ход заново.`,
+          `${me.name}: в чате нет отметки прошлой отправки — это след прошлой попытки, снимаю ожидание и начинаю ход заново.`,
           true,
         );
         expect = null;
@@ -2639,6 +2733,7 @@
   // ───────────────────────────── старт ─────────────────────────────
   entries = (GM_getValue(K.log, []) || []).slice(-C.maxLog);
   const boot = () => {
+    migrateState();
     mount();
     if (debugOn()) {
       installDebugApi();
