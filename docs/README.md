@@ -35,7 +35,8 @@
 | [`playkit.md`](./playkit.md) | `cf-play`: как агент играет проект без исходников |
 | [`collaboration.md`](./collaboration.md) | плоскости хранения и протокол задач |
 | [`coordinator.md`](./coordinator.md) | регламент Координатора |
-| [`agents/`](./agents/README.md) | роли, ТЗ миссии, песочница, браузер, Drive |
+| [`agents/`](./agents/README.md) | роли, свобода и оракул, ТЗ миссии, песочница, браузер, Drive |
+| [`decisions/`](./decisions/NAR-1.md) | журнал решений: что было неясно, что решили, как откатить |
 | [`glossary.md`](./glossary.md) | канонические термины |
 
 ## Для автора игры
