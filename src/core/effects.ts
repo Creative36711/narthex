@@ -53,7 +53,7 @@ function tryFireRule(this: EngineCtx, ruleId: string, depth = 0): boolean {
     const rule = this.campaign.rules[ruleId]
     if (!rule) return false
     if (rule.once && this.state.fired_rules.includes(rule.id)) return false
-    if (!this.ruleConditionsOk(rule)) return false
+    if (!effects.ruleConditionsOk.call(this, rule)) return false
     this.state.fired_rules.push(rule.id)
     this.applyEffects(rule.effects ?? [], depth)
     return true
