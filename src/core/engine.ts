@@ -37,7 +37,6 @@ import type {
   RuleDef,
   SkillDifficulty,
   WeaponData,
-  CompanionState,
   NeedDef,
 
   ImageValue,
@@ -54,6 +53,9 @@ import { PRNG } from './prng'
 import type { EngineCtx } from './context'
 import { world, type SlotOccupant } from './world'
 import { needs } from './needs'
+import { quests } from './quests'
+import { party } from './party'
+import { social } from './social'
 import { inventory } from './inventory'
 import { equipment } from './equipment'
 export type { SlotOccupant } from './world'
@@ -589,17 +591,7 @@ export class GameEngine implements EngineCtx {
    * (если задана) + самочувствие. Личный сдвиг нужен накигэ/драмам, где
    * отношение к человеку важнее «города» — раньше без faction delta глотался.
    */
-  getDisposition(target: string): number {
-    const npc = this.campaign.entities[target] as NpcDef | undefined
-    if (npc && npc.type === 'npc') {
-      const personal = this.state.dispositions[target] ?? 0
-      const factionValue = npc.faction ? (this.state.dispositions[npc.faction] ?? 0) : 0
-      // самочувствие NPC (выспался/устал) подкрашивает отношение: ±25
-      const moodShift = Math.round((this.npcMood(target) - 50) / 2)
-      return personal + factionValue + (npc.base_disposition ?? 0) + moodShift
-    }
-    return this.state.dispositions[target] ?? 0
-  }
+  getDisposition(target: string): number { return social.getDisposition(this, target) }
 
   /** самочувствие NPC (0..100, умолчание 50): усталость от пропуска ночёвки по расписанию */
   /**
@@ -678,296 +670,72 @@ export class GameEngine implements EngineCtx {
       : {}
   }
 
-  npcMood(entityId: string): number {
-    return this.state.npc_mood?.[entityId] ?? 50
-  }
+  npcMood(entityId: string): number { return social.npcMood(this, entityId) }
 
   /** сдвинуть самочувствие NPC (правила/эффекты; K.D. clamp 0..100) */
-  changeNpcMood(entityId: string, delta: number): void {
-    const m = (this.state.npc_mood ??= {})
-    m[entityId] = Math.max(0, Math.min(100, (m[entityId] ?? 50) + delta))
-  }
+  changeNpcMood(entityId: string, delta: number): void { social.changeNpcMood(this, entityId, delta) }
 
-  changeDisposition(target: string, delta: number): void {
-    const npc = this.campaign.entities[target] as NpcDef | undefined
-    // Личный сдвиг на id NPC (или id фракции, если target — фракция).
-    // Раньше NPC без faction молча игнорировался — диалоги «+отношение»
-    // ничего не меняли (критично для драм/накигэ).
-    const key = target
-    if (npc && npc.type !== 'npc' && npc.type !== undefined) {
-      // предметы и пр. — не цель отношения
-      return
-    }
-    const cur = this.state.dispositions[key] ?? 0
-    this.state.dispositions[key] = Math.max(-100, Math.min(100, cur + delta))
-    const label =
-      (npc && npc.type === 'npc' ? npc.label : undefined) ??
-      this.campaign.meta.factions?.find((f) => f.id === key)?.label ??
-      key
-    this.pushLog(`Отношение «${label}»: ${delta > 0 ? '+' : ''}${delta} (теперь ${this.getDisposition(key)}).`)
-  }
+  changeDisposition(target: string, delta: number): void { social.changeDisposition(this, target, delta) }
 
   // ─────────────── квесты (ТЗ 3.7) ───────────────
 
-  startQuest(questId: string): void {
-    const quest = this.campaign.quests[questId]
-    if (!quest || this.state.quests[questId]) return
-    const first = quest.stages[0]
-    this.state.quests[questId] = { stage: first.id, status: 'active', journal: [] }
-    this.pushLog(`Новый квест: «${quest.label}»`)
-    this.messages.push({ text: `Новый квест: «${quest.label}»` })
-    playUi('quest_started')
-    if (first.on_enter_effects) this.applyEffects(first.on_enter_effects)
-  }
+  startQuest(questId: string): void { quests.startQuest(this, questId) }
 
-  advanceQuestTo(questId: string, stageId: string): void {
-    const quest = this.campaign.quests[questId]
-    const qs = this.state.quests[questId]
-    if (!quest || !qs || qs.status !== 'active' || qs.stage === stageId) return
-    const stage = quest.stages.find((s) => s.id === stageId)
-    if (!stage) return
-    qs.stage = stageId
-    if (stage.final) {
-      qs.status = stage.outcome === 'failure' ? 'failed' : 'completed'
-      if (qs.status === 'completed') {
-        this.state.stats_run.quests_completed += 1
-        this.messages.push({ text: `Квест завершён: «${quest.label}»` })
-        playUi('quest_completed')
-      } else {
-        this.messages.push({ text: `Квест провален: «${quest.label}»` })
-      }
-      this.pushLog(`Квест «${quest.label}»: ${qs.status === 'completed' ? 'завершён' : 'провален'}.`)
-    }
-    if (stage.on_enter_effects) this.applyEffects(stage.on_enter_effects)
-  }
+  advanceQuestTo(questId: string, stageId: string): void { quests.advanceQuestTo(this, questId, stageId) }
 
-  journalUpdate(questId: string, textKey: string): void {
-    const quest = this.campaign.quests[questId]
-    const qs = this.state.quests[questId]
-    if (!quest || !qs) return
-    const text = quest.journal_entries[textKey]
-    if (text && !qs.journal.includes(text)) {
-      qs.journal.push(text)
-      this.pushLog(`Журнал: ${text}`)
-    }
-  }
+  journalUpdate(questId: string, textKey: string): void { quests.journalUpdate(this, questId, textKey) }
 
   /** Переходы стадий активных квестов (вызывается из checkRules). */
-  private checkQuestTransitions(): void {
-    for (const [questId, qs] of Object.entries(this.state.quests)) {
-      if (qs.status !== 'active') continue
-      const quest = this.campaign.quests[questId]
-      const stage = quest?.stages.find((s) => s.id === qs.stage)
-      if (!stage?.transitions) continue
-      for (const t of stage.transitions) {
-        if ((t.conditions ?? []).every((c) => evalCondition(c, this))) {
-          this.advanceQuestTo(questId, t.to)
-          break
-        }
-      }
-    }
-  }
+  private checkQuestTransitions(): void { quests.checkQuestTransitions(this) }
 
   // ─────────────── напарники (ТЗ 4.11) ───────────────
 
-  joinParty(entityId: string): void {
-    const max = this.campaign.meta.max_companions ?? 1
-    if (this.state.party.length >= max) return
-    if (this.state.party.some((c) => c.entity === entityId)) return
-    const def = this.campaign.entities[entityId] as NpcDef | undefined
-    if (!def || def.type !== 'npc') return
-    const hp = def.stats.HP ?? derivedHP(def.stats)
-    const comp: CompanionState = { entity: entityId, hp, max_hp: hp }
-    // потребности напарника (NpcDef.companion_needs) стартуют полными
-    if (def.companion_needs?.length && featureOn(this.campaign.meta, 'needs')) {
-      comp.needs = {}
-      for (const id of def.companion_needs) {
-        const need = this.campaign.meta.needs.find((n) => n.id === id)
-        if (need) comp.needs[id] = need.max
-      }
-      if (!Object.keys(comp.needs).length) delete comp.needs
-    }
-    if (def.companion_carry) comp.inventory = []
-    this.state.party.push(comp)
-    this.pushLog(`${def.label} присоединяется к вам.`)
-    this.messages.push({ text: `${def.label} присоединяется к отряду.` })
-  }
+  joinParty(entityId: string): void { party.joinParty(this, entityId) }
 
   /** Текущее значение потребности напарника; null — не в отряде или у существа
    *  потребность не отслеживается… но по контракту «робот не голодает»
    *  неотслеживаемая потребность возвращается максимальной, а не null. */
-  companionNeed(entity: string, needId: string): number | null {
-    const comp = this.state.party.find((c) => c.entity === entity)
-    if (!comp) return null
-    const need = this.campaign.meta.needs.find((n) => n.id === needId)
-    if (!need) return null
-    return comp.needs?.[needId] ?? need.max
-  }
+  companionNeed(entity: string, needId: string): number | null { return party.companionNeed(this, entity, needId) }
 
   /** Сдвиг потребности напарника; переход через ноль — заметка в лог (без game over). */
-  changeCompanionNeed(entity: string, needId: string, delta: number): void {
-    const comp = this.state.party.find((c) => c.entity === entity)
-    const need = this.campaign.meta.needs.find((n) => n.id === needId)
-    if (!comp || !need || comp.needs?.[needId] === undefined) return
-    const cur = comp.needs[needId]
-    const next = Math.min(need.max, Math.max(0, cur + delta))
-    comp.needs[needId] = next
-    if (next <= 0 && cur > 0) {
-      const def = this.campaign.entities[entity] as NpcDef | undefined
-      this.pushLog(`${def?.label ?? entity} на пределе: ${need.label.toLowerCase()} на нуле.`)
-    }
-  }
+  changeCompanionNeed(entity: string, needId: string, delta: number): void { party.changeCompanionNeed(this, entity, needId, delta) }
 
   /** Набор отслеживаемых напарником потребностей (для UI): определения из meta.needs. */
-  companionNeedDefs(entity: string): NeedDef[] {
-    const comp = this.state.party.find((c) => c.entity === entity)
-    if (!comp?.needs) return []
-    return this.campaign.meta.needs.filter((n) => comp.needs![n.id] !== undefined)
-  }
+  companionNeedDefs(entity: string): NeedDef[] { return party.companionNeedDefs(this, entity) }
 
   // ── «вторая сумка» напарника (NpcDef.companion_carry) ──
 
   /** Груз в сумке напарника, кг. */
-  companionLoad(entity: string): number {
-    const comp = this.state.party.find((c) => c.entity === entity)
-    let sum = 0
-    for (const e of comp?.inventory ?? []) {
-      const def = this.campaign.entities[e.item] as ItemDef | undefined
-      if (def?.type === 'item') sum += (def.weight ?? 0) * e.quantity
-    }
-    return Math.round(sum * 10) / 10
-  }
+  companionLoad(entity: string): number { return party.companionLoad(this, entity) }
 
   /** Грузоподъёмность напарника: та же формула энкадменса, что у героя,
    *  но по характеристикам существа (его carry_capacity_bonus/mult учтены). */
-  companionCapacity(entity: string): number {
-    const def = this.campaign.entities[entity] as NpcDef | undefined
-    if (!def?.stats) return 0
-    const encRules = this.campaign.meta.encumbrance
-    const formula = encRules?.formula ?? 'str_siz'
-    let base = (def.stats.STR ?? 10) + (def.stats.SIZ ?? 10)
-    if (formula === 'str_con') base = (def.stats.STR ?? 10) + (def.stats.CON ?? 10)
-    else if (formula === 'str_only') base = (def.stats.STR ?? 10) * 2
-    else if (formula === 'fixed') base = Math.max(1, encRules?.capacity_multiplier ?? 20)
-    const worldMult = encRules?.capacity_multiplier && formula !== 'fixed' ? encRules.capacity_multiplier : 1.0
-    const total = base * worldMult * (def.carry_capacity_mult ?? 1.0) + (def.carry_capacity_bonus ?? 0)
-    return Math.max(1, Math.round(total * 10) / 10)
-  }
+  companionCapacity(entity: string): number { return party.companionCapacity(this, entity) }
 
   /** Передать предмет из сумки героя напарнику (нужны оба: в отряде, companion_carry).
    *  Сюжетные предметы (quest_item) — как выбросить и продать — отдать нельзя:
    *  уход или гибель напарника не должна стирать критические вещи навсегда.
    *  `opts.forceQuest` — только для сюжетных эффектов (transfer_to_companion):
    *  мастер сам решает отдать квестовый предмет скриптом. */
-  giveItemToCompanion(entity: string, itemId: string, quantity = 1, opts: { forceQuest?: boolean } = {}): boolean {
-    const comp = this.state.party.find((c) => c.entity === entity)
-    const def = this.campaign.entities[entity] as NpcDef | undefined
-    if (!comp || !def?.companion_carry || quantity <= 0) return false
-    const itemDef = this.campaign.entities[itemId]
-    if ((itemDef as ItemDef | undefined)?.quest_item && !opts.forceQuest) {
-      this.pushToast(`${itemDef?.label ?? itemId} — сюжетная вещь: её нельзя передать напарнику.`, 'info')
-      return false
-    }
-    const have = this.state.player.inventory.find((i) => i.item === itemId)?.quantity ?? 0
-    if (have < quantity) return false
-    if (!comp.inventory) comp.inventory = []
-    this.removeItem(itemId, quantity, { silent: true })
-    const slot = comp.inventory.find((i) => i.item === itemId)
-    if (slot) slot.quantity += quantity
-    else comp.inventory.push({ item: itemId, quantity })
-    this.pushLog(`${def.label} берёт: ${itemDef?.label ?? itemId} ×${quantity}.`)
-    this.notify()
-    return true
-  }
+  giveItemToCompanion(entity: string, itemId: string, quantity = 1, opts: { forceQuest?: boolean } = {}): boolean { return party.giveItemToCompanion(this, entity, itemId, quantity, opts) }
 
   /** Забрать предмет из сумки напарника себе. */
-  takeItemFromCompanion(entity: string, itemId: string, quantity = 1): boolean {
-    const comp = this.state.party.find((c) => c.entity === entity)
-    const slot = comp?.inventory?.find((i) => i.item === itemId)
-    if (!comp || !slot || slot.quantity < quantity || quantity <= 0) return false
-    slot.quantity -= quantity
-    if (slot.quantity <= 0) {
-      comp.inventory = comp.inventory!.filter((i) => i.quantity > 0)
-      // снятое/отданное: если предмет был надет и кончился — снимаем со слота
-      for (const [k, v] of Object.entries(comp.equipment ?? {})) if (v === itemId && !comp.inventory!.some((i) => i.item === itemId)) delete comp.equipment![k]
-    }
-    this.addItem(itemId, quantity, { silent: true })
-    const def = this.campaign.entities[entity] as NpcDef | undefined
-    const itemDef = this.campaign.entities[itemId]
-    this.pushLog(`${def?.label ?? entity} возвращает: ${itemDef?.label ?? itemId} ×${quantity}.`)
-    this.notify()
-    return true
-  }
+  takeItemFromCompanion(entity: string, itemId: string, quantity = 1): boolean { return party.takeItemFromCompanion(this, entity, itemId, quantity) }
 
   /** Надеть/снять предмет из сумки напарника на слот экипировки (null — снять). */
-  equipCompanionItem(entity: string, slotId: string, itemId: string | null): void {
-    const comp = this.state.party.find((c) => c.entity === entity)
-    if (!comp) return
-    if (itemId && !comp.inventory?.some((i) => i.item === itemId)) return
-    comp.equipment = { ...(comp.equipment ?? {}) }
-    if (itemId) comp.equipment[slotId] = itemId
-    else delete comp.equipment[slotId]
-    this.notify()
-  }
+  equipCompanionItem(entity: string, slotId: string, itemId: string | null): void { party.equipCompanionItem(this, entity, slotId, itemId) }
 
   /** Применить предмет из сумки героя к напарнику: перенаправляет on_use-эффекты
    *  «здоровье» (change_hp) и «потребности» (change_need) на напарника, остальные
    *  эффекты игнорируются; расход предмета — как у героя (on_use.consume). */
-  useItemOnCompanion(entity: string, itemId: string): boolean {
-    const comp = this.state.party.find((c) => c.entity === entity)
-    const def = this.campaign.entities[entity] as NpcDef | undefined
-    const item = this.campaign.entities[itemId] as ItemDef | undefined
-    if (!comp || !def || !item || item.type !== 'item' || !item.on_use) return false
-    if (!(this.state.player.inventory.find((i) => i.item === itemId)?.quantity ?? 0)) return false
-    let touched = false
-    for (const eff of item.on_use.effects) {
-      if (eff.type === 'change_hp' && comp.hp > 0) {
-        const before = comp.hp
-        comp.hp = Math.max(1, Math.min(comp.max_hp, comp.hp + eff.delta))
-        if (comp.hp !== before) touched = true
-      } else if (eff.type === 'change_need') {
-        if (comp.needs?.[eff.need] !== undefined) {
-          this.changeCompanionNeed(entity, eff.need, eff.delta)
-          touched = true
-        }
-      }
-    }
-    if (!touched) return false
-    playInteraction('use', { entity: item })
-    if (item.on_use.consume !== false) this.removeItem(itemId, 1, { verb: 'Использовано' })
-    this.pushLog(`${item.label} — применено к ${def.label}.`)
-    this.checkRules()
-    this.notify()
-    return true
-  }
+  useItemOnCompanion(entity: string, itemId: string): boolean { return party.useItemOnCompanion(this, entity, itemId) }
 
   /** Напарник покидает отряд (отпустить, скрипт, гибель в бою).
    *  Его сумка возвращается герою — иначе переданные вещи стирались бы навсегда
    *  (до этого так и было: мягкая блокировка при гибели носильщика). */
-  leaveParty(entityId: string): void {
-    const i = this.state.party.findIndex((c) => c.entity === entityId)
-    if (i < 0) return
-    const comp = this.state.party[i]
-    const def = this.campaign.entities[entityId] as NpcDef | undefined
-    const returned = (comp.inventory ?? []).filter((e) => e.quantity > 0)
-    if (returned.length) {
-      for (const e of returned) this.addItem(e.item, e.quantity, { silent: true })
-      const list = returned
-        .map((e) => `${this.campaign.entities[e.item]?.label ?? e.item}${e.quantity > 1 ? ` ×${e.quantity}` : ''}`)
-        .join(', ')
-      this.pushLog(`${def?.label ?? entityId} отдаёт вам: ${list}.`)
-      this.pushToast(`${def?.label ?? entityId} отдаёт вам вещи из сумки: ${list}.`, 'get')
-    }
-    this.state.party.splice(i, 1)
-    // состав отряда сменился: слоты сцен (isInParty), карточки и док чипов должны
-    // перечитаться сразу; заодно даём правилам кампании шанс отреагировать на уход
-    // (сторож вида «флаг найма стоит, а NPC не в отряде» — снять флаг и вернуть героя на сцену)
-    this.notify()
-  }
+  leaveParty(entityId: string): void { party.leaveParty(this, entityId) }
 
-  isInParty(entityId: string): boolean {
-    return this.state.party.some((c) => c.entity === entityId)
-  }
+  isInParty(entityId: string): boolean { return party.isInParty(this, entityId) }
 
   // ─────────────── удача (аудит §5.6 п.8) ───────────────
 
@@ -1056,105 +824,44 @@ export class GameEngine implements EngineCtx {
   }
 
   /** репутация (opt-in meta.reputation) */
-  reputation(): number {
-    return Math.max(0, this.state.player.reputation ?? 0)
-  }
+  reputation(): number { return social.reputation(this) }
 
   /** репутация включена мастером */
   /** Настраиваемая системная надпись интерфейса (design-doc §9, meta.ui_labels) */
-  uiLabel(key: string, fallback: string): string {
-    return this.campaign.meta.ui_labels?.[key]?.trim() || fallback
-  }
+  uiLabel(key: string, fallback: string): string { return social.uiLabel(this, key, fallback) }
 
-  reputationEnabled(): boolean {
-    return !!this.campaign.meta.reputation
-  }
+  reputationEnabled(): boolean { return social.reputationEnabled(this) }
 
-  reputationLabel(): string {
-    const cfg = this.campaign.meta.reputation
-    return (typeof cfg === 'object' && cfg?.label) || 'Репутация'
-  }
+  reputationLabel(): string { return social.reputationLabel(this) }
 
-  changeReputation(delta: number): void {
-    const next = Math.max(0, this.reputation() + delta)
-    this.state.player.reputation = next
-    if (delta > 0) this.pushLog(`Слава о вас растёт: репутация ${next}.`)
-    else if (delta < 0) this.pushLog(`О вас отзываются хуже: репутация ${next}.`)
-    this.checkRules()
-    this.notify()
-  }
+  changeReputation(delta: number): void { social.changeReputation(this, delta) }
 
   /** шкала достатка (opt-in meta.wealth_levels) */
-  wealthLevels(): string[] {
-    return this.campaign.meta.wealth_levels ?? []
-  }
+  wealthLevels(): string[] { return social.wealthLevels(this) }
 
   /** текущий уровень достатка (индекс в шкале) */
-  wealthLevel(): number {
-    const lv = this.wealthLevels()
-    return Math.max(0, Math.min(lv.length - 1, this.state.player.wealth_level ?? 0))
-  }
+  wealthLevel(): number { return social.wealthLevel(this) }
 
-  wealthLevelLabel(): string {
-    return this.wealthLevels()[this.wealthLevel()] ?? ''
-  }
+  wealthLevelLabel(): string { return social.wealthLevelLabel(this) }
 
   /** сдвиг достатка на ±levels ступеней */
-  changeWealth(levels: number): void {
-    const lv = this.wealthLevels()
-    if (!lv.length) return
-    const next = Math.max(0, Math.min(lv.length - 1, this.wealthLevel() + levels))
-    if (next === this.wealthLevel()) return
-    this.state.player.wealth_level = next
-    this.pushLog(`Ваш достаток меняется: теперь «${lv[next]}».`)
-    this.checkRules()
-    this.notify()
-  }
+  changeWealth(levels: number): void { social.changeWealth(this, levels) }
 
   /** страсть: значение 0..100+ */
-  passion(id: string): number {
-    return this.state.player.passions?.[id] ?? 0
-  }
+  passion(id: string): number { return social.passion(this, id) }
 
-  passionLabel(id: string): string {
-    return this.campaign.meta.passions_list?.find((p) => p.id === id)?.label ?? id
-  }
+  passionLabel(id: string): string { return social.passionLabel(this, id) }
 
   /** создать/сдвинуть страсть (clamped ≥ 0); лог первого появления */
-  changePassion(id: string, delta: number): void {
-    const p = this.state.player
-    p.passions ??= {}
-    const next = Math.max(0, (p.passions[id] ?? 0) + delta)
-    const fresh = p.passions[id] == null
-    p.passions[id] = next
-    if (fresh) this.pushLog(`В вас зажигается страсть: «${this.passionLabel(id)}» (${next}).`)
-    else this.pushLog(`Страсть «${this.passionLabel(id)}»: ${delta > 0 ? '+' : ''}${delta} → ${next}.`)
-    this.checkRules()
-    this.notify()
-  }
+  changePassion(id: string, delta: number): void { social.changePassion(this, id, delta) }
 
   /** очки причастности силе */
-  allegiance(id: string): number {
-    return this.state.player.allegiance?.[id] ?? 0
-  }
+  allegiance(id: string): number { return social.allegiance(this, id) }
 
-  allegianceLabel(id: string): string {
-    return this.campaign.meta.allegiances?.find((a) => a.id === id)?.label ?? id
-  }
+  allegianceLabel(id: string): string { return social.allegianceLabel(this, id) }
 
   /** +очки причастности (по книге без снижения, дельта 0..100+) */
-  changeAllegiance(id: string, points: number): void {
-    const p = this.state.player
-    p.allegiance ??= {}
-    const next = Math.max(0, (p.allegiance[id] ?? 0) + points)
-    const fresh = p.allegiance[id] == null
-    p.allegiance[id] = next
-    if (fresh) this.pushLog(`Вы обретаете причастность к «${this.allegianceLabel(id)}» (${next}).`)
-    else if (points > 0) this.pushLog(`Причастность «${this.allegianceLabel(id)}»: +${points} → ${next}.`)
-    else this.pushLog(`Причастность «${this.allegianceLabel(id)}»: ${points} → ${next}.`)
-    this.checkRules()
-    this.notify()
-  }
+  changeAllegiance(id: string, points: number): void { social.changeAllegiance(this, id, points) }
 
   /**
    * Базовый шанс навыка (без обучения). Формула 'DEX×2' ('×' или '*'),
@@ -1359,117 +1066,31 @@ export class GameEngine implements EngineCtx {
    * проверка навыком (умолчание dodge) уполовинивает. Порог и кубик
    * настраиваются в meta.hazards (книжные: 3 м на 1d6).
    */
-  applyFall(meters: number, skill?: string): void {
-    const hz = this.campaign.meta.hazards
-    const perDie = Math.max(1, hz?.fall_meters_per_die ?? 3)
-    const dice = Math.floor(Math.max(0, meters) / perDie)
-    const sane = dice <= 0 ? '0' : `${dice}d6`
-    let dmg = 0
-    let modLog = ''
-    const p = this.state.player
-    if (dice > 0) {
-      const skillId = skill ?? 'dodge'
-      const known = p.skills[skillId]
-      if (known != null && known > 0) {
-        const out = skillCheck(Math.max(1, known), this.rng, 0, this.diceRules)
-        if (out.success) {
-          modLog = ` (${this.skillLabel(skillId)} смягчает: половина)`
-        }
-        dmg = rollDice(sane, this.rng)
-        if (out.success) dmg = Math.max(0, Math.ceil(dmg / 2))
-        this.pushLog(`Падение с ${meters} м — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}${modLog}`)
-      } else {
-        dmg = rollDice(sane, this.rng)
-        this.pushLog(`Падение с ${meters} м: ${dmg} урона (${sane}).`)
-      }
-    }
-    if (dmg > 0) this.changeHp(-dmg)
-    else this.pushLog('Падение обошлось без серьёзных травм.')
-    this.notify()
-  }
+  applyFall(meters: number, skill?: string): void { social.applyFall(this, meters, skill) }
 
   /** реестр преступления из кампании */
-  crimeLabel(id: string): string {
-    return this.campaign.meta.crimes?.find((c) => c.id === id)?.label ?? id
-  }
+  crimeLabel(id: string): string { return social.crimeLabel(this, id) }
 
   /** зафиксировать преступление героя (аудит B7) */
-  commitCrime(id: string, bounty = 0): void {
-    const s = this.state
-    s.crimes ??= {}
-    if (s.crimes[id]) {
-      s.crimes[id].bounty += Math.max(0, bounty)
-    } else {
-      s.crimes[id] = { bounty: Math.max(0, bounty), tick: s.tick }
-    }
-    this.pushLog(`Совершено преступление: «${this.crimeLabel(id)}»${bounty > 0 ? ` (награда за голову ${bounty})` : ''}.`)
-    this.checkRules()
-    this.notify()
-  }
+  commitCrime(id: string, bounty = 0): void { social.commitCrime(this, id, bounty) }
 
   /** преступление совершено? (любое — без id; minBounty — порог награды) */
-  hasCrime(id?: string, minBounty = 0): boolean {
-    const list = this.state.crimes ?? {}
-    if (!id) return Object.values(list).some((c) => minBounty <= 0 ? true : c.bounty >= minBounty)
-    const c = list[id]
-    if (!c) return false
-    return minBounty <= 0 ? true : c.bounty >= minBounty
-  }
+  hasCrime(id?: string, minBounty = 0): boolean { return social.hasCrime(this, id, minBounty) }
 
   /** суммарная награда за голову героя */
-  bountyTotal(): number {
-    return Object.values(this.state.crimes ?? {}).reduce((sum, c) => sum + c.bounty, 0)
-  }
+  bountyTotal(): number { return social.bountyTotal(this) }
 
   /** активные ценовые события */
-  priceEventsActive(): Array<{ id: string; label: string }> {
-    const reg = this.campaign.meta.price_events ?? []
-    return (this.state.price_events ?? []).map((id) => ({ id, label: reg.find((e) => e.id === id)?.label ?? id }))
-  }
+  priceEventsActive(): Array<{ id: string; label: string }> { return social.priceEventsActive(this) }
 
   /** включить/выключить ценовое событие (аудит B7) */
-  setPriceEvent(id: string, on: boolean): void {
-    const list = (this.state.price_events ??= [])
-    if (on) {
-      if (!this.campaign.meta.price_events?.some((e) => e.id === id)) return
-      if (!list.includes(id)) {
-        list.push(id)
-        this.pushLog(`Ценник меняется: «${this.campaign.meta.price_events.find((e) => e.id === id)!.label}».`)
-      }
-    } else if (id) {
-      const i = list.indexOf(id)
-      if (i >= 0) list.splice(i, 1)
-    } else if (list.length) {
-      list.length = 0
-      this.pushLog('Ценники снова прежние.')
-    }
-    this.checkRules()
-    this.notify()
-  }
+  setPriceEvent(id: string, on: boolean): void { social.setPriceEvent(this, id, on) }
 
   /** множитель цен по активным ценовым событиям для данного предмета */
-  priceEventMultiplier(item: ItemDef): number {
-    if (!this.state.price_events?.length) return 1
-    let mult = 1
-    for (const id of this.state.price_events) {
-      const ev = this.campaign.meta.price_events?.find((e) => e.id === id)
-      if (!ev) continue
-      if (ev.items?.length && !ev.items.includes(item.id)) continue
-      if (ev.categories?.length && !ev.categories.includes(item.category)) continue
-      mult *= ev.multiplier
-    }
-    return mult
-  }
+  priceEventMultiplier(item: ItemDef): number { return social.priceEventMultiplier(this, item) }
 
   /** разрешён ли здесь лагерь (аудит B7): meta.camping + локация с camp: true */
-  campAvailable(): { ok: boolean; reason: string } {
-    const cfg = this.campaign.meta.camping
-    if (!cfg) return { ok: false, reason: 'мастер не включил ночлег (meta.camping)' }
-    if (this.combat || this.trade || this.craftRequest) return { ok: false, reason: 'сейчас не до отдыха' }
-    const loc = this.findLocation(this.state.location)?.location
-    if (!loc?.camp) return { ok: false, reason: 'здесь лагерь не разбить (location.camp)' }
-    return { ok: true, reason: '' }
-  }
+  campAvailable(): { ok: boolean; reason: string } { return social.campAvailable(this) }
 
   /**
    * Ночлег в лагере (аудит B7): advanceTicks(cfg.ticks), рост навыков,
@@ -2639,27 +2260,7 @@ export class GameEngine implements EngineCtx {
    * ночь (от начала ночи до утра) — тот отсыпается (+10); кто без ночёвки
    * по расписанию — устаёт (−10). Диапазоны времени поддерживают полночь.
    */
-  private tickNpcMood(): void {
-    const meta = this.campaign.meta
-    const tpd = meta.ticks_per_day ?? 24
-    const nightStart = meta.time_of_day?.night ?? 22
-    const morning = meta.time_of_day?.morning ?? 6
-    const spanNight = (((morning - nightStart) % tpd) + tpd) % tpd || tpd
-    const nightPts = [0, 0.25, 0.5, 0.75].map((f) => (nightStart + Math.floor(spanNight * f)) % tpd)
-    for (const [id, ent] of Object.entries(this.campaign.entities)) {
-      if (!ent || ent.type !== 'npc') continue
-      const sch = (ent as NpcDef).schedule
-      if (!sch?.length) continue
-      const slept = sch.some((e) => {
-        let [a, b] = e.time_range
-        a = ((a % tpd) + tpd) % tpd
-        b = ((b % tpd) + tpd) % tpd
-        const covers = (t: number) => (a <= b ? t >= a && t < b : t >= a || t < b)
-        return nightPts.every(covers)
-      })
-      this.changeNpcMood(id, slept ? 10 : -10)
-    }
-  }
+  private tickNpcMood(): void { social.tickNpcMood(this) }
 
   /** периодическая проверка погони: герой + до двух союзников цепочкой; провал наращивает счётчик до облавы */
   private tickPursuit(): void {
