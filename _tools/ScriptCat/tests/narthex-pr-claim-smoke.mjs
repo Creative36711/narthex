@@ -25,13 +25,14 @@ function make({ ui = false, store = new Map() } = {}) {
   const fn = new Function(
     'K', 'GM_getValue', 'GM_setValue', 'C', 'log', 'hasMergedClaim',
     'mergedFlag', 'closedFlag', 'continueButton', 'createPr', 'mergePr', 'finishMerge', 'finishClosed',
+    'hasPrUi', 'waitFor',
     `${block}; return ensureMerged;`,
   );
   const ensureMerged = fn(
     { merged: 'cfn-merged:' },
     (k, d) => (store.has(k) ? store.get(k) : d),
     (k, v) => store.set(k, v),
-    { prWaitMs: 5000, mergeGraceMs: 1000 },
+    { prWaitMs: 5000, mergeGraceMs: 1000, prCardWaitMs: 30 },
     (t, e) => logs.push({ t, e }),
     (r) => !!r && (r.merged === true || String(r.status || '').toLowerCase() === 'merged'),
     () => ui && false,
@@ -41,6 +42,16 @@ function make({ ui = false, store = new Map() } = {}) {
     () => (ui ? { click() {} } : null),
     async () => { calls.finishMerge += 1; return 'merged'; },
     async () => { calls.finishClosed += 1; return 'closed'; },
+    () => Boolean(ui),
+    async (check, timeoutMs, stepMs = 20) => {
+      const until = Date.now() + (Number(timeoutMs) || 0);
+      for (;;) {
+        const value = check();
+        if (value) return value;
+        if (Date.now() >= until) return null;
+        await new Promise((r) => setTimeout(r, stepMs));
+      }
+    },
   );
   return { ensureMerged, logs, calls, store };
 }
@@ -97,4 +108,4 @@ assert.match(
 );
 assert.match(src, /merged === "claimed" \? "слит \(по маркеру\)"/, 'в журнале видно, что мерж принят по маркеру');
 
-console.log('OK: narthex 1.4.11 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');
+console.log('OK: narthex 1.4.12 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');

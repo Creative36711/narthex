@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.11
+// @version      1.4.12
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -51,6 +51,8 @@
     repo: "Creative36711/narthex", // для ссылки на PR из номера
     tickMs: 15000,
     mergeGraceMs: 90000, // сколько ждём мерж, прежде чем нажать кнопки за агента
+    continueWaitMs: 20000, // после Merged ждём Continue: без неё агент не получит новую ветку
+    prCardWaitMs: 8000, // карточка PR может отрисоваться позже ответа
     prWaitMs: 300000, // общий предел ожидания мержа
     maxLog: 200, // журнал хранится в ScriptCat; панель показывает хвост
     markerIdleMs: 20000, // ответ стабилен столько — считаем, что маркера не будет
@@ -221,7 +223,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.11";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.12";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2081,16 +2083,61 @@
    */
   const closedFlag = () => badgeVisible("Pull request closed");
 
+  /**
+   * Кнопка «Continue» — та, что после мержа выдаёт агенту новую ветку.
+   *
+   * Подпись ищем и в тексте, и в `aria-label`: в разметке Arena рядом с текстом
+   * лежит иконка, а её `<title>` тоже попадает в `textContent` («ContinueContinue»).
+   * Точное сравнение с "Continue" из-за этого не срабатывало, и клика не было.
+   */
+  const isContinueLabel = (raw) =>
+    /^((continue|продолжить)\s*){1,2}$/i.test(String(raw || "").replace(/\s+/g, " ").trim());
+
   function continueButton() {
-    return [...document.querySelectorAll("button")].find(
-      (b) => visible(b) && !b.disabled && (b.textContent || "").trim() === "Continue",
-    ) || null;
+    return [...document.querySelectorAll('button, [role="button"]')].find((b) => {
+      if (!visible(b) || b.disabled || b.getAttribute("aria-hidden") === "true") return false;
+      const text = (b.textContent || "").replace(/\s+/g, " ").trim();
+      const aria = (b.getAttribute("aria-label") || "").trim();
+      return isContinueLabel(text) || isContinueLabel(aria);
+    }) || null;
   }
 
+  /** Что из PR-интерфейса видно прямо сейчас. */
+  const prSurface = () => ({
+    merged: mergedFlag(),
+    closed: closedFlag(),
+    cont: continueButton(),
+    create: createPr(),
+    merge: mergePr(),
+  });
+
+  const hasPrUi = () => {
+    const s = prSurface();
+    return Boolean(s.merged || s.closed || s.cont || s.create || s.merge);
+  };
+
+  /** Ждём, пока условие станет истинным. Возвращает значение или null. */
+  async function waitFor(check, timeoutMs, stepMs = 700) {
+    const until = Date.now() + Math.max(0, Number(timeoutMs) || 0);
+    for (;;) {
+      const value = check();
+      if (value) return value;
+      if (Date.now() >= until) return null;
+      await sleep(stepMs);
+    }
+  }
+
+  /**
+   * Имя текущей ветки. В разметке Arena `span.min-w-0.truncate` встречается
+   * несколько раз (заголовок чата, ветка), поэтому берём то, что похоже на
+   * ветку, и предпочитаем `arena/…`.
+   */
   function branchName() {
-    const el = document.querySelector("span.min-w-0.truncate");
-    const text = (el?.textContent || "").trim();
-    return /^[\w./-]{3,120}$/.test(text) ? text : "";
+    const candidates = [...document.querySelectorAll("span.min-w-0.truncate")]
+      .map((el) => (el.textContent || "").trim())
+      .filter((text) => /^[\w./-]{3,120}$/.test(text));
+    const branchy = candidates.filter((text) => /^(arena|nar|cf)\//.test(text));
+    return (branchy.at(-1) || candidates.at(-1) || "");
   }
 
   /**
@@ -2108,7 +2155,9 @@
     const key = `${K.merged}${task.id}`;
     if (GM_getValue(key, false)) return "already";
 
-    const prUi = Boolean(mergedFlag() || closedFlag() || continueButton() || createPr() || mergePr());
+    // Карточка PR может отрисоваться на пару секунд позже ответа. Без неё мы не
+    // нажмём Continue, и агент останется на уже слитой ветке — поэтому ждём.
+    const prUi = hasPrUi() ? true : Boolean(await waitFor(hasPrUi, C.prCardWaitMs, 500));
     if (!prUi) {
       if (!hasMergedClaim(result)) {
         log("PR на странице нет и в ответе нет заявки о мерже — считаю, что работа в main не попала.", true);
@@ -2118,7 +2167,7 @@
       const label = !pr ? "PR" : /^https?:/i.test(pr) ? pr : `PR #${pr.replace(/^#/, "")}`;
       log(
         `${label} слит: принято по маркеру агента ` +
-          "(бейджа на его странице нет — PR-интерфейс живёт на странице PR).",
+          "(бейджа и Continue на его странице нет — PR-интерфейс живёт на странице PR).",
       );
       GM_setValue(key, true);
       return "claimed";
@@ -2158,11 +2207,33 @@
   }
 
   async function finishMerge(task, key) {
-    const cont = continueButton();
+    // Continue появляется не мгновенно после бейджа Merged. Раньше кнопку
+    // искали один раз: если её ещё не было, клика не происходило вовсе, и
+    // агент не получал новую ветку — молча, без единой строки в журнале.
+    const cont = await waitFor(continueButton, C.continueWaitMs, 700);
     if (cont) {
       cont.click();
-      log("Нажата Continue после мержа.");
+      log("PR слит: нажата Continue — агент получит новую ветку.");
+      const gone = await waitFor(() => !continueButton(), 8000, 500);
+      if (!gone) {
+        const again = continueButton();
+        if (again) {
+          again.click();
+          log("Continue осталась на месте — нажал ещё раз.", true);
+          await waitFor(() => !continueButton(), 6000, 500);
+        }
+      }
       await sleep(3000);
+      if (continueButton()) {
+        log("Continue всё ещё видна: клик не дошёл. Ветка может остаться прежней — проверьте страницу агента.", true);
+      } else {
+        log("Continue принята: страница обновилась.");
+      }
+    } else {
+      log(
+        `Бейдж Merged есть, а Continue не появилась за ${Math.round(C.continueWaitMs / 1000)} с: ` +
+          "продолжаю без неё. Новая ветка появится, когда агент получит следующий ход.",
+      );
     }
     const branch = branchName();
     if (branch) {
@@ -2173,6 +2244,8 @@
       } catch (e) {
         throw new Error(`PR слит, но ветка ${branch} не записана в Notion: ${e.message}`);
       }
+    } else {
+      log("Имя ветки на странице не нашлось — в Notion не записываю, карточка останется без «Branch».");
     }
     GM_setValue(key, true);
     return "merged";
@@ -2184,11 +2257,14 @@
    * принимает вызывающий код по маркеру исполнителя.
    */
   async function finishClosed(task, key) {
-    const cont = continueButton();
+    const cont = await waitFor(continueButton, Math.min(C.continueWaitMs, 10000), 700);
     if (cont) {
       cont.click();
       log("PR закрыт: нажата Continue, состояние передано дальше.");
+      await waitFor(() => !continueButton(), 8000, 500);
       await sleep(3000);
+    } else {
+      log("PR закрыт, но Continue на странице нет: перехожу дальше без неё.");
     }
     const branch = branchName();
     if (branch) {
