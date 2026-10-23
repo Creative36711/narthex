@@ -41,7 +41,7 @@ import type {
 
   ImageValue,
 } from '../shared/types'
-import { SAVE_VERSION, featureOn, BUILTIN_CODEX_CATEGORIES, startTick } from '../shared/types'
+import { SAVE_VERSION, featureOn, startTick } from '../shared/types'
 import {
   inspectSave,
   loadState,
@@ -52,6 +52,8 @@ import {
 import { PRNG } from './prng'
 import type { EngineCtx } from './context'
 import { world, type SlotOccupant } from './world'
+import { effects as effectSystem } from './effects'
+import { sceneSlots } from './scene-slots'
 import { needs } from './needs'
 import { quests } from './quests'
 import { party } from './party'
@@ -69,7 +71,6 @@ import { bindExternals, createStory, drainStory, firstInkKnot, type DialogueUI, 
 import { skillLabel } from '../shared/skills'
 import { playUi, playInteraction, stopSound } from '../shared/audio'
 import { stopVoiceAudio } from '../shared/voiceAudio'
-import type { SoundHook } from '../shared/types'
 
 import { CombatController } from './combat'
 
@@ -448,7 +449,7 @@ export class GameEngine implements EngineCtx {
   private bannerSerial = 1
   private bannerPendingTimers: Array<{ serial: number; seconds: number }> = []
 
-  private showBanner(e: { text: string; preset?: string; enter?: string; seconds?: number; position?: string; accent?: string }): void {
+  showBanner(e: { text: string; preset?: string; enter?: string; seconds?: number; position?: string; accent?: string }): void {
     const serial = this.bannerSerial++
     this.banners = [...this.banners, { serial, ...e }]
     const seconds = e.seconds ?? Math.min(8, Math.max(3, e.text.length * 0.06))
@@ -600,13 +601,7 @@ export class GameEngine implements EngineCtx {
    * статус из списка активных, иначе 'wounded' (HP < 50%), 'tired' (любая
    * потребность ≤ 25), иначе 'neutral'. Ключи — из реестра состояний мастера.
    */
-  heroPortraitStateKey(): string {
-    const p = this.state.player
-    if (p.statuses?.length) return p.statuses[0].id
-    if (p.hp * 2 < p.max_hp) return 'wounded'
-    for (const v of Object.values(this.state.player.needs ?? {})) if (v <= 25) return 'tired'
-    return 'neutral'
-  }
+  heroPortraitStateKey(): string { return sceneSlots.heroPortraitStateKey.call(this) }
 
   /**
    * Стек изображений портрета героя (низ → верх) с учётом состояния:
@@ -614,61 +609,14 @@ export class GameEngine implements EngineCtx {
    * сегментов мастера; вариант облика под ключ состояния меняет кадр,
    * если мастер задал такую запись. Пусто — портрета нет.
    */
-  heroPortraitImages(): ImageValue[] {
-    const meta = this.campaign.meta
-    const choice = this.state.player.portrait_choice
-    const key = this.heroPortraitStateKey()
-    const withState = (img: ImageValue, states?: Record<string, ImageValue>): ImageValue => states?.[key] || img
-    const out: ImageValue[] = []
-    if (choice?.layers && meta.char_creation?.portrait_layers?.length) {
-      for (const layer of meta.char_creation.portrait_layers) {
-        const opt = layer.options.find((o) => o.id === choice.layers![layer.id]) ?? layer.options[0]
-        if (opt) out.push(withState(opt.image, opt.states))
-      }
-    } else if (choice?.gallery) {
-      const def = meta.char_creation?.portraits?.find((p) => p.id === choice.gallery)
-      if (def) out.push(withState(def.image, def.states))
-    }
-    // Текущая экипировка меняет только портрет на листе героя, не боевую фигурку.
-    const overlays = Object.entries(this.state.player.equipment ?? {}).flatMap(([slot, id], index) => {
-      const item = this.campaign.entities[id] as ItemDef | undefined
-      return item?.type === 'item' && item.hero_appearance?.overlay
-        ? [{ slot, index, order: item.hero_appearance.order ?? index, image: item.hero_appearance.overlay }]
-        : []
-    }).sort((a, b) => a.order - b.order || a.index - b.index)
-    out.push(...overlays.map((x) => x.image))
-    return out
-  }
+  heroPortraitImages(): ImageValue[] { return sceneSlots.heroPortraitImages.call(this) }
 
   /** Статичная боевая фигурка выбирается только из постоянного облика при создании. */
   heroCombatFigure(): {
     figure?: ImageValue
     mode?: 'topdown' | 'side' | 'static'
     offset?: number
-  } {
-    const meta = this.campaign.meta.char_creation
-    const choice = this.state.player.portrait_choice
-    if (!meta || !choice) return {}
-    if (choice.layers && meta.portrait_layers?.length) {
-      for (const layer of meta.portrait_layers) {
-        const option = layer.options.find((o) => o.id === choice.layers![layer.id])
-        if (option?.combat_figure)
-          return {
-            figure: option.combat_figure,
-            mode: option.combat_figure_mode,
-            offset: option.combat_facing_offset,
-          }
-      }
-    }
-    const portrait = meta.portraits?.find((p) => p.id === choice.gallery)
-    return portrait?.combat_figure
-      ? {
-          figure: portrait.combat_figure,
-          mode: portrait.combat_figure_mode,
-          offset: portrait.combat_facing_offset,
-        }
-      : {}
-  }
+  } { return sceneSlots.heroCombatFigure.call(this) }
 
   npcMood(entityId: string): number { return social.npcMood(this, entityId) }
 
@@ -685,8 +633,6 @@ export class GameEngine implements EngineCtx {
 
   journalUpdate(questId: string, textKey: string): void { quests.journalUpdate(this, questId, textKey) }
 
-  /** Переходы стадий активных квестов (вызывается из checkRules). */
-  private checkQuestTransitions(): void { quests.checkQuestTransitions(this) }
 
   // ─────────────── напарники (ТЗ 4.11) ───────────────
 
@@ -1336,7 +1282,7 @@ export class GameEngine implements EngineCtx {
    * Если включена удача и броска не вышло — игроку предлагают переброс,
    * но эффекты ждут ответа (ложь возвращает «эффекты уже применились»).
    */
-  private applyByCheck(outcome: SkillCheckOutcome, describe: string, retry: () => SkillCheckOutcome, onOk: () => void, onFail: () => void): boolean {
+  applyByCheck(outcome: SkillCheckOutcome, describe: string, retry: () => SkillCheckOutcome, onOk: () => void, onFail: () => void): boolean {
     if (outcome.success) {
       onOk()
       return false
@@ -2126,6 +2072,7 @@ export class GameEngine implements EngineCtx {
   get diceRules(): DiceRules { return world.diceRules(this) }
 
   /** Активное состояние сцены: первое, чьё условие истинно; иначе первое. */
+  // world.activeSceneState checks conditioned states first (`st.condition && evalSceneCondition(st.condition, this)`), then falls back to the base state.
   activeSceneState(scene: SceneDef): SceneStateDef { return world.activeSceneState(this, scene) }
 
   changeSceneState(sceneIdOrState: string, maybeState?: string): void { world.changeSceneState(this, sceneIdOrState, maybeState) }
@@ -2164,96 +2111,34 @@ export class GameEngine implements EngineCtx {
 
   // ─────────────── правила ───────────────
 
-  private runLocationRules(locationId: string): void {
-    const loc = this.findLocation(locationId)?.location
-    if (!loc?.on_enter_rules) return
-    for (const ruleId of loc.on_enter_rules) {
-      this.tryFireRule(ruleId)
-    }
-  }
+  private runLocationRules(locationId: string): void { return effectSystem.runLocationRules.call(this, locationId) }
 
   /** Проверка всех правил (после каждого значимого действия — ТЗ 4.1). */
-  checkRules(): void {
-    for (const rule of Object.values(this.campaign.rules)) {
-      if (rule.manual) continue
-      if (rule.trigger && rule.trigger !== 'always') continue
-      this.tryFireRule(rule.id)
-    }
-    this.checkQuestTransitions()
-  }
+  checkRules(): void { return effectSystem.checkRules.call(this) }
 
   /** вызов правил, привязанных к конкретному событийному триггеру */
-  fireTrigger(trigger: 'enter_scene' | 'leave_scene' | 'interact' | 'time_tick', _context?: { sceneId?: string; entityId?: string }): boolean {
-    let anyFired = false
-    for (const rule of Object.values(this.campaign.rules)) {
-      if (rule.manual) continue
-      if (rule.trigger !== trigger) continue
-      if (this.tryFireRule(rule.id)) {
-        anyFired = true
-      }
-    }
-    return anyFired
-  }
+  fireTrigger(trigger: 'enter_scene' | 'leave_scene' | 'interact' | 'time_tick', _context?: { sceneId?: string; entityId?: string }): boolean { return effectSystem.fireTrigger.call(this, trigger, _context) }
 
   /** условия правила: все `conditions` И (если заданы) хотя бы одна ИЛИ-группа */
-  private ruleConditionsOk(rule: RuleDef): boolean {
-    if (!(rule.conditions ?? []).every((c) => evalCondition(c, this))) return false
-    const groups = rule.conditions_any
-    if (!groups || groups.length === 0) return true
-    return groups.some((g) => !g.length || g.every((c) => evalCondition(c, this)))
-  }
+  private ruleConditionsOk(rule: RuleDef): boolean { return effectSystem.ruleConditionsOk.call(this, rule) }
 
-  tryFireRule(ruleId: string, depth = 0): boolean {
-    const rule = this.campaign.rules[ruleId]
-    if (!rule) return false
-    if (rule.once && this.state.fired_rules.includes(rule.id)) return false
-    if (!this.ruleConditionsOk(rule)) return false
-    this.state.fired_rules.push(rule.id)
-    this.applyEffects(rule.effects ?? [], depth)
-    return true
-  }
+  tryFireRule(ruleId: string, depth = 0): boolean { return effectSystem.tryFireRule.call(this, ruleId, depth) }
 
   // ─────────────── механика «Незнакомец» (Unknown / Anonymous NPC) ───────────────
 
   /** раскрыто ли настоящее имя персонажа игроку */
-  isNpcNameKnown(entityId: string): boolean {
-    if (this.state.flags[`known_${entityId}`] || this.state.flags[`npc_known_${entityId}`]) return true
-    const def = this.campaign.entities[entityId] as NpcDef | undefined
-    if (!def || !def.unknown_label) return true
-    return (this.state.known_npcs ?? []).includes(entityId)
-  }
+  isNpcNameKnown(entityId: string): boolean { return sceneSlots.isNpcNameKnown.call(this, entityId) }
 
   /** актуальное имя персонажа с учётом статуса знакомства */
-  npcLabel(entity: string | NpcDef): string {
-    const def = typeof entity === 'string' ? (this.campaign.entities[entity] as NpcDef | undefined) : entity
-    if (!def) return typeof entity === 'string' ? entity : ''
-    if (!def.unknown_label) return def.label
-    if (this.isNpcNameKnown(def.id)) return def.label
-    return def.unknown_label
-  }
+  npcLabel(entity: string | NpcDef): string { return sceneSlots.npcLabel.call(this, entity) }
 
   /** раскрыть настоящее имя персонажа игроку */
-  learnNpcName(npcId: string, silent = false): void {
-    const def = this.campaign.entities[npcId] as NpcDef | undefined
-    const list = (this.state.known_npcs ??= [])
-    if (list.includes(npcId)) return
-    list.push(npcId)
-    if (!silent && def?.unknown_label) {
-      const msg = `Вы узнали: «${def.unknown_label}» — это ${def.label}.`
-      this.pushLog(msg)
-      this.pushToast(msg, 'info')
-    }
-    this.notify()
-    this.checkRules()
-  }
+  learnNpcName(npcId: string, silent = false): void { return sceneSlots.learnNpcName.call(this, npcId, silent) }
 
   // ─────────────── эффекты ───────────────
 
   /** актуальное описание сущности (с учётом динамических изменений set_description) */
-  descOf(entityId: string): string {
-    const def = this.campaign.entities[entityId] as { description?: string } | undefined
-    return this.state.desc_overrides?.[entityId] ?? def?.description ?? ''
-  }
+  descOf(entityId: string): string { return sceneSlots.descOf.call(this, entityId) }
 
   /**
    * Раз в сутки: самочувствие NPC с расписанием. Чьё расписание покрывает
@@ -2312,366 +2197,21 @@ export class GameEngine implements EngineCtx {
   }
 
   /** динамически изменить описание сущности (правила/диалоги, действие set_description) */
-  setEntityDescription(entityId: string, text: string): void {
-    const s = this.state
-    s.desc_overrides = { ...(s.desc_overrides ?? {}), [entityId]: text }
-  }
+  setEntityDescription(entityId: string, text: string): void { return sceneSlots.setEntityDescription.call(this, entityId, text) }
 
-  applyEffects(effects: Effect[], depth = 0): void {
-    for (const e of effects) this.applyEffect(e, depth)
-  }
+  applyEffects(effects: Effect[], depth = 0): void { return effectSystem.applyEffects.call(this, effects, depth) }
 
-  /**
-   * Глубина вложенных вызовов правил (эффект fire_rule). Больше двух — стоп:
-   * иначе «правило вызывает правило вызывает правило» зациклит забег. Прямые и
-   * транзитивные петли ловит «Проверить кампанию» (см. store.validateContent).
-   */
-  private static readonly FIRE_RULE_MAX_DEPTH = 2
-
-  applyEffect(e: Effect, depth = 0): void {
-    const s = this.state
-    switch (e.type) {
-      case 'fire_rule':
-        if (depth >= GameEngine.FIRE_RULE_MAX_DEPTH) {
-          this.pushLog('Правило не вызвано: превышена глубина цепочки вызовов.')
-          break
-        }
-        this.tryFireRule(e.rule, depth + 1)
-        break
-      case 'unlock_recipe':
-        this.unlockRecipe(e.recipe)
-        break
-      case 'open_craft':
-        this.openCraft(e.recipe || undefined)
-        break
-      case 'set_entity_state': {
-        const m = (s.entity_states ??= {})
-        if (e.state) m[e.entity] = e.state
-        else delete m[e.entity]
-        this.notify()
-        break
-      }
-      case 'learn_name':
-        this.learnNpcName(e.entity, e.silent)
-        break
-      case 'set_flag':
-        if (e.value === false || e.value === 0 || e.value === 'false') {
-          delete s.flags[e.flag]
-        } else {
-          s.flags[e.flag] = (e.value as any) ?? true
-        }
-        break
-      case 'set_description':
-        this.setEntityDescription(e.entity, e.text)
-        break
-      case 'clear_flag': delete s.flags[e.flag]; break
-      case 'apply_status': this.applyStatus(e.target, e.status, e.duration); break
-      case 'remove_status': this.removeStatus(e.target, e.status); break
-      case 'set_weather': {
-        const next = e.weather || undefined
-        if (s.weather !== next) {
-          s.weather = next
-          const w = this.campaign.meta.weathers?.find((x) => x.id === next)
-          this.pushLog(next ? `Погода меняется: ${w?.label ?? next}.` : 'Небо проясняется.')
-        }
-        break
-      }
-      case 'unlock_codex': this.unlockCodex(e.entry); break
-      case 'set_variable': s.variables[e.var] = e.value; break
-      case 'change_variable':
-        s.variables[e.var] = Number(s.variables[e.var] ?? 0) + e.delta
-        break
-      case 'start_duration_action': {
-        // dz.20: без ticks — открывается окно выбора длительности; с ticks — действие идёт сразу
-        this.requestDurationAction(e.action, e.ticks ?? null)
-        break
-      }
-      case 'start_dialogue':
-        this.startDialogue(e.entity, e.dialogue_knot)
-        break
-      case 'start_combat':
-        this.startCombat(e)
-        break
-      case 'teleport_player': {
-        const target = this.findLocation(e.location)
-        if (target) {
-          s.region = target.region.id
-          s.location = e.location
-          s.scene = e.scene ?? this.arrivalSceneOf(target.location) ?? s.scene
-        }
-        break
-      }
-      case 'change_scene_state':
-        // состояние сцены управляется флагами; хелпер ставит флаг вида scene_state:<scene>
-        s.flags[`scene_state:${e.scene}:${e.state}`] = true
-        break
-      case 'add_item': this.addItem(e.item, e.quantity ?? 1); break
-      case 'remove_item': this.removeItem(e.item, e.quantity ?? 1); break
-      case 'change_need': this.changeNeed(e.need, e.delta); break
-      case 'change_hp': this.changeHp(e.delta); break
-      case 'change_companion_need': this.changeCompanionNeed(e.entity, e.need, e.delta); break
-      // сюжетный эффект мастера: quest_item-ограничение не применяется — мастер решает сам
-      case 'transfer_to_companion': this.giveItemToCompanion(e.entity, e.item, e.quantity ?? 1, { forceQuest: true }); break
-      case 'change_skill': {
-        if (!featureOn(this.campaign.meta, 'skills')) break
-        const cur = s.player.skills[e.skill] ?? 0
-        s.player.skills[e.skill] = Math.max(0, cur + e.delta)
-        this.pushLog(`Навык «${e.skill}»: ${e.delta > 0 ? '+' : ''}${e.delta} (теперь ${s.player.skills[e.skill]}).`)
-        break
-      }
-      case 'skill_check_gate': {
-        const out = this.playerSkillCheck(e.skill, e.difficulty)
-        const retry = () => this.playerSkillCheck(e.skill, e.difficulty)
-        const deferred = this.applyByCheck(
-          out,
-          `Проверка «${this.skillLabel(e.skill)}»`,
-          retry,
-          () => {
-            this.markSkill(e.skill)
-            this.applyEffects(e.success_effects)
-          },
-          () => this.applyEffects(e.fail_effects),
-        )
-        // с luckOffer эффекты применит resolveLuckOffer
-        void deferred
-        break
-      }
-      case 'stat_check': {
-        const mult = e.multiplier ?? 5
-        const aug = this.augmentBonus(e)
-        const modifier = (e.modifier ?? 0) + aug
-        const out = this.statCheck(e.stat, mult, modifier)
-        this.applyByCheck(
-          out,
-          `Проверка характеристики ${e.stat}×${mult}`,
-          () => this.statCheck(e.stat, mult, modifier),
-          () => this.applyEffects(e.success_effects),
-          () => this.applyEffects(e.fail_effects),
-        )
-        break
-      }
-      case 'group_stat_check': {
-        // групповая сцепленная проверка (аудит §5.6): герой + до N союзников партии
-        const bySkill = (e.mode ?? (e.stat ? 'stat' : 'skill')) === 'skill'
-        const helpersN = Math.max(0, e.helpers ?? 2)
-        const companions = this.state.party.slice(0, helpersN)
-        const total = 1 + companions.length
-        const need = Math.max(1, e.need ?? Math.ceil(total / 2))
-        let wins = 0
-        const whatLabel = bySkill
-          ? `Групповая проверка «${this.skillLabel(e.skill!)}»`
-          : `Групповая проверка ${e.stat}×${e.multiplier ?? 5}`
-        this.pushLog(`${whatLabel} — цепочка из ${total} чел., нужно успешных: ${need}.`)
-        // герой
-        if (bySkill) {
-          const out = this.playerSkillCheck(e.skill!, e.difficulty ?? 50)
-          if (out.success) wins++
-        } else {
-          const out = this.statCheck(e.stat!, e.multiplier ?? 5, e.modifier ?? 0)
-          if (out.success) wins++
-        }
-        // союзники — их собственными значениями
-        const mult = e.multiplier ?? 5
-        for (const c of companions) {
-          const def = this.campaign.entities[c.entity]
-          if (!def || def.type !== 'npc') continue
-          const value = bySkill
-            ? (def.skills?.[e.skill!] ?? 0)
-            : (((def.stats as unknown as Record<string, number>)[e.stat!] ?? 0) * mult)
-          const out = skillCheck(
-            Math.max(1, value),
-            this.rng,
-            bySkill ? difficultyModifier(value, e.difficulty ?? 50) : (e.modifier ?? 0),
-            this.diceRules,
-          )
-          this.pushLog(`${def.label}: d100=${out.roll} против ${out.target} → ${CHECK_RESULT_LABEL[out.result]}`)
-          if (out.success) wins++
-        }
-        if (wins >= need) {
-          this.pushLog(`Цепочка выдержала: ${wins} из ${total} успешно.`)
-          this.applyEffects(e.success_effects)
-        } else {
-          this.pushLog(`Цепочка порвалась: ${wins} из ${total} успешно (нужно ${need}).`)
-          this.applyEffects(e.fail_effects)
-        }
-        break
-      }
-      case 'opposed_check': {
-        const res = this.opposedCheck(e)
-        const finalize = (r: { success: boolean }) => {
-          if (r.success) this.markSkill(e.skill)
-          this.applyEffects(r.success ? e.success_effects : e.fail_effects)
-        }
-        if (res.success) {
-          finalize(res)
-          break
-        }
-        const cfg = this.campaign.meta.luck
-        const cost = Math.max(1, cfg?.reroll_cost ?? 1)
-        if (!cfg || this.luckMax() <= 0 || this.luck() < cost) {
-          finalize(res)
-          break
-        }
-        this.changeLuck(-cost)
-        this.pushLog(`Поражение можно оспорить за удачу: −${cost} (осталось ${this.luck()}).`)
-        this.luckOffer = {
-          text: `Противоборство «${this.skillLabel(e.skill)}» — поражение героя.`,
-          cost,
-          decide: (reroll) => {
-            if (reroll) finalize(this.opposedCheck(e))
-            else {
-              this.pushLog('Удача прибережена — остаётся поражение.')
-              finalize(res)
-            }
-            this.checkRules()
-            this.autosave()
-          },
-        }
-        break
-      }
-      case 'change_luck': this.changeLuck(e.delta); break
-      case 'change_fatigue': this.changeFatigue(e.delta); break
-      case 'change_sanity': this.changeSanity(e.delta); break
-      case 'change_reputation': this.changeReputation(e.delta); break
-      case 'change_wealth': this.changeWealth(e.levels); break
-      case 'change_passion': this.changePassion(e.id, e.delta ?? (e.set != null ? e.set - (this.state.player.passions?.[e.id] ?? 0) : 0)); break
-      case 'change_allegiance': this.changeAllegiance(e.id, e.points); break
-      case 'train_stat': this.trainStat(e.stat, e.delta); break
-      case 'hazard_fall': this.applyFall(e.meters, e.skill); break
-      case 'commit_crime': this.commitCrime(e.id, e.bounty); break
-      case 'set_price_event': this.setPriceEvent(e.id, true); break
-      case 'clear_price_event': this.setPriceEvent(e.id ?? '', false); break
-      case 'banner': this.showBanner(e); break
-      case 'postcard':
-        this.showPostcard(e)
-        break
-      case 'grant_xp': this.grantXp(e.points); break
-      case 'grant_feat': this.grantFeat(e.id); break
-      case 'meta_currency': this.grantMetaCurrency(e.id, e.amount); break
-      case 'roll_event_table': this.rollEventTable(e.table, { forced: true, ignoreFilters: e.ignore_filters }); break
-      case 'play_sound': playInteraction(e.sound, { sound: e.sound }, e.volume ?? 1); break
-      case 'stop_sound': stopSound(e.sound); break
-      case 'override_music': this.setMusicOverride(e.tracks, e.fade); break
-      case 'clear_music_override': this.clearMusicOverride(); break
-      case 'generate_variables': {
-        for (const p of e.pack) {
-          const val = this.genValue(e.generator, p.key, e.seed)
-          s.variables[p.as ?? p.key] = val
-        }
-        this.pushLog('Мир что-то замышляет…')
-        break
-      }
-      case 'change_disposition': this.changeDisposition(e.target, e.delta); break
-      case 'start_quest': this.startQuest(e.quest); break
-      case 'advance_quest': this.advanceQuestTo(e.quest, e.stage); break
-      case 'fail_quest': {
-        const qs = s.quests[e.quest]
-        if (qs && qs.status === 'active') {
-          qs.status = 'failed'
-          this.messages.push({ text: `Квест провален: «${this.campaign.quests[e.quest]?.label ?? e.quest}»` })
-        }
-        break
-      }
-      case 'journal_update': this.journalUpdate(e.quest, e.text_key); break
-      case 'give_reward':
-        for (const it of e.items ?? []) this.addItem(it.item, it.quantity)
-        break
-      case 'join_party': this.joinParty(e.entity); break
-      case 'leave_party': this.leaveParty(e.entity); break
-      case 'block_path':
-        if (!s.blocked_paths.includes(`${e.from}->${e.to}`)) s.blocked_paths.push(`${e.from}->${e.to}`)
-        break
-      case 'unblock_path': {
-        const i = s.blocked_paths.indexOf(`${e.from}->${e.to}`)
-        if (i >= 0) s.blocked_paths.splice(i, 1)
-        break
-      }
-      case 'show_message': {
-        const msgText = this.fmt(e.text)
-        // Не добавляем дублирующиеся сообщения (защита от спама ИИ-кампаний)
-        // и ограничиваем очередь сообщений, чтобы не забивать UI
-        if (!this.messages.some(m => m.text === msgText) && this.messages.length < 5) {
-          this.messages.push({ text: msgText, portrait: e.portrait })
-        }
-        break
-      }
-      case 'reveal_location':
-        if (!s.revealed_locations.includes(e.location)) s.revealed_locations.push(e.location)
-        break
-      case 'advance_time': this.advanceTicks(e.ticks); break
-      case 'start_pursuit': {
-        // преследование героя: периодические цепочные проверки маскировки
-        s.pursuit = {
-          label: e.label,
-          skill: e.skill ?? 'stealth',
-          every: Math.max(1, e.every_ticks ?? 4),
-          fails_needed: Math.max(1, e.fails_to_catch ?? 1),
-          fails: 0,
-          left: Math.max(1, e.every_ticks ?? 4),
-          on_fail: e.on_fail,
-        }
-        this.pushLog(`За вами следом идут${e.label ? ` — ${e.label}` : ''}! Удерживайте маскировку, пока не оторвётесь.`)
-        break
-      }
-      case 'stop_pursuit': {
-        if (s.pursuit) {
-          delete s.pursuit
-          this.pushLog('Погоня осталась позади.')
-        }
-        break
-      }
-      case 'remove_entity':
-        if (!s.removed_entities.includes(e.entity)) s.removed_entities.push(e.entity)
-        break
-      case 'spawn_entity':
-        s.spawned.push({ entity: e.entity, scene: e.scene, slot: e.slot })
-        break
-      case 'game_over_victory':
-        this.gameOver('victory', 'Кампания пройдена!')
-        break
-      case 'game_over_death':
-        this.gameOver('death', e.reason ?? 'Вы погибли.')
-        break
-      case 'play_cutscene':
-        this.playCutscene(e.cutscene)
-        break
-    }
-    // эффект мог выполнить условия достижений (флаги, предметы, переменные)
-    this.checkAchievements()
-  }
+  applyEffect(e: Effect, depth = 0): void { return effectSystem.applyEffect.call(this, e, depth) }
 
   // ─────────────── взаимодействие со слотами ───────────────
 
   // ─────────────── предмет → слот сцены (блок 8 ТЗ «Гибкий движок») ───────────────
 
   /** предметы игрока, применимые к слоту (для модалки выбора) */
-  slotUseOptions(slot: SlotDef): Array<{ itemId: string; label: string; use: SlotUseWith }> {
-    return (slot.use_with ?? [])
-      .filter((u) => u.item && this.hasItem(u.item))
-      .map((u) => ({
-        itemId: u.item,
-        label: (this.campaign.entities[u.item] as ItemDef | undefined)?.label ?? u.item,
-        use: u,
-      }))
-  }
+  slotUseOptions(slot: SlotDef): Array<{ itemId: string; label: string; use: SlotUseWith }> { return sceneSlots.slotUseOptions.call(this, slot) }
 
   /** применить предмет к слоту сцены; ложь — предмет/слот не подходят */
-  useItemOnSlot(slotId: string, itemId: string): boolean {
-    const scene = this.currentScene()
-    const slot = scene?.slots.find((s) => s.id === slotId)
-    const use = slot?.use_with?.find((u) => u.item === itemId)
-    if (!slot || !use || !this.hasItem(itemId)) return false
-    const def = this.campaign.entities[itemId] as ItemDef | undefined
-    if (use.consume) this.removeItem(itemId, 1, { verb: 'Использовано' })
-    this.applyEffects(use.effects)
-    if (use.message) this.messages.push({ text: use.message })
-    this.pushLog(`${def?.label ?? itemId}: использовано на «${slot.label ?? slotId}».`)
-    playInteraction('use', { entity: def })
-    this.checkRules()
-    this.autosave()
-    this.notify()
-    return true
-  }
+  useItemOnSlot(slotId: string, itemId: string): boolean { return sceneSlots.useItemOnSlot.call(this, slotId, itemId) }
 
   /**
    * Открыть рецепт крафта «по ходу игры». Рецепты без `known: false` открыты
@@ -2712,39 +2252,19 @@ export class GameEngine implements EngineCtx {
   }
 
   /** состояние облика сущности, заданное правилом (set_entity_state) */
-  entityState(id: string): string | undefined {
-    return this.state.entity_states?.[id] || undefined
-  }
+  entityState(id: string): string | undefined { return sceneSlots.entityState.call(this, id) }
 
   /**
    * Разблокировать запись кодекса (блок 10 ТЗ): повтор — no-op.
    * При первой разблокировке — сообщение «Новая запись в кодексе: …».
    */
-  unlockCodex(entryId: string): void {
-    const entry = this.campaign.codex[entryId]
-    if (!entry) return
-    const s = this.state
-    if (!s.codex_unlocked) s.codex_unlocked = []
-    if (s.codex_unlocked.includes(entryId)) return
-    s.codex_unlocked.push(entryId)
-    this.messages.push({ text: `Новая запись в кодексе: ${entry.label}.` })
-    this.pushLog(`Кодекс пополнен: ${entry.label}.`)
-    playInteraction('pickup', {})
-    this.notify()
-    this.autosave()
-  }
+  unlockCodex(entryId: string): void { return sceneSlots.unlockCodex.call(this, entryId) }
 
   /** разблокированные записи кодекса (блок 10 ТЗ) */
-  unlockedCodexEntries(): CodexEntryDef[] {
-    return (this.state.codex_unlocked ?? [])
-      .map((id) => this.campaign.codex[id])
-      .filter((e): e is CodexEntryDef => !!e)
-  }
+  unlockedCodexEntries(): CodexEntryDef[] { return sceneSlots.unlockedCodexEntries.call(this) }
 
   /** категории кодекса: свои из меты, иначе встроенные три (блок 10 ТЗ) */
-  codexCategories(): Array<{ id: string; label: string }> {
-    return this.campaign.meta.codex_categories ?? BUILTIN_CODEX_CATEGORIES
-  }
+  codexCategories(): Array<{ id: string; label: string }> { return sceneSlots.codexCategories.call(this) }
 
   /**
    * Можно ли взаимодействовать с предметом прямо сейчас (фидбек №8: условия
@@ -2756,162 +2276,17 @@ export class GameEngine implements EngineCtx {
    * `{день}` — номер дня забега, `{время}` — время суток по-русски,
    * `{переменная:<имя>}` — обычная переменная читалки ({имя} считает её латиницей).
    */
-  fmt(text: string): string {
-    if (!text.includes('{')) return text
-    const st = this.state
-    const p = st.player
-    const day = Math.floor((st.tick ?? 0) / Math.max(1, this.campaign.meta.ticks_per_day || 24)) + 1
-    const out: Record<string, string> = {
-      'имя': p.name ?? 'герой',
-      'герой': p.name ?? 'герой',
-      'имя_героя': p.name ?? 'герой',
-      'здоровье': String(Math.max(0, p.hp)),
-      'здоровье_макс': String(p.max_hp),
-      'мана': String(Math.max(0, p.mp)),
-      'мана_макс': String(p.max_mp),
-      'удача': String(this.luck()),
-      'уровень': String(p.level ?? 1),
-      'опыт': String(p.xp ?? 0),
-      'день': String(day),
-    }
-    return text.replace(/\{([^{}]+)\}/g, (_m, raw: string) => {
-      if (raw in out) return out[raw]!
-      const cut = raw.indexOf(':')
-      if (cut > 0) {
-        const kind = raw.slice(0, cut)
-        const id = raw.slice(cut + 1).trim()
-        switch (kind) {
-          case 'счёт': case 'счет': return String(this.itemCount(id))
-          case 'навык': return String(p.skills[id] ?? 0)
-          case 'потребность': return String(p.needs[id] ?? 0)
-          case 'стат': return String((p.stats as unknown as Record<string, number>)[id] ?? 0)
-          case 'валюта': return String(p.currencies?.[id] ?? 0)
-        }
-      }
-      return `{${raw}}`
-    })
-  }
+  fmt(text: string): string { return sceneSlots.fmt.call(this, text) }
 
-  itemInteractable(item: ItemDef): boolean {
-    return (item.interactable_when ?? []).every((c) => evalCondition(c, this))
-  }
+  itemInteractable(item: ItemDef): boolean { return sceneSlots.itemInteractable.call(this, item) }
 
   /** доступные сейчас варианты действий с предметом (условия показа) */
-  itemInteractOptions(item: ItemDef): ItemInteractOption[] {
-    const itemOptions = item.interact_options ?? []
-    return itemOptions.filter((o, index) => {
-      // Фильтруем по условиям; условий нет — вариант доступен всегда.
-      // (Классическая ошибка: `!o.conditions?.every(...)` при отсутствии
-      // условий даёт `!undefined` → вариант молча пропадал, и клик по
-      // предмету «ничего не делал» — фидбек 29, п.7.)
-      if (o.conditions && o.conditions.length > 0 && !o.conditions.every((c) => evalCondition(c, this))) return false
-      // Фильтруем одноразовые варианты
-      if (o.once) {
-        const key = `item:${item.id}:${index}`
-        if (this.state.used_item_interacts?.includes(key)) return false
-      }
-      return true
-    })
-  }
+  itemInteractOptions(item: ItemDef): ItemInteractOption[] { return sceneSlots.itemInteractOptions.call(this, item) }
 
   /** применить выбранный вариант взаимодействия с предметом */
-  runItemInteract(item: ItemDef, option: ItemInteractOption): void {
-    const soundOpt = option.sound ?? 'use'
-    playInteraction(soundOpt as SoundHook, { entity: item, sound: option.sound }, option.sound_volume ?? 1)
-    if (option.effects?.some((ef) => ef.type === 'open_craft')) {
-      this.craftSourceEntity = item
-    }
-    this.applyEffects(option.effects)
-    if (option.message) {
-      if (this.craftRequest || this.combat || this.dialogue) {
-        this.pushToast(this.fmt(option.message), 'info')
-      } else {
-        this.messages.push({ text: this.fmt(option.message), portrait: item.portrait?.[option.emotion ?? 'neutral'] ?? item.portrait?.['neutral'] })
-      }
-    }
-    if (option.consume) this.state.removed_entities.push(item.id)
-    // Одноразовые варианты: добавляем в список использованных
-    if (option.once) {
-      const itemOptions = item.interact_options ?? []
-      const optionIndex = itemOptions.findIndex(o => o === option)
-      if (optionIndex >= 0) {
-        const key = `item:${item.id}:${optionIndex}`
-        if (!this.state.used_item_interacts) this.state.used_item_interacts = []
-        if (!this.state.used_item_interacts.includes(key)) {
-          this.state.used_item_interacts.push(key)
-        }
-      }
-    }
-    this.checkRules()
-    this.notify()
-  }
+  runItemInteract(item: ItemDef, option: ItemInteractOption): void { return sceneSlots.runItemInteract.call(this, item, option) }
 
-  interactWithSlot(occ: SlotOccupant): boolean {
-    if (!occ.entity) return false
-    this.inspectedEntityId = occ.entity.id
-    if (occ.slot.sound) {
-      playInteraction(occ.slot.sound, { sound: occ.slot.sound }, occ.slot.sound_volume ?? 1)
-    }
-    if (occ.entity.type === 'npc') {
-      const npc = occ.entity as NpcDef
-      if (npc.dialogue) {
-        this.startDialogue(occ.entity.id)
-      } else {
-        const desc = this.descOf(npc.id)
-        if (desc) {
-          this.messages.push({
-            text: desc,
-            portrait: npc.portrait?.neutral || undefined,
-          })
-          this.notify()
-        }
-      }
-      return true
-    }
-    const item = occ.entity as ItemDef
-    if (!this.itemInteractable(item)) return false
-    const slotType = occ.slot.type[0]
-    // предмет с вариантами действий — окно выбора; собирается стороной UI
-    const opts = this.itemInteractOptions(item)
-    if (opts.length) {
-      // варианты действий показывает UI; в headless-прогоне это просто «не авто-действие»
-      return false
-    }
-    if (item.on_interact) {
-      // «открыть контейнер» vs «использовать»: по типу слота/категории
-      const isOpen = occ.slot.type.includes('container') || item.category === 'container'
-      playInteraction(isOpen ? 'open' : 'use', { entity: item, slotType })
-      this.applyEffects(item.on_interact.effects)
-      const desc = this.descOf(item.id) || item.description
-      if (item.on_interact.message) {
-        this.messages.push({ text: this.fmt(item.on_interact.message) })
-      } else if (desc) {
-        this.messages.push({
-          text: desc,
-          portrait: item.portrait?.neutral || undefined,
-        })
-      }
-      if (item.on_interact.consume) {
-        this.state.removed_entities.push(item.id)
-      }
-      this.checkRules()
-      this.notify()
-    } else {
-      // Предмет без специального взаимодействия: при клике показываем описание сущности
-      const desc = this.descOf(item.id)
-      const textToShow = desc || item.description
-      if (textToShow) {
-        this.messages.push({
-          text: textToShow,
-          portrait: item.portrait?.neutral || undefined,
-        })
-      } else {
-        this.pushToast(`«${item.label}» (нет подробного описания)`)
-      }
-      this.notify()
-    }
-    return true
-  }
+  interactWithSlot(occ: SlotOccupant): boolean { return sceneSlots.interactWithSlot.call(this, occ) }
 
   // ─────────────── бой (Фаза 1) ───────────────
 
@@ -2999,9 +2374,7 @@ export class GameEngine implements EngineCtx {
   }
 
   /** Публичный запуск manual-правила (для Ink external fire_rule). */
-  fireRule(ruleId: string): void {
-    this.tryFireRule(ruleId)
-  }
+  fireRule(ruleId: string): void { return effectSystem.fireRule.call(this, ruleId) }
 
   // ─────────────── диалоги ───────────────
 
