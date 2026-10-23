@@ -88,7 +88,9 @@ const deliverSrc = cut('  async function deliver(editor, text) {', '  /** Кор
 assert.match(deliverSrc, /waitSent\(key, before, C\.sendVerifyMs\)/, 'ждём сообщение, а не спи 1200 мс');
 assert.match(deliverSrc, /lastUserSays\(key\)/, 'проверка своего сообщения в чате');
 assert.match(deliverSrc, /pressEnter\(live\)/, 'второй канал отправки — Enter');
-assert.match(deliverSrc, /live\.isConnected/, 'редактор перечитывается из живого DOM');
+assert.match(deliverSrc, /composerAlive\(live\)/, 'редактор перечитывается из живого DOM');
+assert.match(deliverSrc, /const latest = sendButton\(live\)/, 'кнопка пересчитывается перед самим кликом');
+assert.match(deliverSrc, /текст в поле пропал/, 'пропавший текст вставляется заново, а не отправляется пустота');
 assert.ok(!/composerLeft/.test(deliverSrc), 'старый признак «поле опустело» больше не решает');
 assert.ok(!/if \(after > before \|\|/.test(deliverSrc), 'старый счётчик сообщений больше не решает');
 

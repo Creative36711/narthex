@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.22
+// @version      1.4.23
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -240,7 +240,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.22";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.23";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1570,19 +1570,42 @@
    * вешает `role=textbox` без contenteditable. Первый найденный элемент может
    * быть скрытой копией, поэтому кандидаты перебираются с проверкой видимости.
    */
+  /** Свой пульт ScriptCat — не поле ввода и не кнопка отправки. */
+  const inOwnPanel = (el) => Boolean(el?.closest?.(`#${ui.panel}`));
+
+  /**
+   * Узел действительно в документе.
+   *
+   * После перерисовки чата Arena заменяет поле ввода новым элементом, а у нас
+   * остаётся ссылка на старый. `isConnected` у него уже false, и `addRange`
+   * падает: «The given range isn't in document». Именно это случилось 23.10 в
+   * 22:02 — текст «вставился» в отвязанный узел, настоящее поле осталось
+   * пустым, Send — серым.
+   */
+  function composerAlive(el) {
+    if (!el || el.isConnected === false) return false;
+    try {
+      return typeof document.contains === "function" ? document.contains(el) : true;
+    } catch {
+      return true;
+    }
+  }
+
   function composer() {
     const candidates = [
       ...document.querySelectorAll(
         ".editor-content[contenteditable], .editor-content [contenteditable], " +
           "[contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
       ),
-    ].filter((el) => el.tagName !== "INPUT");
+    ].filter((el) => el.tagName !== "INPUT" && !inOwnPanel(el));
     const shown = candidates.find(visible);
     if (shown) return shown;
     const prompt = document.querySelector(".editor-content p, [data-placeholder] p");
     const nearPrompt = prompt?.closest("[contenteditable]") || null;
-    if (nearPrompt) return nearPrompt;
-    return [...document.querySelectorAll("textarea:not([readonly])")].find(visible) || null;
+    if (nearPrompt && visible(nearPrompt) && !inOwnPanel(nearPrompt)) return nearPrompt;
+    return (
+      [...document.querySelectorAll("textarea:not([readonly])")].find((el) => visible(el) && !inOwnPanel(el)) || null
+    );
   }
 
   /**
@@ -1614,7 +1637,51 @@
       .map((v) => String(v || "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\s+/g, " ").trim().toLowerCase())
       .filter(Boolean);
 
-  const SEND_LABEL = /(^|[\s:])(send|submit|отправ\w*)([\s:!.]|$)/;
+  // Только начало подписи: «Send», «Send message», «send-button» проходят,
+  // подпись аккаунта в сайдбаре — нет. Прежнее правило искало слово «send»
+  // где угодно в тексте кнопки и было слишком щедрым.
+  const SEND_LABEL = /^(send|submit|отправ\w*)(\b|$)/;
+
+  // Для последней попытки: точное название кнопки отправки и ничего больше.
+  const SEND_EXACT =
+    /^(send|send message|send a message|send prompt|send the message|submit|submit message|отправить|отправить сообщение)$/;
+
+  /**
+   * Открытый диалог Arena поверх чата.
+   *
+   * Пока он висит, `focus()` не отдаёт каретку полю ввода, и `execCommand`
+   * вставляет текст туда, где сейчас фокус. Вставка это заметит (текст не
+   * появится в поле), но причину надо называть прямо, иначе Мастер видит
+   * только «не удалось вставить задание».
+   */
+  function openDialog() {
+    const dialogs = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')];
+    return dialogs.find((el) => visible(el) && !inOwnPanel(el)) || null;
+  }
+
+  /**
+   * Кнопка рядом с полем ввода.
+   *
+   * Геометрия — единственный признак, который отличает Send от кнопки аккаунта
+   * в сайдбаре: подписи у них разные, а вот «первая доступная кнопка в общем
+   * контейнере» может оказаться любой. Допуски щедрые: панель ввода бывает
+   * и под полем, и справа от него.
+   */
+  function isNearComposer(el, editor) {
+    try {
+      const a = editor.getBoundingClientRect();
+      const b = el.getBoundingClientRect();
+      if (!a.width || !a.height || !b.width || !b.height) return false;
+      return (
+        b.bottom >= a.top - 160 &&
+        b.top <= a.bottom + 200 &&
+        b.right >= a.left - 80 &&
+        b.left <= a.right + 220
+      );
+    } catch {
+      return false;
+    }
+  }
 
   /**
    * Кнопка отправки. Подпись важнее формы: в Arena кнопка часто лежит вне
@@ -1633,25 +1700,50 @@
   }
 
   function sendButton(editor) {
+    if (!composerAlive(editor)) return null;
     const panels = completionPanels();
     const inPanel = (b) => panels.some((p) => p.contains?.(b));
-    const scope = editor?.closest("form") || document;
+    const form = editor.closest?.("form") || null;
     const usable = (b) =>
       b &&
+      b.isConnected !== false &&
       !b.disabled &&
       b.getAttribute?.("aria-disabled") !== "true" &&
       b.getAttribute?.("data-disabled") !== "true" &&
       visible(b) &&
-      !inPanel(b);
-    const controls = [...scope.querySelectorAll('button, [role="button"], input[type="submit"]')].filter(usable);
+      !inPanel(b) &&
+      !inOwnPanel(b);
+    const controls = [...document.querySelectorAll('button, [role="button"], input[type="submit"]')].filter(usable);
     // Кнопки внутри карточки завершения — не наш Send: их подписи тоже бывают
     // «Send», а клик по ним ничего не отправляет.
-    const near = (list) => [...list].sort((a, b) => distanceTo(editor, a) - distanceTo(editor, b));
-    const labelled = near(controls.filter((b) => labelText(b).some((l) => SEND_LABEL.test(l))))[0];
+    const near = (list) =>
+      [...list].sort((a, b) => {
+        const na = isNearComposer(a, editor) ? 0 : 1;
+        const nb = isNearComposer(b, editor) ? 0 : 1;
+        return na - nb || distanceTo(editor, a) - distanceTo(editor, b);
+      });
+    // «Своя» кнопка — в форме поля ввода или рядом с ним. Всё остальное в
+    // документе (сайдбар, аккаунт, меню) к отправке отношения не имеет.
+    const own = (b) => (form ? form.contains(b) : isNearComposer(b, editor));
+    const labelled = near(controls.filter((b) => own(b) && labelText(b).some((l) => SEND_LABEL.test(l))))[0];
     if (labelled) return labelled;
-    const submit = near(controls.filter((b) => String(b.getAttribute?.("type") || b.type || "") === "submit"))[0];
-    if (submit) return submit;
-    return [...(editor?.parentElement?.querySelectorAll?.('button, [role="button"]') || [])].find(usable) || null;
+    if (form) {
+      const submit = near(
+        controls.filter(
+          (b) => form.contains(b) && String(b.getAttribute?.("type") || b.type || "") === "submit",
+        ),
+      )[0];
+      if (submit) return submit;
+    }
+    // Нестандартная раскладка: геометрия не сошлась, но кнопка с точным
+    // названием отправки в документе одна — берём её.
+    //
+    // Раньше здесь был «первая доступная кнопка в родителе редактора», и 23.10
+    // в 22:02 так нажался аккаунт Мастера: три клика ушли в сайдбар, а задание
+    // осталось неотправленным. Такого запасного пути больше нет: лучше пауза,
+    // чем клик в неизвестное место.
+    const plain = controls.filter((b) => labelText(b).some((l) => SEND_EXACT.test(l)));
+    return plain.length === 1 ? plain[0] : null;
   }
 
   /**
@@ -1663,39 +1755,60 @@
    * только если execCommand недоступен — после него текст в DOM есть, а
    * состояние пустое, и Send остаётся серым.
    */
-  function writePrompt(editor, text) {
-    if (!editor) return false;
-    editor.focus();
-    if (editor.tagName === "TEXTAREA" || editor.tagName === "INPUT") {
-      const proto = editor.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  function writePrompt(editor, text, attempt = 1) {
+    // Поле могло исчезнуть из документа между поиском и вставкой — тогда
+    // ищем заново, а не пишем в копию.
+    let live = composerAlive(editor) ? editor : composer();
+    if (!live) return false;
+    if (live !== editor) dbg("writePrompt: поле ввода перечитано", { attempt });
+
+    live.focus();
+    if (live.tagName === "TEXTAREA" || live.tagName === "INPUT") {
+      const proto = live.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
       const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-      if (setter) setter.call(editor, text);
-      else editor.value = text;
-      editor.dispatchEvent(new Event("input", { bubbles: true }));
-      editor.dispatchEvent(new Event("change", { bubbles: true }));
-      return editor.value.trim().length > 0;
+      if (setter) setter.call(live, text);
+      else live.value = text;
+      live.dispatchEvent(new Event("input", { bubbles: true }));
+      live.dispatchEvent(new Event("change", { bubbles: true }));
+      if (live.value.trim().length) return true;
+      return attempt < 2 ? writePrompt(composer(), text, attempt + 1) : false;
     }
 
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
     let inserted = false;
     try {
+      const range = document.createRange();
+      range.selectNodeContents(live);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
       inserted = document.execCommand("insertText", false, text);
-    } catch {
-      inserted = false;
+    } catch (e) {
+      // «The given range isn't in document» — узел успел отвалиться.
+      dbg("writePrompt: выделение не поставилось", {
+        error: String(e?.message || e),
+        alive: composerAlive(live),
+      });
     }
-    if (!inserted) {
-      // Крайний случай: браузер не дал вставить командой.
-      editor.textContent = text;
-      editor.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: "insertText" }));
+    // Запасной путь — только в живой узел: у отвязанного текст «есть», но
+    // редактор о нём не знает, и Send остаётся серым.
+    if (!inserted && composerAlive(live)) {
+      live.textContent = text;
+      live.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: "insertText" }));
     }
-    editor.dispatchEvent(new Event("change", { bubbles: true }));
-    const written = composerText(editor).length;
-    dbg("writePrompt", () => ({ via: inserted ? "execCommand" : "textContent", written, expected: text.length }));
-    return written > 0;
+    if (composerAlive(live)) live.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const written = composerAlive(live) ? composerText(live).length : 0;
+    dbg("writePrompt", () => ({
+      via: inserted ? "execCommand" : "textContent",
+      written,
+      expected: text.length,
+      alive: composerAlive(live),
+    }));
+    if (written > 0) return true;
+
+    // Поле перерисовали: одна повторная попытка в новом узле.
+    if (attempt < 2) return writePrompt(composer(), text, attempt + 1);
+    return false;
   }
 
   const composerText = (editor) => (editor?.innerText || editor?.textContent || "").replace(/\s+/g, " ").trim();
@@ -1961,7 +2074,7 @@
   async function deliver(editor, text) {
     const before = messages().length;
     const key = sendKey(text);
-    let live = editor && editor.isConnected ? editor : composer();
+    let live = composerAlive(editor) ? editor : composer();
     dbg("Send: начало", () => ({ messages: before, button: debugSendButton(live), textLength: composerText(live).length }));
 
     const why = [];
@@ -1972,7 +2085,7 @@
 
       // Узел редактора мог смениться при перерисовке чата: тогда и вставка,
       // и клик уходят в копию, которой уже нет в документе.
-      if (!live || !live.isConnected) {
+      if (!composerAlive(live)) {
         live = composer();
         dbg("Send: редактор перечитан", { found: Boolean(live), attempt });
         if (!live) {
@@ -1993,9 +2106,38 @@
         break;
       }
 
+      // Текст мог пропасть вместе с перерисованным полем: тогда клик по Send
+      // ничего не отправит. Проверяем перед каждым кликом.
+      const probe = key || flat(text).slice(0, 40);
+      if (probe && !flat(composerText(live)).includes(probe)) {
+        dbg("Send: текст в поле пропал — вставляю заново", { attempt });
+        if (!writePrompt(live, text)) {
+          why.push("текст не удержался в поле ввода");
+          break;
+        }
+        await sleep(300);
+        const again = sendButton(live);
+        if (!again) {
+          why.push("после повторной вставки кнопки Send нет");
+          break;
+        }
+        btn = again;
+      }
+
       // Человек не отправляет через миллисекунду после ввода: даём паузу.
       await sleep(500 + Math.floor(Math.random() * 1200));
       if (lastUserSays(key)) return { ok: true, via: "message" };
+      if (!composerAlive(live)) {
+        why.push(`клик ${attempt}: поле перерисовано`);
+        continue;
+      }
+      // Кнопка пересчитывается в последний момент: за паузу DOM мог смениться.
+      const latest = sendButton(live);
+      if (!latest) {
+        why.push(`клик ${attempt}: кнопка Send пропала`);
+        break;
+      }
+      btn = latest;
       dbg(`Send: клик ${attempt}`, () => debugSendButton(live));
       btn.click();
       clicked += 1;
@@ -2022,12 +2164,15 @@
 
     const now = composer();
     const button = now ? sendButton(now) : null;
-    dbg("Send: кандидаты у поля", () => sendDiagnostics(now));
+    const dialog = openDialog();
+    dbg("Send: кандидаты у поля", () => ({ dialog: Boolean(dialog), candidates: sendDiagnostics(now) }));
     const detail = [
+      `поле ${now ? (composerAlive(now) ? "в документе" : "отвязано") : "не найдено"}`,
       `в поле ${now ? composerText(now).length : "—"} симв.`,
       `кнопка ${button ? `«${String(labelText(button)[0] || "").slice(0, 28)}»` : "не найдена"}`,
       `сообщений ${before} → ${messages().length}`,
       `своих ${userMessages().length}`,
+      ...(dialog ? ["поверх чата открыт диалог Arena"] : []),
       ...why,
     ].join(", ");
     GM_setValue("cfn-send-debug", { at: Date.now(), detail, key, text: String(text).slice(0, 300) });
@@ -2197,7 +2342,13 @@
     // выглядит как бот и мешает живому диалогу.
     await sleep(450 + Math.floor(Math.random() * 900));
     if (!writePrompt(editor, pending.text)) {
-      pendingSay(pending, "Не удалось вставить задание в редактор: оно осталось в очереди.", true);
+      const dialog = openDialog();
+      pendingSay(
+        pending,
+        "Не удалось вставить задание в редактор: оно осталось в очереди." +
+          (dialog ? " Поверх чата открыт диалог Arena — закройте его и нажмите «Шаг»." : ""),
+        true,
+      );
       return true;
     }
     await sleep(600);

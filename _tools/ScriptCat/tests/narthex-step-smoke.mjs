@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.22/, 'версия 1.4.22');
+assert.match(src, /@version\s+1\.4\.23/, 'версия 1.4.23');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -54,9 +54,10 @@ assert.match(sendBlock, /\[role='textbox'\]/, 'role=textbox');
 assert.match(sendBlock, /textarea:not\(\[readonly\]\)/, 'запасной textarea');
 assert.match(sendBlock, /function elementCovered\(editor\)/, 'проверяем, не накрыт ли элемент');
 assert.match(sendBlock, /document\.elementFromPoint\(/, 'оверлей ловится по верхнему элементу');
-assert.match(sendBlock, /SEND_LABEL = \/\(\^\|\[\\s:\]\)\(send\|submit\|отправ/, 'подпись Send ищется и по-русски');
+assert.match(sendBlock, /const SEND_LABEL = \/\^\(send\|submit\|отправ/, 'подпись Send ищется и по-русски, и только с начала подписи');
+assert.match(sendBlock, /const SEND_EXACT =/, 'для последней попытки есть точное название кнопки');
 assert.match(sendBlock, /aria-disabled/, 'заблокированная кнопка не считается');
-assert.match(sendBlock, /function writePrompt\(editor, text\)/, 'вставка текста отдельной функцией');
+assert.match(sendBlock, /function writePrompt\(editor, text, attempt = 1\)/, 'вставка текста отдельной функцией');
 assert.match(sendBlock, /HTMLTextAreaElement\.prototype/, 'textarea заполняется нативным сеттером');
 
 // 3. Плашка и карточка Skip — оба вида перекрывают чат.
@@ -111,8 +112,18 @@ assert.match(sendBlock, /async function waitForSendReady\(editor, timeoutMs = 40
 assert.match(sendBlock, /активной кнопки Send нет/, 'неактивная кнопка называется причиной');
 assert.match(sendBlock, /function sendDiagnostics\(editor\)/, 'при отказе печатаются кандидаты в кнопку Send');
 assert.match(sendBlock, /const inPanel = \(b\) => panels\.some/, 'кнопки карточки не считаются Send');
-assert.match(sendBlock, /distanceTo\(editor, a\)/, 'Send ищется рядом с редактором, а не первым в документе');
-assert.match(sendBlock, /if \(!inserted\) \{/, 'textContent — только запасной путь: execCommand обновляет состояние редактора');
+assert.match(sendBlock, /isNearComposer\(b, editor\)/, 'Send обязан быть рядом с редактором');
+assert.match(sendBlock, /distanceTo\(editor, a\)/, 'из близких берётся самая близкая');
+assert.ok(
+  !/parentElement\?\.querySelectorAll/.test(sendBlock),
+  'запасного пути «первая попавшаяся кнопка в родителе» больше нет',
+);
+assert.match(
+  sendBlock,
+  /if \(!inserted && composerAlive\(live\)\) \{/,
+  'textContent — только запасной путь и только в живой узел',
+);
+assert.match(sendBlock, /composerAlive\(live\) \? composerText\(live\)\.length : 0/, 'отвязанный узел не считается успехом');
 assert.match(sendBlock, /via: inserted \? "execCommand" : "textContent"/, 'путь вставки виден в отладке');
 assert.match(sendBlock, /waitSent\(key, before, C\.sendVerifyMs\)/, 'доставка подтверждается сообщением в чате');
 assert.match(sendBlock, /if \(lastUserSays\(key\)\) return \{ ok: true, via: "message" \};/, 'своё сообщение — первый признак доставки');
@@ -180,9 +191,11 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
   });
   // Свои сообщения в транскрипте: 1.4.20 подтверждает доставку именно ими.
   const sent = [];
+  // Кнопка Send стоит вплотную к полю ввода — как в жизни. Раньше стаб
+  // ставил её в стороне, и это скрывало ошибку «клик ушёл в сайдбар».
   const sendBtn = send ? el("BUTTON", {
     "aria-label": "Send", id: "send", contains: () => false, disabled: disabledSend,
-    getBoundingClientRect: () => ({ left: 500, top: 550, width: 40, height: 10 }),
+    getBoundingClientRect: () => ({ left: 290, top: 46, width: 24, height: 24 }),
   }) : null;
   if (sendBtn) sendBtn.click = () => {
     out.clicks.push("send");
@@ -228,7 +241,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "GM_getValue", "GM_setValue", "K", "norm", "roleFromPath", "visible", "lastMessageId",
     "setStatus", "log", "pause", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
-    "generating", "messages", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat",
+    "generating", "messages", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
     `${sendBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
   );
   const api = fn(
@@ -261,6 +274,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     (el) => (el ? String(el.tagName || "?").toLowerCase() : "нет"),
     () => false,
     (x) => String(x || "").replace(/[\s\u00a0]+/g, " ").trim().toLowerCase(),
+    { panel: "cfn-panel" },
   );
   return { api, out };
 };
@@ -435,4 +449,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.22 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.23 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
