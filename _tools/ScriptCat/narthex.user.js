@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.0
+// @version      1.4.1
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -187,27 +187,114 @@
     return null;
   }
 
-  function notifyNtfy(text, { title = "Narthex", priority = "2", tags = "memo" } = {}) {
-    const topic = String(GM_getValue(K.ntfyTopic, "") || "").trim();
-    if (!topic) return;
-    const token = String(GM_getValue(K.ntfyToken, "") || "").trim();
-    const headers = {
-      "Content-Type": "text/plain; charset=utf-8",
-      "X-Title": title,
-      "X-Priority": priority,
-      "X-Tags": tags,
-    };
+  /**
+   * Публикация через JSON, а не через заголовки.
+   *
+   * Почему: `X-Title`/`X-Tags` — обычные HTTP-заголовки, а они допускают только
+   * ISO-8859-1. Кириллица в заголовке отклоняется браузером ещё до отправки,
+   * и запрос тихо не уходит — именно так «тест ничего не делает». В JSON-теле
+   * UTF-8 разрешён, а ntfy читает topic/title/priority/tags оттуда.
+   */
+  const NTFY_BASE = "https://ntfy.sh";
+  const SCRIPT_VERSION =
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.1";
+
+  /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
+  function normalizeNtfyTopic(raw) {
+    let value = String(raw || "").trim();
+    if (!value) return "";
+    value = value.replace(/^https?:\/\//i, "").replace(/^ntfy\.sh\//i, "");
+    value = value.split(/[?#]/)[0].replace(/\/+$/, "");
+    const last = value.split("/").filter(Boolean).pop() || "";
+    return /^[A-Za-z0-9_-]{1,64}$/.test(last) ? last : "";
+  }
+
+  /** GM_xmlhttpRequest в обёртке: одинаковый результат и в ScriptCat, и в тестах. */
+  function gmRequest({ method = "GET", url, headers = {}, body, timeout = 15000 }) {
+    return new Promise((resolve, reject) => {
+      if (typeof GM_xmlhttpRequest !== "function") {
+        reject(new Error("GM_xmlhttpRequest недоступен"));
+        return;
+      }
+      try {
+        GM_xmlhttpRequest({
+          method,
+          url,
+          headers,
+          data: body,
+          timeout,
+          onload: (r) => resolve({ status: r.status, text: String(r.responseText || "").slice(0, 300) }),
+          onerror: () => reject(new Error("сеть недоступна или хост не разрешён в @connect")),
+          ontimeout: () => reject(new Error("таймаут")),
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  /**
+   * Отправка пуша: сначала GM (обходит CSP страницы), затем обычный fetch —
+   * ntfy отдаёт CORS-заголовки, так что второй путь работает без @connect.
+   * Ошибки складываются в одно сообщение: по нему видно, где именно порвалось.
+   */
+  async function ntfyPublish(topic, token, { message, title = "Narthex", priority = 2, tags = [] } = {}) {
+    const name = normalizeNtfyTopic(topic);
+    if (!name) throw new Error("топик не задан или содержит недопустимые символы");
+    const payload = JSON.stringify({
+      topic: name,
+      message: String(message).slice(0, 3500),
+      title: String(title),
+      priority: Number(priority) || 2,
+      tags: String(tags).split(",").map((t) => t.trim()).filter(Boolean),
+    });
+    const headers = { "Content-Type": "application/json; charset=utf-8" };
     if (token) headers.Authorization = `Bearer ${token}`;
-    GM_xmlhttpRequest({
-      method: "POST",
-      url: `https://ntfy.sh/${encodeURIComponent(topic)}`,
-      headers,
-      data: String(text).slice(0, 600),
-      timeout: 15000,
-      onload: (r) => {
-        if (r.status >= 400) console.warn("[Narthex ntfy]", `HTTP ${r.status}`);
-      },
-      onerror: () => console.warn("[Narthex ntfy]", "сеть недоступна"),
+    const url = `${NTFY_BASE}/`;
+
+    let gmError = "";
+    try {
+      const r = await gmRequest({ method: "POST", url, headers, body: payload });
+      if (r.status >= 200 && r.status < 300) return { via: "gm", status: r.status };
+      gmError = `HTTP ${r.status} ${r.text.slice(0, 120)}`.trim();
+    } catch (e) {
+      gmError = e.message;
+    }
+
+    try {
+      const res = await fetch(url, { method: "POST", headers, body: payload });
+      if (res.ok) return { via: "fetch", status: res.status };
+      const text = (await res.text()).slice(0, 120);
+      throw new Error(`HTTP ${res.status} ${text}`.trim());
+    } catch (e) {
+      throw new Error(`GM: ${gmError}; fetch: ${e.message}`);
+    }
+  }
+
+  /** Проверка связи отдельно от публикации: жив ли ntfy.sh и каким путём. */
+  async function ntfyHealth() {
+    const out = [];
+    try {
+      const r = await gmRequest({ url: `${NTFY_BASE}/v1/health` });
+      out.push(`GM: HTTP ${r.status} ${r.text.slice(0, 80)}`.trim());
+    } catch (e) {
+      out.push(`GM: ${e.message}`);
+    }
+    try {
+      const res = await fetch(`${NTFY_BASE}/v1/health`, { cache: "no-store" });
+      out.push(`fetch: HTTP ${res.status} ${(await res.text()).slice(0, 80)}`.trim());
+    } catch (e) {
+      out.push(`fetch: ${e.message}`);
+    }
+    return out;
+  }
+
+  function notifyNtfy(text, { title = "Narthex", priority = "2", tags = "memo" } = {}) {
+    const topic = GM_getValue(K.ntfyTopic, "");
+    if (!normalizeNtfyTopic(topic)) return;
+    ntfyPublish(topic, GM_getValue(K.ntfyToken, ""), { message: text, title, priority, tags }).catch((e) => {
+      console.warn("[Narthex ntfy]", e.message);
+      log(`ntfy: пуш не ушёл — ${e.message}`, true, { skip: true });
     });
   }
 
@@ -427,28 +514,35 @@
     const box = document.createElement("div");
     box.id = "cfn-ntfy-dialog";
     box.style.cssText = [
-      "position:fixed", "right:14px", "bottom:150px", "z-index:2147483001", "width:360px",
+      "position:fixed", "right:14px", "bottom:150px", "z-index:2147483001", "width:380px",
+      "max-height:70vh", "overflow:auto",
       "background:#15171c", "color:#e7eaee", "border:1px solid #2b2f38", "border-radius:10px",
       "padding:10px", "font:12px/1.5 ui-monospace,Menlo,Consolas,monospace",
       "box-shadow:0 10px 30px rgba(0,0,0,.45)",
     ].join(";");
     box.innerHTML = `
-      <div style="font-weight:700;margin-bottom:4px">ntfy: тихие вехи и громкие тревоги</div>
-      <div style="opacity:.7;margin-bottom:8px">Топик в ntfy.sh; пусто — уведомления выключены.<br>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <strong>ntfy</strong>
+        <span style="opacity:.5;font-size:10px">v${SCRIPT_VERSION}</span>
+        <span style="flex:1"></span>
+        <button id="cfn-ntfy-close" title="Закрыть" style="${btnStyle()}">✕</button>
+      </div>
+      <div style="opacity:.7;margin-bottom:8px">Топик на ntfy.sh; пусто — уведомления выключены.<br>
       Тихие (priority 2): ход выдан, ответ записан, пауза снята.<br>
       Громкие (priority 5): пауза, ошибка, таймаут, конец миссии.</div>
-      <label style="display:block;margin-bottom:6px">Топик<br>
-        <input id="cfn-ntfy-topic" placeholder="narthex-xxxxx" style="${inputStyle()}"></label>
+      <label style="display:block;margin-bottom:6px">Топик или ссылка<br>
+        <input id="cfn-ntfy-topic" placeholder="arena-creative36711" style="${inputStyle()}"></label>
       <label style="display:block;margin-bottom:6px">Access token (необязательно)<br>
         <input id="cfn-ntfy-token" type="password" placeholder="tk_…" style="${inputStyle()}"></label>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button id="cfn-ntfy-save" style="${btnStyle()}">Сохранить</button>
         <button id="cfn-ntfy-quiet" style="${btnStyle()}">Тихий тест</button>
         <button id="cfn-ntfy-loud" style="${btnStyle()}">Громкий тест</button>
+        <button id="cfn-ntfy-health" style="${btnStyle()}">Проверка связи</button>
+        <button id="cfn-ntfy-open" style="${btnStyle()}">Открыть топик</button>
         <button id="cfn-ntfy-off" style="${btnStyle()}">Выключить</button>
-        <button id="cfn-ntfy-close" style="${btnStyle()}">✕</button>
       </div>
-      <div id="cfn-ntfy-note" style="margin-top:8px;opacity:.85;min-height:14px"></div>`;
+      <div id="cfn-ntfy-note" style="margin-top:8px;min-height:32px;white-space:pre-wrap;opacity:.9;font-size:11px;line-height:1.45"></div>`;
     document.body.appendChild(box);
 
     const topic = box.querySelector("#cfn-ntfy-topic");
@@ -459,47 +553,82 @@
 
     const say = (text, error = false) => {
       note.textContent = text;
-      note.style.color = error ? "#ff9a9a" : "#8ee28e";
+      note.style.color = error ? "#ff9a9a" : "#bfe6c4";
     };
 
-    const send = (message, priority, tags, title) =>
-      new Promise((resolve, reject) => {
-        const name = topic.value.trim();
-        if (!name) return reject(new Error("топик пуст"));
-        const headers = {
-          "Content-Type": "text/plain; charset=utf-8",
-          "X-Title": title,
-          "X-Priority": priority,
-          "X-Tags": tags,
-        };
-        const secret = token.value.trim();
-        if (secret) headers.Authorization = `Bearer ${secret}`;
-        GM_xmlhttpRequest({
-          method: "POST",
-          url: `https://ntfy.sh/${encodeURIComponent(name)}`,
-          headers,
-          data: message,
-          timeout: 15000,
-          onload: (r) => (r.status < 400 ? resolve() : reject(new Error(`HTTP ${r.status}`))),
-          onerror: () => reject(new Error("сеть недоступна")),
-          ontimeout: () => reject(new Error("таймаут")),
+    /** Топик нормализуется: ссылка и «ntfy.sh/имя» тоже принимаются. */
+    const persist = () => {
+      const raw = topic.value.trim();
+      const name = normalizeNtfyTopic(raw);
+      if (!name) {
+        throw new Error(
+          `Топик «${raw || "пусто"}» не подходит: нужно 1–64 символа A–Z, a–z, 0–9, дефис или подчёркивание.`,
+        );
+      }
+      GM_setValue(K.ntfyTopic, name);
+      GM_setValue(K.ntfyToken, token.value.trim());
+      topic.value = name;
+      return name;
+    };
+
+    const test = async (priority, tags, title, label) => {
+      say(`Отправляю в https://ntfy.sh/${normalizeNtfyTopic(topic.value) || "…"} …`);
+      // Сторож: если менеджер скриптов не ответил ни успехом, ни ошибкой,
+      // молчания быть не должно — через 25 с диалог сам скажет о зависании.
+      const watchdog = setTimeout(() => {
+        say(
+          `Нет ответа за 25 с. Нажмите «Проверка связи»: если и она молчит — ` +
+            `запрос блокирует менеджер скриптов (проверьте @connect ntfy.sh), а не ntfy.`,
+          true,
+        );
+      }, 25000);
+      try {
+        const name = persist();
+        const result = await ntfyPublish(name, token.value.trim(), {
+          message: `Narthex: ${label} (priority ${priority}).`,
+          title,
+          priority,
+          tags,
         });
-      });
+        say(
+          `Отправлено: ${result.via === "gm" ? "ScriptCat" : "fetch"}, HTTP ${result.status}.\n` +
+            `Подписка должна быть на «${name}». Если пуша нет — нажмите «Открыть топик»: сообщение, видимое на странице ntfy.sh, до сервера дошло, значит дело в подписке телефона.`,
+        );
+        log(`ntfy: ${label} отправлен (${result.via}, HTTP ${result.status}).`, false, { skip: true });
+      } catch (e) {
+        say(`Не ушло: ${e.message}`, true);
+        log(`ntfy: ${label} не отправлен — ${e.message}`, true, { skip: true });
+      } finally {
+        clearTimeout(watchdog);
+      }
+    };
 
     box.querySelector("#cfn-ntfy-save").onclick = () => {
-      GM_setValue(K.ntfyTopic, topic.value.trim());
-      GM_setValue(K.ntfyToken, token.value.trim());
-      say(topic.value.trim() ? "Сохранено. Проверьте тестами." : "Топик пуст: уведомления выключены.");
-      if (topic.value.trim()) log("ntfy настроен.", false, { skip: true });
+      try {
+        const name = persist();
+        say(`Сохранено: «${name}». Проверьте тестами.`);
+        log(`ntfy: топик «${name}» сохранён.`, false, { skip: true });
+      } catch (e) {
+        say(e.message, true);
+      }
     };
     box.querySelector("#cfn-ntfy-quiet").onclick = () =>
-      send("Narthex: тихий тест вехи (priority 2).", "2", "memo", "Narthex (тихий тест)")
-        .then(() => say("Тихий тест отправлен."))
-        .catch((e) => say(`Тихий тест не прошёл: ${e.message}`, true));
+      test(2, "memo", "Narthex: тихий тест", "тихий тест");
     box.querySelector("#cfn-ntfy-loud").onclick = () =>
-      send("Narthex: громкий тест тревоги (priority 5).", "5", "warning,rotating_light", "Narthex (громкий тест)")
-        .then(() => say("Громкий тест отправлен."))
-        .catch((e) => say(`Громкий тест не прошёл: ${e.message}`, true));
+      test(5, "warning,rotating_light", "Narthex: громкий тест", "громкий тест");
+    box.querySelector("#cfn-ntfy-health").onclick = async () => {
+      say("Проверяю связь с ntfy.sh…");
+      const lines = await ntfyHealth();
+      say(`Проверка связи:\n${lines.join("\n")}`);
+    };
+    box.querySelector("#cfn-ntfy-open").onclick = () => {
+      const name = normalizeNtfyTopic(topic.value);
+      if (!name) {
+        say("Сначала введите корректный топик.", true);
+        return;
+      }
+      window.open(`https://ntfy.sh/${encodeURIComponent(name)}`, "_blank", "noopener");
+    };
     box.querySelector("#cfn-ntfy-off").onclick = () => {
       GM_setValue(K.ntfyTopic, "");
       GM_setValue(K.ntfyToken, "");
