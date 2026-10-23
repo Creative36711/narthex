@@ -10,7 +10,6 @@ import type {
   DurationActionDef,
   Effect,
   EncounterEntry,
-  EntityDef,
   GameState,
   ItemDef,
   ItemInteractOption,
@@ -38,7 +37,6 @@ import type {
   TravelConnection,
   NeedCondition,
   RuleDef,
-  PresenceOverride,
   SkillDifficulty,
   WeaponData,
   CompanionState,
@@ -46,7 +44,7 @@ import type {
 
   ImageValue,
 } from '../shared/types'
-import { SAVE_VERSION, DEFAULT_DICE_RULES, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES, startTick } from '../shared/types'
+import { SAVE_VERSION, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES, startTick } from '../shared/types'
 import {
   inspectSave,
   loadState,
@@ -56,10 +54,12 @@ import {
 } from './savemigrate'
 import { PRNG } from './prng'
 import type { EngineCtx } from './context'
+import { world, type SlotOccupant } from './world'
+export type { SlotOccupant } from './world'
 import { derivedHP, derivedMP, movement, skillCheck, CHECK_RESULT_LABEL, difficultyModifier, difficultyLabel, type SkillCheckOutcome } from './brp'
 import { rollDice } from './dice'
-import { evalCondition, evalSceneCondition } from './conditions'
-import { hourOfDay, inTimeRange, timeOfDay } from './time'
+import { evalCondition } from './conditions'
+import { timeOfDay } from './time'
 import type { CharChoice } from './charcreate'
 import type { Story } from 'inkjs'
 import { bindExternals, createStory, drainStory, firstInkKnot, type DialogueUI, type DialogueHistoryEntry } from './dialogue'
@@ -75,10 +75,6 @@ import { CombatController } from './combat'
  * Мутирует GameState; UI подписывается через onChange.
  */
 
-export interface SlotOccupant {
-  slot: SlotDef
-  entity: EntityDef | null
-}
 
 export class GameEngine implements EngineCtx {
   [operation: string]: any
@@ -3239,334 +3235,59 @@ export class GameEngine implements EngineCtx {
 
   // ─────────────── мир: регионы, локации, сцены ───────────────
 
-  allRegions(): RegionDef[] {
-    const out: RegionDef[] = []
-    const walk = (rs: RegionDef[]) => {
-      for (const r of rs) {
-        out.push(r)
-        if (r.sub_regions) walk(r.sub_regions)
-      }
-    }
-    walk(this.campaign.world.regions)
-    return out
-  }
+  allRegions(): RegionDef[] { return world.allRegions(this) }
 
-  findRegion(id: string): RegionDef | undefined {
-    return this.allRegions().find((r) => r.id === id)
-  }
+  findRegion(id: string): RegionDef | undefined { return world.findRegion(this, id) }
 
-  findLocation(id: string): { region: RegionDef; location: LocationDef } | undefined {
-    for (const region of this.allRegions()) {
-      const location = region.locations.find((l) => l.id === id)
-      if (location) return { region, location }
-    }
-    return undefined
-  }
+  findLocation(id: string): { region: RegionDef; location: LocationDef } | undefined { return world.findLocation(this, id) }
 
-  currentScene(): SceneDef {
-    return this.campaign.scenes[this.state.scene]
-  }
+  currentScene(): SceneDef { return world.currentScene(this) }
 
   /**
    * Сцена, в которую игрок попадает при входе в локацию (итерация 8, А5):
    * arrival_scene локации, если она есть среди её сцен, иначе первая.
    */
-  arrivalSceneOf(location: LocationDef): string | undefined {
-    const arrival = location.arrival_scene
-    if (arrival && location.scenes.includes(arrival)) return arrival
-    return location.scenes[0]
-  }
+  arrivalSceneOf(location: LocationDef): string | undefined { return world.arrivalSceneOf(this, location) }
 
   /** Правила бросков d100 этой кампании (итерация 8, А7). */
-  get diceRules(): DiceRules {
-    return this.campaign.meta.dice_rules ?? DEFAULT_DICE_RULES
-  }
+  get diceRules(): DiceRules { return world.diceRules(this) }
 
   /** Активное состояние сцены: первое, чьё условие истинно; иначе первое. */
-  activeSceneState(scene: SceneDef): SceneStateDef {
-    // 1. Приоритет явно переключенному состоянию scene_state:<scene>:<state>
-    for (const st of scene.states) {
-      if (this.state.flags[`scene_state:${scene.id}:${st.id}`]) return st
-    }
-    // 2. Специфические условия (время суток, флаги, погода)
-    for (const st of scene.states) {
-      if (st.condition && evalSceneCondition(st.condition, this)) return st
-    }
-    // 3. Базовое состояние (без условий) либо первое в списке
-    const base = scene.states.find((st) => !st.condition)
-    return base ?? scene.states[0]
-  }
+  activeSceneState(scene: SceneDef): SceneStateDef { return world.activeSceneState(this, scene) }
 
-  changeSceneState(sceneIdOrState: string, maybeState?: string): void {
-    const sceneId = maybeState ? sceneIdOrState : this.state.scene
-    const stateId = maybeState ?? sceneIdOrState
-    const sc = this.campaign.scenes[sceneId]
-    if (sc) {
-      for (const st of sc.states) {
-        delete this.state.flags[`scene_state:${sceneId}:${st.id}`]
-      }
-      this.state.flags[`scene_state:${sceneId}:${stateId}`] = true
-      this.notify()
-    }
-  }
+  changeSceneState(sceneIdOrState: string, maybeState?: string): void { world.changeSceneState(this, sceneIdOrState, maybeState) }
 
-  goToSceneFromDialogue(sceneId: string, closeDialogue = true): void {
-    if (closeDialogue) {
-      this.endDialogue()
-    }
-    this.goToScene(sceneId, 0)
-  }
+  goToSceneFromDialogue(sceneId: string, closeDialogue = true): void { world.goToSceneFromDialogue(this, sceneId, closeDialogue) }
 
-  startCombatFromDialogue(arenaId: string): void {
-    const enemyId = this.activeNpc?.id || Object.keys(this.campaign.entities).find((k) => this.campaign.entities[k]?.type === 'npc') || ''
-    this.endDialogue()
-    this.startCombat({
-      type: 'start_combat',
-      arena: arenaId,
-      enemies: [{ entity: enemyId, count: 1 }],
-      intro: `Бой с ${this.activeNpc?.label ?? 'противником'}!`,
-    })
-  }
-
-  /** Активное «особое место» НПС: первый оверрайд, чей флаг-условие выполнено. */
-  private activePresenceOverride(def: EntityDef): PresenceOverride | undefined {
-    if (def.type !== 'npc' || !def.presence_overrides) return undefined
-    return def.presence_overrides.find(
-      (o) => (!o.flag || !!this.state.flags[o.flag]) && (!o.not_flag || !this.state.flags[o.not_flag]),
-    )
-  }
-
-  /**
-   * Есть ли у NPC реальное расписание (непустой массив). Пустой `schedule: []`
-   * — частый артефакт редактора/ИИ: это «расписания нет», а не «занят всегда
-   * где-то ещё». Иначе default_entity в слоте никогда не появляется.
-   */
-  private npcHasSchedule(def: EntityDef): boolean {
-    return def.type === 'npc' && Array.isArray(def.schedule) && def.schedule.length > 0
-  }
-
-  private npcHasPresenceOverrides(def: EntityDef): boolean {
-    return def.type === 'npc' && Array.isArray(def.presence_overrides) && def.presence_overrides.length > 0
-  }
+  startCombatFromDialogue(arenaId: string): void { world.startCombatFromDialogue(this, arenaId) }
 
   /** Занятость слотов с учётом расписаний NPC (ТЗ 4.1: обновление расписания). */
-  slotOccupants(scene: SceneDef): SlotOccupant[] {
-    const hour = hourOfDay(this.state.tick, this.campaign.meta)
-    const out: SlotOccupant[] = []
-    for (const slot of scene.slots) {
-      if (!evalSceneCondition(slot.condition, this)) continue
-      let entity: EntityDef | null = null
-
-      // 1. заспавненные эффектами
-      const spawned = this.state.spawned.find((s) => s.scene === scene.id && s.slot === slot.id)
-      if (spawned) entity = this.campaign.entities[spawned.entity] ?? null
-
-      // 2. NPC по событиям (важнее расписания) и по расписанию
-      if (!entity) {
-        for (const def of Object.values(this.campaign.entities)) {
-          if (def.type !== 'npc' || (!this.npcHasSchedule(def) && !this.npcHasPresenceOverrides(def))) continue
-          if (this.state.dead_entities.includes(def.id)) continue
-          if (this.state.removed_entities.includes(def.id)) continue
-          if (this.isInParty(def.id)) continue // напарник ходит с игроком
-          const ov = this.activePresenceOverride(def)
-          if (ov) {
-            // пока активен флаг события — персонаж только в этом месте
-            if (ov.scene === scene.id && ov.slot === slot.id) {
-              entity = def
-              break
-            }
-            continue
-          }
-          const entry = def.schedule?.find(
-            (e) => e.scene === scene.id && e.slot === slot.id && inTimeRange(hour, e.time_range),
-          )
-          if (entry) {
-            entity = def
-            break
-          }
-        }
-      }
-
-      // 3. default_entity (сущности без расписания и активных событий)
-      if (!entity && slot.default_entity) {
-        const def = this.campaign.entities[slot.default_entity]
-        // NPC с непустым расписанием/оверрайдом «живёт» только там — default
-        // слот его не дублирует. Пустой schedule[] busyElsewhere НЕ считает.
-        const busyElsewhere =
-          def?.type === 'npc' && (this.npcHasSchedule(def) || !!this.activePresenceOverride(def))
-        const gone =
-          this.state.dead_entities.includes(slot.default_entity) ||
-          this.state.removed_entities.includes(slot.default_entity) ||
-          this.isInParty(slot.default_entity)
-        if (def && !busyElsewhere && !gone) entity = def
-      }
-
-      out.push({ slot, entity })
-    }
-    return out
-  }
+  slotOccupants(scene: SceneDef): SlotOccupant[] { return world.slotOccupants(this, scene) }
 
   /** Переход между сценами внутри локации (или в сцену другой локации). */
-  goToScene(sceneId: string, costTicks = 0): void {
-    const scene = this.campaign.scenes[sceneId]
-    if (!scene) return
-    stopVoiceAudio()
-    if (costTicks > 0) this.advanceTicks(costTicks)
-    if (this.state.game_over) return this.notify()
-    playInteraction('travel') // «переход по зоне» (H3); тема — ui_sounds travel/scene_transition
-    const prevLocation = this.state.location
-    this.state.scene = sceneId
-    this.state.location = scene.location
-    // скрытность: новая сцена — новые глаза; замеченным остаётся только по факту проверки
-    if (this.state.stealth) this.state.stealth.detected = false
-    if (this.isSneaking()) this.detectCheck('смена сцены')
-    if (scene.location !== prevLocation) {
-      this.onEnterLocation(scene.location)
-    } else {
-      this.checkRules()
-      this.autosave()
-    }
-    this.fireTrigger('enter_scene', { sceneId })
-    this.notify()
-  }
+  goToScene(sceneId: string, costTicks = 0): void { world.goToScene(this, sceneId, costTicks) }
 
   /**
    * Проверка и выполнение перехода по зоне навигации (с поддержкой условий блокировки,
    * сообщений, окликов персонажей и правил-перехватчиков).
    */
-  navigate(nav: NavigationZone): boolean {
-    if (nav.open_map) return false
-    // 1. Условия блокировки перехода
-    if (nav.conditions && nav.conditions.length > 0) {
-      const ok = nav.conditions.every((c: Condition) => evalCondition(c, this))
-      if (!ok) {
-        if (nav.blocked_message) {
-          this.pushLog(nav.blocked_message)
-          this.messages.push({ text: nav.blocked_message })
-          this.notify()
-        }
-        return false
-      }
-    }
-    // 2. Оклик-диалог перед уходом со сцены
-    if (nav.intercept_dialogue) {
-      this.startDialogue(nav.intercept_dialogue)
-      return false
-    }
-    // 3. Вызов правила-перехватчика
-    if (nav.intercept_rule) {
-      const fired = this.tryFireRule(nav.intercept_rule)
-      if (fired) return false
-    }
-    // 4. Событийный триггер попытки ухода со сцены
-    const blocked = this.fireTrigger('leave_scene', { sceneId: this.state.scene })
-    if (blocked) return false
-
-    // 5. Разрешённый переход
-    if (nav.go_to_scene) {
-      this.goToScene(nav.go_to_scene, nav.cost_ticks ?? 0)
-      return true
-    }
-    return false
-  }
+  navigate(nav: NavigationZone): boolean { return world.navigate(this, nav) }
 
   /** Путешествие между локациями по travel_connections (ТЗ 4.9). */
-  travelTo(locationId: string): void {
-    if (this.isTravelBlockedByOverload()) {
-      const load = this.currentLoad()
-      const max = this.maxLoad()
-      this.messages.push({
-        text: `Груз слишком велик (${load.toFixed(1)} кг при лимите ${max.toFixed(1)} кг). Вы не можете отправиться в путь с критическим перегрузом — сбросьте лишние вещи.`,
-      })
-      this.notify()
-      return
-    }
-
-    const from = this.findLocation(this.state.location)
-    const conn = from?.location.travel_connections.find((c) => c.to === locationId)
-    const cost = this.travelCost(locationId) ?? conn?.cost_ticks ?? 1
-    if (this.state.blocked_paths.includes(`${this.state.location}->${locationId}`)) {
-      this.messages.push({ text: 'Путь закрыт.' })
-      this.notify()
-      return
-    }
-    if (conn?.requirements && !conn.requirements.every((c) => evalCondition(c, this))) {
-      this.messages.push({ text: 'Путь закрыт.' })
-      this.notify()
-      return
-    }
-    if (conn?.depart_sound) playInteraction(conn.depart_sound, { sound: conn.depart_sound }, conn.depart_sound_volume ?? 1)
-    else if (conn?.sound) playInteraction(conn.sound, { sound: conn.sound }, conn.sound_volume ?? 1)
-    else playUi('travel_depart')
-    this.advanceTicks(cost)
-    this.state.stats_run.travels += 1
-    if (this.state.game_over) return this.notify()
-
-    const target = this.findLocation(locationId)
-    if (!target) return
-    this.state.region = target.region.id
-    this.state.location = locationId
-    const firstScene = this.arrivalSceneOf(target.location)
-    if (firstScene) this.state.scene = firstScene
-    if (conn?.arrive_sound) playInteraction(conn.arrive_sound, { sound: conn.arrive_sound }, conn.arrive_sound_volume ?? 1)
-    else playUi('travel_arrive')
-    this.onEnterLocation(locationId)
-    // случайная встреча в пути (после прибытия)
-    if (conn && !this.state.game_over && !this.combat) this.rollEncounter(conn)
-    this.notify()
-  }
-
-  private onEnterLocation(locationId: string): void {
-    this.state.location = locationId
-    this.runLocationRules(locationId)
-    this.checkRules()
-    this.autosave()
-  }
+  travelTo(locationId: string): void { world.travelTo(this, locationId, (conn) => this.rollEncounter(conn)) }
 
   /** Локации региона, доступные/видимые на карте. */
-  visibleLocations(region: RegionDef): LocationDef[] {
-    return region.locations.filter(
-      (l) => !l.hidden || this.state.revealed_locations.includes(l.id),
-    )
-  }
+  visibleLocations(region: RegionDef): LocationDef[] { return world.visibleLocations(this, region) }
 
   /**
    * Время пути до локации в тиках с учётом штрафов перегруза
    */
-  travelCost(toLocation: string): number | null {
-    const from = this.findLocation(this.state.location)
-    const conn = from?.location.travel_connections.find((c) => c.to === toLocation)
-    if (!conn) return null
-    const baseCost = conn.cost_ticks ?? 1
-
-    const encRules = this.campaign.meta.encumbrance
-    if (encRules?.enabled === false || encRules?.travel_penalty === false) {
-      return baseCost
-    }
-
-    const status = this.encumbranceStatus()
-    if (status === 'critical') {
-      return null // заблокировано
-    }
-    if (status === 'heavy') {
-      const mult = encRules?.heavy_travel_multiplier ?? 2.0
-      return Math.max(baseCost + 1, Math.round(baseCost * mult))
-    }
-    if (status === 'light') {
-      const mult = encRules?.light_travel_multiplier ?? 1.5
-      return Math.max(baseCost + 1, Math.round(baseCost * mult))
-    }
-    return baseCost
-  }
+  travelCost(toLocation: string): number | null { return world.travelCost(this, toLocation) }
 
   /**
    * Базовая стоимость пути без учёта штрафа перегруза (для отображения в UI)
    */
-  travelBaseCost(toLocation: string): number | null {
-    const from = this.findLocation(this.state.location)
-    const conn = from?.location.travel_connections.find((c) => c.to === toLocation)
-    return conn ? (conn.cost_ticks ?? 1) : null
-  }
+  travelBaseCost(toLocation: string): number | null { return world.travelBaseCost(this, toLocation) }
 
   // ─────────────── правила ───────────────
 
