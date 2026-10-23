@@ -10,7 +10,7 @@
 //   • сравнение было строгим (`textContent === "Continue"`): иконка с <title>
 //     даёт «ContinueContinue», и кнопка «не находилась»;
 //   • в ветке «мерж принят по маркеру» (1.4.11) Continue не нажималась никогда.
-// Здесь проверяется поведение 1.4.18.
+// Здесь проверяется поведение 1.4.19.
 
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
@@ -79,7 +79,8 @@ function harness({ appearAfter = 0, removeAfterClick = true, never = false } = {
   };
   const fn = new Function(
     'GM_setValue', 'K', 'C', 'log', 'waitFor', 'continueButton', 'sleep', 'branchName', 'patch', 'GM_getValue',
-    `${fmBlock}; return finishMerge;`,
+    // Проба идёт в видимой вкладке: ожидание не растягивается.
+    `const patience = (ms) => ms;\n${fmBlock}; return finishMerge;`,
   );
   const finishMerge = fn(
     () => {},
@@ -147,7 +148,7 @@ function harness({ appearAfter = 0, removeAfterClick = true, never = false } = {
 const emFrom = src.indexOf('  async function ensureMerged(task, result) {');
 const emTo = src.indexOf('  async function finishMerge(', emFrom);
 const emBlock = src.slice(emFrom, emTo);
-assert.match(emBlock, /await waitFor\(hasPrUi, C\.prCardWaitMs, 500\)/, 'карточка PR ожидается до решения по маркеру');
+assert.match(emBlock, /await waitFor\(hasPrUi, patience\(C\.prCardWaitMs\), 500\)/, 'карточка PR ожидается до решения по маркеру');
 assert.match(emBlock, /if \(!prUi\) \{/, 'маркер — только если интерфейса нет совсем');
 assert.match(src, /continueWaitMs: 20000/, 'ожидание Continue — 20 секунд');
 assert.match(src, /prCardWaitMs: 8000/, 'ожидание карточки PR — 8 секунд');
@@ -168,4 +169,4 @@ const bn = new Function(
 });
 assert.equal(bn(), 'arena/9bde7bd4-chronicle-forge', 'выбрана ветка, а не заголовок чата');
 
-console.log('OK: narthex 1.4.18 — Continue ждётся после Merged, клик проверяется, ветка пишется в карточку');
+console.log('OK: narthex 1.4.19 — Continue ждётся после Merged, клик проверяется, ветка пишется в карточку');

@@ -26,7 +26,8 @@ function make({ ui = false, store = new Map() } = {}) {
     'K', 'GM_getValue', 'GM_setValue', 'C', 'log', 'hasMergedClaim',
     'mergedFlag', 'closedFlag', 'continueButton', 'createPr', 'mergePr', 'finishMerge', 'finishClosed',
     'hasPrUi', 'waitFor',
-    `${block}; return ensureMerged;`,
+    // Проба идёт в видимой вкладке: ожидание не растягивается.
+    `const patience = (ms) => ms;\n${block}; return ensureMerged;`,
   );
   const ensureMerged = fn(
     { merged: 'cfn-merged:' },
@@ -108,4 +109,4 @@ assert.match(
 );
 assert.match(src, /merged === "claimed" \? "слит \(по маркеру\)"/, 'в журнале видно, что мерж принят по маркеру');
 
-console.log('OK: narthex 1.4.18 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');
+console.log('OK: narthex 1.4.19 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');

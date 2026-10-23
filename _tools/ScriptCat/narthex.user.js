@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.18
+// @version      1.4.19
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -235,7 +235,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.18";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.19";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2251,6 +2251,25 @@
     return Boolean(s.merged || s.closed || s.cont || s.create || s.merge);
   };
 
+  /**
+   * Фоновая вкладка.
+   *
+   * Фокус скрипту не нужен: он ищет элементы и кликает из кода, поэтому цикл
+   * идёт и в скрытой вкладке. Но браузер режет там таймеры — сначала до
+   * секунды, а через пять минут до одного пробуждения в минуту. Из-за этого
+   * короткие ожидания («Continue» за 20 с, карточка PR за 8 с) успевают
+   * истечь раньше, чем скрипт проснётся. В фоне растягиваем их: лучше
+   * подождать минуту, чем решить, что кнопки нет.
+   */
+  const tabHidden = () => {
+    try {
+      return document.visibilityState === "hidden";
+    } catch {
+      return false;
+    }
+  };
+  const patience = (ms) => (tabHidden() ? Math.max(ms * 3, 60_000) : ms);
+
   /** Ждём, пока условие станет истинным. Возвращает значение или null. */
   async function waitFor(check, timeoutMs, stepMs = 700) {
     const until = Date.now() + Math.max(0, Number(timeoutMs) || 0);
@@ -2292,7 +2311,7 @@
 
     // Карточка PR может отрисоваться на пару секунд позже ответа. Без неё мы не
     // нажмём Continue, и агент останется на уже слитой ветке — поэтому ждём.
-    const prUi = hasPrUi() ? true : Boolean(await waitFor(hasPrUi, C.prCardWaitMs, 500));
+    const prUi = hasPrUi() ? true : Boolean(await waitFor(hasPrUi, patience(C.prCardWaitMs), 500));
     if (!prUi) {
       if (!hasMergedClaim(result)) {
         log("PR на странице нет и в ответе нет заявки о мерже — считаю, что работа в main не попала.", true);
@@ -2345,7 +2364,7 @@
     // Continue появляется не мгновенно после бейджа Merged. Раньше кнопку
     // искали один раз: если её ещё не было, клика не происходило вовсе, и
     // агент не получал новую ветку — молча, без единой строки в журнале.
-    const cont = await waitFor(continueButton, C.continueWaitMs, 700);
+    const cont = await waitFor(continueButton, patience(C.continueWaitMs), 700);
     if (cont) {
       cont.click();
       log("PR слит: нажата Continue — агент получит новую ветку.");
@@ -2392,7 +2411,7 @@
    * принимает вызывающий код по маркеру исполнителя.
    */
   async function finishClosed(task, key) {
-    const cont = await waitFor(continueButton, Math.min(C.continueWaitMs, 10000), 700);
+    const cont = await waitFor(continueButton, patience(Math.min(C.continueWaitMs, 10000)), 700);
     if (cont) {
       cont.click();
       log("PR закрыт: нажата Continue, состояние передано дальше.");
@@ -3182,6 +3201,13 @@
   }
 
   async function tick(fromToggle = false) {
+    if (tabHidden())
+      logThrottled(
+        "bg-tab",
+        "Вкладка в фоне: браузер режет таймеры, шаг может идти медленнее — это нормально.",
+        false,
+        3_600_000,
+      );
     if (busy) {
       // Шаг мог повиснуть на сетевом запросе без таймаута. Тогда «Шаг» и
       // автоцикл молчат навсегда — снимаем блокировку и говорим об этом.
@@ -3415,6 +3441,11 @@
     setStatus();
     setup(false);
     setInterval(() => tick(false), C.tickMs);
+    // Вернулись во вкладку — не ждём очередного тика: в фоне таймеры режутся,
+    // и без этого следующая проверка могла бы случиться через минуту.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") tick(false);
+    });
     if (GM_getValue(K.step, false)) {
       GM_setValue(K.step, false);
       log("Открыл страницу роли — выполняю отложенный шаг.");
