@@ -18,7 +18,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.3/, 'версия 1.4.3');
+assert.match(src, /@version\s+1\.4\.4/, 'версия 1.4.4');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -87,6 +87,14 @@ assert.match(src, /replyWaitMs: 1800000/, 'предел ожидания отв�
 assert.match(src, /function dropHandoff\(reason\)/, 'зависшая передача снимается целиком');
 assert.match(src, /не ответил ни одним сообщением за/, 'молчание агента объясняется');
 assert.match(tickBody, /dropHandoff\(/, 'молчание агента ставит паузу');
+assert.match(tickBody, /if \(expect && !Number\(expect\.sentAt\)\)/, 'ожидание без отправки не считается ходом');
+const noSendBlock = tickBody.slice(tickBody.indexOf('!Number(expect.sentAt)'), tickBody.indexOf('const waited'));
+assert.match(noSendBlock, /GM_setValue\(K\.expect, null\);/, 'ожидание снимается');
+assert.match(noSendBlock, /GM_setValue\("cfn-plan-at", 0\);/, 'троттлинг плана сбрасывается');
+assert.match(noSendBlock, /ожидание снято, начинаю ход заново/, 'причина видна в журнале');
+assert.match(noSendBlock, /expect = null;/, 'шаг продолжается без ожидания');
+assert.match(src, /watermark: lastMessageId\(\), sentAt: Date\.now\(\)/, 'отметка отправки ставится только при клике Send');
+assert.match(src, /Жду ответ \$\{role.name\}: новых сообщений нет\$\{sentMin/, 'ожидание показывает, сколько прошло');
 
 // 5. generating смотрит на видимую кнопку остановки.
 const genStart = src.indexOf('const generating =');
@@ -188,6 +196,20 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.ok(out.logs.some((l) => l.text === "Задание отправлено."), 'в журнале есть отправка');
 }
 
+// 6.1b. Отправка ставит отметку sentAt — по ней потом отличают доставленное от фантома.
+{
+  const editor = {
+    tagName: "DIV", isConnected: true, innerText: "", textContent: "",
+    focus() {}, getClientRects: () => [{}], closest: () => null,
+    querySelectorAll: () => [], dispatchEvent() {},
+  };
+  const { api, out } = load({ pending, editor, send: true, expect: { roleId: "coordinator", kind: "plan" } });
+  await api.consumePending(true);
+  const saved = out.sets.get("cfn-expect");
+  assert.equal(typeof saved?.sentAt, "number", 'sentAt записан в момент Send');
+  assert.equal(saved?.kind, "plan", 'остальные поля ожидания сохранены');
+}
+
 // 6.2. Плашка завершённой задачи закрывается до вставки.
 {
   const editor = {
@@ -285,4 +307,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.3 — «Шаг» доносит задание после перехода, плашка закрывается, каждый отказ объяснён");
+console.log("OK: narthex 1.4.4 — «Шаг» доносит задание после перехода, плашка закрывается, каждый отказ объяснён");

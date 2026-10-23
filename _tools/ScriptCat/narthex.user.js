@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.3
+// @version      1.4.4
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -210,7 +210,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.3";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.4";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -901,7 +901,10 @@
     const last = replies.at(-1);
     if (!last) {
       // Нормальное ожидание, но нажатый «Шаг» должен получить ответ, а не тишину.
-      if (manual) log(`Жду ответ ${role.name}: новых сообщений нет.`);
+      if (manual) {
+        const sentMin = expect.sentAt ? Math.max(1, Math.round((Date.now() - expect.sentAt) / 60000)) : 0;
+        log(`Жду ответ ${role.name}: новых сообщений нет${sentMin ? ` (отправлено ${sentMin} мин назад)` : ""}.`);
+      }
       return false;
     }
 
@@ -1876,10 +1879,26 @@
         return;
       }
 
-      const expect = GM_getValue(K.expect, null);
+      let expect = GM_getValue(K.expect, null);
       if (expect && norm(expect.roleId) !== norm(me.id)) {
         if (fromToggle) log("Шаг не выполнен: сейчас очередь другой роли.");
         return;
+      }
+
+      // Ожидание без отметки отправки — не ожидание. `sentAt` ставит только
+      // consumePending в момент нажатия Send на странице адресата, поэтому его
+      // отсутствие значит: промпт в чат не попал (страница не открылась,
+      // вкладку закрыли, запись осталась от старой версии). Ждать ответа на
+      // вопрос, которого никто не задавал, можно бесконечно — снимаем и идём
+      // дальше. Заодно сбрасываем троттлинг: прошлый запрос никто не получил.
+      if (expect && !Number(expect.sentAt)) {
+        GM_setValue(K.expect, null);
+        GM_setValue("cfn-plan-at", 0);
+        log(
+          `${me.name}: прошлое задание так и не ушло в чат (нет отметки отправки) — ожидание снято, начинаю ход заново.`,
+          true,
+        );
+        expect = null;
       }
 
       // Ждать ответа бесконечно нельзя: если агент не прислал ни строки за
