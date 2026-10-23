@@ -16,12 +16,12 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.6/, 'версия 1.4.6');
+assert.match(src, /@version\s+1\.4\.7/, 'версия 1.4.7');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
 assert.match(tickBody, /const pending = GM_getValue\(K\.pending, null\);/, 'тик знает про очередь');
-assert.match(tickBody, /if \(!auto && !fromToggle && !pending\) return;/, 'незавершённая отправка важнее автоцикла');
+assert.match(tickBody, /if \(!auto && !fromToggle && !pending && !waiting\) return;/, 'незавершённая отправка и остаток ожидания важнее автоцикла');
 assert.match(tickBody, /Date\.now\(\) - busyAt < 120000/, 'залипший шаг снимается через две минуты');
 assert.match(tickBody, /Шаг уже выполняется/, 'повторное нажатие объясняется, а не молчит');
 assert.match(tickBody, /else if \(!expect\)/, 'исполнитель без задания не падает в TypeError');
@@ -70,7 +70,9 @@ assert.match(sendBlock, /close\|dismiss\|закрыть\|скрыть/, 'кно�
 assert.match(sendBlock, /function skipCardButton\(\)/, 'карточка с кнопкой Skip тоже закрывается');
 assert.match(sendBlock, /data-agent-transcript-message/, 'ищем её в транскрипте, как dispatch.user.js');
 assert.match(sendBlock, /async function ensureComposer\(/, 'редактор ждём, освобождая чат');
-assert.equal([...sendBlock.matchAll(/if \(closed > 6\) break;/g)].length, 2, 'клик-шторм ограничен и для панели, и для Skip');
+assert.match(sendBlock, /if \(closed >= 2\) break;/, 'клик-шторм ограничен: не больше двух закрытий');
+assert.match(sendBlock, /if \(editor\) return \{ editor, closed, overlay: false \};/, 'карточку не трогаем, если поле ввода есть');
+assert.ok(!/composerCovered/.test(src), 'проверка «накрыт» больше не блокирует ввод');
 const ensureCall = sendBlock.indexOf('await ensureComposer()');
 const writeCall = sendBlock.indexOf('writePrompt(editor, pending.text)');
 assert.ok(ensureCall > 0 && ensureCall < writeCall, 'чат освобождается до вставки задания');
@@ -101,14 +103,46 @@ for (const text of [
 assert.match(cpBody, /composerDiagnostics\(\)/, 'при отказе печатается диагностика разметки');
 assert.ok(!/В поле ввода уже есть другой текст/.test(src), 'запрета на чужой текст больше нет');
 assert.match(cpBody, /заменяю его заданием из очереди/, 'замена текста видна в журнале');
-assert.match(cpBody, /const delivery = await deliver\(editor\);/, 'отправка проверяется');
+assert.match(cpBody, /const delivery = await deliver\(editor, pending\.text\);/, 'отправка проверяется');
 assert.match(cpBody, /if \(!delivery\.ok\)/, 'неудачная отправка — пауза, а не «отправлено»');
-assert.match(sendBlock, /async function deliver\(editor\)/, 'доставка отдельной функцией');
-assert.match(sendBlock, /if \(elementCovered\(btn\)\)/, 'по перекрытой кнопке Send не кликаем');
-assert.match(sendBlock, /Кнопка Send перекрыта плашкой/, 'перекрытие называется причиной');
-assert.match(sendBlock, /messages\(\)\.length > before \|\| !composerText\(editor\) \|\| generating\(\)/, 'три признака доставки');
+assert.match(sendBlock, /async function deliver\(editor, text\)/, 'доставка отдельной функцией');
+assert.match(sendBlock, /async function waitForSendReady\(editor, timeoutMs = 3000\)/, 'ждём активную кнопку Send');
+assert.match(sendBlock, /Кнопка Send неактивна или не найдена — редактор не принял текст/, 'неактивная кнопка называется причиной');
+assert.match(sendBlock, /function sendDiagnostics\(editor\)/, 'при отказе печатаются кандидаты в кнопку Send');
+assert.match(sendBlock, /const inPanel = \(b\) => panels\.some/, 'кнопки карточки не считаются Send');
+assert.match(sendBlock, /distanceTo\(editor, a\)/, 'Send ищется рядом с редактором, а не первым в документе');
+assert.match(sendBlock, /if \(!inserted\) \{/, 'textContent — только запасной путь: execCommand обновляет состояние редактора');
+assert.match(sendBlock, /via: inserted \? "execCommand" : "textContent"/, 'путь вставки виден в отладке');
+assert.match(sendBlock, /if \(after > before \|\| !composerLeft \|\| generating\(\)\) return \{ ok: true \};/, 'три признака доставки');
+assert.match(sendBlock, /const composerLeft = composerText\(editor\)\.length;/, 'поле проверяется после клика');
 assert.match(sendBlock, /сообщение не появилось — текст остался в поле/, 'ложное «отправлено» исключено');
 assert.match(cpBody, /setTimeout\(\(\) => tick\(false\), 5000\)/, 'без редактора шаг повторится сам');
+
+// 4.1. Отладка в консоль браузера: включается, переживает переходы, объясняет.
+assert.match(src, /debug: "cfn-debug"/, 'флаг отладки хранится в ScriptCat');
+assert.match(src, /const debugOn = \(\) => \{/, 'отладка включается по флагу или ?cfn-debug');
+assert.match(src, /searchParams\.has\("cfn-debug"\)/, 'параметр ?cfn-debug работает');
+assert.match(src, /function dbg\(step, data\)/, 'подробный лог в консоль');
+assert.match(src, /console\.log\(line, payload\)/, 'в консоль идут данные, а не только текст');
+assert.match(src, /if \(typeof data === "function"\)/, 'снимок считается только при включённой отладке');
+assert.match(src, /function debugSnapshot\(\)/, 'снимок состояния для консоли');
+assert.match(src, /__narthex = debugApi/, 'в консоли доступен пульт __narthex');
+assert.match(src, /state: \(\) => debugSnapshot\(\)/, '__narthex.state()');
+assert.match(src, /step: \(\) => tick\(true\)/, '__narthex.step()');
+assert.match(src, /resend: \(\) => \{/, '__narthex.resend() — вернуть задание в очередь');
+assert.match(src, /id="\$\{ui\.debug\}"/, 'кнопка 🐞 в панели');
+assert.match(src, /Отладка включена: подробности идут в консоль браузера/, 'включение объяснено в журнале');
+assert.match(src, /function debugSendButton\(editor\)/, 'отладка показывает кнопку Send: найдена, активна, перекрыта');
+
+// 4.2. Неподтверждённая отправка возвращается в очередь, а не ждёт вечно.
+assert.match(src, /function reviveUnverifiedHandoff\(\)/, 'есть возврат неподтверждённой отправки');
+assert.match(src, /if \(!waiting \|\| !Number\(waiting\.sentAt\) \|\| waiting\.verified === true\) return "";/, 'проверяется отметка verified');
+assert.match(src, /return "revived";/, 'отправленное заново возвращается в очередь');
+assert.match(src, /return "dropped";/, 'фантом без текста снимается отдельно');
+assert.match(src, /messagesAfter\(waiting\.watermark \|\| ""\)\.length/, 'дубль исключён: смотрим сообщения после водяного знака');
+assert.match(src, /GM_setValue\(K\.pending, \{ roleId: waiting\.roleId, text, at: Date\.now\(\) \}\)/, 'задание возвращается в очередь');
+assert.match(src, /не подтверждена \(сообщение в чате не появилось\)/, 'причина видна в журнале');
+assert.match(tickBody, /reviveUnverifiedHandoff\(\);/, 'тик вызывает возврат до отправки');
 
 // 5. Ожидание без отправки не считается ходом.
 assert.match(tickBody, /if \(expect && !Number\(expect\.sentAt\)\)/, 'ожидание без отправки не считается ходом');
@@ -117,14 +151,14 @@ assert.match(noSendBlock, /GM_setValue\(K\.expect, null\);/, 'ожидание �
 assert.match(noSendBlock, /GM_setValue\("cfn-plan-at", 0\);/, 'троттлинг плана сбрасывается');
 assert.match(noSendBlock, /ожидание снято, начинаю ход заново/, 'причина видна в журнале');
 assert.match(noSendBlock, /expect = null;/, 'шаг продолжается без ожидания');
-assert.match(src, /watermark, sentAt: Date\.now\(\)/, 'отметка отправки ставится только после успешной доставки');
+assert.match(src, /watermark, sentAt: Date\.now\(\), verified: true/, 'отметка ставится только после подтверждённой доставки');
 assert.match(src, /pendingTtlMs: 600000/, 'TTL очереди в конфиге');
 assert.match(src, /replyWaitMs: 1800000/, 'предел ожидания ответа в конфиге');
 assert.match(src, /function dropHandoff\(reason\)/, 'зависшая передача снимается целиком');
 assert.match(tickBody, /dropHandoff\(/, 'молчание агента ставит паузу');
 
 // 6. Поведение: мини-DOM и заглушки вместо браузера.
-const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000, expect = null, skip = false, overlay = false, stickyOverlay = false, sendCovered = false }) => {
+const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000, expect = null, skip = false, overlay = false, stickyOverlay = false, sendCovered = false, deadSend = false, disabledSend = false }) => {
   const out = { logs: [], sets: new Map(), pauses: [], clicks: [], timers: [] };
   const state = { now };
   const advance = (ms) => { state.now += ms; };
@@ -144,10 +178,14 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     ...props,
   });
   const sendBtn = send ? el("BUTTON", {
-    "aria-label": "Send", id: "send", contains: () => false,
+    "aria-label": "Send", id: "send", contains: () => false, disabled: disabledSend,
     getBoundingClientRect: () => ({ left: 500, top: 550, width: 40, height: 10 }),
   }) : null;
-  if (sendBtn) sendBtn.click = () => { out.clicks.push("send"); if (editor) { editor.innerText = ""; editor.textContent = ""; } };
+  if (sendBtn) sendBtn.click = () => {
+    out.clicks.push("send");
+    if (deadSend) return; // клик по кнопке ничего не делает — как в жизни при «сером» Send
+    if (editor) { editor.innerText = ""; editor.textContent = ""; }
+  };
   const messages = [];
   if (skip) {
     const skipBtn = el("BUTTON", { text: "Skip", id: "skip" });
@@ -182,7 +220,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "GM_getValue", "GM_setValue", "K", "norm", "roleFromPath", "visible", "lastMessageId",
     "setStatus", "log", "pause", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
-    "generating", "messages", "C",
+    "generating", "messages", "C", "dbg", "debugSendButton", "describe",
     `${sendBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
   );
   const api = fn(
@@ -210,6 +248,9 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     () => stop,
     () => [],
     { maxLog: 200, pendingTtlMs: 600000, replyWaitMs: 1800000 },
+    () => {},
+    (ed) => ({ found: Boolean(ed), covered: sendCovered }),
+    (el) => (el ? String(el.tagName || "?").toLowerCase() : "нет"),
   );
   return { api, out };
 };
@@ -262,30 +303,29 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   }];
   const { api, out } = load({ pending, editor: freshEditor(), send: true, panels, overlay: true });
   await api.consumePending(true);
-  assert.ok(out.logs.some((l) => /Убрал плашку/.test(l.text)), 'закрытие плашки видно в журнале');
-  assert.deepEqual(out.clicks, ["send"], 'после закрытия плашки задание ушло');
+  assert.ok(!out.logs.some((l) => /Убрал плашку/.test(l.text)), 'карточка не трогается, если поле ввода есть: нет мигания');
+  assert.deepEqual(out.clicks, ["send"], 'задание ушло');
 }
 
 // 6.2b. Карточка с кнопкой Skip тоже освобождает чат.
 {
   const { api, out } = load({ pending, editor: freshEditor(), send: true, skip: true, overlay: true });
   await api.consumePending(true);
-  assert.ok(out.clicks.includes("skip"), 'Skip нажат');
-  assert.equal(out.clicks.at(-1), "send", 'после Skip задание отправлено');
-  assert.ok(out.logs.some((l) => /Убрал плашку/.test(l.text)), 'действие видно в журнале');
+  assert.ok(!out.clicks.includes("skip"), 'карточка Skip не трогается, если поле ввода есть');
+  assert.equal(out.clicks.at(-1), "send", 'задание отправлено');
 }
 
-// 6.2c. Редактор есть, но накрыт оверлеем без кнопки закрытия: не пишем вслепую.
+// 6.2c. Редактор накрыт карточкой, но поле и Send доступны: пишем и отправляем.
+//      Программный ввод и click() оверлей не замечают — блокировать нечего.
 {
   const editor = freshEditor();
   editor.getBoundingClientRect = () => ({ left: 10, top: 10, width: 200, height: 40 });
   editor.contains = () => false;
   const { api, out } = load({ pending, editor, send: true, overlay: true, stickyOverlay: true });
   await api.consumePending(true);
-  const line = out.logs.find((l) => /Не нашёл поле ввода/.test(l.text));
-  assert.ok(line, 'о накрытом редакторе сказано');
-  assert.match(line.text, /Поле перекрыто/, 'Мастеру подсказано закрыть плашку вручную');
-  assert.deepEqual(out.clicks, [], 'в накрытый редактор ничего не отправлено');
+  assert.equal(out.sets.get("cfn-pending"), null, 'задание отправлено, несмотря на карточку');
+  assert.deepEqual(out.clicks, ["send"], 'клик по Send сделан');
+  assert.equal(out.pauses.length, 0, 'лишней паузы нет');
 }
 
 // 6.3. Нет редактора: объяснение с диагностикой и повтор, без зависания.
@@ -311,7 +351,7 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   const { api, out } = load({ pending, editor: freshEditor(), send: false });
   await api.consumePending(true);
   assert.equal(out.pauses.length, 1, 'пауза поставлена');
-  assert.match(out.pauses[0].text, /Кнопка Send не найдена/);
+  assert.match(out.pauses[0].text, /Кнопка Send неактивна или не найдена/);
 }
 
 // 6.5a. В редакторе был текст — заменяем и отправляем, без ложной паузы.
@@ -323,15 +363,25 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.ok(out.logs.some((l) => /заменяю его заданием из очереди/.test(l.text)), 'замена отмечена в журнале');
 }
 
-// 6.5b. Кнопка Send перекрыта: не кликаем и не пишем «отправлено».
+// 6.5a2. Send остаётся серым: редактор не принял ввод — пауза с точной причиной.
 {
-  const { api, out } = load({ pending, editor: freshEditor(), send: true, sendCovered: true });
+  const { api, out } = load({ pending, editor: freshEditor(), send: true, disabledSend: true });
+  await api.consumePending(true);
+  assert.equal(out.pauses.length, 1, 'пауза');
+  assert.match(out.pauses[0].text, /неактивна или не найдена/, 'сказано, что кнопка неактивна');
+  assert.deepEqual(out.clicks, [], 'по серой кнопке не кликали');
+  assert.equal(out.sets.get("cfn-pending"), undefined, 'задание осталось в очереди');
+}
+
+// 6.5b. Клик по Send не сработал: три попытки, затем пауза без ложного «отправлено».
+{
+  const { api, out } = load({ pending, editor: freshEditor(), send: true, deadSend: true });
   await api.consumePending(true);
   assert.equal(out.pauses.length, 1, 'пауза вместо ложного успеха');
-  assert.match(out.pauses[0].text, /перекрыта плашкой/, 'причина названа');
-  assert.ok(!out.clicks.includes("send"), 'по перекрытой кнопке не кликали');
-  assert.equal(out.sets.get("cfn-pending"), undefined, 'задание осталось в очереди');
+  assert.match(out.pauses[0].text, /сообщение не появилось/, 'причина названа');
+  assert.equal(out.clicks.filter((c) => c === "send").length, 3, 'было три попытки, ни одна не помогла');
   assert.ok(!out.logs.some((l) => l.text === "Задание отправлено."), 'ложного «отправлено» нет');
+  assert.equal(out.sets.get("cfn-pending"), undefined, 'задание осталось в очереди');
 }
 
 // 6.5.1. Просроченная очередь: снимаем, объясняем и продолжаем шаг.
@@ -372,4 +422,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.6 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.7 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");

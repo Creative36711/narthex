@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.6
+// @version      1.4.7
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -75,6 +75,7 @@
     ntfyToken: "cfn-ntfy-token",
     errSeen: "cfn-error-seen",
     step: "cfn-step-request",
+    debug: "cfn-debug",
   };
 
   const ui = {
@@ -88,6 +89,7 @@
     clear: "cfn-clear",
     ntfy: "cfn-ntfy",
     count: "cfn-log-count",
+    debug: "cfn-debug-toggle",
   };
 
   // ───────────────────────────── утилиты ─────────────────────────────
@@ -211,7 +213,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.6";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.7";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -301,6 +303,137 @@
       out.push(`fetch: ${e.message}`);
     }
     return out;
+  }
+
+  // ───────────────────────────── отладка ─────────────────────────────
+  /**
+   * Отладка в консоль браузера (F12), а не только в панель.
+   *
+   * Включается тремя способами: `?cfn-debug` в адресе, кнопка 🐞 в панели и
+   * `__narthex.debug(true)` в консоли. Состояние хранится в ScriptCat, поэтому
+   * переживает переходы между страницами агентов — именно там всё и ломается.
+   *
+   * В консоль печатается не «шаг выполнен», а решение и его причина: какие
+   * селекторы сработали, сколько элементов нашли, активна ли кнопка Send, что
+   * перекрывает клик, сколько сообщений в чате до и после.
+   */
+  const debugOn = () => {
+    try {
+      if (new URL(location.href).searchParams.has("cfn-debug")) return true;
+    } catch {
+      /* адрес нечитаем — решает сохранённый флаг */
+    }
+    return GM_getValue(K.debug, false) === true;
+  };
+
+  function dbg(step, data) {
+    if (!debugOn()) return;
+    // Снимок можно передать функцией: в выключенном режиме он не считается.
+    let payload = data;
+    if (typeof data === "function") {
+      try {
+        payload = data();
+      } catch (e) {
+        payload = `снимок не удался: ${e.message}`;
+      }
+    }
+    const line = `[Narthex ${SCRIPT_VERSION}] ${step}`;
+    try {
+      if (payload === undefined) console.log(line);
+      else console.log(line, payload);
+    } catch {
+      /* консоль недоступна — молча */
+    }
+  }
+
+  /** Короткое описание элемента: по нему видно, что нашли, а что нет. */
+  function describe(el) {
+    if (!el) return "нет";
+    const cls = String(el.className || "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 4)
+      .join(".");
+    const label = el.getAttribute?.("aria-label") || el.getAttribute?.("title") || "";
+    return `${String(el.tagName || "?").toLowerCase()}${el.id ? `#${el.id}` : ""}${cls ? `.${cls}` : ""}${label ? ` [${label}]` : ""}`;
+  }
+
+  /** Кнопка Send «как её видит скрипт»: найдена, активна, не перекрыта. */
+  function debugSendButton(editor) {
+    let btn = null;
+    try {
+      btn = editor ? sendButton(editor) : null;
+    } catch {
+      btn = null;
+    }
+    if (!btn) return { found: false };
+    return {
+      found: true,
+      el: describe(btn),
+      disabled: Boolean(btn.disabled),
+      ariaDisabled: btn.getAttribute?.("aria-disabled") || "",
+      covered: elementCovered(btn),
+    };
+  }
+
+  /** Снимок страницы для консоли: одним объектом, без догадок. */
+  function debugSnapshot() {
+    const editor = composer();
+    return {
+      url: location.href,
+      path: location.pathname,
+      role: roleFromPath() || "—",
+      auto: GM_getValue(K.auto, false),
+      paused: GM_getValue(K.paused, "") || false,
+      pending: GM_getValue(K.pending, null),
+      expect: GM_getValue(K.expect, null),
+      generating: generating(),
+      editor: {
+        found: Boolean(editor),
+        el: describe(editor),
+        covered: editor ? elementCovered(editor) : null,
+        textLength: editor ? composerText(editor).length : 0,
+      },
+      send: debugSendButton(editor),
+      panels: completionPanels().map((panel) => ({
+        el: describe(panel),
+        close: describe(closeButtonIn(panel)),
+      })),
+      skipCard: Boolean(skipCardButton()),
+      messages: messages().length,
+      lastMessage: lastMessageId() || "—",
+      diagnostics: composerDiagnostics(),
+    };
+  }
+
+  /** `__narthex` — ручной пульт в консоли браузера. */
+  const debugApi = {
+    version: SCRIPT_VERSION,
+    debug(on = true) {
+      GM_setValue(K.debug, Boolean(on));
+      if (on) installDebugApi();
+      console.info(`[Narthex] отладка ${on ? "включена: подробные сообщения пойдут в эту консоль" : "выключена"}.`);
+      return Boolean(on);
+    },
+    state: () => debugSnapshot(),
+    composer: () => composer(),
+    sendButton: () => debugSendButton(composer()),
+    panels: () => completionPanels().map(describe),
+    closePanel: () => closeCompletionPlaque(),
+    messages: () => messages().map((n) => ({ id: nodeId(n), head: messageText(n).slice(0, 60) })),
+    resend: () => {
+      const waiting = GM_getValue(K.expect, null);
+      if (!waiting?.text) return "в ожидании нет текста задания";
+      GM_setValue(K.expect, null);
+      GM_setValue(K.pending, { roleId: waiting.roleId, text: waiting.text, at: Date.now() });
+      return "задание возвращено в очередь";
+    },
+    step: () => tick(true),
+  };
+  /** Пульт появляется в консоли только когда отладка включена. */
+  function installDebugApi() {
+    if (!debugOn()) return;
+    window.__narthex = debugApi;
   }
 
   function notifyNtfy(text, { title = "Narthex", priority = "2", tags = "memo" } = {}) {
@@ -422,6 +555,15 @@
     }
   }
 
+  const paintDebugButton = () => {
+    const el = document.getElementById(ui.debug);
+    if (!el) return;
+    const on = debugOn();
+    el.style.background = on ? "#2c4a6b" : "#242833";
+    el.style.borderColor = on ? "#4a7ba7" : "#343a46";
+    el.title = on ? "Отладка включена: подробности в консоли браузера" : "Отладка в консоли браузера (F12)";
+  };
+
   function mount() {
     if (document.getElementById(ui.panel)) return;
     const panel = document.createElement("div");
@@ -441,6 +583,7 @@
         <button id="${ui.step}" title="Один шаг цикла" style="${btnStyle()}">Шаг</button>
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
         <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
+        <button id="${ui.debug}" title="Отладка в консоли браузера (F12)" style="${btnStyle()}">🐞</button>
         <button id="${ui.clear}" title="Очистить журнал" style="${btnStyle()}">🧹</button>
         <button id="${ui.setup}" title="Настройка" style="${btnStyle()}">⚙</button>
         <button id="${ui.stop}" title="Остановить цикл и снять паузу" style="${btnStyle()}">✕</button>
@@ -450,6 +593,18 @@
 
     document.getElementById(ui.setup).onclick = () => setup(true);
     document.getElementById(ui.clear).onclick = () => clearLog();
+    document.getElementById(ui.debug).onclick = () => {
+      const on = !debugOn();
+      GM_setValue(K.debug, on);
+      debugApi.debug(on);
+      installDebugApi();
+      log(
+        on
+          ? "Отладка включена: подробности идут в консоль браузера (F12), панель — только вехи. Команды: __narthex.state(), __narthex.step()."
+          : "Отладка выключена.",
+      );
+      paintDebugButton();
+    };
     document.getElementById(ui.ntfy).onclick = () => ntfyDialog();
     document.getElementById(ui.stop).onclick = () => {
       GM_setValue(K.paused, "");
@@ -467,6 +622,7 @@
     document.getElementById(ui.toggle).onclick = () => toggleAuto();
     renderLog();
     setStatus();
+    paintDebugButton();
   }
 
   function toggleAuto() {
@@ -904,7 +1060,13 @@
       // Нормальное ожидание, но нажатый «Шаг» должен получить ответ, а не тишину.
       if (manual) {
         const sentMin = expect.sentAt ? Math.max(1, Math.round((Date.now() - expect.sentAt) / 60000)) : 0;
-        log(`Жду ответ ${role.name}: новых сообщений нет${sentMin ? ` (отправлено ${sentMin} мин назад)` : ""}.`);
+        const delivered = expect.verified === true ? "доставка подтверждена" : "доставка не подтверждена";
+        log(
+          `Жду ответ ${role.name}: новых сообщений нет` +
+            `${sentMin ? ` (отправлено ${sentMin} мин назад, ${delivered})` : " (ещё не отправлено)"}` +
+            `, в чате ${messages().length} сообщений.`,
+        );
+        dbg("ожидание ответа", { role: role.name, watermark: expect.watermark, sentAt: expect.sentAt, verified: expect.verified });
       }
       return false;
     }
@@ -1077,18 +1239,48 @@
    * `<form>` редактора, поэтому одного `type=submit` мало. Перебираем по
    * приоритету: явная подпись Send → submit внутри формы → submit рядом.
    */
+  /** Расстояние от кнопки до редактора: кнопка Send всегда рядом с полем. */
+  function distanceTo(editor, el) {
+    try {
+      const a = editor.getBoundingClientRect();
+      const b = el.getBoundingClientRect();
+      return Math.abs(b.top - a.bottom) + Math.abs(b.left - a.left) / 4;
+    } catch {
+      return Number.MAX_SAFE_INTEGER;
+    }
+  }
+
   function sendButton(editor) {
+    const panels = completionPanels();
+    const inPanel = (b) => panels.some((p) => p.contains?.(b));
     const scope = editor?.closest("form") || document;
-    const controls = [...scope.querySelectorAll('button, [role="button"], input[type="submit"]')];
-    const usable = (b) => b && !b.disabled && b.getAttribute?.("aria-disabled") !== "true" && visible(b);
-    const labelled = controls.find((b) => usable(b) && labelText(b).some((l) => SEND_LABEL.test(l)));
+    const usable = (b) =>
+      b &&
+      !b.disabled &&
+      b.getAttribute?.("aria-disabled") !== "true" &&
+      b.getAttribute?.("data-disabled") !== "true" &&
+      visible(b) &&
+      !inPanel(b);
+    const controls = [...scope.querySelectorAll('button, [role="button"], input[type="submit"]')].filter(usable);
+    // Кнопки внутри карточки завершения — не наш Send: их подписи тоже бывают
+    // «Send», а клик по ним ничего не отправляет.
+    const near = (list) => [...list].sort((a, b) => distanceTo(editor, a) - distanceTo(editor, b));
+    const labelled = near(controls.filter((b) => labelText(b).some((l) => SEND_LABEL.test(l))))[0];
     if (labelled) return labelled;
-    const submit = controls.find((b) => usable(b) && String(b.getAttribute?.("type") || b.type || "") === "submit");
+    const submit = near(controls.filter((b) => String(b.getAttribute?.("type") || b.type || "") === "submit"))[0];
     if (submit) return submit;
     return [...(editor?.parentElement?.querySelectorAll?.('button, [role="button"]') || [])].find(usable) || null;
   }
 
-  /** Вставка текста в редактор: contenteditable и textarea обрабатываются по-разному. */
+  /**
+   * Вставка текста в редактор.
+   *
+   * `execCommand("insertText")` — единственный путь, который редактор Arena
+   * (ProseMirror) считает настоящим вводом: он обновляет состояние, и кнопка
+   * Send становится активной. Запасной путь «присвоить textContent» нужен
+   * только если execCommand недоступен — после него текст в DOM есть, а
+   * состояние пустое, и Send остаётся серым.
+   */
   function writePrompt(editor, text) {
     if (!editor) return false;
     editor.focus();
@@ -1101,6 +1293,7 @@
       editor.dispatchEvent(new Event("change", { bubbles: true }));
       return editor.value.trim().length > 0;
     }
+
     const range = document.createRange();
     range.selectNodeContents(editor);
     const selection = window.getSelection();
@@ -1112,13 +1305,15 @@
     } catch {
       inserted = false;
     }
-    const current = (editor.innerText || editor.textContent || "").trim();
-    if (!inserted || current.length < 10) {
+    if (!inserted) {
+      // Крайний случай: браузер не дал вставить командой.
       editor.textContent = text;
       editor.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: "insertText" }));
     }
     editor.dispatchEvent(new Event("change", { bubbles: true }));
-    return (editor.innerText || editor.textContent || "").trim().length > 0;
+    const written = composerText(editor).length;
+    dbg("writePrompt", () => ({ via: inserted ? "execCommand" : "textContent", written, expected: text.length }));
+    return written > 0;
   }
 
   const composerText = (editor) => (editor?.innerText || editor?.textContent || "").replace(/\s+/g, " ").trim();
@@ -1159,19 +1354,27 @@
     return [...found];
   }
 
+  /**
+   * Кнопка закрытия панели. Приоритет — явная подпись (`Close review panel`,
+   * `Close`, `Закрыть`), затем последняя кнопка шапки, затем единственная.
+   */
+  function closeButtonIn(panel) {
+    const buttons = [...panel.querySelectorAll("button")];
+    const labelled = buttons.find((b) =>
+      /close|dismiss|закрыть|скрыть/i.test(
+        `${b.getAttribute("aria-label") || ""} ${b.getAttribute("title") || ""} ${b.textContent || ""}`,
+      ),
+    );
+    const header = panel.querySelector(".flex.items-center.justify-between");
+    const inHeader = [...(header?.querySelectorAll("button") || [])];
+    return labelled || inHeader.at(-1) || (buttons.length === 1 ? buttons[0] : null);
+  }
+
   /** Панель завершения: та же кнопка, что в dispatch.user.js (шапка, затем подпись). */
   function closeCompletionPanel() {
     const panels = completionPanels();
     for (const panel of panels) {
-      const buttons = [...panel.querySelectorAll("button")];
-      const labelled = buttons.find((b) =>
-        /close|dismiss|закрыть|скрыть/i.test(
-          `${b.getAttribute("aria-label") || ""} ${b.getAttribute("title") || ""} ${b.textContent || ""}`,
-        ),
-      );
-      const header = panel.querySelector(".flex.items-center.justify-between");
-      const inHeader = [...(header?.querySelectorAll("button") || [])];
-      const close = labelled || inHeader.at(-1) || (buttons.length === 1 ? buttons[0] : null);
+      const close = closeButtonIn(panel);
       if (close && visible(close)) {
         close.click();
         return "closed";
@@ -1193,41 +1396,38 @@
   }
 
   /**
-   * Ждём редактор, попутно освобождая чат: сначала панель завершения (она
-   * перекрывает и поле, и Send), затем карточка Skip, затем сам редактор и
-   * проверка, что он не накрыт оверлеем.
+   * Ждём появления редактора.
+   *
+   * Карточку закрываем только если редактора нет вовсе: она рисуется сверху,
+   * но программный ввод и клик её не боятся. Прошлый цикл «закрыть → проверить
+   * → закрыть заново» и давал мигание, которое видно глазом.
    */
   async function ensureComposer(timeoutMs = 20000) {
     const deadline = Date.now() + timeoutMs;
     let closed = 0;
-    let blocked = false;
-    let covered = false;
     while (Date.now() < deadline) {
+      const editor = composer();
+      if (editor) return { editor, closed, overlay: false };
+
       const panel = closeCompletionPanel();
       if (panel === "closed") {
         closed += 1;
-        // Плашка может не убираться (кнопка не та) — не зацикливаемся на кликах.
-        if (closed > 6) break;
-        await sleep(500);
+        dbg("editor: поля ввода нет — убрал карточку и жду", { attempt: closed });
+        if (closed >= 2) break;
+        await sleep(700);
         continue;
       }
-      if (panel === "blocked") blocked = true;
-
-      const editor = composer();
-      if (editor && !elementCovered(editor)) return { editor, closed, overlay: blocked };
-
-      if (editor) covered = true;
       const skip = skipCardButton();
       if (skip) {
         skip.click();
         closed += 1;
-        if (closed > 6) break;
-        await sleep(500);
+        dbg("editor: нажал Skip на карточке опроса");
+        await sleep(600);
         continue;
       }
-      await sleep(500);
+      await sleep(400);
     }
-    return { editor: null, closed, overlay: blocked || covered };
+    return { editor: null, closed, overlay: completionPanels().length > 0 };
   }
 
   /** Короткая диагностика, почему поле не нашлось: без неё остаётся гадать. */
@@ -1249,25 +1449,112 @@
    * закрытия (решает backend), поэтому кнопка может оказаться под оверлеем —
    * такой клик не доходит, и раньше мы всё равно писали «Задание отправлено».
    */
-  async function deliver(editor) {
-    const before = messages().length;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
+  /**
+   * Ждём активную кнопку Send.
+   *
+   * Программный `button.click()` не проходит через оверлей — карточка клик не
+   * ловит. Мешает другое: пока редактор не зарегистрировал ввод, кнопка
+   * `disabled`, и клик по ней ничего не делает. Поэтому ждём именно активности.
+   */
+  async function waitForSendReady(editor, timeoutMs = 3000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
       const btn = sendButton(editor);
-      if (!btn) return { ok: false, reason: "Кнопка Send не найдена" };
-      if (elementCovered(btn)) {
-        if (closeCompletionPlaque() === "closed") {
-          await sleep(500);
-          continue;
-        }
-        return { ok: false, reason: "Кнопка Send перекрыта плашкой" };
+      if (btn) return btn;
+      await sleep(250);
+    }
+    return null;
+  }
+
+  /** Почему Send не нажимается: список кандидатов вокруг редактора. */
+  function sendDiagnostics(editor) {
+    const scope = editor?.closest?.("form") || document;
+    return [...scope.querySelectorAll('button, [role="button"]')]
+      .slice(0, 8)
+      .map((b) => ({
+        el: describe(b),
+        labels: labelText(b).slice(0, 3),
+        visible: visible(b),
+        disabled: Boolean(b.disabled),
+        ariaDisabled: b.getAttribute?.("aria-disabled") || "",
+        covered: elementCovered(b),
+      }));
+  }
+
+  /**
+   * Нажатие Send с проверкой результата. Плашка возвращается на место после
+   * закрытия (решает backend), поэтому кнопка может оказаться под оверлеем —
+   * такой клик не доходит, и раньше мы всё равно писали «Задание отправлено».
+   */
+  /**
+   * Ждём активную кнопку Send.
+   *
+   * Программный `button.click()` не проходит через оверлей — карточка клик не
+   * ловит. Мешает другое: пока редактор не зарегистрировал ввод, кнопка
+   * `disabled`, и клик по ней ничего не делает. Поэтому ждём именно активности.
+   */
+  async function waitForSendReady(editor, timeoutMs = 4000) {
+    const deadline = Date.now() + timeoutMs;
+    let attempts = 0;
+    while (Date.now() < deadline) {
+      const btn = sendButton(editor);
+      if (btn) return btn;
+      attempts += 1;
+      if (attempts === 4 || attempts === 12) {
+        // Половина времени ожидания прошла без активной кнопки: повторяем ввод.
+        dbg("Send: кнопка неактивна, повторяю вставку текста", () => debugSendButton(editor));
+        return null;
       }
+      await sleep(250);
+    }
+    return null;
+  }
+
+  /**
+   * Нажатие Send с проверкой результата.
+   *
+   * Порядок (по мотивам `dispatch.user.js`):
+   *  1. дождаться активной кнопки — иначе клик уходит в пустоту;
+   *  2. если кнопка так и не стала активной, повторить ввод и подождать ещё;
+   *  3. кликнуть и проверить доставку по трём признакам;
+   *  4. не подтвердилось — закрыть карточку и повторить, но не больше трёх раз.
+   */
+  async function deliver(editor, text) {
+    const before = messages().length;
+    dbg("Send: начало", () => ({ messages: before, button: debugSendButton(editor), textLength: composerText(editor).length }));
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      let btn = await waitForSendReady(editor, 1500);
+      if (!btn) {
+        // Редактор не зарегистрировал ввод: повторяем его и ждём снова.
+        dbg("Send: кнопка неактивна — повторяю вставку текста", () => debugSendButton(editor));
+        writePrompt(editor, text);
+        btn = await waitForSendReady(editor, 3000);
+      }
+      if (!btn) {
+        const candidates = sendDiagnostics(editor);
+        dbg("Send: активной кнопки нет", { candidates });
+        return {
+          ok: false,
+          reason: "Кнопка Send неактивна или не найдена — редактор не принял текст",
+        };
+      }
+
+      dbg(`Send: клик ${attempt}`, () => debugSendButton(editor));
       btn.click();
       await sleep(1200);
-      // Признаки доставки: появилось сообщение, поле очистилось или пошла
-      // генерация. Если ни одного — клик не дошёл, пробуем ещё раз.
-      if (messages().length > before || !composerText(editor) || generating()) return { ok: true };
-      if (closeCompletionPlaque() !== "closed") break;
-      await sleep(400);
+
+      const after = messages().length;
+      const composerLeft = composerText(editor).length;
+      dbg("Send: результат клика", () => ({ messagesBefore: before, messagesAfter: after, composerLeft, generating: generating() }));
+      if (after > before || !composerLeft || generating()) return { ok: true };
+
+      // Не дошло. Карточка могла появиться между вставкой и кликом — убираем
+      // её один раз и повторяем; гоняться за ней циклом смысла нет.
+      const plaque = closeCompletionPlaque();
+      dbg("Send: сообщение не появилось", { plaque, attempt });
+      if (plaque === "none" && attempt === 1) writePrompt(editor, text);
+      await sleep(500);
     }
     return { ok: false, reason: "Send нажат, но сообщение не появилось — текст остался в поле" };
   }
@@ -1283,8 +1570,11 @@
       tries: 0,
       lastReplySig: "",
       lastReplyAt: 0,
+      // Текст нужен, чтобы повторить отправку, если клик по Send не дошёл.
+      text,
       ...extra,
     });
+    dbg("sendToRole: задание в очереди", { role: role.name, kind, ref, длина: text.length });
     GM_setValue("cfn-me", role.name);
     setStatus();
     log(`Перехожу к «${role.name}», чтобы отправить задание.`);
@@ -1379,7 +1669,7 @@
     // отправителя он был бы чужим, и «ответ без маркера» нельзя было бы
     // отличить от старой переписки.
     const watermark = lastMessageId();
-    const delivery = await deliver(editor);
+    const delivery = await deliver(editor, pending.text);
     if (!delivery.ok) {
       pause(
         `${delivery.reason}. Задание осталось в поле ввода и в очереди: поправьте и нажмите «Продолжить».`,
@@ -1389,7 +1679,8 @@
     }
     const expect = GM_getValue(K.expect, null);
     if (expect && norm(expect.roleId) === norm(me)) {
-      GM_setValue(K.expect, { ...expect, watermark, sentAt: Date.now() });
+      GM_setValue(K.expect, { ...expect, watermark, sentAt: Date.now(), verified: true });
+      dbg("Send: доставка подтверждена, отметка внутри чата", { watermark, via: delivery.via || "message" });
     }
     GM_setValue(K.pending, null);
     pendingNoticeAt = 0;
@@ -1965,6 +2256,46 @@
   let busy = false;
   let busyAt = 0;
 
+  /**
+   * Отправка без подтверждения — не отправка.
+   *
+   * До 1.4.7 `sentAt` ставился сразу после клика, не глядя, дошёл ли он:
+   * карточка «review panel» возвращалась и накрывала кнопку Send, сообщение
+   * не появлялось, а скрипт потом честно ждал ответа на несуществующий
+   * вопрос. Такое ожидание возвращаем в очередь и отправляем заново.
+   */
+  function reviveUnverifiedHandoff() {
+    const waiting = GM_getValue(K.expect, null);
+    if (!waiting || !Number(waiting.sentAt) || waiting.verified === true) return "";
+
+    // Если после водяного знака в чате уже что-то появилось, отправка всё-таки
+    // дошла (или агент успел ответить): повторять нельзя, иначе будет дубль.
+    if (messagesAfter(waiting.watermark || "").length) {
+      GM_setValue(K.expect, { ...waiting, verified: true });
+      dbg("revive: после водяного знака есть сообщения — считаю отправку доставленной");
+      return "";
+    }
+
+    const text = String(waiting.text || "");
+    GM_setValue(K.expect, null);
+    GM_setValue("cfn-plan-at", 0);
+    if (!text) {
+      log(
+        "Снял ожидание без подтверждённой отправки: в чат ничего не ушло, текста задания не сохранилось. " +
+          "Нажмите «Шаг», чтобы начать ход заново.",
+        true,
+      );
+      return "dropped";
+    }
+    GM_setValue(K.pending, { roleId: waiting.roleId, text, at: Date.now() });
+    log(
+      `Прошлая отправка «${waiting.title || waiting.kind}» не подтверждена (сообщение в чате не появилось) — ` +
+        "ставлю задание обратно в очередь и отправляю заново.",
+      true,
+    );
+    return "revived";
+  }
+
   async function tick(fromToggle = false) {
     if (busy) {
       // Шаг мог повиснуть на сетевом запросе без таймаута. Тогда «Шаг» и
@@ -1980,7 +2311,8 @@
     // иначе после перехода на страницу адресата задание никто не досылал.
     const auto = GM_getValue(K.auto, false);
     const pending = GM_getValue(K.pending, null);
-    if (!auto && !fromToggle && !pending) return;
+    const waiting = GM_getValue(K.expect, null);
+    if (!auto && !fromToggle && !pending && !waiting) return;
     // Пауза снимается только человеком: тик не имеет права её обойти.
     if (isPaused()) {
       if (fromToggle) log(`Шаг не выполнен: цикл на паузе (${GM_getValue(K.paused, "")}).`, true);
@@ -1992,7 +2324,20 @@
       // Ошибка на экране важнее любого шага: сначала остановиться.
       if (monitorVisibleErrors()) return;
       await setup(false);
+      dbg("tick: состояние", {
+        fromToggle,
+        path: location.pathname,
+        pending: Boolean(GM_getValue(K.pending, null)),
+        expect: GM_getValue(K.expect, null) && {
+          kind: GM_getValue(K.expect, null).kind,
+          sentAt: GM_getValue(K.expect, null).sentAt,
+          verified: GM_getValue(K.expect, null).verified,
+        },
+      });
+      const revived = reviveUnverifiedHandoff();
       if (await consumePending(fromToggle)) return;
+      // Фантом старой версии снят, повторять нечего: без нажатия не начинаем ход.
+      if (revived === "dropped" && !auto && !fromToggle) return;
       const meId = roleFromPath();
       if (!meId) {
         // Мастер не обязан помнить, на какой странице стоит цикл: «Шаг»
@@ -2088,6 +2433,14 @@
   entries = (GM_getValue(K.log, []) || []).slice(-C.maxLog);
   const boot = () => {
     mount();
+    if (debugOn()) {
+      installDebugApi();
+      console.info(
+        `[Narthex ${SCRIPT_VERSION}] отладка включена на ${location.pathname}. ` +
+          "Снимок: __narthex.state(); шаг: __narthex.step(); выключить: __narthex.debug(false) или кнопка 🐞.",
+      );
+      dbg("boot", () => debugSnapshot());
+    }
     if (new URL(location.href).searchParams.has("cf-auto")) {
       const clean = new URL(location.href);
       clean.searchParams.delete("cf-auto");
