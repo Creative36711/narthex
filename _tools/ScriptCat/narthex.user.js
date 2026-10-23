@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.1
+// @version      1.4.2
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -94,6 +94,17 @@
   const rt = (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || "").join("");
   const sel = (p) => p?.select?.name || "";
   const uid = () => crypto.randomUUID();
+
+  /**
+   * Видимость по геометрии плюс computed style. Одного querySelector мало:
+   * в DOM Arena остаются скрытые бейджи и кнопки прошлых состояний, и без
+   * проверки «Stop» находится на странице, где агент давно молчит.
+   */
+  const visible = (el) => {
+    if (!el || !el.isConnected || el.getClientRects().length === 0) return false;
+    const style = getComputedStyle(el);
+    return style.visibility !== "hidden" && style.display !== "none";
+  };
 
   /** Шлюз 1.5 — первый, который пишет только в Arena; всё старше — предупреждение. */
   const gatewayIsOld = (version) => {
@@ -197,7 +208,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.1";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.2";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -436,6 +447,7 @@
       const reason = GM_getValue(K.paused, "");
       if (reason && !confirm(`Снять паузу и выполнить один шаг?\n\n${reason}`)) return;
       if (reason) resume("ручной шаг");
+      log("Шаг нажат: смотрю страницу, очередь и задание.");
       tick(true);
     };
     document.getElementById(ui.toggle).onclick = () => toggleAuto();
@@ -818,7 +830,19 @@
     return null;
   }
 
-  const generating = () => !!document.querySelector('[data-testid="stop-button"], button[aria-label*="Stop" i]');
+  /**
+   * Агент отвечает, только если кнопка остановки видна. Скрытый `stop-button`
+   * из прошлой генерации держал `generating()` вечно true, и все шаги молча
+   * возвращались: «кнопка не работает», хотя цикл просто ждал призрака.
+   */
+  const generating = () =>
+    [...document.querySelectorAll("button, [role=\"button\"]")].some(
+      (b) =>
+        visible(b) &&
+        /stop generating|остановить генерац|stop response/i.test(
+          `${b.getAttribute("aria-label") || ""} ${b.getAttribute("title") || ""} ${b.textContent || ""}`,
+        ),
+    );
 
   // ───────────────────────── ответ без маркера ─────────────────────────
   /**
@@ -858,11 +882,15 @@
    * Ждём ответ без маркера. Возвращает true, если ход уже обработан
    * (напоминание ушло или цикл поставлен на паузу).
    */
-  async function markerMissing(role, expect, markerName) {
+  async function markerMissing(role, expect, markerName, manual = false) {
     if (generating()) return false;
     const replies = messagesAfter(expect.watermark || "");
     const last = replies.at(-1);
-    if (!last) return false; // агент ещё не ответил — это нормальное ожидание
+    if (!last) {
+      // Нормальное ожидание, но нажатый «Шаг» должен получить ответ, а не тишину.
+      if (manual) log(`Жду ответ ${role.name}: новых сообщений нет.`);
+      return false;
+    }
 
     const signature = `${last.id}:${last.text.length}`;
     if (expect.lastReplySig !== signature) {
@@ -975,32 +1003,115 @@
   }
 
   // ───────────────────────────── отправка ─────────────────────────────
+  /**
+   * Редактор агента. Селекторы — из рабочего `dispatch.user.js`: он ищет
+   * `.editor-content`/tiptap/role=textbox, а не первый `[contenteditable]` на
+   * странице. На странице Arena таких элементов несколько, и первый может
+   * быть скрытой копией — тогда вставка уходила в никуда, а Send не находился.
+   */
   function composer() {
-    return document.querySelector('[contenteditable="true"]');
+    const explicit = document.querySelector(
+      ".editor-content[contenteditable='true'], .editor-content [contenteditable='true'], " +
+        "[contenteditable='true'].tiptap, [contenteditable='true'][role='textbox'], [contenteditable='true']",
+    );
+    if (explicit && visible(explicit)) return explicit;
+    const shown = [...document.querySelectorAll("[contenteditable='true']")].find(visible);
+    if (shown) return shown;
+    const prompt = document.querySelector(".editor-content p, [data-placeholder] p");
+    const nearPrompt = prompt?.closest("[contenteditable='true']") || null;
+    if (nearPrompt) return nearPrompt;
+    return [...document.querySelectorAll("textarea")].find(visible) || null;
   }
 
+  const labelText = (el) =>
+    [
+      el?.getAttribute?.("aria-label"),
+      el?.getAttribute?.("title"),
+      el?.getAttribute?.("data-testid"),
+      el?.getAttribute?.("data-test-id"),
+      el?.textContent,
+    ]
+      .map((v) => String(v || "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\s+/g, " ").trim().toLowerCase())
+      .filter(Boolean);
+
+  const SEND_LABEL = /(^|[\s:])(send|submit|отправ\w*)([\s:!.]|$)/;
+
+  /**
+   * Кнопка отправки. Подпись важнее формы: в Arena кнопка часто лежит вне
+   * `<form>` редактора, поэтому одного `type=submit` мало. Перебираем по
+   * приоритету: явная подпись Send → submit внутри формы → submit рядом.
+   */
   function sendButton(editor) {
     const scope = editor?.closest("form") || document;
-    return [...scope.querySelectorAll("button")].find(
-      (b) => !b.disabled && (b.type === "submit" || /send/i.test(b.getAttribute("aria-label") || "")),
-    ) || null;
+    const controls = [...scope.querySelectorAll('button, [role="button"], input[type="submit"]')];
+    const usable = (b) => b && !b.disabled && b.getAttribute?.("aria-disabled") !== "true" && visible(b);
+    const labelled = controls.find((b) => usable(b) && labelText(b).some((l) => SEND_LABEL.test(l)));
+    if (labelled) return labelled;
+    const submit = controls.find((b) => usable(b) && String(b.getAttribute?.("type") || b.type || "") === "submit");
+    if (submit) return submit;
+    return [...(editor?.parentElement?.querySelectorAll?.('button, [role="button"]') || [])].find(usable) || null;
   }
 
-  function fillComposer(text) {
-    const editor = composer();
+  /** Вставка текста в редактор: contenteditable и textarea обрабатываются по-разному. */
+  function writePrompt(editor, text) {
     if (!editor) return false;
     editor.focus();
+    if (editor.tagName === "TEXTAREA" || editor.tagName === "INPUT") {
+      const proto = editor.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      if (setter) setter.call(editor, text);
+      else editor.value = text;
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      editor.dispatchEvent(new Event("change", { bubbles: true }));
+      return editor.value.trim().length > 0;
+    }
     const range = document.createRange();
     range.selectNodeContents(editor);
     const selection = window.getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
-    document.execCommand("insertText", false, text);
-    if ((editor.innerText || "").length < 10) {
-      editor.innerText = text;
+    let inserted = false;
+    try {
+      inserted = document.execCommand("insertText", false, text);
+    } catch {
+      inserted = false;
+    }
+    const current = (editor.innerText || editor.textContent || "").trim();
+    if (!inserted || current.length < 10) {
+      editor.textContent = text;
       editor.dispatchEvent(new InputEvent("input", { bubbles: true, data: text, inputType: "insertText" }));
     }
-    return true;
+    editor.dispatchEvent(new Event("change", { bubbles: true }));
+    return (editor.innerText || editor.textContent || "").trim().length > 0;
+  }
+
+  /**
+   * Плашка «задание выполнено» лежит поверх чата и перекрывает редактор.
+   * В `dispatch.user.js` она закрывается до вставки текста — здесь то же
+   * правило: сначала освободить чат, потом писать в него.
+   */
+  const COMPLETION_PANEL =
+    "div.border-border-medium.bg-surface-secondary.w-full.rounded-md.border.shadow-sm.outline-none";
+
+  function closeCompletionPlaque() {
+    const panels = [...document.querySelectorAll(COMPLETION_PANEL)].filter(visible);
+    if (!panels.length) return "none";
+    for (const panel of panels) {
+      const buttons = [...panel.querySelectorAll("button")];
+      const labelled = buttons.find((b) =>
+        /close|dismiss|закрыть|скрыть/i.test(
+          `${b.getAttribute("aria-label") || ""} ${b.getAttribute("title") || ""} ${b.textContent || ""}`,
+        ),
+      );
+      const header = panel.querySelector(".flex.items-center.justify-between");
+      const inHeader = [...(header?.querySelectorAll("button") || [])];
+      const close = labelled || inHeader.at(-1) || (buttons.length === 1 ? buttons[0] : null);
+      if (close && visible(close)) {
+        close.click();
+        return "closed";
+      }
+    }
+    return "blocked";
   }
 
   async function sendToRole(role, text, kind, ref, extra = {}) {
@@ -1018,6 +1129,7 @@
     });
     GM_setValue("cfn-me", role.name);
     setStatus();
+    log(`Перехожу к «${role.name}», чтобы отправить задание.`);
     location.assign(role.url);
   }
 
@@ -1029,6 +1141,21 @@
     location.assign(role.url);
   }
 
+  // Одно и то же ожидание не должно заливать журнал каждые пару секунд.
+  let pendingNoticeAt = 0;
+  const pendingSay = (pending, text, error = false) => {
+    if (pendingNoticeAt === pending.at) return;
+    pendingNoticeAt = pending.at;
+    log(text, error);
+  };
+
+  /**
+   * Досылает задание, сохранённое перед переходом на страницу адресата.
+   *
+   * Возвращает true, если ход этим и занят: отправлено, ждём редактор или ждём
+   * конца ответа агента. Молчаливых выходов нет — каждый пишет в журнал,
+   * иначе нажатый «Шаг» выглядит как неработающая кнопка.
+   */
   async function consumePending() {
     const pending = GM_getValue(K.pending, null);
     if (!pending) return false;
@@ -1036,17 +1163,46 @@
     if (!me || norm(me) !== norm(pending.roleId)) return false;
     if (Date.now() - pending.at > 10 * 60 * 1000) {
       GM_setValue(K.pending, null);
-      return false;
+      log("Задание из очереди устарело (старше 10 минут) и снято: страница адресата так и не открылась.", true);
+      return true;
     }
-    if (generating()) return false;
-    const editor = composer();
-    if (!editor) return false;
-    if (!fillComposer(pending.text)) return false;
+
+    const plaque = closeCompletionPlaque();
+    if (plaque === "closed") {
+      log("Закрыл плашку завершённой задачи, чтобы освободить чат.");
+      await sleep(400);
+    } else if (plaque === "blocked") {
+      pendingSay(pending, "Плашка завершённой задачи перекрывает чат, а кнопки закрытия не нашлось: пробую отправить всё равно.", true);
+    }
+
+    if (generating()) {
+      pendingSay(pending, "Агент ещё отвечает: задание из очереди подождёт и уйдёт, как только он закончит.");
+      return true;
+    }
+
+    // Редактор появляется не мгновенно после перехода — ждём до 15 секунд.
+    const deadline = Date.now() + 15000;
+    let editor = composer();
+    while (!editor && Date.now() < deadline) {
+      await sleep(500);
+      if (generating()) break;
+      editor = composer();
+    }
+    if (!editor) {
+      pendingSay(pending, "Не нашёл поле ввода на странице адресата: задание осталось в очереди и не потеряется.", true);
+      setTimeout(() => tick(false), 5000);
+      return true;
+    }
+
+    if (!writePrompt(editor, pending.text)) {
+      pendingSay(pending, "Не удалось вставить задание в редактор: оно осталось в очереди.", true);
+      return true;
+    }
     await sleep(800);
     const btn = sendButton(editor);
     if (!btn) {
       pause("Кнопка Send не найдена: задание осталось в редакторе, автоклик отменён.", { kind: "send" });
-      return false;
+      return true;
     }
     // Водяной знак ставится здесь, на странице адресата: id последнего
     // сообщения ДО отправки. На странице отправителя он был бы чужим, и
@@ -1057,23 +1213,18 @@
     }
     btn.click();
     GM_setValue(K.pending, null);
+    pendingNoticeAt = 0;
     log("Задание отправлено.");
     return true;
   }
 
   // ───────────────────────────── PR ─────────────────────────────
   /**
-   * Видимость по геометрии плюс computed style. Поймано пробой на разметке
-   * Arena: скрытый бейдж «Merged» остаётся в DOM рядом с видимым «Closed»,
-   * а поиск по одному querySelector находил именно скрытый и считал
+   * Проверка видимости — общая (`visible` в утилитах). Поймано пробой на
+   * разметке Arena: скрытый бейдж «Merged» остаётся в DOM рядом с видимым
+   * «Closed», а поиск по одному querySelector находил именно скрытый и считал
    * закрытый PR слитым.
    */
-  const visible = (el) => {
-    if (!el || el.getClientRects().length === 0) return false;
-    const style = getComputedStyle(el);
-    return style.visibility !== "hidden" && style.display !== "none";
-  };
-
   /**
    * Бейдж ищем только среди видимых. В DOM Arena остаются скрытые элементы
    * прошлых состояний: без этой проверки «Merged» находился на странице, где
@@ -1426,13 +1577,13 @@
   }
 
   // ───────────────────────────── ход исполнителя ─────────────────────────────
-  async function submitExecutor(role, expect) {
+  async function submitExecutor(role, expect, manual = false) {
     const candidates = messagesAfter(expect.watermark)
       .map((m) => ({ ...m, result: parseMarker(m.text, "CF_AGENT_RESULT") }))
       .filter((m) => m.result);
     const exact = candidates.filter((m) => norm(m.result.dispatch_id) === norm(expect.ref));
     const hit = (exact.length ? exact : candidates).at(-1);
-    if (!hit) return markerMissing(role, expect, "CF_AGENT_RESULT");
+    if (!hit) return markerMissing(role, expect, "CF_AGENT_RESULT", manual);
 
     const result = hit.result;
     if (GM_getValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, false)) return false;
@@ -1543,7 +1694,7 @@
         .map((m) => parseMarker(m.text, "CF_COORDINATOR_RESULT"))
         .filter(Boolean)
         .at(-1);
-      if (!decision) return markerMissing(role, expect, "CF_COORDINATOR_RESULT");
+      if (!decision) return markerMissing(role, expect, "CF_COORDINATOR_RESULT", manual);
 
       // Маркер должен относиться к этому ходу: иначе легко принять решение
       // прошлой итерации за новое и выдать не ту карточку.
@@ -1588,6 +1739,7 @@
         ? "Есть Rework: посмотри «Ответ» — там причина (например, PR закрыт без мержа)."
         : "";
     const turnId = uid();
+    log(`План Координатора запрошен (${summary}).`);
     await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note), "plan", mission.id, {
       missionId: mission.id,
       turnId,
@@ -1632,20 +1784,45 @@
 
   // ───────────────────────────── цикл ─────────────────────────────
   let busy = false;
+  let busyAt = 0;
 
   async function tick(fromToggle = false) {
-    if (busy) return;
-    if (!GM_getValue(K.auto, false) && !fromToggle) return;
+    if (busy) {
+      // Шаг мог повиснуть на сетевом запросе без таймаута. Тогда «Шаг» и
+      // автоцикл молчат навсегда — снимаем блокировку и говорим об этом.
+      if (Date.now() - busyAt < 120000) {
+        if (fromToggle) log("Шаг уже выполняется: дождитесь его конца, повторный не нужен.");
+        return;
+      }
+      log("Предыдущий шаг висел больше двух минут: снимаю блокировку и пробую снова.", true);
+      busy = false;
+    }
+    // Незавершённая отправка живёт в очереди и не зависит от автоцикла:
+    // иначе после перехода на страницу адресата задание никто не досылал.
+    const auto = GM_getValue(K.auto, false);
+    const pending = GM_getValue(K.pending, null);
+    if (!auto && !fromToggle && !pending) return;
     // Пауза снимается только человеком: тик не имеет права её обойти.
-    if (isPaused()) return;
+    if (isPaused()) {
+      if (fromToggle) log(`Шаг не выполнен: цикл на паузе (${GM_getValue(K.paused, "")}).`, true);
+      return;
+    }
     busy = true;
+    busyAt = Date.now();
     try {
       // Ошибка на экране важнее любого шага: сначала остановиться.
       if (monitorVisibleErrors()) return;
       await setup(false);
       if (await consumePending()) return;
       const meId = roleFromPath();
-      if (!meId) return;
+      if (!meId) {
+        if (fromToggle)
+          log(
+            `Шаг не выполнен: в адресе нет /agent/<id> (сейчас ${location.pathname}). Откройте страницу агента.`,
+            true,
+          );
+        return;
+      }
       const list = await roles();
       const me = list.find((r) => norm(r.id) === norm(meId));
       if (!me) {
@@ -1671,8 +1848,15 @@
         return;
       }
 
-      if (me.fn === "Coordinator") await coordinatorStep(me, expect, fromToggle);
-      else await submitExecutor(me, expect);
+      if (me.fn === "Coordinator") {
+        await coordinatorStep(me, expect, fromToggle);
+      } else if (!expect) {
+        // Без ожидания `messagesAfter(expect.watermark)` упал бы в catch,
+        // и «Шаг» на странице исполнителя ставил бы паузу вместо ответа.
+        if (fromToggle) log(`Шаг не выполнен: у «${me.name}» нет задания в очереди. Ход начинается с Координатора.`, true);
+      } else {
+        await submitExecutor(me, expect, fromToggle);
+      }
     } catch (e) {
       pause(`Ошибка цикла: ${e.message}`, { kind: "error" });
     } finally {

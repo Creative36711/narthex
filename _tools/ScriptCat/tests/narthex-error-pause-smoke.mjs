@@ -1,5 +1,5 @@
 /**
- * Структурная проба narthex.user.js 1.4.1: журнал, пауза, маркеры, ntfy.
+ * Структурная проба narthex.user.js 1.4.2: журнал, пауза, маркеры, ntfy.
  *
  * Проверяет инварианты, которые легко потерять при правке транспорта:
  *  - журнал ограничен и очищается кнопкой;
@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.1/, 'версия 1.4.1');
+assert.match(src, /@version\s+1\.4\.2/, 'версия 1.4.2');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -39,7 +39,7 @@ assert.match(src, /wasAuto: GM_getValue\(K\.auto, false\)/, 'пауза помн
 const tickStart = src.indexOf('async function tick(');
 const tickEnd = src.indexOf('// ───────────────────────────── старт', tickStart);
 const tick = src.slice(tickStart, tickEnd);
-assert.match(tick, /if \(isPaused\(\)\) return;/, 'пауза блокирует тик');
+assert.match(tick, /if \(isPaused\(\)\) \{/, 'пауза блокирует тик');
 assert.match(tick, /if \(monitorVisibleErrors\(\)\) return;/, 'ошибка проверяется до любого шага');
 assert.ok(tick.indexOf('monitorVisibleErrors') < tick.indexOf('await setup(false)'), 'проверка ошибки идёт первой');
 assert.match(tick, /pause\(`Ошибка цикла: \$\{e\.message\}`/, 'любое исключение превращается в паузу, а не в тихую запись');
@@ -63,8 +63,8 @@ assert.equal(markerStep(3, 2), 'pause', 'лимит не превышается 
 
 assert.match(src, /markerIdleMs:\s*20000/, 'напоминание ждёт, пока ответ перестанет расти');
 assert.match(src, /markerReminders:\s*2/, 'лимит напоминаний — два');
-assert.match(src, /if \(!hit\) return markerMissing\(role, expect, "CF_AGENT_RESULT"\)/, 'исполнитель без маркера идёт в лестницу');
-assert.match(src, /if \(!decision\) return markerMissing\(role, expect, "CF_COORDINATOR_RESULT"\)/, 'Координатор без маркера идёт в ту же лестницу');
+assert.match(src, /if \(!hit\) return markerMissing\(role, expect, "CF_AGENT_RESULT", manual\)/, 'исполнитель без маркера идёт в лестницу');
+assert.match(src, /if \(!decision\) return markerMissing\(role, expect, "CF_COORDINATOR_RESULT", manual\)/, 'Координатор без маркера идёт в ту же лестницу');
 assert.ok(!src.includes('Координатор ответил без маркера — ждём следующего хода'), 'старая тихая реакция удалена');
 const missingFn = src.slice(src.indexOf('async function markerMissing('), src.indexOf('// ───────────────────────── ошибка на экране'));
 assert.match(missingFn, /sendToRole\(role, markerReminder/, 'напоминание содержит шаблон маркера');
@@ -91,4 +91,4 @@ assert.match(src, /Тихий тест/, 'тихий тест доступен �
 assert.match(src, /Громкий тест/, 'громкий тест доступен из панели');
 assert.ok(!src.includes('location.reload()'), 'видимая ошибка не перезагружает страницу');
 
-console.log('OK: narthex 1.4.1 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
+console.log('OK: narthex 1.4.2 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
