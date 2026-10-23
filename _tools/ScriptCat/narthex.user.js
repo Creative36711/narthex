@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.21
+// @version      1.4.22
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -60,6 +60,8 @@
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
     sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
+    stalledMs: 2700000, // 45 минут — и только для карточки, по которой ход потерян
+    longWaitNoticeMs: 600000, // раз в 10 минут напоминаем, что долгое ожидание — норма
   };
 
   const K = {
@@ -238,7 +240,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.21";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.22";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2984,15 +2986,32 @@
   }
 
   // ───────────────────────────── ход Координатора ─────────────────────────────
+  /**
+   * Возврат «зависших» карточек в Ready.
+   *
+   * Это не лимит на работу агента. 45 минут — срок, после которого карточка в
+   * Running считается брошенной: задание до исполнителя не дошло, ответ
+   * потерялся, вкладку закрыли. Пока у скрипта есть живой ход (неотправленное
+   * задание или ожидание ответа), карточка не трогается никогда: агент может
+   * работать и два, и три часа, и это нормально.
+   */
   async function releaseStalled(mission) {
+    // Идёт отправка — не наше дело, что там на часах.
+    if (GM_getValue(K.pending, null)) return;
+    const expect = GM_getValue(K.expect, null);
     const running = await tasks("Running", mission);
-    const limit = 45 * 60 * 1000;
     for (const card of running) {
+      // По этой карточке скрипт как раз ждёт ответа: ход живой.
+      if (expect && Number(expect.sentAt) && norm(expect.ref) === norm(card.id)) continue;
       const started = card.properties["Started At"]?.date?.start;
       if (!started) continue;
-      if (Date.now() - Date.parse(started) < limit) continue;
+      if (Date.now() - Date.parse(started) < C.stalledMs) continue;
       await patch(card.id, { "Dispatch State": { select: { name: "Ready" } } });
-      log(`«${taskTitle(card)}» зависла в Running — возвращена в Ready.`, false, { ntfy: "quiet" });
+      log(
+        `«${taskTitle(card)}» висит в Running ${Math.round((Date.now() - Date.parse(started)) / 60000)} мин без хода скрипта — возвращена в Ready.`,
+        false,
+        { ntfy: "quiet" },
+      );
     }
   }
 
@@ -3562,15 +3581,31 @@
       // Ждать ответа бесконечно нельзя: если агент не прислал ни строки за
       // replyWaitMs, задание до него, скорее всего, не дошло (например,
       // осталось от старой версии). Молчание тут — ошибка, а не терпение.
+      //
+      // Но молчание и работа — разные вещи. Задача может идти часами: пока
+      // виден Stop или плашка «думает», ход живой, и снимать передачу нельзя —
+      // иначе агент останется без ответа, а карточка вернётся в Ready.
       if (expect) {
         const since = Number(expect.sentAt || expect.at) || 0;
         const waited = Date.now() - since;
-        if (waited > C.replyWaitMs && !messagesAfter(expect.watermark || "").length) {
+        const fresh = messagesAfter(expect.watermark || "").length;
+        const working = stillWorking();
+        if (waited > C.replyWaitMs && !fresh && !working) {
           dropHandoff(
-            `${me.name} не ответил ни одним сообщением за ${Math.round(waited / 60000)} мин: похоже, задание до него не дошло. ` +
+            `${me.name} не ответил ни одним сообщением за ${Math.round(waited / 60000)} мин и ничего не делает: похоже, задание до него не дошло. ` +
               `Очередь и ожидание сняты — нажмите «Продолжить» и пройдите шаг заново.`,
           );
           return;
+        }
+        if (waited > C.longWaitNoticeMs) {
+          logThrottled(
+            `long-wait:${expect.ref || expect.roleId || ""}`,
+            `Жду ответа «${expect.roleName || expect.roleId}» ${Math.round(waited / 60000)} мин` +
+              `${fresh ? " — агент уже отвечает" : working ? " — агент работает" : ""}. ` +
+              "Длинная задача может идти часами: ждём, передачу не снимаю.",
+            false,
+            C.longWaitNoticeMs,
+          );
         }
       }
 

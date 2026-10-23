@@ -14,7 +14,7 @@ const src = readFileSync(file, 'utf8');
 
 // 1. В @connect есть ntfy.sh, версия поднята.
 assert.match(src, /@connect\s+ntfy\.sh/, '@connect ntfy.sh');
-assert.match(src, /@version\s+1\.4\.21/, 'версия 1.4.21');
+assert.match(src, /@version\s+1\.4\.22/, 'версия 1.4.22');
 
 // 2. В коде нет кириллицы в заголовках: X-Title/X-Priority/X-Tags не используются.
 for (const header of ['X-Title', 'X-Tags', 'X-Priority']) {
@@ -133,4 +133,4 @@ assert.match(notify, /console\.warn/, 'ошибка пуша не роняет �
 assert.match(notify, /log\(`ntfy: пуш не ушёл/, 'сбой обычного пуша виден в журнале панели');
 assert.match(notify, /skip: true/, 'сбой пуша не порождает новый пуш');
 
-console.log('OK: ntfy 1.4.21 — публикация JSON без кириллицы в заголовках, ссылка-топик, видимый результат тестов');
+console.log('OK: ntfy 1.4.22 — публикация JSON без кириллицы в заголовках, ссылка-топик, видимый результат тестов');
