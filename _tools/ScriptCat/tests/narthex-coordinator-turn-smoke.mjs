@@ -5,8 +5,9 @@
 // решение падал в паузу «Координатор направил ход в «Coordinator», но
 // Ready-карточки нет» — то есть наказывал за аккуратный ответ.
 //
-// Здесь проверяется 1.4.16: ход возвращается Координатору сам, с подсказкой
+// Здесь проверяется 1.4.17: ход возвращается Координатору сам, с подсказкой
 // закончить ход, а промпт требует приёмку и выдачу в одном ответе.
+// Плюс (49): Координатор получает ссылку на журнал ответа, который принимает.
 
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
@@ -40,6 +41,55 @@ assert.match(prompt, /Приёмка и выдача — не два хода/, 
 assert.match(prompt, /Пустая очередь после твоего ответа считается незаконченным ходом/, 'пустая очередь — незаконченный ход');
 assert.match(prompt, /а не Coordinator/, 'next должен называть исполнителя');
 assert.match(prompt, /CF_COORDINATOR_RESULT/, 'маркер на месте');
+
+// ── 1a. Журнал ответа: ссылку получает Координатор, а не исполнитель ────────
+const lineFrom = src.indexOf('  /**\n   * Ссылка на журнал последнего ответа');
+const lineTo = src.indexOf('  function coordinatorPrompt(');
+assert.ok(lineFrom > 0 && lineTo > lineFrom, 'answerLogLine на месте');
+const answerLogLine = new Function(
+  'rt', 'taskTitle', 'taskRole',
+  `${src.slice(lineFrom, lineTo)}; return answerLogLine;`,
+)(
+  (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || '').join(''),
+  (card) => (card.properties['Запрос']?.title || []).map((x) => x.plain_text).join(''),
+  (card) => card.properties['Кому']?.select?.name || '',
+);
+
+const cardAt = (id, who, logId, at) => ({
+  properties: {
+    'Запрос': { title: [{ plain_text: id }] },
+    'Кому': { select: { name: who } },
+    'Output Drive File ID': { rich_text: [{ plain_text: logId }] },
+    'Submitted At': { date: { start: at } },
+  },
+});
+const submitted = [
+  cardAt('NAR-1.1 · Карта ядра', 'Architect', 'LOG1', '2026-10-23T15:00:00Z'),
+  cardAt('NAR-1.2 · Контекст и страж графа', 'Kernel', 'LOG2', '2026-10-23T16:26:00Z'),
+];
+const answerLine = answerLogLine(submitted);
+assert.match(
+  answerLine,
+  /^Журнал ответа Kernel \(NAR-1\.2\): https:\/\/drive\.google\.com\/file\/d\/LOG2\/view — прочитай, если нужны детали ответа\.$/,
+  'ссылка ведёт на журнал последнего ответа, а не первого',
+);
+assert.equal(answerLogLine([]), '', 'нет Submitted — нет строки');
+assert.equal(answerLogLine([{ properties: {} }]), '', 'карточка без журнала не даёт строку');
+
+const promptWithLine = generate(
+  () => 'ТЕХНИКА',
+  () => 'NAR-1',
+  () => 'Ты — Coordinator.',
+)(
+  { id: 'mission-1', properties: { 'Миссия': { title: [{ plain_text: 'NAR-1' }] }, 'ТЗ URL': { url: 'https://x' } } },
+  { name: 'Coordinator', fn: 'Coordinator' },
+  '1 Submitted, 0 Running, 0 Ready, 0 Rework',
+  'turn-2',
+  '',
+  answerLine,
+);
+assert.ok(promptWithLine.includes(answerLine), 'строка с журналом попала в промпт Координатора');
+assert.doesNotMatch(prompt, /drive\.google\.com\/file/, 'без Submitted строки в промпте нет');
 
 // ── 2. Маршрутизация решения ───────────────────────────────────────────────
 const routeFrom = src.indexOf('  function decisionRoute(next,');
@@ -121,6 +171,8 @@ assert.ok(rpFrom > 0 && rpTo > rpFrom, 'requestPlan на месте');
 const rp = src.slice(rpFrom, rpTo);
 assert.match(rp, /const waitMs = force \? 5_000 : 60_000;/, 'для своего хода — пять секунд, не минута');
 assert.match(rp, /if \(manual\) log\(`Шаг не выполнен: план запрашивали/, 'в ручном режиме отказ объясняется');
+assert.match(rp, /const answerLine = answerLogLine\(queue\.submitted\);/, 'журнал последнего ответа передаётся Координатору');
+assert.match(rp, /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine\)/, 'строка доходит до промпта');
 
 // ── 4. Скрипт больше не падает на пустом Ready ─────────────────────────────
 assert.doesNotMatch(
@@ -135,4 +187,4 @@ assert.match(
 );
 assert.match(src, /GM_setValue\("cfn-plan-miss", 0\);/, 'счётчик промахов сбрасывается на успехе');
 
-console.log('OK: narthex 1.4.16 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');
+console.log('OK: narthex 1.4.17 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');

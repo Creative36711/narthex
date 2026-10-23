@@ -85,6 +85,12 @@ assert.ok(prompt.includes(fallback), 'задание попало в промп�
 assert.doesNotMatch(prompt, /не найден/i, 'в промпте нет «не найден»');
 assert.doesNotMatch(prompt, /drive\.google\.com\/file/, 'ссылки на журнал в задании нет: она не нужна агенту');
 
+assert.doesNotMatch(
+  src.slice(src.indexOf('  function executorPrompt('), src.indexOf('  function answerLogLine(')),
+  /answerLogLine|drive\.google\.com/,
+  'ссылка на журнал ответа — только Координатору, в задании исполнителя её нет',
+);
+
 const withPayload = api.executorPrompt(card, executor, 'Текст из файла', 'LOG1', 'run-1');
 assert.match(withPayload, /ЗАДАНИЕ\nТекст из файла/, 'приложенный файл идёт как задание');
 
@@ -115,4 +121,4 @@ const reminderTo = src.indexOf('  /**', reminderFrom + 10);
 const markerBlock = src.slice(reminderFrom, reminderTo);
 assert.doesNotMatch(markerBlock, FORBIDDEN, 'в напоминании о маркере нет кнопок');
 
-console.log('OK: narthex 1.4.16 — агенту не рассказывают про кнопки, задание берётся из карточки, журнал попытки заполняется сразу');
+console.log('OK: narthex 1.4.17 — агенту не рассказывают про кнопки, задание берётся из карточки, журнал попытки заполняется сразу');

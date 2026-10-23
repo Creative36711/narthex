@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.16
+// @version      1.4.17
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -235,7 +235,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.16";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.17";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2676,13 +2676,35 @@
     ].join("\n");
   }
 
-  function coordinatorPrompt(mission, role, queueSummary, turnId, note = "") {
+  /**
+   * Ссылка на журнал последнего ответа — только для Координатора.
+   *
+   * Мастер (49): Координатору важно видеть, что ответил тот, за кем был
+   * последний ход, иначе приёмка идёт по короткой строке «Ответ ... записан
+   * в лог». Исполнителю эта строка не нужна: ему выдали задание, а не чужой
+   * ответ (из executorPrompt она убрана в 1.4.16).
+   */
+  function answerLogLine(cards) {
+    const at = (card) => card?.properties?.["Submitted At"]?.date?.start || "";
+    const rows = (cards || [])
+      .filter((card) => rt(card.properties["Output Drive File ID"]))
+      .sort((a, b) => (at(a) < at(b) ? -1 : at(a) > at(b) ? 1 : 0));
+    const card = rows.at(-1);
+    if (!card) return "";
+    const id = taskTitle(card).split("·")[0].trim() || taskTitle(card);
+    const who = taskRole(card) || "исполнителя";
+    const link = `https://drive.google.com/file/d/${rt(card.properties["Output Drive File ID"])}/view`;
+    return `Журнал ответа ${who} (${id}): ${link} — прочитай, если нужны детали ответа.`;
+  }
+
+  function coordinatorPrompt(mission, role, queueSummary, turnId, note = "", answerLine = "") {
     return [
       technicalInfo(role),
       "",
       `Миссия: ${rt(mission.properties["Миссия"])}.`,
       `ТЗ: ${mission.properties["ТЗ URL"]?.url || "не задано"}`,
       `Очередь: ${queueSummary}`,
+      answerLine,
       note ? `Комментарий: ${note}` : "",
       "",
       "Кому, Sequence, порядок и число Ready ставишь ты. Черновики ТЗ — предложение, а не приказ.",
@@ -2994,8 +3016,11 @@
       queue.summary ||
       `${queue.submitted.length} Submitted, ${queue.running.length} Running, ${queue.ready.length} Ready, ${queue.rework.length} Rework`;
     const turnId = uid();
+    // Ход Координатора начинается с разбора Submitted: даём ссылку на журнал
+    // ответа, который он принимает, а не только счётчики очереди.
+    const answerLine = answerLogLine(queue.submitted);
     log(`План Координатора запрошен (${summary}).`);
-    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note), "plan", mission.id, {
+    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine), "plan", mission.id, {
       missionId: mission.id,
       turnId,
       title: "план Координатора",
