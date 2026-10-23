@@ -204,4 +204,4 @@ assert.ok(
 assert.match(src, /isNearComposer\(b, editor\)/, 'своя кнопка — та, что рядом с полем');
 assert.match(src, /plain\.length === 1 \? plain\[0\] : null/, 'последняя попытка — только единственная точная Send');
 
-console.log('OK: narthex 1.4.23 — клики не уходят в сайдбар, вставка не «удаётся» в отвязанный узел');
+console.log('OK: narthex 1.4.24 — клики не уходят в сайдбар, вставка не «удаётся» в отвязанный узел');

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.23
+// @version      1.4.24
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -240,7 +240,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.23";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.24";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -445,6 +445,14 @@
     },
     state: () => debugSnapshot(),
     composer: () => composer(),
+    /** Что скрипт видит вокруг поля ввода: кандидаты, кнопки, координаты. */
+    dom: () => {
+      const report = domReport();
+      console.info("[Narthex] снимок разметки:", report);
+      return report;
+    },
+    /** Снимок, сохранённый при последнем отказе отправки. */
+    sendDebug: () => GM_getValue("cfn-send-debug", null),
     sendButton: () => debugSendButton(composer()),
     panels: () => completionPanels().map(describe),
     closePanel: () => closeCompletionPlaque(),
@@ -1647,6 +1655,60 @@
     /^(send|send message|send a message|send prompt|send the message|submit|submit message|отправить|отправить сообщение)$/;
 
   /**
+   * Снимок разметки для разбора отказов.
+   *
+   * Когда что-то не находится, спорить о причинах бессмысленно: нужны
+   * координаты и подписи того, что реально видит скрипт. Снимок пишется в
+   * хранилище при отказе отправки и печатается в консоль через
+   * `__narthex.dom()`.
+   */
+  function domReport() {
+    const box = (el) => {
+      try {
+        const r = el.getBoundingClientRect();
+        return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)];
+      } catch {
+        return null;
+      }
+    };
+    const about = (el) => ({
+      tag: String(el.tagName || "").toLowerCase(),
+      role: el.getAttribute?.("role") || "",
+      ce: el.getAttribute?.("contenteditable") || "",
+      label: String(labelText(el)[0] || "").slice(0, 40),
+      cls: String(el.className || el.getAttribute?.("class") || "").slice(0, 70),
+      box: box(el),
+      alive: el.isConnected !== false,
+      own: inOwnPanel(el),
+      sidebar: Boolean(el.closest?.("nav, aside, [role='navigation'], [data-sidebar], [data-slot='sidebar']")),
+    });
+    const editors = [
+      ...document.querySelectorAll(
+        ".editor-content[contenteditable], .editor-content [contenteditable], " +
+          "[contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
+      ),
+    ]
+      .filter((el) => el.tagName !== "INPUT")
+      .slice(0, 12)
+      .map(about);
+    const buttons = [...document.querySelectorAll('button, [role="button"], input[type="submit"]')]
+      .slice(0, 60)
+      .map(about)
+      .filter((b) => b.box && b.box[2] > 0 && b.box[3] > 0);
+    const pick = composer();
+    const dialog = openDialog();
+    return {
+      at: Date.now(),
+      path: location.pathname,
+      hidden: typeof tabHidden === "function" ? tabHidden() : null,
+      pick: pick ? about(pick) : null,
+      dialog: dialog ? about(dialog) : null,
+      editors,
+      buttons,
+    };
+  }
+
+  /**
    * Открытый диалог Arena поверх чата.
    *
    * Пока он висит, `focus()` не отдаёт каретку полю ввода, и `execCommand`
@@ -2175,7 +2237,9 @@
       ...(dialog ? ["поверх чата открыт диалог Arena"] : []),
       ...why,
     ].join(", ");
-    GM_setValue("cfn-send-debug", { at: Date.now(), detail, key, text: String(text).slice(0, 300) });
+    const report = domReport();
+    GM_setValue("cfn-send-debug", { at: Date.now(), detail, key, text: String(text).slice(0, 300), report });
+    console.warn("[Narthex] снимок разметки при отказе отправки:", report);
     return {
       ok: false,
       // Без единого клика причина другая: кнопка не нашлась, а не «нажали
@@ -2343,6 +2407,9 @@
     await sleep(450 + Math.floor(Math.random() * 900));
     if (!writePrompt(editor, pending.text)) {
       const dialog = openDialog();
+      const report = domReport();
+      GM_setValue("cfn-send-debug", { at: Date.now(), detail: "вставка не удалась", text: String(pending.text).slice(0, 300), report });
+      console.warn("[Narthex] снимок разметки при отказе вставки:", report);
       pendingSay(
         pending,
         "Не удалось вставить задание в редактор: оно осталось в очереди." +

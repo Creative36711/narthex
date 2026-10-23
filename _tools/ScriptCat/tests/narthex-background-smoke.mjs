@@ -81,4 +81,4 @@ assert.doesNotMatch(src, /document\.hasFocus\(\)/, 'фокус окна не п�
 assert.doesNotMatch(src, /requestAnimationFrame/, 'кадровый цикл не используется — он в фоне стоит');
 assert.doesNotMatch(src, /navigator\.clipboard/, 'буфер обмена не используется — он требует фокуса');
 
-console.log('OK: narthex 1.4.23 — в фоновой вкладке ожидания растянуты, журнал объясняет, возврат будит цикл');
+console.log('OK: narthex 1.4.24 — в фоновой вкладке ожидания растянуты, журнал объясняет, возврат будит цикл');

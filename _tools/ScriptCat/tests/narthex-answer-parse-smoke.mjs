@@ -207,4 +207,4 @@ assert.match(src, /await sleep\(450 \+ Math\.floor\(Math\.random\(\) \* 900\)\);
 assert.match(src, /await sleep\(500 \+ Math\.floor\(Math\.random\(\) \* 1200\)\);/, 'пауза перед нажатием Send');
 assert.match(src, /«\$\{role\.name\}» уже открыт — отправляю задание здесь\./, 'свою же страницу не перезагружаем');
 
-console.log('OK: narthex 1.4.23 — ответ берётся из настоящего .prose, а не из «Thought for…», «думаю» не считается ответом, один шаг = одна отправка');
+console.log('OK: narthex 1.4.24 — ответ берётся из настоящего .prose, а не из «Thought for…», «думаю» не считается ответом, один шаг = одна отправка');
