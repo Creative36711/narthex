@@ -75,6 +75,18 @@ assert.match(
 );
 assert.match(tickBody, /samePage = new URL\(owner\.url, location\.href\)\.pathname === location\.pathname/, 'проверка на петлю: та же страница — не переходим');
 
+// 2.2. У исполнителя работы нет: «Шаг» ведёт к Координатору, а не в тупик.
+assert.match(
+  tickBody,
+  /if \(fromToggle && coord\) \{\s*\/\/[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*log\(`У «\$\{me\.name\}» нет задания в очереди — открываю Координатора/,
+  'нажатие «Шаг» без задания ведёт к Координатору',
+);
+assert.match(
+  tickBody,
+  /нет задания в очереди — открываю Координатора[\s\S]{0,200}GM_setValue\(K\.step, true\);[\s\S]{0,120}return navigateTo\(coord, "там начинается ход"\);/,
+  'переход сразу выполняет отложенный шаг на странице Координатора',
+);
+
 // ── 3. Ожидание помнит имя и адрес роли ─────────────────────────────────────
 assert.match(src, /roleName: role\.name,/, 'в ожидании есть имя роли');
 assert.match(src, /roleUrl: role\.url,/, 'в ожидании есть её страница');
@@ -107,4 +119,4 @@ assert.equal(
 );
 assert.equal(pickTarget({ expect: { roleId: 'неизвестно' }, rolesList: list }).name, 'Coordinator', 'неизвестная роль — не блокируем шаг');
 
-console.log('OK: narthex 1.4.20 — «Шаг» ведёт к тому, чей ответ ждут, а автоцикл живёт только в текущей вкладке');
+console.log('OK: narthex 1.4.21 — «Шаг» ведёт к тому, чей ответ ждут, а автоцикл живёт только в текущей вкладке');

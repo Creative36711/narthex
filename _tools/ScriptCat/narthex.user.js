@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.20
+// @version      1.4.21
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -238,7 +238,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.20";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.21";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -3579,13 +3579,22 @@
       } else if (!expect) {
         // Без ожидания `messagesAfter(expect.watermark)` упал бы в catch,
         // и «Шаг» на странице исполнителя ставил бы паузу вместо ответа.
+        const coord = list.find((r) => r.fn === "Coordinator");
+        if (fromToggle && coord) {
+          // «Шаг» не должен упираться в тупик: работа начинается у
+          // Координатора, туда и ведём. Раньше здесь была только строка в
+          // журнале, и на опустевшей странице исполнителя жать было некуда —
+          // например, после того как задание сняли как просроченное.
+          log(`У «${me.name}» нет задания в очереди — открываю Координатора: там начинается ход.`);
+          GM_setValue(K.step, true);
+          return navigateTo(coord, "там начинается ход");
+        }
         if (fromToggle) {
           log(`Шаг не выполнен: у «${me.name}» нет задания в очереди. Ход начинается с Координатора.`, true);
-        } else if (autoOn()) {
+        } else if (autoOn() && coord) {
           // В автоцикле незанятая страница исполнителя — не повод стоять:
           // новый ход начинается у Координатора, туда и переходим.
-          const coord = list.find((r) => r.fn === "Coordinator");
-          if (coord) return navigateTo(coord, "там начинается ход");
+          return navigateTo(coord, "там начинается ход");
         }
       } else {
         await submitExecutor(me, expect, fromToggle);

@@ -69,8 +69,13 @@ assert.match(
 // ── 5. Исполнитель без задания в автоцикле идёт к Координатору ────────────
 assert.match(
   tickBody,
-  /else if \(autoOn\(\)\) \{[\s\S]{0,500}navigateTo\(coord, "там начинается ход"\)/,
+  /else if \(autoOn\(\) && coord\) \{[\s\S]{0,400}navigateTo\(coord, "там начинается ход"\)/,
   'пустая страница исполнителя не держит цикл',
+);
+assert.match(
+  tickBody,
+  /if \(fromToggle && coord\) \{[\s\S]{0,900}navigateTo\(coord, "там начинается ход"\)/,
+  'и в ручном режиме «Шаг» ведёт туда же',
 );
 
 // ── 6. Журнал не забивается повторами ─────────────────────────────────────
@@ -141,4 +146,4 @@ const role = { id: 'architect', name: 'Architect', url: 'https://arena.ai/agent/
   assert.equal(h.pauses.length, 0, 'паузы нет');
 }
 
-console.log('OK: narthex 1.4.20 — автоцикл сам находит страницу, не петляет и не забивает журнал');
+console.log('OK: narthex 1.4.21 — автоцикл сам находит страницу, не петляет и не забивает журнал');
