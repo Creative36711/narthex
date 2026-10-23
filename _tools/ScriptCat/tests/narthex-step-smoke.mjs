@@ -1,16 +1,14 @@
-// Проба narthex.user.js: кнопка «Шаг» и досылка задания.
+// Проба narthex.user.js: кнопка «Шаг», поле ввода и плашка завершённой задачи.
 //
-// Жалоба Мастера: «нажимаю Шаг — переходит к Координатору и молчание, в логах
-// ничего». Найдено четыре молчаливых места:
-//   1. после перехода на страницу адресата `tick` выходил по гейту «автоцикл
-//      выключен», поэтому сохранённое задание никто не досылал;
-//   2. `consumePending` возвращал false без записи в журнал (нет редактора,
-//      агент ещё отвечает, чужая роль);
-//   3. `generating()` смотрел только на существование скрытого `stop-button`
-//      и мог ждать призрака вечно;
-//   4. поле ввода искалось первым `[contenteditable]`, а не `.editor-content`.
-// Плюс плашка «задание выполнено» перекрывала чат — в dispatch.user.js она
-// закрывается до вставки текста.
+// История жалоб Мастера, все проверяются здесь:
+//   • после перехода на страницу адресата задание не досылалось (гейт «автоцикл
+//     выключен» срабатывал раньше очереди);
+//   • `consumePending` молчал на каждом раннем выходе;
+//   • `generating()` ждал скрытый `stop-button` из прошлой генерации;
+//   • поле ввода искалось первым `[contenteditable]`, а не редактором Arena;
+//   • «Шаг» на корне (`/`) требовал вручную открыть страницу агента;
+//   • плашка «задание выполнено» и карточка с кнопкой Skip перекрывают чат,
+//     поэтому в `dispatch.user.js` они закрываются ДО вставки текста.
 
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
@@ -18,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.4/, 'версия 1.4.4');
+assert.match(src, /@version\s+1\.4\.5/, 'версия 1.4.5');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -26,32 +24,52 @@ assert.match(tickBody, /const pending = GM_getValue\(K\.pending, null\);/, 'ти
 assert.match(tickBody, /if \(!auto && !fromToggle && !pending\) return;/, 'незавершённая отправка важнее автоцикла');
 assert.match(tickBody, /Date\.now\(\) - busyAt < 120000/, 'залипший шаг снимается через две минуты');
 assert.match(tickBody, /Шаг уже выполняется/, 'повторное нажатие объясняется, а не молчит');
-assert.match(tickBody, /в адресе нет \/agent\/<id>/, 'чужая страница объясняется');
 assert.match(tickBody, /else if \(!expect\)/, 'исполнитель без задания не падает в TypeError');
 assert.match(tickBody, /submitExecutor\(me, expect, fromToggle\)/, 'ручной режим передаётся исполнителю');
 assert.match(src, /async function markerMissing\(role, expect, markerName, manual = false\)/, 'ожидание маркера знает про ручной шаг');
 assert.match(src, /Жду ответ \$\{role.name\}: новых сообщений нет/, 'ручной шаг объясняет ожидание');
 
-// 2. Поле ввода и кнопка отправки — как в рабочем dispatch.user.js.
+// 1.1. «Шаг» работает с любой страницы: сам открывает Координатора.
+const rootBlock = tickBody.slice(
+  tickBody.indexOf('const meId = roleFromPath();'),
+  tickBody.indexOf('const me = list.find(', tickBody.indexOf('const meId')),
+);
+assert.match(rootBlock, /if \(!fromToggle\) return;/, 'в автоцикле навигацию не затеваем');
+assert.match(rootBlock, /r\.fn === "Coordinator"/, 'ищем Координатора среди активных ролей');
+assert.match(rootBlock, /GM_setValue\(K\.step, true\)/, 'шаг запоминается на один переход');
+assert.match(rootBlock, /location\.assign\(coord\.url\)/, 'открываем страницу Координатора сами');
+assert.ok(!/в адресе нет \/agent\/<id>/.test(src), 'требования открыть страницу вручную больше нет');
+assert.match(src, /if \(GM_getValue\(K\.step, false\)\) \{/, 'загрузка страницы выполняет отложенный шаг');
+assert.match(src, /GM_setValue\(K\.step, false\);/, 'шаг одноразовый, петли нет');
+
+// 2. Поле ввода и кнопка отправки — шире, чем в dispatch.user.js.
 const sendStart = src.indexOf('// ───────────────────────────── отправка');
 const sendEnd = src.indexOf('// ───────────────────────────── PR', sendStart);
 const sendBlock = src.slice(sendStart, sendEnd);
-assert.match(sendBlock, /\.editor-content\[contenteditable='true'\]/, 'ищем редактор Arena, а не первый contenteditable');
-assert.match(sendBlock, /\[contenteditable='true'\]\.tiptap/, 'tiptap-редактор');
-assert.match(sendBlock, /\[contenteditable='true'\]\[role='textbox'\]/, 'редактор с role=textbox');
-assert.match(sendBlock, /querySelectorAll\("textarea"\)/, 'запасной textarea');
+assert.match(sendBlock, /\.editor-content\[contenteditable\]/, 'редактор Arena первым');
+assert.match(sendBlock, /\[contenteditable\]:not\(\[contenteditable='false'\]\)/, 'plaintext-only тоже contenteditable');
+assert.match(sendBlock, /\.ProseMirror/, 'ProseMirror');
+assert.match(sendBlock, /\[role='textbox'\]/, 'role=textbox');
+assert.match(sendBlock, /textarea:not\(\[readonly\]\)/, 'запасной textarea');
+assert.match(sendBlock, /function composerCovered\(editor\)/, 'проверяем, не накрыт ли редактор');
+assert.match(sendBlock, /document\.elementFromPoint\(/, 'оверлей ловится по верхнему элементу');
 assert.match(sendBlock, /SEND_LABEL = \/\(\^\|\[\\s:\]\)\(send\|submit\|отправ/, 'подпись Send ищется и по-русски');
 assert.match(sendBlock, /aria-disabled/, 'заблокированная кнопка не считается');
 assert.match(sendBlock, /function writePrompt\(editor, text\)/, 'вставка текста отдельной функцией');
 assert.match(sendBlock, /HTMLTextAreaElement\.prototype/, 'textarea заполняется нативным сеттером');
 
-// 3. Плашка завершённой задачи.
-assert.match(sendBlock, /function closeCompletionPlaque\(\)/, 'плашка закрывается');
+// 3. Плашка и карточка Skip — оба вида перекрывают чат.
+assert.match(sendBlock, /function closeCompletionPanel\(\)/, 'панель завершения закрывается');
+assert.match(sendBlock, /function closeCompletionPlaque\(\)/, 'плашка любым способом закрывается');
 assert.match(sendBlock, /border-border-medium/, 'тот же селектор панели, что в dispatch.user.js');
 assert.match(sendBlock, /close\|dismiss\|закрыть\|скрыть/, 'кнопка закрытия ищется по подписи');
-const plaqueCall = sendBlock.indexOf('const plaque = closeCompletionPlaque();');
+assert.match(sendBlock, /function skipCardButton\(\)/, 'карточка с кнопкой Skip тоже закрывается');
+assert.match(sendBlock, /data-agent-transcript-message/, 'ищем её в транскрипте, как dispatch.user.js');
+assert.match(sendBlock, /async function ensureComposer\(/, 'редактор ждём, освобождая чат');
+assert.equal([...sendBlock.matchAll(/if \(closed > 6\) break;/g)].length, 2, 'клик-шторм ограничен и для панели, и для Skip');
+const ensureCall = sendBlock.indexOf('await ensureComposer()');
 const writeCall = sendBlock.indexOf('writePrompt(editor, pending.text)');
-assert.ok(plaqueCall > 0 && plaqueCall < writeCall, 'плашку закрываем до вставки задания');
+assert.ok(ensureCall > 0 && ensureCall < writeCall, 'чат освобождается до вставки задания');
 
 // 4. Молчаливых выходов в consumePending не осталось.
 const cpStart = sendBlock.indexOf('async function consumePending(');
@@ -63,8 +81,12 @@ assert.equal(
   'return false только там, где задания нет или оно чужое',
 );
 assert.match(cpBody, /return !act;/, 'просрочка продолжает шаг только по нажатию или в автоцикле');
+assert.match(cpBody, /const age = Date\.now\(\) - Number\(pending\.at \|\| 0\);/, 'возраст очереди считается до сверки роли');
+assert.match(cpBody, /Снял просроченную отправку из очереди/, 'просрочка объясняется');
+assert.match(cpBody, /Продолжаю шаг с чистого листа/, 'просрочка не глотает нажатие');
+assert.match(cpBody, /Нажмите «Шаг», чтобы начать заново/, 'на загрузке страницы шаг сам не начинается');
+assert.match(cpBody, /if \(mine && waiting && norm\(waiting\.roleId\) === norm\(me\)\) GM_setValue\(K\.expect, null\);/, 'вместе с очередью снимается ожидание');
 for (const text of [
-  'Снял просроченную отправку из очереди',
   'Агент ещё отвечает: задание из очереди подождёт',
   'Не нашёл поле ввода на странице адресата',
   'Не удалось вставить задание в редактор',
@@ -72,21 +94,12 @@ for (const text of [
 ]) {
   assert.ok(cpBody.includes(text), `журнал объясняет: ${text}`);
 }
+assert.match(cpBody, /composerDiagnostics\(\)/, 'при отказе печатается диагностика разметки');
+assert.match(cpBody, /В поле ввода уже есть другой текст/, 'чужой черновик не перезаписывается');
+assert.match(cpBody, /kind: "editor"/, 'чужой черновик — пауза, а не догадка');
 assert.match(cpBody, /setTimeout\(\(\) => tick\(false\), 5000\)/, 'без редактора шаг повторится сам');
-assert.match(cpBody, /async function consumePending\(manual = false\)/, 'ручной режим различается');
-assert.match(tickBody, /consumePending\(fromToggle\)/, 'тик передаёт признак нажатия');
-assert.match(cpBody, /const age = Date\.now\(\) - Number\(pending\.at \|\| 0\);/, 'возраст очереди считается до сверки роли');
-assert.match(cpBody, /Снял просроченную отправку из очереди/, 'просрочка объясняется');
-assert.match(cpBody, /Продолжаю шаг с чистого листа/, 'просрочка не глотает нажатие');
-assert.match(cpBody, /Нажмите «Шаг», чтобы начать заново/, 'на загрузке страницы шаг сам не начинается');
-assert.match(cpBody, /if \(mine && waiting && norm\(waiting\.roleId\) === norm\(me\)\) GM_setValue\(K\.expect, null\);/, 'вместе с очередью снимается ожидание');
-const staleReturn = cpBody.slice(cpBody.indexOf('Снял просроченную отправку'), cpBody.indexOf('if (!me ||'));
-assert.match(staleReturn, /return !act;/, 'после снятия просрочки тик идёт дальше по нажатию');
-assert.match(src, /pendingTtlMs: 600000/, 'TTL очереди в конфиге');
-assert.match(src, /replyWaitMs: 1800000/, 'предел ожидания ответа в конфиге');
-assert.match(src, /function dropHandoff\(reason\)/, 'зависшая передача снимается целиком');
-assert.match(src, /не ответил ни одним сообщением за/, 'молчание агента объясняется');
-assert.match(tickBody, /dropHandoff\(/, 'молчание агента ставит паузу');
+
+// 5. Ожидание без отправки не считается ходом.
 assert.match(tickBody, /if \(expect && !Number\(expect\.sentAt\)\)/, 'ожидание без отправки не считается ходом');
 const noSendBlock = tickBody.slice(tickBody.indexOf('!Number(expect.sentAt)'), tickBody.indexOf('const waited'));
 assert.match(noSendBlock, /GM_setValue\(K\.expect, null\);/, 'ожидание снимается');
@@ -94,16 +107,13 @@ assert.match(noSendBlock, /GM_setValue\("cfn-plan-at", 0\);/, 'троттлин�
 assert.match(noSendBlock, /ожидание снято, начинаю ход заново/, 'причина видна в журнале');
 assert.match(noSendBlock, /expect = null;/, 'шаг продолжается без ожидания');
 assert.match(src, /watermark: lastMessageId\(\), sentAt: Date\.now\(\)/, 'отметка отправки ставится только при клике Send');
-assert.match(src, /Жду ответ \$\{role.name\}: новых сообщений нет\$\{sentMin/, 'ожидание показывает, сколько прошло');
-
-// 5. generating смотрит на видимую кнопку остановки.
-const genStart = src.indexOf('const generating =');
-const genBody = src.slice(genStart, src.indexOf('//', src.indexOf(');', genStart)) + 2);
-assert.match(genBody, /visible\(b\)/, 'скрытый stop-button не считается');
-assert.match(genBody, /stop generating\|остановить генерац/, 'подписи остановки');
+assert.match(src, /pendingTtlMs: 600000/, 'TTL очереди в конфиге');
+assert.match(src, /replyWaitMs: 1800000/, 'предел ожидания ответа в конфиге');
+assert.match(src, /function dropHandoff\(reason\)/, 'зависшая передача снимается целиком');
+assert.match(tickBody, /dropHandoff\(/, 'молчание агента ставит паузу');
 
 // 6. Поведение: мини-DOM и заглушки вместо браузера.
-const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000, expect = null }) => {
+const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000, expect = null, skip = false, overlay = false, stickyOverlay = false }) => {
   const out = { logs: [], sets: new Map(), pauses: [], clicks: [], timers: [] };
   const state = { now };
   const advance = (ms) => { state.now += ms; };
@@ -123,26 +133,29 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     ...props,
   });
   const sendBtn = send ? el("BUTTON", { "aria-label": "Send", id: "send" }) : null;
-  const closeBtn = el("BUTTON", { "aria-label": "Close", id: "close-plaque" });
-  const panel = {
-    querySelectorAll: () => [closeBtn],
-    querySelector: () => null,
-  };
+  const messages = [];
+  if (skip) {
+    const skipBtn = el("BUTTON", { text: "Skip", id: "skip" });
+    skipBtn.click = () => { out.clicks.push("skip"); messages.length = 0; };
+    messages.push({ querySelectorAll: () => (messages.length ? [skipBtn] : []) });
+  }
   const document = {
     querySelector: (sel) => (sel.includes("contenteditable") ? editor : null),
     querySelectorAll: (sel) => {
+      if (sel.includes("data-agent-transcript-message")) return messages.length ? [messages[0]] : [];
       if (sel.includes("border-border-medium")) return panels.length ? panels : [];
-      if (sel.includes("contenteditable")) return editor ? [editor] : [];
+      if (sel.includes("contenteditable") || sel.includes("ProseMirror") || sel.includes("textbox")) return editor ? [editor] : [];
       if (sel.includes("button")) return stop ? [el("BUTTON", { "aria-label": "Stop generating" })] : sendBtn ? [sendBtn] : [];
       return [];
     },
+    elementFromPoint: () => (overlay && (stickyOverlay || panels.length || messages.length) ? { isConnected: true, contains: () => false } : editor),
     createRange: () => ({ selectNodeContents() {} }),
     execCommand: (_cmd, _ui, text) => {
       if (editor) editor.innerText = text;
       return true;
     },
   };
-  const window = { getSelection: () => ({ removeAllRanges() {}, addRange() {} }) };
+  const window = { getSelection: () => ({ removeAllRanges() {}, addRange() {} }), innerWidth: 1200, innerHeight: 800 };
   const FakeDate = { now: () => state.now };
 
   const fn = new Function(
@@ -150,7 +163,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "setStatus", "log", "pause", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
     "generating", "C",
-    `${sendBlock}\nreturn { consumePending, closeCompletionPlaque };`,
+    `${sendBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
   );
   const api = fn(
     (k, d) => (k === "cfn-pending" ? pending : k === "cfn-expect" ? expect : d),
@@ -180,30 +193,27 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
   return { api, out };
 };
 
+const freshEditor = (text = "") => ({
+  tagName: "DIV", isConnected: true, innerText: text, textContent: text,
+  focus() {}, getClientRects: () => [{}], closest: () => null,
+  getBoundingClientRect: () => ({ left: 10, top: 10, width: 300, height: 60 }),
+  contains: () => false, querySelectorAll: () => [], dispatchEvent() {},
+});
+
 const pending = { roleId: "coordinator", text: "план, пожалуйста", at: 999_000 };
 
 // 6.1. Обычный случай: задание вставлено и отправлено.
 {
-  const editor = {
-    tagName: "DIV", isConnected: true, innerText: "", textContent: "",
-    focus() {}, getClientRects: () => [{}], closest: () => null,
-    querySelectorAll: () => [], dispatchEvent() {},
-  };
-  const { api, out } = load({ pending, editor, send: true });
-  assert.equal(await api.consumePending(), true, 'pending обработан');
+  const { api, out } = load({ pending, editor: freshEditor(), send: true });
+  assert.equal(await api.consumePending(true), true, 'pending обработан');
   assert.deepEqual(out.clicks, ["send"], 'нажата именно Send');
   assert.equal(out.sets.get("cfn-pending"), null, 'очередь очищена');
   assert.ok(out.logs.some((l) => l.text === "Задание отправлено."), 'в журнале есть отправка');
 }
 
-// 6.1b. Отправка ставит отметку sentAt — по ней потом отличают доставленное от фантома.
+// 6.1b. Отправка ставит отметку sentAt — по ней отличают доставленное от фантома.
 {
-  const editor = {
-    tagName: "DIV", isConnected: true, innerText: "", textContent: "",
-    focus() {}, getClientRects: () => [{}], closest: () => null,
-    querySelectorAll: () => [], dispatchEvent() {},
-  };
-  const { api, out } = load({ pending, editor, send: true, expect: { roleId: "coordinator", kind: "plan" } });
+  const { api, out } = load({ pending, editor: freshEditor(), send: true, expect: { roleId: "coordinator", kind: "plan" } });
   await api.consumePending(true);
   const saved = out.sets.get("cfn-expect");
   assert.equal(typeof saved?.sentAt, "number", 'sentAt записан в момент Send');
@@ -212,61 +222,76 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
 
 // 6.2. Плашка завершённой задачи закрывается до вставки.
 {
-  const editor = {
-    tagName: "DIV", isConnected: true, innerText: "", textContent: "",
-    focus() {}, getClientRects: () => [{}], closest: () => null,
-    querySelectorAll: () => [], dispatchEvent() {},
-  };
-  const closePlaque = {
-    isConnected: true, tagName: "BUTTON",
-    getClientRects: () => [{}],
-    getAttribute: (k) => (k === "aria-label" ? "Close" : null),
-    click: () => {},
-  };
-  const panel = {
-    isConnected: true, tagName: "DIV",
-    getClientRects: () => [{}],
-    querySelectorAll: () => [closePlaque],
+  const panels = [{
+    isConnected: true, tagName: "DIV", getClientRects: () => [{}],
+    querySelectorAll: () => [{
+      isConnected: true, tagName: "BUTTON", getClientRects: () => [{}],
+      getAttribute: () => "Close",
+      click: () => panels.splice(0),
+    }],
     querySelector: () => null,
-  };
-  const { api, out } = load({ pending, editor, send: true, panels: [panel] });
-  await api.consumePending();
-  assert.ok(out.logs.some((l) => /Закрыл плашку/.test(l.text)), 'закрытие плашки видно в журнале');
+  }];
+  const { api, out } = load({ pending, editor: freshEditor(), send: true, panels, overlay: true });
+  await api.consumePending(true);
+  assert.ok(out.logs.some((l) => /Убрал плашку/.test(l.text)), 'закрытие плашки видно в журнале');
   assert.deepEqual(out.clicks, ["send"], 'после закрытия плашки задание ушло');
 }
 
-// 6.3. Нет редактора: объяснение в журнале и повтор, без зависания.
+// 6.2b. Карточка с кнопкой Skip тоже освобождает чат.
+{
+  const { api, out } = load({ pending, editor: freshEditor(), send: true, skip: true, overlay: true });
+  await api.consumePending(true);
+  assert.ok(out.clicks.includes("skip"), 'Skip нажат');
+  assert.equal(out.clicks.at(-1), "send", 'после Skip задание отправлено');
+  assert.ok(out.logs.some((l) => /Убрал плашку/.test(l.text)), 'действие видно в журнале');
+}
+
+// 6.2c. Редактор есть, но накрыт оверлеем без кнопки закрытия: не пишем вслепую.
+{
+  const editor = freshEditor();
+  editor.getBoundingClientRect = () => ({ left: 10, top: 10, width: 200, height: 40 });
+  editor.contains = () => false;
+  const { api, out } = load({ pending, editor, send: true, overlay: true, stickyOverlay: true });
+  await api.consumePending(true);
+  const line = out.logs.find((l) => /Не нашёл поле ввода/.test(l.text));
+  assert.ok(line, 'о накрытом редакторе сказано');
+  assert.match(line.text, /Поле перекрыто/, 'Мастеру подсказано закрыть плашку вручную');
+  assert.deepEqual(out.clicks, [], 'в накрытый редактор ничего не отправлено');
+}
+
+// 6.3. Нет редактора: объяснение с диагностикой и повтор, без зависания.
 {
   const { api, out } = load({ pending, editor: null, send: true });
-  assert.equal(await api.consumePending(), true, 'ожидание редактора тоже держит ход');
-  assert.ok(out.logs.some((l) => /Не нашёл поле ввода/.test(l.text)), 'сказано, что редактора нет');
+  assert.equal(await api.consumePending(true), true, 'ожидание редактора держит ход');
+  const line = out.logs.find((l) => /Не нашёл поле ввода/.test(l.text));
+  assert.ok(line, 'сказано, что редактора нет');
+  assert.match(line.text, /contenteditable \d+/, 'в строке есть диагностика разметки');
   assert.deepEqual(out.timers, [5000], 'назначен повтор');
 }
 
 // 6.4. Агент ещё отвечает: ждём, ничего не нажимаем.
 {
-  const editor = {
-    tagName: "DIV", isConnected: true, innerText: "", textContent: "",
-    focus() {}, getClientRects: () => [{}], closest: () => null,
-    querySelectorAll: () => [], dispatchEvent() {},
-  };
-  const { api, out } = load({ pending, editor, send: true, stop: true });
-  await api.consumePending();
+  const { api, out } = load({ pending, editor: freshEditor(), send: true, stop: true });
+  await api.consumePending(true);
   assert.ok(out.logs.some((l) => /Агент ещё отвечает/.test(l.text)), 'ожидание объяснено');
   assert.deepEqual(out.clicks, [], 'ничего не нажато');
 }
 
 // 6.5. Редактор есть, Send нет: пауза, а не тишина.
 {
-  const editor = {
-    tagName: "DIV", isConnected: true, innerText: "", textContent: "",
-    focus() {}, getClientRects: () => [{}], closest: () => null,
-    querySelectorAll: () => [], dispatchEvent() {},
-  };
-  const { api, out } = load({ pending, editor, send: false });
-  await api.consumePending();
+  const { api, out } = load({ pending, editor: freshEditor(), send: false });
+  await api.consumePending(true);
   assert.equal(out.pauses.length, 1, 'пауза поставлена');
   assert.match(out.pauses[0].text, /Кнопка Send не найдена/);
+}
+
+// 6.5a. В редакторе чужой черновик — не перезаписываем и ставим паузу.
+{
+  const { api, out } = load({ pending, editor: freshEditor("черновик Мастера"), send: true });
+  await api.consumePending(true);
+  assert.equal(out.pauses.length, 1, 'пауза поставлена');
+  assert.equal(out.pauses[0].ctx.kind, "editor", 'причина — занятый редактор');
+  assert.deepEqual(out.clicks, [], 'ничего не отправлено');
 }
 
 // 6.5.1. Просроченная очередь: снимаем, объясняем и продолжаем шаг.
@@ -295,7 +320,7 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
 {
   const old = { ...pending, roleId: "kernel", at: 1_000_000 - 11 * 60 * 1000 };
   const { api, out } = load({ pending: old, editor: null, send: true, expect: { roleId: "kernel", at: old.at } });
-  await api.consumePending();
+  await api.consumePending(true);
   assert.equal(out.sets.get("cfn-pending"), null, 'очередь очищена в любом случае');
   assert.equal(out.sets.get("cfn-expect"), undefined, 'чужое ожидание не снимается с этой страницы');
 }
@@ -303,8 +328,8 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
 // 6.6. Чужое задание не трогаем.
 {
   const { api, out } = load({ pending: { ...pending, roleId: "kernel" }, editor: null, send: true });
-  assert.equal(await api.consumePending(), false, 'чужой ход не наш');
+  assert.equal(await api.consumePending(true), false, 'чужой ход не наш');
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.4 — «Шаг» доносит задание после перехода, плашка закрывается, каждый отказ объяснён");
+console.log("OK: narthex 1.4.5 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");

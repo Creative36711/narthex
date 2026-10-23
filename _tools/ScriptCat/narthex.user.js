@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.4
+// @version      1.4.5
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -74,6 +74,7 @@
     ntfyTopic: "cfn-ntfy-topic",
     ntfyToken: "cfn-ntfy-token",
     errSeen: "cfn-error-seen",
+    step: "cfn-step-request",
   };
 
   const ui = {
@@ -210,7 +211,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.4";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.5";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1020,23 +1021,42 @@
 
   // ───────────────────────────── отправка ─────────────────────────────
   /**
-   * Редактор агента. Селекторы — из рабочего `dispatch.user.js`: он ищет
-   * `.editor-content`/tiptap/role=textbox, а не первый `[contenteditable]` на
-   * странице. На странице Arena таких элементов несколько, и первый может
-   * быть скрытой копией — тогда вставка уходила в никуда, а Send не находился.
+   * Редактор агента. Селекторы — из рабочего `dispatch.user.js`, но шире:
+   * `[contenteditable='true']` не совпадает с `plaintext-only`, а ProseMirror
+   * вешает `role=textbox` без contenteditable. Первый найденный элемент может
+   * быть скрытой копией, поэтому кандидаты перебираются с проверкой видимости.
    */
   function composer() {
-    const explicit = document.querySelector(
-      ".editor-content[contenteditable='true'], .editor-content [contenteditable='true'], " +
-        "[contenteditable='true'].tiptap, [contenteditable='true'][role='textbox'], [contenteditable='true']",
-    );
-    if (explicit && visible(explicit)) return explicit;
-    const shown = [...document.querySelectorAll("[contenteditable='true']")].find(visible);
+    const candidates = [
+      ...document.querySelectorAll(
+        ".editor-content[contenteditable], .editor-content [contenteditable], " +
+          "[contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
+      ),
+    ].filter((el) => el.tagName !== "INPUT");
+    const shown = candidates.find(visible);
     if (shown) return shown;
     const prompt = document.querySelector(".editor-content p, [data-placeholder] p");
-    const nearPrompt = prompt?.closest("[contenteditable='true']") || null;
+    const nearPrompt = prompt?.closest("[contenteditable]") || null;
     if (nearPrompt) return nearPrompt;
-    return [...document.querySelectorAll("textarea")].find(visible) || null;
+    return [...document.querySelectorAll("textarea:not([readonly])")].find(visible) || null;
+  }
+
+  /**
+   * Редактор может быть на месте, но накрыт плашкой: тогда и вставка, и Send
+   * уходят в оверлей. Проверяем верхний элемент в центре редактора.
+   */
+  function composerCovered(editor) {
+    try {
+      const rect = editor.getBoundingClientRect();
+      if (!rect.width || !rect.height) return true;
+      const x = Math.min(Math.max(rect.left + rect.width / 2, 0), window.innerWidth - 1);
+      const y = Math.min(Math.max(rect.top + rect.height / 2, 0), window.innerHeight - 1);
+      const top = document.elementFromPoint(x, y);
+      if (!top) return false;
+      return !(top === editor || editor.contains(top) || top.contains(editor));
+    } catch {
+      return false;
+    }
   }
 
   const labelText = (el) =>
@@ -1101,17 +1121,30 @@
     return (editor.innerText || editor.textContent || "").trim().length > 0;
   }
 
+  const composerText = (editor) => (editor?.innerText || editor?.textContent || "").replace(/\s+/g, " ").trim();
+
   /**
-   * Плашка «задание выполнено» лежит поверх чата и перекрывает редактор.
-   * В `dispatch.user.js` она закрывается до вставки текста — здесь то же
-   * правило: сначала освободить чат, потом писать в него.
+   * Плашка «задание выполнено». Два вида, оба перекрывают чат:
+   *  1) панель с классом из `dispatch.user.js` и кнопкой закрытия;
+   *  2) карточка в транскрипте с кнопкой `Skip` (опрос, аудио, предложение).
+   * Возвращает "closed" | "blocked" | "none".
    */
   const COMPLETION_PANEL =
     "div.border-border-medium.bg-surface-secondary.w-full.rounded-md.border.shadow-sm.outline-none";
 
-  function closeCompletionPlaque() {
+  function skipCardButton() {
+    for (const message of document.querySelectorAll('[data-agent-transcript-message="true"]')) {
+      for (const button of message.querySelectorAll("button")) {
+        if (/^skip$/i.test(`${button.getAttribute("aria-label") || ""} ${button.textContent || ""}`.trim()) && visible(button))
+          return button;
+      }
+    }
+    return null;
+  }
+
+  /** Панель завершения: тот же селектор и та же кнопка, что в dispatch.user.js. */
+  function closeCompletionPanel() {
     const panels = [...document.querySelectorAll(COMPLETION_PANEL)].filter(visible);
-    if (!panels.length) return "none";
     for (const panel of panels) {
       const buttons = [...panel.querySelectorAll("button")];
       const labelled = buttons.find((b) =>
@@ -1127,7 +1160,71 @@
         return "closed";
       }
     }
-    return "blocked";
+    return panels.length ? "blocked" : "none";
+  }
+
+  /** Плашка любым способом: панель завершения, иначе карточка с Skip. */
+  function closeCompletionPlaque() {
+    const panel = closeCompletionPanel();
+    if (panel !== "none") return panel;
+    const skip = skipCardButton();
+    if (skip) {
+      skip.click();
+      return "closed";
+    }
+    return "none";
+  }
+
+  /**
+   * Ждём редактор, попутно освобождая чат: сначала панель завершения (она
+   * перекрывает и поле, и Send), затем карточка Skip, затем сам редактор и
+   * проверка, что он не накрыт оверлеем.
+   */
+  async function ensureComposer(timeoutMs = 20000) {
+    const deadline = Date.now() + timeoutMs;
+    let closed = 0;
+    let blocked = false;
+    let covered = false;
+    while (Date.now() < deadline) {
+      const panel = closeCompletionPanel();
+      if (panel === "closed") {
+        closed += 1;
+        // Плашка может не убираться (кнопка не та) — не зацикливаемся на кликах.
+        if (closed > 6) break;
+        await sleep(500);
+        continue;
+      }
+      if (panel === "blocked") blocked = true;
+
+      const editor = composer();
+      if (editor && !composerCovered(editor)) return { editor, closed, overlay: blocked };
+
+      if (editor) covered = true;
+      const skip = skipCardButton();
+      if (skip) {
+        skip.click();
+        closed += 1;
+        if (closed > 6) break;
+        await sleep(500);
+        continue;
+      }
+      await sleep(500);
+    }
+    return { editor: null, closed, overlay: blocked || covered };
+  }
+
+  /** Короткая диагностика, почему поле не нашлось: без неё остаётся гадать. */
+  function composerDiagnostics() {
+    const count = (selector) => document.querySelectorAll(selector).length;
+    const parts = [
+      `contenteditable ${count("[contenteditable]")}`,
+      `textarea ${count("textarea")}`,
+      `textbox ${count("[role='textbox']")}`,
+      `панель ${count(COMPLETION_PANEL)}`,
+      `skip ${count('[data-agent-transcript-message="true"] button') && skipCardButton() ? "да" : "нет"}`,
+      `путь ${location?.pathname || "/"}`
+    ];
+    return parts.join(", ");
   }
 
   async function sendToRole(role, text, kind, ref, extra = {}) {
@@ -1204,30 +1301,33 @@
 
     if (!me || norm(me) !== norm(pending.roleId)) return false;
 
-    const plaque = closeCompletionPlaque();
-    if (plaque === "closed") {
-      log("Закрыл плашку завершённой задачи, чтобы освободить чат.");
-      await sleep(400);
-    } else if (plaque === "blocked") {
-      pendingSay(pending, "Плашка завершённой задачи перекрывает чат, а кнопки закрытия не нашлось: пробую отправить всё равно.", true);
-    }
-
     if (generating()) {
       pendingSay(pending, "Агент ещё отвечает: задание из очереди подождёт и уйдёт, как только он закончит.");
       return true;
     }
 
-    // Редактор появляется не мгновенно после перехода — ждём до 15 секунд.
-    const deadline = Date.now() + 15000;
-    let editor = composer();
-    while (!editor && Date.now() < deadline) {
-      await sleep(500);
-      if (generating()) break;
-      editor = composer();
-    }
+    const { editor, closed, overlay } = await ensureComposer();
+    if (closed) log(`Убрал плашку, которая закрывала чат${closed > 1 ? ` (${closed} раз)` : ""}.`);
     if (!editor) {
-      pendingSay(pending, "Не нашёл поле ввода на странице адресата: задание осталось в очереди и не потеряется.", true);
+      pendingSay(
+        pending,
+        `Не нашёл поле ввода на странице адресата (${composerDiagnostics()}): задание осталось в очереди и не потеряется.` +
+          (overlay ? " Поле перекрыто, а кнопки закрытия не видно — закройте плашку вручную." : ""),
+        true,
+      );
       setTimeout(() => tick(false), 5000);
+      return true;
+    }
+
+    // Чужой текст в редакторе не перезаписываем: это может быть черновик
+    // Мастера. Лучше остановиться и показать, что именно мешает.
+    const existing = composerText(editor);
+    const wanted = pending.text.replace(/\s+/g, " ").trim().slice(0, 80);
+    if (existing && !existing.includes(wanted)) {
+      pause(
+        `В поле ввода уже есть другой текст («${existing.slice(0, 80)}…»): задание не отправлено, чтобы его не потерять. Освободите поле и нажмите «Продолжить».`,
+        { kind: "editor" },
+      );
       return true;
     }
 
@@ -1853,11 +1953,20 @@
       if (await consumePending(fromToggle)) return;
       const meId = roleFromPath();
       if (!meId) {
-        if (fromToggle)
-          log(
-            `Шаг не выполнен: в адресе нет /agent/<id> (сейчас ${location.pathname}). Откройте страницу агента.`,
-            true,
-          );
+        // Мастер не обязан помнить, на какой странице стоит цикл: «Шаг»
+        // открывает Координатора сам и выполняет шаг уже там.
+        if (!fromToggle) return;
+        const list = await roles();
+        const coord = list.find((r) => r.fn === "Coordinator");
+        if (!coord) {
+          log("Шаг не выполнен: нет активного Coordinator с заполненным «Agent URL».", true);
+          return;
+        }
+        // Если задание уже ждёт адресата, страница досылает его сама —
+        // второй шаг не нужен и мог бы выдать лишний ход.
+        if (!GM_getValue(K.pending, null)) GM_setValue(K.step, true);
+        log(`Сейчас ${location.pathname || "/"} — открываю страницу Координатора и выполню шаг там.`);
+        location.assign(coord.url);
         return;
       }
       const list = await roles();
@@ -1949,6 +2058,12 @@
     setStatus();
     setup(false);
     setInterval(() => tick(false), C.tickMs);
+    if (GM_getValue(K.step, false)) {
+      GM_setValue(K.step, false);
+      log("Открыл страницу Координатора — выполняю отложенный шаг.");
+      tick(true);
+      return;
+    }
     tick(false);
   };
   if (document.readyState === "complete") boot();
