@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.13
+// @version      1.4.14
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -223,7 +223,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.13";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.14";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -398,6 +398,7 @@
       pending: GM_getValue(K.pending, null),
       expect: GM_getValue(K.expect, null),
       generating: generating(),
+      busy: busyReason(),
       editor: {
         found: Boolean(editor),
         el: describe(editor),
@@ -1210,14 +1211,63 @@
    *   • «думающая» плашка — только короткая подпись, не свёрнутая история
    *     («Thought for 2 seconds» — это прошлое, а не работа) и не транскрипт.
    */
+  /**
+   * Кнопка «Stop» может быть видимой самой по себе, но лежать в скрытом
+   * контейнере: в Arena панель действий сообщения гасится `opacity: 0` на
+   * обёртке и проявляется при наведении. Собственная прозрачность кнопки при
+   * этом — единица, площадь есть, `display` не тронут. Именно такая кнопка
+   * прошлой генерации и держала шаг: «агент ещё отвечает», хотя ответ давно
+   * закончен.
+   */
+  const hiddenByAncestor = (el) => {
+    let node = el;
+    for (let depth = 0; node && depth < 8; depth += 1) {
+      if (node.getAttribute?.("aria-hidden") === "true") return true;
+      if (node.hasAttribute?.("inert") || node.hasAttribute?.("hidden")) return true;
+      const style = getComputedStyle(node);
+      if (Number(style.opacity) === 0) return true;
+      if (style.visibility === "hidden" || style.display === "none") return true;
+      node = node.parentElement;
+    }
+    return false;
+  };
+
+  /** Где живёт кнопка — нужно только для понятной строки в журнале. */
+  const whereIs = (el) => {
+    if (!el?.closest) return "";
+    if (el.closest("[data-agent-transcript-message]")) return " в сообщении";
+    if (el.closest('form, footer, [class*="composer"], [data-testid*="composer"]')) return " в поле ввода";
+    return "";
+  };
+
+  /**
+   * Кнопка Stop из уже законченного сообщения — протухшая: Arena оставляет
+   * панель действий в DOM и после окончания ответа. Такой признак не должен
+   * останавливать шаг, иначе «Шаг» навсегда упирается в прошлую генерацию.
+   */
+  const stopIsStale = (el) => {
+    const msg = el?.closest?.("[data-agent-transcript-message]");
+    if (!msg) return false;
+    if (replyEnded(msg)) return true;
+    const all = [...document.querySelectorAll("[data-agent-transcript-message]")];
+    return all.length > 0 && all.at(-1) !== msg;
+  };
+
   function busyReason() {
+    // Сначала подпись (дешёвое чтение атрибутов), потом геометрия и стили:
+    // иначе на каждый тик пересчитываются стили сотни посторонних кнопок.
     const stop = [...document.querySelectorAll('button, [role="button"]')].find((b) => {
-      if (!visible(b) || b.disabled || b.getAttribute("aria-hidden") === "true") return false;
-      if (Number(getComputedStyle(b).opacity) === 0) return false;
-      if (getComputedStyle(b).pointerEvents === "none") return false;
-      return /stop generating|остановить генерац|stop response/i.test(shortLabel(b));
+      if (!/stop generating|остановить генерац|stop response/i.test(shortLabel(b))) return false;
+      if (!visible(b) || b.disabled) return false;
+      if (b.getAttribute("aria-hidden") === "true") return false;
+      const style = getComputedStyle(b);
+      if (Number(style.opacity) === 0) return false;
+      if (style.pointerEvents === "none") return false;
+      if (hiddenByAncestor(b)) return false;
+      if (stopIsStale(b)) return false;
+      return true;
     });
-    if (stop) return { kind: "stop", label: shortLabel(stop) || "кнопка Stop" };
+    if (stop) return { kind: "stop", label: shortLabel(stop) || "кнопка Stop", where: whereIs(stop) };
 
     const marks = document.querySelectorAll(
       '[role="status"], [aria-live], [class*="thinking"], [class*="reasoning"], [class*="typing"]',
@@ -1237,8 +1287,31 @@
 
   const generating = () => busyReason()?.kind === "stop";
 
+  /**
+   * «Агент ещё работает» — это состояние, а не кадр.
+   *
+   * Сразу после перехода на страницу агента Arena успевает показать кнопку
+   * Stop на время загрузки транскрипта, хотя ответ давно закончен. Один
+   * мгновенный кадр не должен останавливать нажатый «Шаг»: подтверждаем
+   * признак повторной проверкой через секунду. Настоящая генерация никуда не
+   * денется, а ложная исчезнет — и шаг пойдёт дальше.
+   */
+  async function busySettled(stepMs = 1200) {
+    const first = busyReason();
+    if (!first) return null;
+    await sleep(stepMs);
+    const second = busyReason();
+    if (!second) {
+      dbg("Stop был мгновенным: страница ещё дорисовывалась, шаг продолжается.");
+      return null;
+    }
+    return second;
+  }
+
   const busyLabel = (reason) =>
-    reason?.kind === "stop" ? `кнопка «${reason.label}»` : `плашка «${reason?.label || "думает"}»`;
+    reason?.kind === "stop"
+      ? `кнопка «${reason.label}»${reason.where || ""}`
+      : `плашка «${reason?.label || "думает"}»`;
 
   // ───────────────────────── ответ без маркера ─────────────────────────
   /**
@@ -2874,6 +2947,27 @@
     return "revived";
   }
 
+  /**
+   * Один отложенный повтор нажатого «Шага». Он ничего не отправляет: первый
+   * проход остановился до любой отправки, значит дубля не будет. Нужен потому,
+   * что кнопка Stop может быть мгновенной заставкой загрузки страницы.
+   */
+  let stepRetry = 0;
+  function scheduleStepRetry(delayMs = 4000) {
+    if (stepRetry >= 2) return;
+    stepRetry += 1;
+    log(`Проверю ещё раз через ${Math.round(delayMs / 1000)} с: если это была заставка загрузки, шаг пойдёт сам.`);
+    setTimeout(() => {
+      if (busyReason()?.kind === "stop") {
+        log("Кнопка Stop всё ещё на месте — шаг остаётся на паузе до вашего нажатия.");
+        stepRetry = 0;
+        return;
+      }
+      stepRetry = 0;
+      tick(true);
+    }, delayMs);
+  }
+
   async function tick(fromToggle = false) {
     if (busy) {
       // Шаг мог повиснуть на сетевом запросе без таймаута. Тогда «Шаг» и
@@ -2971,8 +3065,13 @@
       }
       GM_setValue("cfn-me", me.name);
       setStatus();
-      if (generating()) {
-        if (fromToggle) log(`Шаг не выполнен: агент ещё отвечает (${busyLabel(busyReason())}).`);
+      const working = fromToggle ? await busySettled() : busyReason();
+      if (working) {
+        if (fromToggle) {
+          log(`Шаг не выполнен: агент ещё отвечает (${busyLabel(working)}).`);
+          // Ложный Stop исчезает сам: не заставляем Мастера жать второй раз.
+          if (working.kind === "stop") scheduleStepRetry();
+        }
         return;
       }
 
