@@ -1,0 +1,14 @@
+{
+  "format": 2,
+  "id": "broken-code-missing",
+  "title": "Режим code без кода",
+  "kind": "narrative",
+  "caps": ["narrative", "scenes", "combat"],
+  "cap_options": {
+    "combat": { "mode": "code" }
+  },
+  "languages": ["ru"],
+  "default_language": "ru",
+  "engine": { "min": "0.9.0" },
+  "entry": "world.json"
+}

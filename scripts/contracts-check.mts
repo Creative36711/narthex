@@ -77,9 +77,10 @@ function capRuntime(cap: Json): string {
 // ── семантика проекта ────────────────────────────────────────────────
 function projectProblems(project: Json): string[] {
   const problems: string[] = []
+  const caps: string[] = project.caps ?? []
   if (!kindIds.has(project.kind)) problems.push(`неизвестный kind ${project.kind}`)
   const kind = registry.kinds.find((k: Json) => k.id === project.kind)
-  for (const cap of project.caps ?? []) {
+  for (const cap of caps) {
     const entry = capById.get(cap)
     if (!entry) {
       problems.push(`возможность ${cap} отсутствует в реестре`)
@@ -90,12 +91,36 @@ function projectProblems(project: Json): string[] {
     }
   }
   for (const required of kind?.requires ?? []) {
-    if (!(project.caps ?? []).includes(required)) {
-      problems.push(`тип ${project.kind} требует возможность ${required}`)
+    if (!caps.includes(required)) problems.push(`тип ${project.kind} требует возможность ${required}`)
+    if (project.cap_options?.[required]?.mode === 'off') {
+      problems.push(`возможность ${required} выключена, но тип ${project.kind} её требует`)
     }
   }
+
+  const modes: string[] = registry.capability_modes ?? ['core', 'code', 'off']
+  let hasCodeMode = false
+  for (const [cap, option] of Object.entries(project.cap_options ?? {})) {
+    const opt = option as Json
+    if (!caps.includes(cap)) problems.push(`настройка ${cap} не относится ни к одной включённой возможности`)
+    if (!capById.has(cap)) problems.push(`настройка ${cap}: возможности нет в реестре`)
+    if (opt.mode !== undefined && !modes.includes(opt.mode)) {
+      problems.push(`режим ${opt.mode} у возможности ${cap} неизвестен`)
+    }
+    if (opt.mode === 'code') hasCodeMode = true
+    if (opt.version !== undefined && (!Number.isInteger(opt.version) || opt.version < 1)) {
+      problems.push(`версия поведения ${cap} должна быть целым ≥ 1`)
+    }
+  }
+  if (hasCodeMode && !project.code?.entry) {
+    problems.push('есть режим code, но code.entry не задан')
+  }
+
+  if (project.default_language && !(project.languages ?? []).includes(project.default_language)) {
+    problems.push(`язык ${project.default_language} не входит в languages`)
+  }
+
   const runtimes = new Set(
-    (project.caps ?? []).map((cap: string) => capRuntime(capById.get(cap) ?? {})).filter((r: string) => r !== 'none'),
+    caps.map((cap: string) => capRuntime(capById.get(cap) ?? {})).filter((r: string) => r !== 'none'),
   )
   if (runtimes.size > 1) problems.push(`смешаны рантаймы: ${[...runtimes].join(', ')}`)
   if (project.engine?.tested && project.engine.min && semverParts(project.engine.tested) < semverParts(project.engine.min)) {
@@ -147,6 +172,14 @@ function packProblems(pack: Json): string[] {
   if ((pack.saves?.migrations ?? 0) > 0 && (pack.saves?.version ?? 1) < 2) {
     problems.push('миграции объявлены, но version = 1')
   }
+  const seamIds = (pack.provides?.seams ?? []).map((s: Json) => s.id)
+  if (new Set(seamIds).size !== seamIds.length) problems.push('повторяющиеся id швов')
+  for (const seam of pack.provides?.seams ?? []) {
+    if (!['sim', 'view'].includes(seam.kind)) problems.push(`шов ${seam.id}: неизвестный вид ${seam.kind}`)
+    for (const cap of seam.caps ?? []) {
+      if (!capIds.has(cap)) problems.push(`шов ${seam.id}: неизвестная возможность ${cap}`)
+    }
+  }
   if (pack.provides?.probes?.length === 0) problems.push('пак без проб не принимается')
   return problems
 }
@@ -178,6 +211,11 @@ check(
   registry.packs.every((p: Json) => registry.caps.some((c: Json) => c.pack === p.id)),
 )
 
+check(
+  'реестр задаёт режимы возможностей',
+  Array.isArray(registry.capability_modes) && registry.capability_modes.join(',') === 'core,code,off',
+)
+
 console.log('\nпример пака narrative')
 const narrativePack = await readJson('examples/pack.narrative.json')
 const narrativeSchemaOk = validatePack(narrativePack)
@@ -198,6 +236,31 @@ const projectSchemaOk = validateProject(narrativeProject)
 check('проходит схему', projectSchemaOk, projectSchemaOk ? undefined : formatErrors(validateProject.errors))
 const projectProblemsList = projectProblems(narrativeProject)
 check('проходит семантику', projectProblemsList.length === 0, projectProblemsList.join('; '))
+
+console.log('\nпример проекта с кодом в швах')
+const codeProject = await readJson('examples/project.code-mode.json')
+const codeSchemaOk = validateProject(codeProject)
+check('проходит схему', codeSchemaOk, codeSchemaOk ? undefined : formatErrors(validateProject.errors))
+const codeProblems = projectProblems(codeProject)
+check('проходит семантику', codeProblems.length === 0, codeProblems.join('; '))
+
+console.log('\nпример локали')
+const localeDe = await readJson('examples/locales.de.json')
+check('схема локали = 1', localeDe.schema === 1)
+check('язык файла совпадает с именем', localeDe.language === 'de')
+const localeKeys = Object.keys(localeDe.strings ?? {})
+check(
+  'ключи строк — стабильные ID по структуре',
+  localeKeys.length > 0 && localeKeys.every((key) => /^[a-z0-9_]+(\/[a-z0-9_]+)+$/.test(key)),
+)
+check(
+  'у каждой строки есть хэш источника',
+  localeKeys.every((key) => /^[0-9a-f]{8,}$/.test(String(localeDe.sources?.[key] ?? ''))),
+)
+check(
+  'у каждого источника есть строка',
+  Object.keys(localeDe.sources ?? {}).every((key) => key in localeDe.strings),
+)
 
 console.log('\nнегативные примеры обязаны падать')
 const invalidDir = 'examples/invalid'
