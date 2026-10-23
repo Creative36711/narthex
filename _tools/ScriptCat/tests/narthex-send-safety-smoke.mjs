@@ -67,14 +67,17 @@ function makeNode({ tag = 'DIV', cls = '', label = '', text = '', disabled = fal
     return out;
   };
   el.querySelectorAll = (sel) => {
+    if (sel === 'main') return walk((n) => n.tagName === 'MAIN');
     if (/button|role="button"/.test(sel)) return walk((n) => n.tagName === 'BUTTON');
     return [];
   };
   el.contains = (n) => walk((x) => x === n).length > 0;
+  el.querySelector = (sel) => (sel === 'main' ? walk((n) => n.tagName === 'MAIN')[0] || null : null);
   el.closest = (sel) => {
     let cur = el;
     while (cur) {
       if (/sidebar/.test(sel) && cur.sidebar === true) return cur;
+      if (/sidebar/.test(sel) && /sidebar/.test(cur.className || '')) return cur;
       if (/captcha/.test(sel) && /captcha/.test(cur.className)) return cur;
       if (/^nav|aside/.test(sel) && /nav|aside/.test(cur.tagName.toLowerCase())) return cur;
       if (sel === `#cfn-panel` && cur.id === 'cfn-panel') return cur;
@@ -128,7 +131,10 @@ const buildPage = ({ sendLabel = 'Send', sendDisabled = false, withStop = false,
   const chat = makeNode({ children: [merge] });
   const column = makeNode({ cls: 'relative flex min-w-0 flex-1 flex-col', children: [chat, box] });
   const main = makeNode({ tag: 'MAIN', children: [column] });
-  const root = makeNode({ children: [sidebar, main] });
+  // Вся страница обёрнута в `div.group/sidebar-wrapper` — в классе тоже
+  // «sidebar». На этом 1.4.25 и сломался: фильтр выбросил вместе с сайдбаром
+  // и main с полем ввода.
+  const root = makeNode({ cls: 'group/sidebar-wrapper has-[[data-variant=inset]]:bg-sidebar flex min-h-svh w-full', children: [sidebar, main] });
 
   const all = (sel) => {
     if (sel.includes('button')) {
@@ -253,4 +259,21 @@ assert.match(src, /const inSidebar = \(el\) =>/, 'сайдбар определ�
   assert.equal(live.innerText, 'ЗАДАНИЕ', 'текст в живом поле');
 }
 
-console.log('OK: narthex 1.4.25 — кнопки только в панели ввода, аккаунт и Merge PR не нажимаются');
+// ── 11. Обёртка страницы с «sidebar» в классе не считается сайдбаром ────
+{
+  const p = buildPage();
+  assert.equal(p.inSidebar(p.account), true, 'аккаунт в сайдбаре — исключён');
+  assert.equal(p.inSidebar(p.editor), false, 'поле ввода в main сайдбаром не считается');
+  assert.equal(p.inSidebar(p.box), false, 'панель ввода сайдбаром не считается');
+  assert.equal(p.composer(), p.editor, 'поле ввода находится, несмотря на sidebar-wrapper');
+}
+
+// ── 12. Диагностика говорит, почему кандидат отброшен ───────────────────
+assert.match(src, /droppedSidebar \? `в сайдбаре \$\{droppedSidebar\}`/, 'в диагностике видно, сколько отброшено как «сайдбар»');
+assert.match(src, /droppedHidden \? `скрытых \$\{droppedHidden\}`/, 'и сколько скрытых');
+
+// ── 13. Запас: единственное видимое поле не теряется ────────────────────
+assert.match(src, /if \(shown\.length === 1\) \{/, 'единственное видимое поле берётся запасным правилом');
+assert.match(src, /composer: единственное видимое поле взято запасным правилом/, 'это видно в отладке');
+
+console.log('OK: narthex 1.4.26 — кнопки только в панели ввода, обёртка страницы не считается сайдбаром');

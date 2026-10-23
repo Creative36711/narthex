@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.25
+// @version      1.4.26
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -240,7 +240,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.25";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.26";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1588,8 +1588,28 @@
    * `div.fixed.z-10 … > … > ul > button`. Кнопки оттуда не нажимаются никогда:
    * 23.10 в 22:02 три «клика Send» ушли ровно в аккаунт Мастера.
    */
-  const inSidebar = (el) =>
-    Boolean(el?.closest?.(`nav, aside, [role="navigation"], [data-sidebar], [class*="sidebar"]`));
+  const SIDEBAR_SELECTOR = `nav, aside, [role="navigation"], [data-sidebar], [class*="sidebar"]`;
+
+  /**
+   * Боковая панель — это та ветка дерева, в которой нет `main`.
+   *
+   * Тонкость, на которой 23.10 сломался 1.4.25: **вся страница** обёрнута в
+   * `div.group/sidebar-wrapper …` — в её классе тоже есть «sidebar». Если
+   * исключать всё внутри такого предка, из поиска выпадает и `main`, и поле
+   * ввода с кнопкой отправки: скрипт пишет «не нашёл поле ввода», хотя оно на
+   * экране. Настоящий сайдбар — сосед `main`, он `main` внутри себя не
+   * содержит; обёртка страницы — содержит.
+   */
+  function sidebarRoot(el) {
+    let node = el?.closest?.(SIDEBAR_SELECTOR) || null;
+    for (let depth = 0; depth < 6 && node; depth += 1) {
+      if (!node.querySelector?.("main")) return node;
+      node = node.parentElement?.closest?.(SIDEBAR_SELECTOR) || null;
+    }
+    return null;
+  }
+
+  const inSidebar = (el) => Boolean(sidebarRoot(el));
 
   /** Служебные поля вроде капчи: под селектор поля ввода они тоже подходят. */
   const isServiceField = (el) =>
@@ -1662,8 +1682,28 @@
           "[contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
       ),
     ].filter(good);
-    const shown = candidates.find(visible);
-    if (shown) return shown;
+    const shown = candidates.filter(visible);
+
+    // 1. Редактор в панели `.editor-content` — единственный, который Arena
+    //    считает полем сообщения.
+    const editorContent = shown.find((el) => el.closest?.(".editor-content"));
+    if (editorContent) return editorContent;
+
+    // 2. Любой видимый, у которого есть панель с кнопками: значит, это
+    //    панель ввода, а не посторонний `[role=textbox]`.
+    const withBox = shown.find((el) => composerBox(el));
+    if (withBox) return withBox;
+
+    // 3. Запас: на странице агента поле ввода одно. Если под жёсткие правила
+    //    оно не подошло (например, поменяли классы), лучше взять единственное
+    //    видимое, чем встать: вставка и отправка всё равно проверяются дальше.
+    if (shown.length === 1) {
+      dbg("composer: единственное видимое поле взято запасным правилом", {
+        cls: String(shown[0].className || "").slice(0, 60),
+      });
+      return shown[0];
+    }
+
     const prompt = document.querySelector(".editor-content p, [data-placeholder] p");
     const nearPrompt = prompt?.closest("[contenteditable]") || null;
     if (nearPrompt && visible(nearPrompt) && good(nearPrompt)) return nearPrompt;
@@ -2064,14 +2104,27 @@
   /** Короткая диагностика, почему поле не нашлось: без неё остаётся гадать. */
   function composerDiagnostics() {
     const count = (selector) => document.querySelectorAll(selector).length;
+    // Сколько кандидатов отброшено и по какой причине: без этого «не нашёл
+    // поле ввода» не отличить от «нашёл, но исключил своим же фильтром».
+    let droppedSidebar = 0;
+    let droppedHidden = 0;
+    for (const el of document.querySelectorAll(
+      "[contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
+    )) {
+      if (el.tagName === "INPUT") continue;
+      if (inSidebar(el)) droppedSidebar += 1;
+      else if (!visible(el)) droppedHidden += 1;
+    }
     const parts = [
       `contenteditable ${count("[contenteditable]")}`,
       `textarea ${count("textarea")}`,
       `textbox ${count("[role='textbox']")}`,
+      droppedSidebar ? `в сайдбаре ${droppedSidebar}` : "",
+      droppedHidden ? `скрытых ${droppedHidden}` : "",
       `панель ${completionPanels().length}`,
       `skip ${count('[data-agent-transcript-message="true"] button') && skipCardButton() ? "да" : "нет"}`,
       `путь ${location?.pathname || "/"}`
-    ];
+    ].filter(Boolean);
     return parts.join(", ");
   }
 
