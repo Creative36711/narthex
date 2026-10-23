@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.3.2
+// @version      1.4.0
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -12,6 +12,7 @@
 // @connect      api.notion.com
 // @connect      script.google.com
 // @connect      script.googleusercontent.com
+// @connect      ntfy.sh
 // ==/UserScript==
 
 /**
@@ -51,7 +52,9 @@
     tickMs: 15000,
     mergeGraceMs: 90000, // сколько ждём мерж, прежде чем нажать кнопки за агента
     prWaitMs: 300000, // общий предел ожидания мержа
-    maxLog: 100,
+    maxLog: 200, // журнал хранится в ScriptCat; панель показывает хвост
+    markerIdleMs: 20000, // ответ стабилен столько — считаем, что маркера не будет
+    markerReminders: 2, // напоминаний до паузы: дальше решает Мастер
   };
 
   const K = {
@@ -65,6 +68,10 @@
     expect: "cfn-expect",
     merged: "cfn-merged:",
     branch: "cfn-branch",
+    pause: "cfn-pause-context",
+    ntfyTopic: "cfn-ntfy-topic",
+    ntfyToken: "cfn-ntfy-token",
+    errSeen: "cfn-error-seen",
   };
 
   const ui = {
@@ -75,6 +82,9 @@
     step: "cfn-step",
     setup: "cfn-setup",
     stop: "cfn-stop",
+    clear: "cfn-clear",
+    ntfy: "cfn-ntfy",
+    count: "cfn-log-count",
   };
 
   // ───────────────────────────── утилиты ─────────────────────────────
@@ -93,23 +103,187 @@
 
   let entries = [];
 
+  /**
+   * Журнал живёт в ScriptCat и не должен расти бесконечно: храним только
+   * последние maxLog записей, а старые отбрасываем при каждой записи и при
+   * загрузке страницы. Кнопка «Очистить» удаляет и память, и сохранённый хвост.
+   */
   function renderLog() {
     const el = document.getElementById(ui.log);
     if (!el) return;
     el.innerHTML = entries
       .slice(-C.maxLog)
-      .map((e) => `<div style="opacity:${e.error ? 1 : 0.85};color:${e.error ? "#ff9a9a" : "inherit"}">${e.t.replace(/[<>&]/g, "")}</div>`)
+      .map((e) => `<div style="opacity:${e.error ? 1 : 0.85};color:${e.error ? "#ff9a9a" : "inherit"}">${escapeHtml(e.t)}</div>`)
       .join("");
     el.scrollTop = el.scrollHeight;
+    const counter = document.getElementById(ui.count);
+    if (counter) counter.textContent = `${entries.length}/${C.maxLog}`;
   }
 
-  function log(text, error = false) {
+  const escapeHtml = (text) =>
+    String(text).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+
+  function clearLog() {
+    entries = [];
+    GM_setValue(K.log, []);
+    console.log("[Narthex] журнал очищен");
+    renderLog();
+    setStatus();
+    log("Журнал очищен.");
+  }
+
+  /**
+   * В журнал попадает всё; в ntfy — только важное. Тем самым «тихий» и
+   * «громкий» поток разделены: см. classifyNtfy ниже.
+   */
+  function log(text, error = false, options = {}) {
     entries.push({ t: `${new Date().toLocaleTimeString("ru-RU")} ${text}`, error });
     entries = entries.slice(-C.maxLog);
     GM_setValue(K.log, entries);
     console.log(`[Narthex] ${text}`);
     renderLog();
     setStatus();
+    const plan = classifyNtfy(text, error, options);
+    if (plan) notifyNtfy(text, plan);
+  }
+
+  // ───────────────────────────── ntfy ─────────────────────────────
+  /**
+   * Два уровня пушей, как в старом dispatch:
+   *   тихий  (priority 2, memo)          — вехи, после которых цикл идёт сам:
+   *                                        ход выдан, ответ записан → Submitted,
+   *                                        пауза снята Мастером.
+   *   громкий (priority 5, warning)      — всё, что требует человека: пауза,
+   *                                        ошибка Notion/Drive/сети, таймаут PR,
+   *                                        маркер не пришёл после напоминаний,
+   *                                        видимая ошибка Arena, конец миссии.
+   * Рутинные шаги не уведомляются вовсе.
+   */
+  const QUIET_NTFY = [
+    /^Выдан ход /,
+    /^Задание отправлено/,
+    /→ Submitted/,
+    /^Пауза снята Мастером/,
+    /^Миссия завершена/,
+    /вернулась в Ready/,
+  ];
+
+  function classifyNtfy(text, error = false, options = {}) {
+    if (options.skip || options.ntfy === false) return null;
+    const clean = String(text || "").trim();
+    if (!clean) return null;
+    if (options.ntfy === "loud" || options.urgent === true) {
+      return { loud: true, priority: "5", tags: "warning,rotating_light", title: options.title || "Narthex: нужен Мастер" };
+    }
+    if (options.ntfy === "quiet") {
+      return { loud: false, priority: "2", tags: "memo", title: options.title || "Narthex" };
+    }
+    if (error) {
+      return { loud: true, priority: "5", tags: "warning,rotating_light", title: options.title || "Narthex: ошибка" };
+    }
+    if (QUIET_NTFY.some((re) => re.test(clean))) {
+      return { loud: false, priority: "2", tags: "memo", title: options.title || "Narthex" };
+    }
+    return null;
+  }
+
+  function notifyNtfy(text, { title = "Narthex", priority = "2", tags = "memo" } = {}) {
+    const topic = String(GM_getValue(K.ntfyTopic, "") || "").trim();
+    if (!topic) return;
+    const token = String(GM_getValue(K.ntfyToken, "") || "").trim();
+    const headers = {
+      "Content-Type": "text/plain; charset=utf-8",
+      "X-Title": title,
+      "X-Priority": priority,
+      "X-Tags": tags,
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    GM_xmlhttpRequest({
+      method: "POST",
+      url: `https://ntfy.sh/${encodeURIComponent(topic)}`,
+      headers,
+      data: String(text).slice(0, 600),
+      timeout: 15000,
+      onload: (r) => {
+        if (r.status >= 400) console.warn("[Narthex ntfy]", `HTTP ${r.status}`);
+      },
+      onerror: () => console.warn("[Narthex ntfy]", "сеть недоступна"),
+    });
+  }
+
+  /** Гудок в браузере: страховка, если ntfy не настроен или телефон молчит. */
+  let alertCtx = null;
+  function playAlert() {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = alertCtx || (alertCtx = new Ctx());
+      const play = () => {
+        const start = ctx.currentTime + 0.03;
+        [880, 660, 880].forEach((frequency, index) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const at = start + index * 0.22;
+          osc.type = "sine";
+          osc.frequency.value = frequency;
+          gain.gain.setValueAtTime(0.0001, at);
+          gain.gain.exponentialRampToValueAtTime(0.16, at + 0.025);
+          gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.17);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(at);
+          osc.stop(at + 0.18);
+        });
+      };
+      if (ctx.state === "suspended") ctx.resume().then(play).catch(() => {});
+      else play();
+    } catch (e) {
+      console.warn("[Narthex alert]", e);
+    }
+  }
+
+  // ───────────────────────────── пауза ─────────────────────────────
+  const isPaused = () => Boolean(GM_getValue(K.paused, ""));
+
+  /**
+   * Единственная точка остановки. Любая ошибка на экране, таймаут или
+   * невыданный маркер приводят сюда: цикл замирает, статус краснеет, уходит
+   * громкий пуш, а продолжает только Мастер — кнопкой «Продолжить».
+   */
+  function pause(reason, context = {}) {
+    const info = {
+      kind: context.kind || "error",
+      reason: String(reason),
+      at: Date.now(),
+      ref: context.ref || "",
+      runId: context.runId || "",
+      turnId: context.turnId || "",
+      tries: context.tries ?? null,
+      wasAuto: GM_getValue(K.auto, false),
+    };
+    GM_setValue(K.paused, info.reason);
+    GM_setValue(K.pause, info);
+    log(`ПАУЗА: ${info.reason}`, true, { skip: true });
+    notifyNtfy(`Цикл остановлен и ждёт Мастера: ${info.reason}`, {
+      title: "Narthex: пауза",
+      priority: "5",
+      tags: "warning,rotating_light",
+    });
+    playAlert();
+    setStatus();
+  }
+
+  function resume(reason = "проверено Мастером") {
+    const before = GM_getValue(K.paused, "");
+    if (!before) return;
+    GM_setValue(K.paused, "");
+    GM_setValue(K.pause, null);
+    // Новый бюджет напоминаний: Мастер уже посмотрел, почему агент молчал.
+    const expect = GM_getValue(K.expect, null);
+    if (expect) {
+      GM_setValue(K.expect, { ...expect, tries: 0, lastReplySig: "", lastReplyAt: 0 });
+    }
+    log(`Пауза снята Мастером (${reason}). Продолжаю.`, false, { ntfy: "quiet" });
   }
 
   function roleFromPath() {
@@ -123,14 +297,16 @@
     const auto = GM_getValue(K.auto, false);
     const paused = GM_getValue(K.paused, "");
     const me = GM_getValue("cfn-me", "");
-    const text = extra || (paused ? `Пауза: ${paused}` : auto ? "Работает" : "Выключен");
+    const short = paused.length > 70 ? `${paused.slice(0, 70)}…` : paused;
+    const text = extra || (paused ? `Пауза: ${short}` : auto ? "Работает" : "Выключен");
     el.textContent = me ? `${text} · ${me}` : text;
+    el.title = paused || text;
     el.style.color = paused ? "#ff9a9a" : auto ? "#8ee28e" : "inherit";
     const toggle = document.getElementById(ui.toggle);
     if (toggle) {
-      toggle.textContent = auto ? "⏸ Стоп" : "▶ Включить";
-      toggle.style.background = auto ? "#3a2a2a" : "#24402a";
-      toggle.style.borderColor = auto ? "#6b3a3a" : "#3f6b45";
+      toggle.textContent = paused ? "▶ Продолжить" : auto ? "⏸ Стоп" : "▶ Включить";
+      toggle.style.background = paused ? "#3a3320" : auto ? "#3a2a2a" : "#24402a";
+      toggle.style.borderColor = paused ? "#6b5a2a" : auto ? "#6b3a3a" : "#3f6b45";
     }
   }
 
@@ -145,26 +321,34 @@
       "box-shadow:0 10px 30px rgba(0,0,0,.45)", "overflow:hidden",
     ].join(";");
     panel.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1b1e25;border-bottom:1px solid #2b2f38">
+      <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:#1b1e25;border-bottom:1px solid #2b2f38;flex-wrap:wrap">
         <strong style="font-size:12px">Narthex</strong>
-        <span id="${ui.status}" style="opacity:.75;font-size:11px">…</span>
+        <span id="${ui.status}" style="opacity:.75;font-size:11px;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">…</span>
+        <span id="${ui.count}" style="opacity:.45;font-size:10px">0/${C.maxLog}</span>
         <span style="flex:1"></span>
         <button id="${ui.step}" title="Один шаг цикла" style="${btnStyle()}">Шаг</button>
         <button id="${ui.toggle}" style="${btnStyle()}">▶ Включить</button>
+        <button id="${ui.ntfy}" title="Уведомления ntfy: тихие вехи и громкие тревоги" style="${btnStyle()}">🔔</button>
+        <button id="${ui.clear}" title="Очистить журнал" style="${btnStyle()}">🧹</button>
         <button id="${ui.setup}" title="Настройка" style="${btnStyle()}">⚙</button>
-        <button id="${ui.stop}" title="Сбросить паузу и остановить" style="${btnStyle()}">✕</button>
+        <button id="${ui.stop}" title="Остановить цикл и снять паузу" style="${btnStyle()}">✕</button>
       </div>
       <div id="${ui.log}" style="max-height:200px;overflow:auto;padding:6px 10px"></div>`;
     document.body.appendChild(panel);
 
     document.getElementById(ui.setup).onclick = () => setup(true);
+    document.getElementById(ui.clear).onclick = () => clearLog();
+    document.getElementById(ui.ntfy).onclick = () => ntfyDialog();
     document.getElementById(ui.stop).onclick = () => {
-      GM_setValue(K.paused, "остановлено вручную");
+      GM_setValue(K.paused, "");
+      GM_setValue(K.pause, null);
       GM_setValue(K.auto, false);
       log("Автоцикл остановлен вручную.");
     };
     document.getElementById(ui.step).onclick = () => {
-      GM_setValue(K.paused, "");
+      const reason = GM_getValue(K.paused, "");
+      if (reason && !confirm(`Снять паузу и выполнить один шаг?\n\n${reason}`)) return;
+      if (reason) resume("ручной шаг");
       tick(true);
     };
     document.getElementById(ui.toggle).onclick = () => toggleAuto();
@@ -173,11 +357,30 @@
   }
 
   function toggleAuto() {
-    const auto = !GM_getValue(K.auto, false);
-    GM_setValue(K.auto, auto);
-    GM_setValue(K.paused, "");
-    log(auto ? "Автоцикл включён." : "Автоцикл выключен.");
-    if (auto) tick(true);
+    const auto = GM_getValue(K.auto, false);
+    const reason = GM_getValue(K.paused, "");
+
+    // Пауза. Снять её может только человек: подтверждение показывает причину.
+    if (reason) {
+      if (!confirm(`Цикл стоит на паузе.\n\nПричина: ${reason}\n\nСнять паузу и продолжить?`)) return;
+      const ctx = GM_getValue(K.pause, null) || {};
+      // Возвращаем тот режим, в котором цикл стоял: пауза не должна
+      // превращать ручной шаг в постоянный автоцикл.
+      GM_setValue(K.auto, ctx.wasAuto === true);
+      resume("кнопка «Продолжить»");
+      tick(true);
+      return;
+    }
+
+    if (auto) {
+      GM_setValue(K.auto, false);
+      log("Автоцикл выключен.");
+      return;
+    }
+
+    GM_setValue(K.auto, true);
+    log("Автоцикл включён.");
+    tick(true);
   }
 
   function btnStyle() {
@@ -216,6 +419,99 @@
     } catch (e) {
       log(`Настройка сохранена, но проверка не прошла: ${e.message}`, true);
     }
+  }
+
+  // ───────────────────────────── ntfy-настройка ─────────────────────────────
+  function ntfyDialog() {
+    document.getElementById("cfn-ntfy-dialog")?.remove();
+    const box = document.createElement("div");
+    box.id = "cfn-ntfy-dialog";
+    box.style.cssText = [
+      "position:fixed", "right:14px", "bottom:150px", "z-index:2147483001", "width:360px",
+      "background:#15171c", "color:#e7eaee", "border:1px solid #2b2f38", "border-radius:10px",
+      "padding:10px", "font:12px/1.5 ui-monospace,Menlo,Consolas,monospace",
+      "box-shadow:0 10px 30px rgba(0,0,0,.45)",
+    ].join(";");
+    box.innerHTML = `
+      <div style="font-weight:700;margin-bottom:4px">ntfy: тихие вехи и громкие тревоги</div>
+      <div style="opacity:.7;margin-bottom:8px">Топик в ntfy.sh; пусто — уведомления выключены.<br>
+      Тихие (priority 2): ход выдан, ответ записан, пауза снята.<br>
+      Громкие (priority 5): пауза, ошибка, таймаут, конец миссии.</div>
+      <label style="display:block;margin-bottom:6px">Топик<br>
+        <input id="cfn-ntfy-topic" placeholder="narthex-xxxxx" style="${inputStyle()}"></label>
+      <label style="display:block;margin-bottom:6px">Access token (необязательно)<br>
+        <input id="cfn-ntfy-token" type="password" placeholder="tk_…" style="${inputStyle()}"></label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="cfn-ntfy-save" style="${btnStyle()}">Сохранить</button>
+        <button id="cfn-ntfy-quiet" style="${btnStyle()}">Тихий тест</button>
+        <button id="cfn-ntfy-loud" style="${btnStyle()}">Громкий тест</button>
+        <button id="cfn-ntfy-off" style="${btnStyle()}">Выключить</button>
+        <button id="cfn-ntfy-close" style="${btnStyle()}">✕</button>
+      </div>
+      <div id="cfn-ntfy-note" style="margin-top:8px;opacity:.85;min-height:14px"></div>`;
+    document.body.appendChild(box);
+
+    const topic = box.querySelector("#cfn-ntfy-topic");
+    const token = box.querySelector("#cfn-ntfy-token");
+    const note = box.querySelector("#cfn-ntfy-note");
+    topic.value = String(GM_getValue(K.ntfyTopic, "") || "");
+    token.value = String(GM_getValue(K.ntfyToken, "") || "");
+
+    const say = (text, error = false) => {
+      note.textContent = text;
+      note.style.color = error ? "#ff9a9a" : "#8ee28e";
+    };
+
+    const send = (message, priority, tags, title) =>
+      new Promise((resolve, reject) => {
+        const name = topic.value.trim();
+        if (!name) return reject(new Error("топик пуст"));
+        const headers = {
+          "Content-Type": "text/plain; charset=utf-8",
+          "X-Title": title,
+          "X-Priority": priority,
+          "X-Tags": tags,
+        };
+        const secret = token.value.trim();
+        if (secret) headers.Authorization = `Bearer ${secret}`;
+        GM_xmlhttpRequest({
+          method: "POST",
+          url: `https://ntfy.sh/${encodeURIComponent(name)}`,
+          headers,
+          data: message,
+          timeout: 15000,
+          onload: (r) => (r.status < 400 ? resolve() : reject(new Error(`HTTP ${r.status}`))),
+          onerror: () => reject(new Error("сеть недоступна")),
+          ontimeout: () => reject(new Error("таймаут")),
+        });
+      });
+
+    box.querySelector("#cfn-ntfy-save").onclick = () => {
+      GM_setValue(K.ntfyTopic, topic.value.trim());
+      GM_setValue(K.ntfyToken, token.value.trim());
+      say(topic.value.trim() ? "Сохранено. Проверьте тестами." : "Топик пуст: уведомления выключены.");
+      if (topic.value.trim()) log("ntfy настроен.", false, { skip: true });
+    };
+    box.querySelector("#cfn-ntfy-quiet").onclick = () =>
+      send("Narthex: тихий тест вехи (priority 2).", "2", "memo", "Narthex (тихий тест)")
+        .then(() => say("Тихий тест отправлен."))
+        .catch((e) => say(`Тихий тест не прошёл: ${e.message}`, true));
+    box.querySelector("#cfn-ntfy-loud").onclick = () =>
+      send("Narthex: громкий тест тревоги (priority 5).", "5", "warning,rotating_light", "Narthex (громкий тест)")
+        .then(() => say("Громкий тест отправлен."))
+        .catch((e) => say(`Громкий тест не прошёл: ${e.message}`, true));
+    box.querySelector("#cfn-ntfy-off").onclick = () => {
+      GM_setValue(K.ntfyTopic, "");
+      GM_setValue(K.ntfyToken, "");
+      topic.value = "";
+      token.value = "";
+      say("ntfy выключен: пуши больше не отправляются.");
+    };
+    box.querySelector("#cfn-ntfy-close").onclick = () => box.remove();
+  }
+
+  function inputStyle() {
+    return "width:100%;box-sizing:border-box;background:#0f1115;color:#e7eaee;border:1px solid #343a46;border-radius:6px;padding:4px 6px;font:12px ui-monospace,Menlo,Consolas,monospace";
   }
 
   // ───────────────────────────── HTTP ─────────────────────────────
@@ -356,7 +652,9 @@
    * ответы: кнопки Create/Merge PR тоже порождают сообщения агента.
    */
   function messagesAfter(watermark) {
-    const list = messages();
+    // Ответ агента — это не эхо собственного задания: пользовательские
+    // сообщения в транскрипте помечены отдельным layout.
+    const list = messages().filter((n) => !n.querySelector('[data-user-message-layout="true"]'));
     if (!watermark) return list.map((n) => ({ id: nodeId(n), text: messageText(n) }));
     const out = [];
     for (let i = list.length - 1; i >= 0; i -= 1) {
@@ -393,6 +691,160 @@
 
   const generating = () => !!document.querySelector('[data-testid="stop-button"], button[aria-label*="Stop" i]');
 
+  // ───────────────────────── ответ без маркера ─────────────────────────
+  /**
+   * Агент может ответить по делу и забыть маркер. Раньше это тонуло в журнале
+   * («ждём следующего хода»), и цикл стоял до 45-минутного таймаута. Теперь
+   * лестница: подождать, напомнить (до markerReminders раз), остановиться.
+   * Число попыток живёт в ожидании, а не в счётчике страницы: перезагрузка
+   * его не сбрасывает.
+   *
+   * tries — сколько напоминаний уже отправлено; лимит считается по ним.
+   */
+  function markerStep(tries, max = C.markerReminders) {
+    return Number(tries) >= Number(max) ? "pause" : "remind";
+  }
+
+  function markerReminder(role, expect, attempt, markerName) {
+    const line =
+      expect.kind === "plan"
+        ? `CF_COORDINATOR_RESULT {"mission_id":"${expect.missionId || expect.ref}","turn_id":"${expect.turnId || ""}","status":"completed","next":"<роль|done>"}`
+        : role.fn === "Auditor"
+          ? `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь к отчёту>"}`
+          : `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`;
+    return [
+      `ТЕХНИЧЕСКОЕ НАПОМИНАНИЕ ScriptCat (${attempt} из ${C.markerReminders}; это не задание и не новый ход).`,
+      `Твой предыдущий ответ${expect.title ? ` по «${expect.title}»` : ""} пришёл без обязательного маркера ${markerName}.`,
+      "Он не засчитан: ScriptCat не видит, закончена работа или нет.",
+      "Не повторяй уже сделанное и не жди Мастера — отсутствие маркера техническая ошибка формата.",
+      "Если работа завершена, ответь ровно одной последней строкой:",
+      line,
+      "Строка должна быть последней, без блока кода и без текста после неё.",
+      "",
+      roleContext(role),
+    ].filter(Boolean).join("\n");
+  }
+
+  /**
+   * Ждём ответ без маркера. Возвращает true, если ход уже обработан
+   * (напоминание ушло или цикл поставлен на паузу).
+   */
+  async function markerMissing(role, expect, markerName) {
+    if (generating()) return false;
+    const replies = messagesAfter(expect.watermark || "");
+    const last = replies.at(-1);
+    if (!last) return false; // агент ещё не ответил — это нормальное ожидание
+
+    const signature = `${last.id}:${last.text.length}`;
+    if (expect.lastReplySig !== signature) {
+      GM_setValue(K.expect, { ...expect, lastReplySig: signature, lastReplyAt: Date.now() });
+      return false; // ответ ещё дописывается
+    }
+    if (Date.now() - (expect.lastReplyAt || Date.now()) < C.markerIdleMs) return false;
+
+    const sent = Number(expect.tries) || 0;
+    if (markerStep(sent) === "remind") {
+      log(
+        `${role.name} ответил без маркера ${markerName} — напоминание ${sent + 1} из ${C.markerReminders}.`,
+        true,
+        { ntfy: "quiet", title: "Narthex: нет маркера" },
+      );
+      await sendToRole(role, markerReminder(role, expect, sent + 1, markerName), "reminder", expect.ref, {
+        missionId: expect.missionId,
+        turnId: expect.turnId,
+        runId: expect.runId,
+        title: expect.title,
+        tries: sent + 1,
+      });
+      return true;
+    }
+
+    pause(
+      `${role.name} ответил без маркера ${markerName} после ${C.markerReminders} напоминаний. Нужен Мастер: проверьте страницу агента.`,
+      { kind: "marker", ref: expect.ref, runId: expect.runId, turnId: expect.turnId, tries: sent },
+    );
+    return true;
+  }
+
+  // ───────────────────────── ошибка на экране ─────────────────────────
+  /**
+   * Arena показывает сбой двумя способами: алертом внутри последнего
+   * пользовательского сообщения и красной карточкой в интерфейсе. Оба —
+   * повод остановиться, а не «подождать и попробовать ещё раз»: повтор поверх
+   * неизвестной ошибки отправляет агенту второй промпт и путает учёт хода.
+   */
+  function latestUserMessageAlert() {
+    const list = messages();
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+      const node = list[i];
+      if (!node.querySelector('[data-user-message-layout="true"]')) continue;
+      const alert = [...node.querySelectorAll('[role="alert"]')].find(visible);
+      if (!alert) return null;
+      return {
+        messageId: nodeId(node),
+        text: String(alert.innerText || alert.textContent || "").replace(/\s+/g, " ").trim().slice(0, 300),
+      };
+    }
+    return null;
+  }
+
+  function detectVisibleErrorCard() {
+    const selectors = [
+      'div[class*="border-red"][class*="bg-red"][class*="rounded"]',
+      'div[class*="border-red-500"][class*="bg-red-500"]',
+      'div[class*="border-destructive"][class*="bg-destructive"]',
+    ];
+    const keywords = /something went wrong|please try again|failed|error occurred|an error|rate limit|timed out|timeout|unauthorized|ошибка|попробуйте снова|что-то пошло не так|не удалось|сбой|превышен лимит/i;
+    for (const selector of selectors) {
+      for (const card of document.querySelectorAll(selector)) {
+        if (!visible(card) || card.dataset.cfnSeen === "1") continue;
+        if (card.closest("pre, code, textarea, .shiki, .hljs, .prism, .monaco-editor, [data-language], [data-diff], [class*='diff'], [class*='code-block']")) continue;
+        const text = String(card.innerText || card.textContent || "").trim();
+        if (!text) continue;
+        if (text.length < 400 || keywords.test(text)) {
+          card.dataset.cfnSeen = "1";
+          return text.replace(/\s+/g, " ").slice(0, 300);
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Одну и ту же ошибку не показываем дважды: после «Продолжить» Мастер уже
+   * видел её, и повторная пауза на том же месте сделала бы цикл неоживучим.
+   */
+  function alreadyReported(key) {
+    return GM_getValue(K.errSeen, "") === key;
+  }
+
+  function markReported(key) {
+    GM_setValue(K.errSeen, key);
+  }
+
+  function monitorVisibleErrors() {
+    const alert = latestUserMessageAlert();
+    if (alert) {
+      const key = `alert:${alert.messageId}`;
+      if (alreadyReported(key)) return false;
+      markReported(key);
+      pause(`Видимая ошибка Arena в последнем сообщении: ${alert.text || "текст ошибки пуст"}.`, {
+        kind: "arena-error",
+        ref: alert.messageId,
+      });
+      return true;
+    }
+    const card = detectVisibleErrorCard();
+    if (card) {
+      const key = `ui:${card.slice(0, 80)}`;
+      if (alreadyReported(key)) return false;
+      markReported(key);
+      pause(`Необработанная ошибка интерфейса: ${card || "текст ошибки пуст"}.`, { kind: "ui-error" });
+      return true;
+    }
+    return false;
+  }
+
   // ───────────────────────────── отправка ─────────────────────────────
   function composer() {
     return document.querySelector('[contenteditable="true"]');
@@ -422,9 +874,19 @@
     return true;
   }
 
-  async function sendToRole(role, text, kind, ref) {
+  async function sendToRole(role, text, kind, ref, extra = {}) {
     GM_setValue(K.pending, { roleId: role.id, text, at: Date.now() });
-    GM_setValue(K.expect, { roleId: role.id, kind, ref, watermark: lastMessageId(), at: Date.now() });
+    GM_setValue(K.expect, {
+      roleId: role.id,
+      kind,
+      ref,
+      watermark: lastMessageId(),
+      at: Date.now(),
+      tries: 0,
+      lastReplySig: "",
+      lastReplyAt: 0,
+      ...extra,
+    });
     GM_setValue("cfn-me", role.name);
     setStatus();
     location.assign(role.url);
@@ -454,8 +916,15 @@
     await sleep(800);
     const btn = sendButton(editor);
     if (!btn) {
-      log("Кнопка Send не найдена — текст остался в редакторе, нажмите вручную.", true);
+      pause("Кнопка Send не найдена: задание осталось в редакторе, автоклик отменён.", { kind: "send" });
       return false;
+    }
+    // Водяной знак ставится здесь, на странице адресата: id последнего
+    // сообщения ДО отправки. На странице отправителя он был бы чужим, и
+    // «ответ без маркера» нельзя было бы отличить от старой переписки.
+    const expect = GM_getValue(K.expect, null);
+    if (expect && norm(expect.roleId) === norm(me)) {
+      GM_setValue(K.expect, { ...expect, watermark: lastMessageId(), sentAt: Date.now() });
     }
     btn.click();
     GM_setValue(K.pending, null);
@@ -567,7 +1036,7 @@
         await patch(task.id, { Branch: { rich_text: [{ type: "text", text: { content: branch } }] } });
         log(`Рабочая ветка: ${branch}`);
       } catch (e) {
-        log(`Ветка ${branch} не записана в Notion: ${e.message}`, true);
+        throw new Error(`PR слит, но ветка ${branch} не записана в Notion: ${e.message}`);
       }
     }
     GM_setValue(key, true);
@@ -593,7 +1062,7 @@
         await patch(task.id, { Branch: { rich_text: [{ type: "text", text: { content: branch } }] } });
         log(`Рабочая ветка: ${branch}`);
       } catch (e) {
-        log(`Ветка ${branch} не записана в Notion: ${e.message}`, true);
+        throw new Error(`PR закрыт, но ветка ${branch} не записана в Notion: ${e.message}`);
       }
     }
     GM_setValue(key, "closed");
@@ -834,7 +1303,7 @@
       .filter((m) => m.result);
     const exact = candidates.filter((m) => norm(m.result.dispatch_id) === norm(expect.ref));
     const hit = (exact.length ? exact : candidates).at(-1);
-    if (!hit) return false;
+    if (!hit) return markerMissing(role, expect, "CF_AGENT_RESULT");
 
     const result = hit.result;
     if (GM_getValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, false)) return false;
@@ -922,7 +1391,7 @@
       if (!started) continue;
       if (Date.now() - Date.parse(started) < limit) continue;
       await patch(card.id, { "Dispatch State": { select: { name: "Ready" } } });
-      log(`«${taskTitle(card)}» зависла в Running — возвращена в Ready.`, true);
+      log(`«${taskTitle(card)}» зависла в Running — возвращена в Ready.`, false, { ntfy: "quiet" });
     }
   }
 
@@ -945,10 +1414,19 @@
         .map((m) => parseMarker(m.text, "CF_COORDINATOR_RESULT"))
         .filter(Boolean)
         .at(-1);
+      if (!decision) return markerMissing(role, expect, "CF_COORDINATOR_RESULT");
+
+      // Маркер должен относиться к этому ходу: иначе легко принять решение
+      // прошлой итерации за новое и выдать не ту карточку.
+      const sameMission = !decision.mission_id || norm(decision.mission_id) === norm(mission.id);
+      const sameTurn = !expect.turnId || !decision.turn_id || norm(decision.turn_id) === norm(expect.turnId);
       GM_setValue(K.expect, null);
-      if (!decision) {
-        log("Координатор ответил без маркера — ждём следующего хода.");
-        return false;
+      if (!sameMission || !sameTurn) {
+        pause(
+          `Маркер Координатора не совпал с ожидающим ходом${expect.turnId ? ` ${expect.turnId}` : ""}: ничего не запускаю.`,
+          { kind: "marker-mismatch", ref: mission.id, turnId: expect.turnId },
+        );
+        return true;
       }
       if (decision.next === "done") {
         await patch(mission.id, {
@@ -956,7 +1434,7 @@
           "Завершена": { date: { start: nowIso() } },
         });
         GM_setValue(K.auto, false);
-        log("Координатор объявил миссию завершённой. Автоцикл остановлен.");
+        log("Миссия завершена Координатором. Автоцикл остановлен.", false, { ntfy: "loud", title: "Narthex: миссия завершена" });
         return true;
       }
       const roleName = decision.next;
@@ -980,7 +1458,12 @@
       : rework.length
         ? "Есть Rework: посмотри «Ответ» — там причина (например, PR закрыт без мержа)."
         : "";
-    await sendToRole(role, coordinatorPrompt(mission, role, summary, uid(), note), "plan", mission.id);
+    const turnId = uid();
+    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note), "plan", mission.id, {
+      missionId: mission.id,
+      turnId,
+      title: "план Координатора",
+    });
     return true;
   }
 
@@ -995,7 +1478,7 @@
       try {
         payload = (await gateway("read", payloadId)).content || "";
       } catch (e) {
-        log(`Payload не прочитан: ${e.message}`, true);
+        throw new Error(`Payload не прочитан: ${e.message}`);
       }
     }
     let logId = rt(card.properties["Output Drive File ID"]);
@@ -1011,7 +1494,10 @@
       "Started At": { date: { start: nowIso() } },
     });
     log(`Выдан ход ${roleName}: «${taskTitle(card)}».`);
-    await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id);
+    await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
+      runId,
+      title: taskTitle(card),
+    });
     return true;
   }
 
@@ -1021,8 +1507,12 @@
   async function tick(fromToggle = false) {
     if (busy) return;
     if (!GM_getValue(K.auto, false) && !fromToggle) return;
+    // Пауза снимается только человеком: тик не имеет права её обойти.
+    if (isPaused()) return;
     busy = true;
     try {
+      // Ошибка на экране важнее любого шага: сначала остановиться.
+      if (monitorVisibleErrors()) return;
       await setup(false);
       if (await consumePending()) return;
       const meId = roleFromPath();
@@ -1055,9 +1545,7 @@
       if (me.fn === "Coordinator") await coordinatorStep(me, expect, fromToggle);
       else await submitExecutor(me, expect);
     } catch (e) {
-      log(`Ошибка цикла: ${e.message}`, true);
-      GM_setValue(K.paused, e.message);
-      GM_setValue(K.auto, false);
+      pause(`Ошибка цикла: ${e.message}`, { kind: "error" });
     } finally {
       busy = false;
       setStatus();
@@ -1065,7 +1553,7 @@
   }
 
   // ───────────────────────────── старт ─────────────────────────────
-  entries = GM_getValue(K.log, []) || [];
+  entries = (GM_getValue(K.log, []) || []).slice(-C.maxLog);
   const boot = () => {
     mount();
     if (new URL(location.href).searchParams.has("cf-auto")) {
@@ -1074,6 +1562,7 @@
       history.replaceState(null, "", clean.toString());
       GM_setValue(K.auto, true);
       GM_setValue(K.paused, "");
+      GM_setValue(K.pause, null);
       log("Автоцикл включён через ссылку.");
     }
     setStatus();
