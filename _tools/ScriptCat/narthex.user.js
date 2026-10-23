@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.5
+// @version      1.4.6
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -211,7 +211,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.5";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.6";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1045,7 +1045,7 @@
    * Редактор может быть на месте, но накрыт плашкой: тогда и вставка, и Send
    * уходят в оверлей. Проверяем верхний элемент в центре редактора.
    */
-  function composerCovered(editor) {
+  function elementCovered(editor) {
     try {
       const rect = editor.getBoundingClientRect();
       if (!rect.width || !rect.height) return true;
@@ -1129,8 +1129,16 @@
    *  2) карточка в транскрипте с кнопкой `Skip` (опрос, аудио, предложение).
    * Возвращает "closed" | "blocked" | "none".
    */
-  const COMPLETION_PANEL =
-    "div.border-border-medium.bg-surface-secondary.w-full.rounded-md.border.shadow-sm.outline-none";
+  /**
+   * Панель завершения. В `dispatch.user.js` селектор требовал `shadow-sm`, а в
+   * текущей разметке Arena у неё `shadow-none` — совпадение по всему списку
+   * классов перестало находить карточку. Держим стабильную часть и проверяем
+   * кандидатов по кнопке закрытия, а не по полному имени класса.
+   */
+  const PANEL_SELECTORS = [
+    "div.border-border-medium.bg-surface-secondary.w-full.rounded-md.border",
+    "div[class*='border-border-medium'][class*='bg-surface-secondary'][class*='rounded-md']",
+  ];
 
   function skipCardButton() {
     for (const message of document.querySelectorAll('[data-agent-transcript-message="true"]')) {
@@ -1142,9 +1150,18 @@
     return null;
   }
 
-  /** Панель завершения: тот же селектор и та же кнопка, что в dispatch.user.js. */
+  /** Кандидаты в панель завершения: объединение обоих селекторов, без скрытых. */
+  function completionPanels() {
+    const found = new Set();
+    for (const selector of PANEL_SELECTORS) {
+      for (const panel of document.querySelectorAll(selector)) if (visible(panel)) found.add(panel);
+    }
+    return [...found];
+  }
+
+  /** Панель завершения: та же кнопка, что в dispatch.user.js (шапка, затем подпись). */
   function closeCompletionPanel() {
-    const panels = [...document.querySelectorAll(COMPLETION_PANEL)].filter(visible);
+    const panels = completionPanels();
     for (const panel of panels) {
       const buttons = [...panel.querySelectorAll("button")];
       const labelled = buttons.find((b) =>
@@ -1197,7 +1214,7 @@
       if (panel === "blocked") blocked = true;
 
       const editor = composer();
-      if (editor && !composerCovered(editor)) return { editor, closed, overlay: blocked };
+      if (editor && !elementCovered(editor)) return { editor, closed, overlay: blocked };
 
       if (editor) covered = true;
       const skip = skipCardButton();
@@ -1220,11 +1237,39 @@
       `contenteditable ${count("[contenteditable]")}`,
       `textarea ${count("textarea")}`,
       `textbox ${count("[role='textbox']")}`,
-      `панель ${count(COMPLETION_PANEL)}`,
+      `панель ${completionPanels().length}`,
       `skip ${count('[data-agent-transcript-message="true"] button') && skipCardButton() ? "да" : "нет"}`,
       `путь ${location?.pathname || "/"}`
     ];
     return parts.join(", ");
+  }
+
+  /**
+   * Нажатие Send с проверкой результата. Плашка возвращается на место после
+   * закрытия (решает backend), поэтому кнопка может оказаться под оверлеем —
+   * такой клик не доходит, и раньше мы всё равно писали «Задание отправлено».
+   */
+  async function deliver(editor) {
+    const before = messages().length;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const btn = sendButton(editor);
+      if (!btn) return { ok: false, reason: "Кнопка Send не найдена" };
+      if (elementCovered(btn)) {
+        if (closeCompletionPlaque() === "closed") {
+          await sleep(500);
+          continue;
+        }
+        return { ok: false, reason: "Кнопка Send перекрыта плашкой" };
+      }
+      btn.click();
+      await sleep(1200);
+      // Признаки доставки: появилось сообщение, поле очистилось или пошла
+      // генерация. Если ни одного — клик не дошёл, пробуем ещё раз.
+      if (messages().length > before || !composerText(editor) || generating()) return { ok: true };
+      if (closeCompletionPlaque() !== "closed") break;
+      await sleep(400);
+    }
+    return { ok: false, reason: "Send нажат, но сообщение не появилось — текст остался в поле" };
   }
 
   async function sendToRole(role, text, kind, ref, extra = {}) {
@@ -1319,36 +1364,33 @@
       return true;
     }
 
-    // Чужой текст в редакторе не перезаписываем: это может быть черновик
-    // Мастера. Лучше остановиться и показать, что именно мешает.
-    const existing = composerText(editor);
-    const wanted = pending.text.replace(/\s+/g, " ").trim().slice(0, 80);
-    if (existing && !existing.includes(wanted)) {
-      pause(
-        `В поле ввода уже есть другой текст («${existing.slice(0, 80)}…»): задание не отправлено, чтобы его не потерять. Освободите поле и нажмите «Продолжить».`,
-        { kind: "editor" },
-      );
-      return true;
-    }
+    // Что было в поле, не важно: задание в очереди — это текущий ход. Прежний
+    // запрет на «чужой текст» порождал ложные паузы (остаток прошлой попытки,
+    // подсказка редактора), поэтому текст просто заменяется.
+    if (composerText(editor)) log("В поле ввода был текст — заменяю его заданием из очереди.");
 
     if (!writePrompt(editor, pending.text)) {
       pendingSay(pending, "Не удалось вставить задание в редактор: оно осталось в очереди.", true);
       return true;
     }
-    await sleep(800);
-    const btn = sendButton(editor);
-    if (!btn) {
-      pause("Кнопка Send не найдена: задание осталось в редакторе, автоклик отменён.", { kind: "send" });
+    await sleep(600);
+
+    // Водяной знак — id последнего сообщения ДО отправки. На странице
+    // отправителя он был бы чужим, и «ответ без маркера» нельзя было бы
+    // отличить от старой переписки.
+    const watermark = lastMessageId();
+    const delivery = await deliver(editor);
+    if (!delivery.ok) {
+      pause(
+        `${delivery.reason}. Задание осталось в поле ввода и в очереди: поправьте и нажмите «Продолжить».`,
+        { kind: "send" },
+      );
       return true;
     }
-    // Водяной знак ставится здесь, на странице адресата: id последнего
-    // сообщения ДО отправки. На странице отправителя он был бы чужим, и
-    // «ответ без маркера» нельзя было бы отличить от старой переписки.
     const expect = GM_getValue(K.expect, null);
     if (expect && norm(expect.roleId) === norm(me)) {
-      GM_setValue(K.expect, { ...expect, watermark: lastMessageId(), sentAt: Date.now() });
+      GM_setValue(K.expect, { ...expect, watermark, sentAt: Date.now() });
     }
-    btn.click();
     GM_setValue(K.pending, null);
     pendingNoticeAt = 0;
     log("Задание отправлено.");

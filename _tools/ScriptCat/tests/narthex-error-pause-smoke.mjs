@@ -1,5 +1,5 @@
 /**
- * Структурная проба narthex.user.js 1.4.5: журнал, пауза, маркеры, ntfy.
+ * Структурная проба narthex.user.js 1.4.6: журнал, пауза, маркеры, ntfy.
  *
  * Проверяет инварианты, которые легко потерять при правке транспорта:
  *  - журнал ограничен и очищается кнопкой;
@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.5/, 'версия 1.4.5');
+assert.match(src, /@version\s+1\.4\.6/, 'версия 1.4.6');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -70,7 +70,8 @@ const missingFn = src.slice(src.indexOf('async function markerMissing('), src.in
 assert.match(missingFn, /sendToRole\(role, markerReminder/, 'напоминание содержит шаблон маркера');
 assert.match(missingFn, /pause\(/, 'после лимита — пауза для Мастера');
 assert.match(missingFn, /tries/, 'счётчик попыток хранится в ожидании');
-assert.match(src, /watermark: lastMessageId\(\), sentAt: Date\.now\(\)/, 'водяной знак ставится на странице адресата');
+assert.match(src, /const watermark = lastMessageId\(\);/, 'водяной знак снимается на странице адресата до отправки');
+assert.match(src, /watermark, sentAt: Date\.now\(\)/, 'отметка ставится после успешной доставки');
 
 // 7. Классификатор ntfy: тихо / громко / молча.
 const ntfyStart = src.indexOf('const QUIET_NTFY = [');
@@ -91,4 +92,4 @@ assert.match(src, /Тихий тест/, 'тихий тест доступен �
 assert.match(src, /Громкий тест/, 'громкий тест доступен из панели');
 assert.ok(!src.includes('location.reload()'), 'видимая ошибка не перезагружает страницу');
 
-console.log('OK: narthex 1.4.5 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
+console.log('OK: narthex 1.4.6 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
