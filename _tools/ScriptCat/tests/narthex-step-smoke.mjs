@@ -18,7 +18,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.2/, 'версия 1.4.2');
+assert.match(src, /@version\s+1\.4\.3/, 'версия 1.4.3');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -54,7 +54,7 @@ const writeCall = sendBlock.indexOf('writePrompt(editor, pending.text)');
 assert.ok(plaqueCall > 0 && plaqueCall < writeCall, 'плашку закрываем до вставки задания');
 
 // 4. Молчаливых выходов в consumePending не осталось.
-const cpStart = sendBlock.indexOf('async function consumePending()');
+const cpStart = sendBlock.indexOf('async function consumePending(');
 const cpBody = sendBlock.slice(cpStart);
 const bareReturns = [...cpBody.matchAll(/return (true|false);/g)].map((m) => m[0]);
 assert.equal(
@@ -62,8 +62,9 @@ assert.equal(
   2,
   'return false только там, где задания нет или оно чужое',
 );
+assert.match(cpBody, /return !act;/, 'просрочка продолжает шаг только по нажатию или в автоцикле');
 for (const text of [
-  'Задание из очереди устарело',
+  'Снял просроченную отправку из очереди',
   'Агент ещё отвечает: задание из очереди подождёт',
   'Не нашёл поле ввода на странице адресата',
   'Не удалось вставить задание в редактор',
@@ -72,6 +73,20 @@ for (const text of [
   assert.ok(cpBody.includes(text), `журнал объясняет: ${text}`);
 }
 assert.match(cpBody, /setTimeout\(\(\) => tick\(false\), 5000\)/, 'без редактора шаг повторится сам');
+assert.match(cpBody, /async function consumePending\(manual = false\)/, 'ручной режим различается');
+assert.match(tickBody, /consumePending\(fromToggle\)/, 'тик передаёт признак нажатия');
+assert.match(cpBody, /const age = Date\.now\(\) - Number\(pending\.at \|\| 0\);/, 'возраст очереди считается до сверки роли');
+assert.match(cpBody, /Снял просроченную отправку из очереди/, 'просрочка объясняется');
+assert.match(cpBody, /Продолжаю шаг с чистого листа/, 'просрочка не глотает нажатие');
+assert.match(cpBody, /Нажмите «Шаг», чтобы начать заново/, 'на загрузке страницы шаг сам не начинается');
+assert.match(cpBody, /if \(mine && waiting && norm\(waiting\.roleId\) === norm\(me\)\) GM_setValue\(K\.expect, null\);/, 'вместе с очередью снимается ожидание');
+const staleReturn = cpBody.slice(cpBody.indexOf('Снял просроченную отправку'), cpBody.indexOf('if (!me ||'));
+assert.match(staleReturn, /return !act;/, 'после снятия просрочки тик идёт дальше по нажатию');
+assert.match(src, /pendingTtlMs: 600000/, 'TTL очереди в конфиге');
+assert.match(src, /replyWaitMs: 1800000/, 'предел ожидания ответа в конфиге');
+assert.match(src, /function dropHandoff\(reason\)/, 'зависшая передача снимается целиком');
+assert.match(src, /не ответил ни одним сообщением за/, 'молчание агента объясняется');
+assert.match(tickBody, /dropHandoff\(/, 'молчание агента ставит паузу');
 
 // 5. generating смотрит на видимую кнопку остановки.
 const genStart = src.indexOf('const generating =');
@@ -80,7 +95,7 @@ assert.match(genBody, /visible\(b\)/, 'скрытый stop-button не счит�
 assert.match(genBody, /stop generating\|остановить генерац/, 'подписи остановки');
 
 // 6. Поведение: мини-DOM и заглушки вместо браузера.
-const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000 }) => {
+const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000, expect = null }) => {
   const out = { logs: [], sets: new Map(), pauses: [], clicks: [], timers: [] };
   const state = { now };
   const advance = (ms) => { state.now += ms; };
@@ -126,13 +141,13 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "GM_getValue", "GM_setValue", "K", "norm", "roleFromPath", "visible", "lastMessageId",
     "setStatus", "log", "pause", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
-    "generating",
+    "generating", "C",
     `${sendBlock}\nreturn { consumePending, closeCompletionPlaque };`,
   );
   const api = fn(
-    (k, d) => (k === "cfn-pending" ? pending : d),
+    (k, d) => (k === "cfn-pending" ? pending : k === "cfn-expect" ? expect : d),
     (k, v) => out.sets.set(k, v),
-    { pending: "cfn-pending" },
+    { pending: "cfn-pending", expect: "cfn-expect" },
     (x) => String(x || "").replace(/-/g, "").toLowerCase(),
     () => "coordinator",
     (e) => Boolean(e && e.isConnected && e.getClientRects().length),
@@ -152,6 +167,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     function () {},
     function (type, init) { return { type, ...init }; },
     () => stop,
+    { maxLog: 200, pendingTtlMs: 600000, replyWaitMs: 1800000 },
   );
   return { api, out };
 };
@@ -231,6 +247,37 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.match(out.pauses[0].text, /Кнопка Send не найдена/);
 }
 
+// 6.5.1. Просроченная очередь: снимаем, объясняем и продолжаем шаг.
+{
+  const old = { ...pending, at: 1_000_000 - 11 * 60 * 1000 };
+  const { api, out } = load({ pending: old, editor: null, send: true, expect: { roleId: "coordinator", at: old.at } });
+  assert.equal(await api.consumePending(true), false, 'просрочка не держит ход по нажатию');
+  assert.equal(out.sets.get("cfn-pending"), null, 'очередь очищена');
+  assert.equal(out.sets.get("cfn-expect"), null, 'ожидание той же роли снято');
+  assert.ok(out.logs.some((l) => /Снял просроченную отправку/.test(l.text) && l.error), 'причина видна и помечена как проблема');
+  assert.ok(!out.logs.some((l) => /Задание отправлено/.test(l.text)), 'просроченное не отправляется');
+  assert.deepEqual(out.clicks, [], 'ничего не нажато');
+  assert.deepEqual(out.timers, [], 'повтор не назначается');
+}
+
+// 6.5.1b. Та же просрочка, но без нажатия: убираем и останавливаемся.
+{
+  const old = { ...pending, at: 1_000_000 - 11 * 60 * 1000 };
+  const { api, out } = load({ pending: old, editor: null, send: true });
+  assert.equal(await api.consumePending(false), true, 'без нажатия шаг не начинается');
+  assert.equal(out.sets.get("cfn-pending"), null, 'но очередь очищена');
+  assert.ok(out.logs.some((l) => /Нажмите «Шаг»/.test(l.text)), 'Мастеру сказано, что делать');
+}
+
+// 6.5.2. Просроченная очередь чужой роли: снимаем, но ожидание не трогаем.
+{
+  const old = { ...pending, roleId: "kernel", at: 1_000_000 - 11 * 60 * 1000 };
+  const { api, out } = load({ pending: old, editor: null, send: true, expect: { roleId: "kernel", at: old.at } });
+  await api.consumePending();
+  assert.equal(out.sets.get("cfn-pending"), null, 'очередь очищена в любом случае');
+  assert.equal(out.sets.get("cfn-expect"), undefined, 'чужое ожидание не снимается с этой страницы');
+}
+
 // 6.6. Чужое задание не трогаем.
 {
   const { api, out } = load({ pending: { ...pending, roleId: "kernel" }, editor: null, send: true });
@@ -238,4 +285,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.2 — «Шаг» доносит задание после перехода, плашка закрывается, каждый отказ объяснён");
+console.log("OK: narthex 1.4.3 — «Шаг» доносит задание после перехода, плашка закрывается, каждый отказ объяснён");

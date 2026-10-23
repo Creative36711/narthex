@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.2
+// @version      1.4.3
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -55,6 +55,8 @@
     maxLog: 200, // журнал хранится в ScriptCat; панель показывает хвост
     markerIdleMs: 20000, // ответ стабилен столько — считаем, что маркера не будет
     markerReminders: 2, // напоминаний до паузы: дальше решает Мастер
+    pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
+    replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
   };
 
   const K = {
@@ -208,7 +210,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.2";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.3";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -369,6 +371,17 @@
     });
     playAlert();
     setStatus();
+  }
+
+  /**
+   * Передача потерялась: очередь и ожидание маркера относятся к ходу, которого
+   * уже нет. Снимаем оба и ставим паузу, чтобы Мастер увидел причину, а не
+   * бесконечное «жду ответа».
+   */
+  function dropHandoff(reason) {
+    GM_setValue(K.pending, null);
+    GM_setValue(K.expect, null);
+    pause(reason, { kind: "no-reply" });
   }
 
   function resume(reason = "проверено Мастером") {
@@ -1156,16 +1169,37 @@
    * конца ответа агента. Молчаливых выходов нет — каждый пишет в журнал,
    * иначе нажатый «Шаг» выглядит как неработающая кнопка.
    */
-  async function consumePending() {
+  async function consumePending(manual = false) {
     const pending = GM_getValue(K.pending, null);
     if (!pending) return false;
     const me = roleFromPath();
-    if (!me || norm(me) !== norm(pending.roleId)) return false;
-    if (Date.now() - pending.at > 10 * 60 * 1000) {
+
+    // Просроченная отправка — остаток прошлой попытки (в том числе от старой
+    // версии скрипта). Задание до адресата не дошло, значит и ожидание маркера
+    // бессмысленно: снимаем оба и продолжаем шаг, а не глотаем нажатие.
+    const age = Date.now() - Number(pending.at || 0);
+    if (age > C.pendingTtlMs) {
+      const mine = Boolean(me) && norm(me) === norm(pending.roleId);
       GM_setValue(K.pending, null);
-      log("Задание из очереди устарело (старше 10 минут) и снято: страница адресата так и не открылась.", true);
-      return true;
+      const waiting = GM_getValue(K.expect, null);
+      if (mine && waiting && norm(waiting.roleId) === norm(me)) GM_setValue(K.expect, null);
+      // В ручном режиме шаг делает только нажатие: на загрузке страницы
+      // ограничиваемся уборкой, а не отправкой плана за спиной Мастера.
+      const act = manual || GM_getValue(K.auto, false);
+      log(
+        `Снял просроченную отправку из очереди (${Math.round(age / 60000)} мин): задание до адресата не дошло, ` +
+          `это остаток прошлой попытки. ` +
+          (mine
+            ? act
+              ? "Продолжаю шаг с чистого листа."
+              : "Нажмите «Шаг», чтобы начать заново."
+            : "Вернитесь на страницу адресата и повторите."),
+        true,
+      );
+      return !act;
     }
+
+    if (!me || norm(me) !== norm(pending.roleId)) return false;
 
     const plaque = closeCompletionPlaque();
     if (plaque === "closed") {
@@ -1813,7 +1847,7 @@
       // Ошибка на экране важнее любого шага: сначала остановиться.
       if (monitorVisibleErrors()) return;
       await setup(false);
-      if (await consumePending()) return;
+      if (await consumePending(fromToggle)) return;
       const meId = roleFromPath();
       if (!meId) {
         if (fromToggle)
@@ -1846,6 +1880,21 @@
       if (expect && norm(expect.roleId) !== norm(me.id)) {
         if (fromToggle) log("Шаг не выполнен: сейчас очередь другой роли.");
         return;
+      }
+
+      // Ждать ответа бесконечно нельзя: если агент не прислал ни строки за
+      // replyWaitMs, задание до него, скорее всего, не дошло (например,
+      // осталось от старой версии). Молчание тут — ошибка, а не терпение.
+      if (expect) {
+        const since = Number(expect.sentAt || expect.at) || 0;
+        const waited = Date.now() - since;
+        if (waited > C.replyWaitMs && !messagesAfter(expect.watermark || "").length) {
+          dropHandoff(
+            `${me.name} не ответил ни одним сообщением за ${Math.round(waited / 60000)} мин: похоже, задание до него не дошло. ` +
+              `Очередь и ожидание сняты — нажмите «Продолжить» и пройдите шаг заново.`,
+          );
+          return;
+        }
       }
 
       if (me.fn === "Coordinator") {
