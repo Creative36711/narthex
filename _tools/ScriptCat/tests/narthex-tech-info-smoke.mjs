@@ -78,7 +78,7 @@ assert.ok(
 );
 
 // ── 7. Аудитор не ждёт мержа ────────────────────────────────────────────────
-assert.match(src, /role\.fn === "Auditor" \? "none" : await ensureMerged\(page\)/, 'аудитор не блокирует цикл ожиданием PR');
+assert.match(src, /role\.fn === "Auditor" \? "none" : await ensureMerged\(page, result\)/, 'аудитор не блокирует цикл ожиданием PR');
 
 // ── 8. Правило поведения тоже зависит от функции ────────────────────────────
 const ruleSrc = src.slice(src.indexOf('function roleRule('), src.indexOf('function roleContext('));
@@ -95,4 +95,4 @@ assert.match(auditorOrder, /Ничего не менять|ничего не м�
 const executorOrder = src.slice(src.indexOf('function executorOrder('), src.indexOf('function auditorOrder('));
 assert.match(executorOrder, /gh pr merge --squash --delete-branch/, 'исполнитель мержит сам');
 
-console.log('OK: техблок 1.4.10 — Executor получает ритуал main, Auditor только читает main, Coordinator без git');
+console.log('OK: техблок 1.4.11 — Executor получает ритуал main, Auditor только читает main, Coordinator без git');

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.10
+// @version      1.4.11
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -221,7 +221,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.10";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.11";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2097,10 +2097,32 @@
    * Ждём, что PR слит. Агент делает это сам (`gh pr merge`). Кнопки — запасной
    * путь: если агент не запушил, Create PR активна, и мы нажимаем её; ответ
    * агента при этом не считается результатом задания (водяной знак).
+   *
+   * Бейджи PR живут на странице PR, а ответ агента читается на его странице:
+   * ни Merge, ни Continue там нет. Поэтому, если никакого PR-интерфейса на
+   * экране нет, ждать пять минут бессмысленно — решает маркер (`pr` +
+   * `merged: true`). Если кода в main не окажется, это увидит Координатор и
+   * вернёт карточку в Rework.
    */
-  async function ensureMerged(task) {
+  async function ensureMerged(task, result) {
     const key = `${K.merged}${task.id}`;
     if (GM_getValue(key, false)) return "already";
+
+    const prUi = Boolean(mergedFlag() || closedFlag() || continueButton() || createPr() || mergePr());
+    if (!prUi) {
+      if (!hasMergedClaim(result)) {
+        log("PR на странице нет и в ответе нет заявки о мерже — считаю, что работа в main не попала.", true);
+        return "unconfirmed";
+      }
+      const pr = String(result?.pr ?? "").trim();
+      const label = !pr ? "PR" : /^https?:/i.test(pr) ? pr : `PR #${pr.replace(/^#/, "")}`;
+      log(
+        `${label} слит: принято по маркеру агента ` +
+          "(бейджа на его странице нет — PR-интерфейс живёт на странице PR).",
+      );
+      GM_setValue(key, true);
+      return "claimed";
+    }
 
     const started = Date.now();
     const grace = Date.now() + C.mergeGraceMs;
@@ -2249,7 +2271,7 @@
     "  git diff --stat main                # до работы — пусто",
     "",
     "ЗАПРЕЩЕНО: работать на снимке; коммитить в ветку без общей истории с main;",
-    "трогать пути вне своего Scope; мержить кнопкой в интерфейсе.",
+    "трогать пути вне своего Scope; мержить в main в обход PR.",
     "РАЗРЕШЕНО: только своя зона из карточки, PR в main через `gh`, squash-мерж.",
   ].join("\n");
 
@@ -2309,7 +2331,8 @@
       ].join(" ");
     }
     return [
-      "Не меняй чужие зоны. Мерж PR делаешь сам командой, кнопки интерфейса не нажимай.",
+      "Не меняй чужие зоны: чужая правка — не твоя работа, даже если она кажется мелкой.",
+      "Мерж PR делаешь сам командой `gh pr merge --squash`.",
       "ТЗ — направление, а не инструкция: где оно молчит, решай сам, выбирай обратимый",
       "вариант и пиши три строки (неясно / решил / откат) в docs/decisions/<миссия>.md.",
       "Смоуки, эталон, контракты и существующие типы — оракул: ослаблять нельзя.",
@@ -2333,17 +2356,15 @@
       "1. Ветка: git switch -c nar/<номер задачи> от свежего main (ритуал старта — в блоке выше).",
       "2. Коммит: git add -A && git commit -m \"<номер>: <суть>\".",
       "3. Пуш: git push -u origin HEAD.",
-      "4. PR и мерж — САМ, командами, не кнопками:",
+      "4. PR и мерж — сам, командами:",
       "   gh pr create --fill --base main   # если PR уже есть — пропусти",
       "   gh pr merge --squash --delete-branch",
       "5. Проверка: команда, код возврата, путь к отчёту. Если задание молчит в чём-то,",
       "   реши сам и запиши решение в docs/decisions/<миссия>.md — останавливаться не нужно.",
       "6. Последней строкой ответа — ровно один маркер:",
       `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
-      "`pr` и `merged: true` обязательны, если PR слит: по ним отличают «слит» от «закрыт без мержа» — бейдж в интерфейсе у обоих случаев один и тот же (Closed).",
-      "",
-      "Кнопки «Create pull request» и «Merge pull request» нажимать не нужно: это запасной",
-      "путь, если ты не запушил сам. После мержа Continue нажимается автоматически.",
+      "`pr` и `merged: true` обязательны, если PR слит: без них «слит» не отличить от",
+      "«закрыт без мержа» — снаружи оба случая выглядят одинаково.",
     ];
   }
 
@@ -2362,6 +2383,66 @@
     ];
   }
 
+  /**
+   * Текст задания.
+   *
+   * Отдельный файл-задание (Payload Drive File ID) не обязателен: карточка уже
+   * несёт Намерение, Инварианты, Оракул и Scope. Раньше без файла в чат уходило
+   * «(текст задания не найден — работай по карточке)»: агент читал это как сбой
+   * и шёл искать несуществующий текст, хотя задание было строкой выше.
+   */
+  function assignmentBody(task, payload) {
+    const body = String(payload || "").trim();
+    if (body) return body;
+    return [
+      "Отдельного файла с текстом задания нет: карточка и есть задание.",
+      "Сделай ровно то, что описано выше в «ЦЕЛЬ И ГРАНИЦЫ»:",
+      "  • Намерение — что должно появиться;",
+      "  • Инварианты — что обязано остаться верным;",
+      "  • Оракул — команда, которой проверяют результат;",
+      "  • Scope — единственное место записи.",
+      "Если чего-то не хватает — реши сам, выбери обратимый вариант и запиши",
+      "три строки (неясно / решил / откат) в docs/decisions/<миссия>.md.",
+    ].join("\n");
+  }
+
+  /**
+   * Журнал попытки — файл в Arena/logs, который создаётся при выдаче хода.
+   *
+   * Раньше он создавался пустым, а в задании стояла строка «Лог попытки: …»:
+   * агент открывал пустой файл и не понимал, зачем он. Теперь туда сразу
+   * пишется само задание, а позже — ответ агента: файл читается как журнал
+   * одного хода, от выдачи до ответа.
+   */
+  function taskLogEntry(task, role, payload, runId) {
+    const marker = `<!-- CF_DISPATCH ${task.id}:${runId}:task -->`;
+    return [
+      marker,
+      `## Задание ${taskTitle(task)}`,
+      "",
+      `- dispatch: \`${task.id}\``,
+      `- run: \`${runId}\``,
+      `- кому: ${role.name}`,
+      `- выдано: ${nowIso()}`,
+      "",
+      "### Намерение",
+      rt(task.properties["Намерение"]) || taskTitle(task),
+      "",
+      "### Инварианты",
+      rt(task.properties["Инварианты"]) || "не заданы — держи поведение неизменным",
+      "",
+      "### Оракул",
+      rt(task.properties["Acceptance"]) || "не задан",
+      "",
+      "### Scope",
+      rt(task.properties["Scope"]) || "не задан",
+      "",
+      "### Задание",
+      assignmentBody(task, payload),
+      "",
+    ].join("\n");
+  }
+
   function executorPrompt(task, role, payload, logId, runId) {
     return [
       technicalInfo(role),
@@ -2376,12 +2457,12 @@
       `Scope: ${rt(task.properties["Scope"]) || "не задан"}`,
       "",
       "ЗАДАНИЕ",
-      payload || "(текст задания не найден — работай по карточке)",
+      assignmentBody(task, payload),
       "",
       ...(role.fn === "Auditor" ? auditorOrder(task, runId) : executorOrder(task, runId)),
       "",
       roleContext(role),
-      `Лог попытки: https://drive.google.com/file/d/${logId}/view`,
+      `Журнал этой попытки (задание уже записано, ответ допишется сам): https://drive.google.com/file/d/${logId}/view`,
     ].join("\n");
   }
 
@@ -2441,13 +2522,16 @@
 
     // Аудитор не открывает PR: ждать мерж и нажимать Continue нечего.
     // Иначе цикл встал бы на 5 минут на каждом аудите.
-    const merged = role.fn === "Auditor" ? "none" : await ensureMerged(page);
+    const merged = role.fn === "Auditor" ? "none" : await ensureMerged(page, result);
 
     // PR закрыт. Так выглядит и ручной мерж через GitHub, и отказ от работы:
     // различаем по маркеру. Без заявки о мерже работа в main не попала —
     // возвращаем карточку в Rework с причиной, решение остаётся за Координатором.
-    if (merged === "closed" && !hasMergedClaim(result)) {
-      const reason = "PR закрыт без мержа (Closed). Работа в main не попала — нужна повторная выдача.";
+    if ((merged === "closed" || merged === "unconfirmed") && !hasMergedClaim(result)) {
+      const reason =
+        merged === "closed"
+          ? "PR закрыт без мержа (Closed). Работа в main не попала — нужна повторная выдача."
+          : "Исполнитель не заявил о мерже (нет merged: true) и PR не открыт. Работа в main не попала — нужна повторная выдача.";
       try {
         await gateway("append", logId, {
           marker: `<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id}:closed -->`,
@@ -2484,7 +2568,7 @@
     await patch(result.dispatch_id, props);
     GM_setValue(`cfn-done:${result.dispatch_id}:${result.run_id}`, true);
     log(
-      `Ответ ${role.name} записан, PR ${merged === "closed" ? "закрыт как слитый" : "слит"}, задача → Submitted.` +
+      `Ответ ${role.name} записан, PR ${merged === "claimed" ? "слит (по маркеру)" : "слит"}, задача → Submitted.` +
         (link ? ` PR: ${link}` : " (номер PR не указан в маркере)"),
     );
 
@@ -2608,7 +2692,20 @@
       "Output Drive File ID": { rich_text: [{ type: "text", text: { content: logId } }] },
       "Started At": { date: { start: nowIso() } },
     });
-    log(`Выдан ход ${roleName}: «${taskTitle(card)}».`);
+    // Файл журнала создаётся пустым, поэтому задание пишем в него сразу:
+    // иначе агент получает ссылку на пустой файл и не понимает, зачем она.
+    try {
+      await gateway("append", logId, {
+        marker: `<!-- CF_DISPATCH ${card.id}:${runId}:task -->`,
+        entry: taskLogEntry(card, role, payload, runId),
+      });
+    } catch (e) {
+      log(`Задание не записалось в журнал попытки: ${e.message}`, true);
+    }
+    log(
+      `Выдан ход ${roleName}: «${taskTitle(card)}»` +
+        (payload.trim() ? "." : " (отдельного файла с заданием нет — текст собран из карточки)."),
+    );
     return Boolean(await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
       runId,
       title: taskTitle(card),
