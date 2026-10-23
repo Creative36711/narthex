@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.15
+// @version      1.4.16
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -221,9 +221,21 @@
    * и запрос тихо не уходит — именно так «тест ничего не делает». В JSON-теле
    * UTF-8 разрешён, а ntfy читает topic/title/priority/tags оттуда.
    */
+  /**
+   * В автоцикле тик идёт каждые 15 секунд. Фразы вроде «нет активной миссии»
+   * не должны занимать журнал целиком: пишем их не чаще раза в 5 минут.
+   */
+  const throttleAt = {};
+  function logThrottled(key, text, error = false, ms = 300_000) {
+    const now = Date.now();
+    if (now - Number(throttleAt[key] || 0) < ms) return;
+    throttleAt[key] = now;
+    log(text, error);
+  }
+
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.15";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.16";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -716,7 +728,9 @@
 
     autoSet(true);
     log("Автоцикл включён.");
-    tick(true);
+    // Обычный тик, а не «Шаг»: в автоцикле нет нажатия, и следующая страница
+    // открывается сама, если работы нет на текущей.
+    tick(false);
   }
 
   function btnStyle() {
@@ -1932,7 +1946,13 @@
     }
     GM_setValue(K.lastSend, { roleId: role.id, hash: textHash(text), at: Date.now() });
 
-    GM_setValue(K.pending, { roleId: role.id, text, at: Date.now() });
+    GM_setValue(K.pending, {
+      roleId: role.id,
+      roleName: role.name,
+      roleUrl: role.url,
+      text,
+      at: Date.now(),
+    });
     GM_setValue(K.expect, {
       roleId: role.id,
       roleName: role.name,
@@ -1976,7 +1996,7 @@
     GM_setValue(K.pending, null);
     GM_setValue("cfn-me", role.name);
     setStatus();
-    location.assign(role.url);
+    navigateTo(role, "туда возвращается ход");
   }
 
   // Одно и то же ожидание не должно заливать журнал каждые пару секунд.
@@ -2653,7 +2673,6 @@
       ...(role.fn === "Auditor" ? auditorOrder(task, runId) : executorOrder(task, runId)),
       "",
       roleContext(role),
-      `Журнал этой попытки (задание уже записано, ответ допишется сам): https://drive.google.com/file/d/${logId}/view`,
     ].join("\n");
   }
 
@@ -2870,7 +2889,7 @@
   async function coordinatorStep(role, expect, manual = false) {
     const mission = await activeMission();
     if (!mission) {
-      log("Нет активной миссии — ждём.");
+      logThrottled("no-mission", "Нет активной миссии — ждём.");
       return false;
     }
     GM_setValue("cfn-me", role.name);
@@ -2902,6 +2921,19 @@
       }
       log(`Маркер Координатора найден: дальше «${decision.next}» (turn ${decision.turn_id || expect.turnId}).`);
       if (decision.next === "done") {
+        // Гейт в роли говорит «done только при нуле открытых задач», но верить
+        // на слово в автоцикле опасно: закрытая миссия с живыми карточками
+        // останавливает весь процесс, и заметит это только человек.
+        const fresh = await queueOf(mission);
+        const open = fresh.submitted.length + fresh.running.length + fresh.ready.length + fresh.rework.length;
+        if (open > 0) {
+          pause(
+            `Координатор объявил миссию завершённой, но в очереди ${fresh.summary}. ` +
+              "Миссию не закрываю: сначала закройте карточки (Accepted) или уберите их из очереди.",
+            { kind: "done-with-open", ref: mission.id },
+          );
+          return true;
+        }
         await patch(mission.id, {
           "Состояние": { select: { name: "Завершена" } },
           "Завершена": { date: { start: nowIso() } },
@@ -3022,6 +3054,34 @@
   let busyAt = 0;
 
   /**
+   * Перейти на страницу роли. Один и тот же переход из одного и того же места
+   * дважды за 20 секунд — это не «ещё раз», а зацикливание: значит страница не
+   * открылась или адрес в «Ролях» указывает не туда. Тогда пауза и понятная
+   * причина, а не бесконечные прыжки.
+   */
+  function navigateTo(role, why) {
+    const from = location.pathname || "/";
+    const last = GM_getValue("cfn-nav", null);
+    const recent =
+      last &&
+      norm(last.roleId) === norm(role.id) &&
+      last.from === from &&
+      Date.now() - Number(last.at || 0) < 20_000;
+    if (recent) {
+      pause(
+        `Не удалось открыть страницу «${role.name}»: остаюсь на ${from}. ` +
+          "Похоже, «Agent URL» в базе «Роли» ведёт не туда — поправьте адрес и снимите паузу.",
+        { kind: "nav", ref: role.id },
+      );
+      return true;
+    }
+    GM_setValue("cfn-nav", { roleId: role.id, from, at: Date.now() });
+    log(`Сейчас ${from} — открываю страницу «${role.name}»: ${why}.`);
+    location.assign(role.url);
+    return true;
+  }
+
+  /**
    * Отправка без подтверждения — не отправка.
    *
    * До 1.4.7 `sentAt` ставился сразу после клика, не глядя, дошёл ли он:
@@ -3052,7 +3112,13 @@
       );
       return "dropped";
     }
-    GM_setValue(K.pending, { roleId: waiting.roleId, text, at: Date.now() });
+    GM_setValue(K.pending, {
+      roleId: waiting.roleId,
+      roleName: waiting.roleName,
+      roleUrl: waiting.roleUrl,
+      text,
+      at: Date.now(),
+    });
     log(
       `Прошлая отправка «${waiting.title || waiting.kind}» не подтверждена (сообщение в чате не появилось) — ` +
         "ставлю задание обратно в очередь и отправляю заново.",
@@ -3129,13 +3195,30 @@
       // новые задания: иначе один ход превращался в цепочку из трёх отправок.
       if (!auto && !fromToggle) return;
       if (fromToggle) dbg("шаг: начало", () => debugSnapshot());
+
+      // Неотправленное задание важнее всего остального: пока оно в очереди,
+      // ни план, ни новый ход не начинаются. В автоцикле страницу адресата
+      // открываем сами — иначе после перезагрузки вкладки очередь стояла бы
+      // вечно, а браузер ждал бы человека.
+      const pendingNow = GM_getValue(K.pending, null);
+      if (pendingNow && (fromToggle || autoOn())) {
+        const here = roleFromPath();
+        if (norm(here) !== norm(pendingNow.roleId)) {
+          const all = await roles();
+          const target = all.find((r) => norm(r.id) === norm(pendingNow.roleId)) || null;
+          if (target) return navigateTo(target, "там ждёт отправки задание");
+        }
+      }
+
       const meId = roleFromPath();
       if (!meId) {
         // Мастер не обязан помнить, на какой странице стоит цикл, но и угадывать
         // ему не нужно: «Шаг» открывает ту страницу, где действительно есть
         // работа. Сначала — адресат неотправленного задания, потом — тот, чей
         // ответ ждём, и только потом Координатор (там начинается новый ход).
-        if (!fromToggle) return;
+        // В автоцикле Мастер не жмёт «Шаг»: цикл сам открывает ту страницу,
+        // где есть работа. Иначе «Включить» на главной ничего не делал.
+        if (!fromToggle && !autoOn()) return;
         const list = await roles();
         const pendingNow = GM_getValue(K.pending, null);
         const waitingNow = GM_getValue(K.expect, null);
@@ -3153,17 +3236,15 @@
           );
           return;
         }
-        // Задание уже ждёт адресата — страница досылает его сама; иначе
-        // выполняем отложенный шаг на месте.
-        if (!pendingNow) GM_setValue(K.step, true);
+        // В ручном режиме отложенный шаг выполняет уже открытая страница.
+        // В автоцикле он не нужен: следующий тик продолжит сам.
+        if (!pendingNow && fromToggle) GM_setValue(K.step, true);
         const why = target === pendingRole
           ? "там ждёт отправки задание"
           : target === waitingRole
             ? `ждём ответа «${target.name}»`
             : "там начинается ход";
-        log(`Сейчас ${location.pathname || "/"} — открываю страницу «${target.name}»: ${why}.`);
-        location.assign(target.url);
-        return;
+        return navigateTo(target, why);
       }
       const list = await roles();
       const me = list.find((r) => norm(r.id) === norm(meId));
@@ -3193,7 +3274,7 @@
       if (expect && norm(expect.roleId) !== norm(me.id)) {
         const owner = list.find((r) => norm(r.id) === norm(expect.roleId)) || null;
         const ownerName = expect.roleName || owner?.name || "другой роли";
-        if (fromToggle && owner) {
+        if ((fromToggle || autoOn()) && owner) {
           let samePage = false;
           try {
             samePage = new URL(owner.url, location.href).pathname === location.pathname;
@@ -3203,10 +3284,8 @@
           // Стоим не там, где идёт работа: открываем нужную страницу, а не
           // просим Мастера перейти вручную.
           if (!samePage) {
-            GM_setValue(K.step, true);
-            log(`Ход ждёт ответа «${owner.name}», а не «${me.name}» — открываю страницу «${owner.name}».`);
-            location.assign(owner.url);
-            return;
+            if (fromToggle) GM_setValue(K.step, true);
+            return navigateTo(owner, `ждём ответа «${owner.name}», а не «${me.name}»`);
           }
         }
         if (fromToggle) log(`Шаг не выполнен: ход ждёт ответа «${ownerName}», а не «${me.name}».`);
@@ -3257,7 +3336,14 @@
       } else if (!expect) {
         // Без ожидания `messagesAfter(expect.watermark)` упал бы в catch,
         // и «Шаг» на странице исполнителя ставил бы паузу вместо ответа.
-        if (fromToggle) log(`Шаг не выполнен: у «${me.name}» нет задания в очереди. Ход начинается с Координатора.`, true);
+        if (fromToggle) {
+          log(`Шаг не выполнен: у «${me.name}» нет задания в очереди. Ход начинается с Координатора.`, true);
+        } else if (autoOn()) {
+          // В автоцикле незанятая страница исполнителя — не повод стоять:
+          // новый ход начинается у Координатора, туда и переходим.
+          const coord = list.find((r) => r.fn === "Coordinator");
+          if (coord) return navigateTo(coord, "там начинается ход");
+        }
       } else {
         await submitExecutor(me, expect, fromToggle);
       }

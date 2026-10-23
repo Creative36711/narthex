@@ -1,4 +1,4 @@
-// Проба двух решений 1.4.15: куда ведёт «Шаг» и когда включается автоцикл.
+// Проба двух решений 1.4.16: куда ведёт «Шаг» и когда включается автоцикл.
 //
 // Случай Мастера (2026-10-23, 18:30): «Шаг» нажали с https://arena.ai/ —
 // скрипт открыл Координатора, хотя ход ждал ответа Architect, и шаг отказался
@@ -58,17 +58,21 @@ assert.ok(root.length > 0, 'ветка «нет /agent/<id> в адресе» н
 assert.match(root, /const pendingRole = pendingNow \? byId\(pendingNow\.roleId\) : null;/, 'сначала адресат неотправленного задания');
 assert.match(root, /const waitingRole = waitingNow \? byId\(waitingNow\.roleId\) : null;/, 'потом тот, чей ответ ждём');
 assert.match(root, /const target = pendingRole \|\| waitingRole \|\| coord;/, 'Координатор — только если ждать нечего');
-assert.match(root, /location\.assign\(target\.url\)/, 'открывается нужная страница');
+assert.match(root, /return navigateTo\(target, why\);/, 'открывается нужная страница через общий переход');
 assert.match(root, /ждём ответа «\$\{target\.name\}»/, 'в журнале видно причину перехода');
-assert.match(root, /if \(!pendingNow\) GM_setValue\(K\.step, true\);/, 'отложенный шаг только когда очередь пуста');
+assert.match(root, /if \(!pendingNow && fromToggle\) GM_setValue\(K\.step, true\);/, 'отложенный шаг только в ручном режиме и когда очередь пуста');
 
 // 2.1. Не та страница: «Шаг» сам переходит, а не просит Мастера.
 assert.match(
   tickBody,
-  /Ход ждёт ответа «\$\{owner\.name\}», а не «\$\{me\.name\}» — открываю страницу «\$\{owner\.name\}»/,
+  /return navigateTo\(owner, `ждём ответа «\$\{owner\.name\}», а не «\$\{me\.name\}»`\)/,
   'вместо отказа — переход на страницу адресата',
 );
-assert.match(tickBody, /if \(fromToggle && owner\) \{/, 'переход только по нажатию, не в фоне');
+assert.match(
+  tickBody,
+  /if \(\(fromToggle \|\| autoOn\(\)\) && owner\) \{/,
+  'переход и по нажатию, и в автоцикле — но не в ручном фоне',
+);
 assert.match(tickBody, /samePage = new URL\(owner\.url, location\.href\)\.pathname === location\.pathname/, 'проверка на петлю: та же страница — не переходим');
 
 // ── 3. Ожидание помнит имя и адрес роли ─────────────────────────────────────
@@ -103,4 +107,4 @@ assert.equal(
 );
 assert.equal(pickTarget({ expect: { roleId: 'неизвестно' }, rolesList: list }).name, 'Coordinator', 'неизвестная роль — не блокируем шаг');
 
-console.log('OK: narthex 1.4.15 — «Шаг» ведёт к тому, чей ответ ждут, а автоцикл живёт только в текущей вкладке');
+console.log('OK: narthex 1.4.16 — «Шаг» ведёт к тому, чей ответ ждут, а автоцикл живёт только в текущей вкладке');

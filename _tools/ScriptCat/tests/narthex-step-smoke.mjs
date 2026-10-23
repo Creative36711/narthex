@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.15/, 'версия 1.4.15');
+assert.match(src, /@version\s+1\.4\.16/, 'версия 1.4.16');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -34,11 +34,11 @@ const rootBlock = tickBody.slice(
   tickBody.indexOf('const meId = roleFromPath();'),
   tickBody.indexOf('const me = list.find(', tickBody.indexOf('const meId')),
 );
-assert.match(rootBlock, /if \(!fromToggle\) return;/, 'в автоцикле навигацию не затеваем');
+assert.match(rootBlock, /if \(!fromToggle && !autoOn\(\)\) return;/, 'в ручном фоне без нажатия страницу не открываем');
 assert.match(rootBlock, /r\.fn === "Coordinator"/, 'Координатор — запасной адрес, если работы нигде не ждут');
 assert.match(rootBlock, /const target = pendingRole \|\| waitingRole \|\| coord;/, 'сначала адресат очереди, потом тот, чей ответ ждём');
-assert.match(rootBlock, /GM_setValue\(K\.step, true\)/, 'шаг запоминается на один переход');
-assert.match(rootBlock, /location\.assign\(target\.url\)/, 'открываем нужную страницу сами');
+assert.match(rootBlock, /if \(!pendingNow && fromToggle\) GM_setValue\(K\.step, true\);/, 'шаг запоминается на один переход');
+assert.match(rootBlock, /return navigateTo\(target, why\);/, 'открываем нужную страницу сами');
 assert.ok(!/в адресе нет \/agent\/<id>/.test(src), 'требования открыть страницу вручную больше нет');
 assert.match(src, /if \(GM_getValue\(K\.step, false\)\) \{/, 'загрузка страницы выполняет отложенный шаг');
 assert.match(src, /GM_setValue\(K\.step, false\);/, 'шаг одноразовый, петли нет');
@@ -141,7 +141,7 @@ assert.match(src, /if \(!waiting \|\| !Number\(waiting\.sentAt\) \|\| waiting\.v
 assert.match(src, /return "revived";/, 'отправленное заново возвращается в очередь');
 assert.match(src, /return "dropped";/, 'фантом без текста снимается отдельно');
 assert.match(src, /messagesAfter\(waiting\.watermark \|\| ""\)\.length/, 'дубль исключён: смотрим сообщения после водяного знака');
-assert.match(src, /GM_setValue\(K\.pending, \{ roleId: waiting\.roleId, text, at: Date\.now\(\) \}\)/, 'задание возвращается в очередь');
+assert.match(src, /GM_setValue\(K\.pending, \{\s*roleId: waiting\.roleId,[\s\S]{0,120}?text,\s*at: Date\.now\(\),\s*\}\)/, 'задание возвращается в очередь с адресом роли');
 assert.match(src, /не подтверждена \(сообщение в чате не появилось\)/, 'причина видна в журнале');
 assert.match(tickBody, /reviveUnverifiedHandoff\(\);/, 'тик вызывает возврат до отправки');
 
@@ -424,4 +424,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.15 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.16 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
