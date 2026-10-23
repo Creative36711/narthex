@@ -44,7 +44,7 @@ import type {
 
   ImageValue,
 } from '../shared/types'
-import { SAVE_VERSION, featureOn, equipmentSlots, BUILTIN_CODEX_CATEGORIES, startTick } from '../shared/types'
+import { SAVE_VERSION, featureOn, BUILTIN_CODEX_CATEGORIES, startTick } from '../shared/types'
 import {
   inspectSave,
   loadState,
@@ -55,6 +55,8 @@ import {
 import { PRNG } from './prng'
 import type { EngineCtx } from './context'
 import { world, type SlotOccupant } from './world'
+import { inventory } from './inventory'
+import { equipment } from './equipment'
 export type { SlotOccupant } from './world'
 import { derivedHP, derivedMP, movement, skillCheck, CHECK_RESULT_LABEL, difficultyModifier, difficultyLabel, type SkillCheckOutcome } from './brp'
 import { rollDice } from './dice'
@@ -897,438 +899,35 @@ export class GameEngine implements EngineCtx {
     return mod
   }
 
-  // ─────────────── инвентарь ───────────────
-
-  hasItem(id: string): boolean {
-    return this.itemCount(id) > 0
-  }
-
-  itemCount(id: string): number {
-    return this.state.player.inventory
-      .filter((i) => i.item === id)
-      .reduce((s, i) => s + i.quantity, 0)
-  }
-
-  addItem(id: string, quantity = 1, opts: { silent?: boolean; freshness?: number } = {}): void {
-    const inv = this.state.player.inventory
-    const itemDef = this.campaign.entities[id] as ItemDef | undefined
-    const isPerishable = itemDef?.decay_ticks !== undefined && itemDef.decay_ticks > 0
-    const initialFreshness = opts.freshness ?? itemDef?.decay_ticks
-
-    // изнашиваемые или скоропортящиеся предметы — отдельные экземпляры
-    if (this.itemMaxDurability(id) !== undefined || isPerishable) {
-      for (let i = 0; i < quantity; i++) {
-        inv.push({
-          item: id,
-          quantity: 1,
-          durability: this.itemMaxDurability(id),
-          freshness: initialFreshness,
-        })
-      }
-    } else {
-      const entry = inv.find((i) => i.item === id && i.durability === undefined && i.freshness === undefined)
-      if (entry) entry.quantity += quantity
-      else inv.push({ item: id, quantity })
-    }
-    if (!opts.silent) this.pushToast(`Получено: ${this.itemTitle(id)}${quantity > 1 ? ` ×${quantity}` : ''}.`, 'get')
-  }
-
-  removeItem(id: string, quantity = 1, opts: { silent?: boolean; verb?: string } = {}): void {
-    const inv = this.state.player.inventory
-    let left = quantity
-    // сначала расходим наиболее изношенные экземпляры
-    while (left > 0) {
-      const entries = inv.filter((i) => i.item === id)
-      if (!entries.length) break
-      const max = this.itemMaxDurability(id)
-      let pick = entries[0]
-      if (max !== undefined) {
-        pick = entries.reduce((a, b) => ((a.durability ?? max) <= (b.durability ?? max) ? a : b))
-      } else if (entries.some((e) => e.freshness !== undefined)) {
-        // сначала расходуем наиболее близкие к концу срока годности экземпляры
-        pick = entries.reduce((a, b) => ((a.freshness ?? Infinity) <= (b.freshness ?? Infinity) ? a : b))
-      }
-      if (pick.quantity > left) {
-        pick.quantity -= left
-        left = 0
-      } else {
-        left -= pick.quantity
-        inv.splice(inv.indexOf(pick), 1)
-      }
-    }
-    // предмет закончился — снимаем со всех слотов
-    if (!this.hasItem(id)) {
-      const eq = this.state.player.equipment
-      for (const slot of Object.keys(eq)) {
-        if (eq[slot] === id) delete eq[slot]
-      }
-    }
-    const lost = quantity - left
-    if (!opts.silent && lost > 0) {
-      const verb = opts.verb ?? (lost >= quantity ? 'Потеряно' : 'Частично потеряно')
-      this.pushToast(`${verb}: ${this.itemTitle(id)}${lost > 1 ? ` ×${lost}` : ''}.`, 'lose')
-    }
-  }
-
-  // ─────────────── износ снаряжения (аудит §5.6 п.10) ───────────────
-
-  /** максимальная прочность предмета (оружие — weapon_data, броня — armor_data); нет — вечный */
-  itemMaxDurability(itemId: string): number | undefined {
-    const def = this.campaign.entities[itemId] as ItemDef | undefined
-    if (!def || def.type !== 'item') return undefined
-    return def.weapon_data?.durability ?? def.armor_data?.durability
-  }
-
-  /** осталось прочности у первого пригодного экземпляра (нет — null) */
-  itemDurabilityOf(id: string): { left: number; max: number } | null {
-    const max = this.itemMaxDurability(id)
-    if (max === undefined) return null
-    const entry = this.state.player.inventory.find((i) => i.item === id)
-    if (!entry) return null
-    return { left: entry.durability ?? max, max }
-  }
-
-  /** пригоден ли предмет к использованию (есть экземпляр с прочностью > 0) */
-  isItemUsable(id: string): boolean {
-    const max = this.itemMaxDurability(id)
-    if (max === undefined) return this.hasItem(id)
-    return this.state.player.inventory.some((i) => i.item === id && (i.durability ?? max) > 0)
-  }
-
-  /** экземпляры с износом от меньшей прочности (для UI) */
-  durabilityEntries(id: string): Array<{ entry: { item: string; quantity: number; durability?: number }; left: number }> {
-    const max = this.itemMaxDurability(id)
-    if (max === undefined) return []
-    return this.state.player.inventory
-      .filter((i) => i.item === id)
-      .map((entry) => ({ entry, left: entry.durability ?? max }))
-      .sort((a, b) => a.left - b.left)
-  }
-
-  /**
-   * Износ предмета игрока (урон в бою): −amount самому надетому экземпляру.
-   * Сломанный экземпляр с прочностью 0 сохраняется (для починки рецептом).
-   * Истина — предмет сломался этим износом.
-   */
-  damageItemDurability(itemId: string, amount = 1): boolean {
-    const max = this.itemMaxDurability(itemId)
-    if (max === undefined) return false
-    const entry = this.state.player.inventory
-      .filter((i) => i.item === itemId && (i.durability ?? max) > 0)
-      .sort((a, b) => (a.durability ?? max) - (b.durability ?? max))[0]
-    if (!entry) return false
-    const before = entry.durability ?? max
-    entry.durability = Math.max(0, before - amount)
-    if (entry.durability === 0 && before > 0) {
-      const def = this.campaign.entities[itemId]
-      this.pushLog(`«${def?.label ?? itemId}» сломался!`)
-      playUi('defeat')
-      return true
-    }
-    return false
-  }
-
-  /**
-   * Починка (мастер помечает рецепт `repair: true`): восстанавливает самый
-   * изношенный экземпляр до максимума. Истина — нашелся изношенный.
-   */
-  repairItem(itemId: string): boolean {
-    const max = this.itemMaxDurability(itemId)
-    if (max === undefined) return false
-    const entry = this.state.player.inventory
-      .filter((i) => i.item === itemId)
-      .sort((a, b) => (a.durability ?? max) - (b.durability ?? max))[0]
-    if (!entry || (entry.durability ?? max) >= max) return false
-    entry.durability = max
-    const def = this.campaign.entities[itemId]
-    this.pushLog(`«${def?.label ?? itemId}» отремонтирован.`)
-    this.notify()
-    this.autosave()
-    return true
-  }
-
-  /** свободные «еда предмета» нет изношенных экземпляров — для рецепта починки */
-  hasDamaged(itemId: string): boolean {
-    const max = this.itemMaxDurability(itemId)
-    if (max === undefined) return false
-    return this.state.player.inventory.some((i) => i.item === itemId && (i.durability ?? max) < max)
-  }
-
-  // ─────────────── экипировка (блок 7 ТЗ: слоты задаёт кампания) ───────────────
-
-  /** список слотов экипировки кампании (встроенные + свои) */
-  equipmentSlots(): Array<{ id: string; label: string }> {
-    return equipmentSlots(this.campaign.meta)
-  }
-
-  slotLabel(slotId: string): string {
-    return this.equipmentSlots().find((s) => s.id === slotId)?.label ?? slotId
-  }
-
-  /** слот, в который экипируется предмет (нет — не экипируется) */
-  itemSlot(id: string): string | undefined {
-    const def = this.campaign.entities[id] as ItemDef | undefined
-    if (!def || def.type !== 'item') return undefined
-    if (def.equip_slot) return def.equip_slot
-    if (def.weapon_data) return 'weapon' // мягкая миграция старых предметов
-    if (def.armor_data) return 'armor'
-    return undefined
-  }
-
-  /** предмет надет? */
-  isEquipped(id: string): boolean {
-    return Object.values(this.state.player.equipment).includes(id)
-  }
-
-  /** в каком слоте надет предмет (нет — '') */
-  equippedSlotOf(id: string): string {
-    const eq = this.state.player.equipment
-    for (const slot of Object.keys(eq)) if (eq[slot] === id) return slot
-    return ''
-  }
-
-  /** надеть предмет из инвентаря в его слот */
-  equipItem(id: string): void {
-    if (!this.hasItem(id)) return
-    const def = this.campaign.entities[id] as ItemDef | undefined
-    if (!def || def.type !== 'item') return
-    const slot = this.itemSlot(id)
-    if (!slot) return
-    playInteraction('equip', { entity: def })
-    this.state.player.equipment[slot] = id
-    this.pushLog(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`)
-    this.pushToast(slot === 'weapon' ? `Взято в руки: ${def.label}.` : `Надето: ${def.label}.`, 'info')
-    this.autosave()
-    this.notify()
-  }
-
-  /** снять предмет из слота */
-  unequipItem(slot: string): void {
-    const eq = this.state.player.equipment
-    const id = eq[slot]
-    if (!id) return
-    const def = this.campaign.entities[id] as ItemDef | undefined
-    if (def) playInteraction('unequip', { entity: def })
-    delete eq[slot]
-    this.pushLog(`Снято: ${def?.label ?? id}.`)
-    this.pushToast(`Снято: ${def?.label ?? id}.`, 'info')
-    this.autosave()
-    this.notify()
-  }
-
-  /** текущее оружие игрока (для UI и боя): экипированное или кулаки; сломанное — кулаки */
-  playerWeapon(): { itemId: string | null; weapon: WeaponData; label: string } {
-    const id = this.state.player.equipment['weapon']
-    // сломанное оружие (прочность 0) не годится — кулаки (аудит §5.6 п.10)
-    if (id && this.isItemUsable(id)) {
-      const def = this.campaign.entities[id] as ItemDef | undefined
-      if (def?.weapon_data) return { itemId: id, weapon: def.weapon_data, label: def.label }
-    }
-    return {
-      itemId: null,
-      weapon: { skill: 'brawl', damage: '1d3', damage_bonus: true, range: 1, attacks_per_round: 1, parry_capable: false, label: 'Кулаки' },
-      label: 'Кулаки',
-    }
-  }
-
-  /** броня игрока: сумма очков ВСЕХ надетых предметов с бронёй (шлем+кираса) */
-  playerArmor(): { itemId: string | null; points: number; label: string } {
-    let points = 0
-    let first: string | null = null
-    const labels: string[] = []
-    for (const slot of Object.keys(this.state.player.equipment)) {
-      const id = this.state.player.equipment[slot]
-      // сломанная броня (прочность 0) перестаёт поглощать урон (аудит §5.6 п.10)
-      if (!id || !this.isItemUsable(id)) continue
-      const def = this.campaign.entities[id] as ItemDef | undefined
-      if (def?.armor_data) {
-        points += def.armor_data.points
-        labels.push(def.label)
-        if (!first) first = id
-      }
-    }
-    if (!points) return { itemId: null, points: 0, label: 'Без брони' }
-    return { itemId: first, points, label: labels.join(' + ') }
-  }
-
-  useItem(id: string): void {
-    const def = this.campaign.entities[id] as ItemDef | undefined
-    if (!def || def.type !== 'item' || !def.on_use) return
-    playInteraction('use', { entity: def })
-    this.applyEffects(def.on_use.effects)
-    if (def.on_use.consume !== false) this.removeItem(id, 1, { verb: 'Использовано' })
-    if (def.on_use.message) this.messages.push({ text: this.fmt(def.on_use.message) })
-    this.checkRules()
-    this.notify()
-  }
-
-  // ─────────────── груз и перегруз (ТЗ 4.6, универсальная BRP-система) ───────────────
-
-  currentLoad(): number {
-    let sum = 0
-    for (const e of this.state.player.inventory) {
-      const def = this.campaign.entities[e.item] as ItemDef | undefined
-      if (def?.type === 'item') sum += (def.weight ?? 0) * e.quantity
-    }
-    return sum
-  }
-
-  /**
-   * Подробный расчёт грузоподъёмности героя с учётом формулы кампании,
-   * расовых/видовых множителей существа и надетой экипировки (рюкзаки, экзоскелеты).
-   */
-  maxLoadDetails(): {
-    base: number
-    formula: string
-    worldMult: number
-    charBonus: number
-    charMult: number
-    equipBonus: number
-    equipMult: number
-    total: number
-  } {
-    const s = this.state.player.stats
-    const encRules = this.campaign.meta.encumbrance
-    const formula = encRules?.formula ?? 'str_siz'
-
-    let base = s.STR + s.SIZ
-    if (formula === 'str_con') base = s.STR + s.CON
-    else if (formula === 'str_only') base = s.STR * 2
-    else if (formula === 'fixed') base = Math.max(1, encRules?.capacity_multiplier ?? 20)
-
-    const worldMult = encRules?.capacity_multiplier && formula !== 'fixed' ? encRules.capacity_multiplier : 1.0
-
-    // Расовые/индивидуальные параметры героя
-    const playerDef = this.campaign.entities[this.state.player.entity] as NpcDef | undefined
-    const charBonus = playerDef?.carry_capacity_bonus ?? 0
-    const charMult = playerDef?.carry_capacity_mult ?? 1.0
-
-    // Бонусы от надетой экипировки (рюкзаки, пояса, экзоскелеты)
-    let equipBonus = 0
-    let equipMult = 1.0
-    for (const slotId of Object.keys(this.state.player.equipment)) {
-      const itemId = this.state.player.equipment[slotId]
-      if (!itemId) continue
-      const itemDef = this.campaign.entities[itemId] as ItemDef | undefined
-      if (!itemDef) continue
-      if (typeof itemDef.carry_bonus === 'number') equipBonus += itemDef.carry_bonus
-      if (typeof itemDef.carry_mult === 'number' && itemDef.carry_mult > 0) equipMult *= itemDef.carry_mult
-    }
-
-    const calculated = (base * worldMult * charMult + charBonus + equipBonus) * equipMult
-    const total = Math.max(1, Math.round(calculated * 10) / 10)
-
-    return {
-      base,
-      formula,
-      worldMult,
-      charBonus,
-      charMult,
-      equipBonus,
-      equipMult,
-      total,
-    }
-  }
-
-  maxLoad(): number {
-    return this.maxLoadDetails().total
-  }
-
-  /**
-   * Ступенчатый статус перегруза:
-   * 'normal' — в пределах лимита
-   * 'light' — лёгкий перегруз (1.0x .. 1.5x)
-   * 'heavy' — тяжёлый перегруз (1.5x .. 2.0x)
-   * 'critical' — критический перегруз (> 2.0x, передвижение заблокировано)
-   */
-  encumbranceStatus(): 'normal' | 'light' | 'heavy' | 'critical' {
-    const encRules = this.campaign.meta.encumbrance
-    if (encRules?.enabled === false) return 'normal'
-    const load = this.currentLoad()
-    const max = this.maxLoad()
-    if (load <= max) return 'normal'
-
-    const critThresh = encRules?.critical_threshold ?? 2.0
-    if (critThresh > 0 && load > max * critThresh) return 'critical'
-
-    const heavyThresh = 1.5
-    if (load > max * heavyThresh) return 'heavy'
-
-    return 'light'
-  }
-
-  encumbranceDebuffs(): {
-    status: 'normal' | 'light' | 'heavy' | 'critical'
-    label: string
-    dodgePenalty: number
-    movPenalty: number
-    skillPenalty: number
-    travelMultiplier: number
-    isBlocked: boolean
-  } {
-    const status = this.encumbranceStatus()
-    const encRules = this.campaign.meta.encumbrance
-    if (status === 'normal' || encRules?.enabled === false) {
-      return {
-        status: 'normal',
-        label: 'В норме',
-        dodgePenalty: 0,
-        movPenalty: 0,
-        skillPenalty: 0,
-        travelMultiplier: 1.0,
-        isBlocked: false,
-      }
-    }
-
-    if (status === 'light') {
-      return {
-        status: 'light',
-        label: 'Лёгкий перегруз',
-        dodgePenalty: encRules?.light_dodge_penalty ?? 10,
-        movPenalty: encRules?.light_mov_penalty ?? 1,
-        skillPenalty: encRules?.light_agility_skills_penalty ?? 10,
-        travelMultiplier: encRules?.travel_penalty === false ? 1.0 : (encRules?.light_travel_multiplier ?? 1.5),
-        isBlocked: false,
-      }
-    }
-
-    if (status === 'heavy') {
-      return {
-        status: 'heavy',
-        label: 'Тяжёлый перегруз',
-        dodgePenalty: encRules?.heavy_dodge_penalty ?? 25,
-        movPenalty: encRules?.heavy_mov_penalty ?? 2,
-        skillPenalty: encRules?.heavy_agility_skills_penalty ?? 25,
-        travelMultiplier: encRules?.travel_penalty === false ? 1.0 : (encRules?.heavy_travel_multiplier ?? 2.0),
-        isBlocked: false,
-      }
-    }
-
-    // critical
-    return {
-      status: 'critical',
-      label: 'Критический перегруз',
-      dodgePenalty: encRules?.critical_dodge_penalty ?? 50,
-      movPenalty: encRules?.critical_mov_penalty ?? 3,
-      skillPenalty: encRules?.critical_agility_skills_penalty ?? 50,
-      travelMultiplier: 999,
-      isBlocked: encRules?.travel_penalty !== false,
-    }
-  }
-
-  isOverloaded(): boolean {
-    return this.encumbranceStatus() !== 'normal'
-  }
-
-  /**
-   * Заблокировано ли перемещение между локациями из-за критического перегруза
-   */
-  isTravelBlockedByOverload(): boolean {
-    const encRules = this.campaign.meta.encumbrance
-    if (encRules?.enabled === false || encRules?.travel_penalty === false) return false
-    return this.encumbranceStatus() === 'critical'
-  }
-
+  // ─────────────── инвентарь, экипировка и груз ───────────────
+  hasItem(id: string): boolean { return inventory.hasItem(this, id) }
+  itemCount(id: string): number { return inventory.itemCount(this, id) }
+  addItem(id: string, quantity = 1, opts: { silent?: boolean; freshness?: number } = {}): void { inventory.addItem(this, id, quantity, opts) }
+  removeItem(id: string, quantity = 1, opts: { silent?: boolean; verb?: string } = {}): void { inventory.removeItem(this, id, quantity, opts) }
+  itemMaxDurability(itemId: string): number | undefined { return inventory.itemMaxDurability(this, itemId) }
+  itemDurabilityOf(id: string): { left: number; max: number } | null { return inventory.itemDurabilityOf(this, id) }
+  isItemUsable(id: string): boolean { return inventory.isItemUsable(this, id) }
+  durabilityEntries(id: string): Array<{ entry: { item: string; quantity: number; durability?: number }; left: number }> { return inventory.durabilityEntries(this, id) }
+  damageItemDurability(itemId: string, amount = 1): boolean { return inventory.damageItemDurability(this, itemId, amount) }
+  repairItem(itemId: string): boolean { return inventory.repairItem(this, itemId) }
+  hasDamaged(itemId: string): boolean { return inventory.hasDamaged(this, itemId) }
+  equipmentSlots(): Array<{ id: string; label: string }> { return equipment.equipmentSlots(this) }
+  slotLabel(slotId: string): string { return equipment.slotLabel(this, slotId) }
+  itemSlot(id: string): string | undefined { return equipment.itemSlot(this, id) }
+  isEquipped(id: string): boolean { return equipment.isEquipped(this, id) }
+  equippedSlotOf(id: string): string { return equipment.equippedSlotOf(this, id) }
+  equipItem(id: string): void { equipment.equipItem(this, id) }
+  unequipItem(slot: string): void { equipment.unequipItem(this, slot) }
+  playerWeapon(): { itemId: string | null; weapon: WeaponData; label: string } { return equipment.playerWeapon(this) }
+  playerArmor(): { itemId: string | null; points: number; label: string } { return equipment.playerArmor(this) }
+  useItem(id: string): void { equipment.useItem(this, id) }
+  currentLoad(): number { return equipment.currentLoad(this) }
+  maxLoadDetails(): ReturnType<typeof equipment.maxLoadDetails> { return equipment.maxLoadDetails(this) }
+  maxLoad(): number { return equipment.maxLoad(this) }
+  encumbranceStatus(): 'normal' | 'light' | 'heavy' | 'critical' { return equipment.encumbranceStatus(this) }
+  encumbranceDebuffs(): ReturnType<typeof equipment.encumbranceDebuffs> { return equipment.encumbranceDebuffs(this) }
+  isOverloaded(): boolean { return equipment.isOverloaded(this) }
+  isTravelBlockedByOverload(): boolean { return equipment.isTravelBlockedByOverload(this) }
   // ─────────────── репутация и фракции (ТЗ 4.8) ───────────────
 
   /**
