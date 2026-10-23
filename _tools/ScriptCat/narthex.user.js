@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.24
+// @version      1.4.25
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -240,7 +240,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.24";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.25";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1582,6 +1582,48 @@
   const inOwnPanel = (el) => Boolean(el?.closest?.(`#${ui.panel}`));
 
   /**
+   * Боковая панель: аккаунт, навигация, поиск.
+   *
+   * В разметке Arena это `div.group/sidebar-wrapper`, у кнопки аккаунта —
+   * `div.fixed.z-10 … > … > ul > button`. Кнопки оттуда не нажимаются никогда:
+   * 23.10 в 22:02 три «клика Send» ушли ровно в аккаунт Мастера.
+   */
+  const inSidebar = (el) =>
+    Boolean(el?.closest?.(`nav, aside, [role="navigation"], [data-sidebar], [class*="sidebar"]`));
+
+  /** Служебные поля вроде капчи: под селектор поля ввода они тоже подходят. */
+  const isServiceField = (el) =>
+    Boolean(el?.closest?.('[class*="captcha"], [name="g-recaptcha-response"]')) ||
+    Boolean(el?.classList?.contains?.("g-recaptcha-response"));
+
+  /**
+   * Панель ввода: ближайший предок поля, внутри которого есть кнопки.
+   *
+   * В текущей разметке Arena это
+   * `div.bg-surface-secondary…rounded-b-none`, а внутри — и редактор
+   * (`.editor-content`), и ряд `.flex.justify-between.gap-4` с кнопкой
+   * отправки. Именно эта панель, и только она, задаёт область поиска кнопки
+   * Send: «Merge PR» и информация о ветке лежат выше и сюда не попадают, а
+   * сайдбар — совсем в другой ветке дерева.
+   *
+   * До `main` и `body` не поднимаемся: там кнопок сколько угодно, и любая из
+   * них — не наша.
+   */
+  function composerBox(editor) {
+    let node = editor?.parentElement || null;
+    for (let depth = 0; depth < 8 && node; depth += 1) {
+      const tag = String(node.tagName || "").toUpperCase();
+      if (tag === "BODY" || tag === "HTML" || tag === "MAIN") return null;
+      const buttons = [...(node.querySelectorAll?.('button, [role="button"]') || [])].filter(
+        (b) => visible(b) && !inSidebar(b) && !inOwnPanel(b),
+      );
+      if (buttons.length) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  /**
    * Узел действительно в документе.
    *
    * После перерисовки чата Arena заменяет поле ввода новым элементом, а у нас
@@ -1599,20 +1641,36 @@
     }
   }
 
+  /**
+   * Редактор сообщения.
+   *
+   * В живой разметке поле — это `.editor-content > div.tiptap.ProseMirror > p`,
+   * и параграфов внутри может быть несколько: они разделяют строки. Редактор
+   * поэтому ищется по `contenteditable`, а не по `.editor-content`: обёртка
+   * сама не редактируемая.
+   *
+   * Сайдбар и служебные поля (капча) исключены: под те же селекторы подходят
+   * чужие `[role="textbox"]` и `textarea`, а вставка в них — это не отправка
+   * задания, а мусор в чужом поле.
+   */
   function composer() {
+    const good = (el) => el.tagName !== "INPUT" && !inOwnPanel(el) && !inSidebar(el) && !isServiceField(el);
     const candidates = [
       ...document.querySelectorAll(
-        ".editor-content[contenteditable], .editor-content [contenteditable], " +
+        ".editor-content [contenteditable]:not([contenteditable='false']), " +
+          ".editor-content .ProseMirror, .editor-content[contenteditable], " +
           "[contenteditable]:not([contenteditable='false']), .ProseMirror, [role='textbox']",
       ),
-    ].filter((el) => el.tagName !== "INPUT" && !inOwnPanel(el));
+    ].filter(good);
     const shown = candidates.find(visible);
     if (shown) return shown;
     const prompt = document.querySelector(".editor-content p, [data-placeholder] p");
     const nearPrompt = prompt?.closest("[contenteditable]") || null;
-    if (nearPrompt && visible(nearPrompt) && !inOwnPanel(nearPrompt)) return nearPrompt;
+    if (nearPrompt && visible(nearPrompt) && good(nearPrompt)) return nearPrompt;
     return (
-      [...document.querySelectorAll("textarea:not([readonly])")].find((el) => visible(el) && !inOwnPanel(el)) || null
+      [...document.querySelectorAll("textarea:not([readonly])")].find(
+        (el) => good(el) && visible(el) && !el.closest?.('[class*="captcha"]'),
+      ) || null
     );
   }
 
@@ -1650,9 +1708,9 @@
   // где угодно в тексте кнопки и было слишком щедрым.
   const SEND_LABEL = /^(send|submit|отправ\w*)(\b|$)/;
 
-  // Для последней попытки: точное название кнопки отправки и ничего больше.
-  const SEND_EXACT =
-    /^(send|send message|send a message|send prompt|send the message|submit|submit message|отправить|отправить сообщение)$/;
+  // Кнопка остановки стоит на месте Send, пока агент работает. Нажимать её
+  // вместо отправки нельзя: это обрывает ответ.
+  const STOP_LABEL = /stop|останов|cancel|отмен/i;
 
   /**
    * Снимок разметки для разбора отказов.
@@ -1702,6 +1760,7 @@
       path: location.pathname,
       hidden: typeof tabHidden === "function" ? tabHidden() : null,
       pick: pick ? about(pick) : null,
+      box: pick ? about(composerBox(pick) || {}) : null,
       dialog: dialog ? about(dialog) : null,
       editors,
       buttons,
@@ -1734,11 +1793,17 @@
       const a = editor.getBoundingClientRect();
       const b = el.getBoundingClientRect();
       if (!a.width || !a.height || !b.width || !b.height) return false;
+      // Границы считаются из top/left/width/height: `bottom` и `right` есть у
+      // настоящего DOMRect, но полагаться только на них незачем.
+      const aBottom = a.top + a.height;
+      const aRight = a.left + a.width;
+      const bBottom = b.top + b.height;
+      const bRight = b.left + b.width;
       return (
-        b.bottom >= a.top - 160 &&
-        b.top <= a.bottom + 200 &&
-        b.right >= a.left - 80 &&
-        b.left <= a.right + 220
+        bBottom >= a.top - 160 &&
+        b.top <= aBottom + 200 &&
+        bRight >= a.left - 80 &&
+        b.left <= aRight + 220
       );
     } catch {
       return false;
@@ -1763,9 +1828,18 @@
 
   function sendButton(editor) {
     if (!composerAlive(editor)) return null;
+
+    // Область поиска — панель ввода. Не документ: 23.10 в 22:02 «первая
+    // доступная кнопка в родителе редактора» оказалась кнопкой аккаунта в
+    // сайдбаре, и три клика ушли туда. Кнопки вне панели ввода не
+    // рассматриваются вообще — ни как запасной путь, ни при нестандартной
+    // вёрстке. Лучше пауза, чем клик в неизвестное место.
+    const box = composerBox(editor);
+    const scope = box || (editor.closest?.("form") || null);
+    if (!scope) return null;
+
     const panels = completionPanels();
     const inPanel = (b) => panels.some((p) => p.contains?.(b));
-    const form = editor.closest?.("form") || null;
     const usable = (b) =>
       b &&
       b.isConnected !== false &&
@@ -1774,38 +1848,38 @@
       b.getAttribute?.("data-disabled") !== "true" &&
       visible(b) &&
       !inPanel(b) &&
-      !inOwnPanel(b);
-    const controls = [...document.querySelectorAll('button, [role="button"], input[type="submit"]')].filter(usable);
-    // Кнопки внутри карточки завершения — не наш Send: их подписи тоже бывают
-    // «Send», а клик по ним ничего не отправляет.
-    const near = (list) =>
-      [...list].sort((a, b) => {
-        const na = isNearComposer(a, editor) ? 0 : 1;
-        const nb = isNearComposer(b, editor) ? 0 : 1;
-        return na - nb || distanceTo(editor, a) - distanceTo(editor, b);
-      });
-    // «Своя» кнопка — в форме поля ввода или рядом с ним. Всё остальное в
-    // документе (сайдбар, аккаунт, меню) к отправке отношения не имеет.
-    const own = (b) => (form ? form.contains(b) : isNearComposer(b, editor));
-    const labelled = near(controls.filter((b) => own(b) && labelText(b).some((l) => SEND_LABEL.test(l))))[0];
-    if (labelled) return labelled;
-    if (form) {
-      const submit = near(
-        controls.filter(
-          (b) => form.contains(b) && String(b.getAttribute?.("type") || b.type || "") === "submit",
-        ),
-      )[0];
-      if (submit) return submit;
-    }
-    // Нестандартная раскладка: геометрия не сошлась, но кнопка с точным
-    // названием отправки в документе одна — берём её.
-    //
-    // Раньше здесь был «первая доступная кнопка в родителе редактора», и 23.10
-    // в 22:02 так нажался аккаунт Мастера: три клика ушли в сайдбар, а задание
-    // осталось неотправленным. Такого запасного пути больше нет: лучше пауза,
-    // чем клик в неизвестное место.
-    const plain = controls.filter((b) => labelText(b).some((l) => SEND_EXACT.test(l)));
-    return plain.length === 1 ? plain[0] : null;
+      !inOwnPanel(b) &&
+      !inSidebar(b) &&
+      !STOP_LABEL.test(String(labelText(b)[0] || ""));
+    const controls = [...scope.querySelectorAll('button, [role="button"], input[type="submit"]')].filter(usable);
+    if (!controls.length) return null;
+
+    // 1. Явная подпись отправки. Из нескольких — последняя в панели: ряд
+    //    `.flex.justify-between` держит подпись справа.
+    const labelled = controls.filter((b) => labelText(b).some((l) => SEND_LABEL.test(l)));
+    if (labelled.length) return labelled.at(-1);
+
+    // 2. `type=submit` внутри панели.
+    const submit = controls.filter((b) => String(b.getAttribute?.("type") || b.type || "") === "submit");
+    if (submit.length) return submit.at(-1);
+
+    // 3. Подписи нет (одна иконка). Узнать её можно только по месту: кнопка
+    //    отправки стоит одна в своей группе, эта группа — последняя в ряду
+    //    `.flex.justify-between`, а сама кнопка — в правой половине панели.
+    //    Всё, что не подходит под это описание, отправкой не считается:
+    //    скрепка и выбор модели стоят слева и в первой группе.
+    const nearField = controls.filter((b) => {
+      const holder = b.parentElement;
+      if (!holder) return false;
+      const siblings = [...holder.querySelectorAll('button, [role="button"]')].filter(usable);
+      if (siblings.length !== 1) return false;
+      if (holder !== holder.parentElement?.lastElementChild) return false;
+      if (!isNearComposer(b, editor)) return false;
+      const a = editor.getBoundingClientRect();
+      const r = b.getBoundingClientRect();
+      return r.left >= a.left + a.width / 2 - 40;
+    });
+    return nearField.at(-1) || null;
   }
 
   /**

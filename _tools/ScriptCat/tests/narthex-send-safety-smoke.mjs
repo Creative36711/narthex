@@ -1,17 +1,22 @@
-// Проба 1.4.23: клики не уходят в сайдбар, а вставка не «удаётся» в мёртвый узел.
+// Проба 1.4.25: кнопки ищутся только внутри панели ввода.
 //
-// Что случилось 23.10 в 22:02 (лог Мастера + консоль браузера):
-//   1) после перехода на страницу Kernel Arena заменила узел поля ввода новым;
-//   2) `writePrompt` ставил выделение в отвязанный узел — консоль:
-//      «addRange(): The given range isn't in document», а запасной путь
-//      «присвоить textContent» писал текст в копию и возвращал успех;
-//   3) в настоящем поле было пусто, значит кнопка Send осталась серой;
-//   4) `sendButton` не нашла Send и брала «первую доступную кнопку в родителе
-//      редактора» — ею оказалась кнопка аккаунта в сайдбаре;
-//   5) три клика ушли в аккаунт (пауза: кнопка «kreative36711@gmail.com»).
+// Разметка — по факту со страницы агента (прислал Мастер 23.10):
 //
-// Здесь проверяется поведением: кнопка аккаунта не выбирается никогда,
-// а вставка в отвязанный узел не считается успехом.
+//   div.group/sidebar-wrapper
+//   ├ div[class*="sidebar"] … > ul > button        ← аккаунт Мастера
+//   └ main
+//     └ div.relative.flex.min-w-0.flex-1.flex-col
+//       ├ … кнопки Merge PR, ветка (выше панели)
+//       └ div.bg-surface-secondary…rounded-b-none   ← панель ввода
+//         ├ div.editor-content > div.tiptap.ProseMirror[contenteditable] > p
+//         └ div.flex.justify-between.gap-4
+//           ├ div:nth-child(1) > button             ← скрепка / модель
+//           └ div:nth-child(2) > button             ← Send
+//
+// Правило: кнопка отправки — только внутри панели ввода. Аккаунт в сайдбаре,
+// «Merge PR» и что угодно ещё вне панели не рассматриваются даже как запасной
+// путь: 23.10 в 22:02 «первая доступная кнопка» оказалась аккаунтом, и три
+// клика ушли туда.
 
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
@@ -25,130 +30,211 @@ const cut = (from, to) => {
   return src.slice(a, b);
 };
 
-// ── Утилиты, без которых фрагмент не исполнить ────────────────────────────
+// ── Мини-дерево ───────────────────────────────────────────────────────────
+function makeNode({ tag = 'DIV', cls = '', label = '', text = '', disabled = false, box = null, sidebar = false, children = [] } = {}) {
+  const el = {
+    tagName: tag,
+    isConnected: true,
+    alive: true,
+    className: cls,
+    textContent: text,
+    disabled,
+    sidebar,
+    children,
+    parentElement: null,
+    focus() {},
+    dispatchEvent() {},
+    getBoundingClientRect: () => box || { left: 0, top: 0, width: 0, height: 0 },
+    getAttribute(name) {
+      if (name === 'aria-label') return label || null;
+      if (name === 'aria-disabled' || name === 'data-disabled') return null;
+      if (name === 'type') return tag === 'INPUT' ? 'submit' : null;
+      return null;
+    },
+    classList: { contains: () => false },
+    get lastElementChild() {
+      return children.length ? children[children.length - 1] : null;
+    },
+  };
+  const walk = (predicate) => {
+    const out = [];
+    const stack = [...children];
+    while (stack.length) {
+      const n = stack.shift();
+      if (predicate(n)) out.push(n);
+      stack.unshift(...(n.children || []));
+    }
+    return out;
+  };
+  el.querySelectorAll = (sel) => {
+    if (/button|role="button"/.test(sel)) return walk((n) => n.tagName === 'BUTTON');
+    return [];
+  };
+  el.contains = (n) => walk((x) => x === n).length > 0;
+  el.closest = (sel) => {
+    let cur = el;
+    while (cur) {
+      if (/sidebar/.test(sel) && cur.sidebar === true) return cur;
+      if (/captcha/.test(sel) && /captcha/.test(cur.className)) return cur;
+      if (/^nav|aside/.test(sel) && /nav|aside/.test(cur.tagName.toLowerCase())) return cur;
+      if (sel === `#cfn-panel` && cur.id === 'cfn-panel') return cur;
+      if (sel === 'form' && cur.tagName === 'FORM') return cur;
+      if (/\[class\*="captcha"\]|g-recaptcha/.test(sel) && /captcha/.test(cur.className)) return cur;
+      cur = cur.parentElement;
+    }
+    return null;
+  };
+  for (const child of children) child.parentElement = el;
+  return el;
+}
+
+const R = {
+  editor: { left: 340, top: 700, width: 720, height: 60 },
+  send: { left: 1020, top: 720, width: 28, height: 28 },
+  attach: { left: 360, top: 720, width: 24, height: 24 },
+  account: { left: 10, top: 640, width: 220, height: 40 },
+  merge: { left: 900, top: 200, width: 120, height: 32 },
+};
+
 const visible = () => true;
 const completionPanels = () => [];
 const ui = { panel: 'cfn-panel' };
 
-const sendSrc = cut('  /** Свой пульт ScriptCat', '  function writePrompt(');
+const buildPage = ({ sendLabel = 'Send', sendDisabled = false, withStop = false, noSend = false } = {}) => {
+  const account = makeNode({ tag: 'BUTTON', label: 'kreative36711@gmail.com', box: R.account });
+  const sidebar = makeNode({ cls: 'group/sidebar-wrapper fixed sidebar', box: { left: 0, top: 0, width: 260, height: 900 }, children: [account] });
+  sidebar.sidebar = true;
 
-/** Мини-элемент: важны только те методы, которые трогает sendButton. */
-const el = ({ label = '', text = '', rect, inPanel = false, disabled = false, tag = 'BUTTON' } = {}) => ({
-  tagName: tag,
-  isConnected: true,
-  disabled,
-  getAttribute: (name) => ({ 'aria-label': label || null, type: 'button' })[name] ?? null,
-  getBoundingClientRect: () => rect,
-  closest: (sel) => (inPanel && sel.includes('cfn-panel') ? { id: 'cfn-panel' } : null),
-  contains: () => false,
-  textContent: text,
-});
+  const send = makeNode({
+    tag: 'BUTTON',
+    label: sendLabel,
+    box: R.send,
+    disabled: sendDisabled,
+  });
+  const attach = makeNode({ tag: 'BUTTON', label: 'Attach', box: R.attach });
+  const stop = makeNode({ tag: 'BUTTON', label: 'Stop generating', box: R.send });
 
-const makePage = (buttons, editor) => {
+  const rightGroup = makeNode({ children: noSend ? (withStop ? [stop] : []) : [send] });
+  const toolbar = makeNode({
+    cls: 'flex justify-between gap-4',
+    children: [makeNode({ children: [attach] }), rightGroup],
+  });
+  const paragraph = makeNode({ tag: 'P', cls: 'is-editor-empty', box: R.editor });
+  const editor = makeNode({ cls: 'tiptap ProseMirror prose', box: R.editor, children: [paragraph] });
+  const editorContent = makeNode({ cls: 'editor-content max-h-[40vh]', children: [editor] });
+  const box = makeNode({ cls: 'bg-surface-secondary rounded-[14px] rounded-b-none', box: { left: 320, top: 680, width: 760, height: 120 }, children: [editorContent, toolbar] });
+  const merge = makeNode({ tag: 'BUTTON', label: 'Merge PR', box: R.merge });
+
+  const chat = makeNode({ children: [merge] });
+  const column = makeNode({ cls: 'relative flex min-w-0 flex-1 flex-col', children: [chat, box] });
+  const main = makeNode({ tag: 'MAIN', children: [column] });
+  const root = makeNode({ children: [sidebar, main] });
+
+  const all = (sel) => {
+    if (sel.includes('button')) {
+      return [account, send, attach, stop, merge].filter((b) => (b === stop ? withStop : true));
+    }
+    return [];
+  };
+  const document = {
+    querySelectorAll: (sel) => {
+      if (sel.includes('contenteditable') || sel.includes('ProseMirror') || sel.includes('textbox') || sel.includes('editor-content')) {
+        return [editor];
+      }
+      return all(sel);
+    },
+    querySelector: () => null,
+    contains: (n) => Boolean(n) && n.alive !== false,
+  };
   const api = new Function(
     'document', 'visible', 'completionPanels', 'ui',
-    `${sendSrc}; return { sendButton, composerAlive, isNearComposer };`,
-  )({ querySelectorAll: () => buttons, contains: (node) => node?.alive !== false }, visible, completionPanels, ui);
-  return { ...api, editor };
+    `${cut('  /** Свой пульт ScriptCat', '  function writePrompt(')}; return { sendButton, composerBox, composer, inSidebar };`,
+  )(document, visible, completionPanels, ui);
+  return { ...api, editor, send, account, attach, merge, box, stop, root, document };
 };
 
-// Поле ввода: x 340..1060, y 700..760 — как в чате Arena на широком экране.
-const editorRect = { left: 340, top: 700, width: 720, height: 60 };
-const editor = el({ rect: editorRect, text: '', tag: 'DIV' });
-
-// Кнопка Send — в правом нижнем углу поля.
-const sendRect = { left: 1020, top: 720, width: 28, height: 28 };
-
-// ── 1. Настоящая Send рядом с полем — выбирается она ─────────────────────
+// ── 1. Панель ввода найдена: это контейнер, а не main ────────────────────
 {
-  const send = el({ label: 'Send', rect: sendRect });
-  const account = el({ label: 'kreative36711@gmail.com', rect: { left: 10, top: 640, width: 220, height: 40 } });
-  const page = makePage([account, send], editor);
-  assert.equal(page.sendButton(editor), send, 'выбрана кнопка отправки, а не аккаунт');
+  const p = buildPage();
+  const box = p.composerBox(p.editor);
+  assert.equal(box, p.box, 'панель ввода — ближайший предок с кнопками');
+  assert.equal(p.sendButton(p.editor), p.send, 'выбрана кнопка отправки');
 }
 
-// ── 2. Send нет вовсе: кнопка аккаунта не выбирается даже как запасной путь ──
+// ── 2. Аккаунт в сайдбаре не выбирается никогда ─────────────────────────
 {
-  // Ровно тот случай 23.10: поле есть, Send серый (его нет в списке доступных),
-  // а в сайдбаре висит аккаунт Мастера.
-  const account = el({ label: 'kreative36711@gmail.com', rect: { left: 10, top: 640, width: 220, height: 40 } });
-  const collapse = el({ label: 'Collapse sidebar', rect: { left: 10, top: 60, width: 32, height: 32 } });
-  const page = makePage([account, collapse], editor);
-  assert.equal(page.sendButton(editor), null, 'без Send скрипт не нажимает ничего');
+  const p = buildPage({ noSend: true });
+  assert.equal(p.sendButton(p.editor), null, 'нет Send — не нажимаем ничего, а не аккаунт');
+  assert.notEqual(p.sendButton(p.editor), p.account, 'аккаунт исключён');
+  assert.equal(p.inSidebar(p.account), true, 'аккаунт распознан как сайдбар');
 }
 
-// ── 3. Подпись аккаунта не проходит даже как «точная» ────────────────────
+// ── 3. «Merge PR» вне панели не участвует, даже если это единственная кнопка ──
 {
-  const account = el({ label: 'kreative36711@gmail.com', rect: sendRect });
-  const page = makePage([account], editor);
-  assert.equal(page.sendButton(editor), null, 'даже рядом с полем аккаунт не считается Send');
+  const p = buildPage({ noSend: true });
+  assert.notEqual(p.sendButton(p.editor), p.merge, 'кнопка Merge PR не считается отправкой');
 }
 
-// ── 4. «Send feedback» внизу далеко от поля — не Send ────────────────────
+// ── 4. Кнопка без подписи (одна иконка) — последняя в ряду панели ────────
 {
-  const feedback = el({ label: 'Send feedback', rect: { left: 340, top: 1100, width: 140, height: 32 } });
-  const page = makePage([feedback], editor);
-  assert.equal(page.sendButton(editor), null, 'далёкая кнопка с похожей подписью не нажимается');
+  const p = buildPage({ sendLabel: '' });
+  assert.equal(p.sendButton(p.editor), p.send, 'иконка без подписи тоже находится');
 }
 
-// ── 5. Нестандартная раскладка: единственная точная Send в документе ─────
+// ── 5. Серая кнопка (пустое поле) не выбирается ──────────────────────────
 {
-  const far = el({ label: 'Send', rect: { left: 2000, top: 40, width: 40, height: 24 } });
-  const page = makePage([far], editor);
-  assert.equal(page.sendButton(editor), far, 'если Send одна и подпись точная — она и берётся');
+  const p = buildPage({ sendDisabled: true });
+  assert.equal(p.sendButton(p.editor), null, 'неактивная Send — не кнопка');
 }
 
-// ── 6. Кнопки своего пульта ScriptCat не нажимаются ─────────────────────
+// ── 6. Stop на месте Send не нажимается ─────────────────────────────────
 {
-  const own = el({ label: 'Send', rect: sendRect, inPanel: true });
-  const page = makePage([own], editor);
-  assert.equal(page.sendButton(editor), null, 'кнопки панели ScriptCat не участвуют');
+  const p = buildPage({ noSend: true, withStop: true });
+  assert.equal(p.sendButton(p.editor), null, 'Stop не путается с отправкой');
 }
 
-// ── 7. Выключенная Send (пустое поле) не выбирается ─────────────────────
+// ── 7. Поле в сайдбаре не считается полем ввода ─────────────────────────
 {
-  const disabled = el({ label: 'Send', rect: sendRect, disabled: true });
-  const page = makePage([disabled], editor);
-  assert.equal(page.sendButton(editor), null, 'серая кнопка — не кнопка');
+  const p = buildPage();
+  assert.equal(p.composer(), p.editor, 'поле ввода — редактор в main');
 }
 
-// ── 8. Отвязанный редактор: Send не ищется вовсе ────────────────────────
+// ── 8. В коде не осталось поиска кнопок по всему документу ──────────────
+const sendSrc = cut('  function sendButton(editor) {', '  /**\n   * Вставка текста в редактор.');
+assert.ok(!/document\.querySelectorAll\('button/.test(sendSrc), 'кнопки не ищутся по всему документу');
+assert.match(sendSrc, /const box = composerBox\(editor\);/, 'область поиска — панель ввода');
+assert.match(sendSrc, /const scope = box \|\| \(editor\.closest\?\.\("form"\) \|\| null\);/, 'без панели — только форма поля');
+assert.match(sendSrc, /if \(!scope\) return null;/, 'без области поиска кнопку не ищем вовсе');
+assert.match(sendSrc, /!STOP_LABEL\.test/, 'Stop исключён из кандидатов');
+assert.match(src, /const inSidebar = \(el\) =>/, 'сайдбар определяется по классу, а не по догадке');
+
+// ── 9. Отвязанный редактор: кнопку не ищем вовсе ────────────────────────
 {
-  const send = el({ label: 'Send', rect: sendRect });
-  const page = makePage([send], editor);
-  const detached = { ...el({ rect: editorRect, tag: 'DIV' }), isConnected: false };
-  assert.equal(page.sendButton(detached), null, 'для мёртвого поля кнопку не ищем');
+  const p = buildPage();
+  const dead = { ...p.editor, isConnected: false };
+  assert.equal(p.sendButton(dead), null, 'для мёртвого поля кнопку не ищем');
 }
 
-// ── 9. writePrompt: отвязанный узел не даёт успеха ──────────────────────
-// composer() в пробе не нужен: его роль играет подставленная функция.
-const writeSrc =
-  cut('  function composerAlive(', '  function composer() {') +
-  cut('  function writePrompt(', '  const composerText =');
-const composerTextCode = src.slice(src.indexOf('  const composerText ='), src.indexOf('\n', src.indexOf('  const composerText =')) + 1);
-
-function makeWriter({ detached = false, noComposer = false, execWorks = false } = {}) {
-  const calls = { exec: 0, focus: [] };
-  const node = (name) => ({
-    name,
-    tagName: "DIV",
-    isConnected: true,
-    innerText: "",
-    textContent: "",
-    focus() {
-      calls.focus.push(name);
-    },
-    dispatchEvent() {},
+// ── 10. Вставка в отвязанный узел не даёт успеха ────────────────────────
+{
+  const writeSrc =
+    cut('  function composerAlive(', '  function composer() {') +
+    cut('  function writePrompt(', '  const composerText =');
+  const composerTextCode = src.slice(
+    src.indexOf('  const composerText ='),
+    src.indexOf('\n', src.indexOf('  const composerText =')) + 1,
+  );
+  const calls = { focus: [] };
+  const mk = (name) => ({
+    name, tagName: 'DIV', isConnected: true, innerText: '', textContent: '',
+    focus() { calls.focus.push(name); }, dispatchEvent() {},
   });
-  const live = node("live");
-  const dead = detached ? { ...node("dead"), isConnected: false } : null;
+  const live = mk('live');
+  const dead = { ...mk('dead'), isConnected: false };
   const document = {
     contains: (n) => Boolean(n) && n.isConnected !== false,
     createRange: () => ({ selectNodeContents() {} }),
-    execCommand: (_cmd, _ui, text) => {
-      calls.exec += 1;
-      if (!execWorks) return false;
-      // Как настоящий insertText: текст попадает в сфокусированное поле.
+    execCommand: (_c, _u, text) => {
       live.innerText = text;
       live.textContent = text;
       return true;
@@ -156,52 +242,15 @@ function makeWriter({ detached = false, noComposer = false, execWorks = false } 
   };
   const window = { getSelection: () => ({ removeAllRanges() {}, addRange() {} }) };
   const api = new Function(
-    "document", "window", "composer", "visible", "ui", "dbg", "log",
-    "InputEvent", "HTMLTextAreaElement", "HTMLInputElement",
+    'document', 'window', 'composer', 'visible', 'ui', 'dbg', 'log',
+    'InputEvent', 'HTMLTextAreaElement', 'HTMLInputElement',
     `${writeSrc}\n${composerTextCode}; return { writePrompt, composerAlive };`,
-  )(
-    document, window, () => (noComposer ? null : live), visible, ui, () => {}, () => {},
-    function (t, i) { return { type: t, ...i }; }, function () {}, function () {},
-  );
-  return { api, live, dead, calls };
+  )(document, window, () => live, visible, ui, () => {}, () => {}, function (t, i) { return { type: t, ...i }; }, function () {}, function () {});
+
+  assert.equal(api.writePrompt(dead, 'ЗАДАНИЕ'), true, 'вставка ушла в перечитанное поле');
+  assert.equal(calls.focus.at(-1), 'live', 'фокус у живого поля');
+  assert.equal(dead.textContent, '', 'в отвязанный узел ничего не пишем');
+  assert.equal(live.innerText, 'ЗАДАНИЕ', 'текст в живом поле');
 }
 
-// 9.1. Поле подменили: текст уходит в живое, а не в отвязанную копию.
-{
-  const { api, live, dead, calls } = makeWriter({ detached: true, execWorks: true });
-  assert.equal(api.writePrompt(dead, "ЗАДАНИЕ"), true, "вставка удалась в перечитанное поле");
-  assert.equal(calls.focus.at(-1), "live", "фокус достался живому полю");
-  assert.equal(dead.textContent, "", "в отвязанный узел текст не пишем");
-  assert.equal(live.innerText, "ЗАДАНИЕ", "текст в живом поле");
-}
-
-// 9.2. Живого поля нет: честный отказ вместо «успеха» в мёртвом узле.
-{
-  const { api, dead } = makeWriter({ detached: true, noComposer: true, execWorks: true });
-  assert.equal(api.writePrompt(dead, "ЗАДАНИЕ"), false, "без живого поля вставка не удалась");
-  assert.equal(dead.textContent, "", "и в мёртвый узел ничего не записано");
-}
-
-// 9.3. execCommand недоступен — запасной textContent, но только в живой узел.
-{
-  const { api, live } = makeWriter({ detached: false, execWorks: false });
-  assert.equal(api.writePrompt(live, "ЗАДАНИЕ"), true, "вставка через textContent");
-  assert.equal(live.textContent, "ЗАДАНИЕ", "текст записан в живое поле");
-}
-
-// 9.4. Мёртвый узел так и остаётся мёртвым — composerAlive это видит.
-{
-  const { api, dead } = makeWriter({ detached: true, execWorks: true });
-  assert.equal(api.composerAlive(dead), false, "отвязанный узел распознан");
-  assert.equal(api.composerAlive({ isConnected: true }), true, "узел без document.contains считается живым");
-}
-
-// ── 10. В исходнике не осталось опасного запасного пути ─────────────────
-assert.ok(
-  !/parentElement\?\.querySelectorAll\?\.\('button/.test(src),
-  '«первая попавшаяся кнопка в родителе редактора» удалена',
-);
-assert.match(src, /isNearComposer\(b, editor\)/, 'своя кнопка — та, что рядом с полем');
-assert.match(src, /plain\.length === 1 \? plain\[0\] : null/, 'последняя попытка — только единственная точная Send');
-
-console.log('OK: narthex 1.4.24 — клики не уходят в сайдбар, вставка не «удаётся» в отвязанный узел');
+console.log('OK: narthex 1.4.25 — кнопки только в панели ввода, аккаунт и Merge PR не нажимаются');

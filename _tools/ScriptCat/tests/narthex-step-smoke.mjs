@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.24/, 'версия 1.4.24');
+assert.match(src, /@version\s+1\.4\.25/, 'версия 1.4.25');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -55,7 +55,8 @@ assert.match(sendBlock, /textarea:not\(\[readonly\]\)/, 'запасной textar
 assert.match(sendBlock, /function elementCovered\(editor\)/, 'проверяем, не накрыт ли элемент');
 assert.match(sendBlock, /document\.elementFromPoint\(/, 'оверлей ловится по верхнему элементу');
 assert.match(sendBlock, /const SEND_LABEL = \/\^\(send\|submit\|отправ/, 'подпись Send ищется и по-русски, и только с начала подписи');
-assert.match(sendBlock, /const SEND_EXACT =/, 'для последней попытки есть точное название кнопки');
+assert.match(sendBlock, /const STOP_LABEL =/, 'кнопка остановки не путается с отправкой');
+assert.match(sendBlock, /const box = composerBox\(editor\);/, 'область поиска кнопки — панель ввода, а не документ');
 assert.match(sendBlock, /aria-disabled/, 'заблокированная кнопка не считается');
 assert.match(sendBlock, /function writePrompt\(editor, text, attempt = 1\)/, 'вставка текста отдельной функцией');
 assert.match(sendBlock, /HTMLTextAreaElement\.prototype/, 'textarea заполняется нативным сеттером');
@@ -113,7 +114,10 @@ assert.match(sendBlock, /активной кнопки Send нет/, 'неакт
 assert.match(sendBlock, /function sendDiagnostics\(editor\)/, 'при отказе печатаются кандидаты в кнопку Send');
 assert.match(sendBlock, /const inPanel = \(b\) => panels\.some/, 'кнопки карточки не считаются Send');
 assert.match(sendBlock, /isNearComposer\(b, editor\)/, 'Send обязан быть рядом с редактором');
-assert.match(sendBlock, /distanceTo\(editor, a\)/, 'из близких берётся самая близкая');
+assert.match(sendBlock, /const nearField = controls\.filter\(\(b\) => \{/, 'без подписи кнопка определяется по месту');
+assert.match(sendBlock, /if \(siblings\.length !== 1\) return false;/, 'кнопка должна стоять одна в своей группе');
+assert.match(sendBlock, /holder !== holder\.parentElement\?\.lastElementChild/, 'группа должна быть последней в ряду');
+assert.match(sendBlock, /return nearField\.at\(-1\) \|\| null;/, 'если ни одна не подошла — пауза, а не догадка');
 assert.ok(
   !/parentElement\?\.querySelectorAll/.test(sendBlock),
   'запасного пути «первая попавшаяся кнопка в родителе» больше нет',
@@ -206,6 +210,11 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
       editor.textContent = "";
     }
   };
+  // 1.4.25: кнопка отправки ищется только внутри панели ввода, поэтому у
+  // редактора должна быть цепочка предков. Панель — ближайший предок с
+  // кнопками, как `div.bg-surface-secondary…rounded-b-none` в живой разметке.
+  const box = el("DIV", { id: "composer-box", querySelectorAll: () => (sendBtn ? [sendBtn] : []) });
+  if (editor) editor.parentElement = box;
   const messages = [];
   if (skip) {
     const skipBtn = el("BUTTON", { text: "Skip", id: "skip" });
@@ -449,4 +458,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.24 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.25 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
