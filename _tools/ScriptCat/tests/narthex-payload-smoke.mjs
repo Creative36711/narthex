@@ -21,18 +21,23 @@ assert.ok(from > 0 && to > from, 'dispatchTask на месте');
 
 function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) {
   const calls = [];
+  const store = {};
   const card = {
     id: 'card-1',
     properties: {
       'Запрос': { title: [{ plain_text: 'NAR-1.7 · Эффекты' }] },
       'Намерение': { rich_text: [{ plain_text: 'Вынести эффекты.' }] },
       'Payload Drive File ID': { rich_text: payloadId ? [{ plain_text: payloadId }] : [] },
+      'Dispatch State': { select: { name: 'Ready' } },
+      'PR': { url: null },
+      'Submitted At': { date: null },
     },
   };
 
   const dispatchTask = new Function(
     'roles', 'rt', 'gateway', 'patch', 'taskLogEntry', 'executorPrompt',
     'log', 'taskTitle', 'uid', 'nowIso', 'sendToRole',
+    'notion', 'taskState', 'GM_getValue', 'GM_setValue', 'pause',
     `${src.slice(from, to)}; return dispatchTask;`,
   )(
     async () => [{ id: 'agent-1', name: 'Kernel', fn: 'Executor' }],
@@ -57,7 +62,15 @@ function makeHarness({ payloadId = '', fileText = '', readFails = false } = {}) 
       calls.push({ action: 'send', prompt, kind, ref });
       return true;
     },
-    // card передаётся снаружи через замыкание ниже
+    // 1.4.20: перед выдачей карточка перечитывается из Notion. Заглушка
+    // отдаёт ту же карточку, поэтому состояние остаётся Ready.
+    async () => card,
+    (page) => page?.properties?.['Dispatch State']?.select?.name || '',
+    (key, fallback) => store[key] ?? fallback,
+    (key, value) => {
+      store[key] = value;
+    },
+    (text) => calls.push({ action: 'pause', text }),
   );
   return { dispatchTask, card, calls };
 }
@@ -130,4 +143,4 @@ assert.match(tech, /Arena\/payloads/, 'названа папка');
 assert.match(tech, /docs\/agents\/drive\.md/, 'есть ссылка на раскладку Диска');
 assert.doesNotMatch(tech, /кнопк|Continue|интерфейс/i, 'про интерфейс Координатору не рассказывают');
 
-console.log('OK: narthex 1.4.19 — текст из файла задания доходит до исполнителя и в журнал; без файла работает карточка');
+console.log('OK: narthex 1.4.20 — текст из файла задания доходит до исполнителя и в журнал; без файла работает карточка');

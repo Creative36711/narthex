@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.19/, 'версия 1.4.19');
+assert.match(src, /@version\s+1\.4\.20/, 'версия 1.4.20');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -107,16 +107,16 @@ assert.match(cpBody, /заменяю его заданием из очереди
 assert.match(cpBody, /const delivery = await deliver\(editor, pending\.text\);/, 'отправка проверяется');
 assert.match(cpBody, /if \(!delivery\.ok\)/, 'неудачная отправка — пауза, а не «отправлено»');
 assert.match(sendBlock, /async function deliver\(editor, text\)/, 'доставка отдельной функцией');
-assert.match(sendBlock, /async function waitForSendReady\(editor, timeoutMs = 3000\)/, 'ждём активную кнопку Send');
-assert.match(sendBlock, /Кнопка Send неактивна или не найдена — редактор не принял текст/, 'неактивная кнопка называется причиной');
+assert.match(sendBlock, /async function waitForSendReady\(editor, timeoutMs = 4000\)/, 'ждём активную кнопку Send');
+assert.match(sendBlock, /активной кнопки Send нет/, 'неактивная кнопка называется причиной');
 assert.match(sendBlock, /function sendDiagnostics\(editor\)/, 'при отказе печатаются кандидаты в кнопку Send');
 assert.match(sendBlock, /const inPanel = \(b\) => panels\.some/, 'кнопки карточки не считаются Send');
 assert.match(sendBlock, /distanceTo\(editor, a\)/, 'Send ищется рядом с редактором, а не первым в документе');
 assert.match(sendBlock, /if \(!inserted\) \{/, 'textContent — только запасной путь: execCommand обновляет состояние редактора');
 assert.match(sendBlock, /via: inserted \? "execCommand" : "textContent"/, 'путь вставки виден в отладке');
-assert.match(sendBlock, /if \(after > before \|\| !composerLeft \|\| generating\(\)\) return \{ ok: true \};/, 'три признака доставки');
-assert.match(sendBlock, /const composerLeft = composerText\(editor\)\.length;/, 'поле проверяется после клика');
-assert.match(sendBlock, /сообщение не появилось — текст остался в поле/, 'ложное «отправлено» исключено');
+assert.match(sendBlock, /waitSent\(key, before, C\.sendVerifyMs\)/, 'доставка подтверждается сообщением в чате');
+assert.match(sendBlock, /if \(lastUserSays\(key\)\) return \{ ok: true, via: "message" \};/, 'своё сообщение — первый признак доставки');
+assert.match(sendBlock, /своё сообщение в чате не появилось/, 'ложное «отправлено» исключено');
 assert.match(cpBody, /setTimeout\(\(\) => tick\(false\), 5000\)/, 'без редактора шаг повторится сам');
 
 // 4.1. Отладка в консоль браузера: включается, переживает переходы, объясняет.
@@ -178,6 +178,8 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     click() { out.clicks.push(props.id || tag); },
     ...props,
   });
+  // Свои сообщения в транскрипте: 1.4.20 подтверждает доставку именно ими.
+  const sent = [];
   const sendBtn = send ? el("BUTTON", {
     "aria-label": "Send", id: "send", contains: () => false, disabled: disabledSend,
     getBoundingClientRect: () => ({ left: 500, top: 550, width: 40, height: 10 }),
@@ -185,7 +187,11 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
   if (sendBtn) sendBtn.click = () => {
     out.clicks.push("send");
     if (deadSend) return; // клик по кнопке ничего не делает — как в жизни при «сером» Send
-    if (editor) { editor.innerText = ""; editor.textContent = ""; }
+    if (editor) {
+      sent.push({ textContent: editor.innerText || editor.textContent || "", closest: () => null });
+      editor.innerText = "";
+      editor.textContent = "";
+    }
   };
   const messages = [];
   if (skip) {
@@ -196,6 +202,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
   const document = {
     querySelector: (sel) => (sel.includes("contenteditable") ? editor : null),
     querySelectorAll: (sel) => {
+      if (sel.includes("data-user-message-layout")) return sent;
       if (sel.includes("data-agent-transcript-message")) return messages.length ? [messages[0]] : [];
       if (sel.includes("border-border-medium")) return panels.length ? panels : [];
       if (sel.includes("contenteditable") || sel.includes("ProseMirror") || sel.includes("textbox")) return editor ? [editor] : [];
@@ -221,7 +228,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "GM_getValue", "GM_setValue", "K", "norm", "roleFromPath", "visible", "lastMessageId",
     "setStatus", "log", "pause", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
-    "generating", "messages", "C", "dbg", "debugSendButton", "describe", "autoOn",
+    "generating", "messages", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat",
     `${sendBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
   );
   const api = fn(
@@ -248,11 +255,12 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     function (type, init) { return { type, ...init }; },
     () => stop,
     () => [],
-    { maxLog: 200, pendingTtlMs: 600000, replyWaitMs: 1800000 },
+    { maxLog: 200, pendingTtlMs: 600000, replyWaitMs: 1800000, sendVerifyMs: 6000 },
     () => {},
     (ed) => ({ found: Boolean(ed), covered: sendCovered }),
     (el) => (el ? String(el.tagName || "?").toLowerCase() : "нет"),
     () => false,
+    (x) => String(x || "").replace(/[\s\u00a0]+/g, " ").trim().toLowerCase(),
   );
   return { api, out };
 };
@@ -354,6 +362,8 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   await api.consumePending(true);
   assert.equal(out.pauses.length, 1, 'пауза поставлена');
   assert.match(out.pauses[0].text, /Кнопка Send неактивна или не найдена/);
+  assert.match(out.pauses[0].text, /в поле \d+ симв/, 'пауза объясняет, что видно на странице');
+  assert.match(out.pauses[0].text, /кнопка не найдена/, 'видно, что кнопки Send нет');
 }
 
 // 6.5a. В редакторе был текст — заменяем и отправляем, без ложной паузы.
@@ -380,7 +390,8 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   const { api, out } = load({ pending, editor: freshEditor(), send: true, deadSend: true });
   await api.consumePending(true);
   assert.equal(out.pauses.length, 1, 'пауза вместо ложного успеха');
-  assert.match(out.pauses[0].text, /сообщение не появилось/, 'причина названа');
+  assert.match(out.pauses[0].text, /своё сообщение в чате не появилось/, 'причина названа');
+  assert.match(out.pauses[0].text, /клик 3 без следа/, 'видно, сколько кликов не дало следа');
   assert.equal(out.clicks.filter((c) => c === "send").length, 3, 'было три попытки, ни одна не помогла');
   assert.ok(!out.logs.some((l) => l.text === "Задание отправлено."), 'ложного «отправлено» нет');
   assert.equal(out.sets.get("cfn-pending"), undefined, 'задание осталось в очереди');
@@ -424,4 +435,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.19 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.20 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");

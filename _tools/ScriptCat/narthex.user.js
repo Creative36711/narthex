@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.19
+// @version      1.4.20
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -59,6 +59,7 @@
     markerReminders: 2, // напоминаний до паузы: дальше решает Мастер
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
+    sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
   };
 
   const K = {
@@ -100,6 +101,8 @@
   // ───────────────────────────── утилиты ─────────────────────────────
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const norm = (x) => String(x || "").replace(/-/g, "").toLowerCase();
+  /** Текст для сравнения: без разницы в регистре и пробелах. */
+  const flat = (x) => String(x || "").replace(/[\s\u00a0]+/g, " ").trim().toLowerCase();
   const nowIso = () => new Date().toISOString();
   const rt = (p) => (p?.rich_text || p?.title || []).map((x) => x.plain_text || x.text?.content || "").join("");
   const sel = (p) => p?.select?.name || "";
@@ -235,7 +238,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.19";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.20";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1391,6 +1394,26 @@
   };
 
   /**
+   * Заявка «почти по формату»: id выдачи есть, номер PR есть, признак мержа
+   * есть, а литерала маркера нет. Пример, на котором это понадобилось:
+   * «NAR-1.7 RESULT — dispatch 4016f0cf-…; run 8abe7712-…; PR #31 MERGED.»
+   */
+  function looseResult(raw, role, expect) {
+    if (role.fn === "Auditor") return null;
+    const text = String(raw || "");
+    const ref = String((expect && expect.ref) || "");
+    if (!text || !ref || !norm(text).includes(norm(ref))) return null;
+    const pr = Number((text.match(/\bPR\s*#?\s*(\d+)/i) || text.match(/\/pull\/(\d+)/) || [])[1]) || null;
+    if (!pr) return null;
+    const merged = /\bmerged\b|слит|слито|слита|слиты|\bв main\b/i.test(text);
+    const run =
+      (text.match(/run[`\s]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i) || [])[1] ||
+      String((expect && expect.runId) || "");
+    if (!run) return null;
+    return { dispatch_id: ref, run_id: run, status: "submitted", pr, merged };
+  }
+
+  /**
    * Ждём ответ без маркера. Возвращает true, если ход уже обработан
    * (напоминание ушло или цикл поставлен на паузу).
    */
@@ -1801,28 +1824,7 @@
     return parts.join(", ");
   }
 
-  /**
-   * Нажатие Send с проверкой результата. Плашка возвращается на место после
-   * закрытия (решает backend), поэтому кнопка может оказаться под оверлеем —
-   * такой клик не доходит, и раньше мы всё равно писали «Задание отправлено».
-   */
-  /**
-   * Ждём активную кнопку Send.
-   *
-   * Программный `button.click()` не проходит через оверлей — карточка клик не
-   * ловит. Мешает другое: пока редактор не зарегистрировал ввод, кнопка
-   * `disabled`, и клик по ней ничего не делает. Поэтому ждём именно активности.
-   */
-  async function waitForSendReady(editor, timeoutMs = 3000) {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-      const btn = sendButton(editor);
-      if (btn) return btn;
-      await sleep(250);
-    }
-    return null;
-  }
-
+  /** Ждём активную кнопку Send (ниже — единственная реализация). */
   /** Почему Send не нажимается: список кандидатов вокруг редактора. */
   function sendDiagnostics(editor) {
     const scope = editor?.closest?.("form") || document;
@@ -1868,54 +1870,174 @@
   }
 
   /**
-   * Нажатие Send с проверкой результата.
+   * Отличительная строка задания: по ней видно, что в чат ушло именно это
+   * сообщение, а не предыдущее. Первые строки промпта у всех заданий
+   * одинаковые (технический блок), поэтому ключ берётся из строки с
+   * `dispatch <id>` — она своя у каждой выдачи.
+   */
+  function sendKey(text) {
+    const src = String(text || "");
+    const lines = src.split("\n");
+    const task = lines.find((l) => /Задача .*\(dispatch /.test(l));
+    if (task) return flat(task).slice(0, 90);
+    // Напоминание отличается от задания первой строкой «1 из 2», «2 из 2».
+    const reminder = lines.find((l) => /НАПОМИНАНИЕ/.test(l));
+    if (reminder) return flat(reminder).slice(0, 90);
+    // Ход Координатора опознаётся по номеру хода: он свой у каждого запроса.
+    const turn = src.match(/"turn_id"\s*:\s*"([^"]+)"/);
+    if (turn) return flat(turn[1]);
+    // Короткое сообщение (напоминание, реплика) опознаётся целиком; длинный
+    // промпт без опознавательных строк — нет, иначе ключом стал бы общий
+    // технический блок.
+    const plain = flat(src);
+    return plain.length <= 120 ? plain : "";
+  }
+
+  /** Своё сообщение в транскрипте — независимо от того, как оно обёрнуто. */
+  function userMessages() {
+    const found = new Set();
+    for (const el of document.querySelectorAll('[data-user-message-layout="true"]')) {
+      found.add(el.closest('[data-agent-transcript-message="true"]') || el);
+    }
+    return [...found];
+  }
+
+  /** В чате уже есть наше сообщение с этой строкой? Это и есть доставка. */
+  function lastUserSays(key) {
+    if (!key) return false;
+    const list = userMessages();
+    const last = list.at(-1);
+    return Boolean(last) && flat(last.textContent || "").includes(key);
+  }
+
+  /** Ждём подтверждение доставки: сообщение в чате, а не «поле опустело». */
+  async function waitSent(key, before, timeoutMs) {
+    // Ожидание не должно стать бесконечным из-за пустой настройки: без числа
+    // deadline был бы NaN, и опрос шёл бы вечно.
+    const deadline = Date.now() + (Number(timeoutMs) || 6000);
+    for (;;) {
+      if (lastUserSays(key)) return "message";
+      if (messages().length > before) return "count";
+      const live = composer();
+      // Пустое поле плюс работающий агент — тоже след отправки, но только
+      // вместе: по отдельности каждый признак обманывает.
+      if (live && !composerText(live) && generating()) return "generating";
+      if (Date.now() >= deadline) return "";
+      await sleep(300);
+    }
+  }
+
+  /** Enter в поле ввода: второй канал отправки, если клик не дошёл. */
+  function pressEnter(editor) {
+    if (!editor) return false;
+    try {
+      editor.focus();
+      const opts = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true };
+      for (const type of ["keydown", "keypress", "keyup"]) editor.dispatchEvent(new KeyboardEvent(type, opts));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Нажатие Send с проверкой появления своего сообщения.
    *
-   * Порядок (по мотивам `dispatch.user.js`):
-   *  1. дождаться активной кнопки — иначе клик уходит в пустоту;
-   *  2. если кнопка так и не стала активной, повторить ввод и подождать ещё;
-   *  3. кликнуть и проверить доставку по трём признакам;
-   *  4. не подтвердилось — закрыть карточку и повторить, но не больше трёх раз.
+   * До 1.4.20 доставка подтверждалась косвенными признаками: счётчик сообщений
+   * вырос, поле опустело или агент уже печатает. Каждый обманывает: счётчик
+   * обновляется только после отрисовки, поле «пусто» у отвязанного узла от
+   * прошлого рендера, а кнопка Stop бывает от прошлой генерации. 23.10 из-за
+   * этого три клика прошли впустую: шаг встал на паузу «Send нажат, но
+   * сообщение не появилось», хотя сказать, что именно не сработало, было
+   * нельзя.
+   *
+   * Теперь подтверждение — само сообщение с отличительной строкой задания.
+   * Поле и кнопка перечитываются из живого DOM перед каждой попыткой, а
+   * ожидание длится `sendVerifyMs`: в фоновой вкладке браузер режет таймеры,
+   * и одной секунды на отрисовку мало.
    */
   async function deliver(editor, text) {
     const before = messages().length;
-    dbg("Send: начало", () => ({ messages: before, button: debugSendButton(editor), textLength: composerText(editor).length }));
+    const key = sendKey(text);
+    let live = editor && editor.isConnected ? editor : composer();
+    dbg("Send: начало", () => ({ messages: before, button: debugSendButton(live), textLength: composerText(live).length }));
 
+    const why = [];
+    let clicked = 0;
     for (let attempt = 1; attempt <= 3; attempt += 1) {
-      let btn = await waitForSendReady(editor, 1500);
+      // Сообщение могло уйти с прошлой попытки — проверяем до нового клика.
+      if (lastUserSays(key)) return { ok: true, via: "message" };
+
+      // Узел редактора мог смениться при перерисовке чата: тогда и вставка,
+      // и клик уходят в копию, которой уже нет в документе.
+      if (!live || !live.isConnected) {
+        live = composer();
+        dbg("Send: редактор перечитан", { found: Boolean(live), attempt });
+        if (!live) {
+          why.push("поле ввода пропало");
+          break;
+        }
+      }
+
+      let btn = await waitForSendReady(live, 1500);
       if (!btn) {
         // Редактор не зарегистрировал ввод: повторяем его и ждём снова.
-        dbg("Send: кнопка неактивна — повторяю вставку текста", () => debugSendButton(editor));
-        writePrompt(editor, text);
-        btn = await waitForSendReady(editor, 3000);
+        dbg("Send: кнопка неактивна — повторяю вставку текста", () => debugSendButton(live));
+        writePrompt(live, text);
+        btn = await waitForSendReady(live, 3000);
       }
       if (!btn) {
-        const candidates = sendDiagnostics(editor);
-        dbg("Send: активной кнопки нет", { candidates });
-        return {
-          ok: false,
-          reason: "Кнопка Send неактивна или не найдена — редактор не принял текст",
-        };
+        why.push(`активной кнопки Send нет (${composerDiagnostics()})`);
+        break;
       }
 
       // Человек не отправляет через миллисекунду после ввода: даём паузу.
       await sleep(500 + Math.floor(Math.random() * 1200));
-      dbg(`Send: клик ${attempt}`, () => debugSendButton(editor));
+      if (lastUserSays(key)) return { ok: true, via: "message" };
+      dbg(`Send: клик ${attempt}`, () => debugSendButton(live));
       btn.click();
-      await sleep(1200);
+      clicked += 1;
 
-      const after = messages().length;
-      const composerLeft = composerText(editor).length;
-      dbg("Send: результат клика", () => ({ messagesBefore: before, messagesAfter: after, composerLeft, generating: generating() }));
-      if (after > before || !composerLeft || generating()) return { ok: true };
+      let via = await waitSent(key, before, C.sendVerifyMs);
+      if (!via && attempt === 3) {
+        // Последняя попытка: если клик не дошёл, отправляем с клавиатуры.
+        dbg("Send: клик не дал сообщения — пробую Enter");
+        pressEnter(live);
+        via = await waitSent(key, before, C.sendVerifyMs);
+      }
+      if (via) {
+        dbg("Send: сообщение в чате", { via, attempt });
+        return { ok: true, via };
+      }
 
       // Не дошло. Карточка могла появиться между вставкой и кликом — убираем
       // её один раз и повторяем; гоняться за ней циклом смысла нет.
       const plaque = closeCompletionPlaque();
       dbg("Send: сообщение не появилось", { plaque, attempt });
-      if (plaque === "none" && attempt === 1) writePrompt(editor, text);
+      why.push(plaque === "none" ? `клик ${attempt} без следа` : `клик ${attempt}: закрыл плашку`);
       await sleep(500);
     }
-    return { ok: false, reason: "Send нажат, но сообщение не появилось — текст остался в поле" };
+
+    const now = composer();
+    const button = now ? sendButton(now) : null;
+    dbg("Send: кандидаты у поля", () => sendDiagnostics(now));
+    const detail = [
+      `в поле ${now ? composerText(now).length : "—"} симв.`,
+      `кнопка ${button ? `«${String(labelText(button)[0] || "").slice(0, 28)}»` : "не найдена"}`,
+      `сообщений ${before} → ${messages().length}`,
+      `своих ${userMessages().length}`,
+      ...why,
+    ].join(", ");
+    GM_setValue("cfn-send-debug", { at: Date.now(), detail, key, text: String(text).slice(0, 300) });
+    return {
+      ok: false,
+      // Без единого клика причина другая: кнопка не нашлась, а не «нажали
+      // и ничего не вышло». Смешивать их нельзя — по причине чинят.
+      reason: clicked
+        ? "Send нажат, но своё сообщение в чате не появилось"
+        : "Кнопка Send неактивна или не найдена — редактор не принял текст",
+      detail,
+    };
   }
 
   /** Короткий хеш текста: нужен, чтобы не отправить одно и то же дважды. */
@@ -2085,7 +2207,8 @@
     const delivery = await deliver(editor, pending.text);
     if (!delivery.ok) {
       pause(
-        `${delivery.reason}. Задание осталось в поле ввода и в очереди: поправьте и нажмите «Продолжить».`,
+        `${delivery.reason}${delivery.detail ? ` (${delivery.detail})` : ""}. ` +
+          "Задание осталось в поле ввода и в очереди: поправьте и нажмите «Продолжить».",
         { kind: "send" },
       );
       return true;
@@ -2735,6 +2858,8 @@
       note ? `Комментарий: ${note}` : "",
       "",
       "Кому, Sequence, порядок и число Ready ставишь ты. Черновики ТЗ — предложение, а не приказ.",
+      "Dispatch State меняешь только на Accepted или Rework: Ready, Running и Submitted ставит движок.",
+      "Карточку, по которой уже есть ответ, обратно в Ready не возвращай — это повторная выдача той же работы.",
       "Оракул и инварианты менять нельзя: только ADR proposed и пауза миссии.",
       "",
       "Твой ход. Один ответ — законченный ход:",
@@ -2758,7 +2883,24 @@
       .map((m) => ({ ...m, result: parseMarker(m.raw, "CF_AGENT_RESULT") }))
       .filter((m) => m.result);
     const exact = candidates.filter((m) => norm(m.result.dispatch_id) === norm(expect.ref));
-    const hit = (exact.length ? exact : candidates).at(-1);
+    let hit = (exact.length ? exact : candidates).at(-1);
+    if (!hit) {
+      // Напоминания исчерпаны — дальше пауза не помогает: работа сделана, а
+      // страдает только формат. Читаем ответ по тексту, но обязательно с id
+      // этой выдачи и номером PR: иначе за результат сойдёт любая реплика.
+      const last = messagesAfter(expect.watermark).at(-1);
+      const loose =
+        last && Number(expect.tries) >= C.markerReminders ? looseResult(last.raw, role, expect) : null;
+      if (loose) {
+        log(
+          `${role.name} написал ответ без строки-маркера — разобрал по тексту: PR #${loose.pr}` +
+            `${loose.merged ? ", слит" : ""}. Повторять работу не нужно.`,
+          true,
+          { ntfy: "quiet", title: "Narthex: ответ без маркера" },
+        );
+        hit = { ...last, result: loose };
+      }
+    }
     if (!hit) return markerMissing(role, expect, "CF_AGENT_RESULT", manual);
 
     const result = hit.result;
@@ -3004,7 +3146,18 @@
       }
       if (route.kind === "dispatch") {
         GM_setValue("cfn-plan-miss", 0);
-        const card = ready.find((t) => taskRole(t) === route.roleName) || ready[0];
+        // Только карточка этой роли. Прежний запасной вариант «или первая из
+        // Ready» отдавал исполнителю чужое задание, если роль в карточке
+        // записана иначе (регистр, пробелы) — и работа уходила не туда.
+        const card = ready.find((t) => norm(taskRole(t)) === norm(route.roleName));
+        if (!card) {
+          pause(
+            `Координатор направил ход в «${route.roleName}», но карточки этой роли в Ready нет: ` +
+              "похоже, очередь изменилась между запросом и выдачей. Нажмите «Продолжить» — ход начнётся заново.",
+            { kind: "plan-miss", ref: mission.id },
+          );
+          return true;
+        }
         return dispatchTask(card, route.roleName);
       }
 
@@ -3058,6 +3211,37 @@
   async function dispatchTask(card, roleName) {
     const role = (await roles()).find((r) => r.name === roleName);
     if (!role) throw new Error(`Роль «${roleName}» не найдена среди активных.`);
+
+    // Карточка перечитывается прямо перед выдачей: между выбором из списка и
+    // отправкой её мог тронуть Координатор, прошлый тик или человек. 23.10
+    // NAR-1.7 выдали второй раз с новым run — она была в списке Ready уже
+    // отвеченной, и агент честно повторил ту же работу.
+    const fresh = await notion("GET", `pages/${card.id}`);
+    const state = taskState(fresh);
+    const prLink = fresh.properties["PR"]?.url || "";
+    const submittedAt = fresh.properties["Submitted At"]?.date?.start || "";
+    if (state !== "Ready" || submittedAt || prLink) {
+      const why =
+        state !== "Ready"
+          ? `уже ${state || "не в Ready"}`
+          : `уже отвечена${prLink ? ` (${prLink})` : ""}`;
+      const misses = (Number(GM_getValue("cfn-answered-miss", 0)) || 0) + 1;
+      GM_setValue("cfn-answered-miss", misses);
+      log(`«${taskTitle(fresh)}» ${why} — повторно не выдаю.`, true, {
+        ntfy: "quiet",
+        title: "Narthex: повторная выдача отменена",
+      });
+      if (misses >= 2) {
+        pause(
+          `«${taskTitle(fresh)}» ${why}, но Координатор снова направил ход в «${roleName}». ` +
+            "Похоже, карточку вернули в Ready вручную. Уберите её из Ready (или очистите «Submitted At» " +
+            "и «PR», если работу правда надо повторить) и нажмите «Продолжить».",
+          { kind: "redispatch", ref: fresh.id },
+        );
+      }
+      return false;
+    }
+    GM_setValue("cfn-answered-miss", 0);
 
     const runId = uid();
     const payloadId = rt(card.properties["Payload Drive File ID"]);
