@@ -1,40 +1,17 @@
 {
   "version": 1,
-  "updated": "2026-10-22",
+  "updated": "2026-10-23",
   "note": "Единый реестр возможностей платформы. Пока пак объявляет возможность, которой нет здесь, он невалиден: реестр — это контракт, а не справка.",
   "runtimes": ["turn", "realtime", "none"],
   "statuses": ["stable", "experimental", "planned", "deprecated", "reserved"],
+  "capability_modes": ["core", "code", "off"],
+  "capability_versions": "integer >= 1: версия поведения возможности, которую фиксирует проект",
   "kinds": [
-    {
-      "id": "narrative",
-      "title": "Сюжет и ветвление",
-      "pack": "narrative",
-      "requires": ["narrative"]
-    },
-    {
-      "id": "state-ui",
-      "title": "Автоматы, карты, интерфейсы",
-      "pack": "state-ui",
-      "requires": ["state-machine"]
-    },
-    {
-      "id": "grid-strategy",
-      "title": "Сетки, тактика, менеджмент",
-      "pack": "grid-strategy",
-      "requires": ["grid", "pathfinding"]
-    },
-    {
-      "id": "endless-2d",
-      "title": "Аркады и физика 2D",
-      "pack": "endless-2d",
-      "requires": ["realtime-loop", "physics2d"]
-    },
-    {
-      "id": "spatial-3d",
-      "title": "Пространственный экшен",
-      "pack": "spatial-3d",
-      "requires": ["spatial3d", "character-controller"]
-    }
+    { "id": "narrative", "title": "Сюжет и ветвление", "pack": "narrative", "requires": ["narrative"] },
+    { "id": "state-ui", "title": "Автоматы, карты, интерфейсы", "pack": "state-ui", "requires": ["state-machine"] },
+    { "id": "grid-strategy", "title": "Сетки, тактика, менеджмент", "pack": "grid-strategy", "requires": ["grid", "pathfinding"] },
+    { "id": "endless-2d", "title": "Аркады и физика 2D", "pack": "endless-2d", "requires": ["realtime-loop", "physics2d"] },
+    { "id": "spatial-3d", "title": "Пространственный экшен", "pack": "spatial-3d", "requires": ["spatial3d", "character-controller"] }
   ],
   "packs": [
     { "id": "narrative", "title": "Narrative & Branching", "runtime": "turn", "status": "stable" },
@@ -59,28 +36,23 @@
     { "id": "codex", "title": "Кодекс и бестиарий", "pack": "narrative", "status": "stable", "since": 2 },
     { "id": "crafting", "title": "Крафт и рецепты", "pack": "narrative", "status": "stable", "since": 2 },
     { "id": "time", "title": "Игровое время и календарь", "pack": "narrative", "status": "stable", "since": 2 },
-
     { "id": "state-machine", "title": "Пошаговый автомат состояний", "pack": "state-ui", "status": "planned", "since": 3 },
     { "id": "cards", "title": "Карты, колоды, эффекты", "pack": "state-ui", "status": "planned", "since": 3 },
     { "id": "auto-battle", "title": "Автобатлер и симуляция партии", "pack": "state-ui", "status": "planned", "since": 3 },
     { "id": "turn-validation", "title": "Серверная проверка хода", "pack": "state-ui", "status": "planned", "since": 3 },
-
     { "id": "grid", "title": "Сетка и клетки", "pack": "grid-strategy", "status": "planned", "since": 3 },
     { "id": "pathfinding", "title": "Поиск пути A*", "pack": "grid-strategy", "status": "planned", "since": 3 },
     { "id": "units", "title": "Отряды и юниты", "pack": "grid-strategy", "status": "planned", "since": 3 },
     { "id": "economy", "title": "Потоковая экономика", "pack": "grid-strategy", "status": "planned", "since": 3 },
     { "id": "ai-director", "title": "Противник и его логика", "pack": "grid-strategy", "status": "planned", "since": 3 },
-
     { "id": "realtime-loop", "title": "Цикл реального времени", "pack": "endless-2d", "status": "planned", "since": 4 },
     { "id": "physics2d", "title": "Твёрдые тела 2D", "pack": "endless-2d", "status": "planned", "since": 4 },
     { "id": "procedural-gen", "title": "Процедурная генерация", "pack": "endless-2d", "status": "planned", "since": 4 },
     { "id": "mobile-input", "title": "Тач-управление и мобильный экран", "pack": "endless-2d", "status": "planned", "since": 4 },
-
     { "id": "spatial3d", "title": "3D-сцена и камера", "pack": "spatial-3d", "status": "planned", "since": 5 },
     { "id": "character-controller", "title": "Контроллер персонажа", "pack": "spatial-3d", "status": "planned", "since": 5 },
     { "id": "skeletal-animation", "title": "Скелетная анимация", "pack": "spatial-3d", "status": "planned", "since": 5 },
     { "id": "triggers", "title": "Триггеры и зоны", "pack": "spatial-3d", "status": "planned", "since": 5 },
-
     { "id": "multiplayer-turn", "title": "Асинхронные комнаты", "pack": null, "status": "reserved", "since": 6 },
     { "id": "multiplayer-realtime", "title": "Сессии в реальном времени", "pack": null, "status": "reserved", "since": 6 }
   ]

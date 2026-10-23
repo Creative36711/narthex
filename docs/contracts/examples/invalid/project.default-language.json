@@ -1,0 +1,11 @@
+{
+  "format": 2,
+  "id": "broken-default-language",
+  "title": "Язык по умолчанию вне списка",
+  "kind": "narrative",
+  "caps": ["narrative", "scenes"],
+  "languages": ["ru", "en"],
+  "default_language": "de",
+  "engine": { "min": "0.9.0" },
+  "entry": "world.json"
+}
