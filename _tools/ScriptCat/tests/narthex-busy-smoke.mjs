@@ -161,4 +161,4 @@ assert.doesNotMatch(retrySrc, /sendToRole|consumePending|submitExecutor/, 'по�
 assert.match(src, /кнопка «\$\{reason\.label\}»\$\{reason\.where \|\| ""\}/, 'в журнале видно, где нашлась кнопка');
 assert.match(src, /Проверю ещё раз через/, 'Мастер видит, что шаг проверится сам');
 
-console.log('OK: narthex 1.4.17 — скрытый и протухший Stop не блокируют шаг, мгновенная заставка не считается');
+console.log('OK: narthex 1.4.18 — скрытый и протухший Stop не блокируют шаг, мгновенная заставка не считается');

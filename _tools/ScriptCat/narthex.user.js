@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.17
+// @version      1.4.18
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -235,7 +235,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.17";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.18";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2506,6 +2506,14 @@
     "Ветки, коммиты и PR — не твоя зона: за них отвечают Executor и Auditor.",
     "Очередь — твоя: нарезка, Кому, Sequence, число Ready. Оракул фазы — не твоя:", 
     "команду проверки и инварианты менять нельзя, только ADR proposed с паузой.",
+    "",
+    "ФАЙЛ ЗАДАНИЯ (Payload Drive File ID) обычно не нужен:",
+    "карточка и есть задание — её Намерение, Инварианты, Оракул и Scope уходят исполнителю.",
+    "Заводить файл стоит, только если текст не влезает в поля карточки:",
+    "создай его в Arena/payloads и впиши id в «Payload Drive File ID» — скрипт",
+    "прочитает файл и приложит его к заданию исполнителя.",
+    "Точный id важен: нечитаемый файл останавливает выдачу. Корень один — Arena,",
+    "в корень Диска не писать. Раскладка и правила — docs/agents/drive.md.",
   ].join("\n");
 
   const TECH_BY_FN = {
