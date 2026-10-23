@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.7
+// @version      1.4.8
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -76,6 +76,7 @@
     errSeen: "cfn-error-seen",
     step: "cfn-step-request",
     debug: "cfn-debug",
+    lastSend: "cfn-last-send",
   };
 
   const ui = {
@@ -213,7 +214,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.7";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.8";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -421,6 +422,17 @@
     panels: () => completionPanels().map(describe),
     closePanel: () => closeCompletionPlaque(),
     messages: () => messages().map((n) => ({ id: nodeId(n), head: messageText(n).slice(0, 60) })),
+    /** Что скрипт считает ответом после водяного знака — с хвостом и маркером. */
+    replies: () => {
+      const waiting = GM_getValue(K.expect, null);
+      return messagesAfter(waiting?.watermark || "").map((m) => ({
+        id: m.id,
+        length: m.raw.length,
+        tail: tail(m.text, 220),
+        marker:
+          parseMarker(m.raw, "CF_COORDINATOR_RESULT") || parseMarker(m.raw, "CF_AGENT_RESULT") || null,
+      }));
+    },
     resend: () => {
       const waiting = GM_getValue(K.expect, null);
       if (!waiting?.text) return "в ожидании нет текста задания";
@@ -949,8 +961,29 @@
     const prose = node.querySelector('[class*="prose"]') || node;
     const clone = prose.cloneNode(true);
     clone.querySelectorAll("button,svg,[role='alert']").forEach((n) => n.remove());
-    return clone.innerText.trim();
+    const shown = clone.innerText?.trim() || "";
+    return shown || String(clone.textContent || "").trim();
   }
+
+  /**
+   * Сырой текст сообщения — для разбора маркера.
+   *
+   * `textContent` не зависит от раскладки: не вставляет переносов на границах
+   * абзацев и не склеивает строки так, как это делает `innerText` у detached
+   * клона. Именно на этом разбор маркера и падал в живом чате.
+   */
+  function messageRaw(node) {
+    const prose = node.querySelector('[class*="prose"]') || node;
+    const clone = prose.cloneNode(true);
+    clone.querySelectorAll("button,svg,[role='alert']").forEach((n) => n.remove());
+    return String(clone.textContent || "").replace(/\u00a0/g, " ");
+  }
+
+  /**
+   * Наши собственные служебные сообщения (задание и напоминание) несут
+   * `CF_TECH`. Их нельзя читать как ответ агента: в них есть пример маркера.
+   */
+  const isOwnPrompt = (raw) => /CF_TECH/.test(String(raw || ""));
 
   function lastMessageId() {
     const list = messages();
@@ -964,38 +997,101 @@
    */
   function messagesAfter(watermark) {
     // Ответ агента — это не эхо собственного задания: пользовательские
-    // сообщения в транскрипте помечены отдельным layout.
-    const list = messages().filter((n) => !n.querySelector('[data-user-message-layout="true"]'));
-    if (!watermark) return list.map((n) => ({ id: nodeId(n), text: messageText(n) }));
+    // сообщения в транскрипте помечены отдельным layout, а служебные тексты
+    // узнаются по `CF_TECH` (в них лежит пример маркера).
+    const list = messages().filter(
+      (n) => !n.querySelector('[data-user-message-layout="true"]') && !isOwnPrompt(n.textContent),
+    );
+    const one = (n) => ({ id: nodeId(n), text: messageText(n), raw: messageRaw(n) });
+    if (!watermark) return list.map(one);
     const out = [];
     for (let i = list.length - 1; i >= 0; i -= 1) {
       const id = nodeId(list[i]);
       if (id === watermark) break;
-      out.unshift({ id, text: messageText(list[i]) });
+      out.unshift(one(list[i]));
     }
     return out;
   }
 
   const nodeId = (n) => n.id.replace("chat-message-", "");
 
-  function parseMarker(text, name) {
-    const lines = String(text || "")
-      .replace(/[\u200B-\u200D\uFEFF]/g, "")
-      .replace(/\u00a0/g, " ")
-      .replace(/\r\n?/g, "\n")
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
-    for (let i = lines.length - 1; i >= 0; i -= 1) {
-      const line = lines[i];
-      const at = line.indexOf(name);
-      if (at === -1) continue;
-      const json = line.slice(at + name.length).trim();
-      try {
-        return JSON.parse(json);
-      } catch {
+  /**
+   * Вырезает первый сбалансированный JSON-объект, начиная с ближайшей `{`.
+   *
+   * Раньше маркер искался по строкам `innerText`. Это ломалось на живой
+   * разметке: `innerText` у клона (а `messageText` клонирует узел) может
+   * склеить абзацы, переносы внутри `{"..."}` рвут JSON, а пояснение вокруг
+   * маркера добавляет хвост в ту же строку. Скобочный разбор не зависит от
+   * того, как браузер разложил текст.
+   */
+  function braceJson(rest) {
+    const start = rest.indexOf("{");
+    if (start === -1 || start > 400) return "";
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = start; i < rest.length; i += 1) {
+      const ch = rest[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === "\\") escaped = true;
+        else if (ch === '"') inString = false;
         continue;
       }
+      if (ch === '"') inString = true;
+      else if (ch === "{") depth += 1;
+      else if (ch === "}") {
+        depth -= 1;
+        if (depth === 0) return rest.slice(start, i + 1);
+      }
+    }
+    return "";
+  }
+
+  /** JSON из маркера: пробуем как есть, затем с переносами и HTML-сущностями. */
+  function markerJson(raw) {
+    const variants = [
+      raw,
+      raw.replace(/\s*\n\s*/g, " "),
+      raw
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&"),
+    ];
+    for (const text of variants) {
+      try {
+        return JSON.parse(text);
+      } catch {
+        /* пробуем следующий вариант */
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Шаблонные значения (`<роль|done>`, `<путь>`) — это наши же примеры из
+   * задания и напоминания, а не ответ агента. Такой «маркер» не принимаем:
+   * иначе собственный промпт засчитывается как готовый ответ.
+   */
+  function isPlaceholderMarker(obj) {
+    return Object.values(obj || {}).some(
+      (v) => typeof v === "string" && /[<>]/.test(v) && !/^https?:/.test(v) && !/^[\w./-]+$/.test(v),
+    );
+  }
+
+  function parseMarker(text, name) {
+    const src = String(text || "")
+      .replace(/[\u200B-\u200D\uFEFF]/g, "")
+      .replace(/\u00a0/g, " ")
+      .replace(/\r\n?/g, "\n");
+    let from = src.length;
+    while (from > 0) {
+      const at = src.lastIndexOf(name, from - 1);
+      if (at === -1) break;
+      const obj = markerJson(braceJson(src.slice(at + name.length)));
+      if (obj && !isPlaceholderMarker(obj)) return obj;
+      from = at;
     }
     return null;
   }
@@ -1028,6 +1124,10 @@
     return Number(tries) >= Number(max) ? "pause" : "remind";
   }
 
+  /**
+   * Напоминание о формате. Две формулировки — чтобы подряд идущие напоминания
+   * не выглядели механической копией, и чтобы в чате не было слова ScriptCat.
+   */
   function markerReminder(role, expect, attempt, markerName) {
     const line =
       expect.kind === "plan"
@@ -1035,12 +1135,23 @@
         : role.fn === "Auditor"
           ? `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь к отчёту>"}`
           : `CF_AGENT_RESULT {"dispatch_id":"${expect.ref}","run_id":"${expect.runId || ""}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`;
+    const about = expect.title ? ` по «${expect.title}»` : "";
+    const variants = [
+      [
+        `ТЕХНИЧЕСКОЕ НАПОМИНАНИЕ (${attempt} из ${C.markerReminders}; это не задание и не новый ход).`,
+        `Твой предыдущий ответ${about} пришёл без обязательного маркера ${markerName}.`,
+        "Без него нельзя понять, закончена работа или нет, поэтому ответ не засчитан.",
+      ],
+      [
+        `НАПОМИНАНИЕ О ФОРМАТЕ (${attempt} из ${C.markerReminders}; повторять работу не нужно).`,
+        `В ответе${about} не нашлось последней строки с ${markerName}.`,
+        "Остальное на месте, не хватает только служебной строки.",
+      ],
+    ];
     return [
-      `ТЕХНИЧЕСКОЕ НАПОМИНАНИЕ ScriptCat (${attempt} из ${C.markerReminders}; это не задание и не новый ход).`,
-      `Твой предыдущий ответ${expect.title ? ` по «${expect.title}»` : ""} пришёл без обязательного маркера ${markerName}.`,
-      "Он не засчитан: ScriptCat не видит, закончена работа или нет.",
-      "Не повторяй уже сделанное и не жди Мастера — отсутствие маркера техническая ошибка формата.",
-      "Если работа завершена, ответь ровно одной последней строкой:",
+      ...variants[(attempt - 1) % variants.length],
+      "Не повторяй уже сделанное и не жди Мастера — это ошибка формата, а не работы.",
+      "Если всё готово, ответь ровно одной последней строкой:",
       line,
       "Строка должна быть последней, без блока кода и без текста после неё.",
       "",
@@ -1049,11 +1160,38 @@
   }
 
   /**
+   * Признаки того, что агент ещё работает: кнопка Stop и «думающая» плашка.
+   * Пока они видны, любой текст в чате — черновик, а не ответ.
+   */
+  function stillWorking() {
+    if (generating()) return true;
+    const marks = document.querySelectorAll(
+      '[role="status"], [aria-live], [class*="thinking"], [class*="reasoning"], [class*="typing"]',
+    );
+    return [...marks].some((el) => {
+      if (!visible(el)) return false;
+      const label = `${el.getAttribute?.("aria-label") || ""} ${(el.textContent || "").slice(0, 40)}`.trim();
+      return /thinking|reasoning|typing|дума|размышл|анализ/i.test(label);
+    });
+  }
+
+  /** Хвост текста для журнала: по нему видно, ответ это или «думаю…». */
+  const tail = (text, n = 120) => {
+    const flat = String(text || "").replace(/\s+/g, " ").trim();
+    return flat.length <= n ? flat : `…${flat.slice(-n)}`;
+  };
+
+  /**
    * Ждём ответ без маркера. Возвращает true, если ход уже обработан
    * (напоминание ушло или цикл поставлен на паузу).
    */
   async function markerMissing(role, expect, markerName, manual = false) {
-    if (generating()) return false;
+    // Пока агент печатает или «думает», ответа ещё нет: молчим, но по нажатию
+    // «Шаг» объясняем, что именно ждём.
+    if (stillWorking()) {
+      if (manual) log(`${role.name} ещё отвечает — подождите, потом нажмите «Шаг».`);
+      return false;
+    }
     const replies = messagesAfter(expect.watermark || "");
     const last = replies.at(-1);
     if (!last) {
@@ -1071,21 +1209,29 @@
       return false;
     }
 
-    const signature = `${last.id}:${last.text.length}`;
+    // Подпись считается по сырому тексту: текст, который «дописывается»,
+    // каждый раз даёт другую подпись и откладывает решение.
+    const signature = `${last.id}:${last.raw.length}`;
     if (expect.lastReplySig !== signature) {
       GM_setValue(K.expect, { ...expect, lastReplySig: signature, lastReplyAt: Date.now() });
-      return false; // ответ ещё дописывается
+      if (manual) log(`${role.name} дописывает ответ — дочитаю, когда закончит.`);
+      return false;
     }
-    if (Date.now() - (expect.lastReplyAt || Date.now()) < C.markerIdleMs) return false;
+    if (Date.now() - (expect.lastReplyAt || Date.now()) < C.markerIdleMs) {
+      if (manual) log(`Ответ ${role.name} ещё может дописаться — подождите.`);
+      return false;
+    }
 
+    dbg("ответ без маркера", { id: last.id, length: last.raw.length, tail: tail(last.raw, 300) });
     const sent = Number(expect.tries) || 0;
     if (markerStep(sent) === "remind") {
       log(
-        `${role.name} ответил без маркера ${markerName} — напоминание ${sent + 1} из ${C.markerReminders}.`,
+        `${role.name} ответил без маркера ${markerName} — напоминание ${sent + 1} из ${C.markerReminders}. ` +
+          `Прочитан хвост: «${tail(last.text, 110)}»`,
         true,
         { ntfy: "quiet", title: "Narthex: нет маркера" },
       );
-      await sendToRole(role, markerReminder(role, expect, sent + 1, markerName), "reminder", expect.ref, {
+      await sendToRole(role, markerReminder(role, expect, sent + 1, markerName), expect.kind, expect.ref, {
         missionId: expect.missionId,
         turnId: expect.turnId,
         runId: expect.runId,
@@ -1540,6 +1686,8 @@
         };
       }
 
+      // Человек не отправляет через миллисекунду после ввода: даём паузу.
+      await sleep(500 + Math.floor(Math.random() * 1200));
       dbg(`Send: клик ${attempt}`, () => debugSendButton(editor));
       btn.click();
       await sleep(1200);
@@ -1559,7 +1707,34 @@
     return { ok: false, reason: "Send нажат, но сообщение не появилось — текст остался в поле" };
   }
 
+  /** Короткий хеш текста: нужен, чтобы не отправить одно и то же дважды. */
+  function textHash(text) {
+    let h = 5381;
+    for (let i = 0; i < text.length; i += 1) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+    return String(h);
+  }
+
   async function sendToRole(role, text, kind, ref, extra = {}) {
+    const force = extra.force === true;
+    const payload = { ...extra };
+    delete payload.force;
+
+    // Двойная обработка одного ответа (нажали «Шаг» дважды, сработал
+    // автоцикл) отправляла агенту второй такой же текст. Агент отвечал на
+    // него ещё раз, и чат превращался в переписку с самим собой.
+    const last = GM_getValue(K.lastSend, null);
+    if (!force && last && norm(last.roleId) === norm(role.id) && last.hash === textHash(text)) {
+      const ageSec = Math.round((Date.now() - Number(last.at || 0)) / 1000);
+      if (ageSec < 300) {
+        log(
+          `Такое же сообщение уже уходило «${role.name}» ${ageSec} с назад — не дублирую, жду ответа.`,
+          true,
+        );
+        return false;
+      }
+    }
+    GM_setValue(K.lastSend, { roleId: role.id, hash: textHash(text), at: Date.now() });
+
     GM_setValue(K.pending, { roleId: role.id, text, at: Date.now() });
     GM_setValue(K.expect, {
       roleId: role.id,
@@ -1572,13 +1747,29 @@
       lastReplyAt: 0,
       // Текст нужен, чтобы повторить отправку, если клик по Send не дошёл.
       text,
-      ...extra,
+      ...payload,
     });
     dbg("sendToRole: задание в очереди", { role: role.name, kind, ref, длина: text.length });
     GM_setValue("cfn-me", role.name);
     setStatus();
-    log(`Перехожу к «${role.name}», чтобы отправить задание.`);
-    location.assign(role.url);
+
+    // Если адресат — текущая страница, перезагружать её незачем: чат уже
+    // открыт, и задание уйдёт со следующего тика (человек видит, что кнопка
+    // сработала, без мигания страницы).
+    let same = false;
+    try {
+      same = new URL(role.url, location.href).pathname === location.pathname;
+    } catch {
+      same = false;
+    }
+    if (same) {
+      log(`«${role.name}» уже открыт — отправляю задание здесь.`);
+      setTimeout(() => tick(false), 400);
+    } else {
+      log(`Перехожу к «${role.name}», чтобы отправить задание.`);
+      location.assign(role.url);
+    }
+    return true;
   }
 
   /** Перейти на страницу роли без задания: используется для возврата хода. */
@@ -1659,6 +1850,9 @@
     // подсказка редактора), поэтому текст просто заменяется.
     if (composerText(editor)) log("В поле ввода был текст — заменяю его заданием из очереди.");
 
+    // Не вставляем мгновенно после загрузки страницы: ровный машинный ритм
+    // выглядит как бот и мешает живому диалогу.
+    await sleep(450 + Math.floor(Math.random() * 900));
     if (!writePrompt(editor, pending.text)) {
       pendingSay(pending, "Не удалось вставить задание в редактор: оно осталось в очереди.", true);
       return true;
@@ -1859,8 +2053,8 @@
     return [
       TECH_OPEN,
       `━━━ ${TECH_TITLE} · ${role.name} · ${stampUtc()} ━━━`,
-      "Сгенерировано ScriptCat. Это не задание и не текст Координатора: это факты о",
-      "среде, в которой ты работаешь. Задание — ниже, под блоком.",
+      "Это не задание и не текст Координатора: это факты о среде, в которой ты",
+      "работаешь. Задание — ниже, под блоком.",
     ].join("\n");
   }
 
@@ -1977,10 +2171,10 @@
       "   реши сам и запиши решение в docs/decisions/<миссия>.md — останавливаться не нужно.",
       "6. Последней строкой ответа — ровно один маркер:",
       `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","check":0,"report":"<путь>","pr":<номер PR>,"merged":true}`,
-      "`pr` и `merged: true` обязательны, если PR слит: по ним ScriptCat отличает «слит» от «закрыт без мержа» — бейдж в интерфейсе у обоих случаев один и тот же (Closed).",
+      "`pr` и `merged: true` обязательны, если PR слит: по ним отличают «слит» от «закрыт без мержа» — бейдж в интерфейсе у обоих случаев один и тот же (Closed).",
       "",
-      "Кнопки «Create pull request» и «Merge pull request» нажимать не нужно: их нажимает",
-      "ScriptCat только если ты не запушил. После мержа ScriptCat сам нажмёт Continue.",
+      "Кнопки «Create pull request» и «Merge pull request» нажимать не нужно: это запасной",
+      "путь, если ты не запушил сам. После мержа Continue нажимается автоматически.",
     ];
   }
 
@@ -1995,7 +2189,7 @@
       "5. Последней строкой ответа — ровно один маркер:",
       `CF_AGENT_RESULT {"dispatch_id":"${task.id}","run_id":"${runId}","status":"submitted","check":0,"report":"<путь к отчёту>"}`,
       "`check: 0` — вердикт pass, любой другой код — fail. PR и merged для аудита не нужны:",
-      "отдельного PR у тебя нет, ScriptCat не ждёт мержа и сразу запишет ответ.",
+      "отдельного PR у тебя нет: мержа здесь не ждут, ответ записывается сразу.",
     ];
   }
 
@@ -2049,7 +2243,7 @@
   // ───────────────────────────── ход исполнителя ─────────────────────────────
   async function submitExecutor(role, expect, manual = false) {
     const candidates = messagesAfter(expect.watermark)
-      .map((m) => ({ ...m, result: parseMarker(m.text, "CF_AGENT_RESULT") }))
+      .map((m) => ({ ...m, result: parseMarker(m.raw, "CF_AGENT_RESULT") }))
       .filter((m) => m.result);
     const exact = candidates.filter((m) => norm(m.result.dispatch_id) === norm(expect.ref));
     const hit = (exact.length ? exact : candidates).at(-1);
@@ -2159,9 +2353,9 @@
     const ready = await tasks("Ready", mission);
     const rework = await tasks("Rework", mission);
 
-    if (expect && expect.kind === "plan") {
+    if (expect && (expect.kind === "plan" || expect.kind === "reminder")) {
       const decision = messagesAfter(expect.watermark)
-        .map((m) => parseMarker(m.text, "CF_COORDINATOR_RESULT"))
+        .map((m) => parseMarker(m.raw, "CF_COORDINATOR_RESULT"))
         .filter(Boolean)
         .at(-1);
       if (!decision) return markerMissing(role, expect, "CF_COORDINATOR_RESULT", manual);
@@ -2178,6 +2372,7 @@
         );
         return true;
       }
+      log(`Маркер Координатора найден: дальше «${decision.next}» (turn ${decision.turn_id || expect.turnId}).`);
       if (decision.next === "done") {
         await patch(mission.id, {
           "Состояние": { select: { name: "Завершена" } },
@@ -2245,11 +2440,10 @@
       "Started At": { date: { start: nowIso() } },
     });
     log(`Выдан ход ${roleName}: «${taskTitle(card)}».`);
-    await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
+    return Boolean(await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
       runId,
       title: taskTitle(card),
-    });
-    return true;
+    }));
   }
 
   // ───────────────────────────── цикл ─────────────────────────────
@@ -2338,6 +2532,11 @@
       if (await consumePending(fromToggle)) return;
       // Фантом старой версии снят, повторять нечего: без нажатия не начинаем ход.
       if (revived === "dropped" && !auto && !fromToggle) return;
+      // Ручной режим: нажатие «Шаг» делает ровно один шаг. Фон (таймер)
+      // досылает очередь после перехода, но не читает ответы и не выдаёт
+      // новые задания: иначе один ход превращался в цепочку из трёх отправок.
+      if (!auto && !fromToggle) return;
+      if (fromToggle) dbg("шаг: начало", () => debugSnapshot());
       const meId = roleFromPath();
       if (!meId) {
         // Мастер не обязан помнить, на какой странице стоит цикл: «Шаг»
@@ -2377,8 +2576,16 @@
 
       let expect = GM_getValue(K.expect, null);
       if (expect && norm(expect.roleId) !== norm(me.id)) {
-        if (fromToggle) log("Шаг не выполнен: сейчас очередь другой роли.");
+        if (fromToggle) log(`Шаг не выполнен: ход ждёт ответа «${expect.roleName || expect.roleId}», а не «${me.name}».`);
         return;
+      }
+
+      // Старая версия помечала напоминание отдельным видом ожидания, и после
+      // него Координатор «не узнавал» свой ход и запрашивал новый план —
+      // отсюда вторая и третья отправки подряд. Приводим к исходному виду.
+      if (expect && expect.kind === "reminder") {
+        expect = { ...expect, kind: me.fn === "Coordinator" ? "plan" : "dispatch" };
+        GM_setValue(K.expect, expect);
       }
 
       // Ожидание без отметки отправки — не ожидание. `sentAt` ставит только
