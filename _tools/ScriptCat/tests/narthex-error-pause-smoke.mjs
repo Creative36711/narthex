@@ -1,5 +1,5 @@
 /**
- * Структурная проба narthex.user.js 1.4.12: журнал, пауза, маркеры, ntfy.
+ * Структурная проба narthex.user.js 1.4.13: журнал, пауза, маркеры, ntfy.
  *
  * Проверяет инварианты, которые легко потерять при правке транспорта:
  *  - журнал ограничен и очищается кнопкой;
@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.12/, 'версия 1.4.12');
+assert.match(src, /@version\s+1\.4\.13/, 'версия 1.4.13');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -34,7 +34,7 @@ assert.match(pauseFn, /GM_setValue\(K\.paused, info\.reason\)/, 'причина 
 assert.match(pauseFn, /GM_setValue\(K\.pause, info\)/, 'контекст паузы переживает перезагрузку');
 assert.match(pauseFn, /priority: "5"/, 'пауза всегда громкая');
 assert.match(pauseFn, /playAlert\(\)/, 'пауза дублируется звуком в браузере');
-assert.match(src, /wasAuto: GM_getValue\(K\.auto, false\)/, 'пауза помнит режим, чтобы не включать автоцикл молча');
+assert.match(src, /wasAuto: autoOn\(\)/, 'пауза помнит режим, чтобы не включать автоцикл молча');
 
 // 4. Тик: сначала ошибка на экране, потом шаг; пауза не обходится.
 const tickStart = src.indexOf('async function tick(');
@@ -93,4 +93,4 @@ assert.match(src, /Тихий тест/, 'тихий тест доступен �
 assert.match(src, /Громкий тест/, 'громкий тест доступен из панели');
 assert.ok(!src.includes('location.reload()'), 'видимая ошибка не перезагружает страницу');
 
-console.log('OK: narthex 1.4.12 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
+console.log('OK: narthex 1.4.13 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');

@@ -10,7 +10,7 @@
 //   • сравнение было строгим (`textContent === "Continue"`): иконка с <title>
 //     даёт «ContinueContinue», и кнопка «не находилась»;
 //   • в ветке «мерж принят по маркеру» (1.4.11) Continue не нажималась никогда.
-// Здесь проверяется поведение 1.4.12.
+// Здесь проверяется поведение 1.4.13.
 
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
@@ -168,4 +168,4 @@ const bn = new Function(
 });
 assert.equal(bn(), 'arena/9bde7bd4-chronicle-forge', 'выбрана ветка, а не заголовок чата');
 
-console.log('OK: narthex 1.4.12 — Continue ждётся после Merged, клик проверяется, ветка пишется в карточку');
+console.log('OK: narthex 1.4.13 — Continue ждётся после Merged, клик проверяется, ветка пишется в карточку');

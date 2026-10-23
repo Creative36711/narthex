@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.12
+// @version      1.4.13
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -223,7 +223,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.12";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.13";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -393,7 +393,7 @@
       url: location.href,
       path: location.pathname,
       role: roleFromPath() || "—",
-      auto: GM_getValue(K.auto, false),
+      auto: autoOn(),
       paused: GM_getValue(K.paused, "") || false,
       pending: GM_getValue(K.pending, null),
       expect: GM_getValue(K.expect, null),
@@ -503,6 +503,46 @@
   const isPaused = () => Boolean(GM_getValue(K.paused, ""));
 
   /**
+   * Автоцикл — состояние ОКНА, а не хранилища скрипта.
+   *
+   * Хранилище ScriptCat переживает браузер: включённый однажды автоцикл
+   * подхватывал процесс при следующем открытии страницы, без единого нажатия.
+   * Теперь флаг лежит в `sessionStorage`: переживает переходы между страницами
+   * агентов в той же вкладке, но исчезает вместе с браузером. Новый запуск
+   * всегда начинается с ручного «Включить».
+   */
+  let autoMem = false;
+  function autoOn() {
+    try {
+      return sessionStorage.getItem(K.auto) === "1";
+    } catch {
+      return autoMem;
+    }
+  }
+  function autoSet(on) {
+    autoMem = Boolean(on);
+    try {
+      if (on) sessionStorage.setItem(K.auto, "1");
+      else sessionStorage.removeItem(K.auto);
+    } catch {
+      // Приватный режим или запрет storage: остаётся память вкладки.
+    }
+  }
+
+  /** Старое значение в хранилище скрипта снимаем: оно больше не управляет циклом. */
+  function autoForgetPersisted() {
+    const stale = GM_getValue(K.auto, false);
+    GM_setValue(K.auto, false);
+    if (stale) {
+      log(
+        "Автоцикл прошлой сессии снят: он включается только вручную, кнопкой «Включить».",
+        false,
+        { skip: true },
+      );
+    }
+  }
+
+  /**
    * Единственная точка остановки. Любая ошибка на экране, таймаут или
    * невыданный маркер приводят сюда: цикл замирает, статус краснеет, уходит
    * громкий пуш, а продолжает только Мастер — кнопкой «Продолжить».
@@ -516,7 +556,7 @@
       runId: context.runId || "",
       turnId: context.turnId || "",
       tries: context.tries ?? null,
-      wasAuto: GM_getValue(K.auto, false),
+      wasAuto: autoOn(),
     };
     GM_setValue(K.paused, info.reason);
     GM_setValue(K.pause, info);
@@ -562,7 +602,7 @@
   function setStatus(extra) {
     const el = document.getElementById(ui.status);
     if (!el) return;
-    const auto = GM_getValue(K.auto, false);
+    const auto = autoOn();
     const paused = GM_getValue(K.paused, "");
     const me = GM_getValue("cfn-me", "");
     const short = paused.length > 70 ? `${paused.slice(0, 70)}…` : paused;
@@ -635,7 +675,7 @@
     document.getElementById(ui.stop).onclick = () => {
       GM_setValue(K.paused, "");
       GM_setValue(K.pause, null);
-      GM_setValue(K.auto, false);
+      autoSet(false);
       log("Автоцикл остановлен вручную.");
     };
     document.getElementById(ui.step).onclick = () => {
@@ -652,7 +692,7 @@
   }
 
   function toggleAuto() {
-    const auto = GM_getValue(K.auto, false);
+    const auto = autoOn();
     const reason = GM_getValue(K.paused, "");
 
     // Пауза. Снять её может только человек: подтверждение показывает причину.
@@ -661,19 +701,19 @@
       const ctx = GM_getValue(K.pause, null) || {};
       // Возвращаем тот режим, в котором цикл стоял: пауза не должна
       // превращать ручной шаг в постоянный автоцикл.
-      GM_setValue(K.auto, ctx.wasAuto === true);
+      autoSet(ctx.wasAuto === true);
       resume("кнопка «Продолжить»");
       tick(true);
       return;
     }
 
     if (auto) {
-      GM_setValue(K.auto, false);
+      autoSet(false);
       log("Автоцикл выключен.");
       return;
     }
 
-    GM_setValue(K.auto, true);
+    autoSet(true);
     log("Автоцикл включён.");
     tick(true);
   }
@@ -1822,6 +1862,8 @@
     GM_setValue(K.pending, { roleId: role.id, text, at: Date.now() });
     GM_setValue(K.expect, {
       roleId: role.id,
+      roleName: role.name,
+      roleUrl: role.url,
       kind,
       ref,
       watermark: lastMessageId(),
@@ -1895,7 +1937,7 @@
       if (mine && waiting && norm(waiting.roleId) === norm(me)) GM_setValue(K.expect, null);
       // В ручном режиме шаг делает только нажатие: на загрузке страницы
       // ограничиваемся уборкой, а не отправкой плана за спиной Мастера.
-      const act = manual || GM_getValue(K.auto, false);
+      const act = manual || autoOn();
       log(
         `Снял просроченную отправку из очереди (${Math.round(age / 60000)} мин): задание до адресата не дошло, ` +
           `это остаток прошлой попытки. ` +
@@ -2707,7 +2749,7 @@
           "Состояние": { select: { name: "Завершена" } },
           "Завершена": { date: { start: nowIso() } },
         });
-        GM_setValue(K.auto, false);
+        autoSet(false);
         log("Миссия завершена Координатором. Автоцикл остановлен.", false, { ntfy: "loud", title: "Narthex: миссия завершена" });
         return true;
       }
@@ -2845,7 +2887,7 @@
     }
     // Незавершённая отправка живёт в очереди и не зависит от автоцикла:
     // иначе после перехода на страницу адресата задание никто не досылал.
-    const auto = GM_getValue(K.auto, false);
+    const auto = autoOn();
     const pending = GM_getValue(K.pending, null);
     const waiting = GM_getValue(K.expect, null);
     if (!auto && !fromToggle && !pending && !waiting) return;
@@ -2881,20 +2923,38 @@
       if (fromToggle) dbg("шаг: начало", () => debugSnapshot());
       const meId = roleFromPath();
       if (!meId) {
-        // Мастер не обязан помнить, на какой странице стоит цикл: «Шаг»
-        // открывает Координатора сам и выполняет шаг уже там.
+        // Мастер не обязан помнить, на какой странице стоит цикл, но и угадывать
+        // ему не нужно: «Шаг» открывает ту страницу, где действительно есть
+        // работа. Сначала — адресат неотправленного задания, потом — тот, чей
+        // ответ ждём, и только потом Координатор (там начинается новый ход).
         if (!fromToggle) return;
         const list = await roles();
+        const pendingNow = GM_getValue(K.pending, null);
+        const waitingNow = GM_getValue(K.expect, null);
+        const byId = (id) => (id ? list.find((r) => norm(r.id) === norm(id)) || null : null);
+        const pendingRole = pendingNow ? byId(pendingNow.roleId) : null;
+        const waitingRole = waitingNow ? byId(waitingNow.roleId) : null;
         const coord = list.find((r) => r.fn === "Coordinator");
-        if (!coord) {
-          log("Шаг не выполнен: нет активного Coordinator с заполненным «Agent URL».", true);
+        const target = pendingRole || waitingRole || coord;
+        if (!target) {
+          log(
+            list.length
+              ? "Шаг не выполнен: нет активного Coordinator с заполненным «Agent URL»."
+              : "Шаг не выполнен: нет ни одной активной роли с заполненным «Agent URL» — заполните поле в базе «Роли».",
+            true,
+          );
           return;
         }
-        // Если задание уже ждёт адресата, страница досылает его сама —
-        // второй шаг не нужен и мог бы выдать лишний ход.
-        if (!GM_getValue(K.pending, null)) GM_setValue(K.step, true);
-        log(`Сейчас ${location.pathname || "/"} — открываю страницу Координатора и выполню шаг там.`);
-        location.assign(coord.url);
+        // Задание уже ждёт адресата — страница досылает его сама; иначе
+        // выполняем отложенный шаг на месте.
+        if (!pendingNow) GM_setValue(K.step, true);
+        const why = target === pendingRole
+          ? "там ждёт отправки задание"
+          : target === waitingRole
+            ? `ждём ответа «${target.name}»`
+            : "там начинается ход";
+        log(`Сейчас ${location.pathname || "/"} — открываю страницу «${target.name}»: ${why}.`);
+        location.assign(target.url);
         return;
       }
       const list = await roles();
@@ -2918,7 +2978,25 @@
 
       let expect = GM_getValue(K.expect, null);
       if (expect && norm(expect.roleId) !== norm(me.id)) {
-        if (fromToggle) log(`Шаг не выполнен: ход ждёт ответа «${expect.roleName || expect.roleId}», а не «${me.name}».`);
+        const owner = list.find((r) => norm(r.id) === norm(expect.roleId)) || null;
+        const ownerName = expect.roleName || owner?.name || "другой роли";
+        if (fromToggle && owner) {
+          let samePage = false;
+          try {
+            samePage = new URL(owner.url, location.href).pathname === location.pathname;
+          } catch {
+            samePage = false;
+          }
+          // Стоим не там, где идёт работа: открываем нужную страницу, а не
+          // просим Мастера перейти вручную.
+          if (!samePage) {
+            GM_setValue(K.step, true);
+            log(`Ход ждёт ответа «${owner.name}», а не «${me.name}» — открываю страницу «${owner.name}».`);
+            location.assign(owner.url);
+            return;
+          }
+        }
+        if (fromToggle) log(`Шаг не выполнен: ход ждёт ответа «${ownerName}», а не «${me.name}».`);
         return;
       }
 
@@ -2982,6 +3060,8 @@
   entries = (GM_getValue(K.log, []) || []).slice(-C.maxLog);
   const boot = () => {
     migrateState();
+    // Автоцикл не наследуется от прошлого запуска браузера: сначала — руками.
+    autoForgetPersisted();
     mount();
     if (debugOn()) {
       installDebugApi();
@@ -2995,17 +3075,17 @@
       const clean = new URL(location.href);
       clean.searchParams.delete("cf-auto");
       history.replaceState(null, "", clean.toString());
-      GM_setValue(K.auto, true);
+      autoSet(true);
       GM_setValue(K.paused, "");
       GM_setValue(K.pause, null);
-      log("Автоцикл включён через ссылку.");
+      log("Автоцикл включён через ссылку — только для этой вкладки.");
     }
     setStatus();
     setup(false);
     setInterval(() => tick(false), C.tickMs);
     if (GM_getValue(K.step, false)) {
       GM_setValue(K.step, false);
-      log("Открыл страницу Координатора — выполняю отложенный шаг.");
+      log("Открыл страницу роли — выполняю отложенный шаг.");
       tick(true);
       return;
     }
