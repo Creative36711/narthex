@@ -10,7 +10,8 @@ import type {
   StatusDef,
   WeaponData,
 } from '../shared/types'
-import type { GameEngine } from './engine'
+import type { EngineCtx } from './context'
+import type { PRNG } from './prng'
 import { type Hex, hexKey, hexDistance, reachable, astar, hexToPixel } from './hex'
 import { skillCheck, damageBonus, movement, derivedHP, derivedMP, type CheckResult } from './brp'
 import { rollDice } from './dice'
@@ -97,7 +98,7 @@ const FISTS: WeaponData = {
   label: 'Кулаки',
 }
 
-function rollSigned(notation: string, rng: GameEngine['rng']): number {
+function rollSigned(notation: string, rng: PRNG): number {
   const n = notation.trim()
   if (n === '0' || n === '') return 0
   if (n.startsWith('-')) return -rollDice(n.slice(1), rng)
@@ -121,7 +122,7 @@ export interface CombatLootEntry {
 }
 
 export class CombatController {
-  readonly engine: GameEngine
+  readonly engine: EngineCtx
   readonly arena: ArenaDef
   readonly def: StartCombatEffect
   combatants: Combatant[] = []
@@ -137,7 +138,7 @@ export class CombatController {
   /** гексы-укрытия арены (мастерская разметка cover_hexes), «c,r» */
   private coverHexes: Set<string>
 
-  constructor(engine: GameEngine, def: StartCombatEffect) {
+  constructor(engine: EngineCtx, def: StartCombatEffect) {
     this.engine = engine
     this.def = def
     const arena = engine.campaign.arenas[def.arena]
@@ -1425,7 +1426,7 @@ export class CombatController {
   }
 
   /** хит-локации мастера (combat.hit_locations): бросок d100 по диапазонам; механика выкл. — null */
-  private rollHitLocation(rng: GameEngine['rng']) {
+  private rollHitLocation(rng: PRNG) {
     const rule = this.combatRules()?.hit_locations
     if (!rule?.table?.length) return null
     const roll = rng.int(1, 100)

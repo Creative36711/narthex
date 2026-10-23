@@ -55,6 +55,7 @@ import {
   MAX_SAVE_SLOTS,
 } from './savemigrate'
 import { PRNG } from './prng'
+import type { EngineCtx } from './context'
 import { derivedHP, derivedMP, movement, skillCheck, CHECK_RESULT_LABEL, difficultyModifier, difficultyLabel, type SkillCheckOutcome } from './brp'
 import { rollDice } from './dice'
 import { evalCondition, evalSceneCondition } from './conditions'
@@ -79,7 +80,10 @@ export interface SlotOccupant {
   entity: EntityDef | null
 }
 
-export class GameEngine {
+export class GameEngine implements EngineCtx {
+  [operation: string]: any
+
+  readonly audio = { playUi, playInteraction, stopSound }
   campaign: CampaignData
   state: GameState
   rng: PRNG
@@ -212,6 +216,11 @@ export class GameEngine {
   pushLog(text: string): void {
     this.state.log.push(text)
     if (this.state.log.length > 200) this.state.log.shift()
+  }
+
+  /** EngineCtx logging boundary; retained as an alias for the existing log behavior. */
+  log(text: string): void {
+    this.pushLog(text)
   }
 
   /** подпись спикера реплики в истории диалога: явный # speaker — его имя, иначе собеседник */

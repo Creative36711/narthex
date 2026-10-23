@@ -1,11 +1,11 @@
 import type { Condition, SceneCondition, TimeOfDay } from '../shared/types'
 import { startTick } from '../shared/types'
-import type { GameEngine } from './engine'
+import type { EngineCtx } from './context'
 import { timeOfDay } from './time'
 
 /** Trigger/Effect System — условия (ТЗ 4.4). */
 
-export function evalCondition(c: Condition, engine: GameEngine): boolean {
+export function evalCondition(c: Condition, engine: EngineCtx): boolean {
   const s = engine.state
   switch (c.type) {
     case 'player_enters_location':
@@ -136,7 +136,7 @@ export function evalCondition(c: Condition, engine: GameEngine): boolean {
 }
 
 /** Простые условия сцен/слотов (time_of_day / flag / not_flag). */
-export function evalSceneCondition(c: SceneCondition | null | undefined, engine: GameEngine): boolean {
+export function evalSceneCondition(c: SceneCondition | null | undefined, engine: EngineCtx): boolean {
   if (!c) return true
   if (c.time_of_day) {
     const tod = timeOfDay(engine.state.tick, engine.campaign.meta)

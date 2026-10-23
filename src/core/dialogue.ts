@@ -1,5 +1,5 @@
 import { Compiler, Story, type CompilerOptions } from 'inkjs/full'
-import type { GameEngine } from './engine'
+import type { EngineCtx } from './context'
 import type { NpcDef } from '../shared/types'
 import { playInteraction } from '../shared/audio'
 
@@ -219,7 +219,7 @@ export function firstInkKnot(source: string): string | null {
   return m?.[1] ?? null
 }
 
-export function bindExternals(story: Story, engine: GameEngine): void {
+export function bindExternals(story: Story, engine: EngineCtx): void {
   const bind = (name: string, fn: (...args: never[]) => unknown) => {
     try {
       story.BindExternalFunction(name, fn as (...args: unknown[]) => unknown, false)
