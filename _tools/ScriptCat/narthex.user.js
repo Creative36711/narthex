@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.14
+// @version      1.4.15
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -223,7 +223,7 @@
    */
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.14";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.15";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2669,10 +2669,13 @@
       "Кому, Sequence, порядок и число Ready ставишь ты. Черновики ТЗ — предложение, а не приказ.",
       "Оракул и инварианты менять нельзя: только ADR proposed и пауза миссии.",
       "",
-      "Твой ход. Ровно одно действие:",
+      "Твой ход. Один ответ — законченный ход:",
       "1) есть Submitted → проверь по Acceptance и поставь Accepted или Rework (причина в «Ответ»);",
-      "2) нужен исполнитель → создай карточку в «Запросы»: Намерение, Инварианты, Acceptance (оракул — команда), Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready;",
+      "2) сразу после этого очередь не должна оставаться пустой: если в ней нет ни Running, ни Ready — создай следующую карточку в «Запросы» (Намерение, Инварианты, Acceptance с командой-оракулом, Свободно, Scope, Кому, Sequence, Миссия, Dispatch State = Ready) в этом же ответе;",
       "3) миссия выполнена → поставь «Состояние» = «Завершена» и направь ход done.",
+      "",
+      "Приёмка и выдача — не два хода. Принял Submitted — в этом же ответе выстави следующую карточку Ready и назови в next исполнителя, а не Coordinator.",
+      "Пустая очередь после твоего ответа считается незаконченным ходом.",
       "",
       "Последней строкой ответа:",
       `CF_COORDINATOR_RESULT {"mission_id":"${mission.id}","turn_id":"${turnId}","status":"completed","next":"<роль|done>"}`,
@@ -2783,6 +2786,87 @@
     }
   }
 
+  /**
+   * Что делать по решению Координатора — без сети, чтобы это можно было
+   * проверить пробой.
+   *
+   * `next` — имя роли из маркера. Четыре исхода:
+   *   • роль есть и её карточка лежит в Ready → отправляем задание;
+   *   • `next` — сам Координатор: он вернул ход себе (например, принял
+   *     Submitted и не успел выдать следующую карточку). Это не ошибка и не
+   *     повод для паузы — просим ещё один ход с подсказкой, что очередь пуста;
+   *   • роли нет или карточки нет → тоже просим ход, но говорим, чего не
+   *     хватает: имени роли или самой карточки;
+   *   • второй промах подряд → пауза: дальше это уже не «не понял», а поломка.
+   */
+  function decisionRoute(next, { roles: list = [], readyRoles = [], misses = 0 } = {}) {
+    const name = String(next || "").trim();
+    if (!name) return { kind: "ask", note: "В маркере не указано, кому передаётся ход: назови роль или done." };
+    if (norm(name) === norm("done")) return { kind: "done" };
+    const target = list.find((r) => norm(r.name) === norm(name)) || null;
+    if (!target) {
+      // Третий подряд промах — уже не «модель не поняла», а поломка: без
+      // человека это превращается в бесконечную переписку с Координатором.
+      if (misses >= 2) {
+        return {
+          kind: "pause",
+          reason:
+            `Координатор третий раз подряд называет роль «${name}», которой нет среди активных. ` +
+            "Проверьте базу «Роли»: имя в next должно совпадать с ролью.",
+        };
+      }
+      return { kind: "ask", note: `Роли «${name}» нет среди активных. Назови роль из базы «Роли» или done.` };
+    }
+    if (target.fn === "Coordinator") {
+      if (misses >= 2) {
+        return {
+          kind: "pause",
+          reason:
+            "Координатор третий раз подряд возвращает ход себе и не выдаёт карточку. " +
+            "Похоже, он не видит очередь или не может создать карточку — посмотрите его ответ.",
+        };
+      }
+      return {
+        kind: "ask",
+        note:
+          "Ход вернулся Координатору. Очередь пуста — в этом ходе создай следующую карточку " +
+          "Ready и назови в next исполнителя (или done, если миссия закончена).",
+      };
+    }
+    if (readyRoles.some((r) => norm(r) === norm(target.name))) return { kind: "dispatch", roleName: target.name };
+    if (misses >= 1) {
+      return {
+        kind: "pause",
+        reason:
+          `Координатор второй раз направил ход в «${target.name}», но карточки в Ready нет. ` +
+          "Дальше без человека это не решается: создайте карточку или поправьте решение.",
+      };
+    }
+    return {
+      kind: "ask",
+      note:
+        `Ты направил ход в «${target.name}», но в Ready нет карточки для этой роли. ` +
+        "Создай её и в этом же ответе повтори next; либо назови роль, чья карточка уже готова.",
+    };
+  }
+
+  /** Свежие счётчики очереди: после решения Координатора старые уже неверны. */
+  async function queueOf(mission) {
+    const [submitted, running, ready, rework] = await Promise.all([
+      tasks("Submitted", mission),
+      tasks("Running", mission),
+      tasks("Ready", mission),
+      tasks("Rework", mission),
+    ]);
+    return {
+      submitted,
+      running,
+      ready,
+      rework,
+      summary: `${submitted.length} Submitted, ${running.length} Running, ${ready.length} Ready, ${rework.length} Rework`,
+    };
+  }
+
   async function coordinatorStep(role, expect, manual = false) {
     const mission = await activeMission();
     if (!mission) {
@@ -2826,27 +2910,57 @@
         log("Миссия завершена Координатором. Автоцикл остановлен.", false, { ntfy: "loud", title: "Narthex: миссия завершена" });
         return true;
       }
-      const roleName = decision.next;
-      const card = ready.find((t) => taskRole(t) === roleName) || ready[0];
-      if (!card) throw new Error(`Координатор направил ход в «${roleName}», но Ready-карточки нет.`);
-      return dispatchTask(card, roleName);
+      const route = decisionRoute(decision.next, {
+        roles: await roles(),
+        readyRoles: ready.map(taskRole),
+        misses: Number(GM_getValue("cfn-plan-miss", 0)) || 0,
+      });
+
+      if (route.kind === "pause") {
+        GM_setValue("cfn-plan-miss", 0);
+        pause(route.reason, { kind: "plan-miss", ref: mission.id });
+        return true;
+      }
+      if (route.kind === "dispatch") {
+        GM_setValue("cfn-plan-miss", 0);
+        const card = ready.find((t) => taskRole(t) === route.roleName) || ready[0];
+        return dispatchTask(card, route.roleName);
+      }
+
+      // ask: ход возвращается Координатору — это его следующий ход, а не
+      // ошибка. Просим план заново, но с подсказкой, чего не хватает.
+      GM_setValue("cfn-plan-miss", (Number(GM_getValue("cfn-plan-miss", 0)) || 0) + 1);
+      const fresh = await queueOf(mission);
+      log(`Ход снова у Координатора: ${fresh.summary}. Прошу закончить ход.`);
+      await requestPlan(mission, role, fresh, route.note, { force: true });
+      return true;
     }
 
+    const note = submitted.length
+      ? "Разбери Submitted — и в этом же ответе выставь следующую карточку Ready, если очередь опустеет."
+      : rework.length
+        ? "Есть Rework: посмотри «Ответ» — там причина (например, PR закрыт без мержа)."
+        : "";
+    return requestPlan(mission, role, { submitted, running, ready, rework }, note, { manual });
+  }
+
+  /**
+   * Запрос хода Координатора. `force` нужен, когда ход возвращается ему же по
+   * его собственному решению: там минута ожидания была бы наказанием за
+   * аккуратный ответ, а не защитой от спама.
+   */
+  async function requestPlan(mission, role, queue, note = "", { manual = false, force = false } = {}) {
     const lastPlan = GM_getValue("cfn-plan-at", 0);
-    // Защита от спама: план Координатора — не чаще раза в минуту. В ручном
-    // режиме это иначе выглядит как «кнопка не работает».
-    if (Date.now() - lastPlan < 60_000) {
-      if (manual) log(`Шаг не выполнен: план запрашивали ${Math.ceil((60_000 - (Date.now() - lastPlan)) / 1000)} с назад.`);
+    const waitMs = force ? 5_000 : 60_000;
+    if (Date.now() - lastPlan < waitMs) {
+      if (manual) log(`Шаг не выполнен: план запрашивали ${Math.ceil((waitMs - (Date.now() - lastPlan)) / 1000)} с назад.`);
       return false;
     }
     GM_setValue("cfn-plan-at", Date.now());
 
-    const summary = `${submitted.length} Submitted, ${running.length} Running, ${ready.length} Ready, ${rework.length} Rework`;
-    const note = submitted.length
-      ? "Сначала разбери Submitted."
-      : rework.length
-        ? "Есть Rework: посмотри «Ответ» — там причина (например, PR закрыт без мержа)."
-        : "";
+    const summary =
+      queue.summary ||
+      `${queue.submitted.length} Submitted, ${queue.running.length} Running, ${queue.ready.length} Ready, ${queue.rework.length} Rework`;
     const turnId = uid();
     log(`План Координатора запрошен (${summary}).`);
     await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note), "plan", mission.id, {
