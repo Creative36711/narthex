@@ -15,7 +15,6 @@ import type {
   ItemInteractOption,
   LocationDef,
   AchievementDef,
-  ActiveStatus,
   EventTableDef,
   GenWeightedItem,
   NpcGeneratorDef,
@@ -35,7 +34,6 @@ import type {
   StatBlock,
   StatusDef,
   TravelConnection,
-  NeedCondition,
   RuleDef,
   SkillDifficulty,
   WeaponData,
@@ -55,6 +53,7 @@ import {
 import { PRNG } from './prng'
 import type { EngineCtx } from './context'
 import { world, type SlotOccupant } from './world'
+import { needs } from './needs'
 import { inventory } from './inventory'
 import { equipment } from './equipment'
 export type { SlotOccupant } from './world'
@@ -69,7 +68,7 @@ import { skillLabel } from '../shared/skills'
 import { playUi, playInteraction, stopSound } from '../shared/audio'
 import { stopVoiceAudio } from '../shared/voiceAudio'
 import type { SoundHook } from '../shared/types'
-import { migrateNeedCondition } from '../shared/migrate'
+
 import { CombatController } from './combat'
 
 /**
@@ -542,362 +541,16 @@ export class GameEngine implements EngineCtx {
     this.notify()
   }
 
-  // ─────────────── время и потребности ───────────────
-
-  /**
-   * Условие потребности (когда убывает / когда восстанавливается).
-   * Итерация 8, А3: «в локации» и «есть/надет предмет» — СПИСКИ id,
-   * условие истинно, если выполнено хотя бы одно значение («любой из»).
-   */
-  private needCondOk(raw: NeedCondition): boolean {
-    const c = migrateNeedCondition(raw)
-    switch (c.type) {
-      case 'time_of_day':
-        return c.values.includes(timeOfDay(this.state.tick, this.campaign.meta))
-      case 'flag':
-        return !!this.state.flags[c.flag] !== !!c.not
-      case 'in_location':
-        return (c.locations ?? []).includes(this.state.location) !== !!c.not
-      case 'has_item':
-        return (c.items ?? []).some((id) => this.hasItem(id)) !== !!c.not
-      case 'equipped':
-        return (c.items ?? []).some((id) => this.isEquipped(id)) !== !!c.not
-      case 'weather':
-        return (this.state.weather ?? '') === c.weather !== !!c.not
-    }
-  }
-
-  advanceTicks(ticks: number): void {
-    const meta = this.campaign.meta
-    const needsOn = featureOn(meta, 'needs')
-    for (let i = 0; i < ticks; i++) {
-      if (this.state.game_over) return
-      this.state.tick += 1
-      this.state.stats_run.ticks_survived += 1
-      if (needsOn) {
-        for (const need of meta.needs) {
-          // старые сохранения могут не знать новую потребность — считаем её полной
-          const cur = this.state.player.needs[need.id] ?? need.max
-          let next = cur
-          // убыль — только когда все условия выполнены (пусто = всегда)
-          const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
-          if (decays) next = Math.max(0, next - need.decay_per_tick * (this.difficultyDef()?.need_decay ?? 1))
-          // восстановление — когда выполнены условия restore_when
-          if (
-            need.restore_per_tick &&
-            (!need.restore_when?.length || need.restore_when.every((c) => this.needCondOk(c)))
-          ) {
-            next = Math.min(need.max, next + need.restore_per_tick)
-          }
-          this.state.player.needs[need.id] = next
-          if (next <= 0 && cur > 0) this.onNeedZero(need.id)
-        }
-      }
-      // потребности напарников (NpcDef.companion_needs): те же темпы и условия
-      // убыли/восстановления, что у героя; без «на нуле»-исходов — это
-      // истощение существа, а не конец игры (последствия описывает мастер
-      // правилами через условия companion_need_le/ge)
-      if (needsOn && this.state.party.length) {
-        for (const comp of this.state.party) {
-          if (!comp.needs) continue
-          for (const need of meta.needs) {
-            const cur = comp.needs[need.id]
-            if (cur === undefined) continue
-            let next = cur
-            const decays = !need.decay_when?.length || need.decay_when.every((c) => this.needCondOk(c))
-            if (decays) next = Math.max(0, next - need.decay_per_tick * (this.difficultyDef()?.need_decay ?? 1))
-            if (
-              need.restore_per_tick &&
-              (!need.restore_when?.length || need.restore_when.every((c) => this.needCondOk(c)))
-            ) {
-              next = Math.min(need.max, next + need.restore_per_tick)
-            }
-            comp.needs[need.id] = next
-            if (next <= 0 && cur > 0) {
-              const cdef = this.campaign.entities[comp.entity] as NpcDef | undefined
-              this.pushLog(`${cdef?.label ?? comp.entity} на пределе: ${need.label.toLowerCase()} на нуле.`)
-            }
-          }
-        }
-      }
-      // статусы игрока (блок 5 ТЗ): DoT, декремент, истечение
-      this.tickStatuses()
-      // преследование (start_pursuit): периодические цепочные проверки маскировки
-      if (this.state.pursuit) {
-        this.state.pursuit.left -= 1
-        if (this.state.pursuit.left <= 0) this.tickPursuit()
-      }
-      // смена суток: самочувствие NPC (спал по расписанию / не спал)
-      const tpd = meta.ticks_per_day ?? 24
-      if (tpd > 0 && this.state.tick > 0 && this.state.tick % tpd === 0) this.tickNpcMood()
-      // порча скоропортящихся предметов от времени
-      this.tickPerishableItems(1)
-    }
-    // достижения со счётчиками (прожитые тики и пр.) — после пачки тиков
-    this.checkAchievements()
-    // таблицы случайных событий ходят тем же шагом, что и тики мира (аудит B9)
-    this.tickEventTables()
-    // правила на tick_elapsed / need_* (поезд ушёл, таймеры драм) — иначе
-    // «последний поезд в 22:00» срабатывал только после смены сцены/диалога
-    this.checkRules()
-  }
-
-  /** Обработка порчи скоропортящихся предметов со временем (decay_ticks / freshness) */
-  private tickPerishableItems(ticks: number): void {
-    const inv = this.state.player.inventory
-    for (let i = inv.length - 1; i >= 0; i--) {
-      const slot = inv[i]
-      if (slot.freshness === undefined) continue
-      slot.freshness = Math.max(0, slot.freshness - ticks)
-      if (slot.freshness === 0) {
-        const def = this.campaign.entities[slot.item] as ItemDef | undefined
-        const title = def?.label ?? slot.item
-        const msg = def?.spoil_msg || `«${title}» испортился от времени.`
-        this.pushLog(msg)
-        this.pushToast(msg, 'info')
-
-        if (def?.spoil_action === 'rule' && def.spoil_rule) {
-          this.fireRule(def.spoil_rule)
-        }
-
-        if (def?.spoil_into) {
-          const replacement = def.spoil_into
-          const repDef = this.campaign.entities[replacement] as ItemDef | undefined
-          slot.item = replacement
-          slot.freshness = repDef?.decay_ticks !== undefined ? repDef.decay_ticks : undefined
-          if (repDef?.label) {
-            this.pushLog(`Превратилось в: ${repDef.label}.`)
-          }
-        } else {
-          // удаление из инвентаря
-          inv.splice(i, 1)
-          // если предмет был надет в слот экипировки — снимаем
-          for (const eqSlot of Object.keys(this.state.player.equipment)) {
-            if (this.state.player.equipment[eqSlot] === slot.item) {
-              delete this.state.player.equipment[eqSlot]
-            }
-          }
-        }
-      }
-    }
-  }
-
-  /** один тик мировых статусов игрока; статус сам по себе не убивает (мин. 1 HP) */
-  private tickStatuses(): void {
-    const list = this.state.player.statuses
-    if (!list?.length) return
-    const expired: StatusDef[] = []
-    const cured: string[] = []
-    for (const s of list) {
-      const def = this.statusDef(s.id)
-      if (!def) continue
-      // болезни/яды с течением (аудит B7): стадии — спасбросок CON; DoT и модификаторы масштабированы тяжестью
-      const severity = Math.max(1, s.severity ?? 1)
-      if (def.dot?.hp) this.state.player.hp = Math.max(1, this.state.player.hp - def.dot.hp * severity)
-      if (def.dot?.mp) this.state.player.mp = Math.max(0, this.state.player.mp - def.dot.mp * severity)
-      if (def.dot?.hp) this.pushLog(`${def.label}: −${def.dot.hp * severity} HP${severity > 1 ? ` (тяжесть ${severity})` : ''}.`)
-      if (def.disease && (s.next_check ?? Infinity) <= this.state.tick) {
-        const mult = def.disease.con_multiplier ?? 5
-        const out = skillCheck(this.state.player.stats.CON * mult, this.rng, 0, this.diceRules)
-        this.pushLog(`${def.label}: стадия течения — CON×${mult}, d100=${out.roll} против ${out.target} → ${CHECK_RESULT_LABEL[out.result]}`)
-        s.next_check = this.state.tick + def.disease.interval_ticks
-        if (out.success) {
-          s.severity = Math.max(0, severity - 1)
-          if (s.severity === 0) {
-            cured.push(s.id)
-            continue
-          }
-          this.pushLog(`${def.label}: тяжесть снижается до ${s.severity}.`)
-        } else {
-          const cap = def.disease.severity_max ?? 5
-          s.severity = Math.min(cap, severity + 1)
-          this.pushLog(`${def.label}: болезнь ухудшается — тяжесть ${s.severity}/${cap}.`)
-        }
-      }
-      s.left -= 1
-      if (s.left <= 0) expired.push(def)
-    }
-    if (cured.length) {
-      this.state.player.statuses = (this.state.player.statuses ?? []).filter((s) => !cured.includes(s.id))
-      for (const id of cured) {
-        const def = this.statusDef(id)
-        this.pushLog(`${def?.label ?? id}: выздоровление.`)
-      }
-    }
-    if (expired.length) {
-      this.state.player.statuses = list.filter((s) => s.left > 0)
-      for (const def of expired) {
-        this.pushLog(def.expire_message ?? `${def.label}: эффект закончился.`)
-        if (def.on_expire?.length) this.applyEffects(def.on_expire)
-      }
-      this.notify()
-    }
-  }
-
-  private onNeedZero(needId: string): void {
-    const need = this.campaign.meta.needs.find((n) => n.id === needId)
-    if (!need) return
-    if (need.on_zero_effect === 'death' || !need.on_zero_effect) {
-      this.gameOver('death', `Смерть от истощения: ${need.label.toLowerCase()} на нуле.`)
-      return
-    }
-    const rule = this.campaign.rules[need.on_zero_effect]
-    if (rule) this.applyEffects(rule.effects ?? [])
-  }
-
-  changeNeed(needId: string, delta: number): void {
-    if (!featureOn(this.campaign.meta, 'needs')) return
-    const need = this.campaign.meta.needs.find((n) => n.id === needId)
-    if (!need) return
-    const cur = this.state.player.needs[needId] ?? 0
-    const next = Math.min(need.max, Math.max(0, cur + delta))
-    this.state.player.needs[needId] = next
-    // общий стол: рост потребности героя делят напарники, отслеживающие ту же
-    // потребность (еда/вода/сон на двоих); убыль — всегда личная
-    if (delta > 0) {
-      for (const comp of this.state.party) {
-        if (comp.needs?.[needId] !== undefined) this.changeCompanionNeed(comp.entity, needId, delta)
-      }
-    }
-    if (next <= 0 && cur > 0) this.onNeedZero(needId)
-  }
-
-  changeHp(delta: number): void {
-    if (this.debugInvincible && delta < 0) return
-    const p = this.state.player
-    p.hp = Math.min(p.max_hp, p.hp + delta)
-    if (p.hp <= 0 && !this.tryBrpSurvival()) this.gameOver('death', 'Ваши раны оказались смертельными.')
-  }
-
-  /**
-   * Мировой спасбросок от смерти (режим combat.death.mode='brp'): при HP ≤ 0
-   * бросок CON×con_multiplier; успех — герой выживает на грани (1 HP).
-   * Истина — смерть отменена.
-   */
-  private tryBrpSurvival(): boolean {
-    const death = this.campaign.meta.combat?.death
-    if (death?.mode !== 'brp') return false
-    const mult = death.con_multiplier ?? 5
-    const out = skillCheck(this.state.player.stats.CON * mult, this.rng, 0, this.diceRules)
-    this.pushLog(`Грань смерти: CON×${mult} — d100=${out.roll} против ${out.target}: ${CHECK_RESULT_LABEL[out.result]}`)
-    if (!out.success) return false
-    this.state.player.hp = 1
-    this.pushLog('Герой выживает на грани смерти (1 HP).')
-    return true
-  }
-
-  /**
-   * Естественное лечение при отдыхе (аудит §5.6 п.3): сон (ink-вызов `sleep`)
-   * лечит HP костями из `meta.rest.hp` (умолчание '1d3') и, если не отключено
-   * (`rest.mp_full: false`), полностью восстанавливает MP.
-   */
-  restHeal(): { hp: number; mpFull: boolean } {
-    const rest = this.campaign.meta.rest
-    const p = this.state.player
-    let healed = 0
-    if (p.hp > 0 && p.hp < p.max_hp) {
-      healed = Math.min(p.max_hp - p.hp, rollDice(rest?.hp ?? '1d3', this.rng))
-      if (healed > 0) {
-        p.hp += healed
-        this.pushLog(`Отдых восстанавливает ${healed} HP.`)
-      }
-    }
-    // напарники отдыхают вместе с отрядом: те же кости естественного лечения
-    for (const comp of this.state.party) {
-      if (comp.hp > 0 && comp.hp < comp.max_hp) {
-        const cHealed = Math.min(comp.max_hp - comp.hp, rollDice(rest?.hp ?? '1d3', this.rng))
-        if (cHealed > 0) {
-          comp.hp += cHealed
-          const cdef = this.campaign.entities[comp.entity] as NpcDef | undefined
-          this.pushLog(`${cdef?.label ?? comp.entity} подлатался: +${cHealed} HP.`)
-        }
-      }
-    }
-    const mpFull = rest?.mp_full ?? true
-    if (mpFull && p.mp < p.max_mp) {
-      p.mp = p.max_mp
-      this.pushLog('Силы восстановлены (MP полностью).')
-    }
-    // удача восполняется на отдыхе (мастер может запретить luck.rest_luck=false)
-    if (this.luckMax() > 0 && (this.campaign.meta.luck?.rest_luck ?? true) && this.luck() < this.luckMax()) {
-      this.state.player.luck = this.luckMax()
-      this.pushLog('Герой чувствует: удача вернулась.')
-    }
-    // усталость снимается отдыхом (мастер может запретить vitals.fatigue.rest_restore=false)
-    if (this.fatigueMax() > 0) {
-      const cfg = this.campaign.meta.vitals?.fatigue
-      const restore = cfg === true ? true : (typeof cfg === 'object' ? cfg.rest_restore !== false : true)
-      if (restore && this.fatigue() < this.fatigueMax()) {
-        this.state.player.fatigue = this.fatigueMax()
-        this.pushLog('Усталость прошла (отдых).')
-      }
-    }
-    return { hp: healed, mpFull }
-  }
-
-  // ─────────────── статусы (блок 5 ТЗ «Гибкий движок») ───────────────
-
-  /** определение статуса из реестра кампании */
-  statusDef(id: string): StatusDef | undefined {
-    return this.campaign.meta.statuses?.find((s) => s.id === id)
-  }
-
-  /** активен ли статус у игрока */
-  hasStatus(id: string): boolean {
-    return !!this.state.player.statuses?.some((s) => s.id === id)
-  }
-
-  /**
-   * Наложить статус на игрока (в мире — только игрок, v1). Повторное
-   * наложение обновляет длительность по максимуму.
-   */
-  applyStatus(_target: 'player', id: string, duration?: number): void {
-    const def = this.statusDef(id)
-    if (!def || def.scope === 'combat') return // чисто боевые — через бой (блок 6)
-    const left = duration ?? def.duration
-    if (left <= 0) return
-    const list = (this.state.player.statuses ??= [])
-    const existing = list.find((s) => s.id === id)
-    if (existing) {
-      existing.left = Math.max(existing.left, left)
-      return
-    }
-    // болезни/яды с течением (аудит B7): стартовая тяжесть и первая стадия
-    const entry: ActiveStatus = { id, left }
-    if (def.disease) {
-      entry.severity = 1
-      entry.next_check = this.state.tick + def.disease.interval_ticks
-    }
-    list.push(entry)
-    this.pushLog(def.apply_message ?? `${def.label}: эффект наложен.`)
-    if (def.apply_sound) playInteraction(def.apply_sound, { sound: def.apply_sound })
-    if (def.on_apply?.length) this.applyEffects(def.on_apply)
-    this.notify()
-  }
-
-  /** снять статус (без срабатывания on_expire) */
-  removeStatus(_target: 'player', id: string): void {
-    const list = this.state.player.statuses
-    if (!list?.some((s) => s.id === id)) return
-    this.state.player.statuses = list.filter((s) => s.id !== id)
-    const def = this.statusDef(id)
-    if (def) {
-      this.pushLog(`${def.label}: эффект снят.`)
-      if (def.remove_sound) playInteraction(def.remove_sound, { sound: def.remove_sound })
-    }
-    this.notify()
-  }
-
-  /** суммарный модификатор навыка от активных статусов (болезни масштабированы тяжестью) */
-  statusSkillMod(skill: string): number {
-    let mod = 0
-    for (const s of this.state.player.statuses ?? []) {
-      const def = this.statusDef(s.id)
-      const sev = def?.disease ? Math.max(1, s.severity ?? 1) : 1
-      for (const m of def?.skill_mods ?? []) if (m.skill === skill) mod += m.delta * sev
-    }
-    return mod
-  }
+  // ─────────────── время, потребности и статусы ───────────────
+  advanceTicks(ticks: number): void { needs.advanceTicks(this, ticks, { tickPursuit: () => this.tickPursuit(), tickNpcMood: () => this.tickNpcMood(), tickEventTables: () => this.tickEventTables() }) }
+  changeNeed(needId: string, delta: number): void { needs.changeNeed(this, needId, delta) }
+  changeHp(delta: number): void { needs.changeHp(this, delta) }
+  restHeal(): { hp: number; mpFull: boolean } { return needs.restHeal(this) }
+  statusDef(id: string): StatusDef | undefined { return needs.statusDef(this, id) }
+  hasStatus(id: string): boolean { return needs.hasStatus(this, id) }
+  applyStatus(_target: 'player', id: string, duration?: number): void { needs.applyStatus(this, _target, id, duration) }
+  removeStatus(_target: 'player', id: string): void { needs.removeStatus(this, _target, id) }
+  statusSkillMod(skill: string): number { return needs.statusSkillMod(this, skill) }
 
   // ─────────────── инвентарь, экипировка и груз ───────────────
   hasItem(id: string): boolean { return inventory.hasItem(this, id) }
