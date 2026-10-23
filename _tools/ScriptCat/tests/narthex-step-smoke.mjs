@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.26/, 'версия 1.4.26');
+assert.match(src, /@version\s+1\.4\.27/, 'версия 1.4.27');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -172,10 +172,13 @@ assert.match(src, /pendingTtlMs: 600000/, 'TTL очереди в конфиге'
 assert.match(src, /replyWaitMs: 1800000/, 'предел ожидания ответа в конфиге');
 assert.match(src, /function dropHandoff\(reason\)/, 'зависшая передача снимается целиком');
 assert.match(tickBody, /dropHandoff\(/, 'молчание агента ставит паузу');
+assert.match(src, /async function releaseUndelivered\(expect, why\)/, 'недошедший ход возвращает карточку в Ready');
+assert.match(cpBody, /await releaseUndelivered\(/, 'отказ отправки и просрочка снимают Running');
+assert.match(tickBody, /await releaseUndelivered\(stuck/, 'молчание агента снимает Running, а не ждёт 45 минут');
 
 // 6. Поведение: мини-DOM и заглушки вместо браузера.
-const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000, expect = null, skip = false, overlay = false, stickyOverlay = false, sendCovered = false, deadSend = false, disabledSend = false }) => {
-  const out = { logs: [], sets: new Map(), pauses: [], clicks: [], timers: [] };
+const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000, expect = null, skip = false, overlay = false, stickyOverlay = false, sendCovered = false, deadSend = false, disabledSend = false, rollback = false }) => {
+  const out = { logs: [], sets: new Map(), pauses: [], clicks: [], timers: [], rollback: { calls: [], result: rollback } };
   const state = { now };
   const advance = (ms) => { state.now += ms; };
   const el = (tag, props = {}) => ({
@@ -248,7 +251,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
 
   const fn = new Function(
     "GM_getValue", "GM_setValue", "K", "norm", "roleFromPath", "visible", "lastMessageId",
-    "setStatus", "log", "pause", "sleep", "tick", "location", "document", "window",
+    "setStatus", "log", "pause", "releaseUndelivered", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
     "generating", "messages", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
     `${sendBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
@@ -264,6 +267,10 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     () => {},
     (text, error) => out.logs.push({ text, error: Boolean(error) }),
     (text, ctx) => out.pauses.push({ text, ctx }),
+    async (gone, why) => {
+      out.rollback.calls.push({ expect: gone, why });
+      return out.rollback.result;
+    },
     async (ms) => advance(ms),
     () => {},
     { assign() {} },
@@ -420,6 +427,28 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.sets.get("cfn-pending"), undefined, 'задание осталось в очереди');
 }
 
+// 6.5c. Отправка не удалась, карточка возвращена в Ready: очередь и ожидание
+//      снимаются вместе со статусом — иначе ответ пришёл бы в карточку, которая
+//      уже не Running, и `submitExecutor` отказался бы его записывать.
+{
+  const { api, out } = load({
+    pending,
+    editor: freshEditor(),
+    send: true,
+    deadSend: true,
+    expect: { roleId: "coordinator", kind: "dispatch", ref: "c1" },
+    rollback: true,
+  });
+  await api.consumePending(true);
+  assert.equal(out.rollback.calls.length, 1, 'неудачная отправка снимает статус карточки');
+  assert.match(out.rollback.calls[0].why, /сообщение не ушло/, 'причина записана в журнал попытки');
+  assert.equal(out.sets.get("cfn-pending"), null, 'очередь снята вместе со статусом');
+  assert.equal(out.sets.get("cfn-expect"), null, 'ожидание снято тоже');
+  assert.equal(out.pauses.length, 1, 'пауза остаётся: без Мастера цикл не идёт');
+  assert.match(out.pauses[0].text, /карточка возвращена в Ready/, 'Мастеру сказано, что карточку выдадут заново');
+  assert.ok(!out.logs.some((l) => l.text === "Задание отправлено."), 'ложного «отправлено» нет');
+}
+
 // 6.5.1. Просроченная очередь: снимаем, объясняем и продолжаем шаг.
 {
   const old = { ...pending, at: 1_000_000 - 11 * 60 * 1000 };
@@ -431,6 +460,21 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.ok(!out.logs.some((l) => /Задание отправлено/.test(l.text)), 'просроченное не отправляется');
   assert.deepEqual(out.clicks, [], 'ничего не нажато');
   assert.deepEqual(out.timers, [], 'повтор не назначается');
+}
+
+// 6.5.1a. Просрочка снимает и статус карточки: хода не было ни разу.
+{
+  const old = { ...pending, at: 1_000_000 - 11 * 60 * 1000 };
+  const { api, out } = load({
+    pending: old,
+    editor: null,
+    send: true,
+    expect: { roleId: "coordinator", kind: "dispatch", ref: "c1", at: old.at },
+    rollback: true,
+  });
+  await api.consumePending(true);
+  assert.equal(out.rollback.calls.length, 1, 'просроченная отправка возвращает карточку в Ready');
+  assert.match(out.rollback.calls[0].why, /просрочена/, 'причина названа');
 }
 
 // 6.5.1b. Та же просрочка, но без нажатия: убираем и останавливаемся.
@@ -458,4 +502,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.26 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.27 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");

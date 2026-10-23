@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.26
+// @version      1.4.27
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -605,6 +605,80 @@
     GM_setValue(K.pending, null);
     GM_setValue(K.expect, null);
     pause(reason, { kind: "no-reply" });
+  }
+
+  /**
+   * Ход не дошёл до исполнителя — карточка не имеет права оставаться Running.
+   *
+   * «Running», «Started At» и «Run ID» ставит выдача (`dispatchTask`), и ставит
+   * до отправки: иначе Координатор успел бы выдать ту же карточку второй раз.
+   * Но «выдана» и «дошла» — разные вещи. Пока сообщения в чате нет, работы по
+   * карточке тоже нет, а в Running она ждала бы `releaseStalled` — 45 минут
+   * впустую, и всё это время человек видит Running там, где ничего не начато.
+   * Вопрос Мастера (53) был ровно про это.
+   *
+   * Возвращаем Ready и снимаем Run ID со Started At. Своего «Submitted At» и PR
+   * у такой карточки нет, поэтому повторная выдача не запрещена.
+   */
+  function rollbackProps(card, runId) {
+    const props = card && card.properties;
+    if (!props) return null;
+    if (props["Dispatch State"]?.select?.name !== "Running") return null;
+    if (props["Submitted At"]?.date?.start || props["PR"]?.url) return null;
+    const onCard = rt(props["Run ID"]);
+    if (runId && onCard && norm(onCard) !== norm(runId)) return null;
+    return {
+      "Dispatch State": { select: { name: "Ready" } },
+      "Started At": { date: null },
+      "Run ID": { rich_text: [] },
+    };
+  }
+
+  /**
+   * Вернуть карточку в Ready, если ход так и не ушёл.
+   *
+   * true — карточка действительно переписана; вызывающий по этому признаку
+   * решает, снимать ли очередь и ожидание. Ошибка Notion ход не съедает: всё
+   * остаётся как было, и работает прежнее правило 45 минут.
+   */
+  async function releaseUndelivered(expect, why) {
+    if (!expect || expect.kind !== "dispatch" || !expect.ref) return false;
+    let card;
+    try {
+      card = await notion("GET", `pages/${expect.ref}`);
+    } catch (e) {
+      log(`Карточку «${expect.ref}» не прочитать — статус не снимаю: ${e.message}`, true);
+      return false;
+    }
+    const runId = rt(card.properties["Run ID"]);
+    // Сверяем с выдачей, которая не ушла: если карточку уже перевыдали с другим
+    // Run ID, откат снял бы чужой, живой ход.
+    const props = rollbackProps(card, expect.runId || runId);
+    if (!props) return false;
+    try {
+      await patch(card.id, props);
+    } catch (e) {
+      log(`«${taskTitle(card)}» осталась в Running: статус не снялся (${e.message}).`, true);
+      return false;
+    }
+    const logId = rt(card.properties["Output Drive File ID"]);
+    if (logId) {
+      try {
+        await gateway("append", logId, {
+          marker: `<!-- CF_DISPATCH ${card.id}:${runId}:undelivered -->`,
+          entry:
+            `\n\n<!-- CF_DISPATCH ${card.id}:${runId}:undelivered -->\n## Ход не дошёл до исполнителя\n\n` +
+            `${why}\n\nКарточка возвращена в Ready, «Started At» и «Run ID» сняты: работы по ней не было.\n`,
+        });
+      } catch (e) {
+        log(`Отметка о неудачной отправке не записалась в журнал: ${e.message}`, true);
+      }
+    }
+    log(`«${taskTitle(card)}» возвращена в Ready: ${why}. В Running она бы ждала 45 минут.`, true, {
+      ntfy: "quiet",
+      title: "Narthex: карточка возвращена в Ready",
+    });
+    return true;
   }
 
   function resume(reason = "проверено Мастером") {
@@ -2488,6 +2562,8 @@
       GM_setValue(K.pending, null);
       const waiting = GM_getValue(K.expect, null);
       if (mine && waiting && norm(waiting.roleId) === norm(me)) GM_setValue(K.expect, null);
+      // Ход не уходил ни разу: карточка в Running ждала бы 45 минут впустую.
+      if (mine && waiting) await releaseUndelivered(waiting, "очередь отправки просрочена");
       // В ручном режиме шаг делает только нажатие: на загрузке страницы
       // ограничиваемся уборкой, а не отправкой плана за спиной Мастера.
       const act = manual || autoOn();
@@ -2553,9 +2629,25 @@
     const watermark = lastMessageId();
     const delivery = await deliver(editor, pending.text);
     if (!delivery.ok) {
+      // Сообщение в чат не попало — работы по карточке нет, и в Running ей
+      // делать нечего. Очередь снимается вместе со статусом: иначе ответ по
+      // этой же карточке пришёл бы, когда она уже не Running, и
+      // `submitExecutor` честно отказался бы его записывать.
+      const failed = GM_getValue(K.expect, null);
+      const rolled = await releaseUndelivered(
+        failed,
+        `сообщение не ушло (${String(delivery.reason).toLowerCase()})`,
+      );
+      if (rolled) {
+        GM_setValue(K.pending, null);
+        GM_setValue(K.expect, null);
+        pendingNoticeAt = 0;
+      }
       pause(
         `${delivery.reason}${delivery.detail ? ` (${delivery.detail})` : ""}. ` +
-          "Задание осталось в поле ввода и в очереди: поправьте и нажмите «Продолжить».",
+          (rolled
+            ? "Ход снят, карточка возвращена в Ready: нажмите «Продолжить» — Координатор выдаст её заново."
+            : "Задание осталось в поле ввода и в очереди: поправьте и нажмите «Продолжить»."),
         { kind: "send" },
       );
       return true;
@@ -3681,6 +3773,9 @@
     return true;
   }
 
+  // Ожидание, снятое как фантом, — чтобы тик мог вернуть его карточку в Ready.
+  let droppedHandoff = null;
+
   /**
    * Отправка без подтверждения — не отправка.
    *
@@ -3705,6 +3800,7 @@
     GM_setValue(K.expect, null);
     GM_setValue("cfn-plan-at", 0);
     if (!text) {
+      droppedHandoff = waiting;
       log(
         "Снял ожидание без подтверждённой отправки: в чат ничего не ушло, текста задания не сохранилось. " +
           "Нажмите «Шаг», чтобы начать ход заново.",
@@ -3794,6 +3890,11 @@
         },
       });
       const revived = reviveUnverifiedHandoff();
+      if (droppedHandoff) {
+        const gone = droppedHandoff;
+        droppedHandoff = null;
+        await releaseUndelivered(gone, "отправка не подтвердилась, текста задания не сохранилось");
+      }
       if (await consumePending(fromToggle)) return;
       // Фантом старой версии снят, повторять нечего: без нажатия не начинаем ход.
       if (revived === "dropped" && !auto && !fromToggle) return;
@@ -3936,10 +4037,12 @@
         const fresh = messagesAfter(expect.watermark || "").length;
         const working = stillWorking();
         if (waited > C.replyWaitMs && !fresh && !working) {
+          const stuck = expect;
           dropHandoff(
             `${me.name} не ответил ни одним сообщением за ${Math.round(waited / 60000)} мин и ничего не делает: похоже, задание до него не дошло. ` +
               `Очередь и ожидание сняты — нажмите «Продолжить» и пройдите шаг заново.`,
           );
+          await releaseUndelivered(stuck, "агент не ответил и ничего не делает");
           return;
         }
         if (waited > C.longWaitNoticeMs) {
