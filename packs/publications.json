@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "campaigns": [
+    {
+      "pack": "narrative",
+      "data": "ash-of-caerden",
+      "campaign": "ash-of-caerden"
+    },
+    {
+      "pack": "narrative",
+      "data": "ash-of-caerden",
+      "campaign": "ash-of-caerden-adventure"
+    }
+  ]
+}
