@@ -75,6 +75,7 @@
     "check:packs": "tsx scripts/check-packs.mts",
     "probe:pack-host": "tsx scripts/pack-host-probe.mts",
     "probe:narrative-pack": "tsx packs/narrative/probes/campaign.mts",
+    "check:playkit-bundle": "tsx scripts/check-playkit-bundle.mts",
     "check:contracts": "tsx scripts/contracts-check.mts && npm run check:packs",
     "check:brand": "tsx scripts/brand-guard.mts",
     "check:version": "tsx scripts/version.mts check",

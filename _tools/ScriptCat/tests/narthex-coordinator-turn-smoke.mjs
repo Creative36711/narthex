@@ -206,7 +206,7 @@ assert.match(rp, /if \(manual\) log\(`Шаг не выполнен: план з�
 assert.match(rp, /const answerLine = answerLogLine\(queue\.submitted\);/, 'журнал последнего ответа передаётся Координатору');
 assert.match(
   rp,
-  /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts, readyLine\(queue\.ready\)\)/,
+  /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts, readyLine\(queue\.ready\), reworkLine\(queue\.rework\)\)/,
   'строка доходит до промпта вместе со списком черновиков',
 );
 assert.match(rp, /const drafts = draftLine\(queue\.draft \|\| \[\], directory\);/, 'черновики попадают в промпт списком');
@@ -224,4 +224,4 @@ assert.match(
 );
 assert.match(src, /GM_setValue\("cfn-plan-miss", 0\);/, 'счётчик промахов сбрасывается на успехе');
 
-console.log('OK: narthex 1.4.54 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');
+console.log('OK: narthex 1.4.55 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');

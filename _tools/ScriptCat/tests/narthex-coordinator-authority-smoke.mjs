@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.54';
+const V = '1.4.55';
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
@@ -199,7 +199,7 @@ queueOf({ id: 'm1' }).then((queue) => {
   assert.match(plan, /const directory = await roleRows\(\)/, 'и сверяется со всей базой «Роли», а не только с активными');
   assert.match(
     plan,
-    /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts, readyLine\(queue\.ready\)\)/,
+    /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts, readyLine\(queue\.ready\), reworkLine\(queue\.rework\)\)/,
     'и уходит в промпт',
   );
   assert.match(plan, /\$\{\(queue\.draft \|\| \[\]\)\.length\} Draft/, 'запасной счётчик тоже знает про Draft');

@@ -931,6 +931,12 @@ var init_versions = __esm({
 });
 
 // src/core/caps.ts
+function capabilityIsOff(profile, id) {
+  const options = profile.project_cap_options;
+  if (!options || typeof options !== "object" || Array.isArray(options)) return false;
+  const option = options[id];
+  return !!option && typeof option === "object" && !Array.isArray(option) && option.mode === "off";
+}
 function assertEnableable(id, source) {
   const capability = capabilityById.get(id);
   if (!capability) {
@@ -2896,8 +2902,8 @@ var require_react_development = __commonJS({
       function lazyInitializer(payload) {
         if (-1 === payload._status) {
           var resolveDebugValue = null, rejectDebugValue = null, ioInfo = payload._ioInfo;
-          null != ioInfo && (ioInfo.start = ioInfo.end = performance.now(), ioInfo.value = new Promise(function(resolve2, reject) {
-            resolveDebugValue = resolve2;
+          null != ioInfo && (ioInfo.start = ioInfo.end = performance.now(), ioInfo.value = new Promise(function(resolve3, reject) {
+            resolveDebugValue = resolve3;
             rejectDebugValue = reject;
           }));
           ioInfo = payload._result;
@@ -3013,21 +3019,21 @@ var require_react_development = __commonJS({
         );
         actScopeDepth = prevActScopeDepth;
       }
-      function recursivelyFlushAsyncActWork(returnValue, resolve2, reject) {
+      function recursivelyFlushAsyncActWork(returnValue, resolve3, reject) {
         var queue2 = ReactSharedInternals.actQueue;
         if (null !== queue2)
           if (0 !== queue2.length)
             try {
               flushActQueue(queue2);
               enqueueTask(function() {
-                return recursivelyFlushAsyncActWork(returnValue, resolve2, reject);
+                return recursivelyFlushAsyncActWork(returnValue, resolve3, reject);
               });
               return;
             } catch (error) {
               ReactSharedInternals.thrownErrors.push(error);
             }
           else ReactSharedInternals.actQueue = null;
-        0 < ReactSharedInternals.thrownErrors.length ? (queue2 = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, reject(queue2)) : resolve2(returnValue);
+        0 < ReactSharedInternals.thrownErrors.length ? (queue2 = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, reject(queue2)) : resolve3(returnValue);
       }
       function flushActQueue(queue2) {
         if (!isFlushing) {
@@ -3215,7 +3221,7 @@ var require_react_development = __commonJS({
             ));
           });
           return {
-            then: function(resolve2, reject) {
+            then: function(resolve3, reject) {
               didAwaitActCall = true;
               thenable.then(
                 function(returnValue) {
@@ -3225,7 +3231,7 @@ var require_react_development = __commonJS({
                       flushActQueue(queue2), enqueueTask(function() {
                         return recursivelyFlushAsyncActWork(
                           returnValue,
-                          resolve2,
+                          resolve3,
                           reject
                         );
                       });
@@ -3239,7 +3245,7 @@ var require_react_development = __commonJS({
                       ReactSharedInternals.thrownErrors.length = 0;
                       reject(_thrownError);
                     }
-                  } else resolve2(returnValue);
+                  } else resolve3(returnValue);
                 },
                 function(error) {
                   popActScope(prevActQueue, prevActScopeDepth);
@@ -3261,15 +3267,15 @@ var require_react_development = __commonJS({
         if (0 < ReactSharedInternals.thrownErrors.length)
           throw callback = aggregateErrors(ReactSharedInternals.thrownErrors), ReactSharedInternals.thrownErrors.length = 0, callback;
         return {
-          then: function(resolve2, reject) {
+          then: function(resolve3, reject) {
             didAwaitActCall = true;
             0 === prevActScopeDepth ? (ReactSharedInternals.actQueue = queue2, enqueueTask(function() {
               return recursivelyFlushAsyncActWork(
                 returnValue$jscomp$0,
-                resolve2,
+                resolve3,
                 reject
               );
-            })) : resolve2(returnValue$jscomp$0);
+            })) : resolve3(returnValue$jscomp$0);
           }
         };
       };
@@ -4333,11 +4339,13 @@ var init_world = __esm({
 var quests;
 var init_quests = __esm({
   "src/core/quests.ts"() {
+    init_caps();
     init_conditions();
     init_audio();
     quests = {
       // ─────────────── квесты (ТЗ 3.7) ───────────────
       startQuest(ctx2, questId) {
+        if (capabilityIsOff(ctx2.campaign.meta, "quests")) return;
         const quest = ctx2.campaign.quests[questId];
         if (!quest || ctx2.state.quests[questId]) return;
         const first = quest.stages[0];
@@ -4348,6 +4356,7 @@ var init_quests = __esm({
         if (first.on_enter_effects) ctx2.applyEffects(first.on_enter_effects);
       },
       advanceQuestTo(ctx2, questId, stageId) {
+        if (capabilityIsOff(ctx2.campaign.meta, "quests")) return;
         const quest = ctx2.campaign.quests[questId];
         const qs = ctx2.state.quests[questId];
         if (!quest || !qs || qs.status !== "active" || qs.stage === stageId) return;
@@ -4368,6 +4377,7 @@ var init_quests = __esm({
         if (stage.on_enter_effects) ctx2.applyEffects(stage.on_enter_effects);
       },
       journalUpdate(ctx2, questId, textKey) {
+        if (capabilityIsOff(ctx2.campaign.meta, "quests")) return;
         const quest = ctx2.campaign.quests[questId];
         const qs = ctx2.state.quests[questId];
         if (!quest || !qs) return;
@@ -4379,6 +4389,7 @@ var init_quests = __esm({
       },
       /** Переходы стадий активных квестов (вызывается из checkRules). */
       checkQuestTransitions(ctx2) {
+        if (capabilityIsOff(ctx2.campaign.meta, "quests")) return;
         for (const [questId, qs] of Object.entries(ctx2.state.quests)) {
           if (qs.status !== "active") continue;
           const quest = ctx2.campaign.quests[questId];
@@ -4755,6 +4766,7 @@ function applyEffect(e2, depth = 0) {
       this.advanceQuestTo(e2.quest, e2.stage);
       break;
     case "fail_quest": {
+      if (capabilityIsOff(this.campaign.meta, "quests")) break;
       const qs = s2.quests[e2.quest];
       if (qs && qs.status === "active") {
         qs.status = "failed";
@@ -17879,9 +17891,9 @@ var init_engine = __esm({
 // scripts/playkit/cli.mts
 var import_seedrandom3 = __toESM(require_seedrandom2(), 1);
 import { createHash } from "node:crypto";
-import { existsSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
+import { existsSync as existsSync2 } from "node:fs";
+import { mkdir, readFile as readFile2, readdir, writeFile } from "node:fs/promises";
+import { basename, dirname, extname, join as join2, relative, resolve as resolve2, sep } from "node:path";
 
 // src/core/loader.ts
 init_migrate();
@@ -18341,7 +18353,7 @@ function analyzeCampaign(campaign2) {
   const parsedInk = Object.entries(campaign2.dialogues ?? {}).map(([path, source]) => ({
     path,
     parsed: parseInk(String(source))
-  }));
+  })).sort((a2, b2) => a2.path.localeCompare(b2.path));
   const graph = buildGraph(campaign2, parsedInk.map((d2) => d2.parsed));
   const startScene = String(meta2.starting_scene ?? "");
   const startLocation = String(meta2.starting_location ?? "");
@@ -18648,7 +18660,9 @@ function analyzeCampaign(campaign2) {
     flagsWritten: flagWrites.size,
     flagsRead: flagReads.size
   };
-  findings.sort((a2, b2) => severityRank(a2.severity) - severityRank(b2.severity) || a2.code.localeCompare(b2.code));
+  findings.sort(
+    (a2, b2) => severityRank(a2.severity) - severityRank(b2.severity) || a2.code.localeCompare(b2.code) || a2.message.localeCompare(b2.message) || String(a2.where).localeCompare(String(b2.where))
+  );
   return {
     campaign: { id: String(meta2.id ?? ""), title: String(meta2.title ?? ""), version: String(meta2.version ?? "") },
     counts,
@@ -18701,6 +18715,184 @@ function formatGraphReport(report) {
   );
   lines.push("");
   return lines.join("\n");
+}
+
+// scripts/playkit/project-pack.ts
+init_caps();
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+
+// src/core/pack/capability-modes.ts
+var ENABLED_STATUSES2 = /* @__PURE__ */ new Set(["stable", "experimental"]);
+var MODES = /* @__PURE__ */ new Set(["core", "code", "off"]);
+var isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value) && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+function resolveProjectCapabilityModes(project, capabilities, requiredCaps = []) {
+  const capabilityById2 = new Map(capabilities.map((capability) => [capability.id, capability]));
+  const modes = {};
+  if (project.caps === void 0) {
+    if (project.cap_options !== void 0 && (!isRecord(project.cap_options) || Object.keys(project.cap_options).length > 0)) {
+      return invalid("cap_options \u0442\u0440\u0435\u0431\u0443\u0435\u0442 \u044F\u0432\u043D\u044B\u0439 \u043C\u0430\u0441\u0441\u0438\u0432 caps \u0432 project.json.");
+    }
+    return { status: "ready", declaredCaps: null, activeCaps: null, modes };
+  }
+  if (!Array.isArray(project.caps)) return invalid("project.json: caps \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u043C\u0430\u0441\u0441\u0438\u0432\u043E\u043C id \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0435\u0439.");
+  const declaredCaps = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const value of project.caps) {
+    if (typeof value !== "string" || !value.trim()) return invalid("project.json: \u043A\u0430\u0436\u0434\u044B\u0439 caps id \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u043D\u0435\u043F\u0443\u0441\u0442\u043E\u0439 \u0441\u0442\u0440\u043E\u043A\u043E\u0439.");
+    const id = value.trim();
+    if (seen.has(id)) return invalid(`project.json: \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${id}\xBB \u0443\u043A\u0430\u0437\u0430\u043D\u0430 \u0432 caps \u043D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u043E \u0440\u0430\u0437.`);
+    const definition = capabilityById2.get(id);
+    if (!definition) return invalid(`project.json: \u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u0430\u044F \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${id}\xBB.`);
+    if (!ENABLED_STATUSES2.has(definition.status)) return invalid(`project.json: \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${id}\xBB \u043D\u0435\u043B\u044C\u0437\u044F \u0432\u043A\u043B\u044E\u0447\u0438\u0442\u044C (status: ${definition.status}).`);
+    seen.add(id);
+    declaredCaps.push(id);
+    modes[id] = "core";
+  }
+  const options = project.cap_options === void 0 ? {} : project.cap_options;
+  if (!isRecord(options)) return invalid("project.json: cap_options \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u043E\u0431\u044A\u0435\u043A\u0442\u043E\u043C.");
+  for (const [id, value] of Object.entries(options)) {
+    if (!seen.has(id)) return invalid(`project.json: cap_options["${id}"] \u0434\u043E\u043B\u0436\u0435\u043D \u0441\u0441\u044B\u043B\u0430\u0442\u044C\u0441\u044F \u043D\u0430 \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \u0438\u0437 caps.`);
+    if (!isRecord(value)) return invalid(`project.json: cap_options["${id}"] \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u043E\u0431\u044A\u0435\u043A\u0442\u043E\u043C.`);
+    if (Object.keys(value).some((key) => key !== "mode" && key !== "version")) {
+      return invalid(`project.json: cap_options["${id}"] \u0441\u043E\u0434\u0435\u0440\u0436\u0438\u0442 \u043D\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043D\u043E\u0435 \u043F\u043E\u043B\u0435.`);
+    }
+    const mode = value.mode === void 0 ? "core" : value.mode;
+    if (typeof mode !== "string" || !MODES.has(mode)) {
+      return invalid(`project.json: cap_options["${id}"].mode \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C core, code \u0438\u043B\u0438 off.`);
+    }
+    if (value.version !== void 0 && (!Number.isInteger(value.version) || Number(value.version) < 1)) {
+      return invalid(`project.json: cap_options["${id}"].version \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u0446\u0435\u043B\u044B\u043C \u0447\u0438\u0441\u043B\u043E\u043C \u2265 1.`);
+    }
+    if (mode === "off" && requiredCaps.includes(id)) {
+      return invalid(`project.json: \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u044C\u043D\u0443\u044E \u0434\u043B\u044F kind \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u044C \xAB${id}\xBB \u043D\u0435\u043B\u044C\u0437\u044F \u0432\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C.`);
+    }
+    if (mode === "code" && (!isRecord(project.code) || typeof project.code.entry !== "string" || !project.code.entry.trim())) {
+      return invalid(`project.json: \u0434\u043B\u044F \u0440\u0435\u0436\u0438\u043C\u0430 code \u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E\u0441\u0442\u0438 \xAB${id}\xBB \u0442\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F code.entry.`);
+    }
+    modes[id] = mode;
+  }
+  return {
+    status: "ready",
+    declaredCaps,
+    activeCaps: declaredCaps.filter((id) => modes[id] !== "off"),
+    modes
+  };
+}
+function invalid(message) {
+  return { status: "invalid", code: "CAPABILITY_MODE_INVALID", message };
+}
+
+// src/core/pack/registry.ts
+function resolveProjectPack(project, kinds, knownPacks, installedPacks) {
+  const kind = typeof project.kind === "string" && project.kind.trim() ? project.kind.trim() : "(\u043D\u0435 \u0443\u043A\u0430\u0437\u0430\u043D)";
+  const kindDefinition = kinds.find((entry) => entry.id === kind);
+  const packId = kindDefinition?.pack ?? kind;
+  const manifest = installedPacks.find((entry) => entry.id === packId);
+  if (manifest) return { status: "ready", kind, packId, manifest };
+  const packTitle = knownPacks.find((entry) => entry.id === packId)?.title ?? packId;
+  const installInstructions = `\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 \u043A\u0430\u0442\u0430\u043B\u043E\u0433 packs/${packId}/ \u0441 pack.json, \u0434\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \xAB${packId}\xBB \u0432 packs/registry.json \u0438 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0441\u0442\u0443\u0434\u0438\u044E.`;
+  return {
+    status: "missing",
+    diagnostic: {
+      code: "PACK_MISSING",
+      kind,
+      packId,
+      packTitle,
+      installInstructions,
+      message: `\u0422\u0438\u043F \u043F\u0440\u043E\u0435\u043A\u0442\u0430 \xAB${kind}\xBB \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D: \u043D\u0443\u0436\u0435\u043D \u043F\u0430\u043A \xAB${packTitle}\xBB (${packId}). ${installInstructions}`
+    }
+  };
+}
+function resolvePackRegistry(registryValue, manifestValues) {
+  if (!registryValue || typeof registryValue !== "object" || Array.isArray(registryValue)) {
+    throw new TypeError("packs/registry.json: expected an object");
+  }
+  const registry = registryValue;
+  if (registry.version !== 1 || !Array.isArray(registry.packs)) {
+    throw new TypeError("packs/registry.json: expected version 1 and a packs array");
+  }
+  const registered = /* @__PURE__ */ new Set();
+  for (const id of registry.packs) {
+    if (typeof id !== "string" || !/^[a-z][a-z0-9-]*$/.test(id)) {
+      throw new TypeError(`packs/registry.json: invalid pack id ${String(id)}`);
+    }
+    if (registered.has(id)) throw new TypeError(`packs/registry.json: duplicate pack id "${id}"`);
+    registered.add(id);
+  }
+  const manifests = /* @__PURE__ */ new Map();
+  for (const value of manifestValues) {
+    if (!value || typeof value !== "object" || Array.isArray(value) || typeof value.id !== "string") {
+      throw new TypeError("packs/*/pack.json: every discovered manifest must have a string id");
+    }
+    const manifest = value;
+    if (manifests.has(manifest.id)) throw new TypeError(`packs/*/pack.json: duplicate manifest id "${manifest.id}"`);
+    manifests.set(manifest.id, manifest);
+  }
+  const missing = registry.packs.filter((id) => !manifests.has(id));
+  const unregistered = [...manifests.keys()].filter((id) => !registered.has(id));
+  if (missing.length || unregistered.length) {
+    const details = [
+      missing.length ? `registered manifests missing: ${missing.join(", ")}` : "",
+      unregistered.length ? `manifests not in packs/registry.json: ${unregistered.join(", ")}` : ""
+    ].filter(Boolean).join("; ");
+    throw new TypeError(`packs/registry.json: ${details}`);
+  }
+  return registry.packs.map((id) => manifests.get(id));
+}
+
+// scripts/playkit/project-pack.ts
+function sourceRoot() {
+  const candidates = [process.cwd(), resolve(import.meta.dirname, "../..")];
+  return candidates.find((candidate) => existsSync(join(candidate, "packs/registry.json"))) ?? null;
+}
+async function readJson(path) {
+  return JSON.parse(await readFile(path, "utf8"));
+}
+async function readInstalledPackCatalogue() {
+  const root = sourceRoot();
+  if (!root) return [];
+  const registry = await readJson(join(root, "packs/registry.json"));
+  const discovered = await Promise.all(registry.packs.map(
+    (id) => readJson(join(root, "packs", id, "pack.json"))
+  ));
+  return resolvePackRegistry(registry, discovered);
+}
+async function resolveProjectCapabilityModesForCheck(projectDir) {
+  const projectPath = join(projectDir, "project.json");
+  if (!existsSync(projectPath)) return null;
+  const project = await readJson(projectPath);
+  const root = sourceRoot();
+  if (!root) return null;
+  const contracts = await readJson(join(root, "docs/contracts/caps.json"));
+  const kind = contracts.kinds.find((entry) => entry.id === project.kind);
+  const resolution = resolveProjectCapabilityModes(project, CAPABILITY_REGISTRY, kind?.requires ?? []);
+  if (resolution.status === "invalid") throw new TypeError(resolution.message);
+  return { ...resolution, projectOptions: project.cap_options ?? {} };
+}
+async function resolveProjectPackForCheck(projectDir, registryOverride) {
+  const projectPath = join(projectDir, "project.json");
+  let project = { kind: "narrative" };
+  if (existsSync(projectPath)) project = await readJson(projectPath);
+  const root = sourceRoot();
+  if (!root && !registryOverride) return null;
+  const contractsPath = join(root ?? process.cwd(), "docs/contracts/caps.json");
+  const registryPath = registryOverride ? resolve(registryOverride) : join(root, "packs/registry.json");
+  const [contracts, registry] = await Promise.all([
+    readJson(contractsPath),
+    readJson(registryPath)
+  ]);
+  const installed = [];
+  const packRoot = join(root ?? process.cwd(), "packs");
+  for (const id of registry.packs) {
+    try {
+      const manifest = await readJson(join(packRoot, id, "pack.json"));
+      if (manifest.id === id) installed.push(manifest);
+    } catch {
+    }
+  }
+  return resolveProjectPack(project, contracts.kinds, contracts.packs, installed);
 }
 
 // scripts/playkit/cli.mts
@@ -18761,7 +18953,7 @@ function flagText(flags, key) {
 }
 async function walk(dir, acc = []) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
+    const full = join2(dir, entry.name);
     if (entry.isDirectory()) {
       if (entry.name === "node_modules" || entry.name === ".git") continue;
       await walk(full, acc);
@@ -18778,7 +18970,7 @@ async function logicDigest(dir) {
   for (const file of files) {
     hash.update(relative(dir, file).split(sep).join("/"));
     hash.update("\0");
-    hash.update(await readFile(file));
+    hash.update(await readFile2(file));
     hash.update("\0");
   }
   return "sha256:" + hash.digest("hex");
@@ -18799,9 +18991,9 @@ function installShims(campaignDir) {
     const url = String(input);
     if (!url.startsWith(DEFAULT_ORIGIN)) throw new Error(`cf-play: \u0432\u043D\u0435\u0448\u043D\u044F\u044F \u0441\u0435\u0442\u044C \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 (${url})`);
     const rel = decodeURIComponent(new URL(url).pathname).replace(/^\/+/, "");
-    const target = resolve(campaignDir, rel);
-    if (!target.startsWith(resolve(campaignDir))) throw new Error(`cf-play: \u043F\u0443\u0442\u044C \u0432\u043D\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (${rel})`);
-    return new Response(await readFile(target), { status: 200 });
+    const target = resolve2(campaignDir, rel);
+    if (!target.startsWith(resolve2(campaignDir))) throw new Error(`cf-play: \u043F\u0443\u0442\u044C \u0432\u043D\u0435 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438 (${rel})`);
+    return new Response(await readFile2(target), { status: 200 });
   };
 }
 function entityLabel2(entity) {
@@ -19214,6 +19406,11 @@ function applyInjection(engine, injection) {
 async function loadEngine(campaignDir, seed, _debug, injection) {
   installShims(campaignDir);
   const campaign2 = await loadCampaign(DEFAULT_ORIGIN);
+  const projectModes = await resolveProjectCapabilityModesForCheck(campaignDir);
+  if (projectModes?.activeCaps !== null && projectModes?.activeCaps !== void 0) {
+    campaign2.meta.caps = projectModes.activeCaps;
+  }
+  if (projectModes) campaign2.meta.project_cap_options = projectModes.projectOptions;
   const engine = new GameEngine(campaign2);
   engine.rng = new PRNG(seed);
   engine.state.seed = engine.rng.seed;
@@ -19284,15 +19481,15 @@ async function writeRun(config, result, steps, engine, campaign2, debug) {
       return rest;
     });
     const route = { name: `${result.campaign.id} / \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u043E ${result.mode} seed ${result.seed}`, steps: actions };
-    await mkdir(dirname(resolve(config.record)), { recursive: true });
-    await writeFile(resolve(config.record), JSON.stringify(route, null, 2) + "\n", "utf8");
+    await mkdir(dirname(resolve2(config.record)), { recursive: true });
+    await writeFile(resolve2(config.record), JSON.stringify(route, null, 2) + "\n", "utf8");
   }
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join(config.outDir, "transcript.md"), transcript, "utf8");
-    await writeFile(join(config.outDir, "run.json"), runJson, "utf8");
-    await writeFile(join(config.outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
-    if (debug) await writeFile(join(config.outDir, "state.final.json"), JSON.stringify(engine.state, null, 2), "utf8");
+    await writeFile(join2(config.outDir, "transcript.md"), transcript, "utf8");
+    await writeFile(join2(config.outDir, "run.json"), runJson, "utf8");
+    await writeFile(join2(config.outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
+    if (debug) await writeFile(join2(config.outDir, "state.final.json"), JSON.stringify(engine.state, null, 2), "utf8");
   }
   return transcript;
 }
@@ -19470,26 +19667,39 @@ async function cmdSearch(config, mode, stepsLimit) {
   await writeRun(config, result, steps, engine, campaign2, config.debug);
   return result;
 }
-async function cmdCheck(config, seeds, stepsLimit, routesDir) {
+async function cmdCheck(config, seeds, stepsLimit, routesDir, packRegistryPath = null) {
+  const packResolution = await resolveProjectPackForCheck(config.campaignDir, packRegistryPath);
+  if (packResolution?.status === "missing") {
+    const diagnostic = packResolution.diagnostic;
+    return {
+      result: {
+        campaign: { id: basename(config.campaignDir), title: basename(config.campaignDir) },
+        verdict: "failed",
+        problems: [diagnostic.message],
+        error: diagnostic
+      },
+      text: `${diagnostic.code}: ${diagnostic.message}`
+    };
+  }
   const { campaign: campaign2 } = await loadEngine(config.campaignDir, config.seed, false, emptyInjection());
   const graph = analyzeCampaign(campaign2);
   const errors = graph.findings.filter((finding) => finding.severity === "error");
   const warnings = graph.findings.filter((finding) => finding.severity === "warning");
   const routeFiles = [];
-  const dir = routesDir ?? join(config.campaignDir, "routes");
-  if (existsSync(dir)) {
-    for (const name of await readdir(dir)) if (name.endsWith(".json")) routeFiles.push(join(dir, name));
+  const dir = routesDir ?? join2(config.campaignDir, "routes");
+  if (existsSync2(dir)) {
+    for (const name of await readdir(dir)) if (name.endsWith(".json")) routeFiles.push(join2(dir, name));
   }
   const routeRuns = [];
   for (const file of routeFiles.sort()) {
-    const script = JSON.parse(await readFile(file, "utf8"));
-    const out = config.outDir ? join(config.outDir, "routes", basename(file, ".json")) : null;
+    const script = JSON.parse(await readFile2(file, "utf8"));
+    const out = config.outDir ? join2(config.outDir, "routes", basename(file, ".json")) : null;
     const routeSeed = script.seed === void 0 ? config.seed : String(script.seed);
     const run = await cmdRun({ ...config, seed: routeSeed, outDir: out, routeName: file }, script);
     routeRuns.push({ file, status: run.status, steps: run.steps, assertions: run.assertions, transcript: run.hashes.transcript });
   }
   const sweep = await cmdSweep(
-    { ...config, quiet: true, outDir: config.outDir ? join(config.outDir, "sweep") : null },
+    { ...config, quiet: true, outDir: config.outDir ? join2(config.outDir, "sweep") : null },
     seeds,
     stepsLimit
   );
@@ -19551,10 +19761,10 @@ async function cmdCheck(config, seeds, stepsLimit, routesDir) {
   if (uncovered.length) text.push(`\u043D\u0435 \u043F\u043E\u043A\u0440\u044B\u0442\u043E: ${uncovered.slice(0, 15).join(", ")}${uncovered.length > 15 ? ` \u2026 \u0435\u0449\u0451 ${uncovered.length - 15}` : ""}`);
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join(config.outDir, "report.json"), JSON.stringify(result, null, 2), "utf8");
-    await writeFile(join(config.outDir, "report.md"), text.join("\n") + "\n", "utf8");
-    await writeFile(join(config.outDir, "graph.json"), JSON.stringify(graph, null, 2), "utf8");
-    await writeFile(join(config.outDir, "graph.md"), formatGraphReport(graph), "utf8");
+    await writeFile(join2(config.outDir, "report.json"), JSON.stringify(result, null, 2), "utf8");
+    await writeFile(join2(config.outDir, "report.md"), text.join("\n") + "\n", "utf8");
+    await writeFile(join2(config.outDir, "graph.json"), JSON.stringify(graph, null, 2), "utf8");
+    await writeFile(join2(config.outDir, "graph.md"), formatGraphReport(graph), "utf8");
   }
   return { result, text: text.join("\n") + "\n" };
 }
@@ -19700,7 +19910,7 @@ async function cmdSweep(config, seeds, stepsLimit) {
   const finals = {};
   for (let seed = seeds[0]; seed <= seeds[1]; seed++) {
     const one = await cmdSearch(
-      { ...config, seed: String(seed), outDir: config.outDir ? join(config.outDir, `seed-${seed}`) : null },
+      { ...config, seed: String(seed), outDir: config.outDir ? join2(config.outDir, `seed-${seed}`) : null },
       "explore",
       stepsLimit
     );
@@ -19752,15 +19962,15 @@ async function cmdSweep(config, seeds, stepsLimit) {
   }
   if (config.outDir) {
     await mkdir(config.outDir, { recursive: true });
-    await writeFile(join(config.outDir, "sweep.json"), JSON.stringify(result, null, 2), "utf8");
-    await writeFile(join(config.outDir, "sweep.md"), lines.join("\n") + "\n", "utf8");
+    await writeFile(join2(config.outDir, "sweep.json"), JSON.stringify(result, null, 2), "utf8");
+    await writeFile(join2(config.outDir, "sweep.md"), lines.join("\n") + "\n", "utf8");
   }
   return { result, text: lines.join("\n") + "\n" };
 }
 async function cmdVerify(dir, expectEngine, honestOnly) {
-  const resultRaw = await readFile(join(dir, "result.json"), "utf8");
-  const transcript = await readFile(join(dir, "transcript.md"), "utf8");
-  const runRaw = await readFile(join(dir, "run.json"), "utf8");
+  const resultRaw = await readFile2(join2(dir, "result.json"), "utf8");
+  const transcript = await readFile2(join2(dir, "transcript.md"), "utf8");
+  const runRaw = await readFile2(join2(dir, "run.json"), "utf8");
   const result = JSON.parse(resultRaw);
   const failures = [];
   if (sha256(transcript) !== result.hashes.transcript) failures.push("transcript.md \u043D\u0435 \u0441\u043E\u0432\u043F\u0430\u0434\u0430\u0435\u0442 \u0441 \u0445\u0435\u0448\u0435\u043C \u0432 result.json");
@@ -19775,10 +19985,25 @@ async function cmdVerify(dir, expectEngine, honestOnly) {
   console.log(`\u2713 \u043F\u0440\u043E\u0433\u043E\u043D \u0446\u0435\u043B: ${result.campaign.id} seed ${result.seed}, \u0434\u0432\u0438\u0436\u043E\u043A ${result.engine}, \u0448\u0430\u0433\u043E\u0432 ${result.steps}`);
   return 0;
 }
+async function cmdExplainCatalogue() {
+  const packs = await readInstalledPackCatalogue();
+  if (!packs.length) die("explain: \u043A\u0430\u0442\u0430\u043B\u043E\u0433 packs/registry.json \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D");
+  for (const pack of packs) {
+    console.log(`${pack.id} \u2014 ${pack.title} \xB7 v${pack.version} \xB7 runtime ${pack.runtime}`);
+    console.log(`  capabilities: ${(pack.caps ?? []).join(", ") || "\u043D\u0435\u0442"}`);
+    console.log(`  panels: ${pack.provides.panels.map((panel) => panel.id).join(", ")}`);
+    console.log(`  validators: ${pack.provides.validators.map((validator) => validator.id).join(", ")}`);
+    console.log(`  probes: ${pack.provides.probes.map((probe) => probe.id).join(", ")}`);
+    const seams = pack.provides.seams ?? [];
+    if (seams.length) console.log(`  seams: ${seams.map((seam) => `${String(seam.id)} (${String(seam.kind)})`).join(", ")}`);
+  }
+  return 0;
+}
 var USAGE = [
-  "\u043A\u043E\u043C\u0430\u043D\u0434\u044B: check | graph | dialogue | run | explore | sweep | verify",
+  "\u043A\u043E\u043C\u0430\u043D\u0434\u044B: check | graph | dialogue | run | explore | sweep | verify | explain",
   "",
-  "  node cf-play.mjs check    <\u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438> [--seeds 1-5] [--steps 300] [--routes dir] [--out runs/check]",
+  "  node cf-play.mjs explain  --catalogue",
+  "  node cf-play.mjs check    <\u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438> [--seeds 1-5] [--steps 300] [--routes dir] [--pack-registry file] [--out runs/check]",
   "",
   "  node cf-play.mjs graph    <\u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438> [--out dir] [--json]",
   "  node cf-play.mjs dialogue <\u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438> <npcId|dialogues/x.ink> [--depth 3] [--max-nodes 40]",
@@ -19795,11 +20020,15 @@ var USAGE = [
 ].join("\n");
 async function main() {
   const { command, positional, flags } = parseArgs(process.argv.slice(2));
-  const campaignDir = positional[0] ? resolve(positional[0]) : "";
+  const campaignDir = positional[0] ? resolve2(positional[0]) : "";
   const seed = String(flags.seed ?? "1");
-  const outDir = flagText(flags, "out") ? resolve(String(flagText(flags, "out"))) : null;
+  const outDir = flagText(flags, "out") ? resolve2(String(flagText(flags, "out"))) : null;
   const debug = !!flags.debug;
   const asJson = !!flags.json;
+  if (command === "explain") {
+    if (!flags.catalogue) die("explain: \u0443\u043A\u0430\u0436\u0438\u0442\u0435 --catalogue");
+    process.exit(await cmdExplainCatalogue());
+  }
   if (command === "verify") {
     if (!campaignDir) die("verify: \u0443\u043A\u0430\u0436\u0438\u0442\u0435 \u043F\u0430\u043F\u043A\u0443 \u043F\u0440\u043E\u0433\u043E\u043D\u0430 (\u0441 result.json)");
     process.exit(
@@ -19807,7 +20036,7 @@ async function main() {
     );
   }
   const CAMPAIGN_COMMANDS = ["check", "graph", "dialogue", "run", "fuzz", "explore", "sweep"];
-  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync(join(campaignDir, "campaign.json"))) {
+  if (CAMPAIGN_COMMANDS.includes(command) && campaignDir && !existsSync2(join2(campaignDir, "campaign.json"))) {
     die(`${command}: \u0432 \xAB${campaignDir}\xBB \u043D\u0435\u0442 campaign.json \u2014 \u044D\u0442\u043E \u043D\u0435 \u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u043C\u043F\u0430\u043D\u0438\u0438`);
   }
   if (command === "check") {
@@ -19817,7 +20046,7 @@ async function main() {
     const config2 = {
       campaignDir,
       seed,
-      outDir: outDir ?? resolve(join(campaignDir, ".cf-play", "check")),
+      outDir: outDir ?? resolve2(join2(campaignDir, ".cf-play", "check")),
       debug,
       quiet: asJson,
       injection: emptyInjection(),
@@ -19827,7 +20056,8 @@ async function main() {
       config2,
       [from, to],
       Number(flagText(flags, "steps") ?? 300),
-      flagText(flags, "routes") ? resolve(String(flagText(flags, "routes"))) : null
+      flagText(flags, "routes") ? resolve2(String(flagText(flags, "routes"))) : null,
+      flagText(flags, "pack-registry") ? resolve2(String(flagText(flags, "pack-registry"))) : null
     );
     if (asJson) console.log(JSON.stringify(result2, null, 2));
     else console.log(text);
@@ -19840,8 +20070,8 @@ async function main() {
     const text = formatGraphReport(report);
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join(outDir, "graph.json"), JSON.stringify(report, null, 2), "utf8");
-      await writeFile(join(outDir, "graph.md"), text, "utf8");
+      await writeFile(join2(outDir, "graph.json"), JSON.stringify(report, null, 2), "utf8");
+      await writeFile(join2(outDir, "graph.md"), text, "utf8");
     }
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else console.log(text);
@@ -19858,7 +20088,7 @@ async function main() {
     quiet: asJson,
     routeName: flagText(flags, "route") ?? void 0,
     injection: parseInjection(flags),
-    record: flagText(flags, "record") ? resolve(String(flagText(flags, "record"))) : null
+    record: flagText(flags, "record") ? resolve2(String(flagText(flags, "record"))) : null
   };
   if (command === "dialogue") {
     const target = positional[1];
@@ -19871,8 +20101,8 @@ async function main() {
     );
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join(outDir, "dialogue.json"), JSON.stringify(report, null, 2), "utf8");
-      await writeFile(join(outDir, "dialogue.md"), text, "utf8");
+      await writeFile(join2(outDir, "dialogue.json"), JSON.stringify(report, null, 2), "utf8");
+      await writeFile(join2(outDir, "dialogue.md"), text, "utf8");
     }
     if (asJson) console.log(JSON.stringify(report, null, 2));
     else console.log(text);
@@ -19893,7 +20123,7 @@ async function main() {
   if (command === "run") {
     const scriptPath = flagText(flags, "script");
     if (!scriptPath) die("run: \u043D\u0443\u0436\u0435\u043D --script route.json");
-    const script = JSON.parse(await readFile(resolve(scriptPath), "utf8"));
+    const script = JSON.parse(await readFile2(resolve2(scriptPath), "utf8"));
     result = await cmdRun(config, script);
   } else if (command === "explore") {
     result = await cmdSearch(config, "explore", Number(flagText(flags, "steps") ?? 300));
@@ -19903,7 +20133,7 @@ async function main() {
     const runs = [];
     for (let current = from; current <= to; current++) {
       const one = await cmdSearch(
-        { ...config, seed: String(current), outDir: outDir ? join(outDir, `seed-${current}`) : null },
+        { ...config, seed: String(current), outDir: outDir ? join2(outDir, `seed-${current}`) : null },
         "fuzz",
         Number(flagText(flags, "steps") ?? 400)
       );
@@ -19922,7 +20152,7 @@ async function main() {
     };
     if (outDir) {
       await mkdir(outDir, { recursive: true });
-      await writeFile(join(outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
+      await writeFile(join2(outDir, "result.json"), JSON.stringify(result, null, 2), "utf8");
     }
   }
   if (asJson) {
@@ -19947,7 +20177,7 @@ async function main() {
     console.log(`
 ${result.status === "ok" ? "\u2713" : "\u2717"} ${result.campaign.title}: ${result.status}, \u0448\u0430\u0433\u043E\u0432 ${result.steps}, seed ${result.seed}`);
     if (result.evidence === "injected") console.log(`  ! \u043F\u0440\u043E\u0433\u043E\u043D \u0441 \u043E\u0442\u043B\u0430\u0434\u043E\u0447\u043D\u044B\u043C\u0438 \u043F\u0440\u0430\u0432\u043A\u0430\u043C\u0438: ${result.injected.join("; ")}`);
-    if (config.outDir) console.log(`  transcript: ${join(config.outDir, "transcript.md")}`);
+    if (config.outDir) console.log(`  transcript: ${join2(config.outDir, "transcript.md")}`);
     const scenes = result.coverage.scenes;
     if (scenes?.missing?.length) console.log(`  \u043D\u0435 \u043F\u043E\u0441\u0435\u0449\u0435\u043D\u043E \u0441\u0446\u0435\u043D: ${scenes.missing.length} \u0438\u0437 ${scenes.missing.length + scenes.seen.length}`);
   }
