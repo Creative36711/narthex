@@ -30,7 +30,7 @@ function make(seed = {}) {
     (k, d) => (store.has(k) ? store.get(k) : d),
     (k, v) => store.set(k, v),
     { pending: 'cfn-pending', expect: 'cfn-expect', lastSend: 'cfn-last-send', step: 'cfn-step-request', stateV: 'cfn-state-v' },
-    '1.4.40',
+    '1.4.41',
     (t, e, o) => logs.push({ t, e, o }),
     () => true,
     () => {},
@@ -54,9 +54,9 @@ const real = { ...ghost, sentAt: 2, verified: true };
   assert.equal(store.get('cfn-expect'), null, 'ожидание без отправки снято');
   assert.ok(store.get('cfn-pending'), 'очередь с текстом сохранена');
   assert.ok(store.get('cfn-last-send'), 'защита от повторов сохранена');
-  assert.equal(store.get('cfn-state-v'), '1.4.40', 'метка версии обновлена');
+  assert.equal(store.get('cfn-state-v'), '1.4.41', 'метка версии обновлена');
   assert.equal(logs.length, 1, 'ровно одна запись в журнале');
-  assert.match(logs[0].t, /Обновился до 1\.4\.40 с 1\.4\.8/, 'видно, с какой версии обновились');
+  assert.match(logs[0].t, /Обновился до 1\.4\.41 с 1\.4\.8/, 'видно, с какой версии обновились');
   assert.match(logs[0].t, /без отметки отправки/, 'сказано, что именно снято');
   assert.equal(logs[0].o?.skip, true, 'обновление не шлёт пуш');
 }
@@ -67,7 +67,7 @@ const real = { ...ghost, sentAt: 2, verified: true };
   assert.equal(api.migrateState(), '', 'подтверждённая отправка не снимается');
   assert.deepEqual(store.get('cfn-expect'), real, 'ожидание осталось');
   assert.equal(logs.length, 0, 'лишних записей нет');
-  assert.equal(store.get('cfn-state-v'), '1.4.40', 'метка всё равно поставлена');
+  assert.equal(store.get('cfn-state-v'), '1.4.41', 'метка всё равно поставлена');
 }
 
 // ── 3. Пустое состояние и повторный запуск ──────────────────────────────────
@@ -77,7 +77,7 @@ const real = { ...ghost, sentAt: 2, verified: true };
   assert.equal(logs.length, 0, 'журнал не засоряется');
 }
 {
-  const { api, store } = make({ 'cfn-state-v': '1.4.40', 'cfn-expect': ghost });
+  const { api, store } = make({ 'cfn-state-v': '1.4.41', 'cfn-expect': ghost });
   assert.equal(api.migrateState(), '', 'в рамках одной версии миграция не работает');
   assert.deepEqual(store.get('cfn-expect'), ghost, 'такое ожидание снимает шаг, а не миграция');
 }
@@ -100,7 +100,7 @@ const real = { ...ghost, sentAt: 2, verified: true };
   }
   assert.equal(store.get('cfn-plan-at'), 0, 'троттлинг плана сброшен');
   assert.equal(store.get('cfn-step-request'), false, 'отложенный шаг снят');
-  assert.equal(store.get('cfn-state-v'), '1.4.40', 'метка версии на месте');
+  assert.equal(store.get('cfn-state-v'), '1.4.41', 'метка версии на месте');
 }
 
 // ── 5. Диалог: отказ ничего не чистит ───────────────────────────────────────
@@ -115,7 +115,7 @@ const real = { ...ghost, sentAt: 2, verified: true };
     (k, d) => (store.has(k) ? store.get(k) : d),
     (k, v) => store.set(k, v),
     { pending: 'cfn-pending', expect: 'cfn-expect', lastSend: 'cfn-last-send', step: 'cfn-step-request', stateV: 'cfn-state-v' },
-    '1.4.40', (t) => logs.push(t), () => false, () => {},
+    '1.4.41', (t) => logs.push(t), () => false, () => {},
   );
   withNo.resetStateDialog();
   assert.ok(store.get('cfn-pending'), 'при отказе очередь осталась');
@@ -132,4 +132,4 @@ assert.match(src, /reset: \(\) => resetStateDialog\(\)/, 'в консоли ес
 assert.match(src, /const boot = \(\) => \{\s*migrateState\(\);/, 'миграция выполняется до первого шага');
 assert.match(src, /title="версия скрипта">v\$\{SCRIPT_VERSION\}/, 'в панели видно, какая версия загружена');
 
-console.log('OK: narthex 1.4.40 — обновление снимает ожидание без отправки, ↺ чистит очередь и ожидание, журнал не засоряется');
+console.log('OK: narthex 1.4.41 — обновление снимает ожидание без отправки, ↺ чистит очередь и ожидание, журнал не засоряется');

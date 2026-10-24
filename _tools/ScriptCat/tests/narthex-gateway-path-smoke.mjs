@@ -8,7 +8,8 @@
 // Здесь проверяется:
 //   • первый путь — GM_xmlhttpRequest (страницу обходит), fetch остался вторым;
 //   • сетевой сбой повторяется один раз, отказ шлюза — нет;
-//   • ошибка называет источник: «шлюз Drive», а не «запись в Notion».
+//   • ошибка называет источник: «шлюз Drive», а не «запись в Notion»;
+//   • «duplicate» на append — успех: ответ уже в журнале, шаг доводит карточку.
 
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
@@ -141,4 +142,46 @@ const load = ({ gm, fetchImpl }) => {
   assert.equal(calls, 1, 'отказ прав не повторяется');
 }
 
-console.log('OK: narthex 1.4.40 — шлюз Drive идёт через расширение, сеть повторяется, ошибка называет источник');
+// 7. «duplicate» на append — не отказ: такая запись уже в журнале. Иначе шаг,
+//    сорвавшийся ПОСЛЕ записи журнала (NAR-1.10: ответ записан, запись в Notion
+//    прервалась), не завершился бы никогда — повтор упирался бы в свой маркер.
+{
+  const { api, calls } = load({
+    gm: () => ({ body: { ok: false, error: 'duplicate' } }),
+    fetchImpl: () => ({ error: 'не должен вызываться' }),
+  });
+  const data = await api.gateway('append', 'file-1', { marker: '<!-- CF_DISPATCH a:b -->', entry: '…' });
+  assert.equal(data.ok, true, 'дубль маркера считается успехом');
+  assert.equal(data.duplicate, true, 'видно, что запись уже была');
+  assert.equal(calls.gm, 1, 'повторов не понадобилось');
+}
+
+// 8. Запасной fetch понимает дубль так же, а для остальных действий
+//    «duplicate» остаётся отказом: там идемпотентности по маркеру нет.
+{
+  const { api } = load({
+    gm: () => ({ error: 'нет расширения' }),
+    fetchImpl: () => ({ body: { ok: false, error: 'duplicate' } }),
+  });
+  const data = await api.gateway('append', 'file-1', {});
+  assert.equal(data.duplicate, true, 'fetch-путь тоже понимает дубль');
+}
+{
+  const { api } = load({
+    gm: () => ({ body: { ok: false, error: 'duplicate' } }),
+    fetchImpl: () => ({ body: { ok: false, error: 'duplicate' } }),
+  });
+  await assert.rejects(() => api.gateway('createLog', 'x', {}), /duplicate/, 'для не-append это отказ');
+}
+
+// 9. Шаг говорит об этом вслух и снимает ожидание с уже оформленной карточки:
+//    молчание Мастер читает как «ничего не произошло».
+{
+  const submit = src.slice(src.indexOf('async function submitExecutor'), src.indexOf('async function releaseStalled'));
+  assert.match(submit, /wrote && wrote\.duplicate/, 'submitExecutor различает дубль записи');
+  assert.match(submit, /Ответ уже был в журнале Drive/, 'и объясняет, почему второго блока нет');
+  assert.match(submit, /повторная запись не нужна, ожидание снято/, 'оформленная карточка снимает ожидание');
+  assert.match(submit, /GM_setValue\(K\.expect, null\)/, 'ожидание действительно снимается');
+}
+
+console.log('OK: narthex 1.4.41 — шлюз Drive идёт через расширение, сеть повторяется, ошибка называет источник');

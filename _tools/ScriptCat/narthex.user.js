@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.40
+// @version      1.4.41
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -259,7 +259,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.40";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.41";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1177,8 +1177,15 @@
     for (let attempt = 0; attempt < 2; attempt += 1) {
       try {
         const data = await request("POST", url, headers, payload);
-        if (!data || data.ok !== true) throw new Error(String((data && data.error) || "шлюз вернул отказ"));
-        return data;
+        if (data && data.ok === true) return data;
+        const why = String((data && data.error) || "шлюз вернул отказ");
+        // append идемпотентен по маркеру: «duplicate» — это «запись уже в
+        // журнале», а не отказ. Без этого шаг, сорвавшийся ПОСЛЕ записи
+        // журнала (так было на NAR-1.10: ответ записан, запись в Notion
+        // прервалась), не мог завершиться никогда: повтор упирался в
+        // собственный маркер и падал на нём же.
+        if (action === "append" && /duplicate/i.test(why)) return { ok: true, duplicate: true };
+        throw new Error(why);
       } catch (e) {
         gmError = String((e && e.message) || e);
         if (!networkish(gmError)) break;
@@ -1191,6 +1198,7 @@
       const res = await fetch(url, { method: "POST", headers, body: payload });
       const data = await res.json();
       if (data && data.ok === true) return data;
+      if (action === "append" && /duplicate/i.test(String((data && data.error) || ""))) return { ok: true, duplicate: true };
       fetchError = String((data && data.error) || `HTTP ${res.status}`);
     } catch (e) {
       fetchError = String((e && e.message) || e);
@@ -3935,7 +3943,11 @@
 
     const page = await notion("GET", `pages/${result.dispatch_id}`);
     if (taskState(page) !== "Running") {
-      log("Задача уже не Running — повторная запись не нужна.");
+      // Карточку уже оформили — прошлой попыткой скрипта или руками после
+      // паузы. Ждать больше нечего: ожидание снимается, иначе страница
+      // исполнителя продолжает считать, что агент ещё отвечает.
+      if (norm(expect && expect.ref) === norm(result.dispatch_id)) GM_setValue(K.expect, null);
+      log("Задача уже не Running — повторная запись не нужна, ожидание снято.");
       return false;
     }
     if (norm(rt(page.properties["Recipient Agent ID"])) && norm(rt(page.properties["Recipient Agent ID"])) !== norm(role.id)) {
@@ -3955,10 +3967,13 @@
     if (!logId) throw new Error("В карточке нет Output Drive File ID.");
     const marker = `<!-- CF_DISPATCH ${result.dispatch_id}:${result.run_id} -->`;
     const partsNote = answer.parts > 1 ? `_Ответ собран из ${answer.parts} сообщений хода._\n\n` : "";
-    await gateway("append", logId, {
+    const wrote = await gateway("append", logId, {
       marker,
       entry: `\n\n${marker}\n## Ответ ${role.name}\n\n${partsNote}${answer.text}\n`,
     });
+    if (wrote && wrote.duplicate) {
+      log("Ответ уже был в журнале Drive (маркер этой же выдачи) — второй раз не пишу, оформляю карточку.");
+    }
 
     // Аудитор не открывает PR: ждать мерж и нажимать Continue нечего.
     // Иначе цикл встал бы на 5 минут на каждом аудите.
