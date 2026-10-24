@@ -51,6 +51,12 @@ assert.match(prompt, /Черновики — твой задел/, 'сказан
 assert.doesNotMatch(prompt, /ставит движок\./, 'прежней фразы «Ready … ставит движок» больше нет');
 assert.doesNotMatch(prompt, /не вправе|нельзя переводить Draft/i, 'запрета на выдачу черновика нет');
 
+// Технический блок Координатора читается последним: там тоже про выдачу.
+const techFrom = src.indexOf('const COORDINATOR_TECH = [');
+const techTo = src.indexOf('];', techFrom);
+const tech = src.slice(techFrom, techTo);
+assert.match(tech, /число Ready и выдача работы — новой карточкой или Draft → Ready/, 'в техблоке Координатора тоже сказано про выдачу');
+
 // ── 2. draftLine: список, а не число ────────────────────────────────────────
 const lineFrom = src.indexOf('  function draftLine(cards) {');
 const lineTo = src.indexOf('  async function coordinatorStep(');
