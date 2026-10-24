@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.53
+// @version      1.4.54
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -82,6 +82,7 @@
     log: "cfn-console-log",
     pending: "cfn-pending",
     expect: "cfn-expect",
+    mission: "cfn-mission-id",
     merged: "cfn-merged:",
     branch: "cfn-branch",
     pause: "cfn-pause-context",
@@ -276,7 +277,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.53";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.54";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1526,6 +1527,94 @@
       },
     );
     return true;
+  }
+
+  /** Активная миссия и сменилась ли она относительно той, что помнит транспорт. */
+  async function missionProbe() {
+    const mission = await activeMission();
+    const known = String(GM_getValue(K.mission, "") || "");
+    return { mission, known, changed: Boolean(mission && known) && known !== mission.id };
+  }
+
+  /**
+   * Паузы, которые миссией не ограничены.
+   *
+   * Капча, сломанная страница и ошибка на экране ждут человека, а не хода
+   * внутри миссии: снимать их сменой миссии нельзя. Всё остальное — остановки
+   * конкретного хода, и к новой миссии они отношения не имеют.
+   */
+  const PAUSE_BEYOND_MISSION = new Set(["captcha", "ui-error", "arena-error"]);
+
+  /** Пауза прошлого хода к новой миссии не относится. */
+  function dropPauseOfMission(cleared = []) {
+    if (!GM_getValue(K.paused, "")) return false;
+    const ctx = GM_getValue(K.pause, null);
+    if (ctx && PAUSE_BEYOND_MISSION.has(ctx.kind)) return false;
+    GM_setValue(K.paused, "");
+    GM_setValue(K.pause, null);
+    cleared.push(`пауза прошлой миссии (${ctx?.kind || "без контекста"})`);
+    return true;
+  }
+
+  /**
+   * Смена миссии обнуляет прошлый ход.
+   *
+   * 24.10 миссия NAR-1 закрылась, а следующая начинается новой карточкой в
+   * «Миссиях». Ожидание ответа и очередь отправки от прошлой миссии к новой не
+   * относятся — но именно они решают, куда пойдёт «Шаг»: транспорт повёл бы
+   * Мастера на страницу исполнителя, который уже ничего не делает, и новая
+   * миссия не началась бы вовсе. Поэтому при смене миссии остатки снимаются,
+   * а запись в журнале говорит, что именно.
+   */
+  async function syncMissionState() {
+    const probe = await missionProbe();
+    if (!probe.mission) return;
+    GM_setValue(K.mission, probe.mission.id);
+    if (!probe.changed) return;
+
+    const cleared = [];
+    if (GM_getValue(K.expect, null)) {
+      GM_setValue(K.expect, null);
+      cleared.push("ожидание ответа");
+    }
+    if (GM_getValue(K.pending, null)) {
+      GM_setValue(K.pending, null);
+      cleared.push("очередь отправки");
+    }
+    GM_setValue("cfn-plan-at", 0);
+    GM_setValue("cfn-plan-miss", 0);
+    dropPauseOfMission(cleared);
+
+    const name = rt(probe.mission.properties["Миссия"]) || "без названия";
+    log(
+      `Новая миссия «${name}»: ${cleared.length ? `снял прошлый ход — ${cleared.join(", ")}` : "прошлый ход был чистым"}. ` +
+        "Ход начинается с Координатора.",
+      false,
+      { tone: "ok" },
+    );
+  }
+
+  /**
+   * Пауза прошлой миссии не имеет права держать новую.
+   *
+   * Проверка стоит до общего стража паузы: иначе тик молча выходил бы, а
+   * «Шаг» на любой странице отвечал бы «цикл на паузе» — и новая миссия не
+   * начиналась бы, пока Мастер не нажмёт «Продолжить» без причины.
+   */
+  async function clearStaleMissionPause() {
+    try {
+      const probe = await missionProbe();
+      if (!probe.changed) return false;
+      const cleared = [];
+      dropPauseOfMission(cleared);
+      if (!cleared.length) return false;
+      GM_setValue(K.mission, probe.mission.id);
+      const name = rt(probe.mission.properties["Миссия"]) || "без названия";
+      log(`Пауза относилась к прошлой миссии — снимаю: новая «${name}» начинается с чистого хода.`, false, { tone: "ok" });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -5511,7 +5600,10 @@
       // Миссию закрыли — говорим об этом зелёной строкой и громким пушем,
       // а не тихим «ждём»: это конец работы, а не пустая страница.
       if (await missionDoneNotice(expect)) return true;
-      logThrottled("no-mission", "Нет активной миссии — ждём.");
+      logThrottled(
+        "no-mission",
+        "Миссий в работе нет. Создайте карточку в «Миссиях» (Состояние = «Активна») и нажмите «Шаг»: ход начнётся с Координатора, он и нарежет очередь.",
+      );
       return false;
     }
     GM_setValue("cfn-me", role.name);
@@ -5974,8 +6066,12 @@
     if (!auto && !fromToggle && !pending && !waiting) return;
     // Пауза снимается только человеком: тик не имеет права её обойти.
     if (isPaused()) {
-      if (fromToggle) log(`Шаг не выполнен: цикл на паузе (${GM_getValue(K.paused, "")}).`, true);
-      return;
+      // Единственное исключение — пауза, поставленная прошлой миссией: к
+      // текущей она не относится и молча держала бы новый цикл.
+      if (!(await clearStaleMissionPause())) {
+        if (fromToggle) log(`Шаг не выполнен: цикл на паузе (${GM_getValue(K.paused, "")}).`, true);
+        return;
+      }
     }
     busy = true;
     busyAt = Date.now();
@@ -5995,6 +6091,12 @@
       // Ошибка на экране важнее любого шага: сначала остановиться.
       if (monitorVisibleErrors()) return;
       await setup(false);
+      // Новая миссия — новый ход: остатки прошлой снимаются до любых решений.
+      try {
+        await syncMissionState();
+      } catch (e) {
+        dbg("миссия: сверка не удалась", e.message);
+      }
       dbg("tick: состояние", {
         fromToggle,
         path: location.pathname,
