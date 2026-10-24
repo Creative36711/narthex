@@ -19,13 +19,15 @@ const promptFrom = src.indexOf('  function coordinatorPrompt(');
 const promptTo = src.indexOf('  // ───────────────────────────── ход исполнителя', promptFrom);
 assert.ok(promptFrom > 0 && promptTo > promptFrom, 'coordinatorPrompt на месте');
 const generate = new Function(
-  'technicalInfo', 'rt', 'roleContext',
+  'technicalInfo', 'rt', 'roleContext', 'returnBlock',
   `${src.slice(promptFrom, promptTo)}; return coordinatorPrompt;`,
 );
 const prompt = generate(
   () => 'ТЕХНИКА',
   () => 'NAR-1',
   () => 'Ты — Coordinator.',
+  // 1.4.42: блок «миссия возвращена» — часть промпта; здесь миссия активна.
+  () => '',
 )(
   { id: 'mission-1', properties: { 'Миссия': { title: [{ plain_text: 'NAR-1' }] }, 'ТЗ URL': { url: 'https://x' } } },
   { name: 'Coordinator', fn: 'Coordinator' },
@@ -87,6 +89,8 @@ const promptWithLine = generate(
   () => 'ТЕХНИКА',
   () => 'NAR-1',
   () => 'Ты — Coordinator.',
+  // 1.4.42: блок «миссия возвращена» — часть промпта; здесь миссия активна.
+  () => '',
 )(
   { id: 'mission-1', properties: { 'Миссия': { title: [{ plain_text: 'NAR-1' }] }, 'ТЗ URL': { url: 'https://x' } } },
   { name: 'Coordinator', fn: 'Coordinator' },
@@ -220,4 +224,4 @@ assert.match(
 );
 assert.match(src, /GM_setValue\("cfn-plan-miss", 0\);/, 'счётчик промахов сбрасывается на успехе');
 
-console.log('OK: narthex 1.4.41 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');
+console.log('OK: narthex 1.4.42 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');

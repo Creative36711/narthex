@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.41
+// @version      1.4.42
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -158,12 +158,21 @@
    * последние maxLog записей, а старые отбрасываем при каждой записи и при
    * загрузке страницы. Кнопка «Очистить» удаляет и память, и сохранённый хвост.
    */
+  /**
+   * Цвет строки журнала. Красный — ошибка и пауза, зелёный — событие, которое
+   * Мастеру важно увидеть (миссия завершена), жёлтый — предупреждение.
+   * До 1.4.42 состояний было два, и «задача → Submitted» или конец миссии
+   * выглядели как рутина наравне с «открыл страницу роли».
+   */
+  const logColor = (e) =>
+    e.error ? "#ff9a9a" : e.tone === "ok" ? "#8ee28e" : e.tone === "warn" ? "#ffd479" : "inherit";
+
   function renderLog() {
     const el = document.getElementById(ui.log);
     if (!el) return;
     el.innerHTML = entries
       .slice(-C.maxLog)
-      .map((e) => `<div style="opacity:${e.error ? 1 : 0.85};color:${e.error ? "#ff9a9a" : "inherit"}">${escapeHtml(e.t)}</div>`)
+      .map((e) => `<div style="opacity:${e.error ? 1 : 0.85};color:${logColor(e)}">${escapeHtml(e.t)}</div>`)
       .join("");
     el.scrollTop = el.scrollHeight;
     const counter = document.getElementById(ui.count);
@@ -187,7 +196,7 @@
    * «громкий» поток разделены: см. classifyNtfy ниже.
    */
   function log(text, error = false, options = {}) {
-    entries.push({ t: `${new Date().toLocaleTimeString("ru-RU")} ${text}`, error });
+    entries.push({ t: `${new Date().toLocaleTimeString("ru-RU")} ${text}`, error, tone: options.tone || "" });
     entries = entries.slice(-C.maxLog);
     GM_setValue(K.log, entries);
     console.log(`[Narthex] ${text}`);
@@ -259,7 +268,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.41";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.42";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1252,13 +1261,121 @@
     return active;
   }
 
+  /**
+   * Активная миссия — это «Активна» ИЛИ «Возвращена».
+   *
+   * «Возвращена» ставит Мастер, когда миссия закрыта, а работа не принята:
+   * замечания лежат в полях карточки миссии. Если не учитывать это состояние,
+   * возврат выглядит как «нет активной миссии», и цикл просто стоит.
+   */
   async function activeMission() {
     const rows = await query(
       C.missions,
-      { property: "Состояние", select: { equals: "Активна" } },
+      {
+        or: [
+          { property: "Состояние", select: { equals: "Активна" } },
+          { property: "Состояние", select: { equals: "Возвращена" } },
+        ],
+      },
       [{ property: "Создана", direction: "descending" }],
     );
     return rows[0] || null;
+  }
+
+  const missionKind = (p) => sel(p.properties["Состояние"]);
+  const isReturned = (p) => missionKind(p) === "Возвращена";
+  const missionRemarks = (p) => rt(p.properties["Замечания"]).trim();
+
+  /** Первая строка длинного текста: список замечаний в строку журнала не влезет. */
+  const firstLine = (text) =>
+    String(text || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)[0] || "";
+
+  /** Последняя закрытая миссия: по ней видно, что цикл остановился не «просто так». */
+  async function lastClosedMission() {
+    const rows = await query(
+      C.missions,
+      {
+        or: [
+          { property: "Состояние", select: { equals: "Завершена" } },
+          { property: "Состояние", select: { equals: "Провалена" } },
+        ],
+      },
+      [{ property: "Завершена", direction: "descending" }],
+    );
+    return rows[0] || null;
+  }
+
+  /**
+   * Конец миссии — событие, а не тишина.
+   *
+   * 24.10 в 15:49 Координатор закрыл NAR-1, а ScriptCat сказал только «Нет
+   * активной миссии — ждём»: ни зелёной строки, ни пуша, ни выключенного
+   * автоцикла. Мастер узнал о конце миссии из чата. Теперь событие
+   * объявляется один раз на миссию: зелёная строка, громкий пуш, автоцикл
+   * выключен, ожидание снято.
+   */
+  async function missionDoneNotice(expect) {
+    let closed = null;
+    try {
+      closed = await lastClosedMission();
+    } catch {
+      return false; // Notion не ответил — не выдумываем событие
+    }
+    if (!closed) return false;
+    const at = closed.properties?.["Завершена"]?.date?.start || "";
+    const waited = Boolean(expect && (expect.kind === "plan" || expect.kind === "reminder"));
+    const recent = Boolean(at) && Date.now() - Date.parse(at) < 10 * 60 * 1000;
+    // Обычное «миссии пока нет» остаётся тишиной: закрытая миссия недельной
+    // давности не повод пушить при каждом открытии страницы.
+    if (!waited && !recent) return false;
+
+    const key = `cfn-mission-done:${closed.id}`;
+    const announced = Boolean(GM_getValue(key, false));
+    if (waited) GM_setValue(K.expect, null);
+    if (announced) return waited;
+
+    GM_setValue(key, true);
+    autoSet(false);
+    const name = rt(closed.properties["Миссия"]) || "миссия";
+    const failed = missionKind(closed) === "Провалена";
+    log(
+      failed
+        ? `Миссия «${name}» закрыта как «Провалена». Автоцикл остановлен: дальше решает Мастер.`
+        : `Миссия «${name}» завершена${at ? ` (${String(at).slice(0, 10)})` : ""}: очередь пуста, цикл остановлен. ` +
+            "Следующая работа — новым ТЗ и новой миссией, а не хвостом этой.",
+      false,
+      {
+        tone: failed ? "warn" : "ok",
+        ntfy: "loud",
+        title: failed ? "Narthex: миссия провалена" : "Narthex: миссия завершена",
+      },
+    );
+    return true;
+  }
+
+  /**
+   * Блок замечаний Мастера в плане Координатора. Без него «Возвращена» —
+   * просто слово в Notion: агент не знает, что именно не принято.
+   */
+  function returnBlock(mission) {
+    if (!isReturned(mission)) return "";
+    const remarks = missionRemarks(mission);
+    if (!remarks) return "";
+    const at = mission.properties["Возвращена"]?.date?.start || "";
+    const items = remarks
+      .split("\n")
+      .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+      .filter(Boolean)
+      .map((line) => `- ${line}`);
+    return [
+      `МИССИЯ ВОЗВРАЩЕНА МАСТЕРОМ${at ? ` ${String(at).slice(0, 10)}` : ""} НА ДОРАБОТКУ. Замечания:`,
+      ...items,
+      "Правила возврата: на каждое замечание — отдельная карточка с оракулом, который именно это замечание проверяет; переделывать фазу целиком нельзя. " +
+        "Миссию можно закрыть только когда все замечания закрыты карточками, а в «Итоге» есть раздел «Возврат» с ответом на каждое.",
+    ].join("\n");
   }
 
   const taskTitle = (p) => rt(p.properties["Запрос"]);
@@ -3116,12 +3233,21 @@
     // Плашка «Эта задача была выполнена успешно?» закрывает поле ввода. Мастер
     // просит убирать её скриптом: человек не должен щёлкать по опросу, чтобы
     // цикл поехал дальше.
-    if (completionPlaque() && closeCompletionPlaque() === "closed") {
-      log("Убрал плашку «задача выполнена» — она закрывала поле ввода.");
-    }
+    // Считаем закрытия за этот шаг и говорим о них ОДНОЙ строкой. 24.10 в
+    // 15:20:17–15:20:18 в журнале оказались две почти одинаковые записи: первая
+    // закрывала плашку ради поля ввода, вторая — ту же плашку, которую backend
+    // успел вернуть, пока скрипт искал редактор. Со стороны это выглядело как
+    // сбой, а не как работа.
+    let plaqueClosed = 0;
+    if (completionPlaque() && closeCompletionPlaque() === "closed") plaqueClosed += 1;
 
     const { editor, closed, overlay } = await ensureComposer();
-    if (closed) log(`Убрал плашку, которая закрывала чат${closed > 1 ? ` (${closed} раз)` : ""}.`);
+    plaqueClosed += closed;
+    if (plaqueClosed) {
+      log(
+        `Убрал плашку «задача выполнена» — она закрывала поле ввода${plaqueClosed > 1 ? ` (${plaqueClosed} раза)` : ""}.`,
+      );
+    }
     if (!editor) {
       pendingSay(
         pending,
@@ -3441,13 +3567,7 @@
         log("PR на странице нет и в ответе нет заявки о мерже — считаю, что работа в main не попала.", true);
         return "unconfirmed";
       }
-      const label = prLabelOf(result);
-      log(
-        `${label} слит: принято по маркеру агента ` +
-          "(бейджа и Continue на его странице нет — PR-интерфейс живёт на странице PR).",
-      );
-      GM_setValue(key, true);
-      return "claimed";
+      return claimMerge(task, result, key, " (PR-интерфейс живёт на странице PR, а не в чате)");
     }
 
     const started = Date.now();
@@ -3466,12 +3586,12 @@
       // работы начал отвечать на неё. Заявка — тот же сигнал, что и в ветке
       // «PR-интерфейса нет вовсе»: из ScriptCat нет доступа к API GitHub.
       if (hasMergedClaim(result)) {
-        log(
-          `${prLabelOf(result)} слит: принято по маркеру агента ` +
-            "(кнопки Create/Merge не нажимаю — они отправят агенту лишнюю реплику).",
+        return claimMerge(
+          task,
+          result,
+          key,
+          " (кнопки Create/Merge не нажимаю — они отправят агенту лишнюю реплику)",
         );
-        GM_setValue(key, true);
-        return "claimed";
       }
 
       if (Date.now() > grace) {
@@ -3540,6 +3660,28 @@
     }
     GM_setValue(key, true);
     return "merged";
+  }
+
+  /**
+   * Мерж заявлен маркером, PR-интерфейса на странице ещё нет.
+   *
+   * Кнопки Create/Merge не трогаем: они отправляют агенту лишнюю реплику
+   * (24.10 в 14:48 именно так в чат ушло «Please open a pull request…»). Но
+   * Continue — это не реплика, а выдача новой ветки, и Arena дорисовывает её
+   * уже после того, как узнала о мерже. До 1.4.42 здесь был немедленный
+   * выход, поэтому Continue оставалась ненажатой: NAR-1.11, PR #35 — Мастер
+   * жал её руками. Ждём бейдж или Continue до mergeGraceMs.
+   */
+  async function claimMerge(task, result, key, note = "") {
+    const seen = await waitFor(() => mergedFlag() || continueButton(), patience(C.mergeGraceMs), 1000);
+    if (seen) return finishMerge(task, key);
+    GM_setValue(key, true);
+    log(
+      `${prLabelOf(result)} слит: принято по маркеру агента${note}. ` +
+        `Бейджа Merged и Continue на странице нет и через ${Math.round(patience(C.mergeGraceMs) / 1000)} с: ` +
+        "если Continue появится позже, нажмите её сами — на запись результата это уже не влияет.",
+    );
+    return "claimed";
   }
 
   /**
@@ -3875,6 +4017,7 @@
       `Миссия: ${rt(mission.properties["Миссия"])}.`,
       `ТЗ: ${mission.properties["ТЗ URL"]?.url || "не задано"}`,
       `Очередь: ${queueSummary}`,
+      returnBlock(mission),
       ready,
       drafts,
       answerLine,
@@ -4254,10 +4397,36 @@
   async function coordinatorStep(role, expect, manual = false) {
     const mission = await activeMission();
     if (!mission) {
+      // Миссию закрыли — говорим об этом зелёной строкой и громким пушем,
+      // а не тихим «ждём»: это конец работы, а не пустая страница.
+      if (await missionDoneNotice(expect)) return true;
       logThrottled("no-mission", "Нет активной миссии — ждём.");
       return false;
     }
     GM_setValue("cfn-me", role.name);
+
+    // Возврат миссии Мастером — событие уровня «нужен Мастер»: строка в
+    // журнале и пуш. Повторно на ту же миссию не повторяем.
+    if (isReturned(mission)) {
+      const remarks = missionRemarks(mission);
+      if (!remarks) {
+        pause(
+          "Миссия возвращена на доработку, но поле «Замечания» пусто: исправлять нечего. " +
+            "Запишите, что именно не принято, и снимите паузу.",
+          { kind: "return-empty", ref: mission.id },
+        );
+        return true;
+      }
+      const seen = `cfn-mission-return:${mission.id}`;
+      if (!GM_getValue(seen, false)) {
+        GM_setValue(seen, true);
+        log(
+          `Миссия возвращена Мастером: ${firstLine(remarks)}. Координатор получит замечания в плане хода.`,
+          false,
+          { tone: "warn", ntfy: "loud", title: "Narthex: миссия возвращена" },
+        );
+      }
+    }
 
     await releaseStalled(mission);
     const submitted = await tasks("Submitted", mission);
@@ -4299,6 +4468,15 @@
           );
           return true;
         }
+        const returned = isReturned(mission);
+        if (returned && !/возврат/i.test(rt(mission.properties["Итог"]))) {
+          pause(
+            "Миссия возвращена Мастером, но в «Итоге» нет раздела «Возврат»: замечания не отвечены. " +
+              "Опишите в «Итоге», что сделано по каждому замечанию, и повторите ход.",
+            { kind: "done-with-remarks", ref: mission.id },
+          );
+          return true;
+        }
         if (fresh.draft.length) {
           log(
             `Миссия завершена, в черновиках осталось ${fresh.draft.length} — это предложения на будущее, ` +
@@ -4310,7 +4488,13 @@
           "Завершена": { date: { start: nowIso() } },
         });
         autoSet(false);
-        log("Миссия завершена Координатором. Автоцикл остановлен.", false, { ntfy: "loud", title: "Narthex: миссия завершена" });
+        log(
+          returned
+            ? "Миссия завершена после возврата: замечания закрыты. Автоцикл остановлен."
+            : "Миссия завершена Координатором. Автоцикл остановлен.",
+          false,
+          { tone: "ok", ntfy: "loud", title: "Narthex: миссия завершена" },
+        );
         return true;
       }
       const route = decisionRoute(decision.next, {

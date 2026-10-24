@@ -152,7 +152,11 @@ assert.match(emBlock, /await waitFor\(hasPrUi, patience\(C\.prCardWaitMs\), 500\
 assert.match(emBlock, /if \(!prUi\) \{/, 'маркер — только если интерфейса нет совсем');
 assert.match(src, /continueWaitMs: 20000/, 'ожидание Continue — 20 секунд');
 assert.match(src, /prCardWaitMs: 8000/, 'ожидание карточки PR — 8 секунд');
-assert.match(src, /бейджа и Continue на его странице нет/, 'в режиме «по маркеру» честно сказано про Continue');
+assert.match(
+  src,
+  /Бейджа Merged и Continue на странице нет/,
+  'в режиме «по маркеру» честно сказано про Continue',
+);
 
 // ── 4. Ветка читается осмысленно ────────────────────────────────────────────
 const bnFrom = src.indexOf('  function branchName() {');
@@ -169,4 +173,4 @@ const bn = new Function(
 });
 assert.equal(bn(), 'arena/9bde7bd4-chronicle-forge', 'выбрана ветка, а не заголовок чата');
 
-console.log('OK: narthex 1.4.41 — Continue ждётся после Merged, клик проверяется, ветка пишется в карточку');
+console.log('OK: narthex 1.4.42 — Continue ждётся после Merged, клик проверяется, ветка пишется в карточку');

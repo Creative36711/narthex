@@ -19,6 +19,13 @@ const to = src.indexOf('  async function finishMerge(', from);
 assert.ok(from > 0 && to > from, 'ensureMerged на месте');
 const block = src.slice(from, to);
 
+// 1.4.42: мерж по маркеру не выходит сразу — Continue ждётся в claimMerge.
+// Берём её настоящий исходник, а не заглушку: иначе проба проверяла бы себя.
+const claimFrom = src.indexOf('  async function claimMerge(');
+const claimTo = src.indexOf('  /**\n   * PR закрыт.');
+assert.ok(claimFrom > 0 && claimTo > claimFrom, 'claimMerge на месте');
+const claimBlock = src.slice(claimFrom, claimTo);
+
 function make({ ui = false, createOnly = false, store = new Map() } = {}) {
   const logs = [];
   const calls = { finishMerge: 0, finishClosed: 0, create: 0, merge: 0 };
@@ -27,7 +34,7 @@ function make({ ui = false, createOnly = false, store = new Map() } = {}) {
     'mergedFlag', 'closedFlag', 'continueButton', 'createPr', 'mergePr', 'finishMerge', 'finishClosed',
     'hasPrUi', 'waitFor', 'prLabelOf', 'sleep',
     // Проба идёт в видимой вкладке: ожидание не растягивается.
-    `const patience = (ms) => ms;\n${block}; return ensureMerged;`,
+    `const patience = (ms) => ms;\n${block}\n${claimBlock}\nreturn ensureMerged;`,
   );
   const ensureMerged = fn(
     { merged: 'cfn-merged:' },
@@ -126,4 +133,4 @@ assert.match(
 );
 assert.match(src, /merged === "claimed" \? "слит \(по маркеру\)"/, 'в журнале видно, что мерж принят по маркеру');
 
-console.log('OK: narthex 1.4.41 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');
+console.log('OK: narthex 1.4.42 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');

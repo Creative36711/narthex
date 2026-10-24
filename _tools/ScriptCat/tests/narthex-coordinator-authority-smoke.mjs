@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.41';
+const V = '1.4.42';
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
@@ -23,12 +23,14 @@ assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `вер�
 const promptFrom = src.indexOf('  function coordinatorPrompt(');
 const promptTo = src.indexOf('  // ───────────────────────────── ход исполнителя', promptFrom);
 const prompt = new Function(
-  'technicalInfo', 'rt', 'roleContext',
+  'technicalInfo', 'rt', 'roleContext', 'returnBlock',
   `${src.slice(promptFrom, promptTo)}; return coordinatorPrompt;`,
 )(
   () => 'ТЕХНИКА',
   () => 'NAR-1',
   () => 'Ты — Coordinator.',
+  // 1.4.42: блок «миссия возвращена» — часть промпта; в этой пробе миссия активна.
+  () => '',
 )(
   { id: 'mission-1', properties: { 'Миссия': { title: [{ plain_text: 'NAR-1' }] }, 'ТЗ URL': { url: 'https://x' } } },
   { name: 'Coordinator', fn: 'Coordinator' },
