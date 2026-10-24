@@ -72,6 +72,7 @@
     "check:contracts": "tsx scripts/contracts-check.mts",
     "check:brand": "tsx scripts/brand-guard.mts",
     "check:version": "tsx scripts/version.mts check",
+    "check:playkit-bundle": "tsx scripts/check-playkit-bundle.mts",
     "version:bump": "tsx scripts/version.mts bump",
     "shot": "node scripts/visual/shot.mjs",
     "visual:shots": "node scripts/visual/shots.mjs"

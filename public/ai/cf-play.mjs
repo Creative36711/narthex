@@ -18341,7 +18341,7 @@ function analyzeCampaign(campaign2) {
   const parsedInk = Object.entries(campaign2.dialogues ?? {}).map(([path, source]) => ({
     path,
     parsed: parseInk(String(source))
-  }));
+  })).sort((a2, b2) => a2.path.localeCompare(b2.path));
   const graph = buildGraph(campaign2, parsedInk.map((d2) => d2.parsed));
   const startScene = String(meta2.starting_scene ?? "");
   const startLocation = String(meta2.starting_location ?? "");
@@ -18648,7 +18648,9 @@ function analyzeCampaign(campaign2) {
     flagsWritten: flagWrites.size,
     flagsRead: flagReads.size
   };
-  findings.sort((a2, b2) => severityRank(a2.severity) - severityRank(b2.severity) || a2.code.localeCompare(b2.code));
+  findings.sort(
+    (a2, b2) => severityRank(a2.severity) - severityRank(b2.severity) || a2.code.localeCompare(b2.code) || a2.message.localeCompare(b2.message) || String(a2.where ?? "").localeCompare(String(b2.where ?? ""))
+  );
   return {
     campaign: { id: String(meta2.id ?? ""), title: String(meta2.title ?? ""), version: String(meta2.version ?? "") },
     counts,

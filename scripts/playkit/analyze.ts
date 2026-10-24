@@ -256,10 +256,17 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
   const meta = campaign.meta ?? {}
   const dialogues: GraphReport['dialogues'] = []
 
-  const parsedInk = Object.entries(campaign.dialogues ?? {}).map(([path, source]) => ({
-    path,
-    parsed: parseInk(String(source)),
-  }))
+  // Порядок диалогов не должен зависеть от того, как файлы прочитались:
+  // кампания собирается из параллельных чтений, и ключи `dialogues` приходили
+  // в разном порядке — тогда `report.json`, `graph.json` и их md-версии
+  // менялись от прогона к прогону при том же кампейне. Сортируем по пути —
+  // и граф, и находки становятся воспроизводимыми.
+  const parsedInk = Object.entries(campaign.dialogues ?? {})
+    .map(([path, source]) => ({
+      path,
+      parsed: parseInk(String(source)),
+    }))
+    .sort((a, b) => a.path.localeCompare(b.path))
 
   const graph = buildGraph(campaign, parsedInk.map((d) => d.parsed))
   const startScene = String(meta.starting_scene ?? '')
@@ -588,7 +595,13 @@ export function analyzeCampaign(campaign: AnyObj): GraphReport {
     flagsRead: flagReads.size,
   }
 
-  findings.sort((a, b) => severityRank(a.severity) - severityRank(b.severity) || a.code.localeCompare(b.code))
+  findings.sort(
+    (a, b) =>
+      severityRank(a.severity) - severityRank(b.severity) ||
+      a.code.localeCompare(b.code) ||
+      a.message.localeCompare(b.message) ||
+      String(a.where ?? '').localeCompare(String(b.where ?? '')),
+  )
   return {
     campaign: { id: String(meta.id ?? ''), title: String(meta.title ?? ''), version: String(meta.version ?? '') },
     counts,
