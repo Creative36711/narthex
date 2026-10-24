@@ -153,8 +153,10 @@ assert.match(src, /returned && !\/возврат\/i\.test\(rt\(mission\.properti
 assert.match(src, /done-with-remarks/, 'это пауза с понятной причиной');
 assert.match(src, /return-empty/, 'пустые замечания тоже пауза, а не молчаливый ход');
 
-// ── 4. Плашка: одна строка вместо двух ─────────────────────────────────────
-const plaqueFrom = src.indexOf('    let plaqueClosed = 0;');
+// ── 4. Плашка: одна строка, и только по факту ──────────────────────────────
+// 1.4.45: «закрыть заранее» вырезано — первая попытка не срабатывала, и в
+// журнале появлялась вторая такая же строка со счётчиком закрытий.
+const plaqueFrom = src.indexOf('    // Плашка «Эта задача была выполнена успешно?» закрывает поле ввода.');
 const plaqueTo = src.indexOf('if (!editor) {', plaqueFrom);
 const plaqueBlock = src.slice(plaqueFrom, plaqueTo);
 assert.ok(plaqueFrom > 0 && plaqueTo > plaqueFrom, 'блок закрытия плашки на месте');
@@ -163,7 +165,9 @@ assert.equal(
   1,
   'о плашке говорится одной строкой за шаг',
 );
-assert.match(plaqueBlock, /plaqueClosed \+= closed/, 'второе закрытие прибавляется к первому');
+assert.match(plaqueBlock, /const \{ editor, closed, overlay \} = await ensureComposer\(\)/, 'плашку закрывает поиск поля ввода');
+assert.match(plaqueBlock, /if \(closed\) log\(/, 'строка журнала — по факту закрытия');
 assert.match(plaqueBlock, /«задача выполнена»/, 'формулировка осталась прежней');
+assert.doesNotMatch(plaqueBlock, /plaqueClosed/, 'счётчика закрытий больше нет');
 
-console.log('OK: narthex 1.4.44 — конец миссии зелёной строкой и пушем, возврат доработкой, плашка одной строкой');
+console.log('OK: narthex 1.4.45 — конец миссии зелёной строкой и пушем, возврат доработкой, плашка одной строкой');

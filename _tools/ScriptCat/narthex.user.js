@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.44
+// @version      1.4.45
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -67,6 +67,7 @@
     captchaGuardMs: 8000, // сколько после «отправлено» ждём капчу: она всплывает с задержкой
     stalledMs: 2700000, // 45 минут — и только для карточки, по которой ход потерян
     longWaitNoticeMs: 600000, // раз в 10 минут напоминаем, что долгое ожидание — норма
+    pollPauseCount: 3, // столько опросов подряд — уже поломка промпта, а не случайность
   };
 
   const K = {
@@ -268,7 +269,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.44";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.45";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2715,8 +2716,13 @@
   function skipCardButton() {
     for (const message of document.querySelectorAll('[data-agent-transcript-message="true"]')) {
       for (const button of message.querySelectorAll("button")) {
-        if (/^skip$/i.test(`${button.getAttribute("aria-label") || ""} ${button.textContent || ""}`.trim()) && visible(button))
-          return button;
+        if (!/^skip$/i.test(`${button.getAttribute("aria-label") || ""} ${button.textContent || ""}`.trim())) continue;
+        if (!visible(button)) continue;
+        // Skip внутри группы вариантов — это вопрос агента, а не плашка.
+        // Один клик закрыл бы сразу весь опросник, и остальные вопросы исчезли
+        // бы, не попав ни в журнал, ни в журнал попытки (24.10, NAR-1.12).
+        if (button.closest?.('[role="radiogroup"]')) continue;
+        return button;
       }
     }
     return null;
@@ -2795,6 +2801,207 @@
     return "none";
   }
 
+  // ───────────────────────────── опрос агента ─────────────────────────────
+
+  /**
+   * Опрос вместо ответа.
+   *
+   * 24.10 Kernel на середине NAR-1.12 остановился и выставил карточку с
+   * вопросом «May I expand the write zone for this task?»: кнопки с вариантами,
+   * свободное поле и `Skip`. Для цикла это конец хода без маркера — работа не
+   * сдана, карточка висит в Running, ждать нечего.
+   *
+   * Отвечать за человека скрипт не берётся, но и молчать нельзя: он
+   * перечисляет вопросы и варианты в журнал попытки и отправляет «Решай сам» —
+   * ровно то, что ответил бы Мастер. `Skip` не годится: он закрывает весь
+   * опросник разом, и остальные вопросы пропали бы бесследно.
+   */
+  const POLL_REPLY = "Решай сам";
+
+  const buttonLabel = (b) =>
+    `${(b && b.getAttribute && b.getAttribute("aria-label")) || ""} ${(b && b.textContent) || ""}`.trim();
+
+  /** Текст вопроса: подпись группы, иначе заголовок карточки. */
+  function pollQuestionText(group) {
+    const label = String(group.getAttribute("aria-label") || "").trim();
+    if (label) return label;
+    const head = group.querySelector(".body-base, .body-sm");
+    const text = String((head && (head.innerText || head.textContent)) || group.innerText || "");
+    return text.replace(/\s+/g, " ").trim().slice(0, 300);
+  }
+
+  /**
+   * Вопросы в последнем ответе агента.
+   *
+   * Смотрим только последнее сообщение: отвеченные карточки прошлых ходов
+   * остаются в транскрипте, и трогать их нельзя. В одном опросе может быть
+   * несколько вопросов — у каждого своя группа `radiogroup`, свои варианты и
+   * своё поле свободного ответа.
+   */
+  function pollQuestions(root = document) {
+    const last = [...root.querySelectorAll('[data-agent-transcript-message="true"]')]
+      .filter((n) => !n.querySelector('[data-user-message-layout="true"]'))
+      .at(-1);
+    if (!last) return [];
+    const id = nodeId(last);
+    const out = [];
+    for (const group of last.querySelectorAll('[role="radiogroup"]')) {
+      if (!visible(group)) continue;
+      const buttons = [...group.querySelectorAll("button")];
+      out.push({
+        id,
+        el: group,
+        question: pollQuestionText(group),
+        options: [...group.querySelectorAll('[role="radio"]')].map((b) =>
+          String(b.innerText || b.textContent || "").replace(/\s+/g, " ").trim().slice(0, 160),
+        ),
+        input: group.querySelector('input[type="text"], input:not([type])') || null,
+        submit: buttons.find((b) => /submit custom response|отправить/i.test(buttonLabel(b))) || null,
+        skip: buttons.find((b) => /^skip$/i.test(buttonLabel(b))) || null,
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Записать текст в поле так, чтобы это увидел React.
+   *
+   * `input.value = …` меняет свойство экземпляра, а React читает сеттер
+   * прототипа: без него кнопка Submit остаётся disabled и ответ не уходит.
+   */
+  function fillInput(input, value) {
+    const proto = Object.getPrototypeOf(input);
+    const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+    if (setter) setter.call(input, value);
+    else input.value = value;
+    const doc = input.ownerDocument || document;
+    const view = doc.defaultView || window;
+    for (const name of ["input", "change"]) {
+      input.dispatchEvent(new view.Event(name, { bubbles: true }));
+    }
+  }
+
+  /** Запись в журнал попытки: вопрос агента — часть хода, его читает Координатор. */
+  function pollLogEntry(role, questions, reply) {
+    const hash = textHash(questions.map((q) => q.question).join("|"));
+    const marker = `<!-- CF_POLL ${questions.map((q) => q.id).join(",")}:${hash} -->`;
+    return [
+      marker,
+      `## Вопрос агента вместо работы (${(role && role.name) || "агент"})`,
+      "",
+      `- когда: ${nowIso()}`,
+      `- ответ скрипта: «${reply}»`,
+      "- ответ человека не запрашивался: опрос останавливает ход, цикл отвечает сам",
+      "",
+      ...questions.flatMap((q, i) => [
+        `### Вопрос ${i + 1}`,
+        q.question || "(без текста)",
+        "",
+        ...(q.options.length ? q.options.map((o) => `- ${o}`) : ["- вариантов не было"]),
+        "",
+      ]),
+    ].join("\n");
+  }
+
+  let pollBusy = false;
+
+  /**
+   * Разобрать опрос: перечислить вопросы, ответить «Решай сам», записать в
+   * журнал попытки.
+   *
+   * Возвращает `"answered"` (только что ответили), `"waiting"` (опрос уже
+   * отвечен, агент ещё не продолжил) или `null` (опроса нет).
+   */
+  async function answerPolls(role, expect = null) {
+    if (pollBusy) return "waiting";
+    const found = pollQuestions();
+    if (!found.length) return null;
+    const who = (role && role.name) || "агент";
+    // Ключ — ход агента: повторный тик не отвечает на тот же вопрос дважды.
+    const key = `cfn-poll:${(expect && (expect.runId || expect.turnId || expect.ref)) || location.pathname}`;
+    const handled = new Set(GM_getValue(key, []));
+    const pending = found.filter((q) => !handled.has(`${q.id}:${q.question}`));
+    if (!pending.length) return "waiting";
+
+    pollBusy = true;
+    try {
+      // Вопросы перечисляются ДО ответа: после Submit карточка
+      // перерисовывается, и остальные могли бы исчезнуть вместе с ней.
+      for (const q of pending) {
+        log(
+          `${who} спросил вместо работы: «${firstLine(q.question, 200)}»` +
+            `${q.options.length ? ` — вариантов ${q.options.length}` : ""}.`,
+          false,
+          { tone: "warn", ntfy: "quiet", title: "Narthex: агент спросил" },
+        );
+      }
+      let answered = 0;
+      for (const q of pending.filter((x) => x.input && x.submit)) {
+        fillInput(q.input, POLL_REPLY);
+        await sleep(150);
+        if (q.submit.disabled) {
+          const view = (q.input.ownerDocument || document).defaultView || window;
+          q.input.dispatchEvent(new view.KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true }));
+        } else {
+          q.submit.click();
+        }
+        handled.add(`${q.id}:${q.question}`);
+        answered += 1;
+        await sleep(400);
+      }
+      if (answered < pending.length) {
+        // Свободного ответа дать некуда. Skip закрывает сразу весь опросник,
+        // поэтому идём на него только здесь — когда вопросы уже перечислены
+        // в журнале, — и прямо говорим, что часть могла не прочитаться.
+        const skip = pending.find((q) => q.skip)?.skip;
+        if (skip) {
+          skip.click();
+          for (const q of pending) handled.add(`${q.id}:${q.question}`);
+          log(
+            `${who}: свободного ответа в опросе нет — нажал Skip, вопросы записаны в журнал. ` +
+              "Если вопросов было несколько, прочитан только первый.",
+            true,
+            { tone: "warn" },
+          );
+        }
+      }
+      GM_setValue(key, [...handled].slice(-20));
+      if (answered) {
+        log(
+          `Ответил ${who} за Мастера: «${POLL_REPLY}» (вопросов ${answered}). ` +
+            "Сам вопрос и варианты записаны в журнал попытки.",
+          false,
+          { tone: "warn" },
+        );
+      }
+      const logId = expect && expect.logId;
+      if (logId) {
+        const all = found.map(({ id, question, options }) => ({ id, question, options }));
+        const entry = pollLogEntry(role, all, POLL_REPLY);
+        try {
+          await gateway("append", logId, { marker: entry.split("\n")[0], entry });
+        } catch (e) {
+          log(`Вопрос агента не записался в журнал попытки: ${e.message}`, true);
+        }
+      }
+      if (answered && expect && expect.runId) {
+        const strikes = (Number(GM_getValue(`cfn-poll-count:${key}`, 0)) || 0) + 1;
+        GM_setValue(`cfn-poll-count:${key}`, strikes);
+        if (strikes >= C.pollPauseCount) {
+          pause(
+            `${who} спрашивает вместо работы ${strikes} раз за ход. Это не случайность: ` +
+              "противоречие в карточке или в промпте. Проверьте Scope и зону записи, " +
+              "затем нажмите «Продолжить».",
+            { kind: "poll-loop", ref: (expect && expect.ref) || "", runId: (expect && expect.runId) || "" },
+          );
+        }
+      }
+      return answered ? "answered" : "waiting";
+    } finally {
+      pollBusy = false;
+    }
+  }
+
   /**
    * Ждём появления редактора.
    *
@@ -2805,9 +3012,10 @@
   async function ensureComposer(timeoutMs = 20000) {
     const deadline = Date.now() + timeoutMs;
     let closed = 0;
+    let polled = 0;
     while (Date.now() < deadline) {
       const editor = composer();
-      if (editor) return { editor, closed, overlay: false };
+      if (editor) return { editor, closed, polled, overlay: false };
 
       const panel = closeCompletionPanel();
       if (panel === "closed") {
@@ -2817,17 +3025,17 @@
         await sleep(700);
         continue;
       }
-      const skip = skipCardButton();
-      if (skip) {
-        skip.click();
-        closed += 1;
-        dbg("editor: нажал Skip на карточке опроса");
-        await sleep(600);
+      // Поле не находится, а в чате висит вопрос агента: отвечаем на него, а не
+      // жмём Skip. Иначе первый же вопрос тихо закрывал бы весь опросник.
+      if ((await answerPolls(null)) === "answered") {
+        polled += 1;
+        dbg("editor: ответил на вопрос агента");
+        await sleep(700);
         continue;
       }
       await sleep(400);
     }
-    return { editor: null, closed, overlay: completionPanels().length > 0 };
+    return { editor: null, closed, polled, overlay: completionPanels().length > 0 };
   }
 
   /** Короткая диагностика, почему поле не нашлось: без неё остаётся гадать. */
@@ -3353,21 +3561,13 @@
     // Плашка «Эта задача была выполнена успешно?» закрывает поле ввода. Мастер
     // просит убирать её скриптом: человек не должен щёлкать по опросу, чтобы
     // цикл поехал дальше.
-    // Считаем закрытия за этот шаг и говорим о них ОДНОЙ строкой. 24.10 в
-    // 15:20:17–15:20:18 в журнале оказались две почти одинаковые записи: первая
-    // закрывала плашку ради поля ввода, вторая — ту же плашку, которую backend
-    // успел вернуть, пока скрипт искал редактор. Со стороны это выглядело как
-    // сбой, а не как работа.
-    let plaqueClosed = 0;
-    if (completionPlaque() && closeCompletionPlaque() === "closed") plaqueClosed += 1;
-
+    //
+    // Закрываем её ОДИН раз и только тогда, когда поле ввода правда не
+    // находится. Прежняя попытка «закрыть заранее» не срабатывала (backend
+    // возвращал плашку при перерисовке) и давала вторую такую же строку в
+    // журнале — со счётчиком закрытий, который Мастер читал как сбой.
     const { editor, closed, overlay } = await ensureComposer();
-    plaqueClosed += closed;
-    if (plaqueClosed) {
-      log(
-        `Убрал плашку «задача выполнена» — она закрывала поле ввода${plaqueClosed > 1 ? ` (${plaqueClosed} раза)` : ""}.`,
-      );
-    }
+    if (closed) log("Убрал плашку «задача выполнена» — она закрывала поле ввода.");
     if (!editor) {
       pendingSay(
         pending,
@@ -3994,7 +4194,29 @@
       role.gate ? `Гейт: ${role.gate}.` : "",
       `Регламент: ${C.pageUrl}`,
       roleRule(role),
+      workRules(role),
     ].filter(Boolean).join("\n");
+  }
+
+  /**
+   * Дисциплина хода: зоны, вопросы, решения.
+   *
+   * 24.10 Kernel на середине NAR-1.12 остановился и выставил опрос «May I
+   * expand the write zone for this task?». Формально он был прав: в
+   * техническом блоке стояла зона `src/core/`, а Scope карточки разрешал ещё
+   * пробу, `package.json` и запись решения. Два правила это снимают: зона —
+   * рамка по умолчанию, Scope карточки её расширяет на этот ход; вопросов не
+   * задаём вовсе.
+   */
+  function workRules(role) {
+    return [
+      "КАК РЕШАТЬ",
+      `Зона записи${role && role.zone ? ` (${role.zone})` : ""} — рамка по умолчанию. Scope карточки расширяет её на этот ход: если в Scope назван файл, каталог или артефакт, писать туда можно. Противоречия здесь нет — на этот ход карточка главнее общей рамки.`,
+      "Не задавай вопросов, не создавай опросов и не проси разрешений. Опрос останавливает ход: работа не сдаётся, карточка висит в Running, а цикл ждёт ответа, которого никто не даст.",
+      "Неоднозначность решаешь сам: минимальное изменение, допущение — одной строкой в отчёт «Допущение: …»; если это меняет контракт, то в docs/decisions.",
+      "Если решение правда не твоё — допиши в отчёт строку «Нужно решение Мастера: …» и сдай ход. Поднимет его Координатор или Мастер, а не опрос.",
+      "Незаконченный ход — это отчёт без маркера, а не вопрос с вариантами.",
+    ];
   }
 
   /** Порядок работы для того, кто пишет код: коммит, пуш, PR, мерж. */
@@ -4162,6 +4384,8 @@
       "Черновики — твой задел: бери из них, правь под оракул миссии и выдавай. В архив — только если черновик дублирует уже выданное.",
       "Если у черновика помечено, что роль не может получить работу («Статус «Ждёт»», «нет Agent URL», «нет в «Ролях»») — выдать его некому: назначь в «Кому» активную роль (правка черновика — твоё право) или оставь в Draft и напиши, кого он ждёт.",
       "Статус роли и Agent URL — зона Мастера: агента в Arena создаёт он, а не ты. Ты их не меняешь — только называешь в отчёте, какую роль нужно включить.",
+      "Scope карточки должен покрывать все артефакты её Оракула: если команда-оракул запускает пробу, а пробы нет в Scope — карточка неполная. Пробу, npm-скрипт и запись решения перечисляй в Scope прямо: иначе исполнитель остановится на границе зоны вместо работы.",
+      "Если для хода нет роли (её нет в «Ролях», она «Ждёт» или у неё пустой Agent URL) и заменить её некем — останови цикл сам: в маркере next = \"blocked\" и need = \"<роль>\". Других поводов останавливать цикл у тебя нет: всё остальное решай сам и продолжай.",
       "Приёмка и выдача — не два хода. Принял Submitted — в этом же ответе выстави следующую карточку Ready и назови в next исполнителя, а не Coordinator.",
       "Пустая очередь после твоего ответа считается незаконченным ходом.",
       "",
@@ -4591,6 +4815,20 @@
         return true;
       }
       log(`Маркер Координатора найден: дальше «${decision.next}» (turn ${decision.turn_id || expect.turnId}).`);
+      if (norm(decision.next) === "blocked") {
+        // Право Координатора остановить цикл. Повод ровно один: нужной роли
+        // нет, и заменить её некем — агента в Arena создаёт Мастер. Всё
+        // остальное (пустая очередь, спорный Scope, неясное ТЗ) Координатор
+        // решает сам, иначе «остановлю, когда мне неудобно» съедает цикл.
+        const need = String(decision.need || "").trim();
+        pause(
+          `Координатор остановил цикл: ${need ? `нужна роль «${need}»` : "нужна роль, которой нет в «Ролях»"}. ` +
+            "Создайте агента в Arena, заполните «Agent URL», поставьте «Статус» = «Активна» и нажмите «Продолжить». " +
+            "Других поводов останавливать цикл у Координатора нет.",
+          { kind: "blocked-role", ref: mission.id, need, notifyTitle: "Narthex: нужна роль" },
+        );
+        return true;
+      }
       if (decision.next === "done") {
         // Гейт в роли говорит «done только при нуле открытых задач», но верить
         // на слово в автоцикле опасно: закрытая миссия с живыми карточками
@@ -4794,6 +5032,7 @@
     );
     return Boolean(await sendToRole(role, executorPrompt(card, role, payload, logId, runId), "dispatch", card.id, {
       runId,
+      logId,
       title: taskTitle(card),
     }));
   }
@@ -5142,6 +5381,31 @@
           true,
         );
         expect = null;
+      }
+
+      // Опрос вместо ответа — не ответ. Разбираем его раньше любых
+      // напоминаний: иначе «маркера нет» превращается в напоминание агенту,
+      // который просто ждёт ответа на свой вопрос (24.10, NAR-1.12).
+      const poll = await answerPolls(me, expect);
+      if (poll === "answered") {
+        log(`Жду, что ${me.name} напишет после ответа на вопрос.`);
+        return;
+      }
+      if (poll === "waiting") {
+        // Опрос уже отвечен, продолжения ещё нет. Ждём, но не бесконечно:
+        // вопрос в чате — не «свежее сообщение», и общий сторож тишины на нём
+        // не сработал бы, оставив карточку в Running навсегда.
+        const since = Number((expect && (expect.sentAt || expect.at)) || 0);
+        const waitedPoll = since ? Date.now() - since : 0;
+        if (expect && waitedPoll > C.replyWaitMs) {
+          const stuck = expect;
+          dropHandoff(
+            `${me.name}: опрос отвечен, но продолжения нет ${Math.round(waitedPoll / 60000)} мин — ` +
+              "похоже, ход встал. Очередь и ожидание сняты; нажмите «Продолжить» и пройдите шаг заново.",
+          );
+          await releaseUndelivered(stuck, "агент не продолжил после ответа на вопрос");
+        }
+        return;
       }
 
       // Ждать ответа бесконечно нельзя: если агент не прислал ни строки за

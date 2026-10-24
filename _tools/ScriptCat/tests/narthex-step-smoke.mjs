@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.44/, 'версия 1.4.44');
+assert.match(src, /@version\s+1\.4\.45/, 'версия 1.4.45');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -80,7 +80,7 @@ assert.match(sendBlock, /function skipCardButton\(\)/, 'карточка с кн
 assert.match(sendBlock, /data-agent-transcript-message/, 'ищем её в транскрипте, как dispatch.user.js');
 assert.match(sendBlock, /async function ensureComposer\(/, 'редактор ждём, освобождая чат');
 assert.match(sendBlock, /if \(closed >= 2\) break;/, 'клик-шторм ограничен: не больше двух закрытий');
-assert.match(sendBlock, /if \(editor\) return \{ editor, closed, overlay: false \};/, 'карточку не трогаем, если поле ввода есть');
+assert.match(sendBlock, /if \(editor\) return \{ editor, closed, polled, overlay: false \};/, 'карточку не трогаем, если поле ввода есть');
 assert.ok(!/composerCovered/.test(src), 'проверка «накрыт» больше не блокирует ввод');
 const ensureCall = sendBlock.indexOf('await ensureComposer()');
 const writeCall = sendBlock.indexOf('writePrompt(editor, pending.text)');

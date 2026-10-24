@@ -110,22 +110,23 @@ assert.doesNotMatch(
   'до проверки заявки кнопки не трогаются',
 );
 
-// ── 5. Плашку убирает скрипт, до вставки ───────────────────────────────────
+// ── 5. Плашку убирает скрипт — один раз и только по делу ───────────────────
+// 1.4.45: «закрыть заранее» вырезано. Первая попытка не срабатывала (backend
+// возвращал плашку при перерисовке), и в журнале появлялась вторая такая же
+// строка — «Убрал плашку … (2 раза)». Мастер читал это как сбой.
 const sendFrom = src.indexOf('async function consumePending(manual = false) {');
 const sendBlock = src.slice(sendFrom, src.indexOf('async function submitExecutor(', sendFrom));
-const closeAt = sendBlock.indexOf('closeCompletionPlaque()');
+assert.doesNotMatch(sendBlock, /closeCompletionPlaque\(\)/, 'заранее плашку не закрываем');
 const composerAt = sendBlock.indexOf('await ensureComposer()');
-assert.ok(closeAt > 0 && composerAt > closeAt, 'плашка закрывается до поиска поля ввода');
-assert.match(
-  sendBlock.slice(closeAt - 400, closeAt + 400),
-  /Убрал плашку «задача выполнена»/,
-  'в журнале видно, что плашку убрал скрипт',
-);
+const plaqueLog = 'Убрал плашку «задача выполнена» — она закрывала поле ввода.';
+const logAt = sendBlock.indexOf(plaqueLog);
+assert.ok(composerAt > 0 && logAt > composerAt, 'одна строка журнала — после поиска поля, по факту');
+assert.doesNotMatch(sendBlock, /раза\)/, 'счётчика «(2 раза)» больше нет');
 assert.match(src, /function ensureComposer\(timeoutMs = 20000\)/, 'ensureComposer на месте');
 assert.match(
   src,
-  /editor: null, closed, overlay: completionPanels\(\)\.length > 0/,
+  /editor: null, closed, polled, overlay: completionPanels\(\)\.length > 0/,
   'если плашка осталась и поле не нашлось — это видно в причине',
 );
 
-console.log('OK: narthex 1.4.44 — плашка = агент свободен, её кнопки не PR-интерфейс, при merged: true кликов нет');
+console.log('OK: narthex 1.4.45 — плашка = агент свободен, её кнопки не PR-интерфейс, при merged: true кликов нет');
