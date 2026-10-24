@@ -1,4 +1,4 @@
-// Проба 1.4.34: Координатор сам распоряжается очередью — включая черновики.
+// Проба 1.4.35: Координатор сам распоряжается очередью — включая черновики.
 //
 // Случай Мастера (2026-10-24). На приёмке NAR-1.8 Координатор написал:
 // «старый Draft 1.9 архивирован — перевести Draft в Ready я не вправе», и
@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.34';
+const V = '1.4.35';
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
@@ -37,6 +37,7 @@ const prompt = new Function(
   '',
   '',
   'Черновики (предложения — выдаёшь их ты): NAR-1.10 · Регрессия и отчёт (Build/Release, Sequence 100).',
+  'Готовы к выдаче: NAR-1.10 · Регрессия и отчёт (Build/Release, Sequence 100).',
 );
 
 assert.match(prompt, /1 Submitted, 0 Running, 1 Ready, 0 Rework, 2 Draft/, 'черновики есть в счётчике очереди');
@@ -48,6 +49,8 @@ assert.match(prompt, /Движок ставит Running и Submitted/, 'гран
 assert.match(prompt, /Ready ставишь тоже ты/, 'Ready — не движок, а Координатор');
 assert.match(prompt, /или переведи в Ready подходящий Draft/, 'черновик можно выдать в том же ходе');
 assert.match(prompt, /Черновики — твой задел/, 'сказано, зачем черновики');
+assert.match(prompt, /Готовы к выдаче: NAR-1\.10 · Регрессия и отчёт \(Build\/Release, Sequence 100\)/, 'Ready перечислен с ролью');
+assert.match(prompt, /next называй ролью той карточки, которую выдаёшь/, 'адресат берётся из карточки');
 assert.match(prompt, /Если у черновика помечено, что роль не может получить работу/, 'видно, что роль не может получить работу');
 assert.match(prompt, /Статус роли и Agent URL — зона Мастера/, 'статус роли — не зона Координатора');
 assert.doesNotMatch(prompt, /ставит движок\./, 'прежней фразы «Ready … ставит движок» больше нет');
@@ -143,6 +146,37 @@ assert.ok(
   'без списка ролей пометки нет',
 );
 
+// ── 2a. readyLine: что лежит в Ready — с ролью ─────────────────────────────
+const rFrom = src.indexOf('  function readyLine(cards) {');
+const rTo = src.indexOf('  async function coordinatorStep(');
+assert.ok(rFrom > 0 && rTo > rFrom, 'readyLine на месте');
+const readyLine = new Function(
+  'C', 'taskTitle', 'taskRole',
+  `${src.slice(rFrom, rTo)}; return readyLine;`,
+)(
+  { readyLineMax: 2 },
+  (card) => card.properties['Запрос'].title[0].text.content,
+  (card) => card.properties['Кому']?.select?.name || '',
+);
+
+assert.match(readyLine([]), /Ready пуст/, 'пустой Ready назван словами');
+assert.match(
+  readyLine([card('NAR-1.10 · Регрессия и отчёт', 'Build/Release', 100)]),
+  /NAR-1\.10 · Регрессия и отчёт \(Build\/Release, Sequence 100\)/,
+  'у готовой карточки видно, кому её выдавать',
+);
+assert.match(readyLine([card('Без роли', '', 10)]), /роль не задана/, 'пустая роль названа');
+{
+  const many = readyLine([
+    card('A · один', 'Kernel', 10),
+    card('B · два', 'Kernel', 20),
+    card('C · три', 'Kernel', 30),
+  ]);
+  assert.match(many, /и ещё 1/, 'лишнее сверх readyLineMax свёрнуто');
+  assert.ok(!/C · три/.test(many), 'свёрнутые не перечисляются');
+  assert.ok(many.indexOf('A · один') < many.indexOf('B · два'), 'порядок по Sequence');
+}
+
 // ── 3. queueOf считает Draft ───────────────────────────────────────────────
 const qFrom = src.indexOf('  async function queueOf(mission) {');
 const qTo = src.indexOf('  function draftLine(cards, known = []) {');
@@ -163,7 +197,7 @@ queueOf({ id: 'm1' }).then((queue) => {
   assert.match(plan, /const directory = await roleRows\(\)/, 'и сверяется со всей базой «Роли», а не только с активными');
   assert.match(
     plan,
-    /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts\)/,
+    /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts, readyLine\(queue\.ready\)\)/,
     'и уходит в промпт',
   );
   assert.match(plan, /\$\{\(queue\.draft \|\| \[\]\)\.length\} Draft/, 'запасной счётчик тоже знает про Draft');

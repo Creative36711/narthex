@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.34
+// @version      1.4.35
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -59,6 +59,7 @@
     markerReminders: 2, // напоминаний до паузы: дальше решает Мастер
     minAnswerChars: 200, // маркер без отчёта — не ответ: короче — просим отчёт заново
     draftLineMax: 6, // сколько черновиков Координатор видит списком в промпте
+    readyLineMax: 6, // сколько карточек Ready Координатор видит списком в промпте
     insertRetries: 3, // с какой попытки вставки в редактор звать Мастера (раньше — сами)
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
@@ -3500,13 +3501,14 @@
     return `Журнал ответа ${who} (${id}): ${link} — прочитай, если нужны детали ответа.`;
   }
 
-  function coordinatorPrompt(mission, role, queueSummary, turnId, note = "", answerLine = "", drafts = "") {
+  function coordinatorPrompt(mission, role, queueSummary, turnId, note = "", answerLine = "", drafts = "", ready = "") {
     return [
       technicalInfo(role),
       "",
       `Миссия: ${rt(mission.properties["Миссия"])}.`,
       `ТЗ: ${mission.properties["ТЗ URL"]?.url || "не задано"}`,
       `Очередь: ${queueSummary}`,
+      ready,
       drafts,
       answerLine,
       note ? `Комментарий: ${note}` : "",
@@ -3514,6 +3516,7 @@
       "Очередь — твоя. Ты не только нарезаешь карточки, но и выдаёшь их: черновик (Draft) → Ready, правка полей черновика и архив лишнего — такие же твои действия, как порядок и число Ready.",
       "Мастер и Архитектор пишут только черновики: Draft — предложение, а не приказ. Работу исполнителю выдаёшь ты, не дожидаясь Мастера.",
       "Движок ставит Running и Submitted. Accepted и Rework ставишь ты. Ready ставишь тоже ты — и новой карточке, и черновику, который решил выдать.",
+      "next называй ролью той карточки, которую выдаёшь: у готовой она написана в списке «Готовы к выдаче», у новой — та, что ты поставил в «Кому». Назвать чужую роль — значит остановить ход подсказкой вместо выдачи.",
       "Карточку, по которой уже есть ответ (Submitted или Accepted), обратно в Ready не возвращай — это повторная выдача той же работы.",
       "Оракул и инварианты менять нельзя: только ADR proposed и пауза миссии.",
       "",
@@ -3852,6 +3855,28 @@
     return `Черновики (предложения — выдаёшь их ты): ${shown.join("; ")}${more}.`;
   }
 
+  /**
+   * Что уже лежит в Ready — с ролью и номером.
+   *
+   * 24.10 карточка NAR-1.10 вернулась в Ready после неудачной выдачи, а в
+   * строке «Очередь» видно только число: Координатор не знал, чья она, и мог
+   * назвать в next не ту роль — или создать дубликат «на всякий случай».
+   */
+  function readyLine(cards) {
+    const rows = [...(cards || [])].sort((a, b) => {
+      const sa = Number(a.properties?.["Sequence"]?.number ?? 0);
+      const sb = Number(b.properties?.["Sequence"]?.number ?? 0);
+      return sa - sb;
+    });
+    if (!rows.length) return "Готовы к выдаче: ничего — Ready пуст.";
+    const shown = rows.slice(0, C.readyLineMax).map((card) => {
+      const seq = card.properties?.["Sequence"]?.number;
+      return `${taskTitle(card)} (${taskRole(card) || "роль не задана"}, Sequence ${seq ?? "—"})`;
+    });
+    const more = rows.length > shown.length ? `; и ещё ${rows.length - shown.length}` : "";
+    return `Готовы к выдаче: ${shown.join("; ")}${more}.`;
+  }
+
   async function coordinatorStep(role, expect, manual = false) {
     const mission = await activeMission();
     if (!mission) {
@@ -3987,7 +4012,7 @@
     // статуса, Agent URL или самой роли.
     const directory = await roleRows().catch(() => []);
     const drafts = draftLine(queue.draft || [], directory);
-    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine, drafts), "plan", mission.id, {
+    await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine, drafts, readyLine(queue.ready)), "plan", mission.id, {
       missionId: mission.id,
       turnId,
       title: "план Координатора",
