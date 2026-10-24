@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.36
+// @version      1.4.37
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -245,7 +245,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.26";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.37";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1259,27 +1259,130 @@
     return list.length ? list.at(-1).id.replace("chat-message-", "") : "";
   }
 
+  /** Наша реплика: в транскрипте Arena она помечена отдельным layout. */
+  const isUserNode = (n) => Boolean(n.querySelector('[data-user-message-layout="true"]'));
+
+  /** Строка-результат: такая реплика — ответ, даже если цитирует задание. */
+  const RESULT_LINE = /\bCF_(?:AGENT|COORDINATOR)_RESULT\b/;
+
+  /**
+   * Наша служебная реплика, потерявшая разметку пользователя.
+   *
+   * `CF_TECH` есть только в задании и напоминании, но проверять его в лоб
+   * нельзя: агент вправе процитировать задание в отчёте, и тогда настоящий
+   * ответ выпадал бы из чтения. Цитата с маркером остаётся ответом.
+   */
+  const looksLikeOwnTask = (raw) => {
+    const text = String(raw || "");
+    if (RESULT_LINE.test(text)) return false;
+    return isOwnPrompt(text) || /^\s*(?:###\s*)?(?:Задача|НАПОМИНАНИЕ)\b/i.test(text);
+  };
+
+  /**
+   * Время из id сообщения — только как подсказка «из этого хода или из
+   * прошлого круга». Arena выдаёт id в формате UUIDv7 (первые 48 бит —
+   * миллисекунды), но опираться на это в основной логике нельзя: у неё есть
+   * сборки и с другим генератором id. Неправдоподобное время возвращает 0.
+   */
+  function idTime(id) {
+    const hex = String(id || "").replace(/-/g, "");
+    if (hex.length < 13) return 0;
+    const ms = Number.parseInt(hex.slice(0, 12), 16);
+    // Мусор и чужие эпохи — «времени нет». Всё, что попало в разумный
+    // диапазон, считается временем сообщения: по нему видно, из этого хода
+    // оно или из прошлого круга.
+    const floor = Date.UTC(2020, 0, 1);
+    if (!Number.isFinite(ms) || ms < floor || ms > Date.now() + 24 * 3600 * 1000) return 0;
+    return ms;
+  }
+
   /**
    * Сообщения, появившиеся ПОСЛЕ водяного знака. Водяной знак — id последнего
    * сообщения на момент отправки задания. Без него скрипт читал бы старые
    * ответы: кнопки Create/Merge PR тоже порождают сообщения агента.
+   *
+   * Граница считается по ПОЛНОМУ списку, вместе с нашими репликами. Прежде
+   * она считалась по списку одних ответов, а водяной знак — это id нашей же
+   * отправки: в отфильтрованном списке он не находился, и «новых сообщений»
+   * не оставалось вовсе. Так 24.10 в 14:27 скрипт сказал «новых сообщений
+   * нет», хотя ответ Build/Release с маркером лежал в чате: id сообщений
+   * Arena не упорядочены по времени (ответ `01a16da4-10b2…` пришёл позже
+   * запроса `01a16da4-1dc9…`, но меньше его).
    */
-  function messagesAfter(watermark) {
-    // Ответ агента — это не эхо собственного задания: пользовательские
-    // сообщения в транскрипте помечены отдельным layout, а служебные тексты
-    // узнаются по `CF_TECH` (в них лежит пример маркера).
-    const list = messages().filter(
-      (n) => !n.querySelector('[data-user-message-layout="true"]') && !isOwnPrompt(n.textContent),
-    );
+  function messagesAfter(watermark, seen) {
+    const all = messages();
     const one = (n) => ({ id: nodeId(n), text: messageText(n), raw: messageRaw(n), ended: replyEnded(n) });
-    if (!watermark) return list.map(one);
-    const out = [];
-    for (let i = list.length - 1; i >= 0; i -= 1) {
-      const id = nodeId(list[i]);
-      if (id === watermark) break;
-      out.unshift(one(list[i]));
+
+    let cut = -1;
+    if (watermark) cut = all.findIndex((n) => nodeId(n) === watermark);
+    if (cut === -1 && Array.isArray(seen) && seen.length) {
+      // Водяного знака в разметке нет (транскрипт перерисовали) — границу
+      // держит снимок id, снятый перед отправкой.
+      const known = new Set(seen);
+      const firstNew = all.findIndex((n) => !known.has(nodeId(n)));
+      cut = firstNew === -1 ? all.length - 1 : firstNew - 1;
     }
-    return out;
+    const tail = cut >= 0 ? all.slice(cut + 1) : all;
+
+    const list = tail.filter((n) => !isUserNode(n) && !looksLikeOwnTask(messageRaw(n))).map(one);
+    if (list.length) return list;
+    return rescueReplies();
+  }
+
+  /**
+   * Страховка от ошибки в границе: ответ агента с маркером ТЕКУЩЕЙ выдачи.
+   *
+   * Проверки две и обе обязательны: маркер ссылается на нашу выдачу, а само
+   * сообщение — из этого хода, а не из прошлого круга (id-время, допуск
+   * две минуты). Порядок в разметке здесь не используется: ответ может
+   * оказаться и выше нашего задания.
+   *
+   * Смысл: молчаливое «новых сообщений нет» при лежащем в чате ответе
+   * недопустимо, поэтому ответ ищется ещё и по маркеру.
+   */
+  function rescueReplies() {
+    const waiting = GM_getValue(K.expect, null);
+    const ref = norm(waiting && waiting.ref);
+    if (!ref) return [];
+    const since = Number((waiting && (waiting.sentAt || waiting.at)) || 0);
+    const all = messages();
+    const one = (n) => ({ id: nodeId(n), text: messageText(n), raw: messageRaw(n), ended: replyEnded(n) });
+    // Ответ этого хода стоит НИЖЕ нашего последнего задания. Это главная
+    // защита от прошлого круга: ответ по той же карточке (Rework) в старом
+    // месте разметки не должен сойти за новый.
+    let from = 0;
+    let sawTask = false;
+    for (let i = all.length - 1; i >= 0; i -= 1) {
+      if (isUserNode(all[i])) {
+        from = i + 1;
+        sawTask = true;
+        break;
+      }
+    }
+    const mine = (m) => {
+      const result = parseMarker(m.raw, "CF_AGENT_RESULT") || parseMarker(m.raw, "CF_COORDINATOR_RESULT");
+      if (!result) return false;
+      const ids = [result.dispatch_id, result.turn_id, result.mission_id].map(norm);
+      if (!ids.includes(ref)) return false;
+      const at = idTime(m.id);
+      return !(since && at && at < since - 120000);
+    };
+    let found = all.slice(from).filter((n) => !isUserNode(n)).map(one).filter(mine);
+    if (!found.length && !sawTask) {
+      // Наших реплик в разметке нет — место ответа взять неоткуда, остаётся
+      // маркер вместе с временем id.
+      found = all.filter((n) => !isUserNode(n)).map(one).filter(mine);
+    }
+    if (!found.length) return [];
+    const last = found.at(-1);
+    logThrottled(
+      `rescue:${ref}:${last.id}`,
+      `Ответ «${(waiting && waiting.roleName) || (waiting && waiting.roleId) || ""}» найден по маркеру выдачи ` +
+        `(сообщение ${last.id}): граница «после отправки» его пропускала. Ответ принят, повторять работу не нужно.`,
+      false,
+      C.longWaitNoticeMs,
+    );
+    return found;
   }
 
   const nodeId = (n) => n.id.replace("chat-message-", "");
@@ -1434,10 +1537,16 @@
    * останавливать шаг, иначе «Шаг» навсегда упирается в прошлую генерацию.
    */
   const stopIsStale = (el) => {
-    const msg = el?.closest?.("[data-agent-transcript-message]");
-    if (!msg) return false;
-    if (replyEnded(msg)) return true;
     const all = [...document.querySelectorAll("[data-agent-transcript-message]")];
+    const msg = el?.closest?.("[data-agent-transcript-message]");
+    // Кнопка вне сообщений — панель над полем ввода. Приписать её конкретному
+    // ответу нельзя, поэтому смотрим на последний ответ: если он закончился,
+    // генерации нет и это остаток прошлой отрисовки (24.10, 14:20: сразу
+    // после перехода к Build/Release «Шаг» сказал «агент ещё отвечает», хотя
+    // агент был спокоен, а ответ ещё не начинался). Ответа в чате ещё нет
+    // вовсе (первый ход) — тогда верим кнопке.
+    if (!msg) return all.length > 0 && replyEnded(all.at(-1));
+    if (replyEnded(msg)) return true;
     return all.length > 0 && all.at(-1) !== msg;
   };
 
@@ -1650,10 +1759,18 @@
       if (manual) {
         const sentMin = expect.sentAt ? Math.max(1, Math.round((Date.now() - expect.sentAt) / 60000)) : 0;
         const delivered = expect.verified === true ? "доставка подтверждена" : "доставка не подтверждена";
+        // Молчаливое «новых сообщений нет» уже один раз скрыло готовый ответ,
+        // поэтому в журнал идёт разбор чата: сколько наших реплик, сколько
+        // ответов и какой из них последний.
+        const chat = messages();
+        const mine = chat.filter(isUserNode).length;
+        const answers = chat.filter((n) => !isUserNode(n));
+        const lastAnswer = answers.at(-1);
         log(
-          `Жду ответ ${role.name}: новых сообщений нет` +
+          `Жду ответ ${role.name}: сообщений агента после нашего задания нет` +
             `${sentMin ? ` (отправлено ${sentMin} мин назад, ${delivered})` : " (ещё не отправлено)"}` +
-            `, в чате ${messages().length} сообщений.`,
+            `, в чате ${chat.length} (наших ${mine}, ответов агента ${answers.length}` +
+            `${lastAnswer ? `, последний ${nodeId(lastAnswer)}` : ""}). Маркера этой выдачи в чате нет.`,
         );
         dbg("ожидание ответа", { role: role.name, watermark: expect.watermark, sentAt: expect.sentAt, verified: expect.verified });
       }
@@ -2732,6 +2849,9 @@
       kind,
       ref,
       watermark: lastMessageId(),
+      // Снимок id на момент выдачи: водяной знак может исчезнуть из разметки
+      // при перерисовке транскрипта, а «после отправки» должно остаться верным.
+      seen: messages().map(nodeId).slice(-40),
       at: Date.now(),
       tries: 0,
       lastReplySig: "",
@@ -2827,15 +2947,25 @@
     // отправка была бы дублем: в чате уже есть эта реплика.
     if (pending.captcha && !captchaDialog() && lastUserSays(sendKey(pending.text))) {
       const waiting = GM_getValue(K.expect, null);
-      if (waiting) GM_setValue(K.expect, { ...waiting, watermark: lastMessageId(), sentAt: Date.now(), verified: true, captcha: false });
+      // Водяной знак не переписываем: он снят до отправки. Если за время
+      // капчи агент успел ответить, последним сообщением окажется уже ответ —
+      // и граница «после отправки» съела бы его целиком.
+      if (waiting) GM_setValue(K.expect, { ...waiting, sentAt: Date.now(), verified: true, captcha: false });
       GM_setValue(K.pending, null);
       pendingNoticeAt = 0;
       log("После капчи сообщение уже в чате — отправку не повторяю, жду ответа.");
       return true;
     }
 
-    if (generating()) {
-      pendingSay(pending, "Агент ещё отвечает: задание из очереди подождёт и уйдёт, как только он закончит.");
+    // Один кадр ничего не доказывает: сразу после перехода Arena показывает
+    // Stop на время загрузки транскрипта. Признак подтверждается вторым
+    // чтением через секунду — так же, как это уже сделано для «Шага».
+    const busy = await busySettled();
+    if (busy) {
+      pendingSay(
+        pending,
+        `Агент ещё отвечает: задание из очереди подождёт и уйдёт, как только он закончит (${busyLabel(busy)}).`,
+      );
       return true;
     }
 
@@ -2894,6 +3024,7 @@
     // отправителя он был бы чужим, и «ответ без маркера» нельзя было бы
     // отличить от старой переписки.
     const watermark = lastMessageId();
+    const seen = messages().map(nodeId).slice(-40);
     const delivery = await deliver(editor, pending.text);
     // Капча — не обычный отказ: очередь не снимается, карточка не
     // откатывается, ждём человека. Отметки отправки при этом не появляется:
@@ -2934,7 +3065,7 @@
     }
     const expect = GM_getValue(K.expect, null);
     if (expect && norm(expect.roleId) === norm(me)) {
-      GM_setValue(K.expect, { ...expect, watermark, sentAt: Date.now(), verified: true });
+      GM_setValue(K.expect, { ...expect, watermark, sentAt: Date.now(), verified: true, seen });
       dbg("Send: доставка подтверждена, отметка внутри чата", { watermark, via: delivery.via || "message" });
     }
     GM_setValue(K.pending, null);
@@ -4212,7 +4343,7 @@
 
     // Если после водяного знака в чате уже что-то появилось, отправка всё-таки
     // дошла (или агент успел ответить): повторять нельзя, иначе будет дубль.
-    if (messagesAfter(waiting.watermark || "").length) {
+    if (messagesAfter(waiting.watermark || "", waiting.seen).length) {
       GM_setValue(K.expect, { ...waiting, verified: true });
       dbg("revive: после водяного знака есть сообщения — считаю отправку доставленной");
       return "";

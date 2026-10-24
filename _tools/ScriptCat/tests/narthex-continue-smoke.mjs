@@ -169,4 +169,4 @@ const bn = new Function(
 });
 assert.equal(bn(), 'arena/9bde7bd4-chronicle-forge', 'выбрана ветка, а не заголовок чата');
 
-console.log('OK: narthex 1.4.36 — Continue ждётся после Merged, клик проверяется, ветка пишется в карточку');
+console.log('OK: narthex 1.4.37 — Continue ждётся после Merged, клик проверяется, ветка пишется в карточку');

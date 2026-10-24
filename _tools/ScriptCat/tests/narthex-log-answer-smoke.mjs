@@ -1,4 +1,4 @@
-// Проба 1.4.36: в журнал хода попадает весь ответ, а не одна строка маркера.
+// Проба 1.4.37: в журнал хода попадает весь ответ, а не одна строка маркера.
 //
 // История: NAR-1.8, 23.10.2026. Kernel отчитался по делу без маркера, получил
 // Техническое напоминание «ответь ровно одной последней строкой» и прислал
@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.36';
+const V = '1.4.37';
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 

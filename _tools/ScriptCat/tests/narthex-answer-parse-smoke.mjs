@@ -92,7 +92,8 @@ assert.match(src, /parseMarker\(m\.raw, "CF_COORDINATOR_RESULT"\)/, 'Коорд�
 
 // 2.1. Свои служебные сообщения не читаются как ответ.
 assert.match(src, /const isOwnPrompt = \(raw\) => \/CF_TECH\/\.test/, 'свой промпт опознаётся по CF_TECH');
-assert.match(src, /!isOwnPrompt\(n\.textContent\)/, 'свои тексты выкидываются из списка ответов');
+assert.match(src, /looksLikeOwnTask\(messageRaw\(n\)\)/, 'свои тексты выкидываются из списка ответов');
+assert.match(src, /if \(RESULT_LINE\.test\(text\)\) return false;/, 'цитата задания с маркером остаётся ответом');
 
 // ── 2.2. Тело ответа — настоящий `.prose`, а не свёрнутое `not-prose` ───────
 // Arena кладёт первым `[class*="prose"]` плашку «Thought for 2 seconds» с
@@ -207,4 +208,4 @@ assert.match(src, /await sleep\(450 \+ Math\.floor\(Math\.random\(\) \* 900\)\);
 assert.match(src, /await sleep\(500 \+ Math\.floor\(Math\.random\(\) \* 1200\)\);/, 'пауза перед нажатием Send');
 assert.match(src, /«\$\{role\.name\}» уже открыт — отправляю задание здесь\./, 'свою же страницу не перезагружаем');
 
-console.log('OK: narthex 1.4.36 — ответ берётся из настоящего .prose, а не из «Thought for…», «думаю» не считается ответом, один шаг = одна отправка');
+console.log('OK: narthex 1.4.37 — ответ берётся из настоящего .prose, а не из «Thought for…», «думаю» не считается ответом, один шаг = одна отправка');

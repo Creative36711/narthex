@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.36/, 'версия 1.4.36');
+assert.match(src, /@version\s+1\.4\.37/, 'версия 1.4.37');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -27,7 +27,8 @@ assert.match(tickBody, /Шаг уже выполняется/, 'повторно
 assert.match(tickBody, /else if \(!expect\)/, 'исполнитель без задания не падает в TypeError');
 assert.match(tickBody, /submitExecutor\(me, expect, fromToggle\)/, 'ручной режим передаётся исполнителю');
 assert.match(src, /async function markerMissing\(role, expect, markerName, manual = false, why = ""\)/, 'ожидание маркера знает про ручной шаг');
-assert.match(src, /Жду ответ \$\{role.name\}: новых сообщений нет/, 'ручной шаг объясняет ожидание');
+assert.match(src, /Жду ответ \$\{role.name\}: сообщений агента после нашего задания нет/, 'ручной шаг объясняет ожидание');
+assert.match(src, /наших \$\{mine\}, ответов агента \$\{answers.length\}/, 'в журнале виден разбор чата, а не голое «нет сообщений»');
 
 // 1.1. «Шаг» работает с любой страницы: сам открывает нужную роль.
 const rootBlock = tickBody.slice(
@@ -155,7 +156,7 @@ assert.match(src, /function reviveUnverifiedHandoff\(\)/, 'есть возвра
 assert.match(src, /if \(!waiting \|\| !Number\(waiting\.sentAt\) \|\| waiting\.verified === true\) return "";/, 'проверяется отметка verified');
 assert.match(src, /return "revived";/, 'отправленное заново возвращается в очередь');
 assert.match(src, /return "dropped";/, 'фантом без текста снимается отдельно');
-assert.match(src, /messagesAfter\(waiting\.watermark \|\| ""\)\.length/, 'дубль исключён: смотрим сообщения после водяного знака');
+assert.match(src, /messagesAfter\(waiting\.watermark \|\| "", waiting\.seen\)\.length/, 'дубль исключён: смотрим сообщения после водяного знака');
 assert.match(src, /GM_setValue\(K\.pending, \{\s*roleId: waiting\.roleId,[\s\S]{0,120}?text,\s*at: Date\.now\(\),\s*\}\)/, 'задание возвращается в очередь с адресом роли');
 assert.match(src, /не подтверждена \(сообщение в чате не появилось\)/, 'причина видна в журнале');
 assert.match(tickBody, /reviveUnverifiedHandoff\(\);/, 'тик вызывает возврат до отправки');
@@ -224,7 +225,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     skipBtn.click = () => { out.clicks.push("skip"); messages.length = 0; };
     messages.push({ querySelectorAll: () => (messages.length ? [skipBtn] : []) });
   }
-  // 1.4.36: окно проверки. `captcha` — видна сразу, `captchaAfterClick` —
+  // 1.4.37: окно проверки. `captcha` — видна сразу, `captchaAfterClick` —
   // появляется, как в жизни: после клика по Send, вместо отправки.
   const captchaNow = () => captcha || (captchaAfterClick && sent.length > 0);
   const captchaEl = captcha || captchaAfterClick
@@ -267,7 +268,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     "GM_getValue", "GM_setValue", "K", "norm", "roleFromPath", "visible", "lastMessageId",
     "setStatus", "log", "pause", "releaseUndelivered", "sleep", "tick", "location", "document", "window",
     "getComputedStyle", "Date", "setTimeout", "HTMLTextAreaElement", "HTMLInputElement", "InputEvent",
-    "generating", "messages", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
+    "busySettled", "busyLabel", "messages", "nodeId", "C", "dbg", "debugSendButton", "describe", "autoOn", "flat", "ui",
     `${sendBlock}\nreturn { consumePending, closeCompletionPlaque, ensureComposer };`,
   );
   const api = fn(
@@ -296,8 +297,12 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     function () {},
     function () {},
     function (type, init) { return { type, ...init }; },
-    () => stop,
+    // Один кадр ничего не доказывает: busySettled подтверждает признак вторым
+    // чтением, а busyLabel объясняет, что именно нашлось.
+    async () => (stop ? { kind: "stop", label: "Stop generating", where: " в поле ввода" } : null),
+    (reason) => (reason ? `кнопка «${reason.label}»${reason.where || ""}` : ""),
     () => [],
+    (n) => String(n.id || "").replace("chat-message-", ""),
     { maxLog: 200, pendingTtlMs: 600000, replyWaitMs: 1800000, sendVerifyMs: 6000 },
     () => {},
     (ed) => ({ found: Boolean(ed), covered: sendCovered }),
@@ -572,4 +577,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.36 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.37 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
