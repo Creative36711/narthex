@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.55
+// @version      1.4.56
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -669,6 +669,47 @@
     return {
       "Dispatch State": { select: { name: "Ready" } },
       "Started At": { date: null },
+      "Run ID": { rich_text: [] },
+    };
+  }
+
+  /**
+   * Право на повторную выдачу: карточку видели в Rework.
+   *
+   * 25.10 Координатор не смог вернуть NAR-2.3 в Ready: коннектор Notion
+   * отвечал validation_error на очистку «Submitted At», «PR» и «Run ID», а без
+   * очистки выдача отказывает — и карточка запирается. Поля эти ставит
+   * транспорт, поэтому снимать их должен он, а не Координатор через коннектор.
+   *
+   * Память о Rework оставляет защиту от дубля (NAR-1.7): карточка, которую в
+   * Rework не видели, но она уже отвечена, по-прежнему не выдаётся.
+   */
+  const reworkKey = (id) => `cfn-rework:${id}`;
+  const reworkSeen = (id) =>
+    Boolean(id) && typeof GM_getValue === "function" && Number(GM_getValue(reworkKey(id), 0)) > 0;
+
+  function rememberRework(cards) {
+    if (typeof GM_setValue !== "function") return;
+    for (const card of cards || []) if (card && card.id) GM_setValue(reworkKey(card.id), Date.now());
+  }
+
+  /**
+   * Что снять с карточки, вернувшейся из Rework, — или null, если снимать
+   * нечего или права на повторную выдачу нет.
+   *
+   * Чистка идёт одной записью: «Submitted At» (date), «PR» (url) и «Run ID»
+   * (rich_text) снимаются пустыми значениями Notion — `null` и `[]`.
+   */
+  function reworkClearProps(card) {
+    const props = card && card.properties;
+    if (!props) return null;
+    if (props["Dispatch State"]?.select?.name !== "Ready") return null;
+    const marks =
+      Boolean(props["Submitted At"]?.date?.start) || Boolean(props["PR"]?.url) || Boolean(rt(props["Run ID"]));
+    if (!marks || !reworkSeen(card.id)) return null;
+    return {
+      "Submitted At": { date: null },
+      "PR": { url: null },
       "Run ID": { rich_text: [] },
     };
   }
@@ -5163,7 +5204,7 @@
       "Мастер и Архитектор пишут только черновики: Draft — предложение, а не приказ. Работу исполнителю выдаёшь ты, не дожидаясь Мастера.",
       "Движок ставит Running и Submitted. Accepted и Rework ставишь ты. Ready ставишь тоже ты — и новой карточке, и черновику, который решил выдать.",
       "next называй ролью той карточки, которую выдаёшь: у готовой она написана в списке «Готовы к выдаче», у новой — та, что ты поставил в «Кому». Назвать чужую роль — значит остановить ход подсказкой вместо выдачи.",
-      "Rework — не выдача: карточка с этим статусом исполнителю не уходит. Хочешь переделать — верни её в Ready и очисти «Submitted At», «PR», «Run ID», иначе выдача откажет.",
+      "Rework — не выдача: карточка с этим статусом исполнителю не уходит. Хочешь переделать — верни её в Ready: следы прошлого ответа («Submitted At», «PR», «Run ID») снимет транспорт на выдаче, чистить их коннектором не надо.",
       "Карточку, которую ты уже принял (Accepted), обратно в Ready не возвращай — это повторная выдача той же работы.",
       "Оракул и инварианты менять нельзя: только ADR proposed и пауза миссии.",
       "",
@@ -5516,6 +5557,9 @@
       tasks("Rework", mission),
       tasks("Draft", mission),
     ]);
+    // Карточка в Rework получает право на повторную выдачу: следы прошлого
+    // ответа снимет `dispatchTask`, а не Координатор (см. `reworkClearProps`).
+    rememberRework(rework);
     return {
       submitted,
       running,
@@ -5594,7 +5638,10 @@
     const shown = rows.slice(0, C.readyLineMax).map((card) => {
       const seq = card.properties?.["Sequence"]?.number;
       const stale = staleMarks(card);
-      const warn = stale.length ? ` — остались ${stale.join(", ")}: выдача откажет, очисти` : "";
+      const warn = stale.length
+        ? ` — остались ${stale.join(", ")}: если карточка вернулась из Rework, транспорт снимет их сам; ` +
+          "если это забытая в Ready отвеченная карточка — выдача откажет, повторно её не выдавай"
+        : "";
       return `${taskTitle(card)} (${taskRole(card) || "роль не задана"}, Sequence ${seq ?? "—"})${warn}`;
     });
     const more = rows.length > shown.length ? `; и ещё ${rows.length - shown.length}` : "";
@@ -5647,9 +5694,9 @@
     return (
       `На доработке (Rework): ${shown.join("; ")}${more}. ` +
       "Rework сам не выдаётся — исполнителю уходит только Ready. Чтобы работа пошла заново: " +
-      "верни карточку в Ready И очисти «Submitted At», «PR», «Run ID», иначе выдача откажет " +
-      "(в карточке остались следы прошлого ответа). Если переделывать нечего — прими, запиши в «Ответ», " +
-      "почему, и оставь карточку принятой."
+      "верни карточку в Ready — следы прошлого ответа («Submitted At», «PR», «Run ID») снимет " +
+      "транспорт на выдаче, коннектором их чистить не надо. Если переделывать нечего — прими, " +
+      "запиши в «Ответ», почему, и оставь карточку принятой."
     );
   }
 
@@ -5883,8 +5930,29 @@
     // отвеченной, и агент честно повторил ту же работу.
     const fresh = await notion("GET", `pages/${card.id}`);
     const state = taskState(fresh);
-    const prLink = fresh.properties["PR"]?.url || "";
-    const submittedAt = fresh.properties["Submitted At"]?.date?.start || "";
+    let prLink = fresh.properties["PR"]?.url || "";
+    let submittedAt = fresh.properties["Submitted At"]?.date?.start || "";
+    // Карточка вернулась из Rework: следы прошлого ответа снимает транспорт.
+    // Координатор их не трогает — коннектор отвечает validation_error, и это не
+    // его поля: «Submitted At», «PR» и «Run ID» ставит выдача.
+    const clearing = reworkClearProps(fresh);
+    if (clearing) {
+      try {
+        await patch(fresh.id, clearing);
+      } catch (e) {
+        log(
+          `«${taskTitle(fresh)}» вернулась из Rework, но следы прошлого ответа не снялись (${e.message}) — выдача отменена.`,
+          true,
+        );
+        return false;
+      }
+      GM_setValue(reworkKey(fresh.id), 0);
+      submittedAt = "";
+      prLink = "";
+      log(`«${taskTitle(fresh)}» вернулась из Rework — снял «Submitted At», «PR» и «Run ID», выдаю заново.`, false, {
+        tone: "ok",
+      });
+    }
     if (state !== "Ready" || submittedAt || prLink) {
       const why =
         state !== "Ready"

@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.55';
+const V = '1.4.56';
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
@@ -182,14 +182,25 @@ assert.match(readyLine([card('Без роли', '', 10)]), /роль не зад
 // ── 3. queueOf считает Draft ───────────────────────────────────────────────
 const qFrom = src.indexOf('  async function queueOf(mission) {');
 const qTo = src.indexOf('  function draftLine(cards, known = []) {');
+// 1.4.56: очередь запоминает карточки в Rework — по этой памяти транспорт
+// снимает следы прошлого ответа при повторной выдаче.
+const remembered = [];
 const queueOf = new Function(
   'tasks',
+  'rememberRework',
   `${src.slice(qFrom, qTo)}; return queueOf;`,
-)(async (state) => Array.from({ length: { Submitted: 1, Running: 0, Ready: 1, Rework: 0, Draft: 2 }[state] || 0 }));
+)(
+  async (state) =>
+    Array.from({ length: { Submitted: 1, Running: 0, Ready: 1, Rework: 1, Draft: 2 }[state] || 0 }, (_, i) => ({
+      id: `${state}-${i}`,
+    })),
+  (cards) => remembered.push(...cards.map((c) => c.id)),
+);
 
 queueOf({ id: 'm1' }).then((queue) => {
   assert.equal(queue.draft.length, 2, 'черновики читаются отдельным запросом');
-  assert.equal(queue.summary, '1 Submitted, 0 Running, 1 Ready, 0 Rework, 2 Draft', 'счётчик Draft в строке очереди');
+  assert.equal(queue.summary, '1 Submitted, 0 Running, 1 Ready, 1 Rework, 2 Draft', 'счётчик Draft в строке очереди');
+  assert.deepEqual(remembered, ['Rework-0'], 'карточка из Rework запомнена для повторной выдачи');
 
   // ── 4. Ход Координатора передаёт черновики в промпт ──────────────────────
   const planFrom = src.indexOf('  async function requestPlan(');
