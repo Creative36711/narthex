@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.50/, 'версия 1.4.50');
+assert.match(src, /@version\s+1\.4\.51/, 'версия 1.4.51');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -79,7 +79,7 @@ assert.match(sendBlock, /close\|dismiss\|закрыть\|скрыть/, 'кно�
 assert.match(sendBlock, /function skipCardButton\(\)/, 'карточка с кнопкой Skip тоже закрывается');
 assert.match(sendBlock, /data-agent-transcript-message/, 'ищем её в транскрипте, как dispatch.user.js');
 assert.match(sendBlock, /async function ensureComposer\(/, 'редактор ждём, освобождая чат');
-assert.match(sendBlock, /if \(closed >= 2\) break;/, 'клик-шторм ограничен: не больше двух закрытий');
+assert.match(sendBlock, /if \(closed < 6 && completionPanels\(\)\.length\)/, 'клик-шторм ограничен: закрытия считаются, панелей может быть несколько');
 assert.match(sendBlock, /if \(editor\) return \{ editor, closed, polled, overlay: false \};/, 'карточку не трогаем, если поле ввода есть');
 assert.ok(!/composerCovered/.test(src), 'проверка «накрыт» больше не блокирует ввод');
 const ensureCall = sendBlock.indexOf('await ensureComposer()');

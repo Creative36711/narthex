@@ -14,8 +14,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.50';
-assert.match(src, /@version\s+1\.4\.50/, 'версия 1.4.50');
+const V = '1.4.51';
+assert.match(src, /@version\s+1\.4\.51/, 'версия 1.4.51');
 
 // ── 1. isUuid и adoptIds ────────────────────────────────────────────────────
 const from = src.indexOf('const isUuid = (value) =>');

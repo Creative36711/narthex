@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.50
+// @version      1.4.51
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -275,7 +275,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.50";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.51";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -2899,7 +2899,11 @@
    * `Close`, `Закрыть`), затем последняя кнопка шапки, затем единственная.
    */
   function closeButtonIn(panel) {
-    const buttons = [...panel.querySelectorAll("button")];
+    // Раскрывашки (`aria-expanded`) — не закрытие: клик по ним сворачивает
+    // панель, а не убирает её, и снаружи это выглядит как «плашка вернулась».
+    const buttons = [...panel.querySelectorAll("button")].filter(
+      (b) => b.getAttribute("aria-expanded") === null,
+    );
     const labelled = buttons.find((b) =>
       /close|dismiss|закрыть|скрыть/i.test(
         `${b.getAttribute("aria-label") || ""} ${b.getAttribute("title") || ""} ${b.textContent || ""}`,
@@ -2924,6 +2928,42 @@
       }
     }
     return panels.length ? "blocked" : "none";
+  }
+
+  /**
+   * Убрать все панели завершения, а не одну.
+   *
+   * 24.10 в 20:15 шаг встал на «поле ввода пропало»: плашка «Эта задача была
+   * выполнена успешно?» закрылась и тут же появилась снова. Клик был не при
+   * чём — на странице две панели (одна в переписке, вторая липкая снизу), и
+   * закрытие верхней просто показывало нижнюю. Поэтому закрываем все видимые
+   * подряд, пока они не кончатся, и только потом ищем поле ввода.
+   */
+  async function closeCompletionPanels(max = 4) {
+    let closed = 0;
+    for (let pass = 0; pass < max; pass += 1) {
+      const captcha = captchaDialog();
+      const panels = completionPanels().filter(
+        (panel) =>
+          // Контейнер с целым чатом панелью не считается, окно проверки не наше.
+          !panel.querySelector('[data-agent-transcript-message="true"]') &&
+          !(captcha && (panel === captcha || panel.contains(captcha))),
+      );
+      if (!panels.length) break;
+      let clicked = 0;
+      for (const panel of panels) {
+        const close = closeButtonIn(panel);
+        if (close && visible(close)) {
+          close.click();
+          clicked += 1;
+        }
+      }
+      if (!clicked) break;
+      closed += clicked;
+      // Пауза между проходами: вторая панель появляется после перерисовки.
+      await sleep(350);
+    }
+    return closed;
   }
 
   /** Плашка любым способом: панель завершения, иначе карточка с Skip. */
@@ -3220,13 +3260,16 @@
       const editor = composer();
       if (editor) return { editor, closed, polled, overlay: false };
 
-      const panel = closeCompletionPanel();
-      if (panel === "closed") {
-        closed += 1;
-        dbg("editor: поля ввода нет — убрал карточку и жду", { attempt: closed });
-        if (closed >= 2) break;
-        await sleep(700);
-        continue;
+      // Панелей завершения может быть больше одной: закрытая верхняя
+      // открывает нижнюю — снаружи это выглядит как «плашка вернулась».
+      if (closed < 6 && completionPanels().length) {
+        const n = await closeCompletionPanels();
+        if (n) {
+          closed += n;
+          dbg("editor: поля ввода нет — убрал панели и жду", { closed });
+          await sleep(600);
+          continue;
+        }
       }
       // Поле не находится, а в чате висит вопрос агента: отвечаем на него, а не
       // жмём Skip. Иначе первый же вопрос тихо закрывал бы весь опросник.
@@ -3448,6 +3491,18 @@
       // и клик уходят в копию, которой уже нет в документе.
       if (!composerAlive(live)) {
         live = composer();
+        if (!live) {
+          // Плашка «задача выполнена» закрывает поле ввода и могла всплыть
+          // между вставкой и кликом (24.10, 20:15). Раньше здесь сразу
+          // снимался ход; теперь убираем панели и перечитываем поле.
+          const panels = await closeCompletionPanels();
+          if (panels) {
+            log(`Поле ввода пропало посреди отправки: убрал панелей ${panels}.`);
+            why.push(`поле ввода пропало — убрал панелей ${panels}`);
+            live = await waitFor(composer, 4000, 300);
+            if (live) writePrompt(live, text);
+          }
+        }
         dbg("Send: редактор перечитан", { found: Boolean(live), attempt });
         if (!live) {
           why.push("поле ввода пропало");
@@ -3546,6 +3601,7 @@
       `кнопка ${button ? `«${String(labelText(button)[0] || "").slice(0, 28)}»` : "не найдена"}`,
       `сообщений ${before} → ${messages().length}`,
       `своих ${userMessages().length}`,
+      `панелей ${completionPanels().length}`,
       ...(dialog ? ["поверх чата открыт диалог Arena"] : []),
       ...why,
     ].join(", ");

@@ -130,4 +130,35 @@ assert.match(
   'если плашка осталась и поле не нашлось — это видно в причине',
 );
 
-console.log('OK: narthex 1.4.50 — плашка = агент свободен, её кнопки не PR-интерфейс, при merged: true кликов нет');
+// ── 6. 1.4.51: «закрыл, а она открылась снова» — панелей больше одной ─────
+// 24.10 в 20:15 шаг встал на «поле ввода пропало»: плашка закрылась и тут же
+// появилась. Причина — не клик, а вторая панель: закрытие верхней показывает
+// нижнюю. Теперь закрываются все видимые, и делается это до того, как ход
+// снимается.
+const multiFrom = src.indexOf('async function closeCompletionPanels(max = 4) {');
+assert.ok(multiFrom > 0, 'closeCompletionPanels на месте');
+const multiBlock = src.slice(multiFrom, src.indexOf('/** Плашка любым способом', multiFrom));
+assert.match(multiBlock, /for \(const panel of panels\)/, 'закрываем каждую панель, а не первую');
+assert.match(multiBlock, /pass < max/, 'проходы повторяются: вторая панель появляется после перерисовки');
+assert.match(multiBlock, /await sleep\(350\)/, 'между проходами пауза');
+assert.match(multiBlock, /data-agent-transcript-message/, 'контейнер с чатом панелью не считается');
+assert.match(multiBlock, /captcha/, 'окно проверки не закрываем');
+
+// ensureComposer закрывает панели, пока поле не вернётся (а не «два раза»).
+const composerBlock = src.slice(
+  src.indexOf('async function ensureComposer(timeoutMs = 20000) {'),
+  src.indexOf('/** Короткая диагностика, почему поле не нашлось'),
+);
+assert.match(composerBlock, /await closeCompletionPanels\(\)/, 'ensureComposer убирает все панели');
+assert.doesNotMatch(composerBlock, /closed >= 2\) break/, 'выхода «после второй попытки» больше нет');
+
+// deliver: поле пропало посреди отправки — панели убираем, ход не снимаем.
+const deliverFrom = src.indexOf('async function deliver(editor, text) {');
+const deliverBlock = src.slice(deliverFrom, src.indexOf('async function send(', deliverFrom));
+assert.match(deliverBlock, /await closeCompletionPanels\(\)/, 'deliver убирает панели, а не сдаётся сразу');
+assert.match(deliverBlock, /поле ввода пропало — убрал панелей/, 'в причине видно, что панель была');
+assert.match(deliverBlock, /waitFor\(composer, 4000, 300\)/, 'поле перечитывается после закрытия');
+assert.match(deliverBlock, /writePrompt\(live, text\)/, 'текст вставляется в новое поле заново');
+assert.match(deliverBlock, /панелей \$\{completionPanels\(\)\.length\}/, 'в отчёте об отказе — число панелей');
+
+console.log('OK: narthex 1.4.51 — плашка = агент свободен, закрываются все панели, поле возвращается');
