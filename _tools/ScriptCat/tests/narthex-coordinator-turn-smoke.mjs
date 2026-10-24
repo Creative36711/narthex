@@ -145,9 +145,17 @@ assert.deepEqual(
 
 // 2.5. Неизвестная роль — просим назвать существующую.
 {
-  const route = decisionRoute('UI/UX', { roles, readyRoles: ['UI/UX'] });
+  const route = decisionRoute('UI/UX', { roles, readyRoles: [] });
   assert.equal(route.kind, 'ask', 'неизвестная роль не отправляется');
   assert.match(route.note, /нет среди активных/, 'сказано, что роли нет');
+}
+
+// 2.5b. Карточка этой роли в Ready есть, но роль не активна — причина другая.
+{
+  const route = decisionRoute('UI/UX', { roles, readyRoles: ['UI/UX'] });
+  assert.equal(route.kind, 'ask', 'неактивная роль не отправляется');
+  assert.match(route.note, /карточка в Ready есть, но роль не активна/, 'сказано, в чём дело');
+  assert.match(route.note, /Активные роли: Coordinator, Architect, Kernel/, 'видно, кому выдать можно');
 }
 
 // 2.5a. Постоянные промахи не превращаются в бесконечную переписку.
@@ -185,7 +193,7 @@ assert.match(
   /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts\)/,
   'строка доходит до промпта вместе со списком черновиков',
 );
-assert.match(rp, /const drafts = draftLine\(queue\.draft \|\| \[\]\);/, 'черновики попадают в промпт списком');
+assert.match(rp, /const drafts = draftLine\(queue\.draft \|\| \[\], activeNames\);/, 'черновики попадают в промпт списком');
 
 // ── 4. Скрипт больше не падает на пустом Ready ─────────────────────────────
 assert.doesNotMatch(
@@ -200,4 +208,4 @@ assert.match(
 );
 assert.match(src, /GM_setValue\("cfn-plan-miss", 0\);/, 'счётчик промахов сбрасывается на успехе');
 
-console.log('OK: narthex 1.4.31 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');
+console.log('OK: narthex 1.4.32 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');

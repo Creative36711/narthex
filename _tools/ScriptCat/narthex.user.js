@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.31
+// @version      1.4.32
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -3472,6 +3472,7 @@
       "3) миссия выполнена → поставь «Состояние» = «Завершена» и направь ход done.",
       "",
       "Черновики — твой задел: бери из них, правь под оракул миссии и выдавай. В архив — только если черновик дублирует уже выданное.",
+      "Если у черновика помечено «роль не активна» — выдать его некому: назначь в «Кому» активную роль (правка черновика — твоё право) или оставь в Draft и напиши, кого он ждёт.",
       "Приёмка и выдача — не два хода. Принял Submitted — в этом же ответе выстави следующую карточку Ready и назови в next исполнителя, а не Coordinator.",
       "Пустая очередь после твоего ответа считается незаконченным ходом.",
       "",
@@ -3652,6 +3653,26 @@
     if (norm(name) === norm("done")) return { kind: "done" };
     const target = list.find((r) => norm(r.name) === norm(name)) || null;
     if (!target) {
+      // Карточка этой роли может уже лежать в Ready — тогда дело не в
+      // опечатке, а в статусе роли. Молчать об этом значит гонять
+      // Координатора по кругу «роли нет среди активных».
+      if (readyRoles.some((r) => norm(r) === norm(name))) {
+        const why =
+          `«${name}»: карточка в Ready есть, но роль не активна (Статус ≠ «Активна» или пуст «Agent URL») — выдать некому. ` +
+          `Активные роли: ${list.map((r) => r.name).join(", ") || "нет"}.`;
+        if (misses >= 1) {
+          return {
+            kind: "pause",
+            reason: `${why} Нажмите «Продолжить» — Координатор получит подсказку и назначит активную роль.`,
+          };
+        }
+        return {
+          kind: "ask",
+          note:
+            `${why} Назначь в «Кому» активную роль (правка черновика — твоё право) и повтори next, ` +
+            "либо оставь карточку в Draft и напиши, кого она ждёт.",
+        };
+      }
       // Третий подряд промах — уже не «модель не поняла», а поломка: без
       // человека это превращается в бесконечную переписку с Координатором.
       if (misses >= 2) {
@@ -3728,16 +3749,25 @@
    * движок», а сами черновики в очереди не показывались вовсе. Теперь
    * Координатор видит свой задел и распоряжается им сам.
    */
-  function draftLine(cards) {
+  function draftLine(cards, active = []) {
     const rows = [...(cards || [])].sort((a, b) => {
       const sa = Number(a.properties?.["Sequence"]?.number ?? 0);
       const sb = Number(b.properties?.["Sequence"]?.number ?? 0);
       return sa - sb;
     });
     if (!rows.length) return "Черновиков нет — следующий шаг миссии предложи сам.";
+    // Роль черновика сверяется с активными: 24.10 у NAR-1.10 стоял
+    // Build/Release со статусом «Ждёт» — выдать такую карточку движку некому,
+    // и Координатор узнавал об этом только после Ready, по отказу в next.
+    const who = (card) => {
+      const role = taskRole(card);
+      if (!role) return "роль не задана";
+      if (active.length && !active.some((n) => norm(n) === norm(role))) return `${role} — роль не активна`;
+      return role;
+    };
     const shown = rows.slice(0, C.draftLineMax).map((card) => {
       const seq = card.properties?.["Sequence"]?.number;
-      return `${taskTitle(card)} (${taskRole(card) || "роль не задана"}, Sequence ${seq ?? "—"})`;
+      return `${taskTitle(card)} (${who(card)}, Sequence ${seq ?? "—"})`;
     });
     const more = rows.length > shown.length ? `; и ещё ${rows.length - shown.length}` : "";
     return `Черновики (предложения — выдаёшь их ты): ${shown.join("; ")}${more}.`;
@@ -3873,7 +3903,10 @@
     // ответа, который он принимает, а не только счётчики очереди.
     const answerLine = answerLogLine(queue.submitted);
     log(`План Координатора запрошен (${summary}).`);
-    const drafts = draftLine(queue.draft || []);
+    const activeNames = await roles()
+      .then((list) => list.map((r) => r.name))
+      .catch(() => []);
+    const drafts = draftLine(queue.draft || [], activeNames);
     await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine, drafts), "plan", mission.id, {
       missionId: mission.id,
       turnId,
