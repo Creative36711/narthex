@@ -9,6 +9,13 @@
 //      обёртке: своя прозрачность единица, площадь есть — «видна»;
 //   2. сразу после перехода Arena показывает Stop на время загрузки — один
 //      кадр не должен останавливать нажатый шаг.
+//
+// 24.10 Мастер прислал разметку настоящей кнопки:
+//   <button aria-label="Stop generating" data-perf-target="send"> внутри
+//   панели ввода, и добавил: «когда он не активен, его нигде не видно».
+// Значит Stop в слоте отправки — честный признак генерации, а правило
+// «ответ закончился — значит призрак» относится только к панели действий
+// сообщения.
 
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
@@ -66,6 +73,7 @@ function busy({ buttons, messages = [], ended = false, opacity = '1', ancestorOp
     getAttribute: (n) => (n === 'aria-label' ? btn.label : null),
     hasAttribute: () => false,
     closest: (sel) => {
+      if (sel.includes('data-perf-target')) return btn.slot ? { __slot: true } : null;
       if (sel.includes('data-agent-transcript-message')) return where === 'message' ? { __msg: true, id: btn.msg } : null;
       if (sel.includes('form') || sel.includes('footer') || sel.includes('composer')) return where === 'composer' ? { __form: true } : null;
       return null;
@@ -81,7 +89,7 @@ function busy({ buttons, messages = [], ended = false, opacity = '1', ancestorOp
   };
   const fn = new Function(
     'completionPlaque', 'document', 'visible', 'getComputedStyle', 'shortLabel', 'replyEnded', 'hiddenByAncestor',
-    'whereIs', 'stopIsStale',
+    'whereIs', 'stopIsStale', 'composerSlot',
     `${bBlock}; return busyReason;`,
   );
   return fn(
@@ -94,6 +102,7 @@ function busy({ buttons, messages = [], ended = false, opacity = '1', ancestorOp
     (el) => Number(el.__style?.opacity) === 0 || Number(el.parentElement?.__style?.opacity) === 0,
     () => (where === 'composer' ? ' в поле ввода' : where === 'message' ? ' в сообщении' : ''),
     (el) => Boolean(el.__stale),
+    (el) => Boolean(el.closest?.('[data-perf-target="send"]')),
   );
 }
 
@@ -104,6 +113,23 @@ assert.equal(busy({ buttons: [{ label: 'Stop generating' }], opacity: '0' })(), 
 assert.equal(busy({ buttons: [{ label: 'Stop generating' }], ancestorOpacity: '0' })(), null, 'скрытая обёртка не считается');
 assert.equal(busy({ buttons: [{ label: 'Stop generating', __stale: true }] })(), null, 'Stop из законченного сообщения — призрак');
 assert.equal(busy({ buttons: [{ label: 'Send' }] })(), null, 'другие кнопки не путаются');
+
+// Слот отправки: в покое Arena не рисует там Stop вовсе.
+assert.equal(
+  busy({ buttons: [{ label: 'Stop generating', slot: true }] })().slot,
+  true,
+  'Stop в слоте отправки — настоящий признак генерации',
+);
+assert.equal(
+  busy({ buttons: [{ label: 'Stop generating', slot: true }], ended: true })().kind,
+  'stop',
+  'и «последний ответ закончился» его не отменяет: в покое кнопки нет в разметке',
+);
+assert.equal(
+  busy({ buttons: [{ label: 'Stop generating', __stale: true }] })(),
+  null,
+  'Stop в панели действий законченного сообщения — призрак',
+);
 assert.equal(
   busy({ buttons: [{ label: 'Stop generating' }], plaque: true })(),
   null,
@@ -166,6 +192,8 @@ assert.doesNotMatch(retrySrc, /sendToRole|consumePending|submitExecutor/, 'по�
 
 // ── 6. Строка в журнале говорит, где кнопка ────────────────────────────────
 assert.match(src, /кнопка «\$\{reason\.label\}»\$\{reason\.where \|\| ""\}/, 'в журнале видно, где нашлась кнопка');
+assert.match(src, /const composerSlot = \(el\) => Boolean\(el\?\.closest\?\.\('\[data-perf-target="send"\]'\)\);/, 'слот отправки определяется по разметке Arena');
+assert.match(src, /if \(!composerSlot\(b\) && stopIsStale\(b\)\) return false;/, 'протухание — только для панели действий сообщения');
 assert.match(src, /Проверю ещё раз через/, 'Мастер видит, что шаг проверится сам');
 
-console.log('OK: narthex 1.4.39 — скрытый и протухший Stop не блокируют шаг, мгновенная заставка не считается');
+console.log('OK: narthex 1.4.40 — Stop в слоте отправки настоящий, скрытый и протухший не блокируют шаг, заставка не считается');

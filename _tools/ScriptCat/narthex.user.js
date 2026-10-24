@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.39
+// @version      1.4.40
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -259,7 +259,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.39";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.40";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1610,9 +1610,24 @@
   };
 
   /**
+   * Кнопка стоит в слоте отправки панели ввода. Send и Stop рисуются в одном
+   * месте и помечены `data-perf-target="send"`; Мастер 24.10 прислал разметку:
+   * `<button aria-label="Stop generating" data-perf-target="send">` в
+   * `div.bg-surface-secondary.rounded-[14px]`.
+   *
+   * В покое этой кнопки в разметке нет вовсе («когда он не активен, его нигде
+   * не видно»), поэтому Stop в слоте — честный признак генерации, и правило
+   * «ответ закончился — значит призрак» к нему не применяется.
+   */
+  const composerSlot = (el) => Boolean(el?.closest?.('[data-perf-target="send"]'));
+
+  /**
    * Кнопка Stop из уже законченного сообщения — протухшая: Arena оставляет
    * панель действий в DOM и после окончания ответа. Такой признак не должен
    * останавливать шаг, иначе «Шаг» навсегда упирается в прошлую генерацию.
+   *
+   * Это правило — только для кнопок в панели действий сообщения. Stop в слоте
+   * отправки не протухает никогда: в покое его нет в разметке вовсе.
    */
   const stopIsStale = (el) => {
     const all = [...document.querySelectorAll("[data-agent-transcript-message]")];
@@ -1649,10 +1664,17 @@
       if (Number(style.opacity) === 0) return false;
       if (style.pointerEvents === "none") return false;
       if (hiddenByAncestor(b)) return false;
-      if (stopIsStale(b)) return false;
+      // Stop в слоте отправки — настоящий: в покое Arena не рисует его вовсе.
+      if (!composerSlot(b) && stopIsStale(b)) return false;
       return true;
     });
-    if (stop) return { kind: "stop", label: shortLabel(stop) || "кнопка Stop", where: whereIs(stop) };
+    if (stop)
+      return {
+        kind: "stop",
+        label: shortLabel(stop) || "кнопка Stop",
+        where: whereIs(stop),
+        slot: composerSlot(stop),
+      };
 
     const marks = document.querySelectorAll(
       '[role="status"], [aria-live], [class*="thinking"], [class*="reasoning"], [class*="typing"]',

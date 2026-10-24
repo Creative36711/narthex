@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.39/, 'версия 1.4.39');
+assert.match(src, /@version\s+1\.4\.40/, 'версия 1.4.40');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -230,7 +230,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     skipBtn.click = () => { out.clicks.push("skip"); messages.length = 0; };
     messages.push({ querySelectorAll: () => (messages.length ? [skipBtn] : []) });
   }
-  // 1.4.39: окно проверки. `captcha` — видна сразу, `captchaAfterClick` —
+  // 1.4.40: окно проверки. `captcha` — видна сразу, `captchaAfterClick` —
   // появляется, как в жизни: после клика по Send, вместо отправки.
   const captchaNow = () => captcha || (captchaAfterClick && sent.length > 0);
   const captchaEl = captcha || captchaAfterClick
@@ -582,4 +582,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.39 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.40 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
