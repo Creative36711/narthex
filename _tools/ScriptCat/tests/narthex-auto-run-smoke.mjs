@@ -146,4 +146,4 @@ const role = { id: 'architect', name: 'Architect', url: 'https://arena.ai/agent/
   assert.equal(h.pauses.length, 0, 'паузы нет');
 }
 
-console.log('OK: narthex 1.4.33 — автоцикл сам находит страницу, не петляет и не забивает журнал');
+console.log('OK: narthex 1.4.34 — автоцикл сам находит страницу, не петляет и не забивает журнал');

@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и новый адрес ntfy.
-assert.match(src, /@version\s+1\.4\.33/, 'версия 1.4.33');
+assert.match(src, /@version\s+1\.4\.34/, 'версия 1.4.34');
 assert.match(src, /@connect\s+ntfy\.sh/, 'ntfy.sh разрешён в @connect');
 
 // 2. Журнал: ограничен, очищается, счётчик виден.
@@ -95,4 +95,4 @@ assert.match(src, /Тихий тест/, 'тихий тест доступен �
 assert.match(src, /Громкий тест/, 'громкий тест доступен из панели');
 assert.ok(!src.includes('location.reload()'), 'видимая ошибка не перезагружает страницу');
 
-console.log('OK: narthex 1.4.33 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');
+console.log('OK: narthex 1.4.34 — журнал чистится, маркер напоминается, ошибка ставит паузу и ждёт Мастера');

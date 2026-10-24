@@ -1,4 +1,4 @@
-// Проба 1.4.33: Координатор сам распоряжается очередью — включая черновики.
+// Проба 1.4.34: Координатор сам распоряжается очередью — включая черновики.
 //
 // Случай Мастера (2026-10-24). На приёмке NAR-1.8 Координатор написал:
 // «старый Draft 1.9 архивирован — перевести Draft в Ready я не вправе», и
@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.33';
+const V = '1.4.34';
 
 assert.match(src, new RegExp(`@version\\s+${V.replace(/\./g, '\\.')}`), `версия ${V}`);
 
@@ -48,7 +48,8 @@ assert.match(prompt, /Движок ставит Running и Submitted/, 'гран
 assert.match(prompt, /Ready ставишь тоже ты/, 'Ready — не движок, а Координатор');
 assert.match(prompt, /или переведи в Ready подходящий Draft/, 'черновик можно выдать в том же ходе');
 assert.match(prompt, /Черновики — твой задел/, 'сказано, зачем черновики');
-assert.match(prompt, /Если у черновика помечено «роль не активна»/, 'видно, что роль не может получить работу');
+assert.match(prompt, /Если у черновика помечено, что роль не может получить работу/, 'видно, что роль не может получить работу');
+assert.match(prompt, /Статус роли и Agent URL — зона Мастера/, 'статус роли — не зона Координатора');
 assert.doesNotMatch(prompt, /ставит движок\./, 'прежней фразы «Ready … ставит движок» больше нет');
 assert.doesNotMatch(prompt, /не вправе|нельзя переводить Draft/i, 'запрета на выдачу черновика нет');
 
@@ -59,7 +60,7 @@ const tech = src.slice(techFrom, techTo);
 assert.match(tech, /число Ready и выдача работы — новой карточкой или Draft → Ready/, 'в техблоке Координатора тоже сказано про выдачу');
 
 // ── 2. draftLine: список, а не число ────────────────────────────────────────
-const lineFrom = src.indexOf('  function draftLine(cards, active = []) {');
+const lineFrom = src.indexOf('  function draftLine(cards, known = []) {');
 const lineTo = src.indexOf('  async function coordinatorStep(');
 assert.ok(lineFrom > 0 && lineTo > lineFrom, 'draftLine на месте');
 const draftLine = new Function(
@@ -103,24 +104,48 @@ assert.ok(!/C · три/.test(three), 'свёрнутые не перечисл�
 // Роль не задана — так и пишем, а не пустые скобки.
 assert.match(draftLine([card('D · четыре', '', 40)]), /роль не задана/, 'пустая роль названа');
 
-// Роль есть в карточке, но не активна — говорим это до выдачи, а не после отказа.
+// Строки базы «Роли» целиком: видно, чего именно не хватает.
+const row = (name, status, url) => ({ name, status, url });
+const DIRECTORY = [
+  row('Kernel', 'Активна', 'https://arena.ai/agent/kernel'),
+  row('Build/Release', 'Ждёт', 'https://arena.ai/agent/01a16d5c-2b46-7efe-a7e7-06229a0e6ad1'),
+  row('Studio', 'Активна', ''),
+];
+
+// Агент создан, Agent URL заполнен — не хватает только статуса.
+const waiting = draftLine([card('E · пять', 'Build/Release', 50)], DIRECTORY);
+assert.match(waiting, /Build\/Release — Статус «Ждёт»/, 'ждать — это статус, а не пустая ссылка');
+assert.doesNotMatch(waiting, /Agent URL/, 'заполненный Agent URL не при чём');
+
+// Статус «Активна», но ссылки нет.
 assert.match(
-  draftLine([card('E · пять', 'Build/Release', 50)], ['Kernel', 'Architect']),
-  /Build\/Release — роль не активна/,
-  'неактивная роль помечена в списке черновиков',
+  draftLine([card('F · шесть', 'Studio', 60)], DIRECTORY),
+  /Studio — нет Agent URL/,
+  'пустая ссылка названа своим словом',
 );
+
+// Роли нет в базе вовсе — это не «не активна», а опечатка или новая роль.
+assert.match(
+  draftLine([card('G · семь', 'UI/UX', 70)], DIRECTORY),
+  /UI\/UX — нет в «Ролях»/,
+  'отсутствующая роль названа своим словом',
+);
+
+// Регистр не мешает сверке.
 assert.ok(
-  !/роль не активна/.test(draftLine([card('F · шесть', 'kernel', 60)], ['Kernel'])),
+  !/Статус|нет Agent URL|нет в «Ролях»/.test(draftLine([card('H · восемь', 'kernel', 80)], DIRECTORY)),
   'регистр роли не мешает сверке',
 );
+
+// Без базы ролей не пугаем ложной пометкой.
 assert.ok(
-  !/роль не активна/.test(draftLine([card('G · семь', 'Build/Release', 70)], [])),
-  'без списка ролей не пугаем ложной пометкой',
+  !/Статус|нет Agent URL|нет в «Ролях»/.test(draftLine([card('I · девять', 'Build/Release', 90)], [])),
+  'без списка ролей пометки нет',
 );
 
 // ── 3. queueOf считает Draft ───────────────────────────────────────────────
 const qFrom = src.indexOf('  async function queueOf(mission) {');
-const qTo = src.indexOf('  function draftLine(cards, active = []) {');
+const qTo = src.indexOf('  function draftLine(cards, known = []) {');
 const queueOf = new Function(
   'tasks',
   `${src.slice(qFrom, qTo)}; return queueOf;`,
@@ -134,8 +159,8 @@ queueOf({ id: 'm1' }).then((queue) => {
   const planFrom = src.indexOf('  async function requestPlan(');
   const planTo = src.indexOf('  async function dispatchTask(', planFrom);
   const plan = src.slice(planFrom, planTo);
-  assert.match(plan, /const drafts = draftLine\(queue\.draft \|\| \[\], activeNames\);/, 'список черновиков собирается');
-  assert.match(plan, /await roles\(\)[\s\S]{0,80}\.map\(\(r\) => r\.name\)/, 'и сверяется с активными ролями');
+  assert.match(plan, /const drafts = draftLine\(queue\.draft \|\| \[\], directory\);/, 'список черновиков собирается');
+  assert.match(plan, /const directory = await roleRows\(\)/, 'и сверяется со всей базой «Роли», а не только с активными');
   assert.match(
     plan,
     /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts\)/,
@@ -162,13 +187,19 @@ queueOf({ id: 'm1' }).then((queue) => {
   assert.match(again.reason, /Нажмите «Продолжить»/, 'выход — продолжить, а не «создайте карточку»');
   assert.match(again.reason, /создать карточку или выдать черновик/, 'сказано, что он умеет');
 
-  const idle = decisionRoute('Build/Release', { roles, readyRoles: ['Build/Release'] });
+  const directory = [
+    { name: 'Coordinator', status: 'Активна', url: 'https://arena.ai/agent/c' },
+    { name: 'Kernel', status: 'Активна', url: 'https://arena.ai/agent/k' },
+    { name: 'Build/Release', status: 'Ждёт', url: 'https://arena.ai/agent/b' },
+  ];
+  const idle = decisionRoute('Build/Release', { roles, readyRoles: ['Build/Release'], directory });
   assert.equal(idle.kind, 'ask', 'карточка есть, роль не активна — объясняем, а не молчим');
-  assert.match(idle.note, /карточка в Ready есть, но роль не активна/, 'причина названа прямо');
+  assert.match(idle.note, /карточка в Ready есть, но выдать её некому — Статус «Ждёт», Agent URL заполнен/, 'причина названа точно');
+  assert.match(idle.note, /Статус роли и Agent URL ставит Мастер/, 'сказано, чья это зона');
   assert.match(idle.note, /Активные роли: Coordinator, Kernel/, 'перечислены те, кому выдать можно');
   assert.match(idle.note, /правка черновика — твоё право/, 'Координатор может назначить другую роль');
 
-  const idle2 = decisionRoute('Build/Release', { roles, readyRoles: ['Build/Release'], misses: 1 });
+  const idle2 = decisionRoute('Build/Release', { roles, readyRoles: ['Build/Release'], directory, misses: 1 });
   assert.equal(idle2.kind, 'pause', 'повтор — пауза, а не бесконечный круг');
 
   const self = decisionRoute('Coordinator', { roles, readyRoles: [] });
@@ -176,6 +207,7 @@ queueOf({ id: 'm1' }).then((queue) => {
 
   console.log(
     `OK: narthex ${V} — Координатор сам создаёт и выдаёт карточки: Draft → Ready, ` +
-      'черновики видны списком, считаются в очереди и помечены, если роль не активна',
+      'черновики видны списком, считаются в очереди, а причина «выдать некому» названа точно ' +
+      '(Статус / нет Agent URL / нет в «Ролях»)',
   );
 });

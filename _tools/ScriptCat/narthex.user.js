@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.33
+// @version      1.4.34
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -1094,8 +1094,9 @@
     return m ? m[1] : "";
   }
 
-  async function roles() {
-    const rows = (await query(C.roles)).map((p) => {
+  /** Вся база «Роли»: и активные, и те, что Мастер ещё не включил. */
+  async function roleRows() {
+    return (await query(C.roles)).map((p) => {
       const url = p.properties["Agent URL"]?.url || "";
       return {
         id: agentIdFromUrl(url),
@@ -1108,6 +1109,10 @@
         pageId: p.id,
       };
     });
+  }
+
+  async function roles() {
+    const rows = await roleRows();
     const active = rows.filter((r) => r.id && r.url && r.status === "Активна");
     const ids = active.map((r) => norm(r.id));
     if (new Set(ids).size !== ids.length) throw new Error("Две активные роли указывают на один Agent URL.");
@@ -3292,6 +3297,7 @@
   const COORDINATOR_TECH = [
     "Git и репозиторий тебе не нужны: ты не читаешь код и не запускаешь команды.",
     "Твои инструменты — Notion (Миссии, Запросы, Роли) и Drive (логи передач).",
+    "В «Ролях» ты только читаешь: Статус и Agent URL ставит Мастер.",
     "Ветки, коммиты и PR — не твоя зона: за них отвечают Executor и Auditor.",
     "Очередь — твоя: нарезка, Кому, Sequence, число Ready и выдача работы — новой карточкой или Draft → Ready. Оракул фазы — не твоя:",
     "команду проверки и инварианты менять нельзя, только ADR proposed с паузой.",
@@ -3517,7 +3523,8 @@
       "3) миссия выполнена → поставь «Состояние» = «Завершена» и направь ход done.",
       "",
       "Черновики — твой задел: бери из них, правь под оракул миссии и выдавай. В архив — только если черновик дублирует уже выданное.",
-      "Если у черновика помечено «роль не активна» — выдать его некому: назначь в «Кому» активную роль (правка черновика — твоё право) или оставь в Draft и напиши, кого он ждёт.",
+      "Если у черновика помечено, что роль не может получить работу («Статус «Ждёт»», «нет Agent URL», «нет в «Ролях»») — выдать его некому: назначь в «Кому» активную роль (правка черновика — твоё право) или оставь в Draft и напиши, кого он ждёт.",
+      "Статус роли и Agent URL — зона Мастера: агента в Arena создаёт он, а не ты. Ты их не меняешь — только называешь в отчёте, какую роль нужно включить.",
       "Приёмка и выдача — не два хода. Принял Submitted — в этом же ответе выстави следующую карточку Ready и назови в next исполнителя, а не Coordinator.",
       "Пустая очередь после твоего ответа считается незаконченным ходом.",
       "",
@@ -3699,7 +3706,7 @@
    *     хватает: имени роли или самой карточки;
    *   • второй промах подряд → пауза: дальше это уже не «не понял», а поломка.
    */
-  function decisionRoute(next, { roles: list = [], readyRoles = [], misses = 0 } = {}) {
+  function decisionRoute(next, { roles: list = [], directory = [], readyRoles = [], misses = 0 } = {}) {
     const name = String(next || "").trim();
     if (!name) return { kind: "ask", note: "В маркере не указано, кому передаётся ход: назови роль или done." };
     if (norm(name) === norm("done")) return { kind: "done" };
@@ -3709,9 +3716,16 @@
       // опечатке, а в статусе роли. Молчать об этом значит гонять
       // Координатора по кругу «роли нет среди активных».
       if (readyRoles.some((r) => norm(r) === norm(name))) {
+        const row = (directory || []).find((r) => norm(r.name) === norm(name));
+        const state = row
+          ? [`Статус «${row.status || "пуст"}»`, row.url ? "Agent URL заполнен" : "Agent URL пуст"].join(", ")
+          : directory.length
+            ? "такой роли нет в базе «Роли»"
+            : "роль не активна";
         const why =
-          `«${name}»: карточка в Ready есть, но роль не активна (Статус ≠ «Активна» или пуст «Agent URL») — выдать некому. ` +
-          `Активные роли: ${list.map((r) => r.name).join(", ") || "нет"}.`;
+          `«${name}»: карточка в Ready есть, но выдать её некому — ${state}. ` +
+          `Активные роли: ${list.map((r) => r.name).join(", ") || "нет"}. ` +
+          "Статус роли и Agent URL ставит Мастер: агента в Arena создаёт он.";
         if (misses >= 1) {
           return {
             kind: "pause",
@@ -3801,21 +3815,34 @@
    * движок», а сами черновики в очереди не показывались вовсе. Теперь
    * Координатор видит свой задел и распоряжается им сам.
    */
-  function draftLine(cards, active = []) {
+  function draftLine(cards, known = []) {
     const rows = [...(cards || [])].sort((a, b) => {
       const sa = Number(a.properties?.["Sequence"]?.number ?? 0);
       const sb = Number(b.properties?.["Sequence"]?.number ?? 0);
       return sa - sb;
     });
     if (!rows.length) return "Черновиков нет — следующий шаг миссии предложи сам.";
-    // Роль черновика сверяется с активными: 24.10 у NAR-1.10 стоял
-    // Build/Release со статусом «Ждёт» — выдать такую карточку движку некому,
-    // и Координатор узнавал об этом только после Ready, по отказу в next.
+    // Почему роль не может получить работу — тремя разными словами. 24.10
+    // Мастер создал агента Build/Release и заполнил Agent URL, но оставил
+    // Статус «Ждёт»: общая фраза «роль не активна» прятала это, и по ней
+    // нельзя было понять, чего именно не хватает. Строки принимаются двух
+    // видов: имя (значит «активна») и строка базы «Роли» целиком.
+    const seen = new Map();
+    for (const item of known || []) {
+      if (typeof item === "string") seen.set(norm(item), { status: "Активна", url: "есть" });
+      else if (item && item.name) seen.set(norm(item.name), { status: item.status || "", url: item.url || "" });
+    }
+    const why = (role) => {
+      const row = seen.get(norm(role));
+      if (!row) return `${role} — нет в «Ролях»`;
+      if (row.status !== "Активна") return `${role} — Статус «${row.status || "пуст"}»`;
+      if (!row.url) return `${role} — нет Agent URL`;
+      return role;
+    };
     const who = (card) => {
       const role = taskRole(card);
       if (!role) return "роль не задана";
-      if (active.length && !active.some((n) => norm(n) === norm(role))) return `${role} — роль не активна`;
-      return role;
+      return seen.size ? why(role) : role;
     };
     const shown = rows.slice(0, C.draftLineMax).map((card) => {
       const seq = card.properties?.["Sequence"]?.number;
@@ -3889,6 +3916,7 @@
       }
       const route = decisionRoute(decision.next, {
         roles: await roles(),
+        directory: await roleRows().catch(() => []),
         readyRoles: ready.map(taskRole),
         misses: Number(GM_getValue("cfn-plan-miss", 0)) || 0,
       });
@@ -3955,10 +3983,10 @@
     // ответа, который он принимает, а не только счётчики очереди.
     const answerLine = answerLogLine(queue.submitted);
     log(`План Координатора запрошен (${summary}).`);
-    const activeNames = await roles()
-      .then((list) => list.map((r) => r.name))
-      .catch(() => []);
-    const drafts = draftLine(queue.draft || [], activeNames);
+    // Вся база, а не только активные: по ней видно, чего именно не хватает —
+    // статуса, Agent URL или самой роли.
+    const directory = await roleRows().catch(() => []);
+    const drafts = draftLine(queue.draft || [], directory);
     await sendToRole(role, coordinatorPrompt(mission, role, summary, turnId, note, answerLine, drafts), "plan", mission.id, {
       missionId: mission.id,
       turnId,

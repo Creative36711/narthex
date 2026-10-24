@@ -154,8 +154,20 @@ assert.deepEqual(
 {
   const route = decisionRoute('UI/UX', { roles, readyRoles: ['UI/UX'] });
   assert.equal(route.kind, 'ask', 'неактивная роль не отправляется');
-  assert.match(route.note, /карточка в Ready есть, но роль не активна/, 'сказано, в чём дело');
+  assert.match(route.note, /карточка в Ready есть, но выдать её некому/, 'сказано, в чём дело');
   assert.match(route.note, /Активные роли: Coordinator, Architect, Kernel/, 'видно, кому выдать можно');
+}
+
+// 2.5c. Роль есть в базе, но со статусом «Ждёт» и заполненным Agent URL.
+{
+  const directory = [
+    { name: 'Coordinator', status: 'Активна', url: 'https://arena.ai/agent/c' },
+    { name: 'Build/Release', status: 'Ждёт', url: 'https://arena.ai/agent/01a16d5c' },
+  ];
+  const route = decisionRoute('Build/Release', { roles, readyRoles: ['Build/Release'], directory });
+  assert.match(route.note, /Статус «Ждёт», Agent URL заполнен/, 'причина названа без домыслов');
+  assert.match(route.note, /Статус роли и Agent URL ставит Мастер/, 'сказано, кто это решает');
+  assert.doesNotMatch(route.note, /Agent URL пуст/, 'заполненная ссылка не объявляется пустой');
 }
 
 // 2.5a. Постоянные промахи не превращаются в бесконечную переписку.
@@ -193,7 +205,7 @@ assert.match(
   /coordinatorPrompt\(mission, role, summary, turnId, note, answerLine, drafts\)/,
   'строка доходит до промпта вместе со списком черновиков',
 );
-assert.match(rp, /const drafts = draftLine\(queue\.draft \|\| \[\], activeNames\);/, 'черновики попадают в промпт списком');
+assert.match(rp, /const drafts = draftLine\(queue\.draft \|\| \[\], directory\);/, 'черновики попадают в промпт списком');
 
 // ── 4. Скрипт больше не падает на пустом Ready ─────────────────────────────
 assert.doesNotMatch(
@@ -208,4 +220,4 @@ assert.match(
 );
 assert.match(src, /GM_setValue\("cfn-plan-miss", 0\);/, 'счётчик промахов сбрасывается на успехе');
 
-console.log('OK: narthex 1.4.33 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');
+console.log('OK: narthex 1.4.34 — приёмка и выдача в одном ходе, next:Coordinator не ставит цикл на паузу');
