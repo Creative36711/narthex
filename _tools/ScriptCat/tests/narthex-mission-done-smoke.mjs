@@ -1,4 +1,4 @@
-// Проба 1.4.42: конец миссии — событие, возврат миссии — задача.
+// Проба 1.4.43: конец миссии — событие, возврат миссии — задача.
 //
 // 24.10 в 15:49 Координатор закрыл миссию NAR-1 (`Состояние = Завершена`,
 // `next:done`), а ScriptCat написал в журнал только «Нет активной миссии —
@@ -131,11 +131,12 @@ const closedMission = (state = 'Завершена', at = '2026-10-24') => ({
 
 // ── 3. Возврат миссии ──────────────────────────────────────────────────────
 assert.match(src, /select: \{ equals: "Возвращена" \}/, '«Возвращена» считается активной миссией');
+const remarkItems = sliceBetween('  const remarkItems = (text) =>', '  /** Последняя закрытая миссия');
 const returnBlock = sliceBetween('  function returnBlock(mission) {', '  const taskTitle =');
 {
   const fn = new Function(
     'isReturned', 'missionRemarks',
-    `${returnBlock}; return returnBlock;`,
+    `${remarkItems}\n${returnBlock}; return returnBlock;`,
   );
   const block = fn(
     () => true,
@@ -165,4 +166,4 @@ assert.equal(
 assert.match(plaqueBlock, /plaqueClosed \+= closed/, 'второе закрытие прибавляется к первому');
 assert.match(plaqueBlock, /«задача выполнена»/, 'формулировка осталась прежней');
 
-console.log('OK: narthex 1.4.42 — конец миссии зелёной строкой и пушем, возврат доработкой, плашка одной строкой');
+console.log('OK: narthex 1.4.43 — конец миссии зелёной строкой и пушем, возврат доработкой, плашка одной строкой');

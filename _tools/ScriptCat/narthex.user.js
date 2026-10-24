@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.42
+// @version      1.4.43
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -268,7 +268,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.42";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.43";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1286,12 +1286,40 @@
   const isReturned = (p) => missionKind(p) === "Возвращена";
   const missionRemarks = (p) => rt(p.properties["Замечания"]).trim();
 
-  /** Первая строка длинного текста: список замечаний в строку журнала не влезет. */
-  const firstLine = (text) =>
+  /**
+   * Первая строка длинного текста: список замечаний в строку журнала не влезет.
+   *
+   * 24.10 Мастер записал три замечания одним абзацем без переводов строки, и
+   * `firstLine` вернула все три целиком — строка журнала на тысячу символов.
+   * Теперь длинная строка режется по границе слова: в журнале и пуше видно
+   * суть первого замечания, а полный текст остаётся в Notion и в плане.
+   */
+  const firstLine = (text, max = 220) => {
+    const line =
+      String(text || "")
+        .split("\n")
+        .map((part) => part.trim())
+        .filter(Boolean)[0] || "";
+    if (line.length <= max) return line;
+    const cut = line.slice(0, max);
+    const space = cut.lastIndexOf(" ");
+    return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trim()}…`;
+  };
+
+  /**
+   * Замечания — по пунктам. Мастер пишет их и списком с переводом строки, и
+   * одним абзацем «1) … 2) … 3) …». Координатору нужны отдельные пункты:
+   * правило возврата — на каждое замечание своя карточка.
+   */
+  const remarkItems = (text) =>
     String(text || "")
+      // Граница пункта — пробел или точка перед «2) », а не только перевод
+      // строки: Notion хранит замечания несколькими rich_text-элементами, и
+      // `rt` склеивает их без разделителя («…не менялся.2) docs…»).
+      .replace(/([.\s])(\d{1,2}[).]\s)/g, "$1\n$2")
       .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)[0] || "";
+      .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+      .filter(Boolean);
 
   /** Последняя закрытая миссия: по ней видно, что цикл остановился не «просто так». */
   async function lastClosedMission() {
@@ -1365,17 +1393,66 @@
     const remarks = missionRemarks(mission);
     if (!remarks) return "";
     const at = mission.properties["Возвращена"]?.date?.start || "";
-    const items = remarks
-      .split("\n")
-      .map((line) => line.replace(/^[-*•]\s*/, "").trim())
-      .filter(Boolean)
-      .map((line) => `- ${line}`);
+    const items = remarkItems(remarks).map((line) => `- ${line}`);
     return [
       `МИССИЯ ВОЗВРАЩЕНА МАСТЕРОМ${at ? ` ${String(at).slice(0, 10)}` : ""} НА ДОРАБОТКУ. Замечания:`,
       ...items,
       "Правила возврата: на каждое замечание — отдельная карточка с оракулом, который именно это замечание проверяет; переделывать фазу целиком нельзя. " +
         "Миссию можно закрыть только когда все замечания закрыты карточками, а в «Итоге» есть раздел «Возврат» с ответом на каждое.",
     ].join("\n");
+  }
+
+  /**
+   * Отпечаток возврата: дата, круг и замечания.
+   *
+   * Повторный возврат той же миссии (новый круг или новые замечания) — это
+   * новое событие, а не продолжение прошлого: у него свой отсчёт.
+   */
+  const returnFingerprint = (mission) =>
+    [
+      mission.properties?.["Возвращена"]?.date?.start || "",
+      String(mission.properties?.["Круг"]?.number ?? ""),
+      missionRemarks(mission),
+    ].join("|");
+
+  /**
+   * Момент, с которого возврат миссии известен скрипту.
+   *
+   * 24.10 в 15:47 Координатор ответил `done`, миссия закрылась, а ожидание
+   * плана осталось висеть: 1.4.41 на «нет активной миссии» его не снимала.
+   * В 16:07 Мастер вернул миссию, и в 16:12 шаг принял тот старый `done` за
+   * ответ на замечания — пауза «в «Итоге» нет раздела «Возврат»», хотя нового
+   * хода Координатора не было вовсе.
+   *
+   * Поэтому у каждого возврата свой отсчёт: всё, что запрошено раньше, —
+   * прошлый ход. Оно снимается, а Координатор получает новый план с
+   * замечаниями. Как только план запрошен после отсчёта, он уже не старый:
+   * перезагрузка страницы и повторный шаг его не трогают.
+   */
+  function returnEpoch(mission) {
+    const key = `cfn-mission-return-at:${mission.id}`;
+    const fp = returnFingerprint(mission);
+    const saved = GM_getValue(key, null);
+    if (saved && saved.fp === fp && Number(saved.at)) return saved;
+    const fresh = { at: Date.now(), fp };
+    GM_setValue(key, fresh);
+    return fresh;
+  }
+
+  /**
+   * Ожидание Координатора началось до возврата — это прошлый ход, а не ответ
+   * на замечания. Снимаем его и разрешаем новый план немедленно: иначе
+   * `done` из прошлого хода выглядит как отказ работать, и цикл встаёт на
+   * паузу, которой не за что стоять.
+   */
+  function dropStalePlan(mission, expect, epoch) {
+    if (!isReturned(mission) || !expect) return false;
+    const at = Number(expect.at) || Number(expect.sentAt) || 0;
+    const since = Number(epoch && epoch.at) || returnEpoch(mission).at;
+    if (at && at >= since) return false;
+    GM_setValue(K.expect, null);
+    GM_setValue("cfn-plan-at", 0);
+    return true;
   }
 
   const taskTitle = (p) => rt(p.properties["Запрос"]);
@@ -4417,13 +4494,26 @@
         );
         return true;
       }
-      const seen = `cfn-mission-return:${mission.id}`;
+      // У каждого возврата свой отсчёт: ожидание, начатое раньше, — прошлый
+      // ход. Снимаем его до разбора маркера, иначе `done` из прошлого хода
+      // выглядит как отказ отвечать на замечания (24.10, 16:12).
+      const epoch = returnEpoch(mission);
+      const seen = `cfn-mission-return:${mission.id}:${textHash(epoch.fp)}`;
       if (!GM_getValue(seen, false)) {
         GM_setValue(seen, true);
         log(
           `Миссия возвращена Мастером: ${firstLine(remarks)}. Координатор получит замечания в плане хода.`,
           false,
           { tone: "warn", ntfy: "loud", title: "Narthex: миссия возвращена" },
+        );
+      }
+      if (dropStalePlan(mission, expect, epoch)) {
+        expect = null;
+        log(
+          "Ожидание Координатора началось до возврата миссии — это прошлый ход, а не ответ на замечания. " +
+            "Снимаю его и прошу новый план: замечания будут в промпте.",
+          false,
+          { tone: "warn" },
         );
       }
     }
@@ -4470,9 +4560,15 @@
         }
         const returned = isReturned(mission);
         if (returned && !/возврат/i.test(rt(mission.properties["Итог"]))) {
+          // Сюда попадает только ответ на план, запрошенный уже после
+          // возврата: старый маркер снят выше. Значит, замечания правда не
+          // разобраны. Снимаем троттлинг, чтобы «Продолжить» сразу вернуло
+          // ход Координатору, а не ждало минуту.
+          GM_setValue("cfn-plan-at", 0);
           pause(
-            "Миссия возвращена Мастером, но в «Итоге» нет раздела «Возврат»: замечания не отвечены. " +
-              "Опишите в «Итоге», что сделано по каждому замечанию, и повторите ход.",
+            "Координатор ответил «done» уже после возврата миссии, но в «Итоге» нет раздела «Возврат»: " +
+              "замечания не разобраны. Нажмите «Продолжить» — он получит замечания заново; " +
+              "закрывать миссию без ответа на каждое замечание нельзя.",
             { kind: "done-with-remarks", ref: mission.id },
           );
           return true;
