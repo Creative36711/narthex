@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.35
+// @version      1.4.36
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -64,6 +64,7 @@
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
     sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
+    captchaGuardMs: 8000, // сколько после «отправлено» ждём капчу: она всплывает с задержкой
     stalledMs: 2700000, // 45 минут — и только для карточки, по которой ход потерян
     longWaitNoticeMs: 600000, // раз в 10 минут напоминаем, что долгое ожидание — норма
   };
@@ -700,6 +701,46 @@
     log(`Пауза снята Мастером (${reason}). Продолжаю.`, false, { ntfy: "quiet" });
   }
 
+  /**
+   * Проверка после капчи: задание действительно дошло до агента?
+   *
+   * 24.10 (13:47) отправка была засчитана в 13:47:03, окно проверки всплыло в
+   * 13:47:15. Мастер решил капчу и нажал «Продолжить» — а скрипт, у которого
+   * очередь уже была снята, честно ждал ответа на сообщение, которого агент не
+   * получал: тридцать минут впустую и карточка в Running.
+   *
+   * Признак настоящей доставки — поздний: агент начал ход. Если после отметки
+   * нет ни одного его сообщения и он не работает, ход потерян.
+   */
+  async function verifyAfterCaptcha(ctx) {
+    if (!ctx || ctx.kind !== "captcha") return false;
+    const expect = GM_getValue(K.expect, null);
+    if (!expect || !expect.sentAt) return false;
+    // Агенту нужно время, чтобы начать: сразу после «Продолжить» он молчит и
+    // при доставленном задании.
+    for (let i = 0; i < 3; i += 1) {
+      await sleep(1500);
+      if (stillWorking() || generating()) return false;
+    }
+    if (messagesAfter(expect.watermark || "").length) return false;
+    const isDispatch = expect.kind === "dispatch" && Boolean(expect.ref);
+    const rolled = isDispatch ? await releaseUndelivered(expect, "капча не пропустила задание") : true;
+    GM_setValue(K.expect, null);
+    GM_setValue(K.pending, null);
+    if (!rolled) {
+      log("Задание до агента не дошло: капча закрыла отправку, а карточку вернуть в Ready не удалось. Статус оставлен как есть.", true);
+      return false;
+    }
+    log(
+      isDispatch
+        ? "Задание до агента не дошло: капча закрыла отправку, ответа нет. Карточка возвращена в Ready — выдаю заново."
+        : "Ход Координатора до агента не дошёл: капча закрыла отправку. Запрошу план заново.",
+      true,
+      { ntfy: "quiet", title: "Narthex: задание не дошло, выдаю заново" },
+    );
+    return true;
+  }
+
   function roleFromPath() {
     const id = (location.pathname.match(/\/agent\/([\w-]+)/) || [])[1];
     return id || "";
@@ -797,7 +838,7 @@
     paintDebugButton();
   }
 
-  function toggleAuto() {
+  async function toggleAuto() {
     const auto = autoOn();
     const reason = GM_getValue(K.paused, "");
 
@@ -809,6 +850,9 @@
       // превращать ручной шаг в постоянный автоцикл.
       autoSet(ctx.wasAuto === true);
       resume("кнопка «Продолжить»");
+      // Капча могла всплыть уже после того, как скрипт записал «отправлено»:
+      // тогда без этой проверки «Продолжить» ждёт ответа на неотправленное.
+      await verifyAfterCaptcha(ctx);
       tick(true);
       return;
     }
@@ -2458,6 +2502,26 @@
     }
   }
 
+  /**
+   * Капча после «отправлено».
+   *
+   * 24.10 задание ушло в 13:47:03, а окно Security Verification всплыло в
+   * 13:47:15 — через двенадцать секунд. К этому времени очередь уже была
+   * снята, отметка доставки поставлена, и «Продолжить» после решения капчи
+   * стало ждать ответа на сообщение, которого агент не получал.
+   *
+   * Поэтому успешная отправка подтверждается не сразу: короткий карантин, в
+   * котором появление капчи отменяет её так же, как капча до клика.
+   */
+  async function captchaGuard() {
+    const deadline = Date.now() + (Number(C.captchaGuardMs) || 8000);
+    while (Date.now() < deadline) {
+      if (captchaDialog()) return true;
+      await sleep(400);
+    }
+    return Boolean(captchaDialog());
+  }
+
   /** Enter в поле ввода: второй канал отправки, если клик не дошёл. */
   function pressEnter(editor) {
     if (!editor) return false;
@@ -2579,6 +2643,8 @@
         // дойти, даже если отрисовалось. Считаем отправку неудачной — ход
         // повторится после того, как человек решит капчу.
         if (captchaDialog()) return blocked();
+        // Проверка не разовая: окно проверки всплывает через несколько секунд.
+        if (await captchaGuard()) return blocked();
         dbg("Send: сообщение в чате", { via, attempt });
         return { ok: true, via };
       }
@@ -4230,6 +4296,13 @@
     try {
       // Капча важнее любого шага: она останавливает и отправку, и ответ.
       if (captchaDialog()) {
+        // «Отправлено» перед капчей ничего не доказывает: Arena рисует реплику
+        // раньше, чем проверка её пропустит. В журнале должно быть «доставка не
+        // подтверждена» — иначе непонятно, зачем переотправлять задание.
+        const seen = GM_getValue(K.expect, null);
+        if (seen?.sentAt && seen.verified !== false) {
+          GM_setValue(K.expect, { ...seen, captcha: true, verified: false });
+        }
         captchaPause();
         return;
       }

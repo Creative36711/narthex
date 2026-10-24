@@ -1,4 +1,4 @@
-// Проба 1.4.35: капча («Security Verification») останавливает отправку.
+// Проба 1.4.36: капча («Security Verification») останавливает отправку.
 //
 // Случай Мастера (53), журнал 11:56:47:
 //
@@ -120,7 +120,102 @@ assert.match(deliverSrc, /if \(captchaDialog\(\)\) return blocked\(\);/, 'кап
 assert.match(deliverSrc, /const blocked = \(\) => \(\{/, 'отказ по капче отдельный');
 assert.match(deliverSrc, /captcha: true,/, 'признак капчи есть в результате');
 assert.match(deliverSrc, /клик \$\{clicked\}: вместо отправки окно проверки/, 'причина называет клик');
-assert.match(deliverSrc, /if \(captchaDialog\(\)\) return blocked\(\);\n        dbg\("Send: сообщение в чате"/, 'капча проверяется и после доставки');
+assert.match(deliverSrc, /if \(captchaDialog\(\)\) return blocked\(\);\n        \/\/ Проверка не разовая/, 'капча проверяется и после доставки');
+assert.match(deliverSrc, /if \(await captchaGuard\(\)\) return blocked\(\);/, 'и ещё раз — в карантине');
+
+// ── 3a. Карантин: капча всплывает с задержкой ──────────────────────────────
+const guardSrc = cut('  async function captchaGuard() {', '  /** Enter в поле ввода');
+{
+  const run = (dialogAt) => {
+    let calls = 0;
+    let now = 0;
+    const fn = new Function('sleep', 'captchaDialog', 'C', 'Date', `${guardSrc}\nreturn captchaGuard;`)(
+      async () => {
+        now += 400;
+      },
+      () => {
+        calls += 1;
+        return calls >= dialogAt ? {} : null;
+      },
+      { captchaGuardMs: 8000 },
+      { now: () => now },
+    );
+    return fn();
+  };
+  assert.equal(await run(1), true, 'капча сразу после отправки');
+  assert.equal(await run(3), true, 'капча через пару секунд — тоже отказ');
+  assert.equal(await run(999), false, 'тишина весь карантин — доставка');
+}
+
+// ── 3b. «Продолжить» после капчи: ответа на неотправленное не ждём ──────────
+const verifySrc = cut('  async function verifyAfterCaptcha(ctx) {', '  function roleFromPath()');
+assert.match(src, /const ctx = GM_getValue\(K\.pause, null\) \|\| \{\};/, 'вид паузы запоминается');
+assert.match(src, /await verifyAfterCaptcha\(ctx\);\n\s+tick\(true\);/, 'проверка идёт до шага');
+{
+  const calls = { rolled: 0, cleared: 0 };
+  let store = { expect: { kind: 'dispatch', ref: 'card-1', sentAt: Date.now(), watermark: 'm1', verified: true }, pending: null };
+  const fn = new Function(
+    'GM_getValue', 'GM_setValue', 'sleep', 'stillWorking', 'generating', 'messagesAfter',
+    'releaseUndelivered', 'log', 'K',
+    `${verifySrc}\nreturn verifyAfterCaptcha;`,
+  )(
+    (k) => (k === 'expect' ? store.expect : store.pending),
+    (k, v) => { if (k === 'expect') { store.expect = v; calls.cleared += 1; } else store.pending = v; },
+    async () => {},
+    () => false,
+    () => false,
+    () => [],
+    async () => { calls.rolled += 1; return true; },
+    () => {},
+    { expect: 'expect', pending: 'pending' },
+  );
+  assert.equal(await fn({ kind: 'send' }), false, 'обычная пауза — не наше дело');
+  assert.equal(await fn({ kind: 'captcha' }), true, 'капча без хода — задание потеряно');
+  assert.equal(calls.rolled, 1, 'карточка возвращается в Ready');
+  assert.equal(store.expect, null, 'ожидание снято: ответа больше не ждём');
+}
+{
+  const fn = new Function(
+    'GM_getValue', 'GM_setValue', 'sleep', 'stillWorking', 'generating', 'messagesAfter',
+    'releaseUndelivered', 'log', 'K',
+    `${verifySrc}\nreturn verifyAfterCaptcha;`,
+  )(
+    () => ({ kind: 'dispatch', ref: 'card-1', sentAt: Date.now(), watermark: 'm1' }),
+    () => {},
+    async () => {},
+    () => true,
+    () => false,
+    () => [],
+    async () => { throw new Error('не должно вызываться'); },
+    () => {},
+    { expect: 'expect', pending: 'pending' },
+  );
+  assert.equal(await fn({ kind: 'captcha' }), false, 'агент уже работает — ход жив');
+}
+{
+  const fn = new Function(
+    'GM_getValue', 'GM_setValue', 'sleep', 'stillWorking', 'generating', 'messagesAfter',
+    'releaseUndelivered', 'log', 'K',
+    `${verifySrc}\nreturn verifyAfterCaptcha;`,
+  )(
+    () => ({ kind: 'dispatch', ref: 'card-1', sentAt: Date.now(), watermark: 'm1' }),
+    () => {},
+    async () => {},
+    () => false,
+    () => false,
+    () => [{ id: 'm2', text: 'готово' }],
+    async () => { throw new Error('не должно вызываться'); },
+    () => {},
+    { expect: 'expect', pending: 'pending' },
+  );
+  assert.equal(await fn({ kind: 'captcha' }), false, 'ответ уже пришёл — откат не нужен');
+}
+
+// ── 3c. Пауза по капче больше не врёт про доставку ─────────────────────────
+const pauseCaptchaSrc = cut('  function captchaPause(extra = "") {', '  /**\n   * Кнопка рядом с полем ввода.');
+assert.match(pauseCaptchaSrc, /captchaPause/, 'точка паузы одна');
+assert.match(src, /if \(seen\?\.sentAt && seen\.verified !== false\) \{/, 'тик снимает «доставка подтверждена» при капче');
+assert.match(src, /GM_setValue\(K\.expect, \{ \.\.\.seen, captcha: true, verified: false \}\);/, 'вид ожидания помечен как «ждёт человека»');
 
 // ── 4. Очередь и карточка: откат отправки, но не хода ──────────────────────
 const consumeSrc = cut('  async function consumePending(', '  // ───────────────────── следы прошлых попыток');
@@ -143,11 +238,16 @@ assert.match(src, /задание осталось в очереди/, 'Маст
 // ── 6. Капча ловится и вне отправки, и не закрывается как плашка ───────────
 const tickFrom = src.indexOf('  async function tick(fromToggle = false) {');
 const tickBody = src.slice(tickFrom, src.indexOf('  // ───────────────────────────── старт', tickFrom));
-assert.match(tickBody, /if \(captchaDialog\(\)\) \{\n\s+captchaPause\(\);/, 'тик останавливается на капче');
+assert.match(
+  tickBody,
+  /if \(captchaDialog\(\)\) \{[\s\S]{0,700}?captchaPause\(\);/,
+  'тик останавливается на капче',
+);
+assert.match(tickBody, /verified: false/, 'и снимает ложное «отправлено»');
 const closeSrc = cut('  function closeCompletionPanel() {', '  /** Плашка любым способом');
 assert.match(closeSrc, /if \(captcha && \(panel === captcha \|\| panel\.contains\(captcha\)\)\) continue;/, 'окно проверки не закрывается как плашка');
 assert.match(src, /captcha: \(\) => Boolean\(captchaDialog\(\)\)/, '__narthex.captcha()');
 
 console.log(
-  'OK: narthex 1.4.35 — капча останавливает отправку, откатывает отметку «отправлено» и ждёт человека с громким пушем',
+  'OK: narthex 1.4.36 — капча останавливает отправку, откатывает отметку «отправлено» и ждёт человека с громким пушем',
 );

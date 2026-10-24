@@ -16,7 +16,7 @@ const tickFrom = src.indexOf('  async function tick(fromToggle = false) {');
 const tickBody = src.slice(tickFrom, src.indexOf('  // ───────────────────────────── старт', tickFrom));
 
 // ── 1. Включение автоцикла — это тик, а не «Шаг» ───────────────────────────
-const toggleFrom = src.indexOf('  function toggleAuto() {');
+const toggleFrom = src.indexOf('  async function toggleAuto() {');
 const toggleBlock = src.slice(toggleFrom, src.indexOf('  function btnStyle()', toggleFrom));
 assert.match(toggleBlock, /autoSet\(true\);/, 'автоцикл включается кнопкой');
 assert.match(
@@ -146,4 +146,4 @@ const role = { id: 'architect', name: 'Architect', url: 'https://arena.ai/agent/
   assert.equal(h.pauses.length, 0, 'паузы нет');
 }
 
-console.log('OK: narthex 1.4.35 — автоцикл сам находит страницу, не петляет и не забивает журнал');
+console.log('OK: narthex 1.4.36 — автоцикл сам находит страницу, не петляет и не забивает журнал');
