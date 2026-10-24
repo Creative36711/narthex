@@ -153,12 +153,13 @@ function make({ page = card(), notionFails = false, patchFails = false } = {}) {
 
 // ── 7. Вызовы на месте: иначе правило есть, а не работает ──────────────────
 assert.match(src, /const rolled = await releaseUndelivered\(\s*failed,/, 'отказ Send снимает Running');
-assert.match(src, /if \(mine && waiting\) await releaseUndelivered\(waiting, "очередь отправки просрочена"\)/, 'просрочка снимает Running');
+assert.match(src, /await dropGhostHandoff\("очередь отправки просрочена", \{ ignoreQueue: true \}\)/, 'просрочка снимает Running с любой страницы');
+assert.match(src, /async function dropGhostHandoff\(why, \{ ignoreQueue = false \} = \{\}\)/, 'откат собран в одном месте');
 assert.match(src, /await releaseUndelivered\(gone, "отправка не подтвердилась/, 'фантом без текста снимает Running');
 assert.match(src, /await releaseUndelivered\(stuck, "агент не ответил и ничего не делает"\)/, 'молчание 30 минут снимает Running');
 assert.match(src, /"Dispatch State": \{ select: \{ name: "Running" \} \}/, 'выдача по-прежнему ставит Running до отправки');
 assert.match(src, /if \(rolled\) \{\n\s+GM_setValue\(K\.pending, null\);/, 'очередь снимается только вместе со статусом');
 
 console.log(
-  'OK: narthex 1.4.43 — ход, не дошедший до исполнителя, возвращает карточку в Ready, а не держит её 45 минут',
+  'OK: narthex 1.4.44 — ход, не дошедший до исполнителя, возвращает карточку в Ready, а не держит её 45 минут',
 );

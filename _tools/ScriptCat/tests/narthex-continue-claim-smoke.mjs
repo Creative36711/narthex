@@ -1,4 +1,4 @@
-// Проба 1.4.43: Continue после мержа по маркеру.
+// Проба 1.4.44: Continue после мержа по маркеру.
 //
 // 24.10 в 15:46 ScriptCat принял мерж PR #35 по маркеру Kernel и сразу ушёл к
 // Координатору. Continue на странице агента не была нажата — Мастер жал её
@@ -110,4 +110,4 @@ assert.equal(
 assert.doesNotMatch(ensureBlock, /GM_setValue\(key, true\);\s*\n\s*return "claimed";/, 'немедленного выхода больше нет');
 assert.match(claimBlock, /mergedFlag\(\) \|\| continueButton\(\)/, 'ждём и бейдж, и Continue');
 
-console.log('OK: narthex 1.4.43 — при мерже по маркеру Continue ждётся и нажимается, а не теряется');
+console.log('OK: narthex 1.4.44 — при мерже по маркеру Continue ждётся и нажимается, а не теряется');

@@ -94,7 +94,7 @@ const createAt = mergedBlock.indexOf('const create = createPr();');
 const graceAt = mergedBlock.indexOf('if (Date.now() > grace) {');
 assert.ok(claimAt > 0 && createAt > claimAt, 'заявка о мерже проверяется раньше кнопки Create');
 assert.ok(graceAt > claimAt, 'заявка решает и до истечения grace, а не после');
-// 1.4.43: клика по Create/Merge нет, но Continue ждётся и нажимается —
+// 1.4.44: клика по Create/Merge нет, но Continue ждётся и нажимается —
 // сам выход живёт в claimMerge.
 assert.match(
   mergedBlock.slice(claimAt, graceAt),
@@ -128,4 +128,4 @@ assert.match(
   'если плашка осталась и поле не нашлось — это видно в причине',
 );
 
-console.log('OK: narthex 1.4.43 — плашка = агент свободен, её кнопки не PR-интерфейс, при merged: true кликов нет');
+console.log('OK: narthex 1.4.44 — плашка = агент свободен, её кнопки не PR-интерфейс, при merged: true кликов нет');

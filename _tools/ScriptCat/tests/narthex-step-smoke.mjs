@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.43/, 'версия 1.4.43');
+assert.match(src, /@version\s+1\.4\.44/, 'версия 1.4.44');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -100,7 +100,7 @@ assert.match(cpBody, /const age = Date\.now\(\) - Number\(pending\.at \|\| 0\);/
 assert.match(cpBody, /Снял просроченную отправку из очереди/, 'просрочка объясняется');
 assert.match(cpBody, /Продолжаю шаг с чистого листа/, 'просрочка не глотает нажатие');
 assert.match(cpBody, /Нажмите «Шаг», чтобы начать заново/, 'на загрузке страницы шаг сам не начинается');
-assert.match(cpBody, /if \(mine && waiting && norm\(waiting\.roleId\) === norm\(me\)\) GM_setValue\(K\.expect, null\);/, 'вместе с очередью снимается ожидание');
+assert.match(cpBody, /const ghost = await dropGhostHandoff\("очередь отправки просрочена", \{ ignoreQueue: true \}\);/, 'вместе с очередью снимается ожидание и откатывается карточка');
 for (const text of [
   'Агент ещё отвечает: задание из очереди подождёт',
   'Не нашёл поле ввода на странице адресата',
@@ -566,13 +566,38 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.ok(out.logs.some((l) => /Нажмите «Шаг»/.test(l.text)), 'Мастеру сказано, что делать');
 }
 
-// 6.5.2. Просроченная очередь чужой роли: снимаем, но ожидание не трогаем.
+// 6.5.2. Просроченная очередь чужой роли: снимаем на любой странице.
+// 1.4.44: 24.10 карточка NAR-1.12 осталась Running, потому что Мастер стоял не
+// на странице адресата. Очередь просрочена — сообщения в чате нет, значит и
+// ожиданию держаться не за что, а карточке — тем более.
 {
   const old = { ...pending, roleId: "kernel", at: 1_000_000 - 11 * 60 * 1000 };
-  const { api, out } = load({ pending: old, editor: null, send: true, expect: { roleId: "kernel", at: old.at } });
+  const { api, out } = load({
+    pending: old,
+    editor: null,
+    send: true,
+    expect: { roleId: "kernel", kind: "dispatch", ref: "c1", at: old.at },
+    rollback: true,
+  });
   await api.consumePending(true);
   assert.equal(out.sets.get("cfn-pending"), null, 'очередь очищена в любом случае');
-  assert.equal(out.sets.get("cfn-expect"), undefined, 'чужое ожидание не снимается с этой страницы');
+  assert.equal(out.sets.get("cfn-expect"), null, 'ожидание снято: это остаток прошлой попытки, а не ход');
+  assert.equal(out.rollback.calls.length, 1, 'карточка возвращена в Ready');
+}
+
+// 6.5.2b. Ожидание, у которого есть отметка отправки, не снимается.
+{
+  const old = { ...pending, roleId: "kernel", at: 1_000_000 - 11 * 60 * 1000 };
+  const { api, out } = load({
+    pending: old,
+    editor: null,
+    send: true,
+    expect: { roleId: "kernel", kind: "dispatch", ref: "c1", at: old.at, sentAt: old.at, verified: true },
+  });
+  await api.consumePending(true);
+  assert.equal(out.sets.get("cfn-pending"), null, 'очередь очищена');
+  assert.equal(out.sets.get("cfn-expect"), undefined, 'сообщение в чате есть — ожидание остаётся');
+  assert.equal(out.rollback.calls.length, 0, 'карточку не трогали');
 }
 
 // 6.6. Чужое задание не трогаем.
@@ -582,4 +607,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.43 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.44 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.43
+// @version      1.4.44
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -268,7 +268,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.43";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.44";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -3248,6 +3248,36 @@
   };
 
   /**
+   * Ожидание без отметки отправки — след прошлой попытки, а не ход.
+   *
+   * 24.10 в 16:35 карточка NAR-1.12 ушла в Running, а страница Arena упала до
+   * отправки: сообщение в чат Kernel не попало. Через 34 минуты очередь
+   * снялась, но карточку скрипт не тронул — он стоял не на странице адресата,
+   * а откат статуса был привязан к ней. В Running карточка ждала ещё 11 минут
+   * до `releaseStalled`, и всё это время Координатор видел «1 Running» и
+   * выдавать её не мог.
+   *
+   * Отметки отправки нет — значит работы по карточке не было, и в Running ей
+   * держаться не за что, на какой бы странице ни стоял Мастер. Возвращаем
+   * Ready, снимаем ожидание и разрешаем новый план сразу: ход начинается
+   * заново с чистого листа.
+   *
+   * `ignoreQueue` — очередь уже признана просроченной и снимается этим же
+   * шагом: тогда она не повод оставить карточку в Running.
+   *
+   * Возвращает `{ expect, rolled }`, если след был снят, иначе `null`.
+   */
+  async function dropGhostHandoff(why, { ignoreQueue = false } = {}) {
+    const expect = GM_getValue(K.expect, null);
+    if (!expect || Number(expect.sentAt)) return null;
+    if (!ignoreQueue && GM_getValue(K.pending, null)) return null;
+    const rolled = await releaseUndelivered(expect, why);
+    GM_setValue(K.expect, null);
+    GM_setValue("cfn-plan-at", 0);
+    return { expect, rolled };
+  }
+
+  /**
    * Досылает задание, сохранённое перед переходом на страницу адресата.
    *
    * Возвращает true, если ход этим и занят: отправлено, ждём редактор или ждём
@@ -3266,21 +3296,26 @@
     if (age > C.pendingTtlMs) {
       const mine = Boolean(me) && norm(me) === norm(pending.roleId);
       GM_setValue(K.pending, null);
-      const waiting = GM_getValue(K.expect, null);
-      if (mine && waiting && norm(waiting.roleId) === norm(me)) GM_setValue(K.expect, null);
-      // Ход не уходил ни разу: карточка в Running ждала бы 45 минут впустую.
-      if (mine && waiting) await releaseUndelivered(waiting, "очередь отправки просрочена");
+      // Карточку возвращаем с любой страницы: отметки отправки нет, работы не
+      // было, и ждать 45 минут `releaseStalled` ей незачем.
+      const ghost = await dropGhostHandoff("очередь отправки просрочена", { ignoreQueue: true });
       // В ручном режиме шаг делает только нажатие: на загрузке страницы
       // ограничиваемся уборкой, а не отправкой плана за спиной Мастера.
       const act = manual || autoOn();
-      log(
-        `Снял просроченную отправку из очереди (${Math.round(age / 60000)} мин): задание до адресата не дошло, ` +
-          `это остаток прошлой попытки. ` +
-          (mine
+      const next = GM_getValue(K.expect, null)
+        ? "Сообщение в чате есть — ожидание ответа оставлено."
+        : ghost && ghost.rolled
+          ? "Карточка возвращена в Ready — Координатор выдаст её заново."
+          : mine
             ? act
               ? "Продолжаю шаг с чистого листа."
               : "Нажмите «Шаг», чтобы начать заново."
-            : "Вернитесь на страницу адресата и повторите."),
+            : act
+              ? "Продолжаю шаг с чистого листа."
+              : "Нажмите «Шаг», чтобы начать заново.";
+      log(
+        `Снял просроченную отправку из очереди (${Math.round(age / 60000)} мин): задание до адресата не дошло, ` +
+          `это остаток прошлой попытки. ${next}`,
         true,
       );
       return !act;
@@ -4959,6 +4994,22 @@
       if (await consumePending(fromToggle)) return;
       // Фантом старой версии снят, повторять нечего: без нажатия не начинаем ход.
       if (revived === "dropped" && !auto && !fromToggle) return;
+      // Ожидание без отметки отправки и без очереди — след упавшей попытки:
+      // сообщения в чате нет, карточке в Running делать нечего. Убираем это
+      // на любой странице, иначе Координатор видит живой ход там, где работы
+      // не начиналось (24.10, NAR-1.12).
+      const ghost = await dropGhostHandoff("задание не дошло: отметки отправки нет");
+      if (ghost) {
+        log(
+          `${ghost.expect.roleName || ghost.expect.roleId}: ожидание без отметки отправки — это прошлый ход, ` +
+            "а не работа. " +
+            (ghost.rolled
+              ? "Карточка возвращена в Ready — ход начнётся заново."
+              : "Ожидание снято, ход начнётся заново."),
+          false,
+          { tone: "warn" },
+        );
+      }
       // Ручной режим: нажатие «Шаг» делает ровно один шаг. Фон (таймер)
       // досылает очередь после перехода, но не читает ответы и не выдаёт
       // новые задания: иначе один ход превращался в цепочку из трёх отправок.
@@ -5076,10 +5127,12 @@
       // вопрос, которого никто не задавал, можно бесконечно — снимаем и идём
       // дальше. Заодно сбрасываем троттлинг: прошлый запрос никто не получил.
       if (expect && !Number(expect.sentAt)) {
+        const ghost2 = await dropGhostHandoff("задание не дошло: отметки отправки нет");
         GM_setValue(K.expect, null);
         GM_setValue("cfn-plan-at", 0);
         log(
-          `${me.name}: в чате нет отметки прошлой отправки — это след прошлой попытки, снимаю ожидание и начинаю ход заново.`,
+          `${me.name}: в чате нет отметки прошлой отправки — это след прошлой попытки, снимаю ожидание и начинаю ход заново.` +
+            (ghost2 && ghost2.rolled ? " Карточка возвращена в Ready." : ""),
           true,
         );
         expect = null;
