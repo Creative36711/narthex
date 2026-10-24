@@ -147,4 +147,18 @@ assert.ok(manualAt > ghostAt, 'уборка идёт до выхода из ру
 const late = tick.slice(tick.indexOf('if (expect && !Number(expect.sentAt)) {'));
 assert.match(late.slice(0, 700), /dropGhostHandoff\(/, 'запасная ветка делает то же');
 
+// ── 5. Обновление скрипта тоже не бросает карточку ─────────────────────────
+// 1.4.9 снимала при обновлении ожидание без отметки отправки — и карточка,
+// успевшая стать Running, оставалась в нём до `releaseStalled`.
+const migrateFrom = src.indexOf('  function migrateState() {');
+const migrateTo = src.indexOf('  /** Кнопка ↺: очистка по воле Мастера');
+assert.ok(migrateFrom > 0 && migrateTo > migrateFrom, 'migrateState на месте');
+const migrate = src.slice(migrateFrom, migrateTo);
+assert.match(migrate, /ghostAfterUpdate = expect;/, 'снятое ожидание передаётся шагу');
+assert.match(migrate, /верну в Ready первым шагом/, 'это сказано в журнале');
+assert.ok(
+  tick.indexOf('releaseUndelivered(gone, "обновление скрипта: задание не уходило")') > 0,
+  'первый шаг возвращает карточку в Ready',
+);
+
 console.log('OK: narthex 1.4.44 — упавшая отправка возвращает карточку в Ready с любой страницы');

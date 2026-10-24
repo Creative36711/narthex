@@ -3529,10 +3529,14 @@
     if (!expect || Number(expect.sentAt)) return "";
     GM_setValue(K.expect, null);
     GM_setValue("cfn-plan-at", 0);
+    // Обновление не должно бросать карточку: если ход успел уйти в Running, а
+    // сообщение — нет, вернуть её в Ready обязан первый шаг (24.10, NAR-1.12).
+    ghostAfterUpdate = expect;
     const who = `«${expect.roleName || expect.roleId}», ${expect.kind || "?"}`;
     log(
       `Обновился до ${SCRIPT_VERSION}${seen ? ` с ${seen}` : ""}: снял ожидание без отметки отправки (${who}) — ` +
-        "в чат оно не уходило, это след прошлой попытки. Очередь и журнал на месте.",
+        "в чат оно не уходило, это след прошлой попытки. Его карточку, если она в Running, верну в Ready первым шагом. " +
+        "Очередь и журнал на месте.",
       false,
       { skip: true },
     );
@@ -4838,6 +4842,8 @@
 
   // Ожидание, снятое как фантом, — чтобы тик мог вернуть его карточку в Ready.
   let droppedHandoff = null;
+  // Ожидание, снятое обновлением скрипта: карточку вернёт первый же шаг.
+  let ghostAfterUpdate = null;
 
   /**
    * Отправка без подтверждения — не отправка.
@@ -4985,6 +4991,11 @@
         const gone = droppedHandoff;
         droppedHandoff = null;
         await releaseUndelivered(gone, "отправка не подтвердилась, текста задания не сохранилось");
+      }
+      if (ghostAfterUpdate) {
+        const gone = ghostAfterUpdate;
+        ghostAfterUpdate = null;
+        await releaseUndelivered(gone, "обновление скрипта: задание не уходило");
       }
       if (await consumePending(fromToggle)) return;
       // Фантом старой версии снят, повторять нечего: без нажатия не начинаем ход.
