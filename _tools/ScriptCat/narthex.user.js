@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.28
+// @version      1.4.29
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -455,6 +455,8 @@
     sendDebug: () => GM_getValue("cfn-send-debug", null),
     sendButton: () => debugSendButton(composer()),
     panels: () => completionPanels().map(describe),
+    /** Капча на экране: без человека цикл не пойдёт. */
+    captcha: () => Boolean(captchaDialog()),
     closePanel: () => closeCompletionPlaque(),
     messages: () => messages().map((n) => ({ id: nodeId(n), head: messageText(n).slice(0, 60) })),
     /** Что скрипт считает ответом после водяного знака — с хвостом и маркером. */
@@ -588,7 +590,7 @@
     GM_setValue(K.pause, info);
     log(`ПАУЗА: ${info.reason}`, true, { skip: true });
     notifyNtfy(`Цикл остановлен и ждёт Мастера: ${info.reason}`, {
-      title: "Narthex: пауза",
+      title: context.notifyTitle || "Narthex: пауза",
       priority: "5",
       tags: "warning,rotating_light",
     });
@@ -1895,6 +1897,55 @@
   }
 
   /**
+   * Капча («Security Verification» с reCAPTCHA) поверх чата.
+   *
+   * Появляется не по расписанию, а в момент отправки — и тогда клик по Send
+   * ничего не отправляет: Arena показывает окно проверки, а сообщение до
+   * агента не доходит. Хуже того, поле на миг пустеет, а в транскрипте
+   * появляется наша реплика, поэтому `waitSent` честно докладывал «отправлено».
+   * 11:56:47 так и вышло: «Задание отправлено», а Координатор ничего не
+   * получил (вопрос Мастера 53).
+   *
+   * Поэтому капча проверяется до клика, после клика и в ожидании доставки: пока
+   * окно висит, отправки нет — что бы ни показывал счётчик сообщений.
+   */
+  const CAPTCHA_SELECTORS = [
+    ".recaptcha-v2-container",
+    'iframe[title="reCAPTCHA"]',
+    'iframe[src*="recaptcha"]',
+    "#g-recaptcha-response",
+  ];
+
+  function captchaDialog() {
+    for (const el of document.querySelectorAll('[role="dialog"], [role="alertdialog"]')) {
+      if (!visible(el)) continue;
+      if (CAPTCHA_SELECTORS.some((sel) => el.querySelector(sel))) return el;
+      // Разметку Arena можно переверстать: окно всё равно узнаётся по заголовку.
+      if (/(security verification|recaptcha|подтвердите, что вы человек)/i.test(String(el.textContent || ""))) return el;
+    }
+    for (const el of document.querySelectorAll(".recaptcha-v2-container")) {
+      if (visible(el)) return el.closest?.('[role="dialog"]') || el;
+    }
+    return null;
+  }
+
+  /**
+   * Доставка без человека невозможна: пауза с громким пушем.
+   *
+   * Очередь не снимается: после решения капчи «Продолжить» отправит то же
+   * задание, а не начнёт ход заново. Карточка остаётся Running — ход жив, он
+   * ждёт человека; вернуть её в Ready значило бы потом отказаться записывать
+   * ответ («Задача уже не Running»).
+   */
+  function captchaPause(extra = "") {
+    pause(
+      `Появилась капча (Security Verification): без человека сообщение не уйдёт. ` +
+        `Решите её и нажмите «Продолжить» — задание осталось в очереди.${extra}`,
+      { kind: "captcha", notifyTitle: "Narthex: капча — нужен человек" },
+    );
+  }
+
+  /**
    * Кнопка рядом с полем ввода.
    *
    * Геометрия — единственный признак, который отличает Send от кнопки аккаунта
@@ -2117,8 +2168,11 @@
 
   /** Панель завершения: та же кнопка, что в dispatch.user.js (шапка, затем подпись). */
   function closeCompletionPanel() {
+    const captcha = captchaDialog();
     const panels = completionPanels();
     for (const panel of panels) {
+      // Окно проверки не плашка: его кнопки нажимает человек, а не скрипт.
+      if (captcha && (panel === captcha || panel.contains(captcha))) continue;
       const close = closeButtonIn(panel);
       if (close && visible(close)) {
         close.click();
@@ -2294,6 +2348,10 @@
     // deadline был бы NaN, и опрос шёл бы вечно.
     const deadline = Date.now() + (Number(timeoutMs) || 6000);
     for (;;) {
+      // Капча важнее счётчика: Arena успевает показать нашу реплику до
+      // проверки, а до агента она не доходит. Признак «отправлено» в это
+      // время — ложь, из-за которой 11:56:47 задание считалось ушедшим.
+      if (captchaDialog()) return "";
       if (lastUserSays(key)) return "message";
       if (messages().length > before) return "count";
       const live = composer();
@@ -2342,8 +2400,16 @@
 
     const why = [];
     let clicked = 0;
+    const blocked = () => ({
+      ok: false,
+      captcha: true,
+      reason: "Появилась капча (Security Verification) — сообщение не ушло",
+      detail: clicked ? `клик ${clicked}: вместо отправки окно проверки` : "окно проверки до клика",
+    });
+    if (captchaDialog()) return blocked();
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       // Сообщение могло уйти с прошлой попытки — проверяем до нового клика.
+      if (captchaDialog()) return blocked();
       if (lastUserSays(key)) return { ok: true, via: "message" };
 
       // Узел редактора мог смениться при перерисовке чата: тогда и вставка,
@@ -2401,6 +2467,7 @@
         break;
       }
       btn = latest;
+      if (captchaDialog()) return blocked();
       dbg(`Send: клик ${attempt}`, () => debugSendButton(live));
       btn.click();
       clicked += 1;
@@ -2413,9 +2480,14 @@
         via = await waitSent(key, before, C.sendVerifyMs);
       }
       if (via) {
+        // Клик прошёл, но поверх чата висит проверка: сообщение могло не
+        // дойти, даже если отрисовалось. Считаем отправку неудачной — ход
+        // повторится после того, как человек решит капчу.
+        if (captchaDialog()) return blocked();
         dbg("Send: сообщение в чате", { via, attempt });
         return { ok: true, via };
       }
+      if (captchaDialog()) return blocked();
 
       // Не дошло. Карточка могла появиться между вставкой и кликом — убираем
       // её один раз и повторяем; гоняться за ней циклом смысла нет.
@@ -2424,6 +2496,11 @@
       why.push(plaque === "none" ? `клик ${attempt} без следа` : `клик ${attempt}: закрыл плашку`);
       await sleep(500);
     }
+
+    // Капча могла появиться уже после кликов — в ожидании доставки. Тогда
+    // причина отказа именно она, а не «кнопка не нашлась»: от неё зависит,
+    // снимать ли очередь (её не снимаем — ждём человека).
+    if (captchaDialog()) return blocked();
 
     const now = composer();
     const button = now ? sendButton(now) : null;
@@ -2582,8 +2659,25 @@
 
     if (!me || norm(me) !== norm(pending.roleId)) return false;
 
+    // Сообщение могло уйти, пока человек решал капчу. Тогда повторная
+    // отправка была бы дублем: в чате уже есть эта реплика.
+    if (pending.captcha && !captchaDialog() && lastUserSays(sendKey(pending.text))) {
+      const waiting = GM_getValue(K.expect, null);
+      if (waiting) GM_setValue(K.expect, { ...waiting, watermark: lastMessageId(), sentAt: Date.now(), verified: true, captcha: false });
+      GM_setValue(K.pending, null);
+      pendingNoticeAt = 0;
+      log("После капчи сообщение уже в чате — отправку не повторяю, жду ответа.");
+      return true;
+    }
+
     if (generating()) {
       pendingSay(pending, "Агент ещё отвечает: задание из очереди подождёт и уйдёт, как только он закончит.");
+      return true;
+    }
+
+    // Капча висит поверх чата: ни вставлять, ни кликать некуда. Ждём человека.
+    if (captchaDialog()) {
+      captchaPause();
       return true;
     }
 
@@ -2628,6 +2722,19 @@
     // отличить от старой переписки.
     const watermark = lastMessageId();
     const delivery = await deliver(editor, pending.text);
+    // Капча — не обычный отказ: очередь не снимается, карточка не
+    // откатывается, ждём человека. Отметки отправки при этом не появляется:
+    // «откат отправки» и значит, что `sentAt` не ставится.
+    if (delivery.captcha) {
+      const waiting = GM_getValue(K.expect, null);
+      if (waiting) GM_setValue(K.expect, { ...waiting, captcha: true, sentAt: null, verified: false });
+      // Очередь остаётся, но с отметкой: после решения капчи сначала надо
+      // посмотреть, не дошло ли сообщение всё-таки. Отсчёт TTL начинается
+      // заново — человек решает капчу не за десять секунд.
+      GM_setValue(K.pending, { ...pending, captcha: true, at: Date.now() });
+      captchaPause();
+      return true;
+    }
     if (!delivery.ok) {
       // Сообщение в чат не попало — работы по карточке нет, и в Running ей
       // делать нечего. Очередь снимается вместе со статусом: иначе ответ по
@@ -3878,6 +3985,11 @@
     busy = true;
     busyAt = Date.now();
     try {
+      // Капча важнее любого шага: она останавливает и отправку, и ответ.
+      if (captchaDialog()) {
+        captchaPause();
+        return;
+      }
       // Ошибка на экране важнее любого шага: сначала остановиться.
       if (monitorVisibleErrors()) return;
       await setup(false);

@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.28/, 'версия 1.4.28');
+assert.match(src, /@version\s+1\.4\.29/, 'версия 1.4.29');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -177,7 +177,7 @@ assert.match(cpBody, /await releaseUndelivered\(/, 'отказ отправки 
 assert.match(tickBody, /await releaseUndelivered\(stuck/, 'молчание агента снимает Running, а не ждёт 45 минут');
 
 // 6. Поведение: мини-DOM и заглушки вместо браузера.
-const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000, expect = null, skip = false, overlay = false, stickyOverlay = false, sendCovered = false, deadSend = false, disabledSend = false, rollback = false }) => {
+const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_000, expect = null, skip = false, overlay = false, stickyOverlay = false, sendCovered = false, deadSend = false, disabledSend = false, rollback = false, captcha = false, captchaAfterClick = false, sentAlready = false }) => {
   const out = { logs: [], sets: new Map(), pauses: [], clicks: [], timers: [], rollback: { calls: [], result: rollback } };
   const state = { now };
   const advance = (ms) => { state.now += ms; };
@@ -197,7 +197,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     ...props,
   });
   // Свои сообщения в транскрипте: 1.4.20 подтверждает доставку именно ими.
-  const sent = [];
+  const sent = sentAlready ? [{ textContent: pending?.text || "", closest: () => null }] : [];
   // Кнопка Send стоит вплотную к полю ввода — как в жизни. Раньше стаб
   // ставил её в стороне, и это скрывало ошибку «клик ушёл в сайдбар».
   const sendBtn = send ? el("BUTTON", {
@@ -224,9 +224,23 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     skipBtn.click = () => { out.clicks.push("skip"); messages.length = 0; };
     messages.push({ querySelectorAll: () => (messages.length ? [skipBtn] : []) });
   }
+  // 1.4.29: окно проверки. `captcha` — видна сразу, `captchaAfterClick` —
+  // появляется, как в жизни: после клика по Send, вместо отправки.
+  const captchaNow = () => captcha || (captchaAfterClick && sent.length > 0);
+  const captchaEl = captcha || captchaAfterClick
+    ? {
+        isConnected: true,
+        textContent: "Security Verification",
+        getClientRects: () => [{}],
+        querySelector: (sel) => (sel.includes("recaptcha") ? { found: true } : null),
+        contains: () => false,
+        closest: () => null,
+      }
+    : null;
   const document = {
     querySelector: (sel) => (sel.includes("contenteditable") ? editor : null),
     querySelectorAll: (sel) => {
+      if (sel.includes('role="dialog"')) return captchaNow() ? [captchaEl] : [];
       if (sel.includes("data-user-message-layout")) return sent;
       if (sel.includes("data-agent-transcript-message")) return messages.length ? [messages[0]] : [];
       if (sel.includes("border-border-medium")) return panels.length ? panels : [];
@@ -449,6 +463,62 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.ok(!out.logs.some((l) => l.text === "Задание отправлено."), 'ложного «отправлено» нет');
 }
 
+// 6.5d. Капча поверх чата: ничего не нажимаем, задание остаётся в очереди.
+{
+  const { api, out } = load({
+    pending,
+    editor: freshEditor(),
+    send: true,
+    captcha: true,
+    expect: { roleId: "coordinator", kind: "plan" },
+  });
+  await api.consumePending(true);
+  assert.equal(out.pauses.length, 1, 'пауза вместо отправки');
+  assert.match(out.pauses[0].text, /капча \(Security Verification\)/, 'причина названа прямо');
+  assert.match(out.pauses[0].text, /Решите её и нажмите «Продолжить»/, 'Мастеру сказано, что делать');
+  assert.equal(out.pauses[0].ctx.notifyTitle, "Narthex: капча — нужен человек", 'пуш отличается от обычной паузы');
+  assert.deepEqual(out.clicks, [], 'по Send не кликали');
+  assert.equal(out.sets.get("cfn-pending"), undefined, 'задание осталось в очереди');
+  assert.equal(out.sets.get("cfn-expect"), undefined, 'ожидание не тронуто');
+}
+
+// 6.5d2. Капча появилась вместо отправки: откат отметки, а не ложное «отправлено».
+{
+  const { api, out } = load({
+    pending,
+    editor: freshEditor(),
+    send: true,
+    captchaAfterClick: true,
+    expect: { roleId: "coordinator", kind: "dispatch", ref: "c1", sentAt: 999_000, verified: true },
+  });
+  await api.consumePending(true);
+  const saved = out.sets.get("cfn-expect");
+  assert.equal(saved?.sentAt, null, 'отметка «отправлено» снята — это и есть откат');
+  assert.equal(saved?.verified, false, 'подтверждение доставки снято');
+  assert.equal(saved?.captcha, true, 'видно, почему ход стоит');
+  assert.equal(out.rollback.calls.length, 0, 'карточка остаётся Running: ход ждёт человека, а не потерян');
+  assert.ok(!out.logs.some((l) => l.text === "Задание отправлено."), 'ложного «отправлено» нет');
+}
+
+// 6.5d3. Капчу решили, сообщение всё-таки в чате: не дублируем, ждём ответа.
+{
+  const carried = { ...pending, captcha: true, at: 999_000 };
+  const { api, out } = load({
+    pending: carried,
+    editor: freshEditor(),
+    send: true,
+    sentAlready: true,
+    expect: { roleId: "coordinator", kind: "plan", captcha: true },
+  });
+  assert.equal(await api.consumePending(true), true, 'шаг занят ожиданием ответа');
+  assert.equal(out.sets.get("cfn-pending"), null, 'очередь снята');
+  const saved = out.sets.get("cfn-expect");
+  assert.equal(typeof saved?.sentAt, "number", 'теперь доставка подтверждена');
+  assert.equal(saved?.captcha, false, 'признак капчи снят');
+  assert.deepEqual(out.clicks, [], 'повторной отправки нет');
+  assert.ok(out.logs.some((l) => /После капчи сообщение уже в чате/.test(l.text)), 'видно, почему не отправили заново');
+}
+
 // 6.5.1. Просроченная очередь: снимаем, объясняем и продолжаем шаг.
 {
   const old = { ...pending, at: 1_000_000 - 11 * 60 * 1000 };
@@ -502,4 +572,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.28 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.29 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
