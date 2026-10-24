@@ -50,7 +50,7 @@ import { EditorBookPanel } from './EditorBookPanel'
 import { DesignDocPanel } from './DesignDocPanel'
 import { PackCatalogPanel } from './PackCatalogPanel'
 import { PackMissingNotice } from './PackMissingNotice'
-import { resolveProjectPackForStudio } from './packCatalog'
+import { resolveProjectModesForStudio, resolveProjectPackForStudio } from './packCatalog'
 
 /**
  * Narthex — Editor Mode (Фаза 4, ТЗ 5).
@@ -168,7 +168,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
   const fileInput = useRef<HTMLInputElement>(null)
   const folderInput = useRef<HTMLInputElement>(null)
 
-  const store = useMemo(() => new EditorStore(base, resolveProjectPackForStudio), [base])
+  const store = useMemo(() => new EditorStore(base, resolveProjectPackForStudio, resolveProjectModesForStudio), [base])
 
   const loaded = readyStore === store
 
@@ -784,6 +784,11 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
       const { doc, warnings } = exportMonolith(store)
       const problems = [...warnings, ...store.validateContent()]
       const campaign = campaignFromMonolith(doc)
+      const capabilityModes = resolveProjectModesForStudio(store.project)
+      if (capabilityModes.status === 'invalid') problems.push(capabilityModes.message)
+      else if (capabilityModes.activeCaps !== null) campaign.meta.caps = capabilityModes.activeCaps
+      const runtimeMeta = campaign.meta as typeof campaign.meta & { project_cap_options?: unknown }
+      runtimeMeta.project_cap_options = store.project.cap_options
       campaign.basePath = base
       if (startSceneId) {
         let foundLoc = ''
@@ -1054,6 +1059,7 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
     return true
   })
   const hasList = !['campaign', 'world', 'combat', 'design', 'packs'].includes(section)
+  const questsOff = store.capabilityModes?.status === 'ready' && store.capabilityModes.modes.quests === 'off'
   const sel = selected && items.some((i) => i.path === selected) ? selected : null
   // счётчики в заголовках групп — мастер сразу видит, сколько документов в «полочке»
   const groupCounts = new Map<string, number>()
@@ -1289,10 +1295,10 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
                   <button className="btn btn-small" onClick={() => createNew('npc')}>+ NPC</button>
                 </>
               ) : (
-                <button className="btn btn-small" onClick={() => createNew()}>+ создать</button>
+                <button className="btn btn-small" onClick={() => createNew()} disabled={section === 'quests' && questsOff} title={section === 'quests' && questsOff ? 'Квесты выключены и доступны только для чтения' : undefined}>+ создать</button>
               )}
               {sel && (
-                <button className="btn btn-small ce-del" onClick={removeSelected}><Ico n="close" /> </button>
+                <button className="btn btn-small ce-del" onClick={removeSelected} disabled={section === 'quests' && questsOff} title={section === 'quests' && questsOff ? 'Квесты выключены и доступны только для чтения' : undefined}><Ico n="close" /> </button>
               )}
             </div>
           </aside>
@@ -1300,14 +1306,20 @@ export function EditorApp({ campaignPath, onExit }: { campaignPath: string; onEx
 
         <main className="editor-main">
           {section === 'campaign' && <CampaignEditor key={`c-${base}`} store={store} />}
-          {section === 'packs' && <PackCatalogPanel />}
+          {section === 'packs' && <PackCatalogPanel store={store} />}
           {section === 'design' && <DesignDocPanel key={`d-${base}`} store={store} onEditWithAi={() => openAiTask()} />}
           {section === 'combat' && <CombatRulesEditor key={`cb-${base}`} store={store} />}
           {section === 'world' && <WorldEditor key={`w-${base}`} store={store} />}
           {section === 'scenes' && sel && <SceneEditor key={sel} store={store} path={sel} onPlaytestScene={(sceneId) => void playtest(sceneId)} />}
           {section === 'entities' && sel && <EntityEditor key={sel} store={store} path={sel} />}
           {section === 'rules' && sel && <RuleEditor key={sel} store={store} path={sel} />}
-          {section === 'quests' && sel && <QuestEditor key={sel} store={store} path={sel} />}
+          {section === 'quests' && sel && questsOff ? (
+            <section className="panel" style={{ maxWidth: 1080, margin: '20px auto', padding: 24 }}>
+              <strong>Квесты выключены · только чтение</strong>
+              <p className="muted">Данные сохранены без изменений. Включите «Квесты и стадии» в разделе «Проект → Каталог паков», чтобы продолжить редактирование.</p>
+              <pre style={{ overflow: 'auto', whiteSpace: 'pre-wrap' }}>{JSON.stringify(store.jsonFiles.get(sel), null, 2) ?? 'Нет данных'}</pre>
+            </section>
+          ) : section === 'quests' && sel ? <QuestEditor key={sel} store={store} path={sel} /> : null}
           {section === 'dialogues' && sel && <DialogueHost key={sel} store={store} path={sel} />}
           {section === 'arenas' && sel && <ArenaEditor key={sel} store={store} path={sel} />}
           {section === 'cutscenes' && sel && <CutsceneEditor key={sel} store={store} path={sel} />}

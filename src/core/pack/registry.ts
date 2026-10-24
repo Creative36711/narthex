@@ -50,6 +50,7 @@ export interface PackRegistryFile {
 export interface ProjectKindPack {
   id: string
   pack: string
+  requires?: string[]
 }
 
 export interface PackCatalogEntry {
@@ -59,6 +60,10 @@ export interface PackCatalogEntry {
 
 export interface ProjectPackInput {
   kind?: unknown
+  caps?: unknown
+  cap_options?: unknown
+  code?: unknown
+  [key: string]: unknown
 }
 
 export interface PackMissingDiagnostic {

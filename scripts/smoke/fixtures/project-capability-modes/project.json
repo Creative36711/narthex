@@ -1,0 +1,25 @@
+{
+  "format": 2,
+  "id": "capability-modes-probe",
+  "title": "Проба режимов возможностей",
+  "kind": "narrative",
+  "caps": [
+    "narrative",
+    "scenes",
+    "dialogue",
+    "map",
+    "inventory",
+    "needs",
+    "skills",
+    "relationships",
+    "trade",
+    "combat",
+    "quests",
+    "cutscenes",
+    "codex",
+    "crafting",
+    "time"
+  ],
+  "engine": { "min": "0.9.0" },
+  "entry": "world.json"
+}

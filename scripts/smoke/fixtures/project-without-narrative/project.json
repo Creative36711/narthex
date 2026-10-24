@@ -3,7 +3,23 @@
   "id": "project-without-narrative",
   "title": "Проект без установленного Narrative",
   "kind": "narrative",
-  "caps": ["narrative", "scenes", "dialogue"],
+  "caps": [
+    "narrative",
+    "scenes",
+    "dialogue",
+    "map",
+    "inventory",
+    "needs",
+    "skills",
+    "relationships",
+    "trade",
+    "combat",
+    "quests",
+    "cutscenes",
+    "codex",
+    "crafting",
+    "time"
+  ],
   "engine": { "min": "0.9.0" },
   "entry": "world.json"
 }

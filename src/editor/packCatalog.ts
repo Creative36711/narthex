@@ -1,5 +1,7 @@
 import registrySource from '../../packs/registry.json?raw'
 import capabilitySource from '../../docs/contracts/caps.json?raw'
+import { CAPABILITY_REGISTRY } from '../core/caps'
+import { resolveProjectCapabilityModes, type CapabilityModesResolution } from '../core/pack/capability-modes'
 import {
   resolvePackRegistry,
   resolveProjectPack,
@@ -38,4 +40,9 @@ export const KNOWN_PACK_CATALOG = Object.freeze(contracts.packs)
 /** The same generic pack resolution used by project opening and cf-play check. */
 export function resolveProjectPackForStudio(project: ProjectPackInput) {
   return resolveProjectPack(project, PROJECT_KIND_CATALOG, KNOWN_PACK_CATALOG, PACK_CATALOG)
+}
+
+export function resolveProjectModesForStudio(project: ProjectPackInput): CapabilityModesResolution {
+  const kind = PROJECT_KIND_CATALOG.find((entry) => entry.id === project.kind)
+  return resolveProjectCapabilityModes(project, CAPABILITY_REGISTRY, kind?.requires ?? [])
 }

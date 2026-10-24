@@ -59,6 +59,17 @@ const ENABLED_STATUSES = new Set<CapabilityStatus>(['stable', 'experimental'])
 export interface CapabilityProfile {
   caps?: unknown
   features?: unknown
+  /** Transient project.json cap_options copied onto runtime meta by the loader. */
+  project_cap_options?: unknown
+}
+
+/** True only for an explicit project-level off mode; legacy profiles keep prior behavior. */
+export function capabilityIsOff(profile: CapabilityProfile, id: string): boolean {
+  const options = profile.project_cap_options
+  if (!options || typeof options !== 'object' || Array.isArray(options)) return false
+  const option = (options as Record<string, unknown>)[id]
+  return !!option && typeof option === 'object' && !Array.isArray(option) &&
+    (option as Record<string, unknown>).mode === 'off'
 }
 
 function assertEnableable(id: string, source: string): CapabilityDefinition {
