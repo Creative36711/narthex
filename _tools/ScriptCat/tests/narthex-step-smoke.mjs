@@ -16,7 +16,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.51/, 'версия 1.4.51');
+assert.match(src, /@version\s+1\.4\.52/, 'версия 1.4.52');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
@@ -466,10 +466,12 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   await api.consumePending(true);
   assert.equal(out.rollback.calls.length, 1, 'неудачная отправка снимает статус карточки');
   assert.match(out.rollback.calls[0].why, /сообщение не ушло/, 'причина записана в журнал попытки');
-  assert.equal(out.sets.get("cfn-pending"), null, 'очередь снята вместе со статусом');
-  assert.equal(out.sets.get("cfn-expect"), null, 'ожидание снято тоже');
+  // 1.4.52: ход не сбрасывается — текст остаётся в очереди с пометкой, и
+  // «Продолжить» отправит его этой же карточке, без нового хода Координатора.
+  assert.equal(out.sets.get("cfn-pending").undelivered, true, 'очередь сохранена и помечена');
+  assert.equal(out.sets.get("cfn-expect").undelivered, true, 'ожидание сохранено: Run ID нужен для возврата в Running');
   assert.equal(out.pauses.length, 1, 'пауза остаётся: без Мастера цикл не идёт');
-  assert.match(out.pauses[0].text, /карточка возвращена в Ready/, 'Мастеру сказано, что карточку выдадут заново');
+  assert.match(out.pauses[0].text, /без нового хода Координатора/, 'Мастеру сказано, что ход не потерян');
   assert.ok(!out.logs.some((l) => l.text === "Задание отправлено."), 'ложного «отправлено» нет');
 }
 

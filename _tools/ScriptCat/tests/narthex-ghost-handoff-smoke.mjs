@@ -22,7 +22,7 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // ── 1. Версия ──────────────────────────────────────────────────────────────
-assert.match(src, /@version\s+1\.4\.51/, 'версия 1.4.51');
+assert.match(src, /@version\s+1\.4\.52/, 'версия 1.4.52');
 
 // ── 2. Помощник dropGhostHandoff ───────────────────────────────────────────
 const from = src.indexOf('  async function dropGhostHandoff(why, { ignoreQueue = false } = {}) {');
@@ -126,7 +126,7 @@ const dispatch = (extra = {}) => ({
 // ── 3. Просроченная очередь: карточка возвращается с любой страницы ────────
 const consume = src.slice(src.indexOf('  async function consumePending(manual = false) {'), src.indexOf('  // ───────────────────── следы прошлых попыток (очистка)'));
 assert.ok(consume.length > 2000, 'consumePending на месте');
-const ttl = consume.slice(consume.indexOf('    if (age > C.pendingTtlMs) {'), consume.indexOf('    if (!me || norm(me) !== norm(pending.roleId)) return false;'));
+const ttl = consume.slice(consume.indexOf('    if (age > (pending.undelivered'), consume.indexOf('    if (!me || norm(me) !== norm(pending.roleId)) return false;'));
 assert.ok(ttl.length > 200, 'ветка TTL на месте');
 assert.match(ttl, /await dropGhostHandoff\("очередь отправки просрочена", \{ ignoreQueue: true \}\)/, 'откат идёт через помощника, просроченная очередь не мешает');
 assert.doesNotMatch(ttl, /mine && waiting/, 'условие «только на странице адресата» убрано');
@@ -161,4 +161,4 @@ assert.ok(
   'первый шаг возвращает карточку в Ready',
 );
 
-console.log('OK: narthex 1.4.51 — упавшая отправка возвращает карточку в Ready с любой страницы');
+console.log('OK: narthex 1.4.52 — упавшая отправка возвращает карточку в Ready с любой страницы');

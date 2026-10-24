@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.51
+// @version      1.4.52
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -64,6 +64,7 @@
     readyLineMax: 6, // сколько карточек Ready Координатор видит списком в промпте
     insertRetries: 3, // с какой попытки вставки в редактор звать Мастера (раньше — сами)
     pendingTtlMs: 600000, // отправка старше 10 минут не досылается: адресат её не получил
+    undeliveredTtlMs: 7200000, // неотправленное задание ждёт Мастера два часа, а не десять минут
     replyWaitMs: 1800000, // 30 минут без единого сообщения — повод остановиться
     sendVerifyMs: 6000, // сколько ждём своё сообщение в чате после нажатия Send
     captchaGuardMs: 8000, // сколько после «отправлено» ждём капчу: она всплывает с задержкой
@@ -275,7 +276,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.51";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.52";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -729,6 +730,11 @@
       GM_setValue(K.expect, { ...expect, tries: 0, lastReplySig: "", lastReplyAt: 0 });
     }
     log(`Пауза снята Мастером (${reason}). Продолжаю.`, false, { ntfy: "quiet" });
+    if (GM_getValue(K.pending, null)) {
+      log("Задание уже в очереди — отправляю его заново, новый ход Координатора не нужен.", false, {
+        ntfy: "quiet",
+      });
+    }
   }
 
   /**
@@ -3760,7 +3766,9 @@
     // версии скрипта). Задание до адресата не дошло, значит и ожидание маркера
     // бессмысленно: снимаем оба и продолжаем шаг, а не глотаем нажатие.
     const age = Date.now() - Number(pending.at || 0);
-    if (age > C.pendingTtlMs) {
+    // Неотправленное задание ждёт Мастера дольше: он узнаёт о паузе не сразу,
+    // а очередь — это тот же ход, который не надо начинать заново.
+    if (age > (pending.undelivered ? C.undeliveredTtlMs : C.pendingTtlMs)) {
       GM_setValue(K.pending, null);
       // Карточку возвращаем с любой страницы: отметки отправки нет, работы не
       // было, и ждать 45 минут `releaseStalled` ей незачем.
@@ -3784,6 +3792,49 @@
     }
 
     if (!me || norm(me) !== norm(pending.roleId)) return false;
+
+    // Задание, которое не ушло в прошлый раз. Карточку тогда вернули в Ready,
+    // чтобы она не ждала 45 минут впустую, но текст остался в очереди:
+    // «Продолжить» отправляет его этой же карточке и с тем же Run ID — новый
+    // ход Координатора для этого не нужен (24.10, NAR-1.15).
+    if (pending.undelivered) {
+      const waiting = GM_getValue(K.expect, null);
+      if (waiting && waiting.ref && waiting.runId) {
+        let fresh = null;
+        try {
+          fresh = await notion("GET", `pages/${waiting.ref}`);
+        } catch (e) {
+          log(`Карточку «${waiting.ref}» не прочитать — отправку не начинаю: ${e.message}`, true);
+          return true;
+        }
+        const state = taskState(fresh);
+        if (state !== "Ready" && state !== "Running") {
+          GM_setValue(K.pending, null);
+          GM_setValue(K.expect, null);
+          pause(
+            `Задание не ушло, а карточка уже «${state || "без состояния"}» — повторную отправку отменяю.`,
+            { kind: "send", ref: waiting.ref },
+          );
+          return true;
+        }
+        if (state === "Ready") {
+          try {
+            await patch(waiting.ref, {
+              "Dispatch State": { select: { name: "Running" } },
+              "Run ID": { rich_text: [{ type: "text", text: { content: waiting.runId } }] },
+              "Recipient Agent ID": { rich_text: [{ type: "text", text: { content: pending.roleId } }] },
+              "Started At": { date: { start: nowIso() } },
+            });
+            log("Карточка снова Running: отправляю задание из очереди, новый ход Координатора не нужен.");
+          } catch (e) {
+            log(`Карточка не вернулась в Running (${e.message}) — задание осталось в очереди.`, true);
+            return true;
+          }
+        }
+        GM_setValue(K.expect, { ...waiting, undelivered: false, cardRolled: false, sentAt: null, verified: false });
+        GM_setValue(K.pending, { ...pending, undelivered: false, at: Date.now() });
+      }
+    }
 
     // Сообщение могло уйти, пока человек решал капчу. Тогда повторная
     // отправка была бы дублем: в чате уже есть эта реплика.
@@ -3900,14 +3951,27 @@
         `сообщение не ушло (${String(delivery.reason).toLowerCase()})`,
       );
       if (rolled) {
-        GM_setValue(K.pending, null);
-        GM_setValue(K.expect, null);
+        // Ход НЕ снимаем: текст задания остаётся в очереди, и «Продолжить»
+        // отправит его этой же карточке. Карточка возвращена в Ready только
+        // затем, чтобы не висеть в Running 45 минут; перед отправкой она
+        // снова станет Running с тем же Run ID.
+        GM_setValue(K.pending, { ...pending, undelivered: true, at: Date.now() });
+        if (failed) {
+          GM_setValue(K.expect, {
+            ...failed,
+            undelivered: true,
+            cardRolled: true,
+            sentAt: null,
+            verified: false,
+          });
+        }
         pendingNoticeAt = 0;
       }
       pause(
         `${delivery.reason}${delivery.detail ? ` (${delivery.detail})` : ""}. ` +
           (rolled
-            ? "Ход снят, карточка возвращена в Ready: нажмите «Продолжить» — Координатор выдаст её заново."
+            ? "Задание осталось в очереди: нажмите «Продолжить» — оно уйдёт этой же карточке, " +
+              "без нового хода Координатора."
             : "Задание осталось в поле ввода и в очереди: поправьте и нажмите «Продолжить»."),
         { kind: "send" },
       );
@@ -5691,6 +5755,16 @@
       return false;
     }
     GM_setValue("cfn-answered-miss", 0);
+
+    // Карточку выдали заново — прошлое неотправленное задание к ней больше не
+    // относится: иначе оно ушло бы вторым сообщением уже после новой выдачи.
+    const stale = GM_getValue(K.pending, null);
+    const staleExpect = GM_getValue(K.expect, null);
+    if (stale && stale.undelivered && staleExpect && norm(staleExpect.ref) === norm(card.id)) {
+      GM_setValue(K.pending, null);
+      GM_setValue(K.expect, null);
+      log("Карточку выдали заново — прошлая неотправленная очередь снята.");
+    }
 
     const runId = uid();
     const payloadId = rt(card.properties["Payload Drive File ID"]);

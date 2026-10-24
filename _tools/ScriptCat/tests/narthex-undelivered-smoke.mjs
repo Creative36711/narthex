@@ -158,8 +158,32 @@ assert.match(src, /async function dropGhostHandoff\(why, \{ ignoreQueue = false 
 assert.match(src, /await releaseUndelivered\(gone, "отправка не подтвердилась/, 'фантом без текста снимает Running');
 assert.match(src, /await releaseUndelivered\(stuck, "агент не ответил и ничего не делает"\)/, 'молчание 30 минут снимает Running');
 assert.match(src, /"Dispatch State": \{ select: \{ name: "Running" \} \}/, 'выдача по-прежнему ставит Running до отправки');
-assert.match(src, /if \(rolled\) \{\n\s+GM_setValue\(K\.pending, null\);/, 'очередь снимается только вместе со статусом');
+// ── 8. 1.4.52: отказ отправки не снимает ход ───────────────────────────────
+// Мастер: «кнопка „Продолжить“ не должна сбрасывать ход полностью, а именно
+// продолжать на том моменте, где произошла ошибка». Поэтому текст задания
+// остаётся в очереди, а карточка возвращается в Running перед повторной
+// отправкой — без нового хода Координатора.
+const failFrom = src.indexOf('if (!delivery.ok) {');
+const failBlock = src.slice(failFrom, src.indexOf('const expect = GM_getValue(K.expect, null);', failFrom));
+assert.ok(failFrom > 0, 'ветка отказа отправки на месте');
+assert.match(failBlock, /GM_setValue\(K\.pending, \{ \.\.\.pending, undelivered: true/, 'очередь остаётся и помечается');
+assert.match(failBlock, /undelivered: true,\n\s+cardRolled: true/, 'ожидание помнит, что карточка откатана');
+assert.doesNotMatch(failBlock, /GM_setValue\(K\.pending, null\)/, 'очередь больше не снимается');
+assert.match(failBlock, /без нового хода Координатора/, 'Мастеру сказано, что ход не потерян');
+
+const consumeFrom = src.indexOf('async function consumePending(manual = false) {');
+const consumeBlock = src.slice(consumeFrom, src.indexOf('// ───────────────────── следы прошлых попыток', consumeFrom));
+assert.match(consumeBlock, /pending\.undelivered \? C\.undeliveredTtlMs : C\.pendingTtlMs/, 'у неотправленного свой срок ожидания');
+assert.match(consumeBlock, /if \(pending\.undelivered\) \{/, 'перед отправкой проверяется откат');
+assert.match(consumeBlock, /"Dispatch State": \{ select: \{ name: "Running" \} \}/, 'карточка возвращается в Running');
+assert.match(consumeBlock, /text: \{ content: waiting\.runId \}/, 'Run ID — тот же, ответ агента будет куда записать');
+assert.match(consumeBlock, /state !== "Ready" && state !== "Running"/, 'чужое состояние не перезаписываем');
+assert.match(consumeBlock, /новый ход Координатора не нужен/, 'в журнале сказано, что Координатор не нужен');
+
+assert.match(src, /undeliveredTtlMs: 7200000/, 'два часа на ответ Мастера');
+assert.match(src, /stale\.undelivered && staleExpect/, 'перевыдача карточки снимает прошлую очередь');
+assert.match(src, /Задание уже в очереди — отправляю его заново/, '«Продолжить» говорит, что ход не сброшен');
 
 console.log(
-  'OK: narthex 1.4.51 — ход, не дошедший до исполнителя, возвращает карточку в Ready, а не держит её 45 минут',
+  'OK: narthex 1.4.52 — ход, не дошедший до исполнителя, возвращает карточку в Ready, а не держит её 45 минут',
 );
