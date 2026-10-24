@@ -2936,7 +2936,12 @@
         );
       }
       let answered = 0;
-      for (const q of pending.filter((x) => x.input && x.submit)) {
+      for (const first of pending) {
+        // После Submit карточка перерисовывается: узлы первого вопроса уже
+        // отвязаны. Поэтому перед каждым ответом берём живые узлы заново —
+        // иначе второй вопрос получил бы текст в никуда и считался отвеченным.
+        const q = pollQuestions().find((x) => x.question === first.question) || null;
+        if (!q || !q.input || !q.submit) continue;
         fillInput(q.input, POLL_REPLY);
         await sleep(150);
         if (q.submit.disabled) {
@@ -2945,7 +2950,7 @@
         } else {
           q.submit.click();
         }
-        handled.add(`${q.id}:${q.question}`);
+        handled.add(`${first.id}:${first.question}`);
         answered += 1;
         await sleep(400);
       }
