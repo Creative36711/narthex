@@ -1,0 +1,7 @@
+{
+  "id": "rule_start_rats_quest",
+  "label": "Старт квеста «Крысы в подвале»",
+  "once": true,
+  "conditions": [{ "type": "flag_set", "flag": "rats_started" }],
+  "effects": [{ "type": "start_quest", "quest": "quest_rats" }]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "item_chain_shirt",
+  "type": "item",
+  "category": "armor",
+  "label": "Кольчужная рубаха",
+  "description": "Кольчуга по грудь, снятая с кого-то побогаче. Дорогая вещь в этих краях.",
+  "weight": 6.0,
+  "value": {
+    "silver": 45
+  },
+  "stackable": false,
+  "armor_data": {
+    "points": 2
+  }
+}

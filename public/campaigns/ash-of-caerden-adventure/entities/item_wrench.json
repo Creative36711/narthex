@@ -1,0 +1,26 @@
+{
+  "id": "item_wrench",
+  "type": "item",
+  "category": "misc",
+  "label": "Гаечный ключ",
+  "description": "Тяжёлый ключ под ржавую гайку. Такой же держит крепь в штольне — и ворот насоса в забое.",
+  "weight": 0.6,
+  "value": {
+    "silver": 12
+  },
+  "stackable": false,
+  "on_interact": {
+    "effects": [
+      {
+        "type": "add_item",
+        "item": "item_wrench",
+        "quantity": 1
+      },
+      {
+        "type": "set_flag",
+        "flag": "wrench_taken"
+      }
+    ],
+    "message": "Вы сняли с крепи тяжёлый ржавый ключ. В забое такой же гайкой затянут ворот насоса."
+  }
+}

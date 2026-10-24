@@ -1,0 +1,15 @@
+{
+  "id": "item_dried_meat",
+  "type": "item",
+  "category": "food",
+  "label": "Вяленое мясо",
+  "description": "Полоски солёного вяленого мяса. Дорожная еда.",
+  "weight": 0.4,
+  "value": { "silver": 3 },
+  "stackable": true,
+  "on_use": {
+    "effects": [{ "type": "change_need", "need": "hunger", "delta": 45 }],
+    "consume": true,
+    "message": "Сытно. Солоно — захочется пить."
+  }
+}
