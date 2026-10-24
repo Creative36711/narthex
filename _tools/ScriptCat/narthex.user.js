@@ -1434,7 +1434,12 @@
     const fp = returnFingerprint(mission);
     const saved = GM_getValue(key, null);
     if (saved && saved.fp === fp && Number(saved.at)) return saved;
-    const fresh = { at: Date.now(), fp };
+    // Время возврата — последняя правка карточки миссии: именно тогда Мастер
+    // поставил «Возвращена» и написал замечания. Оно точнее, чем «первый шаг
+    // после обновления»: план, запрошенный уже после возврата (например, ещё
+    // на 1.4.42), не снимается как прошлый. Нет правки — считаем по часам.
+    const edited = Date.parse(mission.last_edited_time || "");
+    const fresh = { at: Number.isFinite(edited) && edited <= Date.now() ? edited : Date.now(), fp };
     GM_setValue(key, fresh);
     // 1.4.42 объявляла возврат меткой без отпечатка. Если она есть, этот
     // возврат уже был в журнале — переносим метку, чтобы обновление не дало

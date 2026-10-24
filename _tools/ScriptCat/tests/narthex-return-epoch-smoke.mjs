@@ -58,8 +58,9 @@ function make({ store = new Map(), now = Date.parse('2026-10-24T16:12:51+03:00')
   return { api, store };
 }
 
-const mission = ({ remarks = '1) раз 2) два 3) три', round = 1, at = '2026-10-24' } = {}) => ({
+const mission = ({ remarks = '1) раз 2) два 3) три', round = 1, at = '2026-10-24', editedAt = '' } = {}) => ({
   id: 'mission-1',
+  ...(editedAt ? { last_edited_time: editedAt } : {}),
   properties: {
     'Миссия': { title: [{ text: { content: 'NAR-1 · Ядро под паки' } }] },
     'Состояние': { select: { name: 'Возвращена' } },
@@ -83,6 +84,20 @@ const stale = (at) => ({ kind: 'plan', at, sentAt: at, ref: 'mission-1', turnId:
   assert.equal(dropped, true, 'старый ход снят');
   assert.equal(store.get('cfn-expect'), null, 'ожидание очищено: маркер прошлого хода не будет прочитан');
   assert.equal(store.get('cfn-plan-at'), 0, 'минутный троттлинг снят: новый план уходит в этом же шаге');
+}
+
+// 3a2. План, запрошенный уже после возврата (в том числе ещё на 1.4.42),
+// не снимается: отсчёт берётся по последней правке карточки миссии, а не по
+// моменту обновления скрипта.
+{
+  const { api, store } = make();
+  const m = mission({ editedAt: '2026-10-24T13:07:00Z' }); // 16:07 MSK — возврат
+  const epoch = api.returnEpoch(m);
+  assert.equal(epoch.at, Date.parse('2026-10-24T13:07:00Z'), 'отсчёт — время возврата');
+  store.set('cfn-expect', { kind: 'plan', at: Date.parse('2026-10-24T16:20:00+03:00') });
+  assert.equal(api.dropStalePlan(m, store.get('cfn-expect'), epoch), false, 'план после возврата остаётся');
+  store.set('cfn-expect', stale(Date.parse('2026-10-24T15:47:00+03:00')));
+  assert.equal(api.dropStalePlan(m, store.get('cfn-expect'), epoch), true, 'план до возврата снимается');
 }
 
 // 3b. План, запрошенный после возврата, не снимается — в том числе после
