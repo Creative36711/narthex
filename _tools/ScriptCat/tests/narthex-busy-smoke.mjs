@@ -52,7 +52,7 @@ const bTo = src.indexOf('  const generating = () => busyReason()?.kind === "stop
 assert.ok(bFrom > 0 && bTo > bFrom, 'busyReason на месте');
 const bBlock = src.slice(bFrom, bTo);
 
-function busy({ buttons, messages = [], ended = false, opacity = '1', ancestorOpacity = '1', where = 'composer' } = {}) {
+function busy({ buttons, messages = [], ended = false, opacity = '1', ancestorOpacity = '1', where = 'composer', plaque = false } = {}) {
   const makeAncestor = () => ({
     __style: { opacity: ancestorOpacity, visibility: 'visible', display: 'block' },
     parentElement: null,
@@ -80,10 +80,12 @@ function busy({ buttons, messages = [], ended = false, opacity = '1', ancestorOp
     },
   };
   const fn = new Function(
-    'document', 'visible', 'getComputedStyle', 'shortLabel', 'replyEnded', 'hiddenByAncestor', 'whereIs', 'stopIsStale',
+    'completionPlaque', 'document', 'visible', 'getComputedStyle', 'shortLabel', 'replyEnded', 'hiddenByAncestor',
+    'whereIs', 'stopIsStale',
     `${bBlock}; return busyReason;`,
   );
   return fn(
+    () => plaque,
     doc,
     () => true,
     (el) => el.__style || { opacity: '1', visibility: 'visible', display: 'block', pointerEvents: 'auto' },
@@ -102,6 +104,11 @@ assert.equal(busy({ buttons: [{ label: 'Stop generating' }], opacity: '0' })(), 
 assert.equal(busy({ buttons: [{ label: 'Stop generating' }], ancestorOpacity: '0' })(), null, 'скрытая обёртка не считается');
 assert.equal(busy({ buttons: [{ label: 'Stop generating', __stale: true }] })(), null, 'Stop из законченного сообщения — призрак');
 assert.equal(busy({ buttons: [{ label: 'Send' }] })(), null, 'другие кнопки не путаются');
+assert.equal(
+  busy({ buttons: [{ label: 'Stop generating' }], plaque: true })(),
+  null,
+  'плашка «задача выполнена» — агент свободен даже при видимой кнопке Stop',
+);
 
 // ── 3. stopIsStale: сообщение закончилось — кнопка протухла ────────────────
 const stFrom = src.indexOf('  const stopIsStale = (el) => {');
@@ -161,4 +168,4 @@ assert.doesNotMatch(retrySrc, /sendToRole|consumePending|submitExecutor/, 'по�
 assert.match(src, /кнопка «\$\{reason\.label\}»\$\{reason\.where \|\| ""\}/, 'в журнале видно, где нашлась кнопка');
 assert.match(src, /Проверю ещё раз через/, 'Мастер видит, что шаг проверится сам');
 
-console.log('OK: narthex 1.4.38 — скрытый и протухший Stop не блокируют шаг, мгновенная заставка не считается');
+console.log('OK: narthex 1.4.39 — скрытый и протухший Stop не блокируют шаг, мгновенная заставка не считается');

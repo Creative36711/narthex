@@ -16,13 +16,18 @@ import { strict as assert } from 'node:assert';
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
 // 1. Версия и гейт тика.
-assert.match(src, /@version\s+1\.4\.38/, 'версия 1.4.38');
+assert.match(src, /@version\s+1\.4\.39/, 'версия 1.4.39');
 
 const tickStart = src.indexOf('async function tick(');
 const tickBody = src.slice(tickStart, src.indexOf('// ───────────────────────────── старт', tickStart));
 assert.match(tickBody, /const pending = GM_getValue\(K\.pending, null\);/, 'тик знает про очередь');
 assert.match(tickBody, /if \(!auto && !fromToggle && !pending && !waiting\) return;/, 'незавершённая отправка и остаток ожидания важнее автоцикла');
-assert.match(tickBody, /Date\.now\(\) - busyAt < 120000/, 'залипший шаг снимается через две минуты');
+assert.match(tickBody, /const silentMs = Date\.now\(\) - busyAt;/, 'залипший шаг снимается по тишине');
+assert.match(tickBody, /if \(silentMs < 120000\)/, 'порог тишины — две минуты');
+assert.match(tickBody, /stepRestarts > 2/, 'третий перезапуск подряд — пауза, а не бесконечные круги');
+assert.match(src, /let busyAt = 0;/, 'признак жизни объявлен рядом с sleep');
+assert.match(src, /const sleep = \(ms\) => \{\s*busyAt = Date\.now\(\);/, 'sleep отмечает, что шаг жив: живого шага сторож не касается');
+assert.match(src, /stepAlive\(\);\n      if \(Date\.now\(\) >= until\) return null;/, 'waitFor тоже отмечается');
 assert.match(tickBody, /Шаг уже выполняется/, 'повторное нажатие объясняется, а не молчит');
 assert.match(tickBody, /else if \(!expect\)/, 'исполнитель без задания не падает в TypeError');
 assert.match(tickBody, /submitExecutor\(me, expect, fromToggle\)/, 'ручной режим передаётся исполнителю');
@@ -225,7 +230,7 @@ const load = ({ pending, editor, send, panels = [], stop = false, now = 1_000_00
     skipBtn.click = () => { out.clicks.push("skip"); messages.length = 0; };
     messages.push({ querySelectorAll: () => (messages.length ? [skipBtn] : []) });
   }
-  // 1.4.38: окно проверки. `captcha` — видна сразу, `captchaAfterClick` —
+  // 1.4.39: окно проверки. `captcha` — видна сразу, `captchaAfterClick` —
   // появляется, как в жизни: после клика по Send, вместо отправки.
   const captchaNow = () => captcha || (captchaAfterClick && sent.length > 0);
   const captchaEl = captcha || captchaAfterClick
@@ -577,4 +582,4 @@ const pending = { roleId: "coordinator", text: "план, пожалуйста",
   assert.equal(out.logs.length, 0, 'и журнал не засоряется');
 }
 
-console.log("OK: narthex 1.4.38 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");
+console.log("OK: narthex 1.4.39 — «Шаг» с любой страницы, чат освобождается от плашки и Skip, каждый отказ объяснён");

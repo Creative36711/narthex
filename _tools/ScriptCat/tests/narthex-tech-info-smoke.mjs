@@ -95,4 +95,4 @@ assert.match(auditorOrder, /Ничего не менять|ничего не м�
 const executorOrder = src.slice(src.indexOf('function executorOrder('), src.indexOf('function auditorOrder('));
 assert.match(executorOrder, /gh pr merge --squash --delete-branch/, 'исполнитель мержит сам');
 
-console.log('OK: техблок 1.4.38 — Executor получает ритуал main, Auditor только читает main, Coordinator без git');
+console.log('OK: техблок 1.4.39 — Executor получает ритуал main, Auditor только читает main, Coordinator без git');

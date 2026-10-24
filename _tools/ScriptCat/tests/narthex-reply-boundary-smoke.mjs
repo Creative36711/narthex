@@ -1,186 +1,170 @@
-// Проба 1.4.38: скрипт обязан видеть ответ, который лежит в чате.
+// Проба чтения ответа: где кончается «наше» и начинается ответ агента.
 //
-// Случай Мастера (2026-10-24, 14:27): Build/Release ответил полным отчётом с
-// маркером (`pr:34, merged:true`), а журнал написал «Жду ответ Build/Release:
-// новых сообщений нет». Причина — граница «после отправки» считалась по id в
-// списке одних ответов:
-//   • водяной знак — это id нашей же отправки, а её в отфильтрованном списке
-//     нет, поэтому граница либо съедала весь список, либо не оставляла ничего;
-//   • id сообщений Arena не упорядочены по времени: ответ
-//     `01a16da4-10b2…` пришёл позже запроса `01a16da4-1dc9…`, но меньше его.
-//
-// Здесь же проверяется второй сбой того же вечера: «Агент ещё отвечает» на
-// спокойном агенте — кнопка Stop вне сообщений больше не вечная.
+// 24.10 в 14:27 скрипт сказал «новых сообщений нет», хотя ответ Build/Release
+// с маркером лежал в чате. Причина — граница «после отправки»: id сообщений
+// Arena не упорядочены по времени (ответ `01a16da4-10b2…` пришёл позже
+// запроса `01a16da4-1dc9…`, но меньше его), а водяной знак — это id нашей же
+// реплики, которую фильтр отбрасывает. Здесь проверяется:
+//   • граница считается по полному списку (вместе с нашими репликами);
+//   • потерянный водяной знак заменяется снимком id, снятым перед отправкой;
+//   • ответ находится по маркеру выдачи, даже если позиция подвела;
+//   • ответ прошлого круга (старый id) за новый не сходит;
+//   • цитата задания с настоящим маркером остаётся ответом;
+//   • кнопка Stop вне сообщений не держит шаг, если последний ответ закончен.
 
 import { readFileSync } from 'node:fs';
 import { strict as assert } from 'node:assert';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
 
-// ── 1. Код чтения сообщений берём из самого скрипта ─────────────────────────
-const from = src.indexOf('  function messages() {');
-const to = src.indexOf('  /**\n   * Ответ закончен — по разметке Arena, а не по таймеру.');
-assert.ok(from > 0 && to > from, 'блок чтения сообщений на месте');
-const block = src.slice(from, to);
-assert.match(block, /function messagesAfter\(watermark, seen\)/, 'граница знает про снимок id');
-assert.match(block, /function rescueReplies\(\)/, 'есть страховка по маркеру');
-assert.match(block, /const isUserNode = /, 'свои реплики опознаются по layout');
+const blockFrom = src.indexOf('  function messages() {');
+const blockTo = src.indexOf('  /**\n   * Ответ закончен', blockFrom);
+assert.ok(blockFrom > 0 && blockTo > blockFrom, 'блок сообщений на месте');
+const chatBlock = src.slice(blockFrom, blockTo);
+assert.match(chatBlock, /function messagesAfter\(watermark, seen\)/, 'messagesAfter с снимком id');
+assert.match(chatBlock, /function rescueReplies\(\)/, 'страховка по маркеру');
 
-const markerBlock = src.slice(
-  src.indexOf('  function braceJson(rest) {'),
-  src.indexOf('  /** Короткая подпись элемента для журнала'),
-);
-const { parseMarker } = new Function(`${markerBlock}; return { parseMarker };`)();
-const norm = (x) => String(x || '').replace(/-/g, '').toLowerCase();
+const markerFrom = src.indexOf('  function braceJson(rest) {');
+const markerTo = src.indexOf('  /** Короткая подпись элемента для журнала', markerFrom);
+assert.ok(markerFrom > 0 && markerTo > markerFrom, 'разбор маркера на месте');
+const markerBlock = src.slice(markerFrom, markerTo);
 
+// ────────────────────────────── фальшивый чат ──────────────────────────────
 const CARD = '4016f0cf-5705-8197-be3a-c06bf51885ac';
-const PROMPT_ID = '01a16da4-1dc9-7597-b01a-aea6543789bd'; // наш prompt
-const ANSWER_ID = '01a16da4-10b2-7c56-9c68-15adbcea39ef'; // ответ агента: id МЕНЬШЕ
-const ANSWER_AT = 1792840831154; // время из id ответа (11:20:31Z)
+/** UUIDv7 из инцидента: первый прогон ответа (11:20:31Z). */
+const ANSWER_ID = '01a16da4-10b2-7c56-9c68-15adbcea39ef';
+const ANSWER_AT = Number.parseInt(ANSWER_ID.replace(/-/g, '').slice(0, 12), 16);
+/** Наш запрос, у которого id больше ответа (11:20:34Z). */
+const PROMPT_ID = '01a16da4-1dc9-7d0b-9d47-4d8c4b1b3f55';
+const OLD_ID = '01a16b90-0000-7c56-9c68-15adbcea39ef'; // час назад
 
-const node = (id, text, user = false) => ({
+const node = (id, text, { user = false } = {}) => ({
   id: `chat-message-${id}`,
-  querySelector: (sel) => (user && sel === '[data-user-message-layout="true"]' ? { user: true } : null),
+  __id: id,
+  __text: text,
+  __user: user,
+  querySelector: (selector) =>
+    user && selector === '[data-user-message-layout="true"]' ? { layout: true } : null,
   querySelectorAll: () => [],
   cloneNode: () => ({ querySelectorAll: () => [], textContent: text }),
 });
 
-const answerText =
-  'Сделал. Отчёт docs/reports/NAR-1.md, PR #34 слит, смоуки 49/50.\n' +
-  `CF_AGENT_RESULT {"dispatch_id":"${CARD}","run_id":"19b52574-2c45-42b6-a29a-f4453c12d790",` +
-  '"status":"submitted","check":1,"report":"docs/reports/NAR-1.md","pr":34,"merged":true}';
+const marker = (id = CARD) => `CF_AGENT_RESULT {"dispatch_id":"${id}","run_id":"19b52574","status":"submitted","check":0,"pr":34,"merged":true}`;
 
-const load = ({ nodes, waiting = null }) => {
+function make({ nodes, waiting = null }) {
   const logs = [];
   const document = {
-    querySelectorAll: (sel) =>
-      sel === '[data-agent-transcript-message="true"][id^="chat-message-"]' ? nodes : [],
+    querySelectorAll: (selector) =>
+      selector === '[data-agent-transcript-message="true"][id^="chat-message-"]' ? nodes : [],
   };
-  const api = new Function(
+  const fn = new Function(
     'document', 'replyEnded', 'parseMarker', 'norm', 'GM_getValue', 'K', 'logThrottled', 'C',
-    `${block}\nreturn { messages, messagesAfter, rescueReplies, idTime, looksLikeOwnTask };`,
-  )(
+    `${markerBlock}\n${chatBlock}\nreturn { messagesAfter, rescueReplies, messages, idTime, looksLikeOwnTask };`,
+  );
+  const api = fn(
     document,
     () => false,
-    parseMarker,
-    norm,
+    // parseMarker настоящий: он и разбирает маркер из текста сообщения.
+    new Function(`${markerBlock}\nreturn parseMarker;`)(),
+    (x) => String(x || '').replace(/-/g, '').toLowerCase(),
     () => waiting,
     { expect: 'cfn-expect' },
-    (_key, text) => logs.push(text),
+    (key, text) => logs.push({ key, text }),
     { longWaitNoticeMs: 600000 },
   );
   return { api, logs };
-};
+}
 
-// ── 2. Инцидент: ответ в чате есть, а «после отправки» — пусто ──────────────
-// Водяной знак стоит на самом ответе (так бывает, когда отметку поставили уже
-// после прихода ответа). Раньше это давало «новых сообщений нет».
+const answer = (id = ANSWER_ID, text = `${marker()}`) => node(id, `Отчёт.\n\n${text}`);
+const prompt = (text = 'Задача NAR-1.10\n\nCF_TECH …') => node(PROMPT_ID, text, { user: true });
+
+// ── 1. Ответ ниже нашего запроса, но с меньшим id ──────────────────────────
 {
-  const nodes = [node(PROMPT_ID, 'Задача … CF_TECH', true), node(ANSWER_ID, answerText)];
-  const waiting = { ref: CARD, roleName: 'Build/Release', sentAt: ANSWER_AT + 4000 };
-  const { api, logs } = load({ nodes, waiting });
-  const got = api.messagesAfter(ANSWER_ID, [PROMPT_ID, ANSWER_ID]);
-  assert.equal(got.length, 1, 'ответ найден, а не потерян');
-  assert.equal(got[0].id, ANSWER_ID, 'это именно ответ агента');
-  assert.match(got[0].raw, /CF_AGENT_RESULT/, 'маркер читается');
-  assert.ok(logs.some((t) => /найден по маркеру выдачи/.test(t)), 'в журнале видно, что ответ нашёлся не по границе');
+  const nodes = [prompt(), answer()];
+  const { api } = make({ nodes, waiting: { ref: CARD, sentAt: ANSWER_AT } });
+  const found = api.messagesAfter(PROMPT_ID, [PROMPT_ID]);
+  assert.equal(found.length, 1, 'ответ найден, хотя его id меньше водяного знака');
+  assert.equal(found[0].id, ANSWER_ID, 'это именно ответ агента');
+  assert.match(found[0].raw, /CF_AGENT_RESULT/, 'текст прочитан целиком');
 }
 
-// 2.1. Обычный случай: граница на нашей реплике — ответ ниже неё.
+// ── 2. Водяной знак потерян: границу держит снимок id ──────────────────────
 {
-  const nodes = [node(PROMPT_ID, 'Задача … CF_TECH', true), node(ANSWER_ID, answerText)];
-  const { api, logs } = load({ nodes, waiting: { ref: CARD, sentAt: ANSWER_AT + 4000 } });
-  const got = api.messagesAfter(PROMPT_ID, [PROMPT_ID]);
-  assert.equal(got.length, 1, 'ответ после нашей реплики возвращается');
-  assert.equal(got[0].id, ANSWER_ID, 'и это ответ, а не эхо задания');
-  assert.equal(logs.length, 0, 'страховка не понадобилась — журнал не шумит');
+  const nodes = [prompt(), answer()];
+  const { api } = make({ nodes, waiting: { ref: CARD, sentAt: ANSWER_AT } });
+  const found = api.messagesAfter('', [prompt().__id]);
+  assert.equal(found.length, 1, 'по снимку новым считается только ответ');
+  assert.equal(found[0].id, ANSWER_ID, 'старый id в снимке — не новый');
 }
 
-// 2.2. Наша реплика отфильтрована, но граница всё равно верная (по месту).
+// ── 3. Ответ есть, но позиция подвела: спасает маркер выдачи ───────────────
 {
-  const nodes = [node(PROMPT_ID, 'Задача … CF_TECH', true), node(ANSWER_ID, answerText)];
-  const { api } = load({ nodes, waiting: null });
-  const got = api.messagesAfter(PROMPT_ID, []);
-  assert.deepEqual(got.map((m) => m.id), [ANSWER_ID], 'своя реплика выкинута, ответ остался');
+  // Водяной знак указывает на сам ответ — после него в разметке пусто.
+  const nodes = [prompt(), answer()];
+  const { api, logs } = make({ nodes, waiting: { ref: CARD, sentAt: ANSWER_AT } });
+  const found = api.messagesAfter(ANSWER_ID, [PROMPT_ID, ANSWER_ID]);
+  assert.equal(found.length, 1, 'молчаливого «новых сообщений нет» при готовом ответе нет');
+  assert.equal(found[0].id, ANSWER_ID, 'ответ найден по маркеру');
+  assert.match(logs[0].text, /найден по маркеру выдачи/, 'в журнале видно, как он нашёлся');
 }
 
-// 2.3. Водяного знака нет (транскрипт перерисовали) — держит снимок id.
+// ── 4. Ответ прошлого круга за новый не сходит ─────────────────────────────
 {
-  const nodes = [node(PROMPT_ID, 'Задача … CF_TECH', true), node(ANSWER_ID, answerText)];
-  const { api } = load({ nodes, waiting: null });
-  const got = api.messagesAfter('', [PROMPT_ID]);
-  assert.deepEqual(got.map((m) => m.id), [ANSWER_ID], 'новое считается по снимку');
-  assert.deepEqual(api.messagesAfter('', [PROMPT_ID, ANSWER_ID]), [], 'всё известное — новых нет');
+  const old = answer(OLD_ID);
+  const nodes = [prompt(), old];
+  const { api, logs } = make({ nodes, waiting: { ref: CARD, sentAt: ANSWER_AT } });
+  // Граница стоит на самом старом ответе: после него пусто, значит решает
+  // страховка по маркеру — и она обязана отказать по времени id.
+  const found = api.messagesAfter(OLD_ID, []);
+  assert.equal(found.length, 0, 'старый ответ не принимается за новый');
+  assert.equal(logs.length, 0, 'и в журнал ничего не пишется');
 }
 
-// 2.4. Ответ прошлого круга (Rework) за новый не сходит: он выше нашей реплики.
+// ── 5. Цитата задания с настоящим маркером — ответ ────────────────────────
 {
-  const oldId = '01a16d00-1111-7000-8000-000000000001';
-  const nodes = [
-    node('01a16cf0-0000-7000-8000-000000000001', 'Задача … CF_TECH', true),
-    node(oldId, answerText),
-    node(PROMPT_ID, 'Задача … CF_TECH', true),
-  ];
-  const { api } = load({ nodes, waiting: { ref: CARD, sentAt: ANSWER_AT + 4000 } });
-  assert.deepEqual(api.messagesAfter(PROMPT_ID, []), [], 'старый ответ не принимается за новый');
+  const quoted = node('01a16da4-3aaa-7c56-9c68-15adbcea39ef', `CF_TECH в тексте задания\n\n${marker()}`);
+  const nodes = [prompt(), quoted];
+  const { api } = make({ nodes, waiting: { ref: CARD, sentAt: ANSWER_AT } });
+  const found = api.messagesAfter(PROMPT_ID, []);
+  assert.equal(found.length, 1, 'ответ с цитатой задания не выпадает');
+  assert.equal(api.looksLikeOwnTask(`CF_TECH в тексте задания\n\n${marker()}`), false, 'решает маркер, а не слово CF_TECH');
+  assert.equal(api.looksLikeOwnTask('Задача NAR-1.10\n\nCF_TECH …'), true, 'наше задание без маркера — не ответ');
 }
 
-// 2.5. Ответ из прошлого круга ниже по тексту, но давний по id — тоже не новый.
-{
-  const oldMs = ANSWER_AT - 3 * 24 * 3600 * 1000;
-  const hex = oldMs.toString(16).padStart(12, '0');
-  const oldId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7000-8000-000000000000`;
-  assert.ok(api_idTime(oldId) > 0, 'время из старого id читается');
-  const nodes = [node(oldId, answerText)];
-  const { api } = load({ nodes, waiting: { ref: CARD, sentAt: ANSWER_AT + 4000 } });
-  assert.deepEqual(api.messagesAfter(oldId, []), [], 'сообщение трёхдневной давности ответом этого хода не считается');
+// ── 6. Stop вне сообщений не держит шаг ───────────────────────────────────
+const stopFrom = src.indexOf('  const stopIsStale = (el) => {');
+const stopTo = src.indexOf('\n  };', stopFrom) + '\n  };'.length;
+assert.ok(stopFrom > 0 && stopTo > stopFrom, 'stopIsStale на месте');
+const stopBlock = src.slice(stopFrom, stopTo);
+
+function stopStale({ nodes, ended, inside = false }) {
+  const document = { querySelectorAll: () => nodes };
+  const fn = new Function('document', 'replyEnded', `${stopBlock}; return stopIsStale;`);
+  return fn(document, () => ended)({ closest: () => (inside ? nodes[0] : null) });
 }
 
-function api_idTime(id) {
-  const { api } = load({ nodes: [], waiting: null });
-  return api.idTime(id);
-}
+const lastAnswer = node(ANSWER_ID, marker());
+assert.equal(
+  stopStale({ nodes: [prompt(), lastAnswer], ended: true }),
+  true,
+  'последний ответ закончен — Stop над полем ввода протух (24.10, 14:20)',
+);
+assert.equal(stopStale({ nodes: [], ended: false }), false, 'в пустом чате Stop — настоящий');
+assert.equal(
+  stopStale({ nodes: [prompt(), lastAnswer], ended: false }),
+  false,
+  'последним стоит наше задание — ответ ещё идёт, Stop настоящий',
+);
+assert.equal(
+  stopStale({ nodes: [lastAnswer], ended: true, inside: true }),
+  true,
+  'Stop внутри законченного сообщения протух',
+);
 
-// ── 3. Цитата задания с маркером — это ответ, а не наша реплика ─────────────
-{
-  const { api } = load({ nodes: [], waiting: null });
-  assert.equal(api.looksLikeOwnTask('Задача NAR-1.10 … CF_TECH'), true, 'служебный текст без маркера — наш');
-  assert.equal(api.looksLikeOwnTask(`Повторил задание: … CF_TECH …\n${answerText}`), false, 'цитата с маркером остаётся ответом');
-  assert.equal(api.idTime('не-uuid'), 0, 'мусорный id времени не даёт');
-}
+// ── 7. В очереди отправки занятость проверяется дважды ────────────────────
+const sendFrom = src.indexOf('async function consumePending(manual = false) {');
+const sendBlock = src.slice(sendFrom, src.indexOf('async function submitExecutor(', sendFrom));
+assert.match(sendBlock, /const busy = await busySettled\(\);/, 'состояние проверяется, а не один кадр');
+assert.match(sendBlock, /Агент ещё отвечает/, 'в журнале есть причина ожидания');
 
-// ── 4. Stop вне сообщений больше не держит шаг вечно ───────────────────────
-const staleFrom = src.indexOf('  const stopIsStale = (el) => {');
-const staleTo = src.indexOf('  function busyReason() {');
-assert.ok(staleFrom > 0 && staleTo > staleFrom, 'stopIsStale на месте');
-const stopIsStaleFor = (nodes, endedFn) =>
-  new Function(
-    'document', 'replyEnded',
-    `${src.slice(staleFrom, staleTo)}; return stopIsStale;`,
-  )({ querySelectorAll: (sel) => (sel === '[data-agent-transcript-message]' ? nodes : []) }, endedFn);
-
-const m1 = { id: 'm1', querySelector: () => null };
-const mTask = { id: 'm2', querySelector: () => ({ user: true }) };
-const outside = { closest: () => null };
-assert.equal(stopIsStaleFor([m1], () => true)(outside), true, 'последний ответ закончен — Stop не признак работы (сбой 14:20)');
-assert.equal(stopIsStaleFor([m1], () => false)(outside), false, 'ответ печатается — Stop настоящий');
-assert.equal(stopIsStaleFor([m1, mTask], () => true)(outside), false, 'последним стоит наше задание — ответа ещё нет, Stop настоящий');
-assert.equal(stopIsStaleFor([], () => false)(outside), false, 'чата ещё нет — верим кнопке');
-assert.equal(stopIsStaleFor([m1], () => true)({ closest: () => m1 }), true, 'Stop в законченном сообщении — призрак');
-assert.equal(stopIsStaleFor([m1], () => false)({ closest: () => m1 }), false, 'Stop в печатающемся сообщении — настоящий');
-
-// ── 5. Один кадр не решает: очередь ждёт подтверждённого признака ──────────
-const cpFrom = src.indexOf('  async function consumePending(manual = false) {');
-const cpTo = src.indexOf('  // ───────────────────── следы прошлых попыток (очистка)');
-assert.ok(cpFrom > 0 && cpTo > cpFrom, 'consumePending на месте');
-const cpBody = src.slice(cpFrom, cpTo);
-assert.match(cpBody, /const busy = await busySettled\(\);/, 'признак подтверждается вторым чтением');
-assert.match(cpBody, /busyLabel\(busy\)/, 'в журнале видно, что именно нашлось');
-assert.doesNotMatch(cpBody, /if \(generating\(\)\) \{/, 'мгновенный кадр больше не блокирует отправку');
-
-// ── 6. Ожидание объясняется разбором чата, а не голым «нет сообщений» ──────
-assert.match(src, /сообщений агента после нашего задания нет/, 'формулировка не врёт про «нет сообщений»');
-assert.match(src, /наших \$\{mine\}, ответов агента \$\{answers\.length\}/, 'в журнале виден разбор чата');
-assert.match(src, /Маркера этой выдачи в чате нет\./, 'сказано, чего именно не хватает');
-
-console.log('OK: narthex 1.4.38 — ответ в чате находится и по месту, и по маркеру; Stop вне сообщений не вечен');
+console.log('OK: narthex 1.4.39 — ответ находится по месту и по маркеру, ложного «нет сообщений» и ложной занятости нет');

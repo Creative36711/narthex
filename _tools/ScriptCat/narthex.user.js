@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Narthex — передача хода между агентами
 // @namespace    https://arena.ai/
-// @version      1.4.38
+// @version      1.4.39
 // @description  Цикл Координатор → исполнитель → Координатор: агент сам коммитит, пушит и мержит PR; ScriptCat ждёт мерж и нажимает Continue.
 // @match        https://arena.ai/*
 // @match        https://www.arena.ai/*
@@ -106,7 +106,21 @@
   };
 
   // ───────────────────────────── утилиты ─────────────────────────────
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  /**
+   * Момент последнего признака жизни шага. Объявлен здесь, а не рядом с циклом:
+   * `sleep` нужен всем, и он же отмечает, что шаг жив.
+   */
+  let busyAt = 0;
+
+  /**
+   * Пауза с отметкой «шаг жив». Сторож снимает блокировку по двухминутной
+   * тишине, поэтому долгая, но честная работа не должна выглядеть зависанием:
+   * 24.10 в 14:48 живого шага как раз и перезапустили поверх первого.
+   */
+  const sleep = (ms) => {
+    busyAt = Date.now();
+    return new Promise((r) => setTimeout(r, ms));
+  };
   const norm = (x) => String(x || "").replace(/-/g, "").toLowerCase();
   /** Текст для сравнения: без разницы в регистре и пробелах. */
   const flat = (x) => String(x || "").replace(/[\s\u00a0]+/g, " ").trim().toLowerCase();
@@ -245,7 +259,7 @@
 
   const NTFY_BASE = "https://ntfy.sh";
   const SCRIPT_VERSION =
-    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.38";
+    (typeof GM_info !== "undefined" && GM_info?.script?.version) || "1.4.39";
 
   /** «https://ntfy.sh/topic?x=1» и «topic» одинаково дают topic. */
   function normalizeNtfyTopic(raw) {
@@ -1621,6 +1635,10 @@
   };
 
   function busyReason() {
+    // Плашка «задача выполнена» — самый точный признак покоя: Arena показывает
+    // её только после законченного хода. 24.10 в 14:48 скрипт ещё считал агента
+    // работающим, хотя плашка уже висела, а агент отвечал на прошлый ход.
+    if (completionPlaque()) return null;
     // Сначала подпись (дешёвое чтение атрибутов), потом геометрия и стили:
     // иначе на каждый тик пересчитываются стили сотни посторонних кнопок.
     const stop = [...document.querySelectorAll('button, [role="button"]')].find((b) => {
@@ -2467,6 +2485,26 @@
     return null;
   }
 
+  /**
+   * Плашка «Эта задача была выполнена успешно?» — опрос внизу чата.
+   *
+   * Мастер: пока она на экране, задача не выполняется — Arena не показывает
+   * этот опрос во время работы. И она перекрывает поле ввода, поэтому её
+   * закрывает скрипт, а не человек.
+   */
+  const COMPLETION_TEXT = /эта задача была выполнена успешно|was this task completed successfully|did this task complete successfully/i;
+
+  function completionPlaque() {
+    for (const panel of completionPanels()) {
+      if (!COMPLETION_TEXT.test(panel.textContent || "")) continue;
+      // Контейнер с целым чатом под этот селектор тоже попадает: плашкой он не
+      // становится, и «закрывать» его кнопкой шапки нельзя.
+      if (panel.querySelector('[data-agent-transcript-message="true"]')) continue;
+      return panel;
+    }
+    return null;
+  }
+
   /** Кандидаты в панель завершения: объединение обоих селекторов, без скрытых. */
   function completionPanels() {
     const found = new Set();
@@ -3045,6 +3083,13 @@
       return true;
     }
 
+    // Плашка «Эта задача была выполнена успешно?» закрывает поле ввода. Мастер
+    // просит убирать её скриптом: человек не должен щёлкать по опросу, чтобы
+    // цикл поехал дальше.
+    if (completionPlaque() && closeCompletionPlaque() === "closed") {
+      log("Убрал плашку «задача выполнена» — она закрывала поле ввода.");
+    }
+
     const { editor, closed, overlay } = await ensureComposer();
     if (closed) log(`Убрал плашку, которая закрывала чат${closed > 1 ? ` (${closed} раз)` : ""}.`);
     if (!editor) {
@@ -3290,6 +3335,11 @@
   });
 
   const hasPrUi = () => {
+    // Кнопка «Create pull request» из плашки «задача выполнена» — это действие
+    // чата, а не PR-интерфейс: нажатие отправляет агенту реплику «Please open a
+    // pull request…». 24.10 (14:48) именно так в чат Build/Release улетело
+    // лишнее сообщение, и агент бросил работу отвечать на него.
+    if (completionPlaque()) return false;
     const s = prSurface();
     return Boolean(s.merged || s.closed || s.cont || s.create || s.merge);
   };
@@ -3319,6 +3369,7 @@
     for (;;) {
       const value = check();
       if (value) return value;
+      stepAlive();
       if (Date.now() >= until) return null;
       await sleep(stepMs);
     }
@@ -3360,8 +3411,7 @@
         log("PR на странице нет и в ответе нет заявки о мерже — считаю, что работа в main не попала.", true);
         return "unconfirmed";
       }
-      const pr = String(result?.pr ?? "").trim();
-      const label = !pr ? "PR" : /^https?:/i.test(pr) ? pr : `PR #${pr.replace(/^#/, "")}`;
+      const label = prLabelOf(result);
       log(
         `${label} слит: принято по маркеру агента ` +
           "(бейджа и Continue на его странице нет — PR-интерфейс живёт на странице PR).",
@@ -3379,6 +3429,20 @@
       if (mergedFlag()) return finishMerge(task, key);
       if (closedFlag()) return finishClosed(task, key);
       if (continueButton()) return finishMerge(task, key);
+
+      // Агент уже заявил о мерже — кнопки PR не трогаем вовсе, даже если
+      // «Create pull request» видна. 24.10 (14:48) именно этот клик отправил в
+      // чат Build/Release реплику «Please open a pull request…», и агент вместо
+      // работы начал отвечать на неё. Заявка — тот же сигнал, что и в ветке
+      // «PR-интерфейса нет вовсе»: из ScriptCat нет доступа к API GitHub.
+      if (hasMergedClaim(result)) {
+        log(
+          `${prLabelOf(result)} слит: принято по маркеру агента ` +
+            "(кнопки Create/Merge не нажимаю — они отправят агенту лишнюю реплику).",
+        );
+        GM_setValue(key, true);
+        return "claimed";
+      }
 
       if (Date.now() > grace) {
         const create = createPr();
@@ -3484,6 +3548,12 @@
     if (/^https?:\/\//.test(value)) return value;
     return /^\d+$/.test(value) ? `https://github.com/${C.repo}/pull/${value}` : "";
   }
+
+  /** Подпись PR для журнала: номер или ссылка из маркера. */
+  const prLabelOf = (result) => {
+    const pr = String((result && result.pr) ?? "").trim();
+    return !pr ? "PR" : /^https?:/i.test(pr) ? pr : `PR #${pr.replace(/^#/, "")}`;
+  };
 
   /** Исполнитель утверждает, что слил PR сам. Единственный доступный сигнал. */
   const hasMergedClaim = (result) =>
@@ -4366,7 +4436,17 @@
 
   // ───────────────────────────── цикл ─────────────────────────────
   let busy = false;
-  let busyAt = 0;
+  /** Сколько раз подряд шаг снимали с блокировки по тишине. */
+  let stepRestarts = 0;
+
+  /**
+   * «Шаг жив». Сторож снимает блокировку через две минуты, а ожидание мержа
+   * длится до пяти — без этой отметки долгий, но честный шаг выглядел
+   * зависанием, и второй тик запускал его заново поверх первого (24.10, 14:48).
+   */
+  function stepAlive() {
+    busyAt = Date.now();
+  }
 
   /**
    * Перейти на страницу роли. Один и тот же переход из одного и того же места
@@ -4474,12 +4554,32 @@
     if (busy) {
       // Шаг мог повиснуть на сетевом запросе без таймаута. Тогда «Шаг» и
       // автоцикл молчат навсегда — снимаем блокировку и говорим об этом.
-      if (Date.now() - busyAt < 120000) {
+      //
+      // Тишина здесь настоящая: `sleep` и `waitFor` отмечаются в `busyAt`
+      // каждые несколько секунд, поэтому живого шага этот сторож не касается.
+      // Старый проход остаётся стоять на await, который уже не завершится, —
+      // значит перезапуск не дубль, а выход из тупика. Но третий раз подряд —
+      // это не сбой одного запроса, а поломка: дальше решает Мастер.
+      const silentMs = Date.now() - busyAt;
+      if (silentMs < 120000) {
         if (fromToggle) log("Шаг уже выполняется: дождитесь его конца, повторный не нужен.");
         return;
       }
-      log("Предыдущий шаг висел больше двух минут: снимаю блокировку и пробую снова.", true);
+      stepRestarts += 1;
+      log(
+        `Предыдущий шаг молчал ${Math.round(silentMs / 1000)} с (ни одной отметки жизни) — ` +
+          `снимаю блокировку и запускаю заново: ${stepRestarts} из 2.`,
+        true,
+      );
       busy = false;
+      if (stepRestarts > 2) {
+        pause(
+          "Шаг трижды подряд переставал отвечать на одном и том же месте. Параллельных запусков нет: " +
+            "снятый проход не продолжается. Проверьте страницу агента и нажмите «Продолжить».",
+          { kind: "step" },
+        );
+        return;
+      }
     }
     // Незавершённая отправка живёт в очереди и не зависит от автоцикла:
     // иначе после перехода на страницу адресата задание никто не досылал.
@@ -4736,6 +4836,7 @@
       );
     } finally {
       busy = false;
+      stepRestarts = 0;
       setStatus();
     }
   }

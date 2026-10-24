@@ -19,13 +19,13 @@ const to = src.indexOf('  async function finishMerge(', from);
 assert.ok(from > 0 && to > from, 'ensureMerged на месте');
 const block = src.slice(from, to);
 
-function make({ ui = false, store = new Map() } = {}) {
+function make({ ui = false, createOnly = false, store = new Map() } = {}) {
   const logs = [];
-  const calls = { finishMerge: 0, finishClosed: 0 };
+  const calls = { finishMerge: 0, finishClosed: 0, create: 0, merge: 0 };
   const fn = new Function(
     'K', 'GM_getValue', 'GM_setValue', 'C', 'log', 'hasMergedClaim',
     'mergedFlag', 'closedFlag', 'continueButton', 'createPr', 'mergePr', 'finishMerge', 'finishClosed',
-    'hasPrUi', 'waitFor',
+    'hasPrUi', 'waitFor', 'prLabelOf', 'sleep',
     // Проба идёт в видимой вкладке: ожидание не растягивается.
     `const patience = (ms) => ms;\n${block}; return ensureMerged;`,
   );
@@ -39,11 +39,11 @@ function make({ ui = false, store = new Map() } = {}) {
     () => ui && false,
     () => ui && false,
     () => (ui ? { click() {} } : null),
-    () => (ui ? { click() {} } : null),
-    () => (ui ? { click() {} } : null),
+    () => (ui || createOnly ? { click: () => { calls.create += 1; } } : null),
+    () => (ui ? { click: () => { calls.merge += 1; } } : null),
     async () => { calls.finishMerge += 1; return 'merged'; },
     async () => { calls.finishClosed += 1; return 'closed'; },
-    () => Boolean(ui),
+    () => Boolean(ui || createOnly),
     async (check, timeoutMs, stepMs = 20) => {
       const until = Date.now() + (Number(timeoutMs) || 0);
       for (;;) {
@@ -53,6 +53,12 @@ function make({ ui = false, store = new Map() } = {}) {
         await new Promise((r) => setTimeout(r, stepMs));
       }
     },
+    (r) => {
+      const pr = String((r && r.pr) ?? '').trim();
+      return !pr ? 'PR' : /^https?:/i.test(pr) ? pr : `PR #${pr.replace(/^#/, '')}`;
+    },
+    // Пауза внутри ensureMerged короткая: проба не должна ждать секундами.
+    () => new Promise((r) => setTimeout(r, 1)),
   );
   return { ensureMerged, logs, calls, store };
 }
@@ -71,6 +77,17 @@ function make({ ui = false, store = new Map() } = {}) {
   // Повторный шаг не переспрашивает.
   const again = await ensureMerged({ id: 'card-1' }, { merged: true });
   assert.equal(again, 'already', 'повторная проверка не нужна');
+}
+
+// ── 1b. На странице агента видна кнопка «Create pull request» (плашка
+// «задача выполнена»), маркер заявляет мерж: жать её нельзя.
+{
+  const { ensureMerged, logs, calls } = make({ createOnly: true });
+  const state = await ensureMerged({ id: 'card-3' }, { pr: 34, merged: true, status: 'submitted' });
+  assert.equal(state, 'claimed', 'маркер решает и при видимой кнопке PR');
+  assert.equal(calls.create, 0, 'лишний клик «Create pull request» не сделан');
+  assert.match(logs.at(-1).t, /PR #34 слит: принято по маркеру агента/, 'в журнале причина');
+  assert.match(logs.at(-1).t, /кнопки Create\/Merge не нажимаю/, 'сказано, почему кнопку не жали');
 }
 
 // 2. Тот же маркер, но с готовым URL вместо номера.
@@ -109,4 +126,4 @@ assert.match(
 );
 assert.match(src, /merged === "claimed" \? "слит \(по маркеру\)"/, 'в журнале видно, что мерж принят по маркеру');
 
-console.log('OK: narthex 1.4.38 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');
+console.log('OK: narthex 1.4.39 — мерж принимается по маркеру там, где бейджа нет, и не подвешивает шаг на пять минут');

@@ -1,4 +1,4 @@
-// Проба 1.4.38: id из строки-маркера больше не адресуют запись в Notion.
+// Проба 1.4.39: id из строки-маркера больше не адресуют запись в Notion.
 //
 // Инцидент 24.10.2026, 13:15 UTC. Kernel выполнил NAR-1.9 и прислал маркер, в
 // котором uuid карточки был с опечаткой:
@@ -14,8 +14,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const src = readFileSync(new URL('../narthex.user.js', import.meta.url), 'utf8');
-const V = '1.4.38';
-assert.match(src, /@version\s+1\.4\.38/, 'версия 1.4.38');
+const V = '1.4.39';
+assert.match(src, /@version\s+1\.4\.39/, 'версия 1.4.39');
 
 // ── 1. isUuid и adoptIds ────────────────────────────────────────────────────
 const from = src.indexOf('const isUuid = (value) =>');
